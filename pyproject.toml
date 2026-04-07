@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "logical-robotics-harness"
+version = "0.0.1"
+description = "Seed repository for Logical Robotics Harness"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+  {name = "Anthony Francis"}
+]
+dependencies = []
+
+[project.scripts]
+lrh = "lrh.cli.main:main"

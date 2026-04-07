@@ -1,0 +1,12 @@
+#!/bin/bash
+# Build LRH via Python's build module
+# Requires:
+# - pip install build
+echo "Building the lrh package..."
+set -x
+
+python -m build
+
+# Turn off logging and print a blank line
+{ set +x; } 2>/dev/null
+echo

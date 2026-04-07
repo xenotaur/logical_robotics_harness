@@ -1,0 +1,17 @@
+#!/bin/bash
+# Publish LCATS to PyPI via twine
+# Requires:
+# - pip install twine
+echo "Publishing lrh to pip..."
+set -x
+
+if [ -d "dist" ]; then
+    echo twine upload dist/*
+    echo "Publishing not yet supported until lrh is more heavily tested / fleshed out."
+else
+    echo "No dist directory found, please run build first."
+fi
+
+# Turn off logging and print a blank line
+{ set +x; } 2>/dev/null
+echo

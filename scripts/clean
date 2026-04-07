@@ -1,0 +1,9 @@
+#!/bin/bash
+echo "Cleaning lrh build..."
+set -x
+
+rm -rf build dist lrh.egg-info
+
+# Turn off logging and print a blank line
+{ set +x; } 2>/dev/null
+echo

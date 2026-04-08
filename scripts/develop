@@ -2,7 +2,7 @@
 echo "Installing lrh in develop mode..."
 set -x
 
-pip install -e .
+pip install -e ".[dev]"
 
 # Turn off logging and print a blank line
 { set +x; } 2>/dev/null

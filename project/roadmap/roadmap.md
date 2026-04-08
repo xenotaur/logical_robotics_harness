@@ -58,7 +58,7 @@ Add external orchestration capability:
 - MCP integration
 - tool registry
 - agent runtime abstraction
-- policy and approval controls
+- guardrail and approval controls
 
 Exit condition:
 - LRH can act as a practical harness around external tools and agent runtimes.

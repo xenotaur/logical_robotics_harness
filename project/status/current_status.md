@@ -44,6 +44,14 @@ Reason:
 - validate references and precedence
 - self-validate the LRH repo
 
+## Guardrail Summary
+
+- blocked actions: none recorded
+- pending approvals: none recorded
+- safety warnings: none recorded
+- cost warnings: none recorded
+- optics warnings: none recorded
+
 ## Risks
 
 - overbuilding before first end-to-end validation exists

@@ -61,7 +61,7 @@ Installs LRH in development mode for active development.
 scripts/develop
 ```
 
-This installs the package with `pip install -e .`, allowing you to make changes to the source code that are immediately reflected without reinstalling.
+This installs the package with `pip install -e ".[dev]"`, allowing you to make changes to the source code that are immediately reflected without reinstalling while also installing standard development tools.
 
 #### `update`
 Updates the conda environment specification file.
@@ -244,7 +244,7 @@ scripts/coverage [--html]
 
 ### Initial Setup
 ```bash
-scripts/develop    # Install in development mode
+scripts/develop    # Install in development mode with standard dev tools
 ```
 
 ### Regular Development
@@ -280,7 +280,6 @@ Make sure you have the following tools installed for full functionality:
 
 - **Build:** `pip install build`
 - **Publish:** `pip install twine` 
-- **Format:** `pip install black`
-- **Lint:** `pip install ruff`
+- **Format/Lint:** Installed by `scripts/develop` via `pip install -e ".[dev]"` (includes Black and Ruff)
 - **Coverage:** `pip install coverage`
 - **Environment:** conda (for environment export)

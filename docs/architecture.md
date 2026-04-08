@@ -4,7 +4,7 @@
 
 Logical Robotics Harness (LRH) is a reusable workflow harness for structured, evidence-backed, agent-assisted work across multiple repositories.
 
-It is **not** the client project itself. Instead, it operates against a target repository that contains a human-readable `project/` directory describing the project's intent, planning state, active focus, work queue, evidence, and status.
+It is **not** the client project itself. Instead, it operates against a target repository that contains a human-readable `project/` directory describing the project's intent, planning state, active focus, work queue, action decisions, guardrails, evidence, and status.
 
 ## Core separation
 
@@ -19,7 +19,7 @@ The harness repository contains reusable code such as:
 - workspace adapters
 - evidence handling
 - status synthesis
-- policy and reporting
+- guardrail reporting
 - tool integration
 
 ### 2. Client project repository
@@ -39,13 +39,14 @@ A runtime environment may provide:
 - build/test tools
 - sandboxing and approval controls
 
-## Control stack
+## Four-plane model
 
-The project control stack is:
+The project control model is:
 
-**Principles → Project Goal → Roadmap → Current Focus → Work Items → Evidence → Status**
-
-This can be understood as three planes.
+- **Intent Plane**: Principles → Project Goal → Roadmap
+- **Execution Plane**: Current Focus → Work Items → Actions
+- **Truth Plane**: Evidence → Status
+- **Consequences Plane**: Guardrails (Safety, Cost, Optics, Approvals)
 
 ### Intent plane
 
@@ -59,8 +60,9 @@ This answers: **why are we doing this, and where are we headed?**
 
 - Current Focus
 - Work Items
+- Actions
 
-This answers: **what are we doing now?**
+This answers: **what are we doing now and what execution units are being proposed?**
 
 ### Truth plane
 
@@ -68,6 +70,24 @@ This answers: **what are we doing now?**
 - Status
 
 This answers: **what is actually true right now?**
+
+### Consequences plane
+
+- Guardrails
+  - Safety
+  - Cost
+  - Optics
+  - Approvals
+
+This answers: **what constraints, risks, and authorization boundaries apply to proposed actions?**
+
+## Execution lifecycle
+
+Execution should move through an explicit lifecycle:
+
+**Work Item → Action Proposal → Guardrail Review → Action Decision → Execution → Evidence → Status**
+
+This separates execution intent from consequence review and keeps decision records inspectable.
 
 ## Human-readable source + structured runtime
 
@@ -92,6 +112,8 @@ Define structured internal models for:
 - roadmap
 - current focus
 - work items
+- actions
+- guardrails
 - evidence
 - status
 
@@ -129,4 +151,4 @@ After the control plane and validation workflow exist, LRH can expand to:
 - status synthesis
 - MCP/tool integration
 - agent runtime integration
-- policy and approval controls
+- guardrail evaluation and approval workflows

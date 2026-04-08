@@ -3,7 +3,7 @@
 ## 2026-04-03
 Adopted the top-level schema:
 
-Principles → Project Goal → Roadmap → Current Focus → Work Items → Evidence → Status
+Principles → Project Goal → Roadmap → Current Focus → Work Items → Actions → Evidence → Status (+ Guardrails)
 
 Reason:
 This separates intent, execution, and truth more clearly than a milestone/sprint/task-only model.

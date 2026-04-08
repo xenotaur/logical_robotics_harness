@@ -8,7 +8,7 @@ success_criteria:
   - tool/context integration path is defined
   - MCP-backed tool registry exists
   - agent runtime abstraction exists
-  - policy/approval controls are integrated
+  - guardrail/approval controls are integrated
 ---
 
 # Phase 4 — MCP and Agent Integration
@@ -20,7 +20,7 @@ This phase allows LRH to become a full agent harness rather than only a control-
 - MCP client integration
 - tool registry
 - agent backend abstraction
-- policy engine
+- guardrail evaluation engine
 - approval boundaries
 
 ## Risks

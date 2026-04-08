@@ -47,7 +47,8 @@ def _normalize_target_for_gha(target_input: str) -> str:
     Accepts inputs like:
         src/lrh/analysis/foo.py      -> src/lrh/analysis/foo.py
         src/lrh/analysis/foo.py      -> src/lrh/analysis/foo.py
-        analysis/foo.py             -> src/lrh/analysis/foo.py  (assumed relative to src/lrh/)
+        analysis/foo.py             -> src/lrh/analysis/foo.py
+                                       (assumed relative to src/lrh/)
     """
     s = target_input.strip().replace("\\", "/")
     s = s.lstrip("./")
@@ -92,9 +93,7 @@ def _compute_suggested_test_path(target_module_gha: str) -> str:
     if len(parts) < 3 or parts[0] != "src" or parts[1] != "lrh":
         # Fall back: place in tests/
         stem = p.stem
-        return str(Path("tests") / f"{stem}_test.py").replace(
-            "\\", "/"
-        )
+        return str(Path("tests") / f"{stem}_test.py").replace("\\", "/")
 
     subdir = parts[2]
     rest_dirs = parts[3:-1]  # dirs after subdir, before file
@@ -143,7 +142,10 @@ def _parse_args(argv) -> argparse.Namespace:
     )
     parser.add_argument(
         "template_name",
-        help="Template base name (e.g. improve_coverage) corresponding to scripts/aiprog/templates/<name>.md",
+        help=(
+            "Template base name (e.g. improve_coverage)"
+            " corresponding to scripts/aiprog/templates/<name>.md"
+        ),
     )
     parser.add_argument(
         "target",
@@ -160,7 +162,6 @@ def _parse_args(argv) -> argparse.Namespace:
 def main(argv=None) -> int:
     args = _parse_args(argv if argv is not None else sys.argv[1:])
 
-    # print('hello from create_request.py with template "%s" and target "%s"' % (args.template_name, args.target), file=sys.stderr)
     try:
         _, template_text = _load_template(args.template_name)
     except FileNotFoundError as e:

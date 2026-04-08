@@ -18,9 +18,11 @@ Build a harness that can:
 
 Keep clear separation between:
 
-1. **the harness code** in `lrh/`
-2. **the harness's own project control plane** in `project/`
-3. **future client project repositories**, which will also have their own `project/` directories
+1. **the harness code** in `src/lrh/`
+2. **package tests** in `tests/`
+3. **maintainer-only AI programming helpers** in `scripts/aiprog/`
+4. **the harness's own project control plane** in `project/`
+5. **future client project repositories**, which will also have their own `project/` directories
 
 Do not hard-code LRH to this repository only. The repository should be self-hosting at the control-plane level, but the code should remain reusable for other projects.
 
@@ -51,7 +53,7 @@ The `project/` directory is the human-readable source of truth.
 Maintain a strict boundary between:
 
 - source Markdown documents under `project/`
-- runtime structured objects inside `lrh/`
+- runtime structured objects inside `src/lrh/`
 
 Do not treat raw dictionaries as the long-term internal API if a typed model is appropriate.
 

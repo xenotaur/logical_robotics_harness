@@ -14,8 +14,11 @@ logical_robotics_harness/
   AGENTS.md
   pyproject.toml
   docs/
-  lrh/
+  src/
+    lrh/
   tests/
+  scripts/
+    aiprog/
   project/
 ```
 
@@ -149,10 +152,10 @@ This precedence should eventually be implemented explicitly in code.
 
 ## Initial Python package targets
 
-The initial `lrh/` package should likely grow modules such as:
+The initial `src/lrh/` package should likely grow modules such as:
 
 ```text
-lrh/
+src/lrh/
   cli/
   control/
   orchestration/
@@ -162,7 +165,6 @@ lrh/
   status/
   guardrails/
   reporting/
-  tools/
   adapters/
 ```
 

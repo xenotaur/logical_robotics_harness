@@ -3,10 +3,10 @@
 Create a filled-out PR request from a template.
 
 Usage:
-    tools/create_request.py improve_coverage lrh/analysis/llm_extractor.py
+    scripts/aiprog/create_request.py improve_coverage src/lrh/analysis/llm_extractor.py
 
 Templates live in:
-    tools/templates/<template_name>.md
+    scripts/aiprog/templates/<template_name>.md
 
 Interpolation variables use the form:
     {{VARIABLE_NAME}}
@@ -34,7 +34,7 @@ def _load_template(template_name: str) -> Tuple[Path, str]:
     if not template_path.exists():
         raise FileNotFoundError(
             f"Template not found: {template_path}\n"
-            f"Expected: tools/templates/{template_name}.md"
+            f"Expected: scripts/aiprog/templates/{template_name}.md"
         )
     return template_path, template_path.read_text(encoding="utf-8")
 
@@ -42,27 +42,30 @@ def _load_template(template_name: str) -> Tuple[Path, str]:
 def _normalize_target_for_gha(target_input: str) -> str:
     """
     Normalize an input path into repo-root style module path:
-        lrh/lrh/<...>.py
+        src/lrh/<...>.py
 
     Accepts inputs like:
-        lrh/analysis/foo.py         -> lrh/lrh/analysis/foo.py
-        lrh/lrh/analysis/foo.py   -> lrh/lrh/analysis/foo.py
-        analysis/foo.py               -> lrh/lrh/analysis/foo.py  (assumed relative to lrh/)
+        src/lrh/analysis/foo.py      -> src/lrh/analysis/foo.py
+        src/lrh/analysis/foo.py      -> src/lrh/analysis/foo.py
+        analysis/foo.py             -> src/lrh/analysis/foo.py  (assumed relative to src/lrh/)
     """
     s = target_input.strip().replace("\\", "/")
     s = s.lstrip("./")
 
-    # If user passes a path relative to the lrh/ dir (common local usage)
-    if not s.startswith("lrh/"):
-        s = f"lrh/{s}"
+    # If user passes a path relative to src/lrh/ (common local usage)
+    if not s.startswith("src/lrh/"):
+        if s.startswith("lrh/"):
+            s = f"src/{s}"
+        else:
+            s = f"src/lrh/{s}"
 
-    # If already includes lrh/lrh, keep as-is
-    if s.startswith("lrh/lrh/"):
+    # If already includes src/lrh, keep as-is
+    if s.startswith("src/lrh/"):
         return s
 
-    # If starts with lrh/ but not lrh/lrh/, insert the second lrh/
-    if s.startswith("lrh/"):
-        return "lrh/lrh/" + s[len("lrh/") :]
+    # If starts with src/ but not src/lrh/, insert lrh/
+    if s.startswith("src/"):
+        return "src/lrh/" + s[len("src/") :]
 
     # Should be unreachable, but keep safe
     return s
@@ -71,25 +74,25 @@ def _normalize_target_for_gha(target_input: str) -> str:
 def _compute_suggested_test_path(target_module_gha: str) -> str:
     """
     Given:
-        lrh/lrh/<subdir>/<...>/<name>.py
+        src/lrh/<subdir>/<...>/<name>.py
     Suggest:
-        lrh/tests/<subdir>_tests/<...>/<name>_test.py
+        tests/<subdir>/<...>/<name>_test.py
 
     Example:
-        lrh/lrh/analysis/llm_extractor.py
-            -> lrh/tests/analysis_tests/llm_extractor_test.py
+        src/lrh/analysis/llm_extractor.py
+            -> tests/analysis/llm_extractor_test.py
 
-        lrh/lrh/analysis/nlp/foo.py
-            -> lrh/tests/analysis_tests/nlp/foo_test.py
+        src/lrh/analysis/nlp/foo.py
+            -> tests/analysis/nlp/foo_test.py
     """
     p = Path(target_module_gha)
 
-    # Expect: lrh / lrh / <subdir> / ... / <file>
+    # Expect: src / lrh / <subdir> / ... / <file>
     parts = p.parts
-    if len(parts) < 4 or parts[0] != "lrh" or parts[1] != "lrh":
-        # Fall back: place in lrh/tests/misc_tests/
+    if len(parts) < 3 or parts[0] != "src" or parts[1] != "lrh":
+        # Fall back: place in tests/
         stem = p.stem
-        return str(Path("lrh/tests/misc_tests") / f"{stem}_test.py").replace(
+        return str(Path("tests") / f"{stem}_test.py").replace(
             "\\", "/"
         )
 
@@ -97,7 +100,7 @@ def _compute_suggested_test_path(target_module_gha: str) -> str:
     rest_dirs = parts[3:-1]  # dirs after subdir, before file
     stem = p.stem
 
-    test_dir = Path("lrh/tests") / f"{subdir}_tests"
+    test_dir = Path("tests") / subdir
     if rest_dirs:
         test_dir = test_dir.joinpath(*rest_dirs)
 
@@ -140,11 +143,11 @@ def _parse_args(argv) -> argparse.Namespace:
     )
     parser.add_argument(
         "template_name",
-        help="Template base name (e.g. improve_coverage) corresponding to tools/templates/<name>.md",
+        help="Template base name (e.g. improve_coverage) corresponding to scripts/aiprog/templates/<name>.md",
     )
     parser.add_argument(
         "target",
-        help="Target module path (e.g. lrh/analysis/llm_extractor.py or lrh/lrh/analysis/llm_extractor.py)",
+        help="Target module path (e.g. src/lrh/analysis/llm_extractor.py)",
     )
     parser.add_argument(
         "--show-vars",

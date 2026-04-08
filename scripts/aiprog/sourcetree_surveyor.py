@@ -6,9 +6,9 @@ Inventory a Python source tree and summarize "public-ish surface area" per file
 to help humans or agents assess testability and plan unit tests.
 
 Examples:
-  python tools/sourcetree_surveyor.py lrh/utils --format md
-  python tools/sourcetree_surveyor.py lrh/utils --format json
-  python tools/sourcetree_surveyor.py lrh/utils --tests-root tests/utils_tests --format md
+  python scripts/aiprog/sourcetree_surveyor.py src/lrh --format md
+  python scripts/aiprog/sourcetree_surveyor.py src/lrh --format json
+  python scripts/aiprog/sourcetree_surveyor.py src/lrh --tests-root tests --format md
 """
 
 from __future__ import annotations
@@ -251,7 +251,7 @@ def to_json(reports: list[FileReport]) -> str:
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser()
-    p.add_argument("root", help="Root directory to scan (e.g., lrh/utils)")
+    p.add_argument("root", help="Root directory to scan (e.g., src/lrh)")
     p.add_argument(
         "--tests-root",
         default=None,

@@ -7,10 +7,11 @@ agentic development workflow based on explicitly collecting evidence of status a
 
 The core idea of LRH is to decouple the client's project state from the agentic harness code:
 
-- the **harness** (`lrh/`) provides reusable orchestration, parsing, validation, evidence, status,
+- the **harness** (`src/lrh/`) provides reusable orchestration, parsing, validation, evidence, status,
   and tool integration logic
 - the **client project repository** contains its own `project/` directory describing its
   principles, goal, roadmap, focus, work items, actions, guardrails, evidence, and status
+- **maintainer operational scripts** live in `scripts/`, including maintainer-only AI helpers in `scripts/aiprog/`
 
 LRH is in its early stages, but the goal of this project is to point it at a target repository,
 load that repository's `project/` control plane, iterate with a human to define a project roadmap,
@@ -29,8 +30,11 @@ logical_robotics_harness/
   AGENTS.md
   pyproject.toml
   docs/
-  lrh/
+  src/
+    lrh/
   tests/
+  scripts/
+    aiprog/
   project/
 ```
 
@@ -56,7 +60,7 @@ The control model for a project is:
 These should exist as:
 
 1. human-readable Markdown files with YAML frontmatter
-2. structured runtime objects inside `lrh/`
+2. structured runtime objects inside `src/lrh/`
 
 ### Action lifecycle
 

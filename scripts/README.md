@@ -1,12 +1,12 @@
 # LRH Development Scripts
 
 This directory contains utility scripts for development, testing, and maintenance of the LRH 
-package. All scripts are designed to be executed from the `lrh` directory of the 
+package. All scripts are designed to be executed from the repository root of the 
 logical_robotics_harness project.
 
 ## Usage
 
-Execute any script from the `lrh` directory under the project root:
+Execute any script from the repository root:
 ```bash
 scripts/<script_name>
 ```
@@ -82,9 +82,9 @@ scripts/format
 ```
 
 **Applies formatting to:**
-- `lrh/` directory
+- `src/lrh/` directory
 - `tests/` directory
-- `tools/` directory
+- `scripts/aiprog/` directory
 
 ---
 
@@ -102,14 +102,14 @@ By default, this is a **fast check** intended for frequent use during developmen
 - Black formatting (check-only, no modifications)
 
 **Targets (default):**
-- `lrh/`
+- `src/lrh/`
 - `tests/`
-- `tools/`
+- `scripts/aiprog/`
 
 You may optionally specify paths:
 
 ```bash
-scripts/lint lrh/gatherers/downloaders.py
+scripts/lint src/lrh/gatherers/downloaders.py
 ```
 
 ---
@@ -269,7 +269,7 @@ scripts/update     # Update environment.yml when dependencies change
 
 ## Notes
 
-- All scripts assume execution from the LRH/lrh software directory
+- All scripts assume execution from the repository root
 - Scripts use `set -x` for verbose output during execution
 - Scripts with `set -euo pipefail` will exit on any error
 - The publish script is currently disabled as a safety measure during development

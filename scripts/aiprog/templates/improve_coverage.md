@@ -12,7 +12,7 @@ Before doing anything else, prepare the development environment exactly as follo
 
 From the repository root:
 
-    cd lrh
+    cd logical_robotics_harness
     python -m pip install --upgrade pip
     python -m pip install -e ".[test]"
 
@@ -30,9 +30,9 @@ If you must use pipes, enable: set -o pipefail
 CONSTRAINTS (strict)
 ==================================================
 
-- Edit ONLY files under: lrh/tests/
-- Do NOT modify any production code under lrh/lrh/
-- Follow AGENTS.md and lrh/tests/AGENTS.md
+- Edit ONLY files under: tests/
+- Do NOT modify any production code under src/lrh/
+- Follow AGENTS.md
 - Use unittest only
 - Use module imports only:
       from lrh.<submodule> import <module>
@@ -56,7 +56,7 @@ Wrap the call with suppress_output().
 Use capture_output() and assert only on stable substrings (avoid exact whole-output equality).
 
 Use helpers from:
-lrh/tests/utils/capture.py
+tests/utils/capture.py
 
 Do NOT modify production code to remove or change printing.
 

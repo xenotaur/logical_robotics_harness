@@ -12,7 +12,7 @@ The architecture is intentionally decoupled.
 
 ### 1. Harness repository / package
 
-The harness repository contains reusable code such as:
+The harness repository contains reusable package code in `src/lrh/` such as:
 
 - control-model parsing
 - orchestration
@@ -21,6 +21,8 @@ The harness repository contains reusable code such as:
 - status synthesis
 - guardrail reporting
 - tool integration
+
+Maintainer-only AI programming helpers live in `scripts/aiprog/` and are outside the supported package API boundary.
 
 ### 2. Client project repository
 
@@ -94,7 +96,7 @@ This separates execution intent from consequence review and keeps decision recor
 Each project control object should exist in two forms:
 
 1. Markdown + YAML frontmatter in `project/`
-2. structured runtime objects inside `lrh/`
+2. structured runtime objects inside `src/lrh/`
 
 The Markdown files are the human-readable source of truth for collaboration.
 The runtime model is the typed internal representation used by LRH.

@@ -1,12 +1,12 @@
 """Guardrail models and evaluation helpers for LRH."""
 
-from .engine import GuardrailEngine
-from .models import (
-    ActionDecision,
-    ActionProposal,
-    ApprovalRecord,
-    ConsequenceAssessment,
-)
+from lrh.guardrails import engine, models
+
+GuardrailEngine = engine.GuardrailEngine
+ActionDecision = models.ActionDecision
+ActionProposal = models.ActionProposal
+ApprovalRecord = models.ApprovalRecord
+ConsequenceAssessment = models.ConsequenceAssessment
 
 __all__ = [
     "ActionProposal",

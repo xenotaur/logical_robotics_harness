@@ -1,12 +1,12 @@
 """Cost guardrail checks."""
 
-from .models import ActionProposal
+from lrh.guardrails import models
 
 
 class CostGuardrail:
     """Minimal cost guardrail evaluator."""
 
-    def evaluate(self, proposal: ActionProposal) -> list[str]:
+    def evaluate(self, proposal: models.ActionProposal) -> list[str]:
         """Return cost warnings for a proposal."""
         del proposal
         return []

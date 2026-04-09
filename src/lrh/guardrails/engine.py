@@ -1,10 +1,10 @@
 """Minimal guardrail review engine."""
 
-from .approvals import ApprovalGuardrail
-from .cost import CostGuardrail
-from .models import ActionProposal, ConsequenceAssessment
-from .optics import OpticsGuardrail
-from .safety import SafetyGuardrail
+from lrh.guardrails import approvals as approvals_module
+from lrh.guardrails import cost as cost_module
+from lrh.guardrails import models
+from lrh.guardrails import optics as optics_module
+from lrh.guardrails import safety as safety_module
 
 
 class GuardrailEngine:
@@ -12,17 +12,17 @@ class GuardrailEngine:
 
     def __init__(
         self,
-        safety: SafetyGuardrail | None = None,
-        cost: CostGuardrail | None = None,
-        optics: OpticsGuardrail | None = None,
-        approvals: ApprovalGuardrail | None = None,
+        safety: safety_module.SafetyGuardrail | None = None,
+        cost: cost_module.CostGuardrail | None = None,
+        optics: optics_module.OpticsGuardrail | None = None,
+        approvals: approvals_module.ApprovalGuardrail | None = None,
     ) -> None:
-        self.safety = safety or SafetyGuardrail()
-        self.cost = cost or CostGuardrail()
-        self.optics = optics or OpticsGuardrail()
-        self.approvals = approvals or ApprovalGuardrail()
+        self.safety = safety or safety_module.SafetyGuardrail()
+        self.cost = cost or cost_module.CostGuardrail()
+        self.optics = optics or optics_module.OpticsGuardrail()
+        self.approvals = approvals or approvals_module.ApprovalGuardrail()
 
-    def assess(self, proposal: ActionProposal) -> ConsequenceAssessment:
+    def assess(self, proposal: models.ActionProposal) -> models.ConsequenceAssessment:
         """Return a consolidated consequence assessment for a proposal."""
         safety_warnings = self.safety.evaluate(proposal)
         cost_warnings = self.cost.evaluate(proposal)
@@ -31,7 +31,7 @@ class GuardrailEngine:
 
         blocked = bool(safety_warnings)
 
-        return ConsequenceAssessment(
+        return models.ConsequenceAssessment(
             action_id=proposal.action_id,
             safety_warnings=safety_warnings,
             cost_warnings=cost_warnings,

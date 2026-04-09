@@ -1,20 +1,7 @@
-import importlib
-import sys
 import unittest
-from pathlib import Path
 
-
-def _import_guardrail_modules() -> tuple[object, object]:
-    project_src = Path(__file__).resolve().parents[1] / "src"
-    if str(project_src) not in sys.path:
-        sys.path.insert(0, str(project_src))
-
-    engine_module = importlib.import_module("lrh.guardrails.engine")
-    models_module = importlib.import_module("lrh.guardrails.models")
-    return engine_module, models_module
-
-
-engine_module, models = _import_guardrail_modules()
+from lrh.guardrails import engine as engine_module
+from lrh.guardrails import models
 
 
 class _FakeSafetyGuardrail:

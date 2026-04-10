@@ -4,6 +4,38 @@ This document defines the coding, packaging, and contribution conventions for th
 
 Its purpose is to make the codebase easier to read, review, maintain, and extend, while keeping pull requests narrow and low-noise.
 
+## TL;DR — The 10 Rules of LRH
+
+1. **Keep changes small and scoped**
+   Do not modify unrelated code.
+
+2. **Prefer clarity over cleverness**
+   Simple, explicit code wins.
+
+3. **Import modules, not members**
+   Use `from package import module`, then `module.function()`.
+
+4. **Make behavior deterministic**
+   Seed randomness; avoid time-dependent logic in tests.
+
+5. **Write and pass tests**
+   Use `unittest`; all tests must pass before merging.
+
+6. **Pass lint and formatting**
+   Code must pass `ruff` and `black`.
+
+7. **Do not introduce noise in PRs**
+   No drive-by refactors, formatting, or renaming.
+
+8. **Keep scripts thin**
+   No core logic in `scripts/`; use them as entry points only.
+
+9. **Preserve structure and intent**
+   Do not rewrite working code without a clear reason.
+
+10. **When in doubt, be conservative**
+    Prefer the smaller, clearer, more reviewable change.
+
 ## Order of Precedence
 
 When there is any ambiguity or conflict, use the following order of precedence:
@@ -17,9 +49,14 @@ When there is any ambiguity or conflict, use the following order of precedence:
 
 The project-specific conventions in this document take precedence over more general style guidance.
 
-## General Principles
+## Philosophy
 
-Code in LRH should favor:
+- Simple > clever
+- Explicit > implicit
+- Deterministic > stochastic
+- Small diffs > large rewrites
+
+In general, code and changes in LRH should favor:
 
 - clarity and simplicity over cleverness
 - explicitness over implicitness

@@ -44,8 +44,8 @@ When there is any ambiguity or conflict, use the following order of precedence:
 2. Passing unit tests
 3. Ruff lint compliance
 4. Black formatting compliance
-5. Google Python Style Guide
-6. PEP 8 for issues not otherwise covered
+5. [Google Python Style Guide](https://google.github.io/styleguide/pyguide.html)
+6. [PEP 8](https://peps.python.org/pep-0008/) for issues not otherwise covered
 
 The project-specific conventions in this document take precedence over more general style guidance.
 
@@ -96,7 +96,7 @@ Project tooling should work from the documented project root. Development depend
 
 ### Core Import Policy
 
-LRH prefers importing modules and submodules rather than importing individual members into the local namespace.
+LRH prefers importing modules and submodules rather than importing individual members into the local namespace, inspired by the [Google Python Style Guide Imports section](https://google.github.io/styleguide/pyguide.html#s2.2-imports).
 
 - Always use module-level imports:
   - `from package import module`
@@ -173,7 +173,7 @@ Public names, internal helper names, test names, and script names should all fav
 
 ## Docstrings and Comments
 
-Use docstrings for public modules, classes, and functions where helpful.
+Use docstrings for public modules, classes, and functions where helpful - particularly, following the [Google Python Style Guide format for functions](https://google.github.io/styleguide/pyguide.html#s3.8.3-functions-and-methods).
 
 Comments should explain:
 

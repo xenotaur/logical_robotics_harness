@@ -232,3 +232,154 @@ Each work item should specify:
 
 - Significant changes should be reflected in:
   - `memory/decision_log.md`
+
+
+---
+
+## 15. Structured Metadata Model
+
+LRH uses Markdown as its primary human-readable format. For operational artifacts—especially `focus/` and `work_items/`—LRH uses **lightweight YAML frontmatter** to provide machine-readable metadata.
+
+Frontmatter is intended to expose the minimum structured state needed for:
+
+- validation
+- linking and dependency resolution
+- filtering and prioritization
+- contributor assignment
+- action planning
+- evidence requirements
+- status synthesis
+
+The Markdown body remains the primary place for explanation, rationale, and discussion.
+
+### 15.1 Focus Schema
+
+A focus document defines the active near-term operational charter for the project.
+
+#### Required fields
+- `id`
+- `title`
+- `status`
+
+#### Recommended fields
+- `owner`
+- `related_roadmap`
+- `start_date`
+- `review_date`
+- `success_criteria`
+- `active_contributors`
+- `priority`
+
+#### Allowed status values
+- `proposed`
+- `active`
+- `paused`
+- `blocked`
+- `completed`
+- `abandoned`
+
+#### Example
+
+```yaml
+---
+id: FOCUS-BOOTSTRAP
+title: Bootstrap the control plane
+status: active
+owner: anthony
+related_roadmap:
+  - ROADMAP-PHASE-01
+success_criteria:
+  - core schema exists
+  - validation CLI works
+active_contributors:
+  - anthony
+priority: high
+---
+```
+
+---
+
+### 15.2 Work Item Schema
+
+A work item defines a bounded, executable unit of work.
+
+#### Required fields
+- `id`
+- `title`
+- `type`
+- `status`
+
+#### Recommended fields
+- `priority`
+- `owner`
+- `contributors`
+- `assigned_agents`
+- `related_focus`
+- `related_roadmap`
+- `depends_on`
+- `blocked_by`
+- `expected_actions`
+- `forbidden_actions`
+- `acceptance`
+- `required_evidence`
+- `artifacts_expected`
+
+#### Allowed types
+- `deliverable`
+- `investigation`
+- `evaluation`
+- `operation`
+
+#### Allowed status values
+- `proposed`
+- `ready`
+- `in_progress`
+- `blocked`
+- `needs_review`
+- `done`
+- `abandoned`
+
+#### Example
+
+```yaml
+---
+id: WI-0001
+title: Implement core models
+type: deliverable
+status: ready
+priority: high
+owner: anthony
+related_focus:
+  - FOCUS-BOOTSTRAP
+acceptance:
+  - models exist
+required_evidence:
+  - test_result
+---
+```
+
+---
+
+### 15.3 Action Awareness
+
+Work items may include:
+
+- `expected_actions`
+- `forbidden_actions`
+
+These fields help connect execution planning to guardrails, but do not override guardrail enforcement.
+
+---
+
+### 15.4 Validation Expectations
+
+Initial LRH validation should ensure:
+
+- required fields are present
+- IDs are unique
+- references resolve (focus, roadmap, dependencies)
+- enums are valid
+- list fields are properly structured
+
+Validation should be strict enough to ensure consistency, but not so strict that it blocks iteration.
+

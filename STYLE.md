@@ -1,4 +1,4 @@
-# LRH Style Guide
+# LRH STYLE GUIDE
 
 This document defines the coding, packaging, and contribution conventions for the Logical Robotics Harness (LRH) project.
 
@@ -21,11 +21,13 @@ The project-specific conventions in this document take precedence over more gene
 
 Code in LRH should favor:
 
-- clarity over cleverness
+- clarity and simplicity over cleverness
 - explicitness over implicitness
 - small, reviewable changes over broad rewrites
 - consistency across the repository
 - minimal semantic diffs
+- readability over terseness
+- deterministic over stochastic (especially in tests)
 
 Contributors should avoid introducing unnecessary churn in files that are otherwise unrelated to the task at hand.
 
@@ -58,6 +60,12 @@ Project tooling should work from the documented project root. Development depend
 ### Core Import Policy
 
 LRH prefers importing modules and submodules rather than importing individual members into the local namespace.
+
+- Always use module-level imports:
+  - `from package import module`
+  - Then use: `module.function()`
+- Do NOT import members directly unless unavoidable.
+- Relative imports (`from . import module`) are NOT allowed unless required, and must include a comment explaining why.
 
 Preferred:
 
@@ -146,6 +154,12 @@ A special case where comments are expected is when using an exception to a norma
 
 All substantive code changes should be covered by tests where practical.
 
+- Use `unittest`
+- All new functionality must include tests
+- All tests must pass before merging
+
+### Testing Changes
+
 At minimum:
 
 - existing unit tests must pass
@@ -153,6 +167,16 @@ At minimum:
 - bug fixes should include regression tests when feasible
 
 LRH prefers predictable, automatable tests that can be run from the command line through the project’s scripts.
+
+### Testing Principles
+
+- Prefer real objects over heavy mocking
+- Keep tests deterministic:
+  - Seed randomness
+  - Avoid time-dependent behavior
+  - Ensure stable ordering
+
+### Running Tests
 
 The canonical project test entry point should be:
 
@@ -162,9 +186,21 @@ scripts/test
 
 If additional arguments or modes are supported, they should be documented in the scripts documentation.
 
+## Code Style
+
+- Follow Google Python Style Guide
+- Use PEP 8 where not specified by Google
+- Enforced by:
+  - `ruff` (lint)
+  - `black` (formatting)
+
 ## Linting
 
 LRH uses Ruff for linting.
+
+- All code must pass `ruff`
+- Fix root causes, not suppressions
+- Avoid adding ignores unless justified with comments
 
 Code merged into the repository should pass Ruff lint checks.
 
@@ -180,6 +216,9 @@ Lint fixes should generally be limited to code relevant to the task, unless the 
 
 LRH uses Black for formatting.
 
+- All code must pass `black`
+- Do NOT manually format to fight the formatter
+
 The canonical project formatting entry point should be:
 
 ```bash
@@ -189,6 +228,21 @@ scripts/format
 Formatting-only changes should normally be kept separate from semantic code changes when practical.
 
 Do not perform opportunistic formatting of unrelated files.
+
+## Determinism
+
+Where applicable:
+
+- Seed all randomness
+- Avoid time-dependent outputs
+- Ensure stable ordering of collections
+
+## Encoding
+
+To avoid Unicode errors:
+
+- Always use UTF-8 for file I/O
+- Explicitly specify encoding when reading/writing files
 
 ## Tool Responsibilities
 
@@ -228,6 +282,16 @@ These scripts should remain simple, reliable wrappers around the project’s can
 
 They should be preferred over ad hoc local command variants when contributing to the repository.
 
+### Requirements
+
+Where feasible, scripts should be thin wrappers around library code.
+
+- Avoid core logic in scripts
+- Must support:
+  - `--help`
+  - `--check` (non-mutating validation)
+  - `--dry-run` (preview changes)
+
 ## Continuous Integration
 
 CI should enforce the same standards expected locally.
@@ -240,21 +304,55 @@ At minimum, CI should check:
 
 CI configuration should prefer explicit versions and reproducible commands to reduce local-versus-CI drift.
 
-## AI-Assisted Contributions
+## Data & Schemas
+
+Core data structures should:
+
+- Be JSON-serializable
+- Be human-readable
+- Have stable structure
+- Avoid implicit or hidden fields
+
+Schema validation (e.g., Pydantic or JSON Schema) is encouraged.
+
+## AI-Assisted Development Rules
 
 AI tools such as Codex, ChatGPT, or similar systems may be used to help generate or edit code, but their output must follow this style guide.
 
-AI-assisted changes must follow these additional rules:
+When using AI tools (Codex, ChatGPT, etc.), AI-assisted changes must follow these additional rules:
 
-- do not modify code unrelated to the task
-- do not create broad cleanup diffs unless explicitly asked
-- do not rewrite working code unnecessarily
-- do not introduce speculative refactors without justification
-- prefer small, reviewable changes
-- preserve existing behavior unless the task requires changing it
-- when uncertain, report the issue rather than guessing
+- Do NOT modify code unrelated to the task
+- Do NOT reformat entire files unnecessarily
+- Do NOT create broad cleanup diffs unless explicitly asked
+- Do NOT rewrite working code unnecessarily
+- Do NOT introduce speculative refactors without justification
+- Do NOT reword text for style unless asked to
+- Preserve existing comments
+- Produce minimal, targeted diffs
+- Prefer small, reviewable changes
+- Preserve existing behavior unless the task requires changing it
+- Match the local style of the file being edited
+- Generate drop-in compatible code
+- When uncertain, report the issue rather than guessing
 
 AI-generated pull requests should be especially careful to minimize noise.
+
+## Pull Request Guidelines
+
+PRs should be:
+
+- Small and focused
+- Easy to review
+- Limited to a single concern
+
+### Rules
+
+- Separate style-only and functional changes into different commits or PRs
+- Do not include drive-by refactors
+- Ensure:
+  - tests pass
+  - lint passes
+  - formatting passes
 
 ## Review Guidance
 
@@ -284,13 +382,16 @@ Do not treat exceptions as precedent unless they are later incorporated into thi
 
 ## Practical Developer Workflow
 
-Before submitting changes, contributors should normally:
+Before submitting changes, contributors should normally use the provided scripts:
+:
 
 ```bash
 scripts/test
 scripts/lint
 scripts/format
 ```
+
+These define the source of truth for CI behavior.
 
 If formatting changes are produced, review them to ensure they are limited to files relevant to the task.
 
@@ -301,6 +402,14 @@ Before opening a PR, contributors should confirm that:
 - lint passes
 - formatting passes
 - unrelated code was not modified unnecessarily
+
+## CI Expectations
+
+CI should enforce:
+
+- unit tests
+- linting (ruff)
+- formatting (black)
 
 ## Summary
 
@@ -314,3 +423,7 @@ In LRH, we value:
 - disciplined, reviewable pull requests
 
 When in doubt, prefer the change that is clearer, narrower, and easier to review.
+
+## Final Principle
+
+If a change makes the codebase harder to understand, test, or review, it is not acceptable—even if technically correct.

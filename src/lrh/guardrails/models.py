@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime
+import dataclasses
+import datetime
 
 
-@dataclass(slots=True)
+@dataclasses.dataclass(slots=True)
 class ActionProposal:
     """A proposed execution action derived from a work item."""
 
@@ -15,23 +15,25 @@ class ActionProposal:
     title: str
     description: str
     proposed_by: str
-    proposed_at: datetime = field(default_factory=datetime.utcnow)
-    expected_effects: list[str] = field(default_factory=list)
+    proposed_at: datetime.datetime = dataclasses.field(
+        default_factory=datetime.datetime.utcnow
+    )
+    expected_effects: list[str] = dataclasses.field(default_factory=list)
 
 
-@dataclass(slots=True)
+@dataclasses.dataclass(slots=True)
 class ConsequenceAssessment:
     """A consolidated guardrail assessment for an action proposal."""
 
     action_id: str
-    safety_warnings: list[str] = field(default_factory=list)
-    cost_warnings: list[str] = field(default_factory=list)
-    optics_warnings: list[str] = field(default_factory=list)
+    safety_warnings: list[str] = dataclasses.field(default_factory=list)
+    cost_warnings: list[str] = dataclasses.field(default_factory=list)
+    optics_warnings: list[str] = dataclasses.field(default_factory=list)
     approval_required: bool = False
     blocked: bool = False
 
 
-@dataclass(slots=True)
+@dataclasses.dataclass(slots=True)
 class ActionDecision:
     """A minimal decision record for an action proposal after guardrail review."""
 
@@ -39,10 +41,12 @@ class ActionDecision:
     decision: str
     rationale: str
     decided_by: str
-    decided_at: datetime = field(default_factory=datetime.utcnow)
+    decided_at: datetime.datetime = dataclasses.field(
+        default_factory=datetime.datetime.utcnow
+    )
 
 
-@dataclass(slots=True)
+@dataclasses.dataclass(slots=True)
 class ApprovalRecord:
     """Tracks approval metadata for guardrail-governed actions."""
 
@@ -50,5 +54,7 @@ class ApprovalRecord:
     approver: str
     decision: str
     scope: str
-    recorded_at: datetime = field(default_factory=datetime.utcnow)
+    recorded_at: datetime.datetime = dataclasses.field(
+        default_factory=datetime.datetime.utcnow
+    )
     notes: str = ""

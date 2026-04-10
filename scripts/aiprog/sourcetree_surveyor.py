@@ -15,34 +15,34 @@ from __future__ import annotations
 
 import argparse
 import ast
+import dataclasses
 import json
 import pathlib
 import sys
-from dataclasses import asdict, dataclass
-from typing import Any, Optional
+import typing
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class Symbol:
     name: str
     kind: str  # "function" | "class" | "async_function"
     lineno: int
     is_private: bool
-    doc: Optional[str]
+    doc: typing.Optional[str]
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class FileReport:
     path: str
     relpath: str
     module: str
-    syntax_error: Optional[str]
+    syntax_error: typing.Optional[str]
     functions: list[Symbol]
     classes: list[Symbol]
     has_main_guard: bool
     top_level_imports: int
-    test_file_guess: Optional[str]  # if tests-root provided, best guess name
-    test_file_exists: Optional[bool]
+    test_file_guess: typing.Optional[str]  # if tests-root provided, best guess name
+    test_file_exists: typing.Optional[bool]
 
 
 def _is_private(name: str) -> bool:
@@ -51,7 +51,7 @@ def _is_private(name: str) -> bool:
     return name.startswith("_")
 
 
-def _first_line(doc: Optional[str]) -> Optional[str]:
+def _first_line(doc: typing.Optional[str]) -> typing.Optional[str]:
     if not doc:
         return None
     line = doc.strip().splitlines()[0].strip()
@@ -86,13 +86,13 @@ def _has_main_guard(text: str) -> bool:
 
 
 def analyze_file(
-    root: pathlib.Path, path: pathlib.Path, tests_root: Optional[pathlib.Path]
+    root: pathlib.Path, path: pathlib.Path, tests_root: typing.Optional[pathlib.Path]
 ) -> FileReport:
     relpath = str(path.relative_to(root))
     module = _module_name_from_path(root, path)
 
     text = path.read_text(encoding="utf-8")
-    syntax_error: Optional[str] = None
+    syntax_error: typing.Optional[str] = None
     funcs: list[Symbol] = []
     clss: list[Symbol] = []
     top_level_imports = 0
@@ -136,8 +136,8 @@ def analyze_file(
     except UnicodeDecodeError as e:
         syntax_error = f"UnicodeDecodeError: {e}"
 
-    test_file_guess: Optional[str] = None
-    test_file_exists: Optional[bool] = None
+    test_file_guess: typing.Optional[str] = None
+    test_file_exists: typing.Optional[bool] = None
     if tests_root is not None:
         test_file_guess = _guess_test_filename(path)
         test_path = tests_root / test_file_guess
@@ -158,7 +158,7 @@ def analyze_file(
 
 
 def scan_tree(
-    root: pathlib.Path, tests_root: Optional[pathlib.Path]
+    root: pathlib.Path, tests_root: typing.Optional[pathlib.Path]
 ) -> list[FileReport]:
     reports: list[FileReport] = []
     for path in sorted(root.rglob("*.py")):
@@ -174,7 +174,9 @@ def scan_tree(
 
 
 def to_markdown(
-    reports: list[FileReport], root: pathlib.Path, tests_root: Optional[pathlib.Path]
+    reports: list[FileReport],
+    root: pathlib.Path,
+    tests_root: typing.Optional[pathlib.Path],
 ) -> str:
     lines: list[str] = []
     lines.append(f"# Surface inventory: `{root}`")
@@ -242,9 +244,9 @@ def to_markdown(
 
 
 def to_json(reports: list[FileReport]) -> str:
-    payload: list[dict[str, Any]] = []
+    payload: list[dict[str, typing.Any]] = []
     for r in reports:
-        d = asdict(r)
+        d = dataclasses.asdict(r)
         payload.append(d)
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
@@ -270,7 +272,7 @@ def main(argv: list[str]) -> int:
         print(f"ERROR: root not found or not a directory: {root}", file=sys.stderr)
         return 2
 
-    tests_root: Optional[pathlib.Path] = None
+    tests_root: typing.Optional[pathlib.Path] = None
     if args.tests_root:
         tests_root = pathlib.Path(args.tests_root).resolve()
         if not tests_root.exists() or not tests_root.is_dir():

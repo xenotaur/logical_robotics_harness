@@ -13,23 +13,22 @@ Interpolation variables use the form:
 """
 
 import argparse
+import pathlib
 import re
 import sys
-from pathlib import Path
-from typing import Dict, Tuple
 
 _TEMPLATE_VAR_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 
 
-def _script_dir() -> Path:
-    return Path(__file__).resolve().parent
+def _script_dir() -> pathlib.Path:
+    return pathlib.Path(__file__).resolve().parent
 
 
-def _templates_dir() -> Path:
+def _templates_dir() -> pathlib.Path:
     return _script_dir() / "templates"
 
 
-def _load_template(template_name: str) -> Tuple[Path, str]:
+def _load_template(template_name: str) -> tuple[pathlib.Path, str]:
     template_path = _templates_dir() / f"{template_name}.md"
     if not template_path.exists():
         raise FileNotFoundError(
@@ -86,43 +85,43 @@ def _compute_suggested_test_path(target_module_gha: str) -> str:
         src/lrh/analysis/nlp/foo.py
             -> tests/analysis/nlp/foo_test.py
     """
-    p = Path(target_module_gha)
+    p = pathlib.Path(target_module_gha)
 
     # Expect: src / lrh / <subdir> / ... / <file>
     parts = p.parts
     if len(parts) < 3 or parts[0] != "src" or parts[1] != "lrh":
         # Fall back: place in tests/
         stem = p.stem
-        return str(Path("tests") / f"{stem}_test.py").replace("\\", "/")
+        return str(pathlib.Path("tests") / f"{stem}_test.py").replace("\\", "/")
 
     subdir = parts[2]
     rest_dirs = parts[3:-1]  # dirs after subdir, before file
     stem = p.stem
 
-    test_dir = Path("tests") / subdir
+    test_dir = pathlib.Path("tests") / subdir
     if rest_dirs:
         test_dir = test_dir.joinpath(*rest_dirs)
 
     return str(test_dir / f"{stem}_test.py").replace("\\", "/")
 
 
-def _render_template(template_text: str, variables: Dict[str, str]) -> str:
+def _render_template(template_text: str, variables: dict[str, str]) -> str:
     """
     Simple, deterministic interpolation:
       - Replaces {{VARNAME}} with variables[VARNAME] if present.
       - Leaves unknown placeholders intact (so you can notice missing vars).
     """
 
-    def repl(match: re.Match) -> str:
+    def repl(match: re.Match[str]) -> str:
         key = match.group(1)
         return variables.get(key, match.group(0))
 
     return _TEMPLATE_VAR_RE.sub(repl, template_text)
 
 
-def _build_variables(template_name: str, target_input: str) -> Dict[str, str]:
+def _build_variables(template_name: str, target_input: str) -> dict[str, str]:
     target_module_gha = _normalize_target_for_gha(target_input)
-    module_name = Path(target_module_gha).stem
+    module_name = pathlib.Path(target_module_gha).stem
     suggested_test_path = _compute_suggested_test_path(target_module_gha)
 
     # Keep names stable and ALL CAPS to match {{...}} usage

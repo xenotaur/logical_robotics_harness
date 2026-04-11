@@ -168,7 +168,9 @@ def _build_variables(args: argparse.Namespace) -> dict[str, str]:
     module_name = pathlib.Path(target_module_gha).stem if target_module_gha else ""
     suggested_test_path = _compute_suggested_test_path(target_module_gha)
 
-    background_context = args.background_text or _read_optional_text(args.background_file)
+    background_context = args.background_text or _read_optional_text(
+        args.background_file
+    )
     repo_name = _infer_repo_name(args.target, args.repo_name)
 
     # Keep names stable and ALL CAPS to match {{...}} usage

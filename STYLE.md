@@ -81,6 +81,8 @@ Examples of changes that should generally be avoided unless they are directly re
 - renaming unrelated variables or functions
 - rewriting working code for stylistic reasons alone
 - moving code between files without task-specific justification
+- changing type annotation styles (e.g., `typing.Dict` → `dict`) unless required for consistency within the file
+
 
 If a file must be touched for a real reason, keep unrelated edits in that file to an absolute minimum.
 
@@ -162,6 +164,103 @@ import pandas as pd
 ```
 
 These should remain conventional and unsurprising.
+
+Typing imports (e.g., `from typing import Any, Optional`) are allowed as a readability
+exception, since qualifying all typing constructs with `typing.` may reduce clarity.
+
+
+## Type Annotations
+
+LRH targets Python 3.11. Type annotations should follow modern Python typing practices.
+
+### Built-in Generic Types (Preferred)
+
+Use built-in generic types for standard collections:
+
+- `dict[str, int]` instead of `typing.Dict[str, int]`
+- `list[str]` instead of `typing.List[str]`
+- `tuple[int, str]` instead of `typing.Tuple[int, str]`
+- `set[str]` instead of `typing.Set[str]`
+
+Do NOT import container types from `typing` when a built-in generic is available.
+
+Preferred:
+
+```python
+def load_index(path: pathlib.Path) -> dict[str, int]:
+    ...
+```
+
+Disallowed:
+
+```python
+from typing import Dict
+
+def load_index(path: pathlib.Path) -> Dict[str, int]:
+    ...
+```
+
+### Typing Module Usage
+
+The `typing` module should still be used for constructs that do not have built-in
+equivalents, such as:
+
+- `typing.Any`
+- `typing.Optional`
+- `typing.Union` (or `|` where appropriate)
+- `typing.Protocol`
+- `typing.TypedDict`
+- `typing.TypeVar`
+- `typing.TypeAlias`
+
+### Import Style for Typing
+
+The general rule “import modules, not members” applies, but **typing is a limited
+exception** for readability.
+
+Allowed:
+
+```python
+from typing import Any, Optional, Protocol
+```
+
+Also allowed:
+
+```python
+import typing
+```
+
+Then:
+
+```python
+def f(x: typing.Any) -> typing.Optional[int]:
+    ...
+```
+
+Either style is acceptable. Prefer the one that improves readability in context.
+
+### Modern Syntax
+
+Where appropriate, prefer modern Python syntax:
+
+- `int | None` instead of `Optional[int]`
+- `str | int` instead of `Union[str, int]`
+
+Example:
+
+```python
+def parse(x: str | None) -> int | None:
+    ...
+```
+
+### Consistency Rule
+
+Within a file, typing style should be consistent:
+
+- Do not mix `Dict[...]` and `dict[...]`
+- Do not mix `Optional[...]` and `| None` without reason
+
+Prefer the modern style unless modifying legacy code where consistency would be broken.
 
 ## Naming and Readability
 
@@ -358,12 +457,18 @@ AI tools such as Codex, ChatGPT, or similar systems may be used to help generate
 
 When using AI tools (Codex, ChatGPT, etc.), AI-assisted changes must follow these additional rules:
 
+Do NOT do the following:
 - Do NOT modify code unrelated to the task
 - Do NOT reformat entire files unnecessarily
 - Do NOT create broad cleanup diffs unless explicitly asked
 - Do NOT rewrite working code unnecessarily
 - Do NOT introduce speculative refactors without justification
 - Do NOT reword text for style unless asked to
+- Do NOT change type annotation styles (e.g., `Dict` → `dict`, `Optional` → `| None`) unless:
+  - the file is already being modified for a related reason, and
+  - the change improves consistency within that file
+
+Do the following:
 - Preserve existing comments
 - Produce minimal, targeted diffs
 - Prefer small, reviewable changes
@@ -420,7 +525,6 @@ Do not treat exceptions as precedent unless they are later incorporated into thi
 ## Practical Developer Workflow
 
 Before submitting changes, contributors should normally use the provided scripts:
-:
 
 ```bash
 scripts/test

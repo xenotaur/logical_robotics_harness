@@ -417,3 +417,124 @@ Initial LRH validation should ensure:
 
 Validation should be strict enough to ensure consistency, but not so strict that it blocks iteration.
 
+---
+
+### 15.5 Contributor and Assignment Validation
+
+LRH should validate contributor and assignment metadata in layered passes:
+
+1. **Parsing**
+   - YAML frontmatter parses successfully
+   - required metadata fields are present
+   - field types are correct
+
+2. **Per-file schema validation**
+   - contributor records have valid required fields
+   - work items have valid required fields
+   - enum values are valid
+
+3. **Cross-reference validation**
+   - contributor IDs are unique
+   - `owner` references an existing contributor
+   - `contributors` entries reference existing contributors
+   - `assigned_agents` entries reference existing contributors
+
+4. **Semantic policy validation**
+   - `owner` must reference a human contributor
+   - `contributors` may reference humans and agents
+   - `assigned_agents` must reference agent contributors
+   - `owner` should normally also appear in `contributors`
+   - agents may exist without active assignment
+   - human-orchestrated agents are distinct from autonomously assigned agents
+
+#### Contributor Schema Expectations
+
+Contributor artifacts under `contributors/` should support the following fields:
+
+##### Required fields
+- `id`
+- `type`
+- `roles`
+- `display_name`
+- `status`
+
+##### Allowed contributor types
+- `human`
+- `agent`
+
+##### Allowed contributor status values
+- `active`
+- `inactive`
+- `archived`
+
+##### Allowed contributor roles
+- `admin`
+- `editor`
+- `reviewer`
+- `viewer`
+
+##### Recommended optional fields
+- `email`
+- `github`
+- `execution_mode`
+- `description`
+
+#### Agent Metadata Expectations
+
+If a contributor has `type: agent`, the contributor may also define an execution mode.
+
+Recommended execution modes:
+- `human_orchestrated`
+- `autonomous`
+- `disabled`
+
+An agent may exist in the system without being actively assigned to any work item.
+
+#### Work Item Ownership and Assignment Rules
+
+The following validation rules should apply to contributor-related work item metadata:
+
+- `owner` is required and must reference a contributor of type `human`
+- `contributors`, if present, must be a list of contributor IDs
+- `assigned_agents`, if present, must be a list of contributor IDs of type `agent`
+- a contributor referenced in `assigned_agents` should normally have a role that permits execution (for example, `editor`)
+- a contributor referenced as `owner` should normally have a role that permits ownership and initiation of work (for example, `editor` or `admin`)
+- an agent with `execution_mode: human_orchestrated` may exist as a contributor but should not normally appear in `assigned_agents` without an explicit warning
+
+#### Validation Severity Model
+
+Validation results should be classified into at least three levels:
+
+- `error` — invalid and should fail validation
+- `warning` — suspicious or incomplete but still loadable
+- `info` — notable but acceptable
+
+Recommended `error` cases:
+- invalid YAML
+- missing required fields
+- duplicate contributor IDs
+- unknown `owner`
+- unknown contributor in `contributors`
+- unknown contributor in `assigned_agents`
+- `owner` references a non-human contributor
+- `assigned_agents` contains a non-agent contributor
+
+Recommended `warning` cases:
+- `owner` is not listed in `contributors`
+- an agent contributor is missing `execution_mode`
+- an assigned agent is `inactive`
+- an assigned agent has `execution_mode: human_orchestrated`
+- an owner lacks a role normally associated with owning work
+- an assigned agent lacks a role normally associated with execution
+
+#### Bootstrap-Phase Interpretation
+
+During bootstrap, LRH may include agent contributors that are defined but not autonomously assigned.
+
+For example:
+- a bootstrap agent may exist as a contributor artifact
+- it may be referenced in `contributors`
+- it may remain absent from `assigned_agents`
+- this should validate cleanly
+
+This allows LRH to model human-orchestrated AI assistance before introducing autonomous agent assignment.

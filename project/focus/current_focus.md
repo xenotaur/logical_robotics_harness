@@ -12,6 +12,10 @@ success_criteria:
   - core model classes are defined
   - parser/loader/resolver skeleton exists
   - validation CLI can run on LRH's own project directory
+active_contributors:
+  - human_agent
+  - agent
+priority: high
 ---
 
 # Current Focus

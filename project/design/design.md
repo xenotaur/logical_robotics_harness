@@ -239,6 +239,7 @@ Each work item should specify:
 ## 15. Structured Metadata Model
 
 LRH uses Markdown as its primary human-readable format. For operational artifacts—especially `focus/` and `work_items/`—LRH uses **lightweight YAML frontmatter** to provide machine-readable metadata.
+For LRH's own control plane, `focus/current_focus.md` and `work_items/WI-*.md` should include this frontmatter.
 
 Frontmatter is intended to expose the minimum structured state needed for:
 

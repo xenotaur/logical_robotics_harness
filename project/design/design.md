@@ -182,6 +182,38 @@ Each work item should specify:
 - contributors
 - assigned agents (optional)
 
+### Ownership Semantics
+
+- `owner` refers to the **accountable human** responsible for the work item.
+- `contributors` includes all humans and agents materially contributing to the work.
+- `assigned_agents` lists agents currently authorized or expected to execute work autonomously.
+
+Notes:
+- `owner` should generally be a human contributor for accountability.
+- `assigned_agents` may be empty when no autonomous agent is currently working on the item.
+
+### Contributor Representation
+
+Contributors are defined as separate artifacts under `contributors/`.
+
+Each contributor has:
+- a stable `id` (project-local identifier)
+- a `type` (e.g., `human`, `agent`)
+- one or more `roles` (e.g., `admin`, `editor`, `reviewer`, `viewer`)
+- optional metadata (e.g., GitHub username, email, display name)
+
+Contributor roles define capabilities and permissions, and are distinct from work-item relationships such as `owner`.
+
+### Agent Execution Model
+
+Agents are modeled as contributors with additional metadata describing their execution characteristics.
+
+Key distinctions:
+- Agents may be **human-orchestrated** (e.g., bootstrap phase)
+- Agents may be **autonomously assigned** via `assigned_agents`
+
+An agent may exist in the system without being actively assigned to any work item.
+
 ---
 
 ## 11. Future Extensions
@@ -252,6 +284,7 @@ Frontmatter is intended to expose the minimum structured state needed for:
 - status synthesis
 
 The Markdown body remains the primary place for explanation, rationale, and discussion.
+Contributors referenced in frontmatter should correspond to entries in `contributors/`.
 
 ### 15.1 Focus Schema
 

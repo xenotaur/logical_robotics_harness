@@ -50,7 +50,9 @@ def parse_args() -> argparse.Namespace:
     work_item_parser = subparsers.add_parser(
         "work_item", parents=[common], help="Generate context for a specific work item."
     )
-    work_item_parser.add_argument("work_item_id", help="Work item identifier (for example WI-0003).")
+    work_item_parser.add_argument(
+        "work_item_id", help="Work item identifier (for example WI-0003)."
+    )
     return parser.parse_args()
 
 
@@ -171,7 +173,10 @@ def relevant_work_items(project_dir: Path) -> tuple[list[Path], str]:
             matching.append(item_path)
 
     if matching:
-        return matching, f"Filtered work items by related_focus containing `{focus_id}`."
+        return (
+            matching,
+            f"Filtered work items by related_focus containing `{focus_id}`.",
+        )
 
     return items, (
         f"No work item related_focus match for `{focus_id}`; including all work items "
@@ -348,7 +353,9 @@ def generate_work_item_context(
             if wi_token in content:
                 evidence_lines.append(summarize_file(evidence_path))
     if not evidence_lines:
-        evidence_lines.append("- No trivial evidence links detected for this work item.")
+        evidence_lines.append(
+            "- No trivial evidence links detected for this work item."
+        )
 
     sections = [
         "# Work Item Context Packet",

@@ -11,10 +11,12 @@ Current helpers include:
 - `create_request.py` for template-based request generation
 - `sourcetree_surveyor.py` for Python source-tree inventory
 - `templates/` for reusable prompt/request templates
+- `generate_context.py` for control-plane context packet generation
 
 Usage examples:
 
 ```bash
 python scripts/aiprog/create_request.py --help
 python scripts/aiprog/sourcetree_surveyor.py --help
+python scripts/aiprog/generate_context.py --help
 ```

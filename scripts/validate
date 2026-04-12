@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Validating LRH project metadata ..."
+
+# Check that lrh CLI is available
+if ! command -v lrh >/dev/null 2>&1; then
+    echo "ERROR: 'lrh' command not found."
+    echo
+    echo "You may need to set up your development environment:"
+    echo "  scripts/develop"
+    echo
+    echo "Or install the package manually:"
+    echo "  python -m pip install -e \".[dev]\""
+    exit 1
+fi
+
+set -x
+lrh validate
+
+{ set +x; } 2>/dev/null
+echo

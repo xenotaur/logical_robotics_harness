@@ -28,3 +28,6 @@ jobs:
 
       - name: Run tests
         run: scripts/test
+
+      - name: Validate project metadata
+        run: scripts/validate

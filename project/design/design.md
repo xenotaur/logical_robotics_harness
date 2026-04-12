@@ -85,6 +85,32 @@ Defines **what has happened and what it means**
 
 Defines **how projects mature over time**
 
+### Precedence Model
+
+LRH resolves project state using both layer authority and artifact specificity.
+
+From lowest to highest operational authority:
+
+1. Principles
+2. Project Goal
+3. Roadmap
+4. Current Focus
+5. Work Items
+6. Guardrails
+7. Explicit runtime invocation
+
+Interpretation rules:
+
+- Higher layers define broader intent; lower layers define more specific execution.
+- More specific artifacts refine broader artifacts.
+- A specific work item takes precedence over general focus prose for execution.
+- Current focus takes precedence over roadmap for current operational scope.
+- Guardrails do not define work, but may restrict, block, or require approval for actions.
+- Explicit runtime invocation may narrow scope for a run, but does not override guardrails.
+
+If a lower-level artifact contradicts a higher-level artifact rather than refining it,
+LRH should surface a consistency warning or error.
+
 ---
 
 ## 5. Workflow Model

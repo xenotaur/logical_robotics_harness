@@ -18,6 +18,9 @@ Usage examples:
 
 ```bash
 python scripts/aiprog/request.py --help
+python scripts/aiprog/request.py assessment --scope project
+python scripts/aiprog/request.py assessment --scope current_focus
+python scripts/aiprog/request.py assessment --scope work_item --target WI-0003
 python scripts/aiprog/snapshot.py --help
 python scripts/aiprog/sourcetree_surveyor.py --help
 ```

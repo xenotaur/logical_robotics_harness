@@ -164,19 +164,20 @@ def _render_template(template_text: str, variables: dict[str, str]) -> str:
 
 
 def _build_variables(args: argparse.Namespace) -> dict[str, str]:
-    target_module_gha = _normalize_target_for_gha(args.target)
+    target_input = _resolve_target_input(args)
+    target_module_gha = _normalize_target_for_gha(target_input)
     module_name = pathlib.Path(target_module_gha).stem if target_module_gha else ""
     suggested_test_path = _compute_suggested_test_path(target_module_gha)
 
     background_context = args.background_text or _read_optional_text(
         args.background_file
     )
-    repo_name = _infer_repo_name(args.target, args.repo_name)
+    repo_name = _infer_repo_name(target_input, args.repo_name)
 
     # Keep names stable and ALL CAPS to match {{...}} usage
     return {
         "TEMPLATE_NAME": args.template_name,
-        "TARGET_INPUT": args.target or "",
+        "TARGET_INPUT": target_input,
         "TARGET_MODULE_GHA": target_module_gha,
         "MODULE_NAME": module_name,
         "SUGGESTED_TEST_PATH": suggested_test_path,
@@ -186,7 +187,17 @@ def _build_variables(args: argparse.Namespace) -> dict[str, str]:
         "BACKGROUND_FILE": args.background_file or "",
         "PROJECT_TYPE": args.project_type or "",
         "BOOTSTRAP_SCOPE": args.bootstrap_mode or "",
+        "ASSESSMENT_SCOPE": args.scope or "",
+        "ASSESSMENT_TARGET": target_input,
     }
+
+
+def _resolve_target_input(args: argparse.Namespace) -> str:
+    if args.target_option:
+        return args.target_option
+    if args.target:
+        return args.target
+    return ""
 
 
 def _parse_args(argv) -> argparse.Namespace:
@@ -207,6 +218,22 @@ def _parse_args(argv) -> argparse.Namespace:
         help=(
             "Optional target path or identifier. For coverage-style templates, "
             "this is usually a module path like src/lrh/analysis/llm_extractor.py."
+        ),
+    )
+    parser.add_argument(
+        "--target",
+        dest="target_option",
+        help=(
+            "Optional named target identifier/path. For assessment work-item scope, "
+            "this should be the work-item ID (for example WI-0003)."
+        ),
+    )
+    parser.add_argument(
+        "--scope",
+        choices=["project", "current_focus", "work_item"],
+        help=(
+            "Scope for assessment template generation. "
+            "Required for template_name=assessment."
         ),
     )
     parser.add_argument(
@@ -250,7 +277,9 @@ def _validate_args(args: argparse.Namespace) -> int:
     non-zero exit code.
     """
     # Preserve existing behavior for target-centric templates.
-    if args.template_name == "improve_coverage" and not args.target:
+    target_input = _resolve_target_input(args)
+
+    if args.template_name == "improve_coverage" and not target_input:
         print(
             "error: improve_coverage requires a target module path.",
             file=sys.stderr,
@@ -259,10 +288,26 @@ def _validate_args(args: argparse.Namespace) -> int:
 
     # Helpful validation for the bootstrap workflow.
     if args.template_name == "bootstrap_project":
-        if not args.repo_name and not args.target:
+        if not args.repo_name and not target_input:
             print(
                 "error: bootstrap_project requires --repo-name or a target value "
                 "that can be used as the repository identifier.",
+                file=sys.stderr,
+            )
+            return 2
+
+    if args.template_name == "assessment":
+        if not args.scope:
+            print(
+                "error: assessment requires --scope "
+                "(project, current_focus, or work_item).",
+                file=sys.stderr,
+            )
+            return 2
+        if args.scope == "work_item" and not target_input:
+            print(
+                "error: assessment --scope work_item requires --target "
+                "(for example --target WI-0003).",
                 file=sys.stderr,
             )
             return 2

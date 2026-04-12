@@ -11,7 +11,7 @@ Examples:
         --background-file notes/taurworks_background.md
 
 Templates live in:
-    scripts/aiprog/templates/<template_name>.md
+    scripts/aiprog/templates/request/<template_name>.md
 
 Interpolation variables use the form:
     {{VARIABLE_NAME}}
@@ -30,7 +30,7 @@ def _script_dir() -> pathlib.Path:
 
 
 def _templates_dir() -> pathlib.Path:
-    return _script_dir() / "templates"
+    return _script_dir() / "templates" / "request"
 
 
 def _load_template(template_name: str) -> tuple[pathlib.Path, str]:
@@ -38,7 +38,7 @@ def _load_template(template_name: str) -> tuple[pathlib.Path, str]:
     if not template_path.exists():
         raise FileNotFoundError(
             f"Template not found: {template_path}\n"
-            f"Expected: scripts/aiprog/templates/{template_name}.md"
+            f"Expected: scripts/aiprog/templates/request/{template_name}.md"
         )
     return template_path, template_path.read_text(encoding="utf-8")
 
@@ -198,7 +198,7 @@ def _parse_args(argv) -> argparse.Namespace:
         "template_name",
         help=(
             "Template base name (e.g. improve_coverage or bootstrap_project) "
-            "corresponding to scripts/aiprog/templates/<name>.md"
+            "corresponding to scripts/aiprog/templates/request/<name>.md"
         ),
     )
     parser.add_argument(

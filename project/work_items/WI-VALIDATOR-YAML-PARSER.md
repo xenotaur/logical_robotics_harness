@@ -8,7 +8,7 @@ contributors:
   - anthony
 assigned_agents: []
 related_focus:
-  - FOCUS-BOOTSTRAP
+  - FOCUS-CONTROL-PLANE-SEMANTICS
 depends_on: []
 blocked_by: []
 ---

@@ -344,6 +344,10 @@ def _validate_args(args: argparse.Namespace) -> int:
             print(
                 "error: assessment --scope work_item requires --target "
                 "(for example --target WI-0003).",
+                file=sys.stderr,
+            )
+            return 2
+
     if args.template_name == "work_items_from_audit":
         if not args.audit_file:
             print(

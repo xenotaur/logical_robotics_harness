@@ -287,6 +287,7 @@ The Logical Robotics Harness (LRH) organizes a project into a set of **control p
 - Execution Plane
   - Current Focus
   - Work Items
+  - Context
 - Truth Plane
   - Evidence
   - Status
@@ -452,6 +453,38 @@ Crucially, work items are **not all active at once**.
 They become active only when:
 - they are consistent with the current focus
 - and allowed by higher-precedence constraints
+
+---
+
+#### Context
+
+Context is an execution-adjacent interface artifact. It supports contributors in understanding and
+acting on the project, but does not itself define authoritative project state. In cases where
+LRH's execution model is not sufficient, such as bootstrapping, it helps contributors proceed.
+
+Particlarly, sometimes we need to prompt a system outside the LRH flow. The context documents can
+serve to seed the project before goals, designs, roadmaps or the current focus are settled; they
+can also serve as a snapshot of the overall system state through the current focus.
+
+There are generally at least two elements of context:
+
+- humans.md describes the project in detail for a human contributor
+- agents.md summarizes humans.md in a tight packet suitable as part of an agent prompt.
+
+Generally, the humans.md can be iteratively worked on by contributors and agents and should be
+updated as the goals, design, roadmap or focus change.
+
+The agents.md should ideally be derived from humans.md and other authoritative project artifacts
+using a standardized process, and should remain reviewable and version-controlled.
+
+Context items are:
+- **global** to the project
+- **derived** from project goals, design, roadmap and focus
+- **informative** rather than authoritative
+- **outside** the preference hierachy
+
+Before the rest of the project exists, the humans.md can be used as a project proposal,
+which is then used to help seed the rest of the project.
 
 ---
 
@@ -1001,6 +1034,7 @@ The Logical Robotics Harness (LRH) organizes all project-relevant information in
 
 ```
 project/
+  context/
   principles/
   goal/
   roadmap/
@@ -1012,7 +1046,6 @@ project/
   contributors/
   guardrails/
   memory/
-  context.md
 ```
 
 Each artifact is written in **Markdown**, optionally containing **YAML frontmatter** for structured data.
@@ -1074,6 +1107,23 @@ There is no hidden state.
 ---
 
 ## Directory Breakdown
+
+### context/
+
+Defines derived, human- and agent-facing context for the project.
+
+Contents:
+- humans.md documenting the project for people
+- agents.md which can serve as a seed for a prompt.
+
+Properties:
+- global to the project
+- derived, not a source of truth
+- informative, not authoritative
+- not factored into the preference hierarchy
+- should be regenerated or reviewed whenever authoritative project artifacts such as goal, design,
+  roadmap, focus, or work items change.
+- can serve as a seed for the project or as prompt background
 
 ### principles/
 

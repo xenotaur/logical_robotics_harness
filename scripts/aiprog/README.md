@@ -9,7 +9,8 @@ This directory contains maintainer-only AI-assisted programming helpers for this
 Current helpers include:
 
 - `request.py` for template-based request generation
-- `templates/` for reusable prompt/request templates for request.py
+- `templates/context/` for deterministic context/snapshot guide templates
+- `templates/request/` for agent-facing request templates consumed by `request.py`
 - `snapshot.py` for automated control-plane context packet generation
 - `sourcetree_surveyor.py` for Python source-tree inventory
 

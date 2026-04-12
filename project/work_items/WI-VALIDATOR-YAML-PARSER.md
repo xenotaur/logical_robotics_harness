@@ -8,7 +8,7 @@ contributors:
   - anthony
 assigned_agents: []
 related_focus:
-  - FOCUS-1
+  - FOCUS-BOOTSTRAP
 depends_on: []
 blocked_by: []
 ---

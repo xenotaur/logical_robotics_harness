@@ -1,6 +1,6 @@
 ---
-id: FOCUS-HARDEN-CONTROL-PLANE
-title: Harden the control plane and operational workflow
+id: FOCUS-CONTROL-PLANE-SEMANTICS
+title: Complete control-plane semantics and resolution
 status: active
 priority: high
 owner: anthony
@@ -11,66 +11,72 @@ related_principles:
 
 # Current Focus
 
-The immediate priority is to **harden the LRH control plane so it is reliable, enforceable, and usable as a daily workflow tool**.
+The immediate priority is to **complete the control plane by ensuring that LRH can correctly interpret, resolve, and reason about project state—not just parse and validate it.**
 
-The bootstrap milestone has shown that LRH can represent and validate its own `project/` directory.
-Now the goal is to make that capability robust enough to support real development workflows and future multi-repository use.
+The bootstrap milestone established that LRH can load and validate its own `project/` directory.
+This focus completes Phase 1 by making the control plane **semantically correct and reliable**.
 
 ---
 
 ## Why this is active now
 
-LRH has successfully demonstrated:
+LRH can now:
 
-- a working project control model (`project/`)
-- a validator that can load and check that model
-- a coherent representation of principles, goal, roadmap, focus, and work items
+- represent its control plane in `project/`
+- validate that structure with `lrh validate`
+- produce structured summaries via tools like `snapshot.py`
 
-However, the system is still in a **bootstrap-quality state**:
+However, Phase 1 requires more than structural correctness.
 
-- parsing is minimal and fragile (custom YAML parser)
-- validation is not yet enforced in all workflows
-- contributor and workflow semantics are only lightly exercised
-- developer ergonomics are not yet fully established
+The system must also:
 
-Before expanding scope (e.g., to external repositories or agent autonomy), LRH must become **stable and trustworthy as infrastructure**.
+- resolve precedence between control-plane elements
+- interpret focus and work items correctly
+- behave predictably under real project conditions
+
+This focus ensures the control plane is not just valid, but **meaningful and executable as infrastructure**.
 
 ---
 
 ## Priorities
 
-1. **Strengthen parsing and validation reliability**
-   - Replace or harden the bootstrap YAML/frontmatter parser
-   - Ensure validator correctness on realistic inputs
-   - Expand test coverage for edge cases
+1. **Define and enforce precedence rules**
+   - clarify authority between:
+     - focus
+     - roadmap
+     - work items
+   - implement precedence resolution in code
+   - ensure behavior is deterministic and documented
 
-2. **Integrate validation into the development workflow**
-   - Ensure `lrh validate` is part of CI (tests workflow)
-   - Ensure local workflows (`scripts/validate`) are consistent and reliable
-   - Establish clear failure modes and error messaging
-
-3. **Stabilize contributor and ownership semantics**
-   - Ensure contributor records are well-formed and minimally complete
-   - Ensure consistent use of contributor IDs across all artifacts
-   - Validate focus, roadmap, and work item references rigorously
-
-4. **Improve control-plane observability**
-   - Ensure tools like `snapshot.py` produce clear, correct summaries
-   - Validate that LRH can correctly interpret:
+2. **Validate semantic interpretation**
+   - ensure LRH can correctly identify:
      - current focus
      - active contributors
-     - work item state
+     - relevant work items
+   - confirm tools (e.g., `snapshot.py`) reflect true project state
+
+3. **Strengthen parsing reliability (targeted)**
+   - improve or replace bootstrap YAML/frontmatter parsing
+   - ensure realistic Markdown inputs are handled correctly
+   - avoid silent misinterpretation
+
+4. **Expand evaluation coverage**
+   - add tests that demonstrate:
+     - correct parsing
+     - correct resolution
+     - correct interpretation
+   - align with evaluation norms
 
 ---
 
-## Non-Goals (for this focus)
+## Non-Goals
 
-To keep the slice narrow and testable, do **not**:
+To keep Phase 1 bounded, do not:
 
-- introduce multi-repository orchestration
+- expand to multi-repository workflows
+- introduce agent autonomy or planning systems
 - redesign the project schema
-- add complex agent autonomy or planning logic
-- expand into execution engines beyond current tooling
+- build execution engines beyond validation and interpretation
 
 ---
 
@@ -78,37 +84,31 @@ To keep the slice narrow and testable, do **not**:
 
 This focus is complete when:
 
-1. **Validation is robust and enforced**
-   - `lrh validate` passes on the LRH repository
-   - validation is integrated into CI and consistently enforced
+1. **Precedence is defined and implemented**
+   - control-plane authority rules are explicit
+   - resolution behavior is deterministic and tested
 
-2. **Parsing is production-appropriate**
-   - the bootstrap parser is replaced or hardened
-   - realistic frontmatter is correctly handled
-
-3. **Control-plane semantics are stable**
-   - contributor, owner, and reference relationships are consistent and validated
-   - no ambiguity in contributor resolution
-
-4. **LRH can reliably introspect its own state**
-   - tools like `snapshot.py` produce accurate, interpretable summaries
-   - LRH can identify:
+2. **Interpretation is correct**
+   - LRH can reliably determine:
      - current focus
      - active contributors
      - relevant work items
+   - snapshot and related tools reflect correct state
 
-5. **The system remains narrow and testable**
-   - changes are covered by tests where appropriate
-   - the control-plane slice remains understandable and reviewable
+3. **Parsing is reliable for real inputs**
+   - frontmatter parsing handles realistic cases
+   - no known fragile edge cases in normal usage
+
+4. **Evaluation norms are satisfied**
+   - LRH demonstrably:
+     - parses correctly
+     - resolves correctly
+     - interprets correctly
 
 ---
 
 ## Notes
 
-This focus completes **Phase 1 (Control Plane Hardening)** of the roadmap.
+This focus completes **Phase 1 — Control Plane**.
 
-Once complete, LRH will be ready to:
-
-- operate reliably on its own repository
-- extend to external project directories
-- support more advanced agent-assisted workflows
+The next phase will begin once the control plane is not only valid, but **semantically correct and operationally reliable**.

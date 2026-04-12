@@ -1,14 +1,28 @@
 #!/usr/bin/env python3
 """
-Create a filled-out PR request from a template.
+Create a filled-out request from a template.
 
 Examples:
-    scripts/aiprog/create_request.py improve_coverage src/lrh/analysis/llm_extractor.py
+    scripts/aiprog/request.py improve_coverage src/lrh/analysis/llm_extractor.py
 
-    scripts/aiprog/create_request.py bootstrap_project \
+    scripts/aiprog/request.py bootstrap_project \
         --repo-name taurworks \
         --project-goal "Turn taurworks into a robust project bootstrap CLI" \
         --background-file notes/taurworks_background.md
+
+    scripts/aiprog/request.py work_items_from_audit \
+        --audit-file audits/style_audit_2026_04_10.md \
+        --style-file STYLE.md
+
+    scripts/aiprog/request.py codex_prompt_from_work_item \
+        --work-item-file project/work_items/WI-STYLE-0001.md \
+        --style-file STYLE.md \
+        --background-file notes/context.md
+
+    scripts/aiprog/request.py pr_against_work_item \
+        --work-item-file project/work_items/WI-STYLE-0001.md \
+        --patch-file patches/WI-STYLE-0001.diff \
+        --style-file STYLE.md
 
 Templates live in:
     scripts/aiprog/templates/request/<template_name>.md
@@ -87,13 +101,6 @@ def _compute_suggested_test_path(target_module_gha: str) -> str:
         src/lrh/<subdir>/<...>/<name>.py
     Suggest:
         tests/<subdir>/<...>/<name>_test.py
-
-    Example:
-        src/lrh/analysis/llm_extractor.py
-            -> tests/analysis/llm_extractor_test.py
-
-        src/lrh/analysis/nlp/foo.py
-            -> tests/analysis/nlp/foo_test.py
     """
     if not target_module_gha:
         return ""
@@ -128,10 +135,10 @@ def _read_optional_text(path_str: str | None) -> str:
     path = pathlib.Path(path_str)
     try:
         return path.read_text(encoding="utf-8").strip()
-    except FileNotFoundError:
-        raise FileNotFoundError(f"Background file not found: {path}")
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"Context file not found: {path}") from e
     except OSError as e:
-        raise OSError(f"Could not read background file {path}: {e}") from e
+        raise OSError(f"Could not read context file {path}: {e}") from e
 
 
 def _infer_repo_name(target_input: str | None, repo_name: str | None) -> str:
@@ -174,6 +181,11 @@ def _build_variables(args: argparse.Namespace) -> dict[str, str]:
     )
     repo_name = _infer_repo_name(target_input, args.repo_name)
 
+    audit_report = _read_optional_text(args.audit_file)
+    work_item = _read_optional_text(args.work_item_file)
+    style_guide_context = _read_optional_text(args.style_file)
+    patch_text = _read_optional_text(args.patch_file)
+
     # Keep names stable and ALL CAPS to match {{...}} usage
     return {
         "TEMPLATE_NAME": args.template_name,
@@ -189,6 +201,14 @@ def _build_variables(args: argparse.Namespace) -> dict[str, str]:
         "BOOTSTRAP_SCOPE": args.bootstrap_mode or "",
         "ASSESSMENT_SCOPE": args.scope or "",
         "ASSESSMENT_TARGET": target_input,
+        "AUDIT_REPORT": audit_report,
+        "AUDIT_FILE": args.audit_file or "",
+        "WORK_ITEM": work_item,
+        "WORK_ITEM_FILE": args.work_item_file or "",
+        "STYLE_GUIDE_CONTEXT": style_guide_context,
+        "STYLE_FILE": args.style_file or "",
+        "PATCH": patch_text,
+        "PATCH_FILE": args.patch_file or "",
     }
 
 
@@ -202,14 +222,14 @@ def _resolve_target_input(args: argparse.Namespace) -> str:
 
 def _parse_args(argv) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="create_request.py",
-        description="Fill a PR request template with computed variables.",
+        prog="request.py",
+        description="Fill a request template with computed variables.",
     )
     parser.add_argument(
         "template_name",
         help=(
-            "Template base name (e.g. improve_coverage or bootstrap_project) "
-            "corresponding to scripts/aiprog/templates/request/<name>.md"
+            "Template base name (e.g. improve_coverage, bootstrap_project, "
+            "work_items_from_audit, codex_prompt_from_work_item)."
         ),
     )
     parser.add_argument(
@@ -264,6 +284,22 @@ def _parse_args(argv) -> argparse.Namespace:
         help="Optional bootstrap scope hint for bootstrap-oriented templates.",
     )
     parser.add_argument(
+        "--audit-file",
+        help="Path to a UTF-8 audit report to inject as {{AUDIT_REPORT}}.",
+    )
+    parser.add_argument(
+        "--work-item-file",
+        help="Path to a UTF-8 work item file to inject as {{WORK_ITEM}}.",
+    )
+    parser.add_argument(
+        "--style-file",
+        help="Path to a UTF-8 style guide file to inject as {{STYLE_GUIDE_CONTEXT}}.",
+    )
+    parser.add_argument(
+        "--patch-file",
+        help="Path to a UTF-8 patch or diff file to inject as {{PATCH}}.",
+    )
+    parser.add_argument(
         "--show-vars",
         action="store_true",
         help="Print computed variables to stderr (debugging).",
@@ -308,6 +344,50 @@ def _validate_args(args: argparse.Namespace) -> int:
             print(
                 "error: assessment --scope work_item requires --target "
                 "(for example --target WI-0003).",
+    if args.template_name == "work_items_from_audit":
+        if not args.audit_file:
+            print(
+                "error: work_items_from_audit requires --audit-file.",
+                file=sys.stderr,
+            )
+            return 2
+        if not args.style_file:
+            print(
+                "error: work_items_from_audit requires --style-file.",
+                file=sys.stderr,
+            )
+            return 2
+
+    if args.template_name == "codex_prompt_from_work_item":
+        if not args.work_item_file:
+            print(
+                "error: codex_prompt_from_work_item requires --work-item-file.",
+                file=sys.stderr,
+            )
+            return 2
+        if not args.style_file:
+            print(
+                "error: codex_prompt_from_work_item requires --style-file.",
+                file=sys.stderr,
+            )
+            return 2
+
+    if args.template_name == "pr_against_work_item":
+        if not args.work_item_file:
+            print(
+                "error: pr_against_work_item requires --work-item-file.",
+                file=sys.stderr,
+            )
+            return 2
+        if not args.patch_file:
+            print(
+                "error: pr_against_work_item requires --patch-file.",
+                file=sys.stderr,
+            )
+            return 2
+        if not args.style_file:
+            print(
+                "error: pr_against_work_item requires --style-file.",
                 file=sys.stderr,
             )
             return 2

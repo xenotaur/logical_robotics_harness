@@ -1,5 +1,6 @@
 ---
 id: bootstrap-agent
+display_name: Bootstrap Agent
 type: agent
 roles:
   - editor

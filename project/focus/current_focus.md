@@ -2,7 +2,7 @@
 id: FOCUS-BOOTSTRAP
 title: Bootstrap the control plane and validation path
 status: active
-owner: human_agent
+owner: anthony
 related_roadmap:
   - ROADMAP-PHASE-01
 start_date: 2026-04-03
@@ -13,8 +13,8 @@ success_criteria:
   - parser/loader/resolver skeleton exists
   - validation CLI can run on LRH's own project directory
 active_contributors:
-  - human_agent
-  - agent
+  - anthony
+  - bootstrap-agent
 priority: high
 ---
 

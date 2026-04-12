@@ -10,6 +10,101 @@ LRH is designed for **AI-assisted engineering workflows**, where humans and agen
 
 The system begins by being able to **understand and validate itself** (self-hosting control plane), then evolves toward orchestrating multiple repositories and agents.
 
+## LRH in One Page
+
+The Logical Robotics Harness (LRH) is both a **software system** and a **development philosophy**.
+
+It augments a repository with structured Markdown + YAML metadata that makes project state:
+
+- explicit  
+- interpretable  
+- actionable  
+
+This enables both **humans and AI agents** to understand a project, decide what to do next, and execute work in a controlled and auditable way.
+
+---
+
+### What an LRH Project Looks Like
+
+An LRH-compatible repository contains a `project/` directory:
+
+- A set of Markdown files describing:
+  - **intent** (principles, goal, roadmap)
+  - **execution** (focus, work items)
+  - **truth** (evidence, status)
+
+Together, these form a **declarative model of the project**.
+
+---
+
+### What LRH Does Today
+
+The LRH toolkit currently provides three core capabilities:
+
+1. **Validate** → Is the project structurally and semantically correct?  
+2. **Interpret** → What is actually happening in the project right now?  
+3. **Guide** → What actions are valid and should happen next?  
+
+These are driven by a deterministic interpretation of project state.
+
+---
+
+### What LRH Is Becoming
+
+LRH is evolving toward a fully agent-capable control loop:
+
+4. **Automate** → Execute the next valid actions  
+5. **Evaluate** → Assess outcomes against goals and evidence  
+6. **Control** → Iterate until objectives are satisfied  
+7. **Enforce Safety** → Prevent unsafe or invalid actions  
+
+---
+
+### The Core Mechanism: Precedence
+
+All interpretation and decision-making are governed by precedence:
+
+```
+principles > goal > roadmap > focus > work_items > guardrails > runtime
+```
+
+This ensures that:
+
+- execution stays aligned with intent  
+- lower-level actions cannot violate higher-level constraints  
+- decisions are consistent and deterministic  
+
+---
+
+### The Big Idea
+
+LRH turns a repository from:
+
+> a collection of files and intentions  
+
+into:
+
+> a **declarative control system** that can guide its own execution  
+
+---
+
+### The End Goal
+
+The long-term goal of LRH is to enable a **closed-loop development system**:
+
+1. Define principles and goals  
+2. Derive roadmap and focus  
+3. Execute work via agents or humans  
+4. Collect evidence and evaluate results  
+5. Iterate safely until objectives are achieved  
+
+This creates a workflow that is:
+
+- explicit  
+- auditable  
+- reproducible  
+- scalable to human–AI collaboration  
+
 # Philosophy / Why LRH Exists
 
 Modern software and research projects increasingly involve:

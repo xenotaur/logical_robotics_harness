@@ -36,6 +36,8 @@ import pathlib
 import re
 import sys
 
+from lrh.assist import request_variables
+
 _TEMPLATE_VAR_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 
 
@@ -57,105 +59,6 @@ def _load_template(template_name: str) -> tuple[pathlib.Path, str]:
     return template_path, template_path.read_text(encoding="utf-8")
 
 
-def _normalize_target_for_gha(target_input: str | None) -> str:
-    """
-    Normalize an input path into repo-root style module path:
-        src/lrh/<...>.py
-
-    Accepts inputs like:
-        src/lrh/analysis/foo.py -> src/lrh/analysis/foo.py
-        lrh/analysis/foo.py     -> src/lrh/analysis/foo.py
-        analysis/foo.py         -> src/lrh/analysis/foo.py
-                                   (assumed relative to src/lrh/)
-
-    If target_input is empty or None, returns an empty string.
-    """
-    if not target_input:
-        return ""
-
-    s = target_input.strip().replace("\\", "/")
-    s = s.lstrip("./")
-
-    # If user passes a path relative to src/lrh/ (common local usage)
-    if not s.startswith("src/lrh/"):
-        if s.startswith("lrh/"):
-            s = f"src/{s}"
-        else:
-            s = f"src/lrh/{s}"
-
-    # If already includes src/lrh, keep as-is
-    if s.startswith("src/lrh/"):
-        return s
-
-    # If starts with src/ but not src/lrh/, insert lrh/
-    if s.startswith("src/"):
-        return "src/lrh/" + s[len("src/") :]
-
-    # Should be unreachable, but keep safe
-    return s
-
-
-def _compute_suggested_test_path(target_module_gha: str) -> str:
-    """
-    Given:
-        src/lrh/<subdir>/<...>/<name>.py
-    Suggest:
-        tests/<subdir>/<...>/<name>_test.py
-    """
-    if not target_module_gha:
-        return ""
-
-    p = pathlib.Path(target_module_gha)
-
-    # Expect: src / lrh / <subdir> / ... / <file>
-    parts = p.parts
-    if len(parts) < 3 or parts[0] != "src" or parts[1] != "lrh":
-        # Fall back: place in tests/
-        stem = p.stem
-        return str(pathlib.Path("tests") / f"{stem}_test.py").replace("\\", "/")
-
-    subdir = parts[2]
-    rest_dirs = parts[3:-1]  # dirs after subdir, before file
-    stem = p.stem
-
-    test_dir = pathlib.Path("tests") / subdir
-    if rest_dirs:
-        test_dir = test_dir.joinpath(*rest_dirs)
-
-    return str(test_dir / f"{stem}_test.py").replace("\\", "/")
-
-
-def _read_optional_text(path_str: str | None) -> str:
-    """
-    Read a UTF-8 text file if provided, otherwise return an empty string.
-    """
-    if not path_str:
-        return ""
-
-    path = pathlib.Path(path_str)
-    try:
-        return path.read_text(encoding="utf-8").strip()
-    except FileNotFoundError as e:
-        raise FileNotFoundError(f"Context file not found: {path}") from e
-    except OSError as e:
-        raise OSError(f"Could not read context file {path}: {e}") from e
-
-
-def _infer_repo_name(target_input: str | None, repo_name: str | None) -> str:
-    """
-    Prefer explicit repo_name. Otherwise infer a reasonable repository name.
-    """
-    if repo_name:
-        return repo_name
-
-    if target_input:
-        candidate = pathlib.Path(target_input).name
-        if candidate:
-            return candidate
-
-    return pathlib.Path.cwd().name
-
-
 def _render_template(template_text: str, variables: dict[str, str]) -> str:
     """
     Simple, deterministic interpolation:
@@ -172,19 +75,21 @@ def _render_template(template_text: str, variables: dict[str, str]) -> str:
 
 def _build_variables(args: argparse.Namespace) -> dict[str, str]:
     target_input = _resolve_target_input(args)
-    target_module_gha = _normalize_target_for_gha(target_input)
+    target_module_gha = request_variables.normalize_target_for_gha(target_input)
     module_name = pathlib.Path(target_module_gha).stem if target_module_gha else ""
-    suggested_test_path = _compute_suggested_test_path(target_module_gha)
+    suggested_test_path = request_variables.compute_suggested_test_path(
+        target_module_gha
+    )
 
-    background_context = args.background_text or _read_optional_text(
+    background_context = args.background_text or request_variables.read_optional_text(
         args.background_file
     )
-    repo_name = _infer_repo_name(target_input, args.repo_name)
+    repo_name = request_variables.infer_repo_name(target_input, args.repo_name)
 
-    audit_report = _read_optional_text(args.audit_file)
-    work_item = _read_optional_text(args.work_item_file)
-    style_guide_context = _read_optional_text(args.style_file)
-    patch_text = _read_optional_text(args.patch_file)
+    audit_report = request_variables.read_optional_text(args.audit_file)
+    work_item = request_variables.read_optional_text(args.work_item_file)
+    style_guide_context = request_variables.read_optional_text(args.style_file)
+    patch_text = request_variables.read_optional_text(args.patch_file)
 
     # Keep names stable and ALL CAPS to match {{...}} usage
     return {

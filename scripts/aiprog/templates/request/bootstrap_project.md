@@ -6,8 +6,8 @@ Bootstrap an LRH `project/` directory for the target repository.
 OBJECTIVE
 ==================================================
 
-You are an AI assistant tasked with adding a properly formatted LRH `project/` directory to the
-target repository to enable AI-assisted development using the **Logical Robotics Harness** (LRH).
+You are an AI assistant tasked with creating an LRH `project/` directory for the target repository
+so the repository can be interpreted and validated with the **Logical Robotics Harness** (LRH).
 
 This request is used to generate a **pull request**, so all actions must be:
 - safe
@@ -15,18 +15,19 @@ This request is used to generate a **pull request**, so all actions must be:
 - non-destructive
 - clearly justified
 
-Your job is to create a detailed, high-quality LRH `project/` directory that:
-- clearly reflects the current repository purpose
-- is formatted according to LRH design principles
-- is conservative and auditable
-- clearly distinguishes fact vs inference
+Your job is to produce the **most complete standard LRH bootstrap scaffold that can be grounded in
+available evidence**.
 
-Do NOT over-engineer or speculate unnecessarily.
+- If repository information is sufficient, create a full, useful LRH scaffold.
+- If information is missing or unclear, create a minimum viable scaffold with explicit TODO/unknown
+  markers rather than speculation.
 
-If a project/ directory already exists:
+This is a **bootstrap request**, not a repair or migration request.
+
+If a `project/` directory already exists:
 - DO NOT modify it
-- Classify it (complete / incomplete / incompatible)
-- Report findings
+- classify it (`current_complete` / `current_incomplete` / `incompatible`)
+- report findings
 - DO NOT create or change any files
 
 ==================================================
@@ -45,73 +46,71 @@ CORE PRINCIPLES
 
 ### 1. Non-Destructive Operation
 
-- Only ADD files under: project/
+- Only ADD files under: `project/`
 - NEVER modify existing source code
-- NEVER delete or rewrite existing documentation
-- NEVER overwrite existing files
+- NEVER modify existing files under `project/`
 - NEVER delete or rename files
 - NEVER restructure existing directories
-- ONLY create standard LRH artifacts
-- Follow repository conventions where possible
+- NEVER overwrite existing files
+- ONLY create standard LRH bootstrap artifacts when classification is `new`
 - Clearly label uncertain inferences
 
-If not enough information is available to flesh out a required artifact, add a TODO to the artifact
-to explain what information is missing and what questions need to be answered. Prefer creating
-the minimum viable set of artifacts over speculatively creating content that is ungrounded.
+When information is missing:
+- prefer placeholders/TODO markers over invented detail
+- state what is unknown and what evidence would resolve it
 
 ---
 
 ### 2. Repository Identity Verification
 
-- Confirm that the repository being modified matches REPOSITORY
-- If mismatch or ambiguity:
-  → STOP and report
-  → DO NOT proceed
+- Confirm the repository being modified matches `REPOSITORY`
+- If mismatch or unresolved ambiguity:
+  - STOP
+  - report mismatch/ambiguity
+  - DO NOT proceed
 
 Verification should include:
 - repository name/path
-- README content consistency
-- project identity signals
-
-If mismatch cannot be ruled out → STOP
+- README and/or top-level docs consistency
+- project identity signals from structure/content
 
 ---
 
 ### 3. Authoritative vs Derived Artifacts
 
-Authoritative (define intent):
-- goal/
-- principles/
-- roadmap/
-- design/
-- focus/
-- work_items/
-- contributors/
-- guardrails/
-- status/
-- memory/
+Authoritative artifacts (define intent, constraints, execution state, and truth):
+- `principles/`
+- `goal/`
+- `roadmap/`
+- `design/`
+- `focus/`
+- `work_items/`
+- `contributors/`
+- `guardrails/`
+- `evidence/`
+- `status/`
+- `memory/`
 
-Derived (summaries only):
-- context/humans.md
-- context/agents.md
+Derived artifacts (summaries only):
+- `context/humans.md`
+- `context/agents.md`
 
 Rules:
-- Derived files MUST NOT introduce new commitments
-- Derived files summarize repository + provided inputs only
+- Derived files MUST NOT introduce new commitments.
+- `context/humans.md` summarizes authoritative artifacts and observed repository context for human readers.
+- `context/agents.md` MUST be derived from `context/humans.md` as an agent-friendly operational summary.
+- If details are uncertain, both context files must preserve uncertainty rather than inventing specifics.
 
 ---
 
-### 4. Minimalism
+### 4. Bootstrap Completeness Policy
 
-- Prefer placeholders over speculation
-- Do NOT invent:
-  - roadmap phases
-  - contributors
-  - commitments
-- Seed content ONLY from:
-  - PROJECT GOAL
-  - OPTIONAL BACKGROUND
-  - observable repository structure
+For classification `new`, create as complete an LRH scaffold as can be responsibly grounded.
+
+- Default to a full standard scaffold.
+- If evidence is missing, still create the artifact with concise placeholders/TODOs.
+- Do not omit standard artifacts merely because details are incomplete.
+- Do not fabricate roadmap phases, contributors, or commitments.
 
 ==================================================
 PHASE 1 — REPOSITORY INSPECTION
@@ -119,17 +118,17 @@ PHASE 1 — REPOSITORY INSPECTION
 
 Classify the repository:
 
-A. new
-- No project/ directory
+A. `new`
+- no `project/` directory exists
 
-B. current_complete
-- project/ exists and appears complete
+B. `current_complete`
+- `project/` exists and appears structurally complete for LRH
 
-C. current_incomplete
-- project/ exists but missing standard components
+C. `current_incomplete`
+- `project/` exists but is missing expected LRH artifact categories/files
 
-D. incompatible
-- project/ exists but structure conflicts with LRH expectations
+D. `incompatible`
+- `project/` exists but structure or artifact roles conflict with LRH conventions
 
 ==================================================
 PHASE 2 — ACTION POLICY
@@ -137,12 +136,12 @@ PHASE 2 — ACTION POLICY
 
 ### Case A — New Project
 
-Create full scaffold:
+Create scaffold:
 
 project/
   context/
     humans.md
-    agents.md (optional)
+    agents.md
 
   principles/
     principles.md
@@ -169,7 +168,10 @@ project/
     approvals.md
     safety.md
     cost.md
-    safety.md
+    optics.md
+
+  evidence/
+    EV-0001.md
 
   status/
     current_status.md
@@ -177,29 +179,20 @@ project/
   memory/
     decision_log.md
 
-  evidence/
-    EV-0001.md
-
----
-
 ### Case B — Current Complete
 
 - Make NO changes
-- Report status as complete
-
----
+- Report status as `current_complete`
 
 ### Case C — Current Incomplete
 
 - Make NO changes
-- Report what artifacts are missing
-
----
+- Report missing categories/files
 
 ### Case D — Incompatible
 
 - Make NO changes
-- Report artifacts appear to conflict clearly
+- Report concrete incompatibilities
 
 ==================================================
 PHASE 3 — CONTENT GENERATION RULES
@@ -207,149 +200,282 @@ PHASE 3 — CONTENT GENERATION RULES
 
 Use inputs to seed content:
 
-PROJECT GOAL:
-- populate goal/project_goal.md
+`PROJECT GOAL`
+- primary source for `goal/project_goal.md`
 
-OPTIONAL BACKGROUND:
-- inform:
-  - design/design.md
-  - context/humans.md
-  - focus/current_focus.md
+`OPTIONAL BACKGROUND`
+- informs:
+  - `design/design.md`
+  - `focus/current_focus.md`
+  - `context/humans.md`
+
+Repository inspection (README, docs, module structure)
+- informs:
+  - design summary
+  - current focus hypothesis
+  - guardrail emphasis
+  - initial evidence/status grounding
 
 Rules:
-- If background missing → use minimal placeholders
-- NEVER hallucinate details
+- If background is missing, use minimal grounded placeholders.
+- Link claims to observable repo signals when possible (paths, docs, commands).
+- Never present uncertain inference as confirmed fact.
 
 ==================================================
 CONTENT GUIDELINES
 ==================================================
 
-Where possible, link statements to:
-- README sections
-- file paths
-- code components
+Use concise Markdown. Include YAML frontmatter where useful for machine readability.
 
-### context/humans.md
+Align with LRH conventions:
+- precedence shape: principles → goal → roadmap → focus → work_items → evidence → status
+- guardrails constrain execution and approvals
+- status is evidence-backed, not aspirational prose
+- memory records decisions/assumptions with rationale
 
--   Summarizes the goal, design, and focus of the project.
--   Self-contained and complete
--   Should reflect the rest of the artifacts
--   Should not introduce new committments. 
+### `goal/project_goal.md`
 
-Should be complete *as a summary*, not as a specification.
-Must not introduce:
-- new goals
-- new plans
-- new requirements
+Should clearly state:
+- what the project is
+- what outcome it intends to produce
+- who it is for
+- scope boundaries (in-scope/out-of-scope)
 
-### project_goal.md
+Ground this primarily in `PROJECT GOAL` plus repository evidence.
 
--   What the project is
--   What it is trying to achieve
--   Grounded in README / code
+### `design/design.md`
 
-### design.md
+Should capture:
+- purpose and scope
+- key conceptual layers/components
+- precedence/interpretation model (at high level)
+- current implementation boundary vs future extensions
 
--   High-level architecture
--   Key components and flows
--   Derived from code structure
+Prefer architecture and artifact-role clarity over implementation minutiae.
 
-### current_focus.md
+### `focus/current_focus.md`
 
--   What appears to be the current development direction
--   Include YAML frontmatter if appropriate
+Should identify:
+- what appears to be the current bounded priority
+- why that priority appears current (repo evidence)
+- non-goals to keep scope disciplined
+- exit criteria/checkpoints
 
-### WI-BOOTSTRAP-0001.md
+If unclear, state uncertainty explicitly and keep focus conservative.
 
--   A work item describing the bootstrap itself
--   Include:
-    -   what was created
-    -   what remains uncertain
+### `status/current_status.md`
 
-### safety.md
+Should summarize:
+- current maturity and health
+- evidence basis used for status claims
+- active priorities and key risks
+- immediate recommended next actions
 
--   Safety constraints
--   What agents should NOT do in this repo
+Do not claim completion without supporting evidence.
 
-### current_status.md
+### `memory/decision_log.md`
 
--   Current maturity of the project
--   What exists vs what is missing
+Should record bootstrap decisions:
+- what assumptions were made
+- why those assumptions were made
+- uncertainty/alternatives noted
+- bootstrap-specific rationale and implications
 
-### decision_log.md
+Use dated entries; keep the log auditable.
 
--   Record:
-    -   assumptions made
-    -   uncertainties
-    -   reasoning steps
+### `context/humans.md`
+
+Human-oriented derived summary:
+- plain-language project overview
+- concise synthesis of goal/design/focus/status
+- known unknowns and open questions
+
+Must be self-contained and readable, but non-authoritative.
+
+### `context/agents.md`
+
+Agent-oriented derived summary, created from `context/humans.md`:
+- mission summary
+- authoritative artifact map (what to read first)
+- execution constraints and guardrails
+- confidence/uncertainty notes
+
+Must remain non-authoritative and must not add commitments.
 
 ==================================================
 FILE TEMPLATES
 ==================================================
 
-### context/humans.md
-
-# Project Context (Human-Oriented)
-
-## Overview
-[Derived from PROJECT GOAL and repository]
-
-## Background
-[Derived from OPTIONAL BACKGROUND if available]
-
-## Notes
-- Non-authoritative summary
+### `goal/project_goal.md`
 
 ---
-
-### goal/project_goal.md
+id: GOAL-CORE
+title: <Project Goal Title>
+status: active
+owner: <owner_or_team>
+time_horizon: long
+---
 
 # Project Goal
 
 ## Objective
 {{PROJECT_GOAL}}
 
-## What this project is
+## Intended Outcome
+- <observable outcomes>
 
-## Success direction
+## Intended Users / Stakeholders
+- <users>
 
-## Notes
-[Supplement with background if available]
+## In Scope
+- <scope bullets>
+
+## Out of Scope (Initial)
+- <non-goals>
+
+## Success Direction
+- <how success will be recognized>
 
 ---
 
-### design/design.md
+### `design/design.md`
 
 # Design
 
-## Overview
-[Derived from background and repo]
+## Purpose
+- <what system is being built>
 
-## Key Components
+## Scope
+- <current scope boundary>
+
+## Core Structure
+- Intent layer: principles/goal/roadmap
+- Execution layer: focus/work_items/contributors
+- Constraint layer: guardrails
+- Truth layer: evidence/status/memory
+
+## Precedence and Interpretation Notes
+- principles → goal → roadmap → focus → work_items → guardrails/runtime context
+
+## Current Implementation Boundary
+- <what exists now>
+
+## Future Extensions (Non-binding)
+- <later capabilities>
 
 ---
 
-### focus/current_focus.md
+### `focus/current_focus.md`
+
+---
+id: FOCUS-BOOTSTRAP
+title: Initial project bootstrap focus
+status: active
+priority: high
+owner: <owner_or_team>
+---
 
 # Current Focus
 
-## Active Work
-- Establish or complete LRH structure
+## Active Priority
+- Establish an initial LRH control plane with grounded artifacts.
 
-## Why this appears current
-- Describe the state of the artifacts in the repository
+## Why This Appears Current
+- <repo evidence>
+
+## Priorities
+1. <priority 1>
+2. <priority 2>
+
+## Non-Goals
+- <bounded exclusions>
+
+## Exit Criteria
+- <conditions indicating this focus is complete>
 
 ---
 
-### work_items/WI-BOOTSTRAP-0001.md
+### `status/current_status.md`
 
-# WI-BOOTSTRAP-0001
+---
+id: STATUS-CURRENT
+title: Current Project Status
+scope: project
+status: active
+health: yellow
+---
 
-## Title
-Initialize or complete LRH control plane
+# Current Status
 
-## Status
-Open
+## Summary
+- <overall state>
+
+## Evidence Basis
+- <docs/files/signals used>
+
+## Current Health
+- <green/yellow/red with rationale>
+
+## Active Priorities
+- <priority bullets>
+
+## Risks
+- <risk bullets>
+
+## Recommended Next Actions
+1. <next action>
+2. <next action>
+
+---
+
+### `memory/decision_log.md`
+
+# Decision Log
+
+## <YYYY-MM-DD>: Bootstrap decision
+
+### Summary
+- <decision summary>
+
+### Decisions
+- <what was decided>
+
+### Rationale
+- <why>
+
+### Uncertainty / Follow-ups
+- <unknowns and validation needed>
+
+### Status
+- Accepted (Bootstrap Phase)
+
+---
+
+### `context/humans.md`
+
+# Project Context (Human-Oriented)
+
+## One-line Description
+- <plain-language description>
+
+## Overview
+- <what the repository appears to do>
+
+## Goals and Direction
+- Goal: <from project_goal>
+- Near-term focus: <from current_focus>
+
+## Design Snapshot
+- <key architecture/control-plane points>
+
+## Current Status Snapshot
+- <health + immediate state>
+
+## Known Unknowns
+- <explicit uncertainties>
+
+## Notes
+- Derived summary only (non-authoritative).
 
 ==================================================
 PROCESS (REQUIRED)
@@ -357,39 +483,31 @@ PROCESS (REQUIRED)
 
 Follow this strict order:
 
-1. Verify the identity of repository
-    - If repository is not the correct one, STOP and report
-2. Check for existence of project/ directory (only if correct repository)
-    - If it exists, classify it and STOP and report
-3. Inspect content of the repository (only if no project/ directory exists)
-    -   README
-    -   key modules
-    -   directory structure
-4.  Infer project purpose and design:
-    -   project purpose
-    -   architecture
-    -   current development direction
-5.  Create project/ directory artifacts (only if correct repository and no existing project/):
-    -   as much meaningful content as can be inferred
-    -   avoid redundancy
-    -   Annotate uncertainty explicitly:
-        -   use phrases like:
-            -   "Likely"
-            -   "Appears to"
-            -   "Unclear from repository"
-6. Generate PR description
+1. Verify repository identity against `REPOSITORY`.
+   - If mismatch/ambiguity remains, STOP and report.
+2. Check for `project/` directory.
+   - If present: classify and STOP (no file changes).
+3. If classification is `new`, inspect repository evidence:
+   - README and top-level docs
+   - key modules/directories
+   - implementation signals relevant to goal/design/focus
+4. Infer conservative initial control-plane content.
+5. Create bootstrap artifacts under `project/` only.
+6. Derive `context/humans.md` from authoritative artifacts.
+7. Derive `context/agents.md` from `context/humans.md` (agent-friendly summary).
+8. Generate PR description.
 
 ==================================================
 PR DESCRIPTION REQUIREMENTS
 ==================================================
 
 Include:
-
--   Summary of repository understanding
--   List of files created
--   Key assumptions made
--   Areas of uncertainty
--   Rationale for structure choices
+- summary of repository understanding
+- classification result and action taken
+- list of files created (if any)
+- key assumptions
+- explicit uncertainties / follow-up questions
+- rationale for structure choices
 
 ==================================================
 FAILURE POLICY
@@ -397,43 +515,42 @@ FAILURE POLICY
 
 Bootstrap must be atomic:
 
-- If repository classification is not clearly "new"
-    -   DO NOT create any files
-    -   DO NOT perform partial bootstrap
+- If repository classification is not clearly `new`:
+  - DO NOT create files
+  - DO NOT perform partial bootstrap
 
 Content must be grounded:
 
--   If repository intent is unclear:
-    -   produce minimum viable scaffold only
-    -   document uncertainty in each file 
--   If conflicting signals exist:
-    -   do NOT resolve silently
-    -   document both interpretations
+- If repository intent is unclear:
+  - create minimum viable scaffold
+  - annotate uncertainty in relevant artifacts
+- If conflicting signals exist:
+  - do not silently resolve conflict
+  - document both interpretations and confidence
 
 ==================================================
 ACCEPTANCE CRITERIA
 ==================================================
 
--   project/ directory exists with required structure
--   No existing files modified
--   Content is:
-    -   coherent
-    -   grounded in repo evidence
-    -   explicit about uncertainty
--   PR is clean and narrowly scoped
-
+- If classification is `new`, `project/` contains the standard LRH bootstrap scaffold.
+- If classification is not `new`, no files are created or changed.
+- No existing files are modified.
+- Content is coherent, grounded in repo evidence, and explicit about uncertainty.
+- `context/agents.md` is derived from `context/humans.md` and remains non-authoritative.
+- PR is narrow, auditable, and bootstrap-only.
 
 ==================================================
-OUTPUT FORMAT
+REQUIRED OUTPUT STRUCTURE
 ==================================================
 
 Provide:
 
-1. Classification (new / current_complete / current_incomplete / incompatible)
-2. Action summary
-3. Files created (if any)
-4. Conflict report (if incompatible)
-
+1. Repository identity verification summary
+2. Classification (`new` / `current_complete` / `current_incomplete` / `incompatible`)
+3. Action summary (created scaffold vs no-op classification)
+4. Files created (if any)
+5. Missing/Conflict report (for non-`new` classifications)
+6. Assumptions and uncertainty report
 
 ==================================================
 FINAL RULE
@@ -443,7 +560,7 @@ When in doubt:
 
 → Do less
 → Preserve repository intent
-→ Prefer reporting over modifying
+→ Prefer explicit reporting over speculative modification
 
 
 # BEGIN

@@ -15,6 +15,7 @@ depends_on: []
 blocked_by: []
 expected_actions:
   - edit_file
+  - add_file
   - run_tests
 forbidden_actions:
   - force_push
@@ -35,13 +36,26 @@ artifacts_expected:
 
 ## Summary
 
-Implement the first precedence resolver for LRH’s control plane.
+Implement a deterministic precedence resolver for LRH’s control plane, enabling the system to
+interpret the effective project state (focus, active work items, contributors) from project/
+artifacts.
 
 ## Goals
 
 - Make precedence operational rather than purely documented
 - Resolve active focus and in-scope work from project artifacts
 - Support future snapshot/status interpretation
+
+## Problem
+
+LRH currently parses project metadata but does not interpret it using a defined precedence model.
+As a result, the system cannot reliably determine:
+
+- the active focus
+- the set of in-scope work items
+- the effective contributors
+
+This limits LRH to validation rather than control-plane reasoning.
 
 ## Proposed Actions
 
@@ -56,6 +70,108 @@ Implement the first precedence resolver for LRH’s control plane.
   - runtime invocation
 - Add focused tests for correct precedence behavior
 
+## Scope
+
+In scope:
+
+- Implement a precedence resolver consistent with the design.md precedence model
+- Resolve:
+  - current focus
+  - active contributors
+  - in-scope work items
+- Ensure deterministic behavior (same inputs → same outputs)
+- Expose resolution through a callable module or function
+- Add focused unit tests for precedence behavior
+
+---
+
+## Out of Scope
+
+- Snapshot output changes (handled by separate work item)
+- CLI interface redesign
+- Schema changes to project/ files
+- Broad refactors of loaders or validators
+- Performance optimization beyond basic correctness
+- Any redesign of precedence rules beyond what is already in design.md
+
+---
+
+## Likely Files
+
+- lrh/control_plane/precedence.py (new)
+- lrh/control_plane/__init__.py (if needed)
+- lrh/loaders/* (read-only usage only, no refactor unless strictly required)
+- tests/control_plane/test_precedence.py (new)
+
+---
+
+## Required Changes
+
+- Create a precedence resolver module
+- Implement precedence ordering as defined in design.md:
+  - principles
+  - goal
+  - roadmap
+  - focus
+  - work items
+  - guardrails
+  - runtime invocation
+- Implement functions to:
+  - determine active focus
+  - determine active contributors
+  - determine relevant work items
+- Ensure resolver is pure and deterministic (no hidden state)
+- Add unit tests covering:
+  - simple valid project state
+  - conflicting signals (if representable)
+  - missing optional components
+
+---
+
+## Acceptance Criteria
+
+- Resolver produces consistent outputs for the same project state
+- Resolver correctly identifies:
+  - current focus
+  - active contributors
+  - relevant work items
+- Behavior matches precedence model described in design.md
+- Unit tests exist and pass
+- No unrelated files are modified
+
+---
+
+## Validation
+
+- Run:
+  - `scripts/test`
+  - `scripts/validate`
+- Confirm:
+  - no regression in existing validation behavior
+  - new tests pass
+- Manual sanity check:
+  - resolver output matches expected interpretation of project/
+
+---
+
+## Required Evidence
+
+- test_result
+- manual_review
+
+---
+
+## Artifacts Expected
+
+- code_diff
+- precedence_module
+- test_module
+
+---
+
 ## Notes
 
 This is the central remaining gap in Phase 1.
+This is the core semantic step of Phase 1: moving from parsing → interpretation.
+Keep implementation minimal and conservative. If any ambiguity in precedence rules is encountered, do not guess—surface it clearly.
+

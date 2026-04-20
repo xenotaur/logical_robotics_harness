@@ -36,27 +36,24 @@ import pathlib
 import re
 import sys
 
-from lrh.assist import request_variables
+from lrh.assist import request_templates, request_variables
 
 _TEMPLATE_VAR_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 
 
-def _script_dir() -> pathlib.Path:
-    return pathlib.Path(__file__).resolve().parent
-
-
-def _templates_dir() -> pathlib.Path:
-    return _script_dir() / "templates" / "request"
-
-
 def _load_template(template_name: str) -> tuple[pathlib.Path, str]:
-    template_path = _templates_dir() / f"{template_name}.md"
-    if not template_path.exists():
-        raise FileNotFoundError(
-            f"Template not found: {template_path}\n"
-            f"Expected: scripts/aiprog/templates/request/{template_name}.md"
-        )
-    return template_path, template_path.read_text(encoding="utf-8")
+    template_root = request_templates.get_template_root_from_script_path(
+        pathlib.Path(__file__)
+    )
+    template_path = request_templates.get_template_path(
+        template_name,
+        template_root=template_root,
+    )
+    template_text = request_templates.load_template_text(
+        template_name,
+        template_root=template_root,
+    )
+    return template_path, template_text
 
 
 def _render_template(template_text: str, variables: dict[str, str]) -> str:

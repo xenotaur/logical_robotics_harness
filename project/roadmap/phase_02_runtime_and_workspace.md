@@ -32,8 +32,14 @@ This phase turns LRH from a document parser into a project-facing tool.
 
 Purpose:
 - establish a workspace-level project registry
-- validate a stable registry ID plus mutable locator model
-- validate dashboard metadata for both LRH and non-LRH repositories
+- validate a stable `project_id` plus mutable locator model (`repo`, `project_dir`)
+- validate mutable labels (`display_name`, `short_name`)
+- support repositories with and without LRH `project/` directories
+- track explicit setup state (`not_set_up`, `lrh_project_present`)
+
+Traceability:
+- work item: `project/work_items/WI-META-CLI-MVP.md`
+- spec alignment: Meta Control Plane MVP, Phase 1 (`init` / `register` / `list`)
 
 ## Risks
 

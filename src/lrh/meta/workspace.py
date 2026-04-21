@@ -5,6 +5,7 @@ from __future__ import annotations
 import dataclasses
 import json
 import pathlib
+import shutil
 
 GITIGNORE_BEGIN = "# --- lrh meta init managed block ---"
 GITIGNORE_END = "# --- end lrh meta init managed block ---"
@@ -183,6 +184,17 @@ def _write_config(
         created.append(path)
         return
 
+    if not path.is_file():
+        if not force:
+            raise MetaInitError(
+                f"expected file at {path}, but found a non-file path; "
+                "rerun with --force to replace it"
+            )
+        _remove_existing_path(path)
+        path.write_text(content, encoding="utf-8")
+        updated.append(path)
+        return
+
     existing = path.read_text(encoding="utf-8")
     if existing == content:
         unchanged.append(path)
@@ -215,3 +227,11 @@ def _config_text(workspace_name: str) -> str:
 def _toml_basic_string(value: str) -> str:
     """Encode a Python string as a valid TOML basic string literal."""
     return json.dumps(value)
+
+
+def _remove_existing_path(path: pathlib.Path) -> None:
+    """Remove an existing filesystem path for force-replacement flows."""
+    if path.is_dir():
+        shutil.rmtree(path)
+        return
+    path.unlink()

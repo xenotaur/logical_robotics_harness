@@ -105,6 +105,33 @@ class TestMetaInitRuntime(unittest.TestCase):
             )
             self.assertIn(root / ".lrh" / "config.toml", forced_result.updated)
 
+    def test_init_workspace_config_path_directory_requires_force(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            (root / ".lrh" / "config.toml").mkdir(parents=True)
+
+            with self.assertRaises(workspace.MetaInitError):
+                workspace.init_workspace(
+                    root,
+                    spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+                )
+
+    def test_init_workspace_force_replaces_directory_config_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            config_dir = root / ".lrh" / "config.toml"
+            config_dir.mkdir(parents=True)
+            (config_dir / "placeholder.txt").write_text("x", encoding="utf-8")
+
+            result = workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+                force=True,
+            )
+
+            self.assertTrue((root / ".lrh" / "config.toml").is_file())
+            self.assertIn(root / ".lrh" / "config.toml", result.updated)
+
     def test_init_workspace_escapes_workspace_name_for_valid_toml(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)

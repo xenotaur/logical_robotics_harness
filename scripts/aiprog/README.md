@@ -17,10 +17,17 @@ Current helpers include:
 Usage examples:
 
 ```bash
-python scripts/aiprog/request.py --help
-python scripts/aiprog/request.py assessment --scope project
-python scripts/aiprog/request.py assessment --scope current_focus
-python scripts/aiprog/request.py assessment --scope work_item --target WI-0003
-python scripts/aiprog/snapshot.py --help
+lrh request --help
+lrh request assessment --scope project
+lrh request assessment --scope current_focus
+lrh request assessment --scope work_item --target WI-0003
+lrh snapshot --help
 python scripts/aiprog/sourcetree_surveyor.py --help
+```
+
+Legacy wrappers remain available for compatibility during migration:
+
+```bash
+python scripts/aiprog/request.py --help
+python scripts/aiprog/snapshot.py --help
 ```

@@ -15,31 +15,30 @@ def _load_request_module():
 
 
 class TestRequestTemplateResolution(unittest.TestCase):
-    def test_load_template_uses_script_relative_template_root(self) -> None:
+    def test_main_passes_script_relative_template_root_to_service(self) -> None:
         module = _load_request_module()
         expected_root = pathlib.Path("scripts/aiprog/templates/request").resolve()
 
         with (
             mock.patch.object(
-                module.request_templates,
-                "get_template_path",
-                return_value=expected_root / "improve_coverage.md",
-            ) as mock_get_template_path,
+                module.request_service,
+                "validate_args",
+                return_value=None,
+            ),
             mock.patch.object(
-                module.request_templates,
-                "load_template_text",
-                return_value="template",
-            ) as mock_load_template_text,
+                module.request_service,
+                "generate_request",
+                return_value=("rendered", {}),
+            ) as mock_generate_request,
+            mock.patch.object(module.sys, "stdout"),
         ):
-            module._load_template("improve_coverage")
+            exit_code = module.main(["improve_coverage", "src/lrh/analysis/foo.py"])
 
-        mock_get_template_path.assert_called_once_with(
-            "improve_coverage",
-            template_root=expected_root,
-        )
-        mock_load_template_text.assert_called_once_with(
-            "improve_coverage",
-            template_root=expected_root,
+        self.assertEqual(exit_code, 0)
+        mock_generate_request.assert_called_once()
+        self.assertEqual(
+            mock_generate_request.call_args.kwargs["template_root"],
+            expected_root,
         )
 
 

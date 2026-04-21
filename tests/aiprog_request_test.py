@@ -19,25 +19,17 @@ class TestRequestTemplateResolution(unittest.TestCase):
         module = _load_request_module()
         expected_root = pathlib.Path("scripts/aiprog/templates/request").resolve()
 
-        with (
-            mock.patch.object(
-                module.request_service,
-                "validate_args",
-                return_value=None,
-            ),
-            mock.patch.object(
-                module.request_service,
-                "generate_request",
-                return_value=("rendered", {}),
-            ) as mock_generate_request,
-            mock.patch.object(module.sys, "stdout"),
-        ):
+        with mock.patch.object(
+            module.request_cli,
+            "run_request_cli",
+            return_value=0,
+        ) as mock_run_request_cli:
             exit_code = module.main(["improve_coverage", "src/lrh/analysis/foo.py"])
 
         self.assertEqual(exit_code, 0)
-        mock_generate_request.assert_called_once()
+        mock_run_request_cli.assert_called_once()
         self.assertEqual(
-            mock_generate_request.call_args.kwargs["template_root"],
+            mock_run_request_cli.call_args.kwargs["template_root"],
             expected_root,
         )
 

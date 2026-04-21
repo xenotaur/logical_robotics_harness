@@ -21,35 +21,33 @@ In practice, a “request” is the final filled-in markdown prompt you can hand
 
 ## Command Line Usage
 
-### Current usage (available now)
+### Preferred usage
 
-Use the current script entry point:
-
-```bash
-python scripts/aiprog/request.py <template_name> [target] [options]
-```
-
-Basic example:
-
-```bash
-python scripts/aiprog/request.py improve_coverage src/lrh/analysis/llm_extractor.py
-```
-
-You can inspect supported options with:
-
-```bash
-python scripts/aiprog/request.py --help
-```
-
-### Intended future usage (planned)
-
-The long-term CLI surface is intended to be:
+Use the package CLI entry point:
 
 ```bash
 lrh request <template_name> [target] [options]
 ```
 
-This is a planned migration target; today the script-based command is the active interface.
+Basic example:
+
+```bash
+lrh request improve_coverage src/lrh/analysis/llm_extractor.py
+```
+
+You can inspect supported options with:
+
+```bash
+lrh request --help
+```
+
+### Compatibility usage
+
+The script interface is still supported for compatibility:
+
+```bash
+python scripts/aiprog/request.py <template_name> [target] [options]
+```
 
 ## Python API Usage
 
@@ -70,7 +68,7 @@ result = generate_request(args)
 print(result)
 ```
 
-For now, use the CLI script above as the supported interface.
+The package CLI (`lrh request ...`) is preferred for interactive use.
 
 ## Examples
 
@@ -86,7 +84,7 @@ For now, use the CLI script above as the supported interface.
 Example:
 
 ```bash
-python scripts/aiprog/request.py improve_coverage src/lrh/analysis/llm_extractor.py
+lrh request improve_coverage src/lrh/analysis/llm_extractor.py
 ```
 
 ### 2) `bootstrap_project`
@@ -102,7 +100,7 @@ python scripts/aiprog/request.py improve_coverage src/lrh/analysis/llm_extractor
 Example:
 
 ```bash
-python scripts/aiprog/request.py bootstrap_project \
+lrh request bootstrap_project \
   --repo-name logical_robotics_harness \
   --project-goal "Bootstrap LRH control files"
 ```
@@ -121,7 +119,7 @@ python scripts/aiprog/request.py bootstrap_project \
 Example:
 
 ```bash
-python scripts/aiprog/request.py work_items_from_audit \
+lrh request work_items_from_audit \
   --audit-file audits/style_audit_2026_04_10.md \
   --style-file STYLE.md
 ```
@@ -140,5 +138,6 @@ python scripts/aiprog/request.py work_items_from_audit \
 
 ## Status / Roadmap
 
-- **Current**: Script-based interface (`python scripts/aiprog/request.py ...`).
-- **Planned**: Unified CLI command (`lrh request ...`) and first-class Python API (`RequestArgs` + `generate_request(...)`).
+- **Current preferred CLI**: `lrh request ...`
+- **Compatibility CLI**: `python scripts/aiprog/request.py ...`
+- **Planned API**: first-class Python API (`RequestArgs` + `generate_request(...)`).

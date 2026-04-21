@@ -250,6 +250,13 @@ An agent may exist in the system without being actively assigned to any work ite
 - LRH may also operate with a workspace/dashboard repository that catalogs and coordinates multiple LRH-compatible repositories.
 - This workspace/meta layer is informative/coordinating relative to project-local authoritative state and does not participate in a project's precedence chain.
 
+#### First executable slice (MVP)
+- The first executable meta-control slice is a minimal CLI registry flow:
+  - `lrh meta init`
+  - `lrh meta register`
+  - `lrh meta list`
+- This slice should be validated against real repositories, including repositories without LRH `project/` directories.
+
 ### Viewing Layer
 - CLI summaries
 - Local web UI

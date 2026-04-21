@@ -23,6 +23,18 @@ This phase turns LRH from a document parser into a project-facing tool.
 - example project fixture(s)
 - repo-local configuration conventions if needed
 
+### Near-Term Slice: Meta CLI MVP
+
+- implement `lrh meta init`
+- implement `lrh meta register`
+- implement `lrh meta list`
+- test against real repositories (including repos with and without LRH `project/` directories)
+
+Purpose:
+- establish a workspace-level project registry
+- validate a stable registry ID plus mutable locator model
+- validate dashboard metadata for both LRH and non-LRH repositories
+
 ## Risks
 
 - accidentally assuming all projects look like LRH itself

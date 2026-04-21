@@ -32,6 +32,10 @@ class TestRequestTemplateResolution(unittest.TestCase):
             mock_run_request_cli.call_args.kwargs["template_root"],
             expected_root,
         )
+        self.assertIn(
+            "legacy compatibility path",
+            mock_run_request_cli.call_args.kwargs["prog"],
+        )
 
 
 if __name__ == "__main__":

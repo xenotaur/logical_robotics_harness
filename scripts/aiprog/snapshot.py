@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Generate Markdown context packets from a project's control-plane files."""
+"""Legacy compatibility entry point for snapshot generation.
+
+Prefer `lrh snapshot ...` for day-to-day usage.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +14,10 @@ from lrh.assist import snapshot_cli
 def main(argv: list[str] | None = None) -> int:
     return snapshot_cli.run_snapshot_cli(
         argv=argv if argv is not None else sys.argv[1:],
-        prog="snapshot.py",
+        prog=(
+            "scripts/aiprog/snapshot.py "
+            "(legacy compatibility path; prefer `lrh snapshot`)"
+        ),
     )
 
 

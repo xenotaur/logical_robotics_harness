@@ -36,18 +36,17 @@ def main() -> None:
         help="arguments passed through to the request command",
     )
 
-    snapshot_parser = subparsers.add_parser(
-        "snapshot", help="generate assist snapshot context packets"
-    )
-    snapshot_parser.add_argument(
-        "snapshot_args",
-        nargs=argparse.REMAINDER,
-        help="arguments passed through to the snapshot command",
+    subparsers.add_parser(
+        "snapshot",
+        add_help=False,
+        help="generate assist snapshot context packets",
     )
 
-    args = parser.parse_args()
+    args, passthrough_args = parser.parse_known_args()
 
     if args.command == "validate":
+        if passthrough_args:
+            parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
         report = validate_project(Path(args.project_dir))
         print(format_report(report))
         raise SystemExit(1 if report.errors else 0)
@@ -64,10 +63,13 @@ def main() -> None:
     if args.command == "snapshot":
         raise SystemExit(
             snapshot_cli.run_snapshot_cli(
-                argv=args.snapshot_args,
+                argv=passthrough_args,
                 prog="lrh snapshot",
             )
         )
+
+    if passthrough_args:
+        parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
 
     print("Logical Robotics Harness bootstrap CLI")
 

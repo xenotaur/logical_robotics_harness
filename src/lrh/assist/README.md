@@ -43,11 +43,13 @@ lrh request --help
 
 ### Compatibility usage
 
-The script interface is still supported for compatibility:
+The script interface is still supported as a **legacy compatibility path**:
 
 ```bash
 python scripts/aiprog/request.py <template_name> [target] [options]
 ```
+
+Prefer `lrh request ...` for normal usage. The legacy script path may be removed in a future cleanup after migration.
 
 ### Snapshot preferred usage
 
@@ -71,11 +73,13 @@ lrh snapshot --help
 
 ### Snapshot compatibility usage
 
-The script interface is still supported for compatibility:
+The script interface is still supported as a **legacy compatibility path**:
 
 ```bash
 python scripts/aiprog/snapshot.py <project|current_focus|work_item> [options]
 ```
+
+Prefer `lrh snapshot ...` for normal usage. The legacy script path may be removed in a future cleanup after migration.
 
 ## Python API Usage
 
@@ -168,6 +172,7 @@ lrh request work_items_from_audit \
 
 - **Current preferred request CLI**: `lrh request ...`
 - **Current preferred snapshot CLI**: `lrh snapshot ...`
-- **Compatibility request CLI**: `python scripts/aiprog/request.py ...`
-- **Compatibility snapshot CLI**: `python scripts/aiprog/snapshot.py ...`
+- **Legacy compatibility request CLI**: `python scripts/aiprog/request.py ...`
+- **Legacy compatibility snapshot CLI**: `python scripts/aiprog/snapshot.py ...`
+- **Deprecation guidance**: migrate scripted usage to `lrh request ...` / `lrh snapshot ...` before legacy script removal.
 - **Planned request API**: first-class Python API (`RequestArgs` + `generate_request(...)`).

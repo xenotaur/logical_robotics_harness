@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 """
-Create a filled-out request from a template.
+Legacy compatibility entry point for request generation.
+
+Prefer `lrh request ...` for day-to-day usage.
 
 Examples:
     scripts/aiprog/request.py improve_coverage src/lrh/analysis/llm_extractor.py
@@ -46,7 +48,10 @@ def main(argv=None) -> int:
     return request_cli.run_request_cli(
         argv=argv if argv is not None else sys.argv[1:],
         template_root=_default_template_root(),
-        prog="request.py",
+        prog=(
+            "scripts/aiprog/request.py "
+            "(legacy compatibility path; prefer `lrh request`)"
+        ),
     )
 
 

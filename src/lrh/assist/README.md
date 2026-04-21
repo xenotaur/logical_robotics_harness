@@ -73,6 +73,74 @@ lrh snapshot work_item WI-0003 --project-root .
 python scripts/aiprog/sourcetree_surveyor.py --help
 ```
 
+## Golden Path Example: From Audit to Reviewed Change
+
+This example shows one small end-to-end LRH-assisted flow:
+starting from an audit, proposing work items, selecting one work item,
+generating a Codex implementation prompt, then reviewing the resulting change.
+
+### Step 1 — Start with an audit
+
+Use an existing audit report (for example from your normal repo audit process).
+In this flow, we assume you already have:
+
+- `path/to/audit.md`
+- `STYLE.md`
+
+### Step 2 — Generate proposed work items
+
+Render a work-item proposal request from the audit:
+
+```bash
+lrh request work_items_from_audit \
+  --audit-file path/to/audit.md \
+  --style-file STYLE.md > path/to/work_item_proposals_request.md
+```
+
+Submit the rendered request to your AI assistant and save the response as
+`path/to/proposed_work_items.md`.
+
+### Step 3 — Choose one work item (human decision)
+
+A human reviewer selects one candidate item from `path/to/proposed_work_items.md`
+and saves it as `path/to/work_item.md`.
+
+This step is intentionally manual: LRH expects human judgment when prioritizing
+and approving work.
+
+### Step 4 — Generate a Codex implementation prompt
+
+Render an implementation prompt request for the selected work item:
+
+```bash
+lrh request codex_prompt_from_work_item \
+  --work-item-file path/to/work_item.md \
+  --style-file STYLE.md > path/to/codex_prompt_request.md
+```
+
+Submit `path/to/codex_prompt_request.md` to Codex (or another coding assistant)
+to produce and execute the implementation prompt.
+
+### Step 5 — Review the resulting patch against the work item
+
+After implementation, review the proposed change against the same work item:
+
+```bash
+lrh request pr_against_work_item \
+  --work-item-file path/to/work_item.md \
+  --patch-file path/to/patch.diff \
+  --style-file STYLE.md > path/to/pr_review_request.md
+```
+
+Submit `path/to/pr_review_request.md` to your reviewer assistant and use the
+result to decide whether to merge, request fixes, or split follow-up work.
+
+### Notes
+
+- Keep each selected work item small and independently reviewable.
+- Keep human review in the loop at work-item selection and pre-merge review.
+- If review finds scope drift, revise the work item or split into smaller follow-ups.
+
 ## Python API Usage
 
 `RequestArgs` and `generate_request(...)` are the intended end-user Python API for this module, but they are not yet implemented in the current codebase.

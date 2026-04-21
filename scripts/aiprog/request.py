@@ -41,9 +41,21 @@ from lrh.assist import request_templates, request_variables
 _TEMPLATE_VAR_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 
 
+def _default_template_root() -> pathlib.Path:
+    """Resolve request templates relative to this script location."""
+    return pathlib.Path(__file__).resolve().parent / "templates" / "request"
+
+
 def _load_template(template_name: str) -> tuple[pathlib.Path, str]:
-    template_path = request_templates.get_template_path(template_name)
-    template_text = request_templates.load_template_text(template_name)
+    template_root = _default_template_root()
+    template_path = request_templates.get_template_path(
+        template_name,
+        template_root=template_root,
+    )
+    template_text = request_templates.load_template_text(
+        template_name,
+        template_root=template_root,
+    )
     return template_path, template_text
 
 

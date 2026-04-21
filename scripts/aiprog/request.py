@@ -33,96 +33,14 @@ Interpolation variables use the form:
 
 import argparse
 import pathlib
-import re
 import sys
 
-from lrh.assist import request_templates, request_variables
-
-_TEMPLATE_VAR_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
+from lrh.assist import request_service
 
 
 def _default_template_root() -> pathlib.Path:
     """Resolve request templates relative to this script location."""
     return pathlib.Path(__file__).resolve().parent / "templates" / "request"
-
-
-def _load_template(template_name: str) -> tuple[pathlib.Path, str]:
-    template_root = _default_template_root()
-    template_path = request_templates.get_template_path(
-        template_name,
-        template_root=template_root,
-    )
-    template_text = request_templates.load_template_text(
-        template_name,
-        template_root=template_root,
-    )
-    return template_path, template_text
-
-
-def _render_template(template_text: str, variables: dict[str, str]) -> str:
-    """
-    Simple, deterministic interpolation:
-      - Replaces {{VARNAME}} with variables[VARNAME] if present.
-      - Leaves unknown placeholders intact (so you can notice missing vars).
-    """
-
-    def repl(match: re.Match[str]) -> str:
-        key = match.group(1)
-        return variables.get(key, match.group(0))
-
-    return _TEMPLATE_VAR_RE.sub(repl, template_text)
-
-
-def _build_variables(args: argparse.Namespace) -> dict[str, str]:
-    target_input = _resolve_target_input(args)
-    target_module_gha = request_variables.normalize_target_for_gha(target_input)
-    module_name = pathlib.Path(target_module_gha).stem if target_module_gha else ""
-    suggested_test_path = request_variables.compute_suggested_test_path(
-        target_module_gha
-    )
-
-    background_context = args.background_text or request_variables.read_optional_text(
-        args.background_file
-    )
-    repo_name = request_variables.infer_repo_name(target_input, args.repo_name)
-
-    audit_report = request_variables.read_optional_text(args.audit_file)
-    work_item = request_variables.read_optional_text(args.work_item_file)
-    style_guide_context = request_variables.read_optional_text(args.style_file)
-    patch_text = request_variables.read_optional_text(args.patch_file)
-
-    # Keep names stable and ALL CAPS to match {{...}} usage
-    return {
-        "TEMPLATE_NAME": args.template_name,
-        "TARGET_INPUT": target_input,
-        "TARGET_MODULE_GHA": target_module_gha,
-        "MODULE_NAME": module_name,
-        "SUGGESTED_TEST_PATH": suggested_test_path,
-        "REPO_NAME": repo_name,
-        "PROJECT_GOAL": args.project_goal or "",
-        "BACKGROUND_CONTEXT": background_context,
-        "BACKGROUND_FILE": args.background_file or "",
-        "PROJECT_TYPE": args.project_type or "",
-        "BOOTSTRAP_SCOPE": args.bootstrap_mode or "",
-        "ASSESSMENT_SCOPE": args.scope or "",
-        "ASSESSMENT_TARGET": target_input,
-        "AUDIT_REPORT": audit_report,
-        "AUDIT_FILE": args.audit_file or "",
-        "WORK_ITEM": work_item,
-        "WORK_ITEM_FILE": args.work_item_file or "",
-        "STYLE_GUIDE_CONTEXT": style_guide_context,
-        "STYLE_FILE": args.style_file or "",
-        "PATCH": patch_text,
-        "PATCH_FILE": args.patch_file or "",
-    }
-
-
-def _resolve_target_input(args: argparse.Namespace) -> str:
-    if args.target_option:
-        return args.target_option
-    if args.target:
-        return args.target
-    return ""
 
 
 def _parse_args(argv) -> argparse.Namespace:
@@ -212,117 +130,27 @@ def _parse_args(argv) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _validate_args(args: argparse.Namespace) -> int:
-    """
-    Return 0 if arguments are valid, otherwise print an error and return a
-    non-zero exit code.
-    """
-    # Preserve existing behavior for target-centric templates.
-    target_input = _resolve_target_input(args)
-
-    if args.template_name == "improve_coverage" and not target_input:
-        print(
-            "error: improve_coverage requires a target module path.",
-            file=sys.stderr,
-        )
-        return 2
-
-    # Helpful validation for the bootstrap workflow.
-    if args.template_name == "bootstrap_project":
-        if not args.repo_name and not target_input:
-            print(
-                "error: bootstrap_project requires --repo-name or a target value "
-                "that can be used as the repository identifier.",
-                file=sys.stderr,
-            )
-            return 2
-
-    if args.template_name == "assessment":
-        if not args.scope:
-            print(
-                "error: assessment requires --scope "
-                "(project, current_focus, or work_item).",
-                file=sys.stderr,
-            )
-            return 2
-        if args.scope == "work_item" and not target_input:
-            print(
-                "error: assessment --scope work_item requires --target "
-                "(for example --target WI-0003).",
-                file=sys.stderr,
-            )
-            return 2
-
-    if args.template_name == "work_items_from_audit":
-        if not args.audit_file:
-            print(
-                "error: work_items_from_audit requires --audit-file.",
-                file=sys.stderr,
-            )
-            return 2
-        if not args.style_file:
-            print(
-                "error: work_items_from_audit requires --style-file.",
-                file=sys.stderr,
-            )
-            return 2
-
-    if args.template_name == "codex_prompt_from_work_item":
-        if not args.work_item_file:
-            print(
-                "error: codex_prompt_from_work_item requires --work-item-file.",
-                file=sys.stderr,
-            )
-            return 2
-        if not args.style_file:
-            print(
-                "error: codex_prompt_from_work_item requires --style-file.",
-                file=sys.stderr,
-            )
-            return 2
-
-    if args.template_name == "pr_against_work_item":
-        if not args.work_item_file:
-            print(
-                "error: pr_against_work_item requires --work-item-file.",
-                file=sys.stderr,
-            )
-            return 2
-        if not args.patch_file:
-            print(
-                "error: pr_against_work_item requires --patch-file.",
-                file=sys.stderr,
-            )
-            return 2
-        if not args.style_file:
-            print(
-                "error: pr_against_work_item requires --style-file.",
-                file=sys.stderr,
-            )
-            return 2
-
-    return 0
-
-
 def main(argv=None) -> int:
     args = _parse_args(argv if argv is not None else sys.argv[1:])
 
-    validation_code = _validate_args(args)
-    if validation_code != 0:
-        return validation_code
+    error = request_service.validate_args(args)
+    if error:
+        print(error, file=sys.stderr)
+        return 2
 
     try:
-        _, template_text = _load_template(args.template_name)
-        variables = _build_variables(args)
-    except (FileNotFoundError, OSError) as e:
-        print(str(e), file=sys.stderr)
+        rendered, variables = request_service.generate_request(
+            args,
+            template_root=_default_template_root(),
+        )
+    except (FileNotFoundError, OSError) as error:
+        print(str(error), file=sys.stderr)
         return 2
 
     if args.show_vars:
-        for k in sorted(variables.keys()):
-            print(f"{k}={variables[k]}", file=sys.stderr)
+        for key in sorted(variables.keys()):
+            print(f"{key}={variables[key]}", file=sys.stderr)
 
-    rendered = _render_template(template_text, variables)
     sys.stdout.write(rendered)
     if not rendered.endswith("\n"):
         sys.stdout.write("\n")

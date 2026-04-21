@@ -179,7 +179,8 @@ Defines the current high-level priorities.
 ## 9. Design Principles for LRH Itself
 
 1. **Repository as Source of Truth**
-   - No hidden state outside version control
+   - Authoritative shared state belongs in version-controlled repository artifacts.
+   - Local runtime state (for caches, logs, transient sessions, or local secrets) may exist, but is non-authoritative and must not silently override repository artifacts.
 
 2. **Human-Auditable**
    - All actions traceable via files and history
@@ -243,6 +244,11 @@ An agent may exist in the system without being actively assigned to any work ite
 ---
 
 ## 11. Future Extensions
+
+### Workspace / Meta-Control Layer
+- LRH's primary unit remains a single repository with a local `project/` control plane.
+- LRH may also operate with a workspace/dashboard repository that catalogs and coordinates multiple LRH-compatible repositories.
+- This workspace/meta layer is informative/coordinating relative to project-local authoritative state and does not participate in a project's precedence chain.
 
 ### Viewing Layer
 - CLI summaries

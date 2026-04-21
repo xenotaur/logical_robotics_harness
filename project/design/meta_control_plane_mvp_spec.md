@@ -2,37 +2,34 @@
 
 ## 1. Scope
 
-This spec defines the first version of the **LRH meta-control plane**, a lightweight catalog and status surface for multiple LRH-managed projects.
+This spec defines an MVP **workspace-level catalog and coordination layer** for multiple LRH-compatible repositories.
 
-It does **not** yet define:
+The meta-control layer is intentionally secondary to each project repository's local control plane.
 
-- agent orchestration
-- background workflow execution
-- budget tracking
-- durable chat semantics
-- remote multi-user server behavior
-
-This MVP does define:
-
-- dashboard repository layout
+This MVP defines:
+- dashboard/workspace repository layout
 - CLI subcommands for meta operations
-- configuration precedence
 - storage boundaries
 - project registration format
-- minimum localhost web view behavior
+
+This MVP does **not** define:
+- agent orchestration
+- background workflow execution
+- deep integrations
+- remote multi-user server behavior
 
 ---
 
-## 2. Core concepts
+## 2. Authority model
 
-### 2.1 Project control pane
-A **project control pane** is the existing LRH `project/` directory within a single repository.
+### 2.1 Project-local authority remains primary
+For any project, that repository's `project/` directory remains authoritative.
 
-### 2.2 Meta-control pane
-A **meta-control pane** is a separate dashboard repository that tracks multiple active projects.
+### 2.2 Meta layer is informative/coordinating
+The dashboard/workspace repository catalogs and coordinates across repos, but its summaries and pointers are informative by default.
 
-### 2.3 Dashboard repository
-A **dashboard repository** is a Git repository created by `lrh meta init`.
+### 2.3 No precedence override
+The dashboard/meta layer does not override, replace, or participate in a project's internal LRH precedence hierarchy.
 
 ---
 
@@ -56,40 +53,37 @@ A **dashboard repository** is a Git repository created by `lrh meta init`.
 
 ---
 
-## 4. Storage boundaries
+## 4. Storage classes
 
-### projects/
-Durable, shareable, human-readable metadata.
+### `projects/`
+Durable, shareable catalog metadata about registered LRH-compatible repositories.
 
-### .lrh/
-LRH runtime configuration only.
+### `.lrh/`
+LRH runtime/tool configuration for the dashboard workspace.
 
-### private/
-Ignored local operational data (logs, chats, cache, etc).
+### `private/`
+Ignored local runtime/scratch state (logs, chat traces, caches, transient state, local secrets). This state is explicitly non-authoritative.
 
-### Never stored
+### Never stored in committed metadata
 Secrets, tokens, sensitive logs, unnecessary PII.
 
 ---
 
-## 5. CLI commands
+## 5. Freshness and derived data
+
+Any project summary, status summary, or work-item pointer stored in the dashboard may become stale relative to the source project repository.
+
+Unless explicitly designated otherwise, dashboard summaries and pointers should be treated as derived/informative views of project-local artifacts.
+
+---
+
+## 6. CLI commands (MVP)
 
 - `lrh meta init`
 - `lrh meta register`
 - `lrh meta deregister`
 - `lrh meta list`
 - `lrh meta inspect`
-
----
-
-## 6. Configuration precedence
-
-1. CLI flags  
-2. CLI config file  
-3. Environment variables  
-4. Env config file  
-5. `.lrh/config.toml`  
-6. Defaults  
 
 ---
 
@@ -118,31 +112,8 @@ focus = "Working on style guide consolidation"
 
 ## 8. Design rules
 
-1. `projects/` = durable catalog  
-2. `.lrh/` = tool config  
-3. `private/` = ignored runtime state  
-4. No secrets in committed files  
-5. CLI and web share same model  
-
----
-
-## 9. Implementation phases
-
-Phase 1:
-- init, register, list, inspect
-
-Phase 2:
-- deregister, JSON output, web view
-
-Phase 3:
-- REPL, summaries, enhancements
-
----
-
-## 10. Notes
-
-This MVP is intentionally minimal and focused on establishing:
-
-- a clean control-plane model
-- safe storage boundaries
-- extensibility toward future orchestration
+1. Keep project-local `project/` directories authoritative.
+2. Use `projects/` for durable shareable catalog metadata.
+3. Use `.lrh/` for workspace runtime/tool configuration.
+4. Use `private/` for ignored non-authoritative local runtime state.
+5. Keep CLI and any dashboard view aligned to the same meta model.

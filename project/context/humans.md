@@ -8,7 +8,7 @@ The Logical Robotics Harness (LRH) is an open-source framework that turns a Git 
 
 LRH is designed for **AI-assisted engineering workflows**, where humans and agents collaborate through explicit artifacts rather than implicit context. By combining structured metadata (YAML frontmatter), validation, and a defined precedence model, LRH ensures that project state is both interpretable and enforceable.
 
-The system begins by being able to **understand and validate itself** (self-hosting control plane), then evolves toward orchestrating multiple repositories and agents.
+The system begins by being able to **understand and validate itself** (self-hosting control plane), then evolves toward multiple repositories and agents. As part of that evolution, LRH can use a workspace/dashboard layer to help humans and tools discover, inspect, and coordinate active LRH projects, while each project's local `project/` directory remains authoritative.
 
 ## LRH in One Page
 
@@ -2575,6 +2575,7 @@ Future capabilities may include:
 - multi-focus support
 - agent assignment and tracking
 - automated planning
+- workspace/dashboard cataloging across LRH-compatible repositories (informative/coordinating, not authoritative over project precedence)
 - integration with external tools
 
 # End-to-End Example

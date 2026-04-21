@@ -76,5 +76,6 @@ This keeps execution explicit while separating consequence checks from intent an
 - implement the core control-model classes
 - implement parsing/loading/resolution
 - add a validation CLI
+- plan the Meta CLI MVP (`lrh meta init`, `lrh meta register`, `lrh meta list`) as the first workspace/meta-control execution slice
 
-See `docs/architecture.md`, `docs/repository_spec.md`, and the `project/` directory for the current seed design.
+See `docs/architecture.md`, `docs/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.

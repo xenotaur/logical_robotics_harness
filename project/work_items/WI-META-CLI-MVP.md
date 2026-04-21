@@ -43,7 +43,7 @@ Implement the minimal meta-control-plane CLI slice for managing a workspace-leve
 - `lrh meta init`
 - `lrh meta register`
 - `lrh meta list`
-- basic testing across real repositories
+- validation/testing across real repositories
 
 ## Key Design Decisions
 
@@ -72,3 +72,9 @@ Implement the minimal meta-control-plane CLI slice for managing a workspace-leve
 
 - the workspace registry is authoritative only for dashboard catalog records
 - each repository-local `project/` directory remains authoritative for project state
+
+
+## Traceability
+
+- Roadmap: `project/roadmap/phase_02_runtime_and_workspace.md` (Near-Term Slice: Meta CLI MVP)
+- Spec: `project/design/meta_control_plane_mvp_spec.md` (Meta Control Plane MVP, Phase 1 executable slice)

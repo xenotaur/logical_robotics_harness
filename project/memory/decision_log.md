@@ -1,5 +1,35 @@
 # Decision Log
 
+## 2026-04-21: Decision: Meta CLI MVP as First Meta-Control Execution Slice
+
+### Summary
+
+Adopted the Meta CLI MVP (`lrh meta init`, `lrh meta register`, `lrh meta list`) as the first executable slice of the workspace/meta-control layer.
+
+### Decisions
+
+- The workspace registry uses a stable `project_id` as persistent identity.
+- Repository locators (`repo`, `project_dir`) are mutable to support path and structure changes.
+- Human-facing labels (`display_name`, `short_name`) are mutable metadata.
+- The registry supports repositories with and without LRH `project/` directories.
+- Setup state is explicit (`not_set_up`, `lrh_project_present`).
+
+### Rationale
+
+- Creates a minimal, testable implementation path for Phase 2 without introducing orchestration complexity.
+- Preserves LRH's repository-authority model while enabling cross-repository cataloging.
+- Provides an auditable registry model before adding deeper meta-control commands.
+
+### Implications
+
+- Phase 2 planning and implementation should prioritize `init` / `register` / `list` plus repository-backed validation.
+- Follow-on commands (`deregister`, `inspect`) remain deferred until this slice is stable.
+
+### Status
+
+Accepted
+
+
 ## 2026-04-11: Decision: Contributor and Assignment Validation Model
 
 ### Summary

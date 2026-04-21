@@ -26,9 +26,12 @@ This MVP does **not** define:
 For any project, that repository's `project/` directory remains authoritative.
 
 ### 2.2 Meta layer is informative/coordinating
-The dashboard/workspace repository catalogs and coordinates across repos, but its summaries and pointers are informative by default.
+The dashboard/workspace repository catalogs and coordinates across repos, but project summaries and pointers are informative by default.
 
-### 2.3 No precedence override
+### 2.3 Dashboard authority boundary
+The dashboard is authoritative only for its own workspace registry/catalog records (for example, project registration metadata under `projects/`).
+
+### 2.4 No precedence override
 The dashboard/meta layer does not override, replace, or participate in a project's internal LRH precedence hierarchy.
 
 ---
@@ -71,7 +74,7 @@ Secrets, tokens, sensitive logs, unnecessary PII.
 
 ## 5. Freshness and derived data
 
-Any project summary, status summary, or work-item pointer stored in the dashboard may become stale relative to the source project repository.
+Any project summary, focus blurb, latest-work-item pointer, or status summary stored in the dashboard may become stale relative to the source project repository.
 
 Unless explicitly designated otherwise, dashboard summaries and pointers should be treated as derived/informative views of project-local artifacts.
 

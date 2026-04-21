@@ -22,7 +22,7 @@ LRH is designed to support:
 - structured workflows from ideation to execution
 - auditable, evidence-based progress tracking
 - multi-contributor coordination (humans + agents)
-- repository-native operation (Git as source of truth)
+- repository-native operation (Git-backed authoritative project artifacts)
 
 Out of scope (for now):
 

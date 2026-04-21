@@ -2912,7 +2912,8 @@ Remaining Phase 1 work:
 # Design Principles
 
 ## 1. Repository as Control Plane
-The repository is the source of truth.
+Authoritative shared state belongs in version-controlled repository artifacts.
+Local runtime state may exist (for caches, logs, transient sessions, and local secrets), but it is non-authoritative and must not silently override repository artifacts.
 
 ## 2. Human-Auditable, Machine-Readable
 All artifacts must be readable by humans and interpretable by machines.

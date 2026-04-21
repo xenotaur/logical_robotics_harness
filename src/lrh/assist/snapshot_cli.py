@@ -14,35 +14,37 @@ def build_parser(*, prog: str = "snapshot") -> argparse.ArgumentParser:
         "--project-root",
         type=pathlib.Path,
         default=pathlib.Path.cwd(),
-        help="Repository root or project root (defaults to current directory).",
+        help="Repository root or project directory (default: current directory).",
     )
-    common.add_argument("--output", type=pathlib.Path, help="Optional output path.")
+    common.add_argument(
+        "--output",
+        type=pathlib.Path,
+        help="Write output to this file path.",
+    )
     common.add_argument(
         "--stdout",
         action="store_true",
-        help="Also print generated context to stdout.",
+        help="Also print generated context packet to stdout.",
     )
     common.add_argument(
         "--include-status",
         action="store_true",
-        help="Include project/status/current_status.md when available.",
+        help="Include project/status/current_status.md when it exists.",
     )
     common.add_argument(
         "--include-guardrails",
         action="store_true",
-        help="Include project/guardrails/ summaries when available.",
+        help="Include summaries from project/guardrails/ when files exist.",
     )
     common.add_argument(
         "--include-design",
         action="store_true",
-        help="Include project/design/design.md when available.",
+        help="Include project/design/design.md when it exists.",
     )
 
     parser = argparse.ArgumentParser(
         prog=prog,
-        description=(
-            "Generate Markdown context packets from a project's " "control-plane files."
-        ),
+        description="Generate Markdown context packets from project control files.",
         parents=[common],
     )
     subparsers = parser.add_subparsers(dest="scope", required=True)

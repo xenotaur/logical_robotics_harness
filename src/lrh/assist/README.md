@@ -1,6 +1,6 @@
 # LRH Assist Request and Snapshot System
 
-This directory provides assist workflows for request generation and project-context snapshots.
+This directory provides assist workflows for request generation and context snapshots.
 
 ## Overview
 
@@ -69,6 +69,7 @@ lrh request assessment --scope project
 lrh request assessment --scope current_focus
 lrh request assessment --scope work_item --target WI-0003
 lrh snapshot --help
+lrh snapshot work_item WI-0003 --project-root .
 python scripts/aiprog/sourcetree_surveyor.py --help
 ```
 
@@ -150,8 +151,8 @@ lrh request work_items_from_audit \
 ## Validation Notes
 
 - Some templates require specific arguments (for example `work_items_from_audit` requires both `--audit-file` and `--style-file`).
-- Invalid argument combinations are reported as CLI errors with non-zero exit status.
-- Missing input/template files are reported as file errors.
+- Invalid argument combinations are reported as CLI errors with a non-zero exit status.
+- Missing input/template files are reported as file errors with a non-zero exit status.
 
 ## Design Notes
 

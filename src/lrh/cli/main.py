@@ -15,11 +15,15 @@ def _default_request_template_root() -> Path:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(prog="lrh")
+    parser = argparse.ArgumentParser(
+        prog="lrh",
+        description="Logical Robotics Harness command-line interface.",
+    )
     subparsers = parser.add_subparsers(dest="command")
 
     validate_parser = subparsers.add_parser(
-        "validate", help="validate the project directory"
+        "validate",
+        help="Validate project control files.",
     )
     validate_parser.add_argument(
         "--project-dir",
@@ -27,19 +31,16 @@ def main() -> None:
         help="path to the project control directory (default: project)",
     )
 
-    request_parser = subparsers.add_parser(
-        "request", help="render an assist request from a template"
-    )
-    request_parser.add_argument(
-        "request_args",
-        nargs=argparse.REMAINDER,
-        help="arguments passed through to the request command",
+    subparsers.add_parser(
+        "request",
+        add_help=False,
+        help="Render an assist request from a template.",
     )
 
     subparsers.add_parser(
         "snapshot",
         add_help=False,
-        help="generate assist snapshot context packets",
+        help="Generate assist snapshot context packets.",
     )
 
     args, passthrough_args = parser.parse_known_args()
@@ -54,7 +55,7 @@ def main() -> None:
     if args.command == "request":
         raise SystemExit(
             request_cli.run_request_cli(
-                argv=args.request_args,
+                argv=passthrough_args,
                 template_root=_default_request_template_root(),
                 prog="lrh request",
             )

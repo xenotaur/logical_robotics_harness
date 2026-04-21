@@ -11,7 +11,7 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
     """Build the request CLI parser."""
     parser = argparse.ArgumentParser(
         prog=prog,
-        description="Fill a request template with computed variables.",
+        description="Render an assist request from a template and input options.",
     )
     parser.add_argument(
         "template_name",
@@ -25,72 +25,75 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         nargs="?",
         help=(
             "Optional target path or identifier. For coverage-style templates, "
-            "this is usually a module path like src/lrh/analysis/llm_extractor.py."
+            "this is usually a module path such as "
+            "src/lrh/analysis/llm_extractor.py."
         ),
     )
     parser.add_argument(
         "--target",
         dest="target_option",
         help=(
-            "Optional named target identifier/path. For assessment work-item scope, "
-            "this should be the work-item ID (for example WI-0003)."
+            "Optional named target identifier or path. For assessment work-item "
+            "scope, use the work-item ID (for example WI-0003)."
         ),
     )
     parser.add_argument(
         "--scope",
         choices=["project", "current_focus", "work_item"],
         help=(
-            "Scope for assessment template generation. "
-            "Required for template_name=assessment."
+            "Scope for assessment request generation. "
+            "Required when template_name is assessment."
         ),
     )
     parser.add_argument(
         "--repo-name",
-        help="Repository name for repository/bootstrap-oriented templates.",
+        help="Repository name for bootstrap-oriented templates.",
     )
     parser.add_argument(
         "--project-goal",
-        help="Human-readable project goal to inject into the template.",
+        help="Project goal text to inject into the template.",
     )
     background_group = parser.add_mutually_exclusive_group()
     background_group.add_argument(
         "--background-file",
-        help="Path to a UTF-8 text/markdown file to inject as background context.",
+        help="Path to a UTF-8 text/markdown file for background context.",
     )
     background_group.add_argument(
         "--background-text",
-        help="Literal background context to inject directly.",
+        help="Literal background context text.",
     )
     parser.add_argument(
         "--project-type",
-        help="Optional project classification, such as library, app, or research.",
+        help="Optional project type, such as library, app, or research.",
     )
     parser.add_argument(
         "--bootstrap-mode",
         choices=["minimal", "full"],
         default="minimal",
-        help="Optional bootstrap scope hint for bootstrap-oriented templates.",
+        help="Bootstrap scope hint for bootstrap-oriented templates.",
     )
     parser.add_argument(
         "--audit-file",
-        help="Path to a UTF-8 audit report to inject as {{AUDIT_REPORT}}.",
+        help="Path to a UTF-8 audit report injected as {{AUDIT_REPORT}}.",
     )
     parser.add_argument(
         "--work-item-file",
-        help="Path to a UTF-8 work item file to inject as {{WORK_ITEM}}.",
+        help="Path to a UTF-8 work item file injected as {{WORK_ITEM}}.",
     )
     parser.add_argument(
         "--style-file",
-        help="Path to a UTF-8 style guide file to inject as {{STYLE_GUIDE_CONTEXT}}.",
+        help=(
+            "Path to a UTF-8 style guide file injected as " "{{STYLE_GUIDE_CONTEXT}}."
+        ),
     )
     parser.add_argument(
         "--patch-file",
-        help="Path to a UTF-8 patch or diff file to inject as {{PATCH}}.",
+        help="Path to a UTF-8 patch or diff file injected as {{PATCH}}.",
     )
     parser.add_argument(
         "--show-vars",
         action="store_true",
-        help="Print computed variables to stderr (debugging).",
+        help="Print computed variables to stderr for debugging.",
     )
     return parser
 

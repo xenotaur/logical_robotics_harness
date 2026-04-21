@@ -13,6 +13,7 @@ class TestAiprogSmoke(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0)
         self.assertIn("request.py", result.stdout)
+        self.assertIn("legacy compatibility path", result.stdout)
         self.assertIn("prefer `lrh request`", result.stdout)
 
     def test_snapshot_help(self) -> None:
@@ -24,6 +25,7 @@ class TestAiprogSmoke(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0)
         self.assertIn("snapshot.py", result.stdout)
+        self.assertIn("legacy compatibility path", result.stdout)
         self.assertIn("prefer `lrh snapshot`", result.stdout)
 
 

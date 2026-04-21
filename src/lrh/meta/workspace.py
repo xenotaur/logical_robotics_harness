@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import json
 import pathlib
 
 GITIGNORE_BEGIN = "# --- lrh meta init managed block ---"
@@ -198,13 +199,19 @@ def _write_config(
 
 
 def _config_text(workspace_name: str) -> str:
+    encoded_workspace_name = _toml_basic_string(workspace_name)
     return (
         'schema_version = "0.1"\n\n'
         "[workspace]\n"
-        f'name = "{workspace_name}"\n'
+        f"name = {encoded_workspace_name}\n"
         'projects_dir = "projects"\n'
         'private_dir = "private"\n\n'
         "[meta]\n"
         'mode = "workspace"\n'
         'authority = "catalog_only"\n'
     )
+
+
+def _toml_basic_string(value: str) -> str:
+    """Encode a Python string as a valid TOML basic string literal."""
+    return json.dumps(value)

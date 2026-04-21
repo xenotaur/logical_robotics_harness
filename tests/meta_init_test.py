@@ -3,6 +3,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 
 from lrh.meta import workspace
@@ -103,6 +104,21 @@ class TestMetaInitRuntime(unittest.TestCase):
                 force=True,
             )
             self.assertIn(root / ".lrh" / "config.toml", forced_result.updated)
+
+    def test_init_workspace_escapes_workspace_name_for_valid_toml(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace_name = 'A "B" \\\\ C\nD'
+
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name=workspace_name),
+            )
+
+            config_text = (root / ".lrh" / "config.toml").read_text(encoding="utf-8")
+            parsed = tomllib.loads(config_text)
+
+            self.assertEqual(parsed["workspace"]["name"], workspace_name)
 
 
 class TestMetaInitCli(unittest.TestCase):

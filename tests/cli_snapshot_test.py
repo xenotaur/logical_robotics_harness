@@ -25,6 +25,7 @@ class TestLrhSnapshotCli(unittest.TestCase):
         result = self._run_lrh(["snapshot", "--help"])
         self.assertEqual(result.returncode, 0)
         self.assertIn("lrh snapshot", result.stdout)
+        self.assertIn("{project,current_focus,work_item}", result.stdout)
 
     def test_lrh_snapshot_project(self) -> None:
         result = self._run_lrh(["snapshot", "project", "--project-root", "."])

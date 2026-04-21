@@ -14,6 +14,16 @@ class TestAiprogSmoke(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("request.py", result.stdout)
 
+    def test_snapshot_help(self) -> None:
+        result = subprocess.run(
+            [sys.executable, "scripts/aiprog/snapshot.py", "--help"],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("snapshot.py", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

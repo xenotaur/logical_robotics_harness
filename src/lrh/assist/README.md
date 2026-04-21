@@ -1,6 +1,6 @@
-# LRH Assist Request System
+# LRH Assist Request and Snapshot System
 
-This directory provides the request-generation workflow used to produce structured prompts from reusable templates.
+This directory provides assist workflows for request generation and project-context snapshots.
 
 ## Overview
 
@@ -47,6 +47,34 @@ The script interface is still supported for compatibility:
 
 ```bash
 python scripts/aiprog/request.py <template_name> [target] [options]
+```
+
+### Snapshot preferred usage
+
+Use the package CLI entry point:
+
+```bash
+lrh snapshot <project|current_focus|work_item> [options]
+```
+
+Basic example:
+
+```bash
+lrh snapshot project --project-root .
+```
+
+You can inspect supported options with:
+
+```bash
+lrh snapshot --help
+```
+
+### Snapshot compatibility usage
+
+The script interface is still supported for compatibility:
+
+```bash
+python scripts/aiprog/snapshot.py <project|current_focus|work_item> [options]
 ```
 
 ## Python API Usage
@@ -138,6 +166,8 @@ lrh request work_items_from_audit \
 
 ## Status / Roadmap
 
-- **Current preferred CLI**: `lrh request ...`
-- **Compatibility CLI**: `python scripts/aiprog/request.py ...`
-- **Planned API**: first-class Python API (`RequestArgs` + `generate_request(...)`).
+- **Current preferred request CLI**: `lrh request ...`
+- **Current preferred snapshot CLI**: `lrh snapshot ...`
+- **Compatibility request CLI**: `python scripts/aiprog/request.py ...`
+- **Compatibility snapshot CLI**: `python scripts/aiprog/snapshot.py ...`
+- **Planned request API**: first-class Python API (`RequestArgs` + `generate_request(...)`).

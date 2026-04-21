@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from lrh.assist import request_cli
+from lrh.assist import request_cli, snapshot_cli
 from lrh.control import format_report, validate_project
 
 
@@ -36,6 +36,15 @@ def main() -> None:
         help="arguments passed through to the request command",
     )
 
+    snapshot_parser = subparsers.add_parser(
+        "snapshot", help="generate assist snapshot context packets"
+    )
+    snapshot_parser.add_argument(
+        "snapshot_args",
+        nargs=argparse.REMAINDER,
+        help="arguments passed through to the snapshot command",
+    )
+
     args = parser.parse_args()
 
     if args.command == "validate":
@@ -49,6 +58,14 @@ def main() -> None:
                 argv=args.request_args,
                 template_root=_default_request_template_root(),
                 prog="lrh request",
+            )
+        )
+
+    if args.command == "snapshot":
+        raise SystemExit(
+            snapshot_cli.run_snapshot_cli(
+                argv=args.snapshot_args,
+                prog="lrh snapshot",
             )
         )
 

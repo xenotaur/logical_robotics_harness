@@ -41,16 +41,6 @@ You can inspect supported options with:
 lrh request --help
 ```
 
-### Compatibility usage
-
-The script interface is still supported as a **legacy compatibility path**:
-
-```bash
-python scripts/aiprog/request.py <template_name> [target] [options]
-```
-
-Prefer `lrh request ...` for normal usage. The legacy script path may be removed in a future cleanup after migration.
-
 ### Snapshot preferred usage
 
 Use the package CLI entry point:
@@ -71,15 +61,16 @@ You can inspect supported options with:
 lrh snapshot --help
 ```
 
-### Snapshot compatibility usage
-
-The script interface is still supported as a **legacy compatibility path**:
+## Quick Usage Examples
 
 ```bash
-python scripts/aiprog/snapshot.py <project|current_focus|work_item> [options]
+lrh request --help
+lrh request assessment --scope project
+lrh request assessment --scope current_focus
+lrh request assessment --scope work_item --target WI-0003
+lrh snapshot --help
+python scripts/aiprog/sourcetree_surveyor.py --help
 ```
-
-Prefer `lrh snapshot ...` for normal usage. The legacy script path may be removed in a future cleanup after migration.
 
 ## Python API Usage
 
@@ -164,15 +155,13 @@ lrh request work_items_from_audit \
 
 ## Design Notes
 
-- The CLI script is intentionally thin.
+- The `lrh` CLI commands are intentionally thin wrappers around assist modules.
 - Core request behavior belongs in `src/lrh/assist/`.
 - Templates define most request behavior and output structure.
 
 ## Status / Roadmap
 
-- **Current preferred request CLI**: `lrh request ...`
-- **Current preferred snapshot CLI**: `lrh snapshot ...`
-- **Legacy compatibility request CLI**: `python scripts/aiprog/request.py ...`
-- **Legacy compatibility snapshot CLI**: `python scripts/aiprog/snapshot.py ...`
-- **Deprecation guidance**: migrate scripted usage to `lrh request ...` / `lrh snapshot ...` before legacy script removal.
+- **Request CLI**: `lrh request ...`
+- **Snapshot CLI**: `lrh snapshot ...`
+- **Maintainer helpers**: repository-maintainer helper scripts remain under `scripts/aiprog/` (for example `python scripts/aiprog/sourcetree_surveyor.py --help`).
 - **Planned request API**: first-class Python API (`RequestArgs` + `generate_request(...)`).

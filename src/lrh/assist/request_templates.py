@@ -1,12 +1,12 @@
 """Helpers for request-template discovery and loading."""
 
-import importlib.resources
+import importlib.resources as resources
 import pathlib
 
 
-def get_template_root() -> importlib.resources.abc.Traversable:
+def get_template_root() -> resources.abc.Traversable:
     """Return the package-owned request-template directory."""
-    return importlib.resources.files("lrh.assist").joinpath("templates", "request")
+    return resources.files("lrh.assist").joinpath("templates", "request")
 
 
 def get_template_path(

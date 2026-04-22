@@ -2,7 +2,7 @@
 id: WI-META-WORKSPACE-RESOLUTION
 title: Meta workspace resolution and visibility contract
 type: deliverable
-status: proposed
+status: in_progress
 priority: high
 owner: anthony
 contributors:
@@ -65,3 +65,8 @@ Define and then implement the shared workspace-resolution subsystem used across 
 
 - This item separates workspace-resolution architecture from the already-landed baseline command slice in `WI-META-CLI-MVP`.
 - Implementation should proceed after this design/planning alignment lands, so command behavior remains predictable and explainable.
+
+## Progress Notes
+
+- 2026-04-22: Implemented a shared `MetaWorkspace` resolution layer with documented precedence (flags → `LRH_CONFIG` → `LRH_WORKSPACE` → local discovery → global discovery), added minimal workspace config parsing for mode/path overrides, and wired `lrh meta register` / `lrh meta list` to the resolved workspace context.
+- 2026-04-22: Added focused tests for precedence behavior, nested local discovery, XDG global defaults, command integration outside workspace roots, and explicit resolution-failure messaging.

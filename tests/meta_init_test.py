@@ -40,7 +40,7 @@ class TestMetaInitRuntime(unittest.TestCase):
 
             config = (root / ".lrh" / "config.toml").read_text(encoding="utf-8")
             self.assertIn('schema_version = "0.1"', config)
-            self.assertIn('mode = "workspace"', config)
+            self.assertIn('mode = "local"', config)
             self.assertIn('name = "Demo Workspace"', config)
             self.assertGreater(len(result.created), 0)
 

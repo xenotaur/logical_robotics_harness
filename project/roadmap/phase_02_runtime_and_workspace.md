@@ -41,9 +41,10 @@ Traceability:
 - work item: `project/work_items/WI-META-CLI-MVP.md`
 - spec alignment: Meta Control Plane MVP, Phase 1 (`init` / `register` / `list`)
 
-Progress update (2026-04-21):
+Progress update (2026-04-22):
 - `lrh meta init` implemented as the first executable slice.
-- `lrh meta register` and `lrh meta list` remain in scope for the same MVP work item.
+- `lrh meta list` implemented as the first explicit read path over registry records.
+- `lrh meta register` remains in scope for the same MVP work item.
 
 ### Near-Term Slice: Assist Packaging and Installability
 

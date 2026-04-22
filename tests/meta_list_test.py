@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 from lrh.meta import workspace
 
@@ -104,6 +105,50 @@ class TestMetaListRuntime(unittest.TestCase):
 
             with self.assertRaises(workspace.MetaRegistryError):
                 workspace.list_registered_projects(root)
+
+    def test_list_registered_projects_fails_for_non_utf8_record(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+            record_dir = root / "projects" / "binary"
+            record_dir.mkdir(parents=True)
+            (record_dir / "project.toml").write_bytes(b"\xff\xfe\x00\x00")
+
+            with self.assertRaises(workspace.MetaRegistryError) as err_ctx:
+                workspace.list_registered_projects(root)
+
+            self.assertIn("not valid UTF-8", str(err_ctx.exception))
+
+    def test_list_registered_projects_fails_for_read_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+            self._write_project_record(
+                root,
+                registry_name="read-error",
+                short_name="demo",
+                display_name="Demo Project",
+                project_id="proj-demo-001",
+                repo_locator="https://github.com/example/demo.git",
+                project_dir="project",
+                setup_state="lrh_project_present",
+            )
+
+            with mock.patch.object(
+                pathlib.Path,
+                "read_text",
+                side_effect=OSError("permission denied"),
+            ):
+                with self.assertRaises(workspace.MetaRegistryError) as err_ctx:
+                    workspace.list_registered_projects(root)
+
+            self.assertIn("unable to read project record file", str(err_ctx.exception))
 
     def _write_project_record(
         self,

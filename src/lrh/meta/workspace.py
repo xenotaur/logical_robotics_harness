@@ -309,6 +309,16 @@ def _load_project_record(record_dir: pathlib.Path) -> MetaProjectRecord:
 
     try:
         content = project_file.read_text(encoding="utf-8")
+    except UnicodeDecodeError as err:
+        raise MetaRegistryError(
+            f"project record file is not valid UTF-8: {project_file}"
+        ) from err
+    except OSError as err:
+        raise MetaRegistryError(
+            f"unable to read project record file {project_file}: {err}"
+        ) from err
+
+    try:
         parsed = tomllib.loads(content)
     except tomllib.TOMLDecodeError as err:
         raise MetaRegistryError(f"invalid TOML in {project_file}: {err}") from err

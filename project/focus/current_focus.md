@@ -1,6 +1,6 @@
 ---
 id: FOCUS-CONTROL-PLANE-SEMANTICS
-title: Complete control-plane semantics and resolution
+title: Package assist runtime assets and finish migration sequencing
 status: active
 priority: high
 owner: anthony
@@ -11,104 +11,39 @@ related_principles:
 
 # Current Focus
 
-The immediate priority is to **complete the control plane by ensuring that LRH can correctly interpret, resolve, and reason about project state—not just parse and validate it.**
+The immediate priority is to consolidate the assist request/snapshot migration into package-safe, installable behavior.
 
-The bootstrap milestone established that LRH can load and validate its own `project/` directory.
-This focus completes Phase 1 by making the control plane **semantically correct and reliable**.
+Recently completed:
 
----
+- request-system extraction into `src/lrh/assist/`
+- thin CLI wrappers wired to `lrh request` and `lrh snapshot`
+- assist README updates documenting canonical CLI usage
 
 ## Why this is active now
 
-LRH can now:
+LRH now has canonical assist interfaces, but runtime template loading still depends on repository-relative paths under `scripts/aiprog/templates/`.
 
-- represent its control plane in `project/`
-- validate that structure with `lrh validate`
-- produce structured summaries via tools like `snapshot.py`
-
-However, Phase 1 requires more than structural correctness.
-
-The system must also:
-
-- resolve precedence between control-plane elements
-- interpret focus and work items correctly
-- behave predictably under real project conditions
-
-This focus ensures the control plane is not just valid, but **meaningful and executable as infrastructure**.
-
----
+That is acceptable for local maintainer workflows but fragile for installed-package use. Before broader collaborator use, package-data and installability behavior must be made first-class and validated.
 
 ## Priorities
 
-1. **Define and enforce precedence rules**
-   - clarify authority between:
-     - focus
-     - roadmap
-     - work items
-   - implement precedence resolution in code
-   - ensure behavior is deterministic and documented
-
-2. **Validate semantic interpretation**
-   - ensure LRH can correctly identify:
-     - current focus
-     - active contributors
-     - relevant work items
-   - confirm tools (e.g., `snapshot.py`) reflect true project state
-
-3. **Strengthen parsing reliability (targeted)**
-   - improve or replace bootstrap YAML/frontmatter parsing
-   - ensure realistic Markdown inputs are handled correctly
-   - avoid silent misinterpretation
-
-4. **Expand evaluation coverage**
-   - add tests that demonstrate:
-     - correct parsing
-     - correct resolution
-     - correct interpretation
-   - align with evaluation norms
-
----
+1. Move runtime templates into package-owned paths (`src/lrh/assist/templates/` target).
+2. Update loading to package-resource semantics rather than source-tree-relative lookups.
+3. Add packaging/build/install hardening and smoke-test expectations for installed behavior.
+4. Migrate `sourcetree_surveyor.py` into `src/lrh/assist/` as a mechanical move.
+5. Handle sourcetree capability expansion only as a separate follow-on work item.
 
 ## Non-Goals
 
-To keep Phase 1 bounded, do not:
-
-- expand to multi-repository workflows
-- introduce agent autonomy or planning systems
-- redesign the project schema
-- build execution engines beyond validation and interpretation
-
----
+- Mixing migration mechanics with feature expansion in one PR.
+- Broad redesign of request/snapshot semantics.
+- Unrelated refactors outside assist packaging/migration sequencing.
 
 ## Exit Criteria
 
 This focus is complete when:
 
-1. **Precedence is defined and implemented**
-   - control-plane authority rules are explicit
-   - resolution behavior is deterministic and tested
-
-2. **Interpretation is correct**
-   - LRH can reliably determine:
-     - current focus
-     - active contributors
-     - relevant work items
-   - snapshot and related tools reflect correct state
-
-3. **Parsing is reliable for real inputs**
-   - frontmatter parsing handles realistic cases
-   - no known fragile edge cases in normal usage
-
-4. **Evaluation norms are satisfied**
-   - LRH demonstrably:
-     - parses correctly
-     - resolves correctly
-     - interprets correctly
-
----
-
-## Notes
-
-This focus completes **Phase 1 — Control Plane**.
-
-The next phase will begin once the control plane is not only valid, but **semantically correct and operationally reliable**.
+1. required templates ship from package-owned locations
+2. installed `lrh request` and `lrh snapshot` paths do not rely on repo-relative template discovery
+3. packaging/install smoke checks are defined and passing
+4. `sourcetree_surveyor` is migrated mechanically, with capability expansion explicitly deferred

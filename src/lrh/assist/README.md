@@ -234,3 +234,9 @@ lrh request work_items_from_audit \
 - **Snapshot CLI**: `lrh snapshot ...`
 - **Maintainer helpers**: repository-maintainer helper scripts remain under `scripts/aiprog/` (for example `python scripts/aiprog/sourcetree_surveyor.py --help`).
 - **Planned request API**: first-class Python API (`RequestArgs` + `generate_request(...)`).
+- **Next packaging priorities**:
+  1. move runtime templates into package-owned paths (target: `src/lrh/assist/templates/`)
+  2. switch template loading to package resources for installed usage
+  3. add packaging/install smoke checks for installed `lrh request` and `lrh snapshot`
+  4. migrate `sourcetree_surveyor.py` into package code as a mechanical move
+  5. handle sourcetree capability expansion as a separate follow-on item

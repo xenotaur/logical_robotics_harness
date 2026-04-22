@@ -2,7 +2,7 @@
 id: WI-SNAPSHOT-RESOLVED-CONTEXT
 title: Make snapshot output reflect resolved control-plane context
 type: deliverable
-status: proposed
+status: in_progress
 owner: anthony
 contributors:
   - anthony
@@ -54,3 +54,8 @@ Update snapshot tooling so it reports resolved project state rather than only fi
 ## Notes
 
 This is the clearest user-facing proof that Phase 1 semantics are working.
+
+## Progress Notes
+
+- 2026-04-22: `lrh snapshot` is now a package CLI entrypoint (`lrh snapshot ...`) with dedicated assist module code.
+- 2026-04-22: Snapshot packets include structured summaries and focus-related work item filtering, but do not yet consume full precedence-resolved contributor/context outputs.

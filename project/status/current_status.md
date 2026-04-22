@@ -5,44 +5,49 @@ scope: project
 status: active
 generated_from:
   focus:
-    - FOCUS-BOOTSTRAP
+    - FOCUS-CONTROL-PLANE-SEMANTICS
   work_items:
     - WI-0001
     - WI-0002
     - WI-0003
     - WI-0004
-  evidence:
-    - EV-0001
-generated_at: 2026-04-03T00:00:00Z
+    - WI-PRECEDENCE-RESOLVER
+    - WI-SNAPSHOT-RESOLVED-CONTEXT
+    - WI-ASSIST-TEMPLATES-PACKAGING
+    - WI-ASSIST-INSTALLABILITY-HARDENING
+    - WI-ASSIST-SOURCETREE-SURVEYOR-MIGRATION
+generated_at: 2026-04-22T00:00:00Z
 health: yellow
 ---
 
 # Current Status
 
-LRH has a coherent conceptual architecture and a usable first project-control schema, but the current
-state is still bootstrap-oriented.
+LRH has crossed the bootstrap threshold for control-plane foundations and now has canonical assist CLI entrypoints (`lrh request`, `lrh snapshot`), but installability hardening for assist templates is still pending.
 
 ## Summary
 
-The immediate objective is for LRH to understand and validate its own `project/` directory.
-That means building the control-plane models, loader/parser, precedence resolver, and a basic CLI
-validation path.
+The immediate objective is to finish packaging-safe assist migration sequencing:
+
+- move runtime templates into package-owned locations
+- switch template loading to installed-package-safe resource resolution
+- verify install/build behavior with smoke checks
+- then mechanically migrate `sourcetree_surveyor` before any capability expansion
 
 ## Current Health
 
 Yellow.
 
 Reason:
-- the architecture is coherent
-- the scope of the first milestone is clear
-- implementation evidence is still minimal
+- core control-plane and precedence foundations are implemented
+- assist request/snapshot CLI paths are available and documented
+- template loading still relies on source-tree-relative paths that must be hardened for installed usage
 
 ## Active Priorities
 
-- define runtime models
-- parse project documents
-- validate references and precedence
-- self-validate the LRH repo
+- package-owned template relocation
+- installed-package-safe template/resource loading
+- packaging/install smoke-test hardening
+- mechanical `sourcetree_surveyor` migration into package code
 
 ## Guardrail Summary
 
@@ -54,13 +59,13 @@ Reason:
 
 ## Risks
 
-- overbuilding before first end-to-end validation exists
-- muddying the line between source documents and runtime objects
-- adding agent/tool complexity before the control plane is real
+- delaying package-data hardening while adding new assist features
+- coupling runtime assist behavior to repository layout assumptions
+- mixing migration and capability expansion into oversized PRs
 
 ## Recommended Next Actions
 
-1. Complete WI-0001.
-2. Complete WI-0002.
-3. Complete WI-0003.
-4. Use those to complete WI-0004.
+1. Complete WI-ASSIST-TEMPLATES-PACKAGING.
+2. Complete WI-ASSIST-INSTALLABILITY-HARDENING.
+3. Complete WI-ASSIST-SOURCETREE-SURVEYOR-MIGRATION.
+4. Plan WI-ASSIST-SOURCETREE-SURVEYOR-EXPANSION as a separate follow-on.

@@ -1,5 +1,35 @@
 # Decision Log
 
+## 2026-04-22: Decision: Assist migration sequencing for packaged runtime behavior
+
+### Summary
+
+Prioritize package-owned template migration and installed-package hardening before additional assist capability work.
+
+### Decisions
+
+- Runtime assist templates should move out of `scripts/aiprog/templates/` into package-owned paths (targeting `src/lrh/assist/templates/`).
+- Template loading for `lrh request` must use package-resource semantics rather than source-tree-relative paths.
+- Packaging/build/install smoke checks for installed `lrh request` and `lrh snapshot` behavior are required before collaborator-facing publication.
+- `scripts/aiprog/sourcetree_surveyor.py` migration into `src/lrh/assist/` should be a mechanical migration item.
+- Expansion of `sourcetree_surveyor` into broader source-tree audit capability is a separate follow-on item.
+
+### Rationale
+
+- Templates used at runtime should ship with the package.
+- Installed behavior must be first-class to avoid environment-specific breakage.
+- Separating migration mechanics from feature growth keeps PRs smaller and easier to review safely.
+
+### Implications
+
+- Roadmap ordering should emphasize template packaging and installability hardening first.
+- Work tracking should explicitly separate sourcetree migration from sourcetree expansion.
+
+### Status
+
+Accepted
+
+
 ## 2026-04-21: Decision: Meta CLI MVP as First Meta-Control Execution Slice
 
 ### Summary

@@ -45,6 +45,29 @@ Progress update (2026-04-21):
 - `lrh meta init` implemented as the first executable slice.
 - `lrh meta register` and `lrh meta list` remain in scope for the same MVP work item.
 
+### Near-Term Slice: Assist Packaging and Installability
+
+Order of execution:
+
+1. Move runtime assist templates out of `scripts/aiprog/templates/` into package-owned paths (target: `src/lrh/assist/templates/`).
+2. Update template loading to use package resources so installed-package usage does not depend on source-tree-relative paths.
+3. Add packaging/build/install hardening and smoke checks for installed `lrh request` / `lrh snapshot` behavior.
+4. Mechanically migrate `scripts/aiprog/sourcetree_surveyor.py` into `src/lrh/assist/`.
+5. Expand `sourcetree_surveyor` capabilities only as a separate follow-on item.
+
+Rationale:
+
+- Templates required at runtime should ship as package data.
+- Installed-package behavior must be validated before wider collaborator adoption.
+- Separating mechanical migration from capability growth keeps PRs small and reviewable.
+
+Traceability:
+
+- `project/work_items/WI-ASSIST-TEMPLATES-PACKAGING.md`
+- `project/work_items/WI-ASSIST-INSTALLABILITY-HARDENING.md`
+- `project/work_items/WI-ASSIST-SOURCETREE-SURVEYOR-MIGRATION.md`
+- `project/work_items/WI-ASSIST-SOURCETREE-SURVEYOR-EXPANSION.md`
+
 ## Risks
 
 - accidentally assuming all projects look like LRH itself

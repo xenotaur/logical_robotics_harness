@@ -89,7 +89,7 @@ Defines **how projects mature over time**
 
 LRH resolves project state using both layer authority and artifact specificity.
 
-From lowest to highest operational authority:
+Resolver precedence sequence (broad intent to narrow execution):
 
 1. Principles
 2. Project Goal
@@ -99,14 +99,17 @@ From lowest to highest operational authority:
 6. Guardrails
 7. Explicit runtime invocation
 
+Canonical source: `docs/decisions/precedence_semantics.md`.
+
 Interpretation rules:
 
-- Higher layers define broader intent; lower layers define more specific execution.
+- Higher-authority layers are stronger constraints; lower-authority layers are more specific execution context.
 - More specific artifacts refine broader artifacts.
 - A specific work item takes precedence over general focus prose for execution.
 - Current focus takes precedence over roadmap for current operational scope.
 - Guardrails do not define work, but may restrict, block, or require approval for actions.
-- Explicit runtime invocation may narrow scope for a run, but does not override guardrails.
+- Explicit runtime invocation may narrow scope for a run, but does not override guardrails or widen scope.
+- Memory is informative and does not participate as a precedence layer.
 
 If a lower-level artifact contradicts a higher-level artifact rather than refining it,
 LRH should surface a consistency warning or error.

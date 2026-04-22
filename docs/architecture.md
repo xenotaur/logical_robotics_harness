@@ -83,6 +83,9 @@ This answers: **what is actually true right now?**
 
 This answers: **what constraints, risks, and authorization boundaries apply to proposed actions?**
 
+Canonical precedence semantics are documented in `docs/decisions/precedence_semantics.md`.
+
+
 ## Execution lifecycle
 
 Execution should move through an explicit lifecycle:

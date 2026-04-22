@@ -24,6 +24,7 @@ class ControlPlaneState:
     focus: dict[str, object] | None = None
     work_items: tuple[dict[str, object], ...] = ()
     guardrails: dict[str, object] | None = None
+    memory: tuple[dict[str, object], ...] = ()
 
 
 @dataclasses.dataclass(frozen=True)
@@ -45,6 +46,7 @@ def resolve_precedence(
     Precedence order is applied from broader intent to narrower execution:
     principles -> goal -> roadmap -> focus -> work items -> guardrails -> runtime.
     Guardrails may restrict, while runtime may only narrow.
+    Memory artifacts are informative and non-authoritative for resolver output.
     """
 
     invocation = runtime_invocation or RuntimeInvocation()
@@ -98,7 +100,9 @@ def _resolve_active_focus(
         consistency_issues.append(
             "runtime focus_id does not match loaded current focus id"
         )
-        return None
+        # Runtime invocation may narrow scope but cannot widen or override
+        # repository-loaded focus authority. Keep the loaded focus active.
+        return focus if focus.get("status") == "active" else None
 
     return focus
 

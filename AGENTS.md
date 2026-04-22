@@ -71,6 +71,11 @@ At minimum, preserve these work item categories:
 Status should be grounded in evidence.
 Do not generate optimistic summaries that are detached from tests, logs, metrics, screenshots, reports, or review notes.
 
+## Precedence maintenance note
+
+- Canonical precedence semantics are defined in `docs/decisions/precedence_semantics.md`.
+- Any precedence change must keep documentation, `src/lrh/control_plane/precedence.py`, and `tests/control_plane/test_precedence.py` synchronized in the same change set.
+
 ## Engineering style
 
 - Prefer readable, explicit Python.

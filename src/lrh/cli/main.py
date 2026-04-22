@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
@@ -119,6 +120,10 @@ def main() -> None:
         action="store_true",
         help="allow deliberate duplicates and overwrite existing target records",
     )
+
+    if sys.argv[1:] == ["help"]:
+        parser.print_help()
+        raise SystemExit(0)
 
     args, passthrough_args = parser.parse_known_args()
 

@@ -150,6 +150,26 @@ class TestMetaListRuntime(unittest.TestCase):
 
             self.assertIn("unable to read project record file", str(err_ctx.exception))
 
+    def test_list_registered_projects_fails_for_registry_scan_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            with mock.patch.object(
+                pathlib.Path,
+                "iterdir",
+                side_effect=OSError("i/o error"),
+            ):
+                with self.assertRaises(workspace.MetaRegistryError) as err_ctx:
+                    workspace.list_registered_projects(root)
+
+            self.assertIn(
+                "unable to enumerate registry directory", str(err_ctx.exception)
+            )
+
     def _write_project_record(
         self,
         root: pathlib.Path,

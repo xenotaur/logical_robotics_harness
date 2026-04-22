@@ -265,8 +265,15 @@ def list_registered_projects(root: pathlib.Path) -> tuple[MetaProjectRecord, ...
     if not projects_dir.is_dir():
         raise MetaRegistryError(f"expected directory at {projects_dir}")
 
+    try:
+        project_entries = sorted(projects_dir.iterdir(), key=lambda entry: entry.name)
+    except OSError as err:
+        raise MetaRegistryError(
+            f"unable to enumerate registry directory {projects_dir}: {err}"
+        ) from err
+
     records: list[MetaProjectRecord] = []
-    for record_dir in sorted(projects_dir.iterdir(), key=lambda entry: entry.name):
+    for record_dir in project_entries:
         if not record_dir.is_dir():
             continue
         records.append(_load_project_record(record_dir))

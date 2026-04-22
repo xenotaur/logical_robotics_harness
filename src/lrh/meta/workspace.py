@@ -339,7 +339,7 @@ def _load_project_record(record_dir: pathlib.Path) -> MetaProjectRecord:
         short_name=_optional_string(project_data, "short_name", project_file),
         display_name=_optional_string(project_data, "display_name", project_file),
         project_id=_optional_string(identity_data, "project_id", project_file),
-        repo_locator=_optional_string(locators_data, "repo_locator", project_file),
+        repo_locator=_optional_locator_string(locators_data, project_file),
         project_dir=_optional_string(locators_data, "project_dir", project_file),
         setup_state=_optional_string(project_data, "setup_state", project_file),
     )
@@ -367,6 +367,15 @@ def _optional_string(
     if isinstance(value, str):
         return value
     raise MetaRegistryError(f"expected string for {key!r} in {project_file}")
+
+
+def _optional_locator_string(
+    table: dict[str, object], project_file: pathlib.Path
+) -> str | None:
+    repo_locator = _optional_string(table, "repo_locator", project_file)
+    if repo_locator is not None:
+        return repo_locator
+    return _optional_string(table, "repo", project_file)
 
 
 def _display_value(value: str | None) -> str:

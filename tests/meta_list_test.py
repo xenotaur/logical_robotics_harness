@@ -66,6 +66,45 @@ class TestMetaListRuntime(unittest.TestCase):
             self.assertIn("project_dir: .", output)
             self.assertIn("setup_state: not_set_up", output)
 
+    def test_list_registered_projects_accepts_repo_locator_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+            record_dir = root / "projects" / "alias"
+            record_dir.mkdir(parents=True)
+            (record_dir / "project.toml").write_text(
+                "\n".join(
+                    [
+                        'schema_version = "0.1"',
+                        "",
+                        "[project]",
+                        'short_name = "alias"',
+                        'display_name = "Alias Project"',
+                        'setup_state = "lrh_project_present"',
+                        "",
+                        "[identity]",
+                        'project_id = "proj-alias-001"',
+                        "",
+                        "[locators]",
+                        'repo = "https://github.com/example/alias.git"',
+                        'project_dir = "project"',
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            records = workspace.list_registered_projects(root)
+
+            self.assertEqual(len(records), 1)
+            self.assertEqual(
+                records[0].repo_locator,
+                "https://github.com/example/alias.git",
+            )
+
     def test_list_registered_projects_with_missing_fields_shows_missing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)

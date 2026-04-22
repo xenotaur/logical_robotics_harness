@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import pathlib
+import re
 import shutil
 import tomllib
 
@@ -55,6 +57,27 @@ class MetaProjectRecord:
     repo_locator: str | None
     project_dir: str | None
     setup_state: str | None
+
+
+@dataclasses.dataclass(frozen=True)
+class MetaRegisterSpec:
+    """Input parameters for registering one project record."""
+
+    repo_locator: str
+    project_dir: str = "project"
+    directory_name: str | None = None
+    short_name: str | None = None
+    display_name: str | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class MetaRegisterResult:
+    """Summary of one successful registration write."""
+
+    directory_name: str
+    project_id: str
+    setup_state: str
+    record_path: pathlib.Path
 
 
 def init_workspace(
@@ -253,6 +276,177 @@ def _remove_existing_path(path: pathlib.Path) -> None:
         shutil.rmtree(path)
         return
     path.unlink()
+
+
+def register_project(
+    root: pathlib.Path,
+    *,
+    spec: MetaRegisterSpec,
+    force: bool = False,
+) -> MetaRegisterResult:
+    """Register a project in ``root/projects`` by writing ``project.toml``."""
+    projects_dir = root / "projects"
+    if not projects_dir.exists():
+        raise MetaRegistryError(
+            f"missing projects directory at {projects_dir}; run `lrh meta init` first"
+        )
+    if not projects_dir.is_dir():
+        raise MetaRegistryError(f"expected directory at {projects_dir}")
+
+    repo_locator = _normalized_required_value("repo_locator", spec.repo_locator)
+    project_dir = _normalized_required_value("project_dir", spec.project_dir)
+    directory_name = _normalized_directory_name(spec.directory_name, repo_locator)
+    short_name = _normalized_optional_value(spec.short_name) or directory_name
+    display_name = _normalized_optional_value(spec.display_name) or _display_from_name(
+        short_name
+    )
+
+    records = list_registered_projects(root)
+    duplicate = _find_duplicate_record(records, repo_locator, project_dir)
+    if duplicate is not None and not force:
+        raise MetaRegistryError(
+            "duplicate registration detected for "
+            f"repo_locator={repo_locator!r} project_dir={project_dir!r}; "
+            f"existing registry entry={duplicate.registry_name!r}; rerun with --force "
+            "to allow a deliberate duplicate record"
+        )
+
+    setup_state = _detect_setup_state(repo_locator, project_dir)
+    project_id = _stable_project_id(repo_locator, project_dir)
+    record_dir = projects_dir / directory_name
+    record_path = record_dir / "project.toml"
+
+    if record_dir.exists() and not record_dir.is_dir():
+        raise MetaRegistryError(f"expected directory at {record_dir}")
+    record_dir.mkdir(parents=True, exist_ok=True)
+
+    if record_path.exists() and not force:
+        raise MetaRegistryError(
+            f"project record already exists at {record_path}; "
+            "choose a different --directory-name or rerun with --force"
+        )
+
+    record_path.write_text(
+        _project_record_text(
+            directory_name=directory_name,
+            short_name=short_name,
+            display_name=display_name,
+            project_id=project_id,
+            repo_locator=repo_locator,
+            project_dir=project_dir,
+            setup_state=setup_state,
+        ),
+        encoding="utf-8",
+    )
+
+    return MetaRegisterResult(
+        directory_name=directory_name,
+        project_id=project_id,
+        setup_state=setup_state,
+        record_path=record_path,
+    )
+
+
+def _project_record_text(
+    *,
+    directory_name: str,
+    short_name: str,
+    display_name: str,
+    project_id: str,
+    repo_locator: str,
+    project_dir: str,
+    setup_state: str,
+) -> str:
+    return "\n".join(
+        [
+            'schema_version = "0.1"',
+            "",
+            "[project]",
+            f"short_name = {_toml_basic_string(short_name)}",
+            f"display_name = {_toml_basic_string(display_name)}",
+            'status = "active"',
+            f"setup_state = {_toml_basic_string(setup_state)}",
+            "",
+            "[identity]",
+            f"project_id = {_toml_basic_string(project_id)}",
+            "",
+            "[locators]",
+            f"repo_locator = {_toml_basic_string(repo_locator)}",
+            f"project_dir = {_toml_basic_string(project_dir)}",
+            "",
+            "[registry]",
+            f"directory_name = {_toml_basic_string(directory_name)}",
+            "",
+        ]
+    )
+
+
+def _normalized_required_value(field_name: str, value: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        raise MetaRegistryError(f"{field_name} must not be empty")
+    return normalized
+
+
+def _normalized_optional_value(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    return normalized if normalized else None
+
+
+def _normalized_directory_name(directory_name: str | None, repo_locator: str) -> str:
+    requested = _normalized_optional_value(directory_name)
+    if requested is None:
+        requested = _infer_name_from_locator(repo_locator)
+
+    normalized = requested.lower()
+    normalized = re.sub(r"[^a-z0-9._-]+", "-", normalized)
+    normalized = normalized.strip(".-_")
+    if not normalized:
+        raise MetaRegistryError("unable to derive a valid registry directory name")
+    return normalized
+
+
+def _infer_name_from_locator(repo_locator: str) -> str:
+    inferred = repo_locator.rstrip("/").split("/")[-1]
+    if inferred.endswith(".git"):
+        inferred = inferred[:-4]
+    if inferred:
+        return inferred
+    return "project"
+
+
+def _display_from_name(short_name: str) -> str:
+    words = re.split(r"[-_.]+", short_name)
+    titled_words = [word.capitalize() for word in words if word]
+    if titled_words:
+        return " ".join(titled_words)
+    return short_name
+
+
+def _find_duplicate_record(
+    records: tuple[MetaProjectRecord, ...],
+    repo_locator: str,
+    project_dir: str,
+) -> MetaProjectRecord | None:
+    for record in records:
+        if record.repo_locator == repo_locator and record.project_dir == project_dir:
+            return record
+    return None
+
+
+def _detect_setup_state(repo_locator: str, project_dir: str) -> str:
+    repo_path = pathlib.Path(repo_locator).expanduser()
+    if repo_path.is_dir() and (repo_path / project_dir).is_dir():
+        return "lrh_project_present"
+    return "not_set_up"
+
+
+def _stable_project_id(repo_locator: str, project_dir: str) -> str:
+    source = f"{repo_locator}\n{project_dir}".encode("utf-8")
+    digest = hashlib.sha256(source).hexdigest()
+    return f"proj-{digest[:16]}"
 
 
 def list_registered_projects(root: pathlib.Path) -> tuple[MetaProjectRecord, ...]:

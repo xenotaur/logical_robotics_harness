@@ -1,5 +1,36 @@
 # Decision Log
 
+## 2026-04-22: Decision: Explicit Meta workspace-context resolution with XDG global defaults
+
+### Summary
+
+Adopt an explicit, precedence-based workspace-context resolution model for `lrh meta`, with XDG-style global defaults, explicit local workspace support, TTY-aware prompt policy, and user-visible resolution behavior.
+
+### Decisions
+
+- `lrh meta` commands operate against a resolved workspace context rather than implicit cwd-only assumptions.
+- Workspace/context precedence is: explicit CLI flags (for example `--workspace`, `--config`, `--mode`) → `LRH_CONFIG` → `LRH_WORKSPACE` → local auto-discovery → global auto-discovery → built-in defaults.
+- Global/user-level workspace defaults should follow XDG-style config/state/cache separation.
+- Local workspace mode remains explicit via a root containing `.lrh/config.toml` plus sibling `projects/` and `private/` directories.
+- Initialization prompts must be interactive-only (TTY-aware) and bypassable with `--yes` for automation.
+- Meta command behavior should make active workspace/config resolution inspectable rather than hidden.
+
+### Rationale
+
+- Predictable precedence reduces ambiguity and improves debuggability.
+- Clear user-level versus project-local config boundaries reduce surprising behavior.
+- XDG-style separation is a stable convention for global data hygiene.
+- Automation safety requires non-interactive command paths without prompt dependencies.
+
+### Implications
+
+- Design/spec/roadmap/work items should stay aligned on this workspace-resolution contract before additional Meta CLI expansion.
+- Implementation should centralize workspace-resolution logic so `meta init`, `meta register`, and `meta list` share consistent behavior.
+
+### Status
+
+Accepted
+
 ## 2026-04-22: Decision: Assist migration sequencing for packaged runtime behavior
 
 ### Summary

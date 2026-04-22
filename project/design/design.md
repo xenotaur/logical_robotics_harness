@@ -253,6 +253,25 @@ An agent may exist in the system without being actively assigned to any work ite
 - LRH may also operate with a workspace/dashboard repository that catalogs and coordinates multiple LRH-compatible repositories.
 - This workspace/meta layer is informative/coordinating relative to project-local authoritative state and does not participate in a project's precedence chain.
 
+#### Workspace context resolution (Meta CLI direction)
+
+For `lrh meta` commands, LRH should resolve an explicit workspace context using predictable precedence, support both global and local workspaces, and make the resolution visible to users rather than magical.
+
+Resolution order for workspace context should be:
+
+1. explicit CLI flags (for example `--workspace`, `--config`, `--mode`)
+2. `LRH_CONFIG`
+3. `LRH_WORKSPACE`
+4. local workspace auto-discovery
+5. global workspace auto-discovery
+6. built-in defaults
+
+Global/user-level workspace defaults should follow XDG-style separation between config, state, and cache paths. Local workspace mode remains explicitly supported via a workspace root containing `.lrh/config.toml` and sibling `projects/` and `private/` directories.
+
+Prompting behavior for workspace initialization should be interactive-only (TTY-aware), optional via `--yes`, and never required for automation.
+
+Meta commands should surface enough information for users to inspect the active workspace and config resolution path.
+
 #### First executable slice (MVP)
 - The first executable meta-control slice is a minimal CLI registry flow:
   - `lrh meta init`

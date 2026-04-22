@@ -59,6 +59,7 @@ Implement the minimal meta-control-plane CLI slice for managing a workspace-leve
 - no agent orchestration
 - no multi-repo automation
 - no advanced inspection or editing commands
+- no full shared workspace-context resolver in this item (tracked separately)
 
 ## Acceptance Criteria
 
@@ -78,6 +79,7 @@ Implement the minimal meta-control-plane CLI slice for managing a workspace-leve
 
 - Roadmap: `project/roadmap/phase_02_runtime_and_workspace.md` (Near-Term Slice: Meta CLI MVP)
 - Spec: `project/design/meta_control_plane_mvp_spec.md` (Meta Control Plane MVP, Phase 1 executable slice)
+- Follow-on work item: `project/work_items/WI-META-WORKSPACE-RESOLUTION.md` (shared workspace-context resolution and visibility behavior)
 
 
 ## Progress Notes
@@ -87,3 +89,4 @@ Implement the minimal meta-control-plane CLI slice for managing a workspace-leve
 - Remaining scope in this work item: `lrh meta register`.
 - 2026-04-22 (audit): Verified against `README.md`, `project/design/meta_control_plane_mvp_spec.md`, and Phase 2 roadmap/work-item acceptance that `lrh meta register` is still not implemented end-to-end. Current code includes `meta init` and `meta list` CLI wiring/runtime/tests only; missing pieces are register CLI exposure/dispatch, registration runtime/write path, stable `project_id` generation, duplicate handling (`--force`), setup-state detection, and register-focused tests.
 - 2026-04-22: Implemented `lrh meta register` end-to-end (CLI exposure, runtime write path, stable `project_id`, duplicate detection with `--force`, setup-state detection, and focused tests) while keeping `meta inspect`/`meta deregister` as explicit follow-on commands outside this slice.
+- 2026-04-22: Added explicit follow-on planning for shared workspace-context resolution (precedence order, XDG-style global defaults, local workspace support, and resolution visibility) before additional Meta CLI expansion.

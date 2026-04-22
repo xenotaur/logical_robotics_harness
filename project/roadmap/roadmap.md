@@ -31,6 +31,10 @@ Immediate next ordering:
 3. mechanical `sourcetree_surveyor` migration into `src/lrh/assist/`
 4. follow-on `sourcetree_surveyor` capability expansion
 
+Meta-control planning guardrail:
+
+- before widening Meta CLI surface beyond the current MVP command set, align and land the shared workspace-resolution contract (explicit precedence, XDG-style global defaults, explicit local mode, and visible resolution behavior)
+
 ## Phase 1 — Control Plane
 
 Define and implement the project control model:

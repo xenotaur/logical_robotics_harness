@@ -1,5 +1,32 @@
 # Decision Log
 
+## 2026-04-22: Decision: Precedence canonicalization workstream closure validation
+
+### Summary
+
+Validated that precedence canonicalization is complete and can be closed without additional corrective work items.
+
+### Decisions
+
+- Canonical precedence source remains `project/memory/decisions/precedence_semantics.md`.
+- `src/lrh/control_plane/precedence.py` continues to implement narrowing-only runtime behavior with subtractive guardrail handling and non-authoritative memory.
+- `tests/control_plane/test_precedence.py` covers narrowing-only behavior, guardrail-before-runtime exclusions, and memory non-authoritativeness.
+- Precedence-canonicalization workstream tracking may be treated as closed; no unresolved correctness findings were identified during closure review.
+
+### Rationale
+
+- Documentation, implementation, and tests are synchronized on the accepted "refine/narrow, not override" model.
+- No competing full semantic specification was found; design/context references point back to the canonical decision.
+
+### Implications
+
+- No new precedence correctness work item is required from this closure pass.
+- Any future precedence semantic change still requires synchronized updates across canonical decision, implementation, and tests.
+
+### Status
+
+Accepted
+
 ## 2026-04-22: Decision: Explicit Meta workspace-context resolution with XDG global defaults
 
 ### Summary

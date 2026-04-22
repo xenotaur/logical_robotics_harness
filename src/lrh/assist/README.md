@@ -87,7 +87,8 @@ lrh request assessment --scope current_focus
 lrh request assessment --scope work_item --target WI-0003
 lrh snapshot --help
 lrh snapshot work_item WI-0003 --project-root .
-python -m lrh.assist.sourcetree_surveyor --help
+lrh survey --help
+lrh survey src/lrh/assist --tests-root tests/assist --format md
 ```
 
 ## Golden Path Example: From Audit to Reviewed Change
@@ -243,14 +244,16 @@ lrh request work_items_from_audit \
 
 - The `lrh` CLI commands are intentionally thin wrappers around assist modules.
 - Core request behavior belongs in `src/lrh/assist/`.
+- Core sourcetree survey behavior belongs in `src/lrh/assist/sourcetree_surveyor.py`.
 - Templates define most request behavior and output structure.
 
 ## Status / Roadmap
 
 - **Request CLI**: `lrh request ...`
 - **Snapshot CLI**: `lrh snapshot ...`
+- **Survey CLI**: `lrh survey ...` (delegates to `src/lrh/assist/sourcetree_surveyor.py`)
 - **Maintainer helper compatibility wrapper**: `scripts/aiprog/sourcetree_surveyor.py` forwards to package-owned code in `src/lrh/assist/sourcetree_surveyor.py`.
-- **Package sourcetree module**: run with `python -m lrh.assist.sourcetree_surveyor --help`.
+- **Package sourcetree module**: also runnable with `python -m lrh.assist.sourcetree_surveyor --help`.
 - **Planned request API**: first-class Python API (`RequestArgs` + `generate_request(...)`).
 - **Next packaging priorities**:
   1. add packaging/install smoke checks for installed `lrh request` and `lrh snapshot`

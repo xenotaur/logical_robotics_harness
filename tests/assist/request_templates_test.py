@@ -1,3 +1,4 @@
+import importlib.resources
 import pathlib
 import tempfile
 import unittest
@@ -6,21 +7,22 @@ from lrh.assist import request_templates
 
 
 class TestTemplateRoot(unittest.TestCase):
-    def test_default_template_root_matches_repo_layout(self) -> None:
-        expected_root = pathlib.Path("scripts/aiprog/templates/request").resolve()
+    def test_default_template_root_is_package_resource(self) -> None:
+        expected_root = importlib.resources.files("lrh.assist").joinpath(
+            "templates", "request"
+        )
         self.assertEqual(request_templates.get_template_root(), expected_root)
-        self.assertTrue(expected_root.is_dir())
+        self.assertTrue(expected_root.joinpath("improve_coverage.md").is_file())
 
 
 class TestTemplatePathAndLoading(unittest.TestCase):
-    def test_existing_template_resolves_successfully(self) -> None:
-        template_path = request_templates.get_template_path("improve_coverage")
-        self.assertTrue(template_path.exists())
-        self.assertEqual(template_path.name, "improve_coverage.md")
+    def test_existing_template_loads_from_package_resources(self) -> None:
+        loaded = request_templates.load_template_text("improve_coverage")
+        self.assertIn("{{TARGET_MODULE_GHA}}", loaded)
 
     def test_missing_template_raises_file_not_found_error(self) -> None:
         with self.assertRaisesRegex(FileNotFoundError, "Template not found"):
-            request_templates.get_template_path("does_not_exist")
+            request_templates.load_template_text("does_not_exist")
 
     def test_load_template_text_reads_utf8(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

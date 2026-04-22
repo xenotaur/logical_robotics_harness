@@ -83,5 +83,5 @@ Implement the minimal meta-control-plane CLI slice for managing a workspace-leve
 ## Progress Notes
 
 - 2026-04-21: Implemented the first executable slice, `lrh meta init`, including workspace scaffold generation, safety checks, and tests.
-- Remaining scope in this work item: `lrh meta register` and `lrh meta list`.
-
+- 2026-04-22: Implemented `lrh meta list` as the first read path over `projects/*/project.toml` records with explicit field rendering and malformed-record failure behavior.
+- Remaining scope in this work item: `lrh meta register`.

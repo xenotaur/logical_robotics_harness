@@ -60,6 +60,11 @@ def main() -> None:
         help="replace incompatible managed paths/content when safe",
     )
 
+    meta_subparsers.add_parser(
+        "list",
+        help="List registered projects from the workspace registry.",
+    )
+
     args, passthrough_args = parser.parse_known_args()
 
     if args.command == "validate":
@@ -86,28 +91,41 @@ def main() -> None:
         )
 
     if args.command == "meta":
-        if args.meta_command != "init":
-            parser.error("meta requires a subcommand (try: lrh meta init)")
-        if passthrough_args:
-            parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
-        spec = workspace.MetaWorkspaceSpec(workspace_name=args.name)
-        try:
-            result = workspace.init_workspace(
-                Path.cwd(),
-                spec=spec,
-                force=args.force,
-            )
-        except workspace.MetaInitError as err:
-            print(f"error: {err}")
-            raise SystemExit(1) from err
+        if args.meta_command == "init":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            spec = workspace.MetaWorkspaceSpec(workspace_name=args.name)
+            try:
+                result = workspace.init_workspace(
+                    Path.cwd(),
+                    spec=spec,
+                    force=args.force,
+                )
+            except workspace.MetaInitError as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
 
-        print("Initialized LRH meta workspace at", Path.cwd())
-        print(
-            f"created={len(result.created)} "
-            f"updated={len(result.updated)} "
-            f"unchanged={len(result.unchanged)}"
-        )
-        raise SystemExit(0)
+            print("Initialized LRH meta workspace at", Path.cwd())
+            print(
+                f"created={len(result.created)} "
+                f"updated={len(result.updated)} "
+                f"unchanged={len(result.unchanged)}"
+            )
+            raise SystemExit(0)
+
+        if args.meta_command == "list":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            try:
+                records = workspace.list_registered_projects(Path.cwd())
+            except workspace.MetaRegistryError as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
+
+            print(workspace.format_project_records(records))
+            raise SystemExit(0)
+
+        parser.error("meta requires a subcommand (try: lrh meta init)")
 
     if passthrough_args:
         parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")

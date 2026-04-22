@@ -20,7 +20,7 @@ and then help orchestrate work to achieve that roadmap in a structured and inspe
 ## Current status
 
 This repository now has a working control-plane baseline (`lrh validate`) and assist CLI entrypoints
-(`lrh request`, `lrh snapshot`). Current planning emphasis is on packaging/runtime hardening for assist templates so installed-package usage does not depend on repository-relative paths.
+(`lrh request`, `lrh snapshot`, `lrh survey`). Current planning emphasis is on packaging/runtime hardening for assist templates so installed-package usage does not depend on repository-relative paths.
 
 ## Planned top-level structure
 
@@ -74,7 +74,8 @@ This keeps execution explicit while separating consequence checks from intent an
 
 - package-owned template location and package-resource loading for assist workflows
 - packaging/build/install hardening with installed-package smoke checks
-- package-owned `src/lrh/assist/sourcetree_surveyor.py` with legacy wrapper at `scripts/aiprog/sourcetree_surveyor.py`
+- canonical survey command surface: `lrh survey <root> [--tests-root ...] [--format md|json] [--out ...]`
+- package-owned survey implementation at `src/lrh/assist/sourcetree_surveyor.py` with legacy wrapper at `scripts/aiprog/sourcetree_surveyor.py`
 - keep capability expansion of sourcetree tooling as a separate follow-on
 - continue Meta CLI MVP with `lrh meta register`; `lrh meta list` is now available for registry inspection
 

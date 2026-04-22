@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
-from lrh.assist import request_cli, snapshot_cli
+from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
 
@@ -37,6 +37,12 @@ def main() -> None:
         "snapshot",
         add_help=False,
         help="Generate assist snapshot context packets.",
+    )
+
+    subparsers.add_parser(
+        "survey",
+        add_help=False,
+        help="Survey a Python source tree for assist planning workflows.",
     )
 
     meta_parser = subparsers.add_parser(
@@ -87,6 +93,14 @@ def main() -> None:
             snapshot_cli.run_snapshot_cli(
                 argv=passthrough_args,
                 prog="lrh snapshot",
+            )
+        )
+
+    if args.command == "survey":
+        raise SystemExit(
+            sourcetree_surveyor.main(
+                argv=passthrough_args,
+                prog="lrh survey",
             )
         )
 

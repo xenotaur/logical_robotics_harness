@@ -249,8 +249,8 @@ def to_json(reports: list[FileReport]) -> str:
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
-def _parse_args(argv: list[str]) -> argparse.Namespace:
-    p = argparse.ArgumentParser()
+def _parse_args(argv: list[str], prog: str | None = None) -> argparse.Namespace:
+    p = argparse.ArgumentParser(prog=prog)
     p.add_argument("root", help="Root directory to scan (e.g., src/lrh)")
     p.add_argument(
         "--tests-root",
@@ -262,8 +262,8 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
-def main(argv: list[str]) -> int:
-    args = _parse_args(argv)
+def main(argv: list[str], prog: str | None = None) -> int:
+    args = _parse_args(argv, prog=prog)
 
     root = pathlib.Path(args.root).resolve()
     if not root.exists() or not root.is_dir():

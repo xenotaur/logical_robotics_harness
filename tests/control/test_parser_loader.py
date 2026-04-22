@@ -8,8 +8,7 @@ from lrh.control.parser import parse_markdown_file, parse_markdown_text
 
 class TestControlParser(unittest.TestCase):
     def test_parse_markdown_text_frontmatter_and_body(self) -> None:
-        parsed = parse_markdown_text(
-            """---
+        parsed = parse_markdown_text("""---
 id: SAMPLE
 contributors: []
 items:
@@ -21,8 +20,7 @@ status: active
 # Body
 
 Hello.
-"""
-        )
+""")
 
         self.assertEqual(parsed.frontmatter["id"], "SAMPLE")
         self.assertEqual(parsed.frontmatter["contributors"], [])

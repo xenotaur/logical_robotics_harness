@@ -99,7 +99,7 @@ Resolver precedence sequence (broad intent to narrow execution):
 6. Guardrails
 7. Explicit runtime invocation
 
-Canonical source: `docs/decisions/precedence_semantics.md`.
+Canonical source: `project/memory/decisions/precedence_semantics.md`.
 
 Interpretation rules:
 

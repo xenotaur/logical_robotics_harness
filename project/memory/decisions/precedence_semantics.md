@@ -12,14 +12,14 @@ LRH documentation had drifted on precedence semantics.
 - `project/design/design.md` and `project/context/humans.md` described a mostly compatible
   conceptual ordering, but included wording that could be read as contradictory
   (for example, saying "low → high" while listing principles first).
-- `docs/repository_spec.md` described a conflicting precedence ordering and included
+- `project/design/repository_spec.md` described a conflicting precedence ordering and included
   memory as a precedence layer.
 
 This ambiguity makes implementation, review, and future changes error-prone.
 
 ## Options considered
 
-1. **Adopt `docs/repository_spec.md` ordering** (runtime first and memory in the chain).
+1. **Adopt `project/design/repository_spec.md` ordering** (runtime first and memory in the chain).
 2. **Keep implementation semantics and codify them as canonical**.
 3. **Redesign the model now** to include new precedence layers and richer override behavior.
 

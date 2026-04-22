@@ -13,7 +13,6 @@ logical_robotics_harness/
   README.md
   AGENTS.md
   pyproject.toml
-  docs/
   src/
     lrh/
   tests/
@@ -138,7 +137,7 @@ Body text here.
 ## Precedence
 
 Canonical precedence semantics are defined in
-`docs/decisions/precedence_semantics.md`.
+`project/memory/decisions/precedence_semantics.md`.
 
 Resolver precedence order is:
 

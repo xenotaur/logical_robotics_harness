@@ -2,7 +2,7 @@
 id: WI-META-CLI-MVP
 title: Meta CLI MVP: init / register / list
 type: deliverable
-status: proposed
+status: in_progress
 priority: high
 owner: anthony
 contributors:
@@ -78,3 +78,10 @@ Implement the minimal meta-control-plane CLI slice for managing a workspace-leve
 
 - Roadmap: `project/roadmap/phase_02_runtime_and_workspace.md` (Near-Term Slice: Meta CLI MVP)
 - Spec: `project/design/meta_control_plane_mvp_spec.md` (Meta Control Plane MVP, Phase 1 executable slice)
+
+
+## Progress Notes
+
+- 2026-04-21: Implemented the first executable slice, `lrh meta init`, including workspace scaffold generation, safety checks, and tests.
+- Remaining scope in this work item: `lrh meta register` and `lrh meta list`.
+

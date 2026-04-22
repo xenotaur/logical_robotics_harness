@@ -119,6 +119,11 @@ class TestSourcetreeSurveyorAnalysis(unittest.TestCase):
             self.assertEqual(survey.tests_root, str(tests_root))
             self.assertEqual(survey.discovered_test_files, ["test_module.py"])
 
+    def test_cli_candidate_match_handles_windows_relpath_separator(self) -> None:
+        self.assertTrue(
+            sourcetree_surveyor._is_cli_candidate_relpath("pkg\\tools\\cli.py")
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

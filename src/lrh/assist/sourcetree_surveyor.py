@@ -132,6 +132,11 @@ def _read_console_scripts(pyproject_path: pathlib.Path) -> list[str]:
     return sorted(str(key) for key in scripts.keys())
 
 
+def _is_cli_candidate_relpath(relpath: str) -> bool:
+    normalized_relpath = relpath.replace("\\", "/")
+    return normalized_relpath == "cli.py" or normalized_relpath.endswith("/cli.py")
+
+
 def analyze_file(
     root: pathlib.Path, path: pathlib.Path, tests_root: typing.Optional[pathlib.Path]
 ) -> FileReport:
@@ -251,9 +256,7 @@ def survey_python_tree(
     cli_candidate_files = sorted(
         report.relpath
         for report in reports
-        if report.has_main_guard
-        or report.relpath.endswith("/cli.py")
-        or report.relpath == "cli.py"
+        if report.has_main_guard or _is_cli_candidate_relpath(report.relpath)
     )
 
     pyproject_path = root / "pyproject.toml"

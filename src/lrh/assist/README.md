@@ -100,6 +100,7 @@ lrh survey src/lrh/assist --tests-root tests/assist --format json
 - `pyproject.toml` presence and console script names (when present)
 - README/Markdown docs under the scanned root
 - per-file symbol inventory reports
+- cross-platform CLI candidate detection for nested `cli.py` modules
 
 ## Golden Path Example: From Audit to Reviewed Change
 

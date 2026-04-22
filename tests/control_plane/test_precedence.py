@@ -118,6 +118,54 @@ class TestPrecedenceResolver(unittest.TestCase):
 
         self.assertEqual(resolved.active_contributors, ("owner-1",))
 
+    def test_runtime_contributor_narrowing_cannot_reintroduce_guardrail_blocked(
+        self,
+    ) -> None:
+        state = precedence.ControlPlaneState(
+            focus={
+                "id": "FOCUS-1",
+                "status": "active",
+                "active_contributors": ["owner-1", "owner-2"],
+            },
+            work_items=(
+                {
+                    "id": "WI-1",
+                    "related_focus": ["FOCUS-1"],
+                    "contributors": ["agent-1"],
+                },
+            ),
+            guardrails={"blocked_contributor_ids": ["owner-2"]},
+        )
+
+        resolved = precedence.resolve_precedence(
+            state,
+            runtime_invocation=precedence.RuntimeInvocation(
+                contributor_ids=("owner-2",),
+            ),
+        )
+
+        self.assertEqual(resolved.active_contributors, ())
+
+    def test_runtime_focus_id_reports_issue_when_loaded_focus_has_no_id(self) -> None:
+        state = precedence.ControlPlaneState(
+            focus={"status": "active"},
+            work_items=(
+                {"id": "WI-1", "related_focus": ["FOCUS-1"], "owner": "owner-1"},
+            ),
+        )
+
+        resolved = precedence.resolve_precedence(
+            state,
+            runtime_invocation=precedence.RuntimeInvocation(focus_id="FOCUS-1"),
+        )
+
+        self.assertIsNone(resolved.active_focus)
+        self.assertEqual(resolved.in_scope_work_items, state.work_items)
+        self.assertIn(
+            "runtime focus_id was provided but the loaded focus artifact has no id",
+            resolved.consistency_issues,
+        )
+
     def test_memory_is_non_authoritative(self) -> None:
         base_state = precedence.ControlPlaneState(
             focus={"id": "FOCUS-1", "status": "active"},

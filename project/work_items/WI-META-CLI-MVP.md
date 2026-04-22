@@ -85,3 +85,4 @@ Implement the minimal meta-control-plane CLI slice for managing a workspace-leve
 - 2026-04-21: Implemented the first executable slice, `lrh meta init`, including workspace scaffold generation, safety checks, and tests.
 - 2026-04-22: Implemented `lrh meta list` as the first read path over `projects/*/project.toml` records with explicit field rendering and malformed-record failure behavior.
 - Remaining scope in this work item: `lrh meta register`.
+- 2026-04-22 (audit): Verified against `README.md`, `project/design/meta_control_plane_mvp_spec.md`, and Phase 2 roadmap/work-item acceptance that `lrh meta register` is still not implemented end-to-end. Current code includes `meta init` and `meta list` CLI wiring/runtime/tests only; missing pieces are register CLI exposure/dispatch, registration runtime/write path, stable `project_id` generation, duplicate handling (`--force`), setup-state detection, and register-focused tests.

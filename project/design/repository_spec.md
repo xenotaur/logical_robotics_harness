@@ -36,6 +36,10 @@ project/
   roadmap/
   focus/
   work_items/
+    proposed/
+    active/
+    resolved/
+    abandoned/
   guardrails/
   evidence/
   status/
@@ -63,6 +67,10 @@ Defines the active near-term operational charter.
 ### Work Items
 
 Defines typed units of work such as deliverables, investigations, evaluations, and operations.
+
+Work items use status buckets (`proposed`, `active`, `resolved`, `abandoned`) under `project/work_items/`.
+Metadata `status` is authoritative; bucket path is derived and must match metadata during validation.
+`blocked` is a secondary attribute that may only apply to `active` work items.
 
 Work item metadata may include:
 
@@ -115,7 +123,10 @@ Use Markdown with YAML frontmatter.
 id: WI-0001
 title: Example work item
 type: deliverable
-status: ready
+status: active
+blocked: false
+created_on: 2026-04-22
+updated_on: 2026-04-22
 priority: high
 related_focus:
   - FOCUS-BOOTSTRAP

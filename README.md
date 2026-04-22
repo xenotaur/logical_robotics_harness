@@ -76,6 +76,13 @@ Execution should follow this lifecycle:
 
 This keeps execution explicit while separating consequence checks from intent and truth.
 
+### Work-item status buckets
+
+Work items are organized under `project/work_items/proposed/`, `active/`, `resolved/`, and `abandoned/`.
+The YAML frontmatter `status` is authoritative, and directory bucket is derived for human readability.
+`blocked` is modeled as secondary metadata on `active` items, not as a top-level lifecycle status.
+
+
 ## Near-term priorities
 
 - package-owned template location and package-resource loading for assist workflows

@@ -29,7 +29,6 @@ Hello.
         self.assertEqual(parsed.frontmatter["items"], ["one", "two"])
         self.assertEqual(parsed.body, "\n# Body\n\nHello.\n")
 
-
     def test_parse_markdown_text_accepts_closing_delimiter_at_eof(self) -> None:
         parsed = parse_markdown_text("---\nid: EOF\n---")
 
@@ -58,8 +57,6 @@ class TestControlLoader(unittest.TestCase):
         self.assertEqual(find_project_dir(Path(".")), Path("project").resolve())
         self.assertEqual(find_project_dir(Path("project")), Path("project").resolve())
 
-
-
     def test_load_project_allows_blank_optional_contributor_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
@@ -76,7 +73,16 @@ class TestControlLoader(unittest.TestCase):
                 encoding="utf-8",
             )
             (root / "project" / "contributors" / "person.md").write_text(
-                "---\nid: person-1\ntype: human\nroles:\n  - editor\ndisplay_name: Person\nstatus: active\ngithub:\ndescription:\n---",
+                """---
+id: person-1
+type: human
+roles:
+  - editor
+display_name: Person
+status: active
+github:
+description:
+---""",
                 encoding="utf-8",
             )
 

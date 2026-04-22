@@ -21,7 +21,9 @@ def parse_markdown_file(path: Path) -> ParsedMarkdown:
 
 def parse_markdown_text(text: str) -> ParsedMarkdown:
     if not text.startswith("---\n"):
-        raise ValueError("markdown file must begin with YAML frontmatter delimiter '---'")
+        raise ValueError(
+            "markdown file must begin with YAML frontmatter delimiter '---'"
+        )
 
     frontmatter_text, body = _split_frontmatter_and_body(text)
     frontmatter = _parse_frontmatter_mapping(frontmatter_text)
@@ -105,7 +107,9 @@ def _parse_frontmatter_mapping(text: str) -> dict[str, Any]:
                 not lines[index].strip() or lines[index].startswith("  ")
             ):
                 raw_folded = lines[index]
-                folded_lines.append(raw_folded[2:] if raw_folded.startswith("  ") else "")
+                folded_lines.append(
+                    raw_folded[2:] if raw_folded.startswith("  ") else ""
+                )
                 index += 1
             data[key] = " ".join(part for part in folded_lines if part).strip()
             continue

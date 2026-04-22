@@ -16,6 +16,21 @@ children:
 The harness should be built in stages, with the earliest stages proving the project model and local
 workflow before deeper agent integration.
 
+## Current sequencing update (2026-04-22)
+
+Recently completed baseline work:
+
+- control-plane model/parser/validation foundations (`WI-0001` through `WI-0004`)
+- precedence resolver implementation (`WI-PRECEDENCE-RESOLVER`)
+- package CLI adoption for `lrh request` and `lrh snapshot`
+
+Immediate next ordering:
+
+1. package-owned templates + package-resource loading
+2. packaging/installability hardening with installed-package smoke checks
+3. mechanical `sourcetree_surveyor` migration into `src/lrh/assist/`
+4. follow-on `sourcetree_surveyor` capability expansion
+
 ## Phase 1 — Control Plane
 
 Define and implement the project control model:

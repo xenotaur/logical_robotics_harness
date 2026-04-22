@@ -10,6 +10,12 @@ LRH is designed for **AI-assisted engineering workflows**, where humans and agen
 
 The system begins by being able to **understand and validate itself** (self-hosting control plane), then evolves toward multiple repositories and agents. As part of that evolution, LRH can use a workspace/dashboard layer to help humans and tools discover, inspect, and coordinate active LRH projects, while each project's local `project/` directory remains authoritative.
 
+## Current Update (2026-04-22)
+
+- Canonical assist interfaces are now `lrh request` and `lrh snapshot`, with assist module code under `src/lrh/assist/`.
+- Runtime request templates still live under `scripts/aiprog/templates/`; this remains the immediate migration/hardening priority.
+- Next sequencing is explicit: package-owned templates → package-resource loading → install/build smoke checks → mechanical `sourcetree_surveyor` migration → separate capability expansion.
+
 ## LRH in One Page
 
 The Logical Robotics Harness (LRH) is both a **software system** and a **development philosophy**.

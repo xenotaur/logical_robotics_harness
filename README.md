@@ -19,8 +19,8 @@ and then help orchestrate work to achieve that roadmap in a structured and inspe
 
 ## Current status
 
-This repository is in bootstrap mode. The immediate goal is to define the repository structure,
-the `project/` schema, and the first implementation slice for `lrh validate`.
+This repository now has a working control-plane baseline (`lrh validate`) and assist CLI entrypoints
+(`lrh request`, `lrh snapshot`). Current planning emphasis is on packaging/runtime hardening for assist templates so installed-package usage does not depend on repository-relative paths.
 
 ## Planned top-level structure
 
@@ -72,10 +72,10 @@ This keeps execution explicit while separating consequence checks from intent an
 
 ## Near-term priorities
 
-- define the `project/` repository convention
-- implement the core control-model classes
-- implement parsing/loading/resolution
-- add a validation CLI
-- deliver the first Meta CLI MVP slice with `lrh meta init` (workspace layout bootstrap), with `lrh meta register` and `lrh meta list` still planned
+- package-owned template location and package-resource loading for assist workflows
+- packaging/build/install hardening with installed-package smoke checks
+- mechanical migration of `scripts/aiprog/sourcetree_surveyor.py` into package code
+- keep capability expansion of sourcetree tooling as a separate follow-on
+- continue Meta CLI MVP with `lrh meta register` and `lrh meta list`
 
 See `docs/architecture.md`, `docs/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.

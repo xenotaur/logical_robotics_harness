@@ -2,7 +2,7 @@
 id: WI-PRECEDENCE-RESOLVER
 title: Implement control-plane precedence resolver
 type: deliverable
-status: proposed
+status: done
 owner: anthony
 contributors:
   - anthony
@@ -175,3 +175,7 @@ This is the central remaining gap in Phase 1.
 This is the core semantic step of Phase 1: moving from parsing → interpretation.
 Keep implementation minimal and conservative. If any ambiguity in precedence rules is encountered, do not guess—surface it clearly.
 
+## Completion Notes
+
+- Completed: deterministic precedence resolution is implemented in `src/lrh/control_plane/precedence.py`.
+- Completed: precedence behavior is covered by `tests/control_plane/test_precedence.py`.

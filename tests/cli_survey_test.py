@@ -39,6 +39,7 @@ class TestLrhSurveyCli(unittest.TestCase):
             ]
         )
         self.assertEqual(result.returncode, 0)
+        self.assertIn('"schema_version": "1.0"', result.stdout)
         self.assertIn('"module": "sourcetree_surveyor"', result.stdout)
         self.assertIn('"test_file_guess": "sourcetree_surveyor_test.py"', result.stdout)
 

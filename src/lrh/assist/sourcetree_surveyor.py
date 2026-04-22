@@ -17,6 +17,7 @@ import dataclasses
 import json
 import pathlib
 import sys
+import tomllib
 import typing
 
 
@@ -41,6 +42,22 @@ class FileReport:
     top_level_imports: int
     test_file_guess: typing.Optional[str]  # if tests-root provided, best guess name
     test_file_exists: typing.Optional[bool]
+
+
+@dataclasses.dataclass(frozen=True)
+class SurveyReport:
+    schema_version: str
+    survey_root: str
+    tests_root: typing.Optional[str]
+    tests_root_inferred: bool
+    pyproject_toml_present: bool
+    readme_files: list[str]
+    documentation_files: list[str]
+    cli_candidate_files: list[str]
+    console_scripts: list[str]
+    discovered_python_files: list[str]
+    discovered_test_files: list[str]
+    files: list[FileReport]
 
 
 def _is_private(name: str) -> bool:
@@ -81,6 +98,43 @@ def _count_top_level_imports(tree: ast.AST) -> int:
 def _has_main_guard(text: str) -> bool:
     # Simple string heuristic; avoids false negatives from AST formatting
     return 'if __name__ == "__main__"' in text or "if __name__=='__main__'" in text
+
+
+def _should_skip_path(path: pathlib.Path) -> bool:
+    return any(
+        part in (".venv", "venv", "__pycache__", ".git", ".mypy_cache", ".pytest_cache")
+        for part in path.parts
+    )
+
+
+def _infer_tests_root(root: pathlib.Path) -> typing.Optional[pathlib.Path]:
+    inferred = root / "tests"
+    if inferred.is_dir():
+        return inferred
+    return None
+
+
+def _looks_like_test_file(path: pathlib.Path) -> bool:
+    return path.name.startswith("test_") or path.name.endswith("_test.py")
+
+
+def _read_console_scripts(pyproject_path: pathlib.Path) -> list[str]:
+    if not pyproject_path.exists():
+        return []
+    try:
+        data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError:
+        return []
+    project = data.get("project", {})
+    scripts = project.get("scripts", {})
+    if not isinstance(scripts, dict):
+        return []
+    return sorted(str(key) for key in scripts.keys())
+
+
+def _is_cli_candidate_relpath(relpath: str) -> bool:
+    normalized_relpath = relpath.replace("\\", "/")
+    return normalized_relpath == "cli.py" or normalized_relpath.endswith("/cli.py")
 
 
 def analyze_file(
@@ -161,29 +215,84 @@ def scan_tree(
     reports: list[FileReport] = []
     for path in sorted(root.rglob("*.py")):
         # Skip common junk dirs
-        if any(
-            part
-            in (".venv", "venv", "__pycache__", ".git", ".mypy_cache", ".pytest_cache")
-            for part in path.parts
-        ):
+        if _should_skip_path(path):
             continue
         reports.append(analyze_file(root, path, tests_root))
     return reports
 
 
+def survey_python_tree(
+    root: pathlib.Path, tests_root: typing.Optional[pathlib.Path]
+) -> SurveyReport:
+    effective_tests_root = tests_root
+    tests_root_inferred = False
+    if effective_tests_root is None:
+        effective_tests_root = _infer_tests_root(root)
+        tests_root_inferred = effective_tests_root is not None
+
+    reports = scan_tree(root, effective_tests_root)
+    discovered_python_files = [report.relpath for report in reports]
+
+    discovered_test_files: list[str] = []
+    if effective_tests_root is not None:
+        for test_path in sorted(effective_tests_root.rglob("*.py")):
+            if _should_skip_path(test_path):
+                continue
+            if _looks_like_test_file(test_path):
+                discovered_test_files.append(
+                    str(test_path.relative_to(effective_tests_root))
+                )
+
+    readme_files = sorted(
+        str(path.relative_to(root))
+        for path in root.rglob("README.md")
+        if not _should_skip_path(path)
+    )
+    documentation_files = sorted(
+        str(path.relative_to(root))
+        for path in root.rglob("*.md")
+        if path.name != "README.md" and not _should_skip_path(path)
+    )
+    cli_candidate_files = sorted(
+        report.relpath
+        for report in reports
+        if report.has_main_guard or _is_cli_candidate_relpath(report.relpath)
+    )
+
+    pyproject_path = root / "pyproject.toml"
+    console_scripts = _read_console_scripts(pyproject_path)
+
+    return SurveyReport(
+        schema_version="1.0",
+        survey_root=str(root),
+        tests_root=(
+            str(effective_tests_root) if effective_tests_root is not None else None
+        ),
+        tests_root_inferred=tests_root_inferred,
+        pyproject_toml_present=pyproject_path.exists(),
+        readme_files=readme_files,
+        documentation_files=documentation_files,
+        cli_candidate_files=cli_candidate_files,
+        console_scripts=console_scripts,
+        discovered_python_files=discovered_python_files,
+        discovered_test_files=discovered_test_files,
+        files=reports,
+    )
+
+
 def to_markdown(
-    reports: list[FileReport],
-    root: pathlib.Path,
-    tests_root: typing.Optional[pathlib.Path],
+    survey: SurveyReport,
 ) -> str:
     lines: list[str] = []
-    lines.append(f"# Surface inventory: `{root}`")
-    if tests_root is not None:
-        lines.append(f"- Tests root: `{tests_root}`")
-    lines.append(f"- Files: {len(reports)}")
+    lines.append(f"# Surface inventory: `{survey.survey_root}`")
+    if survey.tests_root is not None:
+        suffix = " (inferred)" if survey.tests_root_inferred else ""
+        lines.append(f"- Tests root: `{survey.tests_root}`{suffix}")
+    lines.append(f"- Files: {len(survey.files)}")
+    lines.append(f"- pyproject.toml present: `{survey.pyproject_toml_present}`")
     lines.append("")
 
-    for r in reports:
+    for r in survey.files:
         lines.append(f"## `{r.relpath}`")
         lines.append(f"- module: `{r.module}`")
         if r.syntax_error:
@@ -241,11 +350,8 @@ def to_markdown(
     return "\n".join(lines).rstrip() + "\n"
 
 
-def to_json(reports: list[FileReport]) -> str:
-    payload: list[dict[str, typing.Any]] = []
-    for r in reports:
-        d = dataclasses.asdict(r)
-        payload.append(d)
+def to_json(survey: SurveyReport) -> str:
+    payload: dict[str, typing.Any] = dataclasses.asdict(survey)
     return json.dumps(payload, indent=2, sort_keys=True) + "\n"
 
 
@@ -280,11 +386,11 @@ def main(argv: list[str], prog: str | None = None) -> int:
             )
             return 2
 
-    reports = scan_tree(root, tests_root)
+    survey = survey_python_tree(root, tests_root)
     if args.format == "md":
-        out_txt = to_markdown(reports, root, tests_root)
+        out_txt = to_markdown(survey)
     else:
-        out_txt = to_json(reports)
+        out_txt = to_json(survey)
 
     if args.out == "-" or args.out.strip() == "":
         sys.stdout.write(out_txt)

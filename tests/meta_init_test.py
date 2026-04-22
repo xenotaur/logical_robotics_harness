@@ -175,6 +175,31 @@ class TestMetaInitCli(unittest.TestCase):
             self.assertIn("Initialized LRH meta workspace", result.stdout)
             self.assertTrue((root / ".lrh" / "config.toml").exists())
 
+    def test_lrh_meta_register_cli(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            tempfile.TemporaryDirectory() as repo_dir,
+        ):
+            root = pathlib.Path(tmp_dir)
+            repo_root = pathlib.Path(repo_dir)
+            init_result = self._run_lrh(["meta", "init"], root)
+            self.assertEqual(init_result.returncode, 0)
+
+            register_result = self._run_lrh(["meta", "register", str(repo_root)], root)
+            self.assertEqual(register_result.returncode, 0)
+            self.assertIn("Registered project:", register_result.stdout)
+            self.assertTrue(any((root / "projects").iterdir()))
+
+    def test_lrh_meta_register_cli_requires_workspace(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            tempfile.TemporaryDirectory() as repo_dir,
+        ):
+            root = pathlib.Path(tmp_dir)
+            register_result = self._run_lrh(["meta", "register", repo_dir], root)
+            self.assertEqual(register_result.returncode, 1)
+            self.assertIn("Run `lrh meta init` first.", register_result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

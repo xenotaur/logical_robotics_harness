@@ -83,5 +83,5 @@ Implement the minimal meta-control-plane CLI slice for managing a workspace-leve
 ## Progress Notes
 
 - 2026-04-21: Implemented the first executable slice, `lrh meta init`, including workspace scaffold generation, safety checks, and tests.
-- Remaining scope in this work item: `lrh meta register` and `lrh meta list`.
-
+- 2026-04-22: Implemented `lrh meta register` with stable ID generation, setup-state detection, registry record writing, and tests for LRH/non-LRH repositories.
+- Remaining scope in this work item: `lrh meta list`.

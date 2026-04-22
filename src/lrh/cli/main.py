@@ -64,6 +64,19 @@ def main() -> None:
         action="store_true",
         help="replace incompatible managed paths/content when safe",
     )
+    meta_register_parser = meta_subparsers.add_parser(
+        "register",
+        help="Register a project repository in this LRH workspace catalog.",
+    )
+    meta_register_parser.add_argument(
+        "repo_locator",
+        help="path to the repository root to register",
+    )
+    meta_register_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="replace an existing managed record for the same project_id",
+    )
 
     args, passthrough_args = parser.parse_known_args()
 
@@ -92,28 +105,46 @@ def main() -> None:
         )
 
     if args.command == "meta":
-        if args.meta_command != "init":
+        if args.meta_command is None:
             parser.error("meta requires a subcommand (try: lrh meta init)")
         if passthrough_args:
             parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
-        spec = workspace.MetaWorkspaceSpec(workspace_name=args.name)
-        try:
-            result = workspace.init_workspace(
-                Path.cwd(),
-                spec=spec,
-                force=args.force,
-            )
-        except workspace.MetaInitError as err:
-            print(f"error: {err}")
-            raise SystemExit(1) from err
+        if args.meta_command == "init":
+            spec = workspace.MetaWorkspaceSpec(workspace_name=args.name)
+            try:
+                result = workspace.init_workspace(
+                    Path.cwd(),
+                    spec=spec,
+                    force=args.force,
+                )
+            except workspace.MetaInitError as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
 
-        print("Initialized LRH meta workspace at", Path.cwd())
-        print(
-            f"created={len(result.created)} "
-            f"updated={len(result.updated)} "
-            f"unchanged={len(result.unchanged)}"
-        )
-        raise SystemExit(0)
+            print("Initialized LRH meta workspace at", Path.cwd())
+            print(
+                f"created={len(result.created)} "
+                f"updated={len(result.updated)} "
+                f"unchanged={len(result.unchanged)}"
+            )
+            raise SystemExit(0)
+
+        if args.meta_command == "register":
+            try:
+                result = workspace.register_project(
+                    Path.cwd(),
+                    repo_locator=args.repo_locator,
+                    force=args.force,
+                )
+            except workspace.MetaRegisterError as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
+            action = "Updated" if result.existed else "Registered"
+            print(f"{action} project: {result.project_id}")
+            print(f"record={result.record_path}")
+            raise SystemExit(0)
+
+        parser.error("unknown meta subcommand")
 
     if passthrough_args:
         parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")

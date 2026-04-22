@@ -45,6 +45,10 @@ Progress update (2026-04-21):
 - `lrh meta init` implemented as the first executable slice.
 - `lrh meta register` and `lrh meta list` remain in scope for the same MVP work item.
 
+Progress update (2026-04-22):
+- `lrh meta register` implemented with stable `project_id`, explicit `setup_state`, and registry record creation under `projects/`.
+- `lrh meta list` remains in scope for the same MVP work item.
+
 ## Risks
 
 - accidentally assuming all projects look like LRH itself

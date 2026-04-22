@@ -49,6 +49,18 @@ def main() -> None:
     meta_parser = subparsers.add_parser(
         "meta",
         help="Manage LRH workspace/meta-control state.",
+        description=(
+            "Manage LRH meta workspaces and project registry records. "
+            "Workspace resolution precedence: flags, LRH_CONFIG, LRH_WORKSPACE, "
+            "local discovery, then global discovery/defaults."
+        ),
+        epilog=(
+            "Global defaults when XDG variables are unset:\n"
+            "  config: ~/.config/lrh/config.toml\n"
+            "  state: ~/.local/state/lrh/\n"
+            "  cache: ~/.cache/lrh/"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     meta_subparsers = meta_parser.add_subparsers(dest="meta_command")
 
@@ -71,12 +83,32 @@ def main() -> None:
 
     meta_init_parser = meta_subparsers.add_parser(
         "init",
-        help="Initialize an LRH workspace layout in the current directory.",
+        help="Initialize LRH meta workspace paths (defaults to global mode).",
+        description=(
+            "Initialize LRH meta workspace directories and config. "
+            "Default mode is global (XDG-style user paths); use --mode local "
+            "to initialize a local workspace in the current directory."
+        ),
+        epilog=(
+            "Resolution inputs (high-level): flags, LRH_CONFIG, LRH_WORKSPACE, "
+            "local workspace discovery, global workspace discovery.\n\n"
+            "Global defaults when XDG variables are unset:\n"
+            "  config: ~/.config/lrh/config.toml\n"
+            "  state: ~/.local/state/lrh/\n"
+            "  cache: ~/.cache/lrh/"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     meta_init_parser.add_argument(
         "--name",
         default="LRH Workspace",
         help="workspace display name for generated README/config",
+    )
+    meta_init_parser.add_argument(
+        "--mode",
+        choices=("global", "local"),
+        default="global",
+        help="initialization mode (default: global)",
     )
     meta_init_parser.add_argument(
         "--force",
@@ -121,11 +153,14 @@ def main() -> None:
         help="allow deliberate duplicates and overwrite existing target records",
     )
 
-    if sys.argv[1:] == ["help"]:
-        parser.print_help()
-        raise SystemExit(0)
+    argv = sys.argv[1:]
+    if argv and argv[0] == "help":
+        if len(argv) == 1:
+            parser.print_help()
+            raise SystemExit(0)
+        argv = [*argv[1:], "--help"]
 
-    args, passthrough_args = parser.parse_known_args()
+    args, passthrough_args = parser.parse_known_args(argv)
 
     if args.command == "validate":
         if passthrough_args:
@@ -164,16 +199,25 @@ def main() -> None:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
             spec = workspace.MetaWorkspaceSpec(workspace_name=args.name)
             try:
-                result = workspace.init_workspace(
-                    Path.cwd(),
-                    spec=spec,
-                    force=args.force,
-                )
+                if args.mode == "local":
+                    result = workspace.init_workspace(
+                        Path.cwd(),
+                        spec=spec,
+                        force=args.force,
+                    )
+                else:
+                    result = workspace.init_global_workspace(
+                        spec=spec,
+                        force=args.force,
+                    )
             except workspace.MetaInitError as err:
                 print(f"error: {err}")
                 raise SystemExit(1) from err
 
-            print("Initialized LRH meta workspace at", Path.cwd())
+            if args.mode == "local":
+                print("Initialized LRH local meta workspace at", Path.cwd())
+            else:
+                print("Initialized LRH global meta workspace")
             print(
                 f"created={len(result.created)} "
                 f"updated={len(result.updated)} "

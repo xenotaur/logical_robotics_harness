@@ -84,6 +84,7 @@ This keeps execution explicit while separating consequence checks from intent an
 - package-owned survey implementation at `src/lrh/assist/sourcetree_surveyor.py` with legacy wrapper at `scripts/aiprog/sourcetree_surveyor.py`
 - `--format json` now emits a stable survey contract (`schema_version: 1.0`) with source-tree inventory facts for follow-on audit/context workflows
 - Meta CLI MVP now includes `lrh meta init`, `lrh meta register`, and `lrh meta list` for workspace registry setup, write, and read paths
-- Meta workspace behavior now uses shared workspace-context resolution for `lrh meta register` / `lrh meta list` (precedence: flags → env → local discovery → global discovery, with XDG-style global defaults and explicit local mode)
+- Meta workspace behavior now uses shared workspace-context resolution for `lrh meta` commands (precedence: flags → env → local discovery → global discovery, with XDG-style global defaults and explicit local mode)
+- `lrh meta init` now defaults to global/XDG initialization, supports `--mode {global,local}`, and ships expanded `lrh meta --help` / `lrh meta init --help` guidance plus `lrh help meta` convenience aliases
 
 See `project/design/architecture.md`, `project/design/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.

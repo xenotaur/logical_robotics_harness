@@ -28,10 +28,10 @@ def load_project(root: Path) -> ProjectState:
     current_focus = _load_focus(project_dir / "focus" / "current_focus.md")
 
     work_items = _load_work_items(project_dir / "work_items")
-    work_items_by_id = {item.id: item for item in work_items}
+    work_items_by_id = _index_by_id(work_items, artifact_label="work item")
 
     contributors = _load_contributors(project_dir / "contributors")
-    contributors_by_id = {contributor.id: contributor for contributor in contributors}
+    contributors_by_id = _index_by_id(contributors, artifact_label="contributor")
 
     return ProjectState(
         project_dir=project_dir,
@@ -145,3 +145,13 @@ def _list_of_strings(frontmatter: dict[str, Any], field: str) -> tuple[str, ...]
     if any(not isinstance(item, str) for item in value):
         raise ValueError(f"invalid field '{field}': expected list[str]")
     return tuple(value)
+
+
+def _index_by_id(artifacts: tuple[Any, ...], artifact_label: str) -> dict[str, Any]:
+    indexed: dict[str, Any] = {}
+    for artifact in artifacts:
+        artifact_id = getattr(artifact, "id")
+        if artifact_id in indexed:
+            raise ValueError(f"duplicate {artifact_label} id: {artifact_id}")
+        indexed[artifact_id] = artifact
+    return indexed

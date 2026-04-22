@@ -92,6 +92,77 @@ description:
             self.assertIsNone(contributor.github)
             self.assertIsNone(contributor.description)
 
+    def test_load_project_rejects_duplicate_work_item_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "project" / "focus").mkdir(parents=True)
+            (root / "project" / "work_items").mkdir(parents=True)
+            (root / "project" / "contributors").mkdir(parents=True)
+
+            (root / "project" / "focus" / "current_focus.md").write_text(
+                "---\nid: FOCUS-1\ntitle: Focus\nstatus: active\n---\n",
+                encoding="utf-8",
+            )
+            (root / "project" / "contributors" / "person.md").write_text(
+                """---
+id: person-1
+type: human
+roles: [editor]
+display_name: Person
+status: active
+---
+""",
+                encoding="utf-8",
+            )
+            for name in ("WI-A.md", "WI-B.md"):
+                (root / "project" / "work_items" / name).write_text(
+                    """---
+id: WI-1
+title: Task
+type: deliverable
+status: ready
+---
+""",
+                    encoding="utf-8",
+                )
+
+            with self.assertRaisesRegex(ValueError, "duplicate work item id: WI-1"):
+                load_project(root)
+
+    def test_load_project_rejects_duplicate_contributor_ids(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "project" / "focus").mkdir(parents=True)
+            (root / "project" / "work_items").mkdir(parents=True)
+            (root / "project" / "contributors" / "agents").mkdir(parents=True)
+
+            (root / "project" / "focus" / "current_focus.md").write_text(
+                "---\nid: FOCUS-1\ntitle: Focus\nstatus: active\n---\n",
+                encoding="utf-8",
+            )
+            (root / "project" / "work_items" / "WI-1.md").write_text(
+                "---\nid: WI-1\ntitle: Task\ntype: deliverable\nstatus: ready\n---\n",
+                encoding="utf-8",
+            )
+            for path in (
+                root / "project" / "contributors" / "one.md",
+                root / "project" / "contributors" / "agents" / "two.md",
+            ):
+                path.write_text(
+                    """---
+id: dup-1
+type: human
+roles: [editor]
+display_name: Person
+status: active
+---
+""",
+                    encoding="utf-8",
+                )
+
+            with self.assertRaisesRegex(ValueError, "duplicate contributor id: dup-1"):
+                load_project(root)
+
     def test_parse_markdown_file_reads_from_disk(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "sample.md"

@@ -76,6 +76,6 @@ This keeps execution explicit while separating consequence checks from intent an
 - packaging/build/install hardening with installed-package smoke checks
 - package-owned `src/lrh/assist/sourcetree_surveyor.py` with legacy wrapper at `scripts/aiprog/sourcetree_surveyor.py`
 - keep capability expansion of sourcetree tooling as a separate follow-on
-- continue Meta CLI MVP with `lrh meta register`; `lrh meta list` is now available for registry inspection
+- Meta CLI MVP now includes `lrh meta init`, `lrh meta register`, and `lrh meta list` for workspace registry setup, write, and read paths
 
 See `docs/architecture.md`, `docs/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.

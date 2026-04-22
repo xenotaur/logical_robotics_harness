@@ -44,7 +44,7 @@ Traceability:
 Progress update (2026-04-22):
 - `lrh meta init` implemented as the first executable slice.
 - `lrh meta list` implemented as the first explicit read path over registry records.
-- `lrh meta register` remains in scope for the same MVP work item.
+- `lrh meta register` implemented as the registry write path with stable `project_id`, duplicate detection, and setup-state capture.
 
 ### Near-Term Slice: Assist Packaging and Installability
 

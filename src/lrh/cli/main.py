@@ -64,6 +64,36 @@ def main() -> None:
         "list",
         help="List registered projects from the workspace registry.",
     )
+    meta_register_parser = meta_subparsers.add_parser(
+        "register",
+        help="Register a project repository in the workspace registry.",
+    )
+    meta_register_parser.add_argument(
+        "repo_locator",
+        help="repository locator string (local path, URL, or other stable locator)",
+    )
+    meta_register_parser.add_argument(
+        "--project-dir",
+        default="project",
+        help="project control directory relative to the repo root (default: project)",
+    )
+    meta_register_parser.add_argument(
+        "--directory-name",
+        help="registry directory name under projects/ (default: inferred from locator)",
+    )
+    meta_register_parser.add_argument(
+        "--short-name",
+        help="short display label (default: directory name)",
+    )
+    meta_register_parser.add_argument(
+        "--display-name",
+        help="human-readable project name (default: inferred from short name)",
+    )
+    meta_register_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="allow deliberate duplicates and overwrite existing target records",
+    )
 
     args, passthrough_args = parser.parse_known_args()
 
@@ -123,6 +153,31 @@ def main() -> None:
                 raise SystemExit(1) from err
 
             print(workspace.format_project_records(records))
+            raise SystemExit(0)
+
+        if args.meta_command == "register":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            spec = workspace.MetaRegisterSpec(
+                repo_locator=args.repo_locator,
+                project_dir=args.project_dir,
+                directory_name=args.directory_name,
+                short_name=args.short_name,
+                display_name=args.display_name,
+            )
+            try:
+                result = workspace.register_project(
+                    Path.cwd(),
+                    spec=spec,
+                    force=args.force,
+                )
+            except workspace.MetaRegistryError as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
+
+            print(f"Registered project in {result.record_path}")
+            print(f"project_id={result.project_id}")
+            print(f"setup_state={result.setup_state}")
             raise SystemExit(0)
 
         parser.error("meta requires a subcommand (try: lrh meta init)")

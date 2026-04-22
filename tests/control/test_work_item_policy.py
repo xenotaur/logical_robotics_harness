@@ -88,6 +88,38 @@ class TestWorkItemPolicy(unittest.TestCase):
         codes = {issue.code for issue in result.errors}
         self.assertIn("WORK_ITEM_BUCKET_INVALID", codes)
 
+    def test_file_outside_work_items_is_invalid_bucket(self) -> None:
+        root = self._make_project()
+        path = root / "focus" / "WI-0005.md"
+        metadata = {
+            "id": "WI-0005",
+            "title": "Misplaced",
+            "status": "active",
+        }
+
+        result = work_item_policy.validate_work_item_policy(root, path, metadata)
+
+        codes = {issue.code for issue in result.errors}
+        self.assertIn("WORK_ITEM_BUCKET_INVALID", codes)
+
+    def test_collection_handles_out_of_tree_path(self) -> None:
+        root = self._make_project()
+        items = [
+            (
+                root / "work_items" / "active" / "WI-0001.md",
+                {"id": "WI-0001", "title": "A", "status": "active"},
+            ),
+            (
+                root / "focus" / "WI-0009.md",
+                {"id": "WI-0009", "title": "B", "status": "proposed"},
+            ),
+        ]
+
+        result = work_item_policy.validate_work_item_collection(root, items)
+
+        codes = {issue.code for issue in result.errors}
+        self.assertIn("WORK_ITEM_BUCKET_INVALID", codes)
+
     def test_collection_duplicate_ids(self) -> None:
         root = self._make_project()
         items = [

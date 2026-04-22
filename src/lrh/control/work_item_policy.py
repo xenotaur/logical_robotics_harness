@@ -59,10 +59,13 @@ def derive_work_item_path_context(
 
     work_items_dir = project_dir / "work_items"
     file_path = work_item_file.resolve()
-    relative = file_path.relative_to(work_items_dir.resolve())
-
     bucket: str | None = None
-    if len(relative.parts) >= 2:
+    try:
+        relative = file_path.relative_to(work_items_dir.resolve())
+    except ValueError:
+        relative = None
+
+    if relative is not None and len(relative.parts) >= 2:
         candidate = relative.parts[0]
         if candidate in WORK_ITEM_BUCKETS:
             bucket = candidate

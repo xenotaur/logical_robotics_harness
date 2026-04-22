@@ -87,7 +87,7 @@ lrh request assessment --scope current_focus
 lrh request assessment --scope work_item --target WI-0003
 lrh snapshot --help
 lrh snapshot work_item WI-0003 --project-root .
-python scripts/aiprog/sourcetree_surveyor.py --help
+python -m lrh.assist.sourcetree_surveyor --help
 ```
 
 ## Golden Path Example: From Audit to Reviewed Change
@@ -249,9 +249,9 @@ lrh request work_items_from_audit \
 
 - **Request CLI**: `lrh request ...`
 - **Snapshot CLI**: `lrh snapshot ...`
-- **Maintainer helpers**: repository-maintainer helper scripts remain under `scripts/aiprog/` (for example `python scripts/aiprog/sourcetree_surveyor.py --help`).
+- **Maintainer helper compatibility wrapper**: `scripts/aiprog/sourcetree_surveyor.py` forwards to package-owned code in `src/lrh/assist/sourcetree_surveyor.py`.
+- **Package sourcetree module**: run with `python -m lrh.assist.sourcetree_surveyor --help`.
 - **Planned request API**: first-class Python API (`RequestArgs` + `generate_request(...)`).
 - **Next packaging priorities**:
   1. add packaging/install smoke checks for installed `lrh request` and `lrh snapshot`
-  2. migrate `sourcetree_surveyor.py` into package code as a mechanical move
-  3. handle sourcetree capability expansion as a separate follow-on item
+  2. handle sourcetree capability expansion as a separate follow-on item

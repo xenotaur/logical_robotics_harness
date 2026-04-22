@@ -74,7 +74,7 @@ This keeps execution explicit while separating consequence checks from intent an
 
 - package-owned template location and package-resource loading for assist workflows
 - packaging/build/install hardening with installed-package smoke checks
-- mechanical migration of `scripts/aiprog/sourcetree_surveyor.py` into package code
+- package-owned `src/lrh/assist/sourcetree_surveyor.py` with legacy wrapper at `scripts/aiprog/sourcetree_surveyor.py`
 - keep capability expansion of sourcetree tooling as a separate follow-on
 - continue Meta CLI MVP with `lrh meta register`; `lrh meta list` is now available for registry inspection
 

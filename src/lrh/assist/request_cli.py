@@ -101,7 +101,7 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
 def run_request_cli(
     argv: list[str],
     *,
-    template_root: pathlib.Path,
+    template_root: pathlib.Path | None = None,
     prog: str,
 ) -> int:
     """Parse args and render a request."""

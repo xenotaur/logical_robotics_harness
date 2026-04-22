@@ -61,7 +61,7 @@ def validate_args(args: argparse.Namespace) -> str | None:
 def generate_request(
     args: argparse.Namespace,
     *,
-    template_root: pathlib.Path,
+    template_root: pathlib.Path | None = None,
 ) -> tuple[str, dict[str, str]]:
     """Load template and render it using computed request variables."""
     template_text = request_templates.load_template_text(

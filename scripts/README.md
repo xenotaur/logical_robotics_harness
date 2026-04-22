@@ -269,6 +269,7 @@ scripts/update     # Update environment.yml when dependencies change
 
 ## Notes
 
+- Runtime assist templates are package-owned under `src/lrh/assist/templates/`; `scripts/aiprog/` no longer hosts runtime request/context templates.
 - All scripts assume execution from the repository root
 - Scripts use `set -x` for verbose output during execution
 - Scripts with `set -euo pipefail` will exit on any error

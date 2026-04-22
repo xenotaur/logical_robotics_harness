@@ -10,11 +10,6 @@ from lrh.control import format_report, validate_project
 from lrh.meta import workspace
 
 
-def _default_request_template_root() -> Path:
-    """Resolve request templates from the repository scripts path."""
-    return Path("scripts/aiprog/templates/request").resolve()
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="lrh",
@@ -78,7 +73,6 @@ def main() -> None:
         raise SystemExit(
             request_cli.run_request_cli(
                 argv=passthrough_args,
-                template_root=_default_request_template_root(),
                 prog="lrh request",
             )
         )

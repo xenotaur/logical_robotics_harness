@@ -47,6 +47,13 @@ lrh validate
 
 run inside this repository, where LRH validates its own `project/` directory.
 
+For top-level CLI discovery, both of these are supported:
+
+```bash
+lrh --help
+lrh help
+```
+
 ## Design summary
 
 The control model for a project is:

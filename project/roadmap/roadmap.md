@@ -21,7 +21,7 @@ workflow before deeper agent integration.
 Recently completed baseline work:
 
 - control-plane model/parser/validation foundations (`WI-0001` through `WI-0004`)
-- precedence resolver implementation (`WI-PRECEDENCE-RESOLVER`)
+- precedence resolver implementation and canonicalization closure validation (`WI-PRECEDENCE-RESOLVER`)
 - package CLI adoption for `lrh request` and `lrh snapshot`
 
 Immediate next ordering:

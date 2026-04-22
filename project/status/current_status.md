@@ -39,6 +39,7 @@ Yellow.
 
 Reason:
 - core control-plane and precedence foundations are implemented
+- precedence canonicalization closure has been validated against docs/code/tests with no remaining correctness follow-up
 - assist request/snapshot CLI paths are available and documented
 - template loading still relies on source-tree-relative paths that must be hardened for installed usage
 

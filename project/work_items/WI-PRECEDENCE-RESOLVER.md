@@ -179,3 +179,5 @@ Keep implementation minimal and conservative. If any ambiguity in precedence rul
 
 - Completed: deterministic precedence resolution is implemented in `src/lrh/control_plane/precedence.py`.
 - Completed: precedence behavior is covered by `tests/control_plane/test_precedence.py`.
+- 2026-04-22 closure validation: canonical precedence source is `project/memory/decisions/precedence_semantics.md`; docs, implementation, and tests are aligned with narrowing-only semantics.
+- 2026-04-22 closure validation: no unresolved correctness follow-up items were identified for precedence canonicalization.

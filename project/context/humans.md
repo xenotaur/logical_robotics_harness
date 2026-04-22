@@ -686,7 +686,9 @@ This ensures that:
 
 The Logical Robotics Harness (LRH) determines what is *true*, *active*, and *allowed* in a project through a structured **precedence model**. This precedence model resolves project state using:
 
-- Authority (low → high)
+Canonical source: `project/memory/decisions/precedence_semantics.md`.
+
+- Authority (high constraint → narrow execution)
   1. Principles
   2. Project Goal
   3. Roadmap
@@ -725,9 +727,9 @@ It ensures that:
 
 ---
 
-## Authority Ordering (Low → High)
+## Authority Ordering (High Constraint → Narrow Execution)
 
-The precedence model is defined as a strict ordering of authority:
+The precedence model is defined as a strict ordering of constraint authority:
 
 1. Principles  
 2. Project Goal  

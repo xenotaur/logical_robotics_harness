@@ -29,7 +29,6 @@ logical_robotics_harness/
   README.md
   AGENTS.md
   pyproject.toml
-  docs/
   src/
     lrh/
   tests/
@@ -79,4 +78,4 @@ This keeps execution explicit while separating consequence checks from intent an
 - keep capability expansion of sourcetree tooling as a separate follow-on
 - Meta CLI MVP now includes `lrh meta init`, `lrh meta register`, and `lrh meta list` for workspace registry setup, write, and read paths
 
-See `docs/architecture.md`, `docs/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.
+See `project/design/architecture.md`, `project/design/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.

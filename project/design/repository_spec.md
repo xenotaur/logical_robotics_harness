@@ -13,7 +13,6 @@ logical_robotics_harness/
   README.md
   AGENTS.md
   pyproject.toml
-  docs/
   src/
     lrh/
   tests/
@@ -137,18 +136,26 @@ Body text here.
 
 ## Precedence
 
-The intended precedence order is:
+Canonical precedence semantics are defined in
+`project/memory/decisions/precedence_semantics.md`.
 
-1. current task invocation
-2. current focus
-3. work item
-4. roadmap
-5. project goal
-6. principles
-7. guardrails
-8. memory
+Resolver precedence order is:
 
-This precedence should eventually be implemented explicitly in code.
+1. principles
+2. project goal
+3. roadmap
+4. current focus
+5. work items
+6. guardrails
+7. runtime invocation
+
+Interpretation rules:
+
+- Higher-authority layers are stronger constraints.
+- Lower-authority layers may refine/narrow scope, but may not override higher layers.
+- Guardrails are subtractive constraints.
+- Runtime invocation is narrowing-only and cannot override guardrails.
+- Memory is informative but non-authoritative for precedence resolution.
 
 ## Initial Python package targets
 

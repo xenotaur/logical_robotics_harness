@@ -332,7 +332,7 @@ Meta commands should surface enough information for users to inspect the active 
 ## 15. Structured Metadata Model
 
 LRH uses Markdown as its primary human-readable format. For operational artifacts—especially `focus/` and `work_items/`—LRH uses **lightweight YAML frontmatter** to provide machine-readable metadata.
-For LRH's own control plane, `focus/current_focus.md` and `work_items/WI-*.md` should include this frontmatter.
+For LRH's own control plane, `focus/current_focus.md` and `work_items/<bucket>/WI-*.md` should include this frontmatter.
 
 Frontmatter is intended to expose the minimum structured state needed for:
 
@@ -394,15 +394,36 @@ priority: high
 
 ---
 
-### 15.2 Work Item Schema
+### 15.2 Work Item Schema and Status Buckets
 
 A work item defines a bounded, executable unit of work.
+
+#### Canonical directory structure
+
+Work item markdown files should be organized under status buckets:
+
+```text
+project/work_items/
+  proposed/
+  active/
+  resolved/
+  abandoned/
+```
+
+Work items directly under `project/work_items/` are invalid once this model is adopted.
+
+#### Authoritative source of truth
+
+Work item metadata in YAML frontmatter is authoritative.
+Directory bucket is a derived, human-facing organization. Validation must detect and report disagreements between metadata and path.
 
 #### Required fields
 - `id`
 - `title`
 - `type`
 - `status`
+- `created_on`
+- `updated_on`
 
 #### Recommended fields
 - `priority`
@@ -418,6 +439,11 @@ A work item defines a bounded, executable unit of work.
 - `acceptance`
 - `required_evidence`
 - `artifacts_expected`
+- `blocked`
+- `blocked_reason`
+- `resolution`
+- `supersedes`
+- `superseded_by`
 
 #### Allowed types
 - `deliverable`
@@ -425,14 +451,45 @@ A work item defines a bounded, executable unit of work.
 - `evaluation`
 - `operation`
 
-#### Allowed status values
+#### Allowed primary status values
 - `proposed`
-- `ready`
-- `in_progress`
-- `blocked`
-- `needs_review`
-- `done`
+- `active`
+- `resolved`
 - `abandoned`
+
+`blocked` is not a primary lifecycle status. It is a secondary attribute (`blocked: true|false`) that applies only to active work.
+
+#### Work-item path and identity rules
+- filename stem must match work item `id`
+- directory bucket must match metadata `status`
+- a work item path is not authoritative when it disagrees with metadata
+
+#### Terminal-state rule
+
+Terminal statuses (`resolved`, `abandoned`) require a non-null, non-empty `resolution` value.
+
+#### Invariants
+
+1. `status` must be one of: `proposed`, `active`, `resolved`, `abandoned`.
+2. `blocked` must be boolean when present.
+3. `blocked: true` is valid only when `status: active`.
+4. `blocked: true` requires non-empty `blocked_reason`.
+5. `status` in `{resolved, abandoned}` requires non-empty `resolution`.
+6. filename stem equals metadata `id`.
+7. directory bucket equals metadata `status`.
+8. work items are stored only under bucket subdirectories.
+
+#### First-pass status transitions (guidance)
+
+Allowed transitions:
+- `proposed -> active`
+- `active -> resolved`
+- `active -> abandoned`
+- `proposed -> abandoned`
+
+Disallowed transitions (first pass):
+- reopening terminal states without creating a new work item (`supersedes`/`superseded_by` should be used instead)
+- direct `proposed -> resolved` without active execution evidence
 
 #### Example
 
@@ -441,7 +498,10 @@ A work item defines a bounded, executable unit of work.
 id: WI-0001
 title: Implement core models
 type: deliverable
-status: ready
+status: active
+blocked: false
+created_on: 2026-04-22
+updated_on: 2026-04-22
 priority: high
 owner: anthony
 related_focus:

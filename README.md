@@ -75,7 +75,7 @@ This keeps execution explicit while separating consequence checks from intent an
 - packaging/build/install hardening with installed-package smoke checks
 - canonical survey command surface: `lrh survey <root> [--tests-root ...] [--format md|json] [--out ...]`
 - package-owned survey implementation at `src/lrh/assist/sourcetree_surveyor.py` with legacy wrapper at `scripts/aiprog/sourcetree_surveyor.py`
-- keep capability expansion of sourcetree tooling as a separate follow-on
+- `--format json` now emits a stable survey contract (`schema_version: 1.0`) with source-tree inventory facts for follow-on audit/context workflows
 - Meta CLI MVP now includes `lrh meta init`, `lrh meta register`, and `lrh meta list` for workspace registry setup, write, and read paths
 - Meta workspace behavior is being formalized around explicit workspace-context resolution (predictable precedence, XDG-style global defaults, explicit local mode, and inspectable command behavior)
 

@@ -89,7 +89,17 @@ lrh snapshot --help
 lrh snapshot work_item WI-0003 --project-root .
 lrh survey --help
 lrh survey src/lrh/assist --tests-root tests/assist --format md
+lrh survey src/lrh/assist --tests-root tests/assist --format json
 ```
+
+`lrh survey --format json` returns a stable machine-readable structure
+(`schema_version: "1.0"`) intended as an audit precursor. It includes:
+
+- survey/test roots (with tests-root inference flag)
+- discovered Python source files and test files
+- `pyproject.toml` presence and console script names (when present)
+- README/Markdown docs under the scanned root
+- per-file symbol inventory reports
 
 ## Golden Path Example: From Audit to Reviewed Change
 
@@ -252,6 +262,7 @@ lrh request work_items_from_audit \
 - **Request CLI**: `lrh request ...`
 - **Snapshot CLI**: `lrh snapshot ...`
 - **Survey CLI**: `lrh survey ...` (delegates to `src/lrh/assist/sourcetree_surveyor.py`)
+- **Survey JSON contract**: stable structured inventory output for audit/context follow-on tooling.
 - **Maintainer helper compatibility wrapper**: `scripts/aiprog/sourcetree_surveyor.py` forwards to package-owned code in `src/lrh/assist/sourcetree_surveyor.py`.
 - **Package sourcetree module**: also runnable with `python -m lrh.assist.sourcetree_surveyor --help`.
 - **Planned request API**: first-class Python API (`RequestArgs` + `generate_request(...)`).

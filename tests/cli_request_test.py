@@ -1,25 +1,18 @@
-import os
-import pathlib
 import subprocess
-import sys
+import tempfile
 import unittest
 
 
 class TestLrhRequestCli(unittest.TestCase):
     def _run_lrh(self, args: list[str]) -> subprocess.CompletedProcess[str]:
-        env = os.environ.copy()
-        src_path = pathlib.Path("src").resolve()
-        existing = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = (
-            str(src_path) if not existing else f"{src_path}{os.pathsep}{existing}"
-        )
-        return subprocess.run(
-            [sys.executable, "-m", "lrh.cli.main", *args],
-            check=False,
-            capture_output=True,
-            text=True,
-            env=env,
-        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            return subprocess.run(
+                ["lrh", *args],
+                check=False,
+                capture_output=True,
+                text=True,
+                cwd=temp_dir,
+            )
 
     def test_lrh_request_help(self) -> None:
         result = self._run_lrh(["request", "--help"])

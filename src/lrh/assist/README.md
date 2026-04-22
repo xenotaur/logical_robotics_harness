@@ -12,6 +12,8 @@ The assist request system builds a **request document** by:
 
 In practice, a “request” is the final filled-in markdown prompt you can hand to an AI coding assistant (for example, to improve test coverage, bootstrap a project control plane, or derive work items from an audit).
 
+Template markdown files are bundled as package data in both editable installs (`pip install -e .`) and wheel installs (`pip install dist/*.whl`), so `lrh request ...` works outside a source checkout as long as LRH is installed.
+
 ## Key Concepts
 
 - **Template**: A markdown file with placeholders like `{{TARGET_MODULE_GHA}}`.
@@ -27,6 +29,14 @@ Use the package CLI entry point:
 
 ```bash
 lrh request <template_name> [target] [options]
+```
+
+Example after installation:
+
+```bash
+pip install logical-robotics-harness
+cd /tmp
+lrh request improve_coverage src/lrh/analysis/llm_extractor.py
 ```
 
 Basic example:
@@ -53,6 +63,13 @@ Basic example:
 
 ```bash
 lrh snapshot project --project-root .
+```
+
+Example from outside a repository root:
+
+```bash
+cd /tmp
+lrh snapshot project --project-root /path/to/repository
 ```
 
 You can inspect supported options with:

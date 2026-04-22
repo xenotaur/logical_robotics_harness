@@ -1,25 +1,23 @@
-import os
 import pathlib
 import subprocess
-import sys
+import tempfile
 import unittest
 
 
 class TestLrhSnapshotCli(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.repo_root = pathlib.Path(__file__).resolve().parents[1]
+
     def _run_lrh(self, args: list[str]) -> subprocess.CompletedProcess[str]:
-        env = os.environ.copy()
-        src_path = pathlib.Path("src").resolve()
-        existing = env.get("PYTHONPATH", "")
-        env["PYTHONPATH"] = (
-            str(src_path) if not existing else f"{src_path}{os.pathsep}{existing}"
-        )
-        return subprocess.run(
-            [sys.executable, "-m", "lrh.cli.main", *args],
-            check=False,
-            capture_output=True,
-            text=True,
-            env=env,
-        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            return subprocess.run(
+                ["lrh", *args],
+                check=False,
+                capture_output=True,
+                text=True,
+                cwd=temp_dir,
+            )
 
     def test_lrh_snapshot_help(self) -> None:
         result = self._run_lrh(["snapshot", "--help"])
@@ -28,7 +26,9 @@ class TestLrhSnapshotCli(unittest.TestCase):
         self.assertIn("{project,current_focus,work_item}", result.stdout)
 
     def test_lrh_snapshot_project(self) -> None:
-        result = self._run_lrh(["snapshot", "project", "--project-root", "."])
+        result = self._run_lrh(
+            ["snapshot", "project", "--project-root", str(self.repo_root)]
+        )
         self.assertEqual(result.returncode, 0)
         self.assertIn("# Project Context Packet", result.stdout)
 

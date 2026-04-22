@@ -137,6 +137,37 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
             self.assertEqual(resolved.state_dir, xdg_state / "lrh")
             self.assertEqual(resolved.cache_dir, xdg_cache / "lrh")
 
+    def test_mode_global_uses_defaults_without_config_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            xdg_config = root / "xdg-config"
+            xdg_state = root / "xdg-state"
+            xdg_cache = root / "xdg-cache"
+            env = {
+                "XDG_CONFIG_HOME": str(xdg_config),
+                "XDG_STATE_HOME": str(xdg_state),
+                "XDG_CACHE_HOME": str(xdg_cache),
+            }
+
+            resolved = workspace.resolve_meta_workspace(
+                cwd=root,
+                options=workspace.MetaWorkspaceResolveOptions(mode="global"),
+                environ=env,
+            )
+
+            self.assertEqual(resolved.mode, "global")
+            self.assertEqual(
+                resolved.config_path,
+                xdg_config / "lrh" / "config.toml",
+            )
+            self.assertEqual(resolved.projects_dir, xdg_state / "lrh" / "projects")
+            self.assertEqual(resolved.state_dir, xdg_state / "lrh")
+            self.assertEqual(resolved.cache_dir, xdg_cache / "lrh")
+            self.assertEqual(
+                resolved.resolution_source,
+                "flag(--mode=global)+built_in_defaults",
+            )
+
 
 class TestMetaWorkspaceResolutionCliIntegration(unittest.TestCase):
     def _run_lrh(

@@ -363,6 +363,12 @@ def resolve_meta_workspace(
         )
     if options.mode == "global":
         config_path = _xdg_config_path(environ)
+        if not config_path.exists():
+            return _global_workspace_from_defaults(
+                config_path=config_path,
+                environ=environ,
+                source="flag(--mode=global)+built_in_defaults",
+            )
         return _workspace_from_config_path(
             config_path=config_path,
             mode_override="global",
@@ -542,6 +548,20 @@ def _build_global_workspace(
         cache_dir=cache_dir,
         workspace_root=None,
         resolution_source=source,
+    )
+
+
+def _global_workspace_from_defaults(
+    *,
+    config_path: pathlib.Path,
+    environ: dict[str, str],
+    source: str,
+) -> MetaWorkspace:
+    return _build_global_workspace(
+        config_path=config_path,
+        parsed={},
+        source=source,
+        environ=environ,
     )
 
 

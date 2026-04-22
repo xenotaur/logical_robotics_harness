@@ -30,6 +30,19 @@ Hello.
         self.assertEqual(parsed.body, "\n# Body\n\nHello.\n")
 
 
+    def test_parse_markdown_text_accepts_closing_delimiter_at_eof(self) -> None:
+        parsed = parse_markdown_text("---\nid: EOF\n---")
+
+        self.assertEqual(parsed.frontmatter["id"], "EOF")
+        self.assertEqual(parsed.body, "")
+
+    def test_parse_empty_scalar_as_null(self) -> None:
+        parsed = parse_markdown_text("---\ngithub:\ndescription:\n---\n")
+
+        self.assertIsNone(parsed.frontmatter["github"])
+        self.assertIsNone(parsed.frontmatter["description"])
+
+
 class TestControlLoader(unittest.TestCase):
     def test_load_project_from_repo_root(self) -> None:
         state = load_project(Path("."))
@@ -44,6 +57,34 @@ class TestControlLoader(unittest.TestCase):
     def test_find_project_dir_supports_project_root_or_repo_root(self) -> None:
         self.assertEqual(find_project_dir(Path(".")), Path("project").resolve())
         self.assertEqual(find_project_dir(Path("project")), Path("project").resolve())
+
+
+
+    def test_load_project_allows_blank_optional_contributor_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            (root / "project" / "focus").mkdir(parents=True)
+            (root / "project" / "work_items").mkdir(parents=True)
+            (root / "project" / "contributors").mkdir(parents=True)
+
+            (root / "project" / "focus" / "current_focus.md").write_text(
+                "---\nid: FOCUS-1\ntitle: Focus\nstatus: active\n---\n",
+                encoding="utf-8",
+            )
+            (root / "project" / "work_items" / "WI-1.md").write_text(
+                "---\nid: WI-1\ntitle: Task\ntype: deliverable\nstatus: ready\n---\n",
+                encoding="utf-8",
+            )
+            (root / "project" / "contributors" / "person.md").write_text(
+                "---\nid: person-1\ntype: human\nroles:\n  - editor\ndisplay_name: Person\nstatus: active\ngithub:\ndescription:\n---",
+                encoding="utf-8",
+            )
+
+            state = load_project(root)
+
+            contributor = state.contributors_by_id["person-1"]
+            self.assertIsNone(contributor.github)
+            self.assertIsNone(contributor.description)
 
     def test_parse_markdown_file_reads_from_disk(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

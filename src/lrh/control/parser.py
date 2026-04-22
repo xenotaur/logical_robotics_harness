@@ -23,15 +23,38 @@ def parse_markdown_text(text: str) -> ParsedMarkdown:
     if not text.startswith("---\n"):
         raise ValueError("markdown file must begin with YAML frontmatter delimiter '---'")
 
-    closing_index = text.find("\n---\n", 4)
-    if closing_index == -1:
-        raise ValueError("missing closing YAML frontmatter delimiter '---'")
-
-    frontmatter_text = text[4:closing_index]
-    body = text[closing_index + len("\n---\n") :]
-
+    frontmatter_text, body = _split_frontmatter_and_body(text)
     frontmatter = _parse_frontmatter_mapping(frontmatter_text)
     return ParsedMarkdown(frontmatter=frontmatter, body=body)
+
+
+def _split_frontmatter_and_body(text: str) -> tuple[str, str]:
+    closing_start: int | None = None
+    closing_end: int | None = None
+
+    scan_index = 4
+    while scan_index <= len(text):
+        line_end = text.find("\n", scan_index)
+        if line_end == -1:
+            line_end = len(text)
+        line = text[scan_index:line_end]
+
+        if line.strip() == "---":
+            closing_start = scan_index
+            closing_end = line_end
+            break
+
+        if line_end == len(text):
+            break
+        scan_index = line_end + 1
+
+    if closing_start is None or closing_end is None:
+        raise ValueError("missing closing YAML frontmatter delimiter '---'")
+
+    frontmatter_text = text[4:closing_start]
+    body_start = closing_end + 1 if closing_end < len(text) else closing_end
+    body = text[body_start:]
+    return frontmatter_text, body
 
 
 def _parse_frontmatter_mapping(text: str) -> dict[str, Any]:
@@ -72,7 +95,7 @@ def _parse_frontmatter_mapping(text: str) -> dict[str, Any]:
                         f"unsupported nested mapping for key '{key}': {candidate!r}"
                     )
                 break
-            data[key] = block_values
+            data[key] = block_values if block_values else None
             continue
 
         if value_text == ">":

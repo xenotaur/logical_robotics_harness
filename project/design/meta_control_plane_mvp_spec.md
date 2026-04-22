@@ -61,13 +61,37 @@ Local workspaces are rooted at an explicit directory and identified by `.lrh/con
 
 ### 3.2 Global workspace layout (XDG-style)
 
-Global/user-level workspace defaults should use XDG-style storage classes rather than an ad hoc `~/.lrh` monolith:
+Global/user-level workspace defaults use XDG Base Directory conventions, with explicit separation of:
 
-- config (for durable user/workspace configuration)
-- state (for durable local state)
-- cache (for disposable caches)
+- configuration (durable user/workspace configuration)
+- state (durable, non-portable runtime state such as logs, history, registry)
+- cache (disposable data that can be regenerated)
 
-Exact path wiring can evolve during implementation, but the design contract is explicit separation of config/state/cache concerns.
+Default locations:
+
+Config:
+  `$XDG_CONFIG_HOME/lrh/config.toml`
+  (default: `~/.config/lrh/config.toml`)
+
+State:
+  `$XDG_STATE_HOME/lrh/`
+  (default: `~/.local/state/lrh/`)
+    `projects/`
+    `private/`
+      `logs/`
+      `chats/`
+      `state/`
+      `secrets/`
+
+Cache:
+  `$XDG_CACHE_HOME/lrh/`
+  (default: `~/.cache/lrh/`)
+    `cache/`
+    `tmp/`
+
+These are the default global locations. All paths remain overridable through the documented workspace-resolution precedence (CLI flags, environment variables, config).
+
+This design follows the XDG Base Directory specification, which standardizes separation of configuration, persistent state, and cache data for user applications.
 
 ---
 

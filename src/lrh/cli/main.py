@@ -51,6 +51,23 @@ def main() -> None:
     )
     meta_subparsers = meta_parser.add_subparsers(dest="meta_command")
 
+    def _add_meta_workspace_resolution_args(
+        target_parser: argparse.ArgumentParser,
+    ) -> None:
+        target_parser.add_argument(
+            "--workspace",
+            help="explicit local workspace root containing .lrh/config.toml",
+        )
+        target_parser.add_argument(
+            "--config",
+            help="explicit workspace config.toml path",
+        )
+        target_parser.add_argument(
+            "--mode",
+            choices=("local", "global"),
+            help="workspace mode override for resolution",
+        )
+
     meta_init_parser = meta_subparsers.add_parser(
         "init",
         help="Initialize an LRH workspace layout in the current directory.",
@@ -70,10 +87,12 @@ def main() -> None:
         "list",
         help="List registered projects from the workspace registry.",
     )
+    _add_meta_workspace_resolution_args(meta_subparsers.choices["list"])
     meta_register_parser = meta_subparsers.add_parser(
         "register",
         help="Register a project repository in the workspace registry.",
     )
+    _add_meta_workspace_resolution_args(meta_register_parser)
     meta_register_parser.add_argument(
         "repo_locator",
         help="repository locator string (local path, URL, or other stable locator)",
@@ -161,8 +180,27 @@ def main() -> None:
             if passthrough_args:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
             try:
-                records = workspace.list_registered_projects(Path.cwd())
-            except workspace.MetaRegistryError as err:
+                active_workspace = workspace.resolve_meta_workspace(
+                    cwd=Path.cwd(),
+                    options=workspace.MetaWorkspaceResolveOptions(
+                        workspace_path=(
+                            Path(args.workspace).expanduser()
+                            if args.workspace
+                            else None
+                        ),
+                        config_path=(
+                            Path(args.config).expanduser() if args.config else None
+                        ),
+                        mode=args.mode,
+                    ),
+                )
+                records = workspace.list_registered_projects_in_workspace(
+                    active_workspace
+                )
+            except (
+                workspace.MetaWorkspaceResolutionError,
+                workspace.MetaRegistryError,
+            ) as err:
                 print(f"error: {err}")
                 raise SystemExit(1) from err
 
@@ -180,12 +218,29 @@ def main() -> None:
                 display_name=args.display_name,
             )
             try:
-                result = workspace.register_project(
-                    Path.cwd(),
+                active_workspace = workspace.resolve_meta_workspace(
+                    cwd=Path.cwd(),
+                    options=workspace.MetaWorkspaceResolveOptions(
+                        workspace_path=(
+                            Path(args.workspace).expanduser()
+                            if args.workspace
+                            else None
+                        ),
+                        config_path=(
+                            Path(args.config).expanduser() if args.config else None
+                        ),
+                        mode=args.mode,
+                    ),
+                )
+                result = workspace.register_project_in_workspace(
+                    active_workspace,
                     spec=spec,
                     force=args.force,
                 )
-            except workspace.MetaRegistryError as err:
+            except (
+                workspace.MetaWorkspaceResolutionError,
+                workspace.MetaRegistryError,
+            ) as err:
                 print(f"error: {err}")
                 raise SystemExit(1) from err
 

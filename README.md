@@ -93,6 +93,7 @@ The YAML frontmatter `status` is authoritative, and directory bucket is derived 
 - Meta CLI MVP now includes `lrh meta init`, `lrh meta register`, `lrh meta list`, `lrh meta where`, and `lrh meta inspect` for setup, registry write/read, active workspace inspection, and truth-first single-record inspection
 - `lrh meta where` is the primary workspace diagnostics command and reports resolved mode/source plus config/catalog/projects/state/cache paths (including local vs global/private scope distinctions)
 - `lrh meta register` now applies deterministic Phase 1 metadata inference for URL/path locators (prefers repository identity over generic tails like `/project`) while remaining offline and override-friendly
+- for GitHub tree URLs (for example `.../tree/main/project`), `meta register` now derives default registry/short/display names from the repository slug and keeps `project_dir` for path identity, preventing `projects/project/` collisions across different repos
 - Meta workspace behavior now follows a three-mode model for `lrh meta`: `hybrid` (default), `local`, and `global`; hybrid uses a local/shareable catalog root with global/XDG config/state/cache/private paths
 - Workspace-configured paths are persisted as normalized absolute paths, and `lrh meta where` is the primary visibility/diagnostics surface for resolved workspace context
 - `lrh meta init` now defaults to `hybrid`; in hybrid mode, an optional positional directory (or `--workspace-root`) sets the catalog/workspace root

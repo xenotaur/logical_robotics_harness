@@ -13,7 +13,7 @@ run_dir="${smoke_root}/run"
 mkdir -p "${wheel_dir}" "${run_dir}"
 
 set -x
-python -m pip wheel "${repo_root}" --no-deps --no-build-isolation -w "${wheel_dir}"
+python -m pip wheel "${repo_root}" --no-deps -w "${wheel_dir}"
 python -m venv "${venv_dir}"
 "${venv_dir}/bin/python" -m pip install --no-deps "${wheel_dir}"/*.whl
 

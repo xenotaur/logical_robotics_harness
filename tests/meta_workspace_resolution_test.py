@@ -8,6 +8,10 @@ import unittest
 from lrh.meta import workspace
 
 
+def _canonical(path: pathlib.Path) -> pathlib.Path:
+    return path.resolve()
+
+
 class TestMetaWorkspaceResolution(unittest.TestCase):
     def test_flags_override_environment_and_discovery(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -30,7 +34,7 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
                 environ=env,
             )
 
-            self.assertEqual(resolved.workspace_root, second)
+            self.assertEqual(resolved.workspace_root, _canonical(second))
             self.assertEqual(resolved.resolution_source, "flag(--workspace)")
 
     def test_lrh_config_is_respected(self) -> None:
@@ -67,7 +71,7 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
             resolved = workspace.resolve_meta_workspace(cwd=root, environ=env)
 
             self.assertEqual(resolved.mode, "global")
-            self.assertEqual(resolved.config_path, config_path)
+            self.assertEqual(resolved.config_path, _canonical(config_path))
             self.assertEqual(resolved.resolution_source, "env(LRH_CONFIG)")
 
     def test_lrh_workspace_is_respected(self) -> None:
@@ -83,47 +87,7 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
                 cwd=root,
                 environ={"LRH_WORKSPACE": str(local_workspace_root)},
             )
-            print()
-            print()
-            print()
-            print("Temporary directory tmp_dir:       ", tmp_dir)
-            print("root:                            ", root)
-            print("local_workspace_root:             ", local_workspace_root)
-            print(
-                "local_workspace_root realpath: ",
-                os.path.realpath(local_workspace_root),
-            )
-            print(
-                "local_workspace_root resolve:  ",
-                pathlib.Path(local_workspace_root).resolve(),
-            )
-
-            print("resolved.workspace_root:          ", resolved.workspace_root)
-            print(
-                "resolved.workspace_root realpath: ",
-                os.path.realpath(resolved.workspace_root),
-            )
-            print(
-                "resolved.workspace_root resolve:  ",
-                pathlib.Path(resolved.workspace_root).resolve(),
-            )
-            print("resolved.resolution_source:       ", resolved.resolution_source)
-            print(
-                "os.path.samefile:                ",
-                os.path.samefile(resolved.workspace_root, local_workspace_root),
-            )
-
-            actual = "/private/var/folders/..."
-            expected = "/var/folders/..."
-
-            print("actual realpath:   ", os.path.realpath(actual))
-            print("expected realpath: ", os.path.realpath(expected))
-            print("samefile?:         ", os.path.samefile(actual, expected))
-            print()
-            print()
-            print()
-
-            self.assertEqual(resolved.workspace_root, local_workspace_root)
+            self.assertEqual(resolved.workspace_root, _canonical(local_workspace_root))
             self.assertEqual(resolved.resolution_source, "env(LRH_WORKSPACE)")
 
     def test_local_workspace_discovery_from_nested_directory(self) -> None:
@@ -138,7 +102,7 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
             )
 
             resolved = workspace.resolve_meta_workspace(cwd=nested, environ={})
-            self.assertEqual(resolved.workspace_root, workspace_root)
+            self.assertEqual(resolved.workspace_root, _canonical(workspace_root))
             self.assertEqual(resolved.resolution_source, "local_discovery")
 
     def test_global_xdg_defaults_are_used(self) -> None:
@@ -170,10 +134,10 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
             resolved = workspace.resolve_meta_workspace(cwd=root, environ=env)
 
             self.assertEqual(resolved.mode, "global")
-            self.assertEqual(resolved.config_path, config_path)
-            self.assertEqual(resolved.projects_dir, xdg_state / "lrh" / "projects")
-            self.assertEqual(resolved.state_dir, xdg_state / "lrh")
-            self.assertEqual(resolved.cache_dir, xdg_cache / "lrh")
+            self.assertEqual(resolved.config_path, _canonical(config_path))
+            self.assertEqual(resolved.projects_dir, _canonical(xdg_state / "lrh" / "projects"))
+            self.assertEqual(resolved.state_dir, _canonical(xdg_state / "lrh"))
+            self.assertEqual(resolved.cache_dir, _canonical(xdg_cache / "lrh"))
 
     def test_mode_global_uses_defaults_without_config_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -196,11 +160,11 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
             self.assertEqual(resolved.mode, "global")
             self.assertEqual(
                 resolved.config_path,
-                xdg_config / "lrh" / "config.toml",
+                _canonical(xdg_config / "lrh" / "config.toml"),
             )
-            self.assertEqual(resolved.projects_dir, xdg_state / "lrh" / "projects")
-            self.assertEqual(resolved.state_dir, xdg_state / "lrh")
-            self.assertEqual(resolved.cache_dir, xdg_cache / "lrh")
+            self.assertEqual(resolved.projects_dir, _canonical(xdg_state / "lrh" / "projects"))
+            self.assertEqual(resolved.state_dir, _canonical(xdg_state / "lrh"))
+            self.assertEqual(resolved.cache_dir, _canonical(xdg_cache / "lrh"))
             self.assertEqual(
                 resolved.resolution_source,
                 "flag(--mode=global)+built_in_defaults",

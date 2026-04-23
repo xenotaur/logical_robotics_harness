@@ -9,6 +9,10 @@ import unittest
 from lrh.meta import workspace
 
 
+def _canonical(path: pathlib.Path) -> pathlib.Path:
+    return path.resolve()
+
+
 class TestMetaWhereCli(unittest.TestCase):
     def _run_lrh(
         self,
@@ -56,7 +60,10 @@ class TestMetaWhereCli(unittest.TestCase):
             self.assertIn("Active LRH meta workspace", result.stdout)
             self.assertIn("mode: global", result.stdout)
             self.assertIn("resolution source: global_discovery", result.stdout)
-            self.assertIn(f"projects: {xdg_state / 'lrh' / 'projects'}", result.stdout)
+            self.assertIn(
+                f"projects: {_canonical(xdg_state / 'lrh' / 'projects')}",
+                result.stdout,
+            )
             self.assertNotIn("workspace root:", result.stdout)
 
     def test_meta_where_reports_local_workspace(self) -> None:
@@ -74,9 +81,13 @@ class TestMetaWhereCli(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             self.assertIn("mode: local", result.stdout)
             self.assertIn("resolution source: local_discovery", result.stdout)
-            self.assertIn(f"workspace root: {workspace_root}", result.stdout)
             self.assertIn(
-                f"config: {workspace_root / '.lrh' / 'config.toml'}", result.stdout
+                f"workspace root: {_canonical(workspace_root)}",
+                result.stdout,
+            )
+            self.assertIn(
+                f"config: {_canonical(workspace_root / '.lrh' / 'config.toml')}",
+                result.stdout,
             )
 
     def test_meta_where_json_contains_expected_fields(self) -> None:
@@ -94,16 +105,21 @@ class TestMetaWhereCli(unittest.TestCase):
             self.assertEqual(data["mode"], "local")
             self.assertEqual(data["resolution_source"], "local_discovery")
             self.assertEqual(
-                data["config_path"], str(workspace_root / ".lrh" / "config.toml")
-            )
-            self.assertEqual(data["projects_dir"], str(workspace_root / "projects"))
-            self.assertEqual(
-                data["state_dir"], str(workspace_root / "private" / "state")
+                data["config_path"],
+                str(_canonical(workspace_root / ".lrh" / "config.toml")),
             )
             self.assertEqual(
-                data["cache_dir"], str(workspace_root / "private" / "cache")
+                data["projects_dir"], str(_canonical(workspace_root / "projects"))
             )
-            self.assertEqual(data["workspace_root"], str(workspace_root))
+            self.assertEqual(
+                data["state_dir"],
+                str(_canonical(workspace_root / "private" / "state")),
+            )
+            self.assertEqual(
+                data["cache_dir"],
+                str(_canonical(workspace_root / "private" / "cache")),
+            )
+            self.assertEqual(data["workspace_root"], str(_canonical(workspace_root)))
 
     def test_meta_where_failure_message_is_actionable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

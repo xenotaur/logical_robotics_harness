@@ -563,6 +563,7 @@ def _workspace_from_config_path(
     resolution_error: MetaWorkspaceResolutionError,
     environ: dict[str, str] | None = None,
 ) -> MetaWorkspace:
+    config_path = _normalize_path(config_path)
     if not config_path.exists() or not config_path.is_file():
         raise resolution_error
 
@@ -617,7 +618,7 @@ def _build_local_workspace(
     parsed: dict[str, object],
     source: str,
 ) -> MetaWorkspace:
-    workspace_root = config_path.parent.parent
+    workspace_root = _normalize_path(config_path.parent.parent)
     projects_dir = _configured_path(
         parsed=parsed,
         key="projects_dir",
@@ -654,8 +655,9 @@ def _build_global_workspace(
     source: str,
     environ: dict[str, str],
 ) -> MetaWorkspace:
-    state_root = _xdg_state_path(environ)
-    cache_root = _xdg_cache_path(environ)
+    config_path = _normalize_path(config_path)
+    state_root = _normalize_path(_xdg_state_path(environ))
+    cache_root = _normalize_path(_xdg_cache_path(environ))
     projects_dir = _configured_path(
         parsed=parsed,
         key="projects_dir",
@@ -708,23 +710,28 @@ def _configured_path(
 ) -> pathlib.Path:
     paths_data = parsed.get("paths")
     if not isinstance(paths_data, dict):
-        return default
+        return _normalize_path(default)
     value = paths_data.get(key)
     if not isinstance(value, str) or not value.strip():
-        return default
+        return _normalize_path(default)
     path_value = pathlib.Path(value).expanduser()
     if path_value.is_absolute():
-        return path_value
-    return (base_dir / path_value).resolve()
+        return _normalize_path(path_value)
+    return _normalize_path(base_dir / path_value)
 
 
 def _discover_local_config(cwd: pathlib.Path) -> pathlib.Path | None:
-    current = cwd.expanduser().absolute()
+    current = cwd.expanduser().resolve()
     for candidate in (current, *current.parents):
         config_path = candidate / ".lrh" / "config.toml"
         if config_path.exists() and config_path.is_file():
             return config_path
     return None
+
+
+def _normalize_path(path: pathlib.Path) -> pathlib.Path:
+    """Return a canonical absolute path for stable cross-platform comparisons."""
+    return path.expanduser().resolve()
 
 
 def _xdg_config_path(environ: dict[str, str]) -> pathlib.Path:

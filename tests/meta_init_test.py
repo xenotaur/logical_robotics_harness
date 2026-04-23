@@ -225,6 +225,27 @@ class TestMetaInitCli(unittest.TestCase):
             self.assertIn("Initialized LRH global meta workspace", result.stdout)
             self.assertTrue((xdg_config / "lrh" / "config.toml").exists())
 
+    def test_lrh_meta_init_cli_handles_invalid_xdg_state_home(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            xdg_config = root / "xdg-config"
+            xdg_state_home_file = root / "xdg-state-home-file"
+            xdg_state_home_file.write_text("not-a-directory", encoding="utf-8")
+            xdg_cache = root / "xdg-cache"
+            env = {
+                "XDG_CONFIG_HOME": str(xdg_config),
+                "XDG_STATE_HOME": str(xdg_state_home_file),
+                "XDG_CACHE_HOME": str(xdg_cache),
+            }
+            result = self._run_lrh(
+                ["meta", "init", "--mode", "global", "--name", "CLI Workspace"],
+                root,
+                env_overrides=env,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("error: unable to create directory at", result.stdout)
+            self.assertNotIn("Traceback", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

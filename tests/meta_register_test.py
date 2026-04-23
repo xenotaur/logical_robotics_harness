@@ -115,6 +115,100 @@ class TestMetaRegisterRuntime(unittest.TestCase):
             self.assertEqual(parsed["project"]["display_name"], "Acme Program")
             self.assertEqual(parsed["locators"]["project_dir"], "custom_project")
 
+    def test_register_project_infers_repo_identity_for_github_tree_project(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            result = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator=(
+                        "https://github.com/xenotaur/logical_robotics_harness/"
+                        "tree/main/project"
+                    ),
+                ),
+            )
+
+            parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(result.directory_name, "logical_robotics_harness")
+            self.assertEqual(
+                parsed["project"]["short_name"],
+                "logical_robotics_harness",
+            )
+            self.assertEqual(
+                parsed["project"]["display_name"],
+                "Logical Robotics Harness",
+            )
+            self.assertEqual(parsed["locators"]["project_dir"], "project")
+
+    def test_register_project_infers_project_dir_from_github_tree_tail(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            result = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator="https://github.com/example/acme/tree/main/control/project",
+                ),
+            )
+
+            parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(parsed["locators"]["project_dir"], "control/project")
+            self.assertEqual(parsed["project"]["short_name"], "acme")
+
+    def test_register_project_generic_url_uses_conservative_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            result = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator="https://example.com/project",
+                ),
+            )
+
+            parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(result.directory_name, "project")
+            self.assertEqual(parsed["project"]["short_name"], "project")
+            self.assertEqual(parsed["project"]["display_name"], "Project")
+
+    def test_register_project_github_overrides_are_authoritative(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            result = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator="https://github.com/example/acme/tree/main/project",
+                    project_dir="custom_dir",
+                    short_name="override-short",
+                    display_name="Override Display",
+                ),
+            )
+
+            parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(parsed["locators"]["project_dir"], "custom_dir")
+            self.assertEqual(parsed["project"]["short_name"], "override-short")
+            self.assertEqual(parsed["project"]["display_name"], "Override Display")
+
 
 class TestMetaRegisterCli(unittest.TestCase):
     def _run_lrh(

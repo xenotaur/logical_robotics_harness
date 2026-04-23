@@ -149,8 +149,10 @@ def main() -> None:
     )
     meta_register_parser.add_argument(
         "--project-dir",
-        default="project",
-        help="project control directory relative to the repo root (default: project)",
+        help=(
+            "project control directory relative to repo root "
+            "(default: inferred for supported URL patterns, otherwise project)"
+        ),
     )
     meta_register_parser.add_argument(
         "--directory-name",

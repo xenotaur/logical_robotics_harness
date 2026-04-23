@@ -91,6 +91,7 @@ The YAML frontmatter `status` is authoritative, and directory bucket is derived 
 - package-owned survey implementation at `src/lrh/assist/sourcetree_surveyor.py` with legacy wrapper at `scripts/aiprog/sourcetree_surveyor.py`
 - `--format json` now emits a stable survey contract (`schema_version: 1.0`) with source-tree inventory facts for follow-on audit/context workflows
 - Meta CLI MVP now includes `lrh meta init`, `lrh meta register`, `lrh meta list`, and `lrh meta where` for setup, registry write/read, and active workspace inspection
+- `lrh meta register` now applies deterministic Phase 1 metadata inference for URL/path locators (prefers repository identity over generic tails like `/project`) while remaining offline and override-friendly
 - Meta workspace behavior now uses shared workspace-context resolution for `lrh meta` commands (precedence: flags → env → local discovery → global discovery, with XDG-style global defaults and explicit local mode)
 - `lrh meta init` now defaults to global/XDG initialization, supports `--mode {global,local}`, and ships expanded `lrh meta --help` / `lrh meta init --help` guidance plus `lrh help meta` convenience aliases
 

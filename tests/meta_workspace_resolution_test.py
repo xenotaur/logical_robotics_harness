@@ -99,7 +99,6 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
             )
 
             resolved = workspace.resolve_meta_workspace(cwd=nested, environ={})
-
             self.assertEqual(resolved.workspace_root, workspace_root)
             self.assertEqual(resolved.resolution_source, "local_discovery")
 

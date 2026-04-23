@@ -135,7 +135,9 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
 
             self.assertEqual(resolved.mode, "global")
             self.assertEqual(resolved.config_path, _canonical(config_path))
-            self.assertEqual(resolved.projects_dir, _canonical(xdg_state / "lrh" / "projects"))
+            self.assertEqual(
+                resolved.projects_dir, _canonical(xdg_state / "lrh" / "projects")
+            )
             self.assertEqual(resolved.state_dir, _canonical(xdg_state / "lrh"))
             self.assertEqual(resolved.cache_dir, _canonical(xdg_cache / "lrh"))
 
@@ -162,7 +164,9 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
                 resolved.config_path,
                 _canonical(xdg_config / "lrh" / "config.toml"),
             )
-            self.assertEqual(resolved.projects_dir, _canonical(xdg_state / "lrh" / "projects"))
+            self.assertEqual(
+                resolved.projects_dir, _canonical(xdg_state / "lrh" / "projects")
+            )
             self.assertEqual(resolved.state_dir, _canonical(xdg_state / "lrh"))
             self.assertEqual(resolved.cache_dir, _canonical(xdg_cache / "lrh"))
             self.assertEqual(

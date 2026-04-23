@@ -40,20 +40,71 @@ artifacts_expected:
 
 ## Summary
 
-Verify that LRH not only parses project metadata, but interprets it correctly.
+Validate that LRH interprets precedence-resolved control-plane state correctly for focus,
+contributors, and relevant work items.
 
-## Goals
+## Problem
 
-- Confirm that focus/work item resolution is semantically correct
-- Align implementation with evaluation norms
-- Prevent “valid but misunderstood” project state
+Precedence resolution is implemented, but interpretation behavior still needs explicit validation.
+Without focused interpretation checks, LRH can appear valid while resolving ambiguous or
+inconsistent project state incorrectly.
 
-## Proposed Actions
+## Scope
 
-- Add interpretation-oriented tests
-- Validate that active focus, contributors, and work items are resolved correctly
-- Add warning/error paths for inconsistent state
+In scope:
+
+- Add focused tests that verify resolved interpretation behavior for:
+  - current focus
+  - active contributors
+  - relevant work items
+- Validate that inconsistent or ambiguous resolved state is surfaced through clear
+  warnings/findings/errors, as appropriate to current validator behavior.
+- Make only minimal supporting code changes required to enable or expose these checks.
+
+## Out of Scope
+
+- Redesigning precedence semantics or changing precedence ordering
+- Broad refactors of loaders, CLI, or control-plane architecture
+- Snapshot output redesign
+- New planning schema or work-item model changes
+- Follow-on hardening outside focused interpretation validation
+
+## Likely Files
+
+- `tests/control_plane/test_precedence.py` (extend with interpretation-focused cases)
+- `tests/control_plane/` additional focused interpretation test module (if clearer than
+  extending existing tests)
+- `src/lrh/control_plane/precedence.py` (only if minimal supporting changes are required)
+- `src/lrh/control_plane/validate.py` (only if needed to surface interpretation findings)
+
+## Required Changes
+
+- Add focused interpretation tests that exercise precedence-resolved project state.
+- Assert correct resolution for:
+  - current focus
+  - active contributors
+  - relevant work items
+- Add expectations for inconsistent/ambiguous state handling, including warning or error
+  surfaces where currently supported.
+- Keep changes conservative and limited to interpretation validation behavior.
+
+## Validation
+
+- Run `scripts/test`
+- Run `scripts/validate`
+- Confirm new interpretation tests pass and no unrelated regressions are introduced.
+- Manually review representative resolved outputs/findings to confirm they match expected
+  interpretation.
+
+## Acceptance Criteria
+
+- Focused tests exist for interpretation of focus, contributors, and relevant work items.
+- Tests demonstrate correct behavior on valid resolved state.
+- Tests demonstrate clear surfaced findings for inconsistent/ambiguous resolved state.
+- Any supporting code changes are minimal and scoped to interpretation validation.
+- No unrelated modules or work items are modified.
 
 ## Notes
 
-This work item sits on top of precedence resolution and proves it is useful.
+This work item follows `WI-PRECEDENCE-RESOLVER` and stays within Phase 1 control-plane
+semantics. The goal is confidence in interpretation behavior, not broad redesign.

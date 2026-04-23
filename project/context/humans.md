@@ -16,6 +16,7 @@ The system begins by being able to **understand and validate itself** (self-host
 - Runtime request templates still live under `scripts/aiprog/templates/`; this remains the immediate migration/hardening priority.
 - Next sequencing is explicit: package-owned templates → package-resource loading → install/build smoke checks → mechanical `sourcetree_surveyor` migration → separate capability expansion.
 - Survey JSON schema expansion is intentionally deferred until a concrete downstream consumer exists; transient transformations are preferred over persistent derived survey artifacts.
+- Meta workspace design is now clarified around three modes: `hybrid` (default), `local`, and `global`; in `hybrid`, local workspace repositories hold durable shareable catalog state while private/runtime state lives in global/XDG paths. `lrh meta where` is the intended visibility surface for resolved workspace context.
 
 ## LRH in One Page
 

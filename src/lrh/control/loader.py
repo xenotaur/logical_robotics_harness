@@ -61,7 +61,7 @@ def _load_focus(path: Path) -> Focus:
 
 def _load_work_items(directory: Path) -> tuple[WorkItem, ...]:
     items: list[WorkItem] = []
-    for path in sorted(directory.glob("WI-*.md")):
+    for path in sorted(directory.glob("**/WI-*.md")):
         parsed = parse_markdown_file(path)
         fm = parsed.frontmatter
         items.append(

@@ -94,4 +94,4 @@ The YAML frontmatter `status` is authoritative, and directory bucket is derived 
 - Meta workspace behavior now uses shared workspace-context resolution for `lrh meta` commands (precedence: flags → env → local discovery → global discovery, with XDG-style global defaults and explicit local mode)
 - `lrh meta init` now defaults to global/XDG initialization, supports `--mode {global,local}`, and ships expanded `lrh meta --help` / `lrh meta init --help` guidance plus `lrh help meta` convenience aliases
 
-See `project/design/architecture.md`, `project/design/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.
+See `project/design/architecture.md`, `project/design/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/active/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.

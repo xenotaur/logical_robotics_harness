@@ -1,4 +1,7 @@
 ---
+resolution: null
+blocked_reason: null
+blocked: false
 id: WI-INTERPRETATION-VALIDATION
 title: Validate semantic interpretation of focus and work items
 type: evaluation

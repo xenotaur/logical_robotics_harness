@@ -28,6 +28,11 @@ def main() -> None:
         default="project",
         help="path to the project control directory (default: project)",
     )
+    validate_parser.add_argument(
+        "--work-items",
+        action="store_true",
+        help="validate work-item files and policy rules only",
+    )
 
     subparsers.add_parser(
         "request",
@@ -177,7 +182,10 @@ def main() -> None:
     if args.command == "validate":
         if passthrough_args:
             parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
-        report = validate_project(Path(args.project_dir))
+        report = validate_project(
+            Path(args.project_dir),
+            work_items_only=args.work_items,
+        )
         print(format_report(report))
         raise SystemExit(1 if report.errors else 0)
 

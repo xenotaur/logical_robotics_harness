@@ -267,6 +267,5 @@ lrh request work_items_from_audit \
 - **Maintainer helper compatibility wrapper**: `scripts/aiprog/sourcetree_surveyor.py` forwards to package-owned code in `src/lrh/assist/sourcetree_surveyor.py`.
 - **Package sourcetree module**: also runnable with `python -m lrh.assist.sourcetree_surveyor --help`.
 - **Planned request API**: first-class Python API (`RequestArgs` + `generate_request(...)`).
-- **Next packaging priorities**:
-  1. add packaging/install smoke checks for installed `lrh request` and `lrh snapshot`
-  2. handle sourcetree capability expansion as a separate follow-on item
+- **Packaging/install smoke checks**: use `scripts/smoke_assist_install` to validate installed `lrh request` and `lrh snapshot` behavior from a non-repo working directory.
+- **Next follow-on item**: handle sourcetree capability expansion separately.

@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+smoke_root="$(mktemp -d)"
+trap 'rm -rf "${smoke_root}"' EXIT
+
+wheel_dir="${smoke_root}/wheel"
+venv_dir="${smoke_root}/venv"
+run_dir="${smoke_root}/run"
+
+mkdir -p "${wheel_dir}" "${run_dir}"
+
+set -x
+python -m pip wheel "${repo_root}" --no-deps -w "${wheel_dir}"
+python -m venv "${venv_dir}"
+"${venv_dir}/bin/python" -m pip install --no-deps "${wheel_dir}"/*.whl
+
+(
+  cd "${run_dir}"
+  "${venv_dir}/bin/lrh" request --help
+  "${venv_dir}/bin/lrh" snapshot --help
+  "${venv_dir}/bin/lrh" request assessment --scope project
+  "${venv_dir}/bin/lrh" snapshot project --project-root "${repo_root}"
+)
+{ set +x; } 2>/dev/null
+
+echo "Assist install smoke checks passed."

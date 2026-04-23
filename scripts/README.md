@@ -240,10 +240,24 @@ scripts/test tests.gatherers.downloaders_test.TestDownloader.test_detect_encodin
 ```
 
 **Test Discovery:**
+
 - Directory targets use `unittest discover` under the specified path.
 - File paths are automatically converted to module paths.
 - Dotted paths provide the most precise and reliable way to target individual tests.
 - If no target is provided, full test discovery is used.
+
+#### `smoke_assist_install`
+Runs a lightweight packaging/install smoke check for assist CLI behavior.
+
+```bash
+scripts/smoke_assist_install
+```
+
+This script:
+- builds a wheel from the current checkout
+- creates an isolated virtual environment
+- installs the wheel into that environment
+- verifies installed `lrh request` and `lrh snapshot` commands from a non-repo working directory
 
 
 #### `coverage`

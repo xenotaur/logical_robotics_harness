@@ -47,7 +47,7 @@ Progress update (2026-04-22):
 - `lrh meta init` implemented as the first executable slice.
 - `lrh meta list` implemented as the first explicit read path over registry records.
 - `lrh meta register` implemented as the registry write path with stable `project_id`, duplicate detection, and setup-state capture.
-- Next step before additional meta command breadth: land the hybrid/local/global workspace-mode refinement (hybrid default, normalized absolute config paths, positional catalog root semantics, and `lrh meta where` diagnostics) across existing commands.
+- 2026-04-23: Landed hybrid/local/global runtime workspace resolution across `meta init`/`register`/`list`/`where`, including hybrid default init behavior, positional hybrid catalog root semantics, and normalized absolute path persistence in workspace configs.
 
 ### Near-Term Slice: Assist Packaging and Installability
 

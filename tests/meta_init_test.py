@@ -147,6 +147,28 @@ class TestMetaInitRuntime(unittest.TestCase):
 
             self.assertEqual(parsed["workspace"]["name"], workspace_name)
 
+    def test_init_workspace_writes_normalized_absolute_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            base = pathlib.Path(tmp_dir)
+            target = base / "a" / ".." / "workspace"
+
+            workspace.init_workspace(
+                target,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            parsed = tomllib.loads(
+                (target.resolve() / ".lrh" / "config.toml").read_text(encoding="utf-8")
+            )
+            for key in (
+                "catalog_root",
+                "projects_dir",
+                "config_dir",
+                "state_dir",
+                "cache_dir",
+            ):
+                self.assertTrue(pathlib.Path(parsed["paths"][key]).is_absolute())
+
 
 class TestMetaInitCli(unittest.TestCase):
     def _run_lrh(
@@ -172,7 +194,7 @@ class TestMetaInitCli(unittest.TestCase):
             cwd=cwd,
         )
 
-    def test_lrh_meta_init_cli_defaults_to_global_mode(self) -> None:
+    def test_lrh_meta_init_cli_defaults_to_hybrid_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
             xdg_config = root / "xdg-config"
@@ -189,10 +211,41 @@ class TestMetaInitCli(unittest.TestCase):
                 env_overrides=env,
             )
             self.assertEqual(result.returncode, 0)
-            self.assertIn("Initialized LRH global meta workspace", result.stdout)
+            self.assertIn("Initialized LRH hybrid meta workspace", result.stdout)
+            self.assertTrue((root / ".lrh" / "config.toml").exists())
             self.assertTrue((xdg_config / "lrh" / "config.toml").exists())
-            self.assertTrue((xdg_state / "lrh" / "projects").exists())
             self.assertTrue((xdg_cache / "lrh" / "cache").exists())
+            self.assertTrue((xdg_state / "lrh" / "private" / "state").exists())
+
+    def test_lrh_meta_init_cli_hybrid_with_positional_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace_root = root / "workspace"
+            xdg_config = root / "xdg-config"
+            xdg_state = root / "xdg-state"
+            xdg_cache = root / "xdg-cache"
+            env = {
+                "XDG_CONFIG_HOME": str(xdg_config),
+                "XDG_STATE_HOME": str(xdg_state),
+                "XDG_CACHE_HOME": str(xdg_cache),
+            }
+
+            result = self._run_lrh(
+                ["meta", "init", str(workspace_root), "--name", "CLI Workspace"],
+                root,
+                env_overrides=env,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue((workspace_root / ".lrh" / "config.toml").exists())
+            parsed = tomllib.loads(
+                (xdg_config / "lrh" / "config.toml").read_text(encoding="utf-8")
+            )
+            self.assertEqual(parsed["workspace"]["mode"], "hybrid")
+            self.assertEqual(
+                pathlib.Path(parsed["paths"]["catalog_root"]).resolve(),
+                workspace_root.resolve(),
+            )
 
     def test_lrh_meta_init_cli_mode_local(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

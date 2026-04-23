@@ -75,7 +75,9 @@ def main() -> None:
     ) -> None:
         target_parser.add_argument(
             "--workspace",
-            help="explicit local workspace root containing .lrh/config.toml",
+            "--workspace-root",
+            dest="workspace",
+            help="explicit workspace/catalog root containing .lrh/config.toml",
         )
         target_parser.add_argument(
             "--config",
@@ -83,17 +85,19 @@ def main() -> None:
         )
         target_parser.add_argument(
             "--mode",
-            choices=("local", "global"),
+            choices=("hybrid", "local", "global"),
             help="workspace mode override for resolution",
         )
 
     meta_init_parser = meta_subparsers.add_parser(
         "init",
-        help="Initialize LRH meta workspace paths (defaults to global mode).",
+        help="Initialize LRH meta workspace paths (defaults to hybrid mode).",
         description=(
             "Initialize LRH meta workspace directories and config. "
-            "Default mode is global (XDG-style user paths); use --mode local "
-            "to initialize a local workspace in the current directory."
+            "Default mode is hybrid "
+            "(local catalog root + global XDG config/state/cache). "
+            "Use --mode local to keep all paths local, or --mode global to keep "
+            "workspace and runtime paths in global locations."
         ),
         epilog=(
             "Resolution inputs (high-level): flags, LRH_CONFIG, LRH_WORKSPACE, "
@@ -112,9 +116,22 @@ def main() -> None:
     )
     meta_init_parser.add_argument(
         "--mode",
-        choices=("global", "local"),
-        default="global",
-        help="initialization mode (default: global)",
+        choices=("hybrid", "global", "local"),
+        default="hybrid",
+        help="initialization mode (default: hybrid)",
+    )
+    meta_init_parser.add_argument(
+        "workspace_root",
+        nargs="?",
+        help=(
+            "workspace/catalog root directory for hybrid mode "
+            "(defaults to current directory)"
+        ),
+    )
+    meta_init_parser.add_argument(
+        "--workspace-root",
+        dest="workspace_root_flag",
+        help="explicit workspace/catalog root directory",
     )
     meta_init_parser.add_argument(
         "--force",
@@ -223,7 +240,21 @@ def main() -> None:
             try:
                 if args.mode == "local":
                     result = workspace.init_workspace(
-                        Path.cwd(),
+                        Path(
+                            args.workspace_root_flag
+                            or args.workspace_root
+                            or Path.cwd()
+                        ),
+                        spec=spec,
+                        force=args.force,
+                    )
+                elif args.mode == "hybrid":
+                    result = workspace.init_hybrid_workspace(
+                        Path(
+                            args.workspace_root_flag
+                            or args.workspace_root
+                            or Path.cwd()
+                        ),
                         spec=spec,
                         force=args.force,
                     )
@@ -237,7 +268,19 @@ def main() -> None:
                 raise SystemExit(1) from err
 
             if args.mode == "local":
-                print("Initialized LRH local meta workspace at", Path.cwd())
+                workspace_root = (
+                    Path(args.workspace_root_flag or args.workspace_root or Path.cwd())
+                    .expanduser()
+                    .resolve()
+                )
+                print("Initialized LRH local meta workspace at", workspace_root)
+            elif args.mode == "hybrid":
+                workspace_root = (
+                    Path(args.workspace_root_flag or args.workspace_root or Path.cwd())
+                    .expanduser()
+                    .resolve()
+                )
+                print("Initialized LRH hybrid meta workspace at", workspace_root)
             else:
                 print("Initialized LRH global meta workspace")
             print(
@@ -304,6 +347,8 @@ def main() -> None:
                 "mode": active_workspace.mode,
                 "resolution_source": active_workspace.resolution_source,
                 "config_path": str(active_workspace.config_path),
+                "config_dir": str(active_workspace.config_dir),
+                "catalog_root": str(active_workspace.catalog_root),
                 "projects_dir": str(active_workspace.projects_dir),
                 "state_dir": str(active_workspace.state_dir),
                 "cache_dir": str(active_workspace.cache_dir),
@@ -321,6 +366,8 @@ def main() -> None:
                 print(f"mode: {workspace_data['mode']}")
                 print(f"resolution source: {workspace_data['resolution_source']}")
                 print(f"config: {workspace_data['config_path']}")
+                print(f"config dir: {workspace_data['config_dir']}")
+                print(f"catalog root: {workspace_data['catalog_root']}")
                 print(f"projects: {workspace_data['projects_dir']}")
                 print(f"state: {workspace_data['state_dir']}")
                 print(f"cache: {workspace_data['cache_dir']}")

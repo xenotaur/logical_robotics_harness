@@ -138,8 +138,13 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
             self.assertEqual(
                 resolved.projects_dir, _canonical(xdg_state / "lrh" / "projects")
             )
-            self.assertEqual(resolved.state_dir, _canonical(xdg_state / "lrh"))
-            self.assertEqual(resolved.cache_dir, _canonical(xdg_cache / "lrh"))
+            self.assertEqual(
+                resolved.state_dir,
+                _canonical(xdg_state / "lrh" / "private" / "state"),
+            )
+            self.assertEqual(
+                resolved.cache_dir, _canonical(xdg_cache / "lrh" / "cache")
+            )
 
     def test_mode_global_uses_defaults_without_config_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -167,8 +172,13 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
             self.assertEqual(
                 resolved.projects_dir, _canonical(xdg_state / "lrh" / "projects")
             )
-            self.assertEqual(resolved.state_dir, _canonical(xdg_state / "lrh"))
-            self.assertEqual(resolved.cache_dir, _canonical(xdg_cache / "lrh"))
+            self.assertEqual(
+                resolved.state_dir,
+                _canonical(xdg_state / "lrh" / "private" / "state"),
+            )
+            self.assertEqual(
+                resolved.cache_dir, _canonical(xdg_cache / "lrh" / "cache")
+            )
             self.assertEqual(
                 resolved.resolution_source,
                 "flag(--mode=global)+built_in_defaults",

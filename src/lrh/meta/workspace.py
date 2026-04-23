@@ -114,19 +114,21 @@ class MetaWorkspaceResolveOptions:
 
     workspace_path: pathlib.Path | None = None
     config_path: pathlib.Path | None = None
-    mode: Literal["local", "global"] | None = None
+    mode: Literal["hybrid", "local", "global"] | None = None
 
 
 @dataclasses.dataclass(frozen=True)
 class MetaWorkspace:
     """Resolved runtime workspace context for meta CLI commands."""
 
-    mode: Literal["local", "global"]
+    mode: Literal["hybrid", "local", "global"]
     config_path: pathlib.Path
     projects_dir: pathlib.Path
     state_dir: pathlib.Path
     cache_dir: pathlib.Path
+    catalog_root: pathlib.Path
     workspace_root: pathlib.Path | None
+    config_dir: pathlib.Path
     resolution_source: str
 
 
@@ -154,6 +156,7 @@ def init_workspace(
     updated: list[pathlib.Path] = []
     unchanged: list[pathlib.Path] = []
 
+    root = _normalize_path(root)
     for relative_dir in (".lrh", "projects", "private"):
         _ensure_directory(root / relative_dir, force=force, created=created)
 
@@ -172,12 +175,92 @@ def init_workspace(
     _write_config(
         root / ".lrh" / "config.toml",
         workspace_name=spec.workspace_name,
+        mode="local",
+        catalog_root=root,
+        projects_dir=root / "projects",
+        config_dir=root / ".lrh",
+        state_dir=root / "private" / "state",
+        cache_dir=root / "private" / "cache",
         force=force,
         created=created,
         updated=updated,
         unchanged=unchanged,
     )
 
+    return MetaInitResult(
+        created=tuple(sorted(created, key=str)),
+        updated=tuple(sorted(updated, key=str)),
+        unchanged=tuple(sorted(unchanged, key=str)),
+    )
+
+
+def init_hybrid_workspace(
+    root: pathlib.Path,
+    *,
+    spec: MetaWorkspaceSpec,
+    force: bool = False,
+    environ: dict[str, str] | None = None,
+) -> MetaInitResult:
+    """Initialize a hybrid LRH workspace (local catalog + global runtime paths)."""
+    if environ is None:
+        environ = dict(os.environ)
+
+    root = _normalize_path(root)
+    config_path = _xdg_config_path(environ)
+    config_dir = _normalize_path(config_path.parent)
+    state_root = _normalize_path(_xdg_state_path(environ))
+    cache_root = _normalize_path(_xdg_cache_path(environ))
+
+    created: list[pathlib.Path] = []
+    updated: list[pathlib.Path] = []
+    unchanged: list[pathlib.Path] = []
+
+    _ensure_directory(root / ".lrh", force=force, created=created)
+    _ensure_directory(root / "projects", force=force, created=created)
+    _ensure_directory(config_dir, force=force, created=created)
+    _ensure_directory(state_root, force=force, created=created)
+    _ensure_directory(state_root / "private", force=force, created=created)
+    _ensure_directory(state_root / "private" / "state", force=force, created=created)
+    _ensure_directory(cache_root, force=force, created=created)
+    _ensure_directory(cache_root / "cache", force=force, created=created)
+
+    _write_readme(
+        root / "README.md",
+        workspace_name=spec.workspace_name,
+        created=created,
+        unchanged=unchanged,
+    )
+    _write_gitignore(
+        root / ".gitignore", created=created, updated=updated, unchanged=unchanged
+    )
+    _write_config(
+        root / ".lrh" / "config.toml",
+        workspace_name=spec.workspace_name,
+        mode="hybrid",
+        catalog_root=root,
+        projects_dir=root / "projects",
+        config_dir=config_dir,
+        state_dir=state_root / "private" / "state",
+        cache_dir=cache_root / "cache",
+        force=force,
+        created=created,
+        updated=updated,
+        unchanged=unchanged,
+    )
+    _write_global_config(
+        config_path,
+        workspace_name=spec.workspace_name,
+        mode="hybrid",
+        catalog_root=root,
+        projects_dir=root / "projects",
+        config_dir=config_dir,
+        state_dir=state_root / "private" / "state",
+        cache_dir=cache_root / "cache",
+        force=force,
+        created=created,
+        updated=updated,
+        unchanged=unchanged,
+    )
     return MetaInitResult(
         created=tuple(sorted(created, key=str)),
         updated=tuple(sorted(updated, key=str)),
@@ -195,10 +278,10 @@ def init_global_workspace(
     if environ is None:
         environ = dict(os.environ)
 
-    config_path = _xdg_config_path(environ)
-    config_dir = config_path.parent
-    state_root = _xdg_state_path(environ)
-    cache_root = _xdg_cache_path(environ)
+    config_path = _normalize_path(_xdg_config_path(environ))
+    config_dir = _normalize_path(config_path.parent)
+    state_root = _normalize_path(_xdg_state_path(environ))
+    cache_root = _normalize_path(_xdg_cache_path(environ))
 
     created: list[pathlib.Path] = []
     updated: list[pathlib.Path] = []
@@ -223,9 +306,12 @@ def init_global_workspace(
     _write_global_config(
         config_path,
         workspace_name=spec.workspace_name,
+        mode="global",
+        catalog_root=state_root,
         projects_dir=state_root / "projects",
-        state_dir=state_root,
-        cache_dir=cache_root,
+        config_dir=config_dir,
+        state_dir=state_root / "private" / "state",
+        cache_dir=cache_root / "cache",
         force=force,
         created=created,
         updated=updated,
@@ -324,12 +410,26 @@ def _write_config(
     path: pathlib.Path,
     *,
     workspace_name: str,
+    mode: Literal["hybrid", "local", "global"],
+    catalog_root: pathlib.Path,
+    projects_dir: pathlib.Path,
+    config_dir: pathlib.Path,
+    state_dir: pathlib.Path,
+    cache_dir: pathlib.Path,
     force: bool,
     created: list[pathlib.Path],
     updated: list[pathlib.Path],
     unchanged: list[pathlib.Path],
 ) -> None:
-    content = _config_text(workspace_name)
+    content = _config_text(
+        workspace_name=workspace_name,
+        mode=mode,
+        catalog_root=catalog_root,
+        projects_dir=projects_dir,
+        config_dir=config_dir,
+        state_dir=state_dir,
+        cache_dir=cache_dir,
+    )
     if not path.exists():
         path.write_text(content, encoding="utf-8")
         created.append(path)
@@ -365,7 +465,10 @@ def _write_global_config(
     path: pathlib.Path,
     *,
     workspace_name: str,
+    mode: Literal["hybrid", "global"],
+    catalog_root: pathlib.Path,
     projects_dir: pathlib.Path,
+    config_dir: pathlib.Path,
     state_dir: pathlib.Path,
     cache_dir: pathlib.Path,
     force: bool,
@@ -375,7 +478,10 @@ def _write_global_config(
 ) -> None:
     content = _global_config_text(
         workspace_name=workspace_name,
+        mode=mode,
+        catalog_root=catalog_root,
         projects_dir=projects_dir,
+        config_dir=config_dir,
         state_dir=state_dir,
         cache_dir=cache_dir,
     )
@@ -413,21 +519,28 @@ def _write_global_config(
 def _global_config_text(
     *,
     workspace_name: str,
+    mode: Literal["hybrid", "global"],
+    catalog_root: pathlib.Path,
     projects_dir: pathlib.Path,
+    config_dir: pathlib.Path,
     state_dir: pathlib.Path,
     cache_dir: pathlib.Path,
 ) -> str:
     encoded_workspace_name = _toml_basic_string(workspace_name)
+    encoded_catalog_root = _toml_basic_string(str(catalog_root))
     encoded_projects_dir = _toml_basic_string(str(projects_dir))
+    encoded_config_dir = _toml_basic_string(str(config_dir))
     encoded_state_dir = _toml_basic_string(str(state_dir))
     encoded_cache_dir = _toml_basic_string(str(cache_dir))
     return (
         'schema_version = "0.1"\n\n'
         "[workspace]\n"
         f"name = {encoded_workspace_name}\n"
-        'mode = "global"\n\n'
+        f"mode = {_toml_basic_string(mode)}\n\n"
         "[paths]\n"
+        f"catalog_root = {encoded_catalog_root}\n"
         f"projects_dir = {encoded_projects_dir}\n"
+        f"config_dir = {encoded_config_dir}\n"
         f"state_dir = {encoded_state_dir}\n"
         f"cache_dir = {encoded_cache_dir}\n\n"
         "[meta]\n"
@@ -435,17 +548,33 @@ def _global_config_text(
     )
 
 
-def _config_text(workspace_name: str) -> str:
+def _config_text(
+    *,
+    workspace_name: str,
+    mode: Literal["hybrid", "local", "global"],
+    catalog_root: pathlib.Path,
+    projects_dir: pathlib.Path,
+    config_dir: pathlib.Path,
+    state_dir: pathlib.Path,
+    cache_dir: pathlib.Path,
+) -> str:
     encoded_workspace_name = _toml_basic_string(workspace_name)
+    encoded_catalog_root = _toml_basic_string(str(catalog_root))
+    encoded_projects_dir = _toml_basic_string(str(projects_dir))
+    encoded_config_dir = _toml_basic_string(str(config_dir))
+    encoded_state_dir = _toml_basic_string(str(state_dir))
+    encoded_cache_dir = _toml_basic_string(str(cache_dir))
     return (
         'schema_version = "0.1"\n\n'
         "[workspace]\n"
         f"name = {encoded_workspace_name}\n"
-        'mode = "local"\n\n'
+        f"mode = {_toml_basic_string(mode)}\n\n"
         "[paths]\n"
-        'projects_dir = "projects"\n'
-        'state_dir = "private/state"\n'
-        'cache_dir = "private/cache"\n\n'
+        f"catalog_root = {encoded_catalog_root}\n"
+        f"projects_dir = {encoded_projects_dir}\n"
+        f"config_dir = {encoded_config_dir}\n"
+        f"state_dir = {encoded_state_dir}\n"
+        f"cache_dir = {encoded_cache_dir}\n\n"
         "[meta]\n"
         'authority = "catalog_only"\n'
     )
@@ -500,7 +629,7 @@ def resolve_meta_workspace(
         local_config = options.workspace_path / ".lrh" / "config.toml"
         return _workspace_from_config_path(
             config_path=local_config,
-            mode_override="local",
+            mode_override=options.mode or "local",
             source="flag(--workspace)",
             resolution_error=resolution_error,
             environ=environ,
@@ -529,6 +658,17 @@ def resolve_meta_workspace(
             config_path=config_path,
             mode_override="global",
             source="flag(--mode=global)+global_discovery",
+            resolution_error=resolution_error,
+            environ=environ,
+        )
+    if options.mode == "hybrid":
+        config_path = _xdg_config_path(environ)
+        if not config_path.exists():
+            raise resolution_error
+        return _workspace_from_config_path(
+            config_path=config_path,
+            mode_override="hybrid",
+            source="flag(--mode=hybrid)+global_discovery",
             resolution_error=resolution_error,
             environ=environ,
         )
@@ -580,7 +720,7 @@ def resolve_meta_workspace(
 def _workspace_from_config_path(
     *,
     config_path: pathlib.Path,
-    mode_override: Literal["local", "global"] | None,
+    mode_override: Literal["hybrid", "local", "global"] | None,
     source: str,
     resolution_error: MetaWorkspaceResolutionError,
     environ: dict[str, str] | None = None,
@@ -604,6 +744,13 @@ def _workspace_from_config_path(
         ) from err
 
     mode = mode_override or _config_mode(parsed) or _mode_for_config_path(config_path)
+    if mode == "hybrid":
+        return _build_hybrid_workspace(
+            config_path=config_path,
+            parsed=parsed,
+            source=source,
+            environ=environ or dict(os.environ),
+        )
     if mode == "local":
         return _build_local_workspace(
             config_path=config_path,
@@ -618,20 +765,77 @@ def _workspace_from_config_path(
     )
 
 
-def _mode_for_config_path(config_path: pathlib.Path) -> Literal["local", "global"]:
+def _mode_for_config_path(
+    config_path: pathlib.Path,
+) -> Literal["hybrid", "local", "global"]:
     if config_path.parent.name == ".lrh":
         return "local"
     return "global"
 
 
-def _config_mode(parsed: dict[str, object]) -> Literal["local", "global"] | None:
+def _config_mode(
+    parsed: dict[str, object],
+) -> Literal["hybrid", "local", "global"] | None:
     workspace_data = parsed.get("workspace")
     if not isinstance(workspace_data, dict):
         return None
     raw_mode = workspace_data.get("mode")
-    if raw_mode in ("local", "global"):
+    if raw_mode in ("hybrid", "local", "global"):
         return raw_mode
     return None
+
+
+def _build_hybrid_workspace(
+    *,
+    config_path: pathlib.Path,
+    parsed: dict[str, object],
+    source: str,
+    environ: dict[str, str],
+) -> MetaWorkspace:
+    config_path = _normalize_path(config_path)
+    state_root = _normalize_path(_xdg_state_path(environ))
+    cache_root = _normalize_path(_xdg_cache_path(environ))
+    config_dir = _configured_path(
+        parsed=parsed,
+        key="config_dir",
+        base_dir=config_path.parent,
+        default=config_path.parent,
+    )
+    catalog_root = _configured_path(
+        parsed=parsed,
+        key="catalog_root",
+        base_dir=config_path.parent,
+        default=config_path.parent,
+    )
+    projects_dir = _configured_path(
+        parsed=parsed,
+        key="projects_dir",
+        base_dir=catalog_root,
+        default=catalog_root / "projects",
+    )
+    state_dir = _configured_path(
+        parsed=parsed,
+        key="state_dir",
+        base_dir=config_dir,
+        default=state_root / "private" / "state",
+    )
+    cache_dir = _configured_path(
+        parsed=parsed,
+        key="cache_dir",
+        base_dir=config_dir,
+        default=cache_root / "cache",
+    )
+    return MetaWorkspace(
+        mode="hybrid",
+        config_path=config_path,
+        projects_dir=projects_dir,
+        state_dir=state_dir,
+        cache_dir=cache_dir,
+        catalog_root=catalog_root,
+        workspace_root=catalog_root,
+        config_dir=config_dir,
+        resolution_source=source,
+    )
 
 
 def _build_local_workspace(
@@ -665,7 +869,14 @@ def _build_local_workspace(
         projects_dir=projects_dir,
         state_dir=state_dir,
         cache_dir=cache_dir,
+        catalog_root=workspace_root,
         workspace_root=workspace_root,
+        config_dir=_configured_path(
+            parsed=parsed,
+            key="config_dir",
+            base_dir=workspace_root,
+            default=workspace_root / ".lrh",
+        ),
         resolution_source=source,
     )
 
@@ -680,23 +891,35 @@ def _build_global_workspace(
     config_path = _normalize_path(config_path)
     state_root = _normalize_path(_xdg_state_path(environ))
     cache_root = _normalize_path(_xdg_cache_path(environ))
+    config_dir = _configured_path(
+        parsed=parsed,
+        key="config_dir",
+        base_dir=config_path.parent,
+        default=config_path.parent,
+    )
+    catalog_root = _configured_path(
+        parsed=parsed,
+        key="catalog_root",
+        base_dir=config_path.parent,
+        default=state_root,
+    )
     projects_dir = _configured_path(
         parsed=parsed,
         key="projects_dir",
         base_dir=config_path.parent,
-        default=state_root / "projects",
+        default=catalog_root / "projects",
     )
     state_dir = _configured_path(
         parsed=parsed,
         key="state_dir",
         base_dir=config_path.parent,
-        default=state_root,
+        default=state_root / "private" / "state",
     )
     cache_dir = _configured_path(
         parsed=parsed,
         key="cache_dir",
         base_dir=config_path.parent,
-        default=cache_root,
+        default=cache_root / "cache",
     )
     return MetaWorkspace(
         mode="global",
@@ -704,7 +927,9 @@ def _build_global_workspace(
         projects_dir=projects_dir,
         state_dir=state_dir,
         cache_dir=cache_dir,
+        catalog_root=catalog_root,
         workspace_root=None,
+        config_dir=config_dir,
         resolution_source=source,
     )
 
@@ -795,6 +1020,8 @@ def _workspace_resolution_error(
     return MetaWorkspaceResolutionError(
         "No LRH meta workspace could be resolved.\n\n"
         f"Checked:\n{detail}\n\n"
+        "To initialize a hybrid workspace (default):\n"
+        "  lrh meta init\n\n"
         "To initialize a global workspace:\n"
         "  lrh meta init --mode global\n\n"
         "To initialize a local workspace:\n"
@@ -802,7 +1029,7 @@ def _workspace_resolution_error(
         "To override resolution explicitly:\n"
         "  lrh meta where --config /path/to/config.toml\n"
         "  lrh meta where --workspace /path/to/workspace\n"
-        "  lrh meta where --mode {local,global}"
+        "  lrh meta where --mode {hybrid,local,global}"
     )
 
 
@@ -819,7 +1046,9 @@ def register_project(
         projects_dir=root / "projects",
         state_dir=root / "private" / "state",
         cache_dir=root / "private" / "cache",
+        catalog_root=root,
         workspace_root=root,
+        config_dir=root / ".lrh",
         resolution_source="legacy(root)",
     )
     return register_project_in_workspace(local_workspace, spec=spec, force=force)
@@ -1101,7 +1330,9 @@ def list_registered_projects(root: pathlib.Path) -> tuple[MetaProjectRecord, ...
         projects_dir=root / "projects",
         state_dir=root / "private" / "state",
         cache_dir=root / "private" / "cache",
+        catalog_root=root,
         workspace_root=root,
+        config_dir=root / ".lrh",
         resolution_source="legacy(root)",
     )
     return list_registered_projects_in_workspace(local_workspace)
@@ -1131,19 +1362,25 @@ def list_registered_projects_in_workspace(
 def _require_projects_dir(
     projects_dir: pathlib.Path,
     *,
-    mode: Literal["local", "global"] | None = None,
+    mode: Literal["hybrid", "local", "global"] | None = None,
 ) -> pathlib.Path:
     if not projects_dir.exists():
         local_guidance = (
             "run `lrh meta init --mode local` to initialize a local workspace"
         )
         if mode == "global":
-            guidance = "run `lrh meta init` to initialize the global workspace"
+            guidance = (
+                "run `lrh meta init --mode global` "
+                "to initialize the global workspace"
+            )
         elif mode == "local":
             guidance = local_guidance
+        elif mode == "hybrid":
+            guidance = "run `lrh meta init` to initialize a hybrid workspace"
         else:
             guidance = (
-                f"{local_guidance}, or run `lrh meta init` for global XDG defaults"
+                f"{local_guidance}, run `lrh meta init` for hybrid defaults, "
+                "or run `lrh meta init --mode global`"
             )
         raise MetaRegistryError(
             f"missing projects directory at {projects_dir}; {guidance}"

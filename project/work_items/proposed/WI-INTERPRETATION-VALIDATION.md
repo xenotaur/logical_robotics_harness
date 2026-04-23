@@ -75,7 +75,7 @@ In scope:
 - `tests/control_plane/` additional focused interpretation test module (if clearer than
   extending existing tests)
 - `src/lrh/control_plane/precedence.py` (only if minimal supporting changes are required)
-- `src/lrh/control_plane/validate.py` (only if needed to surface interpretation findings)
+- `src/lrh/control/validator.py` (only if needed to surface interpretation findings used by `lrh validate`)
 
 ## Required Changes
 
@@ -85,7 +85,7 @@ In scope:
   - active contributors
   - relevant work items
 - Add expectations for inconsistent/ambiguous state handling, including warning or error
-  surfaces where currently supported.
+  surfaces in the active `lrh validate` flow where currently supported.
 - Keep changes conservative and limited to interpretation validation behavior.
 
 ## Validation

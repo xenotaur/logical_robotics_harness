@@ -629,7 +629,7 @@ def resolve_meta_workspace(
         local_config = options.workspace_path / ".lrh" / "config.toml"
         return _workspace_from_config_path(
             config_path=local_config,
-            mode_override=options.mode or "local",
+            mode_override=options.mode,
             source="flag(--workspace)",
             resolution_error=resolution_error,
             environ=environ,

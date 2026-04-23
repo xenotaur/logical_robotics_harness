@@ -90,6 +90,38 @@ class TestMetaWhereCli(unittest.TestCase):
                 result.stdout,
             )
 
+    def test_meta_where_workspace_flag_reports_hybrid_workspace_mode(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace_root = root / "workspace"
+            xdg_config = root / "xdg-config"
+            xdg_state = root / "xdg-state"
+            xdg_cache = root / "xdg-cache"
+            env = {
+                "XDG_CONFIG_HOME": str(xdg_config),
+                "XDG_STATE_HOME": str(xdg_state),
+                "XDG_CACHE_HOME": str(xdg_cache),
+            }
+            workspace.init_hybrid_workspace(
+                workspace_root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Hybrid"),
+                environ=env,
+            )
+
+            result = self._run_lrh(
+                ["meta", "where", "--workspace", str(workspace_root)],
+                cwd=root,
+                env_overrides=env,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("mode: hybrid", result.stdout)
+            self.assertIn("resolution source: flag(--workspace)", result.stdout)
+            self.assertIn(
+                f"catalog root: {_canonical(workspace_root)}",
+                result.stdout,
+            )
+
     def test_meta_where_json_contains_expected_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             workspace_root = pathlib.Path(tmp_dir)

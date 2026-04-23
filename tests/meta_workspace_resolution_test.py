@@ -37,6 +37,36 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
             self.assertEqual(resolved.workspace_root, _canonical(second))
             self.assertEqual(resolved.resolution_source, "flag(--workspace)")
 
+    def test_workspace_flag_preserves_hybrid_mode_from_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace_root = root / "workspace"
+            xdg_config = root / "xdg-config"
+            xdg_state = root / "xdg-state"
+            xdg_cache = root / "xdg-cache"
+            env = {
+                "XDG_CONFIG_HOME": str(xdg_config),
+                "XDG_STATE_HOME": str(xdg_state),
+                "XDG_CACHE_HOME": str(xdg_cache),
+            }
+            workspace.init_hybrid_workspace(
+                workspace_root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Hybrid"),
+                environ=env,
+            )
+
+            resolved = workspace.resolve_meta_workspace(
+                cwd=root,
+                options=workspace.MetaWorkspaceResolveOptions(
+                    workspace_path=workspace_root
+                ),
+                environ=env,
+            )
+
+            self.assertEqual(resolved.mode, "hybrid")
+            self.assertEqual(resolved.catalog_root, _canonical(workspace_root))
+            self.assertEqual(resolved.resolution_source, "flag(--workspace)")
+
     def test_lrh_config_is_respected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)

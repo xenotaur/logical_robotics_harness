@@ -146,7 +146,7 @@ class MetaInspectResult:
 
 def meta_workspace_where_payload(workspace: MetaWorkspace) -> dict[str, object]:
     """Build a structured diagnostics payload for ``lrh meta where`` output."""
-    path_scope = _workspace_path_scope(workspace.mode)
+    path_scope = _workspace_path_scope(workspace)
     workspace_root = (
         str(workspace.workspace_root) if workspace.workspace_root is not None else None
     )
@@ -192,8 +192,9 @@ def format_meta_workspace_where(workspace: MetaWorkspace) -> str:
     return "\n".join(lines)
 
 
-def _workspace_path_scope(mode: Literal["hybrid", "local", "global"]) -> dict[str, str]:
+def _workspace_path_scope(workspace: MetaWorkspace) -> dict[str, str]:
     """Return path ownership/scope labels for each supported workspace mode."""
+    mode = workspace.mode
     if mode == "local":
         return {
             "catalog": "local",
@@ -203,9 +204,12 @@ def _workspace_path_scope(mode: Literal["hybrid", "local", "global"]) -> dict[st
             "runtime_note": "private/runtime state is local to this workspace root",
         }
     if mode == "hybrid":
+        config_scope = "global/user"
+        if _is_path_within(workspace.config_path, workspace.catalog_root):
+            config_scope = "local/workspace"
         return {
             "catalog": "local/shareable",
-            "config": "global/user",
+            "config": config_scope,
             "state": "global/private",
             "cache": "global/private",
             "runtime_note": (
@@ -219,6 +223,15 @@ def _workspace_path_scope(mode: Literal["hybrid", "local", "global"]) -> dict[st
         "cache": "global/private",
         "runtime_note": "all paths resolve under global user locations",
     }
+
+
+def _is_path_within(path: pathlib.Path, parent: pathlib.Path) -> bool:
+    """Return true when ``path`` is inside ``parent`` (or equal)."""
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
 
 
 def init_workspace(

@@ -128,6 +128,11 @@ class TestMetaWhereCli(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             self.assertIn("mode: hybrid", result.stdout)
             self.assertIn("resolution source: flag(--workspace)", result.stdout)
+            self.assertIn(
+                f"config: {_canonical(workspace_root / '.lrh' / 'config.toml')} "
+                "(local/workspace)",
+                result.stdout,
+            )
             self.assertIn("(local/shareable)", result.stdout)
             self.assertIn("(global/private)", result.stdout)
             self.assertIn(
@@ -173,7 +178,44 @@ class TestMetaWhereCli(unittest.TestCase):
             )
             self.assertEqual(data["workspace_root"], str(_canonical(workspace_root)))
             self.assertEqual(data["path_scope"]["catalog"], "local")
+            self.assertEqual(data["path_scope"]["config"], "local")
             self.assertEqual(data["path_scope"]["state"], "local/private")
+
+    def test_meta_where_mode_hybrid_reports_global_config_scope(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace_root = root / "workspace"
+            xdg_config = root / "xdg-config"
+            xdg_state = root / "xdg-state"
+            xdg_cache = root / "xdg-cache"
+            env = {
+                "XDG_CONFIG_HOME": str(xdg_config),
+                "XDG_STATE_HOME": str(xdg_state),
+                "XDG_CACHE_HOME": str(xdg_cache),
+            }
+            workspace.init_hybrid_workspace(
+                workspace_root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Hybrid"),
+                environ=env,
+            )
+
+            result = self._run_lrh(
+                ["meta", "where", "--mode", "hybrid"],
+                cwd=root,
+                env_overrides=env,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("mode: hybrid", result.stdout)
+            self.assertIn(
+                "resolution source: flag(--mode=hybrid)+global_discovery",
+                result.stdout,
+            )
+            self.assertIn(
+                f"config: {_canonical(xdg_config / 'lrh' / 'config.toml')} "
+                "(global/user)",
+                result.stdout,
+            )
 
     def test_meta_where_json_normalizes_relative_paths_from_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

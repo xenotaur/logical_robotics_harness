@@ -183,7 +183,10 @@ def init_global_workspace(
     unchanged: list[pathlib.Path] = []
 
     _ensure_directory(config_dir, force=force, created=created)
+<<<<<<< codex/fix-lrh-meta-cli-surface-and-help-behavior
     _ensure_directory(state_root, force=force, created=created)
+=======
+>>>>>>> main
     _ensure_directory(state_root / "projects", force=force, created=created)
     _ensure_directory(state_root / "private", force=force, created=created)
 

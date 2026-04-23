@@ -147,6 +147,36 @@ class TestMetaRegisterRuntime(unittest.TestCase):
             )
             self.assertEqual(parsed["locators"]["project_dir"], "project")
 
+    def test_register_project_github_tree_urls_do_not_collapse_to_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            first = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator=(
+                        "https://github.com/xenotaur/logical_robotics_harness/"
+                        "tree/main/project"
+                    ),
+                ),
+            )
+            second = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator="https://github.com/xenotaur/taurworks/tree/master/project",
+                ),
+            )
+
+            self.assertNotEqual(first.directory_name, "project")
+            self.assertNotEqual(second.directory_name, "project")
+            self.assertNotEqual(first.directory_name, second.directory_name)
+            self.assertTrue((root / "projects" / first.directory_name).exists())
+            self.assertTrue((root / "projects" / second.directory_name).exists())
+
     def test_register_project_infers_project_dir_from_github_tree_tail(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
@@ -199,12 +229,14 @@ class TestMetaRegisterRuntime(unittest.TestCase):
                 spec=workspace.MetaRegisterSpec(
                     repo_locator="https://github.com/example/acme/tree/main/project",
                     project_dir="custom_dir",
+                    directory_name="override-dir",
                     short_name="override-short",
                     display_name="Override Display",
                 ),
             )
 
             parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(result.directory_name, "override-dir")
             self.assertEqual(parsed["locators"]["project_dir"], "custom_dir")
             self.assertEqual(parsed["project"]["short_name"], "override-short")
             self.assertEqual(parsed["project"]["display_name"], "Override Display")

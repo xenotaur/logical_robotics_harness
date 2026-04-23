@@ -82,7 +82,11 @@ class LocatorAnalysis:
     """Deterministic locator parse details used for metadata inference."""
 
     kind: Literal["github_url", "url", "local_path", "unknown"]
+    host: str | None = None
+    repo_owner: str | None = None
     repo_slug: str | None = None
+    repo_ref: str | None = None
+    repo_subpath: str | None = None
     local_basename: str | None = None
     path_tail: str | None = None
     project_dir_hint: str | None = None
@@ -1314,24 +1318,34 @@ def _analyze_locator(repo_locator: str) -> LocatorAnalysis:
 def _analyze_url_locator(parsed: urllib.parse.SplitResult) -> LocatorAnalysis:
     path_segments = [segment for segment in parsed.path.split("/") if segment]
     path_tail = path_segments[-1] if path_segments else None
-    host = parsed.netloc.lower()
+    host = (parsed.hostname or parsed.netloc).lower()
 
     if host.endswith("github.com") and len(path_segments) >= 2:
+        owner = path_segments[0]
         repo_slug = _clean_repo_slug(path_segments[1])
+        repo_ref = None
+        repo_subpath = None
         project_dir_hint = None
         if len(path_segments) >= 4 and path_segments[2] == "tree":
+            repo_ref = path_segments[3]
             project_tail_segments = path_segments[4:]
             if project_tail_segments:
-                project_dir_hint = "/".join(project_tail_segments)
+                repo_subpath = "/".join(project_tail_segments)
+                project_dir_hint = repo_subpath
         return LocatorAnalysis(
             kind="github_url",
+            host=host,
+            repo_owner=owner,
             repo_slug=repo_slug,
+            repo_ref=repo_ref,
+            repo_subpath=repo_subpath,
             path_tail=path_tail,
             project_dir_hint=project_dir_hint,
         )
 
     return LocatorAnalysis(
         kind="url",
+        host=host,
         path_tail=path_tail,
     )
 

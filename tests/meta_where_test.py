@@ -121,8 +121,8 @@ class TestMetaWhereCli(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("No LRH meta workspace could be resolved", result.stdout)
             self.assertIn("--config / --workspace / --mode", result.stdout)
-            self.assertIn("lrh meta init --global", result.stdout)
-            self.assertIn("lrh meta init --mode local .", result.stdout)
+            self.assertIn("lrh meta init --mode global", result.stdout)
+            self.assertIn("lrh meta init --mode local", result.stdout)
 
     def test_meta_where_does_not_mutate_workspace_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

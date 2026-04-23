@@ -183,10 +183,7 @@ def init_global_workspace(
     unchanged: list[pathlib.Path] = []
 
     _ensure_directory(config_dir, force=force, created=created)
-<<<<<<< codex/fix-lrh-meta-cli-surface-and-help-behavior
     _ensure_directory(state_root, force=force, created=created)
-=======
->>>>>>> main
     _ensure_directory(state_root / "projects", force=force, created=created)
     _ensure_directory(state_root / "private", force=force, created=created)
 
@@ -769,10 +766,14 @@ def _workspace_resolution_error(
     return MetaWorkspaceResolutionError(
         "No LRH meta workspace could be resolved.\n\n"
         f"Checked:\n{detail}\n\n"
-        "To initialize a local workspace in the current directory:\n"
+        "To initialize a global workspace:\n"
+        "  lrh meta init --mode global\n\n"
+        "To initialize a local workspace:\n"
         "  lrh meta init --mode local\n\n"
-        "To force an explicit workspace config path:\n"
-        "  lrh meta list --config /path/to/config.toml"
+        "To override resolution explicitly:\n"
+        "  lrh meta where --config /path/to/config.toml\n"
+        "  lrh meta where --workspace /path/to/workspace\n"
+        "  lrh meta where --mode {local,global}"
     )
 
 

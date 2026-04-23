@@ -10,6 +10,7 @@ import pathlib
 import re
 import shutil
 import tomllib
+import urllib.parse
 from typing import Literal
 
 GITIGNORE_BEGIN = "# --- lrh meta init managed block ---"
@@ -70,10 +71,31 @@ class MetaRegisterSpec:
     """Input parameters for registering one project record."""
 
     repo_locator: str
-    project_dir: str = "project"
+    project_dir: str | None = None
     directory_name: str | None = None
     short_name: str | None = None
     display_name: str | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class LocatorAnalysis:
+    """Deterministic locator parse details used for metadata inference."""
+
+    kind: Literal["github_url", "url", "local_path", "unknown"]
+    repo_slug: str | None = None
+    local_basename: str | None = None
+    path_tail: str | None = None
+    project_dir_hint: str | None = None
+
+
+@dataclasses.dataclass(frozen=True)
+class InferredProjectMetadata:
+    """Resolved metadata defaults for project registration."""
+
+    directory_name: str
+    short_name: str
+    display_name: str
+    project_dir: str
 
 
 @dataclasses.dataclass(frozen=True)
@@ -813,12 +835,11 @@ def register_project_in_workspace(
     projects_dir = _require_projects_dir(workspace.projects_dir, mode=workspace.mode)
 
     repo_locator = _normalized_required_value("repo_locator", spec.repo_locator)
-    project_dir = _normalized_required_value("project_dir", spec.project_dir)
-    directory_name = _normalized_directory_name(spec.directory_name, repo_locator)
-    short_name = _normalized_optional_value(spec.short_name) or directory_name
-    display_name = _normalized_optional_value(spec.display_name) or _display_from_name(
-        short_name
-    )
+    inferred = _infer_project_metadata(repo_locator=repo_locator, spec=spec)
+    project_dir = inferred.project_dir
+    directory_name = inferred.directory_name
+    short_name = inferred.short_name
+    display_name = inferred.display_name
 
     records = list_registered_projects_in_workspace(workspace)
     duplicate = _find_duplicate_record(records, repo_locator, project_dir)
@@ -914,26 +935,130 @@ def _normalized_optional_value(value: str | None) -> str | None:
     return normalized if normalized else None
 
 
-def _normalized_directory_name(directory_name: str | None, repo_locator: str) -> str:
+def _infer_project_metadata(
+    *, repo_locator: str, spec: MetaRegisterSpec
+) -> InferredProjectMetadata:
+    analysis = _analyze_locator(repo_locator)
+    project_dir_override = _normalized_optional_value(spec.project_dir)
+    project_dir = project_dir_override or analysis.project_dir_hint or "project"
+    project_dir = _normalized_required_value("project_dir", project_dir)
+
+    inferred_base_name = _best_locator_name_candidate(analysis)
+
+    directory_name = _normalized_directory_name(spec.directory_name, inferred_base_name)
+    short_name = _normalized_optional_value(spec.short_name) or directory_name
+    display_name = _normalized_optional_value(spec.display_name) or _display_from_name(
+        short_name
+    )
+
+    return InferredProjectMetadata(
+        directory_name=directory_name,
+        short_name=short_name,
+        display_name=display_name,
+        project_dir=project_dir,
+    )
+
+
+def _normalized_directory_name(
+    directory_name: str | None, inferred_base_name: str | None
+) -> str:
     requested = _normalized_optional_value(directory_name)
     if requested is None:
-        requested = _infer_name_from_locator(repo_locator)
-
-    normalized = requested.lower()
-    normalized = re.sub(r"[^a-z0-9._-]+", "-", normalized)
-    normalized = normalized.strip(".-_")
+        requested = inferred_base_name or "project"
+    normalized = _normalized_slug_token(requested)
     if not normalized:
         raise MetaRegistryError("unable to derive a valid registry directory name")
     return normalized
 
 
-def _infer_name_from_locator(repo_locator: str) -> str:
-    inferred = repo_locator.rstrip("/").split("/")[-1]
-    if inferred.endswith(".git"):
-        inferred = inferred[:-4]
-    if inferred:
-        return inferred
-    return "project"
+def _analyze_locator(repo_locator: str) -> LocatorAnalysis:
+    parsed = urllib.parse.urlsplit(repo_locator)
+    if parsed.scheme and parsed.netloc:
+        return _analyze_url_locator(parsed)
+    if "://" in repo_locator:
+        return LocatorAnalysis(kind="unknown")
+    return _analyze_local_locator(repo_locator)
+
+
+def _analyze_url_locator(parsed: urllib.parse.SplitResult) -> LocatorAnalysis:
+    path_segments = [segment for segment in parsed.path.split("/") if segment]
+    path_tail = path_segments[-1] if path_segments else None
+    host = parsed.netloc.lower()
+
+    if host.endswith("github.com") and len(path_segments) >= 2:
+        repo_slug = _clean_repo_slug(path_segments[1])
+        project_dir_hint = None
+        if len(path_segments) >= 4 and path_segments[2] == "tree":
+            project_tail_segments = path_segments[4:]
+            if project_tail_segments:
+                project_dir_hint = "/".join(project_tail_segments)
+        return LocatorAnalysis(
+            kind="github_url",
+            repo_slug=repo_slug,
+            path_tail=path_tail,
+            project_dir_hint=project_dir_hint,
+        )
+
+    return LocatorAnalysis(
+        kind="url",
+        path_tail=path_tail,
+    )
+
+
+def _analyze_local_locator(repo_locator: str) -> LocatorAnalysis:
+    stripped = repo_locator.strip()
+    if not stripped:
+        return LocatorAnalysis(kind="unknown")
+    local_path = pathlib.Path(stripped).expanduser()
+    local_name = local_path.name or local_path.parent.name
+    return LocatorAnalysis(
+        kind="local_path",
+        local_basename=local_name if local_name else None,
+        path_tail=local_name if local_name else None,
+    )
+
+
+def _clean_repo_slug(segment: str) -> str | None:
+    cleaned = segment.strip()
+    if cleaned.endswith(".git"):
+        cleaned = cleaned[:-4]
+    cleaned = cleaned.strip()
+    return cleaned if cleaned else None
+
+
+def _best_locator_name_candidate(analysis: LocatorAnalysis) -> str | None:
+    preferred = _normalized_slug_token(analysis.repo_slug)
+    if preferred:
+        return preferred
+    local_name = _normalized_slug_token(analysis.local_basename)
+    if local_name:
+        return local_name
+    tail = analysis.path_tail
+    normalized_tail = _normalized_slug_token(tail)
+    if normalized_tail and normalized_tail not in _GENERIC_NAME_SEGMENTS:
+        return normalized_tail
+    return None
+
+
+_GENERIC_NAME_SEGMENTS = frozenset(
+    {
+        "main",
+        "project",
+        "repo",
+        "root",
+        "src",
+    }
+)
+
+
+def _normalized_slug_token(value: str | None) -> str | None:
+    normalized = _normalized_optional_value(value)
+    if normalized is None:
+        return None
+    collapsed = normalized.lower()
+    collapsed = re.sub(r"[^a-z0-9._-]+", "-", collapsed)
+    collapsed = collapsed.strip(".-_")
+    return collapsed if collapsed else None
 
 
 def _display_from_name(short_name: str) -> str:

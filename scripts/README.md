@@ -54,6 +54,28 @@ scripts/publish
 
 ### Development
 
+#### `sandbox`
+Runs LRH commands in an **isolated developer sandbox** with temporary HOME/XDG/TMP paths.
+This is for behavioral testing and reproducibility, **not** OS-level security sandboxing.
+
+Interactive mode (preserved by default for inspection):
+
+```bash
+scripts/sandbox
+```
+
+Non-interactive command passthrough (recommended for CI/agent smoke checks):
+
+```bash
+scripts/sandbox --cleanup -- python -m lrh.cli.main meta init --mode hybrid
+scripts/sandbox --cleanup -- python -m lrh.cli.main meta where
+```
+
+Cleanup/preserve behavior:
+- default: preserve sandbox directory and print its path
+- `--cleanup`: remove sandbox directory on exit
+- `--preserve`: explicitly preserve sandbox directory on exit
+
 #### `develop`
 Installs LRH in development mode for active development.
 

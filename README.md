@@ -54,6 +54,27 @@ lrh --help
 lrh help
 ```
 
+## Developer sandbox helper
+
+Use `scripts/sandbox` when you want to test LRH CLI behavior without touching your real
+home directory, config, state, or cache paths. This is a developer-behavior sandbox only;
+it is **not** an OS/container security sandbox.
+
+Interactive usage:
+
+```bash
+scripts/sandbox
+lrh meta init --mode hybrid
+lrh meta where
+```
+
+Non-interactive passthrough usage (preferred for CI/agents):
+
+```bash
+scripts/sandbox --cleanup -- python -m lrh.cli.main meta init --mode hybrid
+scripts/sandbox --cleanup -- python -m lrh.cli.main meta where
+```
+
 ## Design summary
 
 The control model for a project is:

@@ -719,7 +719,7 @@ def _configured_path(
 
 
 def _discover_local_config(cwd: pathlib.Path) -> pathlib.Path | None:
-    current = cwd.resolve()
+    current = cwd.expanduser().absolute()
     for candidate in (current, *current.parents):
         config_path = candidate / ".lrh" / "config.toml"
         if config_path.exists() and config_path.is_file():

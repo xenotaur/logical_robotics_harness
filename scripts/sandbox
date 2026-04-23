@@ -11,7 +11,9 @@ import tempfile
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run an interactive shell in an isolated LRH sandbox."
+        description=(
+            "Run an interactive shell or one-off command in an isolated LRH sandbox."
+        )
     )
     cleanup_group = parser.add_mutually_exclusive_group()
     cleanup_group.add_argument(
@@ -24,12 +26,24 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Preserve the sandbox directory after the shell exits.",
     )
+    parser.add_argument(
+        "command",
+        nargs=argparse.REMAINDER,
+        help=(
+            "Optional command to execute non-interactively inside the sandbox. "
+            "Use '--' before the command, for example: "
+            "scripts/sandbox --cleanup -- lrh meta where"
+        ),
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
     preserve = not args.cleanup
+    command = list(args.command)
+    if command and command[0] == "--":
+        command = command[1:]
 
     root = pathlib.Path(tempfile.mkdtemp(prefix="lrh-sandbox-")).resolve()
     workspace = root / "workspace"
@@ -62,12 +76,16 @@ def main() -> int:
     print("  lrh meta where")
     print("  lrh meta register /path/to/repo")
     print("  lrh meta list")
+    print("  scripts/sandbox --cleanup -- python -m lrh.cli.main meta where")
     print()
 
     shell = os.environ.get("SHELL", "/bin/sh")
 
     try:
-        completed = subprocess.run([shell], cwd=workspace, env=env, check=False)
+        if command:
+            completed = subprocess.run(command, cwd=workspace, env=env, check=False)
+        else:
+            completed = subprocess.run([shell], cwd=workspace, env=env, check=False)
         return completed.returncode
     finally:
         if preserve:

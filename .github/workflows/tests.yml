@@ -30,4 +30,4 @@ jobs:
         run: scripts/test
 
       - name: Validate project metadata
-        run: scripts/validate
+        run: lrh validate

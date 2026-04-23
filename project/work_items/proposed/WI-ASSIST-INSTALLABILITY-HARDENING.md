@@ -1,4 +1,7 @@
 ---
+resolution: null
+blocked_reason: null
+blocked: false
 id: WI-ASSIST-INSTALLABILITY-HARDENING
 title: Harden installed-package template loading and packaging smoke checks
 type: operation

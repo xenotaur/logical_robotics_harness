@@ -1,4 +1,7 @@
 ---
+resolution: null
+blocked_reason: null
+blocked: false
 id: WI-ASSIST-SOURCETREE-SURVEYOR-EXPANSION
 title: Expand sourcetree_surveyor into Python source-tree audit precursor
 type: investigation

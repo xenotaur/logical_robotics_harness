@@ -9,7 +9,10 @@ class TestControlValidator(unittest.TestCase):
     def _make_project(self) -> Path:
         root = Path(tempfile.mkdtemp())
         (root / "contributors" / "agents").mkdir(parents=True)
-        (root / "work_items").mkdir(parents=True)
+        (root / "work_items" / "active").mkdir(parents=True)
+        (root / "work_items" / "proposed").mkdir(parents=True)
+        (root / "work_items" / "resolved").mkdir(parents=True)
+        (root / "work_items" / "abandoned").mkdir(parents=True)
         (root / "focus").mkdir(parents=True)
         return root
 
@@ -107,13 +110,16 @@ status: active
         )
         self._seed_valid_focus(root)
         self._write(
-            root / "work_items" / "WI-1.md",
+            root / "work_items" / "active" / "WI-1.md",
             """---
 id: WI-1
 title: Task
 type: deliverable
-status: ready
+status: active
 owner: missing
+blocked: false
+blocked_reason: null
+resolution: null
 ---
 """,
         )
@@ -138,13 +144,16 @@ execution_mode: autonomous
         )
         self._seed_valid_focus(root)
         self._write(
-            root / "work_items" / "WI-1.md",
+            root / "work_items" / "active" / "WI-1.md",
             """---
 id: WI-1
 title: Task
 type: deliverable
-status: ready
+status: active
 owner: agent-1
+blocked: false
+blocked_reason: null
+resolution: null
 ---
 """,
         )
@@ -168,15 +177,18 @@ status: active
         )
         self._seed_valid_focus(root)
         self._write(
-            root / "work_items" / "WI-1.md",
+            root / "work_items" / "active" / "WI-1.md",
             """---
 id: WI-1
 title: Task
 type: deliverable
-status: ready
+status: active
 owner: person-1
 assigned_agents:
   - person-1
+blocked: false
+blocked_reason: null
+resolution: null
 ---
 """,
         )
@@ -202,14 +214,17 @@ status: active
         )
         self._seed_valid_focus(root)
         self._write(
-            root / "work_items" / "WI-1.md",
+            root / "work_items" / "active" / "WI-1.md",
             """---
 id: WI-1
 title: Task
 type: deliverable
-status: ready
+status: active
 owner: person-1
 contributors: []
+blocked: false
+blocked_reason: null
+resolution: null
 ---
 """,
         )
@@ -247,17 +262,20 @@ execution_mode: human_orchestrated
         )
         self._seed_valid_focus(root)
         self._write(
-            root / "work_items" / "WI-1.md",
+            root / "work_items" / "active" / "WI-1.md",
             """---
 id: WI-1
 title: Task
 type: deliverable
-status: ready
+status: active
 owner: owner-1
 contributors:
   - owner-1
 assigned_agents:
   - agent-1
+blocked: false
+blocked_reason: null
+resolution: null
 ---
 """,
         )
@@ -306,12 +324,12 @@ active_contributors:
 """,
         )
         self._write(
-            root / "work_items" / "WI-1.md",
+            root / "work_items" / "active" / "WI-1.md",
             """---
 id: WI-1
 title: Task
 type: deliverable
-status: ready
+status: active
 owner: owner-1
 contributors:
   - owner-1
@@ -321,6 +339,9 @@ related_focus:
   - FOCUS-1
 depends_on: []
 blocked_by: []
+blocked: false
+blocked_reason: null
+resolution: null
 ---
 """,
         )

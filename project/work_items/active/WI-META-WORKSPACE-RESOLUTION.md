@@ -2,7 +2,10 @@
 id: WI-META-WORKSPACE-RESOLUTION
 title: Meta workspace resolution and visibility contract
 type: deliverable
-status: in_progress
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
 priority: high
 owner: anthony
 contributors:
@@ -35,7 +38,6 @@ artifacts_expected:
   - test_module
   - cli_output
 ---
-
 ## Summary
 
 Define and then implement the shared workspace-resolution subsystem used across Meta CLI commands, with explicit precedence, XDG-style global defaults, explicit local workspace support, and inspectable behavior.

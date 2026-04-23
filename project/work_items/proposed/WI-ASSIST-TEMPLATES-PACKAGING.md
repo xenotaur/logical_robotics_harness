@@ -3,6 +3,9 @@ id: WI-ASSIST-TEMPLATES-PACKAGING
 title: Move assist templates into package-owned runtime location
 type: deliverable
 status: proposed
+blocked: false
+blocked_reason: null
+resolution: null
 priority: high
 owner: anthony
 contributors:
@@ -30,7 +33,6 @@ artifacts_expected:
   - code_diff
   - template_tree
 ---
-
 ## Summary
 
 Mechanically relocate assist templates from `scripts/aiprog/templates/` into a package-appropriate location (expected: `src/lrh/assist/templates/`) so installed-package runtime usage is possible.

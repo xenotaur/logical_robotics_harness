@@ -58,6 +58,21 @@ class TestWorkItemPolicy(unittest.TestCase):
         codes = {issue.code for issue in result.errors}
         self.assertIn("WORK_ITEM_RESOLUTION_REQUIRED", codes)
 
+    def test_non_terminal_status_requires_null_resolution(self) -> None:
+        root = self._make_project()
+        path = root / "work_items" / "active" / "WI-0002.md"
+        metadata = {
+            "id": "WI-0002",
+            "title": "Active",
+            "status": "active",
+            "resolution": "done",
+        }
+
+        result = work_item_policy.validate_work_item_policy(root, path, metadata)
+
+        codes = {issue.code for issue in result.errors}
+        self.assertIn("WORK_ITEM_RESOLUTION_NON_TERMINAL", codes)
+
     def test_blocked_requires_active_and_reason(self) -> None:
         root = self._make_project()
         path = root / "work_items" / "proposed" / "WI-0003.md"

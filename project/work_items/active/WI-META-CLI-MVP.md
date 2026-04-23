@@ -2,7 +2,10 @@
 id: WI-META-CLI-MVP
 title: Meta CLI MVP: init / register / list
 type: deliverable
-status: in_progress
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
 priority: high
 owner: anthony
 contributors:
@@ -33,7 +36,6 @@ artifacts_expected:
   - test_module
   - cli_output
 ---
-
 ## Summary
 
 Implement the minimal meta-control-plane CLI slice for managing a workspace-level registry of projects.
@@ -79,7 +81,7 @@ Implement the minimal meta-control-plane CLI slice for managing a workspace-leve
 
 - Roadmap: `project/roadmap/phase_02_runtime_and_workspace.md` (Near-Term Slice: Meta CLI MVP)
 - Spec: `project/design/meta_control_plane_mvp_spec.md` (Meta Control Plane MVP, Phase 1 executable slice)
-- Follow-on work item: `project/work_items/WI-META-WORKSPACE-RESOLUTION.md` (shared workspace-context resolution and visibility behavior)
+- Follow-on work item: `project/work_items/active/WI-META-WORKSPACE-RESOLUTION.md` (shared workspace-context resolution and visibility behavior)
 
 
 ## Progress Notes

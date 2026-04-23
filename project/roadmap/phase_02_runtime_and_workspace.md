@@ -39,8 +39,8 @@ Purpose:
 - track explicit setup state (`not_set_up`, `lrh_project_present`)
 
 Traceability:
-- work item: `project/work_items/WI-META-CLI-MVP.md`
-- work item: `project/work_items/WI-META-WORKSPACE-RESOLUTION.md`
+- work item: `project/work_items/active/WI-META-CLI-MVP.md`
+- work item: `project/work_items/active/WI-META-WORKSPACE-RESOLUTION.md`
 - spec alignment: Meta Control Plane MVP, Phase 1 (`init` / `register` / `list`)
 
 Progress update (2026-04-22):
@@ -67,10 +67,10 @@ Rationale:
 
 Traceability:
 
-- `project/work_items/WI-ASSIST-TEMPLATES-PACKAGING.md`
-- `project/work_items/WI-ASSIST-INSTALLABILITY-HARDENING.md`
-- `project/work_items/WI-ASSIST-SOURCETREE-SURVEYOR-MIGRATION.md`
-- `project/work_items/WI-ASSIST-SOURCETREE-SURVEYOR-EXPANSION.md`
+- `project/work_items/proposed/WI-ASSIST-TEMPLATES-PACKAGING.md`
+- `project/work_items/proposed/WI-ASSIST-INSTALLABILITY-HARDENING.md`
+- `project/work_items/proposed/WI-ASSIST-SOURCETREE-SURVEYOR-MIGRATION.md`
+- `project/work_items/proposed/WI-ASSIST-SOURCETREE-SURVEYOR-EXPANSION.md`
 
 ## Risks
 

@@ -3,6 +3,9 @@ id: WI-VALIDATOR-YAML-PARSER
 title: Replace bootstrap YAML parser with production-grade parser
 type: investigation
 status: proposed
+blocked: false
+blocked_reason: null
+resolution: null
 owner: anthony
 contributors:
   - anthony
@@ -12,7 +15,6 @@ related_focus:
 depends_on: []
 blocked_by: []
 ---
-
 ## Summary
 
 The current validator uses a custom `_parse_simple_yaml` implementation. This was intentionally created to avoid introducing dependencies during bootstrap, but it is not robust enough for long-term use.

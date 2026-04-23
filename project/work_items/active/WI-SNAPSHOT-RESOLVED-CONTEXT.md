@@ -2,7 +2,10 @@
 id: WI-SNAPSHOT-RESOLVED-CONTEXT
 title: Make snapshot output reflect resolved control-plane context
 type: deliverable
-status: in_progress
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
 owner: anthony
 contributors:
   - anthony
@@ -34,7 +37,6 @@ artifacts_expected:
   - snapshot_output
   - test_module
 ---
-
 ## Summary
 
 Update snapshot tooling so it reports resolved project state rather than only file summaries.

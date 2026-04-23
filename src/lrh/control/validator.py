@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from lrh.control import parser, work_item_policy
+
 CONTRIBUTOR_REQUIRED_FIELDS = {"id", "type", "roles", "display_name", "status"}
 CONTRIBUTOR_TYPES = {"human", "agent"}
 CONTRIBUTOR_ROLES = {"admin", "editor", "reviewer", "viewer"}
@@ -15,17 +17,17 @@ AGENT_EXECUTION_MODES = {"human_orchestrated", "autonomous", "disabled"}
 FOCUS_REQUIRED_FIELDS = {"id", "title", "status"}
 FOCUS_STATUS = {"proposed", "active", "paused", "blocked", "completed", "abandoned"}
 
-WORK_ITEM_REQUIRED_FIELDS = {"id", "title", "type", "status"}
-WORK_ITEM_TYPES = {"deliverable", "investigation", "evaluation", "operation"}
-WORK_ITEM_STATUS = {
-    "proposed",
-    "ready",
-    "in_progress",
+WORK_ITEM_REQUIRED_FIELDS = {
+    "id",
+    "title",
+    "type",
+    "status",
     "blocked",
-    "needs_review",
-    "done",
-    "abandoned",
+    "blocked_reason",
+    "resolution",
 }
+WORK_ITEM_TYPES = {"deliverable", "investigation", "evaluation", "operation"}
+WORK_ITEM_STATUS = set(work_item_policy.WORK_ITEM_BUCKETS)
 
 WORK_ITEM_LIST_FIELDS = {
     "contributors",
@@ -138,9 +140,10 @@ def validate_project(project_root: Path) -> ValidationReport:
                             )
                         )
 
-    work_item_files = sorted((project_root / "work_items").glob("*.md"))
+    work_item_files = sorted((project_root / "work_items").glob("**/WI-*.md"))
     work_items = _parse_many(project_root, work_item_files, issues)
     work_item_map: dict[str, _ParsedArtifact] = {}
+    policy_inputs: list[tuple[Path, dict[str, Any]]] = []
     for artifact in work_items:
         if artifact.data is None:
             continue
@@ -148,6 +151,20 @@ def validate_project(project_root: Path) -> ValidationReport:
         work_item_id = artifact.data.get("id")
         if isinstance(work_item_id, str):
             work_item_map[work_item_id] = artifact
+        policy_inputs.append((artifact.path, artifact.data))
+
+    for policy_issue in work_item_policy.validate_work_item_collection(
+        project_root,
+        policy_inputs,
+    ).issues:
+        issues.append(
+            ValidationIssue(
+                file=str(Path(policy_issue.file).resolve().relative_to(project_root)),
+                severity=policy_issue.severity,
+                code=policy_issue.code,
+                message=policy_issue.message,
+            )
+        )
 
     for artifact in work_items:
         if artifact.data is None:
@@ -193,35 +210,8 @@ def _parse_markdown_frontmatter(
         )
         return None
 
-    raw = path.read_text(encoding="utf-8")
-    if not raw.startswith("---\n"):
-        issues.append(
-            _issue(
-                project_root,
-                path,
-                "error",
-                "MISSING_FRONTMATTER",
-                "markdown file must begin with YAML frontmatter",
-            )
-        )
-        return None
-
-    closing_index = raw.find("\n---\n", 4)
-    if closing_index == -1:
-        issues.append(
-            _issue(
-                project_root,
-                path,
-                "error",
-                "MALFORMED_FRONTMATTER",
-                "could not find closing frontmatter delimiter '---'",
-            )
-        )
-        return None
-
-    frontmatter_text = raw[4:closing_index]
     try:
-        data = _parse_simple_yaml(frontmatter_text)
+        parsed = parser.parse_markdown_file(path)
     except ValueError as exc:
         issues.append(
             _issue(
@@ -234,6 +224,7 @@ def _parse_markdown_frontmatter(
         )
         return None
 
+    data = parsed.frontmatter
     if not isinstance(data, dict):
         issues.append(
             _issue(
@@ -245,70 +236,6 @@ def _parse_markdown_frontmatter(
             )
         )
         return None
-
-    return data
-
-
-def _parse_simple_yaml(text: str) -> dict[str, Any]:
-    data: dict[str, Any] = {}
-    current_list_key: str | None = None
-    folded_key: str | None = None
-    folded_lines: list[str] = []
-
-    lines = text.splitlines()
-    for raw_line in lines:
-        line = raw_line.rstrip()
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if stripped.startswith("#"):
-            continue
-
-        if folded_key is not None:
-            if line.startswith("  ") or line.startswith("\t"):
-                folded_lines.append(stripped)
-                continue
-            data[folded_key] = " ".join(folded_lines).strip()
-            folded_key = None
-            folded_lines = []
-
-        if stripped.startswith("- "):
-            if current_list_key is None:
-                raise ValueError("list item found without a list field")
-            data[current_list_key].append(stripped[2:].strip())
-            continue
-
-        if ":" not in stripped:
-            raise ValueError(f"malformed line: {stripped}")
-
-        key, value = stripped.split(":", 1)
-        key = key.strip()
-        value = value.strip()
-        current_list_key = None
-
-        if not key:
-            raise ValueError("empty key in frontmatter")
-
-        if value == "":
-            data[key] = []
-            current_list_key = key
-            continue
-        if value == ">":
-            folded_key = key
-            folded_lines = []
-            continue
-        if value.startswith("[") and value.endswith("]"):
-            inner = value[1:-1].strip()
-            if not inner:
-                data[key] = []
-            else:
-                data[key] = [part.strip() for part in inner.split(",")]
-            continue
-
-        data[key] = value.strip("'\"")
-
-    if folded_key is not None:
-        data[folded_key] = " ".join(folded_lines).strip()
 
     return data
 

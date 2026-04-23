@@ -3,6 +3,9 @@ id: WI-ASSIST-SOURCETREE-SURVEYOR-EXPANSION
 title: Expand sourcetree_surveyor into Python source-tree audit precursor
 type: investigation
 status: proposed
+blocked: false
+blocked_reason: null
+resolution: null
 priority: medium
 owner: anthony
 contributors:
@@ -30,7 +33,6 @@ artifacts_expected:
   - design_notes
   - roadmap_update
 ---
-
 ## Summary
 
 Plan and implement capability expansion only after the mechanical migration is complete, to keep changes reviewable and attributable.

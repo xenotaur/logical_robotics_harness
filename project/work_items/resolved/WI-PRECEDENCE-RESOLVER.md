@@ -2,7 +2,10 @@
 id: WI-PRECEDENCE-RESOLVER
 title: Implement control-plane precedence resolver
 type: deliverable
-status: done
+status: resolved
+blocked: false
+blocked_reason: null
+resolution: completed
 owner: anthony
 contributors:
   - anthony
@@ -33,7 +36,6 @@ artifacts_expected:
   - resolver_module
   - test_module
 ---
-
 ## Summary
 
 Implement a deterministic precedence resolver for LRH’s control plane, enabling the system to

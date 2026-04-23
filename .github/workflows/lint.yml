@@ -36,3 +36,6 @@ jobs:
 
       - name: Run formatting checks
         run: scripts/format --check
+
+      - name: Validate project metadata
+        run: scripts/validate

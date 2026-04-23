@@ -3,6 +3,9 @@ id: WI-INTERPRETATION-VALIDATION
 title: Validate semantic interpretation of focus and work items
 type: evaluation
 status: proposed
+blocked: false
+blocked_reason: null
+resolution: null
 owner: anthony
 contributors:
   - anthony
@@ -34,7 +37,6 @@ artifacts_expected:
   - test_module
   - interpretation_notes
 ---
-
 ## Summary
 
 Verify that LRH not only parses project metadata, but interprets it correctly.

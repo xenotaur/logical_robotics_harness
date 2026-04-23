@@ -8,7 +8,8 @@ from lrh.control.parser import parse_markdown_file, parse_markdown_text
 
 class TestControlParser(unittest.TestCase):
     def test_parse_markdown_text_frontmatter_and_body(self) -> None:
-        parsed = parse_markdown_text("""---
+        parsed = parse_markdown_text(
+            """---
 id: SAMPLE
 contributors: []
 items:
@@ -20,7 +21,8 @@ status: active
 # Body
 
 Hello.
-""")
+"""
+        )
 
         self.assertEqual(parsed.frontmatter["id"], "SAMPLE")
         self.assertEqual(parsed.frontmatter["contributors"], [])
@@ -59,15 +61,15 @@ class TestControlLoader(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             (root / "project" / "focus").mkdir(parents=True)
-            (root / "project" / "work_items").mkdir(parents=True)
+            (root / "project" / "work_items" / "active").mkdir(parents=True)
             (root / "project" / "contributors").mkdir(parents=True)
 
             (root / "project" / "focus" / "current_focus.md").write_text(
                 "---\nid: FOCUS-1\ntitle: Focus\nstatus: active\n---\n",
                 encoding="utf-8",
             )
-            (root / "project" / "work_items" / "WI-1.md").write_text(
-                "---\nid: WI-1\ntitle: Task\ntype: deliverable\nstatus: ready\n---\n",
+            (root / "project" / "work_items" / "active" / "WI-1.md").write_text(
+                "---\nid: WI-1\ntitle: Task\ntype: deliverable\nstatus: active\n---\n",
                 encoding="utf-8",
             )
             (root / "project" / "contributors" / "person.md").write_text(
@@ -94,7 +96,7 @@ description:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             (root / "project" / "focus").mkdir(parents=True)
-            (root / "project" / "work_items").mkdir(parents=True)
+            (root / "project" / "work_items" / "active").mkdir(parents=True)
             (root / "project" / "contributors").mkdir(parents=True)
 
             (root / "project" / "focus" / "current_focus.md").write_text(
@@ -113,12 +115,12 @@ status: active
                 encoding="utf-8",
             )
             for name in ("WI-A.md", "WI-B.md"):
-                (root / "project" / "work_items" / name).write_text(
+                (root / "project" / "work_items" / "active" / name).write_text(
                     """---
 id: WI-1
 title: Task
 type: deliverable
-status: ready
+status: active
 ---
 """,
                     encoding="utf-8",
@@ -131,15 +133,15 @@ status: ready
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
             (root / "project" / "focus").mkdir(parents=True)
-            (root / "project" / "work_items").mkdir(parents=True)
+            (root / "project" / "work_items" / "active").mkdir(parents=True)
             (root / "project" / "contributors" / "agents").mkdir(parents=True)
 
             (root / "project" / "focus" / "current_focus.md").write_text(
                 "---\nid: FOCUS-1\ntitle: Focus\nstatus: active\n---\n",
                 encoding="utf-8",
             )
-            (root / "project" / "work_items" / "WI-1.md").write_text(
-                "---\nid: WI-1\ntitle: Task\ntype: deliverable\nstatus: ready\n---\n",
+            (root / "project" / "work_items" / "active" / "WI-1.md").write_text(
+                "---\nid: WI-1\ntitle: Task\ntype: deliverable\nstatus: active\n---\n",
                 encoding="utf-8",
             )
             for path in (

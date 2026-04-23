@@ -3,6 +3,9 @@ id: WI-ASSIST-INSTALLABILITY-HARDENING
 title: Harden installed-package template loading and packaging smoke checks
 type: operation
 status: proposed
+blocked: false
+blocked_reason: null
+resolution: null
 priority: high
 owner: anthony
 contributors:
@@ -31,7 +34,6 @@ artifacts_expected:
   - code_diff
   - smoke_test_output
 ---
-
 ## Summary
 
 Treat package-data correctness and installed-package behavior as first-class requirements before broader collaborator-facing publication.

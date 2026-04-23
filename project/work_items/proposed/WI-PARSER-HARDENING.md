@@ -3,6 +3,9 @@ id: WI-PARSER-HARDENING
 title: Replace or harden bootstrap frontmatter parsing
 type: investigation
 status: proposed
+blocked: false
+blocked_reason: null
+resolution: null
 owner: anthony
 contributors:
   - anthony
@@ -31,7 +34,6 @@ artifacts_expected:
   - parser_notes
   - test_module
 ---
-
 ## Summary
 
 Strengthen or replace the bootstrap frontmatter parser used by LRH.

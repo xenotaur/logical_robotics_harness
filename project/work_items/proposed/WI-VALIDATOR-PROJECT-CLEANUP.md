@@ -3,6 +3,9 @@ id: WI-VALIDATOR-PROJECT-CLEANUP
 title: Fix project metadata to pass validator
 type: operation
 status: proposed
+blocked: false
+blocked_reason: null
+resolution: null
 owner: anthony
 contributors:
   - anthony
@@ -12,7 +15,6 @@ related_focus:
 depends_on: []
 blocked_by: []
 ---
-
 ## Summary
 
 The current `project/` directory does not pass validation (reported errors and warnings from `lrh validate`).

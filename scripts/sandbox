@@ -1,0 +1,80 @@
+#!/usr/bin/env python3
+
+import argparse
+import os
+import pathlib
+import shutil
+import subprocess
+import sys
+import tempfile
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run an interactive shell in an isolated LRH sandbox."
+    )
+    cleanup_group = parser.add_mutually_exclusive_group()
+    cleanup_group.add_argument(
+        "--cleanup",
+        action="store_true",
+        help="Delete the sandbox directory after the shell exits.",
+    )
+    cleanup_group.add_argument(
+        "--preserve",
+        action="store_true",
+        help="Preserve the sandbox directory after the shell exits.",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    preserve = not args.cleanup
+
+    root = pathlib.Path(tempfile.mkdtemp(prefix="lrh-sandbox-")).resolve()
+    workspace = root / "workspace"
+
+    paths = {
+        "HOME": root / "home",
+        "XDG_CONFIG_HOME": root / "xdg" / "config",
+        "XDG_STATE_HOME": root / "xdg" / "state",
+        "XDG_CACHE_HOME": root / "xdg" / "cache",
+        "XDG_DATA_HOME": root / "xdg" / "data",
+        "TMPDIR": root / "tmp",
+    }
+
+    for path in [workspace, *paths.values()]:
+        path.mkdir(parents=True, exist_ok=True)
+
+    env = os.environ.copy()
+    env.update({name: str(path) for name, path in paths.items()})
+
+    print("LRH sandbox active")
+    print(f"root:      {root}")
+    print(f"workspace: {workspace}")
+    print(f"home:      {paths['HOME']}")
+    print(f"config:    {paths['XDG_CONFIG_HOME']}")
+    print(f"state:     {paths['XDG_STATE_HOME']}")
+    print(f"cache:     {paths['XDG_CACHE_HOME']}")
+    print()
+    print("Try:")
+    print("  lrh meta init --mode hybrid")
+    print("  lrh meta where")
+    print("  lrh meta register /path/to/repo")
+    print("  lrh meta list")
+    print()
+
+    shell = os.environ.get("SHELL", "/bin/sh")
+
+    try:
+        completed = subprocess.run([shell], cwd=workspace, env=env, check=False)
+        return completed.returncode
+    finally:
+        if preserve:
+            print(f"Sandbox preserved at: {root}")
+        else:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

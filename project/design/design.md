@@ -255,22 +255,22 @@ An agent may exist in the system without being actively assigned to any work ite
 
 #### Workspace context resolution (Meta CLI direction)
 
-For `lrh meta` commands, LRH should resolve an explicit workspace context using predictable precedence, support both global and local workspaces, and make the resolution visible to users rather than magical.
+For `lrh meta` commands, LRH should resolve an explicit workspace context using predictable precedence, support `hybrid` (default), `local`, and `global` modes, and make the resolution visible to users rather than magical. In `hybrid`, the positional directory is the workspace/catalog root.
 
 Resolution order for workspace context should be:
 
-1. explicit CLI flags (for example `--workspace`, `--config`, `--mode`)
+1. explicit CLI flags (for example `--workspace-root`, `--catalog-root`, `--config`, `--mode`)
 2. `LRH_CONFIG`
 3. `LRH_WORKSPACE`
 4. local workspace auto-discovery
 5. global workspace auto-discovery
 6. built-in defaults
 
-Global/user-level workspace defaults should follow XDG-style separation between config, state, and cache paths. Local workspace mode remains explicitly supported via a workspace root containing `.lrh/config.toml` and sibling `projects/` and `private/` directories.
+Global/user-level workspace defaults should follow XDG-style separation between config, state, and cache paths. `hybrid` is the default mode and combines a local/shareable catalog root with global config/state/cache/private paths. `local` mode keeps catalog plus private state under one workspace root, while `global` mode keeps both catalog and runtime/private paths in global/XDG locations. Persisted config paths should be normalized absolute paths.
 
 Prompting behavior for workspace initialization should be interactive-only (TTY-aware), optional via `--yes`, and never required for automation.
 
-Meta commands should surface enough information for users to inspect the active workspace and config resolution path.
+Meta commands should surface enough information for users to inspect the active workspace and config resolution path; `lrh meta where` is the primary visibility/diagnostics command.
 
 #### First executable slice (MVP)
 - The first executable meta-control slice is a minimal CLI registry flow:

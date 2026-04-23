@@ -83,6 +83,45 @@ class TestMetaWorkspaceResolution(unittest.TestCase):
                 cwd=root,
                 environ={"LRH_WORKSPACE": str(local_workspace_root)},
             )
+            print()
+            print()
+            print()
+            print("Temporary directory tmp_dir:       ", tmp_dir)
+            print("root:                            ", root)
+            print("local_workspace_root:             ", local_workspace_root)
+            print(
+                "local_workspace_root realpath: ",
+                os.path.realpath(local_workspace_root),
+            )
+            print(
+                "local_workspace_root resolve:  ",
+                pathlib.Path(local_workspace_root).resolve(),
+            )
+
+            print("resolved.workspace_root:          ", resolved.workspace_root)
+            print(
+                "resolved.workspace_root realpath: ",
+                os.path.realpath(resolved.workspace_root),
+            )
+            print(
+                "resolved.workspace_root resolve:  ",
+                pathlib.Path(resolved.workspace_root).resolve(),
+            )
+            print("resolved.resolution_source:       ", resolved.resolution_source)
+            print(
+                "os.path.samefile:                ",
+                os.path.samefile(resolved.workspace_root, local_workspace_root),
+            )
+
+            actual = "/private/var/folders/..."
+            expected = "/var/folders/..."
+
+            print("actual realpath:   ", os.path.realpath(actual))
+            print("expected realpath: ", os.path.realpath(expected))
+            print("samefile?:         ", os.path.samefile(actual, expected))
+            print()
+            print()
+            print()
 
             self.assertEqual(resolved.workspace_root, local_workspace_root)
             self.assertEqual(resolved.resolution_source, "env(LRH_WORKSPACE)")

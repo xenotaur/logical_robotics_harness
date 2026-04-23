@@ -762,6 +762,15 @@ def _validate_enum(
 ) -> None:
     value = data.get(field)
     if value is None:
+        issues.append(
+            _issue(
+                project_root,
+                path,
+                "error",
+                issue_code,
+                f"invalid value 'null' for {field}",
+            )
+        )
         return
     if value not in valid_values:
         issues.append(

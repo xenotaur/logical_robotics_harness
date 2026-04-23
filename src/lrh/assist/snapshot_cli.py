@@ -156,7 +156,7 @@ def list_work_items(project_dir: pathlib.Path) -> list[pathlib.Path]:
     work_items_dir = project_dir / "work_items"
     if not work_items_dir.is_dir():
         return []
-    return sorted(work_items_dir.glob("**/*.md"))
+    return sorted(work_items_dir.glob("**/WI-*.md"))
 
 
 def current_focus_frontmatter(

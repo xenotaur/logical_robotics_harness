@@ -75,6 +75,27 @@ status: active
             any(issue.code == "CONTRIBUTOR_TYPE_INVALID" for issue in report.issues)
         )
 
+    def test_null_required_enum_is_invalid(self) -> None:
+        root = self._make_project()
+        self._write(
+            root / "contributors" / "human.md",
+            """---
+id: person-1
+type: human
+roles: [admin]
+display_name: Person
+status: null
+---
+""",
+        )
+        self._seed_valid_focus(root)
+
+        report = validate_project(root)
+
+        self.assertTrue(
+            any(issue.code == "CONTRIBUTOR_STATUS_INVALID" for issue in report.issues)
+        )
+
     def test_duplicate_contributor_ids(self) -> None:
         root = self._make_project()
         contributor = """---

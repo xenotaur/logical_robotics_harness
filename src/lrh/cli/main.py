@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
@@ -121,6 +122,17 @@ def main() -> None:
         help="List registered projects from the workspace registry.",
     )
     _add_meta_workspace_resolution_args(meta_subparsers.choices["list"])
+
+    meta_where_parser = meta_subparsers.add_parser(
+        "where",
+        help="Show the active workspace and how it was resolved.",
+    )
+    _add_meta_workspace_resolution_args(meta_where_parser)
+    meta_where_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="emit machine-readable JSON for the active workspace",
+    )
     meta_register_parser = meta_subparsers.add_parser(
         "register",
         help="Register a project repository in the workspace registry.",
@@ -254,6 +266,56 @@ def main() -> None:
                 raise SystemExit(1) from err
 
             print(workspace.format_project_records(records))
+            raise SystemExit(0)
+
+        if args.meta_command == "where":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            try:
+                active_workspace = workspace.resolve_meta_workspace(
+                    cwd=Path.cwd(),
+                    options=workspace.MetaWorkspaceResolveOptions(
+                        workspace_path=(
+                            Path(args.workspace).expanduser()
+                            if args.workspace
+                            else None
+                        ),
+                        config_path=(
+                            Path(args.config).expanduser() if args.config else None
+                        ),
+                        mode=args.mode,
+                    ),
+                )
+            except workspace.MetaWorkspaceResolutionError as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
+
+            workspace_data: dict[str, str | None] = {
+                "mode": active_workspace.mode,
+                "resolution_source": active_workspace.resolution_source,
+                "config_path": str(active_workspace.config_path),
+                "projects_dir": str(active_workspace.projects_dir),
+                "state_dir": str(active_workspace.state_dir),
+                "cache_dir": str(active_workspace.cache_dir),
+                "workspace_root": (
+                    str(active_workspace.workspace_root)
+                    if active_workspace.workspace_root is not None
+                    else None
+                ),
+            }
+            if args.json:
+                print(json.dumps(workspace_data, indent=2, sort_keys=True))
+            else:
+                print("Active LRH meta workspace")
+                print()
+                print(f"mode: {workspace_data['mode']}")
+                print(f"resolution source: {workspace_data['resolution_source']}")
+                print(f"config: {workspace_data['config_path']}")
+                print(f"projects: {workspace_data['projects_dir']}")
+                print(f"state: {workspace_data['state_dir']}")
+                print(f"cache: {workspace_data['cache_dir']}")
+                if workspace_data["workspace_root"] is not None:
+                    print(f"workspace root: {workspace_data['workspace_root']}")
             raise SystemExit(0)
 
         if args.meta_command == "register":

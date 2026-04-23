@@ -53,8 +53,8 @@ class TestLrhMainCli(unittest.TestCase):
         self.assertEqual(err_ctx.exception.code, 0)
         self.assertEqual(stderr.getvalue(), "")
         output = stdout.getvalue()
-        self.assertIn("Default mode is global", output)
-        self.assertIn("--mode {global,local}", output)
+        self.assertIn("Default mode is hybrid", output)
+        self.assertIn("--mode {hybrid,global,local}", output)
         self.assertIn("~/.local/state/lrh/", output)
 
     def test_lrh_help_meta_alias_routes_to_meta_help(self) -> None:

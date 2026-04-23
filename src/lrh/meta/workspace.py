@@ -130,6 +130,18 @@ class MetaWorkspace:
     resolution_source: str
 
 
+@dataclasses.dataclass(frozen=True)
+class MetaInspectResult:
+    """Typed inspection payload for one selected project plus workspace context."""
+
+    workspace: MetaWorkspace
+    record: MetaProjectRecord
+    resolved_repo_path: pathlib.Path | None
+    repo_path_exists: bool | None
+    resolved_project_path: pathlib.Path | None
+    project_path_exists: bool | None
+
+
 def init_workspace(
     root: pathlib.Path,
     *,
@@ -1253,3 +1265,114 @@ def _optional_locator_string(
 
 def _display_value(value: str | None) -> str:
     return "<missing>" if value is None else value
+
+
+def inspect_registered_project_in_workspace(
+    workspace: MetaWorkspace,
+    *,
+    selector: str,
+) -> MetaInspectResult:
+    """Inspect one registered project selected by exact id/short-name/registry-name."""
+    normalized_selector = selector.strip()
+    if not normalized_selector:
+        raise MetaRegistryError("project selector must not be empty")
+
+    records = list_registered_projects_in_workspace(workspace)
+    candidates = _matching_records(records, selector=normalized_selector)
+    if not candidates:
+        raise MetaRegistryError(
+            "no registered project matched selector "
+            f"{normalized_selector!r} (checked project_id, short_name, registry_name)"
+        )
+    if len(candidates) > 1:
+        matched_names = ", ".join(record.registry_name for record in candidates)
+        raise MetaRegistryError(
+            "ambiguous project selector "
+            f"{normalized_selector!r}; matching registry entries: {matched_names}"
+        )
+
+    record = candidates[0]
+    resolved_repo_path = _resolved_local_repo_path(record.repo_locator)
+    repo_exists = (
+        resolved_repo_path.exists() if resolved_repo_path is not None else None
+    )
+
+    resolved_project_path: pathlib.Path | None = None
+    project_exists: bool | None = None
+    if resolved_repo_path is not None and record.project_dir is not None:
+        resolved_project_path = _normalize_path(resolved_repo_path / record.project_dir)
+        project_exists = resolved_project_path.exists()
+
+    return MetaInspectResult(
+        workspace=workspace,
+        record=record,
+        resolved_repo_path=resolved_repo_path,
+        repo_path_exists=repo_exists,
+        resolved_project_path=resolved_project_path,
+        project_path_exists=project_exists,
+    )
+
+
+def _matching_records(
+    records: tuple[MetaProjectRecord, ...],
+    *,
+    selector: str,
+) -> tuple[MetaProjectRecord, ...]:
+    return tuple(
+        record
+        for record in records
+        if selector in (record.project_id, record.short_name, record.registry_name)
+    )
+
+
+def _resolved_local_repo_path(repo_locator: str | None) -> pathlib.Path | None:
+    if repo_locator is None:
+        return None
+    parsed = urllib.parse.urlsplit(repo_locator)
+    if parsed.scheme and parsed.netloc:
+        return None
+    if "://" in repo_locator:
+        return None
+    return _normalize_path(pathlib.Path(repo_locator))
+
+
+def format_project_inspect(result: MetaInspectResult) -> str:
+    """Render inspect output with stored record fields and minimal derived context."""
+    workspace_data = result.workspace
+    record = result.record
+    lines = [
+        "Workspace:",
+        f"  mode: {workspace_data.mode}",
+        f"  resolution_source: {workspace_data.resolution_source}",
+        f"  projects_dir: {workspace_data.projects_dir}",
+        "",
+        "Project Record:",
+        f"  registry_name: {record.registry_name}",
+        f"  project_id: {_display_value(record.project_id)}",
+        f"  short_name: {_display_value(record.short_name)}",
+        f"  display_name: {_display_value(record.display_name)}",
+        f"  repo_locator: {_display_value(record.repo_locator)}",
+        f"  project_dir: {_display_value(record.project_dir)}",
+        f"  setup_state: {_display_value(record.setup_state)}",
+        "",
+        "Derived:",
+        f"  resolved_repo_path: {_display_path(result.resolved_repo_path)}",
+        f"  repo_path_exists: {_display_optional_bool(result.repo_path_exists)}",
+        f"  resolved_project_path: {_display_path(result.resolved_project_path)}",
+        f"  project_path_exists: {_display_optional_bool(result.project_path_exists)}",
+    ]
+    if workspace_data.workspace_root is not None:
+        lines.insert(4, f"  workspace_root: {workspace_data.workspace_root}")
+    return "\n".join(lines)
+
+
+def _display_optional_bool(value: bool | None) -> str:
+    if value is None:
+        return "<not_applicable>"
+    return "true" if value else "false"
+
+
+def _display_path(path: pathlib.Path | None) -> str:
+    if path is None:
+        return "<not_applicable>"
+    return str(path)

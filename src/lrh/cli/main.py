@@ -171,6 +171,15 @@ def main() -> None:
         action="store_true",
         help="allow deliberate duplicates and overwrite existing target records",
     )
+    meta_inspect_parser = meta_subparsers.add_parser(
+        "inspect",
+        help="Inspect one registered project with workspace context.",
+    )
+    _add_meta_workspace_resolution_args(meta_inspect_parser)
+    meta_inspect_parser.add_argument(
+        "project",
+        help="project selector (exact project_id, short_name, or registry_name)",
+    )
 
     argv = sys.argv[1:]
     if argv and argv[0] == "help":
@@ -368,6 +377,37 @@ def main() -> None:
             print(f"Registered project in {result.record_path}")
             print(f"project_id={result.project_id}")
             print(f"setup_state={result.setup_state}")
+            raise SystemExit(0)
+
+        if args.meta_command == "inspect":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            try:
+                active_workspace = workspace.resolve_meta_workspace(
+                    cwd=Path.cwd(),
+                    options=workspace.MetaWorkspaceResolveOptions(
+                        workspace_path=(
+                            Path(args.workspace).expanduser()
+                            if args.workspace
+                            else None
+                        ),
+                        config_path=(
+                            Path(args.config).expanduser() if args.config else None
+                        ),
+                        mode=args.mode,
+                    ),
+                )
+                inspect_result = workspace.inspect_registered_project_in_workspace(
+                    active_workspace,
+                    selector=args.project,
+                )
+            except (
+                workspace.MetaWorkspaceResolutionError,
+                workspace.MetaRegistryError,
+            ) as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
+            print(workspace.format_project_inspect(inspect_result))
             raise SystemExit(0)
 
         parser.error("meta requires a subcommand (try: lrh meta init)")

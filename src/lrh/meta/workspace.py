@@ -1292,7 +1292,10 @@ def inspect_registered_project_in_workspace(
         )
 
     record = candidates[0]
-    resolved_repo_path = _resolved_local_repo_path(record.repo_locator)
+    resolved_repo_path = _resolved_local_repo_path(
+        record.repo_locator,
+        workspace=workspace,
+    )
     repo_exists = (
         resolved_repo_path.exists() if resolved_repo_path is not None else None
     )
@@ -1325,7 +1328,11 @@ def _matching_records(
     )
 
 
-def _resolved_local_repo_path(repo_locator: str | None) -> pathlib.Path | None:
+def _resolved_local_repo_path(
+    repo_locator: str | None,
+    *,
+    workspace: MetaWorkspace,
+) -> pathlib.Path | None:
     if repo_locator is None:
         return None
     parsed = urllib.parse.urlsplit(repo_locator)
@@ -1333,7 +1340,14 @@ def _resolved_local_repo_path(repo_locator: str | None) -> pathlib.Path | None:
         return None
     if "://" in repo_locator:
         return None
-    return _normalize_path(pathlib.Path(repo_locator))
+    repo_path = pathlib.Path(repo_locator).expanduser()
+    if repo_path.is_absolute():
+        return _normalize_path(repo_path)
+
+    base_dir = workspace.workspace_root
+    if base_dir is None:
+        base_dir = workspace.config_path.parent
+    return _normalize_path(base_dir / repo_path)
 
 
 def format_project_inspect(result: MetaInspectResult) -> str:

@@ -89,6 +89,45 @@ class TestMetaInspectRuntime(unittest.TestCase):
             self.assertIn("repo_path_exists: false", output)
             self.assertIn("project_path_exists: false", output)
 
+    def test_inspect_resolves_relative_repo_locator_from_workspace_context(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "repos" / "demo-repo"
+            (repo / "project").mkdir(parents=True)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+            workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator="repos/demo-repo",
+                    short_name="relative-demo",
+                ),
+            )
+            outside = root / "outside"
+            outside.mkdir()
+
+            local_workspace = workspace.resolve_meta_workspace(
+                cwd=outside,
+                options=workspace.MetaWorkspaceResolveOptions(workspace_path=root),
+            )
+            inspect_result = workspace.inspect_registered_project_in_workspace(
+                local_workspace,
+                selector="relative-demo",
+            )
+            output = workspace.format_project_inspect(inspect_result)
+
+            self.assertIn(f"resolved_repo_path: {repo.resolve()}", output)
+            self.assertIn("repo_path_exists: true", output)
+            self.assertIn(
+                f"resolved_project_path: {(repo / 'project').resolve()}",
+                output,
+            )
+            self.assertIn("project_path_exists: true", output)
+
 
 class TestMetaInspectCli(unittest.TestCase):
     def _run_lrh(
@@ -166,6 +205,42 @@ class TestMetaInspectCli(unittest.TestCase):
 
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("error: invalid TOML", result.stdout)
+
+    def test_lrh_meta_inspect_cli_resolves_relative_locator_from_workspace(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "repos" / "demo-repo"
+            (repo / "project").mkdir(parents=True)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="CLI Workspace"),
+            )
+            workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator="repos/demo-repo",
+                    short_name="relative-demo",
+                ),
+            )
+            outside = root / "outside"
+            outside.mkdir()
+
+            result = self._run_lrh(
+                [
+                    "meta",
+                    "inspect",
+                    "relative-demo",
+                    "--workspace",
+                    str(root),
+                ],
+                outside,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertIn(f"resolved_repo_path: {repo.resolve()}", result.stdout)
+            self.assertIn("repo_path_exists: true", result.stdout)
 
 
 if __name__ == "__main__":

@@ -29,7 +29,7 @@ Immediate next ordering:
 1. package-owned templates + package-resource loading
 2. packaging/installability hardening with installed-package smoke checks
 3. mechanical `sourcetree_surveyor` migration into `src/lrh/assist/`
-4. follow-on `sourcetree_surveyor` capability expansion
+4. follow-on `sourcetree_surveyor` capability expansion only when a concrete downstream consumer defines required structured fields (schema expansion intentionally deferred)
 
 Meta-control planning guardrail:
 

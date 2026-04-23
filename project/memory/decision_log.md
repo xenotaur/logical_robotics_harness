@@ -1,5 +1,65 @@
 # Decision Log
 
+## 2026-04-23: Decision: Survey JSON Schema Deferral (YAGNI / Evolutionary Design)
+
+### Summary
+
+Do not expand or formalize the `lrh survey` JSON schema further until a concrete downstream consumer exists.
+
+### Context
+
+- `lrh survey` now produces structured output.
+- A design question arose about broadening schema structure and downstream usage conventions.
+- No concrete downstream consumer currently requires expanded schema fields or stricter schema formalization.
+- The system already supports transient use of survey output inside prompts/workflows without persistent derived artifacts.
+
+### Decision
+
+- Keep current survey output minimal.
+- Do **not** expand survey JSON schema until a real downstream consumer exists.
+- Treat current survey output as a sufficient foundation for near-term workflows.
+- Prefer transient transformations over persistent derived artifacts.
+
+### Rationale
+
+- YAGNI: avoid building unused structure.
+- Avoid premature schema design and avoid schema-churn technical debt.
+- Preserve flexibility while downstream workflows are still forming.
+- Keep the system simple and composable.
+- Defer complexity until requirements are concrete.
+
+### Alternatives considered
+
+1. Expand JSON schema now
+   Pros: early standardization
+   Cons: likely over-engineering and schema churn before clear requirements.
+
+2. Generate and store `project/context/generated/repository.md`
+   Pros: human-readable and reusable artifact
+   Cons: duplication, staleness risk, and unnecessary persistence for current needs.
+
+3. Keep survey minimal and evolve later (**chosen**)
+   Pros: flexible, low-maintenance, aligned with evolutionary design
+   Cons: requires a future design step when the first concrete consumer appears.
+
+### Consequences
+
+- Survey remains a lightweight fact producer.
+- Downstream workflows must explicitly define required survey fields.
+- A future PR will define schema expansion when the first real consumer appears.
+
+### Revisit conditions
+
+Revisit this decision when:
+
+- a workflow requires stable structured survey input;
+- audit or work-item generation requires specific survey fields; or
+- multiple consumers begin duplicating survey interpretation logic.
+
+### Status
+
+Accepted
+
 ## 2026-04-22: Decision: Precedence canonicalization workstream closure validation
 
 ### Summary

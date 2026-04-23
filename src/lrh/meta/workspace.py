@@ -163,6 +163,60 @@ def init_workspace(
     )
 
 
+def init_global_workspace(
+    *,
+    spec: MetaWorkspaceSpec,
+    force: bool = False,
+    environ: dict[str, str] | None = None,
+) -> MetaInitResult:
+    """Initialize a global (XDG-style) LRH workspace."""
+    if environ is None:
+        environ = dict(os.environ)
+
+    config_path = _xdg_config_path(environ)
+    config_dir = config_path.parent
+    state_root = _xdg_state_path(environ)
+    cache_root = _xdg_cache_path(environ)
+
+    created: list[pathlib.Path] = []
+    updated: list[pathlib.Path] = []
+    unchanged: list[pathlib.Path] = []
+
+    _ensure_directory(config_dir, force=force, created=created)
+    _ensure_directory(state_root, force=force, created=created)
+    _ensure_directory(state_root / "projects", force=force, created=created)
+    _ensure_directory(state_root / "private", force=force, created=created)
+
+    for private_dir in ("logs", "chats", "state", "secrets"):
+        _ensure_directory(
+            state_root / "private" / private_dir,
+            force=force,
+            created=created,
+        )
+
+    _ensure_directory(cache_root, force=force, created=created)
+    _ensure_directory(cache_root / "cache", force=force, created=created)
+    _ensure_directory(cache_root / "tmp", force=force, created=created)
+
+    _write_global_config(
+        config_path,
+        workspace_name=spec.workspace_name,
+        projects_dir=state_root / "projects",
+        state_dir=state_root,
+        cache_dir=cache_root,
+        force=force,
+        created=created,
+        updated=updated,
+        unchanged=unchanged,
+    )
+
+    return MetaInitResult(
+        created=tuple(sorted(created, key=str)),
+        updated=tuple(sorted(updated, key=str)),
+        unchanged=tuple(sorted(unchanged, key=str)),
+    )
+
+
 def _ensure_directory(
     path: pathlib.Path,
     *,
@@ -174,9 +228,15 @@ def _ensure_directory(
             raise MetaInitError(
                 f"expected directory at {path}, but found a non-directory path"
             )
-        path.unlink()
+        try:
+            _remove_existing_path(path)
+        except OSError as err:
+            raise MetaInitError(f"unable to replace path at {path}: {err}") from err
     if not path.exists():
-        path.mkdir(parents=True, exist_ok=True)
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+        except OSError as err:
+            raise MetaInitError(f"unable to create directory at {path}: {err}") from err
         created.append(path)
 
 
@@ -277,6 +337,80 @@ def _write_config(
 
     path.write_text(content, encoding="utf-8")
     updated.append(path)
+
+
+def _write_global_config(
+    path: pathlib.Path,
+    *,
+    workspace_name: str,
+    projects_dir: pathlib.Path,
+    state_dir: pathlib.Path,
+    cache_dir: pathlib.Path,
+    force: bool,
+    created: list[pathlib.Path],
+    updated: list[pathlib.Path],
+    unchanged: list[pathlib.Path],
+) -> None:
+    content = _global_config_text(
+        workspace_name=workspace_name,
+        projects_dir=projects_dir,
+        state_dir=state_dir,
+        cache_dir=cache_dir,
+    )
+    if not path.exists():
+        path.write_text(content, encoding="utf-8")
+        created.append(path)
+        return
+
+    if not path.is_file():
+        if not force:
+            raise MetaInitError(
+                f"expected file at {path}, but found a non-file path; "
+                "rerun with --force to replace it"
+            )
+        _remove_existing_path(path)
+        path.write_text(content, encoding="utf-8")
+        updated.append(path)
+        return
+
+    existing = path.read_text(encoding="utf-8")
+    if existing == content:
+        unchanged.append(path)
+        return
+
+    if not force:
+        raise MetaInitError(
+            f"found existing config with different content at {path}; "
+            "rerun with --force to replace managed config"
+        )
+
+    path.write_text(content, encoding="utf-8")
+    updated.append(path)
+
+
+def _global_config_text(
+    *,
+    workspace_name: str,
+    projects_dir: pathlib.Path,
+    state_dir: pathlib.Path,
+    cache_dir: pathlib.Path,
+) -> str:
+    encoded_workspace_name = _toml_basic_string(workspace_name)
+    encoded_projects_dir = _toml_basic_string(str(projects_dir))
+    encoded_state_dir = _toml_basic_string(str(state_dir))
+    encoded_cache_dir = _toml_basic_string(str(cache_dir))
+    return (
+        'schema_version = "0.1"\n\n'
+        "[workspace]\n"
+        f"name = {encoded_workspace_name}\n"
+        'mode = "global"\n\n'
+        "[paths]\n"
+        f"projects_dir = {encoded_projects_dir}\n"
+        f"state_dir = {encoded_state_dir}\n"
+        f"cache_dir = {encoded_cache_dir}\n\n"
+        "[meta]\n"
+        'authority = "catalog_only"\n'
+    )
 
 
 def _config_text(workspace_name: str) -> str:
@@ -633,7 +767,7 @@ def _workspace_resolution_error(
         "No LRH meta workspace could be resolved.\n\n"
         f"Checked:\n{detail}\n\n"
         "To initialize a local workspace in the current directory:\n"
-        "  lrh meta init\n\n"
+        "  lrh meta init --mode local\n\n"
         "To force an explicit workspace config path:\n"
         "  lrh meta list --config /path/to/config.toml"
     )
@@ -665,7 +799,7 @@ def register_project_in_workspace(
     force: bool = False,
 ) -> MetaRegisterResult:
     """Register a project by writing one ``project.toml`` under projects_dir."""
-    projects_dir = _require_projects_dir(workspace.projects_dir)
+    projects_dir = _require_projects_dir(workspace.projects_dir, mode=workspace.mode)
 
     repo_locator = _normalized_required_value("repo_locator", spec.repo_locator)
     project_dir = _normalized_required_value("project_dir", spec.project_dir)
@@ -841,7 +975,7 @@ def list_registered_projects_in_workspace(
     workspace: MetaWorkspace,
 ) -> tuple[MetaProjectRecord, ...]:
     """Load project records in stable directory order from workspace projects_dir."""
-    projects_dir = _require_projects_dir(workspace.projects_dir)
+    projects_dir = _require_projects_dir(workspace.projects_dir, mode=workspace.mode)
 
     try:
         project_entries = sorted(projects_dir.iterdir(), key=lambda entry: entry.name)
@@ -858,10 +992,25 @@ def list_registered_projects_in_workspace(
     return tuple(records)
 
 
-def _require_projects_dir(projects_dir: pathlib.Path) -> pathlib.Path:
+def _require_projects_dir(
+    projects_dir: pathlib.Path,
+    *,
+    mode: Literal["local", "global"] | None = None,
+) -> pathlib.Path:
     if not projects_dir.exists():
+        local_guidance = (
+            "run `lrh meta init --mode local` to initialize a local workspace"
+        )
+        if mode == "global":
+            guidance = "run `lrh meta init` to initialize the global workspace"
+        elif mode == "local":
+            guidance = local_guidance
+        else:
+            guidance = (
+                f"{local_guidance}, or run `lrh meta init` for global XDG defaults"
+            )
         raise MetaRegistryError(
-            f"missing projects directory at {projects_dir}; run `lrh meta init` first"
+            f"missing projects directory at {projects_dir}; {guidance}"
         )
     if not projects_dir.is_dir():
         raise MetaRegistryError(f"expected directory at {projects_dir}")

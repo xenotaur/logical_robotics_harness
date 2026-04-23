@@ -70,3 +70,4 @@ Define and then implement the shared workspace-resolution subsystem used across 
 
 - 2026-04-22: Implemented a shared `MetaWorkspace` resolution layer with documented precedence (flags → `LRH_CONFIG` → `LRH_WORKSPACE` → local discovery → global discovery), added minimal workspace config parsing for mode/path overrides, and wired `lrh meta register` / `lrh meta list` to the resolved workspace context.
 - 2026-04-22: Added focused tests for precedence behavior, nested local discovery, XDG global defaults, command integration outside workspace roots, and explicit resolution-failure messaging.
+- 2026-04-22: Updated Meta CLI UX so `lrh meta init` defaults to global initialization, added explicit `--mode {global,local}` on `meta init`, strengthened `meta`/`meta init` help text for workspace resolution + XDG defaults, and added `lrh help meta` / `lrh help meta init` aliases.

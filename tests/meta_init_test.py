@@ -150,7 +150,10 @@ class TestMetaInitRuntime(unittest.TestCase):
 
 class TestMetaInitCli(unittest.TestCase):
     def _run_lrh(
-        self, args: list[str], cwd: pathlib.Path
+        self,
+        args: list[str],
+        cwd: pathlib.Path,
+        env_overrides: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
         env = os.environ.copy()
         src_path = pathlib.Path("src").resolve()
@@ -158,6 +161,8 @@ class TestMetaInitCli(unittest.TestCase):
         env["PYTHONPATH"] = (
             str(src_path) if not existing else f"{src_path}{os.pathsep}{existing}"
         )
+        if env_overrides:
+            env.update(env_overrides)
         return subprocess.run(
             [sys.executable, "-m", "lrh.cli.main", *args],
             check=False,
@@ -167,13 +172,79 @@ class TestMetaInitCli(unittest.TestCase):
             cwd=cwd,
         )
 
-    def test_lrh_meta_init_cli(self) -> None:
+    def test_lrh_meta_init_cli_defaults_to_global_mode(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
-            result = self._run_lrh(["meta", "init", "--name", "CLI Workspace"], root)
+            xdg_config = root / "xdg-config"
+            xdg_state = root / "xdg-state"
+            xdg_cache = root / "xdg-cache"
+            env = {
+                "XDG_CONFIG_HOME": str(xdg_config),
+                "XDG_STATE_HOME": str(xdg_state),
+                "XDG_CACHE_HOME": str(xdg_cache),
+            }
+            result = self._run_lrh(
+                ["meta", "init", "--name", "CLI Workspace"],
+                root,
+                env_overrides=env,
+            )
             self.assertEqual(result.returncode, 0)
-            self.assertIn("Initialized LRH meta workspace", result.stdout)
+            self.assertIn("Initialized LRH global meta workspace", result.stdout)
+            self.assertTrue((xdg_config / "lrh" / "config.toml").exists())
+            self.assertTrue((xdg_state / "lrh" / "projects").exists())
+            self.assertTrue((xdg_cache / "lrh" / "cache").exists())
+
+    def test_lrh_meta_init_cli_mode_local(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            result = self._run_lrh(
+                ["meta", "init", "--mode", "local", "--name", "CLI Workspace"],
+                root,
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("Initialized LRH local meta workspace", result.stdout)
             self.assertTrue((root / ".lrh" / "config.toml").exists())
+
+    def test_lrh_meta_init_cli_mode_global(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            xdg_config = root / "xdg-config"
+            xdg_state = root / "xdg-state"
+            xdg_cache = root / "xdg-cache"
+            env = {
+                "XDG_CONFIG_HOME": str(xdg_config),
+                "XDG_STATE_HOME": str(xdg_state),
+                "XDG_CACHE_HOME": str(xdg_cache),
+            }
+            result = self._run_lrh(
+                ["meta", "init", "--mode", "global", "--name", "CLI Workspace"],
+                root,
+                env_overrides=env,
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("Initialized LRH global meta workspace", result.stdout)
+            self.assertTrue((xdg_config / "lrh" / "config.toml").exists())
+
+    def test_lrh_meta_init_cli_handles_invalid_xdg_state_home(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            xdg_config = root / "xdg-config"
+            xdg_state_home_file = root / "xdg-state-home-file"
+            xdg_state_home_file.write_text("not-a-directory", encoding="utf-8")
+            xdg_cache = root / "xdg-cache"
+            env = {
+                "XDG_CONFIG_HOME": str(xdg_config),
+                "XDG_STATE_HOME": str(xdg_state_home_file),
+                "XDG_CACHE_HOME": str(xdg_cache),
+            }
+            result = self._run_lrh(
+                ["meta", "init", "--mode", "global", "--name", "CLI Workspace"],
+                root,
+                env_overrides=env,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("error: unable to create directory at", result.stdout)
+            self.assertNotIn("Traceback", result.stdout)
 
 
 if __name__ == "__main__":

@@ -241,12 +241,39 @@ class TestMetaWorkspaceResolutionCliIntegration(unittest.TestCase):
     def test_meta_list_shows_resolution_error_without_workspace(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
+            xdg_config = root / "xdg-config"
+            xdg_state = root / "xdg-state"
+            xdg_cache = root / "xdg-cache"
+            env = {
+                "XDG_CONFIG_HOME": str(xdg_config),
+                "XDG_STATE_HOME": str(xdg_state),
+                "XDG_CACHE_HOME": str(xdg_cache),
+                "LRH_CONFIG": "",
+                "LRH_WORKSPACE": "",
+            }
+
+            result = self._run_lrh(["meta", "list"], cwd=root, env_overrides=env)
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("No LRH meta workspace could be resolved", result.stdout)
+            self.assertIn("lrh meta init --mode local", result.stdout)
+
+    def test_meta_list_missing_local_projects_dir_suggests_mode_local_init(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Local"),
+            )
+            (root / "projects").rmdir()
 
             result = self._run_lrh(["meta", "list"], cwd=root, env_overrides={})
 
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn("No LRH meta workspace could be resolved", result.stdout)
-            self.assertIn("lrh meta init", result.stdout)
+            self.assertIn("missing projects directory", result.stdout)
+            self.assertIn("lrh meta init --mode local", result.stdout)
 
 
 if __name__ == "__main__":

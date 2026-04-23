@@ -139,16 +139,16 @@ and approving work.
 
 ### Step 4 — Generate a Codex implementation prompt
 
-Render an implementation prompt request for the selected work item:
+Generate a concrete implementation prompt for the selected work item:
 
 ```bash
 lrh request codex_prompt_from_work_item \
   --work-item-file path/to/work_item.md \
-  --style-file STYLE.md > path/to/codex_prompt_request.md
+  --style-file STYLE.md > path/to/codex_prompt.md
 ```
 
-Submit `path/to/codex_prompt_request.md` to Codex (or another coding assistant)
-to produce and execute the implementation prompt.
+The output is the executable implementation prompt (already transformed from
+the work item), ready to submit to Codex (or another coding assistant).
 
 ### Step 5 — Review the resulting patch against the work item
 

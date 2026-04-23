@@ -64,11 +64,15 @@ def generate_request(
     template_root: pathlib.Path | None = None,
 ) -> tuple[str, dict[str, str]]:
     """Load template and render it using computed request variables."""
+    variables = build_variables(args)
+
+    if args.template_name == "codex_prompt_from_work_item":
+        return transform_codex_prompt_from_work_item(variables), variables
+
     template_text = request_templates.load_template_text(
         args.template_name,
         template_root=template_root,
     )
-    variables = build_variables(args)
     return render_template(template_text, variables), variables
 
 
@@ -133,3 +137,142 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
         "PATCH": patch_text,
         "PATCH_FILE": args.patch_file or "",
     }
+
+
+def transform_codex_prompt_from_work_item(variables: dict[str, str]) -> str:
+    """Generate a concrete Codex implementation prompt from a work item."""
+    work_item = variables.get("WORK_ITEM", "")
+    objective = _extract_section_text(work_item, "Problem")
+    scope = _extract_section_text(work_item, "Scope")
+    out_of_scope = _extract_section_text(work_item, "Out of Scope")
+    likely_files = _extract_bullets(work_item, "Likely files")
+    validation_steps = _extract_bullets(work_item, "Validation")
+    acceptance_criteria = _extract_bullets(work_item, "Acceptance criteria")
+    risk_level = _extract_field_value(work_item, "Risk level")
+    execution_suitability = _extract_field_value(work_item, "Execution suitability")
+
+    required_changes = (
+        scope or "- Implement only what is explicitly described in the work item."
+    )
+    if likely_files:
+        likely_file_lines = "\n".join(f"  - {path}" for path in likely_files)
+        required_changes = (
+            f"{required_changes}\n- Limit edits to likely files:\n{likely_file_lines}"
+        )
+
+    do_not = (
+        out_of_scope
+        or "- Do not expand scope beyond the selected work item.\n"
+        "- Do not perform unrelated cleanup or refactors."
+    )
+
+    edge_case_rules = (
+        "- If requirements are ambiguous, choose the smallest safe interpretation "
+        "and report uncertainty."
+    )
+    if risk_level:
+        edge_case_rules += f"\n- Treat this change as risk level: {risk_level}."
+    if execution_suitability:
+        edge_case_rules += (
+            "\n- Respect execution suitability guidance from the work item: "
+            f"{execution_suitability}."
+        )
+
+    validation_block = (
+        "\n".join(f"- {step}" for step in validation_steps)
+        if validation_steps
+        else "- scripts/test\n- scripts/validate"
+    )
+    success_criteria = (
+        "\n".join(f"- {criterion}" for criterion in acceptance_criteria)
+        if acceptance_criteria
+        else "- Work item scope is implemented without unrelated changes."
+    )
+
+    return f"""# ROLE
+
+You are a senior Python engineer making a single, tightly scoped repository change.
+
+# AUTHORITATIVE REFERENCES
+
+- STYLE.md
+- {variables.get("WORK_ITEM_FILE", "approved work item file")}
+
+# OBJECTIVE
+
+{objective or "Implement the approved work item exactly as written."}
+
+# STRICT SCOPE
+
+{scope or "Only the approved work item is in scope."}
+
+# REQUIRED CHANGES
+
+{required_changes}
+
+# DO NOT
+
+{do_not}
+
+# EDGE CASE RULES
+
+{edge_case_rules}
+
+# VALIDATION
+
+{validation_block}
+
+# OUTPUT REQUIREMENTS
+
+- Summarize changed files and why each change is needed.
+- List validation commands run and results.
+- Explicitly list what was intentionally not changed.
+
+# SUCCESS CRITERIA
+
+{success_criteria}
+
+# FINAL CHECK
+
+- Confirm changes are minimal and reviewable.
+- Confirm no unrelated files were modified.
+- Confirm requested validations were run or limitations were reported.
+
+# BEGIN
+"""
+
+
+def _extract_section_text(markdown_text: str, section_name: str) -> str:
+    """Extract body text beneath a markdown heading."""
+    pattern = re.compile(
+        rf"(?im)^##\s+{re.escape(section_name)}\s*$\n(?P<body>.*?)(?=^\s*##\s+|\Z)",
+        re.DOTALL,
+    )
+    match = pattern.search(markdown_text)
+    if not match:
+        return ""
+    return match.group("body").strip()
+
+
+def _extract_bullets(markdown_text: str, section_name: str) -> list[str]:
+    """Extract bullet-line content from a section."""
+    section = _extract_section_text(markdown_text, section_name)
+    if not section:
+        return []
+    bullets = []
+    for line in section.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("- "):
+            bullets.append(stripped[2:].strip())
+    return bullets
+
+
+def _extract_field_value(markdown_text: str, field_name: str) -> str:
+    """Extract a short field value from `- **Field:** value` style lines."""
+    pattern = re.compile(
+        rf"(?im)^\s*-\s*\*\*{re.escape(field_name)}:\*\*\s*(?P<value>.+?)\s*$"
+    )
+    match = pattern.search(markdown_text)
+    if not match:
+        return ""
+    return match.group("value").strip()

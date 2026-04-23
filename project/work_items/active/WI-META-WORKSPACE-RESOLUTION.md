@@ -1,8 +1,11 @@
 ---
+resolution: null
+blocked_reason: null
+blocked: false
 id: WI-META-WORKSPACE-RESOLUTION
 title: Meta workspace resolution and visibility contract
 type: deliverable
-status: in_progress
+status: active
 priority: high
 owner: anthony
 contributors:

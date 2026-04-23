@@ -1,8 +1,11 @@
 ---
+resolution: null
+blocked_reason: null
+blocked: false
 id: WI-SNAPSHOT-RESOLVED-CONTEXT
 title: Make snapshot output reflect resolved control-plane context
 type: deliverable
-status: in_progress
+status: active
 owner: anthony
 contributors:
   - anthony

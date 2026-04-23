@@ -1,4 +1,7 @@
 ---
+resolution: null
+blocked_reason: null
+blocked: false
 id: WI-VALIDATOR-PROJECT-CLEANUP
 title: Fix project metadata to pass validator
 type: operation

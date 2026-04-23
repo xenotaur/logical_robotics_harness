@@ -1,4 +1,7 @@
 ---
+resolution: null
+blocked_reason: null
+blocked: false
 id: WI-ASSIST-SOURCETREE-SURVEYOR-MIGRATION
 title: Mechanically migrate sourcetree_surveyor into src/lrh/assist/
 type: deliverable

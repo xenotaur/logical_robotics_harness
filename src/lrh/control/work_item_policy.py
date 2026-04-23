@@ -166,6 +166,15 @@ def validate_work_item_policy(
                     "terminal statuses require a non-empty resolution",
                 )
             )
+    elif metadata.get("resolution") is not None:
+        issues.append(
+            _issue(
+                path_context.file,
+                "error",
+                "WORK_ITEM_RESOLUTION_NON_TERMINAL",
+                "non-terminal statuses must set resolution to null",
+            )
+        )
 
     if path_context.bucket is None:
         issues.append(

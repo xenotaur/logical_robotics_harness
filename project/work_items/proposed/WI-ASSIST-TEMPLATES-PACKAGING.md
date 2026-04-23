@@ -1,4 +1,7 @@
 ---
+resolution: null
+blocked_reason: null
+blocked: false
 id: WI-ASSIST-TEMPLATES-PACKAGING
 title: Move assist templates into package-owned runtime location
 type: deliverable

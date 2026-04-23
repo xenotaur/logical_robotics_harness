@@ -1,4 +1,7 @@
 ---
+resolution: null
+blocked_reason: null
+blocked: false
 id: WI-PARSER-HARDENING
 title: Replace or harden bootstrap frontmatter parsing
 type: investigation

@@ -153,7 +153,10 @@ def summarize_file(path: pathlib.Path, required: bool = False) -> str:
 
 
 def list_work_items(project_dir: pathlib.Path) -> list[pathlib.Path]:
-    return list_markdown_files(project_dir / "work_items")
+    work_items_dir = project_dir / "work_items"
+    if not work_items_dir.is_dir():
+        return []
+    return sorted(work_items_dir.glob("**/WI-*.md"))
 
 
 def current_focus_frontmatter(

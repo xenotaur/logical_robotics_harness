@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from lrh.control import work_item_policy
+
 CONTRIBUTOR_REQUIRED_FIELDS = {"id", "type", "roles", "display_name", "status"}
 CONTRIBUTOR_TYPES = {"human", "agent"}
 CONTRIBUTOR_ROLES = {"admin", "editor", "reviewer", "viewer"}
@@ -19,12 +21,16 @@ WORK_ITEM_REQUIRED_FIELDS = {"id", "title", "type", "status"}
 WORK_ITEM_TYPES = {"deliverable", "investigation", "evaluation", "operation"}
 WORK_ITEM_STATUS = {
     "proposed",
-    "ready",
-    "in_progress",
-    "blocked",
-    "needs_review",
-    "done",
+    "active",
+    "resolved",
     "abandoned",
+}
+WORK_ITEM_POLICY_REQUIRED_FIELDS = {
+    "id",
+    "status",
+    "blocked",
+    "blocked_reason",
+    "resolution",
 }
 
 WORK_ITEM_LIST_FIELDS = {
@@ -73,9 +79,41 @@ class _ParsedArtifact:
     data: dict[str, Any] | None
 
 
-def validate_project(project_root: Path) -> ValidationReport:
+def validate_project(
+    project_root: Path,
+    work_items_only: bool = False,
+) -> ValidationReport:
     project_root = project_root.resolve()
     issues: list[ValidationIssue] = []
+
+    work_item_files = sorted((project_root / "work_items").glob("**/WI-*.md"))
+    work_items = _parse_many(project_root, work_item_files, issues)
+    work_item_map: dict[str, _ParsedArtifact] = {}
+    work_item_policy_items: list[tuple[Path, dict[str, Any]]] = []
+    for artifact in work_items:
+        if artifact.data is None:
+            continue
+        _validate_work_item_schema(project_root, artifact, issues)
+        _validate_work_item_policy_required_fields(project_root, artifact, issues)
+        work_item_id = artifact.data.get("id")
+        if isinstance(work_item_id, str):
+            work_item_map[work_item_id] = artifact
+        work_item_policy_items.append((artifact.path, artifact.data))
+
+    for policy_issue in work_item_policy.validate_work_item_collection(
+        project_root, work_item_policy_items
+    ).issues:
+        issues.append(
+            ValidationIssue(
+                file=str(Path(policy_issue.file).resolve().relative_to(project_root)),
+                severity=policy_issue.severity,
+                code=policy_issue.code,
+                message=policy_issue.message,
+            )
+        )
+
+    if work_items_only:
+        return ValidationReport(issues=issues)
 
     contributor_files = sorted((project_root / "contributors").glob("**/*.md"))
     contributors = _parse_many(project_root, contributor_files, issues)
@@ -137,17 +175,6 @@ def validate_project(project_root: Path) -> ValidationReport:
                                 f"'{contributor_id}'",
                             )
                         )
-
-    work_item_files = sorted((project_root / "work_items").glob("*.md"))
-    work_items = _parse_many(project_root, work_item_files, issues)
-    work_item_map: dict[str, _ParsedArtifact] = {}
-    for artifact in work_items:
-        if artifact.data is None:
-            continue
-        _validate_work_item_schema(project_root, artifact, issues)
-        work_item_id = artifact.data.get("id")
-        if isinstance(work_item_id, str):
-            work_item_map[work_item_id] = artifact
 
     for artifact in work_items:
         if artifact.data is None:
@@ -305,7 +332,17 @@ def _parse_simple_yaml(text: str) -> dict[str, Any]:
                 data[key] = [part.strip() for part in inner.split(",")]
             continue
 
-        data[key] = value.strip("'\"")
+        parsed_scalar = value.strip("'\"")
+        if parsed_scalar in {"null", "Null", "NULL", "~"}:
+            data[key] = None
+            continue
+        if parsed_scalar in {"true", "True", "TRUE"}:
+            data[key] = True
+            continue
+        if parsed_scalar in {"false", "False", "FALSE"}:
+            data[key] = False
+            continue
+        data[key] = parsed_scalar
 
     if folded_key is not None:
         data[folded_key] = " ".join(folded_lines).strip()
@@ -451,6 +488,21 @@ def _validate_work_item_schema(
                     f"{field} must be a list",
                 )
             )
+
+
+def _validate_work_item_policy_required_fields(
+    project_root: Path,
+    artifact: _ParsedArtifact,
+    issues: list[ValidationIssue],
+) -> None:
+    data = artifact.data or {}
+    _require_fields(
+        project_root,
+        artifact.path,
+        data,
+        WORK_ITEM_POLICY_REQUIRED_FIELDS,
+        issues,
+    )
 
 
 def _validate_work_item_references(
@@ -710,6 +762,15 @@ def _validate_enum(
 ) -> None:
     value = data.get(field)
     if value is None:
+        issues.append(
+            _issue(
+                project_root,
+                path,
+                "error",
+                issue_code,
+                f"invalid value 'null' for {field}",
+            )
+        )
         return
     if value not in valid_values:
         issues.append(

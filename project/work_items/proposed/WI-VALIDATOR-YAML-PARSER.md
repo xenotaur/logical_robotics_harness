@@ -1,4 +1,7 @@
 ---
+resolution: null
+blocked_reason: null
+blocked: false
 id: WI-VALIDATOR-YAML-PARSER
 title: Replace bootstrap YAML parser with production-grade parser
 type: investigation

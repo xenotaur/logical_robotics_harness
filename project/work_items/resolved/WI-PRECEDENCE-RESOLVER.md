@@ -1,8 +1,11 @@
 ---
+resolution: Completed
+blocked_reason: null
+blocked: false
 id: WI-PRECEDENCE-RESOLVER
 title: Implement control-plane precedence resolver
 type: deliverable
-status: done
+status: resolved
 owner: anthony
 contributors:
   - anthony

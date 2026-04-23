@@ -144,6 +144,83 @@ class MetaInspectResult:
     project_path_exists: bool | None
 
 
+def meta_workspace_where_payload(workspace: MetaWorkspace) -> dict[str, object]:
+    """Build a structured diagnostics payload for ``lrh meta where`` output."""
+    path_scope = _workspace_path_scope(workspace.mode)
+    workspace_root = (
+        str(workspace.workspace_root) if workspace.workspace_root is not None else None
+    )
+    return {
+        "mode": workspace.mode,
+        "resolution_source": workspace.resolution_source,
+        "config_path": str(workspace.config_path),
+        "config_dir": str(workspace.config_dir),
+        "catalog_root": str(workspace.catalog_root),
+        "workspace_root": workspace_root,
+        "projects_dir": str(workspace.projects_dir),
+        "state_dir": str(workspace.state_dir),
+        "cache_dir": str(workspace.cache_dir),
+        "path_scope": {
+            "catalog": path_scope["catalog"],
+            "config": path_scope["config"],
+            "state": path_scope["state"],
+            "cache": path_scope["cache"],
+            "runtime_note": path_scope["runtime_note"],
+        },
+    }
+
+
+def format_meta_workspace_where(workspace: MetaWorkspace) -> str:
+    """Render user-facing diagnostics for resolved meta workspace context."""
+    data = meta_workspace_where_payload(workspace)
+    path_scope = data["path_scope"]
+    lines = [
+        "Active LRH meta workspace",
+        "",
+        f"mode: {data['mode']}",
+        f"resolution source: {data['resolution_source']}",
+        f"config: {data['config_path']} ({path_scope['config']})",
+        f"config dir: {data['config_dir']}",
+        f"catalog root: {data['catalog_root']} ({path_scope['catalog']})",
+        f"projects: {data['projects_dir']} ({path_scope['catalog']})",
+        f"state: {data['state_dir']} ({path_scope['state']})",
+        f"cache: {data['cache_dir']} ({path_scope['cache']})",
+        f"runtime: {path_scope['runtime_note']}",
+    ]
+    if data["workspace_root"] is not None:
+        lines.append(f"workspace root: {data['workspace_root']}")
+    return "\n".join(lines)
+
+
+def _workspace_path_scope(mode: Literal["hybrid", "local", "global"]) -> dict[str, str]:
+    """Return path ownership/scope labels for each supported workspace mode."""
+    if mode == "local":
+        return {
+            "catalog": "local",
+            "config": "local",
+            "state": "local/private",
+            "cache": "local/private",
+            "runtime_note": "private/runtime state is local to this workspace root",
+        }
+    if mode == "hybrid":
+        return {
+            "catalog": "local/shareable",
+            "config": "global/user",
+            "state": "global/private",
+            "cache": "global/private",
+            "runtime_note": (
+                "catalog is local/shareable; runtime state/cache are global+private"
+            ),
+        }
+    return {
+        "catalog": "global/user",
+        "config": "global/user",
+        "state": "global/private",
+        "cache": "global/private",
+        "runtime_note": "all paths resolve under global user locations",
+    }
+
+
 def init_workspace(
     root: pathlib.Path,
     *,

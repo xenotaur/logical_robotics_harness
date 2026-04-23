@@ -352,36 +352,11 @@ def main() -> None:
                 print(f"error: {err}")
                 raise SystemExit(1) from err
 
-            workspace_data: dict[str, str | None] = {
-                "mode": active_workspace.mode,
-                "resolution_source": active_workspace.resolution_source,
-                "config_path": str(active_workspace.config_path),
-                "config_dir": str(active_workspace.config_dir),
-                "catalog_root": str(active_workspace.catalog_root),
-                "projects_dir": str(active_workspace.projects_dir),
-                "state_dir": str(active_workspace.state_dir),
-                "cache_dir": str(active_workspace.cache_dir),
-                "workspace_root": (
-                    str(active_workspace.workspace_root)
-                    if active_workspace.workspace_root is not None
-                    else None
-                ),
-            }
+            workspace_data = workspace.meta_workspace_where_payload(active_workspace)
             if args.json:
                 print(json.dumps(workspace_data, indent=2, sort_keys=True))
             else:
-                print("Active LRH meta workspace")
-                print()
-                print(f"mode: {workspace_data['mode']}")
-                print(f"resolution source: {workspace_data['resolution_source']}")
-                print(f"config: {workspace_data['config_path']}")
-                print(f"config dir: {workspace_data['config_dir']}")
-                print(f"catalog root: {workspace_data['catalog_root']}")
-                print(f"projects: {workspace_data['projects_dir']}")
-                print(f"state: {workspace_data['state_dir']}")
-                print(f"cache: {workspace_data['cache_dir']}")
-                if workspace_data["workspace_root"] is not None:
-                    print(f"workspace root: {workspace_data['workspace_root']}")
+                print(workspace.format_meta_workspace_where(active_workspace))
             raise SystemExit(0)
 
         if args.meta_command == "register":

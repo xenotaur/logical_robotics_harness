@@ -60,6 +60,12 @@ class TestMetaWhereCli(unittest.TestCase):
             self.assertIn("Active LRH meta workspace", result.stdout)
             self.assertIn("mode: global", result.stdout)
             self.assertIn("resolution source: global_discovery", result.stdout)
+            self.assertIn("catalog root:", result.stdout)
+            self.assertIn("(global/user)", result.stdout)
+            self.assertIn(
+                "runtime: all paths resolve under global user locations",
+                result.stdout,
+            )
             self.assertIn(
                 f"projects: {_canonical(xdg_state / 'lrh' / 'projects')}",
                 result.stdout,
@@ -81,6 +87,11 @@ class TestMetaWhereCli(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             self.assertIn("mode: local", result.stdout)
             self.assertIn("resolution source: local_discovery", result.stdout)
+            self.assertIn("(local/private)", result.stdout)
+            self.assertIn(
+                "runtime: private/runtime state is local to this workspace root",
+                result.stdout,
+            )
             self.assertIn(
                 f"workspace root: {_canonical(workspace_root)}",
                 result.stdout,
@@ -117,6 +128,15 @@ class TestMetaWhereCli(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             self.assertIn("mode: hybrid", result.stdout)
             self.assertIn("resolution source: flag(--workspace)", result.stdout)
+            self.assertIn("(local/shareable)", result.stdout)
+            self.assertIn("(global/private)", result.stdout)
+            self.assertIn(
+                (
+                    "runtime: catalog is local/shareable; "
+                    "runtime state/cache are global+private"
+                ),
+                result.stdout,
+            )
             self.assertIn(
                 f"catalog root: {_canonical(workspace_root)}",
                 result.stdout,
@@ -152,6 +172,49 @@ class TestMetaWhereCli(unittest.TestCase):
                 str(_canonical(workspace_root / "private" / "cache")),
             )
             self.assertEqual(data["workspace_root"], str(_canonical(workspace_root)))
+            self.assertEqual(data["path_scope"]["catalog"], "local")
+            self.assertEqual(data["path_scope"]["state"], "local/private")
+
+    def test_meta_where_json_normalizes_relative_paths_from_config(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace_root = root / "workspace"
+            workspace.init_workspace(
+                workspace_root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Local"),
+            )
+            (workspace_root / ".lrh" / "config.toml").write_text(
+                "\n".join(
+                    [
+                        'schema_version = "0.1"',
+                        "",
+                        "[workspace]",
+                        'name = "Local"',
+                        'mode = "local"',
+                        "",
+                        "[paths]",
+                        'catalog_root = ".."',
+                        'projects_dir = "../workspace/projects"',
+                        'config_dir = "."',
+                        'state_dir = "../workspace/private/state"',
+                        'cache_dir = "../workspace/private/cache"',
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            result = self._run_lrh(["meta", "where", "--json"], cwd=workspace_root)
+
+            self.assertEqual(result.returncode, 0)
+            data = json.loads(result.stdout)
+            self.assertEqual(
+                data["projects_dir"], str(_canonical(workspace_root / "projects"))
+            )
+            self.assertEqual(
+                data["cache_dir"],
+                str(_canonical(workspace_root / "private" / "cache")),
+            )
 
     def test_meta_where_failure_message_is_actionable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

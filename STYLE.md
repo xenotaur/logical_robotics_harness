@@ -578,6 +578,19 @@ CI should enforce:
 - linting (ruff)
 - formatting (black)
 
+## Using a prompt workflow
+
+Tracking work in prompt-heavy workflows can become confusing, so LRH provides lightweight guidance and tooling to label meaningful prompts with unique IDs and record executions.
+
+Use `scripts/prompts/label-prompt` to generate a prompt ID, and use `scripts/prompts/record-execution` to create an execution-record Markdown file.
+
+Prompt IDs and execution records are encouraged for meaningful prompt-driven changes, especially for updates touching design, roadmap, work items, implementation, tests, or project-control artifacts.
+
+Do not let prompt bookkeeping block small obvious fixes or exploratory work. LRH prefers traceability, but process should remain lightweight.
+
+For detailed prompt metadata, rerun handling, and execution-record conventions, see `PROMPTS.md`.
+
+
 ## Summary
 
 In LRH, we value:

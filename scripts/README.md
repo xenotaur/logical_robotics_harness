@@ -186,6 +186,29 @@ scripts/lint --fix --extra
 - Ruff remains the primary linter; Pylint and Pyright provide additional perspectives.
 - Black is the sole source of truth for formatting.
 
+
+### Prompt workflow helpers
+
+#### `prompts/label-prompt`
+Generates a prompt ID and suggested execution-record path.
+
+```bash
+scripts/prompts/label-prompt --work-item WI-META-CLI-MVP --slug register-implementation
+scripts/prompts/label-prompt --slug register-audit
+```
+
+#### `prompts/record-execution`
+Generates an execution-record Markdown file under `project/executions/` (or an alternate output root).
+
+```bash
+scripts/prompts/record-execution \
+  --prompt-id "PROMPT(AD_HOC:REGISTER_AUDIT)[2026-04-24T16:30:00-04:00]" \
+  --slug register-audit \
+  --status planned
+```
+
+See `PROMPTS.md` and `scripts/prompts/README.md` for details.
+
 ### Testing
 
 #### `test`

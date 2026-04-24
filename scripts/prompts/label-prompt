@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Generate prompt labels and suggested execution paths."""
+
+import argparse
+import datetime
+import pathlib
+import re
+
+
+WORK_ITEM_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+
+def _normalize_slug(value: str) -> str:
+    slug = value.strip().lower()
+    slug = re.sub(r"[^a-z0-9]+", "-", slug)
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    if not slug:
+        raise ValueError("slug must contain at least one alphanumeric character")
+    return slug
+
+
+def _slug_upper_underscore(slug: str) -> str:
+    return slug.replace("-", "_").upper()
+
+
+def _normalize_work_item(value: str) -> str:
+    work_item = (value or "").strip() or "AD_HOC"
+    if not WORK_ITEM_PATTERN.fullmatch(work_item):
+        raise ValueError(
+            "work-item must match ^[A-Za-z0-9][A-Za-z0-9_-]*$ "
+            "(for example: WI-META-CLI-MVP or AD_HOC)"
+        )
+    return work_item
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Generate a prompt ID and suggested execution record path.",
+    )
+    parser.add_argument("--work-item", default="AD_HOC", help="Work item ID (default: AD_HOC)")
+    parser.add_argument("--slug", required=True, help="Prompt slug")
+    parser.add_argument(
+        "--output-root",
+        default="project/executions",
+        help="Execution records root (default: project/executions)",
+    )
+    return parser
+
+
+def main() -> int:
+    parser = _build_parser()
+    args = parser.parse_args()
+
+    try:
+        slug = _normalize_slug(args.slug)
+    except ValueError as error:
+        parser.error(str(error))
+
+    try:
+        work_item = _normalize_work_item(args.work_item)
+    except ValueError as error:
+        parser.error(str(error))
+    now = datetime.datetime.now(datetime.timezone.utc).astimezone()
+
+    prompt_id = f"PROMPT({work_item}:{_slug_upper_underscore(slug)})[{now.isoformat(timespec='seconds')}]"
+
+    timestamp_for_file = now.strftime("%Y_%m_%d_%H_%M_%S")
+    execution_dir = pathlib.Path(args.output_root) / work_item
+    suggested_execution_file = execution_dir / f"{timestamp_for_file}_{_slug_upper_underscore(slug)}.md"
+
+    print(f"prompt_id: {prompt_id}")
+    print(f"execution_dir: {execution_dir.as_posix()}")
+    print(f"suggested_execution_file: {suggested_execution_file.as_posix()}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -9,10 +9,14 @@ import unittest
 from lrh.meta import workspace
 
 
+def _canonical(path: pathlib.Path) -> pathlib.Path:
+    return path.resolve()
+
+
 class TestMetaInitRuntime(unittest.TestCase):
     def test_init_workspace_in_empty_directory_creates_expected_layout(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = pathlib.Path(tmp_dir)
+            root = _canonical(pathlib.Path(tmp_dir))
             result = workspace.init_workspace(
                 root,
                 spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
@@ -46,7 +50,7 @@ class TestMetaInitRuntime(unittest.TestCase):
 
     def test_init_workspace_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = pathlib.Path(tmp_dir)
+            root = _canonical(pathlib.Path(tmp_dir))
             workspace.init_workspace(
                 root,
                 spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
@@ -62,7 +66,7 @@ class TestMetaInitRuntime(unittest.TestCase):
 
     def test_init_workspace_fails_on_incompatible_state_without_force(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = pathlib.Path(tmp_dir)
+            root = _canonical(pathlib.Path(tmp_dir))
             (root / ".lrh").write_text("not a directory", encoding="utf-8")
 
             with self.assertRaises(workspace.MetaInitError):
@@ -73,7 +77,7 @@ class TestMetaInitRuntime(unittest.TestCase):
 
     def test_init_workspace_force_replaces_incompatible_state(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = pathlib.Path(tmp_dir)
+            root = _canonical(pathlib.Path(tmp_dir))
             (root / ".lrh").write_text("not a directory", encoding="utf-8")
 
             result = workspace.init_workspace(
@@ -86,7 +90,7 @@ class TestMetaInitRuntime(unittest.TestCase):
 
     def test_init_workspace_config_conflict_requires_force(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = pathlib.Path(tmp_dir)
+            root = _canonical(pathlib.Path(tmp_dir))
             (root / ".lrh").mkdir(parents=True)
             (root / ".lrh" / "config.toml").write_text(
                 'schema_version = "broken"\n', encoding="utf-8"
@@ -107,7 +111,7 @@ class TestMetaInitRuntime(unittest.TestCase):
 
     def test_init_workspace_config_path_directory_requires_force(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = pathlib.Path(tmp_dir)
+            root = _canonical(pathlib.Path(tmp_dir))
             (root / ".lrh" / "config.toml").mkdir(parents=True)
 
             with self.assertRaises(workspace.MetaInitError):
@@ -118,7 +122,7 @@ class TestMetaInitRuntime(unittest.TestCase):
 
     def test_init_workspace_force_replaces_directory_config_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = pathlib.Path(tmp_dir)
+            root = _canonical(pathlib.Path(tmp_dir))
             config_dir = root / ".lrh" / "config.toml"
             config_dir.mkdir(parents=True)
             (config_dir / "placeholder.txt").write_text("x", encoding="utf-8")
@@ -134,7 +138,7 @@ class TestMetaInitRuntime(unittest.TestCase):
 
     def test_init_workspace_escapes_workspace_name_for_valid_toml(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            root = pathlib.Path(tmp_dir)
+            root = _canonical(pathlib.Path(tmp_dir))
             workspace_name = 'A "B" \\\\ C\nD'
 
             workspace.init_workspace(
@@ -149,7 +153,7 @@ class TestMetaInitRuntime(unittest.TestCase):
 
     def test_init_workspace_writes_normalized_absolute_paths(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
-            base = pathlib.Path(tmp_dir)
+            base = _canonical(pathlib.Path(tmp_dir))
             target = base / "a" / ".." / "workspace"
 
             workspace.init_workspace(

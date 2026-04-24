@@ -294,6 +294,30 @@ All substantive code changes should be covered by tests where practical.
 - All new functionality must include tests
 - All tests must pass before merging
 
+### Test Tree Layout
+
+Tests should mirror the package module they cover. For a source module under
+`src/lrh/<package>/<module>.py`, prefer the matching test file:
+
+```text
+tests/<package>_tests/<module>_test.py
+```
+
+Examples:
+
+- `src/lrh/meta/workspace.py` -> `tests/meta_tests/workspace_test.py`
+- `src/lrh/control/loader.py` -> `tests/control_tests/loader_test.py`
+- `src/lrh/assist/request_variables.py` -> `tests/assist_tests/request_variables_test.py`
+
+Avoid flattening package-specific tests into names such as
+`meta_workspace_test.py` or `control_loader_test.py` at the root of `tests/`.
+Prefer a package-specific test directory instead.
+
+Exceptions are allowed for tests whose scope is intentionally broader than one
+module, but their names should say so clearly. Use suffixes such as
+`_integration_test.py` or `_smoke_test.py` for integration flows and smoke
+coverage.
+
 ### Testing Changes
 
 At minimum:
@@ -319,6 +343,8 @@ The canonical project test entry point should be:
 ```bash
 scripts/test
 ```
+
+Run `scripts/develop` before the full test suite when preparing a local change.
 
 If additional arguments or modes are supported, they should be documented in the scripts documentation.
 

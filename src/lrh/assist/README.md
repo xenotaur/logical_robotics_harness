@@ -88,8 +88,8 @@ lrh request assessment --scope work_item --target WI-0003
 lrh snapshot --help
 lrh snapshot work_item WI-0003 --project-root .
 lrh survey --help
-lrh survey src/lrh/assist --tests-root tests/assist --format md
-lrh survey src/lrh/assist --tests-root tests/assist --format json
+lrh survey src/lrh/assist --tests-root tests/assist_tests --format md
+lrh survey src/lrh/assist --tests-root tests/assist_tests --format json
 ```
 
 `lrh survey --format json` returns a stable machine-readable structure

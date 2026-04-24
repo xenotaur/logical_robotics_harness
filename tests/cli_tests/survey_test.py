@@ -9,7 +9,7 @@ from lrh.cli import main as cli_main
 class TestLrhSurveyCli(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.repo_root = pathlib.Path(__file__).resolve().parents[1]
+        cls.repo_root = pathlib.Path(__file__).resolve().parents[2]
 
     def _run_lrh(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
@@ -33,7 +33,7 @@ class TestLrhSurveyCli(unittest.TestCase):
                 "survey",
                 str(self.repo_root / "src/lrh/assist"),
                 "--tests-root",
-                str(self.repo_root / "tests/assist"),
+                str(self.repo_root / "tests/assist_tests"),
                 "--format",
                 "json",
             ]

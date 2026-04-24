@@ -7,7 +7,7 @@ import unittest
 class TestLrhSnapshotCli(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.repo_root = pathlib.Path(__file__).resolve().parents[1]
+        cls.repo_root = pathlib.Path(__file__).resolve().parents[2]
 
     def _run_lrh(self, args: list[str]) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as temp_dir:

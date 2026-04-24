@@ -78,12 +78,17 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--work-item-file",
-        help="Path to a UTF-8 work item file injected as {{WORK_ITEM}}.",
+        help=(
+            "Path to a UTF-8 work item file injected as {{WORK_ITEM}} and "
+            "{{WORK_ITEM_CONTENT}}, with path available as {{WORK_ITEM_PATH}}."
+        ),
     )
     parser.add_argument(
         "--style-file",
         help=(
-            "Path to a UTF-8 style guide file injected as " "{{STYLE_GUIDE_CONTEXT}}."
+            "Path to a UTF-8 style guide file injected as {{STYLE_GUIDE_CONTEXT}} "
+            "and {{STYLE_GUIDE_CONTENT}}, with path available as "
+            "{{STYLE_GUIDE_PATH}}."
         ),
     )
     parser.add_argument(

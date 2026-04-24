@@ -109,6 +109,15 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
     work_item = request_variables.read_optional_text(args.work_item_file)
     style_guide_context = request_variables.read_optional_text(args.style_file)
     patch_text = request_variables.read_optional_text(args.patch_file)
+    background_file_path = request_variables.normalize_file_reference(
+        args.background_file
+    )
+    audit_file_path = request_variables.normalize_file_reference(args.audit_file)
+    work_item_file_path = request_variables.normalize_file_reference(
+        args.work_item_file
+    )
+    style_file_path = request_variables.normalize_file_reference(args.style_file)
+    patch_file_path = request_variables.normalize_file_reference(args.patch_file)
 
     return {
         "TEMPLATE_NAME": args.template_name,
@@ -119,17 +128,27 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
         "REPO_NAME": repo_name,
         "PROJECT_GOAL": args.project_goal or "",
         "BACKGROUND_CONTEXT": background_context,
-        "BACKGROUND_FILE": args.background_file or "",
+        "BACKGROUND_FILE": background_file_path,
+        "BACKGROUND_PATH": background_file_path,
+        "BACKGROUND_CONTENT": background_context,
         "PROJECT_TYPE": args.project_type or "",
         "BOOTSTRAP_SCOPE": args.bootstrap_mode or "",
         "ASSESSMENT_SCOPE": args.scope or "",
         "ASSESSMENT_TARGET": target_input,
         "AUDIT_REPORT": audit_report,
-        "AUDIT_FILE": args.audit_file or "",
+        "AUDIT_FILE": audit_file_path,
+        "AUDIT_PATH": audit_file_path,
+        "AUDIT_CONTENT": audit_report,
         "WORK_ITEM": work_item,
-        "WORK_ITEM_FILE": args.work_item_file or "",
+        "WORK_ITEM_FILE": work_item_file_path,
+        "WORK_ITEM_PATH": work_item_file_path,
+        "WORK_ITEM_CONTENT": work_item,
         "STYLE_GUIDE_CONTEXT": style_guide_context,
-        "STYLE_FILE": args.style_file or "",
+        "STYLE_FILE": style_file_path,
+        "STYLE_GUIDE_PATH": style_file_path,
+        "STYLE_GUIDE_CONTENT": style_guide_context,
         "PATCH": patch_text,
-        "PATCH_FILE": args.patch_file or "",
+        "PATCH_FILE": patch_file_path,
+        "PATCH_PATH": patch_file_path,
+        "PATCH_CONTENT": patch_text,
     }

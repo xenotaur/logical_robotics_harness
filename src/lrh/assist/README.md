@@ -18,6 +18,7 @@ Template markdown files are bundled as package data in both editable installs (`
 
 - **Template**: A markdown file with placeholders like `{{TARGET_MODULE_GHA}}`.
 - **Variables**: Values injected into placeholders. Some are computed (for example normalized target paths), others come from CLI flags or input files.
+- **File input variables**: File-based inputs expose both path and content forms so templates can choose either concise references or inline bodies (for example `{{STYLE_GUIDE_PATH}}` and `{{STYLE_GUIDE_CONTENT}}`, while preserving legacy names like `{{STYLE_GUIDE_CONTEXT}}`).
 - **Request generation**: Deterministic interpolation that replaces known placeholders and leaves unknown placeholders unchanged.
 - **`RequestArgs`**: Planned typed argument model for Python callers.
 

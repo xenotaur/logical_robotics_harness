@@ -1,8 +1,5 @@
 """Inventory a Python source tree for assist planning workflows.
 
-This module is a mechanical migration of the legacy
-`scripts/aiprog/sourcetree_surveyor.py` helper into package-owned assist code.
-
 Examples:
   python -m lrh.assist.sourcetree_surveyor src/lrh --format md
   python -m lrh.assist.sourcetree_surveyor src/lrh --format json

@@ -62,3 +62,11 @@ lrh validate
 ```
 
 CI also runs validation and will fail on policy violations.
+
+## Prompt-driven work integration
+
+For meaningful prompt-driven implementation tied to a work item:
+
+1. Use a prompt ID that references the work item per `PROMPTS.md`.
+2. Add an execution record under `project/executions/<WORK_ITEM_ID>/` (or `AD_HOC/` when no work item applies).
+3. Before rerunning the same prompt ID, follow soft idempotence checks in `PROMPTS.md` and `project/executions/README.md`.

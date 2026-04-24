@@ -134,6 +134,15 @@ A typical LRH project evolves through stages:
 
 This process is **iterative**, not strictly linear.
 
+### Prompt-driven execution traceability
+
+For meaningful prompt-driven work, LRH uses prompt IDs and execution records as lightweight workflow metadata.
+
+- Prompt IDs follow the conventions in `PROMPTS.md`.
+- Execution records are stored under `project/executions/` per `project/executions/README.md`.
+- Before starting prompt-driven implementation, contributors should apply soft idempotence checks against prior executions for the same prompt ID.
+- Prompt workflow records should remain lightweight and should not replace normal project artifacts such as roadmap, focus, work items, evidence, and status.
+
 ---
 
 ## 6. Data Model (Repository Structure)

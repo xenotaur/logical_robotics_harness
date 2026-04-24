@@ -31,6 +31,11 @@ Immediate next ordering:
 3. keep canonical survey command surface on `lrh survey` backed by `src/lrh/assist/sourcetree_surveyor.py`
 4. pursue follow-on `sourcetree_surveyor` capability expansion only when a concrete downstream consumer defines required structured fields (schema expansion intentionally deferred)
 
+Prompt-workflow integration note:
+
+- meaningful prompt-driven documentation or implementation work should use `PROMPTS.md` conventions and add an execution record under `project/executions/`
+- reruns should preserve prior execution history and link via `rerun_of` rather than rewriting prior records
+
 Meta-control planning guardrail:
 
 - before widening Meta CLI surface beyond the current MVP command set, align and land the shared workspace-resolution contract (explicit precedence, XDG-style global defaults, explicit local mode, and visible resolution behavior)

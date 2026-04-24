@@ -78,6 +78,24 @@ def read_optional_text(path_str: str | None) -> str:
         raise OSError(f"Could not read context file {path}: {error}") from error
 
 
+def normalize_file_reference(path_str: str | None) -> str:
+    """Return a normalized, repo-relative-when-possible path reference string."""
+    if not path_str:
+        return ""
+
+    path = pathlib.Path(path_str)
+    try:
+        resolved_path = path.resolve()
+        repo_root = pathlib.Path.cwd().resolve()
+        relative_path = resolved_path.relative_to(repo_root)
+        return str(relative_path).replace("\\", "/")
+    except (ValueError, OSError):
+        normalized = path_str.strip().replace("\\", "/")
+        if normalized.startswith("./"):
+            return normalized[2:]
+        return normalized
+
+
 def infer_repo_name(target_input: str | None, repo_name: str | None) -> str:
     """Prefer explicit repo_name. Otherwise infer a reasonable repository name."""
     if repo_name:

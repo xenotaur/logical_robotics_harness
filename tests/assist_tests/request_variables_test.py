@@ -102,5 +102,23 @@ class TestInferRepoName(unittest.TestCase):
                 os.chdir(original_cwd)
 
 
+class TestNormalizeFileReference(unittest.TestCase):
+    def test_none_input_returns_empty_string(self) -> None:
+        self.assertEqual(request_variables.normalize_file_reference(None), "")
+
+    def test_relative_path_is_normalized(self) -> None:
+        self.assertEqual(
+            request_variables.normalize_file_reference("./STYLE.md"),
+            "STYLE.md",
+        )
+
+    def test_path_outside_repo_is_preserved_as_string(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            external_path = pathlib.Path(temp_dir) / "external.md"
+            external_path.write_text("outside", encoding="utf-8")
+            normalized = request_variables.normalize_file_reference(str(external_path))
+            self.assertEqual(normalized, str(external_path).replace("\\", "/"))
+
+
 if __name__ == "__main__":
     unittest.main()

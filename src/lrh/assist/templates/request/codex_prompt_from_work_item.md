@@ -7,10 +7,10 @@ INPUT CONTEXT
 ==================================================
 
 STYLE GUIDE:
-{{STYLE_GUIDE_CONTEXT}}
+- Read and follow `{{STYLE_GUIDE_PATH}}`
 
 APPROVED WORK ITEM:
-{{WORK_ITEM}}
+- Implement only the approved work item at `{{WORK_ITEM_PATH}}`
 
 OPTIONAL BACKGROUND:
 {{BACKGROUND_CONTEXT}}

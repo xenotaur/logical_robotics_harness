@@ -119,6 +119,26 @@ class TestNormalizeFileReference(unittest.TestCase):
             normalized = request_variables.normalize_file_reference(str(external_path))
             self.assertEqual(normalized, str(external_path).replace("\\", "/"))
 
+    def test_uses_repo_root_not_current_subdirectory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = pathlib.Path(temp_dir) / "repo"
+            repo_root.mkdir()
+            (repo_root / ".git").mkdir()
+            style_path = repo_root / "STYLE.md"
+            style_path.write_text("style", encoding="utf-8")
+            nested_dir = repo_root / "src" / "lrh"
+            nested_dir.mkdir(parents=True)
+
+            original_cwd = pathlib.Path.cwd()
+            try:
+                os.chdir(nested_dir)
+                self.assertEqual(
+                    request_variables.normalize_file_reference(str(style_path)),
+                    "STYLE.md",
+                )
+            finally:
+                os.chdir(original_cwd)
+
 
 if __name__ == "__main__":
     unittest.main()

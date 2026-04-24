@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: completed
 blocked_reason: null
 blocked: false
 id: WI-ASSIST-SOURCETREE-SURVEYOR-MIGRATION
 title: Mechanically migrate sourcetree_surveyor into src/lrh/assist/
 type: deliverable
-status: proposed
+status: resolved
 priority: medium
 owner: anthony
 contributors:
@@ -37,4 +37,4 @@ artifacts_expected:
 
 ## Summary
 
-Move `scripts/aiprog/sourcetree_surveyor.py` into package code as a mechanical migration after template/installability work is stable.
+Mechanical migration is complete: `lrh survey` now delegates to package code in `src/lrh/assist/sourcetree_surveyor.py`, and legacy script-path migration is no longer planned work.

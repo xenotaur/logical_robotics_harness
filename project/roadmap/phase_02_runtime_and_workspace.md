@@ -53,23 +53,22 @@ Progress update (2026-04-22):
 
 Order of execution:
 
-1. Move runtime assist templates out of `scripts/aiprog/templates/` into package-owned paths (target: `src/lrh/assist/templates/`).
-2. Update template loading to use package resources so installed-package usage does not depend on source-tree-relative paths.
-3. Add packaging/build/install hardening and smoke checks for installed `lrh request` / `lrh snapshot` behavior.
-4. Mechanically migrate `scripts/aiprog/sourcetree_surveyor.py` into `src/lrh/assist/`.
+1. Preserve runtime assist templates in package-owned paths (`src/lrh/assist/templates/`).
+2. Preserve template loading via package resources so installed-package usage does not depend on source-tree-relative paths.
+3. Maintain packaging/build/install hardening and smoke checks for installed `lrh request` / `lrh snapshot` behavior.
+4. Keep `lrh survey` canonical on package code (`src/lrh/assist/sourcetree_surveyor.py`).
 5. Expand `sourcetree_surveyor` capabilities only as a separate follow-on item.
 
 Rationale:
 
 - Templates required at runtime should ship as package data.
 - Installed-package behavior must be validated before wider collaborator adoption.
-- Separating mechanical migration from capability growth keeps PRs small and reviewable.
+- Keeping canonical package ownership separate from capability growth keeps PRs small and reviewable.
 
 Traceability:
 
 - `project/work_items/proposed/WI-ASSIST-TEMPLATES-PACKAGING.md`
 - `project/work_items/proposed/WI-ASSIST-INSTALLABILITY-HARDENING.md`
-- `project/work_items/proposed/WI-ASSIST-SOURCETREE-SURVEYOR-MIGRATION.md`
 - `project/work_items/proposed/WI-ASSIST-SOURCETREE-SURVEYOR-EXPANSION.md`
 
 ## Risks

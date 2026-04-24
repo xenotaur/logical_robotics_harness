@@ -15,23 +15,22 @@ generated_from:
     - WI-SNAPSHOT-RESOLVED-CONTEXT
     - WI-ASSIST-TEMPLATES-PACKAGING
     - WI-ASSIST-INSTALLABILITY-HARDENING
-    - WI-ASSIST-SOURCETREE-SURVEYOR-MIGRATION
 generated_at: 2026-04-22T00:00:00Z
 health: yellow
 ---
 
 # Current Status
 
-LRH has crossed the bootstrap threshold for control-plane foundations and now has canonical assist CLI entrypoints (`lrh request`, `lrh snapshot`), but installability hardening for assist templates is still pending.
+LRH has crossed the bootstrap threshold for control-plane foundations and now has canonical assist CLI entrypoints (`lrh request`, `lrh snapshot`, `lrh survey`) with package-owned survey implementation.
 
 ## Summary
 
 The immediate objective is to finish packaging-safe assist migration sequencing:
 
-- move runtime templates into package-owned locations
-- switch template loading to installed-package-safe resource resolution
+- preserve package-owned template/runtime loading behavior
 - verify install/build behavior with smoke checks
-- then mechanically migrate `sourcetree_surveyor` before any capability expansion
+- keep `lrh survey` canonical on package-owned `sourcetree_surveyor`
+- plan only follow-on sourcetree capability expansion
 
 ## Current Health
 
@@ -41,14 +40,14 @@ Reason:
 - core control-plane and precedence foundations are implemented
 - precedence canonicalization closure has been validated against docs/code/tests with no remaining correctness follow-up
 - assist request/snapshot CLI paths are available and documented
-- template loading still relies on source-tree-relative paths that must be hardened for installed usage
+- assist installability hardening and smoke-check coverage should remain continuously enforced
 
 ## Active Priorities
 
-- package-owned template relocation
-- installed-package-safe template/resource loading
 - packaging/install smoke-test hardening
-- mechanical `sourcetree_surveyor` migration into package code
+- preserve package-owned assist template/resource loading
+- maintain canonical `lrh survey` delegation to package code
+- plan sourcetree capability expansion as a distinct follow-on
 
 ## Guardrail Summary
 
@@ -66,7 +65,7 @@ Reason:
 
 ## Recommended Next Actions
 
-1. Complete WI-ASSIST-TEMPLATES-PACKAGING.
-2. Complete WI-ASSIST-INSTALLABILITY-HARDENING.
-3. Complete WI-ASSIST-SOURCETREE-SURVEYOR-MIGRATION.
+1. Keep WI-ASSIST-INSTALLABILITY-HARDENING evidence current with repeatable smoke checks.
+2. Keep package-owned assist template/resource behavior stable.
+3. Keep `lrh survey` canonical on package-owned implementation.
 4. Plan WI-ASSIST-SOURCETREE-SURVEYOR-EXPANSION as a separate follow-on.

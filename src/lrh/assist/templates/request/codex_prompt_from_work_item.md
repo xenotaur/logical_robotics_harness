@@ -1,4 +1,4 @@
-# Codex Implementation Prompt from Work Item
+# Codex Implementation Prompt from Work Item (Lean Reference-Based Version)
 
 Create a tightly scoped Codex implementation prompt for one approved LRH work item.
 
@@ -6,20 +6,23 @@ Create a tightly scoped Codex implementation prompt for one approved LRH work it
 INPUT CONTEXT
 ==================================================
 
-STYLE GUIDE:
-{{STYLE_GUIDE_CONTEXT}}
+STYLE GUIDE PATH:
+{{STYLE_GUIDE_PATH}}
 
-APPROVED WORK ITEM:
-{{WORK_ITEM}}
+APPROVED WORK ITEM PATH:
+{{WORK_ITEM_PATH}}
 
-OPTIONAL BACKGROUND:
-{{BACKGROUND_CONTEXT}}
+OPTIONAL BACKGROUND PATHS:
+{{BACKGROUND_PATHS}}
+
+OPTIONAL INLINED BACKGROUND SUMMARY:
+{{BACKGROUND_SUMMARY}}
 
 ==================================================
 OBJECTIVE
 ==================================================
 
-Generate a Codex prompt that will implement exactly one approved work item.
+Generate a Codex prompt that will implement exactly one approved LRH work item.
 
 The generated prompt should be:
 
@@ -29,6 +32,7 @@ The generated prompt should be:
 - aligned with STYLE.md
 - explicit about what is in scope and out of scope
 - explicit about validation steps
+- as short as possible while remaining safe and executable
 
 This template produces a **prompt for implementation**, not implementation itself.
 
@@ -42,7 +46,7 @@ AUTHORITATIVE CONSTRAINTS
 
 The generated Codex prompt must treat the following as binding:
 
-- STYLE.md is the source of truth
+- `STYLE.md` is the source of truth for coding and change-discipline rules
 - the approved work item defines the allowed scope
 - unrelated code must not be modified
 - behavior must not change unless the work item explicitly requires it
@@ -50,6 +54,27 @@ The generated Codex prompt must treat the following as binding:
 - changes must remain small and reviewable
 
 If the work item is ambiguous, the generated prompt must tell Codex to stay conservative and report uncertainty rather than guessing.
+
+==================================================
+REFERENCE-FIRST RULE
+==================================================
+
+The generated Codex prompt should prefer **referencing authoritative repo files** instead of pasting their full contents.
+
+Specifically:
+
+- Refer to `STYLE.md` by path; do NOT inline its full text.
+- Refer to the approved work item by path; do NOT restate the entire work item verbatim.
+- Inline only the minimum operational content Codex needs:
+  - implementation objective
+  - strict scope
+  - required changes
+  - prohibited changes
+  - validation commands
+  - success criteria
+
+Use optional background only if it materially reduces ambiguity.
+Do NOT paste large background documents unless absolutely necessary.
 
 ==================================================
 WHAT THE GENERATED PROMPT MUST DO
@@ -62,14 +87,10 @@ The generated prompt must instruct Codex to:
 3. Avoid unrelated cleanup
 4. Preserve comments unless a change requires updating them
 5. Preserve local file style where possible
-6. Follow STYLE.md rules on:
-   - imports
-   - type annotations
-   - testing
-   - formatting
-   - AI-assisted development constraints
+6. Follow `STYLE.md` without restating it
 7. Run or report relevant validation commands
 8. Summarize what changed and what was intentionally not changed
+9. Report uncertainty rather than guessing if repository facts conflict or are incomplete
 
 ==================================================
 WHAT THE GENERATED PROMPT MUST NOT DO
@@ -85,6 +106,7 @@ The generated prompt must explicitly forbid Codex from:
 - speculative redesign
 - inventing missing requirements
 - silently expanding scope
+- rewriting documentation prose unless the work item explicitly requires it
 
 ==================================================
 PROMPT SHAPE REQUIREMENTS
@@ -119,16 +141,19 @@ You are a senior Python engineer making a single, tightly scoped repository chan
 
 # AUTHORITATIVE REFERENCES
 
-- STYLE.md
-- the approved work item below
+- `STYLE.md` at: <STYLE_GUIDE_PATH>
+- approved work item at: <WORK_ITEM_PATH>
+- additional background paths, if any
+
+Do not restate these files in full. Follow them directly.
 
 # OBJECTIVE
 
-<clear implementation objective derived from the work item>
+<clear implementation objective derived from the work item's Problem/Summary>
 
 # STRICT SCOPE
 
-<exact scope derived from the work item>
+<exact scope derived from the work item's Scope and Likely Files>
 
 # REQUIRED CHANGES
 
@@ -166,17 +191,16 @@ MAPPING RULES
 
 When converting a work item into an implementation prompt:
 
-- Turn “Problem” into the implementation objective
+- Turn “Problem” or “Summary” into the implementation objective
 - Turn “Scope” into strict in-scope boundaries
-- Turn “Out of scope” into explicit “DO NOT” bullets
-- Turn “Likely files” into allowed target files
-- Turn “Acceptance criteria” into success criteria
+- Turn “Out of Scope” into explicit “DO NOT” bullets
+- Turn “Likely Files” into allowed target files
+- Turn “Acceptance Criteria” into success criteria
 - Turn “Validation” into command/check instructions
-- Turn “Risk level” into caution language
-- Turn “Execution suitability” into tone:
-  - if Codex-suitable: proceed directly
-  - if Human-suitable: say implementation should be deferred for human handling
-  - if Human design review first: do not generate an implementation prompt; instead return a short notice explaining why
+- Turn “Notes” into caution language only if necessary
+- If optional background exists, summarize only the parts that reduce ambiguity
+
+Do NOT repeat sections of the work item unless they are needed verbatim for precision.
 
 ==================================================
 SPECIAL HANDLING RULES
@@ -229,13 +253,15 @@ A good result:
 - is specific about scope and boundaries
 - includes concrete validation steps
 - avoids accidental scope creep
+- avoids unnecessary prompt bloat
 
 A bad result:
 
 - turns one work item into a broad cleanup
 - omits validation
 - leaves scope ambiguous
-- ignores STYLE.md constraints
+- ignores `STYLE.md`
+- pastes large documents unnecessarily
 - assumes unstated implementation details
 
 ==================================================
@@ -249,7 +275,8 @@ Before finishing, verify:
 3. Are out-of-scope items clearly forbidden?
 4. Are validation steps included?
 5. Does the prompt tell Codex to report uncertainty rather than guess?
-6. Does it reflect STYLE.md’s minimal-diff and no-noise philosophy?
+6. Does it reflect `STYLE.md`’s minimal-diff and no-noise philosophy?
+7. Does it reference long documents instead of inlining them?
 
 If not, revise.
 

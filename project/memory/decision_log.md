@@ -126,11 +126,11 @@ Prioritize package-owned template migration and installed-package hardening befo
 
 ### Decisions
 
-- Runtime assist templates should move out of `scripts/aiprog/templates/` into package-owned paths (targeting `src/lrh/assist/templates/`).
-- Template loading for `lrh request` must use package-resource semantics rather than source-tree-relative paths.
-- Packaging/build/install smoke checks for installed `lrh request` and `lrh snapshot` behavior are required before collaborator-facing publication.
-- `scripts/aiprog/sourcetree_surveyor.py` migration into `src/lrh/assist/` should be a mechanical migration item.
-- Expansion of `sourcetree_surveyor` into broader source-tree audit capability is a separate follow-on item.
+- Runtime assist templates are package-owned under `src/lrh/assist/templates/`.
+- Template loading for `lrh request` uses package-resource semantics rather than source-tree-relative paths.
+- Packaging/build/install smoke checks for installed `lrh request` and `lrh snapshot` behavior remain required for ongoing hardening.
+- `lrh survey` is canonical and delegated to package code in `src/lrh/assist/sourcetree_surveyor.py`.
+- Expansion of `sourcetree_surveyor` into broader source-tree audit capability remains a separate follow-on item.
 
 ### Rationale
 

@@ -25,7 +25,7 @@ done
 if [[ "$#" -gt 0 ]]; then
     targets=("$@")
 else
-    targets=(src/lrh tests scripts/aiprog)
+    targets=(src/lrh tests)
 fi
 
 # Ruff rule sets

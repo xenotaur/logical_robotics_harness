@@ -7,7 +7,7 @@ import unittest
 
 class TestSandboxScript(unittest.TestCase):
     def _sandbox_script(self) -> pathlib.Path:
-        return pathlib.Path(__file__).resolve().parents[1] / "scripts" / "sandbox"
+        return pathlib.Path(__file__).resolve().parents[2] / "scripts" / "sandbox"
 
     def test_sandbox_runs_non_interactive_command_with_isolated_paths(self) -> None:
         script = self._sandbox_script()

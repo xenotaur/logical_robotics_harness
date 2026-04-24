@@ -26,10 +26,10 @@ Recently completed baseline work:
 
 Immediate next ordering:
 
-1. package-owned templates + package-resource loading
-2. packaging/installability hardening with installed-package smoke checks
-3. mechanical `sourcetree_surveyor` migration into `src/lrh/assist/`
-4. follow-on `sourcetree_surveyor` capability expansion only when a concrete downstream consumer defines required structured fields (schema expansion intentionally deferred)
+1. preserve package-owned templates + package-resource loading behavior
+2. maintain packaging/installability hardening with installed-package smoke checks
+3. keep canonical survey command surface on `lrh survey` backed by `src/lrh/assist/sourcetree_surveyor.py`
+4. pursue follow-on `sourcetree_surveyor` capability expansion only when a concrete downstream consumer defines required structured fields (schema expansion intentionally deferred)
 
 Meta-control planning guardrail:
 

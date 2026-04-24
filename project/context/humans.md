@@ -13,8 +13,8 @@ The system begins by being able to **understand and validate itself** (self-host
 ## Current Update (2026-04-22)
 
 - Canonical assist interfaces are now `lrh request` and `lrh snapshot`, with assist module code under `src/lrh/assist/`.
-- Runtime request templates still live under `scripts/aiprog/templates/`; this remains the immediate migration/hardening priority.
-- Next sequencing is explicit: package-owned templates → package-resource loading → install/build smoke checks → mechanical `sourcetree_surveyor` migration → separate capability expansion.
+- Runtime request templates are now package-owned under `src/lrh/assist/templates/`, and assist runtime loading uses package-resource semantics.
+- Sequencing is now explicit as: maintain install/build smoke checks for package behavior → treat `lrh survey`/`src/lrh/assist/sourcetree_surveyor.py` as canonical → handle only follow-on survey capability expansion as separate work.
 - Survey JSON schema expansion is intentionally deferred until a concrete downstream consumer exists; transient transformations are preferred over persistent derived survey artifacts.
 - Meta workspace design is now clarified around three modes: `hybrid` (default), `local`, and `global`; in `hybrid`, local workspace repositories hold durable shareable catalog state while private/runtime state lives in global/XDG paths. `lrh meta where` is the intended visibility surface for resolved workspace context.
 

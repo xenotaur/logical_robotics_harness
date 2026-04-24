@@ -59,7 +59,7 @@ class TestMetaCliFlowIntegration(unittest.TestCase):
         for mode in modes:
             with self.subTest(mode=mode):
                 with tempfile.TemporaryDirectory() as tmp_dir:
-                    root = pathlib.Path(tmp_dir)
+                    root = _canonical(pathlib.Path(tmp_dir))
                     env = self._isolated_env(root)
 
                     workspace_root = root / "workspace"
@@ -84,7 +84,9 @@ class TestMetaCliFlowIntegration(unittest.TestCase):
                     init_result = self._run_lrh(init_args, cwd=root, env=env)
                     self.assertEqual(init_result.returncode, 0, msg=init_result.stderr)
 
-                    first_list = self._run_lrh(["meta", "list"], cwd=command_cwd, env=env)
+                    first_list = self._run_lrh(
+                        ["meta", "list"], cwd=command_cwd, env=env
+                    )
                     self.assertEqual(first_list.returncode, 0, msg=first_list.stderr)
                     self.assertIn("No registered projects", first_list.stdout)
 
@@ -105,7 +107,9 @@ class TestMetaCliFlowIntegration(unittest.TestCase):
                     )
                     self.assertIsNotNone(project_id_match)
                     project_id = project_id_match.group(1)
-                    self.assertIn("setup_state=lrh_project_present", register_result.stdout)
+                    self.assertIn(
+                        "setup_state=lrh_project_present", register_result.stdout
+                    )
 
                     second_list = self._run_lrh(
                         ["meta", "list"],
@@ -115,7 +119,9 @@ class TestMetaCliFlowIntegration(unittest.TestCase):
                     self.assertEqual(second_list.returncode, 0, msg=second_list.stderr)
                     self.assertIn("[1] fake-repo", second_list.stdout)
                     self.assertIn(f"project_id: {project_id}", second_list.stdout)
-                    self.assertIn("setup_state: lrh_project_present", second_list.stdout)
+                    self.assertIn(
+                        "setup_state: lrh_project_present", second_list.stdout
+                    )
 
                     fake_xdg_config = _canonical(root / "xdg" / "config" / "lrh")
                     fake_xdg_state = _canonical(root / "xdg" / "state" / "lrh")
@@ -128,13 +134,17 @@ class TestMetaCliFlowIntegration(unittest.TestCase):
                         self.assertTrue((fake_xdg_cache / "cache").exists())
                     elif mode == "local":
                         expected_projects_dir = _canonical(workspace_root / "projects")
-                        self.assertTrue((workspace_root / ".lrh" / "config.toml").exists())
+                        self.assertTrue(
+                            (workspace_root / ".lrh" / "config.toml").exists()
+                        )
                         self.assertTrue((workspace_root / "private" / "state").exists())
                         self.assertTrue((workspace_root / "private" / "cache").exists())
                         self.assertFalse((fake_xdg_config / "config.toml").exists())
                     else:
                         expected_projects_dir = _canonical(workspace_root / "projects")
-                        self.assertTrue((workspace_root / ".lrh" / "config.toml").exists())
+                        self.assertTrue(
+                            (workspace_root / ".lrh" / "config.toml").exists()
+                        )
                         self.assertTrue((fake_xdg_config / "config.toml").exists())
                         self.assertTrue((fake_xdg_state / "private" / "state").exists())
                         self.assertTrue((fake_xdg_cache / "cache").exists())
@@ -145,7 +155,9 @@ class TestMetaCliFlowIntegration(unittest.TestCase):
 
                     parsed = tomllib.loads(record_path.read_text(encoding="utf-8"))
                     self.assertEqual(parsed["identity"]["project_id"], project_id)
-                    self.assertEqual(parsed["project"]["setup_state"], "lrh_project_present")
+                    self.assertEqual(
+                        parsed["project"]["setup_state"], "lrh_project_present"
+                    )
 
                     for checked_path in (
                         record_path,

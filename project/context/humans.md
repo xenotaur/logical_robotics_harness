@@ -2638,6 +2638,17 @@ LRH must demonstrate it can:
 
 ---
 
+# Prompt-Driven Workflow Traceability
+
+For meaningful prompt-driven changes, LRH uses lightweight prompt IDs plus execution records.
+
+- Prompt IDs and rerun semantics are defined in `PROMPTS.md`.
+- Execution records are stored in `project/executions/` and follow `project/executions/README.md`.
+- Before executing a prompt-driven PR, contributors should check for existing executions with the same prompt ID and apply soft idempotence rules.
+- Prompt workflow traceability supplements normal control artifacts (work items, evidence, status); it does not replace them.
+
+---
+
 # Summary
 
 LRH transforms project management into a **structured, verifiable, and agent-compatible system**. It bridges human intent and machine execution through explicit artifacts, enabling scalable and auditable AI-assisted development.

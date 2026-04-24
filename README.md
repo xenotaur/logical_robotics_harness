@@ -122,3 +122,14 @@ The YAML frontmatter `status` is authoritative, and directory bucket is derived 
 - `lrh meta init` now defaults to `hybrid`; in hybrid mode, an optional positional directory (or `--workspace-root`) sets the catalog/workspace root
 
 See `project/design/architecture.md`, `project/design/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/active/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.
+
+## Prompt workflow guidance
+
+For meaningful prompt-driven changes, LRH provides lightweight prompt traceability guidance in `PROMPTS.md`.
+
+Helper scripts:
+
+- `scripts/prompts/label-prompt`
+- `scripts/prompts/record-execution`
+
+Execution records are stored under `project/executions/` and may be grouped by work item or `AD_HOC`.

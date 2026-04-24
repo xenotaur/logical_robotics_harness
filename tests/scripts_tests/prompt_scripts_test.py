@@ -43,7 +43,10 @@ class PromptScriptTests(unittest.TestCase):
         self.assertIn("execution_dir: project/executions/AD_HOC", completed.stdout)
         self.assertRegex(
             completed.stdout,
-            r"suggested_execution_file: project/executions/AD_HOC/\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}_EXAMPLE_TASK\.md",
+            (
+                r"suggested_execution_file: project/executions/AD_HOC/"
+                r"\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}_EXAMPLE_TASK\.md"
+            ),
         )
 
     def test_label_prompt_rejects_unsafe_work_item(self) -> None:
@@ -88,14 +91,20 @@ class PromptScriptTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
         self.assertRegex(
             completed.stdout,
-            r"output_file: .*/project/executions/AD_HOC/\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}_EXAMPLE_TASK\.md",
+            (
+                r"output_file: .*/project/executions/AD_HOC/"
+                r"\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}_EXAMPLE_TASK\.md"
+            ),
         )
         self.assertIn(f"prompt_id: {prompt_id}", completed.stdout)
         self.assertIn("status: planned", completed.stdout)
         self.assertIn("# Summary", completed.stdout)
 
     def test_record_execution_writes_file_with_expected_front_matter(self) -> None:
-        prompt_id = "PROMPT(WI-META-CLI-MVP:REGISTER_IMPLEMENTATION)[2026-04-24T16:24:13-04:00]"
+        prompt_id = (
+            "PROMPT(WI-META-CLI-MVP:REGISTER_IMPLEMENTATION)"
+            "[2026-04-24T16:24:13-04:00]"
+        )
         with tempfile.TemporaryDirectory() as temp_dir:
             output_root = pathlib.Path(temp_dir)
             completed = subprocess.run(
@@ -130,7 +139,9 @@ class PromptScriptTests(unittest.TestCase):
             self.assertIn(f"prompt_id: {prompt_id}", content)
             self.assertIn("status: planned", content)
 
-    def test_record_execution_defaults_to_ad_hoc_when_work_item_not_provided(self) -> None:
+    def test_record_execution_defaults_to_ad_hoc_when_work_item_not_provided(
+        self,
+    ) -> None:
         prompt_id = "PROMPT(AD_HOC:REGISTER_AUDIT)[2026-04-24T16:24:13-04:00]"
         with tempfile.TemporaryDirectory() as temp_dir:
             output_root = pathlib.Path(temp_dir)

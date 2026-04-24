@@ -7,6 +7,9 @@ import pathlib
 import re
 
 
+WORK_ITEM_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+
 def _normalize_slug(value: str) -> str:
     slug = value.strip().lower()
     slug = re.sub(r"[^a-z0-9]+", "-", slug)
@@ -18,6 +21,16 @@ def _normalize_slug(value: str) -> str:
 
 def _slug_upper_underscore(slug: str) -> str:
     return slug.replace("-", "_").upper()
+
+
+def _normalize_work_item(value: str) -> str:
+    work_item = (value or "").strip() or "AD_HOC"
+    if not WORK_ITEM_PATTERN.fullmatch(work_item):
+        raise ValueError(
+            "work-item must match ^[A-Za-z0-9][A-Za-z0-9_-]*$ "
+            "(for example: WI-META-CLI-MVP or AD_HOC)"
+        )
+    return work_item
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -43,7 +56,10 @@ def main() -> int:
     except ValueError as error:
         parser.error(str(error))
 
-    work_item = args.work_item.strip() or "AD_HOC"
+    try:
+        work_item = _normalize_work_item(args.work_item)
+    except ValueError as error:
+        parser.error(str(error))
     now = datetime.datetime.now(datetime.timezone.utc).astimezone()
 
     prompt_id = f"PROMPT({work_item}:{_slug_upper_underscore(slug)})[{now.isoformat(timespec='seconds')}]"

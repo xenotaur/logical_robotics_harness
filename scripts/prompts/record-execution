@@ -15,6 +15,7 @@ VALID_STATUSES = {
     "reverted",
     "superseded",
 }
+WORK_ITEM_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
 def _normalize_slug(value: str) -> str:
@@ -28,6 +29,16 @@ def _normalize_slug(value: str) -> str:
 
 def _slug_upper_underscore(slug: str) -> str:
     return slug.replace("-", "_").upper()
+
+
+def _normalize_work_item(value: str) -> str:
+    work_item = (value or "").strip() or "AD_HOC"
+    if not WORK_ITEM_PATTERN.fullmatch(work_item):
+        raise ValueError(
+            "work-item must match ^[A-Za-z0-9][A-Za-z0-9_-]*$ "
+            "(for example: WI-META-CLI-MVP or AD_HOC)"
+        )
+    return work_item
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -91,12 +102,18 @@ def main() -> int:
         parser.error(str(error))
 
     now = datetime.datetime.now(datetime.timezone.utc).astimezone()
-    work_item = args.work_item.strip() or "AD_HOC"
+    try:
+        work_item = _normalize_work_item(args.work_item)
+    except ValueError as error:
+        parser.error(str(error))
     timestamp_for_id = now.strftime("%Y_%m_%d_%H_%M_%S")
     slug_upper = _slug_upper_underscore(slug)
 
     execution_id = f"{timestamp_for_id}_{slug_upper}"
-    execution_dir = pathlib.Path(args.output_root) / work_item
+    output_root = pathlib.Path(args.output_root).resolve()
+    execution_dir = (output_root / work_item).resolve()
+    if execution_dir != output_root and output_root not in execution_dir.parents:
+        parser.error(f"resolved execution directory escapes output-root: {execution_dir}")
     output_file = execution_dir / f"{execution_id}.md"
     created_at = now.isoformat(timespec="seconds")
 

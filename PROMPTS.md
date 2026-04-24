@@ -104,6 +104,8 @@ Outputs include:
 - `execution_dir`
 - `suggested_execution_file`
 
+`--work-item` must be a safe ID (letters/numbers plus `_` or `-`) so paths stay scoped to execution-record directories.
+
 ### `scripts/prompts/record-execution`
 
 Generates an execution-record Markdown file.

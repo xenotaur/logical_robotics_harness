@@ -46,6 +46,25 @@ class PromptScriptTests(unittest.TestCase):
             r"suggested_execution_file: project/executions/AD_HOC/\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}_EXAMPLE_TASK\.md",
         )
 
+    def test_label_prompt_rejects_unsafe_work_item(self) -> None:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                str(self._label_script()),
+                "--work-item",
+                "../escape",
+                "--slug",
+                "example-task",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+        )
+
+        self.assertNotEqual(completed.returncode, 0)
+        self.assertIn("work-item must match", completed.stderr)
+
     def test_record_execution_dry_run_prints_content_without_writing(self) -> None:
         prompt_id = "PROMPT(AD_HOC:EXAMPLE_TASK)[2026-04-24T00:00:00-04:00]"
         completed = subprocess.run(
@@ -67,7 +86,10 @@ class PromptScriptTests(unittest.TestCase):
         )
 
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
-        self.assertIn("output_file: project/executions/AD_HOC/", completed.stdout)
+        self.assertRegex(
+            completed.stdout,
+            r"output_file: .*/project/executions/AD_HOC/\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}_EXAMPLE_TASK\.md",
+        )
         self.assertIn(f"prompt_id: {prompt_id}", completed.stdout)
         self.assertIn("status: planned", completed.stdout)
         self.assertIn("# Summary", completed.stdout)
@@ -136,6 +158,33 @@ class PromptScriptTests(unittest.TestCase):
             self.assertEqual(len(files), 1)
             content = files[0].read_text(encoding="utf-8")
             self.assertIn("work_item: AD_HOC", content)
+
+    def test_record_execution_rejects_unsafe_work_item(self) -> None:
+        prompt_id = "PROMPT(AD_HOC:REGISTER_AUDIT)[2026-04-24T16:24:13-04:00]"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_root = pathlib.Path(temp_dir)
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(self._record_script()),
+                    "--prompt-id",
+                    prompt_id,
+                    "--work-item",
+                    "../escape",
+                    "--slug",
+                    "register-audit",
+                    "--output-root",
+                    str(output_root),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("work-item must match", completed.stderr)
+            self.assertFalse((output_root / "escape").exists())
 
 
 if __name__ == "__main__":

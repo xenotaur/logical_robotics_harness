@@ -38,6 +38,10 @@ artifacts_expected:
 
 Mechanically relocate assist runtime templates from `scripts/aiprog/templates/` into a package-owned location (expected: `src/lrh/assist/templates/`) so installed-package usage does not depend on repository-root-relative paths.
 
+## Problem
+
+Assist runtime template loading currently depends on repository-root-relative template paths, which is brittle for installed-package usage and blocks clean packaging semantics.
+
 ## Objective
 
 Make assist runtime template loading install-safe by using package-owned template files and package-resource loading semantics, while preserving existing template behavior and CLI-visible behavior.

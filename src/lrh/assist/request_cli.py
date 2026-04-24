@@ -26,7 +26,9 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         help=(
             "Optional target path or identifier. For coverage-style templates, "
             "this is usually a module path such as "
-            "src/lrh/analysis/llm_extractor.py."
+            "src/lrh/analysis/llm_extractor.py. For "
+            "codex_prompt_from_work_item, this may be a work-item ID, stem, "
+            "or file path."
         ),
     )
     parser.add_argument(
@@ -81,6 +83,8 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         help=(
             "Path to a UTF-8 work item file injected as {{WORK_ITEM}} and "
             "{{WORK_ITEM_CONTENT}}, with path available as {{WORK_ITEM_PATH}}."
+            " When provided for codex_prompt_from_work_item, this explicit path "
+            "takes precedence over any positional target."
         ),
     )
     parser.add_argument(
@@ -88,7 +92,8 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         help=(
             "Path to a UTF-8 style guide file injected as {{STYLE_GUIDE_CONTEXT}} "
             "and {{STYLE_GUIDE_CONTENT}}, with path available as "
-            "{{STYLE_GUIDE_PATH}}."
+            "{{STYLE_GUIDE_PATH}}. codex_prompt_from_work_item defaults to "
+            "STYLE.md when omitted."
         ),
     )
     parser.add_argument(

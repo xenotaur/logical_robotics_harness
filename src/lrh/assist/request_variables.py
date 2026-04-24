@@ -3,6 +3,15 @@
 import pathlib
 
 
+def find_repo_root(start: pathlib.Path | None = None) -> pathlib.Path | None:
+    """Find the nearest repository root by looking for a .git marker."""
+    current = (start or pathlib.Path.cwd()).resolve()
+    for candidate in (current, *current.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
 def normalize_target_for_gha(target_input: str | None) -> str:
     """
     Normalize an input path into repo-root style module path:
@@ -76,6 +85,27 @@ def read_optional_text(path_str: str | None) -> str:
         raise FileNotFoundError(f"Context file not found: {path}") from error
     except OSError as error:
         raise OSError(f"Could not read context file {path}: {error}") from error
+
+
+def normalize_file_reference(path_str: str | None) -> str:
+    """Return a normalized, repo-relative-when-possible path reference string."""
+    if not path_str:
+        return ""
+
+    path = pathlib.Path(path_str)
+    try:
+        resolved_path = path.resolve()
+        repo_root = find_repo_root()
+        if repo_root is not None:
+            relative_path = resolved_path.relative_to(repo_root)
+            return str(relative_path).replace("\\", "/")
+    except (ValueError, OSError):
+        pass
+
+    normalized = path_str.strip().replace("\\", "/")
+    if normalized.startswith("./"):
+        return normalized[2:]
+    return normalized
 
 
 def infer_repo_name(target_input: str | None, repo_name: str | None) -> str:

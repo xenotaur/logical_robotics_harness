@@ -102,5 +102,43 @@ class TestInferRepoName(unittest.TestCase):
                 os.chdir(original_cwd)
 
 
+class TestNormalizeFileReference(unittest.TestCase):
+    def test_none_input_returns_empty_string(self) -> None:
+        self.assertEqual(request_variables.normalize_file_reference(None), "")
+
+    def test_relative_path_is_normalized(self) -> None:
+        self.assertEqual(
+            request_variables.normalize_file_reference("./STYLE.md"),
+            "STYLE.md",
+        )
+
+    def test_path_outside_repo_is_preserved_as_string(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            external_path = pathlib.Path(temp_dir) / "external.md"
+            external_path.write_text("outside", encoding="utf-8")
+            normalized = request_variables.normalize_file_reference(str(external_path))
+            self.assertEqual(normalized, str(external_path).replace("\\", "/"))
+
+    def test_uses_repo_root_not_current_subdirectory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = pathlib.Path(temp_dir) / "repo"
+            repo_root.mkdir()
+            (repo_root / ".git").mkdir()
+            style_path = repo_root / "STYLE.md"
+            style_path.write_text("style", encoding="utf-8")
+            nested_dir = repo_root / "src" / "lrh"
+            nested_dir.mkdir(parents=True)
+
+            original_cwd = pathlib.Path.cwd()
+            try:
+                os.chdir(nested_dir)
+                self.assertEqual(
+                    request_variables.normalize_file_reference(str(style_path)),
+                    "STYLE.md",
+                )
+            finally:
+                os.chdir(original_cwd)
+
+
 if __name__ == "__main__":
     unittest.main()

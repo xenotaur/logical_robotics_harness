@@ -264,7 +264,6 @@ lrh request work_items_from_audit \
 - **Snapshot CLI**: `lrh snapshot ...`
 - **Survey CLI**: `lrh survey ...` (delegates to `src/lrh/assist/sourcetree_surveyor.py`)
 - **Survey JSON contract**: stable structured inventory output for audit/context follow-on tooling.
-- **Maintainer helper compatibility wrapper**: `scripts/aiprog/sourcetree_surveyor.py` forwards to package-owned code in `src/lrh/assist/sourcetree_surveyor.py`.
 - **Package sourcetree module**: also runnable with `python -m lrh.assist.sourcetree_surveyor --help`.
 - **Planned request API**: first-class Python API (`RequestArgs` + `generate_request(...)`).
 - **Packaging/install smoke checks**: use `scripts/smoke_assist_install` to validate installed `lrh request` and `lrh snapshot` behavior from a non-repo working directory.

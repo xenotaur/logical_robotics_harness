@@ -109,7 +109,7 @@ The YAML frontmatter `status` is authoritative, and directory bucket is derived 
 - package-owned template location and package-resource loading for assist workflows
 - packaging/build/install hardening with installed-package smoke checks
 - canonical survey command surface: `lrh survey <root> [--tests-root ...] [--format md|json] [--out ...]`
-- package-owned survey implementation at `src/lrh/assist/sourcetree_surveyor.py` with legacy wrapper at `scripts/aiprog/sourcetree_surveyor.py`
+- package-owned survey implementation at `src/lrh/assist/sourcetree_surveyor.py`
 - `--format json` now emits a stable survey contract (`schema_version: 1.0`) with source-tree inventory facts for follow-on audit/context workflows
 - Meta CLI MVP now includes `lrh meta init`, `lrh meta register`, `lrh meta list`, `lrh meta where`, and `lrh meta inspect` for setup, registry write/read, active workspace inspection, and truth-first single-record inspection
 - `lrh meta where` is the primary workspace diagnostics command and reports resolved mode/source plus config/catalog/projects/state/cache paths (including local vs global/private scope distinctions)

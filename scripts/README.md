@@ -95,7 +95,9 @@ scripts/update
 **Output:** Updates `environment.yml` with current conda environment dependencies (excludes name and prefix).
 
 #### `version`
-Displays the versions of installed development tools (Python, linters, formatters, and environment managers).
+Displays LRH package diagnostics plus versions of installed development tools
+(Python, linters, formatters, and environment managers). LRH package version is
+resolved from Python package metadata.
 
 ```bash
 scripts/version

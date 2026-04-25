@@ -1,7 +1,22 @@
 #!/usr/bin/env bash
 echo "Checking tool versions ..."
 
-echo "LRH proper"
+echo "LRH package metadata"
+python - <<'PY'
+import importlib.metadata
+
+distribution_name = "logical-robotics-harness"
+
+try:
+    version = importlib.metadata.version(distribution_name)
+except importlib.metadata.PackageNotFoundError:
+    version = "unknown"
+
+print(f"lrh {version}")
+PY
+echo
+
+echo "LRH CLI"
 lrh version
 echo
 

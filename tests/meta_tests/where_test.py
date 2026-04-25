@@ -58,6 +58,7 @@ class TestMetaWhereCli(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0)
             self.assertIn("Active LRH meta workspace", result.stdout)
+            self.assertRegex(result.stdout, r"lrh version: (unknown|.+)")
             self.assertIn("mode: global", result.stdout)
             self.assertIn("resolution source: global_discovery", result.stdout)
             self.assertIn("catalog root:", result.stdout)
@@ -85,6 +86,7 @@ class TestMetaWhereCli(unittest.TestCase):
             result = self._run_lrh(["meta", "where"], cwd=nested)
 
             self.assertEqual(result.returncode, 0)
+            self.assertRegex(result.stdout, r"lrh version: (unknown|.+)")
             self.assertIn("mode: local", result.stdout)
             self.assertIn("resolution source: local_discovery", result.stdout)
             self.assertIn("(local/private)", result.stdout)
@@ -126,6 +128,7 @@ class TestMetaWhereCli(unittest.TestCase):
             )
 
             self.assertEqual(result.returncode, 0)
+            self.assertRegex(result.stdout, r"lrh version: (unknown|.+)")
             self.assertIn("mode: hybrid", result.stdout)
             self.assertIn("resolution source: flag(--workspace)", result.stdout)
             self.assertIn(
@@ -159,6 +162,8 @@ class TestMetaWhereCli(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0)
             data = json.loads(result.stdout)
+            self.assertIn("lrh_version", data)
+            self.assertIsInstance(data["lrh_version"], str)
             self.assertEqual(data["mode"], "local")
             self.assertEqual(data["resolution_source"], "local_discovery")
             self.assertEqual(

@@ -149,13 +149,19 @@ class MetaInspectResult:
     project_path_exists: bool | None
 
 
-def meta_workspace_where_payload(workspace: MetaWorkspace) -> dict[str, object]:
+def meta_workspace_where_payload(
+    workspace: MetaWorkspace,
+    *,
+    lrh_version: str | None = None,
+) -> dict[str, object]:
     """Build a structured diagnostics payload for ``lrh meta where`` output."""
     path_scope = _workspace_path_scope(workspace)
+    normalized_lrh_version = lrh_version if lrh_version is not None else "unknown"
     workspace_root = (
         str(workspace.workspace_root) if workspace.workspace_root is not None else None
     )
     return {
+        "lrh_version": normalized_lrh_version,
         "mode": workspace.mode,
         "resolution_source": workspace.resolution_source,
         "config_path": str(workspace.config_path),
@@ -175,13 +181,18 @@ def meta_workspace_where_payload(workspace: MetaWorkspace) -> dict[str, object]:
     }
 
 
-def format_meta_workspace_where(workspace: MetaWorkspace) -> str:
+def format_meta_workspace_where(
+    workspace: MetaWorkspace,
+    *,
+    lrh_version: str | None = None,
+) -> str:
     """Render user-facing diagnostics for resolved meta workspace context."""
-    data = meta_workspace_where_payload(workspace)
+    data = meta_workspace_where_payload(workspace, lrh_version=lrh_version)
     path_scope = data["path_scope"]
     lines = [
         "Active LRH meta workspace",
         "",
+        f"lrh version: {data['lrh_version']}",
         f"mode: {data['mode']}",
         f"resolution source: {data['resolution_source']}",
         f"config: {data['config_path']} ({path_scope['config']})",

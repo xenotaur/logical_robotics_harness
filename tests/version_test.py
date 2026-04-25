@@ -4,7 +4,7 @@ import unittest.mock
 from lrh import version as version_module
 
 
-class VersionModuleTest(unittest.TestCase):
+class TestVersionModule(unittest.TestCase):
     def test_format_cli_version_returns_distribution_version_when_available(
         self,
     ) -> None:

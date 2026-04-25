@@ -4,23 +4,25 @@ prompt_id: PROMPT(WI-VERSIONING-HARDENING:VERSION_TESTS)[2026-04-25T02:05:00-04:
 work_item: WI-VERSIONING-HARDENING
 status: landed
 rerun_of: 2026_04_25_07_39_59_VERSION_TESTS
-pr: 
+pr:
 commit: d30e263
 created_at: 2026-04-25T15:55:03+00:00
 ---
 
 # Summary
 
-TODO: Briefly summarize the intended prompt-driven work.
+Prompt rerun to address review feedback on version integration-test determinism.
 
 # Result
 
-TODO: Fill in what happened.
+Updated `tests/cli_tests/version_integration_test.py` to handle `PackageNotFoundError` and assert deterministic CLI output in both installed and source-checkout environments.
 
 # Validation
 
-TODO: List tests or checks run.
+- `python -m unittest tests.cli_tests.version_integration_test tests.version_test`
+- `python -m ruff check tests/cli_tests/version_integration_test.py tests/version_test.py`
+- `python -m black --check tests/cli_tests/version_integration_test.py tests/version_test.py`
 
 # Follow-up
 
-TODO: List deferred work.
+None.

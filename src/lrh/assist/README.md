@@ -143,6 +143,13 @@ and approving work.
 Render an implementation prompt request for the selected work item:
 
 ```bash
+lrh request codex_prompt_from_work_item WI-ASSIST-TEMPLATES-PACKAGING \
+  > path/to/codex_prompt_request.md
+```
+
+Equivalent explicit form:
+
+```bash
 lrh request codex_prompt_from_work_item \
   --work-item-file path/to/work_item.md \
   --style-file STYLE.md > path/to/codex_prompt_request.md
@@ -246,9 +253,35 @@ lrh request work_items_from_audit \
   --style-file STYLE.md
 ```
 
+### 4) `codex_prompt_from_work_item`
+
+**Purpose**: Render an implementation prompt request for one approved work item.
+
+**Inputs**:
+
+- `template_name`: `codex_prompt_from_work_item`
+- positional `target` (required unless `--work-item-file` is passed):
+  - direct file path, or
+  - work-item `id` from frontmatter, or
+  - work-item filename stem in `project/work_items/{proposed,active,resolved,abandoned}/`
+- `--style-file` (optional; defaults to `STYLE.md` when omitted)
+- `--work-item-file` (optional explicit override; takes precedence over positional `target`)
+
+Examples:
+
+```bash
+lrh request codex_prompt_from_work_item WI-ASSIST-TEMPLATES-PACKAGING
+lrh request codex_prompt_from_work_item project/work_items/proposed/WI-EXAMPLE.md
+lrh request codex_prompt_from_work_item \
+  --work-item-file project/work_items/proposed/WI-EXAMPLE.md \
+  --style-file STYLE.md
+```
+
 ## Validation Notes
 
 - Some templates require specific arguments (for example `work_items_from_audit` requires both `--audit-file` and `--style-file`).
+- `codex_prompt_from_work_item` resolves a positional target only within work-item buckets (`proposed`, `active`, `resolved`, `abandoned`) and fails closed on ambiguous matches; use `--work-item-file` to disambiguate.
+- Path-like positional targets for `codex_prompt_from_work_item` (for example `project/work_items/active/WI-EXAMPLE.md`) are treated as authoritative file paths and fail fast if the file does not exist.
 - Invalid argument combinations are reported as CLI errors with a non-zero exit status.
 - Missing input/template files are reported as file errors with a non-zero exit status.
 

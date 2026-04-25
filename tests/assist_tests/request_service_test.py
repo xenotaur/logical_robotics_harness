@@ -374,12 +374,14 @@ class TestCodexPromptFromWorkItemTemplate(unittest.TestCase):
             show_vars=False,
         )
 
-    def test_codex_prompt_uses_paths_without_inlining_full_style_guide(self) -> None:
+    def test_codex_prompt_renders_final_codex_cloud_prompt(self) -> None:
         rendered, variables = request_service.generate_request(self._args())
 
-        self.assertIn("Read and follow `STYLE.md`", rendered)
+        self.assertIn("# ROLE", rendered)
+        self.assertIn("# AUTHORITATIVE REFERENCES", rendered)
+        self.assertIn("STYLE.md path: `STYLE.md`", rendered)
         self.assertIn(
-            "Implement only the approved work item at "
+            "Approved work item: "
             "`project/work_items/proposed/WI-INTERPRETATION-VALIDATION.md`",
             rendered,
         )

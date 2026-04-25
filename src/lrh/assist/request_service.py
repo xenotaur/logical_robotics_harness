@@ -4,7 +4,7 @@ import argparse
 import pathlib
 import re
 
-from lrh.assist import request_templates, request_variables
+from lrh.assist import request_templates, request_variables, work_item_prompt_core
 from lrh.control import parser as control_parser
 
 _TEMPLATE_VAR_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
@@ -66,11 +66,21 @@ def generate_request(
     template_root: pathlib.Path | None = None,
 ) -> tuple[str, dict[str, str]]:
     """Load template and render it using computed request variables."""
+    variables = build_variables(args)
+    if args.template_name == "codex_prompt_from_work_item":
+        work_item_path = pathlib.Path(variables["WORK_ITEM_RESOLVED_FILE"])
+        rendered = work_item_prompt_core.generate_codex_cloud_prompt(
+            prompt_id="PROMPT(AD_HOC:WORK_ITEM_PROMPT_CORE)[2026-04-24T20:05:00-04:00]",
+            work_item_path=work_item_path,
+            style_guide_path=variables["STYLE_GUIDE_PATH"],
+            work_item_reference_path=variables["WORK_ITEM_PATH"],
+        )
+        return rendered, variables
+
     template_text = request_templates.load_template_text(
         args.template_name,
         template_root=template_root,
     )
-    variables = build_variables(args)
     return render_template(template_text, variables), variables
 
 
@@ -121,6 +131,9 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
     )
     audit_file_path = request_variables.normalize_file_reference(args.audit_file)
     work_item_file_path = request_variables.normalize_file_reference(work_item_file)
+    work_item_resolved_file = (
+        str(pathlib.Path(work_item_file).resolve()) if work_item_file else ""
+    )
     style_file_path = request_variables.normalize_file_reference(style_file)
     patch_file_path = request_variables.normalize_file_reference(args.patch_file)
 
@@ -147,6 +160,7 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
         "WORK_ITEM": work_item,
         "WORK_ITEM_FILE": work_item_file_path,
         "WORK_ITEM_PATH": work_item_file_path,
+        "WORK_ITEM_RESOLVED_FILE": work_item_resolved_file,
         "WORK_ITEM_CONTENT": work_item,
         "WORK_ITEM_RESOLUTION": work_item_resolution,
         "STYLE_GUIDE_CONTEXT": style_guide_context,

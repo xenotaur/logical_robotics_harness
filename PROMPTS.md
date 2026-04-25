@@ -87,6 +87,44 @@ For meaningful prompt-driven implementation in Codex Cloud:
 3. generate one execution record per meaningful prompt run
 4. keep process lightweight and non-blocking for tiny fixes
 
+## Work-item to Codex prompt flow
+
+For work-item-driven implementation, use this sequence:
+
+```text
+Work item Markdown
+  -> lrh request codex-prompt-from-work-item
+  -> Codex Cloud prompt
+  -> PR
+  -> execution record
+```
+
+Suggested command flow:
+
+```bash
+lrh request codex-prompt-from-work-item \
+  --work-item project/work_items/active/WI-EXAMPLE.md \
+  --slug implement-wi-example \
+  --out /tmp/codex_prompt.md
+
+# Submit /tmp/codex_prompt.md to Codex Cloud and open a PR.
+
+scripts/prompts/record-execution \
+  --prompt-id "PROMPT(WI-EXAMPLE:IMPLEMENT_WI_EXAMPLE)[2026-04-24T20:15:00-04:00]" \
+  --work-item WI-EXAMPLE \
+  --slug implement-wi-example \
+  --status in_progress
+```
+
+Notes:
+
+- `codex-prompt-from-work-item` is the preferred structured command for work-item input.
+- Pass `--work-item <WORK_ITEM_ID>` to `record-execution` for work-item-driven
+  runs so records are written under that work-item directory instead of the
+  `AD_HOC` default.
+- Record execution after generating the PR so the record can include final PR/commit references.
+- Keep this workflow lightweight: skip extra ceremony for tiny exploratory edits.
+
 ## Helper scripts
 
 ### `scripts/prompts/label-prompt`

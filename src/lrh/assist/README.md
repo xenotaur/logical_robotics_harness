@@ -143,8 +143,10 @@ and approving work.
 Render an implementation prompt request for the selected work item:
 
 ```bash
-lrh request codex_prompt_from_work_item WI-ASSIST-TEMPLATES-PACKAGING \
-  > path/to/codex_prompt_request.md
+lrh request codex-prompt-from-work-item \
+  --work-item project/work_items/active/WI-ASSIST-TEMPLATES-PACKAGING.md \
+  --slug implement-wi-assist-templates-packaging \
+  --out path/to/codex_prompt_request.md
 ```
 
 Equivalent explicit form:
@@ -157,6 +159,16 @@ lrh request codex_prompt_from_work_item \
 
 Submit `path/to/codex_prompt_request.md` to Codex (or another coding assistant)
 to produce and execute the implementation prompt.
+
+Workflow summary:
+
+```text
+Work item Markdown
+  -> lrh request codex-prompt-from-work-item
+  -> Codex Cloud prompt
+  -> PR
+  -> execution record
+```
 
 ### Step 5 — Review the resulting patch against the work item
 
@@ -171,6 +183,18 @@ lrh request pr_against_work_item \
 
 Submit `path/to/pr_review_request.md` to your reviewer assistant and use the
 result to decide whether to merge, request fixes, or split follow-up work.
+
+After opening the PR, create/update an execution record for traceability:
+
+```bash
+scripts/prompts/record-execution \
+  --prompt-id "<PROMPT_ID>" \
+  --work-item <WORK_ITEM_ID> \
+  --slug <slug> \
+  --status in_progress \
+  --pr <pr_reference> \
+  --commit <head_sha>
+```
 
 ### Notes
 
@@ -272,7 +296,10 @@ lrh request work_items_from_audit \
 Examples:
 
 ```bash
-lrh request codex_prompt_from_work_item WI-ASSIST-TEMPLATES-PACKAGING
+lrh request codex-prompt-from-work-item \
+  --work-item project/work_items/active/WI-ASSIST-TEMPLATES-PACKAGING.md \
+  --slug implement-wi-assist-templates-packaging \
+  --out path/to/codex_prompt_request.md
 lrh request codex_prompt_from_work_item project/work_items/proposed/WI-EXAMPLE.md
 lrh request codex_prompt_from_work_item \
   --work-item-file project/work_items/proposed/WI-EXAMPLE.md \

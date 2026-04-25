@@ -1,4 +1,3 @@
-import importlib.metadata
 import tempfile
 import unittest
 from pathlib import Path
@@ -38,8 +37,8 @@ class TestSnapshotCliWorkItemDiscovery(unittest.TestCase):
 class TestSnapshotCliHarnessMetadata(unittest.TestCase):
     def test_resolve_harness_version_returns_unknown_when_unavailable(self) -> None:
         with mock.patch(
-            "importlib.metadata.version",
-            side_effect=importlib.metadata.PackageNotFoundError,
+            "lrh.version.get_installed_version",
+            return_value=None,
         ):
             self.assertEqual(snapshot_cli.resolve_harness_version(), "unknown")
 
@@ -76,11 +75,13 @@ class TestSnapshotCliHarnessMetadata(unittest.TestCase):
 
             args = snapshot_cli.build_parser(prog="snapshot").parse_args(["project"])
             with mock.patch(
-                "importlib.metadata.version",
+                "lrh.version.get_installed_version",
                 return_value="1.2.3",
             ):
                 output = snapshot_cli.generate_project_context(project_dir, args)
 
+            self.assertIn("Harness metadata:", output)
+            self.assertIn("```yaml", output)
             self.assertIn("harness:", output)
             self.assertIn("name: lrh", output)
             self.assertIn("version: 1.2.3", output)

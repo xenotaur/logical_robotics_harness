@@ -125,7 +125,8 @@ def build_codex_prompt_from_work_item_parser(
     parser = argparse.ArgumentParser(
         prog=prog,
         description=(
-            "Generate a Codex implementation prompt from a structured LRH work item."
+            "Generate a Codex Cloud-ready implementation prompt "
+            "from a structured LRH work item."
         ),
     )
     parser.add_argument(
@@ -141,7 +142,10 @@ def build_codex_prompt_from_work_item_parser(
     parser.add_argument(
         "--out",
         required=True,
-        help="Output markdown path for the generated prompt.",
+        help=(
+            "Output markdown path for the generated prompt "
+            "(submit this file to Codex Cloud)."
+        ),
     )
     parser.add_argument(
         "--style-file",

@@ -142,5 +142,6 @@ Helper scripts:
 
 - `scripts/prompts/label-prompt`
 - `scripts/prompts/record-execution`
+- `scripts/version` (plus `tools`, `verify`, `tag`, `push` subcommands for release workflow checks)
 
 Execution records are stored under `project/executions/` and may be grouped by work item or `AD_HOC`.

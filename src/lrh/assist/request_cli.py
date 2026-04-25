@@ -105,6 +105,14 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         action="store_true",
         help="Print computed variables to stderr for debugging.",
     )
+    parser.add_argument(
+        "--prompt-id",
+        help=(
+            "Optional explicit prompt ID for codex_prompt_from_work_item. "
+            "When omitted, a prompt ID is generated from work-item metadata and "
+            "the current timestamp."
+        ),
+    )
     return parser
 
 
@@ -128,7 +136,7 @@ def run_request_cli(
             args,
             template_root=template_root,
         )
-    except (FileNotFoundError, OSError) as error:
+    except (FileNotFoundError, OSError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 2
 

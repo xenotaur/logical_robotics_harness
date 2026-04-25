@@ -29,6 +29,7 @@ class TestBuildVariables(unittest.TestCase):
             "style_file": "STYLE.md",
             "patch_file": None,
             "show_vars": False,
+            "prompt_id": None,
         }
         defaults.update(overrides)
         return argparse.Namespace(**defaults)
@@ -70,6 +71,7 @@ class TestCodexPromptFromWorkItemResolution(unittest.TestCase):
             "style_file": None,
             "patch_file": None,
             "show_vars": False,
+            "prompt_id": None,
         }
         defaults.update(overrides)
         return argparse.Namespace(**defaults)
@@ -372,19 +374,40 @@ class TestCodexPromptFromWorkItemTemplate(unittest.TestCase):
             style_file="STYLE.md",
             patch_file=None,
             show_vars=False,
+            prompt_id=None,
         )
 
-    def test_codex_prompt_uses_paths_without_inlining_full_style_guide(self) -> None:
+    def test_codex_prompt_renders_final_codex_cloud_prompt(self) -> None:
         rendered, variables = request_service.generate_request(self._args())
 
-        self.assertIn("Read and follow `STYLE.md`", rendered)
+        self.assertIn("# ROLE", rendered)
+        self.assertIn("# AUTHORITATIVE REFERENCES", rendered)
+        self.assertIn("STYLE.md path: `STYLE.md`", rendered)
         self.assertIn(
-            "Implement only the approved work item at "
+            "Approved work item: "
             "`project/work_items/proposed/WI-INTERPRETATION-VALIDATION.md`",
             rendered,
         )
+        self.assertRegex(
+            rendered,
+            re.compile(
+                "Prompt ID: `PROMPT\\("
+                "WI-INTERPRETATION-VALIDATION:CODEX_PROMPT_FROM_WORK_ITEM\\)\\["
+            ),
+        )
         self.assertNotIn(variables["STYLE_GUIDE_CONTENT"], rendered)
         self.assertNotRegex(rendered, re.compile(r"\{\{[A-Z0-9_]+\}\}"))
+
+    def test_explicit_prompt_id_is_used_when_provided(self) -> None:
+        args = self._args()
+        args.prompt_id = "PROMPT(AD_HOC:EXPLICIT)[2026-04-25T00:00:00+00:00]"
+
+        rendered, _ = request_service.generate_request(args)
+
+        self.assertIn(
+            "Prompt ID: `PROMPT(AD_HOC:EXPLICIT)[2026-04-25T00:00:00+00:00]`",
+            rendered,
+        )
 
 
 if __name__ == "__main__":

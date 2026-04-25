@@ -95,13 +95,25 @@ scripts/update
 **Output:** Updates `environment.yml` with current conda environment dependencies (excludes name and prefix).
 
 #### `version`
-Displays LRH package diagnostics plus versions of installed development tools
-(Python, linters, formatters, and environment managers). LRH package version is
-resolved from Python package metadata.
+Provides LRH version and release workflow helpers.
 
 ```bash
 scripts/version
+scripts/version tools
+scripts/version verify [tag]
+scripts/version tag <tag>
+scripts/version push <tag>
 ```
+
+Subcommands:
+- default (`scripts/version`): prints `lrh <version>` from package metadata
+- `tools`: prints versions for LRH CLI, Python, lint/format tools, and environment managers
+- `verify [tag]`: validates an optional tag name, requires a clean working tree, and runs:
+  - `scripts/lint`
+  - `scripts/format --check`
+  - `scripts/test`
+- `tag <tag>`: idempotently creates a local tag at `HEAD` after verification
+- `push <tag>`: idempotently and safely pushes an existing local tag to `origin`
 
 ### Code Quality
 

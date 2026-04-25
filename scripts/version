@@ -1,40 +1,7 @@
 #!/usr/bin/env bash
-echo "Checking tool versions ..."
+set -euo pipefail
 
-echo "LRH package metadata"
-python - <<'PY'
-import importlib.metadata
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-distribution_name = "logical-robotics-harness"
-
-try:
-    version = importlib.metadata.version(distribution_name)
-except importlib.metadata.PackageNotFoundError:
-    version = "unknown"
-
-print(f"lrh {version}")
-PY
-echo
-
-echo "LRH CLI"
-lrh version
-echo
-
-echo "Python"
-python --version
-echo
-
-echo "Required linters / formatters"
-ruff --version
-black --version
-echo
-
-echo "Optional linters."
-pylint --version
-pyright --version
-echo
-
-echo "Environment managers."
-conda --version
-pip --version
-echo
+export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
+python -m lrh.dev.versioning "$@"

@@ -1468,6 +1468,9 @@ def _find_duplicate_record(
 
 
 def _detect_setup_state(repo_locator: str, project_dir: str) -> str:
+    locator = _analyze_locator(repo_locator)
+    if locator.kind != "local_path":
+        return "not_checked"
     repo_path = pathlib.Path(repo_locator).expanduser()
     if repo_path.is_dir() and (repo_path / project_dir).is_dir():
         return "lrh_project_present"

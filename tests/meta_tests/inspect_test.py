@@ -128,6 +128,41 @@ class TestMetaInspectRuntime(unittest.TestCase):
             )
             self.assertIn("project_path_exists: true", output)
 
+    def test_inspect_remote_locator_is_truth_first_and_not_applicable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+            workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator="https://github.com/xenotaur/taurworks/tree/master",
+                    project_dir="project",
+                    short_name="remote-demo",
+                ),
+            )
+
+            local_workspace = workspace.resolve_meta_workspace(cwd=root)
+            inspect_result = workspace.inspect_registered_project_in_workspace(
+                local_workspace,
+                selector="remote-demo",
+            )
+            output = workspace.format_project_inspect(inspect_result)
+
+            self.assertIn("setup_state: not_checked", output)
+            self.assertIn(
+                "resolved_repo_path: <not_applicable>",
+                output,
+            )
+            self.assertIn("repo_path_exists: <not_applicable>", output)
+            self.assertIn(
+                "resolved_project_path: <not_applicable>",
+                output,
+            )
+            self.assertIn("project_path_exists: <not_applicable>", output)
+
 
 class TestMetaInspectCli(unittest.TestCase):
     def _run_lrh(

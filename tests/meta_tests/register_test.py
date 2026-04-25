@@ -275,6 +275,33 @@ class TestMetaRegisterRuntime(unittest.TestCase):
             self.assertEqual(result.directory_name, "project")
             self.assertEqual(parsed["project"]["short_name"], "project")
             self.assertEqual(parsed["project"]["display_name"], "Project")
+            self.assertEqual(parsed["project"]["setup_state"], "not_checked")
+
+    def test_register_project_github_tree_locator_uses_not_checked_setup_state(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            result = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator="https://github.com/xenotaur/taurworks/tree/master",
+                    project_dir="project",
+                ),
+            )
+
+            parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                parsed["locators"]["repo_locator"],
+                "https://github.com/xenotaur/taurworks/tree/master",
+            )
+            self.assertEqual(parsed["locators"]["project_dir"], "project")
+            self.assertEqual(parsed["project"]["setup_state"], "not_checked")
 
     def test_register_project_github_overrides_are_authoritative(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

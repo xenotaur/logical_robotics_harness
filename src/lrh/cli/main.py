@@ -150,11 +150,20 @@ def main() -> None:
         help="replace incompatible managed paths/content when safe",
     )
 
-    meta_subparsers.add_parser(
+    meta_list_parser = meta_subparsers.add_parser(
         "list",
         help="List registered projects from the workspace registry.",
+        description=(
+            "List registered projects from the active workspace registry.\n\n"
+            "Each record renders:\n"
+            "  repo_locator = repository/ref locator\n"
+            "  project_dir  = relative path from that locator to project/\n"
+            "  setup_state  = truth-first local check result or not_checked "
+            "for remote locators"
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
-    _add_meta_workspace_resolution_args(meta_subparsers.choices["list"])
+    _add_meta_workspace_resolution_args(meta_list_parser)
 
     meta_where_parser = meta_subparsers.add_parser(
         "where",
@@ -169,6 +178,20 @@ def main() -> None:
     meta_register_parser = meta_subparsers.add_parser(
         "register",
         help="Register a project repository in the workspace registry.",
+        description=(
+            "Register one project-control record in the active workspace registry.\n\n"
+            "Locator semantics:\n"
+            "  repo_locator = repository/ref locator\n"
+            "  project_dir  = relative path from that locator to the LRH "
+            "project control directory\n\n"
+            "Example:\n"
+            "  lrh meta register "
+            "https://github.com/xenotaur/taurworks/tree/master/project\n\n"
+            "By default, GitHub tree locators are normalized so "
+            "repo_locator stores .../tree/<ref> and project_dir stores the tail "
+            "path (for example, project)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     _add_meta_workspace_resolution_args(meta_register_parser)
     meta_register_parser.add_argument(
@@ -202,6 +225,13 @@ def main() -> None:
     meta_inspect_parser = meta_subparsers.add_parser(
         "inspect",
         help="Inspect one registered project with workspace context.",
+        description=(
+            "Inspect one registered project record and resolved workspace context.\n\n"
+            "Rendered fields include locator semantics:\n"
+            "  repo_locator = repository/ref locator\n"
+            "  project_dir  = relative path from that locator to project/."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     _add_meta_workspace_resolution_args(meta_inspect_parser)
     meta_inspect_parser.add_argument(

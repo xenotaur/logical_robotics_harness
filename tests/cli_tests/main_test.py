@@ -68,6 +68,25 @@ class TestLrhMainCli(unittest.TestCase):
         self.assertIn("--mode {hybrid,global,local}", output)
         self.assertIn("~/.local/state/lrh/", output)
 
+    def test_lrh_meta_register_help_includes_locator_semantics(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with unittest.mock.patch("sys.argv", ["lrh", "meta", "register", "--help"]):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                with self.assertRaises(SystemExit) as err_ctx:
+                    cli_main.main()
+
+        self.assertEqual(err_ctx.exception.code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        output = stdout.getvalue()
+        self.assertIn("repo_locator = repository/ref locator", output)
+        self.assertRegex(output, r"project_dir\s*=\s*relative path")
+        self.assertIn(
+            "https://github.com/xenotaur/taurworks/tree/master/project",
+            output,
+        )
+
     def test_lrh_help_meta_alias_routes_to_meta_help(self) -> None:
         stdout = io.StringIO()
         stderr = io.StringIO()

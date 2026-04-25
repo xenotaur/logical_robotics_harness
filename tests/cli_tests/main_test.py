@@ -1,5 +1,6 @@
 import contextlib
 import io
+import pathlib
 import unittest
 import unittest.mock
 
@@ -7,6 +8,15 @@ from lrh.cli import main as cli_main
 
 
 class TestLrhMainCli(unittest.TestCase):
+    def _project_version(self) -> str:
+        pyproject_path = pathlib.Path(__file__).resolve().parents[2] / "pyproject.toml"
+        pyproject_text = pyproject_path.read_text(encoding="utf-8")
+        for line in pyproject_text.splitlines():
+            normalized = line.strip()
+            if normalized.startswith("version = "):
+                return normalized.split('"')[1]
+        self.fail("pyproject.toml missing project version")
+
     def test_lrh_help_alias_prints_top_level_help(self) -> None:
         stdout = io.StringIO()
         stderr = io.StringIO()
@@ -82,3 +92,43 @@ class TestLrhMainCli(unittest.TestCase):
         self.assertEqual(err_ctx.exception.code, 0)
         self.assertEqual(stderr.getvalue(), "")
         self.assertIn("Initialize LRH meta workspace", stdout.getvalue())
+
+    def test_lrh_dashdash_version_prints_package_version(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        expected_version = self._project_version()
+
+        with unittest.mock.patch("sys.argv", ["lrh", "--version"]):
+            with unittest.mock.patch(
+                "lrh.version.get_installed_version", return_value=expected_version
+            ):
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    with self.assertRaises(SystemExit) as err_ctx:
+                        cli_main.main()
+
+        self.assertEqual(err_ctx.exception.code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(stdout.getvalue().strip(), f"lrh {expected_version}")
+
+    def test_lrh_version_subcommand_prints_package_version(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        expected_version = self._project_version()
+
+        with unittest.mock.patch("sys.argv", ["lrh", "version"]):
+            with unittest.mock.patch(
+                "lrh.version.get_installed_version", return_value=expected_version
+            ):
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    with self.assertRaises(SystemExit) as err_ctx:
+                        cli_main.main()
+
+        self.assertEqual(err_ctx.exception.code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(stdout.getvalue().strip(), f"lrh {expected_version}")

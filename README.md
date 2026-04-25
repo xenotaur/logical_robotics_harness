@@ -54,6 +54,13 @@ lrh --help
 lrh help
 ```
 
+For package version reporting, both of these are supported:
+
+```bash
+lrh --version
+lrh version
+```
+
 ## Developer sandbox helper
 
 Use `scripts/sandbox` when you want to test LRH CLI behavior without touching your real

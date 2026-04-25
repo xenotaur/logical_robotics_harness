@@ -1,7 +1,5 @@
 import contextlib
 import io
-import pathlib
-import tomllib
 import unittest
 import unittest.mock
 
@@ -9,14 +7,6 @@ from lrh.cli import main as cli_main
 
 
 class TestLrhMainCli(unittest.TestCase):
-    def _project_version(self) -> str:
-        pyproject_path = pathlib.Path(__file__).resolve().parents[2] / "pyproject.toml"
-        pyproject_data = tomllib.loads(pyproject_path.read_text(encoding="utf-8"))
-        project_data = pyproject_data.get("project", {})
-        version = project_data.get("version")
-        if version is None:
-            self.fail("pyproject.toml missing project.version")
-        return version
 
     def test_lrh_help_alias_prints_top_level_help(self) -> None:
         stdout = io.StringIO()
@@ -116,7 +106,7 @@ class TestLrhMainCli(unittest.TestCase):
     def test_lrh_dashdash_version_prints_package_version(self) -> None:
         stdout = io.StringIO()
         stderr = io.StringIO()
-        expected_version = self._project_version()
+        expected_version = "9.9.9"
 
         with unittest.mock.patch("sys.argv", ["lrh", "--version"]):
             with unittest.mock.patch(
@@ -136,7 +126,7 @@ class TestLrhMainCli(unittest.TestCase):
     def test_lrh_version_subcommand_prints_package_version(self) -> None:
         stdout = io.StringIO()
         stderr = io.StringIO()
-        expected_version = self._project_version()
+        expected_version = "9.9.9"
 
         with unittest.mock.patch("sys.argv", ["lrh", "version"]):
             with unittest.mock.patch(

@@ -6,6 +6,8 @@ import argparse
 import pathlib
 import sys
 
+from lrh import version as lrh_version
+
 
 def build_parser(*, prog: str = "snapshot") -> argparse.ArgumentParser:
     """Build the snapshot CLI parser."""
@@ -227,6 +229,25 @@ def maybe_optional_section(enabled: bool, title: str, content: str) -> str:
     return f"## {title}\n\n{content}"
 
 
+def resolve_harness_version() -> str:
+    """Resolve installed package version for snapshot metadata."""
+    version = lrh_version.get_installed_version()
+    if version is None:
+        return "unknown"
+    return version
+
+
+def harness_metadata_lines() -> list[str]:
+    """Return additive harness metadata block lines."""
+    return [
+        "```yaml",
+        "harness:",
+        "  name: lrh",
+        f"  version: {resolve_harness_version()}",
+        "```",
+    ]
+
+
 def generate_project_context(
     project_dir: pathlib.Path, args: argparse.Namespace
 ) -> str:
@@ -237,6 +258,10 @@ def generate_project_context(
         "",
         "- Scope: `project`",
         f"- Project directory: `{project_dir}`",
+        "",
+        "Harness metadata:",
+        "",
+        *harness_metadata_lines(),
         "",
         "## Principles",
         "",
@@ -296,6 +321,10 @@ def generate_current_focus_context(
         "",
         "- Scope: `current_focus`",
         f"- Project directory: `{project_dir}`",
+        "",
+        "Harness metadata:",
+        "",
+        *harness_metadata_lines(),
         "",
         "## Project Goal",
         "",
@@ -382,6 +411,10 @@ def generate_work_item_context(
         "- Scope: `work_item`",
         f"- Requested work item: `{work_item_id}`",
         f"- Project directory: `{project_dir}`",
+        "",
+        "Harness metadata:",
+        "",
+        *harness_metadata_lines(),
         "",
         "## Target Work Item",
         "",

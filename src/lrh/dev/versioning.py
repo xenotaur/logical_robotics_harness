@@ -49,13 +49,16 @@ def _build_parser() -> argparse.ArgumentParser:
 def _run_command(
     command: list[str], *, capture_output: bool = False
 ) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        command,
-        check=False,
-        cwd=REPO_ROOT,
-        text=True,
-        capture_output=capture_output,
-    )
+    try:
+        return subprocess.run(
+            command,
+            check=False,
+            cwd=REPO_ROOT,
+            text=True,
+            capture_output=capture_output,
+        )
+    except FileNotFoundError as error:
+        raise VersioningError(f"required command not found: {command[0]}") from error
 
 
 def _ensure_command_exists(command_name: str) -> None:
@@ -109,15 +112,25 @@ def _resolve_local_tag_commit(tag: str) -> str | None:
 
 
 def _resolve_remote_tag_commit(tag: str) -> str | None:
+    dereferenced_ref = f"refs/tags/{tag}^{{}}"
     result = _run_command(
-        ["git", "ls-remote", "--tags", "origin", f"refs/tags/{tag}"],
+        ["git", "ls-remote", "--tags", "origin", dereferenced_ref],
         capture_output=True,
     )
     if result.returncode != 0:
         raise VersioningError("failed to query remote tags from origin")
     output = result.stdout.strip()
     if not output:
-        return None
+        direct_tag_result = _run_command(
+            ["git", "ls-remote", "--tags", "origin", f"refs/tags/{tag}"],
+            capture_output=True,
+        )
+        if direct_tag_result.returncode != 0:
+            raise VersioningError("failed to query remote tags from origin")
+        direct_output = direct_tag_result.stdout.strip()
+        if not direct_output:
+            return None
+        return direct_output.split()[0]
     return output.split()[0]
 
 

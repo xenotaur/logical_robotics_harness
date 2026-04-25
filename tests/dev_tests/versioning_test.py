@@ -1,4 +1,5 @@
 import io
+import subprocess
 import unittest
 from unittest import mock
 
@@ -109,6 +110,58 @@ class VersioningTests(unittest.TestCase):
                         versioning.VersioningError, "remote tag"
                     ):
                         versioning.push_tag("v1.2.3")
+
+    def test_run_command_raises_versioning_error_for_missing_executable(self) -> None:
+        with mock.patch(
+            "subprocess.run", side_effect=FileNotFoundError("missing binary")
+        ):
+            with self.assertRaisesRegex(
+                versioning.VersioningError, "required command not found"
+            ):
+                versioning._run_command(["missing-tool"])
+
+    def test_resolve_remote_tag_commit_prefers_dereferenced_tag(self) -> None:
+        ls_remote_result = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="abc123\trefs/tags/v1.2.3^{}\n",
+        )
+        with mock.patch(
+            "lrh.dev.versioning._run_command", return_value=ls_remote_result
+        ) as run_mock:
+            resolved = versioning._resolve_remote_tag_commit("v1.2.3")
+
+        self.assertEqual(resolved, "abc123")
+        run_mock.assert_called_once_with(
+            ["git", "ls-remote", "--tags", "origin", "refs/tags/v1.2.3^{}"],
+            capture_output=True,
+        )
+
+    def test_resolve_remote_tag_commit_falls_back_for_lightweight_tag(self) -> None:
+        dereferenced_result = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="",
+        )
+        direct_result = subprocess.CompletedProcess(
+            args=[],
+            returncode=0,
+            stdout="def456\trefs/tags/v1.2.3\n",
+        )
+        with mock.patch(
+            "lrh.dev.versioning._run_command",
+            side_effect=[dereferenced_result, direct_result],
+        ) as run_mock:
+            resolved = versioning._resolve_remote_tag_commit("v1.2.3")
+
+        self.assertEqual(resolved, "def456")
+        self.assertEqual(
+            [call.args[0] for call in run_mock.call_args_list],
+            [
+                ["git", "ls-remote", "--tags", "origin", "refs/tags/v1.2.3^{}"],
+                ["git", "ls-remote", "--tags", "origin", "refs/tags/v1.2.3"],
+            ],
+        )
 
 
 if __name__ == "__main__":

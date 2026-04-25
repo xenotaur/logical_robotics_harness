@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+echo "Checking tool versions ..."
+
+echo "Python"
+python --version
+echo
+
+echo "Required linters / formatters"
+ruff --version
+black --version
+echo
+
+echo "Optional linters."
+pylint --version
+pyright --version
+echo
+
+echo "Environment managers."
+conda --version
+pip --version
+echo

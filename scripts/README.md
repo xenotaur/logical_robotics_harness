@@ -94,6 +94,13 @@ scripts/update
 
 **Output:** Updates `environment.yml` with current conda environment dependencies (excludes name and prefix).
 
+#### `version`
+Displays the versions of installed development tools (Python, linters, formatters, and environment managers).
+
+```bash
+scripts/version
+```
+
 ### Code Quality
 
 #### `format`
@@ -324,6 +331,7 @@ scripts/publish    # Publish to PyPI (when enabled)
 ### Environment Management
 ```bash
 scripts/update     # Update environment.yml when dependencies change
+scripts/version    # Check installed tool versions
 ```
 
 ## Notes

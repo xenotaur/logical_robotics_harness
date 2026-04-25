@@ -174,6 +174,34 @@ class TestCodexPromptFromWorkItemResolution(unittest.TestCase):
             )
             self.assertEqual(variables["WORK_ITEM_RESOLUTION"], "target_path")
 
+    def test_repo_root_relative_path_resolves_from_subdirectory(self) -> None:
+        with self._temp_project() as root:
+            self._write_style(root)
+            self._write_work_item(
+                root,
+                bucket="active",
+                filename="WI-ROOT-REL.md",
+                work_item_id="WI-ROOT-REL",
+            )
+            (root / "nested" / "deeper").mkdir(parents=True)
+            old_cwd = pathlib.Path.cwd()
+            try:
+                os.chdir(root / "nested" / "deeper")
+                variables = request_service.build_variables(
+                    self._build_args(target="project/work_items/active/WI-ROOT-REL.md")
+                )
+            finally:
+                os.chdir(old_cwd)
+
+            self.assertEqual(
+                variables["WORK_ITEM_PATH"],
+                "project/work_items/active/WI-ROOT-REL.md",
+            )
+            self.assertEqual(
+                variables["WORK_ITEM_RESOLUTION"],
+                "repo_root_relative_path",
+            )
+
     def test_explicit_work_item_file_still_works(self) -> None:
         with self._temp_project() as root:
             self._write_style(root)
@@ -288,6 +316,23 @@ class TestCodexPromptFromWorkItemResolution(unittest.TestCase):
                 "Pass --work-item-file explicitly",
             ):
                 request_service.build_variables(self._build_args(target="WI-DUP"))
+
+    def test_missing_path_like_target_fails_fast(self) -> None:
+        with self._temp_project() as root:
+            self._write_style(root)
+            self._write_work_item(
+                root,
+                bucket="proposed",
+                filename="WI-EXAMPLE.md",
+                work_item_id="WI-OTHER-ID",
+            )
+            with self.assertRaisesRegex(
+                FileNotFoundError,
+                "target looks like a work-item path but does not exist",
+            ):
+                request_service.build_variables(
+                    self._build_args(target="project/work_items/active/WI-EXAMPLE.md")
+                )
 
 
 class TestCodexPromptFromWorkItemTemplate(unittest.TestCase):

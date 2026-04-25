@@ -281,6 +281,7 @@ lrh request codex_prompt_from_work_item \
 
 - Some templates require specific arguments (for example `work_items_from_audit` requires both `--audit-file` and `--style-file`).
 - `codex_prompt_from_work_item` resolves a positional target only within work-item buckets (`proposed`, `active`, `resolved`, `abandoned`) and fails closed on ambiguous matches; use `--work-item-file` to disambiguate.
+- Path-like positional targets for `codex_prompt_from_work_item` (for example `project/work_items/active/WI-EXAMPLE.md`) are treated as authoritative file paths and fail fast if the file does not exist.
 - Invalid argument combinations are reported as CLI errors with a non-zero exit status.
 - Missing input/template files are reported as file errors with a non-zero exit status.
 

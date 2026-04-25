@@ -205,6 +205,18 @@ def _resolve_codex_work_item_file(
     if target_path.is_file():
         return target_input, "target_path"
 
+    repo_root = request_variables.find_repo_root()
+    if not target_path.is_absolute() and repo_root is not None:
+        repo_relative_path = (repo_root / target_path).resolve()
+        if repo_relative_path.is_file():
+            return str(repo_relative_path), "repo_root_relative_path"
+
+    if _looks_like_path_target(target_input):
+        raise FileNotFoundError(
+            "error: target looks like a work-item path but does not exist: "
+            f"{target_input}"
+        )
+
     work_item_root = _resolve_work_item_root()
     work_item_dirs = [
         work_item_root / "proposed",
@@ -298,3 +310,12 @@ def _match_work_item_target(
         return "filename"
 
     return ""
+
+
+def _looks_like_path_target(target_input: str) -> bool:
+    """Return True when a target string should be treated as a file path."""
+    normalized = target_input.strip()
+    if not normalized:
+        return False
+    lowered = normalized.lower()
+    return "/" in normalized or "\\" in normalized or lowered.endswith(".md")

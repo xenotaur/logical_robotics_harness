@@ -79,6 +79,14 @@ You can inspect supported options with:
 lrh snapshot --help
 ```
 
+Snapshot context packets include additive harness metadata in the Scope section:
+
+```text
+harness:
+  name: lrh
+  version: <installed package version or unknown>
+```
+
 ## Quick Usage Examples
 
 ```bash

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import importlib.metadata
 import pathlib
 import sys
+
+DISTRIBUTION_NAME = "logical-robotics-harness"
 
 
 def build_parser(*, prog: str = "snapshot") -> argparse.ArgumentParser:
@@ -227,6 +230,23 @@ def maybe_optional_section(enabled: bool, title: str, content: str) -> str:
     return f"## {title}\n\n{content}"
 
 
+def resolve_harness_version() -> str:
+    """Resolve installed package version for snapshot metadata."""
+    try:
+        return importlib.metadata.version(DISTRIBUTION_NAME)
+    except importlib.metadata.PackageNotFoundError:
+        return "unknown"
+
+
+def harness_metadata_lines() -> list[str]:
+    """Return additive harness metadata block lines."""
+    return [
+        "harness:",
+        "  name: lrh",
+        f"  version: {resolve_harness_version()}",
+    ]
+
+
 def generate_project_context(
     project_dir: pathlib.Path, args: argparse.Namespace
 ) -> str:
@@ -237,6 +257,8 @@ def generate_project_context(
         "",
         "- Scope: `project`",
         f"- Project directory: `{project_dir}`",
+        "- Metadata:",
+        *[f"  {line}" for line in harness_metadata_lines()],
         "",
         "## Principles",
         "",
@@ -296,6 +318,8 @@ def generate_current_focus_context(
         "",
         "- Scope: `current_focus`",
         f"- Project directory: `{project_dir}`",
+        "- Metadata:",
+        *[f"  {line}" for line in harness_metadata_lines()],
         "",
         "## Project Goal",
         "",
@@ -382,6 +406,8 @@ def generate_work_item_context(
         "- Scope: `work_item`",
         f"- Requested work item: `{work_item_id}`",
         f"- Project directory: `{project_dir}`",
+        "- Metadata:",
+        *[f"  {line}" for line in harness_metadata_lines()],
         "",
         "## Target Work Item",
         "",

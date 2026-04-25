@@ -399,11 +399,20 @@ def main() -> None:
                 print(f"error: {err}")
                 raise SystemExit(1) from err
 
-            workspace_data = workspace.meta_workspace_where_payload(active_workspace)
+            installed_version = lrh_version.get_installed_version()
+            workspace_data = workspace.meta_workspace_where_payload(
+                active_workspace,
+                lrh_version=installed_version,
+            )
             if args.json:
                 print(json.dumps(workspace_data, indent=2, sort_keys=True))
             else:
-                print(workspace.format_meta_workspace_where(active_workspace))
+                print(
+                    workspace.format_meta_workspace_where(
+                        active_workspace,
+                        lrh_version=installed_version,
+                    )
+                )
             raise SystemExit(0)
 
         if args.meta_command == "register":

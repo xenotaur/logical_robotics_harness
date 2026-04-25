@@ -163,6 +163,53 @@ class VersioningTests(unittest.TestCase):
             ],
         )
 
+    def test_tools_subcommand_tolerates_missing_optional_tools(self) -> None:
+        def _run_command_side_effect(
+            command: list[str], *, capture_output: bool = False
+        ) -> mock.Mock:
+            del capture_output
+            if command[0] in {"lrh", "pylint", "pyright", "conda"}:
+                raise versioning.VersioningError(
+                    f"required command not found: {command[0]}"
+                )
+            return mock.Mock(returncode=0)
+
+        stdout = io.StringIO()
+        with mock.patch("sys.stdout", new=stdout):
+            with mock.patch("lrh.version.format_cli_version", return_value="lrh 9.9.9"):
+                with mock.patch(
+                    "lrh.dev.versioning._run_command",
+                    side_effect=_run_command_side_effect,
+                ):
+                    result = versioning.main(["tools"])
+
+        self.assertEqual(result, 0)
+        output = stdout.getvalue()
+        self.assertIn("LRH CLI", output)
+        self.assertIn("Pylint", output)
+        self.assertIn("not installed", output)
+
+    def test_tools_subcommand_fails_for_required_tool_error(self) -> None:
+        def _run_command_side_effect(
+            command: list[str], *, capture_output: bool = False
+        ) -> mock.Mock:
+            del capture_output
+            if command[0] == "python":
+                raise versioning.VersioningError("required command not found: python")
+            return mock.Mock(returncode=0)
+
+        stderr = io.StringIO()
+        with mock.patch("sys.stderr", new=stderr):
+            with mock.patch("lrh.version.format_cli_version", return_value="lrh 9.9.9"):
+                with mock.patch(
+                    "lrh.dev.versioning._run_command",
+                    side_effect=_run_command_side_effect,
+                ):
+                    result = versioning.main(["tools"])
+
+        self.assertEqual(result, 1)
+        self.assertIn("required command not found: python", stderr.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

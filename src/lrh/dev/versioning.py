@@ -139,28 +139,50 @@ def print_lrh_version() -> None:
     print(lrh_version.format_cli_version())
 
 
+def _print_tool_version(
+    label: str,
+    command: list[str],
+    *,
+    optional: bool,
+) -> None:
+    print(label)
+    try:
+        completed = _run_command(command)
+    except VersioningError as error:
+        if optional:
+            print(f"not installed ({error})")
+            print()
+            return
+        raise
+
+    if completed.returncode != 0:
+        message = f"version command failed for {label}: {' '.join(command)}"
+        if optional:
+            print(message)
+            print()
+            return
+        raise VersioningError(message)
+
+    print()
+
+
 def print_tool_versions() -> None:
     """Print versions for release workflow tooling."""
     print("LRH package metadata")
     print(lrh_version.format_cli_version())
     print()
 
-    print("LRH CLI")
-    _run_command(["lrh", "version"])
-    print()
-
-    for label, command in (
-        ("Python", ["python", "--version"]),
-        ("Ruff", ["ruff", "--version"]),
-        ("Black", ["black", "--version"]),
-        ("Pylint", ["pylint", "--version"]),
-        ("Pyright", ["pyright", "--version"]),
-        ("Conda", ["conda", "--version"]),
-        ("pip", ["pip", "--version"]),
+    for label, command, optional in (
+        ("LRH CLI", ["lrh", "version"], True),
+        ("Python", ["python", "--version"], False),
+        ("Ruff", ["ruff", "--version"], False),
+        ("Black", ["black", "--version"], False),
+        ("Pylint", ["pylint", "--version"], True),
+        ("Pyright", ["pyright", "--version"], True),
+        ("Conda", ["conda", "--version"], True),
+        ("pip", ["pip", "--version"], False),
     ):
-        print(label)
-        _run_command(command)
-        print()
+        _print_tool_version(label, command, optional=optional)
 
 
 def verify_release(tag: str = "") -> None:

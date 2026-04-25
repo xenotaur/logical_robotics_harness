@@ -145,6 +145,62 @@ class TestMetaRegisterRuntime(unittest.TestCase):
                 parsed["project"]["display_name"],
                 "Logical Robotics Harness",
             )
+            self.assertEqual(
+                parsed["locators"]["repo_locator"],
+                "https://github.com/xenotaur/logical_robotics_harness/tree/main",
+            )
+            self.assertEqual(parsed["locators"]["project_dir"], "project")
+
+    def test_register_project_normalizes_github_tree_locator_with_project_subpath(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            result = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator="https://github.com/xenotaur/taurworks/tree/master/project",
+                ),
+            )
+
+            parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(parsed["registry"]["directory_name"], "taurworks")
+            self.assertEqual(parsed["project"]["short_name"], "taurworks")
+            self.assertEqual(parsed["project"]["display_name"], "Taurworks")
+            self.assertEqual(
+                parsed["locators"]["repo_locator"],
+                "https://github.com/xenotaur/taurworks/tree/master",
+            )
+            self.assertEqual(parsed["locators"]["project_dir"], "project")
+
+    def test_register_project_normalization_preserves_query_and_fragment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            result = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator=(
+                        "https://github.com/xenotaur/taurworks/tree/master/project"
+                        "?tab=readme#overview"
+                    ),
+                ),
+            )
+
+            parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                parsed["locators"]["repo_locator"],
+                "https://github.com/xenotaur/taurworks/tree/master?tab=readme#overview",
+            )
             self.assertEqual(parsed["locators"]["project_dir"], "project")
 
     def test_register_project_github_tree_urls_do_not_collapse_to_project(self) -> None:
@@ -188,13 +244,17 @@ class TestMetaRegisterRuntime(unittest.TestCase):
             result = workspace.register_project(
                 root,
                 spec=workspace.MetaRegisterSpec(
-                    repo_locator="https://github.com/example/acme/tree/main/control/project",
+                    repo_locator="https://github.com/example/widgets/tree/main/docs/project",
                 ),
             )
 
             parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
-            self.assertEqual(parsed["locators"]["project_dir"], "control/project")
-            self.assertEqual(parsed["project"]["short_name"], "acme")
+            self.assertEqual(
+                parsed["locators"]["repo_locator"],
+                "https://github.com/example/widgets/tree/main",
+            )
+            self.assertEqual(parsed["locators"]["project_dir"], "docs/project")
+            self.assertEqual(parsed["project"]["short_name"], "widgets")
 
     def test_register_project_generic_url_uses_conservative_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -237,6 +297,10 @@ class TestMetaRegisterRuntime(unittest.TestCase):
 
             parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
             self.assertEqual(result.directory_name, "override-dir")
+            self.assertEqual(
+                parsed["locators"]["repo_locator"],
+                "https://github.com/example/acme/tree/main/project",
+            )
             self.assertEqual(parsed["locators"]["project_dir"], "custom_dir")
             self.assertEqual(parsed["project"]["short_name"], "override-short")
             self.assertEqual(parsed["project"]["display_name"], "Override Display")
@@ -277,6 +341,32 @@ class TestMetaRegisterCli(unittest.TestCase):
             self.assertIn("Registered project", result.stdout)
             self.assertIn("setup_state=lrh_project_present", result.stdout)
             self.assertTrue((root / "projects" / "demo-repo" / "project.toml").exists())
+
+    def test_lrh_meta_register_cli_normalizes_github_tree_locator(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="CLI Workspace"),
+            )
+
+            result = self._run_lrh(
+                [
+                    "meta",
+                    "register",
+                    "https://github.com/xenotaur/taurworks/tree/master/project",
+                ],
+                root,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            record_path = root / "projects" / "taurworks" / "project.toml"
+            parsed = tomllib.loads(record_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                parsed["locators"]["repo_locator"],
+                "https://github.com/xenotaur/taurworks/tree/master",
+            )
+            self.assertEqual(parsed["locators"]["project_dir"], "project")
 
     def test_lrh_meta_register_cli_duplicate_requires_force(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

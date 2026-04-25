@@ -96,6 +96,7 @@ class LocatorAnalysis:
 class InferredProjectMetadata:
     """Resolved metadata defaults for project registration."""
 
+    repo_locator: str
     directory_name: str
     short_name: str
     display_name: str
@@ -1169,8 +1170,11 @@ def register_project_in_workspace(
     """Register a project by writing one ``project.toml`` under projects_dir."""
     projects_dir = _require_projects_dir(workspace.projects_dir, mode=workspace.mode)
 
-    repo_locator = _normalized_required_value("repo_locator", spec.repo_locator)
-    inferred = _infer_project_metadata(repo_locator=repo_locator, spec=spec)
+    requested_repo_locator = _normalized_required_value(
+        "repo_locator", spec.repo_locator
+    )
+    inferred = _infer_project_metadata(repo_locator=requested_repo_locator, spec=spec)
+    repo_locator = inferred.repo_locator
     project_dir = inferred.project_dir
     directory_name = inferred.directory_name
     short_name = inferred.short_name
@@ -1277,6 +1281,11 @@ def _infer_project_metadata(
     project_dir_override = _normalized_optional_value(spec.project_dir)
     project_dir = project_dir_override or analysis.project_dir_hint or "project"
     project_dir = _normalized_required_value("project_dir", project_dir)
+    normalized_repo_locator = _normalized_repo_locator(
+        repo_locator,
+        analysis,
+        project_dir_override,
+    )
 
     inferred_base_name = _best_locator_name_candidate(analysis)
 
@@ -1287,10 +1296,43 @@ def _infer_project_metadata(
     )
 
     return InferredProjectMetadata(
+        repo_locator=normalized_repo_locator,
         directory_name=directory_name,
         short_name=short_name,
         display_name=display_name,
         project_dir=project_dir,
+    )
+
+
+def _normalized_repo_locator(
+    repo_locator: str,
+    analysis: LocatorAnalysis,
+    project_dir_override: str | None,
+) -> str:
+    """Normalize GitHub tree locators so repo identity excludes project subpaths."""
+    if project_dir_override is not None:
+        return repo_locator
+    if analysis.kind != "github_url" or analysis.repo_ref is None:
+        return repo_locator
+    if analysis.repo_subpath is None:
+        return repo_locator
+
+    parsed = urllib.parse.urlsplit(repo_locator)
+    subpath_suffix = "/" + analysis.repo_subpath.strip("/")
+    if not parsed.path.endswith(subpath_suffix):
+        return repo_locator
+    normalized_path = parsed.path[: -len(subpath_suffix)].rstrip("/")
+    normalized_segments = [segment for segment in normalized_path.split("/") if segment]
+    if len(normalized_segments) < 4 or normalized_segments[2] != "tree":
+        return repo_locator
+    return urllib.parse.urlunsplit(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            normalized_path,
+            parsed.query,
+            parsed.fragment,
+        )
     )
 
 

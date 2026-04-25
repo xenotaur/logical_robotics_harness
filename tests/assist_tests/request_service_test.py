@@ -287,6 +287,25 @@ class TestCodexPromptFromWorkItemResolution(unittest.TestCase):
 
             self.assertEqual(variables["STYLE_GUIDE_PATH"], "ALT_STYLE.md")
 
+    def test_missing_explicit_style_file_gives_flag_specific_error(self) -> None:
+        with self._temp_project() as root:
+            self._write_work_item(
+                root,
+                bucket="proposed",
+                filename="WI-STYLE-MISSING.md",
+                work_item_id="WI-STYLE-MISSING",
+            )
+            with self.assertRaisesRegex(
+                FileNotFoundError,
+                r"error: --style-file does not exist: .*MISSING_STYLE\.md",
+            ):
+                request_service.build_variables(
+                    self._build_args(
+                        target="WI-STYLE-MISSING",
+                        style_file=str(root / "MISSING_STYLE.md"),
+                    )
+                )
+
     def test_missing_work_item_gives_clear_error(self) -> None:
         with self._temp_project() as root:
             self._write_style(root)

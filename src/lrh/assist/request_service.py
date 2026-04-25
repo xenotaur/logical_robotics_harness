@@ -168,7 +168,9 @@ def _resolve_codex_style_file(args: argparse.Namespace) -> str | None:
     if args.style_file:
         style_path = pathlib.Path(args.style_file)
         if not style_path.is_file():
-            raise FileNotFoundError(f"Style guide file not found: {args.style_file}")
+            raise FileNotFoundError(
+                f"error: --style-file does not exist: {args.style_file}"
+            )
         return args.style_file
 
     repo_root = request_variables.find_repo_root()

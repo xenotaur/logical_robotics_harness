@@ -226,11 +226,15 @@ def run_request_cli(
             print(f"{key}={variables[key]}", file=sys.stderr)
 
     if output_path is not None:
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(
-            rendered if rendered.endswith("\n") else f"{rendered}\n",
-            encoding="utf-8",
-        )
+        try:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(
+                rendered if rendered.endswith("\n") else f"{rendered}\n",
+                encoding="utf-8",
+            )
+        except OSError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
     else:
         sys.stdout.write(rendered)
         if not rendered.endswith("\n"):

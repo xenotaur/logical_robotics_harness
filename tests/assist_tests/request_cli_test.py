@@ -195,6 +195,60 @@ class TestRequestCli(unittest.TestCase):
             )
             self.assertEqual("", stdout.getvalue())
 
+    def test_output_write_error_returns_handled_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_item = root / "WI-EXAMPLE.md"
+            style_file = root / "STYLE.md"
+            out_dir = root / "prompt.md"
+            out_dir.mkdir()
+            work_item.write_text(
+                (
+                    "---\n"
+                    "id: WI-EXAMPLE\n"
+                    "title: Example item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "blocked: false\n"
+                    "---\n\n"
+                    "## Problem\n\n"
+                    "Need a small focused change.\n\n"
+                    "## Scope\n\n"
+                    "- Make one narrow CLI integration.\n\n"
+                    "## Required Changes\n\n"
+                    "- Add request command wiring.\n\n"
+                    "## Validation\n\n"
+                    "- Run tests.\n\n"
+                    "## Acceptance Criteria\n\n"
+                    "- Command writes output file.\n"
+                ),
+                encoding="utf-8",
+            )
+            style_file.write_text("# Style\n", encoding="utf-8")
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "codex-prompt-from-work-item",
+                        "--work-item",
+                        str(work_item),
+                        "--slug",
+                        "example-implementation",
+                        "--out",
+                        str(out_dir),
+                        "--style-file",
+                        str(style_file),
+                    ],
+                    prog="lrh request",
+                )
+
+            self.assertEqual(exit_code, 2)
+            self.assertIn("error:", stderr.getvalue())
+            self.assertIn("Is a directory", stderr.getvalue())
+            self.assertEqual("", stdout.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

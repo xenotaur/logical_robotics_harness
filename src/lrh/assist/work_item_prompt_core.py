@@ -73,7 +73,7 @@ def parse_work_item_markdown(work_item_path: Path) -> ParsedWorkItem:
     title = _string_value(frontmatter.get("title"), "title")
     status = _string_value(frontmatter.get("status"), "status")
     item_type = _string_value(frontmatter.get("type"), "type")
-    blocked = bool(frontmatter.get("blocked", False))
+    blocked = _bool_value(frontmatter.get("blocked"), "blocked")
 
     return ParsedWorkItem(
         source_path=work_item_path,
@@ -298,6 +298,12 @@ def _string_value(value: object, field_name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"work item frontmatter field '{field_name}' must be a string")
     return value.strip()
+
+
+def _bool_value(value: object, field_name: str) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"work item frontmatter field '{field_name}' must be a bool")
+    return value
 
 
 def _parse_sections(markdown_body: str) -> dict[str, str]:

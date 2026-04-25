@@ -83,6 +83,29 @@ class TestWorkItemPromptCore(unittest.TestCase):
             self.assertIn("# Work Item Not Ready for Codex Implementation", prompt)
             self.assertIn("status 'resolved' is not implementation-ready", prompt)
 
+    def test_parse_requires_boolean_blocked_frontmatter(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_item_path = pathlib.Path(temp_dir) / "WI-EXAMPLE.md"
+            work_item_path.write_text(
+                (
+                    "---\n"
+                    "id: WI-EXAMPLE\n"
+                    "title: Example item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    'blocked: "false"\n'
+                    "---\n\n"
+                    "## Summary\n\n"
+                    "Body.\n"
+                ),
+                encoding="utf-8",
+            )
+
+            with self.assertRaisesRegex(
+                ValueError, "work item frontmatter field 'blocked' must be a bool"
+            ):
+                work_item_prompt_core.parse_work_item_markdown(work_item_path)
+
 
 if __name__ == "__main__":
     unittest.main()

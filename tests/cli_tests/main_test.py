@@ -81,7 +81,7 @@ class TestLrhMainCli(unittest.TestCase):
         self.assertEqual(stderr.getvalue(), "")
         output = stdout.getvalue()
         self.assertIn("repo_locator = repository/ref locator", output)
-        self.assertIn("project_dir  = relative path", output)
+        self.assertRegex(output, r"project_dir\s*=\s*relative path")
         self.assertIn(
             "https://github.com/xenotaur/taurworks/tree/master/project",
             output,

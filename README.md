@@ -54,7 +54,7 @@ lrh --help
 lrh help
 ```
 
-For package version reporting, both of these are supported:
+For package version reporting, both of these are supported (resolved via installed package metadata):
 
 ```bash
 lrh --version
@@ -115,6 +115,7 @@ The YAML frontmatter `status` is authoritative, and directory bucket is derived 
 
 - package-owned template location and package-resource loading for assist workflows
 - packaging/build/install hardening with installed-package smoke checks
+- setuptools-scm-backed dynamic versioning via package metadata
 - canonical survey command surface: `lrh survey <root> [--tests-root ...] [--format md|json] [--out ...]`
 - package-owned survey implementation at `src/lrh/assist/sourcetree_surveyor.py`
 - `--format json` now emits a stable survey contract (`schema_version: 1.0`) with source-tree inventory facts for follow-on audit/context workflows

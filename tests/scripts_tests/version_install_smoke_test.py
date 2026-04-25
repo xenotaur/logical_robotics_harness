@@ -50,7 +50,8 @@ class VersionInstallSmokeTests(unittest.TestCase):
                 "-c",
                 (
                     "import importlib.metadata;"
-                    "print(importlib.metadata.version('logical-robotics-harness'))"
+                    "import lrh.version;"
+                    "print(importlib.metadata.version(lrh.version.DISTRIBUTION_NAME))"
                 ),
             ],
             check=False,

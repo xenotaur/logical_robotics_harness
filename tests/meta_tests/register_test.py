@@ -178,6 +178,31 @@ class TestMetaRegisterRuntime(unittest.TestCase):
             )
             self.assertEqual(parsed["locators"]["project_dir"], "project")
 
+    def test_register_project_normalization_preserves_query_and_fragment(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            result = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator=(
+                        "https://github.com/xenotaur/taurworks/tree/master/project"
+                        "?tab=readme#overview"
+                    ),
+                ),
+            )
+
+            parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(
+                parsed["locators"]["repo_locator"],
+                "https://github.com/xenotaur/taurworks/tree/master?tab=readme#overview",
+            )
+            self.assertEqual(parsed["locators"]["project_dir"], "project")
+
     def test_register_project_github_tree_urls_do_not_collapse_to_project(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)

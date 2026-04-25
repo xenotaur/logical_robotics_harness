@@ -1318,10 +1318,13 @@ def _normalized_repo_locator(
         return repo_locator
 
     parsed = urllib.parse.urlsplit(repo_locator)
-    path_segments = [segment for segment in parsed.path.split("/") if segment]
-    if len(path_segments) < 4 or path_segments[2] != "tree":
+    subpath_suffix = "/" + analysis.repo_subpath.strip("/")
+    if not parsed.path.endswith(subpath_suffix):
         return repo_locator
-    normalized_path = "/" + "/".join(path_segments[:4])
+    normalized_path = parsed.path[: -len(subpath_suffix)].rstrip("/")
+    normalized_segments = [segment for segment in normalized_path.split("/") if segment]
+    if len(normalized_segments) < 4 or normalized_segments[2] != "tree":
+        return repo_locator
     return urllib.parse.urlunsplit(
         (
             parsed.scheme,

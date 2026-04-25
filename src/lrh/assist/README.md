@@ -266,6 +266,8 @@ lrh request work_items_from_audit \
   - work-item filename stem in `project/work_items/{proposed,active,resolved,abandoned}/`
 - `--style-file` (optional; defaults to `STYLE.md` when omitted)
 - `--work-item-file` (optional explicit override; takes precedence over positional `target`)
+- `--prompt-id` (optional explicit prompt ID; when omitted, LRH generates one from the
+  work item ID + current timestamp)
 
 Examples:
 

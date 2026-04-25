@@ -1,6 +1,7 @@
 """Request generation orchestration for the compatibility request script."""
 
 import argparse
+import datetime
 import pathlib
 import re
 
@@ -69,8 +70,12 @@ def generate_request(
     variables = build_variables(args)
     if args.template_name == "codex_prompt_from_work_item":
         work_item_path = pathlib.Path(variables["WORK_ITEM_RESOLVED_FILE"])
+        prompt_id = _resolve_codex_prompt_id(
+            args=args,
+            work_item_file=work_item_path,
+        )
         rendered = work_item_prompt_core.generate_codex_cloud_prompt(
-            prompt_id="PROMPT(AD_HOC:WORK_ITEM_PROMPT_CORE)[2026-04-24T20:05:00-04:00]",
+            prompt_id=prompt_id,
             work_item_path=work_item_path,
             style_guide_path=variables["STYLE_GUIDE_PATH"],
             work_item_reference_path=variables["WORK_ITEM_PATH"],
@@ -335,3 +340,20 @@ def _looks_like_path_target(target_input: str) -> bool:
         return False
     lowered = normalized.lower()
     return "/" in normalized or "\\" in normalized or lowered.endswith(".md")
+
+
+def _resolve_codex_prompt_id(
+    *, args: argparse.Namespace, work_item_file: pathlib.Path
+) -> str:
+    explicit_prompt_id = getattr(args, "prompt_id", None)
+    if isinstance(explicit_prompt_id, str) and explicit_prompt_id.strip():
+        return explicit_prompt_id.strip()
+
+    parsed = control_parser.parse_markdown_file(work_item_file)
+    work_item_id = parsed.frontmatter.get("id")
+    if not isinstance(work_item_id, str) or not work_item_id.strip():
+        work_item_id = "AD_HOC"
+
+    now = datetime.datetime.now(datetime.timezone.utc).astimezone()
+    timestamp = now.isoformat(timespec="seconds")
+    return f"PROMPT({work_item_id}:CODEX_PROMPT_FROM_WORK_ITEM)[{timestamp}]"

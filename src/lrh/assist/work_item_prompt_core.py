@@ -121,13 +121,13 @@ def evaluate_prompt_readiness(parsed: ParsedWorkItem) -> PromptReadinessResult:
         )
 
     if not parsed.scope:
-        warnings.append("missing Scope section")
+        blocking_reasons.append("missing Scope section")
     if not parsed.required_changes:
-        warnings.append("missing Required Changes section")
+        blocking_reasons.append("missing Required Changes section")
     if not parsed.acceptance_criteria:
-        warnings.append("missing Acceptance Criteria")
+        blocking_reasons.append("missing Acceptance Criteria")
     if not parsed.validation:
-        warnings.append("missing Validation commands")
+        blocking_reasons.append("missing Validation commands")
 
     return PromptReadinessResult(
         is_ready=not blocking_reasons,

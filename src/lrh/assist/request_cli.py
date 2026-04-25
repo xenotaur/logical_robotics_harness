@@ -105,6 +105,14 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         action="store_true",
         help="Print computed variables to stderr for debugging.",
     )
+    parser.add_argument(
+        "--prompt-id",
+        help=(
+            "Optional explicit prompt ID for codex_prompt_from_work_item. "
+            "When omitted, a prompt ID is generated from work-item metadata and "
+            "the current timestamp."
+        ),
+    )
     return parser
 
 

@@ -106,6 +106,36 @@ class TestWorkItemPromptCore(unittest.TestCase):
             ):
                 work_item_prompt_core.parse_work_item_markdown(work_item_path)
 
+    def test_missing_required_sections_make_item_not_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_item_path = pathlib.Path(temp_dir) / "WI-EXAMPLE.md"
+            work_item_path.write_text(
+                (
+                    "---\n"
+                    "id: WI-EXAMPLE\n"
+                    "title: Example item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "blocked: false\n"
+                    "---\n\n"
+                    "## Summary\n\n"
+                    "Minimal only.\n"
+                ),
+                encoding="utf-8",
+            )
+
+            prompt = work_item_prompt_core.generate_codex_cloud_prompt(
+                prompt_id="PROMPT(AD_HOC:TEST)[2026-04-24T20:05:00-04:00]",
+                work_item_path=work_item_path,
+                style_guide_path="STYLE.md",
+            )
+
+            self.assertIn("# Work Item Not Ready for Codex Implementation", prompt)
+            self.assertIn("missing Scope section", prompt)
+            self.assertIn("missing Required Changes section", prompt)
+            self.assertIn("missing Acceptance Criteria", prompt)
+            self.assertIn("missing Validation commands", prompt)
+
 
 if __name__ == "__main__":
     unittest.main()

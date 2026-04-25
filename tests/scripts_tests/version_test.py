@@ -18,6 +18,7 @@ class VersionScriptTests(unittest.TestCase):
             capture_output=True,
             text=True,
             env=os.environ.copy(),
+            cwd=self._repo_root(),
         )
 
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)

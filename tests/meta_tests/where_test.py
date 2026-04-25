@@ -163,6 +163,7 @@ class TestMetaWhereCli(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             data = json.loads(result.stdout)
             self.assertIn("lrh_version", data)
+            self.assertIsInstance(data["lrh_version"], str)
             self.assertEqual(data["mode"], "local")
             self.assertEqual(data["resolution_source"], "local_discovery")
             self.assertEqual(

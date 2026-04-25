@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 echo "Checking tool versions ..."
 
+echo "LRH proper"
+lrh version
+echo
+
 echo "Python"
 python --version
 echo

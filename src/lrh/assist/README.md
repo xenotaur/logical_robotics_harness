@@ -189,6 +189,7 @@ After opening the PR, create/update an execution record for traceability:
 ```bash
 scripts/prompts/record-execution \
   --prompt-id "<PROMPT_ID>" \
+  --work-item <WORK_ITEM_ID> \
   --slug <slug> \
   --status in_progress \
   --pr <pr_reference> \

@@ -110,7 +110,8 @@ lrh request codex-prompt-from-work-item \
 # Submit /tmp/codex_prompt.md to Codex Cloud and open a PR.
 
 scripts/prompts/record-execution \
-  --prompt-id "PROMPT(AD_HOC:IMPLEMENT_WI_EXAMPLE)[2026-04-24T20:15:00-04:00]" \
+  --prompt-id "PROMPT(WI-EXAMPLE:IMPLEMENT_WI_EXAMPLE)[2026-04-24T20:15:00-04:00]" \
+  --work-item WI-EXAMPLE \
   --slug implement-wi-example \
   --status in_progress
 ```
@@ -118,6 +119,9 @@ scripts/prompts/record-execution \
 Notes:
 
 - `codex-prompt-from-work-item` is the preferred structured command for work-item input.
+- Pass `--work-item <WORK_ITEM_ID>` to `record-execution` for work-item-driven
+  runs so records are written under that work-item directory instead of the
+  `AD_HOC` default.
 - Record execution after generating the PR so the record can include final PR/commit references.
 - Keep this workflow lightweight: skip extra ceremony for tiny exploratory edits.
 

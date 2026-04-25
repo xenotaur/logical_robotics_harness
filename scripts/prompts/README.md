@@ -22,4 +22,6 @@ Work item Markdown
   -> execution record
 ```
 
-After your PR is generated, run `record-execution` so the record can capture PR/commit metadata.
+After your PR is generated, run `record-execution --work-item <WORK_ITEM_ID>`
+so the record can capture PR/commit metadata and be written under the
+correct work-item folder instead of the default `AD_HOC` location.

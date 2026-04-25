@@ -101,6 +101,58 @@ class TestRequestCli(unittest.TestCase):
             self.assertIn("work item frontmatter field 'title'", stderr.getvalue())
             self.assertEqual("", stdout.getvalue())
 
+    def test_invalid_slug_returns_handled_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_item = root / "WI-EXAMPLE.md"
+            out_file = root / "prompt.md"
+            work_item.write_text(
+                (
+                    "---\n"
+                    "id: WI-EXAMPLE\n"
+                    "title: Example item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "blocked: false\n"
+                    "---\n\n"
+                    "## Problem\n\n"
+                    "Body.\n\n"
+                    "## Scope\n\n"
+                    "- Scope.\n\n"
+                    "## Required Changes\n\n"
+                    "- Changes.\n\n"
+                    "## Validation\n\n"
+                    "- Run tests.\n\n"
+                    "## Acceptance Criteria\n\n"
+                    "- Works.\n"
+                ),
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "codex-prompt-from-work-item",
+                        "--work-item",
+                        str(work_item),
+                        "--slug",
+                        "!!!",
+                        "--out",
+                        str(out_file),
+                    ],
+                    prog="lrh request",
+                )
+
+            self.assertEqual(exit_code, 2)
+            self.assertIn(
+                "--slug must include at least one letter or number",
+                stderr.getvalue(),
+            )
+            self.assertEqual("", stdout.getvalue())
+            self.assertFalse(out_file.exists())
+
     def test_non_boolean_blocked_field_returns_handled_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)

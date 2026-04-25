@@ -177,6 +177,11 @@ def run_request_cli(
             prog=f"{prog} codex-prompt-from-work-item"
         )
         command_args = command_parser.parse_args(argv[1:])
+        try:
+            prompt_id = _build_prompt_id_from_slug(command_args.slug)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 2
         mapped_args = argparse.Namespace(
             template_name="codex_prompt_from_work_item",
             target=None,
@@ -193,7 +198,7 @@ def run_request_cli(
             style_file=command_args.style_file,
             patch_file=None,
             show_vars=command_args.show_vars,
-            prompt_id=_build_prompt_id_from_slug(command_args.slug),
+            prompt_id=prompt_id,
         )
         args = mapped_args
         output_path = pathlib.Path(command_args.out)

@@ -8,6 +8,62 @@ from lrh.assist import request_cli
 
 
 class TestRequestCli(unittest.TestCase):
+    def test_codex_prompt_from_work_item_command_writes_output_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_item = root / "WI-EXAMPLE.md"
+            style_file = root / "STYLE.md"
+            out_file = root / "prompt.md"
+            work_item.write_text(
+                (
+                    "---\n"
+                    "id: WI-EXAMPLE\n"
+                    "title: Example item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "blocked: false\n"
+                    "---\n\n"
+                    "## Problem\n\n"
+                    "Need a small focused change.\n\n"
+                    "## Scope\n\n"
+                    "- Make one narrow CLI integration.\n\n"
+                    "## Required Changes\n\n"
+                    "- Add request command wiring.\n\n"
+                    "## Validation\n\n"
+                    "- Run `python -m unittest`.\n\n"
+                    "## Acceptance Criteria\n\n"
+                    "- Command writes output file.\n"
+                ),
+                encoding="utf-8",
+            )
+            style_file.write_text("# Style\n", encoding="utf-8")
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "codex-prompt-from-work-item",
+                        "--work-item",
+                        str(work_item),
+                        "--slug",
+                        "example-implementation",
+                        "--out",
+                        str(out_file),
+                        "--style-file",
+                        str(style_file),
+                    ],
+                    prog="lrh request",
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertTrue(out_file.is_file())
+            rendered = out_file.read_text(encoding="utf-8")
+            self.assertIn("Prompt ID: `PROMPT(AD_HOC:EXAMPLE_IMPLEMENTATION)", rendered)
+            self.assertIn("Approved work item:", rendered)
+
     def test_malformed_work_item_returns_handled_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)

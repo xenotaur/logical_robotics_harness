@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
@@ -16,6 +17,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         prog="lrh",
         description="Logical Robotics Harness command-line interface.",
+    )
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        help="show LRH package version and exit",
     )
     subparsers = parser.add_subparsers(dest="command")
 
@@ -50,6 +56,11 @@ def main() -> None:
         "survey",
         add_help=False,
         help="Survey a Python source tree for assist planning workflows.",
+    )
+
+    subparsers.add_parser(
+        "version",
+        help="Show LRH package version and exit.",
     )
 
     meta_parser = subparsers.add_parser(
@@ -206,6 +217,12 @@ def main() -> None:
         argv = [*argv[1:], "--help"]
 
     args, passthrough_args = parser.parse_known_args(argv)
+
+    if args.version or args.command == "version":
+        if passthrough_args:
+            parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+        print(lrh_version.format_cli_version())
+        raise SystemExit(0)
 
     if args.command == "validate":
         if passthrough_args:

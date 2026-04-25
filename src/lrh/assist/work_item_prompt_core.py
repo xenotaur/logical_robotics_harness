@@ -317,10 +317,33 @@ def _parse_sections(markdown_body: str) -> dict[str, str]:
 
 def _extract_bullets(section_text: str) -> tuple[str, ...]:
     bullets: list[str] = []
+    current_parts: list[str] = []
+
     for line in section_text.splitlines():
         stripped = line.strip()
+
         if stripped.startswith("- "):
-            bullets.append(stripped[2:].strip())
+            if current_parts:
+                bullets.append(" ".join(current_parts))
+            current_parts = [stripped[2:].strip()]
+            continue
+
+        if not current_parts:
+            continue
+
+        if not stripped:
+            continue
+
+        if line.startswith(" ") or line.startswith("\t"):
+            current_parts.append(stripped)
+            continue
+
+        bullets.append(" ".join(current_parts))
+        current_parts = []
+
+    if current_parts:
+        bullets.append(" ".join(current_parts))
+
     return tuple(bullets)
 
 

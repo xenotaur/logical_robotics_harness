@@ -128,7 +128,7 @@ def run_request_cli(
             args,
             template_root=template_root,
         )
-    except (FileNotFoundError, OSError) as error:
+    except (FileNotFoundError, OSError, ValueError) as error:
         print(str(error), file=sys.stderr)
         return 2
 

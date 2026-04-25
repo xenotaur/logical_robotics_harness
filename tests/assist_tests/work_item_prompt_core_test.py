@@ -32,7 +32,8 @@ class TestWorkItemPromptCore(unittest.TestCase):
                 "- No broad refactors\n\n"
                 "## Required Changes\n\n"
                 "- Add implementation\n"
-                "- Add focused tests\n\n"
+                "- Add focused tests\n"
+                "  only where needed for this work item\n\n"
                 "## Likely Files\n\n"
                 "- `src/lrh/example.py`\n"
                 "- `tests/example_test.py`\n\n"
@@ -63,6 +64,9 @@ class TestWorkItemPromptCore(unittest.TestCase):
             self.assertIn("# SUCCESS CRITERIA", prompt)
             self.assertIn("Run `scripts/test`", prompt)
             self.assertIn("Prompt ID: `PROMPT(AD_HOC:TEST)", prompt)
+            self.assertIn(
+                "Add focused tests only where needed for this work item", prompt
+            )
 
     def test_readiness_blocks_resolved_items(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

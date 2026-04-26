@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "Running LRH smoke tests ..."
+
+set -x
+python -m unittest discover -s tests/smoke -p "*_smoke.py"
+{ set +x; } 2>/dev/null
+
+echo

@@ -258,10 +258,6 @@ The `test` script also supports running a subset of tests by passing a target. T
 
 **Examples:**
 
-> Note: install smoke tests under `tests/scripts_tests/` run pip in non-interactive
-> mode (`--no-input`) with bounded subprocess timeouts so the suite fails fast
-> instead of hanging when package index credentials/network access are unavailable.
-
 _Run all tests in a subdirectory:_
 ```bash
 scripts/test tests/gatherers
@@ -293,6 +289,26 @@ scripts/test tests.gatherers.downloaders_test.TestDownloader.test_detect_encodin
 - File paths are automatically converted to module paths.
 - Dotted paths provide the most precise and reliable way to target individual tests.
 - If no target is provided, full test discovery is used.
+
+The default `scripts/test` discovery pattern is `*_test.py`, so smoke tests should
+not use that suffix.
+
+#### `smoke`
+Runs heavyweight smoke checks using Python's `unittest` framework.
+
+```bash
+scripts/smoke
+```
+
+This script discovers tests only under `tests/smoke/` with pattern
+`*_smoke.py`.
+
+Install/package smoke tests should live in this tier so `scripts/test` stays fast
+and hermetic.
+
+> Note: install smoke tests under `tests/smoke/` may run pip in non-interactive
+> mode (`--no-input`) with bounded subprocess timeouts so the suite fails fast
+> instead of hanging when package index credentials/network access are unavailable.
 
 #### `smoke_assist_install`
 Runs a lightweight packaging/install smoke check for assist CLI behavior.

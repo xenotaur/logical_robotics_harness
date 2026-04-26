@@ -145,3 +145,28 @@ Helper scripts:
 - `scripts/version` (plus `tools`, `verify`, `tag`, `push` subcommands for release workflow checks)
 
 Execution records are stored under `project/executions/` and may be grouped by work item or `AD_HOC`.
+
+## Release workflow
+
+LRH package versions are derived from Git tags via `setuptools-scm` (`pyproject.toml` has `dynamic = ["version"]`).
+Release tags should use:
+
+```text
+vMAJOR.MINOR.PATCH
+```
+
+Minimal release flow:
+
+```bash
+scripts/version tools
+scripts/version verify vX.Y.Z
+scripts/version tag vX.Y.Z
+scripts/version push vX.Y.Z
+python -m build
+```
+
+- `setuptools-scm` resolves a release tag like `v1.2.3` to package version `1.2.3`; untagged builds may include additional local version metadata.
+- `scripts/version verify` validates release preconditions (clean tree, lint, format check, tests).
+- `scripts/version tag` verifies release preconditions before creating a new tag; if the requested tag already exists at `HEAD`, it returns without re-running verification.
+- `scripts/version push` pushes the tag to `origin` and is idempotent when local/remote tags already match.
+- `python -m build` builds sdist/wheel using the version resolved by `setuptools-scm` from the current tag context.

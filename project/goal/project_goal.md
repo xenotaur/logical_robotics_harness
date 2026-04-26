@@ -11,16 +11,13 @@ time_horizon: long
 Build a reusable open-source harness that can orchestrate structured, evidence-backed, agent-assisted
 work across multiple independent projects.
 
-The harness should let a project express:
-- principles
-- project goal
-- roadmap
-- current focus
-- work items
-- evidence
-- status
+The harness should let a project express structured, human-readable, and machine-interpretable artifacts describing:
 
-and then use those structures to guide work, verification, reporting, and human review.
+- intent, such as principles, project goal, and roadmap
+- execution, such as current focus, work items, and intermediate structures such as workstreams
+- truth, such as evidence and status
+
+These structures should guide work, verification, reporting, and human review without treating this example list as an exhaustive limit on future control-plane concepts.
 
 ## Intended Outcome
 

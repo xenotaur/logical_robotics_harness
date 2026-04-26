@@ -134,6 +134,25 @@ The YAML frontmatter `status` is authoritative, and directory bucket is derived 
 
 See `project/design/architecture.md`, `project/design/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/active/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.
 
+## Open design proposals
+
+Longer-form design proposals — proposed but not yet adopted into
+the canonical design documents above — live under
+`project/design/proposals/`. Each proposal set has its own
+subdirectory, an umbrella `00_proposal.md`, and one or more
+sub-proposals or appendices.
+
+Currently open:
+
+- `project/design/proposals/workstream-execution-framework/` —
+  proposes adding a typed `workstream` artifact between focus and
+  work_items, with a six-layer execution stack (control plane →
+  templates → orchestration → agent runtime →
+  observability+evidence → MCP bridges) and a Pass-B worked-example
+  appendix walking `WS-LCATS-CORPORA-ANALYSIS` end-to-end. Status:
+  `proposed`. See `project/design/proposals/README.md` for the
+  proposals area conventions.
+
 ## Prompt workflow guidance
 
 For meaningful prompt-driven changes, LRH provides lightweight prompt traceability guidance in `PROMPTS.md`.

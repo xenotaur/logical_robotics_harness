@@ -1,11 +1,42 @@
+import os
 import pathlib
 import subprocess
 import tempfile
 import unittest
 import venv
 
+_PIP_COMMAND_TIMEOUT_SECONDS = 120
+
 
 class VersionInstallSmokeTests(unittest.TestCase):
+    def _pip_env(self) -> dict[str, str]:
+        env = dict(os.environ)
+        env["PIP_DISABLE_PIP_VERSION_CHECK"] = "1"
+        env["PIP_NO_INPUT"] = "1"
+        env.setdefault("PIP_DEFAULT_TIMEOUT", "15")
+        return env
+
+    def _run_with_timeout(
+        self, args: list[str], *, cwd: str | None = None
+    ) -> subprocess.CompletedProcess[str]:
+        try:
+            return subprocess.run(
+                args,
+                check=False,
+                capture_output=True,
+                text=True,
+                cwd=cwd,
+                env=self._pip_env(),
+                timeout=_PIP_COMMAND_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired as exc:
+            self.fail(
+                "Timed out while running command after "
+                f"{_PIP_COMMAND_TIMEOUT_SECONDS}s: {exc.cmd}\n"
+                f"stdout:\n{exc.stdout or ''}\n"
+                f"stderr:\n{exc.stderr or ''}"
+            )
+
     def _maybe_skip_for_unavailable_build_deps(
         self, result: subprocess.CompletedProcess[str], install_mode: str
     ) -> None:
@@ -80,11 +111,16 @@ class VersionInstallSmokeTests(unittest.TestCase):
 
             editable_venv = temp_path / "venv_editable"
             editable_python = self._create_venv(editable_venv)
-            install_editable = subprocess.run(
-                [str(editable_python), "-m", "pip", "install", "-e", str(repo_root)],
-                check=False,
-                capture_output=True,
-                text=True,
+            install_editable = self._run_with_timeout(
+                [
+                    str(editable_python),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--no-input",
+                    "-e",
+                    str(repo_root),
+                ]
             )
             self._maybe_skip_for_unavailable_build_deps(
                 install_editable, install_mode="editable"
@@ -96,20 +132,18 @@ class VersionInstallSmokeTests(unittest.TestCase):
 
             wheel_dir = temp_path / "wheelhouse"
             wheel_dir.mkdir(parents=True, exist_ok=True)
-            build_wheel = subprocess.run(
+            build_wheel = self._run_with_timeout(
                 [
                     str(editable_python),
                     "-m",
                     "pip",
                     "wheel",
+                    "--no-input",
                     str(repo_root),
                     "--no-deps",
                     "-w",
                     str(wheel_dir),
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
+                ]
             )
             self._maybe_skip_for_unavailable_build_deps(
                 build_wheel, install_mode="wheel build"
@@ -121,18 +155,16 @@ class VersionInstallSmokeTests(unittest.TestCase):
 
             wheel_venv = temp_path / "venv_wheel"
             wheel_python = self._create_venv(wheel_venv)
-            install_wheel = subprocess.run(
+            install_wheel = self._run_with_timeout(
                 [
                     str(wheel_python),
                     "-m",
                     "pip",
                     "install",
+                    "--no-input",
                     "--no-deps",
                     str(wheels[0]),
-                ],
-                check=False,
-                capture_output=True,
-                text=True,
+                ]
             )
             self._maybe_skip_for_unavailable_build_deps(
                 install_wheel, install_mode="wheel install"

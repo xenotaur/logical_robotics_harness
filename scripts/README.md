@@ -258,6 +258,10 @@ The `test` script also supports running a subset of tests by passing a target. T
 
 **Examples:**
 
+> Note: install smoke tests under `tests/scripts_tests/` run pip in non-interactive
+> mode (`--no-input`) with bounded subprocess timeouts so the suite fails fast
+> instead of hanging when package index credentials/network access are unavailable.
+
 _Run all tests in a subdirectory:_
 ```bash
 scripts/test tests/gatherers

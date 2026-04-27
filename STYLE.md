@@ -330,7 +330,12 @@ LRH prefers predictable, automatable tests that can be run from the command line
 
 ### Testing Principles
 
-- Prefer real objects over heavy mocking
+- Unit tests must be fast, deterministic, and hermetic.
+- Unit tests should not call `pip`, package indexes/installers, network services, Git remotes, or long-running subprocesses.
+- Prefer real in-process objects and temporary directories over heavy mocking.
+- Use fakes, stubs, or mocks at external boundaries (process/installer/network/global environment/clock/home-config) when needed.
+- Move tests that intentionally exercise real build/install/package behavior to `tests/smoke/*_smoke.py`, run through `scripts/smoke`.
+- Avoid mocks that only duplicate implementation details.
 - Keep tests deterministic:
   - Seed randomness
   - Avoid time-dependent behavior
@@ -343,6 +348,17 @@ The canonical project test entry point should be:
 ```bash
 scripts/test
 ```
+
+Smoke-test entry point:
+
+```bash
+scripts/smoke
+```
+
+Naming convention:
+
+- Use `*_test.py` for normal unit/regression tests.
+- Use `*_smoke.py` for smoke tests.
 
 Run `scripts/develop` before the full test suite when preparing a local change.
 

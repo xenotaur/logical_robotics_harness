@@ -185,24 +185,48 @@ Execution records are stored under `project/executions/` and may be grouped by w
 ## Release workflow
 
 LRH package versions are derived from Git tags via `setuptools-scm` (`pyproject.toml` has `dynamic = ["version"]`).
-Release tags should use:
+Git tags are the source of truth for released versions, and tags should use:
 
 ```text
 vMAJOR.MINOR.PATCH
 ```
 
-Minimal release flow:
+For example, `v0.2.0` resolves to package version `0.2.0`.
+
+### Release steps
+
+Run the release workflow in this order:
 
 ```bash
-scripts/version tools
-scripts/version verify vX.Y.Z
-scripts/version tag vX.Y.Z
-scripts/version push vX.Y.Z
-python -m build
+scripts/version verify v0.2.0
+scripts/version tag v0.2.0
+scripts/build
+python -m venv /tmp/lrh-release-smoke
+/tmp/lrh-release-smoke/bin/pip install dist/*.whl
+/tmp/lrh-release-smoke/bin/lrh --version
+/tmp/lrh-release-smoke/bin/lrh snapshot --help
 ```
 
-- `setuptools-scm` resolves a release tag like `v1.2.3` to package version `1.2.3`; untagged builds may include additional local version metadata.
-- `scripts/version verify` validates release preconditions (clean tree, lint, format check, tests).
-- `scripts/version tag` verifies release preconditions before creating a new tag; if the requested tag already exists at `HEAD`, it returns without re-running verification.
-- `scripts/version push` pushes the tag to `origin` and is idempotent when local/remote tags already match.
-- `python -m build` builds sdist/wheel using the version resolved by `setuptools-scm` from the current tag context.
+- `scripts/version verify v0.2.0` checks that the requested tag format is valid and that release preconditions pass. This is safe to run repeatedly.
+- `scripts/version tag v0.2.0` creates or confirms the release tag. This is idempotent when the tag already exists at the correct commit.
+- `scripts/build` produces release artifacts in `dist/` from the tagged source using `setuptools-scm` version resolution.
+- `python -m venv /tmp/lrh-release-smoke` creates an isolated environment so the smoke test is not influenced by your repo checkout or existing global packages.
+- `/tmp/lrh-release-smoke/bin/pip install dist/*.whl` installs the built wheel, which verifies real installable packaging behavior rather than source-tree imports.
+- `/tmp/lrh-release-smoke/bin/lrh --version` confirms the installed CLI reports the expected tag-derived version, for example:
+
+  ```text
+  lrh 0.2.0
+  ```
+
+- `/tmp/lrh-release-smoke/bin/lrh snapshot --help` confirms a non-trivial CLI entrypoint works from the installed wheel.
+
+### Expected outputs
+
+- `dist/` contains both a wheel (`*.whl`) and source distribution (`*.tar.gz`) generated for the same resolved version.
+- `lrh --version` in the smoke venv should report the expected released version (for example `lrh 0.2.0`).
+
+### Safety and idempotence
+
+- `verify` is intended to be safe and repeatable.
+- `tag` is intended to be idempotent when the requested tag already points at the correct commit.
+- If you publish tags with `scripts/version push`, it is an explicit step and designed to be safe when local/remote tag state already matches.

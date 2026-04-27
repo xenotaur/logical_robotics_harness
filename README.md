@@ -200,31 +200,23 @@ Run the release workflow in this order:
 ```bash
 scripts/version verify v0.2.0
 scripts/version tag v0.2.0
-rm -f dist/*
-scripts/build
-SMOKE_VENV="$(mktemp -d /tmp/lrh-release-smoke.XXXXXX)"
-python -m venv "$SMOKE_VENV"
-WHEEL_PATH="$(ls -1 dist/lrh-0.2.0-*.whl)"
-"$SMOKE_VENV/bin/pip" install "$WHEEL_PATH"
-"$SMOKE_VENV/bin/lrh" --version
-"$SMOKE_VENV/bin/lrh" snapshot --help
+scripts/release-smoke v0.2.0
 ```
 
 - `scripts/version verify v0.2.0` checks that the requested tag is a valid Git ref name and that release preconditions pass. Releases are expected to use `vMAJOR.MINOR.PATCH` tags such as `v0.2.0`. This is safe to run repeatedly.
 - `scripts/version tag v0.2.0` creates or confirms the release tag. This is idempotent when the tag already exists at the correct commit.
-- `rm -f dist/*` clears prior artifacts so smoke verification cannot accidentally install an older wheel.
-- `scripts/build` produces release artifacts in `dist/` from the tagged source using `setuptools-scm` version resolution.
-- `SMOKE_VENV="$(mktemp -d /tmp/lrh-release-smoke.XXXXXX)"` allocates a unique temporary virtual-environment path so prior runs cannot leak state into the current smoke test.
-- `python -m venv "$SMOKE_VENV"` creates an isolated environment so the smoke test is not influenced by your repo checkout or existing global packages.
-- `WHEEL_PATH="$(ls -1 dist/lrh-0.2.0-*.whl)"` selects the release wheel for the target version.
-- `"$SMOKE_VENV/bin/pip" install "$WHEEL_PATH"` installs exactly one built wheel, which verifies real installable packaging behavior rather than source-tree imports.
-- `"$SMOKE_VENV/bin/lrh" --version` confirms the installed CLI reports the expected tag-derived version, for example:
+- `scripts/release-smoke v0.2.0` runs a clean rebuild (`scripts/clean` + `scripts/build`), creates a temporary venv, installs the built wheel from `dist/`, verifies `lrh --version`, and verifies `lrh snapshot --help` from the installed wheel.
 
-  ```text
-  lrh 0.2.0
-  ```
+### `sandbox` vs `release-smoke`
 
-- `"$SMOKE_VENV/bin/lrh" snapshot --help` confirms a non-trivial CLI entrypoint works from the installed wheel.
+- `scripts/sandbox` isolates HOME/XDG/config/cache/state paths for behavioral testing of commands run directly from a source checkout.
+- `scripts/release-smoke` validates installed-wheel behavior in a temporary virtual environment.
+
+These workflows are complementary and intentionally distinct.
+
+### Wheel filename note
+
+Do not hard-code wheel paths as `dist/lrh-...whl`. Wheel filenames are derived from the distribution name (`logical-robotics-harness`), which is normalized in wheel artifacts (for example, `logical_robotics_harness-0.2.0-...whl`).
 
 ### Expected outputs
 
@@ -235,4 +227,5 @@ WHEEL_PATH="$(ls -1 dist/lrh-0.2.0-*.whl)"
 
 - `verify` is intended to be safe and repeatable.
 - `tag` is intended to be idempotent when the requested tag already points at the correct commit.
+- `release-smoke` rebuilds artifacts from a clean packaging state before installing exactly one wheel for validation.
 - If you publish tags with `scripts/version push`, it is an explicit step and designed to be safe when local/remote tag state already matches.

@@ -1,11 +1,12 @@
-#!/bin/bash
-# Build LRH via Python's build module
-# Requires:
-# - pip install build
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Build LRH via Python's build module.
+# Requires dev dependencies (pip install -e ".[dev]").
 echo "Building the lrh package..."
 set -x
 
-python -m build
+python -m build "$@"
 
 # Turn off logging and print a blank line
 { set +x; } 2>/dev/null

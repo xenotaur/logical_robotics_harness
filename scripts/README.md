@@ -23,21 +23,41 @@ scripts/build
 ```
 
 **Requirements:**
-- `pip install build`
+- install development dependencies (`pip install -e ".[dev]"`) so the `build` frontend is available
 
 **Output:** Creates distribution files in `dist/` directory.
 
 #### `clean`
-Removes all build artifacts to ensure a clean state.
+Removes conservative packaging build artifacts to ensure a clean state.
 
 ```bash
 scripts/clean
+scripts/clean --dry-run
+scripts/clean --help
 ```
 
 **Removes:**
 - `build/` directory
-- `dist/` directory  
+- `dist/` directory
 - `lrh.egg-info/` directory
+
+#### `release-smoke`
+Builds LRH from a clean artifact state and validates installed-wheel behavior in an isolated temporary venv.
+
+```bash
+scripts/release-smoke
+scripts/release-smoke v0.2.0
+scripts/release-smoke --preserve v0.2.0
+```
+
+**Checks:**
+- runs `scripts/clean`
+- runs `scripts/build`
+- installs exactly one wheel from `dist/`
+- validates installed `lrh --version`
+- validates installed `lrh snapshot --help`
+
+Use `scripts/sandbox` for HOME/XDG workspace isolation. Use `scripts/release-smoke` for installed-wheel release validation.
 
 #### `publish`
 Publishes the LRH package to PyPI using twine.

@@ -117,12 +117,50 @@ def run_release_smoke(expected_version: str, *, preserve: bool) -> int:
 
     venv_root = pathlib.Path(tempfile.mkdtemp(prefix="lrh-release-smoke-"))
     venv_path = venv_root / "venv"
-    pip_bin = venv_path / "bin" / "pip"
+    python_bin = venv_path / "bin" / "python"
     lrh_bin = venv_path / "bin" / "lrh"
 
     try:
         _run([sys.executable, "-m", "venv", str(venv_path)])
-        _run([str(pip_bin), "install", str(wheel_path)])
+        _run([str(python_bin), "-m", "pip", "--version"])
+
+        preinstalled_name = "logical-robotics-harness"
+        preinstall_check = subprocess.run(
+            [
+                str(python_bin),
+                "-m",
+                "pip",
+                "show",
+                preinstalled_name,
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+        )
+        if preinstall_check.returncode == 0:
+            print(
+                f"WARNING: {preinstalled_name} is already visible before install:\n"
+                f"{preinstall_check.stdout.strip()}",
+                file=sys.stderr,
+            )
+
+        _run(
+            [
+                str(python_bin),
+                "-m",
+                "pip",
+                "install",
+                "--force-reinstall",
+                str(wheel_path),
+            ]
+        )
+        if not lrh_bin.exists():
+            raise ReleaseSmokeError(
+                f"installed console script is missing: {lrh_bin}\n"
+                "inspect wheel metadata/entry points "
+                "(for example: unzip -p <wheel>.whl '*.dist-info/entry_points.txt')"
+            )
         version_output = _run([str(lrh_bin), "--version"])
         _run([str(lrh_bin), "snapshot", "--help"])
 

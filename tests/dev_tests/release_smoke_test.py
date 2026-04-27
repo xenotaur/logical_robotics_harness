@@ -89,5 +89,131 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
                 release_smoke.REPO_ROOT = original_repo_root
 
 
+class ReleaseSmokeRunTest(unittest.TestCase):
+    def test_run_release_smoke_installs_wheel_via_venv_python_with_force_reinstall(
+        self,
+    ) -> None:
+        fake_root = pathlib.Path("/tmp/lrh-release-smoke-root")
+        fake_venv = fake_root / "venv"
+        fake_python = fake_venv / "bin" / "python"
+        fake_lrh = fake_venv / "bin" / "lrh"
+        fake_wheel = (
+            release_smoke.REPO_ROOT
+            / "dist"
+            / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+        )
+
+        commands: list[list[str]] = []
+
+        def _fake_run(command: list[str], *, cwd: pathlib.Path | None = None) -> str:
+            del cwd
+            commands.append(command)
+            if command == [str(fake_lrh), "--version"]:
+                return "lrh 0.2.1"
+            return ""
+
+        with (
+            mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+            mock.patch.object(
+                release_smoke, "_resolve_wheel_path", return_value=fake_wheel
+            ),
+            mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
+            mock.patch("subprocess.run") as subprocess_run,
+            mock.patch("pathlib.Path.exists", return_value=True),
+            mock.patch("shutil.rmtree") as rmtree,
+        ):
+            subprocess_run.return_value = subprocess.CompletedProcess(
+                args=[
+                    str(fake_python),
+                    "-m",
+                    "pip",
+                    "show",
+                    "logical-robotics-harness",
+                ],
+                returncode=1,
+                stdout="",
+                stderr="",
+            )
+
+            exit_code = release_smoke.run_release_smoke("v0.2.1", preserve=False)
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn(
+            [
+                str(fake_python),
+                "-m",
+                "pip",
+                "install",
+                "--force-reinstall",
+                str(fake_wheel),
+            ],
+            commands,
+        )
+        self.assertIn(
+            [release_smoke.sys.executable, "-m", "venv", str(fake_venv)],
+            commands,
+        )
+        self.assertIn([str(fake_lrh), "--version"], commands)
+        self.assertIn([str(fake_lrh), "snapshot", "--help"], commands)
+        self.assertTrue(
+            commands.index(
+                [
+                    str(fake_python),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--force-reinstall",
+                    str(fake_wheel),
+                ]
+            )
+            > commands.index([str(fake_python), "-m", "pip", "--version"])
+        )
+        subprocess_run.assert_called_once_with(
+            [str(fake_python), "-m", "pip", "show", "logical-robotics-harness"],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=release_smoke.REPO_ROOT,
+        )
+        rmtree.assert_called_once_with(fake_root, ignore_errors=True)
+
+    def test_run_release_smoke_preserve_skips_cleanup(self) -> None:
+        fake_root = pathlib.Path("/tmp/lrh-release-smoke-root")
+        fake_venv = fake_root / "venv"
+        fake_wheel = (
+            release_smoke.REPO_ROOT
+            / "dist"
+            / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+        )
+        commands: list[list[str]] = []
+
+        def _fake_run(command: list[str], *, cwd: pathlib.Path | None = None) -> str:
+            del cwd
+            commands.append(command)
+            return "lrh 0.2.1" if command[-1] == "--version" else ""
+
+        with (
+            mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+            mock.patch.object(
+                release_smoke, "_resolve_wheel_path", return_value=fake_wheel
+            ),
+            mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
+            mock.patch("subprocess.run") as subprocess_run,
+            mock.patch("pathlib.Path.exists", return_value=True),
+            mock.patch("shutil.rmtree") as rmtree,
+        ):
+            subprocess_run.return_value = subprocess.CompletedProcess(
+                args=[],
+                returncode=1,
+                stdout="",
+                stderr="",
+            )
+            release_smoke.run_release_smoke("", preserve=True)
+
+        rmtree.assert_not_called()
+        self.assertIn([str(fake_venv / "bin" / "lrh"), "--version"], commands)
+        self.assertIn([str(fake_venv / "bin" / "lrh"), "snapshot", "--help"], commands)
+
+
 if __name__ == "__main__":
     unittest.main()

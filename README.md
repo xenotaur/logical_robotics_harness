@@ -82,6 +82,17 @@ scripts/sandbox --cleanup -- python -m lrh.cli.main meta init --mode hybrid
 scripts/sandbox --cleanup -- python -m lrh.cli.main meta where
 ```
 
+## Testing tiers
+
+Use the standard script entry points:
+
+```bash
+scripts/test     # fast unit/regression suite
+scripts/smoke    # heavyweight build/install/package smoke checks
+```
+
+Unit tests are expected to stay fast, deterministic, and hermetic; smoke coverage is where install/build/package behavior should run.
+
 ## Design summary
 
 The control model for a project is:

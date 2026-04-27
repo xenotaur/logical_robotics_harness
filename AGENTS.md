@@ -104,3 +104,7 @@ When asked to make progress in this repository, prefer work that advances the fi
 ## Prompt-driven work
 
 When a task is driven by a generated prompt, follow `PROMPTS.md` for prompt IDs, execution records, rerun handling, and optional work-item traceability. Do not create prompt records for trivial or purely exploratory work unless asked.
+
+## Testing policy note
+
+Keep unit tests fast, deterministic, and hermetic: avoid `pip`/installer calls, package-index/network access, Git remotes, and heavyweight subprocesses in the normal unit suite. Prefer real in-process objects and temp directories, but stub/fake/mock external boundaries when needed. Put real install/build/package checks in `tests/smoke/*_smoke.py` and run them via `scripts/smoke`.

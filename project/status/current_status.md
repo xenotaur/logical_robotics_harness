@@ -32,6 +32,8 @@ The immediate objective is to finish packaging-safe assist migration sequencing:
 - keep `lrh survey` canonical on package-owned `sourcetree_surveyor`
 - plan only follow-on sourcetree capability expansion
 
+Versioning hardening is now in a stable operational state: LRH versioning is tag-derived via `setuptools-scm`, the `scripts/version` workflow (`verify`/`tag`/`push`) is in place, and release smoke validation succeeded for the pushed `v0.2.2` tag.
+
 ## Current Health
 
 Yellow.

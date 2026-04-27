@@ -46,8 +46,8 @@ Builds LRH from a clean artifact state and validates installed-wheel behavior in
 
 ```bash
 scripts/release-smoke
-scripts/release-smoke v0.2.0
-scripts/release-smoke --preserve v0.2.0
+scripts/release-smoke v0.2.2
+scripts/release-smoke --preserve v0.2.2
 ```
 
 **Checks:**
@@ -124,6 +124,8 @@ scripts/version verify [tag]
 scripts/version tag <tag>
 scripts/version push <tag>
 ```
+
+LRH package versions are derived from Git tags via `setuptools-scm`; use `vMAJOR.MINOR.PATCH` tags (for example, `v0.2.2`).
 
 Subcommands:
 - default (`scripts/version`): prints `lrh <version>` from package metadata

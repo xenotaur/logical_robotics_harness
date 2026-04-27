@@ -191,7 +191,7 @@ Git tags are the source of truth for released versions, and tags should use:
 vMAJOR.MINOR.PATCH
 ```
 
-For example, `v0.2.0` resolves to package version `0.2.0`.
+For example, `v0.2.2` resolves to package version `0.2.2`.
 
 ### Release steps
 
@@ -204,14 +204,16 @@ pip install -e ".[dev]"
 Run the release workflow in this order:
 
 ```bash
-scripts/version verify v0.2.0
-scripts/version tag v0.2.0
-scripts/release-smoke v0.2.0
+scripts/version verify v0.2.2
+scripts/version tag v0.2.2
+scripts/version push v0.2.2
+scripts/release-smoke v0.2.2
 ```
 
-- `scripts/version verify v0.2.0` checks that the requested tag is a valid Git ref name and that release preconditions pass. Releases are expected to use `vMAJOR.MINOR.PATCH` tags such as `v0.2.0`. This is safe to run repeatedly.
-- `scripts/version tag v0.2.0` creates or confirms the release tag. This is idempotent when the tag already exists at the correct commit.
-- `scripts/release-smoke v0.2.0` runs a clean rebuild (`scripts/clean` + `scripts/build`), creates a temporary parent directory with `venv/` inside it, installs the built wheel from `dist/` via `<smoke-root>/venv/bin/python -m pip install --force-reinstall`, verifies `<smoke-root>/venv/bin/lrh --version`, and verifies `<smoke-root>/venv/bin/lrh snapshot --help` from the installed wheel.
+- `scripts/version verify v0.2.2` checks that the requested tag is a valid Git ref name and that release preconditions pass. Releases are expected to use `vMAJOR.MINOR.PATCH` tags such as `v0.2.2`. This is safe to run repeatedly.
+- `scripts/version tag v0.2.2` creates or confirms the release tag. This is idempotent when the tag already exists at the correct commit.
+- `scripts/version push v0.2.2` pushes the matching local tag to `origin` when needed, and is safe when local and remote state already match.
+- `scripts/release-smoke v0.2.2` runs a clean rebuild (`scripts/clean` + `scripts/build`), creates a temporary parent directory with `venv/` inside it, installs the built wheel from `dist/` via `<smoke-root>/venv/bin/python -m pip install --force-reinstall`, verifies `<smoke-root>/venv/bin/lrh --version`, and verifies `<smoke-root>/venv/bin/lrh snapshot --help` from the installed wheel.
 
 ### `sandbox` vs `release-smoke`
 

@@ -20,6 +20,7 @@ Recently completed:
 - package-owned assist templates under `src/lrh/assist/templates/`
 - canonical `lrh survey` delegation to `src/lrh/assist/sourcetree_surveyor.py`
 - assist README updates documenting canonical CLI usage
+- versioning hardening closure: `setuptools-scm` tag-derived versions plus `scripts/version`, `scripts/build`, `scripts/clean`, and `scripts/release-smoke` workflow validated with pushed `v0.2.2`
 
 ## Why this is active now
 

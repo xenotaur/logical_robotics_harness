@@ -93,6 +93,11 @@ scripts/smoke    # heavyweight build/install/package smoke checks
 
 Unit tests are expected to stay fast, deterministic, and hermetic; smoke coverage is where install/build/package behavior should run.
 
+CI usage:
+
+- pull-request and main-branch fast validation runs `scripts/test`, `scripts/lint`, and `scripts/format --check`
+- smoke validation runs `scripts/smoke` in the dedicated **Smoke validation** workflow (manual dispatch, weekly schedule, and release-tag pushes)
+
 ## Design summary
 
 The control model for a project is:

@@ -200,18 +200,22 @@ Run the release workflow in this order:
 ```bash
 scripts/version verify v0.2.0
 scripts/version tag v0.2.0
+rm -f dist/*
 scripts/build
 python -m venv /tmp/lrh-release-smoke
-/tmp/lrh-release-smoke/bin/pip install dist/*.whl
+WHEEL_PATH="$(ls -1 dist/lrh-0.2.0-*.whl)"
+/tmp/lrh-release-smoke/bin/pip install "$WHEEL_PATH"
 /tmp/lrh-release-smoke/bin/lrh --version
 /tmp/lrh-release-smoke/bin/lrh snapshot --help
 ```
 
 - `scripts/version verify v0.2.0` checks that the requested tag format is valid and that release preconditions pass. This is safe to run repeatedly.
 - `scripts/version tag v0.2.0` creates or confirms the release tag. This is idempotent when the tag already exists at the correct commit.
+- `rm -f dist/*` clears prior artifacts so smoke verification cannot accidentally install an older wheel.
 - `scripts/build` produces release artifacts in `dist/` from the tagged source using `setuptools-scm` version resolution.
 - `python -m venv /tmp/lrh-release-smoke` creates an isolated environment so the smoke test is not influenced by your repo checkout or existing global packages.
-- `/tmp/lrh-release-smoke/bin/pip install dist/*.whl` installs the built wheel, which verifies real installable packaging behavior rather than source-tree imports.
+- `WHEEL_PATH="$(ls -1 dist/lrh-0.2.0-*.whl)"` selects the release wheel for the target version.
+- `/tmp/lrh-release-smoke/bin/pip install "$WHEEL_PATH"` installs exactly one built wheel, which verifies real installable packaging behavior rather than source-tree imports.
 - `/tmp/lrh-release-smoke/bin/lrh --version` confirms the installed CLI reports the expected tag-derived version, for example:
 
   ```text

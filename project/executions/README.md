@@ -56,3 +56,12 @@ If a prior record exists:
 - Work-item linkage is optional.
 - Keep records concise and useful.
 - Prompt records are encouraged for meaningful work, not required for every tiny change.
+
+## Important Rules
+
+- Prompts should only manipulate execution records related to them.
+- Previous execution records for other prompts should NOT be modified.
+
+For example, a cleanup prompt that was removing a variable or folder from the documentation
+should NOT remove references to the directory in previous completed execution records.
+This applies to all updates to execution records and especially to cleanup work items.

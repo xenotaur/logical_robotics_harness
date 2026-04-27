@@ -60,6 +60,12 @@ Execution records live under `project/executions/` and include YAML-style front 
 
 See `project/executions/README.md` for canonical layout and schema guidance.
 
+WARNING: Prompts should only manipulate execution records related to them. Previous execution
+records for other prompts should not be modified. This is to prevent the loss of important
+information - for example, a cleanup prompt that was removing a variable or folder from the
+documentation should not remove references to the directory in previous completed execution
+records. This applies to all updates to execution records and especially to cleanup work items.
+
 ## Rerun, revert, and supersession handling
 
 Use status values from `project/executions/README.md`: `planned`, `in_progress`, `landed`, `failed`, `reverted`, `superseded`.

@@ -4,4 +4,4 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
-python -m lrh.dev.clean "$@"
+python -m lrh.dev.release_smoke "$@"

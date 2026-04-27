@@ -95,7 +95,8 @@ Unit tests are expected to stay fast, deterministic, and hermetic; smoke coverag
 
 CI usage:
 
-- pull-request and main-branch fast validation runs `scripts/test`, `scripts/lint`, and `scripts/format --check`
+- pull-request and main-branch fast validation includes `scripts/test`, `scripts/lint`, `scripts/format --check`, and `lrh validate`
+- pull-request and main-branch coverage feedback runs `scripts/coverage --html`
 - smoke validation runs `scripts/smoke` in the dedicated **Smoke validation** workflow (manual dispatch, weekly schedule, and release-tag pushes)
 
 ## Design summary

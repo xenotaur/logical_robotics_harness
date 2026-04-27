@@ -211,7 +211,7 @@ scripts/release-smoke v0.2.0
 
 - `scripts/version verify v0.2.0` checks that the requested tag is a valid Git ref name and that release preconditions pass. Releases are expected to use `vMAJOR.MINOR.PATCH` tags such as `v0.2.0`. This is safe to run repeatedly.
 - `scripts/version tag v0.2.0` creates or confirms the release tag. This is idempotent when the tag already exists at the correct commit.
-- `scripts/release-smoke v0.2.0` runs a clean rebuild (`scripts/clean` + `scripts/build`), creates a temporary venv, installs the built wheel from `dist/`, verifies `lrh --version`, and verifies `lrh snapshot --help` from the installed wheel.
+- `scripts/release-smoke v0.2.0` runs a clean rebuild (`scripts/clean` + `scripts/build`), creates a temporary parent directory with `venv/` inside it, installs the built wheel from `dist/` via `<smoke-root>/venv/bin/python -m pip install --force-reinstall`, verifies `<smoke-root>/venv/bin/lrh --version`, and verifies `<smoke-root>/venv/bin/lrh snapshot --help` from the installed wheel.
 
 ### `sandbox` vs `release-smoke`
 

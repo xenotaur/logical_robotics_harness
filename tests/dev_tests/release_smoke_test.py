@@ -90,52 +90,63 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
 
 
 class ReleaseSmokeRunTest(unittest.TestCase):
+    def _build_fake_paths(
+        self, root: pathlib.Path
+    ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+        fake_venv = root / "venv"
+        fake_python = fake_venv / "bin" / "python"
+        fake_lrh = fake_venv / "bin" / "lrh"
+        return fake_venv, fake_python, fake_lrh
+
     def test_run_release_smoke_installs_wheel_via_venv_python_with_force_reinstall(
         self,
     ) -> None:
-        fake_root = pathlib.Path("/tmp/lrh-release-smoke-root")
-        fake_venv = fake_root / "venv"
-        fake_python = fake_venv / "bin" / "python"
-        fake_lrh = fake_venv / "bin" / "lrh"
-        fake_wheel = (
-            release_smoke.REPO_ROOT
-            / "dist"
-            / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
-        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fake_root = pathlib.Path(temp_dir)
+            fake_venv, fake_python, fake_lrh = self._build_fake_paths(fake_root)
+            fake_lrh.parent.mkdir(parents=True, exist_ok=True)
+            fake_lrh.write_text("", encoding="utf-8")
 
-        commands: list[list[str]] = []
-
-        def _fake_run(command: list[str], *, cwd: pathlib.Path | None = None) -> str:
-            del cwd
-            commands.append(command)
-            if command == [str(fake_lrh), "--version"]:
-                return "lrh 0.2.1"
-            return ""
-
-        with (
-            mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
-            mock.patch.object(
-                release_smoke, "_resolve_wheel_path", return_value=fake_wheel
-            ),
-            mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
-            mock.patch("subprocess.run") as subprocess_run,
-            mock.patch("pathlib.Path.exists", return_value=True),
-            mock.patch("shutil.rmtree") as rmtree,
-        ):
-            subprocess_run.return_value = subprocess.CompletedProcess(
-                args=[
-                    str(fake_python),
-                    "-m",
-                    "pip",
-                    "show",
-                    "logical-robotics-harness",
-                ],
-                returncode=1,
-                stdout="",
-                stderr="",
+            fake_wheel = (
+                release_smoke.REPO_ROOT
+                / "dist"
+                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
             )
 
-            exit_code = release_smoke.run_release_smoke("v0.2.1", preserve=False)
+            commands: list[list[str]] = []
+
+            def _fake_run(
+                command: list[str], *, cwd: pathlib.Path | None = None
+            ) -> str:
+                del cwd
+                commands.append(command)
+                if command == [str(fake_lrh), "--version"]:
+                    return "lrh 0.2.1"
+                return ""
+
+            with (
+                mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+                mock.patch.object(
+                    release_smoke, "_resolve_wheel_path", return_value=fake_wheel
+                ),
+                mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
+                mock.patch("subprocess.run") as subprocess_run,
+                mock.patch("shutil.rmtree") as rmtree,
+            ):
+                subprocess_run.return_value = subprocess.CompletedProcess(
+                    args=[
+                        str(fake_python),
+                        "-m",
+                        "pip",
+                        "show",
+                        "logical-robotics-harness",
+                    ],
+                    returncode=1,
+                    stdout="",
+                    stderr="",
+                )
+
+                exit_code = release_smoke.run_release_smoke("v0.2.1", preserve=False)
 
         self.assertEqual(exit_code, 0)
         self.assertIn(
@@ -178,41 +189,76 @@ class ReleaseSmokeRunTest(unittest.TestCase):
         rmtree.assert_called_once_with(fake_root, ignore_errors=True)
 
     def test_run_release_smoke_preserve_skips_cleanup(self) -> None:
-        fake_root = pathlib.Path("/tmp/lrh-release-smoke-root")
-        fake_venv = fake_root / "venv"
-        fake_wheel = (
-            release_smoke.REPO_ROOT
-            / "dist"
-            / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
-        )
-        commands: list[list[str]] = []
-
-        def _fake_run(command: list[str], *, cwd: pathlib.Path | None = None) -> str:
-            del cwd
-            commands.append(command)
-            return "lrh 0.2.1" if command[-1] == "--version" else ""
-
-        with (
-            mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
-            mock.patch.object(
-                release_smoke, "_resolve_wheel_path", return_value=fake_wheel
-            ),
-            mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
-            mock.patch("subprocess.run") as subprocess_run,
-            mock.patch("pathlib.Path.exists", return_value=True),
-            mock.patch("shutil.rmtree") as rmtree,
-        ):
-            subprocess_run.return_value = subprocess.CompletedProcess(
-                args=[],
-                returncode=1,
-                stdout="",
-                stderr="",
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fake_root = pathlib.Path(temp_dir)
+            fake_venv, _, fake_lrh = self._build_fake_paths(fake_root)
+            fake_lrh.parent.mkdir(parents=True, exist_ok=True)
+            fake_lrh.write_text("", encoding="utf-8")
+            fake_wheel = (
+                release_smoke.REPO_ROOT
+                / "dist"
+                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
             )
-            release_smoke.run_release_smoke("", preserve=True)
+            commands: list[list[str]] = []
+
+            def _fake_run(
+                command: list[str], *, cwd: pathlib.Path | None = None
+            ) -> str:
+                del cwd
+                commands.append(command)
+                return "lrh 0.2.1" if command[-1] == "--version" else ""
+
+            with (
+                mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+                mock.patch.object(
+                    release_smoke, "_resolve_wheel_path", return_value=fake_wheel
+                ),
+                mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
+                mock.patch("subprocess.run") as subprocess_run,
+                mock.patch("shutil.rmtree") as rmtree,
+            ):
+                subprocess_run.return_value = subprocess.CompletedProcess(
+                    args=[],
+                    returncode=1,
+                    stdout="",
+                    stderr="",
+                )
+                release_smoke.run_release_smoke("", preserve=True)
 
         rmtree.assert_not_called()
         self.assertIn([str(fake_venv / "bin" / "lrh"), "--version"], commands)
         self.assertIn([str(fake_venv / "bin" / "lrh"), "snapshot", "--help"], commands)
+
+    def test_run_release_smoke_raises_when_lrh_console_script_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fake_root = pathlib.Path(temp_dir)
+            _, _, fake_lrh = self._build_fake_paths(fake_root)
+            fake_lrh.parent.mkdir(parents=True, exist_ok=True)
+            fake_wheel = (
+                release_smoke.REPO_ROOT
+                / "dist"
+                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+            )
+
+            with (
+                mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+                mock.patch.object(
+                    release_smoke, "_resolve_wheel_path", return_value=fake_wheel
+                ),
+                mock.patch.object(release_smoke, "_run", return_value=""),
+                mock.patch("subprocess.run") as subprocess_run,
+            ):
+                subprocess_run.return_value = subprocess.CompletedProcess(
+                    args=[],
+                    returncode=1,
+                    stdout="",
+                    stderr="",
+                )
+                with self.assertRaisesRegex(
+                    release_smoke.ReleaseSmokeError,
+                    "installed console script is missing",
+                ):
+                    release_smoke.run_release_smoke("v0.2.1", preserve=True)
 
 
 if __name__ == "__main__":

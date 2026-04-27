@@ -49,16 +49,25 @@ def normalize_version(expected_version: str) -> str:
     return candidate
 
 
-def _run(command: list[str], *, cwd: pathlib.Path = REPO_ROOT) -> str:
+def _run(command: list[str], *, cwd: pathlib.Path | None = None) -> str:
+    if cwd is None:
+        cwd = REPO_ROOT
+
     printable = " ".join(command)
     print(f"Running: {printable}")
-    completed = subprocess.run(
-        command,
-        check=False,
-        cwd=cwd,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        completed = subprocess.run(
+            command,
+            check=False,
+            cwd=cwd,
+            capture_output=True,
+            text=True,
+        )
+    except FileNotFoundError as error:
+        raise ReleaseSmokeError(f"required command not found: {command[0]}") from error
+    except OSError as error:
+        raise ReleaseSmokeError(f"failed to execute command: {printable}") from error
+
     if completed.returncode != 0:
         raise ReleaseSmokeError(
             f"command failed ({completed.returncode}): {printable}\n"

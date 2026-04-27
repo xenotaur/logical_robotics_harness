@@ -195,6 +195,12 @@ For example, `v0.2.0` resolves to package version `0.2.0`.
 
 ### Release steps
 
+Prerequisite: install development dependencies so the build frontend is available:
+
+```bash
+pip install -e ".[dev]"
+```
+
 Run the release workflow in this order:
 
 ```bash

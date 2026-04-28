@@ -19,7 +19,8 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         "template_name",
         help=(
             "Template base name (e.g. improve_coverage, bootstrap_project, "
-            "work_items_from_audit, codex_prompt_from_work_item)."
+            "work_items_from_audit, codex_prompt_from_work_item, "
+            "ci_assess_status, ci_implement_workflow)."
         ),
     )
     parser.add_argument(

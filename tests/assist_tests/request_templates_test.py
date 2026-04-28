@@ -20,6 +20,14 @@ class TestTemplatePathAndLoading(unittest.TestCase):
         loaded = request_templates.load_template_text("improve_coverage")
         self.assertIn("{{TARGET_MODULE_GHA}}", loaded)
 
+    def test_ci_assess_status_template_loads_from_package_resources(self) -> None:
+        loaded = request_templates.load_template_text("ci_assess_status")
+        self.assertIn("CI Feasibility Assessment Request", loaded)
+
+    def test_ci_implement_workflow_template_loads_from_package_resources(self) -> None:
+        loaded = request_templates.load_template_text("ci_implement_workflow")
+        self.assertIn("CI Migration Implementation Request", loaded)
+
     def test_missing_template_raises_file_not_found_error(self) -> None:
         with self.assertRaisesRegex(FileNotFoundError, "Template not found"):
             request_templates.load_template_text("does_not_exist")

@@ -96,6 +96,8 @@ lrh request --help
 lrh request assessment --scope project
 lrh request assessment --scope current_focus
 lrh request assessment --scope work_item --target WI-0003
+lrh request ci_assess_status --background-text "Assess CI feasibility for this repository."
+lrh request ci_implement_workflow --background-file ci_assessment.md
 lrh snapshot --help
 lrh snapshot work_item WI-0003 --project-root .
 lrh survey --help
@@ -314,6 +316,37 @@ lrh request codex_prompt_from_work_item project/work_items/proposed/WI-EXAMPLE.m
 lrh request codex_prompt_from_work_item \
   --work-item-file project/work_items/proposed/WI-EXAMPLE.md \
   --style-file STYLE.md
+```
+
+### 5) `ci_assess_status`
+
+**Purpose**: Produce a read-only CI feasibility assessment before migration.
+
+**Inputs**:
+
+- `template_name`: `ci_assess_status`
+- optional `--background-file` or `--background-text`
+
+Example:
+
+```bash
+lrh request ci_assess_status \
+  --background-text "Assess whether this repository should get LRH-style Python CI."
+```
+
+### 6) `ci_implement_workflow`
+
+**Purpose**: Produce an assessment-gated implementation request for CI migration.
+
+**Inputs**:
+
+- `template_name`: `ci_implement_workflow`
+- optional `--background-file` or `--background-text`
+
+Example:
+
+```bash
+lrh request ci_implement_workflow --background-file ci_assessment.md
 ```
 
 ## Validation Notes

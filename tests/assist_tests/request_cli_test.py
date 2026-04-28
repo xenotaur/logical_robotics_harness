@@ -8,6 +8,13 @@ from lrh.assist import request_cli
 
 
 class TestRequestCli(unittest.TestCase):
+    def test_parser_help_mentions_ci_request_templates(self) -> None:
+        parser = request_cli.build_parser(prog="lrh request")
+        help_text = parser.format_help()
+
+        self.assertIn("ci_assess_status", help_text)
+        self.assertIn("ci_implement_workflow", help_text)
+
     def test_codex_prompt_from_work_item_command_writes_output_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)

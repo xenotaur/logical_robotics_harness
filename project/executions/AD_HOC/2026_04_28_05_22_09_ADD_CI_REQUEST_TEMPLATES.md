@@ -26,7 +26,7 @@ No request subsystem changes or new mode flags were introduced.
 # Validation
 
 - `scripts/test` (pass)
-- `scripts/lint` (fails due pre-existing formatting drift in `tests/control_tests/parser_test.py`)
+- `scripts/lint` (fails due to pre-existing formatting drift in `tests/control_tests/parser_test.py`)
 - `python -m black --check src/lrh tests` (confirms only pre-existing drift in `tests/control_tests/parser_test.py`)
 
 # Follow-up

@@ -15,7 +15,15 @@ class GithubIntegrationTest(unittest.TestCase):
         ref = pr_ref.PullRequestRef("o", "r", 1)
         with mock.patch(
             "lrh.integrations.github.pull_reviews.gh_client.run_gh_json",
-            side_effect=[[{"id": "r"}], [{"id": "i"}], {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}}],
+            side_effect=[
+                [{"id": "r"}],
+                [{"id": "i"}],
+                {
+                    "data": {
+                        "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
+                    }
+                },
+            ],
         ) as run_json:
             data = pull_reviews.get_pull_comments(ref)
         self.assertIn("review_comments", data)
@@ -27,11 +35,21 @@ class GithubIntegrationTest(unittest.TestCase):
         self.assertIn("--slurp", issue_call)
 
     def test_format_threads_counts_unresolved_not_outdated(self) -> None:
-        data = {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": [
-            {"isResolved": False, "isOutdated": False},
-            {"isResolved": False, "isOutdated": True},
-            {"isResolved": True, "isOutdated": False},
-        ]}}}}}
+        data = {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "reviewThreads": {
+                            "nodes": [
+                                {"isResolved": False, "isOutdated": False},
+                                {"isResolved": False, "isOutdated": True},
+                                {"isResolved": True, "isOutdated": False},
+                            ]
+                        }
+                    }
+                }
+            }
+        }
         output = formatters.format_threads(data)
         self.assertIn("threads=3", output)
         self.assertIn("unresolved=1", output)

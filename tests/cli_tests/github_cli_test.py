@@ -10,7 +10,10 @@ class GithubCliTest(unittest.TestCase):
     def test_comments_command(self) -> None:
         out = io.StringIO()
         with (
-            mock.patch("lrh.cli.github.pull_reviews.get_pull_comments", return_value={"review_comments": [], "issue_comments": []}),
+            mock.patch(
+                "lrh.cli.github.pull_reviews.get_pull_comments",
+                return_value={"review_comments": [], "issue_comments": []},
+            ),
             contextlib.redirect_stdout(out),
         ):
             code = github.run_github_cli(["comments", "a/b", "3"], prog="lrh github")
@@ -20,8 +23,13 @@ class GithubCliTest(unittest.TestCase):
     def test_unresolved_command_uses_unresolved_format_mode(self) -> None:
         out = io.StringIO()
         with (
-            mock.patch("lrh.cli.github.pull_reviews.get_pull_review_threads", return_value={"data": {}}),
-            mock.patch("lrh.cli.github.formatters.format_threads", return_value="unresolved=2") as fmt,
+            mock.patch(
+                "lrh.cli.github.pull_reviews.get_pull_review_threads",
+                return_value={"data": {}},
+            ),
+            mock.patch(
+                "lrh.cli.github.formatters.format_threads", return_value="unresolved=2"
+            ) as fmt,
             contextlib.redirect_stdout(out),
         ):
             code = github.run_github_cli(["unresolved", "a/b", "3"], prog="lrh github")

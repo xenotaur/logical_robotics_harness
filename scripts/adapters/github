@@ -12,6 +12,7 @@ PR_URL_RE = re.compile(
     r"^https://github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pull/(?P<number>\d+)"
     r"(?:[/?#].*)?$"
 )
+SEPARATOR = "-" * 80
 
 
 def parse_pr_ref(target: str, number: str | None) -> tuple[str, str, int]:
@@ -123,6 +124,179 @@ def get_submitted_reviews(owner: str, repo: str, number: int) -> object:
     )
 
 
+def flatten_pages(value: object) -> list[object]:
+    """Flatten gh api --slurp pagination output into one list."""
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        return [value]
+
+    flattened = []
+    for item in value:
+        if isinstance(item, list):
+            flattened.extend(item)
+        else:
+            flattened.append(item)
+    return flattened
+
+
+def code_lines_from_diff_hunk(
+    diff_hunk: str | None,
+    start_line: int | None,
+    end_line: int | None,
+) -> list[str]:
+    """Extract the commented RIGHT-side code lines from a GitHub diff hunk."""
+    if not diff_hunk:
+        return []
+
+    header_match = re.search(r"@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@", diff_hunk)
+    if not header_match:
+        return _strip_diff_prefixes(diff_hunk.splitlines())
+
+    current_new_line = int(header_match.group(1))
+    selected = []
+    for raw_line in diff_hunk.splitlines()[1:]:
+        if raw_line.startswith("@@"):
+            continue
+
+        prefix = raw_line[:1]
+        text = raw_line[1:] if prefix in {"+", "-", " "} else raw_line
+
+        if prefix == "-":
+            continue
+
+        line_number = current_new_line
+        if prefix in {"+", " "}:
+            current_new_line += 1
+
+        if start_line is None or end_line is None or start_line <= line_number <= end_line:
+            selected.append(text)
+
+    return selected
+
+
+def _strip_diff_prefixes(lines: list[str]) -> list[str]:
+    stripped = []
+    for line in lines:
+        if line.startswith("@@"):
+            continue
+        if line.startswith("+") or line.startswith("-") or line.startswith(" "):
+            stripped.append(line[1:])
+        else:
+            stripped.append(line)
+    return stripped
+
+
+def clean_comment_body(body: str | None) -> str:
+    """Remove low-value bot boilerplate while preserving useful Markdown."""
+    if not body:
+        return ""
+
+    cleaned_lines = []
+    for line in body.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("**<sub><sub>!") and stripped.endswith("**"):
+            continue
+        if stripped.startswith("Useful? React with"):
+            continue
+        cleaned_lines.append(line)
+
+    return "\n".join(cleaned_lines).strip()
+
+
+def line_label(comment: dict[str, object]) -> str:
+    start_line = comment.get("start_line") or comment.get("original_start_line")
+    line = comment.get("line") or comment.get("original_line")
+
+    if start_line and line and start_line != line:
+        return f"Comment on lines +{start_line} to +{line}"
+    if line:
+        return f"Comment on line +{line}"
+    return "Comment on unknown lines"
+
+
+def format_review_comment(comment: dict[str, object], include_author: bool, include_url: bool) -> str:
+    output = [SEPARATOR]
+    output.append(f"File: {comment.get('path', '<unknown>')}")
+    output.append(line_label(comment))
+
+    start_line = comment.get("start_line") or comment.get("original_start_line")
+    end_line = comment.get("line") or comment.get("original_line")
+    code_lines = code_lines_from_diff_hunk(comment.get("diff_hunk"), start_line, end_line)
+    if code_lines:
+        output.extend(code_lines)
+        output.append("")
+
+    body = clean_comment_body(comment.get("body"))
+    if body:
+        output.append(body)
+
+    metadata = []
+    user = comment.get("user")
+    if include_author and isinstance(user, dict):
+        metadata.append(f"Author: {user.get('login', '<unknown>')}")
+    if include_url and comment.get("html_url"):
+        metadata.append(f"URL: {comment['html_url']}")
+    if metadata:
+        output.append("")
+        output.extend(metadata)
+
+    return "\n".join(output).rstrip()
+
+
+def format_comments_review(data: dict[str, object], include_author: bool, include_url: bool) -> str:
+    review_comments = flatten_pages(data.get("review_comments"))
+    issue_comments = flatten_pages(data.get("issue_comments"))
+
+    sections = []
+    for comment in review_comments:
+        if isinstance(comment, dict):
+            sections.append(format_review_comment(comment, include_author, include_url))
+
+    for comment in issue_comments:
+        if not isinstance(comment, dict):
+            continue
+        sections.append(format_issue_comment(comment, include_author, include_url))
+
+    if not sections:
+        return "No comments found."
+    return "\n\n".join(sections)
+
+
+def format_issue_comment(comment: dict[str, object], include_author: bool, include_url: bool) -> str:
+    output = [SEPARATOR, "Issue comment"]
+    body = clean_comment_body(comment.get("body"))
+    if body:
+        output.append(body)
+
+    metadata = []
+    user = comment.get("user")
+    if include_author and isinstance(user, dict):
+        metadata.append(f"Author: {user.get('login', '<unknown>')}")
+    if include_url and comment.get("html_url"):
+        metadata.append(f"URL: {comment['html_url']}")
+    if metadata:
+        output.append("")
+        output.extend(metadata)
+
+    return "\n".join(output).rstrip()
+
+
+def print_output(envelope: dict[str, object], mode: str, include_author: bool, include_url: bool) -> None:
+    if mode == "raw":
+        print(json.dumps(envelope, indent=2, sort_keys=True))
+        return
+
+    kind = envelope["kind"]
+    data = envelope["data"]
+    if kind == "comments" and isinstance(data, dict):
+        print(format_comments_review(data, include_author, include_url))
+        return
+
+    # Review mode is currently specialized for comments. Keep other data inspectable.
+    print(json.dumps(envelope, indent=2, sort_keys=True))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("domain", choices=["pull"])
@@ -134,6 +308,22 @@ def main() -> int:
             "comments = review + issue comments; "
             "reviews/submitted = submitted PR reviews"
         ),
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["review", "raw"],
+        default="review",
+        help="Output mode. Defaults to review.",
+    )
+    parser.add_argument(
+        "--include-author",
+        action="store_true",
+        help="Include comment author in review mode.",
+    )
+    parser.add_argument(
+        "--include-url",
+        action="store_true",
+        help="Include GitHub URL in review mode.",
     )
     parser.add_argument("target", help="PR URL or OWNER/REPO")
     parser.add_argument("number", nargs="?", help="PR number when target is OWNER/REPO")
@@ -152,19 +342,14 @@ def main() -> int:
         else:
             data = get_submitted_reviews(owner, repo, pr_number)
 
-        print(
-            json.dumps(
-                {
-                    "owner": owner,
-                    "repo": repo,
-                    "number": pr_number,
-                    "kind": args.kind,
-                    "data": data,
-                },
-                indent=2,
-                sort_keys=True,
-            )
-        )
+        envelope = {
+            "owner": owner,
+            "repo": repo,
+            "number": pr_number,
+            "kind": args.kind,
+            "data": data,
+        }
+        print_output(envelope, args.mode, args.include_author, args.include_url)
         return 0
 
     except Exception as exc:
@@ -174,4 +359,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-

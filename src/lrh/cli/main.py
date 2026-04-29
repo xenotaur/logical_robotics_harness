@@ -9,6 +9,7 @@ from pathlib import Path
 
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
+from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
 
@@ -61,6 +62,12 @@ def main() -> None:
     subparsers.add_parser(
         "version",
         help="Show LRH package version and exit.",
+    )
+
+    subparsers.add_parser(
+        "github",
+        add_help=False,
+        help="Query GitHub pull request comments/threads.",
     )
 
     meta_parser = subparsers.add_parser(
@@ -277,6 +284,14 @@ def main() -> None:
             snapshot_cli.run_snapshot_cli(
                 argv=passthrough_args,
                 prog="lrh snapshot",
+            )
+        )
+
+    if args.command == "github":
+        raise SystemExit(
+            github_cli.run_github_cli(
+                argv=passthrough_args,
+                prog="lrh github",
             )
         )
 

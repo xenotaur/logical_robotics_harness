@@ -74,6 +74,22 @@ scripts/publish
 
 ### Development
 
+#### `adapters/github`
+Fetches GitHub pull request review feedback through the GitHub CLI.
+
+```bash
+scripts/adapters/github unresolved https://github.com/OWNER/REPO/pull/123
+scripts/adapters/github pull threads --state all OWNER/REPO 123
+scripts/adapters/github pull comments --state unresolved OWNER/REPO 123
+scripts/adapters/github pull reviews OWNER/REPO 123
+```
+
+Review feedback defaults to `--state unresolved` for `threads` and `comments`.
+Use `--state all` when you need a complete dump. `comments` combines top-level
+issue comments with review comments whose thread state matches the selected
+filter; submitted review summaries are available as `reviews`. The older
+`submitted` spelling remains accepted as an alias for `reviews`.
+
 #### `sandbox`
 Runs LRH commands in an **isolated developer sandbox** with temporary HOME/XDG/TMP paths.
 This is for behavioral testing and reproducibility, **not** OS-level security sandboxing.

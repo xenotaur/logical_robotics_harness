@@ -7,7 +7,6 @@ import re
 import subprocess
 import sys
 
-
 PR_URL_RE = re.compile(
     r"^https://github\.com/(?P<owner>[^/]+)/(?P<repo>[^/]+)/pull/(?P<number>\d+)"
     r"(?:[/?#].*)?$"
@@ -55,15 +54,48 @@ def run_gh_json(args: list[str]) -> object:
     if not result.stdout.strip():
         return None
 
-    return json.loads(result.stdout)
+    data = json.loads(result.stdout)
+    if isinstance(data, dict) and data.get("errors"):
+        messages = []
+        errors = data["errors"]
+        if isinstance(errors, list):
+            for error in errors:
+                if isinstance(error, dict) and error.get("message"):
+                    messages.append(str(error["message"]))
+                else:
+                    messages.append(str(error))
+        else:
+            messages.append(str(errors))
+        raise RuntimeError("GitHub API returned errors: " + "; ".join(messages))
+    return data
 
 
-def get_review_threads(owner: str, repo: str, number: int) -> object:
+def run_graphql(query: str, variables: dict[str, object]) -> object:
+    args = ["graphql"]
+    for name, value in variables.items():
+        if value is None:
+            continue
+        flag = "-F" if isinstance(value, int) else "-f"
+        args.extend([flag, f"{name}={value}"])
+    args.extend(["-f", f"query={query}"])
+    return run_gh_json(args)
+
+
+def get_review_threads_page(
+    owner: str,
+    repo: str,
+    number: int,
+    threads_after: str | None,
+) -> object:
     query = """
-query($owner: String!, $repo: String!, $number: Int!) {
+query($owner: String!, $repo: String!, $number: Int!, $threadsAfter: String) {
   repository(owner: $owner, name: $repo) {
     pullRequest(number: $number) {
-      reviewThreads(first: 100) {
+      reviewThreads(first: 100, after: $threadsAfter) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
         nodes {
           id
           isResolved
@@ -72,6 +104,10 @@ query($owner: String!, $repo: String!, $number: Int!) {
           line
           startLine
           comments(first: 100) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
             nodes {
               id
               author { login }
@@ -91,19 +127,73 @@ query($owner: String!, $repo: String!, $number: Int!) {
   }
 }
 """
-    return run_gh_json(
-        [
-            "graphql",
-            "-f",
-            f"owner={owner}",
-            "-f",
-            f"repo={repo}",
-            "-F",
-            f"number={number}",
-            "-f",
-            f"query={query}",
-        ]
+    return run_graphql(
+        query,
+        {
+            "owner": owner,
+            "repo": repo,
+            "number": number,
+            "threadsAfter": threads_after,
+        },
     )
+
+
+def get_review_thread_comments(thread_id: str, comments_after: str | None) -> object:
+    query = """
+query($threadId: ID!, $commentsAfter: String) {
+  node(id: $threadId) {
+    ... on PullRequestReviewThread {
+      comments(first: 100, after: $commentsAfter) {
+        pageInfo {
+          hasNextPage
+          endCursor
+        }
+        nodes {
+          id
+          author { login }
+          body
+          url
+          path
+          line
+          startLine
+          diffHunk
+          createdAt
+          updatedAt
+        }
+      }
+    }
+  }
+}
+"""
+    return run_graphql(
+        query,
+        {
+            "threadId": thread_id,
+            "commentsAfter": comments_after,
+        },
+    )
+
+
+def get_review_threads(owner: str, repo: str, number: int) -> object:
+    pages = []
+    cursor = None
+    while True:
+        page = get_review_threads_page(owner, repo, number, cursor)
+        pages.append(page)
+        page_info = get_nested(
+            page,
+            ["data", "repository", "pullRequest", "reviewThreads", "pageInfo"],
+        )
+        if not isinstance(page_info, dict) or not page_info.get("hasNextPage"):
+            break
+        cursor = page_info.get("endCursor")
+        if not isinstance(cursor, str):
+            break
+
+    merged = merge_review_thread_pages(pages)
+    for thread in thread_nodes(merged):
+        fetch_remaining_thread_comments(thread)
+    return merged
 
 
 def get_review_comments(owner: str, repo: str, number: int) -> object:
@@ -161,6 +251,89 @@ def get_nested(mapping: object, keys: list[str]) -> object:
     return current
 
 
+def set_nested(mapping: dict[str, object], keys: list[str], value: object) -> None:
+    current = mapping
+    for key in keys[:-1]:
+        next_value = current.setdefault(key, {})
+        if not isinstance(next_value, dict):
+            next_value = {}
+            current[key] = next_value
+        current = next_value
+    current[keys[-1]] = value
+
+
+def merge_review_thread_pages(pages: list[object]) -> dict[str, object]:
+    merged: dict[str, object] = {"data": {"repository": {"pullRequest": {}}}}
+    if not pages:
+        return merged
+
+    first_page = pages[0]
+    pull_request = get_nested(first_page, ["data", "repository", "pullRequest"])
+    if isinstance(pull_request, dict):
+        set_nested(merged, ["data", "repository", "pullRequest"], dict(pull_request))
+
+    nodes = []
+    for page in pages:
+        nodes.extend(thread_nodes(page))
+
+    review_threads = get_nested(
+        merged,
+        ["data", "repository", "pullRequest", "reviewThreads"],
+    )
+    if not isinstance(review_threads, dict):
+        review_threads = {}
+        set_nested(
+            merged,
+            ["data", "repository", "pullRequest", "reviewThreads"],
+            review_threads,
+        )
+    review_threads["nodes"] = nodes
+    review_threads["pageInfo"] = {"hasNextPage": False, "endCursor": None}
+    return merged
+
+
+def comments_page_info(thread: dict[str, object]) -> dict[str, object]:
+    page_info = get_nested(thread, ["comments", "pageInfo"])
+    if isinstance(page_info, dict):
+        return page_info
+    return {}
+
+
+def append_thread_comments(thread: dict[str, object], page: object) -> None:
+    new_comments = get_nested(page, ["data", "node", "comments", "nodes"])
+    if not isinstance(new_comments, list):
+        new_comments = []
+
+    comments = thread.setdefault("comments", {})
+    if not isinstance(comments, dict):
+        comments = {}
+        thread["comments"] = comments
+
+    nodes = comments.setdefault("nodes", [])
+    if not isinstance(nodes, list):
+        nodes = []
+        comments["nodes"] = nodes
+    nodes.extend(comment for comment in new_comments if isinstance(comment, dict))
+
+    page_info = get_nested(page, ["data", "node", "comments", "pageInfo"])
+    comments["pageInfo"] = page_info if isinstance(page_info, dict) else {}
+
+
+def fetch_remaining_thread_comments(thread: dict[str, object]) -> None:
+    thread_id = thread.get("id")
+    if not isinstance(thread_id, str):
+        return
+
+    page_info = comments_page_info(thread)
+    while page_info.get("hasNextPage"):
+        cursor = page_info.get("endCursor")
+        if not isinstance(cursor, str):
+            break
+        page = get_review_thread_comments(thread_id, cursor)
+        append_thread_comments(thread, page)
+        page_info = comments_page_info(thread)
+
+
 def code_lines_from_diff_hunk(
     diff_hunk: str | None,
     start_line: int | None,
@@ -190,7 +363,11 @@ def code_lines_from_diff_hunk(
         if prefix in {"+", " "}:
             current_new_line += 1
 
-        if start_line is None or end_line is None or start_line <= line_number <= end_line:
+        if (
+            start_line is None
+            or end_line is None
+            or start_line <= line_number <= end_line
+        ):
             selected.append(text)
 
     return selected
@@ -230,7 +407,8 @@ def make_pr_url(owner: str, repo: str, number: int) -> str:
 
 
 def pr_header(envelope: dict[str, object]) -> str:
-    return f"Pull request: {make_pr_url(envelope['owner'], envelope['repo'], envelope['number'])}"
+    pr_url = make_pr_url(envelope["owner"], envelope["repo"], envelope["number"])
+    return f"Pull request: {pr_url}"
 
 
 def line_label_from_values(start_line: object, line: object) -> str:
@@ -247,14 +425,18 @@ def line_label(comment: dict[str, object]) -> str:
     return line_label_from_values(start_line, line)
 
 
-def format_review_comment(comment: dict[str, object], include_author: bool, include_url: bool) -> str:
+def format_review_comment(
+    comment: dict[str, object], include_author: bool, include_url: bool
+) -> str:
     output = [SEPARATOR]
     output.append(f"File: {comment.get('path', '<unknown>')}")
     output.append(line_label(comment))
 
     start_line = comment.get("start_line") or comment.get("original_start_line")
     end_line = comment.get("line") or comment.get("original_line")
-    code_lines = code_lines_from_diff_hunk(comment.get("diff_hunk"), start_line, end_line)
+    code_lines = code_lines_from_diff_hunk(
+        comment.get("diff_hunk"), start_line, end_line
+    )
     if code_lines:
         output.extend(code_lines)
         output.append("")
@@ -276,7 +458,9 @@ def format_review_comment(comment: dict[str, object], include_author: bool, incl
     return "\n".join(output).rstrip()
 
 
-def format_issue_comment(comment: dict[str, object], include_author: bool, include_url: bool) -> str:
+def format_issue_comment(
+    comment: dict[str, object], include_author: bool, include_url: bool
+) -> str:
     output = [SEPARATOR, "Issue comment"]
     body = clean_comment_body(comment.get("body"))
     if body:
@@ -295,21 +479,71 @@ def format_issue_comment(comment: dict[str, object], include_author: bool, inclu
     return "\n".join(output).rstrip()
 
 
-def format_comments_review(data: dict[str, object], include_author: bool, include_url: bool) -> str:
+def thread_states_by_comment_id(threads_data: object) -> dict[str, str]:
+    states = {}
+    for thread in thread_nodes(threads_data):
+        state = thread_state(thread)
+        for comment in thread_comments(thread):
+            comment_id = comment.get("id")
+            if isinstance(comment_id, str):
+                states[comment_id] = state
+    return states
+
+
+def comment_thread_state(
+    comment: dict[str, object],
+    states_by_comment_id: dict[str, str],
+) -> str | None:
+    node_id = comment.get("node_id")
+    if isinstance(node_id, str):
+        return states_by_comment_id.get(node_id)
+    return None
+
+
+def include_review_comment_for_state(
+    comment: dict[str, object],
+    states_by_comment_id: dict[str, str],
+    state: str,
+) -> bool:
+    if state == "all":
+        return True
+    return comment_thread_state(comment, states_by_comment_id) == state
+
+
+def include_issue_comment_for_state(state: str) -> bool:
+    return state in {"all", "unresolved"}
+
+
+def format_comments_review(
+    data: dict[str, object],
+    state: str,
+    include_author: bool,
+    include_url: bool,
+) -> str:
     review_comments = flatten_pages(data.get("review_comments"))
     issue_comments = flatten_pages(data.get("issue_comments"))
+    states_by_comment_id = thread_states_by_comment_id(data.get("review_threads"))
 
     sections = []
     for comment in review_comments:
-        if isinstance(comment, dict):
+        if isinstance(comment, dict) and include_review_comment_for_state(
+            comment,
+            states_by_comment_id,
+            state,
+        ):
             sections.append(format_review_comment(comment, include_author, include_url))
 
-    for comment in issue_comments:
-        if isinstance(comment, dict):
-            sections.append(format_issue_comment(comment, include_author, include_url))
+    if include_issue_comment_for_state(state):
+        for comment in issue_comments:
+            if isinstance(comment, dict):
+                sections.append(
+                    format_issue_comment(comment, include_author, include_url)
+                )
 
     if not sections:
-        return "No comments found."
+        if state == "all":
+            return "No comments found."
+        return f"No {state} comments found."
     return "\n\n".join(sections)
 
 
@@ -408,7 +642,9 @@ def format_threads_review(
     return "\n\n".join(sections)
 
 
-def format_submitted_reviews_review(data: object, include_author: bool, include_url: bool) -> str:
+def format_submitted_reviews_review(
+    data: object, include_author: bool, include_url: bool
+) -> str:
     reviews = flatten_pages(data)
     sections = []
     for review in reviews:
@@ -453,13 +689,15 @@ def print_output(
     prefix = f"{pr_header(envelope)}\n" if show_pr else ""
 
     if kind == "comments" and isinstance(data, dict):
-        print(prefix + format_comments_review(data, include_author, include_url))
+        print(prefix + format_comments_review(data, state, include_author, include_url))
         return
     if kind == "threads":
         print(prefix + format_threads_review(data, state, include_author, include_url))
         return
     if kind in {"reviews", "submitted"}:
-        print(prefix + format_submitted_reviews_review(data, include_author, include_url))
+        print(
+            prefix + format_submitted_reviews_review(data, include_author, include_url)
+        )
         return
 
     print(prefix + json.dumps(envelope, indent=2, sort_keys=True))
@@ -471,8 +709,12 @@ def normalize_command(argv: list[str]) -> list[str]:
         return argv
     if argv[0] == "unresolved":
         return ["pull", "threads", "--state", "unresolved", *argv[1:]]
+    if argv[0] == "submitted":
+        return ["pull", "reviews", *argv[1:]]
     if argv[0] in {"threads", "comments", "reviews", "submitted"}:
         return ["pull", *argv]
+    if len(argv) > 1 and argv[0] == "pull" and argv[1] == "submitted":
+        return ["pull", "reviews", *argv[2:]]
     return argv
 
 
@@ -482,7 +724,7 @@ def build_parser() -> argparse.ArgumentParser:
         description="Fetch GitHub pull request review/comment data using gh.",
         epilog="""
 Examples:
-  scripts/adapters/github pull comments https://github.com/xenotaur/Taurcode/pull/4
+  scripts/adapters/github pull comments --state unresolved https://github.com/xenotaur/Taurcode/pull/4
   scripts/adapters/github pull threads --state unresolved https://github.com/xenotaur/Taurcode/pull/4
   scripts/adapters/github unresolved https://github.com/xenotaur/Taurcode/pull/4
   scripts/adapters/github comments --mode raw xenotaur/Taurcode 4
@@ -491,11 +733,11 @@ Examples:
     parser.add_argument("domain", choices=["pull"])
     parser.add_argument(
         "kind",
-        choices=["threads", "comments", "reviews", "submitted"],
+        choices=["threads", "comments", "reviews"],
         help=(
             "threads = GraphQL review threads; "
             "comments = review + issue comments; "
-            "reviews/submitted = submitted PR reviews"
+            "reviews = submitted PR reviews"
         ),
     )
     parser.add_argument(
@@ -520,8 +762,8 @@ Examples:
     parser.add_argument(
         "--state",
         choices=["all", "unresolved", "resolved", "outdated"],
-        default="all",
-        help="Filter review threads by state. Applies to threads only.",
+        default="unresolved",
+        help="Filter review feedback by state. Applies to threads and comments.",
     )
     parser.add_argument(
         "--include-author",
@@ -546,15 +788,13 @@ def main(argv: list[str] | None = None) -> int:
     try:
         owner, repo, pr_number = parse_pr_ref(args.target, args.number)
 
-        if args.state != "all" and args.kind != "threads":
-            raise ValueError("--state applies only to threads; use `pull threads` or `unresolved`.")
-
         if args.kind == "threads":
             data = get_review_threads(owner, repo, pr_number)
         elif args.kind == "comments":
             data = {
                 "review_comments": get_review_comments(owner, repo, pr_number),
                 "issue_comments": get_issue_comments(owner, repo, pr_number),
+                "review_threads": get_review_threads(owner, repo, pr_number),
             }
         else:
             data = get_submitted_reviews(owner, repo, pr_number)

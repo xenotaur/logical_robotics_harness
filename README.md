@@ -97,8 +97,8 @@ CI usage:
 
 - pull-request and main-branch fast validation includes `scripts/test`, `scripts/lint`, `scripts/format --check`, and `lrh validate`
 - pull-request and main-branch coverage feedback runs `scripts/coverage --html`
-- smoke validation runs `scripts/smoke` in the dedicated **Smoke validation** workflow (manual dispatch, weekly schedule, and release-tag pushes)
-- release-tag validation runs in the dedicated **Release tag validation** workflow on pushed tags matching `v*.*.*`, runs `scripts/version verify "$TAG_UNDER_TEST"`, runs `scripts/release-smoke "$TAG_UNDER_TEST"`, and uploads build/smoke artifacts for audit trails
+- smoke validation runs `scripts/smoke` in the dedicated **Smoke validation** workflow (manual dispatch, weekly schedule, and tag pushes matching `v*`, including semantic-version release tags such as `v1.2.3`)
+- release-tag validation runs in the dedicated **Release tag validation** workflow on pushed tags matching `v*.*.*`; those release-tag pushes also trigger **Smoke validation**. It runs `scripts/version verify "$TAG_UNDER_TEST"`, runs `scripts/release-smoke "$TAG_UNDER_TEST"`, and uploads build/smoke artifacts for audit trails
 
 ## Design summary
 

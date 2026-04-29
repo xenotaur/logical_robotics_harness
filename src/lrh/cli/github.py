@@ -20,5 +20,10 @@ def run_github_cli(argv: list[str], prog: str) -> int:
     elif args.kind == "threads":
         print(formatters.format_threads(pull_reviews.get_pull_review_threads(ref)))
     else:
-        print(formatters.format_threads(pull_reviews.get_pull_review_threads(ref)))
+        print(
+            formatters.format_threads(
+                pull_reviews.get_pull_review_threads(ref),
+                only_unresolved=True,
+            )
+        )
     return 0

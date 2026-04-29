@@ -11,7 +11,7 @@ def format_comments(data: dict[str, object]) -> str:
     return f"review_comments={review_count}\nissue_comments={issue_count}"
 
 
-def format_threads(data: object) -> str:
+def format_threads(data: object, only_unresolved: bool = False) -> str:
     threads = (
         data.get("data", {})
         .get("repository", {})
@@ -23,6 +23,12 @@ def format_threads(data: object) -> str:
     )
     unresolved = 0
     for thread in threads:
-        if isinstance(thread, dict) and not thread.get("isResolved", False):
+        if (
+            isinstance(thread, dict)
+            and not thread.get("isResolved", False)
+            and not thread.get("isOutdated", False)
+        ):
             unresolved += 1
+    if only_unresolved:
+        return f"unresolved={unresolved}"
     return f"threads={len(threads)}\nunresolved={unresolved}"

@@ -5,36 +5,77 @@ from __future__ import annotations
 from lrh.integrations.github import gh_client, pr_ref
 
 
-def get_pull_review_threads(ref: pr_ref.PullRequestRef) -> object:
+def _thread_page(ref: pr_ref.PullRequestRef, after: str | None) -> object:
     query = (
-        "query($owner: String!, $repo: String!, $number: Int!) {"
+        "query($owner: String!, $repo: String!, $number: Int!, $after: String) {"
         " repository(owner: $owner, name: $repo) {"
         " pullRequest(number: $number) {"
-        " reviewThreads(first: 100) {"
-        " nodes { id isResolved isOutdated comments(first: 100) { nodes { id body author { login } url } } }"
+        " reviewThreads(first: 100, after: $after) {"
+        " pageInfo { hasNextPage endCursor }"
+        " nodes { id isResolved isOutdated comments(first: 100) { pageInfo { hasNextPage endCursor } nodes { id body author { login } url } } }"
         " } } } }"
     )
     return gh_client.run_gh_json([
-        "api",
-        "graphql",
-        "-f",
-        f"query={query}",
-        "-F",
-        f"owner={ref.owner}",
-        "-F",
-        f"repo={ref.repo}",
-        "-F",
-        f"number={ref.number}",
+        "api", "graphql", "-f", f"query={query}",
+        "-F", f"owner={ref.owner}", "-F", f"repo={ref.repo}", "-F", f"number={ref.number}",
+        "-F", f"after={after or ''}",
     ])
+
+
+def _thread_comments_page(thread_id: str, after: str | None) -> object:
+    query = (
+        "query($threadId: ID!, $after: String) {"
+        " node(id: $threadId) { ... on PullRequestReviewThread {"
+        " comments(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes { id body author { login } url } }"
+        " } } }"
+    )
+    return gh_client.run_gh_json([
+        "api", "graphql", "-f", f"query={query}",
+        "-F", f"threadId={thread_id}", "-F", f"after={after or ''}",
+    ])
+
+
+def get_pull_review_threads(ref: pr_ref.PullRequestRef) -> object:
+    nodes: list[dict[str, object]] = []
+    cursor: str | None = None
+    while True:
+        page = _thread_page(ref, cursor)
+        threads = page.get("data", {}).get("repository", {}).get("pullRequest", {}).get("reviewThreads", {}) if isinstance(page, dict) else {}
+        page_nodes = threads.get("nodes", []) if isinstance(threads, dict) else []
+        for thread in page_nodes:
+            if not isinstance(thread, dict):
+                continue
+            comments = thread.get("comments", {})
+            if not isinstance(comments, dict):
+                comments = {}
+            comment_nodes = comments.get("nodes", []) if isinstance(comments.get("nodes", []), list) else []
+            comment_page = comments.get("pageInfo", {}) if isinstance(comments.get("pageInfo", {}), dict) else {}
+            comment_cursor = comment_page.get("endCursor") if comment_page.get("hasNextPage") else None
+            while comment_cursor:
+                extra = _thread_comments_page(str(thread.get("id", "")), comment_cursor)
+                extra_comments = extra.get("data", {}).get("node", {}).get("comments", {}) if isinstance(extra, dict) else {}
+                extra_nodes = extra_comments.get("nodes", []) if isinstance(extra_comments, dict) else []
+                if isinstance(extra_nodes, list):
+                    comment_nodes.extend(node for node in extra_nodes if isinstance(node, dict))
+                extra_page = extra_comments.get("pageInfo", {}) if isinstance(extra_comments, dict) else {}
+                comment_cursor = extra_page.get("endCursor") if extra_page.get("hasNextPage") else None
+            thread["comments"] = {"nodes": comment_nodes, "pageInfo": {"hasNextPage": False, "endCursor": None}}
+            nodes.append(thread)
+        page_info = threads.get("pageInfo", {}) if isinstance(threads, dict) else {}
+        if not isinstance(page_info, dict) or not page_info.get("hasNextPage"):
+            break
+        cursor = str(page_info.get("endCursor"))
+
+    return {"data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": nodes}}}}}
 
 
 def get_pull_comments(ref: pr_ref.PullRequestRef) -> dict[str, object]:
     return {
-        "review_comments": gh_client.run_gh_json(
-            ["api", f"repos/{ref.owner}/{ref.repo}/pulls/{ref.number}/comments"]
-        ),
-        "issue_comments": gh_client.run_gh_json(
-            ["api", f"repos/{ref.owner}/{ref.repo}/issues/{ref.number}/comments"]
-        ),
+        "review_comments": gh_client.run_gh_json([
+            "api", "--paginate", "--slurp", f"repos/{ref.owner}/{ref.repo}/pulls/{ref.number}/comments"
+        ]),
+        "issue_comments": gh_client.run_gh_json([
+            "api", "--paginate", "--slurp", f"repos/{ref.owner}/{ref.repo}/issues/{ref.number}/comments"
+        ]),
         "review_threads": get_pull_review_threads(ref),
     }

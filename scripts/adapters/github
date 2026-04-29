@@ -15,6 +15,13 @@ PR_URL_RE = re.compile(
 SEPARATOR = "-" * 80
 
 
+class RawDescriptionHelpFormatter(
+    argparse.RawDescriptionHelpFormatter,
+    argparse.ArgumentDefaultsHelpFormatter,
+):
+    """Argparse formatter that preserves examples and shows defaults."""
+
+
 def parse_pr_ref(target: str, number: str | None) -> tuple[str, str, int]:
     match = PR_URL_RE.match(target)
     if match:
@@ -63,12 +70,17 @@ query($owner: String!, $repo: String!, $number: Int!) {
           isOutdated
           path
           line
+          startLine
           comments(first: 100) {
             nodes {
               id
               author { login }
               body
               url
+              path
+              line
+              startLine
+              diffHunk
               createdAt
               updatedAt
             }
@@ -140,6 +152,15 @@ def flatten_pages(value: object) -> list[object]:
     return flattened
 
 
+def get_nested(mapping: object, keys: list[str]) -> object:
+    current = mapping
+    for key in keys:
+        if not isinstance(current, dict):
+            return None
+        current = current.get(key)
+    return current
+
+
 def code_lines_from_diff_hunk(
     diff_hunk: str | None,
     start_line: int | None,
@@ -204,15 +225,26 @@ def clean_comment_body(body: str | None) -> str:
     return "\n".join(cleaned_lines).strip()
 
 
-def line_label(comment: dict[str, object]) -> str:
-    start_line = comment.get("start_line") or comment.get("original_start_line")
-    line = comment.get("line") or comment.get("original_line")
+def make_pr_url(owner: str, repo: str, number: int) -> str:
+    return f"https://github.com/{owner}/{repo}/pull/{number}"
 
+
+def pr_header(envelope: dict[str, object]) -> str:
+    return f"Pull request: {make_pr_url(envelope['owner'], envelope['repo'], envelope['number'])}"
+
+
+def line_label_from_values(start_line: object, line: object) -> str:
     if start_line and line and start_line != line:
         return f"Comment on lines +{start_line} to +{line}"
     if line:
         return f"Comment on line +{line}"
     return "Comment on unknown lines"
+
+
+def line_label(comment: dict[str, object]) -> str:
+    start_line = comment.get("start_line") or comment.get("original_start_line")
+    line = comment.get("line") or comment.get("original_line")
+    return line_label_from_values(start_line, line)
 
 
 def format_review_comment(comment: dict[str, object], include_author: bool, include_url: bool) -> str:
@@ -244,25 +276,6 @@ def format_review_comment(comment: dict[str, object], include_author: bool, incl
     return "\n".join(output).rstrip()
 
 
-def format_comments_review(data: dict[str, object], include_author: bool, include_url: bool) -> str:
-    review_comments = flatten_pages(data.get("review_comments"))
-    issue_comments = flatten_pages(data.get("issue_comments"))
-
-    sections = []
-    for comment in review_comments:
-        if isinstance(comment, dict):
-            sections.append(format_review_comment(comment, include_author, include_url))
-
-    for comment in issue_comments:
-        if not isinstance(comment, dict):
-            continue
-        sections.append(format_issue_comment(comment, include_author, include_url))
-
-    if not sections:
-        return "No comments found."
-    return "\n\n".join(sections)
-
-
 def format_issue_comment(comment: dict[str, object], include_author: bool, include_url: bool) -> str:
     output = [SEPARATOR, "Issue comment"]
     body = clean_comment_body(comment.get("body"))
@@ -282,23 +295,199 @@ def format_issue_comment(comment: dict[str, object], include_author: bool, inclu
     return "\n".join(output).rstrip()
 
 
-def print_output(envelope: dict[str, object], mode: str, include_author: bool, include_url: bool) -> None:
+def format_comments_review(data: dict[str, object], include_author: bool, include_url: bool) -> str:
+    review_comments = flatten_pages(data.get("review_comments"))
+    issue_comments = flatten_pages(data.get("issue_comments"))
+
+    sections = []
+    for comment in review_comments:
+        if isinstance(comment, dict):
+            sections.append(format_review_comment(comment, include_author, include_url))
+
+    for comment in issue_comments:
+        if isinstance(comment, dict):
+            sections.append(format_issue_comment(comment, include_author, include_url))
+
+    if not sections:
+        return "No comments found."
+    return "\n\n".join(sections)
+
+
+def thread_nodes(data: object) -> list[dict[str, object]]:
+    nodes = get_nested(
+        data,
+        ["data", "repository", "pullRequest", "reviewThreads", "nodes"],
+    )
+    if not isinstance(nodes, list):
+        return []
+    return [node for node in nodes if isinstance(node, dict)]
+
+
+def thread_state(thread: dict[str, object]) -> str:
+    if thread.get("isOutdated"):
+        return "outdated"
+    if thread.get("isResolved"):
+        return "resolved"
+    return "unresolved"
+
+
+def include_thread_for_state(thread: dict[str, object], state: str) -> bool:
+    if state == "all":
+        return True
+    return thread_state(thread) == state
+
+
+def thread_comments(thread: dict[str, object]) -> list[dict[str, object]]:
+    comments = get_nested(thread, ["comments", "nodes"])
+    if not isinstance(comments, list):
+        return []
+    return [comment for comment in comments if isinstance(comment, dict)]
+
+
+def format_thread_review(
+    thread: dict[str, object],
+    include_author: bool,
+    include_url: bool,
+) -> str:
+    comments = thread_comments(thread)
+    first_comment = comments[0] if comments else {}
+    path = thread.get("path") or first_comment.get("path") or "<unknown>"
+    start_line = thread.get("startLine") or first_comment.get("startLine")
+    line = thread.get("line") or first_comment.get("line")
+    diff_hunk = first_comment.get("diffHunk")
+
+    output = [SEPARATOR]
+    output.append(f"File: {path}")
+    output.append(line_label_from_values(start_line, line))
+    output.append(f"State: {thread_state(thread)}")
+
+    code_lines = code_lines_from_diff_hunk(diff_hunk, start_line, line)
+    if code_lines:
+        output.extend(code_lines)
+        output.append("")
+
+    if not comments:
+        output.append("No comments in thread.")
+    for index, comment in enumerate(comments):
+        body = clean_comment_body(comment.get("body"))
+        if not body:
+            continue
+        if index > 0:
+            output.append("")
+            output.append("Reply:")
+        output.append(body)
+
+        metadata = []
+        author = comment.get("author")
+        if include_author and isinstance(author, dict):
+            metadata.append(f"Author: {author.get('login', '<unknown>')}")
+        if include_url and comment.get("url"):
+            metadata.append(f"URL: {comment['url']}")
+        if metadata:
+            output.append("")
+            output.extend(metadata)
+
+    return "\n".join(output).rstrip()
+
+
+def format_threads_review(
+    data: object,
+    state: str,
+    include_author: bool,
+    include_url: bool,
+) -> str:
+    sections = []
+    for thread in thread_nodes(data):
+        if include_thread_for_state(thread, state):
+            sections.append(format_thread_review(thread, include_author, include_url))
+
+    if not sections:
+        if state == "all":
+            return "No review threads found."
+        return f"No {state} review threads found."
+    return "\n\n".join(sections)
+
+
+def format_submitted_reviews_review(data: object, include_author: bool, include_url: bool) -> str:
+    reviews = flatten_pages(data)
+    sections = []
+    for review in reviews:
+        if not isinstance(review, dict):
+            continue
+        output = [SEPARATOR]
+        state = review.get("state", "<unknown>")
+        output.append(f"Review: {state}")
+        body = clean_comment_body(review.get("body"))
+        if body:
+            output.append(body)
+        metadata = []
+        user = review.get("user")
+        if include_author and isinstance(user, dict):
+            metadata.append(f"Author: {user.get('login', '<unknown>')}")
+        if include_url and review.get("html_url"):
+            metadata.append(f"URL: {review['html_url']}")
+        if metadata:
+            output.append("")
+            output.extend(metadata)
+        sections.append("\n".join(output).rstrip())
+
+    if not sections:
+        return "No submitted reviews found."
+    return "\n\n".join(sections)
+
+
+def print_output(
+    envelope: dict[str, object],
+    mode: str,
+    include_author: bool,
+    include_url: bool,
+    show_pr: bool,
+    state: str,
+) -> None:
     if mode == "raw":
         print(json.dumps(envelope, indent=2, sort_keys=True))
         return
 
     kind = envelope["kind"]
     data = envelope["data"]
+    prefix = f"{pr_header(envelope)}\n" if show_pr else ""
+
     if kind == "comments" and isinstance(data, dict):
-        print(format_comments_review(data, include_author, include_url))
+        print(prefix + format_comments_review(data, include_author, include_url))
+        return
+    if kind == "threads":
+        print(prefix + format_threads_review(data, state, include_author, include_url))
+        return
+    if kind in {"reviews", "submitted"}:
+        print(prefix + format_submitted_reviews_review(data, include_author, include_url))
         return
 
-    # Review mode is currently specialized for comments. Keep other data inspectable.
-    print(json.dumps(envelope, indent=2, sort_keys=True))
+    print(prefix + json.dumps(envelope, indent=2, sort_keys=True))
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser()
+def normalize_command(argv: list[str]) -> list[str]:
+    """Support shortcuts while preserving the original `pull ...` shape."""
+    if not argv:
+        return argv
+    if argv[0] == "unresolved":
+        return ["pull", "threads", "--state", "unresolved", *argv[1:]]
+    if argv[0] in {"threads", "comments", "reviews", "submitted"}:
+        return ["pull", *argv]
+    return argv
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        formatter_class=RawDescriptionHelpFormatter,
+        description="Fetch GitHub pull request review/comment data using gh.",
+        epilog="""
+Examples:
+  scripts/adapters/github pull comments https://github.com/xenotaur/Taurcode/pull/4
+  scripts/adapters/github pull threads --state unresolved https://github.com/xenotaur/Taurcode/pull/4
+  scripts/adapters/github unresolved https://github.com/xenotaur/Taurcode/pull/4
+  scripts/adapters/github comments --mode raw xenotaur/Taurcode 4
+""".strip(),
+    )
     parser.add_argument("domain", choices=["pull"])
     parser.add_argument(
         "kind",
@@ -313,7 +502,26 @@ def main() -> int:
         "--mode",
         choices=["review", "raw"],
         default="review",
-        help="Output mode. Defaults to review.",
+        help="Output mode.",
+    )
+    parser.add_argument(
+        "--show-pr",
+        dest="show_pr",
+        action="store_true",
+        default=True,
+        help="Show the PR URL as the first line in review mode.",
+    )
+    parser.add_argument(
+        "--no-show-pr",
+        dest="show_pr",
+        action="store_false",
+        help="Hide the PR URL first line in review mode.",
+    )
+    parser.add_argument(
+        "--state",
+        choices=["all", "unresolved", "resolved", "outdated"],
+        default="all",
+        help="Filter review threads by state. Applies to threads only.",
     )
     parser.add_argument(
         "--include-author",
@@ -327,10 +535,19 @@ def main() -> int:
     )
     parser.add_argument("target", help="PR URL or OWNER/REPO")
     parser.add_argument("number", nargs="?", help="PR number when target is OWNER/REPO")
-    args = parser.parse_args()
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    argv = normalize_command(list(sys.argv[1:] if argv is None else argv))
+    parser = build_parser()
+    args = parser.parse_args(argv)
 
     try:
         owner, repo, pr_number = parse_pr_ref(args.target, args.number)
+
+        if args.state != "all" and args.kind != "threads":
+            raise ValueError("--state applies only to threads; use `pull threads` or `unresolved`.")
 
         if args.kind == "threads":
             data = get_review_threads(owner, repo, pr_number)
@@ -349,7 +566,14 @@ def main() -> int:
             "kind": args.kind,
             "data": data,
         }
-        print_output(envelope, args.mode, args.include_author, args.include_url)
+        print_output(
+            envelope,
+            args.mode,
+            args.include_author,
+            args.include_url,
+            args.show_pr,
+            args.state,
+        )
         return 0
 
     except Exception as exc:

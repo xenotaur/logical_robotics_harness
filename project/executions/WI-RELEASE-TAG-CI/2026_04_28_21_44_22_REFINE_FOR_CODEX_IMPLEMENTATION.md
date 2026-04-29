@@ -2,7 +2,7 @@
 execution_id: 2026_04_28_21_44_22_REFINE_FOR_CODEX_IMPLEMENTATION
 prompt_id: PROMPT(WI-RELEASE-TAG-CI:REFINE_FOR_CODEX_IMPLEMENTATION)[2026-04-27T20:55:00-04:00]
 work_item: WI-RELEASE-TAG-CI
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:

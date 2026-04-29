@@ -89,8 +89,8 @@ Future trusted publishing to PyPI/TestPyPI should be tracked as a separate work 
 scripts/format --check
 scripts/lint
 scripts/test
-scripts/version verify v0.2.2
-scripts/release-smoke v0.2.2
+scripts/version verify <TAG_UNDER_TEST>
+scripts/release-smoke <TAG_UNDER_TEST>
 ```
 
 Also confirm the GitHub Actions workflow is configured to trigger on pushed tags:
@@ -102,5 +102,5 @@ on:
       - "v*.*.*"
 ```
 
-and confirm the implementation uses the pushed tag name (for example `${{ github.ref_name }}`) when invoking release checks.
+and confirm the implementation uses the pushed tag name (for example `${{ github.ref_name }}`) when invoking release checks and validation commands.
 

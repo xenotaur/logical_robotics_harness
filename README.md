@@ -98,6 +98,7 @@ CI usage:
 - pull-request and main-branch fast validation includes `scripts/test`, `scripts/lint`, `scripts/format --check`, and `lrh validate`
 - pull-request and main-branch coverage feedback runs `scripts/coverage --html`
 - smoke validation runs `scripts/smoke` in the dedicated **Smoke validation** workflow (manual dispatch, weekly schedule, and release-tag pushes)
+- release-tag validation runs in the dedicated **Release tag validation** workflow on pushed tags matching `v*.*.*`, runs `scripts/version verify "$TAG_UNDER_TEST"`, runs `scripts/release-smoke "$TAG_UNDER_TEST"`, and uploads build/smoke artifacts for audit trails
 
 ## Design summary
 
@@ -214,6 +215,17 @@ scripts/release-smoke v0.2.2
 - `scripts/version tag v0.2.2` creates or confirms the release tag. This is idempotent when the tag already exists at the correct commit.
 - `scripts/version push v0.2.2` pushes the matching local tag to `origin` when needed, and is safe when local and remote state already match.
 - `scripts/release-smoke v0.2.2` runs a clean rebuild (`scripts/clean` + `scripts/build`), creates a temporary parent directory with `venv/` inside it, installs the built wheel from `dist/` via `<smoke-root>/venv/bin/python -m pip install --force-reinstall`, verifies `<smoke-root>/venv/bin/lrh --version`, and verifies `<smoke-root>/venv/bin/lrh snapshot --help` from the installed wheel.
+
+### Release tag CI
+
+When a release-like tag such as `v1.2.3` is pushed, GitHub Actions runs the **Release tag validation** workflow (`.github/workflows/release-tag-ci.yml`) on that exact tag revision.
+
+The workflow uses `${{ github.ref_name }}` as `TAG_UNDER_TEST`, then runs:
+
+- `scripts/version verify "$TAG_UNDER_TEST"`
+- `scripts/release-smoke "$TAG_UNDER_TEST"`
+
+This workflow is verification-only: it does not publish to PyPI or TestPyPI, and is intentionally scoped to release candidate validation plus audit evidence capture.
 
 ### `sandbox` vs `release-smoke`
 

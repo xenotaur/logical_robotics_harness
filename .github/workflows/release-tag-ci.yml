@@ -1,0 +1,51 @@
+name: Release tag validation
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  release-tag-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TAG_UNDER_TEST: ${{ github.ref_name }}
+
+    steps:
+      - name: Check out tagged revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Verify release tag semantics and build artifacts
+        run: |
+          scripts/version verify "$TAG_UNDER_TEST"
+
+      - name: Run release smoke validation
+        run: |
+          scripts/release-smoke "$TAG_UNDER_TEST"
+
+      - name: Capture release audit artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-artifacts-${{ github.ref_name }}
+          path: |
+            dist/
+            .pytest_cache/
+          if-no-files-found: ignore
+          retention-days: 30

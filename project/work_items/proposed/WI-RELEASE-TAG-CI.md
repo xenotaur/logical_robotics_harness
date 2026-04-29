@@ -70,3 +70,37 @@ Out of scope:
 ## Notes
 
 Future trusted publishing to PyPI/TestPyPI should be tracked as a separate work item unless explicitly scoped elsewhere.
+
+## Required Changes
+
+- Add a GitHub Actions workflow for release-tag validation.
+- Trigger the workflow on pushed version tags matching `v*.*.*`.
+- Check out the tagged commit.
+- Set up the project's supported Python version.
+- Install the project with development dependencies.
+- Run the release verification workflow for the tag, using the tag name from the GitHub ref.
+- Run `scripts/release-smoke` against the tag.
+- Ensure the workflow does not publish to PyPI or TestPyPI.
+- Update release documentation to mention tag-triggered CI if needed.
+
+## Validation Commands
+
+```bash
+scripts/format --check
+scripts/lint
+scripts/test
+scripts/version verify v0.2.2
+scripts/release-smoke v0.2.2
+```
+
+Also confirm the GitHub Actions workflow is configured to trigger on pushed tags:
+
+```yaml
+on:
+  push:
+    tags:
+      - "v*.*.*"
+```
+
+and confirm the implementation uses the pushed tag name (for example `${{ github.ref_name }}`) when invoking release checks.
+

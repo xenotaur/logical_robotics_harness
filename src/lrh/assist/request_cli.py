@@ -219,6 +219,7 @@ def run_request_cli(
             style_file=command_args.style_file,
             patch_file=None,
             show_vars=command_args.show_vars,
+            force=False,
             prompt_id=prompt_id,
         )
         args = mapped_args

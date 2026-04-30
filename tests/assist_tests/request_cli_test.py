@@ -334,8 +334,8 @@ class TestRequestCli(unittest.TestCase):
                 exit_code = request_cli.run_request_cli(
                     [
                         "review_response",
-                        "--force",
                         "https://github.com/octo/repo/pull/7",
+                        "--force",
                     ],
                     prog="lrh request",
                 )

@@ -104,6 +104,14 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         help="Path to a UTF-8 patch or diff file injected as {{PATCH}}.",
     )
     parser.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "For review_response, emit the full prompt even when no "
+            "unresolved review threads are found."
+        ),
+    )
+    parser.add_argument(
         "--show-vars",
         action="store_true",
         help="Print computed variables to stderr for debugging.",
@@ -151,6 +159,14 @@ def build_codex_prompt_from_work_item_parser(
     parser.add_argument(
         "--style-file",
         help="Optional style guide path (defaults to STYLE.md discovery rules).",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "For review_response, emit the full prompt even when no "
+            "unresolved review threads are found."
+        ),
     )
     parser.add_argument(
         "--show-vars",

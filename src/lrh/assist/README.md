@@ -214,6 +214,26 @@ scripts/prompts/record-execution \
 - Keep human review in the loop at work-item selection and pre-merge review.
 - If review finds scope drift, revise the work item or split into smaller follow-ups.
 
+### 6) `review_response`
+
+**Purpose**: Generate a Codex-style repair prompt for unresolved PR review comments.
+
+**Inputs**:
+
+- `template_name`: `review_response`
+- `target`: PR URL (for example `https://github.com/octo/repo/pull/7`)
+
+Behavior:
+
+- Prepends a fixed repair preamble and separator line.
+- Appends unresolved review threads in `lrh github unresolved` review format (including PR header and unresolved thread records).
+
+Example:
+
+```bash
+lrh request review_response https://github.com/octo/repo/pull/7
+```
+
 ## Python API Usage
 
 `RequestArgs` and `generate_request(...)` are the intended end-user Python API for this module, but they are not yet implemented in the current codebase.

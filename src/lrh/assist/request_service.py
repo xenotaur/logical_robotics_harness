@@ -6,8 +6,8 @@ import pathlib
 import re
 
 from lrh.assist import request_templates, request_variables, work_item_prompt_core
-from lrh.integrations.github import pr_ref, pull_reviews
 from lrh.control import parser as control_parser
+from lrh.integrations.github import pr_ref, pull_reviews
 
 _TEMPLATE_VAR_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 
@@ -66,8 +66,6 @@ def validate_args(args: argparse.Namespace) -> str | None:
     return None
 
 
-
-
 def _format_unresolved_threads_for_review_response(threads_data: object) -> str:
     """Render unresolved non-outdated threads into a markdown bullet list."""
     threads = (
@@ -88,16 +86,29 @@ def _format_unresolved_threads_for_review_response(threads_data: object) -> str:
         comments = thread.get("comments", {})
         nodes = comments.get("nodes", []) if isinstance(comments, dict) else []
         last_comment = nodes[-1] if nodes and isinstance(nodes[-1], dict) else {}
-        author = last_comment.get("author", {}) if isinstance(last_comment, dict) else {}
-        author_login = author.get("login", "unknown") if isinstance(author, dict) else "unknown"
-        body = str(last_comment.get("body", "")).strip() if isinstance(last_comment, dict) else ""
-        url = str(last_comment.get("url", "")).strip() if isinstance(last_comment, dict) else ""
+        author = (
+            last_comment.get("author", {}) if isinstance(last_comment, dict) else {}
+        )
+        author_login = (
+            author.get("login", "unknown") if isinstance(author, dict) else "unknown"
+        )
+        body = (
+            str(last_comment.get("body", "")).strip()
+            if isinstance(last_comment, dict)
+            else ""
+        )
+        url = (
+            str(last_comment.get("url", "")).strip()
+            if isinstance(last_comment, dict)
+            else ""
+        )
         body_single_line = " ".join(body.split())
         rows.append(f"- @{author_login}: {body_single_line}\n  - {url}")
 
     if not rows:
         return "- No unresolved review threads were found."
     return "\n".join(rows)
+
 
 def generate_request(
     args: argparse.Namespace,
@@ -125,8 +136,9 @@ def generate_request(
         ref = pr_ref.parse_pull_request_url(target_input)
         threads_data = pull_reviews.get_pull_review_threads(ref)
         variables["REVIEW_URL"] = target_input
-        variables["UNRESOLVED_THREADS"] = _format_unresolved_threads_for_review_response(
-            threads_data
+        variables["REPO_NAME"] = f"{ref.owner}/{ref.repo}"
+        variables["UNRESOLVED_THREADS"] = (
+            _format_unresolved_threads_for_review_response(threads_data)
         )
 
     template_text = request_templates.load_template_text(

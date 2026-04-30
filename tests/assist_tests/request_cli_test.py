@@ -260,7 +260,9 @@ class TestRequestCli(unittest.TestCase):
         stdout = io.StringIO()
         stderr = io.StringIO()
         with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            exit_code = request_cli.run_request_cli(["review_response"], prog="lrh request")
+            exit_code = request_cli.run_request_cli(
+                ["review_response"], prog="lrh request"
+            )
 
         self.assertEqual(exit_code, 2)
         self.assertIn("review_response requires a target PR URL", stderr.getvalue())

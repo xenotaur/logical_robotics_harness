@@ -474,6 +474,7 @@ class TestReviewResponseTemplate(unittest.TestCase):
         self.assertIn("@reviewer: Please add a test.", rendered)
         self.assertIn("#discussion_r1", rendered)
         self.assertEqual(variables["REVIEW_URL"], "https://github.com/octo/repo/pull/7")
+        self.assertEqual(variables["REPO_NAME"], "octo/repo")
 
 
 if __name__ == "__main__":

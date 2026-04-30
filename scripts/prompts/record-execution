@@ -11,14 +11,6 @@ import sys
 
 
 def _run(argv: list[str]) -> int:
-    lrh_executable = shutil.which("lrh")
-    if lrh_executable:
-        completed = subprocess.run(
-            [lrh_executable, "prompt", "record-execution", *argv],
-            check=False,
-        )
-        return completed.returncode
-
     repo_root = pathlib.Path(__file__).resolve().parents[2]
     env = os.environ.copy()
     src_path = str(repo_root / "src")
@@ -32,6 +24,17 @@ def _run(argv: list[str]) -> int:
         cwd=str(repo_root),
         env=env,
     )
+    if completed.returncode == 0:
+        return 0
+
+    lrh_executable = shutil.which("lrh")
+    if lrh_executable and "No module named 'lrh'" in (completed.stderr or ""):
+        fallback = subprocess.run(
+            [lrh_executable, "prompt", "record-execution", *argv],
+            check=False,
+        )
+        return fallback.returncode
+
     return completed.returncode
 
 

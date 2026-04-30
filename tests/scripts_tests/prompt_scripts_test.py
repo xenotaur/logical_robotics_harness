@@ -27,7 +27,7 @@ class PromptScriptTests(unittest.TestCase):
         )
 
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
-        self.assertIn("Generate a prompt ID", completed.stdout)
+        self.assertIn("usage: lrh prompt label", completed.stdout)
 
     def test_label_prompt_emits_prompt_id_and_suggested_path(self) -> None:
         completed = subprocess.run(
@@ -70,23 +70,25 @@ class PromptScriptTests(unittest.TestCase):
 
     def test_record_execution_dry_run_prints_content_without_writing(self) -> None:
         prompt_id = "PROMPT(AD_HOC:EXAMPLE_TASK)[2026-04-24T00:00:00-04:00]"
-        completed = subprocess.run(
-            [
-                sys.executable,
-                str(self._record_script()),
-                "--prompt-id",
-                prompt_id,
-                "--slug",
-                "example-task",
-                "--status",
-                "planned",
-                "--dry-run",
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-            env=os.environ.copy(),
-        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(self._record_script()),
+                    "--prompt-id",
+                    prompt_id,
+                    "--slug",
+                    "example-task",
+                    "--status",
+                    "planned",
+                    "--dry-run",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=temp_dir,
+            )
 
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
         self.assertRegex(

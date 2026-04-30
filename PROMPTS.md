@@ -131,6 +131,17 @@ Notes:
 - Record execution after generating the PR so the record can include final PR/commit references.
 - Keep this workflow lightweight: skip extra ceremony for tiny exploratory edits.
 
+## Installed CLI commands (preferred)
+
+When LRH is installed, prefer package-owned commands that support explicit target roots:
+
+```bash
+lrh prompt label --work-item WI-EXAMPLE --slug implement-example --project-root /path/to/client-repo
+lrh prompt record-execution --prompt-id "PROMPT(WI-EXAMPLE:IMPLEMENT_EXAMPLE)[2026-04-24T20:15:00-04:00]" --work-item WI-EXAMPLE --slug implement-example --project-root /path/to/client-repo --status in_progress
+```
+
+These commands preserve the same prompt ID and execution-record formats as the repository-local helper scripts.
+
 ## Helper scripts
 
 ### `scripts/prompts/label-prompt`

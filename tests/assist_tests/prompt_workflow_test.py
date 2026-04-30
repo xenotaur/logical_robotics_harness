@@ -42,7 +42,10 @@ class PromptWorkflowTest(unittest.TestCase):
             commit="",
             created_at="2026-04-29T22:05:00-04:00",
         )
-        self.assertIn("execution_id: 2026_04_29_22_05_00_CREATE_INSTALLED_PROMPT_CLI", content)
+        self.assertIn(
+            "execution_id: 2026_04_29_22_05_00_CREATE_INSTALLED_PROMPT_CLI",
+            content,
+        )
         self.assertIn("status: in_progress", content)
         self.assertIn("# Validation", content)
 

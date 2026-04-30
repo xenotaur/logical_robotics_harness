@@ -7,10 +7,10 @@ import json
 import sys
 from pathlib import Path
 
+from lrh import prompt_workflow
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import github as github_cli
-from lrh import prompt_workflow
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
 

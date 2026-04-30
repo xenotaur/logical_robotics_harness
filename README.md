@@ -252,15 +252,20 @@ Do not hard-code wheel paths as `dist/lrh-...whl`. Wheel filenames are derived f
 
 ## GitHub review helpers
 
-LRH includes a GitHub CLI integration for PR comment/thread inspection:
+LRH includes a GitHub CLI integration for PR comment/thread inspection and assist request generation for review responses.
+
+### `lrh github` commands
 
 ```bash
+# Read PR issue/review comments.
 lrh github comments https://github.com/owner/repo/pull/123
 lrh github comments owner/repo 123
 
+# Read review threads in human-readable mode or deterministic JSON.
 lrh github threads https://github.com/owner/repo/pull/123 --state all --mode review
 lrh github threads owner/repo 123 --state unresolved --mode raw
 
+# Shortcut for unresolved review threads only.
 lrh github unresolved https://github.com/owner/repo/pull/123
 lrh github unresolved owner/repo 123
 ```
@@ -272,3 +277,20 @@ Notes:
 - `unresolved` is equivalent to `threads --state unresolved`.
 - `--mode review` (default) renders a readable review view; `--mode raw` emits deterministic JSON.
 - `--show-pr` is on by default; use `--no-show-pr` to hide PR header lines.
+
+### `lrh request review_response`
+
+Use the assist template to generate a review-response drafting prompt from unresolved review threads:
+
+```bash
+# Use a PR URL.
+lrh request review_response https://github.com/owner/repo/pull/123
+
+# Save the generated prompt to a file for later use.
+lrh request review_response https://github.com/owner/repo/pull/123 > /tmp/review_response_prompt.md
+
+# Feed the generated prompt directly into a file-backed workflow.
+lrh request review_response https://github.com/owner/repo/pull/123   | tee /tmp/review_response_prompt.md
+```
+
+This command is useful when you want a structured "respond-to-review" prompt grounded in current unresolved GitHub review threads.

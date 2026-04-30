@@ -410,5 +410,72 @@ class TestCodexPromptFromWorkItemTemplate(unittest.TestCase):
         )
 
 
+class TestReviewResponseTemplate(unittest.TestCase):
+    def test_review_response_renders_unresolved_threads(self) -> None:
+        args = argparse.Namespace(
+            template_name="review_response",
+            target="https://github.com/octo/repo/pull/7",
+            target_option=None,
+            scope=None,
+            repo_name=None,
+            project_goal=None,
+            background_file=None,
+            background_text=None,
+            project_type=None,
+            bootstrap_mode="minimal",
+            audit_file=None,
+            work_item_file=None,
+            style_file=None,
+            patch_file=None,
+            show_vars=False,
+            prompt_id=None,
+        )
+
+        from unittest import mock
+
+        threads_payload = {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "reviewThreads": {
+                            "nodes": [
+                                {
+                                    "isResolved": False,
+                                    "isOutdated": False,
+                                    "comments": {
+                                        "nodes": [
+                                            {
+                                                "author": {"login": "reviewer"},
+                                                "body": "Please add a test.",
+                                                "url": "https://github.com/octo/repo/pull/7#discussion_r1",
+                                            }
+                                        ]
+                                    },
+                                },
+                                {
+                                    "isResolved": True,
+                                    "isOutdated": False,
+                                    "comments": {"nodes": []},
+                                },
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            return_value=threads_payload,
+        ):
+            rendered, variables = request_service.generate_request(args)
+
+        self.assertIn("Review URL: https://github.com/octo/repo/pull/7", rendered)
+        self.assertIn("@reviewer: Please add a test.", rendered)
+        self.assertIn("#discussion_r1", rendered)
+        self.assertEqual(variables["REVIEW_URL"], "https://github.com/octo/repo/pull/7")
+        self.assertEqual(variables["REPO_NAME"], "octo/repo")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -7,6 +7,7 @@ import re
 
 from lrh.assist import request_templates, request_variables, work_item_prompt_core
 from lrh.control import parser as control_parser
+from lrh.integrations.github import pr_ref, pull_reviews
 
 _TEMPLATE_VAR_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
 
@@ -50,6 +51,10 @@ def validate_args(args: argparse.Namespace) -> str | None:
                 "work item ID/path or --work-item-file."
             )
 
+    if args.template_name == "review_response":
+        if not target_input:
+            return "error: review_response requires a target PR URL."
+
     if args.template_name == "pr_against_work_item":
         if not args.work_item_file:
             return "error: pr_against_work_item requires --work-item-file."
@@ -59,6 +64,50 @@ def validate_args(args: argparse.Namespace) -> str | None:
             return "error: pr_against_work_item requires --style-file."
 
     return None
+
+
+def _format_unresolved_threads_for_review_response(threads_data: object) -> str:
+    """Render unresolved non-outdated threads into a markdown bullet list."""
+    threads = (
+        threads_data.get("data", {})
+        .get("repository", {})
+        .get("pullRequest", {})
+        .get("reviewThreads", {})
+        .get("nodes", [])
+        if isinstance(threads_data, dict)
+        else []
+    )
+    rows: list[str] = []
+    for thread in threads:
+        if not isinstance(thread, dict):
+            continue
+        if thread.get("isResolved", False) or thread.get("isOutdated", False):
+            continue
+        comments = thread.get("comments", {})
+        nodes = comments.get("nodes", []) if isinstance(comments, dict) else []
+        last_comment = nodes[-1] if nodes and isinstance(nodes[-1], dict) else {}
+        author = (
+            last_comment.get("author", {}) if isinstance(last_comment, dict) else {}
+        )
+        author_login = (
+            author.get("login", "unknown") if isinstance(author, dict) else "unknown"
+        )
+        body = (
+            str(last_comment.get("body", "")).strip()
+            if isinstance(last_comment, dict)
+            else ""
+        )
+        url = (
+            str(last_comment.get("url", "")).strip()
+            if isinstance(last_comment, dict)
+            else ""
+        )
+        body_single_line = " ".join(body.split())
+        rows.append(f"- @{author_login}: {body_single_line}\n  - {url}")
+
+    if not rows:
+        return "- No unresolved review threads were found."
+    return "\n".join(rows)
 
 
 def generate_request(
@@ -81,6 +130,16 @@ def generate_request(
             work_item_reference_path=variables["WORK_ITEM_PATH"],
         )
         return rendered, variables
+
+    if args.template_name == "review_response":
+        target_input = resolve_target_input(args)
+        ref = pr_ref.parse_pull_request_url(target_input)
+        threads_data = pull_reviews.get_pull_review_threads(ref)
+        variables["REVIEW_URL"] = target_input
+        variables["REPO_NAME"] = f"{ref.owner}/{ref.repo}"
+        variables["UNRESOLVED_THREADS"] = (
+            _format_unresolved_threads_for_review_response(threads_data)
+        )
 
     template_text = request_templates.load_template_text(
         args.template_name,

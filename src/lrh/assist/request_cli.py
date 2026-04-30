@@ -161,6 +161,14 @@ def build_codex_prompt_from_work_item_parser(
         help="Optional style guide path (defaults to STYLE.md discovery rules).",
     )
     parser.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "For review_response, emit the full prompt even when no "
+            "unresolved review threads are found."
+        ),
+    )
+    parser.add_argument(
         "--show-vars",
         action="store_true",
         help="Print computed variables to stderr for debugging.",
@@ -214,6 +222,7 @@ def run_request_cli(
             style_file=command_args.style_file,
             patch_file=None,
             show_vars=command_args.show_vars,
+            force=False,
             prompt_id=prompt_id,
         )
         args = mapped_args

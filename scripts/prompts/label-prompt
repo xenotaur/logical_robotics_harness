@@ -16,7 +16,9 @@ def _run(argv: list[str]) -> int:
     src_path = str(repo_root / "src")
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = (
-        f"{src_path}{os.pathsep}{existing_pythonpath}" if existing_pythonpath else src_path
+        f"{src_path}{os.pathsep}{existing_pythonpath}"
+        if existing_pythonpath
+        else src_path
     )
     completed = subprocess.run(
         [sys.executable, "-m", "lrh.cli.main", "prompt", "label", *argv],
@@ -29,7 +31,9 @@ def _run(argv: list[str]) -> int:
 
     lrh_executable = shutil.which("lrh")
     if lrh_executable and "No module named 'lrh'" in (completed.stderr or ""):
-        fallback = subprocess.run([lrh_executable, "prompt", "label", *argv], check=False)
+        fallback = subprocess.run(
+            [lrh_executable, "prompt", "label", *argv], check=False
+        )
         return fallback.returncode
 
     return completed.returncode

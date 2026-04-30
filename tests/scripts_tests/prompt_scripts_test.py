@@ -49,16 +49,13 @@ class PromptScriptTests(unittest.TestCase):
             ),
         )
 
-
     def test_label_prompt_prefers_checkout_cli_over_path_lrh(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fake_bin = pathlib.Path(temp_dir) / "fake-bin"
             fake_bin.mkdir()
             fake_lrh = fake_bin / "lrh"
             fake_lrh.write_text(
-                "#!/usr/bin/env bash\n"
-                "echo fake-lrh-used >&2\n"
-                "exit 99\n",
+                "#!/usr/bin/env bash\n" "echo fake-lrh-used >&2\n" "exit 99\n",
                 encoding="utf-8",
             )
             fake_lrh.chmod(0o755)

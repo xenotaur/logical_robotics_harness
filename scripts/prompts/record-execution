@@ -16,7 +16,9 @@ def _run(argv: list[str]) -> int:
     src_path = str(repo_root / "src")
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = (
-        f"{src_path}{os.pathsep}{existing_pythonpath}" if existing_pythonpath else src_path
+        f"{src_path}{os.pathsep}{existing_pythonpath}"
+        if existing_pythonpath
+        else src_path
     )
     completed = subprocess.run(
         [sys.executable, "-m", "lrh.cli.main", "prompt", "record-execution", *argv],

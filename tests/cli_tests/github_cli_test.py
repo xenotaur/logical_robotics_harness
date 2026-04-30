@@ -88,6 +88,18 @@ class GithubCliTest(unittest.TestCase):
         parsed = json.loads(out.getvalue())
         self.assertEqual(parsed["issue_comments"], [])
 
+    def test_missing_number_reports_cli_usage_error(self) -> None:
+        out = io.StringIO()
+        err = io.StringIO()
+        with (
+            contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
+        ):
+            with self.assertRaises(SystemExit) as exc:
+                github.run_github_cli(["threads", "a/b"], prog="lrh github")
+        self.assertEqual(exc.exception.code, 2)
+        self.assertIn("number is required", err.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

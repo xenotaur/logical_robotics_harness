@@ -48,7 +48,10 @@ def run_github_cli(argv: list[str], prog: str) -> int:
     parser.add_argument("--no-show-pr", dest="show_pr", action="store_false")
     args = parser.parse_args(argv)
 
-    ref = _parse_target(args.target, args.number)
+    try:
+        ref = _parse_target(args.target, args.number)
+    except ValueError as err:
+        parser.error(str(err))
     if args.kind == "comments":
         data = pull_reviews.get_pull_comments(ref)
         if args.mode == "raw":

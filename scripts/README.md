@@ -361,6 +361,15 @@ This script:
 - installs the wheel into that environment
 - verifies installed `lrh request` and `lrh snapshot` commands from a non-repo working directory
 
+#### Installed prompt CLI smoke test
+Run the installed prompt CLI smoke path with:
+
+```bash
+python -m unittest tests.smoke.prompt_cli_install_smoke
+```
+
+This smoke test builds an isolated virtual environment, installs LRH from the current checkout, and validates `lrh --help`, `lrh prompt label --slug example`, and `lrh prompt record-execution --dry-run ...` from a temporary non-repo working directory.
+
 
 #### `coverage`
 Runs test coverage analysis and generates reports.

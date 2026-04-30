@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from contextlib import contextmanager
 
-from lrh.assist import request_service
+from lrh.assist import request_service, request_templates
 
 
 class TestBuildVariables(unittest.TestCase):
@@ -474,10 +474,8 @@ class TestReviewResponseTemplate(unittest.TestCase):
         ):
             rendered, variables = request_service.generate_request(args)
 
-        review_response_template = (
-            pathlib.Path("src/lrh/assist/templates/request/review_response.md")
-            .read_text(encoding="utf-8")
-            .rstrip("\n")
+        review_response_template = request_templates.load_template_text(
+            "review_response"
         )
         expected_prefix = review_response_template.split(
             "{{UNRESOLVED_THREADS}}", maxsplit=1

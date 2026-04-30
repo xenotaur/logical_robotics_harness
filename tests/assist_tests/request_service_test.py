@@ -411,7 +411,9 @@ class TestCodexPromptFromWorkItemTemplate(unittest.TestCase):
 
 
 class TestReviewResponseTemplate(unittest.TestCase):
-    def test_review_response_renders_unresolved_threads(self) -> None:
+    def test_review_response_renders_repair_prompt_with_unresolved_threads(
+        self,
+    ) -> None:
         args = argparse.Namespace(
             template_name="review_response",
             target="https://github.com/octo/repo/pull/7",
@@ -442,6 +444,8 @@ class TestReviewResponseTemplate(unittest.TestCase):
                                 {
                                     "isResolved": False,
                                     "isOutdated": False,
+                                    "path": "src/lrh/assist/request_service.py",
+                                    "line": 101,
                                     "comments": {
                                         "nodes": [
                                             {
@@ -470,9 +474,29 @@ class TestReviewResponseTemplate(unittest.TestCase):
         ):
             rendered, variables = request_service.generate_request(args)
 
-        self.assertIn("Review URL: https://github.com/octo/repo/pull/7", rendered)
-        self.assertIn("@reviewer: Please add a test.", rendered)
-        self.assertIn("#discussion_r1", rendered)
+        review_response_template = (
+            pathlib.Path("src/lrh/assist/templates/request/review_response.md")
+            .read_text(encoding="utf-8")
+            .rstrip("\n")
+        )
+        expected_prefix = review_response_template.split(
+            "{{UNRESOLVED_THREADS}}", maxsplit=1
+        )[0].rstrip("\n")
+        self.assertTrue(rendered.startswith(expected_prefix))
+        self.assertIn("----PR Comments Follow—————————————————————", rendered)
+        self.assertIn("PR: octo/repo#7", rendered)
+        self.assertIn("src/lrh/assist/request_service.py:L101", rendered)
+        self.assertIn("Please add a test.", rendered)
+        self.assertIn("author: reviewer", rendered)
+        self.assertIn(
+            "url: https://github.com/octo/repo/pull/7#discussion_r1",
+            rendered,
+        )
+        self.assertNotIn("# PR Review Response Request", rendered)
+        self.assertNotIn(
+            "Draft concise, technical responses for each unresolved thread",
+            rendered,
+        )
         self.assertEqual(variables["REVIEW_URL"], "https://github.com/octo/repo/pull/7")
         self.assertEqual(variables["REPO_NAME"], "octo/repo")
 

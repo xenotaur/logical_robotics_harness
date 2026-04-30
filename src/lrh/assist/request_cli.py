@@ -104,6 +104,14 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         help="Path to a UTF-8 patch or diff file injected as {{PATCH}}.",
     )
     parser.add_argument(
+        "--force",
+        action="store_true",
+        help=(
+            "For review_response, emit the full prompt even when no "
+            "unresolved review threads are found."
+        ),
+    )
+    parser.add_argument(
         "--show-vars",
         action="store_true",
         help="Print computed variables to stderr for debugging.",
@@ -181,7 +189,10 @@ def run_request_cli(
         command_parser = build_codex_prompt_from_work_item_parser(
             prog=f"{prog} codex-prompt-from-work-item"
         )
-        command_args = command_parser.parse_args(argv[1:])
+        try:
+            command_args = command_parser.parse_args(argv[1:])
+        except SystemExit as error:
+            return int(error.code) if isinstance(error.code, int) else 2
         try:
             prompt_id = _build_prompt_id_from_slug(command_args.slug)
         except ValueError as error:
@@ -210,7 +221,10 @@ def run_request_cli(
     else:
         output_path = None
         parser = build_parser(prog=prog)
-        args = parser.parse_args(argv)
+        try:
+            args = parser.parse_args(argv)
+        except SystemExit as error:
+            return int(error.code) if isinstance(error.code, int) else 2
 
     error = request_service.validate_args(args)
     if error:

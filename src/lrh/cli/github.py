@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 
 from lrh.integrations.github import formatters, pr_ref, pull_reviews
 
@@ -53,11 +54,19 @@ def run_github_cli(argv: list[str], prog: str) -> int:
     except ValueError as err:
         parser.error(str(err))
     if args.kind == "comments":
-        data = pull_reviews.get_pull_comments(ref)
+        try:
+            data = pull_reviews.get_pull_comments(ref)
+        except (OSError, ValueError) as err:
+            print(str(err), file=sys.stderr)
+            return 2
         if args.mode == "raw":
             print(json.dumps(data, indent=2, sort_keys=True))
         else:
             print(formatters.format_comments(data))
     else:
-        print(_render_threads(args, ref))
+        try:
+            print(_render_threads(args, ref))
+        except (OSError, ValueError) as err:
+            print(str(err), file=sys.stderr)
+            return 2
     return 0

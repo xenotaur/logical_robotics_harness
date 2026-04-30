@@ -268,6 +268,104 @@ class TestRequestCli(unittest.TestCase):
         self.assertIn("review_response requires a target PR URL", stderr.getvalue())
         self.assertEqual("", stdout.getvalue())
 
+    def test_review_response_fetch_error_returns_nonzero(self) -> None:
+        import unittest.mock as mock
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            side_effect=OSError("github api failed"),
+        ):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["review_response", "https://github.com/octo/repo/pull/7"],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("github api failed", stderr.getvalue())
+        self.assertEqual("", stdout.getvalue())
+
+    def test_review_response_no_unresolved_threads_prints_nothing_to_resolve(
+        self,
+    ) -> None:
+        import unittest.mock as mock
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            return_value={
+                "data": {
+                    "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
+                }
+            },
+        ):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["review_response", "https://github.com/octo/repo/pull/7"],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(
+            stdout.getvalue(),
+            "Nothing to resolve: no unresolved review threads found for octo/repo#7\n",
+        )
+
+    def test_review_response_force_prints_full_prompt_with_no_unresolved_threads(
+        self,
+    ) -> None:
+        import unittest.mock as mock
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            return_value={
+                "data": {
+                    "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
+                }
+            },
+        ):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "review_response",
+                        "https://github.com/octo/repo/pull/7",
+                        "--force",
+                    ],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("----PR Comments Follow", stdout.getvalue())
+        self.assertIn("PR: octo/repo#7", stdout.getvalue())
+
+    def test_review_response_missing_pull_request_is_error(self) -> None:
+        import unittest.mock as mock
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            side_effect=ValueError(
+                "error: pull request not found or inaccessible: octo/repo#999"
+            ),
+        ):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["review_response", "https://github.com/octo/repo/pull/999"],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("pull request not found or inaccessible", stderr.getvalue())
+        self.assertEqual("", stdout.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

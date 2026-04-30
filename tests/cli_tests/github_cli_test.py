@@ -100,6 +100,24 @@ class GithubCliTest(unittest.TestCase):
         self.assertEqual(exc.exception.code, 2)
         self.assertIn("number is required", err.getvalue())
 
+    def test_threads_fetch_error_returns_nonzero(self) -> None:
+        out = io.StringIO()
+        err = io.StringIO()
+        with (
+            mock.patch(
+                "lrh.cli.github.pull_reviews.get_pull_review_threads",
+                side_effect=ValueError(
+                    "error: pull request not found or inaccessible: a/b#3"
+                ),
+            ),
+            contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
+        ):
+            code = github.run_github_cli(["threads", "a/b", "3"], prog="lrh github")
+        self.assertEqual(code, 2)
+        self.assertEqual("", out.getvalue())
+        self.assertIn("pull request not found or inaccessible", err.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

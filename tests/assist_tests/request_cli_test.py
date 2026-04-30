@@ -256,6 +256,16 @@ class TestRequestCli(unittest.TestCase):
             self.assertIn("Is a directory", stderr.getvalue())
             self.assertEqual("", stdout.getvalue())
 
+    def test_review_response_requires_target_url(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(["review_response"], prog="lrh request")
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("review_response requires a target PR URL", stderr.getvalue())
+        self.assertEqual("", stdout.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -268,6 +268,25 @@ class TestRequestCli(unittest.TestCase):
         self.assertIn("review_response requires a target PR URL", stderr.getvalue())
         self.assertEqual("", stdout.getvalue())
 
+    def test_review_response_fetch_error_returns_nonzero(self) -> None:
+        import unittest.mock as mock
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            side_effect=OSError("github api failed"),
+        ):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["review_response", "https://github.com/octo/repo/pull/7"],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("github api failed", stderr.getvalue())
+        self.assertEqual("", stdout.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

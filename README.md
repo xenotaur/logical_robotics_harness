@@ -286,6 +286,9 @@ Use the assist template to generate a review-response drafting prompt from unres
 # Use a PR URL.
 lrh request review_response https://github.com/owner/repo/pull/123
 
+# Force full prompt emission even when unresolved threads are empty.
+lrh request review_response --force https://github.com/owner/repo/pull/123
+
 # Save the generated prompt to a file for later use.
 lrh request review_response https://github.com/owner/repo/pull/123 > /tmp/review_response_prompt.md
 
@@ -293,4 +296,4 @@ lrh request review_response https://github.com/owner/repo/pull/123 > /tmp/review
 lrh request review_response https://github.com/owner/repo/pull/123 | tee /tmp/review_response_prompt.md
 ```
 
-This command is useful when you want a structured "respond-to-review" prompt grounded in current unresolved GitHub review threads.
+This command emits the full prompt when unresolved threads exist. If there are no unresolved threads, it prints a concise "Nothing to resolve" success message by default; pass --force to emit the full prompt anyway.

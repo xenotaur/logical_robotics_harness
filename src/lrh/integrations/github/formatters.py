@@ -106,3 +106,11 @@ def format_threads_raw(
             "number": ref.number,
         }
     return json.dumps(payload, indent=2, sort_keys=True)
+
+
+def has_threads_for_state(data: object, *, state: str) -> bool:
+    """Return whether at least one review thread matches the requested state."""
+    for thread in _collect_threads(data):
+        if _matches_state(thread, state):
+            return True
+    return False

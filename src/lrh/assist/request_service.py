@@ -93,6 +93,15 @@ def generate_request(
         threads_data = pull_reviews.get_pull_review_threads(ref)
         variables["REVIEW_URL"] = target_input
         variables["REPO_NAME"] = f"{ref.owner}/{ref.repo}"
+        has_unresolved_threads = formatters.has_threads_for_state(
+            threads_data, state="unresolved"
+        )
+        if not has_unresolved_threads and not getattr(args, "force", False):
+            return (
+                "Nothing to resolve: no unresolved review threads found for "
+                f"{ref.owner}/{ref.repo}#{ref.number}",
+                variables,
+            )
         variables["UNRESOLVED_THREADS"] = formatters.format_threads_review(
             threads_data,
             state="unresolved",

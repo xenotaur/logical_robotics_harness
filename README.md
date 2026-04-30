@@ -249,3 +249,26 @@ Do not hard-code wheel paths as `dist/lrh-...whl`. Wheel filenames are derived f
 - `tag` is intended to be idempotent when the requested tag already points at the correct commit.
 - `release-smoke` rebuilds artifacts from a clean packaging state before installing exactly one wheel for validation.
 - If you publish tags with `scripts/version push`, it is an explicit step and designed to be safe when local/remote tag state already matches.
+
+## GitHub review helpers
+
+LRH includes a GitHub CLI integration for PR comment/thread inspection:
+
+```bash
+lrh github comments https://github.com/owner/repo/pull/123
+lrh github comments owner/repo 123
+
+lrh github threads https://github.com/owner/repo/pull/123 --state all --mode review
+lrh github threads owner/repo 123 --state unresolved --mode raw
+
+lrh github unresolved https://github.com/owner/repo/pull/123
+lrh github unresolved owner/repo 123
+```
+
+Notes:
+
+- `comments` uses REST comments endpoints.
+- `threads` and `unresolved` use GraphQL review threads.
+- `unresolved` is equivalent to `threads --state unresolved`.
+- `--mode review` (default) renders a readable review view; `--mode raw` emits deterministic JSON.
+- `--show-pr` is on by default; use `--no-show-pr` to hide PR header lines.

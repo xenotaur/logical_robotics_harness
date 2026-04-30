@@ -1,3 +1,4 @@
+import json
 import unittest
 from unittest import mock
 
@@ -10,6 +11,12 @@ class GithubIntegrationTest(unittest.TestCase):
         self.assertEqual(ref.owner, "octo")
         self.assertEqual(ref.repo, "repo")
         self.assertEqual(ref.number, 7)
+
+    def test_parse_pr_url(self) -> None:
+        ref = pr_ref.parse_pull_request_url("https://github.com/octo/repo/pull/11")
+        self.assertEqual(ref.owner, "octo")
+        self.assertEqual(ref.repo, "repo")
+        self.assertEqual(ref.number, 11)
 
     def test_get_pull_comments_uses_paginate(self) -> None:
         ref = pr_ref.PullRequestRef("o", "r", 1)
@@ -34,25 +41,78 @@ class GithubIntegrationTest(unittest.TestCase):
         self.assertIn("--paginate", issue_call)
         self.assertIn("--slurp", issue_call)
 
-    def test_format_threads_counts_unresolved_not_outdated(self) -> None:
+    def test_format_review_mode_and_state_filter(self) -> None:
         data = {
             "data": {
                 "repository": {
                     "pullRequest": {
                         "reviewThreads": {
                             "nodes": [
-                                {"isResolved": False, "isOutdated": False},
-                                {"isResolved": False, "isOutdated": True},
-                                {"isResolved": True, "isOutdated": False},
+                                {
+                                    "path": "x.py",
+                                    "line": 2,
+                                    "isResolved": False,
+                                    "isOutdated": False,
+                                    "comments": {
+                                        "nodes": [
+                                            {
+                                                "body": "fix",
+                                                "author": {"login": "a"},
+                                                "url": "u",
+                                            }
+                                        ]
+                                    },
+                                },
+                                {
+                                    "isResolved": True,
+                                    "isOutdated": False,
+                                    "comments": {"nodes": []},
+                                },
                             ]
                         }
                     }
                 }
             }
         }
-        output = formatters.format_threads(data)
-        self.assertIn("threads=3", output)
-        self.assertIn("unresolved=1", output)
+        out = formatters.format_threads_review(
+            data,
+            state="unresolved",
+            show_pr=True,
+            include_author=True,
+            include_url=True,
+            ref=pr_ref.PullRequestRef("o", "r", 1),
+        )
+        self.assertIn("PR: o/r#1", out)
+        self.assertIn("x.py:L2", out)
+        self.assertIn("author: a", out)
+
+    def test_format_raw_mode(self) -> None:
+        data = {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "reviewThreads": {
+                            "nodes": [
+                                {
+                                    "isResolved": False,
+                                    "isOutdated": False,
+                                    "comments": {"nodes": []},
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+        out = formatters.format_threads_raw(
+            data,
+            state="unresolved",
+            show_pr=False,
+            ref=pr_ref.PullRequestRef("o", "r", 1),
+        )
+        parsed = json.loads(out)
+        self.assertEqual(len(parsed["threads"]), 1)
+        self.assertNotIn("pull_request", parsed)
 
     def test_run_gh_json_raises_clean_errors(self) -> None:
         with mock.patch("subprocess.run", side_effect=FileNotFoundError()):

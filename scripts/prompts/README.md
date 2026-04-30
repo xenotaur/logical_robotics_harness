@@ -25,3 +25,13 @@ Work item Markdown
 After your PR is generated, run `record-execution --work-item <WORK_ITEM_ID>`
 so the record can capture PR/commit metadata and be written under the
 correct work-item folder instead of the default `AD_HOC` location.
+
+
+Once LRH is installed in a target repository, prefer the installed commands:
+
+```bash
+lrh prompt label ...
+lrh prompt record-execution ...
+```
+
+The repository-local scripts remain available for compatibility during migration.

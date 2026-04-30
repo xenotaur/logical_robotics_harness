@@ -7,6 +7,7 @@ import json
 import sys
 from pathlib import Path
 
+from lrh import prompt_workflow
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import github as github_cli
@@ -68,6 +69,12 @@ def main() -> None:
         "github",
         add_help=False,
         help="Query GitHub pull request comments/threads.",
+    )
+
+    subparsers.add_parser(
+        "prompt",
+        add_help=False,
+        help="Prompt workflow helper commands.",
     )
 
     meta_parser = subparsers.add_parser(
@@ -300,6 +307,14 @@ def main() -> None:
             sourcetree_surveyor.main(
                 argv=passthrough_args,
                 prog="lrh survey",
+            )
+        )
+
+    if args.command == "prompt":
+        raise SystemExit(
+            prompt_workflow.run_prompt_cli(
+                argv=passthrough_args,
+                prog="lrh prompt",
             )
         )
 

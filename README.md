@@ -290,7 +290,7 @@ lrh request review_response https://github.com/owner/repo/pull/123
 lrh request review_response https://github.com/owner/repo/pull/123 > /tmp/review_response_prompt.md
 
 # Feed the generated prompt directly into a file-backed workflow.
-lrh request review_response https://github.com/owner/repo/pull/123   | tee /tmp/review_response_prompt.md
+lrh request review_response https://github.com/owner/repo/pull/123 | tee /tmp/review_response_prompt.md
 ```
 
 This command is useful when you want a structured "respond-to-review" prompt grounded in current unresolved GitHub review threads.

@@ -42,7 +42,7 @@ def normalize_work_item(value: str) -> str:
 
 
 def resolve_output_root(project_root: str, output_root: str) -> pathlib.Path:
-    return (pathlib.Path(project_root) / output_root).resolve()
+    return pathlib.Path(project_root) / output_root
 
 
 def build_prompt_label(now: datetime.datetime, work_item: str, slug: str) -> str:
@@ -52,9 +52,18 @@ def build_prompt_label(now: datetime.datetime, work_item: str, slug: str) -> str
     )
 
 
-def suggested_execution_path(now: datetime.datetime, output_root: pathlib.Path, work_item: str, slug: str) -> pathlib.Path:
+def suggested_execution_path(
+    now: datetime.datetime,
+    output_root: pathlib.Path,
+    work_item: str,
+    slug: str,
+) -> pathlib.Path:
     timestamp_for_file = now.strftime("%Y_%m_%d_%H_%M_%S")
-    return output_root / work_item / f"{timestamp_for_file}_{slug_upper_underscore(slug)}.md"
+    return (
+        output_root
+        / work_item
+        / f"{timestamp_for_file}_{slug_upper_underscore(slug)}.md"
+    )
 
 
 def render_execution_content(
@@ -109,7 +118,11 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     record_parser.add_argument("--prompt-id", required=True)
     record_parser.add_argument("--work-item", default="AD_HOC")
     record_parser.add_argument("--slug", required=True)
-    record_parser.add_argument("--status", default="planned", choices=sorted(VALID_STATUSES))
+    record_parser.add_argument(
+        "--status",
+        default="planned",
+        choices=sorted(VALID_STATUSES),
+    )
     record_parser.add_argument("--rerun-of", default="")
     record_parser.add_argument("--pr", default="")
     record_parser.add_argument("--commit", default="")
@@ -141,9 +154,15 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
 
     timestamp_for_id = now.strftime("%Y_%m_%d_%H_%M_%S")
     execution_id = f"{timestamp_for_id}_{slug_upper_underscore(slug)}"
-    execution_dir = (output_root / work_item).resolve()
-    if execution_dir != output_root and output_root not in execution_dir.parents:
-        parser.error(f"resolved execution directory escapes output-root: {execution_dir}")
+    output_root_resolved = output_root.resolve()
+    execution_dir = (output_root_resolved / work_item).resolve()
+    if (
+        execution_dir != output_root_resolved
+        and output_root_resolved not in execution_dir.parents
+    ):
+        parser.error(
+            f"resolved execution directory escapes output-root: {execution_dir}"
+        )
     output_file = execution_dir / f"{execution_id}.md"
 
     content = render_execution_content(

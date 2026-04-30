@@ -1,6 +1,5 @@
 import os
 import pathlib
-import re
 import subprocess
 import sys
 import tempfile
@@ -31,11 +30,18 @@ class PromptCliTest(unittest.TestCase):
             cwd=self._repo_root(),
         )
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
-        self.assertIn("prompt_id: PROMPT(AD_HOC:CREATE_INSTALLED_PROMPT_CLI)", completed.stdout)
-        self.assertIn("execution_dir: /tmp/client-repo/project/executions/AD_HOC", completed.stdout)
+        self.assertIn(
+            "prompt_id: PROMPT(AD_HOC:CREATE_INSTALLED_PROMPT_CLI)", completed.stdout
+        )
+        self.assertIn(
+            "execution_dir: /tmp/client-repo/project/executions/AD_HOC",
+            completed.stdout,
+        )
 
     def test_lrh_prompt_record_execution_dry_run(self) -> None:
-        prompt_id = "PROMPT(AD_HOC:CREATE_INSTALLED_PROMPT_CLI)[2026-04-29T22:05:00-04:00]"
+        prompt_id = (
+            "PROMPT(AD_HOC:CREATE_INSTALLED_PROMPT_CLI)[2026-04-29T22:05:00-04:00]"
+        )
         with tempfile.TemporaryDirectory() as temp_dir:
             completed = subprocess.run(
                 [
@@ -59,7 +65,9 @@ class PromptCliTest(unittest.TestCase):
                 cwd=self._repo_root(),
             )
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
-        self.assertRegex(completed.stdout, r"output_file: .*/project/executions/AD_HOC/\d{4}_")
+        self.assertRegex(
+            completed.stdout, r"output_file: .*/project/executions/AD_HOC/\d{4}_"
+        )
         self.assertIn("# Summary", completed.stdout)
 
 

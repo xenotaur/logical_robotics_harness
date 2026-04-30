@@ -27,7 +27,7 @@ class PromptScriptTests(unittest.TestCase):
         )
 
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
-        self.assertIn("Generate a prompt ID", completed.stdout)
+        self.assertIn("usage: lrh prompt label", completed.stdout)
 
     def test_label_prompt_emits_prompt_id_and_suggested_path(self) -> None:
         completed = subprocess.run(
@@ -48,6 +48,31 @@ class PromptScriptTests(unittest.TestCase):
                 r"\d{4}_\d{2}_\d{2}_\d{2}_\d{2}_\d{2}_EXAMPLE_TASK\.md"
             ),
         )
+
+    def test_label_prompt_prefers_checkout_cli_over_path_lrh(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fake_bin = pathlib.Path(temp_dir) / "fake-bin"
+            fake_bin.mkdir()
+            fake_lrh = fake_bin / "lrh"
+            fake_lrh.write_text(
+                "#!/usr/bin/env bash\n" "echo fake-lrh-used >&2\n" "exit 99\n",
+                encoding="utf-8",
+            )
+            fake_lrh.chmod(0o755)
+            env = os.environ.copy()
+            env["PATH"] = f"{fake_bin}{os.pathsep}{env.get('PATH', '')}"
+
+            completed = subprocess.run(
+                [sys.executable, str(self._label_script()), "--slug", "example-task"],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("prompt_id: PROMPT(AD_HOC:EXAMPLE_TASK)", completed.stdout)
+        self.assertNotIn("fake-lrh-used", completed.stderr)
 
     def test_label_prompt_rejects_unsafe_work_item(self) -> None:
         completed = subprocess.run(
@@ -70,23 +95,25 @@ class PromptScriptTests(unittest.TestCase):
 
     def test_record_execution_dry_run_prints_content_without_writing(self) -> None:
         prompt_id = "PROMPT(AD_HOC:EXAMPLE_TASK)[2026-04-24T00:00:00-04:00]"
-        completed = subprocess.run(
-            [
-                sys.executable,
-                str(self._record_script()),
-                "--prompt-id",
-                prompt_id,
-                "--slug",
-                "example-task",
-                "--status",
-                "planned",
-                "--dry-run",
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-            env=os.environ.copy(),
-        )
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    str(self._record_script()),
+                    "--prompt-id",
+                    prompt_id,
+                    "--slug",
+                    "example-task",
+                    "--status",
+                    "planned",
+                    "--dry-run",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=temp_dir,
+            )
 
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
         self.assertRegex(

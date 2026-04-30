@@ -61,18 +61,20 @@ def _thread_comments_page(thread_id: str, after: str | None) -> object:
     )
 
 
-def _extract_threads(page: object) -> dict[str, object]:
+def _extract_threads(page: object) -> dict[str, object] | None:
     if not isinstance(page, dict):
-        return {}
+        return None
     data = page.get("data", {})
     if not isinstance(data, dict):
-        return {}
+        return None
     repository = data.get("repository", {})
     if not isinstance(repository, dict):
-        return {}
-    pull_request = repository.get("pullRequest", {})
+        return None
+    pull_request = repository.get("pullRequest")
+    if pull_request is None:
+        return None
     if not isinstance(pull_request, dict):
-        return {}
+        return None
     review_threads = pull_request.get("reviewThreads", {})
     return review_threads if isinstance(review_threads, dict) else {}
 
@@ -83,6 +85,11 @@ def get_pull_review_threads(ref: pr_ref.PullRequestRef) -> object:
     while True:
         page = _thread_page(ref, cursor)
         threads = _extract_threads(page)
+        if threads is None:
+            raise ValueError(
+                "error: pull request not found or inaccessible: "
+                f"{ref.owner}/{ref.repo}#{ref.number}"
+            )
         page_nodes = threads.get("nodes")
         if not isinstance(page_nodes, list):
             page_nodes = []

@@ -368,7 +368,7 @@ Run the installed prompt CLI smoke path with:
 python -m unittest tests.smoke.prompt_cli_install_smoke
 ```
 
-This smoke test builds an isolated virtual environment, installs LRH from the current checkout, and validates `lrh --help`, `lrh prompt label --slug <example>`, and `lrh prompt record-execution --dry-run ...` from a temporary non-repo working directory.
+This smoke test builds an isolated virtual environment, installs LRH from the current checkout, and validates `lrh --help`, `lrh prompt label --slug example`, and `lrh prompt record-execution --dry-run ...` from a temporary non-repo working directory.
 
 
 #### `coverage`

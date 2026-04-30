@@ -5,7 +5,7 @@ import tempfile
 import unittest
 import venv
 
-_PIP_COMMAND_TIMEOUT_SECONDS = 120
+_COMMAND_TIMEOUT_SECONDS = 120
 
 
 class PromptCliInstallSmokeTests(unittest.TestCase):
@@ -27,12 +27,12 @@ class PromptCliInstallSmokeTests(unittest.TestCase):
                 text=True,
                 cwd=str(cwd) if cwd else None,
                 env=self._pip_env(),
-                timeout=_PIP_COMMAND_TIMEOUT_SECONDS,
+                timeout=_COMMAND_TIMEOUT_SECONDS,
             )
         except subprocess.TimeoutExpired as exc:
             self.fail(
                 "Timed out while running command after "
-                f"{_PIP_COMMAND_TIMEOUT_SECONDS}s: {exc.cmd}\n"
+                f"{_COMMAND_TIMEOUT_SECONDS}s: {exc.cmd}\n"
                 f"stdout:\n{exc.stdout or ''}\n"
                 f"stderr:\n{exc.stderr or ''}"
             )
@@ -75,23 +75,51 @@ class PromptCliInstallSmokeTests(unittest.TestCase):
             python_bin = venv_dir / "bin" / "python"
             lrh_bin = venv_dir / "bin" / "lrh"
 
-            install_editable = self._run_with_timeout(
+            dist_dir = temp_path / "dist"
+            dist_dir.mkdir(parents=True, exist_ok=True)
+
+            build_wheel = self._run_with_timeout(
+                [
+                    str(python_bin),
+                    "-m",
+                    "pip",
+                    "wheel",
+                    "--no-input",
+                    "--no-deps",
+                    "--wheel-dir",
+                    str(dist_dir),
+                    str(repo_root),
+                ]
+            )
+            self._maybe_skip_for_unavailable_build_deps(
+                build_wheel, install_mode="wheel build"
+            )
+            self.assertEqual(build_wheel.returncode, 0, msg=build_wheel.stderr)
+
+            wheel_paths = sorted(dist_dir.glob("*.whl"))
+            self.assertTrue(
+                wheel_paths,
+                msg=(
+                    f"No wheel was built in {dist_dir}. "
+                    f"pip wheel output:\n{build_wheel.stdout}\n{build_wheel.stderr}"
+                ),
+            )
+
+            install_wheel = self._run_with_timeout(
                 [
                     str(python_bin),
                     "-m",
                     "pip",
                     "install",
                     "--no-input",
-                    "-e",
-                    str(repo_root),
+                    "--no-deps",
+                    str(wheel_paths[0]),
                 ]
             )
             self._maybe_skip_for_unavailable_build_deps(
-                install_editable, install_mode="editable"
+                install_wheel, install_mode="wheel install"
             )
-            self.assertEqual(
-                install_editable.returncode, 0, msg=install_editable.stderr
-            )
+            self.assertEqual(install_wheel.returncode, 0, msg=install_wheel.stderr)
 
             help_result = self._run_with_timeout([str(lrh_bin), "--help"], cwd=run_dir)
             self.assertEqual(help_result.returncode, 0, msg=help_result.stderr)

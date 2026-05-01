@@ -1,5 +1,6 @@
 import datetime
 import pathlib
+import tempfile
 import unittest
 
 from lrh import prompt_workflow
@@ -48,6 +49,61 @@ class PromptWorkflowTest(unittest.TestCase):
         )
         self.assertIn("status: in_progress", content)
         self.assertIn("# Validation", content)
+
+    def test_find_matching_execution_records_finds_flat_and_grouped(self) -> None:
+        prompt_id = "PROMPT(AD_HOC:CHECK_EXEC)[2026-05-01T17:40:00-04:00]"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            flat_path = project_root / "project/executions/2026_05_01_A.md"
+            grouped_path = project_root / "project/executions/AD_HOC/2026_05_01_B.md"
+            flat_path.parent.mkdir(parents=True, exist_ok=True)
+            grouped_path.parent.mkdir(parents=True, exist_ok=True)
+            flat_path.write_text(
+                "---\nprompt_id: " + prompt_id + "\nstatus: landed\n---\n",
+                encoding="utf-8",
+            )
+            grouped_path.write_text(
+                "---\nprompt_id: " + prompt_id + "\nstatus: in_progress\n---\n",
+                encoding="utf-8",
+            )
+            matches = prompt_workflow.find_matching_execution_records(
+                str(project_root), prompt_id, "project/executions"
+            )
+        self.assertEqual(len(matches), 2)
+        self.assertEqual(matches[0][0].as_posix(), flat_path.as_posix())
+        self.assertEqual(matches[1][0].as_posix(), grouped_path.as_posix())
+
+    def test_find_matching_execution_records_returns_empty_for_unknown_prompt_id(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            record_path = project_root / "project/executions/AD_HOC/2026_05_01_A.md"
+            record_path.parent.mkdir(parents=True, exist_ok=True)
+            record_path.write_text(
+                "---\nprompt_id: PROMPT(AD_HOC:OTHER)"
+                "[2026-05-01T17:40:00-04:00]\nstatus: landed\n---\n",
+                encoding="utf-8",
+            )
+            matches = prompt_workflow.find_matching_execution_records(
+                str(project_root),
+                "PROMPT(AD_HOC:MISSING)[2026-05-01T17:40:00-04:00]",
+                "project/executions",
+            )
+        self.assertEqual(matches, [])
+
+    def test_parse_front_matter_fields_requires_closing_delimiter(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = pathlib.Path(temp_dir) / "missing_close.md"
+            path.write_text(
+                "---\nprompt_id: PROMPT(AD_HOC:BODY_REF)[2026-05-01T17:40:00-04:00]\n"
+                "status: landed\n"
+                "Body references prompt_id:"
+                " PROMPT(AD_HOC:BODY_REF)[2026-05-01T17:40:00-04:00]\n",
+                encoding="utf-8",
+            )
+            fields = prompt_workflow.parse_front_matter_fields(path)
+        self.assertEqual(fields, {})
 
 
 if __name__ == "__main__":

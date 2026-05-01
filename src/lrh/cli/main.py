@@ -399,7 +399,9 @@ def main() -> None:
                 raise SystemExit(0)
 
             if args.check:
-                needs_change = bool(plan.to_create or plan.to_update or plan.to_overwrite)
+                needs_change = bool(
+                    plan.to_create or plan.to_update or plan.to_overwrite
+                )
                 raise SystemExit(1 if needs_change else 0)
 
             result = bootstrap.apply_plan(
@@ -432,7 +434,8 @@ def main() -> None:
             raise SystemExit(0)
 
         parser.error(
-            "project requires a subcommand (try: lrh project init or lrh project doctor)"
+            "project requires a subcommand"
+            " (try: lrh project init or lrh project doctor)"
         )
 
     if args.command == "meta":

@@ -55,7 +55,9 @@ class ProjectDoctorCliTest(unittest.TestCase):
             )
             self.assertEqual(completed.returncode, 1, msg=completed.stderr)
             self.assertIn("missing required path: PROMPTS.md", completed.stdout)
-            self.assertIn("lrh project init --profile prompt-workflow", completed.stdout)
+            self.assertIn(
+                "lrh project init --profile prompt-workflow", completed.stdout
+            )
 
     def test_prompt_workflow_bootstrap_succeeds(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

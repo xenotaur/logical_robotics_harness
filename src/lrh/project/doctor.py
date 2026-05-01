@@ -50,7 +50,9 @@ def _check_path(findings: list[Finding], root: Path, relative_path: str) -> bool
     return exists
 
 
-def _check_optional_path(findings: list[Finding], root: Path, relative_path: str) -> None:
+def _check_optional_path(
+    findings: list[Finding], root: Path, relative_path: str
+) -> None:
     target = root / relative_path
     if target.exists():
         findings.append(
@@ -103,9 +105,7 @@ def diagnose_project(project_root: Path) -> Diagnosis:
         _check_optional_path(findings, root, relative_path)
 
     missing_required_paths = {
-        finding.path
-        for finding in findings
-        if finding.code == "missing_required"
+        finding.path for finding in findings if finding.code == "missing_required"
     }
     if missing_required_paths:
         common_paths = {

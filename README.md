@@ -297,3 +297,21 @@ lrh request review_response https://github.com/owner/repo/pull/123 | tee /tmp/re
 ```
 
 This command emits the full prompt when unresolved threads exist. If there are no unresolved threads, it prints a concise "Nothing to resolve" success message by default; pass --force to emit the full prompt anyway.
+### Project bootstrap templates
+
+Use package-owned bootstrap templates to initialize LRH-compatible scaffolding in any repository:
+
+```bash
+lrh project init --profile minimal
+lrh project init --profile prompt-workflow
+lrh project init --profile full
+```
+
+Safety controls:
+
+- `--project-root <path>` target repo root
+- `--dry-run` preview files without writing
+- `--check` exit non-zero when files are missing/outdated
+- `--force` allow overwriting existing files
+
+

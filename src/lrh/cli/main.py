@@ -13,6 +13,7 @@ from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
+from lrh.project import bootstrap
 
 
 def main() -> None:
@@ -76,6 +77,31 @@ def main() -> None:
         add_help=False,
         help="Prompt workflow helper commands.",
     )
+
+
+    project_parser = subparsers.add_parser(
+        "project",
+        help="Project bootstrap and management helpers.",
+    )
+    project_subparsers = project_parser.add_subparsers(dest="project_command")
+    project_init_parser = project_subparsers.add_parser(
+        "init",
+        help="Initialize LRH project-control scaffolding from package templates.",
+    )
+    project_init_parser.add_argument(
+        "--profile",
+        choices=("minimal", "prompt-workflow", "full"),
+        default="minimal",
+        help="bootstrap profile to apply (default: minimal)",
+    )
+    project_init_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    project_init_parser.add_argument("--dry-run", action="store_true", help="preview changes without writing files")
+    project_init_parser.add_argument("--check", action="store_true", help="exit non-zero when changes would be needed")
+    project_init_parser.add_argument("--force", action="store_true", help="allow overwriting existing files")
 
     meta_parser = subparsers.add_parser(
         "meta",
@@ -310,6 +336,7 @@ def main() -> None:
             )
         )
 
+
     if args.command == "prompt":
         raise SystemExit(
             prompt_workflow.run_prompt_cli(
@@ -317,6 +344,43 @@ def main() -> None:
                 prog="lrh prompt",
             )
         )
+
+    if args.command == "project":
+        if args.project_command != "init":
+            parser.error("project requires a subcommand (try: lrh project init)")
+        if passthrough_args:
+            parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+
+        project_root = Path(args.project_root).expanduser().resolve()
+        plan = bootstrap.build_plan(
+            project_root=project_root,
+            profile=args.profile,
+            force=args.force,
+        )
+        if bootstrap.format_plan(plan, project_root):
+            print(bootstrap.format_plan(plan, project_root))
+        print(
+            f"summary: create={len(plan.to_create)} "
+            f"skip={len(plan.to_skip)} overwrite={len(plan.to_overwrite)}"
+        )
+
+        if args.dry_run:
+            raise SystemExit(0)
+
+        if args.check:
+            needs_change = bool(plan.to_create or plan.to_overwrite)
+            raise SystemExit(1 if needs_change else 0)
+
+        result = bootstrap.apply_plan(
+            project_root=project_root,
+            profile=args.profile,
+            force=args.force,
+        )
+        print(
+            f"applied: created={len(result.created)} "
+            f"skipped={len(result.skipped)} overwritten={len(result.overwritten)}"
+        )
+        raise SystemExit(0)
 
     if args.command == "meta":
         if args.meta_command == "init":

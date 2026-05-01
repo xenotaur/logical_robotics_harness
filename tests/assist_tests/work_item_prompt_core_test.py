@@ -64,6 +64,8 @@ class TestWorkItemPromptCore(unittest.TestCase):
             self.assertIn("# SUCCESS CRITERIA", prompt)
             self.assertIn("Run `scripts/test`", prompt)
             self.assertIn("Prompt ID: `PROMPT(AD_HOC:TEST)", prompt)
+            self.assertIn("If `AGENTS.md` exists, read and follow it.", prompt)
+            self.assertIn("Prefer `lrh prompt record-execution` if LRH is installed.", prompt)
             self.assertIn(
                 "Add focused tests only where needed for this work item", prompt
             )

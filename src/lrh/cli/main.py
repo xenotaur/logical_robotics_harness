@@ -1,5 +1,7 @@
 """Initial CLI entrypoint for Logical Robotics Harness."""
 
+# PYTHON_ARGCOMPLETE_OK
+
 from __future__ import annotations
 
 import argparse
@@ -10,6 +12,7 @@ from pathlib import Path
 from lrh import prompt_workflow
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
+from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
@@ -316,6 +319,8 @@ def main() -> None:
             parser.print_help()
             raise SystemExit(0)
         argv = [*argv[1:], "--help"]
+
+    argcomplete_adapter.enable_completion(parser)
 
     args, passthrough_args = parser.parse_known_args(argv)
 

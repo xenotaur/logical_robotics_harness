@@ -6,8 +6,11 @@ Create a tightly scoped Codex implementation prompt for one approved LRH work it
 INPUT CONTEXT
 ==================================================
 
-STYLE GUIDE:
-- Read and follow `{{STYLE_GUIDE_PATH}}`
+REPOSITORY GUIDANCE:
+- If `AGENTS.md` exists, read and follow it.
+- If `{{STYLE_GUIDE_PATH}}` exists, read and follow it.
+- If `PROMPTS.md` exists, follow its prompt-ID, execution-record, and rerun conventions.
+- If any are missing, do not invent requirements. Use existing local conventions, inspect nearby files, and report missing guidance as a bootstrapping gap.
 
 APPROVED WORK ITEM:
 - Implement only the approved work item at `{{WORK_ITEM_PATH}}`
@@ -26,7 +29,7 @@ The generated prompt should be:
 - narrow in scope
 - conservative
 - easy to review
-- aligned with STYLE.md
+- aligned with repository guidance and local style constraints
 - explicit about what is in scope and out of scope
 - explicit about validation steps
 
@@ -42,7 +45,7 @@ AUTHORITATIVE CONSTRAINTS
 
 The generated Codex prompt must treat the following as binding:
 
-- STYLE.md is the source of truth
+- repository guidance files are authoritative when present
 - the approved work item defines the allowed scope
 - unrelated code must not be modified
 - behavior must not change unless the work item explicitly requires it
@@ -62,7 +65,7 @@ The generated prompt must instruct Codex to:
 3. Avoid unrelated cleanup
 4. Preserve comments unless a change requires updating them
 5. Preserve local file style where possible
-6. Follow STYLE.md rules on:
+6. Follow local style and process rules from discovered repository guidance files (for example `{{STYLE_GUIDE_PATH}}`) on:
    - imports
    - type annotations
    - testing
@@ -70,6 +73,13 @@ The generated prompt must instruct Codex to:
    - AI-assisted development constraints
 7. Run or report relevant validation commands
 8. Summarize what changed and what was intentionally not changed
+9. Record execution status with portable execution-record guidance
+
+Execution record guidance for the generated prompt:
+
+- Prefer `lrh prompt record-execution` if LRH is installed.
+- If unavailable but `PROMPTS.md` and `project/executions/` exist, create/update the record manually using repository conventions.
+- If the project has no prompt workflow scaffolding yet, report that execution recording was skipped because the project is not bootstrapped.
 
 ==================================================
 WHAT THE GENERATED PROMPT MUST NOT DO
@@ -119,7 +129,7 @@ You are a senior Python engineer making a single, tightly scoped repository chan
 
 # AUTHORITATIVE REFERENCES
 
-- STYLE.md
+- repository guidance files when present (`AGENTS.md`, `{{STYLE_GUIDE_PATH}}`, `PROMPTS.md`)
 - the approved work item below
 
 # OBJECTIVE
@@ -144,7 +154,7 @@ You are a senior Python engineer making a single, tightly scoped repository chan
 
 # VALIDATION
 
-<commands to run, such as scripts/test and scripts/lint, if appropriate>
+<commands to run that exist in the target repo (for example `scripts/test`, `scripts/lint`, `pytest`, `ruff`, or project-specific equivalents); if missing, report the gap>
 
 # OUTPUT REQUIREMENTS
 
@@ -235,7 +245,7 @@ A bad result:
 - turns one work item into a broad cleanup
 - omits validation
 - leaves scope ambiguous
-- ignores STYLE.md constraints
+- ignores available repository guidance constraints
 - assumes unstated implementation details
 
 ==================================================
@@ -249,7 +259,7 @@ Before finishing, verify:
 3. Are out-of-scope items clearly forbidden?
 4. Are validation steps included?
 5. Does the prompt tell Codex to report uncertainty rather than guess?
-6. Does it reflect STYLE.md’s minimal-diff and no-noise philosophy?
+6. Does it reflect the repository's minimal-diff and no-noise conventions?
 
 If not, revise.
 

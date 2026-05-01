@@ -199,7 +199,7 @@ result to decide whether to merge, request fixes, or split follow-up work.
 After opening the PR, create/update an execution record for traceability:
 
 ```bash
-scripts/prompts/record-execution \
+lrh prompt record-execution \
   --prompt-id "<PROMPT_ID>" \
   --work-item <WORK_ITEM_ID> \
   --slug <slug> \
@@ -207,6 +207,11 @@ scripts/prompts/record-execution \
   --pr <pr_reference> \
   --commit <head_sha>
 ```
+
+Fallback behavior for non-bootstrapped repositories:
+
+- If `lrh` is unavailable but `PROMPTS.md` and `project/executions/` exist, write the execution record manually using repository conventions.
+- If prompt workflow scaffolding is absent, report that execution recording was skipped because the repository is not bootstrapped yet.
 
 ### Notes
 

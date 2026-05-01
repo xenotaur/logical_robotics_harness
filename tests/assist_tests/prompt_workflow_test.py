@@ -81,7 +81,8 @@ class PromptWorkflowTest(unittest.TestCase):
             record_path = project_root / "project/executions/AD_HOC/2026_05_01_A.md"
             record_path.parent.mkdir(parents=True, exist_ok=True)
             record_path.write_text(
-                "---\nprompt_id: PROMPT(AD_HOC:OTHER)[2026-05-01T17:40:00-04:00]\nstatus: landed\n---\n",
+                "---\nprompt_id: PROMPT(AD_HOC:OTHER)"
+                "[2026-05-01T17:40:00-04:00]\nstatus: landed\n---\n",
                 encoding="utf-8",
             )
             matches = prompt_workflow.find_matching_execution_records(
@@ -97,7 +98,8 @@ class PromptWorkflowTest(unittest.TestCase):
             path.write_text(
                 "---\nprompt_id: PROMPT(AD_HOC:BODY_REF)[2026-05-01T17:40:00-04:00]\n"
                 "status: landed\n"
-                "Body references prompt_id: PROMPT(AD_HOC:BODY_REF)[2026-05-01T17:40:00-04:00]\n",
+                "Body references prompt_id:"
+                " PROMPT(AD_HOC:BODY_REF)[2026-05-01T17:40:00-04:00]\n",
                 encoding="utf-8",
             )
             fields = prompt_workflow.parse_front_matter_fields(path)

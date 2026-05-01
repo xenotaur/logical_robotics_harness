@@ -91,6 +91,18 @@ class PromptWorkflowTest(unittest.TestCase):
             )
         self.assertEqual(matches, [])
 
+    def test_parse_front_matter_fields_requires_closing_delimiter(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            path = pathlib.Path(temp_dir) / "missing_close.md"
+            path.write_text(
+                "---\nprompt_id: PROMPT(AD_HOC:BODY_REF)[2026-05-01T17:40:00-04:00]\n"
+                "status: landed\n"
+                "Body references prompt_id: PROMPT(AD_HOC:BODY_REF)[2026-05-01T17:40:00-04:00]\n",
+                encoding="utf-8",
+            )
+            fields = prompt_workflow.parse_front_matter_fields(path)
+        self.assertEqual(fields, {})
+
 
 if __name__ == "__main__":
     unittest.main()

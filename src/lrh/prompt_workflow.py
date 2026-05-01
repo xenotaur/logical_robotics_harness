@@ -6,6 +6,7 @@ import argparse
 import datetime
 import pathlib
 import re
+import sys
 
 VALID_STATUSES = {
     "planned",
@@ -99,19 +100,24 @@ def render_execution_content(
 
 
 def parse_front_matter_fields(path: pathlib.Path) -> dict[str, str]:
-    text = path.read_text(encoding="utf-8")
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return {}
+    with path.open("r", encoding="utf-8") as handle:
+        first_line = handle.readline()
+        if first_line.strip() != "---":
+            return {}
 
-    fields: dict[str, str] = {}
-    for line in lines[1:]:
-        if line.strip() == "---":
-            break
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        fields[key.strip()] = value.strip()
+        fields: dict[str, str] = {}
+        found_closing_delimiter = False
+        for line in handle:
+            if line.strip() == "---":
+                found_closing_delimiter = True
+                break
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            fields[key.strip()] = value.strip()
+
+    if not found_closing_delimiter:
+        return {}
     return fields
 
 
@@ -184,10 +190,13 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
         for path, status in matches:
             print(f"{path.as_posix()}\tstatus={status}")
         if not matches:
-            print("No execution records found for prompt_id.")
+            print("No execution records found for prompt_id.", file=sys.stderr)
             return 1
         if len(matches) > 1:
-            print("Ambiguous: multiple execution records found; human review required.")
+            print(
+                "Ambiguous: multiple execution records found; human review required.",
+                file=sys.stderr,
+            )
             return 2
         return 0
 

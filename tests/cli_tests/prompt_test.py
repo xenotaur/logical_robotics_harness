@@ -103,6 +103,8 @@ class PromptCliTest(unittest.TestCase):
                 cwd=self._repo_root(),
             )
         self.assertEqual(completed.returncode, 1, msg=completed.stderr)
+        self.assertEqual(completed.stdout, "")
+        self.assertIn("No execution records found", completed.stderr)
 
     def test_lrh_prompt_check_execution_found_returns_0(self) -> None:
         prompt_id = "PROMPT(AD_HOC:FOUND)[2026-05-01T17:40:00-04:00]"
@@ -166,7 +168,9 @@ class PromptCliTest(unittest.TestCase):
                 cwd=self._repo_root(),
             )
         self.assertEqual(completed.returncode, 2, msg=completed.stderr)
-        self.assertIn("human review required", completed.stdout)
+        self.assertIn("status=landed", completed.stdout)
+        self.assertIn("status=in_progress", completed.stdout)
+        self.assertIn("human review required", completed.stderr)
 
     def test_lrh_prompt_check_execution_project_root_from_outside_repo(self) -> None:
         prompt_id = "PROMPT(AD_HOC:OUTSIDE)[2026-05-01T17:40:00-04:00]"

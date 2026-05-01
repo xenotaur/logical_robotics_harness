@@ -2,6 +2,9 @@
 
 Execution records live under `project/executions/<WORK_ITEM_OR_AD_HOC>/`.
 
+For the canonical execution-record schema and allowed status values, see
+`project/executions/README.md`.
+
 Use concise records with front matter fields:
 
 - execution_id
@@ -9,3 +12,6 @@ Use concise records with front matter fields:
 - work_item
 - status
 - created_at
+- rerun_of
+- pr
+- commit

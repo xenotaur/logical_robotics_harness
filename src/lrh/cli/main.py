@@ -99,9 +99,21 @@ def main() -> None:
         default=".",
         help="target repository root (default: current directory)",
     )
-    project_init_parser.add_argument("--dry-run", action="store_true", help="preview changes without writing files")
-    project_init_parser.add_argument("--check", action="store_true", help="exit non-zero when changes would be needed")
-    project_init_parser.add_argument("--force", action="store_true", help="allow overwriting existing files")
+    project_init_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="preview changes without writing files",
+    )
+    project_init_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="exit non-zero when changes would be needed",
+    )
+    project_init_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="allow overwriting existing files",
+    )
 
     meta_parser = subparsers.add_parser(
         "meta",
@@ -357,18 +369,22 @@ def main() -> None:
             profile=args.profile,
             force=args.force,
         )
-        if bootstrap.format_plan(plan, project_root):
-            print(bootstrap.format_plan(plan, project_root))
+        formatted_plan = bootstrap.format_plan(plan, project_root)
+        if formatted_plan:
+            print(formatted_plan)
         print(
             f"summary: create={len(plan.to_create)} "
-            f"skip={len(plan.to_skip)} overwrite={len(plan.to_overwrite)}"
+            f"skip={len(plan.to_skip)} update={len(plan.to_update)} "
+            f"overwrite={len(plan.to_overwrite)}"
         )
 
         if args.dry_run:
             raise SystemExit(0)
 
         if args.check:
-            needs_change = bool(plan.to_create or plan.to_overwrite)
+            needs_change = bool(
+                plan.to_create or plan.to_update or plan.to_overwrite
+            )
             raise SystemExit(1 if needs_change else 0)
 
         result = bootstrap.apply_plan(
@@ -378,7 +394,8 @@ def main() -> None:
         )
         print(
             f"applied: created={len(result.created)} "
-            f"skipped={len(result.skipped)} overwritten={len(result.overwritten)}"
+            f"skipped={len(result.skipped)} updated={len(result.updated)} "
+            f"overwritten={len(result.overwritten)}"
         )
         raise SystemExit(0)
 

@@ -63,7 +63,7 @@ class ProjectInitCliTest(unittest.TestCase):
                 cwd=self._repo_root(),
             )
             self.assertEqual(completed.returncode, 0, msg=completed.stderr)
-            self.assertIn("SKIP PROMPTS.md", completed.stdout)
+            self.assertIn("UPDATE PROMPTS.md", completed.stdout)
             self.assertEqual(prompts.read_text(encoding="utf-8"), "custom\n")
 
     def test_force_overwrites_existing_files(self) -> None:
@@ -86,6 +86,44 @@ class ProjectInitCliTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 0, msg=completed.stderr)
             self.assertIn("OVERWRITE PROMPTS.md", completed.stdout)
             self.assertNotEqual(prompts.read_text(encoding="utf-8"), "custom\n")
+
+    def test_check_returns_nonzero_when_bootstrap_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            completed = self._run(
+                ["project", "init", "--profile", "minimal", "--project-root", str(root), "--check"],
+                cwd=self._repo_root(),
+            )
+            self.assertEqual(completed.returncode, 1, msg=completed.stderr)
+            self.assertIn("CREATE", completed.stdout)
+
+    def test_check_returns_zero_when_up_to_date(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            self._run(
+                ["project", "init", "--profile", "minimal", "--project-root", str(root)],
+                cwd=self._repo_root(),
+            )
+            completed = self._run(
+                ["project", "init", "--profile", "minimal", "--project-root", str(root), "--check"],
+                cwd=self._repo_root(),
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+
+    def test_check_detects_drifted_file_as_update(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            self._run(
+                ["project", "init", "--profile", "prompt-workflow", "--project-root", str(root)],
+                cwd=self._repo_root(),
+            )
+            (root / "PROMPTS.md").write_text("drift\n", encoding="utf-8")
+            completed = self._run(
+                ["project", "init", "--profile", "prompt-workflow", "--project-root", str(root), "--check"],
+                cwd=self._repo_root(),
+            )
+            self.assertEqual(completed.returncode, 1, msg=completed.stderr)
+            self.assertIn("UPDATE PROMPTS.md", completed.stdout)
 
 
 if __name__ == "__main__":

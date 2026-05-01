@@ -87,21 +87,53 @@ def diagnose_project(project_root: Path) -> Diagnosis:
         "project/status",
         "project/executions",
         "project/executions/README.md",
-        "AGENTS.md",
-        "STYLE.md",
         "PROMPTS.md",
     ]
     for relative_path in required_paths:
         _check_path(findings, root, relative_path)
 
-    recommended_paths = ["scripts/test", "scripts/lint", "scripts/format"]
+    recommended_paths = [
+        "AGENTS.md",
+        "STYLE.md",
+        "scripts/test",
+        "scripts/lint",
+        "scripts/format",
+    ]
     for relative_path in recommended_paths:
         _check_optional_path(findings, root, relative_path)
 
-    if any(
-        finding.code == "missing_required"
+    missing_required_paths = {
+        finding.path
         for finding in findings
-    ):
+        if finding.code == "missing_required"
+    }
+    if missing_required_paths:
+        common_paths = {
+            "project",
+            "project/principles",
+            "project/goal",
+            "project/roadmap",
+            "project/focus",
+            "project/work_items",
+            "project/evidence",
+            "project/status",
+        }
+        prompt_workflow_paths = {
+            "PROMPTS.md",
+            "project/executions",
+            "project/executions/README.md",
+        }
+
+        missing_common = bool(common_paths & missing_required_paths)
+        missing_prompt_workflow = bool(prompt_workflow_paths & missing_required_paths)
+
+        if missing_common and missing_prompt_workflow:
+            profile = "full"
+        elif missing_common:
+            profile = "minimal"
+        else:
+            profile = "prompt-workflow"
+
         findings.append(
             Finding(
                 severity="info",
@@ -109,7 +141,7 @@ def diagnose_project(project_root: Path) -> Diagnosis:
                 path=".",
                 message=(
                     "scaffolding is incomplete; run: "
-                    "lrh project init --profile prompt-workflow "
+                    f"lrh project init --profile {profile} "
                     f"--project-root {root}"
                 ),
             )

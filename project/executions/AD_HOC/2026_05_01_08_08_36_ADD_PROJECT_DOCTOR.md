@@ -2,10 +2,10 @@
 execution_id: 2026_05_01_08_08_36_ADD_PROJECT_DOCTOR
 prompt_id: PROMPT(WI-INSTALLED-PROMPT-WORKFLOW:ADD_PROJECT_DOCTOR)[2026-04-29T22:10:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
-commit: 6af2896
+commit: 
 created_at: 2026-05-01T08:08:36+00:00
 ---
 

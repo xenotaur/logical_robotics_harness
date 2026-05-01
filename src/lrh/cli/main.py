@@ -431,7 +431,9 @@ def main() -> None:
                 raise SystemExit(1)
             raise SystemExit(0)
 
-        parser.error("project requires a subcommand (try: lrh project init)")
+        parser.error(
+            "project requires a subcommand (try: lrh project init or lrh project doctor)"
+        )
 
     if args.command == "meta":
         if args.meta_command == "init":

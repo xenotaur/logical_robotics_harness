@@ -31,9 +31,9 @@ class ProjectDoctorCliTest(unittest.TestCase):
             )
             self.assertEqual(completed.returncode, 1, msg=completed.stderr)
             self.assertIn("missing required path: project", completed.stdout)
-            self.assertIn("lrh project init --profile prompt-workflow", completed.stdout)
+            self.assertIn("lrh project init --profile full", completed.stdout)
 
-    def test_minimal_bootstrap_has_warnings_but_no_errors(self) -> None:
+    def test_minimal_bootstrap_reports_prompt_workflow_gaps(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
             init_completed = self._run(
@@ -54,7 +54,8 @@ class ProjectDoctorCliTest(unittest.TestCase):
                 cwd=self._repo_root(),
             )
             self.assertEqual(completed.returncode, 1, msg=completed.stderr)
-            self.assertIn("WARNING", completed.stdout)
+            self.assertIn("missing required path: PROMPTS.md", completed.stdout)
+            self.assertIn("lrh project init --profile prompt-workflow", completed.stdout)
 
     def test_prompt_workflow_bootstrap_succeeds(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

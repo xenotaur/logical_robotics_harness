@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import importlib.resources
+from dataclasses import dataclass
 from pathlib import Path
-
 
 _TEMPLATE_ROOT = "lrh"
 _TEMPLATE_BASE = Path("templates") / "project_bootstrap"
@@ -85,7 +84,9 @@ def build_plan(project_root: Path, profile: str, force: bool = False) -> Bootstr
     )
 
 
-def apply_plan(project_root: Path, profile: str, force: bool = False) -> BootstrapResult:
+def apply_plan(
+    project_root: Path, profile: str, force: bool = False
+) -> BootstrapResult:
     plan = build_plan(project_root=project_root, profile=profile, force=force)
 
     created: list[Path] = []
@@ -97,7 +98,9 @@ def apply_plan(project_root: Path, profile: str, force: bool = False) -> Bootstr
             if target.exists() and not force:
                 continue
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(template_file.read_text(encoding="utf-8"), encoding="utf-8")
+            target.write_text(
+                template_file.read_text(encoding="utf-8"), encoding="utf-8"
+            )
             if target in plan.to_overwrite:
                 overwritten.append(target)
             elif target in plan.to_create:

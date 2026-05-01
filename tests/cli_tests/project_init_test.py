@@ -10,7 +10,9 @@ class ProjectInitCliTest(unittest.TestCase):
     def _repo_root(self) -> pathlib.Path:
         return pathlib.Path(__file__).resolve().parents[2]
 
-    def _run(self, args: list[str], cwd: pathlib.Path) -> subprocess.CompletedProcess[str]:
+    def _run(
+        self, args: list[str], cwd: pathlib.Path
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, "-m", "lrh.cli.main", *args],
             check=False,
@@ -24,7 +26,14 @@ class ProjectInitCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
             completed = self._run(
-                ["project", "init", "--profile", "minimal", "--project-root", str(root)],
+                [
+                    "project",
+                    "init",
+                    "--profile",
+                    "minimal",
+                    "--project-root",
+                    str(root),
+                ],
                 cwd=self._repo_root(),
             )
             self.assertEqual(completed.returncode, 0, msg=completed.stderr)
@@ -35,7 +44,14 @@ class ProjectInitCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
             completed = self._run(
-                ["project", "init", "--profile", "prompt-workflow", "--project-root", str(root)],
+                [
+                    "project",
+                    "init",
+                    "--profile",
+                    "prompt-workflow",
+                    "--project-root",
+                    str(root),
+                ],
                 cwd=self._repo_root(),
             )
             self.assertEqual(completed.returncode, 0, msg=completed.stderr)
@@ -46,7 +62,15 @@ class ProjectInitCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
             completed = self._run(
-                ["project", "init", "--profile", "full", "--project-root", str(root), "--dry-run"],
+                [
+                    "project",
+                    "init",
+                    "--profile",
+                    "full",
+                    "--project-root",
+                    str(root),
+                    "--dry-run",
+                ],
                 cwd=self._repo_root(),
             )
             self.assertEqual(completed.returncode, 0, msg=completed.stderr)
@@ -59,7 +83,14 @@ class ProjectInitCliTest(unittest.TestCase):
             prompts = root / "PROMPTS.md"
             prompts.write_text("custom\n", encoding="utf-8")
             completed = self._run(
-                ["project", "init", "--profile", "prompt-workflow", "--project-root", str(root)],
+                [
+                    "project",
+                    "init",
+                    "--profile",
+                    "prompt-workflow",
+                    "--project-root",
+                    str(root),
+                ],
                 cwd=self._repo_root(),
             )
             self.assertEqual(completed.returncode, 0, msg=completed.stderr)
@@ -91,7 +122,15 @@ class ProjectInitCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
             completed = self._run(
-                ["project", "init", "--profile", "minimal", "--project-root", str(root), "--check"],
+                [
+                    "project",
+                    "init",
+                    "--profile",
+                    "minimal",
+                    "--project-root",
+                    str(root),
+                    "--check",
+                ],
                 cwd=self._repo_root(),
             )
             self.assertEqual(completed.returncode, 1, msg=completed.stderr)
@@ -101,11 +140,26 @@ class ProjectInitCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
             self._run(
-                ["project", "init", "--profile", "minimal", "--project-root", str(root)],
+                [
+                    "project",
+                    "init",
+                    "--profile",
+                    "minimal",
+                    "--project-root",
+                    str(root),
+                ],
                 cwd=self._repo_root(),
             )
             completed = self._run(
-                ["project", "init", "--profile", "minimal", "--project-root", str(root), "--check"],
+                [
+                    "project",
+                    "init",
+                    "--profile",
+                    "minimal",
+                    "--project-root",
+                    str(root),
+                    "--check",
+                ],
                 cwd=self._repo_root(),
             )
             self.assertEqual(completed.returncode, 0, msg=completed.stderr)
@@ -114,12 +168,27 @@ class ProjectInitCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
             self._run(
-                ["project", "init", "--profile", "prompt-workflow", "--project-root", str(root)],
+                [
+                    "project",
+                    "init",
+                    "--profile",
+                    "prompt-workflow",
+                    "--project-root",
+                    str(root),
+                ],
                 cwd=self._repo_root(),
             )
             (root / "PROMPTS.md").write_text("drift\n", encoding="utf-8")
             completed = self._run(
-                ["project", "init", "--profile", "prompt-workflow", "--project-root", str(root), "--check"],
+                [
+                    "project",
+                    "init",
+                    "--profile",
+                    "prompt-workflow",
+                    "--project-root",
+                    str(root),
+                    "--check",
+                ],
                 cwd=self._repo_root(),
             )
             self.assertEqual(completed.returncode, 1, msg=completed.stderr)

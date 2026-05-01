@@ -78,7 +78,6 @@ def main() -> None:
         help="Prompt workflow helper commands.",
     )
 
-
     project_parser = subparsers.add_parser(
         "project",
         help="Project bootstrap and management helpers.",
@@ -348,7 +347,6 @@ def main() -> None:
             )
         )
 
-
     if args.command == "prompt":
         raise SystemExit(
             prompt_workflow.run_prompt_cli(
@@ -382,9 +380,7 @@ def main() -> None:
             raise SystemExit(0)
 
         if args.check:
-            needs_change = bool(
-                plan.to_create or plan.to_update or plan.to_overwrite
-            )
+            needs_change = bool(plan.to_create or plan.to_update or plan.to_overwrite)
             raise SystemExit(1 if needs_change else 0)
 
         result = bootstrap.apply_plan(

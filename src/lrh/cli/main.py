@@ -13,7 +13,7 @@ from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
-from lrh.project import bootstrap
+from lrh.project import bootstrap, doctor
 
 
 def main() -> None:
@@ -112,6 +112,26 @@ def main() -> None:
         "--force",
         action="store_true",
         help="allow overwriting existing files",
+    )
+
+    project_doctor_parser = project_subparsers.add_parser(
+        "doctor",
+        help="Diagnose LRH project bootstrap readiness.",
+    )
+    project_doctor_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    project_doctor_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="emit deterministic JSON output",
+    )
+    project_doctor_parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="return non-zero when warnings are present",
     )
 
     meta_parser = subparsers.add_parser(
@@ -356,44 +376,67 @@ def main() -> None:
         )
 
     if args.command == "project":
-        if args.project_command != "init":
-            parser.error("project requires a subcommand (try: lrh project init)")
-        if passthrough_args:
-            parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+        if args.project_command == "init":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
 
-        project_root = Path(args.project_root).expanduser().resolve()
-        plan = bootstrap.build_plan(
-            project_root=project_root,
-            profile=args.profile,
-            force=args.force,
-        )
-        formatted_plan = bootstrap.format_plan(plan, project_root)
-        if formatted_plan:
-            print(formatted_plan)
-        print(
-            f"summary: create={len(plan.to_create)} "
-            f"skip={len(plan.to_skip)} update={len(plan.to_update)} "
-            f"overwrite={len(plan.to_overwrite)}"
-        )
+            project_root = Path(args.project_root).expanduser().resolve()
+            plan = bootstrap.build_plan(
+                project_root=project_root,
+                profile=args.profile,
+                force=args.force,
+            )
+            formatted_plan = bootstrap.format_plan(plan, project_root)
+            if formatted_plan:
+                print(formatted_plan)
+            print(
+                f"summary: create={len(plan.to_create)} "
+                f"skip={len(plan.to_skip)} update={len(plan.to_update)} "
+                f"overwrite={len(plan.to_overwrite)}"
+            )
 
-        if args.dry_run:
+            if args.dry_run:
+                raise SystemExit(0)
+
+            if args.check:
+                needs_change = bool(
+                    plan.to_create or plan.to_update or plan.to_overwrite
+                )
+                raise SystemExit(1 if needs_change else 0)
+
+            result = bootstrap.apply_plan(
+                project_root=project_root,
+                profile=args.profile,
+                force=args.force,
+            )
+            print(
+                f"applied: created={len(result.created)} "
+                f"skipped={len(result.skipped)} updated={len(result.updated)} "
+                f"overwritten={len(result.overwritten)}"
+            )
             raise SystemExit(0)
 
-        if args.check:
-            needs_change = bool(plan.to_create or plan.to_update or plan.to_overwrite)
-            raise SystemExit(1 if needs_change else 0)
+        if args.project_command == "doctor":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
 
-        result = bootstrap.apply_plan(
-            project_root=project_root,
-            profile=args.profile,
-            force=args.force,
+            project_root = Path(args.project_root).expanduser().resolve()
+            diagnosis = doctor.diagnose_project(project_root)
+            if args.json:
+                print(doctor.format_json_report(diagnosis))
+            else:
+                print(doctor.format_text_report(diagnosis))
+
+            if diagnosis.has_errors():
+                raise SystemExit(1)
+            if args.strict and diagnosis.has_warnings():
+                raise SystemExit(1)
+            raise SystemExit(0)
+
+        parser.error(
+            "project requires a subcommand"
+            " (try: lrh project init or lrh project doctor)"
         )
-        print(
-            f"applied: created={len(result.created)} "
-            f"skipped={len(result.skipped)} updated={len(result.updated)} "
-            f"overwritten={len(result.overwritten)}"
-        )
-        raise SystemExit(0)
 
     if args.command == "meta":
         if args.meta_command == "init":

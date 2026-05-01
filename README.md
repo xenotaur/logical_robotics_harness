@@ -299,6 +299,12 @@ lrh request review_response https://github.com/owner/repo/pull/123 | tee /tmp/re
 This command emits the full prompt when unresolved threads exist. If there are no unresolved threads, it prints a concise "Nothing to resolve" success message by default; pass --force to emit the full prompt anyway.
 ### Project bootstrap templates
 
+Start with diagnostics before scaffolding:
+
+```bash
+lrh project doctor --project-root /path/to/repo
+```
+
 Use package-owned bootstrap templates to initialize LRH-compatible scaffolding in any repository:
 
 ```bash

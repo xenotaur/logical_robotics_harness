@@ -386,7 +386,9 @@ class TestCodexPromptFromWorkItemTemplate(unittest.TestCase):
         self.assertIn("If `AGENTS.md` exists, read and follow it.", rendered)
         self.assertIn("If `STYLE.md` exists, read and follow it.", rendered)
         self.assertIn("If `PROMPTS.md` exists, follow its prompt-ID", rendered)
-        self.assertIn("Prefer `lrh prompt record-execution` if LRH is installed.", rendered)
+        self.assertIn(
+            "Prefer `lrh prompt record-execution` if LRH is installed.", rendered
+        )
         self.assertNotIn("scripts/prompts/record-execution", rendered)
         self.assertIn(
             "Approved work item: "

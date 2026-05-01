@@ -45,15 +45,17 @@ class TestTemplatePathAndLoading(unittest.TestCase):
 
             self.assertEqual(loaded, "hello café\n")
 
-
-
     def test_codex_prompt_template_uses_portable_repository_guidance(self) -> None:
         loaded = request_templates.load_template_text("codex_prompt_from_work_item")
         self.assertIn("If `AGENTS.md` exists, read and follow it.", loaded)
         self.assertIn("If `PROMPTS.md` exists, follow its prompt-ID", loaded)
-        self.assertIn("Prefer `lrh prompt record-execution` if LRH is installed.", loaded)
+        self.assertIn(
+            "Prefer `lrh prompt record-execution` if LRH is installed.", loaded
+        )
 
-    def test_codex_prompt_template_avoids_repo_local_record_script_assumptions(self) -> None:
+    def test_codex_prompt_template_avoids_repo_local_record_script_assumptions(
+        self,
+    ) -> None:
         loaded = request_templates.load_template_text("codex_prompt_from_work_item")
         self.assertNotIn("scripts/prompts/record-execution", loaded)
         self.assertIn("if missing, report the gap", loaded)

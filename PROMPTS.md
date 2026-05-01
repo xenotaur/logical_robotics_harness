@@ -137,8 +137,12 @@ When LRH is installed, prefer package-owned commands that support explicit targe
 
 ```bash
 lrh prompt label --work-item WI-EXAMPLE --slug implement-example --project-root /path/to/client-repo
+lrh prompt check-execution --prompt-id "PROMPT(WI-EXAMPLE:IMPLEMENT_EXAMPLE)[2026-04-24T20:15:00-04:00]" --project-root /path/to/client-repo
 lrh prompt record-execution --prompt-id "PROMPT(WI-EXAMPLE:IMPLEMENT_EXAMPLE)[2026-04-24T20:15:00-04:00]" --work-item WI-EXAMPLE --slug implement-example --project-root /path/to/client-repo --status in_progress
 ```
+
+Use `lrh prompt check-execution` before meaningful prompt-driven PR work to support
+soft idempotence checks against existing execution records.
 
 These commands preserve the same prompt ID and execution-record formats as the repository-local helper scripts.
 

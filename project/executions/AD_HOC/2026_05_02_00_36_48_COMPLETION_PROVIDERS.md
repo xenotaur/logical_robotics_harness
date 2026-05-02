@@ -2,7 +2,7 @@
 execution_id: 2026_05_02_00_36_48_COMPLETION_PROVIDERS
 prompt_id: PROMPT(AD_HOC:COMPLETION_PROVIDERS)[2026-04-29T12:11:00-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: 
 commit: 

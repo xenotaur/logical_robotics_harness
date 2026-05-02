@@ -5,7 +5,6 @@ from __future__ import annotations
 import pathlib
 
 from lrh.assist import request_templates
-from lrh.control import parser as control_parser
 
 _WORK_ITEM_BUCKETS = ("proposed", "active", "resolved", "abandoned")
 
@@ -38,13 +37,23 @@ def work_item_ids(project_root: pathlib.Path, prefix: str = "") -> list[str]:
 
 
 def _read_frontmatter_id(path: pathlib.Path) -> str:
-    """Read work-item `id` from YAML frontmatter using canonical parser."""
+    """Read `id` from a markdown file's top YAML frontmatter block."""
     try:
-        parsed = control_parser.parse_markdown_file(path)
-    except (FileNotFoundError, OSError, ValueError):
+        text = path.read_text(encoding="utf-8")
+    except (FileNotFoundError, OSError):
         return ""
-    work_item_id = parsed.frontmatter.get("id")
-    return work_item_id if isinstance(work_item_id, str) else ""
+
+    if not text.startswith("---\n"):
+        return ""
+    lines = text.splitlines()
+    for line in lines[1:]:
+        if line.strip() == "---":
+            return ""
+        stripped = line.strip()
+        if stripped.startswith("id:"):
+            value = stripped[len("id:") :].strip()
+            return value.strip("\"'")
+    return ""
 
 
 def _filter_sorted(values: list[str] | set[str], prefix: str) -> list[str]:

@@ -61,6 +61,17 @@ lrh --version
 lrh version
 ```
 
+## Command-line completion
+
+LRH supports optional shell completion via `argcomplete` for the `argparse` CLI:
+
+```bash
+pip install -e ".[completion]"
+eval "$(register-python-argcomplete lrh)"
+```
+
+On macOS, `echo "$BASH_VERSION"` must report Bash 4.2 or newer for global bash completion. The system `/bin/bash` is often too old; Homebrew bash can be used instead.
+
 ## Developer sandbox helper
 
 Use `scripts/sandbox` when you want to test LRH CLI behavior without touching your real

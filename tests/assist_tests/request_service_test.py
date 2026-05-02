@@ -317,6 +317,44 @@ class TestCodexPromptFromWorkItemResolution(unittest.TestCase):
             ):
                 request_service.build_variables(self._build_args(target="WI-MISSING"))
 
+    def test_flat_work_item_file_resolves_by_frontmatter_id(self) -> None:
+        with self._temp_project() as root:
+            self._write_style(root)
+            flat_path = root / "project" / "work_items" / "WI-FLAT-0001.md"
+            flat_path.write_text(
+                "---\nid: WI-FLAT-0001\ntitle: Flat\nstatus: proposed\n---\n",
+                encoding="utf-8",
+            )
+
+            variables = request_service.build_variables(
+                self._build_args(target="WI-FLAT-0001")
+            )
+
+            self.assertEqual(
+                variables["WORK_ITEM_PATH"], "project/work_items/WI-FLAT-0001.md"
+            )
+            self.assertEqual(variables["WORK_ITEM_RESOLUTION"], "frontmatter_id")
+
+    def test_nested_work_item_file_resolves_by_h1_id(self) -> None:
+        with self._temp_project() as root:
+            self._write_style(root)
+            nested_dir = root / "project" / "work_items" / "active" / "nested"
+            nested_dir.mkdir(parents=True, exist_ok=True)
+            nested_path = nested_dir / "work_item.md"
+            nested_path.write_text(
+                "# WI-NESTED-H1: Nested work item\n\nBody.\n", encoding="utf-8"
+            )
+
+            variables = request_service.build_variables(
+                self._build_args(target="WI-NESTED-H1")
+            )
+
+            self.assertEqual(
+                variables["WORK_ITEM_PATH"],
+                "project/work_items/active/nested/work_item.md",
+            )
+            self.assertEqual(variables["WORK_ITEM_RESOLUTION"], "h1_id")
+
     def test_ambiguous_match_gives_clear_error(self) -> None:
         with self._temp_project() as root:
             self._write_style(root)

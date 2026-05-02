@@ -1,5 +1,6 @@
 import argparse
 import contextlib
+import io
 import pathlib
 import sys
 import types
@@ -38,8 +39,12 @@ class TestArgcompleteAdapter(unittest.TestCase):
         fake_argcomplete = types.SimpleNamespace(autocomplete=_capture)
         with unittest.mock.patch.dict(sys.modules, {"argcomplete": fake_argcomplete}):
             with unittest.mock.patch("sys.argv", ["lrh", "--help"]):
-                with self.assertRaises(SystemExit):
-                    cli_main.main()
+                with (
+                    contextlib.redirect_stdout(io.StringIO()),
+                    contextlib.redirect_stderr(io.StringIO()),
+                ):
+                    with self.assertRaises(SystemExit):
+                        cli_main.main()
 
         parser = captured["parser"]
         request_action = next(

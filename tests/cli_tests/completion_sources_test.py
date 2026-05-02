@@ -31,6 +31,46 @@ class TestCompletionSources(unittest.TestCase):
 
             self.assertEqual(ids, ["WI-ALPHA", "WI-RELEASE-TAG-CI"])
 
+    def test_work_item_ids_discovers_flat_and_nested_with_fallbacks(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_items = root / "project" / "work_items"
+            active = work_items / "active"
+            nested = active / "nested"
+            work_items.mkdir(parents=True)
+            active.mkdir(parents=True)
+            nested.mkdir(parents=True)
+            (work_items / "WI-FLAT-FRONTMATTER.md").write_text(
+                "---\nid: WI-FLAT-FRONTMATTER\n---\n",
+                encoding="utf-8",
+            )
+            (work_items / "flat-h1.md").write_text(
+                "# WI-FLAT-H1: Example work item\n",
+                encoding="utf-8",
+            )
+            (work_items / "WI-FLAT-FILENAME.md").write_text(
+                "no frontmatter\nno h1 id\n", encoding="utf-8"
+            )
+            (active / "bucketed.md").write_text(
+                "---\nid: WI-ACTIVE-FRONTMATTER\n---\n",
+                encoding="utf-8",
+            )
+            (nested / "nested-h1.md").write_text(
+                "# WI-NESTED-H1 Example\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                completion_sources.work_item_ids(root),
+                [
+                    "WI-ACTIVE-FRONTMATTER",
+                    "WI-FLAT-FILENAME",
+                    "WI-FLAT-FRONTMATTER",
+                    "WI-FLAT-H1",
+                    "WI-NESTED-H1",
+                ],
+            )
+
     def test_work_item_ids_prefix_filters(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
@@ -56,6 +96,42 @@ class TestCompletionSources(unittest.TestCase):
             self.assertEqual(
                 completion_sources.work_item_ids(root / "missing-project"), []
             )
+
+    def test_work_item_ids_dedupes_and_filters_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_items = root / "project" / "work_items"
+            work_items.mkdir(parents=True)
+            (work_items / "WI-RELEASE-TAG-CI.md").write_text(
+                "---\nid: WI-RELEASE-TAG-CI\n---\n",
+                encoding="utf-8",
+            )
+            (work_items / "duplicate-heading.md").write_text(
+                "# WI-RELEASE-TAG-CI: Duplicate from heading\n",
+                encoding="utf-8",
+            )
+            (work_items / "other.md").write_text(
+                "---\nid: WI-META-CLI-MVP\n---\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                completion_sources.work_item_ids(root, prefix="WI-R"),
+                ["WI-RELEASE-TAG-CI"],
+            )
+
+    def test_work_item_ids_skips_malformed_frontmatter_with_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_items = root / "project" / "work_items"
+            work_items.mkdir(parents=True)
+            (work_items / "broken.md").write_text(
+                "---\nid: [not-valid\n---\n# WI-FROM-H1\n",
+                encoding="utf-8",
+            )
+            (work_items / "note.md").write_text("hello\n", encoding="utf-8")
+
+            self.assertEqual(completion_sources.work_item_ids(root), ["WI-FROM-H1"])
 
     def test_work_item_ids_accepts_crlf_frontmatter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

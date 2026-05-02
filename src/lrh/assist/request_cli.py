@@ -130,7 +130,10 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
     """Build the request CLI parser."""
     parser = argparse.ArgumentParser(
         prog=prog,
-        description="Render an assist request from a template and input options.",
+        description=(
+            "Render an assist request from a template and input options. "
+            "Optional completion is available via argcomplete; see README.md."
+        ),
     )
     return configure_parser(parser)
 

@@ -61,7 +61,7 @@ lrh --version
 lrh version
 ```
 
-## Command-line completion
+## Command-line Completion
 
 LRH supports optional shell completion via `argcomplete` for the existing `argparse` CLI.
 
@@ -71,13 +71,13 @@ Install the completion extra first:
 pip install -e ".[completion]"
 ```
 
-### Bash (Linux and modern macOS/Homebrew bash)
+### Enable (bash)
 
 ```bash
 eval "$(register-python-argcomplete lrh)"
 ```
 
-### macOS bash caveat
+### macOS note
 
 Use these checks when troubleshooting:
 
@@ -91,7 +91,7 @@ echo "$SHELL"
 - `which bash` reports which `bash` binary a *new* `bash` command would resolve from `PATH`.
 - On macOS, `/bin/bash` is often 3.2 and too old for first-class global bash completion workflows; contributors who prefer bash completion can use Homebrew bash and launch that shell session before evaluating argcomplete registration.
 
-### zsh
+### Enable (zsh)
 
 If your `argcomplete` version supports zsh registration, use:
 
@@ -109,7 +109,7 @@ LRH currently documents and validates `argcomplete` setup primarily for bash/zsh
 lrh s<TAB>       # snapshot, survey
 lrh ver<TAB>     # version
 lrh request <TAB>
-lrh request codex_prompt_from_work_item WI-R<TAB>
+lrh request codex_prompt_from_work_item WI-<TAB>
 ```
 
 Work-item completion discovers IDs from both flat and nested layouts under
@@ -123,6 +123,7 @@ Work-item completion discovers IDs from both flat and nested layouts under
 - Confirm shell registration was evaluated in your current shell session.
 - On macOS, confirm your running shell is not `/bin/bash` 3.2 when expecting bash completion behavior.
 - Project-aware completions (for example work-item IDs) may return no matches when you are outside an LRH project root because `lrh request` completions currently discover projects from the current repository context.
+- If no work items are found, run `lrh work-items organize --dry-run` to inspect/repair legacy layouts.
 
 
 ## Developer sandbox helper

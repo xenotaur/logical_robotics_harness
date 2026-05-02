@@ -112,6 +112,11 @@ lrh request <TAB>
 lrh request codex_prompt_from_work_item WI-R<TAB>
 ```
 
+Work-item completion discovers IDs from both flat and nested layouts under
+`project/work_items/` (for example `project/work_items/*.md` and
+`project/work_items/**/*.md`). For each candidate file it prefers frontmatter
+`id`, then falls back to a `WI-*` H1 heading, then to a `WI-*` filename stem.
+
 ### Troubleshooting
 
 - Confirm completion dependencies are installed: `pip install -e ".[completion]"`.
@@ -381,4 +386,3 @@ Safety controls:
 - `--dry-run` preview files without writing
 - `--check` exit non-zero when files are missing/outdated
 - `--force` allow overwriting existing files
-

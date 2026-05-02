@@ -10,6 +10,10 @@ from lrh.control import parser as control_parser
 from lrh.integrations.github import formatters, pr_ref, pull_reviews
 
 _TEMPLATE_VAR_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
+_WORK_ITEM_ID_PATTERN = re.compile(r"^WI-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*$")
+_WORK_ITEM_H1_ID_PATTERN = re.compile(
+    r"^#\s*(WI-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*)(?:\s|:|$)"
+)
 
 
 def validate_args(args: argparse.Namespace) -> str | None:
@@ -268,18 +272,17 @@ def _resolve_codex_work_item_file(
         )
 
     work_item_root = _resolve_work_item_root()
-    work_item_dirs = [
-        work_item_root / "proposed",
-        work_item_root / "active",
-        work_item_root / "resolved",
-        work_item_root / "abandoned",
-    ]
     candidates = _find_work_item_candidates(
         target_input=target_input,
-        work_item_dirs=work_item_dirs,
+        work_item_root=work_item_root,
     )
     if not candidates:
-        searched = "\n".join(f"- {directory}" for directory in work_item_dirs)
+        searched = "\n".join(
+            [
+                f"- {work_item_root / '*.md'}",
+                f"- {work_item_root / '**/*.md'}",
+            ]
+        )
         raise FileNotFoundError(
             "error: No work item matched target "
             f"'{target_input}'. Searched:\n{searched}\n"
@@ -312,7 +315,7 @@ def _resolve_work_item_root() -> pathlib.Path:
 
 
 def _find_work_item_candidates(
-    *, target_input: str, work_item_dirs: list[pathlib.Path]
+    *, target_input: str, work_item_root: pathlib.Path
 ) -> list[tuple[pathlib.Path, str]]:
     """Collect candidate work-item files by id, stem, and filename matching."""
     matches: list[tuple[pathlib.Path, str]] = []
@@ -322,18 +325,20 @@ def _find_work_item_candidates(
     if not lookup.lower().endswith(".md"):
         lookup_names.add(f"{lookup}.md")
 
-    for directory in work_item_dirs:
-        if not directory.is_dir():
-            continue
-        for path in sorted(directory.glob("*.md")):
-            resolution = _match_work_item_target(
-                path=path,
-                lookup=lookup,
-                lookup_stem=lookup_stem,
-                lookup_names=lookup_names,
-            )
-            if resolution:
-                matches.append((path, resolution))
+    if not work_item_root.is_dir():
+        return []
+
+    paths = set(work_item_root.glob("*.md"))
+    paths.update(work_item_root.glob("**/*.md"))
+    for path in sorted(path for path in paths if path.is_file()):
+        resolution = _match_work_item_target(
+            path=path,
+            lookup=lookup,
+            lookup_stem=lookup_stem,
+            lookup_names=lookup_names,
+        )
+        if resolution:
+            matches.append((path, resolution))
     return matches
 
 
@@ -350,8 +355,12 @@ def _match_work_item_target(
         work_item_id = parsed.frontmatter.get("id")
         if isinstance(work_item_id, str) and work_item_id == lookup:
             return "frontmatter_id"
-    except (FileNotFoundError, OSError, ValueError):
+    except (FileNotFoundError, OSError, UnicodeDecodeError, ValueError):
         pass
+
+    heading_id = _read_h1_work_item_id(path)
+    if heading_id and heading_id == lookup:
+        return "h1_id"
 
     if path.stem == lookup_stem:
         return "filename_stem"
@@ -359,6 +368,28 @@ def _match_work_item_target(
     if path.name in lookup_names:
         return "filename"
 
+    return ""
+
+
+def _read_h1_work_item_id(path: pathlib.Path) -> str:
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except (FileNotFoundError, OSError, UnicodeDecodeError):
+        return ""
+    content_lines = lines
+    if content_lines and content_lines[0].strip() == "---":
+        for index in range(1, len(content_lines)):
+            if content_lines[index].strip() == "---":
+                content_lines = content_lines[index + 1 :]
+                break
+    for line in content_lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        match = _WORK_ITEM_H1_ID_PATTERN.match(stripped)
+        if match is not None:
+            candidate = match.group(1)
+            return candidate if _WORK_ITEM_ID_PATTERN.fullmatch(candidate) else ""
     return ""
 
 

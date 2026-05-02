@@ -8,6 +8,8 @@ import pathlib
 import re
 import sys
 
+from lrh.control import parser as control_parser
+
 VALID_STATUSES = {
     "planned",
     "in_progress",
@@ -100,24 +102,15 @@ def render_execution_content(
 
 
 def parse_front_matter_fields(path: pathlib.Path) -> dict[str, str]:
-    with path.open("r", encoding="utf-8") as handle:
-        first_line = handle.readline()
-        if first_line.strip() != "---":
-            return {}
-
-        fields: dict[str, str] = {}
-        found_closing_delimiter = False
-        for line in handle:
-            if line.strip() == "---":
-                found_closing_delimiter = True
-                break
-            if ":" not in line:
-                continue
-            key, value = line.split(":", 1)
-            fields[key.strip()] = value.strip()
-
-    if not found_closing_delimiter:
+    try:
+        parsed = control_parser.parse_markdown_file(path)
+    except (OSError, UnicodeDecodeError, ValueError):
         return {}
+
+    fields: dict[str, str] = {}
+    for key, value in parsed.frontmatter.items():
+        if isinstance(value, str):
+            fields[key] = value
     return fields
 
 

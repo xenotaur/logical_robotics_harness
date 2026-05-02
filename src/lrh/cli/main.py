@@ -12,7 +12,6 @@ from pathlib import Path
 from lrh import prompt_workflow
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
-from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
@@ -321,20 +320,18 @@ def main() -> None:
             raise SystemExit(0)
         argv = [*argv[1:], "--help"]
 
-    if argv and argv[0] == "request":
+    first_command_index = 0
+    while first_command_index < len(argv) and argv[first_command_index] == "--version":
+        first_command_index += 1
+
+    if (
+        first_command_index < len(argv)
+        and argv[first_command_index] == "request"
+        and first_command_index > 0
+    ):
         raise SystemExit(
             request_cli.run_request_cli(
-                argv=argv[1:],
-                prog="lrh request",
-            )
-        )
-
-    argcomplete_adapter.enable_completion(parser)
-
-    if argv and argv[0] == "request":
-        raise SystemExit(
-            request_cli.run_request_cli(
-                argv=argv[1:],
+                argv=argv[first_command_index + 1 :],
                 prog="lrh request",
             )
         )

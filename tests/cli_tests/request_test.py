@@ -40,6 +40,36 @@ class TestLrhRequestCli(unittest.TestCase):
         self.assertEqual(result.returncode, 2)
         self.assertIn("requires --target", result.stderr)
 
+    def test_lrh_request_dispatches_with_leading_global_flag(self) -> None:
+        result = self._run_lrh(
+            [
+                "--version",
+                "request",
+                "improve_coverage",
+                "src/lrh/analysis/llm_extractor.py",
+            ]
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("TARGET MODULE:", result.stdout)
+        self.assertNotIn("logical-robotics-harness", result.stdout)
+
+    def test_lrh_request_help_dispatches_with_leading_global_flag(self) -> None:
+        result = self._run_lrh(["--version", "request", "--help"])
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("lrh request", result.stdout)
+
+    def test_lrh_project_init_not_hijacked_when_project_root_is_request(self) -> None:
+        result = self._run_lrh(
+            ["project", "init", "--project-root", "request", "--dry-run"]
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("summary:", result.stdout)
+
+    def test_lrh_meta_inspect_not_hijacked_when_selector_is_request(self) -> None:
+        result = self._run_lrh(["meta", "inspect", "request"])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("lrh request", result.stderr)
+
     def test_lrh_request_codex_prompt_from_work_item_command(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

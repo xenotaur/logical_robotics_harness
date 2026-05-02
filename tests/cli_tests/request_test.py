@@ -20,6 +20,13 @@ class TestLrhRequestCli(unittest.TestCase):
         self.assertEqual(result.returncode, 0)
         self.assertIn("lrh request", result.stdout)
 
+    def test_lrh_request_codex_prompt_from_work_item_help(self) -> None:
+        result = self._run_lrh(["request", "codex-prompt-from-work-item", "--help"])
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("--work-item", result.stdout)
+        self.assertIn("--slug", result.stdout)
+        self.assertIn("--out", result.stdout)
+
     def test_lrh_request_improve_coverage(self) -> None:
         result = self._run_lrh(
             ["request", "improve_coverage", "src/lrh/analysis/llm_extractor.py"]
@@ -52,7 +59,9 @@ class TestLrhRequestCli(unittest.TestCase):
         self.assertIn("lrh request", result.stdout)
 
     def test_lrh_project_init_not_hijacked_when_project_root_is_request(self) -> None:
-        result = self._run_lrh(["project", "init", "--project-root", "request", "--dry-run"])
+        result = self._run_lrh(
+            ["project", "init", "--project-root", "request", "--dry-run"]
+        )
         self.assertEqual(result.returncode, 0)
         self.assertIn("summary:", result.stdout)
 

@@ -6,6 +6,7 @@ import argparse
 import datetime
 import pathlib
 import re
+import sys
 
 VALID_STATUSES = {
     "planned",
@@ -98,6 +99,43 @@ def render_execution_content(
     )
 
 
+def parse_front_matter_fields(path: pathlib.Path) -> dict[str, str]:
+    with path.open("r", encoding="utf-8") as handle:
+        first_line = handle.readline()
+        if first_line.strip() != "---":
+            return {}
+
+        fields: dict[str, str] = {}
+        found_closing_delimiter = False
+        for line in handle:
+            if line.strip() == "---":
+                found_closing_delimiter = True
+                break
+            if ":" not in line:
+                continue
+            key, value = line.split(":", 1)
+            fields[key.strip()] = value.strip()
+
+    if not found_closing_delimiter:
+        return {}
+    return fields
+
+
+def find_matching_execution_records(
+    project_root: str,
+    prompt_id: str,
+    output_root: str,
+) -> list[tuple[pathlib.Path, str]]:
+    execution_root = resolve_output_root(project_root, output_root)
+    matches: list[tuple[pathlib.Path, str]] = []
+    for path in sorted(execution_root.glob("**/*.md")):
+        fields = parse_front_matter_fields(path)
+        if fields.get("prompt_id") == prompt_id:
+            status = fields.get("status", "")
+            matches.append((path, status))
+    return matches
+
+
 def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     parser = argparse.ArgumentParser(prog=prog, description="Prompt workflow helpers.")
     subparsers = parser.add_subparsers(dest="prompt_command")
@@ -131,9 +169,36 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     record_parser.add_argument("--dry-run", action="store_true")
     record_parser.add_argument("--force", action="store_true")
 
+    check_parser = subparsers.add_parser(
+        "check-execution",
+        help="Check whether execution records already exist for a prompt ID.",
+    )
+    check_parser.add_argument("--prompt-id", required=True)
+    check_parser.add_argument("--project-root", default=".")
+    check_parser.add_argument("--output-root", default="project/executions")
+
     args = parser.parse_args(argv)
     if args.prompt_command is None:
         parser.error("prompt requires a subcommand (try: lrh prompt label)")
+
+    if args.prompt_command == "check-execution":
+        matches = find_matching_execution_records(
+            project_root=args.project_root,
+            prompt_id=args.prompt_id,
+            output_root=args.output_root,
+        )
+        for path, status in matches:
+            print(f"{path.as_posix()}\tstatus={status}")
+        if not matches:
+            print("No execution records found for prompt_id.", file=sys.stderr)
+            return 1
+        if len(matches) > 1:
+            print(
+                "Ambiguous: multiple execution records found; human review required.",
+                file=sys.stderr,
+            )
+            return 2
+        return 0
 
     try:
         slug = normalize_slug(args.slug)

@@ -317,6 +317,16 @@ def main() -> None:
             raise SystemExit(0)
         argv = [*argv[1:], "--help"]
 
+    if "request" in argv:
+        request_index = argv.index("request")
+        if request_index > 0:
+            raise SystemExit(
+                request_cli.run_request_cli(
+                    argv=argv[request_index + 1 :],
+                    prog="lrh request",
+                )
+            )
+
     args, passthrough_args = parser.parse_known_args(argv)
 
     if args.version or args.command == "version":

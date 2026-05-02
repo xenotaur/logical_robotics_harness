@@ -179,9 +179,12 @@ Helper scripts:
 
 - `scripts/prompts/label-prompt`
 - `scripts/prompts/record-execution`
+- Installed CLI: `lrh prompt check-execution`
 - `scripts/version` (plus `tools`, `verify`, `tag`, `push` subcommands for release workflow checks)
 
 Execution records are stored under `project/executions/` and may be grouped by work item or `AD_HOC`.
+Use `lrh prompt check-execution --prompt-id <PROMPT_ID>` before prompt-driven work to apply
+soft-idempotence checks in human and agent workflows.
 
 ## Release workflow
 
@@ -319,5 +322,4 @@ Safety controls:
 - `--dry-run` preview files without writing
 - `--check` exit non-zero when files are missing/outdated
 - `--force` allow overwriting existing files
-
 

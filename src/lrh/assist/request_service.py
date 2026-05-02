@@ -10,8 +10,10 @@ from lrh.control import parser as control_parser
 from lrh.integrations.github import formatters, pr_ref, pull_reviews
 
 _TEMPLATE_VAR_RE = re.compile(r"\{\{([A-Z0-9_]+)\}\}")
-_WORK_ITEM_ID_PATTERN = re.compile(r"^WI-[A-Z0-9]+(?:-[A-Z0-9]+)*$")
-_WORK_ITEM_H1_ID_PATTERN = re.compile(r"^#\s*(WI-[A-Z0-9]+(?:-[A-Z0-9]+)*)(?:\s|:|$)")
+_WORK_ITEM_ID_PATTERN = re.compile(r"^WI-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*$")
+_WORK_ITEM_H1_ID_PATTERN = re.compile(
+    r"^#\s*(WI-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*)(?:\s|:|$)"
+)
 
 
 def validate_args(args: argparse.Namespace) -> str | None:
@@ -353,7 +355,7 @@ def _match_work_item_target(
         work_item_id = parsed.frontmatter.get("id")
         if isinstance(work_item_id, str) and work_item_id == lookup:
             return "frontmatter_id"
-    except (FileNotFoundError, OSError, ValueError):
+    except (FileNotFoundError, OSError, UnicodeDecodeError, ValueError):
         pass
 
     heading_id = _read_h1_work_item_id(path)
@@ -385,10 +387,9 @@ def _read_h1_work_item_id(path: pathlib.Path) -> str:
         if not stripped:
             continue
         match = _WORK_ITEM_H1_ID_PATTERN.match(stripped)
-        if match is None:
-            return ""
-        candidate = match.group(1)
-        return candidate if _WORK_ITEM_ID_PATTERN.fullmatch(candidate) else ""
+        if match is not None:
+            candidate = match.group(1)
+            return candidate if _WORK_ITEM_ID_PATTERN.fullmatch(candidate) else ""
     return ""
 
 

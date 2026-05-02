@@ -133,6 +133,25 @@ class TestCompletionSources(unittest.TestCase):
 
             self.assertEqual(completion_sources.work_item_ids(root), ["WI-FROM-H1"])
 
+    def test_work_item_ids_supports_lowercase_and_underscore(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_items = root / "project" / "work_items"
+            work_items.mkdir(parents=True)
+            (work_items / "wi_mixed.md").write_text(
+                "---\nid: WI-meta_cli_mvp\n---\n",
+                encoding="utf-8",
+            )
+            (work_items / "leading-text.md").write_text(
+                "Intro paragraph.\n\n# WI-lower_case-123: Example\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                completion_sources.work_item_ids(root),
+                ["WI-lower_case-123", "WI-meta_cli_mvp"],
+            )
+
     def test_work_item_ids_accepts_crlf_frontmatter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)

@@ -8,8 +8,10 @@ import re
 from lrh.assist import request_templates
 from lrh.control import parser as control_parser
 
-_WORK_ITEM_ID_PATTERN = re.compile(r"^WI-[A-Z0-9]+(?:-[A-Z0-9]+)*$")
-_WORK_ITEM_H1_ID_PATTERN = re.compile(r"^#\s*(WI-[A-Z0-9]+(?:-[A-Z0-9]+)*)(?:\s|:|$)")
+_WORK_ITEM_ID_PATTERN = re.compile(r"^WI-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*$")
+_WORK_ITEM_H1_ID_PATTERN = re.compile(
+    r"^#\s*(WI-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*)(?:\s|:|$)"
+)
 
 
 def request_template_names(prefix: str = "") -> list[str]:
@@ -55,7 +57,7 @@ def _read_frontmatter_id(path: pathlib.Path) -> str:
     """Read work-item `id` from YAML frontmatter using canonical parser."""
     try:
         parsed = control_parser.parse_markdown_file(path)
-    except (FileNotFoundError, OSError, ValueError):
+    except (FileNotFoundError, OSError, UnicodeDecodeError, ValueError):
         return ""
     work_item_id = parsed.frontmatter.get("id")
     if not isinstance(work_item_id, str):
@@ -80,10 +82,9 @@ def _read_h1_work_item_id(path: pathlib.Path) -> str:
         if not stripped:
             continue
         match = _WORK_ITEM_H1_ID_PATTERN.match(stripped)
-        if match is None:
-            return ""
-        candidate = match.group(1)
-        return candidate if _looks_like_work_item_id(candidate) else ""
+        if match is not None:
+            candidate = match.group(1)
+            return candidate if _looks_like_work_item_id(candidate) else ""
     return ""
 
 

@@ -355,6 +355,23 @@ class TestCodexPromptFromWorkItemResolution(unittest.TestCase):
             )
             self.assertEqual(variables["WORK_ITEM_RESOLUTION"], "h1_id")
 
+    def test_nested_work_item_h1_resolves_after_leading_text(self) -> None:
+        with self._temp_project() as root:
+            self._write_style(root)
+            nested_dir = root / "project" / "work_items" / "active" / "nested"
+            nested_dir.mkdir(parents=True, exist_ok=True)
+            nested_path = nested_dir / "work_item.md"
+            nested_path.write_text(
+                "Intro text.\n\n# WI-leading_text-001: Nested work item\n",
+                encoding="utf-8",
+            )
+
+            variables = request_service.build_variables(
+                self._build_args(target="WI-leading_text-001")
+            )
+
+            self.assertEqual(variables["WORK_ITEM_RESOLUTION"], "h1_id")
+
     def test_ambiguous_match_gives_clear_error(self) -> None:
         with self._temp_project() as root:
             self._write_style(root)

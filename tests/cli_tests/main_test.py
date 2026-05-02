@@ -7,7 +7,6 @@ from lrh.cli import main as cli_main
 
 
 class TestLrhMainCli(unittest.TestCase):
-
     def test_lrh_help_alias_prints_top_level_help(self) -> None:
         stdout = io.StringIO()
         stderr = io.StringIO()

@@ -320,6 +320,13 @@ def main() -> None:
     args, passthrough_args = parser.parse_known_args(argv)
 
     if args.version or args.command == "version":
+        if args.command == "request":
+            raise SystemExit(
+                request_cli.run_request_cli(
+                    argv=passthrough_args,
+                    prog="lrh request",
+                )
+            )
         if passthrough_args:
             parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
         print(lrh_version.format_cli_version())

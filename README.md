@@ -117,7 +117,7 @@ lrh request codex_prompt_from_work_item WI-R<TAB>
 - Confirm completion dependencies are installed: `pip install -e ".[completion]"`.
 - Confirm shell registration was evaluated in your current shell session.
 - On macOS, confirm your running shell is not `/bin/bash` 3.2 when expecting bash completion behavior.
-- Project-aware completions (for example work-item IDs) may return no matches when you are outside an LRH project root and have not passed the relevant project-root option.
+- Project-aware completions (for example work-item IDs) may return no matches when you are outside an LRH project root because `lrh request` completions currently discover projects from the current repository context.
 
 
 ## Developer sandbox helper

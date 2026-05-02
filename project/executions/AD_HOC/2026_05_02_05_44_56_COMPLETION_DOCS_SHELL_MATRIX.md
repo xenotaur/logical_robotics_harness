@@ -2,7 +2,7 @@
 execution_id: 2026_05_02_05_44_56_COMPLETION_DOCS_SHELL_MATRIX
 prompt_id: PROMPT(AD_HOC:COMPLETION_DOCS_SHELL_MATRIX)[2026-04-29T12:12:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:

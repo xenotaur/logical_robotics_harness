@@ -12,7 +12,6 @@ from pathlib import Path
 from lrh import prompt_workflow
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
-from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
@@ -330,12 +329,12 @@ def main() -> None:
         and argv[first_command_index] == "request"
         and first_command_index > 0
     ):
-            raise SystemExit(
-                request_cli.run_request_cli(
-                    argv=argv[first_command_index + 1 :],
-                    prog="lrh request",
-                )
+        raise SystemExit(
+            request_cli.run_request_cli(
+                argv=argv[first_command_index + 1 :],
+                prog="lrh request",
             )
+        )
 
     args, passthrough_args = parser.parse_known_args(argv)
 

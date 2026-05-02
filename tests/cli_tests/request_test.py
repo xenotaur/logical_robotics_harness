@@ -59,7 +59,9 @@ class TestLrhRequestCli(unittest.TestCase):
         self.assertIn("lrh request", result.stdout)
 
     def test_lrh_project_init_not_hijacked_when_project_root_is_request(self) -> None:
-        result = self._run_lrh(["project", "init", "--project-root", "request", "--dry-run"])
+        result = self._run_lrh(
+            ["project", "init", "--project-root", "request", "--dry-run"]
+        )
         self.assertEqual(result.returncode, 0)
         self.assertIn("summary:", result.stdout)
 

@@ -1,5 +1,7 @@
 """Initial CLI entrypoint for Logical Robotics Harness."""
 
+# PYTHON_ARGCOMPLETE_OK
+
 from __future__ import annotations
 
 import argparse
@@ -10,6 +12,7 @@ from pathlib import Path
 from lrh import prompt_workflow
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
+from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
@@ -43,11 +46,12 @@ def main() -> None:
         help="validate work-item files and policy rules only",
     )
 
-    subparsers.add_parser(
+    request_parser = subparsers.add_parser(
         "request",
         add_help=False,
         help="Render an assist request from a template.",
     )
+    request_cli.configure_parser(request_parser)
 
     subparsers.add_parser(
         "snapshot",
@@ -350,14 +354,6 @@ def main() -> None:
         )
         print(format_report(report))
         raise SystemExit(1 if report.errors else 0)
-
-    if args.command == "request":
-        raise SystemExit(
-            request_cli.run_request_cli(
-                argv=passthrough_args,
-                prog="lrh request",
-            )
-        )
 
     if args.command == "snapshot":
         raise SystemExit(

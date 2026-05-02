@@ -16,6 +16,10 @@ authors = [
 dependencies = []
 
 [project.optional-dependencies]
+completion = [
+  "argcomplete>=3",
+]
+
 dev = [
   "black",
   "build",

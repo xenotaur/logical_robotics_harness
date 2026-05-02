@@ -63,21 +63,62 @@ lrh version
 
 ## Command-line completion
 
-LRH supports optional shell completion via `argcomplete` for the `argparse` CLI:
+LRH supports optional shell completion via `argcomplete` for the existing `argparse` CLI.
+
+Install the completion extra first:
 
 ```bash
 pip install -e ".[completion]"
+```
+
+### Bash (Linux and modern macOS/Homebrew bash)
+
+```bash
 eval "$(register-python-argcomplete lrh)"
 ```
 
-On macOS, `echo "$BASH_VERSION"` must report Bash 4.2 or newer for global bash completion. The system `/bin/bash` is often too old; Homebrew bash can be used instead.
+### macOS bash caveat
 
-When argcomplete is enabled, LRH request completions include package-owned template names and work-item IDs for `codex_prompt_from_work_item`:
+Use these checks when troubleshooting:
 
 ```bash
+echo "$BASH_VERSION"
+which bash
+echo "$SHELL"
+```
+
+- `echo "$BASH_VERSION"` reports the version of the shell you are running right now.
+- `which bash` reports which `bash` binary a *new* `bash` command would resolve from `PATH`.
+- On macOS, `/bin/bash` is often 3.2 and too old for first-class global bash completion workflows; contributors who prefer bash completion can use Homebrew bash and launch that shell session before evaluating argcomplete registration.
+
+### zsh
+
+If your `argcomplete` version supports zsh registration, use:
+
+```bash
+eval "$(register-python-argcomplete --shell zsh lrh)"
+```
+
+### fish and PowerShell (best-effort notes)
+
+LRH currently documents and validates `argcomplete` setup primarily for bash/zsh. fish and PowerShell users can still run LRH normally, but completion behavior may depend on shell-specific wrappers outside this repository and is not currently guaranteed by LRH tests.
+
+### Expected completion behavior
+
+```text
+lrh s<TAB>       # snapshot, survey
+lrh ver<TAB>     # version
 lrh request <TAB>
 lrh request codex_prompt_from_work_item WI-R<TAB>
 ```
+
+### Troubleshooting
+
+- Confirm completion dependencies are installed: `pip install -e ".[completion]"`.
+- Confirm shell registration was evaluated in your current shell session.
+- On macOS, confirm your running shell is not `/bin/bash` 3.2 when expecting bash completion behavior.
+- Project-aware completions (for example work-item IDs) may return no matches when you are outside an LRH project root because `lrh request` completions currently discover projects from the current repository context.
+
 
 ## Developer sandbox helper
 

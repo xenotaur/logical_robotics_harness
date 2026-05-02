@@ -321,6 +321,14 @@ def main() -> None:
             raise SystemExit(0)
         argv = [*argv[1:], "--help"]
 
+    if argv and argv[0] == "request":
+        raise SystemExit(
+            request_cli.run_request_cli(
+                argv=argv[1:],
+                prog="lrh request",
+            )
+        )
+
     argcomplete_adapter.enable_completion(parser)
 
     if argv and argv[0] == "request":

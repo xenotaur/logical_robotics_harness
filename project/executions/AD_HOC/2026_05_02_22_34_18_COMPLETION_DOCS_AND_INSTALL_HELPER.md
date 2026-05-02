@@ -2,7 +2,7 @@
 execution_id: 2026_05_02_22_34_18_COMPLETION_DOCS_AND_INSTALL_HELPER
 prompt_id: PROMPT(AD_HOC:COMPLETION_DOCS_AND_INSTALL_HELPER)[2026-05-02T16:00:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
 commit: 

@@ -132,7 +132,8 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         prog=prog,
         description=(
             "Render an assist request from a template and input options. "
-            "Optional completion is available via argcomplete; see README.md."
+            "Optional completion is available via argcomplete; "
+            "run scripts/install-completion for setup guidance."
         ),
     )
     return configure_parser(parser)

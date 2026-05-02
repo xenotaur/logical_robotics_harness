@@ -26,7 +26,7 @@ def main() -> None:
         description=(
             "Logical Robotics Harness command-line interface. "
             "Optional shell completion is available via argcomplete; "
-            "see README.md for setup."
+            "Run `scripts/install-completion` for setup guidance."
         ),
     )
     parser.add_argument(
@@ -56,7 +56,7 @@ def main() -> None:
         add_help=False,
         help=(
             "Render an assist request from a template "
-            "(argcomplete completion optional; see README.md)."
+            "(argcomplete completion optional; run scripts/install-completion)."
         ),
     )
     request_cli.configure_parser(request_parser)

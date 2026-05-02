@@ -32,3 +32,29 @@ class WorkItemsCliTest(unittest.TestCase):
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 1)
+
+    def test_dry_run_and_apply_conflict(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with unittest.mock.patch(
+                "sys.argv",
+                [
+                    "lrh",
+                    "work-items",
+                    "organize",
+                    "--project-root",
+                    str(root),
+                    "--dry-run",
+                    "--apply",
+                ],
+            ):
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    with self.assertRaises(SystemExit) as err:
+                        cli_main.main()
+            self.assertEqual(err.exception.code, 2)
+            self.assertIn("mutually exclusive", stderr.getvalue())

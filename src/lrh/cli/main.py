@@ -490,6 +490,8 @@ def main() -> None:
         if args.work_items_command == "organize":
             if passthrough_args:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            if args.apply and args.dry_run:
+                parser.error("--dry-run and --apply are mutually exclusive")
             project_root = Path(args.project_root).expanduser().resolve()
             plan = work_items_organize.plan_organization(project_root=project_root)
             print(work_items_organize.build_text_report(plan))

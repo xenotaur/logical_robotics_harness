@@ -1,5 +1,6 @@
 import argparse
 import contextlib
+import io
 import pathlib
 import sys
 import types
@@ -38,8 +39,12 @@ class TestArgcompleteAdapter(unittest.TestCase):
         fake_argcomplete = types.SimpleNamespace(autocomplete=_capture)
         with unittest.mock.patch.dict(sys.modules, {"argcomplete": fake_argcomplete}):
             with unittest.mock.patch("sys.argv", ["lrh", "--help"]):
-                with self.assertRaises(SystemExit):
-                    cli_main.main()
+                with (
+                    contextlib.redirect_stdout(io.StringIO()),
+                    contextlib.redirect_stderr(io.StringIO()),
+                ):
+                    with self.assertRaises(SystemExit):
+                        cli_main.main()
 
         parser = captured["parser"]
         request_action = next(
@@ -86,9 +91,8 @@ class TestArgcompleteAdapter(unittest.TestCase):
         self,
     ) -> None:
         parsed_args = argparse.Namespace(template_name="improve_coverage")
-        self.assertEqual(
-            argcomplete_adapter.codex_work_item_target_completer("WI-", parsed_args),
-            [],
+        self.assertIsNone(
+            argcomplete_adapter.codex_work_item_target_completer("WI-", parsed_args)
         )
 
     def test_codex_work_item_target_completer_delegates_when_repo_found(self) -> None:

@@ -32,10 +32,10 @@ def codex_work_item_target_completer(
     prefix: str,
     parsed_args: argparse.Namespace,
     **_: object,
-) -> list[str]:
+) -> list[str] | None:
     """Complete codex_prompt_from_work_item target IDs from active project tree."""
     if getattr(parsed_args, "template_name", "") != "codex_prompt_from_work_item":
-        return []
+        return None
     project_root = request_variables.find_repo_root()
     if project_root is None:
         return []

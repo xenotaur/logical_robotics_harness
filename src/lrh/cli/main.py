@@ -331,6 +331,14 @@ def main() -> None:
 
     argcomplete_adapter.enable_completion(parser)
 
+    if argv and argv[0] == "request":
+        raise SystemExit(
+            request_cli.run_request_cli(
+                argv=argv[1:],
+                prog="lrh request",
+            )
+        )
+
     args, passthrough_args = parser.parse_known_args(argv)
 
     if args.version or args.command == "version":

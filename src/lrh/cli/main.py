@@ -17,6 +17,7 @@ from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
+from lrh.work_items import organize as work_items_organize
 
 
 def main() -> None:
@@ -136,6 +137,36 @@ def main() -> None:
         "--strict",
         action="store_true",
         help="return non-zero when warnings are present",
+    )
+
+    work_items_parser = subparsers.add_parser(
+        "work-items",
+        help="Work-item maintenance commands.",
+    )
+    work_items_subparsers = work_items_parser.add_subparsers(dest="work_items_command")
+    work_items_organize_parser = work_items_subparsers.add_parser(
+        "organize",
+        help="Conservatively repair work-item frontmatter and status buckets.",
+    )
+    work_items_organize_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    work_items_organize_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="preview planned changes without writing files",
+    )
+    work_items_organize_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="return non-zero when organization changes would be needed",
+    )
+    work_items_organize_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="apply planned file updates and moves",
     )
 
     meta_parser = subparsers.add_parser(
@@ -454,6 +485,23 @@ def main() -> None:
             "project requires a subcommand"
             " (try: lrh project init or lrh project doctor)"
         )
+
+    if args.command == "work-items":
+        if args.work_items_command == "organize":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            if args.apply and args.dry_run:
+                parser.error("--dry-run and --apply are mutually exclusive")
+            project_root = Path(args.project_root).expanduser().resolve()
+            plan = work_items_organize.plan_organization(project_root=project_root)
+            print(work_items_organize.build_text_report(plan))
+            if args.check:
+                raise SystemExit(1 if plan.planned_changes() else 0)
+            if args.apply:
+                work_items_organize.apply_plan(plan)
+                print(work_items_organize.build_text_report(plan, applied=True))
+            raise SystemExit(0)
+        parser.error("work-items requires a subcommand (try: lrh work-items organize)")
 
     if args.command == "meta":
         if args.meta_command == "init":

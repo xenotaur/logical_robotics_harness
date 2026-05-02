@@ -7,6 +7,7 @@ import re
 import sys
 
 from lrh.assist import request_service
+from lrh.cli import argcomplete_adapter
 
 
 def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
@@ -15,7 +16,7 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         prog=prog,
         description="Render an assist request from a template and input options.",
     )
-    parser.add_argument(
+    template_name_arg = parser.add_argument(
         "template_name",
         help=(
             "Template base name (e.g. improve_coverage, bootstrap_project, "
@@ -23,7 +24,7 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
             "ci_assess_status, ci_implement_workflow)."
         ),
     )
-    parser.add_argument(
+    target_arg = parser.add_argument(
         "target",
         nargs="?",
         help=(
@@ -34,6 +35,8 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
             "or file path."
         ),
     )
+    template_name_arg.completer = argcomplete_adapter.request_template_completer
+    target_arg.completer = argcomplete_adapter.codex_work_item_target_completer
     parser.add_argument(
         "--target",
         dest="target_option",

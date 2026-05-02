@@ -1,5 +1,6 @@
 import argparse
 import contextlib
+import pathlib
 import sys
 import types
 import unittest
@@ -28,6 +29,35 @@ class TestArgcompleteAdapter(unittest.TestCase):
 
         fake_argcomplete.autocomplete.assert_called_once_with(parser)
 
+    def test_main_cli_registers_request_completers_on_top_level_parser(self) -> None:
+        captured: dict[str, argparse.ArgumentParser] = {}
+
+        def _capture(parser: argparse.ArgumentParser) -> None:
+            captured["parser"] = parser
+
+        fake_argcomplete = types.SimpleNamespace(autocomplete=_capture)
+        with unittest.mock.patch.dict(sys.modules, {"argcomplete": fake_argcomplete}):
+            with unittest.mock.patch("sys.argv", ["lrh", "--help"]):
+                with self.assertRaises(SystemExit):
+                    cli_main.main()
+
+        parser = captured["parser"]
+        request_action = next(
+            action
+            for action in parser._subparsers._group_actions[0].choices.values()
+            if action.prog.endswith(" request")
+        )
+        template_action = next(
+            action
+            for action in request_action._actions
+            if action.dest == "template_name"
+        )
+        target_action = next(
+            action for action in request_action._actions if action.dest == "target"
+        )
+        self.assertIsNotNone(getattr(template_action, "completer", None))
+        self.assertIsNotNone(getattr(target_action, "completer", None))
+
     def test_main_cli_constructs_when_argcomplete_missing(self) -> None:
         with unittest.mock.patch.dict(sys.modules, {"argcomplete": None}):
             with unittest.mock.patch("sys.argv", ["lrh", "--help"]):
@@ -39,3 +69,43 @@ class TestArgcompleteAdapter(unittest.TestCase):
                         cli_main.main()
 
         self.assertEqual(err_ctx.exception.code, 0)
+
+    def test_request_template_completer_delegates_to_completion_sources(self) -> None:
+        parsed_args = argparse.Namespace(template_name="")
+        with unittest.mock.patch(
+            "lrh.cli.argcomplete_adapter.completion_sources.request_template_names",
+            return_value=["one"],
+        ) as mock_provider:
+            result = argcomplete_adapter.request_template_completer(
+                "o", parsed_args, action=object(), parser=object()
+            )
+        self.assertEqual(result, ["one"])
+        mock_provider.assert_called_once_with(prefix="o")
+
+    def test_codex_work_item_target_completer_returns_empty_for_other_templates(
+        self,
+    ) -> None:
+        parsed_args = argparse.Namespace(template_name="improve_coverage")
+        self.assertEqual(
+            argcomplete_adapter.codex_work_item_target_completer("WI-", parsed_args),
+            [],
+        )
+
+    def test_codex_work_item_target_completer_delegates_when_repo_found(self) -> None:
+        parsed_args = argparse.Namespace(template_name="codex_prompt_from_work_item")
+        with (
+            unittest.mock.patch(
+                "lrh.cli.argcomplete_adapter.request_variables.find_repo_root",
+                return_value=pathlib.Path("/repo"),
+            ) as mock_find_root,
+            unittest.mock.patch(
+                "lrh.cli.argcomplete_adapter.completion_sources.work_item_ids",
+                return_value=["WI-RELEASE-TAG-CI"],
+            ) as mock_provider,
+        ):
+            result = argcomplete_adapter.codex_work_item_target_completer(
+                "WI-R", parsed_args
+            )
+        self.assertEqual(result, ["WI-RELEASE-TAG-CI"])
+        mock_find_root.assert_called_once_with()
+        mock_provider.assert_called_once()

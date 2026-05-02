@@ -46,11 +46,11 @@ def main() -> None:
         help="validate work-item files and policy rules only",
     )
 
-    subparsers.add_parser(
+    request_parser = subparsers.add_parser(
         "request",
-        add_help=False,
         help="Render an assist request from a template.",
     )
+    request_cli.configure_parser(request_parser)
 
     subparsers.add_parser(
         "snapshot",
@@ -343,7 +343,7 @@ def main() -> None:
     if args.command == "request":
         raise SystemExit(
             request_cli.run_request_cli(
-                argv=passthrough_args,
+                argv=argv[1:],
                 prog="lrh request",
             )
         )

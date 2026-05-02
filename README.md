@@ -192,6 +192,19 @@ Work items are organized under `project/work_items/proposed/`, `active/`, `resol
 The YAML frontmatter `status` is authoritative, and directory bucket is derived for human readability.
 `blocked` is modeled as secondary metadata on `active` items, not as a top-level lifecycle status.
 
+To conservatively repair legacy flat work-item files and normalize bucket placement, use:
+
+```bash
+lrh work-items organize --project-root . --dry-run
+lrh work-items organize --project-root . --check
+lrh work-items organize --project-root . --apply
+```
+
+`lrh work-items organize` defaults to preview behavior (non-mutating unless `--apply` is provided),
+adds missing frontmatter only when a work-item ID can be inferred reliably, and defaults ambiguous
+status inference to `proposed` with warnings. This command repairs organization/frontmatter but does
+not replace full project validation (`lrh validate`).
+
 
 ## Near-term priorities
 

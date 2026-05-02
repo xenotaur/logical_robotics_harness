@@ -72,6 +72,13 @@ eval "$(register-python-argcomplete lrh)"
 
 On macOS, `echo "$BASH_VERSION"` must report Bash 4.2 or newer for global bash completion. The system `/bin/bash` is often too old; Homebrew bash can be used instead.
 
+When argcomplete is enabled, LRH request completions include package-owned template names and work-item IDs for `codex_prompt_from_work_item`:
+
+```bash
+lrh request <TAB>
+lrh request codex_prompt_from_work_item WI-R<TAB>
+```
+
 ## Developer sandbox helper
 
 Use `scripts/sandbox` when you want to test LRH CLI behavior without touching your real

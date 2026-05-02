@@ -7,6 +7,7 @@ import re
 
 from lrh.assist import request_templates
 from lrh.control import parser as control_parser
+from lrh.work_items import validate as work_items_validate
 
 _WORK_ITEM_ID_PATTERN = re.compile(r"^WI-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*$")
 _WORK_ITEM_H1_ID_PATTERN = re.compile(
@@ -48,9 +49,7 @@ def work_item_ids(project_root: pathlib.Path, prefix: str = "") -> list[str]:
 
 
 def _discover_work_item_paths(work_items_root: pathlib.Path) -> list[pathlib.Path]:
-    paths = set(work_items_root.glob("*.md"))
-    paths.update(work_items_root.glob("**/*.md"))
-    return sorted(path for path in paths if path.is_file())
+    return work_items_validate.discover_work_item_paths(work_items_root)
 
 
 def _read_frontmatter_id(path: pathlib.Path) -> str:

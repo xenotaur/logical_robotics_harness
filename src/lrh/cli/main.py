@@ -23,7 +23,11 @@ from lrh.work_items import organize as work_items_organize
 def main() -> None:
     parser = argparse.ArgumentParser(
         prog="lrh",
-        description="Logical Robotics Harness command-line interface.",
+        description=(
+            "Logical Robotics Harness command-line interface. "
+            "Optional shell completion is available via argcomplete; "
+            "Run `scripts/install-completion` for setup guidance."
+        ),
     )
     parser.add_argument(
         "--version",
@@ -50,7 +54,10 @@ def main() -> None:
     request_parser = subparsers.add_parser(
         "request",
         add_help=False,
-        help="Render an assist request from a template.",
+        help=(
+            "Render an assist request from a template "
+            "(argcomplete completion optional; run scripts/install-completion)."
+        ),
     )
     request_cli.configure_parser(request_parser)
 
@@ -146,7 +153,10 @@ def main() -> None:
     work_items_subparsers = work_items_parser.add_subparsers(dest="work_items_command")
     work_items_organize_parser = work_items_subparsers.add_parser(
         "organize",
-        help="Conservatively repair work-item frontmatter and status buckets.",
+        help=(
+            "Conservatively repair work-item frontmatter and status buckets, "
+            "including legacy layouts."
+        ),
     )
     work_items_organize_parser.add_argument(
         "--project-root",

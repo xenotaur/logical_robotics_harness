@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+shell_value="${SHELL:-}"
+shell_name="unknown"
+if [[ -n "${shell_value}" ]]; then
+  shell_name="${shell_value##*/}"
+fi
+
+registration_command='eval "$(register-python-argcomplete lrh)"'
+if [[ "${shell_name}" == "zsh" ]]; then
+  registration_command='eval "$(register-python-argcomplete --shell zsh lrh)"'
+fi
+
+echo "Detected shell: ${shell_name}"
+echo
+echo "To enable completion now:"
+echo "  ${registration_command}"
+echo
+echo "To persist, add this line to your shell config:"
+echo "  ${registration_command}"
+if [[ "${shell_name}" == "zsh" ]]; then
+  echo "  file: ~/.zshrc"
+else
+  echo "  file: ~/.bashrc or ~/.zshrc"
+fi
+echo
+echo "Install dependency (if needed):"
+echo "  pip install -e '.[completion]'"

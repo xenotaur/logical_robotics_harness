@@ -1,5 +1,6 @@
 import argparse
 import contextlib
+import io
 import sys
 import types
 import unittest
@@ -32,8 +33,8 @@ class TestArgcompleteAdapter(unittest.TestCase):
         with unittest.mock.patch.dict(sys.modules, {"argcomplete": None}):
             with unittest.mock.patch("sys.argv", ["lrh", "--help"]):
                 with (
-                    contextlib.redirect_stdout(sys.stdout),
-                    contextlib.redirect_stderr(sys.stderr),
+                    contextlib.redirect_stdout(io.StringIO()),
+                    contextlib.redirect_stderr(io.StringIO()),
                 ):
                     with self.assertRaises(SystemExit) as err_ctx:
                         cli_main.main()

@@ -12,7 +12,6 @@ from lrh.cli import main as cli_main
 
 
 class TestArgcompleteAdapter(unittest.TestCase):
-
     def test_enable_completion_noops_without_argcomplete(self) -> None:
         parser = argparse.ArgumentParser(prog="lrh")
 

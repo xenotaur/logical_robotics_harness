@@ -6,7 +6,6 @@ from lrh.cli import completion_sources
 
 
 class TestCompletionSources(unittest.TestCase):
-
     def test_request_template_names_returns_sorted_prefix_matches(self) -> None:
         names = completion_sources.request_template_names(prefix="ci_")
         self.assertEqual(names, sorted(names))

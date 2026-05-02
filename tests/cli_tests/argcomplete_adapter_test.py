@@ -1,5 +1,6 @@
 import argparse
 import contextlib
+import io
 import pathlib
 import sys
 import types

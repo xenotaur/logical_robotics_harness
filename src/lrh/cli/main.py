@@ -317,12 +317,18 @@ def main() -> None:
             raise SystemExit(0)
         argv = [*argv[1:], "--help"]
 
-    if "request" in argv:
-        request_index = argv.index("request")
-        if request_index > 0:
+    first_command_index = 0
+    while first_command_index < len(argv) and argv[first_command_index] == "--version":
+        first_command_index += 1
+
+    if (
+        first_command_index < len(argv)
+        and argv[first_command_index] == "request"
+        and first_command_index > 0
+    ):
             raise SystemExit(
                 request_cli.run_request_cli(
-                    argv=argv[request_index + 1 :],
+                    argv=argv[first_command_index + 1 :],
                     prog="lrh request",
                 )
             )

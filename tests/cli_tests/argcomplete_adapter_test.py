@@ -31,7 +31,10 @@ class TestArgcompleteAdapter(unittest.TestCase):
     def test_main_cli_constructs_when_argcomplete_missing(self) -> None:
         with unittest.mock.patch.dict(sys.modules, {"argcomplete": None}):
             with unittest.mock.patch("sys.argv", ["lrh", "--help"]):
-                with contextlib.redirect_stdout(sys.stdout), contextlib.redirect_stderr(sys.stderr):
+                with (
+                    contextlib.redirect_stdout(sys.stdout),
+                    contextlib.redirect_stderr(sys.stderr),
+                ):
                     with self.assertRaises(SystemExit) as err_ctx:
                         cli_main.main()
 

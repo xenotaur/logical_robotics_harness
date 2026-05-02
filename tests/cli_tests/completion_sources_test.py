@@ -58,6 +58,18 @@ class TestCompletionSources(unittest.TestCase):
                 completion_sources.work_item_ids(root / "missing-project"), []
             )
 
+    def test_work_item_ids_accepts_crlf_frontmatter(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            active = root / "project" / "work_items" / "active"
+            active.mkdir(parents=True)
+            (active / "windows.md").write_text(
+                "---\r\nid: WI-WINDOWS\r\ntitle: Windows\r\n---\r\n",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(completion_sources.work_item_ids(root), ["WI-WINDOWS"])
+
 
 if __name__ == "__main__":
     unittest.main()

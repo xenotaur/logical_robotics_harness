@@ -2,7 +2,7 @@
 execution_id: 2026_05_02_00_36_48_COMPLETION_PROVIDERS
 prompt_id: PROMPT(AD_HOC:COMPLETION_PROVIDERS)[2026-04-29T12:11:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
 commit: 
@@ -27,4 +27,4 @@ Added framework-neutral completion providers for LRH request template names and 
 
 # Follow-up
 
-None.
+Regenerated PR branch after prior merge errors; no behavior change intended.

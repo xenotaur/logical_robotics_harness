@@ -10,12 +10,8 @@ from lrh.assist import request_service
 from lrh.cli import argcomplete_adapter
 
 
-def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
-    """Build the request CLI parser."""
-    parser = argparse.ArgumentParser(
-        prog=prog,
-        description="Render an assist request from a template and input options.",
-    )
+def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+    """Attach request CLI arguments to an existing parser."""
     template_name_arg = parser.add_argument(
         "template_name",
         help=(
@@ -128,6 +124,15 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         ),
     )
     return parser
+
+
+def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
+    """Build the request CLI parser."""
+    parser = argparse.ArgumentParser(
+        prog=prog,
+        description="Render an assist request from a template and input options.",
+    )
+    return configure_parser(parser)
 
 
 def build_codex_prompt_from_work_item_parser(

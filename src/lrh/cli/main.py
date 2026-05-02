@@ -46,11 +46,12 @@ def main() -> None:
         help="validate work-item files and policy rules only",
     )
 
-    subparsers.add_parser(
+    request_parser = subparsers.add_parser(
         "request",
         add_help=False,
         help="Render an assist request from a template.",
     )
+    request_cli.configure_parser(request_parser)
 
     subparsers.add_parser(
         "snapshot",
@@ -320,6 +321,14 @@ def main() -> None:
             raise SystemExit(0)
         argv = [*argv[1:], "--help"]
 
+    if argv and argv[0] == "request":
+        raise SystemExit(
+            request_cli.run_request_cli(
+                argv=argv[1:],
+                prog="lrh request",
+            )
+        )
+
     argcomplete_adapter.enable_completion(parser)
 
     args, passthrough_args = parser.parse_known_args(argv)
@@ -339,14 +348,6 @@ def main() -> None:
         )
         print(format_report(report))
         raise SystemExit(1 if report.errors else 0)
-
-    if args.command == "request":
-        raise SystemExit(
-            request_cli.run_request_cli(
-                argv=passthrough_args,
-                prog="lrh request",
-            )
-        )
 
     if args.command == "snapshot":
         raise SystemExit(

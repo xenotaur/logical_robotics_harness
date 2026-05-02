@@ -1,6 +1,5 @@
 import argparse
 import contextlib
-import io
 import pathlib
 import sys
 import types
@@ -29,6 +28,35 @@ class TestArgcompleteAdapter(unittest.TestCase):
             argcomplete_adapter.enable_completion(parser)
 
         fake_argcomplete.autocomplete.assert_called_once_with(parser)
+
+    def test_main_cli_registers_request_completers_on_top_level_parser(self) -> None:
+        captured: dict[str, argparse.ArgumentParser] = {}
+
+        def _capture(parser: argparse.ArgumentParser) -> None:
+            captured["parser"] = parser
+
+        fake_argcomplete = types.SimpleNamespace(autocomplete=_capture)
+        with unittest.mock.patch.dict(sys.modules, {"argcomplete": fake_argcomplete}):
+            with unittest.mock.patch("sys.argv", ["lrh", "--help"]):
+                with self.assertRaises(SystemExit):
+                    cli_main.main()
+
+        parser = captured["parser"]
+        request_action = next(
+            action
+            for action in parser._subparsers._group_actions[0].choices.values()
+            if action.prog.endswith(" request")
+        )
+        template_action = next(
+            action
+            for action in request_action._actions
+            if action.dest == "template_name"
+        )
+        target_action = next(
+            action for action in request_action._actions if action.dest == "target"
+        )
+        self.assertIsNotNone(getattr(template_action, "completer", None))
+        self.assertIsNotNone(getattr(target_action, "completer", None))
 
     def test_main_cli_constructs_when_argcomplete_missing(self) -> None:
         with unittest.mock.patch.dict(sys.modules, {"argcomplete": None}):

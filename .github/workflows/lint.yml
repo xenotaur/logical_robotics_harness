@@ -25,14 +25,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]" -c constraints-dev.txt
 
-      - name: Show tool versions
-        run: |
-          python --version
-          ruff --version
-          black --version
+      - name: Diagnostics: toolchain versions
+        run: scripts/version tools
 
-      - name: Run lint checks
+      - name: Format: Black check + diff
+        run: scripts/format --check --diff
+
+      - name: Lint + format gate (scripts/lint)
         run: scripts/lint
-
-      - name: Run formatting checks
-        run: scripts/format --check

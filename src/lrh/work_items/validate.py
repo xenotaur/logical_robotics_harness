@@ -40,7 +40,9 @@ class WorkItemValidationResult:
 def discover_work_item_paths(work_items_root: pathlib.Path) -> list[pathlib.Path]:
     paths = set(work_items_root.glob("*.md"))
     paths.update(work_items_root.glob("**/*.md"))
-    return sorted(path for path in paths if path.is_file())
+    return sorted(
+        path for path in paths if path.is_file() and path.name.lower() != "readme.md"
+    )
 
 
 def validate_work_items(project_root: pathlib.Path) -> WorkItemValidationResult:

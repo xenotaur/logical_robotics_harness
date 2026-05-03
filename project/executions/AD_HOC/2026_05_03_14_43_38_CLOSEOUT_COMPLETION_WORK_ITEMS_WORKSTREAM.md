@@ -15,7 +15,7 @@ Close out the completion/work-items tooling workstream by aligning project-contr
 
 # Result
 
-- Confirmed no existing active/proposed work-item files correspond to this workstream; the implementation history for completion, `work-items organize`, `work-items validate`, install helper, and README edge-case fixes is represented in existing AD_HOC execution records.
+- Confirmed no existing active/proposed work-item files correspond to this workstream; the implementation history for completion, `work-items organize`, `work-items validate`, install helper, and README discovery edge-case fixes in `lrh work-items validate` is represented in existing AD_HOC execution records.
 - Updated `project/status/current_status.md` with a concise closeout note and lightweight evidence references, including `lrh work-items organize`, `lrh work-items validate`, and repository validation outcomes.
 - Preserved all prior execution records unchanged.
 - Added this execution record as the only new/updated execution artifact for this prompt.

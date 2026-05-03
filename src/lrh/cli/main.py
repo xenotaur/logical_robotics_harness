@@ -18,6 +18,7 @@ from lrh.control import format_report, validate_project
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
 from lrh.work_items import organize as work_items_organize
+from lrh.work_items import validate as work_items_validate
 
 
 def main() -> None:
@@ -177,6 +178,22 @@ def main() -> None:
         "--apply",
         action="store_true",
         help="apply planned file updates and moves",
+    )
+
+    work_items_validate_parser = work_items_subparsers.add_parser(
+        "validate",
+        help="Validate work-item hygiene and status-bucket organization.",
+    )
+    work_items_validate_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    work_items_validate_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
     )
 
     meta_parser = subparsers.add_parser(
@@ -511,6 +528,22 @@ def main() -> None:
                 work_items_organize.apply_plan(plan)
                 print(work_items_organize.build_text_report(plan, applied=True))
             raise SystemExit(0)
+        if args.work_items_command == "validate":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            try:
+                result = work_items_validate.validate_work_items(
+                    project_root=project_root
+                )
+            except (OSError, UnicodeDecodeError):
+                print("error: unable to read work-item files")
+                raise SystemExit(2)
+            if args.format == "json":
+                print(work_items_validate.format_json(result))
+            else:
+                print(work_items_validate.format_text(result))
+            raise SystemExit(1 if result.errors else 0)
         parser.error("work-items requires a subcommand (try: lrh work-items organize)")
 
     if args.command == "meta":

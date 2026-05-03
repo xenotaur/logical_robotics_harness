@@ -199,12 +199,19 @@ To conservatively repair legacy flat work-item files and normalize bucket placem
 lrh work-items organize --project-root . --dry-run
 lrh work-items organize --project-root . --check
 lrh work-items organize --project-root . --apply
+lrh work-items validate --project-root .
+lrh validate
 ```
 
 `lrh work-items organize` defaults to preview behavior (non-mutating unless `--apply` is provided),
 adds missing frontmatter only when a work-item ID can be inferred reliably, and defaults ambiguous
 status inference to `proposed` with warnings. This command repairs organization/frontmatter but does
 not replace full project validation (`lrh validate`).
+
+`lrh work-items validate` is read-only and reports work-item hygiene diagnostics
+(malformed/missing frontmatter, ID/status issues, duplicates, bucket mismatches,
+and consistency warnings). Flat legacy files under `project/work_items/*.md` are
+reported as warnings for compatibility, not errors.
 
 
 ## Near-term priorities

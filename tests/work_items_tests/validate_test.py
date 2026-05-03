@@ -77,7 +77,9 @@ class WorkItemsValidateTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             self._write(
-                root, "project/work_items/active/WI-MAL-1.md", "---\nid WI-MAL-1\n---\n"
+                root,
+                "project/work_items/active/WI-MAL-1.md",
+                "---\nid WI-MAL-1\n---\n",
             )
             self._write(
                 root,
@@ -102,3 +104,38 @@ class WorkItemsValidateTest(unittest.TestCase):
             self.assertIn("errors", payload)
             self.assertIn("warnings", payload)
             self.assertIsInstance(payload["diagnostics"], list)
+
+    def test_frontmatter_closing_delimiter_at_eof_is_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._write(
+                root,
+                "project/work_items/active/WI-EOF-1.md",
+                "---\nid: WI-EOF-1\nstatus: active\n---",
+            )
+            result = work_items_validate.validate_work_items(root)
+            self.assertFalse(
+                any(d.code == "malformed-frontmatter" for d in result.diagnostics)
+            )
+
+    def test_filename_and_unknown_bucket_are_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._write(
+                root,
+                "project/work_items/custom/WI-NAMED-1.md",
+                "---\nid: WI-OTHER-1\nstatus: active\n---\n",
+            )
+            result = work_items_validate.validate_work_items(root)
+            severities = {d.code: d.severity for d in result.diagnostics}
+            self.assertEqual(severities.get("unknown-bucket-directory"), "error")
+            self.assertEqual(severities.get("filename-id-mismatch"), "error")
+
+    def test_non_work_item_markdown_warning_is_emitted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._write(root, "project/work_items/active/notes.md", "# Notes\n")
+            result = work_items_validate.validate_work_items(root)
+            codes = {d.code for d in result.diagnostics}
+            self.assertIn("non-work-item-markdown", codes)
+            self.assertIn("missing-reliable-id", codes)

@@ -65,7 +65,7 @@ def validate_work_items(project_root: pathlib.Path) -> WorkItemValidationResult:
         elif bucket == "unknown":
             diagnostics.append(
                 WorkItemDiagnostic(
-                    "warning",
+                    "error",
                     "unknown-bucket-directory",
                     rel,
                     "File is under an unknown nested directory in project/work_items/.",
@@ -109,6 +109,17 @@ def validate_work_items(project_root: pathlib.Path) -> WorkItemValidationResult:
                 )
             )
         if reliable_id is None:
+            diagnostics.append(
+                WorkItemDiagnostic(
+                    "warning",
+                    "non-work-item-markdown",
+                    rel,
+                    (
+                        "Markdown file under project/work_items does not "
+                        "appear to be a work item."
+                    ),
+                )
+            )
             diagnostics.append(
                 WorkItemDiagnostic(
                     "error",
@@ -184,7 +195,7 @@ def validate_work_items(project_root: pathlib.Path) -> WorkItemValidationResult:
         if fm_id and filename_id and fm_id != filename_id:
             diagnostics.append(
                 WorkItemDiagnostic(
-                    "warning",
+                    "error",
                     "filename-id-mismatch",
                     rel,
                     "Filename stem does not match frontmatter id.",
@@ -197,18 +208,6 @@ def validate_work_items(project_root: pathlib.Path) -> WorkItemValidationResult:
                     "h1-id-mismatch",
                     rel,
                     "H1 work item ID does not match frontmatter id.",
-                )
-            )
-        if fm_id is None and h1_id is None and filename_id is None:
-            diagnostics.append(
-                WorkItemDiagnostic(
-                    "warning",
-                    "non-work-item-markdown",
-                    rel,
-                    (
-                        "Markdown file under project/work_items does not "
-                        "appear to be a work item."
-                    ),
                 )
             )
 
@@ -263,12 +262,10 @@ def _inspect(path: pathlib.Path) -> dict[str, str | bool | None]:
     body = text
 
     if has_frontmatter:
-        split_index = text.find("\n---\n", 4)
-        if split_index == -1:
+        frontmatter_text, body = _split_frontmatter_for_inspect(text)
+        if frontmatter_text is None:
             malformed = True
         else:
-            body = text[split_index + 5 :]
-            frontmatter_text = text[4:split_index]
             if frontmatter_text.lstrip().startswith("- "):
                 frontmatter_invalid_type = True
             try:
@@ -300,6 +297,22 @@ def _inspect(path: pathlib.Path) -> dict[str, str | bool | None]:
         "h1_id": h1_id,
         "filename_id": filename_id,
     }
+
+
+def _split_frontmatter_for_inspect(text: str) -> tuple[str | None, str]:
+    scan_index = 4
+    while scan_index <= len(text):
+        line_end = text.find("\n", scan_index)
+        if line_end == -1:
+            line_end = len(text)
+        line = text[scan_index:line_end]
+        if line.strip() == "---":
+            body_start = line_end + 1 if line_end < len(text) else line_end
+            return text[4:scan_index], text[body_start:]
+        if line_end == len(text):
+            break
+        scan_index = line_end + 1
+    return None, text
 
 
 def _read_h1_work_item_id(body: str) -> str | None:

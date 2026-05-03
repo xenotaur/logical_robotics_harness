@@ -131,6 +131,26 @@ class WorkItemsValidateTest(unittest.TestCase):
             self.assertEqual(severities.get("unknown-bucket-directory"), "error")
             self.assertEqual(severities.get("filename-id-mismatch"), "error")
 
+    def test_readme_files_are_ignored_across_locations(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._write(root, "project/work_items/README.md", "# docs\n")
+            self._write(root, "project/work_items/readme.md", "# docs\n")
+            self._write(root, "project/work_items/active/README.md", "# docs\n")
+            self._write(root, "project/work_items/proposed/readme.md", "# docs\n")
+            self._write(
+                root,
+                "project/work_items/active/WI-OK-2.md",
+                "---\nid: WI-OK-2\nstatus: active\n---\n\n# WI-OK-2\n",
+            )
+
+            result = work_items_validate.validate_work_items(root)
+            paths = {d.path.lower() for d in result.diagnostics}
+            self.assertNotIn("project/work_items/readme.md", paths)
+            self.assertNotIn("project/work_items/active/readme.md", paths)
+            self.assertNotIn("project/work_items/proposed/readme.md", paths)
+            self.assertEqual(result.errors, 0)
+
     def test_non_work_item_markdown_warning_is_emitted(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)

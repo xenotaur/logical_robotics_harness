@@ -37,7 +37,7 @@ captures implementation-boundary and evidence expectations for follow-on PRs.
 Executed:
 
 - `scripts/version tools`
-- `scripts/lint` (initial run failed due Black drift in
+- `scripts/lint` (initial run failed due to Black drift in
   `tests/control_tests/parser_test.py`)
 - `scripts/test`
 - `scripts/format`

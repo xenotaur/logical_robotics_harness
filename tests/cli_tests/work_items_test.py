@@ -68,22 +68,26 @@ class WorkItemsCliTest(unittest.TestCase):
                 "---\nid: WI-CLI-VALIDATE-1\nstatus: active\n---\n",
                 encoding="utf-8",
             )
+            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 ["lrh", "work-items", "validate", "--project-root", str(root)],
             ):
-                with self.assertRaises(SystemExit) as err:
-                    cli_main.main()
+                with contextlib.redirect_stdout(stdout):
+                    with self.assertRaises(SystemExit) as err:
+                        cli_main.main()
             self.assertEqual(err.exception.code, 0)
 
             path.write_text(
                 "---\nid: WI-CLI-VALIDATE-1\nstatus: wrong\n---\n",
                 encoding="utf-8",
             )
+            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 ["lrh", "work-items", "validate", "--project-root", str(root)],
             ):
-                with self.assertRaises(SystemExit) as err:
-                    cli_main.main()
+                with contextlib.redirect_stdout(stdout):
+                    with self.assertRaises(SystemExit) as err:
+                        cli_main.main()
             self.assertEqual(err.exception.code, 1)

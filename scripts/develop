@@ -1,8 +1,10 @@
 #!/bin/bash
+set -euo pipefail
+
 echo "Installing lrh in develop mode..."
 set -x
 
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]" -c constraints-dev.txt
 
 # Turn off logging and print a blank line
 { set +x; } 2>/dev/null

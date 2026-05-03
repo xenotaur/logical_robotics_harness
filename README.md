@@ -287,7 +287,7 @@ For example, `v0.2.2` resolves to package version `0.2.2`.
 Prerequisite: install development dependencies so the build frontend is available:
 
 ```bash
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]" -c constraints-dev.txt
 ```
 
 Run the release workflow in this order:

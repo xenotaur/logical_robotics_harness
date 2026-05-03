@@ -34,6 +34,14 @@ The immediate objective is to finish packaging-safe assist migration sequencing:
 
 Versioning hardening is now in a stable operational state: LRH versioning is tag-derived via `setuptools-scm`, the `scripts/version` workflow (`verify`/`tag`/`push`) is in place, and release smoke validation succeeded for the pushed `v0.2.2` tag.
 
+
+Closeout note (2026-05-03): Completion and work-item tooling (`lrh work-items organize` + `lrh work-items validate`) is implemented, tested, and documented; work-item discovery edge cases including README handling in `lrh work-items validate` are resolved.
+
+Evidence snapshot:
+- `lrh work-items organize --help` and `lrh work-items validate --help` are available in the CLI.
+- `lrh work-items validate --project-root .` passes on this repository.
+- `lrh validate` passes on this repository.
+
 ## Current Health
 
 Yellow.

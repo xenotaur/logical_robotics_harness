@@ -25,10 +25,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]" -c constraints-dev.txt
 
-      - name: Diagnostics: toolchain versions
+      - name: "Diagnostics: toolchain versions"
         run: scripts/version tools
 
-      - name: Format: Black check + diff
+      - name: "Format: Black check + diff"
         run: scripts/format --check --diff
 
       - name: Lint + format gate (scripts/lint)

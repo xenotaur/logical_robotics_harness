@@ -28,6 +28,7 @@ class TemplateResolver:
     ) -> None:
         self._explicit_template_dirs = _coerce_paths(template_dirs or [])
         self._project_root = pathlib.Path(project_root) if project_root else None
+        self._use_process_home_fallback = environ is None
         self._environ = dict(os.environ if environ is None else environ)
 
     def resolve(self, logical_name: str) -> TemplateResolution:
@@ -80,7 +81,12 @@ class TemplateResolver:
         if self._project_root is not None:
             sources.append(("project", self._project_root / ".lrh" / "templates"))
 
-        sources.append(("user", _user_config_template_dir(self._environ)))
+        user_config_dir = _user_config_template_dir(
+            self._environ,
+            use_process_home_fallback=self._use_process_home_fallback,
+        )
+        if user_config_dir is not None:
+            sources.append(("user", user_config_dir))
         return sources
 
 
@@ -110,8 +116,12 @@ def _coerce_paths(paths: list[pathlib.Path | str]) -> list[pathlib.Path]:
     return [pathlib.Path(path) for path in paths]
 
 
-def _user_config_template_dir(environ: dict[str, str]) -> pathlib.Path:
-    """Return the default user-global assist template directory."""
+def _user_config_template_dir(
+    environ: dict[str, str],
+    *,
+    use_process_home_fallback: bool,
+) -> pathlib.Path | None:
+    """Return the default user-global assist template directory, if configured."""
     xdg_config_home = environ.get("XDG_CONFIG_HOME")
     if xdg_config_home:
         return pathlib.Path(xdg_config_home) / "lrh" / "templates"
@@ -119,4 +129,6 @@ def _user_config_template_dir(environ: dict[str, str]) -> pathlib.Path:
     home = environ.get("HOME")
     if home:
         return pathlib.Path(home) / ".config" / "lrh" / "templates"
-    return pathlib.Path.home() / ".config" / "lrh" / "templates"
+    if use_process_home_fallback:
+        return pathlib.Path.home() / ".config" / "lrh" / "templates"
+    return None

@@ -1,6 +1,7 @@
 import pathlib
 import tempfile
 import unittest
+import unittest.mock
 
 from lrh.assist import template_resolver
 
@@ -93,6 +94,25 @@ class TemplateResolverTest(unittest.TestCase):
 
             self.assertEqual(resolution.source, "user")
             self.assertEqual(content, "user override\n")
+
+    def test_injected_environment_without_home_does_not_read_process_home(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = pathlib.Path(temp_dir)
+            _write_template(
+                home / ".config" / "lrh" / "templates",
+                "request/review_response.md",
+                "process home override\n",
+            )
+            with unittest.mock.patch.object(pathlib.Path, "home", return_value=home):
+                resolver = template_resolver.TemplateResolver(environ={})
+
+                resolution = resolver.resolve("request/review_response.md")
+                content = resolver.read_text("request/review_response.md")
+
+            self.assertEqual(resolution.source, "package")
+            self.assertNotEqual(content, "process home override\n")
 
     def test_user_global_config_defaults_to_home_when_xdg_config_home_is_unset(
         self,

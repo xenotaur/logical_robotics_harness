@@ -75,7 +75,7 @@ class TestArgcompleteAdapter(unittest.TestCase):
         self.assertEqual(err_ctx.exception.code, 0)
 
     def test_request_template_completer_delegates_to_completion_sources(self) -> None:
-        parsed_args = argparse.Namespace(template_name="")
+        parsed_args = argparse.Namespace(template_name="", template_dir=None)
         project_root = pathlib.Path("/repo")
         with (
             unittest.mock.patch(
@@ -91,7 +91,37 @@ class TestArgcompleteAdapter(unittest.TestCase):
                 "o", parsed_args, action=object(), parser=object()
             )
         self.assertEqual(result, ["one"])
-        mock_provider.assert_called_once_with(prefix="o", project_root=project_root)
+        mock_provider.assert_called_once_with(
+            prefix="o",
+            project_root=project_root,
+            template_dirs=None,
+        )
+
+    def test_request_template_completer_passes_explicit_template_dir(self) -> None:
+        template_dir = pathlib.Path("/templates")
+        parsed_args = argparse.Namespace(
+            template_name="",
+            template_dir=str(template_dir),
+        )
+        project_root = pathlib.Path("/repo")
+        with (
+            unittest.mock.patch(
+                "lrh.cli.argcomplete_adapter.request_variables.find_repo_root",
+                return_value=project_root,
+            ),
+            unittest.mock.patch(
+                "lrh.cli.argcomplete_adapter.completion_sources.request_template_names",
+                return_value=["custom"],
+            ) as mock_provider,
+        ):
+            result = argcomplete_adapter.request_template_completer("c", parsed_args)
+
+        self.assertEqual(result, ["custom"])
+        mock_provider.assert_called_once_with(
+            prefix="c",
+            project_root=project_root,
+            template_dirs=[str(template_dir)],
+        )
 
     def test_codex_work_item_target_completer_returns_empty_for_other_templates(
         self,

@@ -19,12 +19,14 @@ def request_template_names(
     prefix: str = "",
     *,
     project_root: pathlib.Path | None = None,
+    template_dirs: list[pathlib.Path | str] | None = None,
     environ: dict[str, str] | None = None,
 ) -> list[str]:
     """Return sorted request-template names from overrides and package resources."""
     try:
         names = request_templates.request_template_names(
             project_root=project_root,
+            template_dirs=template_dirs,
             environ=environ,
         )
     except (FileNotFoundError, OSError):

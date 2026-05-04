@@ -84,7 +84,10 @@ class TestRequestTemplateOverrides(unittest.TestCase):
                 mock.patch.dict(os.environ, {}, clear=True),
                 mock.patch.object(pathlib.Path, "home", return_value=home),
             ):
-                rendered, _ = request_service.generate_request(self._args())
+                rendered, _ = request_service.generate_request(
+                    self._args(),
+                    project_root=home,
+                )
 
         self.assertIn("PR Request to Improve Coverage", rendered)
         self.assertIn("src/lrh/example.py", rendered)
@@ -99,10 +102,11 @@ class TestRequestTemplateOverrides(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            rendered, _ = request_service.generate_request(
-                self._args(),
-                project_root=project_root,
-            )
+            with mock.patch.dict(os.environ, {}, clear=True):
+                rendered, _ = request_service.generate_request(
+                    self._args(),
+                    project_root=project_root,
+                )
 
         self.assertEqual(rendered, "project src/lrh/example.py\n")
 
@@ -116,14 +120,19 @@ class TestRequestTemplateOverrides(unittest.TestCase):
                 "environment {{MODULE_NAME}}\n",
                 encoding="utf-8",
             )
-            with mock.patch.dict(os.environ, {"LRH_TEMPLATE_DIR": str(env_dir)}):
+            with mock.patch.dict(
+                os.environ,
+                {"LRH_TEMPLATE_DIR": str(env_dir)},
+                clear=True,
+            ):
                 rendered, _ = request_service.generate_request(self._args())
 
         self.assertEqual(rendered, "environment example\n")
 
     def test_explicit_template_dir_override_is_used(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            explicit_dir = pathlib.Path(temp_dir) / "explicit_templates"
+            root = pathlib.Path(temp_dir)
+            explicit_dir = root / "explicit_templates"
             template_dir = explicit_dir / "request"
             template_dir.mkdir(parents=True)
             (template_dir / "improve_coverage.md").write_text(
@@ -139,14 +148,23 @@ class TestRequestTemplateOverrides(unittest.TestCase):
 
     def test_package_fallback_works_when_override_template_is_absent(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            explicit_dir = pathlib.Path(temp_dir) / "explicit_templates"
+            root = pathlib.Path(temp_dir)
+            explicit_dir = root / "explicit_templates"
             template_dir = explicit_dir / "request"
             template_dir.mkdir(parents=True)
             (template_dir / "other.md").write_text("other\n", encoding="utf-8")
             args = self._args()
             args.template_dir = str(explicit_dir)
 
-            rendered, _ = request_service.generate_request(args)
+            home = root / "home"
+            with (
+                mock.patch.dict(os.environ, {}, clear=True),
+                mock.patch.object(pathlib.Path, "home", return_value=home),
+            ):
+                rendered, _ = request_service.generate_request(
+                    args,
+                    project_root=root,
+                )
 
         self.assertIn("PR Request to Improve Coverage", rendered)
         self.assertIn("src/lrh/example.py", rendered)

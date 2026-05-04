@@ -97,10 +97,12 @@ def load_template_text(
 def request_template_names(
     *,
     project_root: pathlib.Path | None = None,
+    template_dirs: list[pathlib.Path | str] | None = None,
     environ: dict[str, str] | None = None,
 ) -> list[str]:
     """Return sorted request-template base names from overrides and package data."""
     resolver = template_resolver.TemplateResolver(
+        template_dirs=template_dirs,
         project_root=project_root,
         environ=environ,
     )

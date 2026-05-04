@@ -24,10 +24,12 @@ def request_template_completer(
     **_: object,
 ) -> list[str]:
     """Complete request template names from overrides and package resources."""
-    del parsed_args
+    template_dir = getattr(parsed_args, "template_dir", None)
+    template_dirs = [template_dir] if template_dir else None
     return completion_sources.request_template_names(
         prefix=prefix,
         project_root=request_variables.find_repo_root(),
+        template_dirs=template_dirs,
     )
 
 

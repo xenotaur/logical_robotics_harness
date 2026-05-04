@@ -3,10 +3,12 @@
 import importlib.resources as resources
 import pathlib
 
+from lrh.assist import template_resolver
+
 
 def get_template_root() -> resources.abc.Traversable:
     """Return the package-owned request-template directory."""
-    return resources.files("lrh.assist").joinpath("templates", "request")
+    return resources.files("lrh.assist.templates").joinpath("request")
 
 
 def get_template_path(
@@ -43,17 +45,12 @@ def get_template_path(
 def load_template_text(
     template_name: str,
     template_root: pathlib.Path | None = None,
+    project_root: pathlib.Path | None = None,
 ) -> str:
     """Load a request template as UTF-8 text."""
     if template_root is not None:
         template_path = get_template_path(template_name, template_root)
         return template_path.read_text(encoding="utf-8")
 
-    template_file = get_template_root().joinpath(f"{template_name}.md")
-    if not template_file.is_file():
-        raise FileNotFoundError(
-            "Template not found in package resources: "
-            f"lrh/assist/templates/request/{template_name}.md"
-        )
-
-    return template_file.read_text(encoding="utf-8")
+    resolver = template_resolver.TemplateResolver(project_root=project_root)
+    return resolver.read_text(f"request/{template_name}.md")

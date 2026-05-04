@@ -1,0 +1,122 @@
+"""Resolve assist templates from overrides with package fallback."""
+
+import dataclasses
+import importlib.resources as resources
+import os
+import pathlib
+
+
+@dataclasses.dataclass(frozen=True)
+class TemplateResolution:
+    """Metadata for a resolved assist template."""
+
+    logical_name: str
+    source: str
+    origin: str
+    path: pathlib.Path | None = None
+
+
+class TemplateResolver:
+    """Resolve assist templates using explicit, environment, and default sources."""
+
+    def __init__(
+        self,
+        *,
+        template_dirs: list[pathlib.Path | str] | None = None,
+        project_root: pathlib.Path | str | None = None,
+        environ: dict[str, str] | None = None,
+    ) -> None:
+        self._explicit_template_dirs = _coerce_paths(template_dirs or [])
+        self._project_root = pathlib.Path(project_root) if project_root else None
+        self._environ = dict(os.environ if environ is None else environ)
+
+    def resolve(self, logical_name: str) -> TemplateResolution:
+        """Resolve ``logical_name`` to the first matching template source."""
+        normalized_name = normalize_logical_name(logical_name)
+        parts = normalized_name.split("/")
+
+        for source, template_dir in self._filesystem_sources():
+            candidate = template_dir.joinpath(*parts)
+            if candidate.is_file():
+                return TemplateResolution(
+                    logical_name=normalized_name,
+                    source=source,
+                    origin=str(candidate),
+                    path=candidate,
+                )
+
+        package_file = resources.files("lrh.assist.templates").joinpath(*parts)
+        if package_file.is_file():
+            return TemplateResolution(
+                logical_name=normalized_name,
+                source="package",
+                origin=f"lrh.assist.templates/{normalized_name}",
+            )
+
+        raise FileNotFoundError(f"Template not found: {normalized_name}")
+
+    def read_text(self, logical_name: str) -> str:
+        """Resolve and read ``logical_name`` as UTF-8 template text."""
+        resolution = self.resolve(logical_name)
+        if resolution.path is not None:
+            return resolution.path.read_text(encoding="utf-8")
+
+        package_file = resources.files("lrh.assist.templates").joinpath(
+            *resolution.logical_name.split("/")
+        )
+        return package_file.read_text(encoding="utf-8")
+
+    def _filesystem_sources(self) -> list[tuple[str, pathlib.Path]]:
+        """Return filesystem template sources in deterministic precedence order."""
+        sources: list[tuple[str, pathlib.Path]] = []
+
+        for template_dir in self._explicit_template_dirs:
+            sources.append(("explicit", template_dir))
+
+        env_template_dir = self._environ.get("LRH_TEMPLATE_DIR")
+        if env_template_dir:
+            sources.append(("environment", pathlib.Path(env_template_dir)))
+
+        if self._project_root is not None:
+            sources.append(("project", self._project_root / ".lrh" / "templates"))
+
+        sources.append(("user", _user_config_template_dir(self._environ)))
+        return sources
+
+
+def normalize_logical_name(logical_name: str) -> str:
+    """Validate and normalize a POSIX-style relative template name."""
+    if not logical_name:
+        raise ValueError("Template logical name must not be empty.")
+    if "\\" in logical_name:
+        raise ValueError(
+            "Template logical name must use POSIX '/' separators, not backslashes."
+        )
+
+    path = pathlib.PurePosixPath(logical_name)
+    windows_path = pathlib.PureWindowsPath(logical_name)
+    if path.is_absolute() or windows_path.is_absolute() or windows_path.drive:
+        raise ValueError(f"Unsafe template logical name: {logical_name}")
+
+    parts = logical_name.split("/")
+    if any(part in {"", ".", ".."} for part in parts):
+        raise ValueError(f"Unsafe template logical name: {logical_name}")
+
+    return "/".join(parts)
+
+
+def _coerce_paths(paths: list[pathlib.Path | str]) -> list[pathlib.Path]:
+    """Coerce path-like template directories to pathlib paths."""
+    return [pathlib.Path(path) for path in paths]
+
+
+def _user_config_template_dir(environ: dict[str, str]) -> pathlib.Path:
+    """Return the default user-global assist template directory."""
+    xdg_config_home = environ.get("XDG_CONFIG_HOME")
+    if xdg_config_home:
+        return pathlib.Path(xdg_config_home) / "lrh" / "templates"
+
+    home = environ.get("HOME")
+    if home:
+        return pathlib.Path(home) / ".config" / "lrh" / "templates"
+    return pathlib.Path.home() / ".config" / "lrh" / "templates"

@@ -2,7 +2,7 @@
 execution_id: 2026_05_04_20_31_08_ASSIST_TEMPLATE_RESOLVER_CORE
 prompt_id: PROMPT(AD_HOC:ASSIST_TEMPLATE_RESOLVER_CORE)[2026-05-04T15:00:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
 commit: 
@@ -28,6 +28,11 @@ Implemented `TemplateResolver` and `TemplateResolution` under `src/lrh/assist/`,
 - `scripts/lint && scripts/format --check && python -m unittest tests.assist_tests.template_resolver_test tests.assist_tests.request_templates_test tests.assist_tests.request_service_test` passed after the small request-service integration.
 - `scripts/test` passed after adding the HOME-default user-global config coverage.
 
+- Review follow-up validation on 2026-05-04: `scripts/version tools` passed with Ruff 0.15.12 and Black 26.3.1.
+- Review follow-up: `scripts/format --check --diff` initially failed on wrapping in `tests/cli_tests/completion_sources_test.py`; `scripts/format tests/cli_tests/completion_sources_test.py` fixed it.
+- Review follow-up: `scripts/test` initially failed because `tests/cli_tests/argcomplete_adapter_test.py` expected the old completion-provider call signature; updating the test fixed the failure.
+- Review follow-up: `scripts/format --check --diff && scripts/lint && scripts/test` passed after fixes.
+
 # Follow-up
 
-None.
+Keep this record `in_progress` until PR and merge/commit metadata are available.

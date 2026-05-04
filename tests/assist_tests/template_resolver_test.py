@@ -1,3 +1,4 @@
+import os
 import pathlib
 import tempfile
 import unittest
@@ -186,6 +187,59 @@ class TemplateResolverTest(unittest.TestCase):
 
             self.assertEqual(resolver.resolve(logical_name).source, "project")
             self.assertEqual(resolver.read_text(logical_name), "project\n")
+
+    def test_symlink_escape_from_template_root_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            template_root = root / "templates"
+            secret_path = root / "secret.md"
+            secret_path.write_text("secret\n", encoding="utf-8")
+            link_path = template_root / "request" / "review_response.md"
+            link_path.parent.mkdir(parents=True)
+            os.symlink(secret_path, link_path)
+            resolver = template_resolver.TemplateResolver(
+                template_dirs=[template_root],
+                environ={},
+            )
+
+            with self.assertRaisesRegex(
+                PermissionError,
+                "Template candidate escapes template root",
+            ):
+                resolver.resolve("request/review_response.md")
+
+    def test_missing_template_error_lists_checked_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            explicit_dir = root / "explicit"
+            env_dir = root / "env"
+            project_root = root / "project"
+            config_home = root / "config"
+            resolver = template_resolver.TemplateResolver(
+                template_dirs=[explicit_dir],
+                project_root=project_root,
+                environ={
+                    "LRH_TEMPLATE_DIR": str(env_dir),
+                    "XDG_CONFIG_HOME": str(config_home),
+                },
+            )
+
+            with self.assertRaises(FileNotFoundError) as context:
+                resolver.resolve("request/does_not_exist.md")
+
+            message = str(context.exception)
+            self.assertIn("Template not found: request/does_not_exist.md", message)
+            self.assertIn(f"explicit: {explicit_dir}", message)
+            self.assertIn(f"environment: {env_dir}", message)
+            self.assertIn(
+                f"project: {project_root / '.lrh' / 'templates'}",
+                message,
+            )
+            self.assertIn(
+                f"user: {config_home / 'lrh' / 'templates'}",
+                message,
+            )
+            self.assertIn("package: lrh.assist.templates", message)
 
     def test_missing_template_raises_clear_error(self) -> None:
         resolver = template_resolver.TemplateResolver(environ={})

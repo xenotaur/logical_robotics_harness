@@ -23,9 +23,12 @@ def request_template_completer(
     parsed_args: argparse.Namespace,
     **_: object,
 ) -> list[str]:
-    """Complete request template names from package-owned template resources."""
+    """Complete request template names from overrides and package resources."""
     del parsed_args
-    return completion_sources.request_template_names(prefix=prefix)
+    return completion_sources.request_template_names(
+        prefix=prefix,
+        project_root=request_variables.find_repo_root(),
+    )
 
 
 def codex_work_item_target_completer(

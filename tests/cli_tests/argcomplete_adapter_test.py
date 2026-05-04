@@ -76,15 +76,22 @@ class TestArgcompleteAdapter(unittest.TestCase):
 
     def test_request_template_completer_delegates_to_completion_sources(self) -> None:
         parsed_args = argparse.Namespace(template_name="")
-        with unittest.mock.patch(
-            "lrh.cli.argcomplete_adapter.completion_sources.request_template_names",
-            return_value=["one"],
-        ) as mock_provider:
+        project_root = pathlib.Path("/repo")
+        with (
+            unittest.mock.patch(
+                "lrh.cli.argcomplete_adapter.request_variables.find_repo_root",
+                return_value=project_root,
+            ),
+            unittest.mock.patch(
+                "lrh.cli.argcomplete_adapter.completion_sources.request_template_names",
+                return_value=["one"],
+            ) as mock_provider,
+        ):
             result = argcomplete_adapter.request_template_completer(
                 "o", parsed_args, action=object(), parser=object()
             )
         self.assertEqual(result, ["one"])
-        mock_provider.assert_called_once_with(prefix="o")
+        mock_provider.assert_called_once_with(prefix="o", project_root=project_root)
 
     def test_codex_work_item_target_completer_returns_empty_for_other_templates(
         self,

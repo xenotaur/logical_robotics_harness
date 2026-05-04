@@ -42,15 +42,62 @@ def get_template_path(
     return template_path
 
 
+def resolve_template(
+    template_name: str,
+    template_root: pathlib.Path | None = None,
+    project_root: pathlib.Path | None = None,
+) -> template_resolver.TemplateResolution:
+    """Resolve a request template and return source metadata."""
+    if template_root is not None:
+        template_path = get_template_path(template_name, template_root)
+        return template_resolver.TemplateResolution(
+            logical_name=f"request/{template_name}.md",
+            source="explicit",
+            origin=str(template_path),
+            path=template_path,
+        )
+
+    resolver = template_resolver.TemplateResolver(project_root=project_root)
+    return resolver.resolve(f"request/{template_name}.md")
+
+
 def load_template_text(
     template_name: str,
     template_root: pathlib.Path | None = None,
     project_root: pathlib.Path | None = None,
 ) -> str:
     """Load a request template as UTF-8 text."""
-    if template_root is not None:
-        template_path = get_template_path(template_name, template_root)
-        return template_path.read_text(encoding="utf-8")
+    resolution = resolve_template(
+        template_name,
+        template_root=template_root,
+        project_root=project_root,
+    )
+    if resolution.path is not None:
+        return resolution.path.read_text(encoding="utf-8")
 
-    resolver = template_resolver.TemplateResolver(project_root=project_root)
-    return resolver.read_text(f"request/{template_name}.md")
+    template_file = resources.files("lrh.assist.templates").joinpath(
+        *resolution.logical_name.split("/")
+    )
+    return template_file.read_text(encoding="utf-8")
+
+
+def request_template_names(
+    *,
+    project_root: pathlib.Path | None = None,
+    environ: dict[str, str] | None = None,
+) -> list[str]:
+    """Return sorted request-template base names from overrides and package data."""
+    resolver = template_resolver.TemplateResolver(
+        project_root=project_root,
+        environ=environ,
+    )
+    names: set[str] = set()
+    for logical_name in resolver.list_logical_names():
+        if not logical_name.startswith("request/"):
+            continue
+        if logical_name.count("/") != 1:
+            continue
+        if not logical_name.endswith(".md"):
+            continue
+        names.add(logical_name[len("request/") : -len(".md")])
+    return sorted(names)

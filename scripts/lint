@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FORMAT_SCRIPT="${SCRIPT_DIR}/format"
+
 fix=0
 extra=0
 
@@ -76,7 +79,7 @@ else
 fi
 
 echo "Checking formatting with black..."
-if ! scripts/format --check --diff "${targets[@]}"; then
+if ! "${FORMAT_SCRIPT}" --check --diff "${targets[@]}"; then
     black_failed=1
     echo
     echo "Black formatting check failed."

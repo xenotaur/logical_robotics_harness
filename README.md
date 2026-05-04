@@ -168,7 +168,7 @@ For any given commit, LRH expects `scripts/format`, `scripts/lint`, and `scripts
 scripts/develop
 ```
 
-`scripts/develop` is the canonical setup entrypoint and installs development dependencies with the repository's constrained command (`python -m pip install -e ".[dev]" -c constraints-dev.txt`).
+`scripts/develop` is the canonical setup entrypoint for the constrained editable development install.
 This applies equally to local virtualenv/Conda setups and to agent environments that bootstrap from repository scripts.
 
 ### Canonical local validation
@@ -401,7 +401,7 @@ For example, `v0.2.2` resolves to package version `0.2.2`.
 Prerequisite: install development dependencies so the build frontend is available:
 
 ```bash
-python -m pip install -e ".[dev]" -c constraints-dev.txt
+scripts/develop
 ```
 
 Run the release workflow in this order:

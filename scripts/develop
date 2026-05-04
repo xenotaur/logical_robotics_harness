@@ -4,6 +4,7 @@ set -euo pipefail
 echo "Installing lrh in develop mode..."
 set -x
 
+# Canonical LRH editable development install (source of truth for constrained dev deps).
 python -m pip install -e ".[dev]" -c constraints-dev.txt
 
 # Turn off logging and print a blank line

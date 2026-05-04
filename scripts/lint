@@ -76,10 +76,11 @@ else
 fi
 
 echo "Checking formatting with black..."
-if ! black --check --quiet "${targets[@]}"; then
+if ! scripts/format --check --diff "${targets[@]}"; then
     black_failed=1
     echo
-    echo "Black formatting check failed. Run scripts/lint --fix or scripts/format."
+    echo "Black formatting check failed."
+    echo "Run scripts/lint --fix to apply formatting fixes."
 fi
 
 # ------------------------

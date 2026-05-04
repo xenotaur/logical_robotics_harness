@@ -6,6 +6,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   check-workflows:
     name: Check workflow files
@@ -19,8 +22,8 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install development environment
-        run: scripts/develop
+      - name: Install workflow check dependency
+        run: python -m pip install PyYAML==6.0.3
 
       - name: Check workflow files
         run: scripts/check-workflows

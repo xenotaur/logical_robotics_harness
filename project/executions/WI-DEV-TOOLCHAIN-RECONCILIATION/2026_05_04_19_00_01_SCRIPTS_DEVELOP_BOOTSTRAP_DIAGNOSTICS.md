@@ -2,7 +2,7 @@
 execution_id: 2026_05_04_19_00_01_SCRIPTS_DEVELOP_BOOTSTRAP_DIAGNOSTICS
 prompt_id: PROMPT(WI-DEV-TOOLCHAIN-RECONCILIATION:SCRIPTS_DEVELOP_BOOTSTRAP_DIAGNOSTICS)[2026-05-04T09:10:00-04:00]
 work_item: WI-DEV-TOOLCHAIN-RECONCILIATION
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:
@@ -18,7 +18,7 @@ Updated `scripts/develop` failure handling so editable install failures print a 
 - Added explicit exit-code capture for the canonical constrained editable install command.
 - Added a targeted diagnostic block that distinguishes setup/bootstrap failures from task-phase validation when package-index access is restricted.
 - Kept success-path behavior unchanged; the script still exits nonzero on install failure.
-- Did not add shell-script tests; used manual validation and the repository's canonical validation scripts for this focused script change.
+- Added focused regression tests under `tests/scripts_tests/develop_test.py` to validate failure-path diagnostics and exit-code preservation.
 
 # Validation
 
@@ -26,8 +26,6 @@ Updated `scripts/develop` failure handling so editable install failures print a 
 - `scripts/format --check --diff`
 - `scripts/lint`
 - `scripts/test`
-- `scripts/develop` (failed in task phase due to restricted package-index access; expected diagnostic printed)
-- `scripts/version tools` (re-run after failed `scripts/develop`)
 
 # Follow-up
 

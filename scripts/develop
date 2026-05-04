@@ -31,6 +31,10 @@ task-phase validation instead:
 
 If required versions are missing or mismatched, rerun setup or reset the agent
 environment cache before formatter debugging.
+
+If task-phase validation reports missing-install/import errors (for example
+ModuleNotFoundError: lrh), treat that as a setup/bootstrap mismatch rather
+than a code regression.
 DIAGNOSTIC
   exit "${install_exit_code}"
 fi

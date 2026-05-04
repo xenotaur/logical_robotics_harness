@@ -108,8 +108,10 @@ When a task is driven by a generated prompt, follow `PROMPTS.md` for prompt IDs,
 
 ## Environment setup before validation
 
-Before running validation commands in Codex Cloud (or any agent environment), run `scripts/develop` and confirm tool versions with `scripts/version tools`.
-If Black/Ruff versions do not match repository expectations, reconcile environment/cache first and only then proceed with formatting/lint/test debugging.
+In Codex Cloud, run `scripts/develop` during environment setup/bootstrap, not routinely during ordinary task-phase validation.
+During task-phase validation, run `scripts/version tools` first and proceed with formatting/lint/test only when Black/Ruff versions match repository expectations.
+If versions are missing or mismatched, report a setup/cache issue and reconcile environment/cache before formatter debugging.
+If canonical validation fails with missing-install/import errors (for example `ModuleNotFoundError: lrh`), report a setup/bootstrap mismatch rather than a code regression.
 
 ## Testing policy note
 

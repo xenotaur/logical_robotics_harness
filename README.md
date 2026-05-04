@@ -158,6 +158,74 @@ scripts/smoke    # heavyweight build/install/package smoke checks
 
 Unit tests are expected to stay fast, deterministic, and hermetic; smoke coverage is where install/build/package behavior should run.
 
+## Reconciled local, CI, and agent validation workflow
+
+For any given commit, LRH expects `scripts/format`, `scripts/lint`, and `scripts/test` to produce the same outcome across local development, GitHub Actions, Codex Cloud, Claude Code, and comparable coding-agent environments.
+
+### Canonical setup
+
+```bash
+scripts/develop
+```
+
+`scripts/develop` is the canonical setup entrypoint and installs development dependencies with the repository's constrained command (`python -m pip install -e ".[dev]" -c constraints-dev.txt`).
+This applies equally to local virtualenv/Conda setups and to agent environments that bootstrap from repository scripts.
+
+### Canonical local validation
+
+```bash
+scripts/version tools
+scripts/format --check --diff
+scripts/lint
+scripts/test
+lrh validate
+```
+
+### Repair workflow (when checks fail)
+
+```bash
+scripts/format
+scripts/lint --fix
+scripts/lint
+scripts/format --check --diff
+scripts/test
+lrh validate
+```
+
+After mutating commands (for example `scripts/format` or `scripts/lint --fix`), inspect the resulting changes before committing:
+
+```bash
+git diff
+```
+
+### Agent workflow rules
+
+- Agents should use project scripts (`scripts/format`, `scripts/lint`, `scripts/test`) as the source of truth, not direct `black`/`ruff` command substitutions.
+- Direct `black`/`ruff` invocations are diagnostics only and must not replace script-based validation evidence.
+- Agents should not manually rewrap code to satisfy Black; run the formatter and review the output.
+- Agents should not claim “pre-existing drift” or “cannot reproduce” without command evidence.
+
+### Debug evidence checklist
+
+When behavior differs across environments, collect and share:
+
+```bash
+git rev-parse HEAD
+git status --short
+scripts/version tools
+scripts/format --check --diff
+scripts/lint
+scripts/test
+lrh validate
+```
+
+### Environment notes
+
+- **Local (venv/Conda):** install dev dependencies with constraints and run script entry points from repository root.
+- **GitHub Actions:** should run the same script entry points so CI status maps directly to local checks.
+- **Codex Cloud:** use repository scripts for validation and include command output in change summaries.
+- **Claude Code and comparable agents:** follow the same script-first workflow and provide concrete command evidence for any reproducibility claims.
+
 CI usage:
 
 - pull-request and main-branch fast validation includes `scripts/test`, `scripts/format --check --diff`, `scripts/lint`, and `lrh validate`

@@ -33,7 +33,8 @@ merge templates, expand partials, or apply inheritance.
 
 Resolution uses this deterministic precedence order:
 
-1. explicit template directories supplied by Python callers
+1. an explicit template directory from `lrh request --template-dir` or Python
+   callers
 2. `LRH_TEMPLATE_DIR`, when set
 3. project-local `.lrh/templates/` under the selected project root
 4. user-global config templates under `$XDG_CONFIG_HOME/lrh/templates/`, or
@@ -42,7 +43,9 @@ Resolution uses this deterministic precedence order:
 
 Filesystem overrides should mirror the package template layout. For example, a
 project-local override for the review-response request template belongs at
-`.lrh/templates/request/review_response.md`.
+`.lrh/templates/request/review_response.md`. To use an ad hoc override root for a
+single command, run `lrh request --template-dir /path/to/templates ...`; that
+directory should contain paths such as `request/review_response.md`.
 
 ## Command Line Usage
 

@@ -24,6 +24,26 @@ Review/repair request templates keep a packaged protocol at `src/lrh/assist/temp
 - **Request generation**: Deterministic interpolation that replaces known placeholders and leaves unknown placeholders unchanged.
 - **`RequestArgs`**: Planned typed argument model for Python callers.
 
+## Template Override Resolution
+
+Assist templates are resolved by logical POSIX-style names such as
+`request/codex_prompt_from_work_item.md` and
+`request/review_response.md`. LRH checks exact-name overrides only; it does not
+merge templates, expand partials, or apply inheritance.
+
+Resolution uses this deterministic precedence order:
+
+1. explicit template directories supplied by Python callers
+2. `LRH_TEMPLATE_DIR`, when set
+3. project-local `.lrh/templates/` under the selected project root
+4. user-global config templates under `$XDG_CONFIG_HOME/lrh/templates/`, or
+   `~/.config/lrh/templates/` when `XDG_CONFIG_HOME` is unset
+5. package-owned fallback templates under `lrh.assist.templates`
+
+Filesystem overrides should mirror the package template layout. For example, a
+project-local override for the review-response request template belongs at
+`.lrh/templates/request/review_response.md`.
+
 ## Command Line Usage
 
 ### Preferred usage

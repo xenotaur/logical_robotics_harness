@@ -74,10 +74,25 @@ def generate_request(
     args: argparse.Namespace,
     *,
     template_root: pathlib.Path | None = None,
+    project_root: pathlib.Path | None = None,
 ) -> tuple[str, dict[str, str]]:
     """Load template and render it using computed request variables."""
     variables = build_variables(args)
+    resolved_project_root = project_root or request_variables.find_repo_root()
     if args.template_name == "codex_prompt_from_work_item":
+        template_resolution = request_templates.resolve_template(
+            args.template_name,
+            template_root=template_root,
+            project_root=resolved_project_root,
+        )
+        if template_resolution.source != "package":
+            template_text = request_templates.load_template_text(
+                args.template_name,
+                template_root=template_root,
+                project_root=resolved_project_root,
+            )
+            return render_template(template_text, variables), variables
+
         work_item_path = pathlib.Path(variables["WORK_ITEM_RESOLVED_FILE"])
         prompt_id = _resolve_codex_prompt_id(
             args=args,
@@ -118,6 +133,7 @@ def generate_request(
     template_text = request_templates.load_template_text(
         args.template_name,
         template_root=template_root,
+        project_root=resolved_project_root,
     )
     return render_template(template_text, variables), variables
 

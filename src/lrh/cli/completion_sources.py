@@ -15,13 +15,18 @@ _WORK_ITEM_H1_ID_PATTERN = re.compile(
 )
 
 
-def request_template_names(prefix: str = "") -> list[str]:
-    """Return sorted request-template names from package resources."""
-    names: list[str] = []
+def request_template_names(
+    prefix: str = "",
+    *,
+    project_root: pathlib.Path | None = None,
+    environ: dict[str, str] | None = None,
+) -> list[str]:
+    """Return sorted request-template names from overrides and package resources."""
     try:
-        for candidate in request_templates.get_template_root().iterdir():
-            if candidate.is_file() and candidate.name.endswith(".md"):
-                names.append(candidate.name[: -len(".md")])
+        names = request_templates.request_template_names(
+            project_root=project_root,
+            environ=environ,
+        )
     except (FileNotFoundError, OSError):
         return []
     return _filter_sorted(names, prefix)

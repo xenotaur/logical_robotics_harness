@@ -471,6 +471,27 @@ class TestCodexPromptFromWorkItemTemplate(unittest.TestCase):
             rendered,
         )
 
+    def test_codex_prompt_uses_project_local_template_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            template_dir = project_root / ".lrh" / "templates" / "request"
+            template_dir.mkdir(parents=True)
+            (template_dir / "codex_prompt_from_work_item.md").write_text(
+                "override {{WORK_ITEM_PATH}} {{STYLE_GUIDE_PATH}}\n",
+                encoding="utf-8",
+            )
+
+            rendered, _ = request_service.generate_request(
+                self._args(),
+                project_root=project_root,
+            )
+
+        self.assertEqual(
+            rendered,
+            "override project/work_items/proposed/"
+            "WI-INTERPRETATION-VALIDATION.md STYLE.md\n",
+        )
+
 
 class TestReviewResponseTemplate(unittest.TestCase):
     def test_review_response_renders_repair_prompt_with_unresolved_threads(

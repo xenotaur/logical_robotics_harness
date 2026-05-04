@@ -12,6 +12,37 @@ class TestCompletionSources(unittest.TestCase):
         self.assertTrue(names)
         self.assertTrue(all(name.startswith("ci_") for name in names))
 
+    def test_request_template_names_includes_environment_only_templates(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            env_dir = pathlib.Path(temp_dir)
+            template_path = env_dir / "request" / "custom_env.md"
+            template_path.parent.mkdir(parents=True)
+            template_path.write_text("custom\n", encoding="utf-8")
+
+            names = completion_sources.request_template_names(
+                prefix="custom",
+                environ={"LRH_TEMPLATE_DIR": str(env_dir)},
+            )
+
+        self.assertEqual(names, ["custom_env"])
+
+    def test_request_template_names_includes_project_local_templates(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            template_path = (
+                project_root / ".lrh" / "templates" / "request" / "custom_project.md"
+            )
+            template_path.parent.mkdir(parents=True)
+            template_path.write_text("custom\n", encoding="utf-8")
+
+            names = completion_sources.request_template_names(
+                prefix="custom",
+                project_root=project_root,
+                environ={},
+            )
+
+        self.assertEqual(names, ["custom_project"])
+
     def test_work_item_ids_reads_ids_from_known_buckets(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)

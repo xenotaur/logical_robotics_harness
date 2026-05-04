@@ -1,6 +1,6 @@
 Addressing Code Review Feedback:
 
-Follow REVIEWS.md for the full review protocol.
+Follow `src/lrh/assist/templates/request/review_protocol.md` for the full review protocol (packaged), and use repository-root `REVIEWS.md` as the maintenance source when available.
 
 Minimal execution-critical guardrails:
 

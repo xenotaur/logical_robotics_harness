@@ -12,9 +12,24 @@ When validating or repairing a reported failure, first identify and run the targ
 Use this canonical command set when those entrypoints exist in the target repository:
 
 ```bash
+scripts/develop
 scripts/version tools
-scripts/lint
+```
+
+Before running lint/format/test, verify `scripts/version tools` reports the expected Black/Ruff versions.
+If Black or Ruff versions do not match:
+
+- STOP formatter debugging.
+- Re-run `scripts/develop`.
+- If mismatch persists, report an environment/cache issue (for example Codex Cloud cache reconciliation needed).
+
+Do not attempt to fix formatting if Black/Ruff versions are incorrect. Fix the environment first.
+
+Only after versions match, run:
+
+```bash
 scripts/format --check --diff
+scripts/lint
 scripts/test
 ```
 

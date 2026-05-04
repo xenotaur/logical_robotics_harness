@@ -233,6 +233,42 @@ CI usage:
 - smoke validation runs `scripts/smoke` in the dedicated **Smoke validation** workflow (manual dispatch, weekly schedule, and tag pushes matching `v*`, including semantic-version release tags such as `v1.2.3`)
 - release-tag validation runs in the dedicated **Release tag validation** workflow on pushed tags matching `v*.*.*`; those release-tag pushes also trigger **Smoke validation**. It runs `scripts/version verify "$TAG_UNDER_TEST"`, runs `scripts/release-smoke "$TAG_UNDER_TEST"`, and uploads build/smoke artifacts for audit trails
 
+
+## Codex Cloud environment reconciliation
+
+Codex Cloud can occasionally reuse cached environments with stale tool versions.
+When this happens, script-based validation correctly fails version gates (for example Black or Ruff required-version checks), but formatter debugging should not start until setup is reconciled.
+
+### Required setup sequence
+
+```bash
+python -m pip install --upgrade pip
+scripts/develop
+scripts/version tools
+```
+
+### Required validation sequence
+
+Run validation only after `scripts/version tools` reports expected versions:
+
+```bash
+scripts/format --check --diff
+scripts/lint
+scripts/test
+```
+
+### Common mismatch symptoms
+
+- Black required-version failures
+- Ruff required-version failures
+
+### Resolution steps
+
+1. Ensure your setup flow includes `scripts/develop` (canonical environment setup).
+2. Re-run setup and then `scripts/version tools`.
+3. If mismatches persist in Codex Cloud, reset the Codex Cloud environment cache.
+4. Re-run validation commands only after setup/version checks succeed.
+
 ## Design summary
 
 The control model for a project is:

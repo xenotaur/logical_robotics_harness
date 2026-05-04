@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Completed
 blocked_reason: null
 blocked: false
 id: WI-RELEASE-TAG-CI
 title: Add release tag CI verification workflow
 type: operation
-status: proposed
+status: resolved
 priority: high
 owner: anthony
 contributors:
@@ -104,3 +104,10 @@ on:
 
 and confirm the implementation uses the pushed tag name (for example `${{ github.ref_name }}`) when invoking release checks and validation commands.
 
+## Completion Notes
+
+- Implemented and externally validated by the `v0.2.3` release tag validation workflow.
+- GitHub Actions run: https://github.com/xenotaur/logical_robotics_harness/actions/runs/25342434294
+- Workflow: Release tag validation; trigger: tag push for `v0.2.3`; commit: `dd78e89`; result: success.
+- The run produced the `release-artifacts-v0.2.3` artifact for release auditability.
+- Closure evidence recorded in `project/evidence/EV-0004.md`.

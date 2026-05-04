@@ -34,6 +34,8 @@ The immediate objective is to finish packaging-safe assist migration sequencing:
 
 Versioning hardening is now in a stable operational state: LRH versioning is tag-derived via `setuptools-scm`, the `scripts/version` workflow (`verify`/`tag`/`push`) is in place, and release smoke validation succeeded for the pushed `v0.2.2` tag.
 
+Release tag CI closeout is recorded for `v0.2.3`: the Release tag validation workflow succeeded for tag push `v0.2.3` at commit `dd78e89` and produced the `release-artifacts-v0.2.3` artifact. Evidence: https://github.com/xenotaur/logical_robotics_harness/actions/runs/25342434294
+
 
 Closeout note (2026-05-03): Completion and work-item tooling (`lrh work-items organize` + `lrh work-items validate`) is implemented, tested, and documented; work-item discovery edge cases including README handling in `lrh work-items validate` are resolved.
 

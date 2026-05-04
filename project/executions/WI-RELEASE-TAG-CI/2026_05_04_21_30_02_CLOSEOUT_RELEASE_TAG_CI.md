@@ -23,7 +23,7 @@ Closed out `WI-RELEASE-TAG-CI` in the project control plane after successful ext
 # Validation
 
 - `scripts/version tools` (pass)
-- `scripts/format --check` (pass)
+- `scripts/format --check --diff` (pass)
 - `scripts/lint` (pass)
 - `scripts/test` (pass, 314 tests)
 - `lrh work-items validate --project-root .` (pass)

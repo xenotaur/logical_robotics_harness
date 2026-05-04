@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Build LRH via Python's build module.
-# Requires dev dependencies (pip install -e ".[dev]").
+# Requires dev dependencies; run scripts/develop (canonical setup entrypoint).
 echo "Building the lrh package..."
 set -x
 

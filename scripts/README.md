@@ -438,8 +438,8 @@ scripts/version    # Check installed tool versions
 
 Make sure you have the following tools installed for full functionality:
 
-- **Build:** `pip install build`
+- **Build:** Installed by `scripts/develop` as part of the dev extra
 - **Publish:** `pip install twine` 
 - **Format/Lint:** Installed by `scripts/develop` (includes Black and Ruff)
-- **Coverage:** `pip install coverage`
+- **Coverage:** Installed by `scripts/develop` as part of the dev extra
 - **Environment:** conda (for environment export)

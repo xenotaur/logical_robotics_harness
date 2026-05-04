@@ -15,6 +15,34 @@ class TestRequestCli(unittest.TestCase):
         self.assertIn("ci_assess_status", help_text)
         self.assertIn("ci_implement_workflow", help_text)
 
+    def test_template_dir_flag_uses_explicit_override(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            template_dir = root / "templates"
+            request_dir = template_dir / "request"
+            request_dir.mkdir(parents=True)
+            (request_dir / "improve_coverage.md").write_text(
+                "cli {{MODULE_NAME}}\n",
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "improve_coverage",
+                        "src/lrh/example.py",
+                        "--template-dir",
+                        str(template_dir),
+                    ],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stdout.getvalue(), "cli example\n")
+        self.assertEqual(stderr.getvalue(), "")
+
     def test_codex_prompt_from_work_item_command_writes_output_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)

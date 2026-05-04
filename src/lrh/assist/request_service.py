@@ -75,21 +75,25 @@ def generate_request(
     *,
     template_root: pathlib.Path | None = None,
     project_root: pathlib.Path | None = None,
+    template_dirs: list[pathlib.Path | str] | None = None,
 ) -> tuple[str, dict[str, str]]:
     """Load template and render it using computed request variables."""
     variables = build_variables(args)
     resolved_project_root = project_root or request_variables.find_repo_root()
+    resolved_template_dirs = _resolve_template_dirs(args, template_dirs)
     if args.template_name == "codex_prompt_from_work_item":
         template_resolution = request_templates.resolve_template(
             args.template_name,
             template_root=template_root,
             project_root=resolved_project_root,
+            template_dirs=resolved_template_dirs,
         )
         if template_resolution.source != "package":
             template_text = request_templates.load_template_text(
                 args.template_name,
                 template_root=template_root,
                 project_root=resolved_project_root,
+                template_dirs=resolved_template_dirs,
             )
             return render_template(template_text, variables), variables
 
@@ -134,8 +138,21 @@ def generate_request(
         args.template_name,
         template_root=template_root,
         project_root=resolved_project_root,
+        template_dirs=resolved_template_dirs,
     )
     return render_template(template_text, variables), variables
+
+
+def _resolve_template_dirs(
+    args: argparse.Namespace,
+    template_dirs: list[pathlib.Path | str] | None,
+) -> list[pathlib.Path | str]:
+    """Return explicit request template directories in CLI/API precedence order."""
+    resolved_dirs = list(template_dirs or [])
+    template_dir = getattr(args, "template_dir", None)
+    if template_dir:
+        resolved_dirs.insert(0, template_dir)
+    return resolved_dirs
 
 
 def render_template(template_text: str, variables: dict[str, str]) -> str:

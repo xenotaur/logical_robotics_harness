@@ -42,6 +42,13 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         ),
     )
     parser.add_argument(
+        "--template-dir",
+        help=(
+            "Template override root containing logical paths such as "
+            "request/review_response.md."
+        ),
+    )
+    parser.add_argument(
         "--scope",
         choices=["project", "current_focus", "work_item"],
         help=(
@@ -173,6 +180,13 @@ def build_codex_prompt_from_work_item_parser(
         help="Optional style guide path (defaults to STYLE.md discovery rules).",
     )
     parser.add_argument(
+        "--template-dir",
+        help=(
+            "Template override root containing logical paths such as "
+            "request/codex_prompt_from_work_item.md."
+        ),
+    )
+    parser.add_argument(
         "--force",
         action="store_true",
         help=(
@@ -236,6 +250,7 @@ def run_request_cli(
             show_vars=command_args.show_vars,
             force=False,
             prompt_id=prompt_id,
+            template_dir=command_args.template_dir,
         )
         args = mapped_args
         output_path = pathlib.Path(command_args.out)

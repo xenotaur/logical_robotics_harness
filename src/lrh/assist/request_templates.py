@@ -46,6 +46,8 @@ def resolve_template(
     template_name: str,
     template_root: pathlib.Path | None = None,
     project_root: pathlib.Path | None = None,
+    template_dirs: list[pathlib.Path | str] | None = None,
+    environ: dict[str, str] | None = None,
 ) -> template_resolver.TemplateResolution:
     """Resolve a request template and return source metadata."""
     if template_root is not None:
@@ -57,7 +59,11 @@ def resolve_template(
             path=template_path,
         )
 
-    resolver = template_resolver.TemplateResolver(project_root=project_root)
+    resolver = template_resolver.TemplateResolver(
+        template_dirs=template_dirs,
+        project_root=project_root,
+        environ=environ,
+    )
     return resolver.resolve(f"request/{template_name}.md")
 
 
@@ -65,20 +71,27 @@ def load_template_text(
     template_name: str,
     template_root: pathlib.Path | None = None,
     project_root: pathlib.Path | None = None,
+    template_dirs: list[pathlib.Path | str] | None = None,
+    environ: dict[str, str] | None = None,
 ) -> str:
     """Load a request template as UTF-8 text."""
-    resolution = resolve_template(
-        template_name,
-        template_root=template_root,
-        project_root=project_root,
-    )
-    if resolution.path is not None:
-        return resolution.path.read_text(encoding="utf-8")
+    if template_root is not None:
+        resolution = resolve_template(
+            template_name,
+            template_root=template_root,
+            project_root=project_root,
+            template_dirs=template_dirs,
+            environ=environ,
+        )
+        if resolution.path is not None:
+            return resolution.path.read_text(encoding="utf-8")
 
-    template_file = resources.files("lrh.assist.templates").joinpath(
-        *resolution.logical_name.split("/")
+    resolver = template_resolver.TemplateResolver(
+        template_dirs=template_dirs,
+        project_root=project_root,
+        environ=environ,
     )
-    return template_file.read_text(encoding="utf-8")
+    return resolver.read_text(f"request/{template_name}.md")
 
 
 def request_template_names(

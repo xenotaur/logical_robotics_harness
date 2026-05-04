@@ -5,6 +5,7 @@ import re
 import tempfile
 import unittest
 from contextlib import contextmanager
+from unittest import mock
 
 from lrh.assist import request_service, request_templates
 
@@ -51,6 +52,111 @@ class TestBuildVariables(unittest.TestCase):
         self.assertEqual(variables["WORK_ITEM_CONTENT"], variables["WORK_ITEM"])
         self.assertIn("LRH STYLE GUIDE", variables["STYLE_GUIDE_CONTENT"])
         self.assertIn("WI-INTERPRETATION-VALIDATION", variables["WORK_ITEM_CONTENT"])
+
+
+class TestRequestTemplateOverrides(unittest.TestCase):
+    def _args(self, template_name: str = "improve_coverage") -> argparse.Namespace:
+        return argparse.Namespace(
+            template_name=template_name,
+            target="src/lrh/example.py",
+            target_option=None,
+            scope=None,
+            repo_name=None,
+            project_goal=None,
+            background_file=None,
+            background_text=None,
+            project_type=None,
+            bootstrap_mode="minimal",
+            audit_file=None,
+            work_item_file=None,
+            style_file=None,
+            patch_file=None,
+            show_vars=False,
+            prompt_id=None,
+            force=False,
+            template_dir=None,
+        )
+
+    def test_package_template_renders_when_no_overrides_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            home = pathlib.Path(temp_dir) / "home"
+            with (
+                mock.patch.dict(os.environ, {}, clear=True),
+                mock.patch.object(pathlib.Path, "home", return_value=home),
+            ):
+                rendered, _ = request_service.generate_request(self._args())
+
+        self.assertIn("PR Request to Improve Coverage", rendered)
+        self.assertIn("src/lrh/example.py", rendered)
+
+    def test_project_local_override_is_used(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            template_dir = project_root / ".lrh" / "templates" / "request"
+            template_dir.mkdir(parents=True)
+            (template_dir / "improve_coverage.md").write_text(
+                "project {{TARGET_MODULE_GHA}}\n",
+                encoding="utf-8",
+            )
+
+            rendered, _ = request_service.generate_request(
+                self._args(),
+                project_root=project_root,
+            )
+
+        self.assertEqual(rendered, "project src/lrh/example.py\n")
+
+    def test_environment_override_is_used(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            env_dir = root / "env_templates"
+            template_dir = env_dir / "request"
+            template_dir.mkdir(parents=True)
+            (template_dir / "improve_coverage.md").write_text(
+                "environment {{MODULE_NAME}}\n",
+                encoding="utf-8",
+            )
+            with mock.patch.dict(os.environ, {"LRH_TEMPLATE_DIR": str(env_dir)}):
+                rendered, _ = request_service.generate_request(self._args())
+
+        self.assertEqual(rendered, "environment example\n")
+
+    def test_explicit_template_dir_override_is_used(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            explicit_dir = pathlib.Path(temp_dir) / "explicit_templates"
+            template_dir = explicit_dir / "request"
+            template_dir.mkdir(parents=True)
+            (template_dir / "improve_coverage.md").write_text(
+                "explicit {{SUGGESTED_TEST_PATH}}\n",
+                encoding="utf-8",
+            )
+            args = self._args()
+            args.template_dir = str(explicit_dir)
+
+            rendered, _ = request_service.generate_request(args)
+
+        self.assertEqual(rendered, "explicit tests/example.py/example_test.py\n")
+
+    def test_package_fallback_works_when_override_template_is_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            explicit_dir = pathlib.Path(temp_dir) / "explicit_templates"
+            template_dir = explicit_dir / "request"
+            template_dir.mkdir(parents=True)
+            (template_dir / "other.md").write_text("other\n", encoding="utf-8")
+            args = self._args()
+            args.template_dir = str(explicit_dir)
+
+            rendered, _ = request_service.generate_request(args)
+
+        self.assertIn("PR Request to Improve Coverage", rendered)
+        self.assertIn("src/lrh/example.py", rendered)
+
+    def test_missing_template_has_clear_error(self) -> None:
+        with self.assertRaisesRegex(
+            FileNotFoundError,
+            "Template not found: request/does_not_exist.md",
+        ):
+            request_service.generate_request(self._args("does_not_exist"))
 
 
 class TestCodexPromptFromWorkItemResolution(unittest.TestCase):

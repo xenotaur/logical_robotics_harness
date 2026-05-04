@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Completed
 blocked_reason: null
 blocked: false
 id: WI-DEV-TOOLCHAIN-RECONCILIATION
 title: Reconcile local, CI, and agent validation toolchains
 type: operation
-status: active
+status: resolved
 priority: high
 owner: anthony
 contributors:
@@ -65,3 +65,10 @@ validation path and one Black/Ruff expectation set.
 
 - Design: `project/design/dev_toolchain_reconciliation.md`
 - Prompt: `PROMPT(AD_HOC:DEV_TOOLCHAIN_RECONCILIATION_DESIGN_ALIGNMENT)[2026-05-03T11:05:00-04:00]`
+
+
+## Completion Notes
+
+- Closure evidence recorded in `project/evidence/EV-0003.md`.
+- Canonical validation sequence passed on 2026-05-04: `scripts/version tools`, `scripts/check-workflows`, `scripts/format --check --diff`, `scripts/lint`, and `scripts/test`.
+- Workstream deferred items are documented in `project/evidence/EV-0003.md` for explicit follow-on planning.

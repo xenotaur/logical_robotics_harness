@@ -48,6 +48,7 @@ Builds LRH from a clean artifact state and validates installed-wheel behavior in
 scripts/release-smoke
 scripts/release-smoke v0.2.2
 scripts/release-smoke --preserve v0.2.2
+scripts/release-smoke v0.2.2 --diagnose
 ```
 
 **Checks:**
@@ -56,6 +57,8 @@ scripts/release-smoke --preserve v0.2.2
 - installs exactly one wheel from `dist/`
 - validates installed `lrh --version`
 - validates installed `lrh snapshot --help`
+
+Use `--diagnose` (for example, `scripts/release-smoke v0.2.2 --diagnose`) to print pre-install temporary-venv isolation diagnostics when investigating release-smoke package-visibility warnings. Diagnostic mode does not change default pass/fail behavior.
 
 Use `scripts/sandbox` for HOME/XDG workspace isolation. Use `scripts/release-smoke` for installed-wheel release validation.
 

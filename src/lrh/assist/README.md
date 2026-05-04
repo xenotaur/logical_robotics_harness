@@ -14,6 +14,8 @@ In practice, a “request” is the final filled-in markdown prompt you can hand
 
 Template markdown files are bundled as package data in both editable installs (`pip install -e .`) and wheel installs (`pip install dist/*.whl`), so `lrh request ...` works outside a source checkout as long as LRH is installed.
 
+Review/repair request templates keep a packaged protocol at `src/lrh/assist/templates/request/review_protocol.md` for install-time portability, while repository-root `REVIEWS.md` remains the maintenance source of truth.
+
 ## Key Concepts
 
 - **Template**: A markdown file with placeholders like `{{TARGET_MODULE_GHA}}`.

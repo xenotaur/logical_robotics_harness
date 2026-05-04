@@ -50,7 +50,7 @@ class CheckWorkflowsScriptTests(unittest.TestCase):
             workflows_dir = workspace / ".github" / "workflows"
             workflows_dir.mkdir(parents=True)
             (workflows_dir / "broken.yml").write_text(
-                "name: Broken\non:\n  pull_request\n",
+                "name: Broken\non: [\n",
                 encoding="utf-8",
             )
 
@@ -69,7 +69,7 @@ class CheckWorkflowsScriptTests(unittest.TestCase):
                 encoding="utf-8",
             )
             (workflows_dir / "broken.yaml").write_text(
-                "name: Broken\non:\n  pull_request\n",
+                "name: Broken\non: [\n",
                 encoding="utf-8",
             )
 

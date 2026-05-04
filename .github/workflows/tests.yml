@@ -26,11 +26,11 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -e ".[dev]" -c constraints-dev.txt
 
-      - name: Diagnostics: toolchain versions
+      - name: "Diagnostics: toolchain versions"
         run: scripts/version tools
 
-      - name: Tests: unit suite
+      - name: "Tests: unit suite"
         run: scripts/test
 
-      - name: Validate project metadata
+      - name: "Validate project metadata"
         run: lrh validate

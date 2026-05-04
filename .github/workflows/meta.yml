@@ -1,0 +1,29 @@
+name: Meta CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check-workflows:
+    name: Check workflow files
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install workflow check dependency
+        run: python -m pip install PyYAML==6.0.3
+
+      - name: Check workflow files
+        run: scripts/check-workflows

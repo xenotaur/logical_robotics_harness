@@ -175,6 +175,7 @@ This applies equally to local virtualenv/Conda setups and to agent environments 
 
 ```bash
 scripts/version tools
+scripts/check-workflows
 scripts/format --check --diff
 scripts/lint
 scripts/test
@@ -198,6 +199,14 @@ After mutating commands (for example `scripts/format` or `scripts/lint --fix`), 
 git diff
 ```
 
+When editing GitHub Actions workflows, run:
+
+```bash
+scripts/check-workflows
+```
+
+This validates workflow YAML syntax locally and is also run by Meta CI. Deeper GitHub Actions semantic linting (for example `actionlint`) is intentionally deferred.
+
 ### Agent workflow rules
 
 - Agents should use project scripts (`scripts/format`, `scripts/lint`, `scripts/test`) as the source of truth, not direct `black`/`ruff` command substitutions.
@@ -213,6 +222,7 @@ When behavior differs across environments, collect and share:
 git rev-parse HEAD
 git status --short
 scripts/version tools
+scripts/check-workflows
 scripts/format --check --diff
 scripts/lint
 scripts/test

@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+python - <<'PY'
+from pathlib import Path
+import sys
+
+import yaml
+
+workflow_dir = Path('.github/workflows')
+paths = sorted(workflow_dir.glob('*.yml')) + sorted(workflow_dir.glob('*.yaml'))
+
+has_error = False
+for path in paths:
+    try:
+        with path.open('r', encoding='utf-8') as handle:
+            yaml.safe_load(handle)
+        print(f"OK: {path}")
+    except yaml.YAMLError as exc:
+        print(f"ERROR: {path}: {exc}")
+        has_error = True
+
+if has_error:
+    sys.exit(1)
+PY

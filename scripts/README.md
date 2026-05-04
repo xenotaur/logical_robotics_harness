@@ -153,6 +153,17 @@ Subcommands:
 - `tag <tag>`: idempotently creates a local tag at `HEAD` after verification
 - `push <tag>`: idempotently and safely pushes an existing local tag to `origin`
 
+#### `check-workflows`
+Validates YAML syntax for GitHub Actions workflow files under `.github/workflows/`.
+
+```bash
+scripts/check-workflows
+```
+
+Prints `OK: <path>` for valid workflow files and `ERROR: <path>: <message>` for parse failures, then exits nonzero if any file is invalid.
+
+Deeper GitHub Actions semantic linting (for example `actionlint`) is intentionally deferred.
+
 ### Code Quality
 
 #### `format`

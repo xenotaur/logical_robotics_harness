@@ -400,11 +400,12 @@ class TestRequestCli(unittest.TestCase):
         stdout = io.StringIO()
         stderr = io.StringIO()
 
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            exit_code = request_cli.run_request_cli(
-                ["templates", "list"],
-                prog="lrh request",
-            )
+        with _isolated_template_environment():
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["templates", "list"],
+                    prog="lrh request",
+                )
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(stderr.getvalue(), "")
@@ -574,10 +575,29 @@ class TestRequestCli(unittest.TestCase):
         stdout = io.StringIO()
         stderr = io.StringIO()
 
-        with unittest.mock.patch.dict(os.environ, {}, clear=True):
+        with _isolated_template_environment():
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 exit_code = request_cli.run_request_cli(
                     ["templates", "where", "review_response"],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(
+            stdout.getvalue(),
+            "request/review_response.md\tpackage\tpackage fallback\t"
+            "lrh.assist.templates/request/review_response.md\n",
+        )
+
+    def test_templates_where_accepts_base_name_with_markdown_suffix(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with _isolated_template_environment():
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["templates", "where", "review_response.md"],
                     prog="lrh request",
                 )
 
@@ -593,11 +613,12 @@ class TestRequestCli(unittest.TestCase):
         stdout = io.StringIO()
         stderr = io.StringIO()
 
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-            exit_code = request_cli.run_request_cli(
-                ["templates", "where", "does_not_exist"],
-                prog="lrh request",
-            )
+        with _isolated_template_environment():
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["templates", "where", "does_not_exist"],
+                    prog="lrh request",
+                )
 
         self.assertEqual(exit_code, 2)
         self.assertEqual(stdout.getvalue(), "")
@@ -618,6 +639,33 @@ class TestRequestCli(unittest.TestCase):
         self.assertEqual(exit_code, 2)
         self.assertEqual(stdout.getvalue(), "")
         self.assertIn("Unsafe template logical name", stderr.getvalue())
+
+
+@contextlib.contextmanager
+def _isolated_template_environment():
+    """Run template diagnostics without process/project/user override leakage."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = pathlib.Path(temp_dir)
+        cwd = root / "cwd"
+        home = root / "home"
+        config_home = root / "config"
+        cwd.mkdir()
+        home.mkdir()
+        config_home.mkdir()
+        old_cwd = pathlib.Path.cwd()
+        try:
+            os.chdir(cwd)
+            with unittest.mock.patch.dict(
+                os.environ,
+                {
+                    "HOME": str(home),
+                    "XDG_CONFIG_HOME": str(config_home),
+                },
+                clear=True,
+            ):
+                yield
+        finally:
+            os.chdir(old_cwd)
 
 
 if __name__ == "__main__":

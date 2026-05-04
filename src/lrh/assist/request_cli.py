@@ -187,11 +187,12 @@ def build_templates_parser(
 
 def _request_logical_name(template_name: str) -> str:
     """Normalize a request-template diagnostic argument to a logical name."""
-    if "/" not in template_name:
-        return f"request/{template_name}.md"
-    if template_name.startswith("request/") and not template_name.endswith(".md"):
-        return f"{template_name}.md"
-    return template_name
+    normalized_name = (
+        template_name[: -len(".md")] if template_name.endswith(".md") else template_name
+    )
+    if "/" not in normalized_name:
+        normalized_name = f"request/{normalized_name}"
+    return f"{normalized_name}.md"
 
 
 def _request_template_base_name(logical_name: str) -> str:

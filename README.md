@@ -165,10 +165,10 @@ For any given commit, LRH expects `scripts/format`, `scripts/lint`, and `scripts
 ### Canonical setup
 
 ```bash
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]" -c constraints-dev.txt
+scripts/develop
 ```
 
+`scripts/develop` is the canonical setup entrypoint and installs development dependencies with the repository's constrained command (`python -m pip install -e ".[dev]" -c constraints-dev.txt`).
 This applies equally to local virtualenv/Conda setups and to agent environments that bootstrap from repository scripts.
 
 ### Canonical local validation
@@ -178,6 +178,7 @@ scripts/version tools
 scripts/format --check --diff
 scripts/lint
 scripts/test
+lrh validate
 ```
 
 ### Repair workflow (when checks fail)
@@ -188,6 +189,7 @@ scripts/lint --fix
 scripts/lint
 scripts/format --check --diff
 scripts/test
+lrh validate
 ```
 
 After mutating commands (for example `scripts/format` or `scripts/lint --fix`), inspect the resulting changes before committing:
@@ -214,6 +216,7 @@ scripts/version tools
 scripts/format --check --diff
 scripts/lint
 scripts/test
+lrh validate
 ```
 
 ### Environment notes

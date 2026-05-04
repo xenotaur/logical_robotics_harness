@@ -110,6 +110,7 @@ When a task is driven by a generated prompt, follow `PROMPTS.md` for prompt IDs,
 
 Before running validation commands in Codex Cloud (or any agent environment), run `scripts/develop` and confirm tool versions with `scripts/version tools`.
 If Black/Ruff versions do not match repository expectations, reconcile environment/cache first and only then proceed with formatting/lint/test debugging.
+
 ## Testing policy note
 
 Keep unit tests fast, deterministic, and hermetic: avoid `pip`/installer calls, package-index/network access, Git remotes, and heavyweight subprocesses in the normal unit suite. Prefer real in-process objects and temp directories, but stub/fake/mock external boundaries when needed. Put real install/build/package checks in `tests/smoke/*_smoke.py` and run them via `scripts/smoke`.

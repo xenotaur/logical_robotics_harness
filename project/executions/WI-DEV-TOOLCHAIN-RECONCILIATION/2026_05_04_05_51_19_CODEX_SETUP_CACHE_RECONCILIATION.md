@@ -22,11 +22,11 @@ Documented Codex Cloud setup/cache reconciliation guidance, updated agent review
 # Validation
 
 - `scripts/develop` failed in this environment due to package index/network restriction while resolving build dependency (`setuptools>=68`), so full setup bootstrap could not complete here.
-- Ran and captured canonical checks that were available in the current environment:
-  - `scripts/version tools`
-  - `scripts/format --check --diff`
-  - `scripts/lint`
-  - `scripts/test`
+- Ran and captured canonical checks that were available in the current environment with outcomes:
+  - `scripts/version tools` (pass)
+  - `scripts/format --check --diff` (pass)
+  - `scripts/lint` (pass)
+  - `scripts/test` (pass)
 
 # Follow-up
 

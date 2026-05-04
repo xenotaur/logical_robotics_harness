@@ -6,7 +6,7 @@ import pathlib
 import re
 import sys
 
-from lrh.assist import request_service
+from lrh.assist import request_service, request_templates, request_variables
 from lrh.cli import argcomplete_adapter
 
 
@@ -17,7 +17,9 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         help=(
             "Template base name (e.g. improve_coverage, bootstrap_project, "
             "work_items_from_audit, codex_prompt_from_work_item, "
-            "ci_assess_status, ci_implement_workflow)."
+            "ci_assess_status, ci_implement_workflow). Use "
+            "'lrh request templates list' and 'lrh request templates where' "
+            "for template diagnostics."
         ),
     )
     target_arg = parser.add_argument(
@@ -146,6 +148,120 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
     return configure_parser(parser)
 
 
+def build_templates_parser(
+    *, prog: str = "request templates"
+) -> argparse.ArgumentParser:
+    """Build parser for request-template diagnostics."""
+    parser = argparse.ArgumentParser(
+        prog=prog,
+        description="Inspect request assist template override resolution.",
+    )
+    parser.add_argument(
+        "--template-dir",
+        action="append",
+        dest="template_dirs",
+        help=(
+            "Template override root containing logical paths such as "
+            "request/review_response.md. May be passed more than once; "
+            "earlier values have higher precedence."
+        ),
+    )
+    subparsers = parser.add_subparsers(dest="templates_command")
+    subparsers.add_parser(
+        "list",
+        help="List request templates and the source that would be used.",
+    )
+    where_parser = subparsers.add_parser(
+        "where",
+        help="Show the source that would be used for one request template.",
+    )
+    where_parser.add_argument(
+        "logical_template_name",
+        help=(
+            "Request template name, such as review_response, "
+            "request/review_response.md, or request/review_response."
+        ),
+    )
+    return parser
+
+
+def _request_logical_name(template_name: str) -> str:
+    """Normalize a request-template diagnostic argument to a logical name."""
+    if "/" not in template_name:
+        return f"request/{template_name}.md"
+    if template_name.startswith("request/") and not template_name.endswith(".md"):
+        return f"{template_name}.md"
+    return template_name
+
+
+def _request_template_base_name(logical_name: str) -> str:
+    """Return the CLI-facing request template name for a request logical name."""
+    return logical_name[len("request/") : -len(".md")]
+
+
+def _format_template_resolution(name: str, resolution) -> str:
+    """Format one template-resolution diagnostic line."""
+    source_label = (
+        "package fallback" if resolution.source == "package" else "filesystem override"
+    )
+    return f"{name}	{resolution.source}	{source_label}	{resolution.origin}"
+
+
+def run_templates_cli(
+    argv: list[str],
+    *,
+    prog: str,
+) -> int:
+    """Run request-template diagnostic subcommands."""
+    parser = build_templates_parser(prog=prog)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as error:
+        return int(error.code) if isinstance(error.code, int) else 2
+
+    if args.templates_command is None:
+        print(
+            "error: templates requires a subcommand (try: list or where)",
+            file=sys.stderr,
+        )
+        return 2
+
+    project_root = request_variables.find_repo_root()
+    template_dirs = args.template_dirs
+
+    if args.templates_command == "list":
+        names = request_templates.request_template_names(
+            project_root=project_root,
+            template_dirs=template_dirs,
+        )
+        for name in names:
+            resolution = request_templates.resolve_template(
+                name,
+                project_root=project_root,
+                template_dirs=template_dirs,
+            )
+            print(_format_template_resolution(name, resolution))
+        return 0
+
+    logical_name = _request_logical_name(args.logical_template_name)
+    try:
+        resolution = request_templates.resolve_template(
+            (
+                _request_template_base_name(logical_name)
+                if logical_name.startswith("request/") and logical_name.endswith(".md")
+                else logical_name
+            ),
+            project_root=project_root,
+            template_dirs=template_dirs,
+        )
+    except (FileNotFoundError, OSError, ValueError) as error:
+        print(str(error), file=sys.stderr)
+        return 2
+
+    print(_format_template_resolution(resolution.logical_name, resolution))
+    return 0
+
+
 def build_codex_prompt_from_work_item_parser(
     *, prog: str = "request codex-prompt-from-work-item"
 ) -> argparse.ArgumentParser:
@@ -219,6 +335,12 @@ def run_request_cli(
     prog: str,
 ) -> int:
     """Parse args and render a request."""
+    if argv and argv[0] == "templates":
+        return run_templates_cli(
+            argv[1:],
+            prog=f"{prog} templates",
+        )
+
     if argv and argv[0] == "codex-prompt-from-work-item":
         command_parser = build_codex_prompt_from_work_item_parser(
             prog=f"{prog} codex-prompt-from-work-item"

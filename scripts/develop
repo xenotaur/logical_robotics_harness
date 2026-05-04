@@ -5,8 +5,36 @@ echo "Installing lrh in develop mode..."
 set -x
 
 # Canonical LRH editable development install (source of truth for constrained dev deps).
+set +e
 python -m pip install -e ".[dev]" -c constraints-dev.txt
+install_exit_code=$?
+set -e
 
 # Turn off logging and print a blank line
 { set +x; } 2>/dev/null
 echo
+
+if [[ ${install_exit_code} -ne 0 ]]; then
+  cat >&2 <<'DIAGNOSTIC'
+scripts/develop failed during editable development install.
+
+If this is Codex Cloud or another agent environment, package-index access may
+be restricted during the task phase. Run scripts/develop in the environment
+setup/bootstrap phase.
+
+If scripts/version tools already reports the required Black/Ruff versions, use
+task-phase validation instead:
+  scripts/version tools
+  scripts/format --check --diff
+  scripts/lint
+  scripts/test
+
+If required versions are missing or mismatched, rerun setup or reset the agent
+environment cache before formatter debugging.
+
+If task-phase validation reports missing-install/import errors (for example
+ModuleNotFoundError: lrh), treat that as a setup/bootstrap mismatch rather
+than a code regression.
+DIAGNOSTIC
+  exit "${install_exit_code}"
+fi

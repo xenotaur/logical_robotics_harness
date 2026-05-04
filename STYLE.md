@@ -361,6 +361,9 @@ Naming convention:
 - Use `*_smoke.py` for smoke tests.
 
 Run `scripts/develop` before the full test suite when preparing a local change.
+NOTE: In agent sandboxes, such as Codex Cloud environments, scripts/develop may not run
+successfully, and should be run as part of the sandbox setup script. If scripts/develop has been
+run as part of the sandbox setup, it does not need to be run again before scripts/test.
 
 If additional arguments or modes are supported, they should be documented in the scripts documentation.
 

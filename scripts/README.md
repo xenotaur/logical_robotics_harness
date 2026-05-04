@@ -23,7 +23,7 @@ scripts/build
 ```
 
 **Requirements:**
-- install development dependencies (`python -m pip install -e ".[dev]" -c constraints-dev.txt`) so the `build` frontend is available
+- run `scripts/develop` so development dependencies (including the `build` frontend) are installed
 
 **Output:** Creates distribution files in `dist/` directory.
 
@@ -119,7 +119,7 @@ Installs LRH in development mode for active development.
 scripts/develop
 ```
 
-This installs the package with `python -m pip install -e ".[dev]" -c constraints-dev.txt`, allowing you to make changes to the source code that are immediately reflected without reinstalling while also installing standard development tools.
+This is the canonical LRH editable development install entrypoint. It installs the package in editable mode with constrained development dependencies so source changes are reflected without reinstalling while standard development tools are available.
 
 #### `update`
 Updates the conda environment specification file.
@@ -440,6 +440,6 @@ Make sure you have the following tools installed for full functionality:
 
 - **Build:** `pip install build`
 - **Publish:** `pip install twine` 
-- **Format/Lint:** Installed by `scripts/develop` via `python -m pip install -e ".[dev]" -c constraints-dev.txt` (includes Black and Ruff)
+- **Format/Lint:** Installed by `scripts/develop` (includes Black and Ruff)
 - **Coverage:** `pip install coverage`
 - **Environment:** conda (for environment export)

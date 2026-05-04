@@ -25,6 +25,7 @@ dev = [
   "build",
   "coverage",
   "ruff",
+  "PyYAML",
 ]
 
 [project.scripts]

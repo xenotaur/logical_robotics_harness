@@ -251,21 +251,31 @@ When this happens, script-based validation correctly fails version gates (for ex
 
 ### Required setup sequence
 
+Run this during Codex environment setup/bootstrap (not routinely during ordinary task-phase validation):
+
 ```bash
 python -m pip install --upgrade pip
 scripts/develop
+```
+
+### Required task-phase validation sequence
+
+Start by verifying tool versions:
+
+```bash
 scripts/version tools
 ```
 
-### Required validation sequence
-
-Run validation only after `scripts/version tools` reports expected versions:
+If Black/Ruff versions match repository expectations, run:
 
 ```bash
 scripts/format --check --diff
 scripts/lint
 scripts/test
 ```
+
+If versions are missing/mismatched, report a setup/cache mismatch and stop formatter debugging until setup/cache is reconciled.
+If canonical validation fails with missing-install/import errors (for example `ModuleNotFoundError: lrh`), report a setup/bootstrap mismatch instead of a code regression.
 
 ### Common mismatch symptoms
 

@@ -60,6 +60,19 @@ class TestTemplatePathAndLoading(unittest.TestCase):
         self.assertNotIn("scripts/prompts/record-execution", loaded)
         self.assertIn("if missing, report the gap", loaded)
 
+    def test_review_response_template_includes_task_phase_validation_guidance(
+        self,
+    ) -> None:
+        loaded = request_templates.load_template_text("review_response")
+        expected = (
+            "Do not routinely run `scripts/develop` during ordinary "
+            "agent-task validation."
+        )
+        self.assertIn(expected, loaded)
+        self.assertIn("scripts/version tools", loaded)
+        self.assertIn("ModuleNotFoundError: lrh", loaded)
+        self.assertIn("setup/bootstrap mismatch", loaded)
+
     def test_template_root_override_is_used(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             template_root = pathlib.Path(temp_dir)

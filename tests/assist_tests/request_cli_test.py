@@ -1,8 +1,10 @@
 import contextlib
 import io
+import os
 import pathlib
 import tempfile
 import unittest
+import unittest.mock
 
 from lrh.assist import request_cli
 
@@ -393,6 +395,277 @@ class TestRequestCli(unittest.TestCase):
         self.assertEqual(exit_code, 2)
         self.assertIn("pull request not found or inaccessible", stderr.getvalue())
         self.assertEqual("", stdout.getvalue())
+
+    def test_templates_list_includes_package_templates(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with _isolated_template_environment():
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["templates", "list"],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn(
+            "review_response\tpackage\tpackage fallback\t"
+            "lrh.assist.templates/request/review_response.md",
+            stdout.getvalue(),
+        )
+
+    def test_templates_list_includes_override_templates(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            template_root = pathlib.Path(temp_dir)
+            template_path = template_root / "request" / "custom.md"
+            template_path.parent.mkdir(parents=True)
+            template_path.write_text("custom\n", encoding="utf-8")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "templates",
+                        "--template-dir",
+                        str(template_root),
+                        "list",
+                    ],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn(
+            f"custom\texplicit\tfilesystem override\t{template_path}",
+            stdout.getvalue(),
+        )
+
+    def test_templates_where_reports_explicit_override_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            template_root = pathlib.Path(temp_dir)
+            template_path = template_root / "request" / "review_response.md"
+            template_path.parent.mkdir(parents=True)
+            template_path.write_text("override\n", encoding="utf-8")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "templates",
+                        "--template-dir",
+                        str(template_root),
+                        "where",
+                        "request/review_response.md",
+                    ],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(
+            stdout.getvalue(),
+            "request/review_response.md\texplicit\tfilesystem override\t"
+            f"{template_path}\n",
+        )
+
+    def test_templates_where_reports_environment_override_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            template_root = pathlib.Path(temp_dir)
+            template_path = template_root / "request" / "review_response.md"
+            template_path.parent.mkdir(parents=True)
+            template_path.write_text("env\n", encoding="utf-8")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with unittest.mock.patch.dict(
+                os.environ,
+                {"LRH_TEMPLATE_DIR": str(template_root)},
+                clear=True,
+            ):
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    exit_code = request_cli.run_request_cli(
+                        ["templates", "where", "review_response"],
+                        prog="lrh request",
+                    )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(
+            stdout.getvalue(),
+            "request/review_response.md\tenvironment\tfilesystem override\t"
+            f"{template_path}\n",
+        )
+
+    def test_templates_where_reports_project_local_override_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            (project_root / ".git").mkdir()
+            template_path = (
+                project_root / ".lrh" / "templates" / "request" / "review_response.md"
+            )
+            template_path.parent.mkdir(parents=True)
+            template_path.write_text("project\n", encoding="utf-8")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            old_cwd = pathlib.Path.cwd()
+
+            try:
+                os.chdir(project_root)
+                with unittest.mock.patch.dict(os.environ, {}, clear=True):
+                    with (
+                        contextlib.redirect_stdout(stdout),
+                        contextlib.redirect_stderr(stderr),
+                    ):
+                        exit_code = request_cli.run_request_cli(
+                            ["templates", "where", "review_response"],
+                            prog="lrh request",
+                        )
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(
+            stdout.getvalue(),
+            "request/review_response.md\tproject\tfilesystem override\t"
+            f"{template_path}\n",
+        )
+
+    def test_templates_where_reports_user_override_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            config_home = root / "config"
+            template_path = (
+                config_home / "lrh" / "templates" / "request" / "review_response.md"
+            )
+            template_path.parent.mkdir(parents=True)
+            template_path.write_text("user\n", encoding="utf-8")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+
+            with unittest.mock.patch.dict(
+                os.environ,
+                {"XDG_CONFIG_HOME": str(config_home)},
+                clear=True,
+            ):
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    exit_code = request_cli.run_request_cli(
+                        ["templates", "where", "review_response"],
+                        prog="lrh request",
+                    )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(
+            stdout.getvalue(),
+            "request/review_response.md\tuser\tfilesystem override\t"
+            f"{template_path}\n",
+        )
+
+    def test_templates_where_reports_package_fallback_source(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with _isolated_template_environment():
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["templates", "where", "review_response"],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(
+            stdout.getvalue(),
+            "request/review_response.md\tpackage\tpackage fallback\t"
+            "lrh.assist.templates/request/review_response.md\n",
+        )
+
+    def test_templates_where_accepts_base_name_with_markdown_suffix(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with _isolated_template_environment():
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["templates", "where", "review_response.md"],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(
+            stdout.getvalue(),
+            "request/review_response.md\tpackage\tpackage fallback\t"
+            "lrh.assist.templates/request/review_response.md\n",
+        )
+
+    def test_templates_where_missing_template_is_clear(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with _isolated_template_environment():
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    ["templates", "where", "does_not_exist"],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn(
+            "Template not found: request/does_not_exist.md", stderr.getvalue()
+        )
+
+    def test_templates_where_rejects_unsafe_logical_name(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["templates", "where", "../review_response"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("Unsafe template logical name", stderr.getvalue())
+
+
+@contextlib.contextmanager
+def _isolated_template_environment():
+    """Run template diagnostics without process/project/user override leakage."""
+    with tempfile.TemporaryDirectory() as temp_dir:
+        root = pathlib.Path(temp_dir)
+        cwd = root / "cwd"
+        home = root / "home"
+        config_home = root / "config"
+        cwd.mkdir()
+        home.mkdir()
+        config_home.mkdir()
+        old_cwd = pathlib.Path.cwd()
+        try:
+            os.chdir(cwd)
+            with unittest.mock.patch.dict(
+                os.environ,
+                {
+                    "HOME": str(home),
+                    "XDG_CONFIG_HOME": str(config_home),
+                },
+                clear=True,
+            ):
+                yield
+        finally:
+            os.chdir(old_cwd)
 
 
 if __name__ == "__main__":

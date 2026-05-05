@@ -49,6 +49,21 @@ class IsolationDiagnostics:
     environment: tuple[tuple[str, str], ...]
 
 
+@dataclasses.dataclass(frozen=True)
+class PreinstallVisibility:
+    """Pre-install LRH package visibility from a smoke-test venv."""
+
+    pip_show: DiagnosticCommandResult
+    lrh_spec: DiagnosticCommandResult
+
+    @property
+    def is_visible(self) -> bool:
+        """Return whether LRH is visible before the wheel install step."""
+        return self.pip_show.returncode == 0 or _spec_output_is_visible(
+            self.lrh_spec.stdout
+        )
+
+
 class ReleaseSmokeError(RuntimeError):
     """Raised when release smoke validation fails."""
 
@@ -73,6 +88,14 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help=(
             "Print temporary-venv isolation diagnostics before installing the wheel."
+        ),
+    )
+    parser.add_argument(
+        "--strict-isolation",
+        action="store_true",
+        help=(
+            "Fail if LRH is visible in the temporary venv before installing "
+            "the wheel under test."
         ),
     )
     return parser
@@ -334,6 +357,61 @@ def render_isolation_diagnostics(diagnostics: IsolationDiagnostics) -> str:
     return "\n".join(lines)
 
 
+def _spec_output_is_visible(stdout: str) -> bool:
+    spec_output = stdout.strip()
+    return bool(spec_output and spec_output != "None")
+
+
+def check_preinstall_visibility(python_bin: pathlib.Path) -> PreinstallVisibility:
+    """Check whether LRH is visible before installing the wheel under test."""
+    preinstalled_name = "logical-robotics-harness"
+    lrh_spec_code = (
+        "import importlib.util; "
+        "spec = importlib.util.find_spec('lrh'); "
+        "print(spec)"
+    )
+    return PreinstallVisibility(
+        pip_show=_capture_diagnostic_command(
+            [str(python_bin), "-m", "pip", "show", preinstalled_name]
+        ),
+        lrh_spec=_capture_diagnostic_command([str(python_bin), "-c", lrh_spec_code]),
+    )
+
+
+def _format_preinstall_visibility(visibility: PreinstallVisibility) -> str:
+    lines = [
+        "LRH is visible in the temporary venv before the wheel under test "
+        "is installed.",
+        "",
+        "-- pip show logical-robotics-harness --",
+        _format_command_result(visibility.pip_show),
+        "",
+        '-- importlib.util.find_spec("lrh") --',
+        _format_command_result(visibility.lrh_spec),
+    ]
+    return "\n".join(lines)
+
+
+def _warn_preinstall_visibility(visibility: PreinstallVisibility) -> None:
+    print(
+        "WARNING: pre-install LRH visibility detected; release-smoke will "
+        "continue in default mode. Use --strict-isolation to fail on this "
+        "condition.\n"
+        f"{_format_preinstall_visibility(visibility)}",
+        file=sys.stderr,
+    )
+
+
+def _raise_strict_isolation_error(visibility: PreinstallVisibility) -> None:
+    raise ReleaseSmokeError(
+        f"{_format_preinstall_visibility(visibility)}\n\n"
+        "Strict isolation mode fails before installing the wheel so the smoke "
+        "result cannot be confused with an already-visible checkout or "
+        "installation. Re-run with --diagnose --preserve to inspect the "
+        "temporary environment and identify the source of visibility."
+    )
+
+
 def _resolve_wheel_path(expected_version: str) -> pathlib.Path:
     wheel_paths = sorted((REPO_ROOT / "dist").glob("*.whl"))
     if not wheel_paths:
@@ -361,7 +439,11 @@ def _resolve_wheel_path(expected_version: str) -> pathlib.Path:
 
 
 def run_release_smoke(
-    expected_version: str, *, preserve: bool, diagnose: bool = False
+    expected_version: str,
+    *,
+    preserve: bool,
+    diagnose: bool = False,
+    strict_isolation: bool = False,
 ) -> int:
     normalized_version = normalize_version(expected_version)
 
@@ -383,26 +465,11 @@ def run_release_smoke(
             diagnostics = collect_isolation_diagnostics(venv_path, python_bin)
             print(render_isolation_diagnostics(diagnostics))
 
-        preinstalled_name = "logical-robotics-harness"
-        preinstall_check = subprocess.run(
-            [
-                str(python_bin),
-                "-m",
-                "pip",
-                "show",
-                preinstalled_name,
-            ],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=REPO_ROOT,
-        )
-        if preinstall_check.returncode == 0:
-            print(
-                f"WARNING: {preinstalled_name} is already visible before install:\n"
-                f"{preinstall_check.stdout.strip()}",
-                file=sys.stderr,
-            )
+        visibility = check_preinstall_visibility(python_bin)
+        if visibility.is_visible:
+            if strict_isolation:
+                _raise_strict_isolation_error(visibility)
+            _warn_preinstall_visibility(visibility)
 
         _run(
             [
@@ -444,7 +511,10 @@ def main(argv: list[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     try:
         return run_release_smoke(
-            args.expected_version, preserve=args.preserve, diagnose=args.diagnose
+            args.expected_version,
+            preserve=args.preserve,
+            diagnose=args.diagnose,
+            strict_isolation=args.strict_isolation,
         )
     except ReleaseSmokeError as error:
         print(f"ERROR: {error}", file=sys.stderr)

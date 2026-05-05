@@ -49,6 +49,7 @@ scripts/release-smoke
 scripts/release-smoke v0.2.2
 scripts/release-smoke --preserve v0.2.2
 scripts/release-smoke v0.2.2 --diagnose
+scripts/release-smoke v0.2.2 --strict-isolation
 ```
 
 **Checks:**
@@ -58,7 +59,9 @@ scripts/release-smoke v0.2.2 --diagnose
 - validates installed `lrh --version`
 - validates installed `lrh snapshot --help`
 
-Use `--diagnose` (for example, `scripts/release-smoke v0.2.2 --diagnose`) to print pre-install temporary-venv isolation diagnostics when investigating release-smoke package-visibility warnings. Diagnostic mode does not change default pass/fail behavior.
+By default, `release-smoke` validates installed-wheel behavior and only warns if `logical-robotics-harness` or import package `lrh` is visible in the temporary venv before the wheel is installed. This keeps local development usable while still surfacing isolation concerns. Use `--strict-isolation` to upgrade that pre-install visibility warning into a hard failure before the wheel install step.
+
+Use `--diagnose` (for example, `scripts/release-smoke v0.2.2 --diagnose`) to print pre-install temporary-venv isolation diagnostics when investigating package-visibility warnings. Use `--diagnose --preserve` together to inspect a failed environment after the script exits. Diagnostic mode does not change default pass/fail behavior.
 
 Use `scripts/sandbox` for HOME/XDG workspace isolation. Use `scripts/release-smoke` for installed-wheel release validation.
 

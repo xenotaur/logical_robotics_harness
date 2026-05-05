@@ -39,10 +39,10 @@ Both commands completed successfully in the Codex Cloud environment.
 
 # Follow-up
 
-- Convert this accepted design direction into narrow implementation PRs:
-  packaging metadata/resource-loading hardening, build+smoke scripts,
-  TestPyPI rehearsal lane, and tag-push PyPI Trusted Publishing
-  workflow.
+- If/when this design direction is accepted, convert it into narrow
+  implementation PRs: packaging metadata/resource-loading hardening,
+  build+smoke scripts, TestPyPI rehearsal lane, and tag-push PyPI
+  Trusted Publishing workflow.
 - Decide unresolved implementation details listed in the proposal
   (workflow split/filenames, versioning mechanics, Python matrix,
   release artifact attachment, environment protections).

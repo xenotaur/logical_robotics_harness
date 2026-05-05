@@ -118,14 +118,30 @@ When in doubt, prefer contributions that strengthen the first validation slice
 
 Use repository scripts and documented entry points.
 
-Typical task-phase validation flow:
+Canonical setup (bootstrap/onboarding) is:
+
+```bash
+scripts/develop
+```
+
+Canonical local validation sequence is documented in [`README.md`](README.md) and includes:
+
+```bash
+scripts/version tools
+scripts/check-workflows
+scripts/format --check --diff
+scripts/lint
+scripts/test
+lrh validate
+```
+
+Task-phase review/repair prompts may request a lighter canonical subset focused on:
 
 ```bash
 scripts/version tools
 scripts/format --check --diff
 scripts/lint
 scripts/test
-lrh validate
 ```
 
 Notes:

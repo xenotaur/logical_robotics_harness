@@ -17,6 +17,14 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
         with self.assertRaises(release_smoke.ReleaseSmokeError):
             release_smoke.normalize_version("release-0.2.0")
 
+    def test_venv_command_environment_removes_pythonpath(self) -> None:
+        sanitized = release_smoke._venv_command_environment(
+            {"PYTHONPATH": "/workspace/src", "PIP_INDEX_URL": "https://example.invalid"}
+        )
+
+        self.assertNotIn("PYTHONPATH", sanitized)
+        self.assertEqual(sanitized["PIP_INDEX_URL"], "https://example.invalid")
+
     def test_run_raises_clear_error_for_missing_command(self) -> None:
         with mock.patch("subprocess.run", side_effect=FileNotFoundError):
             with self.assertRaisesRegex(
@@ -90,11 +98,14 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
 
 
 class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
-    def test_parser_enables_diagnostic_mode(self) -> None:
-        args = release_smoke._build_parser().parse_args(["v0.2.3", "--diagnose"])
+    def test_parser_enables_diagnostic_and_strict_isolation_modes(self) -> None:
+        args = release_smoke._build_parser().parse_args(
+            ["v0.2.3", "--diagnose", "--strict-isolation"]
+        )
 
         self.assertEqual(args.expected_version, "v0.2.3")
         self.assertTrue(args.diagnose)
+        self.assertTrue(args.strict_isolation)
 
     def test_render_pip_show_not_found_as_diagnostic(self) -> None:
         diagnostics = release_smoke.IsolationDiagnostics(
@@ -183,6 +194,81 @@ class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
             ),
         )
 
+    def test_check_preinstall_visibility_detects_pip_package(self) -> None:
+        fake_python = pathlib.Path("/tmp/venv/bin/python")
+
+        def _fake_capture(
+            command: list[str], *, env: object | None = None
+        ) -> release_smoke.DiagnosticCommandResult:
+            self.assertIsInstance(env, dict)
+            self.assertNotIn("PYTHONPATH", env)
+            if command[:4] == [str(fake_python), "-m", "pip", "show"]:
+                return release_smoke.DiagnosticCommandResult(
+                    tuple(command), 0, "Name: logical-robotics-harness\n", ""
+                )
+            return release_smoke.DiagnosticCommandResult(
+                tuple(command), 0, "None\n", ""
+            )
+
+        with mock.patch.object(
+            release_smoke, "_capture_diagnostic_command", side_effect=_fake_capture
+        ):
+            visibility = release_smoke.check_preinstall_visibility(fake_python)
+
+        self.assertTrue(visibility.is_visible)
+
+    def test_check_preinstall_visibility_detects_lrh_import_spec(self) -> None:
+        fake_python = pathlib.Path("/tmp/venv/bin/python")
+
+        def _fake_capture(
+            command: list[str], *, env: object | None = None
+        ) -> release_smoke.DiagnosticCommandResult:
+            self.assertIsInstance(env, dict)
+            self.assertNotIn("PYTHONPATH", env)
+            if command[:4] == [str(fake_python), "-m", "pip", "show"]:
+                return release_smoke.DiagnosticCommandResult(
+                    tuple(command),
+                    1,
+                    "",
+                    "WARNING: Package(s) not found: logical-robotics-harness\n",
+                )
+            return release_smoke.DiagnosticCommandResult(
+                tuple(command), 0, "ModuleSpec(name='lrh')\n", ""
+            )
+
+        with mock.patch.object(
+            release_smoke, "_capture_diagnostic_command", side_effect=_fake_capture
+        ):
+            visibility = release_smoke.check_preinstall_visibility(fake_python)
+
+        self.assertTrue(visibility.is_visible)
+
+    def test_check_preinstall_visibility_treats_not_found_as_not_visible(self) -> None:
+        fake_python = pathlib.Path("/tmp/venv/bin/python")
+
+        def _fake_capture(
+            command: list[str], *, env: object | None = None
+        ) -> release_smoke.DiagnosticCommandResult:
+            self.assertIsInstance(env, dict)
+            self.assertNotIn("PYTHONPATH", env)
+            if command[:4] == [str(fake_python), "-m", "pip", "show"]:
+                return release_smoke.DiagnosticCommandResult(
+                    tuple(command),
+                    1,
+                    "",
+                    "WARNING: Package(s) not found: logical-robotics-harness\n",
+                )
+            return release_smoke.DiagnosticCommandResult(
+                tuple(command), 0, "None\n", ""
+            )
+
+        with mock.patch.object(
+            release_smoke, "_capture_diagnostic_command", side_effect=_fake_capture
+        ):
+            visibility = release_smoke.check_preinstall_visibility(fake_python)
+
+        self.assertFalse(visibility.is_visible)
+
 
 class ReleaseSmokeRunTest(unittest.TestCase):
     def _build_fake_paths(
@@ -192,6 +278,24 @@ class ReleaseSmokeRunTest(unittest.TestCase):
         fake_python = fake_venv / "bin" / "python"
         fake_lrh = fake_venv / "bin" / "lrh"
         return fake_venv, fake_python, fake_lrh
+
+    def _visibility(self, *, visible: bool) -> release_smoke.PreinstallVisibility:
+        pip_show_returncode = 0 if visible else 1
+        pip_show_stdout = "Name: logical-robotics-harness\n" if visible else ""
+        return release_smoke.PreinstallVisibility(
+            pip_show=release_smoke.DiagnosticCommandResult(
+                ("python", "-m", "pip", "show", "logical-robotics-harness"),
+                pip_show_returncode,
+                pip_show_stdout,
+                "",
+            ),
+            lrh_spec=release_smoke.DiagnosticCommandResult(
+                ("python", "-c", "find_spec"),
+                0,
+                "None\n",
+                "",
+            ),
+        )
 
     def test_run_release_smoke_installs_wheel_via_venv_python_with_force_reinstall(
         self,
@@ -209,38 +313,37 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             )
 
             commands: list[list[str]] = []
+            command_envs: list[object | None] = []
 
             def _fake_run(
-                command: list[str], *, cwd: pathlib.Path | None = None
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
             ) -> str:
                 del cwd
                 commands.append(command)
+                command_envs.append(env)
                 if command == [str(fake_lrh), "--version"]:
                     return "lrh 0.2.1"
                 return ""
 
             with (
                 mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+                mock.patch.dict(
+                    release_smoke.os.environ, {"PYTHONPATH": "/workspace/src"}
+                ),
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
-                mock.patch("subprocess.run") as subprocess_run,
+                mock.patch.object(
+                    release_smoke,
+                    "check_preinstall_visibility",
+                    return_value=self._visibility(visible=False),
+                ) as check_visibility,
                 mock.patch("shutil.rmtree") as rmtree,
             ):
-                subprocess_run.return_value = subprocess.CompletedProcess(
-                    args=[
-                        str(fake_python),
-                        "-m",
-                        "pip",
-                        "show",
-                        "logical-robotics-harness",
-                    ],
-                    returncode=1,
-                    stdout="",
-                    stderr="",
-                )
-
                 exit_code = release_smoke.run_release_smoke("v0.2.1", preserve=False)
 
         self.assertEqual(exit_code, 0)
@@ -274,13 +377,22 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             )
             > commands.index([str(fake_python), "-m", "pip", "--version"])
         )
-        subprocess_run.assert_called_once_with(
-            [str(fake_python), "-m", "pip", "show", "logical-robotics-harness"],
-            check=False,
-            capture_output=True,
-            text=True,
-            cwd=release_smoke.REPO_ROOT,
+        check_visibility.assert_called_once_with(fake_python, command_environ=mock.ANY)
+        self.assertNotIn(
+            "PYTHONPATH", check_visibility.call_args.kwargs["command_environ"]
         )
+        install_command_index = commands.index(
+            [
+                str(fake_python),
+                "-m",
+                "pip",
+                "install",
+                "--force-reinstall",
+                str(fake_wheel),
+            ]
+        )
+        self.assertIsInstance(command_envs[install_command_index], dict)
+        self.assertNotIn("PYTHONPATH", command_envs[install_command_index])
         rmtree.assert_called_once_with(fake_root, ignore_errors=True)
 
     def test_run_release_smoke_prints_diagnostics_before_install(self) -> None:
@@ -297,9 +409,12 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             commands: list[list[str]] = []
 
             def _fake_run(
-                command: list[str], *, cwd: pathlib.Path | None = None
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
             ) -> str:
-                del cwd
+                del cwd, env
                 commands.append(command)
                 return "lrh 0.2.1" if command[-1] == "--version" else ""
 
@@ -331,18 +446,18 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     "render_isolation_diagnostics",
                     return_value="diagnostic text",
                 ) as render_diagnostics,
-                mock.patch("subprocess.run") as subprocess_run,
+                mock.patch.object(
+                    release_smoke,
+                    "check_preinstall_visibility",
+                    return_value=self._visibility(visible=False),
+                ),
                 mock.patch("builtins.print") as print_mock,
             ):
-                subprocess_run.return_value = subprocess.CompletedProcess(
-                    args=[],
-                    returncode=1,
-                    stdout="",
-                    stderr="",
-                )
                 release_smoke.run_release_smoke("v0.2.1", preserve=True, diagnose=True)
 
-        collect_diagnostics.assert_called_once_with(fake_venv, fake_python)
+        collect_diagnostics.assert_called_once_with(
+            fake_venv, fake_python, command_environ=mock.ANY
+        )
         render_diagnostics.assert_called_once_with(diagnostics)
         print_mock.assert_any_call("diagnostic text")
         self.assertLess(
@@ -359,6 +474,228 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ),
         )
 
+    def test_default_mode_warns_but_continues_when_preinstall_visible(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fake_root = pathlib.Path(temp_dir)
+            _, fake_python, fake_lrh = self._build_fake_paths(fake_root)
+            fake_lrh.parent.mkdir(parents=True, exist_ok=True)
+            fake_lrh.write_text("", encoding="utf-8")
+            fake_wheel = (
+                release_smoke.REPO_ROOT
+                / "dist"
+                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+            )
+            commands: list[list[str]] = []
+
+            def _fake_run(
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
+            ) -> str:
+                del cwd, env
+                commands.append(command)
+                return "lrh 0.2.1" if command[-1] == "--version" else ""
+
+            with (
+                mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+                mock.patch.object(
+                    release_smoke, "_resolve_wheel_path", return_value=fake_wheel
+                ),
+                mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
+                mock.patch.object(
+                    release_smoke,
+                    "check_preinstall_visibility",
+                    return_value=self._visibility(visible=True),
+                ),
+                mock.patch("builtins.print") as print_mock,
+            ):
+                exit_code = release_smoke.run_release_smoke("v0.2.1", preserve=True)
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn(
+            [
+                str(fake_python),
+                "-m",
+                "pip",
+                "install",
+                "--force-reinstall",
+                str(fake_wheel),
+            ],
+            commands,
+        )
+        warning_calls = [
+            call
+            for call in print_mock.call_args_list
+            if call.args and "WARNING: pre-install LRH visibility" in call.args[0]
+        ]
+        self.assertTrue(warning_calls)
+
+    def test_strict_isolation_fails_when_preinstall_visible(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fake_root = pathlib.Path(temp_dir)
+            _, fake_python, _ = self._build_fake_paths(fake_root)
+            fake_wheel = (
+                release_smoke.REPO_ROOT
+                / "dist"
+                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+            )
+            commands: list[list[str]] = []
+
+            def _fake_run(
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
+            ) -> str:
+                del cwd, env
+                commands.append(command)
+                return ""
+
+            with (
+                mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+                mock.patch.object(
+                    release_smoke, "_resolve_wheel_path", return_value=fake_wheel
+                ),
+                mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
+                mock.patch.object(
+                    release_smoke,
+                    "check_preinstall_visibility",
+                    return_value=self._visibility(visible=True),
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    release_smoke.ReleaseSmokeError,
+                    "--diagnose --preserve",
+                ) as context:
+                    release_smoke.run_release_smoke(
+                        "v0.2.1", preserve=True, strict_isolation=True
+                    )
+
+        self.assertIn("Strict isolation mode fails", str(context.exception))
+        self.assertNotIn(
+            [
+                str(fake_python),
+                "-m",
+                "pip",
+                "install",
+                "--force-reinstall",
+                str(fake_wheel),
+            ],
+            commands,
+        )
+
+    def test_strict_isolation_passes_when_preinstall_not_visible(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fake_root = pathlib.Path(temp_dir)
+            _, fake_python, fake_lrh = self._build_fake_paths(fake_root)
+            fake_lrh.parent.mkdir(parents=True, exist_ok=True)
+            fake_lrh.write_text("", encoding="utf-8")
+            fake_wheel = (
+                release_smoke.REPO_ROOT
+                / "dist"
+                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+            )
+            commands: list[list[str]] = []
+
+            def _fake_run(
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
+            ) -> str:
+                del cwd, env
+                commands.append(command)
+                return "lrh 0.2.1" if command[-1] == "--version" else ""
+
+            with (
+                mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+                mock.patch.object(
+                    release_smoke, "_resolve_wheel_path", return_value=fake_wheel
+                ),
+                mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
+                mock.patch.object(
+                    release_smoke,
+                    "check_preinstall_visibility",
+                    return_value=self._visibility(visible=False),
+                ),
+            ):
+                exit_code = release_smoke.run_release_smoke(
+                    "v0.2.1", preserve=True, strict_isolation=True
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn(
+            [
+                str(fake_python),
+                "-m",
+                "pip",
+                "install",
+                "--force-reinstall",
+                str(fake_wheel),
+            ],
+            commands,
+        )
+
+    def test_diagnose_strict_isolation_prints_diagnostics_before_failing(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fake_root = pathlib.Path(temp_dir)
+            fake_venv, fake_python, _ = self._build_fake_paths(fake_root)
+            fake_wheel = (
+                release_smoke.REPO_ROOT
+                / "dist"
+                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+            )
+
+            diagnostics = release_smoke.IsolationDiagnostics(
+                python_executable=fake_python,
+                pyvenv_cfg="",
+                pip_version=release_smoke.DiagnosticCommandResult((), 0, "", ""),
+                site=release_smoke.DiagnosticCommandResult((), 0, "", ""),
+                interpreter=release_smoke.DiagnosticCommandResult((), 0, "", ""),
+                pip_show=release_smoke.DiagnosticCommandResult((), 0, "Name: x", ""),
+                lrh_spec=release_smoke.DiagnosticCommandResult((), 0, "None", ""),
+                pth_files=(),
+                environment=(),
+            )
+
+            with (
+                mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+                mock.patch.object(
+                    release_smoke, "_resolve_wheel_path", return_value=fake_wheel
+                ),
+                mock.patch.object(release_smoke, "_run", return_value=""),
+                mock.patch.object(
+                    release_smoke,
+                    "collect_isolation_diagnostics",
+                    return_value=diagnostics,
+                ) as collect_diagnostics,
+                mock.patch.object(
+                    release_smoke,
+                    "render_isolation_diagnostics",
+                    return_value="diagnostic text",
+                ) as render_diagnostics,
+                mock.patch.object(
+                    release_smoke,
+                    "check_preinstall_visibility",
+                    return_value=self._visibility(visible=True),
+                ),
+                mock.patch("builtins.print") as print_mock,
+            ):
+                with self.assertRaises(release_smoke.ReleaseSmokeError):
+                    release_smoke.run_release_smoke(
+                        "v0.2.1",
+                        preserve=True,
+                        diagnose=True,
+                        strict_isolation=True,
+                    )
+
+        collect_diagnostics.assert_called_once_with(
+            fake_venv, fake_python, command_environ=mock.ANY
+        )
+        render_diagnostics.assert_called_once_with(diagnostics)
+        print_mock.assert_any_call("diagnostic text")
+
     def test_run_release_smoke_preserve_skips_cleanup(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             fake_root = pathlib.Path(temp_dir)
@@ -373,9 +710,12 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             commands: list[list[str]] = []
 
             def _fake_run(
-                command: list[str], *, cwd: pathlib.Path | None = None
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
             ) -> str:
-                del cwd
+                del cwd, env
                 commands.append(command)
                 return "lrh 0.2.1" if command[-1] == "--version" else ""
 
@@ -385,15 +725,13 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
-                mock.patch("subprocess.run") as subprocess_run,
+                mock.patch.object(
+                    release_smoke,
+                    "check_preinstall_visibility",
+                    return_value=self._visibility(visible=False),
+                ),
                 mock.patch("shutil.rmtree") as rmtree,
             ):
-                subprocess_run.return_value = subprocess.CompletedProcess(
-                    args=[],
-                    returncode=1,
-                    stdout="",
-                    stderr="",
-                )
                 release_smoke.run_release_smoke("", preserve=True)
 
         rmtree.assert_not_called()
@@ -417,14 +755,12 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
                 mock.patch.object(release_smoke, "_run", return_value=""),
-                mock.patch("subprocess.run") as subprocess_run,
+                mock.patch.object(
+                    release_smoke,
+                    "check_preinstall_visibility",
+                    return_value=self._visibility(visible=False),
+                ),
             ):
-                subprocess_run.return_value = subprocess.CompletedProcess(
-                    args=[],
-                    returncode=1,
-                    stdout="",
-                    stderr="",
-                )
                 with self.assertRaisesRegex(
                     release_smoke.ReleaseSmokeError,
                     "installed console script is missing",

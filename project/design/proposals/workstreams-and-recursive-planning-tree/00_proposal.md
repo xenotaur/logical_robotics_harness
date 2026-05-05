@@ -2,7 +2,7 @@
 id: PROP-WORKSTREAMS-RECURSIVE-PLANNING-TREE
 type: design_proposal
 title: Workstreams as first-class planning nodes with recursive planning-tree semantics
-status: proposed
+status: accepted
 created_on: 2026-05-05
 updated_on: 2026-05-05
 ---
@@ -272,3 +272,23 @@ This proposal PR must not:
 7. Add snapshot summary.
 8. Add organize/tidy command.
 9. Later add executable-leaf readiness and `lrh run --dry-run`.
+
+
+## 10) Reconciliation note
+
+This proposal is accepted as LRH's near-term workstream design basis.
+It sets the immediate abstraction boundary (Project -> Workstream ->
+Work Item), keeps user-facing concepts simple, and explicitly defers
+automation while preserving compatibility with recursive planning-tree
+semantics and executable leaves.
+
+The separate `workstream-execution-framework` proposal set is retained
+as deferred long-term architecture, not rejected. Concepts retained for
+future phases include repository-as-control-plane, manual-mode parity,
+typed lifecycle transitions, auditable transition history, future
+backend/runtime abstraction, evidence-versus-observability separation,
+explicit approval/closeout gates, and caution around automation
+laundering, excessive agency, cost surprise, and backend/vendor
+coupling. Deferred concepts include agent runtime execution, a
+workstream orchestrator, automated stage advancement, MCP bridges,
+telemetry systems, `lrh run`, and execution backends.

@@ -143,6 +143,23 @@ For meaningful prompt-driven work, LRH uses prompt IDs and execution records as 
 - Before starting prompt-driven implementation, contributors should apply soft idempotence checks against prior executions for the same prompt ID.
 - Prompt workflow records should remain lightweight and should not replace normal project artifacts such as roadmap, focus, work items, evidence, and status.
 
+### Large-work lifecycle principle
+
+For large, important, architectural, or high-risk work, LRH should not
+jump directly from idea to prompt package. The preferred lifecycle is:
+
+```text
+idea -> assessment / pros-and-cons review -> workstream initiation
+workstream -> design review -> update project/design
+project design -> plan review -> update roadmap, current focus, and work items
+focus review -> work item selection -> prompt package
+prompt execution -> execution record -> evidence -> status / closeout
+```
+
+Each major horizontal transition should leave the `project/` control
+plane more accurate than before. This does not apply to every trivial
+fix; lightweight work should remain lightweight.
+
 ---
 
 ## 6. Data Model (Repository Structure)

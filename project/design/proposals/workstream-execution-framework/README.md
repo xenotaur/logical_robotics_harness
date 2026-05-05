@@ -12,9 +12,10 @@ across all six layers.
 
 ## Status
 
-`proposed` — this proposal set is open for review on the
-`xenotaur/design/proposal` branch. Adoption is staged; see the
-adoption plan in `00_proposal.md` §"Adoption plan."
+`proposed` (deferred) — this proposal set is retained as LRH's
+long-term execution architecture and is not rejected, but it is
+explicitly deferred until workstream artifacts, validation, snapshots,
+and roadmap/current-focus/work-item alignment are in place.
 
 ## Reading order
 
@@ -172,3 +173,18 @@ dataclasses for public records. Test layout examples mirror the
 source-tree layout (per `STYLE.md` §"Tests"). All CLI commands
 proposed here ship with `--dry-run` and `--check` flags where they
 mutate state. Encoding is UTF-8 throughout.
+
+
+## Reconciliation position
+
+This set remains a source of retained long-term concepts, including:
+repository-as-control-plane, manual-mode parity, typed lifecycle
+transitions, auditable transition history, backend/runtime abstraction,
+evidence-versus-observability separation, explicit human approval and
+closeout gates, and caution around automation laundering, excessive
+agency, cost surprise, and backend/vendor coupling.
+
+Deferred concepts from this set include agent runtime execution, a
+workstream orchestrator, automated stage advancement, MCP bridges,
+telemetry systems, `lrh run`, and concrete execution backends (for
+example Claude/Codex/native adapters).

@@ -41,7 +41,7 @@ control-plane-first implementation priority.
 ## 3) Core design thesis
 
 - Workstreams are user-facing planning nodes.
-- Work items are execution-ready work items (ready executable leaves).
+- Work items are atomic, execution-ready tasks (the ready executable leaves of the planning tree).
 - Projects are root planning contexts.
 - Metadata is authoritative.
 - Directory placement is a human navigation aid.
@@ -244,13 +244,15 @@ Execution boundary clarification:
 
 ```text
 Core LRH:
-  may generate run packets or prompts for humans:
-    e.g. lrh request run_packet_from_work_item WI-...
+  may generate prompts for humans using existing templates:
+    e.g. lrh request codex_prompt_from_work_item WI-...
+  (future: lrh request run_packet_from_work_item WI-... — proposed, not yet implemented)
 
-Agentic LRH:
+Agentic LRH (aspirational/proposed CLI shapes — not yet implemented):
   may execute:
     lrh agentic run work-item WI-...
     or lrh-agentic run work-item WI-...
+  (see companion safe-default packaging proposal for authoritative command naming)
 ```
 
 Core LRH prepares execution. Agentic LRH performs execution.

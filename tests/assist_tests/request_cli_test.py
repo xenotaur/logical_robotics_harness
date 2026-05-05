@@ -534,7 +534,7 @@ class TestRequestCli(unittest.TestCase):
         self.assertEqual(
             stdout.getvalue(),
             "request/review_response.md\tproject\tfilesystem override\t"
-            f"{template_path}\n",
+            f"{template_path.resolve()}\n",
         )
 
     def test_templates_where_reports_user_override_source(self) -> None:

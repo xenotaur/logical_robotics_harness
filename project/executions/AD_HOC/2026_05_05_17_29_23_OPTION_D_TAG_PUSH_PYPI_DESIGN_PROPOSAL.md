@@ -2,7 +2,7 @@
 execution_id: 2026_05_05_17_29_23_OPTION_D_TAG_PUSH_PYPI_DESIGN_PROPOSAL
 prompt_id: PROMPT(AD_HOC:OPTION_D_TAG_PUSH_PYPI_DESIGN_PROPOSAL)[2026-05-05T12:14:18-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:

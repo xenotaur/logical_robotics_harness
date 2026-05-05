@@ -20,7 +20,7 @@ Moved the work item to `project/work_items/resolved/` with `resolution: Complete
 # Validation
 
 - `scripts/version tools` passed.
-- `scripts/format --check` passed.
+- `scripts/format --check --diff` passed.
 - `scripts/lint` passed.
 - `scripts/test` passed with 333 tests.
 - `lrh work-items validate` passed with 0 errors and 0 warnings.

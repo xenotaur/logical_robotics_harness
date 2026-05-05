@@ -286,7 +286,6 @@ def build_codex_prompt_from_work_item_parser(
     )
     parser.add_argument(
         "--out",
-        required=True,
         help=(
             "Output markdown path for the generated prompt "
             "(submit this file to Codex Cloud)."
@@ -376,7 +375,7 @@ def run_request_cli(
             template_dir=command_args.template_dir,
         )
         args = mapped_args
-        output_path = pathlib.Path(command_args.out)
+        output_path = pathlib.Path(command_args.out) if command_args.out else None
     else:
         output_path = None
         parser = build_parser(prog=prog)

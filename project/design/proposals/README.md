@@ -46,6 +46,13 @@ templates → orchestration → agent runtime → observability+evidence
 → MCP bridges). Status: `proposed`. Includes a Pass-B worked-example
 appendix (`WS-LCATS-CORPORA-ANALYSIS`).
 
+
+[`workstreams-and-recursive-planning-tree/`](workstreams-and-recursive-planning-tree/)
+— Proposes a documentation-first, minimal workstream planning model
+(Project → Workstream → Work Item) with recursive planning-tree
+semantics kept internal-ready and explicit non-goals deferring runtime
+implementation. Status: `proposed`.
+
 ## Proposal-set conventions
 
 A proposal set directory name should be a stable, descriptive slug

@@ -58,6 +58,12 @@ a Pass-B worked-example appendix (`WS-LCATS-CORPORA-ANALYSIS`).
 semantics kept internal-ready and explicit non-goals deferring runtime
 implementation. Status: `accepted` (near-term design basis).
 
+
+[`safe-default-agentic-extra-packaging/`](safe-default-agentic-extra-packaging/)
+— Proposes safe-default non-agentic `lrh` installs with explicit
+opt-in autonomous capability via `lrh[agentic]` and/or `lrh-agentic`.
+Status: `proposed` (packaging/governance boundary design; implementation deferred).
+
 ## Proposal-set conventions
 
 A proposal set directory name should be a stable, descriptive slug

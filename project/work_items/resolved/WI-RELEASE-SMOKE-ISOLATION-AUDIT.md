@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Completed
 blocked_reason: null
 blocked: false
 id: WI-RELEASE-SMOKE-ISOLATION-AUDIT
 title: Audit release-smoke preinstall import visibility isolation
 type: investigation
-status: proposed
+status: resolved
 priority: high
 owner: anthony
 contributors:
@@ -66,3 +66,18 @@ Investigate why `scripts/release-smoke` can detect `logical-robotics-harness` be
 ## Notes
 
 Potential visibility sources include editable install residue, Conda path injection, `.pth` path extensions, pip metadata interactions, and project-local path leakage.
+
+## Completion Notes
+
+Closed on 2026-05-05 after the diagnostic and strict-isolation follow-up changes landed and documentation was reviewed.
+
+Acceptance status:
+
+- Pre-install visibility checks now run with the smoke virtual environment command environment after clearing `PYTHONPATH`, so the thin `scripts/release-smoke` wrapper can keep using the source checkout to load the package-owned implementation without contaminating installed-wheel checks.
+- `scripts/release-smoke <tag> --diagnose` prints grouped temporary-venv diagnostics for pre-install package visibility investigations.
+- `scripts/release-smoke <tag> --strict-isolation` turns pre-install LRH visibility into a hard failure before wheel installation.
+- Default `scripts/release-smoke <tag>` behavior remains warning-oriented when pre-install visibility is detected, preserving local development usability while continuing to validate the installed wheel.
+- `scripts/release-smoke <tag> --diagnose --preserve` supports post-failure inspection by printing diagnostics and keeping the temporary smoke environment.
+- Focused tests cover diagnostic parsing/rendering, `PYTHONPATH` cleanup for smoke-venv commands, warning-vs-strict behavior, and CLI help coverage for the new options.
+
+Evidence recorded in `project/evidence/EV-0005.md` and the related execution records under `project/executions/WI-RELEASE-SMOKE-ISOLATION-AUDIT/`.

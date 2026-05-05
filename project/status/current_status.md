@@ -16,6 +16,7 @@ generated_from:
     - WI-ASSIST-TEMPLATES-PACKAGING
     - WI-ASSIST-INSTALLABILITY-HARDENING
     - WI-RELEASE-TAG-CI
+    - WI-RELEASE-SMOKE-ISOLATION-AUDIT
 generated_at: 2026-04-22T00:00:00Z
 health: yellow
 ---
@@ -37,6 +38,7 @@ Versioning hardening is now in a stable operational state: LRH versioning is tag
 
 Release tag CI closeout is recorded for `v0.2.3`: the Release tag validation workflow succeeded for tag push `v0.2.3` at commit `dd78e89` and produced the `release-artifacts-v0.2.3` artifact. Evidence: https://github.com/xenotaur/logical_robotics_harness/actions/runs/25342434294
 
+Release-smoke isolation audit closeout is recorded: diagnostic mode (`scripts/release-smoke <tag> --diagnose`) and optional strict isolation (`scripts/release-smoke <tag> --strict-isolation`) are implemented and documented. Default release-smoke behavior remains warning-oriented for pre-install LRH visibility to preserve local development usability, while strict mode is available when a clean preinstall environment is required. Evidence: `project/evidence/EV-0005.md`
 
 Closeout note (2026-05-03): Completion and work-item tooling (`lrh work-items organize` + `lrh work-items validate`) is implemented, tested, and documented; work-item discovery edge cases including README handling in `lrh work-items validate` are resolved.
 

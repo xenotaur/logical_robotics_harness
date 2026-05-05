@@ -2,10 +2,10 @@
 execution_id: 2026_05_05_05_25_45_RECONCILE_WORKSTREAM_DESIGN
 prompt_id: PROMPT(AD_HOC:RECONCILE_WORKSTREAM_DESIGN)[2026-05-05T01:22:25-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: xenotaur/logical_robotics_harness#177
+commit: 2a43f5b
 created_at: 2026-05-05T05:25:45+00:00
 ---
 

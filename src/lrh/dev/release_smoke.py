@@ -115,7 +115,23 @@ def normalize_version(expected_version: str) -> str:
     return candidate
 
 
-def _run(command: list[str], *, cwd: pathlib.Path | None = None) -> str:
+def _venv_command_environment(
+    environ: collections.abc.Mapping[str, str] | None = None,
+) -> dict[str, str]:
+    """Return an environment for smoke-venv commands without source leakage."""
+    if environ is None:
+        environ = os.environ
+    sanitized = dict(environ)
+    sanitized.pop("PYTHONPATH", None)
+    return sanitized
+
+
+def _run(
+    command: list[str],
+    *,
+    cwd: pathlib.Path | None = None,
+    env: collections.abc.Mapping[str, str] | None = None,
+) -> str:
     if cwd is None:
         cwd = REPO_ROOT
 
@@ -126,6 +142,7 @@ def _run(command: list[str], *, cwd: pathlib.Path | None = None) -> str:
             command,
             check=False,
             cwd=cwd,
+            env=env,
             capture_output=True,
             text=True,
         )
@@ -147,12 +164,15 @@ def _run(command: list[str], *, cwd: pathlib.Path | None = None) -> str:
     return completed.stdout.strip()
 
 
-def _capture_diagnostic_command(command: list[str]) -> DiagnosticCommandResult:
+def _capture_diagnostic_command(
+    command: list[str], *, env: collections.abc.Mapping[str, str] | None = None
+) -> DiagnosticCommandResult:
     try:
         completed = subprocess.run(
             command,
             check=False,
             cwd=REPO_ROOT,
+            env=env,
             capture_output=True,
             text=True,
         )
@@ -248,10 +268,13 @@ def collect_isolation_diagnostics(
     python_bin: pathlib.Path,
     *,
     environ: collections.abc.Mapping[str, str] | None = None,
+    command_environ: collections.abc.Mapping[str, str] | None = None,
 ) -> IsolationDiagnostics:
     """Collect diagnostics that explain pre-install package visibility."""
     if environ is None:
         environ = os.environ
+    if command_environ is None:
+        command_environ = _venv_command_environment(environ)
 
     pyvenv_cfg_path = venv_path / "pyvenv.cfg"
     try:
@@ -278,16 +301,21 @@ def collect_isolation_diagnostics(
         python_executable=python_bin,
         pyvenv_cfg=pyvenv_cfg,
         pip_version=_capture_diagnostic_command(
-            [str(python_bin), "-m", "pip", "--version"]
+            [str(python_bin), "-m", "pip", "--version"], env=command_environ
         ),
-        site=_capture_diagnostic_command([str(python_bin), "-m", "site"]),
+        site=_capture_diagnostic_command(
+            [str(python_bin), "-m", "site"], env=command_environ
+        ),
         interpreter=_capture_diagnostic_command(
-            [str(python_bin), "-c", interpreter_code]
+            [str(python_bin), "-c", interpreter_code], env=command_environ
         ),
         pip_show=_capture_diagnostic_command(
-            [str(python_bin), "-m", "pip", "show", "-f", "logical-robotics-harness"]
+            [str(python_bin), "-m", "pip", "show", "-f", "logical-robotics-harness"],
+            env=command_environ,
         ),
-        lrh_spec=_capture_diagnostic_command([str(python_bin), "-c", lrh_spec_code]),
+        lrh_spec=_capture_diagnostic_command(
+            [str(python_bin), "-c", lrh_spec_code], env=command_environ
+        ),
         pth_files=_discover_pth_files(venv_path),
         environment=_filtered_environment(environ),
     )
@@ -362,8 +390,14 @@ def _spec_output_is_visible(stdout: str) -> bool:
     return bool(spec_output and spec_output != "None")
 
 
-def check_preinstall_visibility(python_bin: pathlib.Path) -> PreinstallVisibility:
+def check_preinstall_visibility(
+    python_bin: pathlib.Path,
+    *,
+    command_environ: collections.abc.Mapping[str, str] | None = None,
+) -> PreinstallVisibility:
     """Check whether LRH is visible before installing the wheel under test."""
+    if command_environ is None:
+        command_environ = _venv_command_environment()
     preinstalled_name = "logical-robotics-harness"
     lrh_spec_code = (
         "import importlib.util; "
@@ -372,9 +406,12 @@ def check_preinstall_visibility(python_bin: pathlib.Path) -> PreinstallVisibilit
     )
     return PreinstallVisibility(
         pip_show=_capture_diagnostic_command(
-            [str(python_bin), "-m", "pip", "show", preinstalled_name]
+            [str(python_bin), "-m", "pip", "show", preinstalled_name],
+            env=command_environ,
         ),
-        lrh_spec=_capture_diagnostic_command([str(python_bin), "-c", lrh_spec_code]),
+        lrh_spec=_capture_diagnostic_command(
+            [str(python_bin), "-c", lrh_spec_code], env=command_environ
+        ),
     )
 
 
@@ -459,13 +496,18 @@ def run_release_smoke(
 
     try:
         _run([sys.executable, "-m", "venv", str(venv_path)])
-        _run([str(python_bin), "-m", "pip", "--version"])
+        venv_command_env = _venv_command_environment()
+        _run([str(python_bin), "-m", "pip", "--version"], env=venv_command_env)
 
         if diagnose:
-            diagnostics = collect_isolation_diagnostics(venv_path, python_bin)
+            diagnostics = collect_isolation_diagnostics(
+                venv_path, python_bin, command_environ=venv_command_env
+            )
             print(render_isolation_diagnostics(diagnostics))
 
-        visibility = check_preinstall_visibility(python_bin)
+        visibility = check_preinstall_visibility(
+            python_bin, command_environ=venv_command_env
+        )
         if visibility.is_visible:
             if strict_isolation:
                 _raise_strict_isolation_error(visibility)
@@ -479,7 +521,8 @@ def run_release_smoke(
                 "install",
                 "--force-reinstall",
                 str(wheel_path),
-            ]
+            ],
+            env=venv_command_env,
         )
         if not lrh_bin.exists():
             raise ReleaseSmokeError(
@@ -487,8 +530,8 @@ def run_release_smoke(
                 "inspect wheel metadata/entry points "
                 "(for example: unzip -p <wheel>.whl '*.dist-info/entry_points.txt')"
             )
-        version_output = _run([str(lrh_bin), "--version"])
-        _run([str(lrh_bin), "snapshot", "--help"])
+        version_output = _run([str(lrh_bin), "--version"], env=venv_command_env)
+        _run([str(lrh_bin), "snapshot", "--help"], env=venv_command_env)
 
         if normalized_version:
             expected_line = f"lrh {normalized_version}"

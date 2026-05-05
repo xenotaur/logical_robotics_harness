@@ -17,6 +17,14 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
         with self.assertRaises(release_smoke.ReleaseSmokeError):
             release_smoke.normalize_version("release-0.2.0")
 
+    def test_venv_command_environment_removes_pythonpath(self) -> None:
+        sanitized = release_smoke._venv_command_environment(
+            {"PYTHONPATH": "/workspace/src", "PIP_INDEX_URL": "https://example.invalid"}
+        )
+
+        self.assertNotIn("PYTHONPATH", sanitized)
+        self.assertEqual(sanitized["PIP_INDEX_URL"], "https://example.invalid")
+
     def test_run_raises_clear_error_for_missing_command(self) -> None:
         with mock.patch("subprocess.run", side_effect=FileNotFoundError):
             with self.assertRaisesRegex(
@@ -189,7 +197,11 @@ class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
     def test_check_preinstall_visibility_detects_pip_package(self) -> None:
         fake_python = pathlib.Path("/tmp/venv/bin/python")
 
-        def _fake_capture(command: list[str]) -> release_smoke.DiagnosticCommandResult:
+        def _fake_capture(
+            command: list[str], *, env: object | None = None
+        ) -> release_smoke.DiagnosticCommandResult:
+            self.assertIsInstance(env, dict)
+            self.assertNotIn("PYTHONPATH", env)
             if command[:4] == [str(fake_python), "-m", "pip", "show"]:
                 return release_smoke.DiagnosticCommandResult(
                     tuple(command), 0, "Name: logical-robotics-harness\n", ""
@@ -208,7 +220,11 @@ class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
     def test_check_preinstall_visibility_detects_lrh_import_spec(self) -> None:
         fake_python = pathlib.Path("/tmp/venv/bin/python")
 
-        def _fake_capture(command: list[str]) -> release_smoke.DiagnosticCommandResult:
+        def _fake_capture(
+            command: list[str], *, env: object | None = None
+        ) -> release_smoke.DiagnosticCommandResult:
+            self.assertIsInstance(env, dict)
+            self.assertNotIn("PYTHONPATH", env)
             if command[:4] == [str(fake_python), "-m", "pip", "show"]:
                 return release_smoke.DiagnosticCommandResult(
                     tuple(command),
@@ -230,7 +246,11 @@ class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
     def test_check_preinstall_visibility_treats_not_found_as_not_visible(self) -> None:
         fake_python = pathlib.Path("/tmp/venv/bin/python")
 
-        def _fake_capture(command: list[str]) -> release_smoke.DiagnosticCommandResult:
+        def _fake_capture(
+            command: list[str], *, env: object | None = None
+        ) -> release_smoke.DiagnosticCommandResult:
+            self.assertIsInstance(env, dict)
+            self.assertNotIn("PYTHONPATH", env)
             if command[:4] == [str(fake_python), "-m", "pip", "show"]:
                 return release_smoke.DiagnosticCommandResult(
                     tuple(command),
@@ -293,18 +313,26 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             )
 
             commands: list[list[str]] = []
+            command_envs: list[object | None] = []
 
             def _fake_run(
-                command: list[str], *, cwd: pathlib.Path | None = None
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
             ) -> str:
                 del cwd
                 commands.append(command)
+                command_envs.append(env)
                 if command == [str(fake_lrh), "--version"]:
                     return "lrh 0.2.1"
                 return ""
 
             with (
                 mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
+                mock.patch.dict(
+                    release_smoke.os.environ, {"PYTHONPATH": "/workspace/src"}
+                ),
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
@@ -349,7 +377,22 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             )
             > commands.index([str(fake_python), "-m", "pip", "--version"])
         )
-        check_visibility.assert_called_once_with(fake_python)
+        check_visibility.assert_called_once_with(fake_python, command_environ=mock.ANY)
+        self.assertNotIn(
+            "PYTHONPATH", check_visibility.call_args.kwargs["command_environ"]
+        )
+        install_command_index = commands.index(
+            [
+                str(fake_python),
+                "-m",
+                "pip",
+                "install",
+                "--force-reinstall",
+                str(fake_wheel),
+            ]
+        )
+        self.assertIsInstance(command_envs[install_command_index], dict)
+        self.assertNotIn("PYTHONPATH", command_envs[install_command_index])
         rmtree.assert_called_once_with(fake_root, ignore_errors=True)
 
     def test_run_release_smoke_prints_diagnostics_before_install(self) -> None:
@@ -366,9 +409,12 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             commands: list[list[str]] = []
 
             def _fake_run(
-                command: list[str], *, cwd: pathlib.Path | None = None
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
             ) -> str:
-                del cwd
+                del cwd, env
                 commands.append(command)
                 return "lrh 0.2.1" if command[-1] == "--version" else ""
 
@@ -409,7 +455,9 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ):
                 release_smoke.run_release_smoke("v0.2.1", preserve=True, diagnose=True)
 
-        collect_diagnostics.assert_called_once_with(fake_venv, fake_python)
+        collect_diagnostics.assert_called_once_with(
+            fake_venv, fake_python, command_environ=mock.ANY
+        )
         render_diagnostics.assert_called_once_with(diagnostics)
         print_mock.assert_any_call("diagnostic text")
         self.assertLess(
@@ -440,9 +488,12 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             commands: list[list[str]] = []
 
             def _fake_run(
-                command: list[str], *, cwd: pathlib.Path | None = None
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
             ) -> str:
-                del cwd
+                del cwd, env
                 commands.append(command)
                 return "lrh 0.2.1" if command[-1] == "--version" else ""
 
@@ -492,9 +543,12 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             commands: list[list[str]] = []
 
             def _fake_run(
-                command: list[str], *, cwd: pathlib.Path | None = None
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
             ) -> str:
-                del cwd
+                del cwd, env
                 commands.append(command)
                 return ""
 
@@ -545,9 +599,12 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             commands: list[list[str]] = []
 
             def _fake_run(
-                command: list[str], *, cwd: pathlib.Path | None = None
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
             ) -> str:
-                del cwd
+                del cwd, env
                 commands.append(command)
                 return "lrh 0.2.1" if command[-1] == "--version" else ""
 
@@ -633,7 +690,9 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                         strict_isolation=True,
                     )
 
-        collect_diagnostics.assert_called_once_with(fake_venv, fake_python)
+        collect_diagnostics.assert_called_once_with(
+            fake_venv, fake_python, command_environ=mock.ANY
+        )
         render_diagnostics.assert_called_once_with(diagnostics)
         print_mock.assert_any_call("diagnostic text")
 
@@ -651,9 +710,12 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             commands: list[list[str]] = []
 
             def _fake_run(
-                command: list[str], *, cwd: pathlib.Path | None = None
+                command: list[str],
+                *,
+                cwd: pathlib.Path | None = None,
+                env: object | None = None,
             ) -> str:
-                del cwd
+                del cwd, env
                 commands.append(command)
                 return "lrh 0.2.1" if command[-1] == "--version" else ""
 

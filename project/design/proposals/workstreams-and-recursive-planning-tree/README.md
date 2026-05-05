@@ -6,7 +6,7 @@ implementation explicitly out of scope for this change.
 
 ## Status
 
-`proposed`
+`accepted`
 
 ## Documents
 
@@ -29,9 +29,10 @@ workstream directory creation, or automation.
 
 ## Canonical-document touchpoints (on acceptance)
 
-When accepted, this proposal is expected to drive follow-on updates to
-canonical design/control documents rather than becoming canonical by
-itself. Anticipated touchpoints:
+This proposal is accepted as the near-term basis for
+workstream modeling. Follow-on project-control updates should align
+roadmap, current focus, and work items before implementation prompts are
+generated. Canonical design/control touchpoints include:
 
 - `project/design/design.md`
 - `project/design/architecture.md`

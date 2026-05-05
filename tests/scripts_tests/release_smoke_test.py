@@ -21,6 +21,7 @@ class ReleaseSmokeScriptTests(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
         self.assertIn("expected_version", completed.stdout)
         self.assertIn("--preserve", completed.stdout)
+        self.assertIn("--diagnose", completed.stdout)
 
 
 if __name__ == "__main__":

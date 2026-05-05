@@ -220,7 +220,7 @@ Future implementation docs should include:
 ```bash
 pipx install lrh
 pip install lrh
-pip install --index-url https://test.pypi.org/simple/ lrh
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ lrh
 ```
 
 Only after extra/package exists, document:

@@ -1,11 +1,10 @@
 ---
 id: PROP-WORKSTREAMS-RECURSIVE-PLANNING-TREE
-kind: design
 type: design_proposal
 title: Workstreams as first-class planning nodes with recursive planning-tree semantics
 status: proposed
-created: 2026-05-05
-updated: 2026-05-05
+created_on: 2026-05-05
+updated_on: 2026-05-05
 ---
 
 ## 1) Purpose

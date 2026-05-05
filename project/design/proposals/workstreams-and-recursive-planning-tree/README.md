@@ -21,3 +21,19 @@ implementation explicitly out of scope for this change.
 This proposal-set PR records design intent only. It does not add parser
 or model code, validators, CLI commands, runtime execution behavior,
 workstream directory creation, or automation.
+
+## Reading order
+
+1. `README.md` (this file)
+2. `00_proposal.md`
+
+## Canonical-document touchpoints (on acceptance)
+
+When accepted, this proposal is expected to drive follow-on updates to
+canonical design/control documents rather than becoming canonical by
+itself. Anticipated touchpoints:
+
+- `project/design/design.md`
+- `project/design/architecture.md`
+- `project/design/repository_spec.md`
+

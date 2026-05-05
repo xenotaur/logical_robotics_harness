@@ -2,7 +2,7 @@
 execution_id: 2026_05_05_04_56_30_WORKSTREAM_PLANNING_TREE_DESIGN_PROPOSAL
 prompt_id: PROMPT(AD_HOC:WORKSTREAM_PLANNING_TREE_DESIGN_PROPOSAL)[2026-05-05T00:00:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:

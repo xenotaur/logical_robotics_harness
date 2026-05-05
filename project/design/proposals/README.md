@@ -64,6 +64,13 @@ implementation. Status: `accepted` (near-term design basis).
 opt-in autonomous capability via `lrh[agentic]` and/or `lrh-agentic`.
 Status: `proposed` (packaging/governance boundary design; implementation deferred).
 
+[`tag-push-pypi-publishing/`](tag-push-pypi-publishing/)
+— Proposes Option D tag-push release design for publishing the
+safe-default `lrh` distribution to PyPI via Trusted Publishing
+(OIDC), with TestPyPI rehearsal, installed-wheel smoke checks, and
+evidence-backed release outputs. Status: `proposed` (design target;
+implementation deferred).
+
 ## Proposal-set conventions
 
 A proposal set directory name should be a stable, descriptive slug

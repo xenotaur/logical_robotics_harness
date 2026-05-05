@@ -2,10 +2,10 @@
 execution_id: 2026_05_05_05_22_44_FINAL_RELEASE_WORKSTREAM_CLOSEOUT
 prompt_id: PROMPT(AD_HOC:FINAL_RELEASE_WORKSTREAM_CLOSEOUT)[2026-05-05T01:20:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: xenotaur/logical_robotics_harness#176
+commit: 0ddfbcf
 created_at: 2026-05-05T05:22:44+00:00
 ---
 

@@ -34,9 +34,9 @@ The immediate objective is to finish packaging-safe assist migration sequencing:
 
 Versioning hardening and release/versioning closeout are complete: LRH versioning is tag-derived via `setuptools-scm`, the `scripts/version` workflow (`verify`/`tag`/`push`) is in place, and final release validation succeeded for pushed tag `v0.2.4`.
 
-Final release evidence for `v0.2.4` is successful across local and CI checks: `scripts/release-smoke v0.2.4 --diagnose` passed locally, GitHub Actions Release tag validation succeeded for pushed tag `v0.2.4`, and GitHub Actions smoke validation succeeded for pushed tag `v0.2.4`.
+Final release evidence for `v0.2.4` is successful across local and CI checks: `scripts/release-smoke v0.2.4 --diagnose` passed locally, GitHub Actions Release tag validation succeeded for pushed tag `v0.2.4`, and GitHub Actions smoke validation succeeded for pushed tag `v0.2.4`. Evidence: `project/evidence/EV-0004.md`, `project/evidence/EV-0005.md`, `project/work_items/resolved/WI-RELEASE-TAG-CI.md`, and `project/work_items/resolved/WI-RELEASE-SMOKE-ISOLATION-AUDIT.md`.
 
-Release-smoke isolation audit closeout remains in effect: diagnostic mode (`scripts/release-smoke <tag> --diagnose`) and optional strict isolation (`scripts/release-smoke <tag> --strict-isolation`) are implemented and documented. Default release-smoke behavior remains warning-oriented for pre-install LRH visibility to preserve local development usability, while strict mode is available when a clean preinstall environment is required.
+Release-smoke isolation audit closeout remains in effect: diagnostic mode (`scripts/release-smoke <tag> --diagnose`) and optional strict isolation (`scripts/release-smoke <tag> --strict-isolation`) are implemented and documented. Default release-smoke behavior remains warning-oriented for pre-install LRH visibility to preserve local development usability, while strict mode is available when a clean preinstall environment is required. Evidence: `project/evidence/EV-0005.md`.
 
 Closeout note (2026-05-03): Completion and work-item tooling (`lrh work-items organize` + `lrh work-items validate`) is implemented, tested, and documented; work-item discovery edge cases including README handling in `lrh work-items validate` are resolved.
 

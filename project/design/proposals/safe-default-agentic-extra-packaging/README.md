@@ -1,15 +1,36 @@
 # Safe-default agentic extra packaging proposal set
 
-Status: `proposed`
+This proposal set defines a design target where default `lrh` installs
+remain non-agentic and autonomous capability is explicit opt-in via
+`lrh[agentic]` and/or `lrh-agentic`.
+
+## Status
+
+`proposed`
+
+## Documents
+
+1. [`00_proposal.md`](00_proposal.md)
+   — umbrella proposal covering motivation, install semantics,
+   capability boundaries, CLI behavior, migration strategy, phased
+   implementation, validation expectations, tradeoffs, and
+   recommendation posture.
+
+## Scope notes
+
+This proposal-set change is design-only. It does not implement package
+splits, optional-dependency metadata, module moves, or CLI behavior
+changes.
 
 ## Reading order
 
-1. [`00_proposal.md`](00_proposal.md)
+1. `README.md` (this file)
+2. `00_proposal.md`
 
-## Scope
+## Canonical-document touchpoints (on acceptance)
 
-This proposal set defines an LRH packaging and command-surface design
-where default `lrh` installs remain non-agentic and autonomous
-capability is explicit opt-in via `lrh[agentic]` / `lrh-agentic`.
+If accepted, follow-on canonical updates are expected in:
 
-It is design-only and intentionally defers implementation churn.
+- `project/design/design.md`
+- `project/design/architecture.md`
+- `project/design/repository_spec.md`

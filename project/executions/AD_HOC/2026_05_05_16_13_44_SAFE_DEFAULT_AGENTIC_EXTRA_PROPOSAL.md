@@ -2,7 +2,7 @@
 execution_id: 2026_05_05_16_13_44_SAFE_DEFAULT_AGENTIC_EXTRA_PROPOSAL
 prompt_id: PROMPT(AD_HOC:SAFE_DEFAULT_AGENTIC_EXTRA_PROPOSAL)[2026-05-05T11:35:54-04:00]
 work_item: AD_HOC
-status: planned
+status: in_progress
 rerun_of: 
 pr: 
 commit: 

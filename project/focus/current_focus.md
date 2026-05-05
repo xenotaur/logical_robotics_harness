@@ -1,6 +1,6 @@
 ---
-id: FOCUS-CONTROL-PLANE-SEMANTICS
-title: Harden assist packaging and keep survey expansion scoped
+id: FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
+title: Plan and sequence the Workstream Control Plane MVP
 status: active
 priority: high
 owner: anthony
@@ -11,41 +11,42 @@ related_principles:
 
 # Current Focus
 
-The immediate priority is to keep assist package behavior hardened and treat survey capability growth as scoped follow-on work.
+The immediate priority is the **Workstream Control Plane MVP**: establish manual,
+project-control-first workstream representation before any execution automation.
 
 Recently completed:
 
-- request-system extraction into `src/lrh/assist/`
-- thin CLI wrappers wired to `lrh request` and `lrh snapshot`
-- package-owned assist templates under `src/lrh/assist/templates/`
-- canonical `lrh survey` delegation to `src/lrh/assist/sourcetree_surveyor.py`
-- assist README updates documenting canonical CLI usage
-- versioning hardening closure: `setuptools-scm` tag-derived versions plus `scripts/version`, `scripts/build`, `scripts/clean`, and `scripts/release-smoke` workflow validated with pushed `v0.2.2`
+- reconciled near-term workstream design around recursive planning-tree concepts
+- retained workstream execution framework as deferred long-term architecture
+- closed prior release/toolchain and proposal alignment work needed before this planning step
 
 ## Why this is active now
 
-LRH now has canonical assist interfaces (`lrh request`, `lrh snapshot`, and `lrh survey`) backed by package-owned runtime code and assets.
-
-The next risk is not migration mechanics; it is protecting installability guarantees and keeping any survey capability expansion intentionally separate from packaging/runtime stability work.
+LRH needs a disciplined next sequence that introduces workstreams as first-class planning artifacts
+without jumping to runtime execution or orchestration. This preserves repository-as-control-plane and
+manual-mode parity while keeping implementation slices small and reviewable.
 
 ## Priorities
 
-1. Keep package-owned templates and resource loading behavior stable for installed usage.
-2. Maintain packaging/build/install hardening and smoke-test expectations for installed behavior.
-3. Keep `lrh survey` canonical on `src/lrh/assist/sourcetree_surveyor.py`.
-4. Handle sourcetree capability expansion only as a separate follow-on work item.
+1. Define and document minimal workstream artifact conventions and bucket navigation.
+2. Add typed loader/model support for workstreams as planning nodes.
+3. Validate workstream metadata, status/stage semantics, IDs, and bucket/status drift.
+4. Add planning-tree relationship checks that stay metadata-driven.
+5. Add workstream snapshot and, only after validation is stable, dry-run-first organize/tidy support.
 
 ## Non-Goals
 
-- Reopening already completed mechanical migration work in docs or planning.
-- Broad redesign of request/snapshot/survey semantics.
-- Unrelated refactors outside assist packaging and scoped follow-on expansion planning.
+- Implementing `lrh run`.
+- Adding agent runtime execution, orchestration, or automated stage advancement.
+- Implementing MCP bridges, telemetry systems, or backend adapters.
+- Collapsing multiple MVP slices into one large implementation change.
 
 ## Exit Criteria
 
 This focus is complete when:
 
-1. package-owned templates remain the runtime source of truth
-2. installed `lrh request`/`lrh snapshot` behavior does not rely on repo-relative template discovery
-3. packaging/install smoke checks are defined and passing
-4. `lrh survey` remains canonical on package code, with capability expansion explicitly deferred
+1. roadmap and work items clearly sequence the Workstream Control Plane MVP
+2. workstreams are represented in project control as first-class artifacts
+3. validation and snapshot coverage for workstreams are implemented through small reviewed work items
+4. deferred execution-framework layers remain explicitly out of scope
+5. the next prompt package can start with the first concrete MVP work item (directory/README or schema)

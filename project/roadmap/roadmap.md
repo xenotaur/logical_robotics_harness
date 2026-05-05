@@ -16,29 +16,54 @@ children:
 The harness should be built in stages, with the earliest stages proving the project model and local
 workflow before deeper agent integration.
 
-## Current sequencing update (2026-04-22)
+## Current sequencing update (2026-05-05)
 
 Recently completed baseline work:
 
 - control-plane model/parser/validation foundations (`WI-0001` through `WI-0004`)
 - precedence resolver implementation and canonicalization closure validation (`WI-PRECEDENCE-RESOLVER`)
 - package CLI adoption for `lrh request` and `lrh snapshot`
+- reconciled near-term design basis that treats recursive planning-tree workstreams as accepted planning architecture
 
 Immediate next ordering:
 
-1. preserve package-owned templates + package-resource loading behavior
-2. maintain packaging/installability hardening with installed-package smoke checks
-3. keep canonical survey command surface on `lrh survey` backed by `src/lrh/assist/sourcetree_surveyor.py`
-4. pursue follow-on `sourcetree_surveyor` capability expansion only when a concrete downstream consumer defines required structured fields (schema expansion intentionally deferred)
+1. plan and implement the **Workstream Control Plane MVP** as the next active phase
+2. represent workstreams as first-class, repo-native planning artifacts before automation
+3. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item**
+4. keep parent/child structure metadata-driven rather than path-driven
+5. keep metadata authoritative and treat directory buckets as navigation projections
+6. sequence work through small reviewable work items before any execution-framework implementation
 
 Prompt-workflow integration note:
 
 - meaningful prompt-driven documentation or implementation work should use `PROMPTS.md` conventions and add an execution record under `project/executions/`
 - reruns should preserve prior execution history and link via `rerun_of` rather than rewriting prior records
 
-Meta-control planning guardrail:
+## Near-term roadmap addition: Workstream Control Plane MVP
 
-- before widening Meta CLI surface beyond the current MVP command set, align and land the shared workspace-resolution contract (explicit precedence, XDG-style global defaults, explicit local mode, and visible resolution behavior)
+MVP goal:
+
+> LRH can represent, validate, and summarize workstreams as first-class project-control artifacts before implementing automation.
+
+Recommended MVP deliverables (sequenced across focused work items):
+
+- `project/workstreams/` directory structure and README
+- minimal workstream frontmatter/schema documentation
+- workstream loader/model support
+- workstream validation for status, stage, IDs, and bucket/status consistency
+- planning-tree index or parent/child reference validation (as scoped)
+- snapshot summary of workstreams
+- dry-run-first organize/tidy support after validation behavior is stable
+
+Explicitly deferred to the long-term execution-framework architecture:
+
+- `lrh run`
+- agent runtime execution
+- workstream orchestrator
+- automated stage advancement
+- MCP bridges
+- telemetry systems
+- execution backends/adapters (Claude, Codex, native, Spec Kit, etc.)
 
 ## Phase 1 — Control Plane
 

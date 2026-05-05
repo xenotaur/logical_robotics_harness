@@ -20,7 +20,7 @@ Internally, LRH should remain architecture-ready for a longer-horizon
 execution model:
 
 ```text
-Recursive planning tree → executable leaves → controlled runs
+Recursive planning tree → execution-ready work items (ready executable leaves) → controlled runs
 ```
 
 The immediate proposal outcome is documentation alignment, not runtime
@@ -41,13 +41,52 @@ control-plane-first implementation priority.
 ## 3) Core design thesis
 
 - Workstreams are user-facing planning nodes.
-- Work items are executable leaves.
+- Work items are execution-ready tasks (ready executable leaves).
 - Projects are root planning contexts.
 - Metadata is authoritative.
 - Directory placement is a human navigation aid.
 - Validation reconciles metadata and directory placement.
 - Automation is explicitly deferred until readiness and guardrails are
   validated.
+
+## 3a) Capability Boundary and Safe-Default Packaging Alignment
+
+Workstreams and recursive planning-tree semantics are **core LRH
+control-plane capabilities** and are **not inherently agentic**.
+
+Core LRH supports:
+
+- planning-node modeling
+- workstream artifacts
+- work item relationships
+- validation and snapshotting
+- human-assisted prompt generation
+
+Core LRH must not:
+
+- autonomously invoke coding agents
+- execute work items
+- implement agent loops or PR stabilization loops
+- depend on agent adapters or external execution systems
+
+Packaging/governance alignment:
+
+```text
+Default LRH (pip install lrh):
+  non-agentic, safe-default, human-assisted workflows
+
+Optional LRH agentic install (lrh[agentic] or lrh-agentic):
+  enables autonomous execution features
+```
+
+This is a governance and capability boundary. It is **not** a
+guarantee of security sandboxing.
+
+Relationship to companion proposal:
+`project/design/proposals/safe-default-agentic-extra-packaging/`
+defines packaging and capability-boundary posture, while this proposal
+defines planning structure semantics (workstreams and recursive
+planning-tree modeling).
 
 ## 4) User-facing artifacts
 
@@ -162,10 +201,11 @@ Expected future validation includes:
 - no orphaned active workstreams unless intentionally top-level
 - warnings when parent/child declarations disagree
 
-## 8) Relationship to work items and `lrh run`
+## 8) Relationship to work items and execution preparation
 
-Workstreams prepare the ground for future executable-leaf readiness
-and `lrh run`, but this proposal does not implement either.
+Workstreams prepare the ground for future execution-readiness contracts
+for work items (ready executable leaves), but this proposal does not
+implement execution behavior.
 
 Future readiness concept (illustrative only):
 
@@ -190,8 +230,30 @@ expected_outputs:
   - validation_results
 ```
 
-A future `lrh run --dry-run` should execute only validated executable
-leaves.
+Readiness clarification:
+
+```text
+In core LRH:
+  execution-ready means sufficiently specified for human or supervised execution.
+
+In agentic LRH:
+  the same readiness contract may be used for autonomous execution.
+```
+
+Execution boundary clarification:
+
+```text
+Core LRH:
+  may generate run packets or prompts for humans:
+    e.g. lrh request codex_prompt_from_work_item --work-item WI-...
+
+Agentic LRH:
+  may execute (illustrative proposed command shapes only):
+    lrh agentic run work-item WI-...
+    or lrh-agentic run work-item WI-...
+```
+
+Core LRH prepares execution. Agentic LRH performs execution.
 
 ## 9) Relationship to prompt IDs, execution records, evidence, and status
 
@@ -257,24 +319,38 @@ This proposal PR must not:
 - implement snapshot changes
 - add `lrh run`
 - add agent adapters
+- add autonomous execution in default LRH
+- add any dependency from core LRH to `lrh[agentic]`
+- claim packaging boundaries are security sandbox guarantees
 - reorganize existing work items
 - alter existing execution records unrelated to this prompt
 - introduce broad process requirements for trivial fixes
 
 ## 13) Recommended follow-up sequence
 
+Core track:
+
 1. Add the design proposal.
 2. Update roadmap/current focus/work items.
 3. Add `project/workstreams/` README and buckets.
-4. Add minimal schema/model support.
+4. Add planning-node/workstream schema support.
 5. Add validation.
-6. Add internal tree index.
-7. Add snapshot summary.
-8. Add organize/tidy command.
-9. Later add executable-leaf readiness and `lrh run --dry-run`.
+6. Add internal tree indexing.
+7. Add snapshot support.
+8. Add human-assisted run-packet generation support.
+9. Add organize/tidy command.
+
+Agentic track:
+
+1. Land safe-default packaging boundary (`lrh` vs
+   `lrh[agentic]`/`lrh-agentic`).
+2. Add agentic command namespace.
+3. Add agent adapters.
+4. Add sandbox envelope strategy.
+5. Add autonomous run and stabilization loops.
 
 
-## 10) Reconciliation note
+## 14) Reconciliation note
 
 This proposal is accepted as LRH's near-term workstream design basis.
 It sets the immediate abstraction boundary (Project -> Workstream ->

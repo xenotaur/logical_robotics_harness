@@ -6,6 +6,7 @@ owner: human_agent
 time_horizon: medium
 children:
   - ROADMAP-PHASE-01
+  - ROADMAP-PHASE-01A
   - ROADMAP-PHASE-02
   - ROADMAP-PHASE-03
   - ROADMAP-PHASE-04
@@ -39,25 +40,30 @@ Prompt-workflow integration note:
 - meaningful prompt-driven documentation or implementation work should use `PROMPTS.md` conventions and add an execution record under `project/executions/`
 - reruns should preserve prior execution history and link via `rerun_of` rather than rewriting prior records
 
-## Near-term roadmap addition: Workstream Control Plane MVP
+## Near-term roadmap addition: Planning Tree and Workstream Foundation (Safe-Default Compatible)
 
 MVP goal:
 
-> LRH can represent, validate, and summarize workstreams as first-class project-control artifacts before implementing automation.
+> LRH can represent planning-tree semantics and workstreams as core non-agentic project-control artifacts before implementing automation.
 
 Recommended MVP deliverables (sequenced across focused work items):
 
+- planning-node schema conventions for `parent_id` and `children`
+- execution-ready work item concept for human-executable leaves
+- planning-tree validation rule design for cycles, references, and consistency
 - `project/workstreams/` directory structure and README
-- minimal workstream frontmatter/schema documentation
-- workstream loader/model support
-- workstream validation for status, stage, IDs, and bucket/status consistency
-- planning-tree index or parent/child reference validation (as scoped)
-- snapshot summary of workstreams
-- dry-run-first organize/tidy support after validation behavior is stable
+- minimal workstream frontmatter/schema documentation (`id`, `status`, `stage`, `parent_id`)
+- workstream-to-work-item relationship conventions
+- snapshot visibility design for workstreams
+- human-assisted run-packet or execution-prompt generation design with no autonomous execution implied
+- follow-on implementation slices for loader/model, validation, snapshot, and dry-run-first organize/tidy support
 
 Explicitly deferred to the long-term execution-framework architecture:
 
-- `lrh run`
+- `lrh agentic run` / autonomous run commands (deferred / future / requires `lrh[agentic]`)
+- agent adapters (deferred / future / requires `lrh[agentic]`)
+- PR stabilization loops (deferred / future / requires `lrh[agentic]`)
+- sandbox envelope work (deferred / future / requires `lrh[agentic]`)
 - agent runtime execution
 - workstream orchestrator
 - automated stage advancement

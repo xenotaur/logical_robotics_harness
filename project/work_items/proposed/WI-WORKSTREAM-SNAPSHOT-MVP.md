@@ -14,6 +14,7 @@ related_focus:
   - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
 related_roadmap:
   - ROADMAP-PHASE-01
+  - ROADMAP-PHASE-01A
 depends_on:
   - WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP
 blocked_by: []
@@ -36,3 +37,7 @@ artifacts_expected:
 
 Extend snapshot output to summarize workstream lifecycle status as a first-class
 project-control view.
+
+## Safe-default alignment
+
+Snapshot visibility is observability only and must not imply execution, scheduling, or agent invocation.

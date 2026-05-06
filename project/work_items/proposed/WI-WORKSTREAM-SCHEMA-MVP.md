@@ -14,8 +14,10 @@ related_focus:
   - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
 related_roadmap:
   - ROADMAP-PHASE-01
+  - ROADMAP-PHASE-01A
 depends_on:
   - WI-WORKSTREAM-DIRECTORY-README-MVP
+  - WI-PLANNING-NODE-SCHEMA-MVP
 blocked_by: []
 expected_actions:
   - edit_file
@@ -37,3 +39,7 @@ artifacts_expected:
 
 Define documentation-level minimal schema for workstreams, including required IDs,
 status buckets, stage semantics, and parent/child reference fields.
+
+## Safe-default alignment
+
+The minimal schema should include `id`, `status`, `stage`, and `parent_id` semantics and remain non-agentic.

@@ -14,6 +14,7 @@ related_focus:
   - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
 related_roadmap:
   - ROADMAP-PHASE-01
+  - ROADMAP-PHASE-01A
 depends_on:
   - WI-WORKSTREAM-LOADER-MODEL-MVP
 blocked_by: []
@@ -37,3 +38,7 @@ artifacts_expected:
 
 Add control-plane validation for workstream metadata authority, valid lifecycle values,
 unique identity, and directory projection consistency.
+
+## Safe-default alignment
+
+Validation must stay deterministic and non-agentic.

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import importlib.metadata
 
-DISTRIBUTION_NAME = "logical-robotics-harness"
+DISTRIBUTION_NAME = "lrh"
 CLI_NAME = "lrh"
 
 

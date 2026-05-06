@@ -59,7 +59,7 @@ scripts/release-smoke <tag> --diagnose --preserve
 - validates installed `lrh --version`
 - validates installed `lrh snapshot --help`
 
-By default, `release-smoke` validates installed-wheel behavior and only warns if `logical-robotics-harness` or import package `lrh` is visible in the temporary venv before the wheel is installed. Smoke-venv commands run with `PYTHONPATH` cleared so the wrapper's source-checkout import path does not contaminate installed-wheel or strict-isolation checks. This keeps local development usable while still surfacing isolation concerns. Use `--strict-isolation` to upgrade that pre-install visibility warning into a hard failure before the wheel install step.
+By default, `release-smoke` validates installed-wheel behavior and only warns if distribution `lrh` or import package `lrh` is visible in the temporary venv before the wheel is installed. Smoke-venv commands run with `PYTHONPATH` cleared so the wrapper's source-checkout import path does not contaminate installed-wheel or strict-isolation checks. This keeps local development usable while still surfacing isolation concerns. Use `--strict-isolation` to upgrade that pre-install visibility warning into a hard failure before the wheel install step.
 
 Use `--diagnose` (for example, `scripts/release-smoke <tag> --diagnose`) to print pre-install temporary-venv isolation diagnostics when investigating package-visibility warnings. Use `--diagnose --preserve` together (for example, `scripts/release-smoke <tag> --diagnose --preserve`) to print diagnostics and inspect the temporary environment after the script exits. Diagnostic mode does not change default pass/fail behavior.
 

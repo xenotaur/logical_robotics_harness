@@ -1,11 +1,11 @@
 # Logical Robotics Harness
 
-An agentic harness for AI-assisted development developed for Logical Robotics.
-The Logical Robotics Harness (LRH) is a reusable agentic harness for AI-assisted development.
-LRH uses a literate development paradigm in which structured documentation is used to guide an
-agentic development workflow based on explicitly collecting evidence of status and progress.
+A structured harness for evidence-backed, AI-assisted development workflows.
+The Logical Robotics Harness (LRH) is reusable project-control tooling for human-guided assist workflows.
+LRH uses a literate development paradigm in which structured documentation is used to guide
+work based on explicitly collecting evidence of status and progress.
 
-The core idea of LRH is to decouple the client's project state from the agentic harness code:
+The core idea of LRH is to decouple the client's project state from the reusable harness code:
 
 - the **harness** (`src/lrh/`) provides reusable orchestration, parsing, validation, evidence, status,
   and tool integration logic
@@ -426,7 +426,7 @@ scripts/release-smoke v0.2.2
 - `scripts/version verify v0.2.2` checks that the requested tag is a valid Git ref name and that release preconditions pass. Releases are expected to use `vMAJOR.MINOR.PATCH` tags such as `v0.2.2`. This is safe to run repeatedly.
 - `scripts/version tag v0.2.2` creates or confirms the release tag. This is idempotent when the tag already exists at the correct commit.
 - `scripts/version push v0.2.2` pushes the matching local tag to `origin` when needed, and is safe when local and remote state already match.
-- `scripts/release-smoke <tag>` (for example, `scripts/release-smoke v0.2.2`) runs a clean rebuild (`scripts/clean` + `scripts/build`), creates a temporary parent directory with `venv/` inside it, installs the built wheel from `dist/` via `<smoke-root>/venv/bin/python -m pip install --force-reinstall`, verifies `<smoke-root>/venv/bin/lrh --version`, and verifies `<smoke-root>/venv/bin/lrh snapshot --help` from the installed wheel. By default it warns and continues if `logical-robotics-harness` or import package `lrh` is visible before the wheel install; this preserves local development usability while still surfacing isolation concerns. Use `scripts/release-smoke <tag> --diagnose` to print pre-install isolation diagnostics, `scripts/release-smoke <tag> --strict-isolation` to make pre-install visibility a hard failure in CI or maintainer audits, and `scripts/release-smoke <tag> --diagnose --preserve` to print diagnostics and keep the temporary environment for investigation. Strict mode is useful when a clean preinstall environment is required and is expected to fail in contaminated environments where LRH is already visible before wheel installation.
+- `scripts/release-smoke <tag>` (for example, `scripts/release-smoke v0.2.2`) runs a clean rebuild (`scripts/clean` + `scripts/build`), creates a temporary parent directory with `venv/` inside it, installs the built wheel from `dist/` via `<smoke-root>/venv/bin/python -m pip install --force-reinstall`, verifies `<smoke-root>/venv/bin/lrh --version`, and verifies `<smoke-root>/venv/bin/lrh snapshot --help` from the installed wheel. By default it warns and continues if distribution `lrh` or import package `lrh` is visible before the wheel install; this preserves local development usability while still surfacing isolation concerns. Use `scripts/release-smoke <tag> --diagnose` to print pre-install isolation diagnostics, `scripts/release-smoke <tag> --strict-isolation` to make pre-install visibility a hard failure in CI or maintainer audits, and `scripts/release-smoke <tag> --diagnose --preserve` to print diagnostics and keep the temporary environment for investigation. Strict mode is useful when a clean preinstall environment is required and is expected to fail in contaminated environments where LRH is already visible before wheel installation.
 
 ### Release tag CI
 
@@ -448,7 +448,7 @@ These workflows are complementary and intentionally distinct.
 
 ### Wheel filename note
 
-Do not hard-code wheel paths as `dist/lrh-...whl`. Wheel filenames are derived from the distribution name (`logical-robotics-harness`), which is normalized in wheel artifacts (for example, `logical_robotics_harness-0.2.0-...whl`).
+Do not hard-code wheel paths as `dist/lrh-...whl`. Wheel filenames are derived from the distribution name (`lrh`), so release smoke resolves the built wheel dynamically rather than assuming a checked-in filename.
 
 ### Expected outputs
 

@@ -139,7 +139,12 @@ def validate_project(
                 contributor_map[contributor_id] = artifact
 
     focus_file = project_root / "focus" / "current_focus.md"
-    focus_artifacts = _parse_many(project_root, [focus_file], issues)
+    archived_focus_files = sorted((project_root / "focus" / "archive").glob("**/*.md"))
+    focus_artifacts = _parse_many(
+        project_root,
+        [focus_file, *archived_focus_files],
+        issues,
+    )
     focus_ids: set[str] = set()
     for artifact in focus_artifacts:
         if artifact.data is None:

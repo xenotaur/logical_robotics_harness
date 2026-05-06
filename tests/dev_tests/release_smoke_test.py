@@ -363,7 +363,11 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
-                mock.patch.object(release_smoke, "_run_twine_check"),
+                mock.patch.object(
+                    release_smoke,
+                    "_run_twine_check",
+                    side_effect=lambda: commands.append(["<twine-check>"]),
+                ) as twine_check,
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -385,6 +389,24 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 str(fake_wheel),
             ],
             commands,
+        )
+        twine_check.assert_called_once_with()
+        self.assertLess(
+            commands.index(["scripts/build"]),
+            commands.index(["<twine-check>"]),
+        )
+        self.assertLess(
+            commands.index(["<twine-check>"]),
+            commands.index(
+                [
+                    str(fake_python),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--force-reinstall",
+                    str(fake_wheel),
+                ]
+            ),
         )
         self.assertIn(
             [release_smoke.sys.executable, "-m", "venv", str(fake_venv)],

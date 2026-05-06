@@ -21,6 +21,15 @@ class PackageMetadataTest(unittest.TestCase):
 
         self.assertEqual(pyproject["project"]["scripts"]["lrh"], "lrh.cli.main:main")
 
+    def test_license_uses_pep_639_expression_without_license_classifier(self) -> None:
+        pyproject = self._pyproject()
+
+        self.assertEqual(pyproject["project"]["license"], "MIT")
+        self.assertNotIn(
+            "License :: OSI Approved :: MIT License",
+            pyproject["project"].get("classifiers", []),
+        )
+
     def test_default_distribution_does_not_advertise_agentic_extra(self) -> None:
         pyproject = self._pyproject()
         optional_dependencies = pyproject["project"].get("optional-dependencies", {})

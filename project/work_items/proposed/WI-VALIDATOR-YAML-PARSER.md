@@ -11,7 +11,7 @@ contributors:
   - anthony
 assigned_agents: []
 related_focus:
-  - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
+  - FOCUS-CONTROL-PLANE-SEMANTICS
 depends_on: []
 blocked_by: []
 ---

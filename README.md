@@ -414,19 +414,21 @@ Prerequisite: install development dependencies so the build frontend is availabl
 scripts/develop
 ```
 
-Run the release workflow in this order:
+Before creating a release tag, the candidate commit should already have passing pull-request CI. Then run local release checks, create the local tag, smoke-test the exact tagged version, and push the tag from the repository root:
 
 ```bash
 scripts/version verify v0.2.2
 scripts/version tag v0.2.2
+scripts/release-smoke v0.2.2 --strict-isolation
 scripts/version push v0.2.2
-scripts/release-smoke v0.2.2
 ```
 
+Pushing the tag starts production PyPI publishing automatically through `.github/workflows/release.yml`; do not create or store a PyPI API token for this path.
+
 - `scripts/version verify v0.2.2` checks that the requested tag is a valid Git ref name and that release preconditions pass. Releases are expected to use `vMAJOR.MINOR.PATCH` tags such as `v0.2.2`. This is safe to run repeatedly.
+- `scripts/release-smoke <tag>` (for example, `scripts/release-smoke v0.2.2 --strict-isolation`) runs a clean rebuild (`scripts/clean` + `scripts/build`), checks built artifacts with `twine check`, creates a temporary parent directory with `venv/` inside it, installs the built wheel from `dist/` via `<smoke-root>/venv/bin/python -m pip install --force-reinstall`, verifies `<smoke-root>/venv/bin/lrh --version`, and verifies installed CLI help for `lrh`, `lrh validate`, `lrh request`, `lrh snapshot`, and `lrh survey`. By default it warns and continues if distribution `lrh` or import package `lrh` is visible before the wheel install; this preserves local development usability while still surfacing isolation concerns. Use `scripts/release-smoke <tag> --diagnose` to print pre-install isolation diagnostics, `scripts/release-smoke <tag> --strict-isolation` to make pre-install visibility a hard failure in CI or maintainer audits, and `scripts/release-smoke <tag> --diagnose --preserve` to print diagnostics and keep the temporary environment for investigation. Strict mode is useful when a clean preinstall environment is required and is expected to fail in contaminated environments where LRH is already visible before wheel installation.
 - `scripts/version tag v0.2.2` creates or confirms the release tag. This is idempotent when the tag already exists at the correct commit.
 - `scripts/version push v0.2.2` pushes the matching local tag to `origin` when needed, and is safe when local and remote state already match.
-- `scripts/release-smoke <tag>` (for example, `scripts/release-smoke v0.2.2`) runs a clean rebuild (`scripts/clean` + `scripts/build`), checks built artifacts with `twine check`, creates a temporary parent directory with `venv/` inside it, installs the built wheel from `dist/` via `<smoke-root>/venv/bin/python -m pip install --force-reinstall`, verifies `<smoke-root>/venv/bin/lrh --version`, and verifies installed CLI help for `lrh`, `lrh validate`, `lrh request`, `lrh snapshot`, and `lrh survey`. By default it warns and continues if distribution `lrh` or import package `lrh` is visible before the wheel install; this preserves local development usability while still surfacing isolation concerns. Use `scripts/release-smoke <tag> --diagnose` to print pre-install isolation diagnostics, `scripts/release-smoke <tag> --strict-isolation` to make pre-install visibility a hard failure in CI or maintainer audits, and `scripts/release-smoke <tag> --diagnose --preserve` to print diagnostics and keep the temporary environment for investigation. Strict mode is useful when a clean preinstall environment is required and is expected to fail in contaminated environments where LRH is already visible before wheel installation.
 
 ### Release tag CI
 
@@ -465,7 +467,29 @@ python -m venv /tmp/lrh-testpypi-verify
 
 TestPyPI is a rehearsal index with separate accounts, project configuration, package history, availability, and security posture from production PyPI. Because LRH currently has no runtime package dependencies, the verification command uses `--no-deps`; future dependency changes may require a different verification command or an `--extra-index-url` fallback for dependencies not present on TestPyPI.
 
-Production PyPI publishing remains out of scope. The existing release tag validation and smoke workflows continue to be verification-only unless a future, separate PR explicitly adds a production publishing lane.
+### Production PyPI publish
+
+Production publishing is tag-push based. When a `v*` tag is pushed, the **Publish release to PyPI** workflow (`.github/workflows/release.yml`) checks out the tagged revision, validates the `vMAJOR.MINOR.PATCH` tag shape, installs build/check tooling, runs `scripts/version verify "$TAG_UNDER_TEST"`, runs `scripts/release-smoke "$TAG_UNDER_TEST" --strict-isolation`, uploads the checked `dist/` artifacts, and only then publishes those artifacts to PyPI.
+
+Before the production workflow can publish, a maintainer must configure PyPI Trusted Publishing/OIDC for the PyPI `lrh` project:
+
+- package/project: `lrh` on PyPI
+- owner/repository: `xenotaur/logical_robotics_harness`
+- workflow filename: `release.yml`
+- environment name: `pypi`
+
+Do not create or store long-lived PyPI API tokens for production publishing. The GitHub Actions workflow grants `id-token: write` only to the publishing job, and that job depends on the build, artifact check, and installed-wheel smoke validation job.
+
+After a successful production publish, verify the package from a clean temporary environment, replacing `VERSION` with the released package version:
+
+```bash
+python -m venv /tmp/lrh-pypi-verify
+/tmp/lrh-pypi-verify/bin/python -m pip install --upgrade pip
+/tmp/lrh-pypi-verify/bin/python -m pip install lrh==VERSION
+/tmp/lrh-pypi-verify/bin/lrh --version
+```
+
+If publishing fails after a tag push, inspect the failed GitHub Actions job before changing Git state. If the publish job failed before PyPI accepted any files, fix the external PyPI Trusted Publisher/environment configuration or transient workflow issue and rerun the failed workflow job for the same tag. If PyPI accepted only part of a release, do not delete, move, or reuse the tag/version; PyPI files are immutable. Instead, document the partial release, fix the issue, bump the version, and publish a new `vMAJOR.MINOR.PATCH` tag.
 
 ### `sandbox` vs `release-smoke`
 

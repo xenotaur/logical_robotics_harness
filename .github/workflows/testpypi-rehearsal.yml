@@ -11,9 +11,24 @@ jobs:
     name: Build, check, and smoke-test artifacts
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      TAG_UNDER_TEST: ${{ github.ref_name }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate TestPyPI rehearsal tag
+        run: |
+          if [[ "${{ github.ref_type }}" != "tag" ]]; then
+            echo "ERROR: TestPyPI rehearsals must run from a tag ref."
+            echo "Use a vMAJOR.MINOR.PATCH tag such as v0.2.2, not a branch or untagged commit."
+            exit 1
+          fi
+          if [[ ! "$TAG_UNDER_TEST" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: unsupported TestPyPI rehearsal tag: $TAG_UNDER_TEST"
+            echo "Expected: vMAJOR.MINOR.PATCH (for example, v0.2.2)."
+            exit 1
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -29,7 +44,7 @@ jobs:
         run: scripts/version tools
 
       - name: Build artifacts and smoke-test installed wheel
-        run: scripts/release-smoke --strict-isolation
+        run: scripts/release-smoke "$TAG_UNDER_TEST" --strict-isolation
 
       - name: Upload checked distribution artifacts
         uses: actions/upload-artifact@v4

@@ -15,7 +15,7 @@ Added a focused TestPyPI rehearsal publishing lane and maintainer documentation 
 
 # Result
 
-Created a manual GitHub Actions workflow that builds distribution artifacts, runs `scripts/release-smoke --strict-isolation`, uploads the checked artifacts, and publishes to TestPyPI through PyPA Trusted Publishing/OIDC. Updated maintainer release documentation with TestPyPI trusted-publisher setup, manual workflow operation, verification commands, limitations, and the rehearsal-only scope.
+Created a manual GitHub Actions workflow that requires a `vMAJOR.MINOR.PATCH` tag ref, builds distribution artifacts, runs `scripts/release-smoke "$TAG_UNDER_TEST" --strict-isolation`, uploads the checked artifacts, and publishes to TestPyPI through PyPA Trusted Publishing/OIDC. Updated maintainer release documentation with TestPyPI trusted-publisher setup, manual workflow operation, verification commands, limitations, tag-ref requirements, and the rehearsal-only scope.
 
 # Validation
 
@@ -24,7 +24,7 @@ Created a manual GitHub Actions workflow that builds distribution artifacts, run
 - `scripts/release-smoke` (failed in this environment while the isolated build attempted package-index access for build requirements and received proxy/tunnel 403 responses)
 - `scripts/test`
 - `scripts/lint`
-- `scripts/format --check`
+- `scripts/format --check --diff`
 - `lrh validate`
 
 # Follow-up

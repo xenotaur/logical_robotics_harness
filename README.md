@@ -452,7 +452,7 @@ Before the workflow can publish, a maintainer must configure TestPyPI Trusted Pu
 
 Do not create or store long-lived TestPyPI API tokens for this lane. The GitHub Actions workflow grants `id-token: write` only to the publishing job, after build, artifact checks, and installed-wheel smoke tests have passed.
 
-To run the rehearsal, open GitHub Actions, choose **TestPyPI rehearsal publish**, select the intended ref, and use **Run workflow**. Prefer a ref whose resolved package version is unique on TestPyPI; TestPyPI rejects re-uploading a distribution filename/version that already exists. The workflow runs `scripts/release-smoke --strict-isolation`, uploads the checked `dist/` artifacts as a short-lived workflow artifact, and then publishes those artifacts to TestPyPI via PyPA's publishing action.
+To run the rehearsal, create or choose a `vMAJOR.MINOR.PATCH` tag whose resolved package version is unique on TestPyPI, open GitHub Actions, choose **TestPyPI rehearsal publish**, select that tag ref, and use **Run workflow**. The workflow rejects branch refs, untagged commits, and non-semantic-version tags before building because non-exact-tag `setuptools-scm` versions can include local-version suffixes that package indexes reject. TestPyPI also rejects re-uploading a distribution filename/version that already exists. The workflow runs `scripts/release-smoke "$TAG_UNDER_TEST" --strict-isolation`, uploads the checked `dist/` artifacts as a short-lived workflow artifact, and then publishes those artifacts to TestPyPI via PyPA's publishing action.
 
 After a successful rehearsal, verify the uploaded package from a clean temporary environment, replacing `VERSION` with the package version shown by the workflow or TestPyPI project page:
 

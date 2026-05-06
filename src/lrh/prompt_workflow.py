@@ -171,16 +171,14 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
         )
         for record in result.records:
             print(f"{record.path.as_posix()}\tstatus={record.status}")
-        if not result.records:
+        if result.exit_code == 1:
             print("No execution records found for prompt_id.", file=sys.stderr)
-            return 1
-        if len(result.records) > 1:
+        if result.exit_code == 2:
             print(
                 "Ambiguous: multiple execution records found; human review required.",
                 file=sys.stderr,
             )
-            return 2
-        return 0
+        return result.exit_code
 
     try:
         slug = normalize_slug(args.slug)

@@ -33,7 +33,7 @@ def check_execution(
     prompt_id: str,
     output_root: str | pathlib.Path = "project/executions",
 ) -> CheckExecutionResult:
-    """Find execution records whose structured prompt ID exactly matches."""
+    """Find execution records whose frontmatter prompt ID exactly matches."""
 
     records = prompt_workflow_records.load_execution_records(
         project_root=project_root,

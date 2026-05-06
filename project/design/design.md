@@ -163,6 +163,14 @@ For meaningful prompt-driven work, LRH uses prompt IDs and execution records as 
 - Before starting prompt-driven implementation, contributors should apply soft idempotence checks against prior executions for the same prompt ID.
 - Prompt workflow records should remain lightweight and should not replace normal project artifacts such as roadmap, focus, work items, evidence, and status.
 
+### Workstreams and planning nodes
+
+Workstreams are first-class, user-facing planning records under `project/workstreams/`. The normal
+user vocabulary is `Project -> Workstream -> Work Item`; internally, workstreams are planning nodes
+and work items remain executable leaves. Workstream metadata/frontmatter is authoritative, while
+bucket directory placement is a navigational projection. The documentation-level Workstream Schema
+MVP is defined in `project/design/workstream_schema_mvp.md`.
+
 ### Large-work lifecycle principle
 
 For large, important, architectural, or high-risk work, LRH should not

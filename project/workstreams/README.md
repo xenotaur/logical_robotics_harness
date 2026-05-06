@@ -28,6 +28,9 @@ Work Item = executable leaf
 This lets LRH keep a human-readable repository model now while remaining compatible with future
 planning-tree validation and summarization.
 
+The documentation-level schema for workstream frontmatter is defined in
+[`project/design/workstream_schema_mvp.md`](../design/workstream_schema_mvp.md).
+
 ## Status buckets
 
 Workstreams are grouped under lifecycle buckets for human navigation:
@@ -42,6 +45,21 @@ abandoned/  workstreams intentionally stopped, rejected, or superseded
 A future workstream may be represented as a single Markdown file or a directory with a manifest and
 supporting notes. In either case, bucket placement is a navigational projection, not the ultimate
 source of truth.
+
+## Minimal frontmatter fields
+
+The MVP required workstream frontmatter fields are:
+
+- `id`
+- `kind`
+- `title`
+- `status`
+- `stage`
+
+The initial workstream `kind` is `planning_node`. Optional fields include `origin`, `parent_id`,
+`children`, `summary`, `rationale`, `related_focus`, `related_roadmap`, `work_items`,
+`execution_records`, `evidence`, `exit_criteria`, and `closeout`. See the schema MVP document for
+field semantics and non-goals.
 
 ## Metadata is authoritative
 

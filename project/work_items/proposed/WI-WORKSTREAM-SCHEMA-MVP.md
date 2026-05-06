@@ -40,6 +40,9 @@ artifacts_expected:
 Define documentation-level minimal schema for workstreams, including required IDs,
 status buckets, stage semantics, and parent/child reference fields.
 
+This work item is addressed by the Workstream Schema MVP documentation in
+`project/design/workstream_schema_mvp.md` and the linked `project/workstreams/README.md` summary.
+
 ## Safe-default alignment
 
 The minimal schema should include `id`, `status`, `stage`, and `parent_id` semantics and remain non-agentic.

@@ -2,7 +2,7 @@
 execution_id: 2026_05_06_19_48_04_PROMPT_EXECUTION_SEARCH_DESIGN_PROPOSAL
 prompt_id: PROMPT(AD_HOC:PROMPT_EXECUTION_SEARCH_DESIGN_PROPOSAL)[2026-05-06T12:15:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:
@@ -32,12 +32,15 @@ Updated the proposal index README so the new proposal set is discoverable.
   none existed before this record was created.
 - Ran `scripts/version tools` before validation; repository-required Ruff
   and Black versions matched.
-- Ran `scripts/test`.
+- Ran `scripts/format --check --diff`.
 - Ran `scripts/lint`.
+- Ran `scripts/test`.
 
 # Follow-up
 
-Future implementation PRs should extract reusable execution-record logic
-into package-owned modules, refactor `lrh prompt check-execution` to use
-that shared logic, then add exact-only matching and deterministic local
-search as separately tested stages.
+- After merge, set this execution record status to `landed` and fill the
+  `pr` and `commit` metadata fields.
+- Future implementation PRs should extract reusable execution-record logic
+  into package-owned modules, refactor `lrh prompt check-execution` to use
+  that shared logic, then add exact-only matching and deterministic local
+  search as separately tested stages.

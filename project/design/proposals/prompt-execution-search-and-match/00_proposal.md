@@ -482,8 +482,9 @@ Recommended exit codes for first-slice commands:
 
 | Command | Condition | Exit code |
 | --- | --- | --- |
-| `lrh prompt check-execution` | one or more exact records found | `0` |
+| `lrh prompt check-execution` | exactly one exact record found | `0` |
 | `lrh prompt check-execution` | no exact records found | `1` |
+| `lrh prompt check-execution` | multiple exact records found; ambiguous human review required | `2` |
 | `lrh prompt check-execution` | invalid input or unreadable project | `2` |
 | `lrh match executions` | prompt IDs found and all have exact matches | `0` |
 | `lrh match executions` | prompt IDs found but at least one is unmatched | `1` |
@@ -494,8 +495,11 @@ Recommended exit codes for first-slice commands:
 | `lrh search executions` | invalid query/filter/project | `2` |
 
 The important distinction is that exit code `1` represents a valid query
-with no complete success, while exit code `2` represents command usage or
-environment failure.
+with no complete success, while exit code `2` represents command usage,
+environment failure, or an authoritative exact-lookup ambiguity requiring
+human review. This preserves the current `check-execution` behavior where
+multiple structured records for the same prompt ID are not treated as an
+automation-safe success.
 
 ## 13) JSON and human-readable output
 

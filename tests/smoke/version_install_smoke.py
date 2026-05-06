@@ -120,7 +120,7 @@ class VersionInstallSmokeTests(unittest.TestCase):
                     "bootstrap = importlib.resources.files('lrh').joinpath("
                     "'templates/project_bootstrap/full/AGENTS.md');"
                     "assert bootstrap.is_file();"
-                    "assert 'Logical Robotics Harness' in "
+                    "assert 'AGENTS.md (starter stub)' in "
                     "bootstrap.read_text(encoding='utf-8');"
                     "print('resources ok')"
                 ),

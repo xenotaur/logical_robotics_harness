@@ -11,7 +11,7 @@ contributors:
   - anthony
 assigned_agents: []
 related_focus:
-  - FOCUS-CONTROL-PLANE-SEMANTICS
+  - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
 related_roadmap:
   - ROADMAP-PHASE-01
 depends_on: []

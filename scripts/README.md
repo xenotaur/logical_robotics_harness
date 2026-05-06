@@ -440,6 +440,7 @@ scripts/version    # Check installed tool versions
 - Scripts use `set -x` for verbose output during execution
 - Scripts with `set -euo pipefail` will exit on any error
 - The publish script is currently disabled as a safety measure during development
+- TestPyPI rehearsal publishing is handled by the manual GitHub Actions workflow `.github/workflows/testpypi-rehearsal.yml`; it uses Trusted Publishing/OIDC and is not the normal user install path
 
 ## Dependencies
 

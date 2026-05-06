@@ -2,7 +2,7 @@
 execution_id: 2026_05_06_06_05_55_ACCEPT_OPTION_D_PYPI_DESIGN
 prompt_id: PROMPT(AD_HOC:ACCEPT_OPTION_D_PYPI_DESIGN)[2026-05-05T23:24:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:
@@ -33,6 +33,9 @@ project-control documentation without implementing release automation.
 
 - `scripts/version tools` completed; pylint and conda were reported as
   not installed, but the documentation-only validation path proceeded.
+- `scripts/format --check --diff` passed.
+- `scripts/lint` passed.
+- `scripts/test` passed.
 - `lrh validate` passed with 0 errors and 0 warnings.
 - `git diff --check` passed.
 

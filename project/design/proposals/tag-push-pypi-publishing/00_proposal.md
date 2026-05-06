@@ -4,7 +4,7 @@ type: design_proposal
 title: Option D tag-push PyPI publishing for safe-default lrh distribution
 status: accepted
 created_on: 2026-05-05
-updated_on: 2026-05-05
+updated_on: 2026-05-06
 ---
 
 ## 1) Purpose

@@ -97,5 +97,10 @@ a time:
 - human-assisted run-packet or execution-prompt generation
 
 Agentic execution is not part of the default work-item contract. Work involving `lrh agentic run`,
-agent adapters, PR stabilization loops, or sandbox-envelope behavior must be marked deferred / future /
-requires `lrh[agentic]` until the optional agentic capability boundary exists.
+`lrh-agentic run`, agent adapters, PR stabilization loops, or sandbox-envelope behavior must be marked
+deferred / future / requires `lrh[agentic]` until the optional agentic capability boundary exists.
+
+Command naming convention for new work items: use `lrh agentic run` or `lrh-agentic run` for future
+autonomous execution. Treat older `lrh run` references as legacy deferred execution-framework shorthand
+until a future command-design work item decides whether `lrh run` is omitted, reserved for non-agentic
+preparation, or exposed only as an installed-agentic alias.

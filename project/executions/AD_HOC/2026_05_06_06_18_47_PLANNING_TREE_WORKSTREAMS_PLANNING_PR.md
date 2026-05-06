@@ -19,11 +19,17 @@ safe-default non-agentic operation.
 Updated roadmap and focus planning artifacts, added a Planning Tree and Workstream Foundation phase,
 added atomic proposed work items for planning-tree semantics, workstream relationships, visibility,
 human-assisted run-packet generation, and deferred agentic capability work, and reconciled existing
-workstream MVP work items with the new safe-default planning phase.
+workstream MVP work items with the new safe-default planning phase. Review follow-up clarified that
+Phase 01A is the explicit planning prerequisite for the Workstream Control Plane MVP and that
+`lrh agentic run` / `lrh-agentic run` should name future autonomous execution while older `lrh run`
+references are legacy deferred execution-framework shorthand until command aliasing is decided.
 
 # Validation
 
 - `scripts/version tools`
+- `scripts/format --check --diff`
+- `scripts/lint`
+- `scripts/test`
 - `lrh validate`
 
 # Follow-up

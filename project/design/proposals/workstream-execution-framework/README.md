@@ -186,5 +186,9 @@ agency, cost surprise, and backend/vendor coupling.
 
 Deferred concepts from this set include agent runtime execution, a
 workstream orchestrator, automated stage advancement, MCP bridges,
-telemetry systems, `lrh run`, and concrete execution backends (for
-example Claude/Codex/native adapters).
+telemetry systems, `lrh run` / autonomous run command naming, and
+concrete execution backends (for example Claude/Codex/native adapters).
+Under safe-default packaging, future autonomous command examples should
+use `lrh agentic run` or `lrh-agentic run`; older `lrh run` wording is
+retained as legacy shorthand until command aliasing is explicitly
+decided.

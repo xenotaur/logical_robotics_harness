@@ -23,7 +23,8 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - future `lrh agentic run`, agent adapters, PR stabilization loops, and sandbox envelope work are listed
+  - future `lrh agentic run` / `lrh-agentic run`, agent adapters, PR stabilization loops, and sandbox envelope work are listed
+  - `lrh run` legacy shorthand or aliasing questions are documented for future command-design resolution
   - all entries are clearly marked deferred / future / requires `lrh[agentic]`
 required_evidence:
   - manual_review
@@ -34,7 +35,10 @@ artifacts_expected:
 
 ## Summary
 
-Record the explicit future-agentic backlog so planning-tree work remains safe-default and non-agentic by default.
+Record the explicit future-agentic backlog so planning-tree work remains safe-default and non-agentic
+by default. This should also clarify that older `lrh run` references are legacy shorthand until a
+future command-design decision resolves omission, non-agentic preparation semantics, or
+installed-agentic aliasing.
 
 ## Safe-default alignment
 

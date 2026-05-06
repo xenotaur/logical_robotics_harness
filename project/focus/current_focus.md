@@ -43,6 +43,10 @@ All planning-tree and workstream work must:
 4. avoid autonomous invocation of coding agents, execution loops, PR stabilization loops, or adapters
 5. mark any agentic run command, adapter, stabilization-loop, or sandbox-envelope work as deferred / future / requires `lrh[agentic]`
 
+Command naming convention: use `lrh agentic run` or `lrh-agentic run` for future autonomous execution.
+Treat older `lrh run` references as deferred execution-framework shorthand unless a future command-design
+work item explicitly assigns safe-default or installed-agentic alias semantics.
+
 ## Priorities
 
 1. Define planning-node schema and recursive relationship conventions (`parent_id`, `children`).

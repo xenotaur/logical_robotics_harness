@@ -28,12 +28,15 @@ Recently completed baseline work:
 
 Immediate next ordering:
 
-1. plan and implement the **Workstream Control Plane MVP** as the next active phase
-2. represent workstreams as first-class, repo-native planning artifacts before automation
-3. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item**
-4. keep parent/child structure metadata-driven rather than path-driven
-5. keep metadata authoritative and treat directory buckets as navigation projections
-6. sequence work through small reviewable work items before any execution-framework implementation
+1. complete **Phase 01A — Planning Tree and Workstream Foundation** as the explicit planning
+   prerequisite for the Workstream Control Plane MVP
+2. then implement the Workstream Control Plane MVP through the scoped work items created by
+   Phase 01A
+3. represent workstreams as first-class, repo-native planning artifacts before automation
+4. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item**
+5. keep parent/child structure metadata-driven rather than path-driven
+6. keep metadata authoritative and treat directory buckets as navigation projections
+7. sequence work through small reviewable work items before any execution-framework implementation
 
 Prompt-workflow integration note:
 
@@ -70,6 +73,12 @@ Explicitly deferred to the long-term execution-framework architecture:
 - MCP bridges
 - telemetry systems
 - execution backends/adapters (Claude, Codex, native, Spec Kit, etc.)
+
+Command naming note: planning artifacts should use `lrh agentic run` or `lrh-agentic run` when
+referring to future autonomous execution. Older accepted design notes that mention `lrh run` should
+be read as deferred execution-framework shorthand, not as a safe-default command commitment. If an
+integrated `lrh run` alias is ever introduced for autonomous behavior, it must require the optional
+agentic capability and be unavailable in the default non-agentic install.
 
 ## Phase 1 — Control Plane
 

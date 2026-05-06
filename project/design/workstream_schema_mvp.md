@@ -52,9 +52,10 @@ Future validators may report drift when metadata and directory placement disagre
 or tidy commands may reconcile that drift based on metadata. This mirrors the existing work-item
 policy that metadata is the source of truth and bucket placement is derived.
 
-## Minimal frontmatter shape
+## Illustrative frontmatter example
 
-A minimal proposed workstream can be represented as:
+A small proposed workstream can be represented as follows. This example includes the optional
+`origin` and `summary` fields for readability; the required field list is authoritative:
 
 ```yaml
 ---

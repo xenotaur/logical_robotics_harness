@@ -56,7 +56,8 @@ a Pass-B worked-example appendix (`WS-LCATS-CORPORA-ANALYSIS`).
 — Proposes a documentation-first, minimal workstream planning model
 (Project → Workstream → Work Item) with recursive planning-tree
 semantics kept internal-ready and explicit non-goals deferring runtime
-implementation. Status: `accepted` (near-term design basis).
+implementation. Status: `accepted` (near-term design basis). The documentation-level
+Workstream Schema MVP is captured in `project/design/workstream_schema_mvp.md`.
 
 
 [`safe-default-agentic-extra-packaging/`](safe-default-agentic-extra-packaging/)

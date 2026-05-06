@@ -71,6 +71,12 @@ safe-default `lrh` distribution to PyPI via Trusted Publishing
 evidence-backed release outputs. Status: `accepted` (canonical release
 direction; implementation deferred).
 
+[`prompt-execution-search-and-match/`](prompt-execution-search-and-match/)
+— Proposes shared execution-record parsing and query infrastructure for
+exact prompt-ID lookup, prompt-file-to-record matching, and exploratory
+execution-record search. Status: `proposed` (design-only; implementation
+deferred).
+
 ## Proposal-set conventions
 
 A proposal set directory name should be a stable, descriptive slug

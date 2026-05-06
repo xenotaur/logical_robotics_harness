@@ -6,7 +6,7 @@ PyPI Trusted Publishing.
 
 ## Status
 
-`proposed`
+`accepted`
 
 ## Documents
 
@@ -18,18 +18,18 @@ PyPI Trusted Publishing.
 
 ## Scope notes
 
-This proposal-set change is design-only and does not implement release
-workflows, packaging metadata edits, package split changes, or publish
-operations.
+This accepted proposal set records canonical release direction only and
+does not implement release workflows, packaging metadata edits, package
+split changes, or publish operations.
 
 ## Reading order
 
 1. `README.md` (this file)
 2. `00_proposal.md`
 
-## Canonical-document touchpoints (on acceptance)
+## Canonical-document touchpoints
 
-If accepted, follow-on canonical updates are expected in:
+Acceptance is reflected in:
 
 - `project/design/design.md`
 - `project/design/architecture.md`

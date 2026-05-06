@@ -55,6 +55,16 @@ Reason:
 - assist request/snapshot CLI paths are available and documented
 - assist installability hardening and smoke-check coverage should remain continuously enforced
 
+## Accepted Release Direction
+
+Option D tag-push PyPI publishing is now the accepted release direction
+for the safe-default `lrh` package. The normal CLI install target is
+`pipx install lrh` once published; the default package remains
+non-agentic, future agentic capability remains explicit through
+`lrh[agentic]` and/or `lrh-agentic`, and follow-up implementation should
+land in narrow PRs from metadata/resource hardening through first
+release. This is a packaging/governance boundary, not a security sandbox.
+
 ## Active Priorities
 
 - packaging/install smoke-test hardening

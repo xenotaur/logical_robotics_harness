@@ -68,8 +68,8 @@ Status: `proposed` (packaging/governance boundary design; implementation deferre
 — Proposes Option D tag-push release design for publishing the
 safe-default `lrh` distribution to PyPI via Trusted Publishing
 (OIDC), with TestPyPI rehearsal, installed-wheel smoke checks, and
-evidence-backed release outputs. Status: `proposed` (design target;
-implementation deferred).
+evidence-backed release outputs. Status: `accepted` (canonical release
+direction; implementation deferred).
 
 ## Proposal-set conventions
 

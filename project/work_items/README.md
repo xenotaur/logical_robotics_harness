@@ -69,8 +69,9 @@ CI also runs validation and will fail on policy violations.
 Workstream-control MVP planning is currently active. Until that MVP is implemented,
 work items remain the executable planning leaves and should be kept narrowly scoped.
 
-When workstreams are introduced, their frontmatter metadata will be authoritative and
-directory buckets will remain human navigation projections, matching this work-item policy.
+The initial `project/workstreams/` directory and `project/workstreams/README.md` now document
+the human-facing workstream home. Workstream frontmatter metadata is authoritative and directory
+buckets remain human navigation projections, matching this work-item policy.
 
 ## Prompt-driven work integration
 

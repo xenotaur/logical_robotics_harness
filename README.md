@@ -469,7 +469,7 @@ TestPyPI is a rehearsal index with separate accounts, project configuration, pac
 
 ### Production PyPI publish
 
-Production publishing is tag-push based. When a `v*` tag is pushed, the **Publish release to PyPI** workflow (`.github/workflows/release.yml`) checks out the tagged revision, validates the `vMAJOR.MINOR.PATCH` tag shape, installs build/check tooling, runs `scripts/version verify "$TAG_UNDER_TEST"`, runs `scripts/release-smoke "$TAG_UNDER_TEST" --strict-isolation`, uploads the checked `dist/` artifacts, and only then publishes those artifacts to PyPI.
+Production publishing is tag-push based. When a release-like `v*.*.*` tag is pushed, the **Publish release to PyPI** workflow (`.github/workflows/release.yml`) checks out the tagged revision, validates the `vMAJOR.MINOR.PATCH` tag shape, installs build/check tooling, runs `scripts/version verify "$TAG_UNDER_TEST"`, runs `scripts/release-smoke "$TAG_UNDER_TEST" --strict-isolation`, uploads the checked `dist/` artifacts, and only then publishes those artifacts to PyPI.
 
 Before the production workflow can publish, a maintainer must configure PyPI Trusted Publishing/OIDC for the PyPI `lrh` project:
 

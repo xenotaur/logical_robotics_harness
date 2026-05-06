@@ -422,9 +422,7 @@ scripts/coverage   # Check coverage
 
 ### Build & Release Workflow
 ```bash
-scripts/clean          # Clean previous builds
-scripts/build          # Build distribution
-scripts/release-smoke  # Build, check, and smoke-test release artifacts
+scripts/release-smoke  # Clean, build, check, and smoke-test release artifacts
 ```
 
 ### Environment Management

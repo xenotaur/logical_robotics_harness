@@ -439,6 +439,34 @@ The workflow uses `${{ github.ref_name }}` as `TAG_UNDER_TEST`, then runs:
 
 This workflow is verification-only: it does not publish to PyPI or TestPyPI, and is intentionally scoped to release candidate validation plus audit evidence capture.
 
+### TestPyPI rehearsal publish
+
+LRH has a separate manual **TestPyPI rehearsal publish** workflow (`.github/workflows/testpypi-rehearsal.yml`) for maintainers to rehearse package publishing mechanics without enabling production PyPI publishing. This lane is not the normal user install path and must not be treated as a substitute for a real PyPI release.
+
+Before the workflow can publish, a maintainer must configure TestPyPI Trusted Publishing/OIDC for the TestPyPI `lrh` project:
+
+- package/project: `lrh` on TestPyPI
+- owner/repository: `xenotaur/logical_robotics_harness`
+- workflow filename: `testpypi-rehearsal.yml`
+- environment name: `testpypi`
+
+Do not create or store long-lived TestPyPI API tokens for this lane. The GitHub Actions workflow grants `id-token: write` only to the publishing job, after build, artifact checks, and installed-wheel smoke tests have passed.
+
+To run the rehearsal, open GitHub Actions, choose **TestPyPI rehearsal publish**, select the intended ref, and use **Run workflow**. Prefer a ref whose resolved package version is unique on TestPyPI; TestPyPI rejects re-uploading a distribution filename/version that already exists. The workflow runs `scripts/release-smoke --strict-isolation`, uploads the checked `dist/` artifacts as a short-lived workflow artifact, and then publishes those artifacts to TestPyPI via PyPA's publishing action.
+
+After a successful rehearsal, verify the uploaded package from a clean temporary environment, replacing `VERSION` with the package version shown by the workflow or TestPyPI project page:
+
+```bash
+python -m venv /tmp/lrh-testpypi-verify
+/tmp/lrh-testpypi-verify/bin/python -m pip install --upgrade pip
+/tmp/lrh-testpypi-verify/bin/python -m pip install --index-url https://test.pypi.org/simple/ --no-deps lrh==VERSION
+/tmp/lrh-testpypi-verify/bin/lrh --version
+```
+
+TestPyPI is a rehearsal index with separate accounts, project configuration, package history, availability, and security posture from production PyPI. Because LRH currently has no runtime package dependencies, the verification command uses `--no-deps`; future dependency changes may require a different verification command or an `--extra-index-url` fallback for dependencies not present on TestPyPI.
+
+Production PyPI publishing remains out of scope. The existing release tag validation and smoke workflows continue to be verification-only unless a future, separate PR explicitly adds a production publishing lane.
+
 ### `sandbox` vs `release-smoke`
 
 - `scripts/sandbox` isolates HOME/XDG/config/cache/state paths for behavioral testing of commands run directly from a source checkout.

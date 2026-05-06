@@ -134,6 +134,26 @@ A typical LRH project evolves through stages:
 
 This process is **iterative**, not strictly linear.
 
+### Accepted packaging and PyPI publishing direction
+
+LRH's accepted publishing direction is to keep `lrh` as the
+safe-default user-facing distribution and CLI target. Once published,
+`pipx install lrh` is the intended normal installation path for CLI
+users, while `pip install lrh` remains appropriate for library, CI, and
+development contexts. The default `lrh` package should remain
+non-agentic; future autonomous capability must stay explicit through
+`lrh[agentic]` and/or a separate `lrh-agentic` distribution when that
+package exists.
+
+Accepted release architecture is Option D from
+`project/design/proposals/tag-push-pypi-publishing/`: version-tag push
+publishing of the safe-default `lrh` package using PyPI Trusted
+Publishing. Implementation should proceed through narrow, evidence-backed
+PRs: metadata/resource hardening, build/smoke scripts, CI smoke checks,
+TestPyPI rehearsal, Trusted Publisher configuration, PyPI tag-push
+workflow, user and maintainer docs, then first release. Package
+boundaries are packaging/governance boundaries, not a security sandbox.
+
 ### Prompt-driven execution traceability
 
 For meaningful prompt-driven work, LRH uses prompt IDs and execution records as lightweight workflow metadata.

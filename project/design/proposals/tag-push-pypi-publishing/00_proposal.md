@@ -2,7 +2,7 @@
 id: PROP-TAG-PUSH-PYPI-PUBLISHING
 type: design_proposal
 title: Option D tag-push PyPI publishing for safe-default lrh distribution
-status: proposed
+status: accepted
 created_on: 2026-05-05
 updated_on: 2026-05-05
 ---
@@ -320,6 +320,5 @@ This design supports LRH direction by emphasizing:
 - clear separation between safe human-triggered assist workflows and
   future autonomous execution capability.
 
-If accepted, canonical updates are expected in
-`project/design/design.md`, `project/design/architecture.md`, and/or
-`project/design/repository_spec.md` via follow-on changesets.
+Acceptance is reflected in `project/design/design.md`,
+`project/design/architecture.md`, and `project/design/repository_spec.md`.

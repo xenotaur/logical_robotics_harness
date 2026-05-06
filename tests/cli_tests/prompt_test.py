@@ -229,6 +229,39 @@ class PromptCliTest(unittest.TestCase):
         self.assertIn("status=in_progress", completed.stdout)
         self.assertIn("human review required", completed.stderr)
 
+    def test_lrh_prompt_check_execution_respects_output_root(self) -> None:
+        prompt_id = "PROMPT(AD_HOC:CUSTOM_ROOT)[2026-05-01T17:40:00-04:00]"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record = pathlib.Path(temp_dir) / "custom/executions/AD_HOC/A.md"
+            record.parent.mkdir(parents=True, exist_ok=True)
+            record.write_text(
+                f"---\nprompt_id: {prompt_id}\nstatus: landed\n---\n",
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "check-execution",
+                    "--prompt-id",
+                    prompt_id,
+                    "--project-root",
+                    temp_dir,
+                    "--output-root",
+                    "custom/executions",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("custom/executions/AD_HOC/A.md", completed.stdout)
+        self.assertIn("status=landed", completed.stdout)
+
     def test_lrh_prompt_check_execution_project_root_from_outside_repo(self) -> None:
         prompt_id = "PROMPT(AD_HOC:OUTSIDE)[2026-05-01T17:40:00-04:00]"
         with tempfile.TemporaryDirectory() as project_dir:

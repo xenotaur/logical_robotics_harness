@@ -42,9 +42,9 @@ resolved/   workstreams completed and closed out
 abandoned/  workstreams intentionally stopped, rejected, or superseded
 ```
 
-A future workstream may be represented as a single Markdown file or a directory with a manifest and
-supporting notes. In either case, bucket placement is a navigational projection, not the ultimate
-source of truth.
+The current runtime loader supports simple single-file workstreams directly inside these bucket
+directories. Directory-style workstreams with a manifest and supporting notes remain future work. In
+either case, bucket placement is a navigational projection, not the ultimate source of truth.
 
 ## Minimal frontmatter fields
 
@@ -93,8 +93,8 @@ conceived | assessed | designed | planned | executing | reviewing | closed | aba
 ```
 
 These terms capture the accepted near-term design direction, but this directory README does not make
-them runtime validation rules by itself. Schema, loader, validator, snapshot, and organizer behavior
-will land in later focused work items.
+them runtime validation rules by itself. Runtime validation, snapshot, and organizer behavior remain
+separate focused work items.
 
 ## Large-work lifecycle
 
@@ -126,13 +126,18 @@ the basis for completion claims. A workstream may link to related work items, pr
 records, evidence, decisions, design updates, roadmap changes, or focus updates, but it does not
 replace those artifacts.
 
+## Runtime loader/model status
+
+LRH now includes an initial typed runtime model and loader for simple single-file workstreams under
+these status buckets. The loader preserves frontmatter, body text, source path, and the bucket
+inferred from path, while continuing to treat frontmatter metadata as authoritative.
+
 ## Non-goals for this directory MVP
 
 This directory establishes the human-facing home and introductory documentation for workstreams. It
 does not yet provide:
 
 - schema validation
-- loaders or runtime models
 - snapshot integration
 - organizer or tidy behavior
 - `lrh run`

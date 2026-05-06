@@ -451,6 +451,26 @@ def _raise_strict_isolation_error(visibility: PreinstallVisibility) -> None:
     )
 
 
+def _resolve_dist_artifact_paths() -> list[pathlib.Path]:
+    artifact_paths = sorted((REPO_ROOT / "dist").glob("*"))
+    if not artifact_paths:
+        raise ReleaseSmokeError("no distribution artifacts found in dist/ after build")
+    return artifact_paths
+
+
+def _run_twine_check() -> None:
+    artifact_paths = _resolve_dist_artifact_paths()
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "twine",
+            "check",
+            *(str(path) for path in artifact_paths),
+        ]
+    )
+
+
 def _resolve_wheel_path(expected_version: str) -> pathlib.Path:
     wheel_paths = sorted((REPO_ROOT / "dist").glob("*.whl"))
     if not wheel_paths:
@@ -488,6 +508,7 @@ def run_release_smoke(
 
     _run(["scripts/clean"])
     _run(["scripts/build"])
+    _run_twine_check()
     wheel_path = _resolve_wheel_path(normalized_version)
     print(f"Using wheel: {wheel_path.relative_to(REPO_ROOT)}")
 
@@ -533,7 +554,14 @@ def run_release_smoke(
                 "(for example: unzip -p <wheel>.whl '*.dist-info/entry_points.txt')"
             )
         version_output = _run([str(lrh_bin), "--version"], env=venv_command_env)
-        _run([str(lrh_bin), "snapshot", "--help"], env=venv_command_env)
+        for help_command in (
+            [str(lrh_bin), "--help"],
+            [str(lrh_bin), "validate", "--help"],
+            [str(lrh_bin), "request", "--help"],
+            [str(lrh_bin), "snapshot", "--help"],
+            [str(lrh_bin), "survey", "--help"],
+        ):
+            _run(help_command, env=venv_command_env)
 
         if normalized_version:
             expected_line = f"lrh {normalized_version}"

@@ -96,6 +96,35 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
             finally:
                 release_smoke.REPO_ROOT = original_repo_root
 
+    def test_run_twine_check_checks_all_dist_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = pathlib.Path(temp_dir)
+            dist_dir = repo_root / "dist"
+            dist_dir.mkdir()
+            wheel_path = dist_dir / "lrh-0.2.0-py3-none-any.whl"
+            sdist_path = dist_dir / "lrh-0.2.0.tar.gz"
+            wheel_path.write_text("", encoding="utf-8")
+            sdist_path.write_text("", encoding="utf-8")
+
+            original_repo_root = release_smoke.REPO_ROOT
+            release_smoke.REPO_ROOT = repo_root
+            try:
+                with mock.patch.object(release_smoke, "_run") as run:
+                    release_smoke._run_twine_check()
+            finally:
+                release_smoke.REPO_ROOT = original_repo_root
+
+        run.assert_called_once_with(
+            [
+                release_smoke.sys.executable,
+                "-m",
+                "twine",
+                "check",
+                str(wheel_path),
+                str(sdist_path),
+            ]
+        )
+
 
 class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
     def test_parser_enables_diagnostic_and_strict_isolation_modes(self) -> None:
@@ -334,6 +363,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -361,7 +391,14 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             commands,
         )
         self.assertIn([str(fake_lrh), "--version"], commands)
-        self.assertIn([str(fake_lrh), "snapshot", "--help"], commands)
+        for help_command in (
+            [str(fake_lrh), "--help"],
+            [str(fake_lrh), "validate", "--help"],
+            [str(fake_lrh), "request", "--help"],
+            [str(fake_lrh), "snapshot", "--help"],
+            [str(fake_lrh), "survey", "--help"],
+        ):
+            self.assertIn(help_command, commands)
         self.assertTrue(
             commands.index(
                 [
@@ -431,6 +468,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -496,6 +534,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -549,6 +588,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -603,6 +643,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -652,6 +693,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", return_value=""),
                 mock.patch.object(
                     release_smoke,
@@ -710,6 +752,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -723,6 +766,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
         rmtree.assert_not_called()
         self.assertIn([str(fake_venv / "bin" / "lrh"), "--version"], commands)
         self.assertIn([str(fake_venv / "bin" / "lrh"), "snapshot", "--help"], commands)
+        self.assertIn([str(fake_venv / "bin" / "lrh"), "survey", "--help"], commands)
 
     def test_run_release_smoke_raises_when_lrh_console_script_missing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -738,6 +782,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", return_value=""),
                 mock.patch.object(
                     release_smoke,

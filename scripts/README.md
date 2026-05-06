@@ -55,9 +55,10 @@ scripts/release-smoke <tag> --diagnose --preserve
 **Checks:**
 - runs `scripts/clean`
 - runs `scripts/build`
+- checks built `dist/` artifacts with `twine check`
 - installs exactly one wheel from `dist/`
 - validates installed `lrh --version`
-- validates installed `lrh snapshot --help`
+- validates installed CLI help for `lrh`, `lrh validate`, `lrh request`, `lrh snapshot`, and `lrh survey`
 
 By default, `release-smoke` validates installed-wheel behavior and only warns if distribution `lrh` or import package `lrh` is visible in the temporary venv before the wheel is installed. Smoke-venv commands run with `PYTHONPATH` cleared so the wrapper's source-checkout import path does not contaminate installed-wheel or strict-isolation checks. This keeps local development usable while still surfacing isolation concerns. Use `--strict-isolation` to upgrade that pre-install visibility warning into a hard failure before the wheel install step.
 

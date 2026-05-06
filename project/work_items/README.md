@@ -80,3 +80,28 @@ For meaningful prompt-driven implementation tied to a work item:
 1. Use a prompt ID that references the work item per `PROMPTS.md`.
 2. Add an execution record under `project/executions/<WORK_ITEM_ID>/` (or `AD_HOC/` when no work item applies).
 3. Before rerunning the same prompt ID, follow soft idempotence checks in `PROMPTS.md` and `project/executions/README.md`.
+
+## Planning-tree and workstream sequencing
+
+Planning-tree semantics are core, safe-default LRH control-plane concepts. Workstreams should be
+modeled as planning nodes, and work items should remain the independently executable leaves unless a
+future design explicitly expands that contract.
+
+Near-term planning-tree work items should stay atomic and should document or implement one concern at
+a time:
+
+- planning-node schema (`parent_id`, `children`, identity, and relationship semantics)
+- execution-ready work item concept for human-assisted execution
+- planning-tree validation rules for references, cycles, and consistency
+- workstream schema and workstream-to-work-item relationship conventions
+- snapshot visibility for workstreams
+- human-assisted run-packet or execution-prompt generation
+
+Agentic execution is not part of the default work-item contract. Work involving `lrh agentic run`,
+`lrh-agentic run`, agent adapters, PR stabilization loops, or sandbox-envelope behavior must be marked
+deferred / future / requires `lrh[agentic]` until the optional agentic capability boundary exists.
+
+Command naming convention for new work items: use `lrh agentic run` or `lrh-agentic run` for future
+autonomous execution. Treat older `lrh run` references as legacy deferred execution-framework shorthand
+until a future command-design work item decides whether `lrh run` is omitted, reserved for non-agentic
+preparation, or exposed only as an installed-agentic alias.

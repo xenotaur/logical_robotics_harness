@@ -14,6 +14,7 @@ related_focus:
   - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
 related_roadmap:
   - ROADMAP-PHASE-01
+  - ROADMAP-PHASE-01A
 depends_on: []
 blocked_by: []
 expected_actions:
@@ -36,3 +37,7 @@ artifacts_expected:
 
 Create the first implementation slice for the Workstream Control Plane MVP by adding
 `project/workstreams/` directory layout and README guidance.
+
+## Safe-default alignment
+
+This is a safe-default planning/control-plane slice and must not add runtime execution or agentic behavior.

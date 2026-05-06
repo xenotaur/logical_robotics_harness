@@ -14,6 +14,7 @@ related_focus:
   - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
 related_roadmap:
   - ROADMAP-PHASE-01
+  - ROADMAP-PHASE-01A
 depends_on:
   - WI-WORKSTREAM-SNAPSHOT-MVP
 blocked_by: []
@@ -37,3 +38,7 @@ artifacts_expected:
 
 Add optional organize/tidy behavior for workstreams after validation is stable,
 starting with dry-run-first operations.
+
+## Safe-default alignment
+
+Organize/tidy behavior must remain dry-run-first and non-agentic.

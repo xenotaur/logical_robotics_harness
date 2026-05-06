@@ -317,7 +317,7 @@ This proposal PR must not:
 - implement workstream parsing/loading
 - implement validation
 - implement snapshot changes
-- add `lrh run`
+- add `lrh run` or any autonomous run command
 - add agent adapters
 - add autonomous execution in default LRH
 - add any dependency from core LRH to `lrh[agentic]`
@@ -367,4 +367,9 @@ explicit approval/closeout gates, and caution around automation
 laundering, excessive agency, cost surprise, and backend/vendor
 coupling. Deferred concepts include agent runtime execution, a
 workstream orchestrator, automated stage advancement, MCP bridges,
-telemetry systems, `lrh run`, and execution backends.
+telemetry systems, `lrh run` / autonomous run command naming, and
+execution backends. Under the safe-default packaging proposal, future
+autonomous command examples should use `lrh agentic run` or
+`lrh-agentic run`; older `lrh run` references in retained long-term
+design notes are legacy shorthand until command aliasing is explicitly
+decided.

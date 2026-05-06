@@ -14,6 +14,7 @@ related_focus:
   - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
 related_roadmap:
   - ROADMAP-PHASE-01
+  - ROADMAP-PHASE-01A
 depends_on:
   - WI-WORKSTREAM-SCHEMA-MVP
 blocked_by: []
@@ -37,3 +38,7 @@ artifacts_expected:
 
 Implement typed workstream model and loader support to ingest workstream artifacts as
 planning nodes in the control plane.
+
+## Safe-default alignment
+
+Loader/model support should represent planning nodes without introducing autonomous execution behavior.

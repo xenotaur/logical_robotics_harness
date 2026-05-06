@@ -14,8 +14,11 @@ related_focus:
   - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
 related_roadmap:
   - ROADMAP-PHASE-01
+  - ROADMAP-PHASE-01A
 depends_on:
   - WI-WORKSTREAM-VALIDATION-MVP
+  - WI-PLANNING-TREE-VALIDATION-RULES-MVP
+  - WI-WORKSTREAM-WORK-ITEM-RELATIONSHIPS-MVP
 blocked_by: []
 expected_actions:
   - edit_file
@@ -37,3 +40,7 @@ artifacts_expected:
 
 Add or prepare planning-tree relationship validation for workstreams and work items,
 anchored in metadata references rather than filesystem nesting.
+
+## Safe-default alignment
+
+This implementation slice should follow the design rules from `WI-PLANNING-TREE-VALIDATION-RULES-MVP` and `WI-WORKSTREAM-WORK-ITEM-RELATIONSHIPS-MVP`.

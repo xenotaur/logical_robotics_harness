@@ -103,6 +103,36 @@ class VersionInstallSmokeTests(unittest.TestCase):
         self.assertEqual(cli_result.stderr, "")
         self.assertEqual(cli_result.stdout.strip(), f"lrh {metadata_version}")
 
+    def _assert_runtime_resources_load_from_installed_package(
+        self, venv_dir: pathlib.Path
+    ) -> None:
+        python_bin = self._python_in_venv(venv_dir)
+
+        resource_result = subprocess.run(
+            [
+                str(python_bin),
+                "-c",
+                (
+                    "import importlib.resources;"
+                    "from lrh.assist import request_templates;"
+                    "text = request_templates.load_template_text('assessment');"
+                    "assert 'Assessment Request' in text;"
+                    "bootstrap = importlib.resources.files('lrh').joinpath("
+                    "'templates/project_bootstrap/full/AGENTS.md');"
+                    "assert bootstrap.is_file();"
+                    "assert 'Logical Robotics Harness' in "
+                    "bootstrap.read_text(encoding='utf-8');"
+                    "print('resources ok')"
+                ),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=tempfile.gettempdir(),
+        )
+        self.assertEqual(resource_result.returncode, 0, msg=resource_result.stderr)
+        self.assertEqual(resource_result.stdout.strip(), "resources ok")
+
     def test_lrh_version_matches_metadata_for_editable_and_wheel_installs(self) -> None:
         repo_root = self._repo_root()
 
@@ -129,6 +159,7 @@ class VersionInstallSmokeTests(unittest.TestCase):
                 install_editable.returncode, 0, msg=install_editable.stderr
             )
             self._assert_cli_matches_metadata(editable_venv)
+            self._assert_runtime_resources_load_from_installed_package(editable_venv)
 
             wheel_dir = temp_path / "wheelhouse"
             wheel_dir.mkdir(parents=True, exist_ok=True)
@@ -171,6 +202,7 @@ class VersionInstallSmokeTests(unittest.TestCase):
             )
             self.assertEqual(install_wheel.returncode, 0, msg=install_wheel.stderr)
             self._assert_cli_matches_metadata(wheel_venv)
+            self._assert_runtime_resources_load_from_installed_package(wheel_venv)
 
 
 if __name__ == "__main__":

@@ -74,7 +74,7 @@ lrh request <template_name> [target] [options]
 Example after installation:
 
 ```bash
-pip install logical-robotics-harness
+pip install lrh
 cd /tmp
 lrh request improve_coverage src/lrh/analysis/llm_extractor.py
 ```
@@ -330,7 +330,7 @@ Example:
 
 ```bash
 lrh request bootstrap_project \
-  --repo-name logical_robotics_harness \
+  --repo-name lrh \
   --project-goal "Bootstrap LRH control files"
 ```
 

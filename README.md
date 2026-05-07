@@ -61,6 +61,33 @@ lrh --version
 lrh version
 ```
 
+## User installation
+
+Once LRH is published on PyPI, the preferred normal installation path for the
+standalone CLI is:
+
+```bash
+pipx install lrh
+```
+
+`pipx` keeps the `lrh` command in an isolated application environment while making
+the command available on your shell path. Use this path when you primarily want to
+run the LRH CLI against a repository.
+
+Use `pip install lrh` when LRH needs to be available inside an existing Python
+environment, such as library use, CI jobs, development environments, or tools that
+intentionally manage their own virtual environment:
+
+```bash
+pip install lrh
+```
+
+The default `lrh` distribution is the safe-default CLI/toolkit package: it does not
+include LRH's autonomous execution package or autonomous-loop commands. This is a
+packaging boundary, not an OS/container sandbox guarantee. Future agentic install
+forms such as `pipx install "lrh[agentic]"` should only be used once the `agentic`
+extra and any backing `lrh-agentic` package actually exist.
+
 ## Command-line Completion
 
 LRH supports optional shell completion via `argcomplete` for the existing `argparse` CLI.
@@ -409,6 +436,58 @@ vMAJOR.MINOR.PATCH
 
 For example, `v0.2.2` resolves to package version `0.2.2`.
 
+### First-release readiness checklist
+
+Use this checklist before the first real PyPI publish. Keep release evidence linked
+to the actual workflow runs, smoke logs, package pages, and any LRH project-control
+artifacts that mention release readiness.
+
+Repository tasks already complete for the staged publishing path:
+
+- `pyproject.toml` declares distribution name `lrh`, console script `lrh`,
+  package metadata, dynamic `setuptools-scm` versioning, and packaged template
+  resources.
+- `.github/workflows/release.yml` publishes checked tag artifacts to production
+  PyPI using Trusted Publishing/OIDC after build, version verification, and
+  strict installed-wheel smoke validation.
+- `.github/workflows/testpypi-rehearsal.yml` provides a manual TestPyPI rehearsal
+  lane using the same checked-artifact pattern against a selected semantic-version
+  tag.
+- `scripts/release-smoke` provides installed-wheel smoke evidence for the CLI
+  command surface before publishing.
+
+External/manual setup tasks before tagging the first release:
+
+- Confirm that the PyPI project name `lrh` is available to this project, or create
+  and reserve the first `lrh` project release under the intended maintainer account
+  before relying on the production workflow.
+- Configure TestPyPI Trusted Publishing for package/project `lrh`, repository
+  `xenotaur/logical_robotics_harness`, workflow `testpypi-rehearsal.yml`, and
+  environment `testpypi`.
+- Configure production PyPI Trusted Publishing for package/project `lrh`, repository
+  `xenotaur/logical_robotics_harness`, workflow `release.yml`, and environment
+  `pypi`.
+- Confirm GitHub environment protection/approval rules for `testpypi` and `pypi`
+  match maintainer intent before any publish job can mint an OIDC token.
+- Run a TestPyPI rehearsal on a unique `vMAJOR.MINOR.PATCH` tag and verify the
+  uploaded package from a clean temporary environment.
+
+Final release actions:
+
+- Start only from a candidate commit with passing PR/main validation and expected
+  release notes/status context.
+- Run the local release validation commands in [Release steps](#release-steps),
+  including `scripts/release-smoke <tag> --strict-isolation`, before pushing the
+  tag.
+- Create or confirm the final `vMAJOR.MINOR.PATCH` tag with `scripts/version tag`
+  and push it with `scripts/version push`.
+- Watch the production **Publish release to PyPI** workflow through build/check,
+  strict smoke validation, artifact upload, and publish.
+- Verify the published package from a clean temporary environment and capture the
+  release-smoke, workflow, package-page, and install-verification evidence. If the
+  repository status or release readiness is updated, add or link an LRH evidence
+  artifact under `project/evidence/` rather than making unsupported status claims.
+
 ### Release steps
 
 Prerequisite: install development dependencies so the build frontend is available:
@@ -483,16 +562,17 @@ Before the production workflow can publish, a maintainer must configure PyPI Tru
 
 Do not create or store long-lived PyPI API tokens for production publishing. The GitHub Actions workflow grants `id-token: write` only to the publishing job, and that job depends on the build, artifact check, and installed-wheel smoke validation job.
 
-After a successful production publish, verify the package from a clean temporary environment, replacing `VERSION` with the released package version:
+After a successful production publish, verify the package from clean temporary CLI and Python environments, replacing `VERSION` with the released package version. The `pipx run` command validates the CLI without installing into the maintainer's persistent pipx home:
 
 ```bash
+pipx run --spec lrh==VERSION lrh --version
 python -m venv /tmp/lrh-pypi-verify
 /tmp/lrh-pypi-verify/bin/python -m pip install --upgrade pip
 /tmp/lrh-pypi-verify/bin/python -m pip install lrh==VERSION
 /tmp/lrh-pypi-verify/bin/lrh --version
 ```
 
-If publishing fails after a tag push, inspect the failed GitHub Actions job before changing Git state. If the publish job failed before PyPI accepted any files, fix the external PyPI Trusted Publisher/environment configuration or transient workflow issue and rerun the failed workflow job for the same tag. If PyPI accepted only part of a release, do not delete, move, or reuse the tag/version; PyPI files are immutable. Instead, document the partial release, fix the issue, bump the version, and publish a new `vMAJOR.MINOR.PATCH` tag.
+If publishing fails after a tag push, inspect the failed GitHub Actions job before changing Git state. If the publish job failed before PyPI accepted any files, fix the external PyPI Trusted Publisher/environment configuration or transient workflow issue and rerun the failed workflow job for the same tag. If PyPI accepted only part of a release, do not delete, move, or reuse the tag/version; PyPI files are immutable. Instead, document the partial release, preserve the failed workflow/package-page evidence, fix the issue, bump the version, and publish a new `vMAJOR.MINOR.PATCH` tag. If LRH project status is updated for the release, cite the release-smoke output, GitHub Actions run, PyPI package page, and clean-install verification in `project/evidence/` or the status artifact that references it.
 
 ### `sandbox` vs `release-smoke`
 

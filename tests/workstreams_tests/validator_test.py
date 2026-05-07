@@ -38,6 +38,34 @@ status: proposed
             }
             self.assertIn("missing required field 'stage'", missing_fields)
             self.assertIn("missing required field 'title'", missing_fields)
+            self.assertFalse(
+                any(issue.code == "WORKSTREAM_STAGE_INVALID" for issue in report.errors)
+            )
+
+    def test_non_string_enum_value_is_reported_without_crashing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = _write_project_scaffold(Path(tmp_dir))
+            _write(
+                root / "project" / "workstreams" / "proposed" / "WS-LIST-STATUS.md",
+                """---
+id: WS-LIST-STATUS
+kind: planning_node
+title: List Status Workstream
+status: [proposed]
+stage: conceived
+---
+""",
+            )
+
+            report = validate_project(root / "project")
+
+            self.assertTrue(
+                any(
+                    issue.code == "WORKSTREAM_STATUS_INVALID"
+                    and "non-string" in issue.message
+                    for issue in report.errors
+                )
+            )
 
     def test_invalid_kind(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

@@ -121,7 +121,7 @@ def _iter_workstream_files(directory: Path) -> tuple[Path, ...]:
         bucket_dir = directory / bucket_name
         if not bucket_dir.exists():
             continue
-        for path in sorted(bucket_dir.glob("*.md")):
+        for path in sorted(bucket_dir.glob("WS-*.md")):
             if _is_ignored_workstream_file(path):
                 continue
             paths.append(path)

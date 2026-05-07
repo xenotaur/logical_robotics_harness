@@ -49,7 +49,7 @@ class WorkItem:
 
 @dataclass(frozen=True)
 class Workstream:
-    """Workstream artifact loaded from project/workstreams/*.md."""
+    """Workstream artifact loaded from project/workstreams/<bucket>/WS-*.md."""
 
     path: Path
     id: str

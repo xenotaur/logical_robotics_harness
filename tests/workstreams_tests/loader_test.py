@@ -78,6 +78,9 @@ stage: conceived
             (proposed / "placeholder.md").write_text(
                 "Reserved for future workstreams.\n", encoding="utf-8"
             )
+            (proposed / "notes.md").write_text(
+                "Notes without workstream frontmatter.\n", encoding="utf-8"
+            )
             (proposed / "WS-REAL.md").write_text(
                 """---
 id: WS-REAL

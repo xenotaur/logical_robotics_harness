@@ -32,6 +32,7 @@ class WorkItem:
     status: str
     priority: str | None
     owner: str | None
+    parent_id: str | None = None
     contributors: tuple[str, ...] = ()
     assigned_agents: tuple[str, ...] = ()
     related_focus: tuple[str, ...] = ()

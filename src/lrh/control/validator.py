@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from lrh.control import work_item_policy
+from lrh.control import models, planning_tree, work_item_policy
 
 CONTRIBUTOR_REQUIRED_FIELDS = {"id", "type", "roles", "display_name", "status"}
 CONTRIBUTOR_TYPES = {"human", "agent"}
@@ -61,6 +61,15 @@ WORKSTREAM_STAGE = {
     "abandoned",
 }
 WORKSTREAM_BUCKETS = ("proposed", "active", "resolved", "abandoned")
+WORKSTREAM_LIST_FIELDS = {
+    "children",
+    "related_focus",
+    "related_roadmap",
+    "work_items",
+    "execution_records",
+    "evidence",
+    "exit_criteria",
+}
 
 
 @dataclass(frozen=True)
@@ -229,6 +238,13 @@ def validate_project(
             focus_ids,
             issues,
         )
+
+    _validate_planning_tree_relationships(
+        project_root,
+        workstreams,
+        work_items,
+        issues,
+    )
 
     return ValidationReport(issues=issues)
 
@@ -543,8 +559,134 @@ def _validate_workstream_schema(
         "WORKSTREAM_STAGE_INVALID",
         issues,
     )
+    for field in sorted(WORKSTREAM_LIST_FIELDS):
+        if field in artifact.data and not isinstance(artifact.data[field], list):
+            issues.append(
+                _issue(
+                    project_root,
+                    artifact.path,
+                    "error",
+                    "WORKSTREAM_LIST_FIELD_INVALID",
+                    f"{field} must be a list",
+                )
+            )
+    _validate_optional_string_field(
+        project_root,
+        artifact.path,
+        artifact.data,
+        "parent_id",
+        "WORKSTREAM_PARENT_ID_INVALID",
+        issues,
+    )
+
     _validate_workstream_id_convention(project_root, artifact, issues)
     _validate_workstream_bucket_status(project_root, artifact, issues)
+
+
+def _validate_planning_tree_relationships(
+    project_root: Path,
+    workstreams: list[_ParsedArtifact],
+    work_items: list[_ParsedArtifact],
+    issues: list[ValidationIssue],
+) -> None:
+    typed_workstreams = tuple(
+        _workstream_model_from_artifact(artifact)
+        for artifact in workstreams
+        if artifact.data is not None and isinstance(artifact.data.get("id"), str)
+    )
+    typed_work_items = tuple(
+        _work_item_model_from_artifact(artifact)
+        for artifact in work_items
+        if artifact.data is not None and isinstance(artifact.data.get("id"), str)
+    )
+
+    index = planning_tree.build_planning_tree_from_artifacts(
+        workstreams=typed_workstreams,
+        work_items=typed_work_items,
+    )
+    for diagnostic in index.diagnostics:
+        issues.append(
+            _issue(
+                project_root,
+                diagnostic.path,
+                diagnostic.severity,
+                diagnostic.code,
+                diagnostic.message,
+            )
+        )
+
+
+def _workstream_model_from_artifact(artifact: _ParsedArtifact) -> models.Workstream:
+    data = artifact.data or {}
+    return models.Workstream(
+        path=artifact.path,
+        id=_string_value(data, "id"),
+        kind=_string_value(data, "kind"),
+        title=_string_value(data, "title"),
+        status=_string_value(data, "status"),
+        stage=_string_value(data, "stage"),
+        bucket=None,
+        origin=_optional_string_value(data, "origin"),
+        parent_id=_optional_string_value(data, "parent_id"),
+        children=_string_tuple_value(data, "children"),
+        summary=_optional_string_value(data, "summary"),
+        rationale=_optional_string_value(data, "rationale"),
+        related_focus=_string_tuple_value(data, "related_focus"),
+        related_roadmap=_string_tuple_value(data, "related_roadmap"),
+        work_items=_string_tuple_value(data, "work_items"),
+        execution_records=_string_tuple_value(data, "execution_records"),
+        evidence=_string_tuple_value(data, "evidence"),
+        exit_criteria=_string_tuple_value(data, "exit_criteria"),
+        closeout=_optional_string_value(data, "closeout"),
+        frontmatter=data,
+    )
+
+
+def _work_item_model_from_artifact(artifact: _ParsedArtifact) -> models.WorkItem:
+    data = artifact.data or {}
+    return models.WorkItem(
+        path=artifact.path,
+        id=_string_value(data, "id"),
+        title=_string_value(data, "title"),
+        type=_string_value(data, "type"),
+        status=_string_value(data, "status"),
+        priority=_optional_string_value(data, "priority"),
+        owner=_optional_string_value(data, "owner"),
+        parent_id=_optional_string_value(data, "parent_id"),
+        contributors=_string_tuple_value(data, "contributors"),
+        assigned_agents=_string_tuple_value(data, "assigned_agents"),
+        related_focus=_string_tuple_value(data, "related_focus"),
+        related_roadmap=_string_tuple_value(data, "related_roadmap"),
+        depends_on=_string_tuple_value(data, "depends_on"),
+        blocked_by=_string_tuple_value(data, "blocked_by"),
+        expected_actions=_string_tuple_value(data, "expected_actions"),
+        forbidden_actions=_string_tuple_value(data, "forbidden_actions"),
+        acceptance=_string_tuple_value(data, "acceptance"),
+        required_evidence=_string_tuple_value(data, "required_evidence"),
+        artifacts_expected=_string_tuple_value(data, "artifacts_expected"),
+        frontmatter=data,
+    )
+
+
+def _string_value(data: dict[str, Any], field: str) -> str:
+    value = data.get(field)
+    if isinstance(value, str):
+        return value
+    return ""
+
+
+def _optional_string_value(data: dict[str, Any], field: str) -> str | None:
+    value = data.get(field)
+    if isinstance(value, str):
+        return value
+    return None
+
+
+def _string_tuple_value(data: dict[str, Any], field: str) -> tuple[str, ...]:
+    value = data.get(field)
+    if not isinstance(value, list):
+        return ()
+    return tuple(item for item in value if isinstance(item, str))
 
 
 def _validate_workstream_id_convention(
@@ -645,6 +787,36 @@ def _validate_work_item_schema(
                     f"{field} must be a list",
                 )
             )
+    _validate_optional_string_field(
+        project_root,
+        artifact.path,
+        data,
+        "parent_id",
+        "WORK_ITEM_PARENT_ID_INVALID",
+        issues,
+    )
+
+
+def _validate_optional_string_field(
+    project_root: Path,
+    path: Path,
+    data: dict[str, Any],
+    field: str,
+    issue_code: str,
+    issues: list[ValidationIssue],
+) -> None:
+    value = data.get(field)
+    if value is None or isinstance(value, str):
+        return
+    issues.append(
+        _issue(
+            project_root,
+            path,
+            "error",
+            issue_code,
+            f"{field} must be a string or null",
+        )
+    )
 
 
 def _validate_work_item_policy_required_fields(

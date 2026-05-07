@@ -85,6 +85,7 @@ def _load_work_items(directory: Path) -> tuple[WorkItem, ...]:
                 status=_required_str(fm, "status", path),
                 priority=_optional_str(fm, "priority"),
                 owner=_optional_str(fm, "owner"),
+                parent_id=_optional_str(fm, "parent_id"),
                 contributors=_list_of_strings(fm, "contributors"),
                 assigned_agents=_list_of_strings(fm, "assigned_agents"),
                 related_focus=_list_of_strings(fm, "related_focus"),

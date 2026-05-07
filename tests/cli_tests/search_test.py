@@ -61,7 +61,11 @@ class SearchCliTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
         self.assertIn("matches: 1", completed.stdout)
         self.assertIn("project/executions/AD_HOC/search.md", completed.stdout)
-        self.assertIn("mode: exploratory substring search", completed.stdout)
+        self.assertIn(
+            "mode: exploratory substring search; "
+            "not authoritative for soft-idempotence decisions",
+            completed.stdout,
+        )
         self.assertEqual(completed.stderr, "")
 
     def test_lrh_search_executions_no_match_returns_1(self) -> None:

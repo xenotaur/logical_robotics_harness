@@ -9,16 +9,9 @@ import pathlib
 import sys
 import typing
 
-from lrh import prompt_workflow_records
+from lrh import prompt_workflow, prompt_workflow_records
 
-VALID_EXECUTION_STATUSES = (
-    "planned",
-    "in_progress",
-    "landed",
-    "failed",
-    "reverted",
-    "superseded",
-)
+VALID_EXECUTION_STATUSES = tuple(sorted(prompt_workflow.VALID_STATUSES))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -124,7 +117,10 @@ def format_text_result(result: ExecutionSearchResult) -> str:
     filters = _format_filters(result)
     if filters:
         lines.append(f"filters: {filters}")
-    lines.append("mode: exploratory substring search; not authoritative idempotence")
+    lines.append(
+        "mode: exploratory substring search; "
+        "not authoritative for soft-idempotence decisions"
+    )
 
     if not result.matches:
         lines.append("No execution records matched.")
@@ -181,8 +177,9 @@ def run_search_cli(argv: list[str], *, prog: str = "lrh search") -> int:
         help="Exploratory substring search over execution records.",
         description=(
             "Search execution-record frontmatter and body text locally. "
-            "Results are exploratory and are not authoritative soft-idempotence "
-            "checks; use `lrh prompt check-execution` for exact prompt-ID lookup."
+            "Results are exploratory and are not authoritative for "
+            "soft-idempotence decisions; use `lrh prompt check-execution` "
+            "for exact prompt-ID lookup."
         ),
     )
     executions_parser.add_argument("query")

@@ -33,8 +33,11 @@ Implemented PR 3 of the staged prompt execution search and match proposal: an ex
 - `scripts/version tools` passed and reported expected Black/Ruff/Pyright tool availability.
 - `python -m unittest tests.assist_tests.prompt_workflow_search_test tests.cli_tests.search_test`
   passed: 12 tests.
-- `scripts/test` passed: 368 tests.
+- Review response validation: `scripts/format --check --diff` passed.
 - `scripts/lint` passed Ruff and Black checks.
+- `scripts/test` passed: 368 tests.
+- Review response updated CLI/docs wording for soft-idempotence clarity and reused
+  `prompt_workflow.VALID_STATUSES` for search status choices.
 
 # Follow-up
 

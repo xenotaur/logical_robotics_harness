@@ -154,6 +154,11 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     check_parser = subparsers.add_parser(
         "check-execution",
         help="Check whether execution records already exist for a prompt ID.",
+        description=(
+            "Authoritative exact structured lookup for prompt soft idempotence. "
+            "Use exploratory search only as context, not as the basis for "
+            "blocking or rerun decisions."
+        ),
     )
     check_parser.add_argument("--prompt-id", required=True)
     check_parser.add_argument("--project-root", default=".")

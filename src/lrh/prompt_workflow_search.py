@@ -54,8 +54,8 @@ def search_execution_records(
     """Search loaded execution records by deterministic substring matching.
 
     This helper is exploratory: it searches selected frontmatter text and body
-    text, and it is not a substitute for exact prompt-ID checks used for prompt
-    soft-idempotence decisions.
+    text, and it is not a substitute for exact prompt ID checks used for prompt
+    soft idempotence decisions.
     """
 
     if query == "":
@@ -119,7 +119,7 @@ def format_text_result(result: ExecutionSearchResult) -> str:
         lines.append(f"filters: {filters}")
     lines.append(
         "mode: exploratory substring search; "
-        "not authoritative for soft-idempotence decisions"
+        "not authoritative for soft idempotence decisions"
     )
 
     if not result.matches:
@@ -178,8 +178,8 @@ def run_search_cli(argv: list[str], *, prog: str = "lrh search") -> int:
         description=(
             "Search execution-record frontmatter and body text locally. "
             "Results are exploratory and are not authoritative for "
-            "soft-idempotence decisions; use `lrh prompt check-execution` "
-            "for exact prompt-ID lookup."
+            "soft idempotence decisions; use `lrh prompt check-execution` "
+            "for exact prompt ID lookup."
         ),
     )
     executions_parser.add_argument("query")

@@ -143,6 +143,11 @@ def run_match_cli(argv: list[str], *, prog: str = "lrh match") -> int:
     executions_parser = subparsers.add_parser(
         "executions",
         help="Match prompt IDs in a prompt file to execution records exactly.",
+        description=(
+            "Extract full prompt IDs from a prompt file and delegate each ID "
+            "to exact execution-record lookup. This is a convenience layer, "
+            "not heuristic or fuzzy matching."
+        ),
     )
     executions_parser.add_argument("prompt_file")
     executions_parser.add_argument("--project-root", default=".")

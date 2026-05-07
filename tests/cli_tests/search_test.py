@@ -63,7 +63,7 @@ class SearchCliTest(unittest.TestCase):
         self.assertIn("project/executions/AD_HOC/search.md", completed.stdout)
         self.assertIn(
             "mode: exploratory substring search; "
-            "not authoritative for soft-idempotence decisions",
+            "not authoritative for soft idempotence decisions",
             completed.stdout,
         )
         self.assertEqual(completed.stderr, "")

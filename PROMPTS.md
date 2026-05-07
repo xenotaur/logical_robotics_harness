@@ -76,13 +76,27 @@ If work is reverted or superseded, preserve prior records and set status accordi
 
 ## Soft idempotence before execution
 
-Before starting prompt-driven PR work, search `project/executions/` for the prompt ID.
+Before starting prompt-driven PR work, perform an exact structured lookup for
+the prompt ID in `project/executions/`. Exact matches against the
+front-matter `prompt_id` field are authoritative for deciding whether a
+prompt ID has already been executed.
 
-If a prior record exists:
+Preferred command when the prompt ID is already available:
+
+```bash
+lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .
+```
+
+If a prior exact record exists:
 
 - `landed` or `in_progress`: stop and report unless prompt explicitly requests rerun.
 - `failed`, `reverted`, or `superseded`: summarize prior run and continue only if prompt is a rerun or follow-up.
 - unknown or ambiguous status: stop and report ambiguity.
+
+Exploratory search results can provide useful context for discovery, auditing,
+and debugging, but they should not by themselves drive blocking or rerun
+decisions. If future heuristic or fuzzy matching is added, it must be clearly
+labeled non-authoritative unless later design work explicitly changes this rule.
 
 ## Codex Cloud prompt requirements
 
@@ -140,17 +154,23 @@ lrh prompt label --work-item WI-EXAMPLE --slug implement-example --project-root 
 lrh prompt check-execution --prompt-id "PROMPT(WI-EXAMPLE:IMPLEMENT_EXAMPLE)[2026-04-24T20:15:00-04:00]" --project-root /path/to/client-repo
 lrh match executions /path/to/prompt-file.md --project-root /path/to/client-repo
 lrh search executions "validation command" --project-root /path/to/client-repo
+lrh search executions "PROMPT(" --status planned --work-item AD_HOC --project-root /path/to/client-repo
 lrh prompt record-execution --prompt-id "PROMPT(WI-EXAMPLE:IMPLEMENT_EXAMPLE)[2026-04-24T20:15:00-04:00]" --work-item WI-EXAMPLE --slug implement-example --project-root /path/to/client-repo --status in_progress
 ```
 
-Use `lrh prompt check-execution` before meaningful prompt-driven PR work to support
-soft idempotence checks against existing execution records. When you have a prompt
-file instead of a copied prompt ID, `lrh match executions <prompt-file>` extracts
-full prompt IDs from the file and applies the same exact execution-record lookup.
-It does not perform fuzzy matching or make rerun recommendations for unmatched IDs.
-Use `lrh search executions <query>` only for exploratory local substring search
-across execution-record frontmatter and body text; search results are not
-authoritative for soft-idempotence decisions.
+Use the commands by role:
+
+- `lrh prompt check-execution --prompt-id ...` is the authoritative exact
+  structured lookup for soft idempotence. Use it before meaningful prompt-driven
+  PR work when the prompt ID is available.
+- `lrh match executions <prompt-file>` is a human-friendly convenience layer
+  for prompt files. It extracts full prompt IDs from the file and delegates each
+  ID to the same exact execution-record lookup. It does not perform fuzzy
+  matching or make rerun recommendations for unmatched IDs.
+- `lrh search executions <query>` is exploratory local substring search across
+  execution-record frontmatter and body text. Use it for discovery, auditing,
+  and debugging; do not treat search results as authoritative for
+  soft idempotence decisions.
 
 These commands preserve the same prompt ID and execution-record formats as the repository-local helper scripts.
 

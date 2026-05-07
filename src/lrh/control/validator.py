@@ -47,6 +47,21 @@ WORK_ITEM_LIST_FIELDS = {
     "artifacts_expected",
 }
 
+WORKSTREAM_REQUIRED_FIELDS = {"id", "kind", "title", "status", "stage"}
+WORKSTREAM_KINDS = {"planning_node"}
+WORKSTREAM_STATUS = {"proposed", "active", "resolved", "abandoned"}
+WORKSTREAM_STAGE = {
+    "conceived",
+    "assessed",
+    "designed",
+    "planned",
+    "executing",
+    "reviewing",
+    "closed",
+    "abandoned",
+}
+WORKSTREAM_BUCKETS = ("proposed", "active", "resolved", "abandoned")
+
 
 @dataclass(frozen=True)
 class ValidationIssue:
@@ -114,6 +129,28 @@ def validate_project(
 
     if work_items_only:
         return ValidationReport(issues=issues)
+
+    workstream_files = _discover_workstream_files(project_root / "workstreams")
+    workstreams = _parse_many(project_root, workstream_files, issues)
+    workstream_map: dict[str, _ParsedArtifact] = {}
+    for artifact in workstreams:
+        if artifact.data is None:
+            continue
+        _validate_workstream_schema(project_root, artifact, issues)
+        workstream_id = artifact.data.get("id")
+        if isinstance(workstream_id, str):
+            if workstream_id in workstream_map:
+                issues.append(
+                    _issue(
+                        project_root,
+                        artifact.path,
+                        "error",
+                        "DUPLICATE_WORKSTREAM_ID",
+                        f"duplicate workstream id '{workstream_id}'",
+                    )
+                )
+            else:
+                workstream_map[workstream_id] = artifact
 
     contributor_files = sorted((project_root / "contributors").glob("**/*.md"))
     contributors = _parse_many(project_root, contributor_files, issues)
@@ -194,6 +231,16 @@ def validate_project(
         )
 
     return ValidationReport(issues=issues)
+
+
+def _discover_workstream_files(workstreams_dir: Path) -> list[Path]:
+    files: list[Path] = []
+    for bucket in WORKSTREAM_BUCKETS:
+        bucket_dir = workstreams_dir / bucket
+        if not bucket_dir.exists():
+            continue
+        files.extend(sorted(bucket_dir.glob("WS-*.md")))
+    return files
 
 
 def _parse_many(
@@ -452,6 +499,111 @@ def _validate_focus_schema(
         "FOCUS_STATUS_INVALID",
         issues,
     )
+
+
+def _validate_workstream_schema(
+    project_root: Path,
+    artifact: _ParsedArtifact,
+    issues: list[ValidationIssue],
+) -> None:
+    if artifact.data is None:
+        return
+
+    _require_fields(
+        project_root,
+        artifact.path,
+        artifact.data,
+        WORKSTREAM_REQUIRED_FIELDS,
+        issues,
+    )
+    _validate_enum(
+        project_root,
+        artifact.path,
+        artifact.data,
+        "kind",
+        WORKSTREAM_KINDS,
+        "WORKSTREAM_KIND_INVALID",
+        issues,
+    )
+    _validate_enum(
+        project_root,
+        artifact.path,
+        artifact.data,
+        "status",
+        WORKSTREAM_STATUS,
+        "WORKSTREAM_STATUS_INVALID",
+        issues,
+    )
+    _validate_enum(
+        project_root,
+        artifact.path,
+        artifact.data,
+        "stage",
+        WORKSTREAM_STAGE,
+        "WORKSTREAM_STAGE_INVALID",
+        issues,
+    )
+    _validate_workstream_id_convention(project_root, artifact, issues)
+    _validate_workstream_bucket_status(project_root, artifact, issues)
+
+
+def _validate_workstream_id_convention(
+    project_root: Path,
+    artifact: _ParsedArtifact,
+    issues: list[ValidationIssue],
+) -> None:
+    if artifact.data is None:
+        return
+    workstream_id = artifact.data.get("id")
+    if not isinstance(workstream_id, str):
+        return
+    if not workstream_id.startswith("WS-"):
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "warning",
+                "WORKSTREAM_ID_CONVENTION",
+                f"workstream id '{workstream_id}' should use the documented WS- prefix",
+            )
+        )
+
+
+def _validate_workstream_bucket_status(
+    project_root: Path,
+    artifact: _ParsedArtifact,
+    issues: list[ValidationIssue],
+) -> None:
+    if artifact.data is None:
+        return
+    status = artifact.data.get("status")
+    if not isinstance(status, str) or status not in WORKSTREAM_STATUS:
+        return
+    bucket = _workstream_bucket(project_root, artifact.path)
+    if bucket is None or bucket == status:
+        return
+    issues.append(
+        _issue(
+            project_root,
+            artifact.path,
+            "warning",
+            "WORKSTREAM_BUCKET_STATUS_MISMATCH",
+            f"workstream status '{status}' does not match bucket '{bucket}'",
+        )
+    )
+
+
+def _workstream_bucket(project_root: Path, path: Path) -> str | None:
+    try:
+        relative_parts = path.relative_to(project_root / "workstreams").parts
+    except ValueError:
+        return None
+    if not relative_parts:
+        return None
+    bucket = relative_parts[0]
+    if bucket not in WORKSTREAM_BUCKETS:
+        return None
+    return bucket
 
 
 def _validate_work_item_schema(

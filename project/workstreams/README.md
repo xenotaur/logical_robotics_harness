@@ -67,9 +67,10 @@ Workstream frontmatter is the source of truth for workstream identity and lifecy
 particular, the frontmatter `status` value is authoritative; directory bucket placement exists so
 humans can scan the repository quickly.
 
-Future validators may report drift when a workstream's metadata and directory placement disagree.
-Future organize or tidy commands may repair that drift based on metadata, following the same
-metadata-authoritative pattern used for work items.
+`lrh validate` reports drift when a workstream's metadata and directory placement disagree. This is
+a warning rather than a fatal error because status metadata is authoritative and bucket placement is
+navigational. Future organize or tidy commands may repair that drift based on metadata, following
+the same metadata-authoritative pattern used for work items.
 
 ## Status versus stage
 
@@ -92,8 +93,9 @@ Initial stage vocabulary:
 conceived | assessed | designed | planned | executing | reviewing | closed | abandoned
 ```
 
-These terms capture the accepted near-term design direction, but this directory README does not make
-them runtime validation rules by itself. Runtime validation, snapshot, and organizer behavior remain
+`lrh validate` checks this minimal vocabulary and the required frontmatter fields. It does not yet
+enforce hard status/stage combination rules; those remain documentation-level guidance for the MVP
+so users are not surprised by over-strict lifecycle checks. Snapshot and organizer behavior remain
 separate focused work items.
 
 ## Large-work lifecycle
@@ -137,7 +139,7 @@ inferred from path, while continuing to treat frontmatter metadata as authoritat
 This directory establishes the human-facing home and introductory documentation for workstreams. It
 does not yet provide:
 
-- schema validation
+- planning-tree relationship validation
 - snapshot integration
 - organizer or tidy behavior
 - `lrh run`

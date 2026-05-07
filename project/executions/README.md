@@ -46,7 +46,10 @@ Allowed status values:
 Before executing a prompt-driven PR, check `project/executions/` for the prompt ID.
 Use `lrh prompt check-execution --prompt-id ...` when the prompt ID is already
 available. Use `lrh match executions <prompt-file>` when starting from a prompt
-file; it extracts full prompt IDs and delegates to the same exact lookup.
+file; it extracts full prompt IDs and delegates to the same exact lookup. Use
+`lrh search executions <query>` for exploratory local substring discovery across
+execution-record frontmatter and body text, not for authoritative rerun or
+idempotence decisions.
 
 If a prior record exists:
 

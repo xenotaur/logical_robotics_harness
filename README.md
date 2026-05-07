@@ -417,13 +417,16 @@ Helper scripts:
 - `scripts/prompts/record-execution`
 - Installed CLI: `lrh prompt check-execution`
 - Installed CLI: `lrh match executions <prompt-file>`
+- Installed CLI: `lrh search executions <query>`
 - `scripts/version` (plus `tools`, `verify`, `tag`, `push` subcommands for release workflow checks)
 
 Execution records are stored under `project/executions/` and may be grouped by work item or `AD_HOC`.
 Use `lrh prompt check-execution --prompt-id <PROMPT_ID>` before prompt-driven work to apply
 soft-idempotence checks in human and agent workflows. If you have a prompt file
 rather than a copied ID, use `lrh match executions <prompt-file>` for exact
-prompt-ID extraction and matching.
+prompt-ID extraction and matching. Use `lrh search executions <query>` for
+exploratory local substring search over execution-record frontmatter and body
+text; do not use search results as authoritative evidence for idempotence decisions.
 
 ## Release workflow
 

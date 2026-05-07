@@ -209,6 +209,8 @@ scripts/test
 lrh validate
 ```
 
+If `scripts/version tools` reports `lrh unknown` for package metadata or the CLI, treat its install hint as a setup diagnostic: run `scripts/develop` from the repository root, then rerun `scripts/version tools` before continuing validation.
+
 ### Repair workflow (when checks fail)
 
 ```bash

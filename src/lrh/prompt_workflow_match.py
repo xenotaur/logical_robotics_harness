@@ -8,7 +8,7 @@ import pathlib
 import re
 import sys
 
-from lrh import prompt_workflow_queries
+from lrh import prompt_workflow_queries, prompt_workflow_records
 
 PROMPT_ID_PATTERN = re.compile(
     r"PROMPT\("
@@ -80,12 +80,19 @@ def match_prompt_file_to_executions(
 
     prompt_path = pathlib.Path(prompt_file)
     text = prompt_path.read_text(encoding="utf-8")
+    prompt_ids = extract_prompt_ids(text)
+    if not prompt_ids:
+        return PromptFileExecutionMatchResult(prompt_file=prompt_path, matches=[])
+
+    records = prompt_workflow_records.load_execution_records(
+        project_root=project_root,
+        output_root=output_root,
+    )
     matches: list[PromptExecutionMatchResult] = []
-    for prompt_id in extract_prompt_ids(text):
-        check_result = prompt_workflow_queries.check_execution(
-            project_root=project_root,
+    for prompt_id in prompt_ids:
+        check_result = prompt_workflow_queries.check_execution_records(
+            records=records,
             prompt_id=prompt_id,
-            output_root=output_root,
         )
         matches.append(
             PromptExecutionMatchResult(

@@ -110,6 +110,59 @@ class MatchCliTest(unittest.TestCase):
         self.assertIn("multiple execution records found", completed.stdout)
         self.assertIn("human review required", completed.stdout)
 
+    def test_lrh_match_executions_missing_prompt_file_returns_2(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_file = pathlib.Path(temp_dir) / "missing.md"
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "match",
+                    "executions",
+                    str(prompt_file),
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertEqual(completed.stdout, "")
+        self.assertIn("error: unable to read prompt file", completed.stderr)
+
+    def test_lrh_match_executions_non_utf8_prompt_file_returns_2(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            prompt_file = pathlib.Path(temp_dir) / "prompt.md"
+            prompt_file.write_bytes(b"\xff\xfe\x00\x00")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "match",
+                    "executions",
+                    str(prompt_file),
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertEqual(completed.stdout, "")
+        self.assertIn("error: unable to read prompt file", completed.stderr)
+
     def test_lrh_match_executions_respects_output_root(self) -> None:
         prompt_id = "PROMPT(AD_HOC:CUSTOM)[2026-05-06T12:31:00-04:00]"
         with tempfile.TemporaryDirectory() as temp_dir:

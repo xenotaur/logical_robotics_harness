@@ -28,6 +28,16 @@ class CheckExecutionResult:
         return 0
 
 
+def check_execution_records(
+    records: list[prompt_workflow_records.ExecutionRecord],
+    prompt_id: str,
+) -> CheckExecutionResult:
+    """Find loaded execution records whose prompt ID exactly matches."""
+
+    matches = [record for record in records if record.prompt_id == prompt_id]
+    return CheckExecutionResult(prompt_id=prompt_id, records=matches)
+
+
 def check_execution(
     project_root: str | pathlib.Path,
     prompt_id: str,
@@ -39,5 +49,4 @@ def check_execution(
         project_root=project_root,
         output_root=output_root,
     )
-    matches = [record for record in records if record.prompt_id == prompt_id]
-    return CheckExecutionResult(prompt_id=prompt_id, records=matches)
+    return check_execution_records(records=records, prompt_id=prompt_id)

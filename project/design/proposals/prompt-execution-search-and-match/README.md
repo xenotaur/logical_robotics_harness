@@ -9,10 +9,12 @@ Reading order:
    prompt-file-to-record matching, and exploratory execution-record
    search.
 
-This proposal is design-only. It preserves `lrh prompt check-execution`
-as the authoritative exact-match primitive for prompt soft idempotence
-and recommends layering future `lrh match executions` and
-`lrh search executions` commands on shared package-owned modules.
+This proposal was written as design-only. The implemented command surface now
+preserves `lrh prompt check-execution` as the authoritative exact-match
+primitive for prompt soft idempotence and layers `lrh match executions` and
+`lrh search executions` on package-owned modules with the same evidence
+hierarchy: exact lookup is authoritative, prompt-file matching delegates exact
+lookup, and search remains exploratory.
 
 ## Canonical-document touchpoints
 

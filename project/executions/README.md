@@ -43,15 +43,36 @@ Allowed status values:
 
 ## Soft idempotence guidance
 
-Before executing a prompt-driven PR, check `project/executions/` for the prompt ID.
-Use `lrh prompt check-execution --prompt-id ...` when the prompt ID is already
-available. Use `lrh match executions <prompt-file>` when starting from a prompt
-file; it extracts full prompt IDs and delegates to the same exact lookup. Use
-`lrh search executions <query>` for exploratory local substring discovery across
-execution-record frontmatter and body text, not for authoritative rerun or
-idempotence decisions.
+Before executing a prompt-driven PR, check `project/executions/` for the
+prompt ID. Exact `prompt_id` matches are authoritative for deciding whether a
+prompt has already been executed.
 
-If a prior record exists:
+Use the lookup commands by role:
+
+- `lrh prompt check-execution --prompt-id ...` is the authoritative exact
+  structured lookup for soft idempotence when the prompt ID is already
+  available.
+- `lrh match executions <prompt-file>` is a human-friendly convenience layer
+  when starting from a prompt file; it extracts full prompt IDs and delegates to
+  the same exact lookup.
+- `lrh search executions <query>` is exploratory local substring search across
+  execution-record frontmatter and body text for discovery, auditing, and
+  debugging. Search results are useful context, but they are not authoritative
+  for rerun or idempotence decisions.
+
+Examples:
+
+```bash
+lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .
+lrh match executions prompts/my_prompt.md --project-root .
+lrh search executions "release smoke" --project-root .
+lrh search executions "PROMPT(" --status planned --work-item AD_HOC --project-root .
+```
+
+If future heuristic or fuzzy matching is added, it must be clearly labeled
+non-authoritative unless later design work explicitly changes this rule.
+
+If a prior exact record exists:
 
 - `landed` or `in_progress`: stop and report unless the prompt explicitly says rerun.
 - `failed`, `reverted`, or `superseded`: summarize the prior run and continue only if the prompt indicates rerun or follow-up.

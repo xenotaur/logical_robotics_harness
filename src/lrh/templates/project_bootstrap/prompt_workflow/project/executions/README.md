@@ -16,6 +16,7 @@ Use concise records with front matter fields:
 - pr
 - commit
 
-`lrh search executions <query>` can help discover related records by local
-substring search, but exact prompt-ID checks remain authoritative for rerun and
-idempotence decisions.
+Exact `prompt_id` matches are authoritative for rerun and idempotence decisions.
+Use `lrh prompt check-execution --prompt-id ...` when the ID is available,
+`lrh match executions <prompt-file>` when a prompt file should supply the ID,
+and `lrh search executions <query>` only for exploratory local substring search.

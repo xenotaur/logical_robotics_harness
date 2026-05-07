@@ -31,7 +31,22 @@ Once LRH is installed in a target repository, prefer the installed commands:
 
 ```bash
 lrh prompt label ...
+lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .
+lrh match executions prompts/my_prompt.md --project-root .
+lrh search executions "release smoke" --project-root .
 lrh prompt record-execution ...
 ```
 
-The repository-local scripts are compatibility wrappers that first run the repository checkout CLI via `python -m lrh.cli.main prompt ...` for deterministic local behavior; they fall back to installed `lrh prompt ...` only when the checkout module cannot be resolved. Use installed `lrh prompt ...` commands as the portable interface for client repositories.
+Use `lrh prompt check-execution --prompt-id ...` as the authoritative exact
+lookup for soft-idempotence decisions. Use `lrh match executions <prompt-file>`
+only as a convenience layer that extracts prompt IDs from a file and delegates
+exact matching. Use `lrh search executions <query>` for exploratory discovery,
+auditing, and debugging; search results are not authoritative for blocking or
+rerun decisions.
+
+The repository-local scripts are compatibility wrappers that first run the
+repository checkout CLI via `python -m lrh.cli.main prompt ...` for deterministic
+local behavior; they fall back to installed `lrh prompt ...` only when the
+checkout module cannot be resolved. Use installed `lrh prompt ...`,
+`lrh match ...`, and `lrh search ...` commands as the portable interface for
+client repositories.

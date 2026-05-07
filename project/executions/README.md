@@ -43,7 +43,10 @@ Allowed status values:
 
 ## Soft idempotence guidance
 
-Before executing a prompt-driven PR, search `project/executions/` for the prompt ID.
+Before executing a prompt-driven PR, check `project/executions/` for the prompt ID.
+Use `lrh prompt check-execution --prompt-id ...` when the prompt ID is already
+available. Use `lrh match executions <prompt-file>` when starting from a prompt
+file; it extracts full prompt IDs and delegates to the same exact lookup.
 
 If a prior record exists:
 

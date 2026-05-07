@@ -100,6 +100,33 @@ class PromptWorkflowRecordsTest(unittest.TestCase):
         self.assertEqual(result.match_count, 0)
         self.assertEqual(result.exit_code, 1)
 
+    def test_check_execution_records_filters_loaded_records(self) -> None:
+        prompt_id = "PROMPT(AD_HOC:LOADED)[2026-05-06T12:00:00-04:00]"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            exact = project_root / "project/executions/AD_HOC/exact.md"
+            other = project_root / "project/executions/AD_HOC/other.md"
+            exact.parent.mkdir(parents=True, exist_ok=True)
+            exact.write_text(
+                f"---\nprompt_id: {prompt_id}\nstatus: landed\n---\n",
+                encoding="utf-8",
+            )
+            other.write_text(
+                "---\nprompt_id: PROMPT(AD_HOC:OTHER)[2026-05-06T12:00:00-04:00]\n"
+                "status: landed\n---\n",
+                encoding="utf-8",
+            )
+
+            records = prompt_workflow_records.load_execution_records(project_root)
+            result = prompt_workflow_queries.check_execution_records(
+                records=records,
+                prompt_id=prompt_id,
+            )
+
+        self.assertEqual(result.records[0].path, exact)
+        self.assertEqual(result.match_count, 1)
+        self.assertEqual(result.exit_code, 0)
+
     def test_check_execution_multiple_match_exit_code(self) -> None:
         prompt_id = "PROMPT(AD_HOC:DUP)[2026-05-06T12:00:00-04:00]"
         with tempfile.TemporaryDirectory() as temp_dir:

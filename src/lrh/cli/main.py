@@ -9,7 +9,7 @@ import json
 import sys
 from pathlib import Path
 
-from lrh import prompt_workflow, prompt_workflow_match
+from lrh import prompt_workflow, prompt_workflow_match, prompt_workflow_search
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
@@ -95,6 +95,12 @@ def main() -> None:
         "match",
         add_help=False,
         help="Match prompt files to execution records.",
+    )
+
+    subparsers.add_parser(
+        "search",
+        add_help=False,
+        help="Search LRH project records.",
     )
 
     project_parser = subparsers.add_parser(
@@ -461,6 +467,14 @@ def main() -> None:
             prompt_workflow_match.run_match_cli(
                 argv=passthrough_args,
                 prog="lrh match",
+            )
+        )
+
+    if args.command == "search":
+        raise SystemExit(
+            prompt_workflow_search.run_search_cli(
+                argv=passthrough_args,
+                prog="lrh search",
             )
         )
 

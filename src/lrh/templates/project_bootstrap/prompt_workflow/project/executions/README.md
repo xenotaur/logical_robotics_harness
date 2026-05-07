@@ -15,3 +15,7 @@ Use concise records with front matter fields:
 - rerun_of
 - pr
 - commit
+
+`lrh search executions <query>` can help discover related records by local
+substring search, but exact prompt-ID checks remain authoritative for rerun and
+idempotence decisions.

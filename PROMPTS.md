@@ -139,6 +139,7 @@ When LRH is installed, prefer package-owned commands that support explicit targe
 lrh prompt label --work-item WI-EXAMPLE --slug implement-example --project-root /path/to/client-repo
 lrh prompt check-execution --prompt-id "PROMPT(WI-EXAMPLE:IMPLEMENT_EXAMPLE)[2026-04-24T20:15:00-04:00]" --project-root /path/to/client-repo
 lrh match executions /path/to/prompt-file.md --project-root /path/to/client-repo
+lrh search executions "validation command" --project-root /path/to/client-repo
 lrh prompt record-execution --prompt-id "PROMPT(WI-EXAMPLE:IMPLEMENT_EXAMPLE)[2026-04-24T20:15:00-04:00]" --work-item WI-EXAMPLE --slug implement-example --project-root /path/to/client-repo --status in_progress
 ```
 
@@ -147,6 +148,9 @@ soft idempotence checks against existing execution records. When you have a prom
 file instead of a copied prompt ID, `lrh match executions <prompt-file>` extracts
 full prompt IDs from the file and applies the same exact execution-record lookup.
 It does not perform fuzzy matching or make rerun recommendations for unmatched IDs.
+Use `lrh search executions <query>` only for exploratory local substring search
+across execution-record frontmatter and body text; search results are not
+authoritative for soft-idempotence decisions.
 
 These commands preserve the same prompt ID and execution-record formats as the repository-local helper scripts.
 

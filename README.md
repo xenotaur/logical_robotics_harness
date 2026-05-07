@@ -559,11 +559,10 @@ Before the production workflow can publish, a maintainer must configure PyPI Tru
 
 Do not create or store long-lived PyPI API tokens for production publishing. The GitHub Actions workflow grants `id-token: write` only to the publishing job, and that job depends on the build, artifact check, and installed-wheel smoke validation job.
 
-After a successful production publish, verify the package from clean temporary CLI and Python environments, replacing `VERSION` with the released package version:
+After a successful production publish, verify the package from clean temporary CLI and Python environments, replacing `VERSION` with the released package version. The `pipx run` command validates the CLI without installing into the maintainer's persistent pipx home:
 
 ```bash
-pipx install lrh==VERSION
-lrh --version
+pipx run --spec lrh==VERSION lrh --version
 python -m venv /tmp/lrh-pypi-verify
 /tmp/lrh-pypi-verify/bin/python -m pip install --upgrade pip
 /tmp/lrh-pypi-verify/bin/python -m pip install lrh==VERSION

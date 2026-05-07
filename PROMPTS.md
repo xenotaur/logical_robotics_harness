@@ -77,8 +77,9 @@ If work is reverted or superseded, preserve prior records and set status accordi
 ## Soft idempotence before execution
 
 Before starting prompt-driven PR work, perform an exact structured lookup for
-the prompt ID in `project/executions/`. Exact `prompt_id` matches are
-authoritative for deciding whether a prompt has already been executed.
+the prompt ID in `project/executions/`. Exact matches against the
+front-matter `prompt_id` field are authoritative for deciding whether a
+prompt ID has already been executed.
 
 Preferred command when the prompt ID is already available:
 
@@ -169,7 +170,7 @@ Use the commands by role:
 - `lrh search executions <query>` is exploratory local substring search across
   execution-record frontmatter and body text. Use it for discovery, auditing,
   and debugging; do not treat search results as authoritative for
-  soft-idempotence decisions.
+  soft idempotence decisions.
 
 These commands preserve the same prompt ID and execution-record formats as the repository-local helper scripts.
 

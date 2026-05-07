@@ -431,9 +431,9 @@ lrh search executions "PROMPT(" --status planned --work-item AD_HOC --project-ro
 ```
 
 Use `lrh prompt check-execution --prompt-id <PROMPT_ID>` before prompt-driven
-work to apply authoritative exact soft-idempotence checks in human and agent
+work to apply authoritative exact soft idempotence checks in human and agent
 workflows. If you have a prompt file rather than a copied ID, use
-`lrh match executions <prompt-file>` for exact prompt-ID extraction and matching.
+`lrh match executions <prompt-file>` for exact prompt ID extraction and matching.
 Use `lrh search executions <query>` for exploratory local substring search over
 execution-record frontmatter and body text; do not use search results as
 authoritative evidence for idempotence decisions.

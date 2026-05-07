@@ -29,12 +29,17 @@ search and match implementation.
   execution-record documentation.
 - Updated command help text for the exact lookup and prompt-file matching
   subcommands to reinforce the evidence hierarchy.
+- Addressed PR review feedback by standardizing on "prompt ID" for the
+  concept, reserving `prompt_id` for the front-matter field name, using "soft
+  idempotence" consistently in touched guidance, and clarifying that the design
+  proposal was originally design-only but is now implemented.
 
 # Validation
 
 - `scripts/version tools` (pass)
-- `scripts/test` (pass)
+- `scripts/format --check --diff` (pass)
 - `scripts/lint` (pass)
+- `scripts/test` (pass)
 - `lrh prompt --help` (pass)
 - `lrh prompt check-execution --help` (pass)
 - `lrh match --help` (pass)
@@ -42,6 +47,8 @@ search and match implementation.
 - `lrh search --help` (pass)
 - `lrh search executions --help` (pass)
 - `git diff --check` (pass)
+- Review protocol triage: both comments were still present, valid, and feasible;
+  both were addressed.
 
 # Follow-up
 

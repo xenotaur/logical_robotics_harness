@@ -44,8 +44,8 @@ Allowed status values:
 ## Soft idempotence guidance
 
 Before executing a prompt-driven PR, check `project/executions/` for the
-prompt ID. Exact `prompt_id` matches are authoritative for deciding whether a
-prompt has already been executed.
+prompt ID. Exact matches against the front-matter `prompt_id` field are
+authoritative for deciding whether a prompt ID has already been executed.
 
 Use the lookup commands by role:
 

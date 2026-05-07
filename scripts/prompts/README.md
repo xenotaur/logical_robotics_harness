@@ -38,7 +38,7 @@ lrh prompt record-execution ...
 ```
 
 Use `lrh prompt check-execution --prompt-id ...` as the authoritative exact
-lookup for soft-idempotence decisions. Use `lrh match executions <prompt-file>`
+lookup for soft idempotence decisions. Use `lrh match executions <prompt-file>`
 only as a convenience layer that extracts prompt IDs from a file and delegates
 exact matching. Use `lrh search executions <query>` for exploratory discovery,
 auditing, and debugging; search results are not authoritative for blocking or

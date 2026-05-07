@@ -48,6 +48,33 @@ class WorkItem:
 
 
 @dataclass(frozen=True)
+class Workstream:
+    """Workstream artifact loaded from project/workstreams/<bucket>/WS-*.md."""
+
+    path: Path
+    id: str
+    kind: str
+    title: str
+    status: str
+    stage: str
+    bucket: str | None = None
+    origin: str | None = None
+    parent_id: str | None = None
+    children: tuple[str, ...] = ()
+    summary: str | None = None
+    rationale: str | None = None
+    related_focus: tuple[str, ...] = ()
+    related_roadmap: tuple[str, ...] = ()
+    work_items: tuple[str, ...] = ()
+    execution_records: tuple[str, ...] = ()
+    evidence: tuple[str, ...] = ()
+    exit_criteria: tuple[str, ...] = ()
+    closeout: str | None = None
+    body: str = ""
+    frontmatter: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class Contributor:
     """Contributor artifact loaded from project/contributors/**/*.md."""
 
@@ -73,6 +100,8 @@ class ProjectState:
     current_focus: Focus
     work_items: tuple[WorkItem, ...]
     work_items_by_id: dict[str, WorkItem]
+    workstreams: tuple[Workstream, ...]
+    workstreams_by_id: dict[str, Workstream]
     contributors: tuple[Contributor, ...]
     contributors_by_id: dict[str, Contributor]
 

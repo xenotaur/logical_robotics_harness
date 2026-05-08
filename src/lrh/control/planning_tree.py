@@ -222,13 +222,12 @@ def _collect_workstream_relationships(
                 workstream.path,
             )
         for child_id in workstream.work_items:
-            _append_child_relationship(
+            _append_work_item_relationship(
                 artifacts_by_id,
                 diagnostics,
                 relationships,
                 workstream.id,
                 child_id,
-                RELATION_WORK_ITEMS,
                 workstream.path,
             )
 
@@ -314,6 +313,50 @@ def _append_child_relationship(
     )
 
 
+def _append_work_item_relationship(
+    artifacts_by_id: dict[str, PlanningArtifact],
+    diagnostics: list[PlanningDiagnostic],
+    relationships: list[PlanningRelationship],
+    parent_id: str,
+    child_id: str,
+    source_path: Path,
+) -> None:
+    child = artifacts_by_id.get(child_id)
+    if child is None:
+        diagnostics.append(
+            PlanningDiagnostic(
+                artifact_id=parent_id,
+                path=source_path,
+                severity="error",
+                code="PLANNING_UNKNOWN_CHILD_ID",
+                message=f"work_items references unknown work item id '{child_id}'",
+            )
+        )
+        return
+    if child.kind != ARTIFACT_WORK_ITEM:
+        diagnostics.append(
+            PlanningDiagnostic(
+                artifact_id=parent_id,
+                path=source_path,
+                severity="error",
+                code="PLANNING_WORK_ITEM_CHILD_KIND_INVALID",
+                message=(
+                    f"work_items references non-work-item id '{child_id}' "
+                    f"of kind '{child.kind}'"
+                ),
+            )
+        )
+        return
+    relationships.append(
+        PlanningRelationship(
+            parent_id=parent_id,
+            child_id=child_id,
+            source_id=parent_id,
+            source_field=RELATION_WORK_ITEMS,
+        )
+    )
+
+
 def _children_by_parent(
     relationships: list[PlanningRelationship],
 ) -> dict[str, tuple[str, ...]]:
@@ -366,24 +409,22 @@ def _detect_parent_child_mismatches(
                 )
             )
 
-    for parent_id, child_ids in children_by_parent_id.items():
-        for child_id in child_ids:
-            parent_ids = parents_by_child_id.get(child_id, ())
-            if len(parent_ids) <= 1:
-                continue
-            artifact = artifacts_by_id[parent_id]
-            diagnostics.append(
-                PlanningDiagnostic(
-                    artifact_id=parent_id,
-                    path=artifact.path,
-                    severity="warning",
-                    code="PLANNING_MULTIPLE_PARENTS",
-                    message=(
-                        f"child '{child_id}' is related to multiple parents: "
-                        f"{', '.join(parent_ids)}"
-                    ),
-                )
+    for child_id, parent_ids in parents_by_child_id.items():
+        if len(parent_ids) <= 1:
+            continue
+        artifact = artifacts_by_id[child_id]
+        diagnostics.append(
+            PlanningDiagnostic(
+                artifact_id=child_id,
+                path=artifact.path,
+                severity="warning",
+                code="PLANNING_MULTIPLE_PARENTS",
+                message=(
+                    f"child '{child_id}' is related to multiple parents: "
+                    f"{', '.join(parent_ids)}"
+                ),
             )
+        )
 
 
 def _find_workstream_cycles(

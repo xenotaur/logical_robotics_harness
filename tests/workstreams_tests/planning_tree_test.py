@@ -162,6 +162,41 @@ class TestPlanningTreeRelationships(unittest.TestCase):
                 )
             )
 
+    def test_work_items_rejects_existing_workstream_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = _write_project_scaffold(Path(tmp_dir))
+            _write_workstream(root, "WS-PARENT", work_items=("WS-CHILD",))
+            _write_workstream(root, "WS-CHILD")
+
+            index = planning_tree.build_planning_tree(load_project(root))
+            report = validate_project(root / "project")
+
+            self.assertEqual(index.children_of("WS-PARENT"), ())
+            self.assertEqual(set(index.roots()), {"WS-PARENT", "WS-CHILD"})
+            self.assertTrue(
+                any(
+                    issue.code == "PLANNING_WORK_ITEM_CHILD_KIND_INVALID"
+                    for issue in report.errors
+                )
+            )
+
+    def test_multiple_parents_warns_once_per_child(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = _write_project_scaffold(Path(tmp_dir))
+            _write_workstream(root, "WS-A", children=("WI-CHILD",))
+            _write_workstream(root, "WS-B", children=("WI-CHILD",))
+            _write_work_item(root, "WI-CHILD")
+
+            report = validate_project(root / "project")
+
+            multiple_parent_warnings = [
+                issue
+                for issue in report.warnings
+                if issue.code == "PLANNING_MULTIPLE_PARENTS"
+            ]
+            self.assertEqual(len(multiple_parent_warnings), 1)
+            self.assertIn("WI-CHILD", multiple_parent_warnings[0].message)
+
 
 def _write_project_scaffold(root: Path) -> Path:
     (root / "project" / "focus").mkdir(parents=True)

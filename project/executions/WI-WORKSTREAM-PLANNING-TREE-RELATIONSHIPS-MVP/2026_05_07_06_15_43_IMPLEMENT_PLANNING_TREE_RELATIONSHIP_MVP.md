@@ -2,10 +2,10 @@
 execution_id: 2026_05_07_06_15_43_IMPLEMENT_PLANNING_TREE_RELATIONSHIP_MVP
 prompt_id: PROMPT(WI-PLANNING-TREE-RELATIONSHIP-MVP:IMPLEMENT_PLANNING_TREE_RELATIONSHIP_MVP)[2026-05-06T11:10:00-04:00]
 work_item: WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP
-status: landed
+status: in_progress
 rerun_of:
-pr:
-commit:
+pr: xenotaur/logical_robotics_harness#204
+commit: 5aa2cc0bf627ec7282986daaf1e50bdc86da5cc5
 created_at: 2026-05-07T06:15:43+00:00
 ---
 
@@ -40,6 +40,8 @@ indexing behavior.
 - `lrh validate --project-dir project` passed.
 - `scripts/lint` passed.
 - `scripts/format --check` passed.
+- Review follow-up adjusted `work_items` kind checking, multiple-parent warning deduplication, work-item `parent_id` schema nullability, and execution-record status metadata.
+- Review follow-up validation ran `scripts/version tools`, `scripts/format --check --diff`, `scripts/lint`, `scripts/test`, and `lrh validate --project-dir project`; all passed after applying repository formatting.
 
 # Follow-up
 

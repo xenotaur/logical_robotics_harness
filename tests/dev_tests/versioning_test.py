@@ -176,7 +176,7 @@ class VersioningTests(unittest.TestCase):
 
         stdout = io.StringIO()
         with mock.patch("sys.stdout", new=stdout):
-            with mock.patch("lrh.version.format_cli_version", return_value="lrh 9.9.9"):
+            with mock.patch("lrh.version.get_installed_version", return_value="9.9.9"):
                 with mock.patch(
                     "lrh.dev.versioning._run_command",
                     side_effect=_run_command_side_effect,
@@ -189,18 +189,207 @@ class VersioningTests(unittest.TestCase):
         self.assertIn("Pylint", output)
         self.assertIn("not installed", output)
 
+    def test_print_tool_version_uses_stderr_when_stdout_is_empty(self) -> None:
+        completed = subprocess.CompletedProcess(
+            args=["python", "--version"],
+            returncode=0,
+            stdout="",
+            stderr="Python 3.12.13\n",
+        )
+
+        stdout = io.StringIO()
+        with mock.patch("sys.stdout", new=stdout):
+            with mock.patch("lrh.dev.versioning._run_command", return_value=completed):
+                versioning._print_tool_version(
+                    "Python", ["python", "--version"], optional=False
+                )
+
+        self.assertIn("Python\nPython 3.12.13", stdout.getvalue())
+
+    def test_tools_subcommand_prints_hint_when_metadata_and_cli_unknown(
+        self,
+    ) -> None:
+        def _run_command_side_effect(
+            command: list[str], *, capture_output: bool = False
+        ) -> mock.Mock:
+            del capture_output
+            if command[0] == "lrh":
+                raise versioning.VersioningError("required command not found: lrh")
+            return mock.Mock(returncode=0)
+
+        stdout = io.StringIO()
+        with mock.patch("sys.stdout", new=stdout):
+            with mock.patch("sys.executable", "/test/python"):
+                with mock.patch(
+                    "lrh.dev.versioning.shutil.which", return_value="/test/pip"
+                ):
+                    with mock.patch(
+                        "lrh.version.get_installed_version", return_value=None
+                    ):
+                        with mock.patch(
+                            "lrh.dev.versioning._run_command",
+                            side_effect=_run_command_side_effect,
+                        ):
+                            result = versioning.main(["tools"])
+
+        self.assertEqual(result, 0)
+        output = stdout.getvalue()
+        self.assertIn("LRH package metadata\nlrh unknown", output)
+        self.assertIn("LRH CLI\nlrh unknown", output)
+        self.assertIn(
+            "Hint: LRH is not importable or has no installed package metadata",
+            output,
+        )
+        self.assertIn("Active Python: /test/python", output)
+        self.assertIn("Active pip: /test/pip", output)
+        self.assertIn("scripts/develop", output)
+        self.assertIn("scripts/version tools", output)
+
+    def test_tools_subcommand_reports_cli_failure_without_not_installed(
+        self,
+    ) -> None:
+        def _run_command_side_effect(
+            command: list[str], *, capture_output: bool = False
+        ) -> subprocess.CompletedProcess[str]:
+            del capture_output
+            if command[0] == "lrh":
+                return subprocess.CompletedProcess(
+                    args=command,
+                    returncode=2,
+                    stdout="",
+                    stderr="usage error\n",
+                )
+            return subprocess.CompletedProcess(args=command, returncode=0, stdout="")
+
+        stdout = io.StringIO()
+        with mock.patch("sys.stdout", new=stdout):
+            with mock.patch(
+                "lrh.dev.versioning.shutil.which", return_value="/test/pip"
+            ):
+                with mock.patch("lrh.version.get_installed_version", return_value=None):
+                    with mock.patch(
+                        "lrh.dev.versioning._run_command",
+                        side_effect=_run_command_side_effect,
+                    ):
+                        result = versioning.main(["tools"])
+
+        self.assertEqual(result, 0)
+        output = stdout.getvalue()
+        self.assertIn("LRH CLI\nlrh unknown", output)
+        self.assertIn("command failed (version command failed for LRH CLI", output)
+        self.assertNotIn("not installed (version command failed for LRH CLI", output)
+
+    def test_tools_subcommand_prints_cli_hint_when_metadata_known_and_cli_unknown(
+        self,
+    ) -> None:
+        def _run_command_side_effect(
+            command: list[str], *, capture_output: bool = False
+        ) -> mock.Mock:
+            del capture_output
+            if command[0] == "lrh":
+                raise versioning.VersioningError("required command not found: lrh")
+            return mock.Mock(returncode=0)
+
+        stdout = io.StringIO()
+        with mock.patch("sys.stdout", new=stdout):
+            with mock.patch("sys.executable", "/test/python"):
+                with mock.patch("lrh.dev.versioning.shutil.which", return_value=None):
+                    with mock.patch(
+                        "lrh.dev.versioning.importlib.util.find_spec",
+                        return_value=object(),
+                    ):
+                        with mock.patch(
+                            "lrh.version.get_installed_version", return_value="9.9.9"
+                        ):
+                            with mock.patch(
+                                "lrh.dev.versioning._run_command",
+                                side_effect=_run_command_side_effect,
+                            ):
+                                result = versioning.main(["tools"])
+
+        self.assertEqual(result, 0)
+        output = stdout.getvalue()
+        self.assertIn("LRH package metadata\nlrh 9.9.9", output)
+        self.assertIn("LRH CLI\nlrh unknown", output)
+        self.assertIn(
+            "Hint: LRH package metadata is available, but the lrh CLI command",
+            output,
+        )
+        self.assertIn("Active pip: /test/python -m pip", output)
+
+    def test_tools_subcommand_prints_metadata_hint_when_cli_known_and_metadata_unknown(
+        self,
+    ) -> None:
+        def _run_command_side_effect(
+            command: list[str], *, capture_output: bool = False
+        ) -> mock.Mock:
+            del capture_output
+            if command[0] == "lrh":
+                return mock.Mock(returncode=0, stdout="lrh 9.9.9\n")
+            return mock.Mock(returncode=0)
+
+        stdout = io.StringIO()
+        with mock.patch("sys.stdout", new=stdout):
+            with mock.patch(
+                "lrh.dev.versioning.shutil.which", return_value="/test/pip"
+            ):
+                with mock.patch("lrh.version.get_installed_version", return_value=None):
+                    with mock.patch(
+                        "lrh.dev.versioning._run_command",
+                        side_effect=_run_command_side_effect,
+                    ):
+                        result = versioning.main(["tools"])
+
+        self.assertEqual(result, 0)
+        output = stdout.getvalue()
+        self.assertIn("LRH package metadata\nlrh unknown", output)
+        self.assertIn("LRH CLI\nlrh 9.9.9", output)
+        self.assertIn(
+            "Hint: LRH CLI is available, but LRH package metadata could not be",
+            output,
+        )
+
+    def test_tools_subcommand_omits_install_hint_when_metadata_and_cli_known(
+        self,
+    ) -> None:
+        def _run_command_side_effect(
+            command: list[str], *, capture_output: bool = False
+        ) -> mock.Mock:
+            del capture_output
+            if command[0] == "lrh":
+                return mock.Mock(returncode=0, stdout="lrh 9.9.9\n")
+            return mock.Mock(returncode=0)
+
+        stdout = io.StringIO()
+        with mock.patch("sys.stdout", new=stdout):
+            with mock.patch("lrh.version.get_installed_version", return_value="9.9.9"):
+                with mock.patch(
+                    "lrh.dev.versioning._run_command",
+                    side_effect=_run_command_side_effect,
+                ):
+                    result = versioning.main(["tools"])
+
+        self.assertEqual(result, 0)
+        output = stdout.getvalue()
+        self.assertIn("LRH package metadata\nlrh 9.9.9", output)
+        self.assertIn("LRH CLI\nlrh 9.9.9", output)
+        self.assertNotIn("Hint:", output)
+        self.assertNotIn("scripts/develop", output)
+
     def test_tools_subcommand_fails_for_required_tool_error(self) -> None:
         def _run_command_side_effect(
             command: list[str], *, capture_output: bool = False
         ) -> mock.Mock:
             del capture_output
+            if command[0] == "lrh":
+                return mock.Mock(returncode=0, stdout="lrh 9.9.9\n")
             if command[0] == "python":
                 raise versioning.VersioningError("required command not found: python")
             return mock.Mock(returncode=0)
 
         stderr = io.StringIO()
         with mock.patch("sys.stderr", new=stderr):
-            with mock.patch("lrh.version.format_cli_version", return_value="lrh 9.9.9"):
+            with mock.patch("lrh.version.get_installed_version", return_value="9.9.9"):
                 with mock.patch(
                     "lrh.dev.versioning._run_command",
                     side_effect=_run_command_side_effect,

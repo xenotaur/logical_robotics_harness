@@ -32,6 +32,13 @@ class LrhCliVersionResult:
         return self.output is not None and self.output.strip() != "lrh unknown"
 
 
+def _completed_process_output(completed: subprocess.CompletedProcess[str]) -> str:
+    """Return captured command output, preferring stdout over stderr."""
+    stdout = completed.stdout if isinstance(completed.stdout, str) else ""
+    stderr = completed.stderr if isinstance(completed.stderr, str) else ""
+    return stdout.strip() or stderr.strip()
+
+
 def _active_pip_description() -> str:
     """Return a concise description of the active pip command, if available."""
     pip_path = shutil.which("pip")
@@ -66,7 +73,7 @@ def _resolve_lrh_cli_version() -> LrhCliVersionResult:
             error="version command failed for LRH CLI: lrh version",
         )
 
-    output = completed.stdout.strip()
+    output = _completed_process_output(completed)
     if not output:
         return LrhCliVersionResult(
             output=None,
@@ -115,7 +122,10 @@ def _print_lrh_cli_version(
 
     if metadata_version is None:
         if cli_result.error is not None:
-            print(f"not installed ({cli_result.error})")
+            if cli_result.error.startswith("required command not found:"):
+                print(f"not installed ({cli_result.error})")
+            else:
+                print(f"command failed ({cli_result.error})")
     else:
         message = (
             "LRH package metadata is available, but the lrh CLI command is not "
@@ -271,7 +281,7 @@ def _print_tool_version(
             return
         raise VersioningError(message)
 
-    output = completed.stdout.strip()
+    output = _completed_process_output(completed)
     if output:
         print(output)
     print()

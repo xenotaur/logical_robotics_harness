@@ -189,8 +189,10 @@ Relationship guidance:
   metadata.
 - Project-root planning contexts may eventually be represented explicitly, but this MVP does not
   require a new root artifact.
-- Future validation/indexing may check reference existence, uniqueness, cycle safety, and
-  consistency between parent and child declarations.
+- The initial relationship index checks reference existence, duplicate IDs across relationship-
+  indexed workstreams and work items, simple workstream cycle safety, and conservative consistency
+  diagnostics between conflicting parent and child declarations.
+- `work_items` is treated as an explicit workstream-to-work-item child list for indexing purposes.
 
 For ordinary use, contributors should still describe and review relationships as Project,
 Workstream, and Work Item relationships. The planning-tree language is an internal-ready
@@ -205,7 +207,6 @@ This schema MVP does not implement:
 - CLI behavior
 - snapshot integration
 - organize/tidy behavior
-- planning-tree indexing
 - `lrh run`
 - automation, execution backends, or agent runtime orchestration
 - telemetry or MCP systems

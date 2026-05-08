@@ -75,6 +75,14 @@
         "minLength": 1
       },
       "uniqueItems": true
+    },
+    "parent_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "minLength": 1,
+      "description": "Optional planning-tree parent workstream ID for relationship indexing."
     }
   },
   "allOf": [

@@ -17,7 +17,7 @@ Project -> Workstream -> Work Item
 ```
 
 Users should not need to reason about abstract planning nodes during ordinary use. The internal,
-future-compatible model is:
+relationship-index-ready model is:
 
 ```text
 Project = root planning context
@@ -25,8 +25,8 @@ Workstream = planning node
 Work Item = executable leaf
 ```
 
-This lets LRH keep a human-readable repository model now while remaining compatible with future
-planning-tree validation and summarization.
+This lets LRH keep a human-readable repository model while indexing metadata-driven
+planning relationships without relying on directory nesting.
 
 The documentation-level schema for workstream frontmatter is defined in
 [`project/design/workstream_schema_mvp.md`](../design/workstream_schema_mvp.md).
@@ -134,12 +134,17 @@ LRH now includes an initial typed runtime model and loader for simple single-fil
 these status buckets. The loader preserves frontmatter, body text, source path, and the bucket
 inferred from path, while continuing to treat frontmatter metadata as authoritative.
 
+LRH also includes a small internal planning-tree relationship index. It treats workstreams as
+planning nodes and work items as executable leaves, resolves `parent_id`, `children`, and
+`work_items` references by ID, and reports missing references, duplicate relationship IDs, simple
+workstream cycles, and conflicting parent/child declarations during validation. Paths and nested
+directories are not relationship semantics.
+
 ## Non-goals for this directory MVP
 
 This directory establishes the human-facing home and introductory documentation for workstreams. It
 does not yet provide:
 
-- planning-tree relationship validation
 - snapshot integration
 - organizer or tidy behavior
 - `lrh run`

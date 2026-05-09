@@ -1,8 +1,20 @@
 """Control-plane models, parser, loader, and validation for LRH."""
 
 from lrh.control import planning_tree, work_item_policy
-from lrh.control.loader import find_project_dir, load_project, load_workstreams
-from lrh.control.models import Contributor, Focus, ProjectState, WorkItem, Workstream
+from lrh.control.loader import (
+    find_project_dir,
+    load_design_proposals,
+    load_project,
+    load_workstreams,
+)
+from lrh.control.models import (
+    Contributor,
+    DesignProposal,
+    Focus,
+    ProjectState,
+    WorkItem,
+    Workstream,
+)
 from lrh.control.parser import ParsedMarkdown, parse_markdown_file, parse_markdown_text
 from lrh.control.validator import (
     ValidationIssue,
@@ -13,6 +25,7 @@ from lrh.control.validator import (
 
 __all__ = [
     "Contributor",
+    "DesignProposal",
     "Focus",
     "ParsedMarkdown",
     "ProjectState",
@@ -22,6 +35,7 @@ __all__ = [
     "Workstream",
     "find_project_dir",
     "format_report",
+    "load_design_proposals",
     "load_project",
     "load_workstreams",
     "parse_markdown_file",

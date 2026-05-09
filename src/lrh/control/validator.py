@@ -71,6 +71,23 @@ WORKSTREAM_LIST_FIELDS = {
     "exit_criteria",
 }
 
+DESIGN_PROPOSAL_STATUS = {"proposed", "adopted", "accepted", "rejected", "superseded"}
+DESIGN_PROPOSAL_CANONICAL_STATUS = {
+    "proposed",
+    "adopted",
+    "rejected",
+    "superseded",
+}
+DESIGN_PROPOSAL_IMPLEMENTATION_STATUS = {
+    "not_started",
+    "partial",
+    "implemented",
+    "deferred",
+    "obsolete",
+}
+DESIGN_PROPOSAL_LIST_FIELDS = {"implemented_by", "evidence", "supersedes"}
+DESIGN_PROPOSAL_BUCKETS = ("proposed", "adopted", "rejected", "superseded")
+
 
 @dataclass(frozen=True)
 class ValidationIssue:
@@ -161,6 +178,30 @@ def validate_project(
             else:
                 workstream_map[workstream_id] = artifact
 
+    design_proposal_files = _discover_design_proposal_files(
+        project_root / "design" / "proposals"
+    )
+    design_proposals = _parse_many(project_root, design_proposal_files, issues)
+    design_proposal_map: dict[str, _ParsedArtifact] = {}
+    for artifact in design_proposals:
+        if artifact.data is None:
+            continue
+        _validate_design_proposal_schema(project_root, artifact, issues)
+        proposal_id = artifact.data.get("id")
+        if isinstance(proposal_id, str):
+            if proposal_id in design_proposal_map:
+                issues.append(
+                    _issue(
+                        project_root,
+                        artifact.path,
+                        "error",
+                        "DUPLICATE_DESIGN_PROPOSAL_ID",
+                        f"duplicate design proposal id '{proposal_id}'",
+                    )
+                )
+            else:
+                design_proposal_map[proposal_id] = artifact
+
     contributor_files = sorted((project_root / "contributors").glob("**/*.md"))
     contributors = _parse_many(project_root, contributor_files, issues)
     contributor_map: dict[str, _ParsedArtifact] = {}
@@ -227,6 +268,8 @@ def validate_project(
                             )
                         )
 
+    evidence_ids = _collect_evidence_ids(project_root, issues)
+
     for artifact in work_items:
         if artifact.data is None:
             continue
@@ -236,6 +279,18 @@ def validate_project(
             contributor_map,
             work_item_map,
             focus_ids,
+            issues,
+        )
+
+    for artifact in design_proposals:
+        if artifact.data is None:
+            continue
+        _validate_design_proposal_references(
+            project_root,
+            artifact,
+            set(work_item_map),
+            evidence_ids,
+            set(design_proposal_map),
             issues,
         )
 
@@ -256,6 +311,22 @@ def _discover_workstream_files(workstreams_dir: Path) -> list[Path]:
         if not bucket_dir.exists():
             continue
         files.extend(sorted(bucket_dir.glob("WS-*.md")))
+    return files
+
+
+def _discover_design_proposal_files(proposals_dir: Path) -> list[Path]:
+    if not proposals_dir.exists():
+        return []
+
+    files: list[Path] = []
+    for path in sorted(proposals_dir.glob("**/*.md")):
+        if path.name == "README.md":
+            continue
+        try:
+            if path.read_text(encoding="utf-8").startswith("---\n"):
+                files.append(path)
+        except OSError:
+            files.append(path)
     return files
 
 
@@ -746,6 +817,292 @@ def _workstream_bucket(project_root: Path, path: Path) -> str | None:
     if bucket not in WORKSTREAM_BUCKETS:
         return None
     return bucket
+
+
+def _validate_design_proposal_schema(
+    project_root: Path,
+    artifact: _ParsedArtifact,
+    issues: list[ValidationIssue],
+) -> None:
+    data = artifact.data or {}
+    _require_fields(project_root, artifact.path, data, {"id", "status"}, issues)
+    _validate_design_proposal_type(project_root, artifact, issues)
+    _validate_enum(
+        project_root,
+        artifact.path,
+        data,
+        "status",
+        DESIGN_PROPOSAL_STATUS,
+        "DESIGN_PROPOSAL_STATUS_INVALID",
+        issues,
+    )
+    _validate_enum(
+        project_root,
+        artifact.path,
+        data,
+        "implementation_status",
+        DESIGN_PROPOSAL_IMPLEMENTATION_STATUS,
+        "DESIGN_PROPOSAL_IMPLEMENTATION_STATUS_INVALID",
+        issues,
+    )
+
+    for field in sorted(DESIGN_PROPOSAL_LIST_FIELDS):
+        if field in data and not isinstance(data[field], list):
+            issues.append(
+                _issue(
+                    project_root,
+                    artifact.path,
+                    "error",
+                    "DESIGN_PROPOSAL_LIST_FIELD_INVALID",
+                    f"{field} must be a list",
+                )
+            )
+
+    superseded_by = data.get("superseded_by")
+    if superseded_by is not None and not isinstance(superseded_by, str):
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "error",
+                "DESIGN_PROPOSAL_SUPERSEDED_BY_INVALID",
+                "superseded_by must be a string or null",
+            )
+        )
+
+    if data.get("status") == "accepted":
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "warning",
+                "DESIGN_PROPOSAL_LEGACY_ACCEPTED_STATUS",
+                "accepted is a legacy spelling; prefer status 'adopted'",
+            )
+        )
+
+    status = _canonical_design_proposal_status(data.get("status"))
+    if status == "adopted" and "implementation_status" not in data:
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "warning",
+                "DESIGN_PROPOSAL_IMPLEMENTATION_STATUS_MISSING",
+                "adopted design proposal is missing implementation_status",
+            )
+        )
+    if data.get("implementation_status") == "implemented":
+        implemented_by = data.get("implemented_by")
+        evidence = data.get("evidence")
+        if not implemented_by and not evidence:
+            issues.append(
+                _issue(
+                    project_root,
+                    artifact.path,
+                    "warning",
+                    "DESIGN_PROPOSAL_IMPLEMENTED_TRACEABILITY_MISSING",
+                    (
+                        "implemented design proposal has no implemented_by "
+                        "or evidence links"
+                    ),
+                )
+            )
+    if status == "superseded" and not data.get("superseded_by"):
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "warning",
+                "DESIGN_PROPOSAL_SUPERSEDED_BY_MISSING",
+                "superseded design proposal is missing superseded_by",
+            )
+        )
+
+    _validate_design_proposal_bucket_status(project_root, artifact, issues)
+
+
+def _validate_design_proposal_type(
+    project_root: Path,
+    artifact: _ParsedArtifact,
+    issues: list[ValidationIssue],
+) -> None:
+    data = artifact.data or {}
+    artifact_type = data.get("type")
+    kind = data.get("kind")
+
+    if artifact_type is None and kind is None:
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "error",
+                "DESIGN_PROPOSAL_TYPE_MISSING",
+                (
+                    "design proposal must declare type: design_proposal "
+                    "or kind: design_proposal"
+                ),
+            )
+        )
+        return
+
+    if artifact_type is not None and artifact_type != "design_proposal":
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "error",
+                "DESIGN_PROPOSAL_TYPE_INVALID",
+                "type must be design_proposal when present",
+            )
+        )
+    if kind is not None and kind != "design_proposal":
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "error",
+                "DESIGN_PROPOSAL_KIND_INVALID",
+                "kind must be design_proposal when present",
+            )
+        )
+    if artifact_type is not None and kind is not None and artifact_type != kind:
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "error",
+                "DESIGN_PROPOSAL_TYPE_KIND_CONFLICT",
+                "type and kind must agree when both are present",
+            )
+        )
+
+
+def _validate_design_proposal_bucket_status(
+    project_root: Path,
+    artifact: _ParsedArtifact,
+    issues: list[ValidationIssue],
+) -> None:
+    data = artifact.data or {}
+    status = _canonical_design_proposal_status(data.get("status"))
+    if status not in DESIGN_PROPOSAL_CANONICAL_STATUS:
+        return
+
+    bucket = _design_proposal_bucket(project_root, artifact.path)
+    if bucket is None:
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "warning",
+                "DESIGN_PROPOSAL_UNBUCKETED",
+                (
+                    "design proposal is not under a lifecycle bucket "
+                    f"for status '{status}'"
+                ),
+            )
+        )
+        return
+    if bucket != status:
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "warning",
+                "DESIGN_PROPOSAL_BUCKET_STATUS_MISMATCH",
+                f"design proposal status '{status}' does not match bucket '{bucket}'",
+            )
+        )
+
+
+def _design_proposal_bucket(project_root: Path, path: Path) -> str | None:
+    try:
+        relative_parts = path.relative_to(project_root / "design" / "proposals").parts
+    except ValueError:
+        return None
+    if not relative_parts:
+        return None
+    bucket = relative_parts[0]
+    if bucket not in DESIGN_PROPOSAL_BUCKETS:
+        return None
+    return bucket
+
+
+def _canonical_design_proposal_status(value: Any) -> str | None:
+    if value == "accepted":
+        return "adopted"
+    if isinstance(value, str):
+        return value
+    return None
+
+
+def _validate_design_proposal_references(
+    project_root: Path,
+    artifact: _ParsedArtifact,
+    work_item_ids: set[str],
+    evidence_ids: set[str],
+    design_proposal_ids: set[str],
+    issues: list[ValidationIssue],
+) -> None:
+    data = artifact.data or {}
+    _validate_relation_field(
+        project_root,
+        artifact.path,
+        data,
+        "implemented_by",
+        work_item_ids,
+        "UNKNOWN_DESIGN_PROPOSAL_WORK_ITEM",
+        issues,
+    )
+    _validate_relation_field(
+        project_root,
+        artifact.path,
+        data,
+        "evidence",
+        evidence_ids,
+        "UNKNOWN_DESIGN_PROPOSAL_EVIDENCE",
+        issues,
+    )
+    _validate_relation_field(
+        project_root,
+        artifact.path,
+        data,
+        "supersedes",
+        design_proposal_ids,
+        "UNKNOWN_DESIGN_PROPOSAL_SUPERSEDES",
+        issues,
+    )
+
+    superseded_by = data.get("superseded_by")
+    if isinstance(superseded_by, str) and superseded_by not in design_proposal_ids:
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "error",
+                "UNKNOWN_DESIGN_PROPOSAL_SUPERSEDED_BY",
+                f"superseded_by references unknown id '{superseded_by}'",
+            )
+        )
+
+
+def _collect_evidence_ids(
+    project_root: Path,
+    issues: list[ValidationIssue],
+) -> set[str]:
+    evidence_ids: set[str] = set()
+    evidence_dir = project_root / "evidence"
+    if not evidence_dir.exists():
+        return evidence_ids
+
+    for path in sorted(evidence_dir.glob("**/*.md")):
+        data = _parse_markdown_frontmatter(project_root, path, issues)
+        if data is None:
+            continue
+        evidence_id = data.get("id")
+        if isinstance(evidence_id, str):
+            evidence_ids.add(evidence_id)
+    return evidence_ids
 
 
 def _validate_work_item_schema(

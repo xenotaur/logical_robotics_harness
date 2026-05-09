@@ -5,7 +5,14 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from lrh.control.models import Contributor, Focus, ProjectState, WorkItem, Workstream
+from lrh.control.models import (
+    Contributor,
+    DesignProposal,
+    Focus,
+    ProjectState,
+    WorkItem,
+    Workstream,
+)
 from lrh.control.parser import ParsedMarkdown, parse_markdown_file
 
 
@@ -33,6 +40,11 @@ def load_project(root: Path) -> ProjectState:
     workstreams = load_workstreams(project_dir)
     workstreams_by_id = _index_by_id(workstreams, artifact_label="workstream")
 
+    design_proposals = load_design_proposals(project_dir)
+    design_proposals_by_id = _index_by_id(
+        design_proposals, artifact_label="design proposal"
+    )
+
     contributors = _load_contributors(project_dir / "contributors")
     contributors_by_id = _index_by_id(contributors, artifact_label="contributor")
 
@@ -43,6 +55,8 @@ def load_project(root: Path) -> ProjectState:
         work_items_by_id=work_items_by_id,
         workstreams=workstreams,
         workstreams_by_id=workstreams_by_id,
+        design_proposals=design_proposals,
+        design_proposals_by_id=design_proposals_by_id,
         contributors=contributors,
         contributors_by_id=contributors_by_id,
     )
@@ -53,6 +67,13 @@ def load_workstreams(root: Path) -> tuple[Workstream, ...]:
 
     project_dir = find_project_dir(root)
     return _load_workstreams(project_dir / "workstreams")
+
+
+def load_design_proposals(root: Path) -> tuple[DesignProposal, ...]:
+    """Load design proposals from a project or repository root."""
+
+    project_dir = find_project_dir(root)
+    return _load_design_proposals(project_dir / "design" / "proposals")
 
 
 def _load_focus(path: Path) -> Focus:
@@ -173,6 +194,47 @@ def _workstream_bucket(path: Path, workstreams_dir: Path) -> str | None:
     if not relative_parts:
         return None
     return relative_parts[0]
+
+
+def _load_design_proposals(directory: Path) -> tuple[DesignProposal, ...]:
+    if not directory.exists():
+        return ()
+
+    proposals: list[DesignProposal] = []
+    for path in sorted(directory.glob("**/*.md")):
+        if _is_ignored_design_proposal_file(path):
+            continue
+        parsed = parse_markdown_file(path)
+        fm = parsed.frontmatter
+        if not _is_design_proposal_frontmatter(fm):
+            continue
+        proposals.append(
+            DesignProposal(
+                path=path,
+                id=_required_str(fm, "id", path),
+                title=_optional_str(fm, "title") or _optional_str(fm, "summary"),
+                status=_required_str(fm, "status", path),
+                implementation_status=_optional_str(fm, "implementation_status"),
+                implemented_by=_list_of_strings(fm, "implemented_by"),
+                evidence=_list_of_strings(fm, "evidence"),
+                supersedes=_list_of_strings(fm, "supersedes"),
+                superseded_by=_optional_str(fm, "superseded_by"),
+                body=parsed.body,
+                frontmatter=fm,
+            )
+        )
+    return tuple(proposals)
+
+
+def _is_ignored_design_proposal_file(path: Path) -> bool:
+    return path.name == "README.md"
+
+
+def _is_design_proposal_frontmatter(frontmatter: dict[str, Any]) -> bool:
+    return (
+        frontmatter.get("type") == "design_proposal"
+        or frontmatter.get("kind") == "design_proposal"
+    )
 
 
 def _load_contributors(directory: Path) -> tuple[Contributor, ...]:

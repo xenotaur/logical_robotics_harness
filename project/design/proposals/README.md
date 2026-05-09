@@ -121,6 +121,7 @@ applicable, repository-as-control-plane).
 
 Proposals must reference rather than duplicate canonical documents.
 When a proposal would update `design.md` or `architecture.md`, it
-states the diff in narrative form; the actual document edits land
-when the proposal is adopted, in a follow-on changeset that flips
-`status:` to `adopted` where lifecycle-aware conventions apply.
+states the diff in narrative form. Canonical document edits may land in
+the same changeset that adopts the proposal, or later when
+implementation work begins. The proposal `status:` remains the
+authoritative decision lifecycle signal.

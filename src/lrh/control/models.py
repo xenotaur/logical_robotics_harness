@@ -12,7 +12,7 @@ class Focus:
 
     path: Path
     id: str
-    title: str | None
+    title: str
     status: str
     priority: str | None
     owner: str | None
@@ -55,7 +55,7 @@ class Workstream:
     path: Path
     id: str
     kind: str
-    title: str | None
+    title: str
     status: str
     stage: str
     bucket: str | None = None

@@ -181,7 +181,12 @@ def validate_project(
     design_proposal_files = _discover_design_proposal_files(
         project_root / "design" / "proposals"
     )
-    design_proposals = _parse_many(project_root, design_proposal_files, issues)
+    design_proposal_documents = _parse_many(project_root, design_proposal_files, issues)
+    design_proposals = [
+        artifact
+        for artifact in design_proposal_documents
+        if _is_design_proposal_artifact(artifact)
+    ]
     design_proposal_map: dict[str, _ParsedArtifact] = {}
     for artifact in design_proposals:
         if artifact.data is None:
@@ -318,16 +323,20 @@ def _discover_design_proposal_files(proposals_dir: Path) -> list[Path]:
     if not proposals_dir.exists():
         return []
 
-    files: list[Path] = []
-    for path in sorted(proposals_dir.glob("**/*.md")):
-        if path.name == "README.md":
-            continue
-        try:
-            if path.read_text(encoding="utf-8").startswith("---\n"):
-                files.append(path)
-        except OSError:
-            files.append(path)
-    return files
+    return [
+        path
+        for path in sorted(proposals_dir.glob("**/*.md"))
+        if path.name != "README.md"
+    ]
+
+
+def _is_design_proposal_artifact(artifact: _ParsedArtifact) -> bool:
+    data = artifact.data
+    if data is None:
+        return False
+    return (
+        data.get("type") == "design_proposal" or data.get("kind") == "design_proposal"
+    )
 
 
 def _parse_many(

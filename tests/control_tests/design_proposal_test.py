@@ -98,6 +98,32 @@ superseded_by: null
                 _warning_codes(report),
             )
 
+    def test_untyped_frontmatter_doc_under_proposals_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = _write_project_scaffold(Path(tmp_dir))
+            _write_design_proposal(
+                root,
+                "proposed/DP-TYPED.md",
+                _proposal_frontmatter(proposal_id="DP-TYPED"),
+            )
+            _write_design_proposal(
+                root,
+                "notes/companion.md",
+                """---
+id: AUX-NOTE
+title: Companion notes
+status: draft
+---
+
+# Companion notes
+""",
+            )
+
+            report = validate_project(root / "project")
+
+            self.assertNotIn("DESIGN_PROPOSAL_TYPE_MISSING", _error_codes(report))
+            self.assertNotIn("DESIGN_PROPOSAL_STATUS_INVALID", _error_codes(report))
+
     def test_invalid_status_is_error(self) -> None:
         report = _validate_single_proposal(
             _proposal_frontmatter(proposal_id="DP-BAD", status="done")

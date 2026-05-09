@@ -93,7 +93,7 @@ def plan_organization(project_root: Path) -> OrganizationPlan:
         assert isinstance(status, str)
         bucket = STATUS_BUCKETS[status]
 
-        target = proposals_dir / bucket / path.name
+        target = proposals_dir / bucket / _proposal_relative_path(path, proposals_dir)
         blocking_errors: list[str] = []
         if target in planned_targets and target != path:
             blocking_errors.append(
@@ -180,6 +180,13 @@ def _relative_path(plan: OrganizationPlan, path: Path) -> Path:
         return path.resolve().relative_to(plan.project_root)
     except ValueError:
         return path
+
+
+def _proposal_relative_path(path: Path, proposals_dir: Path) -> Path:
+    relative = path.relative_to(proposals_dir)
+    if relative.parts and relative.parts[0] in STATUS_BUCKETS.values():
+        return Path(*relative.parts[1:])
+    return relative
 
 
 def _project_dir(root: Path) -> Path:

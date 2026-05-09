@@ -34,15 +34,46 @@ class DesignProposalOrganizeTest(unittest.TestCase):
             self.assertTrue(target.exists())
             self.assertIn("status: rejected", target.read_text(encoding="utf-8"))
 
-    def test_accepted_maps_to_adopted_bucket_without_rewriting_metadata(self) -> None:
+    def test_apply_preserves_proposal_set_relative_path(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            _write_proposal(root, "DP-0004-example.md", "accepted")
+            source = _write_proposal(root, "example-set/00_proposal.md", "proposed")
 
             plan = design_organize.plan_organization(root)
             design_organize.apply_plan(plan)
 
-            target = root / "project/design/proposals/adopted/DP-0004-example.md"
+            target = (
+                root / "project/design/proposals/proposed/example-set/00_proposal.md"
+            )
+            self.assertFalse(source.exists())
+            self.assertTrue(target.exists())
+
+    def test_same_filenames_in_distinct_sets_do_not_collide(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _write_proposal(root, "alpha/00_proposal.md", "proposed", "DP-ALPHA")
+            _write_proposal(root, "beta/00_proposal.md", "proposed", "DP-BETA")
+
+            plan = design_organize.plan_organization(root)
+            report = design_organize.build_text_report(plan)
+
+            self.assertNotIn("Blocked:", report)
+            self.assertIn(
+                "project/design/proposals/proposed/alpha/00_proposal.md", report
+            )
+            self.assertIn(
+                "project/design/proposals/proposed/beta/00_proposal.md", report
+            )
+
+    def test_accepted_maps_to_adopted_bucket_without_rewriting_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _write_proposal(root, "compat/DP-0004-example.md", "accepted")
+
+            plan = design_organize.plan_organization(root)
+            design_organize.apply_plan(plan)
+
+            target = root / "project/design/proposals/adopted/compat/DP-0004-example.md"
             self.assertTrue(target.exists())
             self.assertIn("status: accepted", target.read_text(encoding="utf-8"))
 
@@ -56,11 +87,28 @@ class DesignProposalOrganizeTest(unittest.TestCase):
 
             self.assertEqual(report, "Design proposals already organized.")
 
+    def test_rebucket_strips_existing_lifecycle_bucket(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            source = _write_proposal(
+                root, "proposed/example-set/DP-0005-example.md", "rejected"
+            )
+
+            plan = design_organize.plan_organization(root)
+            design_organize.apply_plan(plan)
+
+            target = (
+                root
+                / "project/design/proposals/rejected/example-set/DP-0005-example.md"
+            )
+            self.assertFalse(source.exists())
+            self.assertTrue(target.exists())
+
     def test_collision_refuses_overwrite(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            _write_proposal(root, "DP-0006-example.md", "adopted")
-            _write_proposal(root, "adopted/DP-0006-example.md", "adopted")
+            _write_proposal(root, "collide/DP-0006-example.md", "adopted")
+            _write_proposal(root, "adopted/collide/DP-0006-example.md", "adopted")
 
             plan = design_organize.plan_organization(root)
             report = design_organize.build_text_report(plan)
@@ -116,11 +164,15 @@ class DesignProposalOrganizeTest(unittest.TestCase):
 
 
 def _write_proposal(
-    root: pathlib.Path, relative_path: str, status: str
+    root: pathlib.Path,
+    relative_path: str,
+    status: str,
+    proposal_id: str | None = None,
 ) -> pathlib.Path:
     path = root / "project/design/proposals" / relative_path
     path.parent.mkdir(parents=True, exist_ok=True)
-    proposal_id = pathlib.Path(relative_path).stem
+    if proposal_id is None:
+        proposal_id = pathlib.Path(relative_path).stem
     path.write_text(
         f"---\nid: {proposal_id}\ntype: design_proposal\nstatus: {status}\n---\n\n"
         f"# {proposal_id}\n",

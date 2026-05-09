@@ -128,9 +128,11 @@ lrh design organize
 lrh design organize --apply
 ```
 
-The organizer preserves filenames, treats legacy `accepted` as equivalent to the
+The organizer preserves filenames and proposal-set relative paths under the
+derived lifecycle bucket, treats legacy `accepted` as equivalent to the
 `adopted/` bucket, skips README/index and non-proposal Markdown files, and
-refuses unsafe overwrites.
+refuses unsafe overwrites. Plain `index.md` files are ignored by both validation
+and organization.
 
 ## Proposal-set conventions
 

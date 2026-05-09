@@ -69,7 +69,8 @@ lrh design organize --apply
 ```
 
 Proposal frontmatter `status` is authoritative; path buckets under
-`project/design/proposals/` are derived for human readability.
+`project/design/proposals/` are derived for human readability, while
+proposal-set relative paths are preserved within those buckets.
 
 ## User installation
 

@@ -124,6 +124,22 @@ status: draft
             self.assertNotIn("DESIGN_PROPOSAL_TYPE_MISSING", _error_codes(report))
             self.assertNotIn("DESIGN_PROPOSAL_STATUS_INVALID", _error_codes(report))
 
+    def test_index_file_under_proposals_is_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = _write_project_scaffold(Path(tmp_dir))
+            _write_design_proposal(
+                root,
+                "proposed/DP-TYPED.md",
+                _proposal_frontmatter(proposal_id="DP-TYPED"),
+            )
+            _write_design_proposal(root, "proposed/index.md", "# Plain index\n")
+
+            proposals = load_design_proposals(root)
+            report = validate_project(root / "project")
+
+            self.assertEqual(len(proposals), 1)
+            self.assertNotIn("MISSING_FRONTMATTER", _error_codes(report))
+
     def test_invalid_status_is_error(self) -> None:
         report = _validate_single_proposal(
             _proposal_frontmatter(proposal_id="DP-BAD", status="done")

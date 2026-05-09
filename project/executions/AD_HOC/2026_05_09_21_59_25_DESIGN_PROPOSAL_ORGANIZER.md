@@ -18,9 +18,11 @@ files into lifecycle buckets derived from authoritative frontmatter `status`.
 
 Implemented `lrh design organize` and `lrh design organize --apply` with dry-run
 planning by default, `accepted` to `adopted/` compatibility, deterministic text
-output, skipped invalid/non-proposal files, and collision refusal. Updated design
-proposal and top-level CLI documentation. Added unit and CLI coverage for the
-new command behavior.
+output, skipped invalid/non-proposal files, and collision refusal. Review feedback
+was addressed by preserving proposal-set relative paths under lifecycle buckets
+and aligning design-proposal index-file ignore behavior across the organizer,
+loader, and validator. Updated design proposal and top-level CLI documentation.
+Added unit and CLI coverage for the new command behavior.
 
 # Validation
 
@@ -28,16 +30,18 @@ new command behavior.
   were available, while pylint and conda were not installed in this environment.
 - `python -m unittest tests.design_tests.organize_test tests.cli_tests.design_test`
   passed.
-- `scripts/test` passed.
+- `scripts/format --check --diff` passed during review-response validation.
 - `scripts/lint` passed.
-- `scripts/format --check` passed.
+- `scripts/test` passed.
+- `scripts/format --check` passed during initial validation.
 - `lrh validate` passed with existing design-proposal lifecycle warnings.
-- `lrh design organize` completed as a dry run and reported proposed moves plus
-  filename collision blocks in the repository's current proposal-set layout.
+- `lrh design organize` completed as a dry run and reported proposed moves that
+  preserve proposal-set relative paths with no collision blocks in the repository's
+  current proposal-set layout.
 
 # Follow-up
 
 No immediate follow-up required for the command. Existing repository proposal
-sets still contain unbucketed documents and duplicate filenames such as
-`00_proposal.md`, so applying the organizer to this repository's own project tree
-will require a separate content/layout migration decision.
+sets still contain unbucketed documents, so applying the organizer to this
+repository's own project tree remains a separate content/layout migration
+decision.

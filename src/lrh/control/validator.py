@@ -326,7 +326,7 @@ def _discover_design_proposal_files(proposals_dir: Path) -> list[Path]:
     return [
         path
         for path in sorted(proposals_dir.glob("**/*.md"))
-        if path.name != "README.md"
+        if path.name not in {"README.md", "index.md"}
     ]
 
 

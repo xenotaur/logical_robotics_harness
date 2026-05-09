@@ -116,9 +116,21 @@ is still accepted as a legacy spelling and is treated as equivalent to
 traceable through `implemented_by` work-item IDs and/or `evidence` IDs.
 
 Frontmatter `status` is authoritative. Lifecycle bucket directories
-(`proposed/`, `adopted/`, `rejected/`, and `superseded/`) are optional during
-migration, but unbucketed proposal files and bucket/status mismatches are
-reported as warnings by `lrh validate`.
+(`proposed/`, `adopted/`, `rejected/`, and `superseded/`) are derived
+human-readable organization aids. Unbucketed proposal files and bucket/status
+mismatches are reported as warnings by `lrh validate`.
+
+Use the organizer to preview or apply lifecycle bucket moves without modifying
+proposal contents:
+
+```bash
+lrh design organize
+lrh design organize --apply
+```
+
+The organizer preserves filenames, treats legacy `accepted` as equivalent to the
+`adopted/` bucket, skips README/index and non-proposal Markdown files, and
+refuses unsafe overwrites.
 
 ## Proposal-set conventions
 

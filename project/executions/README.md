@@ -1,6 +1,8 @@
 # Execution Records
 
-Execution records provide lightweight traceability for meaningful prompt-driven work.
+Execution records provide lightweight traceability for meaningful prompt-driven
+work. They record which prompt ran, the associated work item or `AD_HOC`
+bucket, current status, and concise evidence or follow-up notes from the run.
 
 ## Directory layout
 
@@ -65,9 +67,17 @@ Examples:
 ```bash
 lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .
 lrh match executions prompts/my_prompt.md --project-root .
+lrh search executions "PROMPT_EXECUTION_SEARCH" --project-root .
 lrh search executions "release smoke" --project-root .
-lrh search executions "PROMPT(" --status planned --work-item AD_HOC --project-root .
+lrh search executions "AD_HOC" --project-root .
+lrh search executions "PROMPT(" --status landed --work-item AD_HOC --project-root .
 ```
+
+For recent-prompt dogfooding, first run the exact `prompt_id` lookup. Then use
+`lrh match executions <prompt-file>` if the prompt was saved to a file, and use
+`lrh search executions "<distinctive prompt text>"` only for surrounding context
+such as related validation notes, failed attempts, or other `AD_HOC` records.
+Exploratory search results are not authoritative soft-idempotence evidence.
 
 If future heuristic or fuzzy matching is added, it must be clearly labeled
 non-authoritative unless later design work explicitly changes this rule.

@@ -1,6 +1,6 @@
 # Prompt Execution Search and Match Proposal
 
-Status: `proposed`
+Status: command surface implemented; proposal retained as design context.
 
 Reading order:
 
@@ -11,10 +11,12 @@ Reading order:
 
 This proposal was originally design-only. The command surface is now
 implemented and preserves `lrh prompt check-execution` as the
-authoritative exact-match primitive for prompt soft idempotence and layers
+authoritative exact-match primitive for prompt soft idempotence. It layers
 `lrh match executions` and `lrh search executions` on package-owned modules
 with the same evidence hierarchy: exact lookup is authoritative, prompt-file
-matching delegates exact lookup, and search remains exploratory.
+matching delegates exact lookup, and search remains exploratory. Use
+`PROMPTS.md` and `project/executions/README.md` for current user-facing
+workflow guidance.
 
 ## Canonical-document touchpoints
 

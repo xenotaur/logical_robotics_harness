@@ -75,8 +75,9 @@ direction; implementation deferred).
 [`prompt-execution-search-and-match/`](prompt-execution-search-and-match/)
 — Proposes shared execution-record parsing and query infrastructure for
 exact prompt-ID lookup, prompt-file-to-record matching, and exploratory
-execution-record search. Status: `proposed` (design-only; implementation
-deferred).
+execution-record search. Status: `implemented` command surface, retained as
+background design context for the package-owned lookup, match, and search
+workflow documented in `PROMPTS.md` and `project/executions/README.md`.
 
 ## Proposal-set conventions
 

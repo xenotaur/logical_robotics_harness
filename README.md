@@ -423,13 +423,19 @@ Helper scripts:
 - `scripts/version` (plus `tools`, `verify`, `tag`, `push` subcommands for release workflow checks)
 
 Execution records are stored under `project/executions/` and may be grouped by
-work item or `AD_HOC`. Use the prompt lookup commands by role:
+work item or `AD_HOC`. They provide a lightweight, reviewable audit trail for
+meaningful prompt-driven work: which prompt ran, what status it reached, and
+what evidence or follow-up notes were captured.
+
+Use the prompt lookup commands by role:
 
 ```bash
 lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .
 lrh match executions prompts/my_prompt.md --project-root .
+lrh search executions "PROMPT_EXECUTION_SEARCH" --project-root .
 lrh search executions "release smoke" --project-root .
-lrh search executions "PROMPT(" --status planned --work-item AD_HOC --project-root .
+lrh search executions "AD_HOC" --project-root .
+lrh search executions "PROMPT(" --status landed --work-item AD_HOC --project-root .
 ```
 
 Use `lrh prompt check-execution --prompt-id <PROMPT_ID>` before prompt-driven
@@ -437,8 +443,22 @@ work to apply authoritative exact soft idempotence checks in human and agent
 workflows. If you have a prompt file rather than a copied ID, use
 `lrh match executions <prompt-file>` for exact prompt ID extraction and matching.
 Use `lrh search executions <query>` for exploratory local substring search over
-execution-record frontmatter and body text; do not use search results as
-authoritative evidence for idempotence decisions.
+execution-record frontmatter and body text during discovery, auditing, and
+debugging. Exploratory search is useful context, but exact `prompt_id` matching
+remains authoritative for rerun and soft-idempotence decisions.
+
+A practical recent-prompt dogfooding flow is:
+
+1. copy the full `PROMPT(...)` identifier into `PROMPT_ID`;
+2. run `lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .`;
+3. if working from a saved prompt file, run `lrh match executions <file>` as a
+   convenience check that extracts and exactly looks up prompt IDs;
+4. use `lrh search executions "<distinctive prompt text>" --project-root .` only
+   for surrounding context, such as finding related failed attempts, validation
+   notes, or prior `AD_HOC` records.
+
+For deeper design context, see
+`project/design/proposals/prompt-execution-search-and-match/`.
 
 ## Release workflow
 

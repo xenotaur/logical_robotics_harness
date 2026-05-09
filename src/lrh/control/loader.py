@@ -227,7 +227,7 @@ def _load_design_proposals(directory: Path) -> tuple[DesignProposal, ...]:
 
 
 def _is_ignored_design_proposal_file(path: Path) -> bool:
-    return path.name == "README.md"
+    return path.name in {"README.md", "index.md"}
 
 
 def _is_design_proposal_frontmatter(frontmatter: dict[str, Any]) -> bool:

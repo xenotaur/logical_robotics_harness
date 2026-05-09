@@ -61,6 +61,17 @@ lrh --version
 lrh version
 ```
 
+Design proposal lifecycle buckets can be previewed and applied with:
+
+```bash
+lrh design organize
+lrh design organize --apply
+```
+
+Proposal frontmatter `status` is authoritative; path buckets under
+`project/design/proposals/` are derived for human readability, while
+proposal-set relative paths are preserved within those buckets.
+
 ## User installation
 
 Once LRH is published on PyPI, the preferred normal installation path for the

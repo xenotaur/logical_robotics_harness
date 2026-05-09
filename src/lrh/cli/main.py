@@ -15,6 +15,7 @@ from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
+from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
 from lrh.work_items import organize as work_items_organize
@@ -206,6 +207,26 @@ def main() -> None:
         choices=("text", "json"),
         default="text",
         help="output format (default: text)",
+    )
+
+    design_parser = subparsers.add_parser(
+        "design",
+        help="Design artifact maintenance commands.",
+    )
+    design_subparsers = design_parser.add_subparsers(dest="design_command")
+    design_organize_parser = design_subparsers.add_parser(
+        "organize",
+        help="Organize design proposals into lifecycle buckets.",
+    )
+    design_organize_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    design_organize_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="apply planned file moves",
     )
 
     meta_parser = subparsers.add_parser(
@@ -573,6 +594,23 @@ def main() -> None:
                 print(work_items_validate.format_text(result))
             raise SystemExit(1 if result.errors else 0)
         parser.error("work-items requires a subcommand (try: lrh work-items organize)")
+
+    if args.command == "design":
+        if args.design_command == "organize":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            plan = design_organize.plan_organization(project_root=project_root)
+            if args.apply:
+                try:
+                    design_organize.apply_plan(plan)
+                except ValueError as err:
+                    print(design_organize.build_text_report(plan))
+                    print(f"error: {err}")
+                    raise SystemExit(1) from err
+            print(design_organize.build_text_report(plan, applied=args.apply))
+            raise SystemExit(0)
+        parser.error("design requires a subcommand (try: lrh design organize)")
 
     if args.command == "meta":
         if args.meta_command == "init":

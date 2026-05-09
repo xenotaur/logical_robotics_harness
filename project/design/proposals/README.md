@@ -78,6 +78,12 @@ exact prompt-ID lookup, prompt-file-to-record matching, and exploratory
 execution-record search. Status: `proposed` (design-only; implementation
 deferred).
 
+[`design-proposal-lifecycle-traceability/`](design-proposal-lifecycle-traceability/)
+— Proposes first-class design-proposal decision lifecycle metadata,
+separate implementation lifecycle metadata, and traceability to work
+items and evidence. Status: `proposed` (design-only; implementation
+deferred).
+
 ## Proposal-set conventions
 
 A proposal set directory name should be a stable, descriptive slug

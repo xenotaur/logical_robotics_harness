@@ -2,7 +2,7 @@
 execution_id: 2026_05_09_02_30_22_DOCUMENT_PROMPT_EXECUTION_SEARCH_WORKFLOW
 prompt_id: PROMPT(AD_HOC:DOCUMENT_PROMPT_EXECUTION_SEARCH_WORKFLOW)[2026-05-07T02:15:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
 commit: 
@@ -36,6 +36,7 @@ include practical examples using the implemented command grammar.
 
 # Follow-up
 
-No immediate follow-up required. Future changes that add heuristic or fuzzy
-matching should continue to label those results as non-authoritative unless a
-new accepted design changes the soft-idempotence rule.
+After this PR is merged, update this record to `landed` and fill the `pr`
+and `commit` metadata. Future changes that add heuristic or fuzzy matching
+should continue to label those results as non-authoritative unless a new
+accepted design changes the soft-idempotence rule.

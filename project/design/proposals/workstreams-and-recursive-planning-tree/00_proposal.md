@@ -248,11 +248,14 @@ Core LRH:
     e.g. lrh request codex_prompt_from_work_item WI-...
   (future: lrh request run_packet_from_work_item WI-... — proposed, not yet implemented)
 
-Agentic LRH (aspirational/proposed CLI shapes — not yet implemented):
-  may execute:
+Agentic LRH:
+  may execute in the future. The following are aspirational/proposed
+  command shapes only and are not implemented in core LRH today:
     lrh agentic run work-item WI-...
     or lrh-agentic run work-item WI-...
-  (see companion safe-default packaging proposal for authoritative command naming)
+
+  Authoritative naming should follow the companion safe-default
+  agentic extra packaging proposal before implementation.
 ```
 
 Core LRH prepares execution. Agentic LRH performs execution.

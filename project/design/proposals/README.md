@@ -16,20 +16,30 @@ and a single umbrella document. Each document carries
 `parent:` link (for sub-proposals and appendices) or no parent
 (for the umbrella document at the top of the set).
 
-Proposals are working artifacts. They become canonical only when
-their decisions are folded into `design.md`, `architecture.md`,
-`repository_spec.md`, or one of the related authoritative documents
-under `project/design/`, and the proposal's `status:` is set to
-`accepted` or `superseded`.
+Proposals are working artifacts. Lifecycle-aware proposals distinguish
+`status`, which answers whether the design decision governs the project,
+from `implementation_status`, which answers whether that governed design
+has been delivered. Implementation claims should be backed by
+`implemented_by` work items and `evidence` links.
+
+Adopted design proposals govern future work even before implementation
+lands. Their decisions may later be folded into `design.md`,
+`architecture.md`, `repository_spec.md`, or one of the related
+authoritative documents under `project/design/`.
 
 ## Lifecycle
 
 `status: proposed` — drafted but not yet adopted. The author or a
 reviewer may still substantively change the proposal.
 
-`status: accepted` — the design has been adopted. Subsequent
-changes go through new proposals or directly through edits to the
-canonical documents (with the proposal updated to reflect them).
+`status: adopted` — the design has been adopted and governs future
+implementation. Subsequent changes go through new proposals or directly
+through edits to canonical documents (with the proposal updated to
+reflect them).
+
+`status: accepted` — legacy spelling for an adopted proposal. Existing
+proposal sets may keep this status until lifecycle-aware migration work
+normalizes them.
 
 `status: superseded` — replaced by a later proposal; reference the
 replacement in the frontmatter `superseded_by:` field.
@@ -80,10 +90,12 @@ background design context for the package-owned lookup, match, and search
 workflow documented in `PROMPTS.md` and `project/executions/README.md`.
 
 [`design-proposal-lifecycle-traceability/`](design-proposal-lifecycle-traceability/)
-— Proposes first-class design-proposal decision lifecycle metadata,
+— Adopts first-class design-proposal decision lifecycle metadata,
 separate implementation lifecycle metadata, and traceability to work
-items and evidence. Status: `proposed` (design-only; implementation
-deferred).
+items and evidence. Status: `adopted`; implementation status:
+`not_started` (design-only; implementation deferred). Future work should
+be staged through parser and validation model support,
+`lrh design organize`, snapshot reporting, and dogfood migration.
 
 ## Proposal-set conventions
 
@@ -110,5 +122,5 @@ applicable, repository-as-control-plane).
 Proposals must reference rather than duplicate canonical documents.
 When a proposal would update `design.md` or `architecture.md`, it
 states the diff in narrative form; the actual document edits land
-when the proposal is accepted, in a follow-on changeset that flips
-`status:` to `accepted`.
+when the proposal is adopted, in a follow-on changeset that flips
+`status:` to `adopted` where lifecycle-aware conventions apply.

@@ -2,21 +2,25 @@
 id: PROP-DESIGN-PROPOSAL-LIFECYCLE-TRACEABILITY
 type: design_proposal
 title: Design Proposal Lifecycle and Implementation Traceability
-status: proposed
+status: adopted
+implementation_status: not_started
+implemented_by: []
+evidence: []
 created_on: 2026-05-08
-updated_on: 2026-05-08
+updated_on: 2026-05-09
 ---
 
 ## 1) Purpose
 
-Define a future LRH design direction for treating design proposals as
-first-class decision artifacts with explicit decision lifecycle metadata,
+Record the adopted LRH design direction for treating design proposals
+as first-class decision artifacts with explicit decision lifecycle metadata,
 separate implementation lifecycle metadata, and traceability to work
 items and evidence.
 
-This proposal is documentation/design only. It does not implement
-parser behavior, validation checks, organizer commands, CLI behavior, or
-snapshot reporting.
+This proposal is documentation/design only. Adoption makes it the
+governing design direction for future work; it does not implement parser
+behavior, validation checks, organizer commands, CLI behavior, or snapshot
+reporting.
 
 ## 2) Motivation
 
@@ -51,7 +55,7 @@ decision records carry explicit lifecycle states and supersession
 history, while adding LRH-specific traceability from decisions to
 implementation work and evidence-backed completion claims.
 
-## 4) Proposed canonical layout
+## 4) Target canonical layout
 
 A future organized project should use lifecycle buckets for design
 proposal files:
@@ -277,7 +281,8 @@ predate these fields.
 
 ## 10) Future tooling design
 
-Implementation should be staged in later PRs:
+This adopted design has not been implemented yet. Implementation should
+be staged in later PRs:
 
 1. Add a parser and validation model for design proposals.
 2. Add `lrh design organize` and `lrh design organize --apply`, modeled
@@ -310,8 +315,8 @@ This proposal does not:
 - move existing design proposals;
 - broadly refactor existing design documents.
 
-Follow-up PRs may update canonical design documents once this proposal
-is adopted and implementation work begins.
+Follow-up PRs may update canonical design documents once implementation
+work begins.
 
 ## 13) ID convention migration note
 

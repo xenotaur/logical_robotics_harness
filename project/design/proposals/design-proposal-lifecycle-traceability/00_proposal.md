@@ -62,9 +62,9 @@ project/design/
   proposals/
     README.md
     proposed/
-      DP-0002-...
+      PROP-EXAMPLE-0002-...
     adopted/
-      DP-0001-...
+      PROP-EXAMPLE-0001-...
     rejected/
     superseded/
 ```
@@ -97,9 +97,18 @@ Meanings:
 - `rejected`: considered and not chosen.
 - `superseded`: once governed, but replaced by another design proposal.
 
-LRH should use `adopted` as the canonical term for a governing design
-proposal. This corresponds to the common ADR concept of an accepted
-decision while avoiding ambiguity with implementation completion.
+LRH should use `adopted` as the future canonical term for a
+governing design proposal. This corresponds to the common ADR concept of
+an accepted decision while avoiding ambiguity with implementation
+completion.
+
+Migration note: LRH's current proposal README and existing proposal sets
+use `status: accepted`. During migration, tooling should treat
+`accepted` as the legacy spelling of `adopted`, emit a migration warning
+where appropriate, and avoid requiring existing documents to change in
+the same PR that introduces parser support. New lifecycle-aware
+proposal documents should prefer `adopted` once the convention is
+implemented.
 
 ## 6) Implementation lifecycle metadata
 
@@ -140,8 +149,8 @@ Supersession fields:
 
 ```yaml
 supersedes:
-  - DP-...
-superseded_by: DP-...
+  - PROP-...
+superseded_by: PROP-...
 ```
 
 Future optional fields may include `decided_on`, `decision_owner`, or
@@ -154,8 +163,8 @@ fields required.
 
 ```yaml
 ---
-id: DP-0001
-kind: design_proposal
+id: PROP-RENDER-0001
+type: design_proposal
 status: adopted
 implementation_status: implemented
 implemented_by:
@@ -176,8 +185,8 @@ and evidence supporting the implementation claim.
 
 ```yaml
 ---
-id: DP-0002
-kind: design_proposal
+id: PROP-QUEUE-0002
+type: design_proposal
 status: adopted
 implementation_status: not_started
 implemented_by: []
@@ -194,8 +203,8 @@ has landed yet.
 
 ```yaml
 ---
-id: DP-0003
-kind: design_proposal
+id: PROP-OLD-0003
+type: design_proposal
 status: superseded
 implementation_status: obsolete
 implemented_by:
@@ -203,7 +212,7 @@ implemented_by:
 evidence:
   - EV-0010
 supersedes: []
-superseded_by: DP-0004
+superseded_by: PROP-NEW-0004
 ---
 ```
 
@@ -215,8 +224,8 @@ decision.
 
 ```yaml
 ---
-id: DP-0005
-kind: design_proposal
+id: PROP-WARNING-0005
+type: design_proposal
 status: adopted
 implementation_status: implemented
 implemented_by: []
@@ -237,7 +246,7 @@ Future structural checks should include:
 - proposal Markdown files parse successfully;
 - frontmatter parses successfully;
 - each proposal has an `id`;
-- `id` follows the project DP convention;
+- `id` follows the project design-proposal convention;
 - the filename includes or starts with the ID.
 
 Future schema checks should include:
@@ -262,8 +271,9 @@ Future semantic checks should include:
   evidence-free assertion.
 
 Early migration should prefer warnings before hard errors where
-reasonable, especially for existing unbucketed proposal files and
-proposal files that predate these fields.
+reasonable, especially for existing unbucketed proposal files, proposal
+files that use the current `PROP-*` convention, and proposal files that
+predate these fields.
 
 ## 10) Future tooling design
 
@@ -302,3 +312,12 @@ This proposal does not:
 
 Follow-up PRs may update canonical design documents once this proposal
 is adopted and implementation work begins.
+
+## 13) ID convention migration note
+
+This proposal uses `PROP-*` examples because LRH's current self-hosting
+proposal documents already use that prefix. A future project may still
+choose `DP-*` or another Architecture Decision Record-style numeric
+convention for its own design proposals. Future LRH tooling should
+therefore make the design-proposal ID pattern a project convention
+rather than hard-coding either prefix globally.

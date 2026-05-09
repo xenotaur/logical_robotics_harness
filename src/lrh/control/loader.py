@@ -73,6 +73,14 @@ def load_design_proposals(root: Path) -> tuple[DesignProposal, ...]:
     """Load design proposals from a project or repository root."""
 
     project_dir = find_project_dir(root)
+    return load_design_proposals_from_project_dir(project_dir)
+
+
+def load_design_proposals_from_project_dir(
+    project_dir: Path,
+) -> tuple[DesignProposal, ...]:
+    """Load design proposals from an already resolved project directory."""
+
     return _load_design_proposals(project_dir / "design" / "proposals")
 
 

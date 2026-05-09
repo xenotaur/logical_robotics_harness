@@ -168,6 +168,27 @@ Interpretation rules:
 - Runtime invocation is narrowing-only and cannot override guardrails.
 - Memory is informative but non-authoritative for precedence resolution.
 
+## Publishing and installation target
+
+The canonical distribution and CLI target is `lrh`. Once published, the
+normal user-facing CLI installation path should be:
+
+```bash
+pipx install lrh
+```
+
+The default `lrh` package should remain non-agentic. Future autonomous
+capability should be opt-in through `lrh[agentic]` and/or a separate
+`lrh-agentic` package when that package exists. This boundary describes
+packaging and governance intent, not a security sandbox.
+
+Accepted PyPI publishing direction is Option D: tag-push publishing of
+the safe-default `lrh` package using PyPI Trusted Publishing. Follow-up
+implementation should proceed in narrow PRs for metadata/resource
+hardening, build/smoke scripts, CI smoke checks, TestPyPI rehearsal,
+Trusted Publisher configuration, PyPI tag-push workflow, documentation,
+and first release.
+
 ## Initial Python package targets
 
 The initial `src/lrh/` package should likely grow modules such as:

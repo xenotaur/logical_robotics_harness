@@ -1,0 +1,82 @@
+name: Publish release to PyPI
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: read
+
+jobs:
+  build-check-smoke:
+    name: Build, check, and smoke-test artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TAG_UNDER_TEST: ${{ github.ref_name }}
+
+    steps:
+      - name: Check out tagged source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+
+      - name: Validate release tag format
+        run: |
+          if [[ ! "$TAG_UNDER_TEST" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "ERROR: unsupported release tag format: $TAG_UNDER_TEST"
+            echo "Expected: vMAJOR.MINOR.PATCH (for example, v0.2.2)."
+            exit 1
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install build and check tooling
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]" -c constraints-dev.txt
+
+      - name: "Diagnostics: toolchain versions"
+        run: scripts/version tools
+
+      - name: Verify release tag semantics and repository checks
+        run: scripts/version verify "$TAG_UNDER_TEST"
+
+      - name: Build, check, and smoke-test installed wheel
+        run: scripts/release-smoke "$TAG_UNDER_TEST" --strict-isolation
+
+      - name: Upload checked distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pypi-release-dist-${{ github.ref_name }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 30
+
+  publish-pypi:
+    name: Publish checked artifacts to PyPI
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: build-check-smoke
+    environment:
+      name: pypi
+      url: https://pypi.org/project/lrh/
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download checked distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: pypi-release-dist-${{ github.ref_name }}
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/

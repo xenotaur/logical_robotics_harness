@@ -3,9 +3,9 @@ requires = ["setuptools>=68", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "logical-robotics-harness"
+name = "lrh"
 dynamic = ["version"]
-description = "Seed repository for Logical Robotics Harness"
+description = "Structured, evidence-backed project control-plane harness"
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
@@ -13,7 +13,22 @@ license-files = ["LICENSE"]
 authors = [
   {name = "Anthony Francis"}
 ]
+keywords = ["agent-assist", "control-plane", "project-management", "workflow"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development",
+]
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/xenotaur/logical_robotics_harness"
+Issues = "https://github.com/xenotaur/logical_robotics_harness/issues"
 
 [project.optional-dependencies]
 completion = [
@@ -25,6 +40,7 @@ dev = [
   "build",
   "coverage",
   "ruff",
+  "twine",
   "PyYAML",
 ]
 
@@ -41,7 +57,11 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "lrh.assist" = ["templates/*.md", "templates/*/*.md", "templates/**/*.md"]
-"lrh" = ["templates/*.md", "templates/*/*.md", "templates/**/*.md"]
+"lrh" = [
+  "templates/project_bootstrap/*.md",
+  "templates/project_bootstrap/*/*.md",
+  "templates/project_bootstrap/**/*.md",
+]
 
 
 [tool.setuptools_scm]

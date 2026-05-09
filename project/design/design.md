@@ -134,6 +134,26 @@ A typical LRH project evolves through stages:
 
 This process is **iterative**, not strictly linear.
 
+### Accepted packaging and PyPI publishing direction
+
+LRH's accepted publishing direction is to keep `lrh` as the
+safe-default user-facing distribution and CLI target. Once published,
+`pipx install lrh` is the intended normal installation path for CLI
+users, while `pip install lrh` remains appropriate for library, CI, and
+development contexts. The default `lrh` package should remain
+non-agentic; future autonomous capability must stay explicit through
+`lrh[agentic]` and/or a separate `lrh-agentic` distribution when that
+package exists.
+
+Accepted release architecture is Option D from
+`project/design/proposals/tag-push-pypi-publishing/`: version-tag push
+publishing of the safe-default `lrh` package using PyPI Trusted
+Publishing. Implementation should proceed through narrow, evidence-backed
+PRs: metadata/resource hardening, build/smoke scripts, CI smoke checks,
+TestPyPI rehearsal, Trusted Publisher configuration, PyPI tag-push
+workflow, user and maintainer docs, then first release. Package
+boundaries are packaging/governance boundaries, not a security sandbox.
+
 ### Prompt-driven execution traceability
 
 For meaningful prompt-driven work, LRH uses prompt IDs and execution records as lightweight workflow metadata.
@@ -142,6 +162,14 @@ For meaningful prompt-driven work, LRH uses prompt IDs and execution records as 
 - Execution records are stored under `project/executions/` per `project/executions/README.md`.
 - Before starting prompt-driven implementation, contributors should apply soft idempotence checks against prior executions for the same prompt ID.
 - Prompt workflow records should remain lightweight and should not replace normal project artifacts such as roadmap, focus, work items, evidence, and status.
+
+### Workstreams and planning nodes
+
+Workstreams are first-class, user-facing planning records under `project/workstreams/`. The normal
+user vocabulary is `Project -> Workstream -> Work Item`; internally, workstreams are planning nodes
+and work items remain executable leaves. Workstream metadata/frontmatter is authoritative, while
+bucket directory placement is a navigational projection. The documentation-level Workstream Schema
+MVP is defined in `project/design/workstream_schema_mvp.md`.
 
 ### Large-work lifecycle principle
 

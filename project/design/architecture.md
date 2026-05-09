@@ -41,6 +41,21 @@ A runtime environment may provide:
 - build/test tools
 - sandboxing and approval controls
 
+## Package and distribution boundary
+
+The canonical user-facing distribution and CLI target is `lrh`. The
+default distribution should be safe-default and non-agentic so normal CLI
+users can install LRH with `pipx install lrh` once PyPI publishing is
+available. Future agentic capability should remain explicit through
+`lrh[agentic]` and/or a separate `lrh-agentic` distribution when that
+package exists.
+
+This package split direction is a packaging and governance boundary, not
+a runtime security sandbox claim. The accepted release architecture is
+tag-push publishing of the safe-default `lrh` package via PyPI Trusted
+Publishing, with TestPyPI rehearsal and installed-package smoke evidence
+introduced through follow-on implementation PRs.
+
 ## Four-plane model
 
 The project control model is:

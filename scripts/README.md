@@ -55,18 +55,19 @@ scripts/release-smoke <tag> --diagnose --preserve
 **Checks:**
 - runs `scripts/clean`
 - runs `scripts/build`
+- checks built `dist/` artifacts with `twine check`
 - installs exactly one wheel from `dist/`
 - validates installed `lrh --version`
-- validates installed `lrh snapshot --help`
+- validates installed CLI help for `lrh`, `lrh validate`, `lrh request`, `lrh snapshot`, and `lrh survey`
 
-By default, `release-smoke` validates installed-wheel behavior and only warns if `logical-robotics-harness` or import package `lrh` is visible in the temporary venv before the wheel is installed. Smoke-venv commands run with `PYTHONPATH` cleared so the wrapper's source-checkout import path does not contaminate installed-wheel or strict-isolation checks. This keeps local development usable while still surfacing isolation concerns. Use `--strict-isolation` to upgrade that pre-install visibility warning into a hard failure before the wheel install step.
+By default, `release-smoke` validates installed-wheel behavior and only warns if distribution `lrh` or import package `lrh` is visible in the temporary venv before the wheel is installed. Smoke-venv commands run with `PYTHONPATH` cleared so the wrapper's source-checkout import path does not contaminate installed-wheel or strict-isolation checks. This keeps local development usable while still surfacing isolation concerns. Use `--strict-isolation` to upgrade that pre-install visibility warning into a hard failure before the wheel install step.
 
 Use `--diagnose` (for example, `scripts/release-smoke <tag> --diagnose`) to print pre-install temporary-venv isolation diagnostics when investigating package-visibility warnings. Use `--diagnose --preserve` together (for example, `scripts/release-smoke <tag> --diagnose --preserve`) to print diagnostics and inspect the temporary environment after the script exits. Diagnostic mode does not change default pass/fail behavior.
 
 Use `scripts/sandbox` for HOME/XDG workspace isolation. Use `scripts/release-smoke` for installed-wheel release validation.
 
 #### `publish`
-Publishes the LRH package to PyPI using twine.
+Legacy local publish entry point. Production PyPI publishing is handled by the tag-push GitHub Actions workflow `.github/workflows/release.yml` using Trusted Publishing/OIDC, not by maintainer-held PyPI API tokens.
 
 ```bash
 scripts/publish
@@ -76,7 +77,7 @@ scripts/publish
 - `pip install twine`
 - Must run `scripts/build` first
 
-**Note:** Currently disabled for safety until LRH is more thoroughly tested.
+**Note:** Currently disabled for safety; use the documented tag-push release workflow instead.
 
 ### Development
 
@@ -421,9 +422,7 @@ scripts/coverage   # Check coverage
 
 ### Build & Release Workflow
 ```bash
-scripts/clean      # Clean previous builds
-scripts/build      # Build distribution
-scripts/publish    # Publish to PyPI (when enabled)
+scripts/release-smoke  # Clean, build, check, and smoke-test release artifacts
 ```
 
 ### Environment Management
@@ -439,13 +438,15 @@ scripts/version    # Check installed tool versions
 - Scripts use `set -x` for verbose output during execution
 - Scripts with `set -euo pipefail` will exit on any error
 - The publish script is currently disabled as a safety measure during development
+- TestPyPI rehearsal publishing is handled by the manual GitHub Actions workflow `.github/workflows/testpypi-rehearsal.yml`; it uses Trusted Publishing/OIDC and is not the normal user install path
+- Production PyPI publishing is handled by `.github/workflows/release.yml` on `vMAJOR.MINOR.PATCH` tag push after release smoke validation passes
 
 ## Dependencies
 
 Make sure you have the following tools installed for full functionality:
 
 - **Build:** Installed by `scripts/develop` as part of the dev extra
-- **Publish:** `pip install twine` 
+- **Publish:** Production publishing uses PyPI Trusted Publishing/OIDC through GitHub Actions; local `twine` publishing remains disabled by default
 - **Format/Lint:** Installed by `scripts/develop` (includes Black and Ruff)
 - **Coverage:** Installed by `scripts/develop` as part of the dev extra
 - **Environment:** conda (for environment export)

@@ -56,13 +56,34 @@ a Pass-B worked-example appendix (`WS-LCATS-CORPORA-ANALYSIS`).
 — Proposes a documentation-first, minimal workstream planning model
 (Project → Workstream → Work Item) with recursive planning-tree
 semantics kept internal-ready and explicit non-goals deferring runtime
-implementation. Status: `accepted` (near-term design basis).
+implementation. Status: `accepted` (near-term design basis). The documentation-level
+Workstream Schema MVP is captured in `project/design/workstream_schema_mvp.md`.
 
 
 [`safe-default-agentic-extra-packaging/`](safe-default-agentic-extra-packaging/)
 — Proposes safe-default non-agentic `lrh` installs with explicit
 opt-in autonomous capability via `lrh[agentic]` and/or `lrh-agentic`.
 Status: `proposed` (packaging/governance boundary design; implementation deferred).
+
+[`tag-push-pypi-publishing/`](tag-push-pypi-publishing/)
+— Proposes Option D tag-push release design for publishing the
+safe-default `lrh` distribution to PyPI via Trusted Publishing
+(OIDC), with TestPyPI rehearsal, installed-wheel smoke checks, and
+evidence-backed release outputs. Status: `accepted` (canonical release
+direction; implementation deferred).
+
+[`prompt-execution-search-and-match/`](prompt-execution-search-and-match/)
+— Proposes shared execution-record parsing and query infrastructure for
+exact prompt-ID lookup, prompt-file-to-record matching, and exploratory
+execution-record search. Status: `implemented` command surface, retained as
+background design context for the package-owned lookup, match, and search
+workflow documented in `PROMPTS.md` and `project/executions/README.md`.
+
+[`design-proposal-lifecycle-traceability/`](design-proposal-lifecycle-traceability/)
+— Proposes first-class design-proposal decision lifecycle metadata,
+separate implementation lifecycle metadata, and traceability to work
+items and evidence. Status: `proposed` (design-only; implementation
+deferred).
 
 ## Proposal-set conventions
 

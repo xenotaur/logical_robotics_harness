@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from lrh.control.models import Contributor, Focus, ProjectState, WorkItem
+from lrh.control.models import Contributor, Focus, ProjectState, WorkItem, Workstream
 from lrh.control.parser import ParsedMarkdown, parse_markdown_file
 
 
@@ -30,6 +30,9 @@ def load_project(root: Path) -> ProjectState:
     work_items = _load_work_items(project_dir / "work_items")
     work_items_by_id = _index_by_id(work_items, artifact_label="work item")
 
+    workstreams = load_workstreams(project_dir)
+    workstreams_by_id = _index_by_id(workstreams, artifact_label="workstream")
+
     contributors = _load_contributors(project_dir / "contributors")
     contributors_by_id = _index_by_id(contributors, artifact_label="contributor")
 
@@ -38,9 +41,18 @@ def load_project(root: Path) -> ProjectState:
         current_focus=current_focus,
         work_items=work_items,
         work_items_by_id=work_items_by_id,
+        workstreams=workstreams,
+        workstreams_by_id=workstreams_by_id,
         contributors=contributors,
         contributors_by_id=contributors_by_id,
     )
+
+
+def load_workstreams(root: Path) -> tuple[Workstream, ...]:
+    """Load single-file workstreams from a project or repository root."""
+
+    project_dir = find_project_dir(root)
+    return _load_workstreams(project_dir / "workstreams")
 
 
 def _load_focus(path: Path) -> Focus:
@@ -73,6 +85,7 @@ def _load_work_items(directory: Path) -> tuple[WorkItem, ...]:
                 status=_required_str(fm, "status", path),
                 priority=_optional_str(fm, "priority"),
                 owner=_optional_str(fm, "owner"),
+                parent_id=_optional_str(fm, "parent_id"),
                 contributors=_list_of_strings(fm, "contributors"),
                 assigned_agents=_list_of_strings(fm, "assigned_agents"),
                 related_focus=_list_of_strings(fm, "related_focus"),
@@ -89,6 +102,77 @@ def _load_work_items(directory: Path) -> tuple[WorkItem, ...]:
             )
         )
     return tuple(items)
+
+
+def _load_workstreams(directory: Path) -> tuple[Workstream, ...]:
+    if not directory.exists():
+        return ()
+
+    workstreams: list[Workstream] = []
+    for path in _iter_workstream_files(directory):
+        parsed = parse_markdown_file(path)
+        workstreams.append(_workstream_from_parsed(path, directory, parsed))
+    return tuple(workstreams)
+
+
+def _iter_workstream_files(directory: Path) -> tuple[Path, ...]:
+    bucket_names = ("proposed", "active", "resolved", "abandoned")
+    paths: list[Path] = []
+    for bucket_name in bucket_names:
+        bucket_dir = directory / bucket_name
+        if not bucket_dir.exists():
+            continue
+        for path in sorted(bucket_dir.glob("WS-*.md")):
+            if _is_ignored_workstream_file(path):
+                continue
+            paths.append(path)
+    return tuple(paths)
+
+
+def _is_ignored_workstream_file(path: Path) -> bool:
+    ignored_stems = {"placeholder", ".placeholder", "gitkeep", ".gitkeep"}
+    return path.name == "README.md" or path.stem.lower() in ignored_stems
+
+
+def _workstream_from_parsed(
+    path: Path,
+    workstreams_dir: Path,
+    parsed: ParsedMarkdown,
+) -> Workstream:
+    fm = parsed.frontmatter
+    return Workstream(
+        path=path,
+        id=_required_str(fm, "id", path),
+        kind=_required_str(fm, "kind", path),
+        title=_required_str(fm, "title", path),
+        status=_required_str(fm, "status", path),
+        stage=_required_str(fm, "stage", path),
+        bucket=_workstream_bucket(path, workstreams_dir),
+        origin=_optional_str(fm, "origin"),
+        parent_id=_optional_str(fm, "parent_id"),
+        children=_list_of_strings(fm, "children"),
+        summary=_optional_str(fm, "summary"),
+        rationale=_optional_str(fm, "rationale"),
+        related_focus=_list_of_strings(fm, "related_focus"),
+        related_roadmap=_list_of_strings(fm, "related_roadmap"),
+        work_items=_list_of_strings(fm, "work_items"),
+        execution_records=_list_of_strings(fm, "execution_records"),
+        evidence=_list_of_strings(fm, "evidence"),
+        exit_criteria=_list_of_strings(fm, "exit_criteria"),
+        closeout=_optional_str(fm, "closeout"),
+        body=parsed.body,
+        frontmatter=fm,
+    )
+
+
+def _workstream_bucket(path: Path, workstreams_dir: Path) -> str | None:
+    try:
+        relative_parts = path.relative_to(workstreams_dir).parts
+    except ValueError:
+        return None
+    if not relative_parts:
+        return None
+    return relative_parts[0]
 
 
 def _load_contributors(directory: Path) -> tuple[Contributor, ...]:

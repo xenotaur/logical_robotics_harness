@@ -57,7 +57,7 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
             repo_root = pathlib.Path(temp_dir)
             dist_dir = repo_root / "dist"
             dist_dir.mkdir()
-            (dist_dir / "logical_robotics_harness-0.2.0-py3-none-any.whl").write_text(
+            (dist_dir / "lrh-0.2.0-py3-none-any.whl").write_text(
                 "",
                 encoding="utf-8",
             )
@@ -71,7 +71,7 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
 
             self.assertEqual(
                 wheel_path.name,
-                "logical_robotics_harness-0.2.0-py3-none-any.whl",
+                "lrh-0.2.0-py3-none-any.whl",
             )
 
     def test_resolve_wheel_path_fails_with_multiple_wheels(self) -> None:
@@ -79,11 +79,11 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
             repo_root = pathlib.Path(temp_dir)
             dist_dir = repo_root / "dist"
             dist_dir.mkdir()
-            (dist_dir / "logical_robotics_harness-0.2.0-py3-none-any.whl").write_text(
+            (dist_dir / "lrh-0.2.0-py3-none-any.whl").write_text(
                 "",
                 encoding="utf-8",
             )
-            (dist_dir / "logical_robotics_harness-0.3.0-py3-none-any.whl").write_text(
+            (dist_dir / "lrh-0.3.0-py3-none-any.whl").write_text(
                 "",
                 encoding="utf-8",
             )
@@ -95,6 +95,35 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
                     release_smoke._resolve_wheel_path("")
             finally:
                 release_smoke.REPO_ROOT = original_repo_root
+
+    def test_run_twine_check_checks_all_dist_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            repo_root = pathlib.Path(temp_dir)
+            dist_dir = repo_root / "dist"
+            dist_dir.mkdir()
+            wheel_path = dist_dir / "lrh-0.2.0-py3-none-any.whl"
+            sdist_path = dist_dir / "lrh-0.2.0.tar.gz"
+            wheel_path.write_text("", encoding="utf-8")
+            sdist_path.write_text("", encoding="utf-8")
+
+            original_repo_root = release_smoke.REPO_ROOT
+            release_smoke.REPO_ROOT = repo_root
+            try:
+                with mock.patch.object(release_smoke, "_run") as run:
+                    release_smoke._run_twine_check()
+            finally:
+                release_smoke.REPO_ROOT = original_repo_root
+
+        run.assert_called_once_with(
+            [
+                release_smoke.sys.executable,
+                "-m",
+                "twine",
+                "check",
+                str(wheel_path),
+                str(sdist_path),
+            ]
+        )
 
 
 class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
@@ -136,11 +165,11 @@ class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
                     "pip",
                     "show",
                     "-f",
-                    "logical-robotics-harness",
+                    "lrh",
                 ),
                 returncode=1,
                 stdout="",
-                stderr="WARNING: Package(s) not found: logical-robotics-harness\n",
+                stderr="WARNING: Package(s) not found: lrh\n",
             ),
             lrh_spec=release_smoke.DiagnosticCommandResult(
                 command=("python", "-c", "find_spec"),
@@ -154,7 +183,7 @@ class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
 
         rendered = release_smoke.render_isolation_diagnostics(diagnostics)
 
-        self.assertIn("pip show -f logical-robotics-harness", rendered)
+        self.assertIn("pip show -f lrh", rendered)
         self.assertIn("returncode: 1", rendered)
         self.assertIn("Package(s) not found", rendered)
 
@@ -204,7 +233,7 @@ class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
             self.assertNotIn("PYTHONPATH", env)
             if command[:4] == [str(fake_python), "-m", "pip", "show"]:
                 return release_smoke.DiagnosticCommandResult(
-                    tuple(command), 0, "Name: logical-robotics-harness\n", ""
+                    tuple(command), 0, "Name: lrh\n", ""
                 )
             return release_smoke.DiagnosticCommandResult(
                 tuple(command), 0, "None\n", ""
@@ -230,7 +259,7 @@ class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
                     tuple(command),
                     1,
                     "",
-                    "WARNING: Package(s) not found: logical-robotics-harness\n",
+                    "WARNING: Package(s) not found: lrh\n",
                 )
             return release_smoke.DiagnosticCommandResult(
                 tuple(command), 0, "ModuleSpec(name='lrh')\n", ""
@@ -256,7 +285,7 @@ class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
                     tuple(command),
                     1,
                     "",
-                    "WARNING: Package(s) not found: logical-robotics-harness\n",
+                    "WARNING: Package(s) not found: lrh\n",
                 )
             return release_smoke.DiagnosticCommandResult(
                 tuple(command), 0, "None\n", ""
@@ -281,10 +310,10 @@ class ReleaseSmokeRunTest(unittest.TestCase):
 
     def _visibility(self, *, visible: bool) -> release_smoke.PreinstallVisibility:
         pip_show_returncode = 0 if visible else 1
-        pip_show_stdout = "Name: logical-robotics-harness\n" if visible else ""
+        pip_show_stdout = "Name: lrh\n" if visible else ""
         return release_smoke.PreinstallVisibility(
             pip_show=release_smoke.DiagnosticCommandResult(
-                ("python", "-m", "pip", "show", "logical-robotics-harness"),
+                ("python", "-m", "pip", "show", "lrh"),
                 pip_show_returncode,
                 pip_show_stdout,
                 "",
@@ -307,9 +336,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             fake_lrh.write_text("", encoding="utf-8")
 
             fake_wheel = (
-                release_smoke.REPO_ROOT
-                / "dist"
-                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+                release_smoke.REPO_ROOT / "dist" / ("lrh-0.2.1-py3-none-any.whl")
             )
 
             commands: list[list[str]] = []
@@ -336,6 +363,11 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(
+                    release_smoke,
+                    "_run_twine_check",
+                    side_effect=lambda: commands.append(["<twine-check>"]),
+                ) as twine_check,
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -358,12 +390,37 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ],
             commands,
         )
+        twine_check.assert_called_once_with()
+        self.assertLess(
+            commands.index(["scripts/build"]),
+            commands.index(["<twine-check>"]),
+        )
+        self.assertLess(
+            commands.index(["<twine-check>"]),
+            commands.index(
+                [
+                    str(fake_python),
+                    "-m",
+                    "pip",
+                    "install",
+                    "--force-reinstall",
+                    str(fake_wheel),
+                ]
+            ),
+        )
         self.assertIn(
             [release_smoke.sys.executable, "-m", "venv", str(fake_venv)],
             commands,
         )
         self.assertIn([str(fake_lrh), "--version"], commands)
-        self.assertIn([str(fake_lrh), "snapshot", "--help"], commands)
+        for help_command in (
+            [str(fake_lrh), "--help"],
+            [str(fake_lrh), "validate", "--help"],
+            [str(fake_lrh), "request", "--help"],
+            [str(fake_lrh), "snapshot", "--help"],
+            [str(fake_lrh), "survey", "--help"],
+        ):
+            self.assertIn(help_command, commands)
         self.assertTrue(
             commands.index(
                 [
@@ -402,9 +459,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             fake_lrh.parent.mkdir(parents=True, exist_ok=True)
             fake_lrh.write_text("", encoding="utf-8")
             fake_wheel = (
-                release_smoke.REPO_ROOT
-                / "dist"
-                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+                release_smoke.REPO_ROOT / "dist" / ("lrh-0.2.1-py3-none-any.whl")
             )
             commands: list[list[str]] = []
 
@@ -435,6 +490,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -481,9 +537,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             fake_lrh.parent.mkdir(parents=True, exist_ok=True)
             fake_lrh.write_text("", encoding="utf-8")
             fake_wheel = (
-                release_smoke.REPO_ROOT
-                / "dist"
-                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+                release_smoke.REPO_ROOT / "dist" / ("lrh-0.2.1-py3-none-any.whl")
             )
             commands: list[list[str]] = []
 
@@ -502,6 +556,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -536,9 +591,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             fake_root = pathlib.Path(temp_dir)
             _, fake_python, _ = self._build_fake_paths(fake_root)
             fake_wheel = (
-                release_smoke.REPO_ROOT
-                / "dist"
-                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+                release_smoke.REPO_ROOT / "dist" / ("lrh-0.2.1-py3-none-any.whl")
             )
             commands: list[list[str]] = []
 
@@ -557,6 +610,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -592,9 +646,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             fake_lrh.parent.mkdir(parents=True, exist_ok=True)
             fake_lrh.write_text("", encoding="utf-8")
             fake_wheel = (
-                release_smoke.REPO_ROOT
-                / "dist"
-                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+                release_smoke.REPO_ROOT / "dist" / ("lrh-0.2.1-py3-none-any.whl")
             )
             commands: list[list[str]] = []
 
@@ -613,6 +665,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -642,9 +695,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             fake_root = pathlib.Path(temp_dir)
             fake_venv, fake_python, _ = self._build_fake_paths(fake_root)
             fake_wheel = (
-                release_smoke.REPO_ROOT
-                / "dist"
-                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+                release_smoke.REPO_ROOT / "dist" / ("lrh-0.2.1-py3-none-any.whl")
             )
 
             diagnostics = release_smoke.IsolationDiagnostics(
@@ -664,6 +715,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", return_value=""),
                 mock.patch.object(
                     release_smoke,
@@ -703,9 +755,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             fake_lrh.parent.mkdir(parents=True, exist_ok=True)
             fake_lrh.write_text("", encoding="utf-8")
             fake_wheel = (
-                release_smoke.REPO_ROOT
-                / "dist"
-                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+                release_smoke.REPO_ROOT / "dist" / ("lrh-0.2.1-py3-none-any.whl")
             )
             commands: list[list[str]] = []
 
@@ -724,6 +774,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -737,6 +788,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
         rmtree.assert_not_called()
         self.assertIn([str(fake_venv / "bin" / "lrh"), "--version"], commands)
         self.assertIn([str(fake_venv / "bin" / "lrh"), "snapshot", "--help"], commands)
+        self.assertIn([str(fake_venv / "bin" / "lrh"), "survey", "--help"], commands)
 
     def test_run_release_smoke_raises_when_lrh_console_script_missing(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -744,9 +796,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             _, _, fake_lrh = self._build_fake_paths(fake_root)
             fake_lrh.parent.mkdir(parents=True, exist_ok=True)
             fake_wheel = (
-                release_smoke.REPO_ROOT
-                / "dist"
-                / ("logical_robotics_harness-0.2.1-py3-none-any.whl")
+                release_smoke.REPO_ROOT / "dist" / ("lrh-0.2.1-py3-none-any.whl")
             )
 
             with (
@@ -754,6 +804,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
+                mock.patch.object(release_smoke, "_run_twine_check"),
                 mock.patch.object(release_smoke, "_run", return_value=""),
                 mock.patch.object(
                     release_smoke,

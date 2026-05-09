@@ -8,7 +8,7 @@ import pathlib
 import re
 import sys
 
-from lrh.control import parser as control_parser
+from lrh import prompt_workflow_queries, prompt_workflow_records
 
 VALID_STATUSES = {
     "planned",
@@ -102,16 +102,7 @@ def render_execution_content(
 
 
 def parse_front_matter_fields(path: pathlib.Path) -> dict[str, str]:
-    try:
-        parsed = control_parser.parse_markdown_file(path)
-    except (OSError, UnicodeDecodeError, ValueError):
-        return {}
-
-    fields: dict[str, str] = {}
-    for key, value in parsed.frontmatter.items():
-        if isinstance(value, str):
-            fields[key] = value
-    return fields
+    return prompt_workflow_records.parse_front_matter_fields(path)
 
 
 def find_matching_execution_records(
@@ -119,14 +110,12 @@ def find_matching_execution_records(
     prompt_id: str,
     output_root: str,
 ) -> list[tuple[pathlib.Path, str]]:
-    execution_root = resolve_output_root(project_root, output_root)
-    matches: list[tuple[pathlib.Path, str]] = []
-    for path in sorted(execution_root.glob("**/*.md")):
-        fields = parse_front_matter_fields(path)
-        if fields.get("prompt_id") == prompt_id:
-            status = fields.get("status", "")
-            matches.append((path, status))
-    return matches
+    result = prompt_workflow_queries.check_execution(
+        project_root=project_root,
+        prompt_id=prompt_id,
+        output_root=output_root,
+    )
+    return [(record.path, record.status) for record in result.records]
 
 
 def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
@@ -165,6 +154,11 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     check_parser = subparsers.add_parser(
         "check-execution",
         help="Check whether execution records already exist for a prompt ID.",
+        description=(
+            "Authoritative exact structured lookup for prompt soft idempotence. "
+            "Use exploratory search only as context, not as the basis for "
+            "blocking or rerun decisions."
+        ),
     )
     check_parser.add_argument("--prompt-id", required=True)
     check_parser.add_argument("--project-root", default=".")
@@ -175,23 +169,21 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
         parser.error("prompt requires a subcommand (try: lrh prompt label)")
 
     if args.prompt_command == "check-execution":
-        matches = find_matching_execution_records(
+        result = prompt_workflow_queries.check_execution(
             project_root=args.project_root,
             prompt_id=args.prompt_id,
             output_root=args.output_root,
         )
-        for path, status in matches:
-            print(f"{path.as_posix()}\tstatus={status}")
-        if not matches:
+        for record in result.records:
+            print(f"{record.path.as_posix()}\tstatus={record.status}")
+        if result.exit_code == 1:
             print("No execution records found for prompt_id.", file=sys.stderr)
-            return 1
-        if len(matches) > 1:
+        if result.exit_code == 2:
             print(
                 "Ambiguous: multiple execution records found; human review required.",
                 file=sys.stderr,
             )
-            return 2
-        return 0
+        return result.exit_code
 
     try:
         slug = normalize_slug(args.slug)

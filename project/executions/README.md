@@ -1,6 +1,8 @@
 # Execution Records
 
-Execution records provide lightweight traceability for meaningful prompt-driven work.
+Execution records provide lightweight traceability for meaningful prompt-driven
+work. They record which prompt ran, the associated work item or `AD_HOC`
+bucket, current status, and concise evidence or follow-up notes from the run.
 
 ## Directory layout
 
@@ -43,9 +45,44 @@ Allowed status values:
 
 ## Soft idempotence guidance
 
-Before executing a prompt-driven PR, search `project/executions/` for the prompt ID.
+Before executing a prompt-driven PR, check `project/executions/` for the
+prompt ID. Exact matches against the front-matter `prompt_id` field are
+authoritative for deciding whether a prompt ID has already been executed.
 
-If a prior record exists:
+Use the lookup commands by role:
+
+- `lrh prompt check-execution --prompt-id ...` is the authoritative exact
+  structured lookup for soft idempotence when the prompt ID is already
+  available.
+- `lrh match executions <prompt-file>` is a human-friendly convenience layer
+  when starting from a prompt file; it extracts full prompt IDs and delegates to
+  the same exact lookup.
+- `lrh search executions <query>` is exploratory local substring search across
+  execution-record frontmatter and body text for discovery, auditing, and
+  debugging. Search results are useful context, but they are not authoritative
+  for rerun or idempotence decisions.
+
+Examples:
+
+```bash
+lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .
+lrh match executions prompts/my_prompt.md --project-root .
+lrh search executions "PROMPT_EXECUTION_SEARCH" --project-root .
+lrh search executions "release smoke" --project-root .
+lrh search executions "AD_HOC" --project-root .
+lrh search executions "PROMPT(" --status landed --work-item AD_HOC --project-root .
+```
+
+For recent-prompt dogfooding, first run the exact `prompt_id` lookup. Then use
+`lrh match executions <prompt-file>` if the prompt was saved to a file, and use
+`lrh search executions "<distinctive prompt text>"` only for surrounding context
+such as related validation notes, failed attempts, or other `AD_HOC` records.
+Exploratory search results are not authoritative soft-idempotence evidence.
+
+If future heuristic or fuzzy matching is added, it must be clearly labeled
+non-authoritative unless later design work explicitly changes this rule.
+
+If a prior exact record exists:
 
 - `landed` or `in_progress`: stop and report unless the prompt explicitly says rerun.
 - `failed`, `reverted`, or `superseded`: summarize the prior run and continue only if the prompt indicates rerun or follow-up.

@@ -13,6 +13,8 @@ import subprocess
 import sys
 import tempfile
 
+import lrh.version
+
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
 
 
@@ -310,7 +312,7 @@ def collect_isolation_diagnostics(
             [str(python_bin), "-c", interpreter_code], env=command_environ
         ),
         pip_show=_capture_diagnostic_command(
-            [str(python_bin), "-m", "pip", "show", "-f", "logical-robotics-harness"],
+            [str(python_bin), "-m", "pip", "show", "-f", lrh.version.DISTRIBUTION_NAME],
             env=command_environ,
         ),
         lrh_spec=_capture_diagnostic_command(
@@ -356,7 +358,7 @@ def render_isolation_diagnostics(diagnostics: IsolationDiagnostics) -> str:
         ("pip --version", diagnostics.pip_version),
         ("python -m site", diagnostics.site),
         ("interpreter identity and sys.path", diagnostics.interpreter),
-        ("pip show -f logical-robotics-harness", diagnostics.pip_show),
+        (f"pip show -f {lrh.version.DISTRIBUTION_NAME}", diagnostics.pip_show),
         ('importlib.util.find_spec("lrh")', diagnostics.lrh_spec),
     )
     for title, result in sections:
@@ -398,7 +400,7 @@ def check_preinstall_visibility(
     """Check whether LRH is visible before installing the wheel under test."""
     if command_environ is None:
         command_environ = _venv_command_environment()
-    preinstalled_name = "logical-robotics-harness"
+    preinstalled_name = lrh.version.DISTRIBUTION_NAME
     lrh_spec_code = (
         "import importlib.util; "
         "spec = importlib.util.find_spec('lrh'); "
@@ -420,7 +422,7 @@ def _format_preinstall_visibility(visibility: PreinstallVisibility) -> str:
         "LRH is visible in the temporary venv before the wheel under test "
         "is installed.",
         "",
-        "-- pip show logical-robotics-harness --",
+        f"-- pip show {lrh.version.DISTRIBUTION_NAME} --",
         _format_command_result(visibility.pip_show),
         "",
         '-- importlib.util.find_spec("lrh") --',
@@ -446,6 +448,26 @@ def _raise_strict_isolation_error(visibility: PreinstallVisibility) -> None:
         "result cannot be confused with an already-visible checkout or "
         "installation. Re-run with --diagnose --preserve to inspect the "
         "temporary environment and identify the source of visibility."
+    )
+
+
+def _resolve_dist_artifact_paths() -> list[pathlib.Path]:
+    artifact_paths = sorted((REPO_ROOT / "dist").glob("*"))
+    if not artifact_paths:
+        raise ReleaseSmokeError("no distribution artifacts found in dist/ after build")
+    return artifact_paths
+
+
+def _run_twine_check() -> None:
+    artifact_paths = _resolve_dist_artifact_paths()
+    _run(
+        [
+            sys.executable,
+            "-m",
+            "twine",
+            "check",
+            *(str(path) for path in artifact_paths),
+        ]
     )
 
 
@@ -486,6 +508,7 @@ def run_release_smoke(
 
     _run(["scripts/clean"])
     _run(["scripts/build"])
+    _run_twine_check()
     wheel_path = _resolve_wheel_path(normalized_version)
     print(f"Using wheel: {wheel_path.relative_to(REPO_ROOT)}")
 
@@ -531,7 +554,14 @@ def run_release_smoke(
                 "(for example: unzip -p <wheel>.whl '*.dist-info/entry_points.txt')"
             )
         version_output = _run([str(lrh_bin), "--version"], env=venv_command_env)
-        _run([str(lrh_bin), "snapshot", "--help"], env=venv_command_env)
+        for help_command in (
+            [str(lrh_bin), "--help"],
+            [str(lrh_bin), "validate", "--help"],
+            [str(lrh_bin), "request", "--help"],
+            [str(lrh_bin), "snapshot", "--help"],
+            [str(lrh_bin), "survey", "--help"],
+        ):
+            _run(help_command, env=venv_command_env)
 
         if normalized_version:
             expected_line = f"lrh {normalized_version}"

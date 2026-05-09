@@ -1,51 +1,78 @@
 ---
-id: FOCUS-CONTROL-PLANE-SEMANTICS
-title: Harden assist packaging and keep survey expansion scoped
+id: FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
+title: Establish planning-tree semantics and workstreams safely
 status: active
 priority: high
 owner: anthony
 related_principles:
   - PRINCIPLES-ENGINEERING
   - PRINCIPLES-EVALUATION
+related_roadmap:
+  - ROADMAP-PHASE-01A
 ---
 
 # Current Focus
 
-The immediate priority is to keep assist package behavior hardened and treat survey capability growth as scoped follow-on work.
+The immediate priority is establishing **planning-tree semantics and workstreams** as core LRH
+control-plane concepts. This remains a safe-default, non-agentic planning effort: LRH should be able
+to model, validate, and summarize planning relationships while humans remain responsible for deciding
+and executing work.
 
 Recently completed:
 
-- request-system extraction into `src/lrh/assist/`
-- thin CLI wrappers wired to `lrh request` and `lrh snapshot`
-- package-owned assist templates under `src/lrh/assist/templates/`
-- canonical `lrh survey` delegation to `src/lrh/assist/sourcetree_surveyor.py`
-- assist README updates documenting canonical CLI usage
-- versioning hardening closure: `setuptools-scm` tag-derived versions plus `scripts/version`, `scripts/build`, `scripts/clean`, and `scripts/release-smoke` workflow validated with pushed `v0.2.2`
+- reconciled near-term workstream design around recursive planning-tree concepts
+- accepted workstreams as user-facing planning nodes and work items as execution-ready leaves
+- aligned planning-tree work with safe-default packaging, where agentic execution is optional and deferred
+- retained workstream execution framework layers as deferred long-term architecture
+- closed prior release/toolchain and proposal alignment work needed before this planning step
 
 ## Why this is active now
 
-LRH now has canonical assist interfaces (`lrh request`, `lrh snapshot`, and `lrh survey`) backed by package-owned runtime code and assets.
+LRH needs a disciplined next sequence that introduces workstreams as first-class planning artifacts
+without jumping to runtime execution, orchestration, or autonomous behavior. This preserves
+repository-as-control-plane and manual-mode parity while keeping implementation slices small and
+reviewable.
 
-The next risk is not migration mechanics; it is protecting installability guarantees and keeping any survey capability expansion intentionally separate from packaging/runtime stability work.
+## Safe-default requirements
+
+All planning-tree and workstream work must:
+
+1. function without agentic capabilities or optional `lrh[agentic]` dependencies
+2. support human-assisted workflows by default, including reviewable prompts or run packets
+3. prepare future agentic execution by preserving explicit planning metadata and readiness concepts
+4. avoid autonomous invocation of coding agents, execution loops, PR stabilization loops, or adapters
+5. mark any agentic run command, adapter, stabilization-loop, or sandbox-envelope work as deferred / future / requires `lrh[agentic]`
+
+Command naming convention: use `lrh agentic run` or `lrh-agentic run` for future autonomous execution.
+Treat older `lrh run` references as deferred execution-framework shorthand unless a future command-design
+work item explicitly assigns safe-default or installed-agentic alias semantics.
 
 ## Priorities
 
-1. Keep package-owned templates and resource loading behavior stable for installed usage.
-2. Maintain packaging/build/install hardening and smoke-test expectations for installed behavior.
-3. Keep `lrh survey` canonical on `src/lrh/assist/sourcetree_surveyor.py`.
-4. Handle sourcetree capability expansion only as a separate follow-on work item.
+1. Define planning-node schema and recursive relationship conventions (`parent_id`, `children`).
+2. Define execution-ready work items as human-executable leaves, not autonomous runs.
+3. Define planning-tree validation rules for references, cycles, and consistency before implementation.
+4. Define and document minimal workstream artifact conventions and bucket navigation.
+5. Define workstream-to-work-item relationship conventions compatible with the planning-tree model.
+6. Add design-level snapshot visibility and human-assisted run-packet generation work items.
+7. Only after design-level slices are clear, implement loader/model, validation, snapshot, and dry-run-first organize/tidy support through small reviewed work items.
 
 ## Non-Goals
 
-- Reopening already completed mechanical migration work in docs or planning.
-- Broad redesign of request/snapshot/survey semantics.
-- Unrelated refactors outside assist packaging and scoped follow-on expansion planning.
+- Implementing runtime features, schemas in code, validation logic, or CLI commands in the planning PR.
+- Implementing `lrh agentic run` or any autonomous run command.
+- Adding agent runtime execution, orchestration, adapters, or automated stage advancement.
+- Adding PR stabilization loops or sandbox-envelope behavior.
+- Implementing MCP bridges, telemetry systems, or backend adapters.
+- Collapsing multiple MVP slices into one large implementation change.
 
 ## Exit Criteria
 
 This focus is complete when:
 
-1. package-owned templates remain the runtime source of truth
-2. installed `lrh request`/`lrh snapshot` behavior does not rely on repo-relative template discovery
-3. packaging/install smoke checks are defined and passing
-4. `lrh survey` remains canonical on package code, with capability expansion explicitly deferred
+1. roadmap and work items clearly sequence the Planning Tree and Workstream Foundation
+2. workstreams are represented in project control as first-class artifacts
+3. planning-node and workstream relationship semantics are documented and validated through small reviewed work items
+4. human-assisted workflow generation is specified without implying autonomous execution
+5. deferred agentic work remains explicitly out of scope and tied to future optional `lrh[agentic]` capability
+6. the next implementation prompt can start with the first concrete MVP work item: `WI-PLANNING-NODE-SCHEMA-MVP`

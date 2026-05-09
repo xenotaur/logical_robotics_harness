@@ -9,12 +9,14 @@ class TestControlLoader(unittest.TestCase):
     def test_load_project_from_repo_root(self) -> None:
         state = load_project(Path("."))
 
-        self.assertEqual(state.current_focus.id, "FOCUS-CONTROL-PLANE-SEMANTICS")
+        self.assertEqual(state.current_focus.id, "FOCUS-WORKSTREAM-CONTROL-PLANE-MVP")
         self.assertIn("WI-0001", state.work_items_by_id)
         self.assertIn("anthony", state.contributors_by_id)
 
         related = state.work_items_for_focus(state.current_focus.id)
-        self.assertTrue(any(item.id == "WI-0001" for item in related))
+        self.assertTrue(
+            any(item.id == "WI-WORKSTREAM-DIRECTORY-README-MVP" for item in related)
+        )
 
     def test_find_project_dir_supports_project_root_or_repo_root(self) -> None:
         self.assertEqual(find_project_dir(Path(".")), Path("project").resolve())

@@ -1,11 +1,11 @@
 # Logical Robotics Harness
 
-An agentic harness for AI-assisted development developed for Logical Robotics.
-The Logical Robotics Harness (LRH) is a reusable agentic harness for AI-assisted development.
-LRH uses a literate development paradigm in which structured documentation is used to guide an
-agentic development workflow based on explicitly collecting evidence of status and progress.
+A structured harness for evidence-backed, AI-assisted development workflows.
+The Logical Robotics Harness (LRH) is reusable project-control tooling for human-guided assist workflows.
+LRH uses a literate development paradigm in which structured documentation is used to guide
+work based on explicitly collecting evidence of status and progress.
 
-The core idea of LRH is to decouple the client's project state from the agentic harness code:
+The core idea of LRH is to decouple the client's project state from the reusable harness code:
 
 - the **harness** (`src/lrh/`) provides reusable orchestration, parsing, validation, evidence, status,
   and tool integration logic
@@ -60,6 +60,33 @@ For package version reporting, both of these are supported (resolved via install
 lrh --version
 lrh version
 ```
+
+## User installation
+
+Once LRH is published on PyPI, the preferred normal installation path for the
+standalone CLI is:
+
+```bash
+pipx install lrh
+```
+
+`pipx` keeps the `lrh` command in an isolated application environment while making
+the command available on your shell path. Use this path when you primarily want to
+run the LRH CLI against a repository.
+
+Use `pip install lrh` when LRH needs to be available inside an existing Python
+environment, such as library use, CI jobs, development environments, or tools that
+intentionally manage their own virtual environment:
+
+```bash
+pip install lrh
+```
+
+The default `lrh` distribution is the safe-default CLI/toolkit package: it does not
+include LRH's autonomous execution package or autonomous-loop commands. This is a
+packaging boundary, not an OS/container sandbox guarantee. Future agentic install
+forms such as `pipx install "lrh[agentic]"` should only be used once the `agentic`
+extra and any backing `lrh-agentic` package actually exist.
 
 ## Command-line Completion
 
@@ -181,6 +208,8 @@ scripts/lint
 scripts/test
 lrh validate
 ```
+
+If `scripts/version tools` reports `lrh unknown` for package metadata or the CLI, treat its install hint as a setup diagnostic: run `scripts/develop` from the repository root, then rerun `scripts/version tools` before continuing validation.
 
 ### Repair workflow (when checks fail)
 
@@ -389,78 +418,58 @@ Helper scripts:
 - `scripts/prompts/label-prompt`
 - `scripts/prompts/record-execution`
 - Installed CLI: `lrh prompt check-execution`
+- Installed CLI: `lrh match executions <prompt-file>`
+- Installed CLI: `lrh search executions <query>`
 - `scripts/version` (plus `tools`, `verify`, `tag`, `push` subcommands for release workflow checks)
 
-Execution records are stored under `project/executions/` and may be grouped by work item or `AD_HOC`.
-Use `lrh prompt check-execution --prompt-id <PROMPT_ID>` before prompt-driven work to apply
-soft-idempotence checks in human and agent workflows.
+Execution records are stored under `project/executions/` and may be grouped by
+work item or `AD_HOC`. They provide a lightweight, reviewable audit trail for
+meaningful prompt-driven work: which prompt ran, what status it reached, and
+what evidence or follow-up notes were captured.
+
+Use the prompt lookup commands by role:
+
+```bash
+lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .
+lrh match executions prompts/my_prompt.md --project-root .
+lrh search executions "PROMPT_EXECUTION_SEARCH" --project-root .
+lrh search executions "release smoke" --project-root .
+lrh search executions "AD_HOC" --project-root .
+lrh search executions "PROMPT(" --status landed --work-item AD_HOC --project-root .
+```
+
+Use `lrh prompt check-execution --prompt-id <PROMPT_ID>` before prompt-driven
+work to apply authoritative exact soft idempotence checks in human and agent
+workflows. If you have a prompt file rather than a copied ID, use
+`lrh match executions <prompt-file>` for exact prompt ID extraction and matching.
+Use `lrh search executions <query>` for exploratory local substring search over
+execution-record frontmatter and body text during discovery, auditing, and
+debugging. Exploratory search is useful context, but exact `prompt_id` matching
+remains authoritative for rerun and soft-idempotence decisions.
+
+A practical recent-prompt dogfooding flow is:
+
+1. copy the full `PROMPT(...)` identifier into `PROMPT_ID`;
+2. run `lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .`;
+3. if working from a saved prompt file, run `lrh match executions <file>` as a
+   convenience check that extracts and exactly looks up prompt IDs;
+4. use `lrh search executions "<distinctive prompt text>" --project-root .` only
+   for surrounding context, such as finding related failed attempts, validation
+   notes, or prior `AD_HOC` records.
+
+For deeper design context, see
+`project/design/proposals/prompt-execution-search-and-match/`.
 
 ## Release workflow
 
-LRH package versions are derived from Git tags via `setuptools-scm` (`pyproject.toml` has `dynamic = ["version"]`).
-Git tags are the source of truth for released versions, and tags should use:
+LRH releases are validated with the repository release scripts and published
+from version tags using the staged, publish-last workflow documented in
+`docs/release.md`.
 
-```text
-vMAJOR.MINOR.PATCH
-```
-
-For example, `v0.2.2` resolves to package version `0.2.2`.
-
-### Release steps
-
-Prerequisite: install development dependencies so the build frontend is available:
-
-```bash
-scripts/develop
-```
-
-Run the release workflow in this order:
-
-```bash
-scripts/version verify v0.2.2
-scripts/version tag v0.2.2
-scripts/version push v0.2.2
-scripts/release-smoke v0.2.2
-```
-
-- `scripts/version verify v0.2.2` checks that the requested tag is a valid Git ref name and that release preconditions pass. Releases are expected to use `vMAJOR.MINOR.PATCH` tags such as `v0.2.2`. This is safe to run repeatedly.
-- `scripts/version tag v0.2.2` creates or confirms the release tag. This is idempotent when the tag already exists at the correct commit.
-- `scripts/version push v0.2.2` pushes the matching local tag to `origin` when needed, and is safe when local and remote state already match.
-- `scripts/release-smoke <tag>` (for example, `scripts/release-smoke v0.2.2`) runs a clean rebuild (`scripts/clean` + `scripts/build`), creates a temporary parent directory with `venv/` inside it, installs the built wheel from `dist/` via `<smoke-root>/venv/bin/python -m pip install --force-reinstall`, verifies `<smoke-root>/venv/bin/lrh --version`, and verifies `<smoke-root>/venv/bin/lrh snapshot --help` from the installed wheel. By default it warns and continues if `logical-robotics-harness` or import package `lrh` is visible before the wheel install; this preserves local development usability while still surfacing isolation concerns. Use `scripts/release-smoke <tag> --diagnose` to print pre-install isolation diagnostics, `scripts/release-smoke <tag> --strict-isolation` to make pre-install visibility a hard failure in CI or maintainer audits, and `scripts/release-smoke <tag> --diagnose --preserve` to print diagnostics and keep the temporary environment for investigation. Strict mode is useful when a clean preinstall environment is required and is expected to fail in contaminated environments where LRH is already visible before wheel installation.
-
-### Release tag CI
-
-When a release-like tag such as `v1.2.3` is pushed, GitHub Actions runs the **Release tag validation** workflow (`.github/workflows/release-tag-ci.yml`) on that exact tag revision.
-
-The workflow uses `${{ github.ref_name }}` as `TAG_UNDER_TEST`, then runs:
-
-- `scripts/version verify "$TAG_UNDER_TEST"`
-- `scripts/release-smoke "$TAG_UNDER_TEST"`
-
-This workflow is verification-only: it does not publish to PyPI or TestPyPI, and is intentionally scoped to release candidate validation plus audit evidence capture.
-
-### `sandbox` vs `release-smoke`
-
-- `scripts/sandbox` isolates HOME/XDG/config/cache/state paths for behavioral testing of commands run directly from a source checkout.
-- `scripts/release-smoke` validates installed-wheel behavior in a temporary virtual environment.
-
-These workflows are complementary and intentionally distinct.
-
-### Wheel filename note
-
-Do not hard-code wheel paths as `dist/lrh-...whl`. Wheel filenames are derived from the distribution name (`logical-robotics-harness`), which is normalized in wheel artifacts (for example, `logical_robotics_harness-0.2.0-...whl`).
-
-### Expected outputs
-
-- `dist/` contains both a wheel (`*.whl`) and source distribution (`*.tar.gz`) generated for the same resolved version.
-- `lrh --version` in the smoke venv should report the expected released version (for example `lrh 0.2.0`).
-
-### Safety and idempotence
-
-- `verify` is intended to be safe and repeatable.
-- `tag` is intended to be idempotent when the requested tag already points at the correct commit.
-- `release-smoke` rebuilds artifacts from a clean packaging state before installing exactly one wheel for validation.
-- If you publish tags with `scripts/version push`, it is an explicit step and designed to be safe when local/remote tag state already matches.
+See [`docs/release.md`](docs/release.md) for the canonical maintainer release
+runbook, including local readiness checks, installed-wheel smoke testing,
+TestPyPI rehearsal, PyPI Trusted Publisher setup, tag-push publishing,
+post-release verification, failure recovery notes, and release evidence.
 
 ## GitHub review helpers
 

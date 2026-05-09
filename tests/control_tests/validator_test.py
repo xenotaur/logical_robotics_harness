@@ -310,6 +310,42 @@ assigned_agents:
         self.assertIn("ASSIGNED_AGENT_HUMAN_ORCHESTRATED", codes)
         self.assertIn("ASSIGNED_AGENT_INACTIVE", codes)
 
+    def test_archived_focus_ids_can_be_referenced_by_work_items(self) -> None:
+        root = self._make_project()
+        self._seed_valid_focus(root)
+        self._write(
+            root / "focus" / "archive" / "2026" / "completed_focus.md",
+            """---
+id: FOCUS-ARCHIVED
+title: Archived focus
+status: completed
+---
+
+# Archived focus
+""",
+        )
+        self._write(
+            root / "work_items" / "resolved" / "WI-1.md",
+            """---
+id: WI-1
+title: Historical task
+type: deliverable
+status: resolved
+blocked: false
+blocked_reason: null
+resolution: Completed
+related_focus:
+  - FOCUS-ARCHIVED
+---
+""",
+        )
+
+        report = validate_project(root)
+
+        self.assertFalse(
+            any(issue.code == "UNKNOWN_RELATED_FOCUS" for issue in report.errors)
+        )
+
     def test_valid_bootstrap_style_configuration(self) -> None:
         root = self._make_project()
         self._write(

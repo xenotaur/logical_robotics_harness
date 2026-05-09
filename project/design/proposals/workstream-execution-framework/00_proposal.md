@@ -11,7 +11,7 @@ related_focus:
 related_roadmap:
   - ROADMAP-PHASE-02
 supersedes: []
-superseded_by: []
+superseded_by: null
 ---
 
 # Workstream Execution Framework — Top-Level Proposal

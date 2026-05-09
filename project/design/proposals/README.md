@@ -85,6 +85,41 @@ separate implementation lifecycle metadata, and traceability to work
 items and evidence. Status: `proposed` (design-only; implementation
 deferred).
 
+## Machine-readable proposal metadata
+
+LRH validates Markdown files under this tree as design-proposal artifacts when
+their YAML frontmatter declares either `type: design_proposal` or the
+compatibility alias `kind: design_proposal`. `type: design_proposal` is the
+canonical spelling for new documents. If both `type` and `kind` are present,
+they must agree.
+
+Proposal IDs may use the current LRH `PROP-...` form or downstream `DP-...`
+forms. Lifecycle-aware proposal frontmatter supports:
+
+```yaml
+id: PROP-EXAMPLE
+type: design_proposal
+status: proposed | adopted | accepted | rejected | superseded
+implementation_status: not_started | partial | implemented | deferred | obsolete
+implemented_by:
+  - WI-...
+evidence:
+  - EV-...
+supersedes:
+  - PROP-...
+superseded_by: PROP-...
+```
+
+`adopted` is the preferred status for a governing design decision. `accepted`
+is still accepted as a legacy spelling and is treated as equivalent to
+`adopted` for validation and bucket checks. Implementation claims should be
+traceable through `implemented_by` work-item IDs and/or `evidence` IDs.
+
+Frontmatter `status` is authoritative. Lifecycle bucket directories
+(`proposed/`, `adopted/`, `rejected/`, and `superseded/`) are optional during
+migration, but unbucketed proposal files and bucket/status mismatches are
+reported as warnings by `lrh validate`.
+
 ## Proposal-set conventions
 
 A proposal set directory name should be a stable, descriptive slug

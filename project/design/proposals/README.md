@@ -52,6 +52,13 @@ snapshots, and roadmap/focus/work-item alignment are in place. Includes
 a Pass-B worked-example appendix (`WS-LCATS-CORPORA-ANALYSIS`).
 
 
+[`proposed/constitutional-sandbox-envelope/`](proposed/constitutional-sandbox-envelope/)
+— Proposes a constitutional sandbox envelope for future autonomous and
+semi-autonomous LRH execution: agents may propose arbitrary actions, but
+only policy-checked, sandboxed, logged, and interruptible capabilities may
+execute. Status: `proposed` / `not_started` (documentation-only design;
+no runtime behavior changes).
+
 [`adopted/workstreams-and-recursive-planning-tree/`](adopted/workstreams-and-recursive-planning-tree/)
 — Proposes a documentation-first, minimal workstream planning model
 (Project → Workstream → Work Item) with recursive planning-tree

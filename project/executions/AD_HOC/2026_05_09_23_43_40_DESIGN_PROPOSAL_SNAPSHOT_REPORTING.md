@@ -53,3 +53,22 @@ No organizer behavior or proposal-file reorganization was added. Existing
 repository proposal sets still have validation warnings about unbucketed or
 legacy accepted design-proposal metadata; those remain separate content/layout
 cleanup work.
+
+# Review Response
+
+Addressed PR review feedback by making snapshot design-proposal loading
+best-effort for malformed proposal-tree Markdown files and by changing the
+section rendering to valid nested Markdown lists instead of top-level bullets
+with four leading spaces. Added regression coverage for malformed notes under
+`project/design/proposals/` and refreshed the assist snapshot README note.
+
+# Review Validation
+
+- `scripts/version tools` completed before formatter/lint/test validation;
+  Black and Ruff versions were available.
+- `python -m unittest tests.assist_tests.snapshot_cli_test` passed.
+- `scripts/format --check --diff` passed.
+- `scripts/lint` passed.
+- `scripts/test` passed.
+- `lrh validate` completed with 0 errors and existing design-proposal lifecycle
+  warnings.

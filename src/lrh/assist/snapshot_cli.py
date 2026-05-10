@@ -93,7 +93,7 @@ def _proposal_label(proposal: control_models.DesignProposal) -> str:
 def _format_traceability_line(label: str, references: tuple[str, ...]) -> str | None:
     if not references:
         return None
-    return f"      {label}: {', '.join(sorted(references))}"
+    return f"    - {label}: {', '.join(sorted(references))}"
 
 
 def _format_design_proposal_item(
@@ -101,7 +101,7 @@ def _format_design_proposal_item(
     *,
     include_traceability: bool,
 ) -> list[str]:
-    lines = [f"    - {_proposal_label(proposal)}"]
+    lines = [f"  - {_proposal_label(proposal)}"]
     if include_traceability:
         implemented_by = _format_traceability_line(
             "implemented_by", proposal.implemented_by
@@ -116,11 +116,18 @@ def _format_design_proposal_item(
 
 def summarize_design_proposals(project_dir: pathlib.Path) -> str:
     """Summarize design proposal lifecycle and implementation state."""
+    loaded_proposals, load_warnings = (
+        control_loader.load_design_proposals_from_project_dir_permissive(project_dir)
+    )
     proposals = sorted(
-        control_loader.load_design_proposals_from_project_dir(project_dir),
+        loaded_proposals,
         key=lambda proposal: proposal.id,
     )
     if not proposals:
+        if load_warnings:
+            warning_lines = ["- Warnings:"]
+            warning_lines.extend(f"  - {warning}" for warning in load_warnings)
+            return "\n".join(warning_lines)
         return "- No design proposals found."
 
     lines: list[str] = []
@@ -135,7 +142,7 @@ def summarize_design_proposals(project_dir: pathlib.Path) -> str:
             continue
         if lines:
             lines.append("")
-        lines.append(f"  Adopted / {implementation_status}:")
+        lines.append(f"- Adopted / {implementation_status}:")
         include_traceability = implementation_status in {"partial", "implemented"}
         for proposal in matching:
             lines.extend(
@@ -154,7 +161,7 @@ def summarize_design_proposals(project_dir: pathlib.Path) -> str:
     if unspecified:
         if lines:
             lines.append("")
-        lines.append("  Adopted / unspecified:")
+        lines.append("- Adopted / unspecified:")
         for proposal in unspecified:
             lines.extend(
                 _format_design_proposal_item(
@@ -171,19 +178,22 @@ def summarize_design_proposals(project_dir: pathlib.Path) -> str:
     if superseded:
         if lines:
             lines.append("")
-        lines.append("  Superseded:")
+        lines.append("- Superseded:")
         for proposal in superseded:
-            line = f"    - {_proposal_label(proposal)}"
+            line = f"  - {_proposal_label(proposal)}"
             if proposal.superseded_by:
                 line = f"{line} -> {proposal.superseded_by}"
             lines.append(line)
 
-    warnings = _design_proposal_traceability_warnings(proposals)
+    warnings = [
+        *load_warnings,
+        *_design_proposal_traceability_warnings(proposals),
+    ]
     if warnings:
         if lines:
             lines.append("")
-        lines.append("  Warnings:")
-        lines.extend(f"    - {warning}" for warning in warnings)
+        lines.append("- Warnings:")
+        lines.extend(f"  - {warning}" for warning in warnings)
 
     if not lines:
         return "- No adopted or superseded design proposals found."

@@ -157,22 +157,22 @@ class TestSnapshotCliDesignProposals(unittest.TestCase):
 
             output = snapshot_cli.summarize_design_proposals(project_dir)
 
-            self.assertIn("  Adopted / implemented:", output)
-            self.assertIn("    - PROP-0001 Implemented Design", output)
-            self.assertIn("      implemented_by: WI-0001", output)
-            self.assertIn("      evidence: EV-0001", output)
-            self.assertIn("  Adopted / partial:", output)
-            self.assertIn("    - PROP-0002 Partial Design", output)
-            self.assertIn("      implemented_by: WI-0002", output)
-            self.assertIn("      evidence: EV-0002", output)
-            self.assertIn("  Adopted / not_started:", output)
-            self.assertIn("    - PROP-0003 Not Started Design", output)
-            self.assertIn("  Adopted / deferred:", output)
-            self.assertIn("    - PROP-0004 Legacy Accepted Design", output)
-            self.assertIn("  Adopted / unspecified:", output)
-            self.assertIn("    - PROP-0007 Unspecified Design", output)
-            self.assertIn("  Superseded:", output)
-            self.assertIn("    - PROP-0005 Old Design -> PROP-0006", output)
+            self.assertIn("- Adopted / implemented:", output)
+            self.assertIn("  - PROP-0001 Implemented Design", output)
+            self.assertIn("    - implemented_by: WI-0001", output)
+            self.assertIn("    - evidence: EV-0001", output)
+            self.assertIn("- Adopted / partial:", output)
+            self.assertIn("  - PROP-0002 Partial Design", output)
+            self.assertIn("    - implemented_by: WI-0002", output)
+            self.assertIn("    - evidence: EV-0002", output)
+            self.assertIn("- Adopted / not_started:", output)
+            self.assertIn("  - PROP-0003 Not Started Design", output)
+            self.assertIn("- Adopted / deferred:", output)
+            self.assertIn("  - PROP-0004 Legacy Accepted Design", output)
+            self.assertIn("- Adopted / unspecified:", output)
+            self.assertIn("  - PROP-0007 Unspecified Design", output)
+            self.assertIn("- Superseded:", output)
+            self.assertIn("  - PROP-0005 Old Design -> PROP-0006", output)
 
     def test_design_proposal_order_is_deterministic_by_id(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -204,6 +204,27 @@ class TestSnapshotCliDesignProposals(unittest.TestCase):
                 "but has no evidence or implemented_by references.",
                 output,
             )
+
+    def test_malformed_design_proposal_notes_do_not_break_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_design_proposal(
+                project_dir,
+                "adopted/valid.md",
+                proposal_id="PROP-0001",
+                title="Valid Design",
+                status="adopted",
+                implementation_status="not_started",
+            )
+            notes_path = project_dir / "design" / "proposals" / "notes.md"
+            notes_path.write_text("# Plain notes, not a proposal\n", encoding="utf-8")
+
+            output = snapshot_cli.summarize_design_proposals(project_dir)
+
+            self.assertIn("- Adopted / not_started:", output)
+            self.assertIn("  - PROP-0001 Valid Design", output)
+            self.assertIn("- Warnings:", output)
+            self.assertIn("Skipped notes.md", output)
 
 
 def _write_snapshot_project_scaffold(root: Path) -> Path:

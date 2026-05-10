@@ -2,9 +2,12 @@
 id: PROP-PROMPT-EXECUTION-SEARCH-AND-MATCH
 type: design_proposal
 title: Prompt execution search and match infrastructure
-status: proposed
+status: adopted
 created_on: 2026-05-06
 updated_on: 2026-05-10
+implementation_status: implemented
+evidence:
+  - EV-0006
 ---
 
 ## 1) Purpose
@@ -27,8 +30,10 @@ lrh match executions ...
 lrh search executions ...
 ```
 
-This proposal is design-only. It does not implement new commands,
-change execution-record schema, or change rerun policy.
+This proposal was originally introduced as design-only. Follow-up PRs have
+implemented the package-owned record parsing, exact prompt-file matching,
+and exploratory execution search command surface while preserving the
+execution-record schema and rerun policy.
 
 ## 2) Motivation and problem statement
 

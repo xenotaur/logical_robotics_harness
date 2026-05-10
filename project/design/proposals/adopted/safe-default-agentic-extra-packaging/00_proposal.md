@@ -2,9 +2,12 @@
 id: PROP-SAFE-DEFAULT-AGENTIC-EXTRA-PACKAGING
 type: design_proposal
 title: Safe-default LRH install with explicit opt-in agentic capability
-status: proposed
+status: adopted
 created_on: 2026-05-05
-updated_on: 2026-05-05
+updated_on: 2026-05-10
+implementation_status: partial
+evidence:
+  - EV-0008
 ---
 
 ## 1) Purpose
@@ -14,8 +17,12 @@ install remains non-agentic and human-assist oriented, while
 higher-risk autonomous capability is explicitly opt-in via
 `lrh[agentic]` and/or `lrh-agentic`.
 
-This proposal is design-only and intentionally avoids implementation
-churn in imports, package metadata, or CLI behavior in this changeset.
+This proposal was originally introduced as design-only. Its safe-default
+packaging and governance decision has since been folded into canonical
+design documents. It remains partially implemented because the optional
+`lrh[agentic]` extra, separate `lrh-agentic` distribution, and integrated
+`lrh agentic` missing-package dispatcher are still deferred until concrete
+autonomous-loop implementation pressure exists.
 
 ## 2) Problem and motivation
 

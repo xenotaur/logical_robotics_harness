@@ -20,8 +20,8 @@ workflow guidance.
 
 ## Canonical-document touchpoints
 
-If accepted and implemented, this proposal is expected to touch these
-canonical or near-canonical workflow documents:
+This adopted and implemented proposal touches these canonical or
+near-canonical workflow documents:
 
 - [`PROMPTS.md`](../../../../../PROMPTS.md) — prompt ID workflow, soft
   idempotence guidance, and installed prompt command examples.

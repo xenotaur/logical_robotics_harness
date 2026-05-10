@@ -61,10 +61,11 @@ with control-plane slices underway). The documentation-level Workstream
 Schema MVP is captured in `project/design/workstream_schema_mvp.md`.
 
 
-[`proposed/safe-default-agentic-extra-packaging/`](proposed/safe-default-agentic-extra-packaging/)
+[`adopted/safe-default-agentic-extra-packaging/`](adopted/safe-default-agentic-extra-packaging/)
 — Proposes safe-default non-agentic `lrh` installs with explicit
 opt-in autonomous capability via `lrh[agentic]` and/or `lrh-agentic`.
-Status: `proposed` (packaging/governance boundary design; implementation deferred).
+Status: `adopted` / `partial` (canonical packaging/governance boundary;
+optional agentic extra/package behavior remains deferred).
 
 [`adopted/tag-push-pypi-publishing/`](adopted/tag-push-pypi-publishing/)
 — Proposes Option D tag-push release design for publishing the
@@ -74,18 +75,20 @@ evidence-backed release outputs. Status: `adopted` / `partial`
 (canonical release direction; release-tag CI is implemented, while PyPI
 publishing remains deferred).
 
-[`proposed/prompt-execution-search-and-match/`](proposed/prompt-execution-search-and-match/)
+[`adopted/prompt-execution-search-and-match/`](adopted/prompt-execution-search-and-match/)
 — Proposes shared execution-record parsing and query infrastructure for
 exact prompt-ID lookup, prompt-file-to-record matching, and exploratory
-execution-record search. Status: `implemented` command surface, retained as
-background design context for the package-owned lookup, match, and search
-workflow documented in `PROMPTS.md` and `project/executions/README.md`.
+execution-record search. Status: `adopted` / `implemented` command surface,
+retained as background design context for the package-owned lookup, match,
+and search workflow documented in `PROMPTS.md` and
+`project/executions/README.md`.
 
-[`proposed/design-proposal-lifecycle-traceability/`](proposed/design-proposal-lifecycle-traceability/)
+[`adopted/design-proposal-lifecycle-traceability/`](adopted/design-proposal-lifecycle-traceability/)
 — Proposes first-class design-proposal decision lifecycle metadata,
 separate implementation lifecycle metadata, and traceability to work
-items and evidence. Status: `proposed` (design-only; implementation
-deferred).
+items and evidence. Status: `adopted` / `partial` (parser/model,
+validation, organization, and snapshot slices are implemented; broader
+lifecycle dogfooding remains ongoing).
 
 ## Machine-readable proposal metadata
 

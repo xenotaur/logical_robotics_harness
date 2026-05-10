@@ -2,9 +2,16 @@
 id: PROP-WORKSTREAMS-RECURSIVE-PLANNING-TREE
 type: design_proposal
 title: Workstreams as first-class planning nodes with recursive planning-tree semantics
-status: accepted
+status: adopted
 created_on: 2026-05-05
-updated_on: 2026-05-05
+updated_on: 2026-05-10
+implementation_status: partial
+implemented_by:
+  - WI-WORKSTREAM-DIRECTORY-README-MVP
+  - WI-WORKSTREAM-SCHEMA-MVP
+  - WI-WORKSTREAM-LOADER-MODEL-MVP
+  - WI-WORKSTREAM-VALIDATION-MVP
+  - WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP
 ---
 
 ## 1) Purpose
@@ -83,7 +90,7 @@ This is a governance and capability boundary. It is **not** a
 guarantee of security sandboxing.
 
 Relationship to companion proposal:
-`project/design/proposals/safe-default-agentic-extra-packaging/`
+`project/design/proposals/proposed/safe-default-agentic-extra-packaging/`
 defines packaging and capability-boundary posture, while this proposal
 defines planning structure semantics (workstreams and recursive
 planning-tree modeling).

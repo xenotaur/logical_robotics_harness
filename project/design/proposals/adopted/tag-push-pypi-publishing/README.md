@@ -6,7 +6,7 @@ PyPI Trusted Publishing.
 
 ## Status
 
-`accepted`
+`adopted` / `partial`
 
 ## Documents
 
@@ -18,9 +18,9 @@ PyPI Trusted Publishing.
 
 ## Scope notes
 
-This accepted proposal set records canonical release direction only and
-does not implement release workflows, packaging metadata edits, package
-split changes, or publish operations.
+This adopted proposal set records canonical release direction. Release-tag
+CI has partial implementation traceability through `WI-RELEASE-TAG-CI`
+and `EV-0004`; PyPI/TestPyPI publishing remains deferred.
 
 ## Reading order
 

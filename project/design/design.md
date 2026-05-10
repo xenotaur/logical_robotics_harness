@@ -146,7 +146,7 @@ non-agentic; future autonomous capability must stay explicit through
 package exists.
 
 Accepted release architecture is Option D from
-`project/design/proposals/tag-push-pypi-publishing/`: version-tag push
+`project/design/proposals/adopted/tag-push-pypi-publishing/`: version-tag push
 publishing of the safe-default `lrh` package using PyPI Trusted
 Publishing. Implementation should proceed through narrow, evidence-backed
 PRs: metadata/resource hardening, build/smoke scripts, CI smoke checks,

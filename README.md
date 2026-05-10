@@ -411,7 +411,7 @@ sub-proposals or appendices.
 
 Currently open:
 
-- `project/design/proposals/workstream-execution-framework/` —
+- `project/design/proposals/proposed/workstream-execution-framework/` —
   proposes adding a typed `workstream` artifact between focus and
   work_items, with a six-layer execution stack (control plane →
   templates → orchestration → agent runtime →
@@ -469,7 +469,7 @@ A practical recent-prompt dogfooding flow is:
    notes, or prior `AD_HOC` records.
 
 For deeper design context, see
-`project/design/proposals/prompt-execution-search-and-match/`.
+`project/design/proposals/proposed/prompt-execution-search-and-match/`.
 
 ## Release workflow
 

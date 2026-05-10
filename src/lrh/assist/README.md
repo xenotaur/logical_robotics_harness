@@ -118,6 +118,14 @@ You can inspect supported options with:
 lrh snapshot --help
 ```
 
+Project snapshots also include a compact `Design Proposals` section that
+groups adopted (including legacy `accepted`) proposals by implementation
+status, lists superseded proposals with their replacement IDs, and shows
+concise `implemented_by` and `evidence` IDs for partial or implemented
+designs. Snapshot reporting is best-effort: malformed files under
+`project/design/proposals/` are reported in this section instead of aborting
+the whole project snapshot.
+
 Snapshot context packets include additive harness metadata in the Scope section
 under a `Harness metadata:` label:
 

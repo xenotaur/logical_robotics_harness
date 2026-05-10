@@ -114,6 +114,10 @@ superseded_by: PROP-...
 is still accepted as a legacy spelling and is treated as equivalent to
 `adopted` for validation and bucket checks. Implementation claims should be
 traceable through `implemented_by` work-item IDs and/or `evidence` IDs.
+`lrh snapshot project` reports a compact design-proposal lifecycle summary,
+grouping adopted proposals by implementation status, showing superseded
+replacements, and displaying concise work-item/evidence traceability for
+partial or implemented designs.
 
 Frontmatter `status` is authoritative. Lifecycle bucket directories
 (`proposed/`, `adopted/`, `rejected/`, and `superseded/`) are derived

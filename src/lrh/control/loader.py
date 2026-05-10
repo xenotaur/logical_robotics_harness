@@ -73,7 +73,23 @@ def load_design_proposals(root: Path) -> tuple[DesignProposal, ...]:
     """Load design proposals from a project or repository root."""
 
     project_dir = find_project_dir(root)
+    return load_design_proposals_from_project_dir(project_dir)
+
+
+def load_design_proposals_from_project_dir(
+    project_dir: Path,
+) -> tuple[DesignProposal, ...]:
+    """Load design proposals from an already resolved project directory."""
+
     return _load_design_proposals(project_dir / "design" / "proposals")
+
+
+def load_design_proposals_from_project_dir_permissive(
+    project_dir: Path,
+) -> tuple[tuple[DesignProposal, ...], tuple[str, ...]]:
+    """Load valid design proposals and collect skipped-file warnings."""
+
+    return _load_design_proposals_permissive(project_dir / "design" / "proposals")
 
 
 def _load_focus(path: Path) -> Focus:
@@ -197,33 +213,68 @@ def _workstream_bucket(path: Path, workstreams_dir: Path) -> str | None:
 
 
 def _load_design_proposals(directory: Path) -> tuple[DesignProposal, ...]:
+    proposals, _warnings = _load_design_proposals_from_directory(directory, strict=True)
+    return proposals
+
+
+def _load_design_proposals_permissive(
+    directory: Path,
+) -> tuple[tuple[DesignProposal, ...], tuple[str, ...]]:
+    return _load_design_proposals_from_directory(directory, strict=False)
+
+
+def _load_design_proposals_from_directory(
+    directory: Path,
+    *,
+    strict: bool,
+) -> tuple[tuple[DesignProposal, ...], tuple[str, ...]]:
     if not directory.exists():
-        return ()
+        return (), ()
 
     proposals: list[DesignProposal] = []
+    warnings: list[str] = []
     for path in sorted(directory.glob("**/*.md")):
         if _is_ignored_design_proposal_file(path):
             continue
-        parsed = parse_markdown_file(path)
-        fm = parsed.frontmatter
-        if not _is_design_proposal_frontmatter(fm):
-            continue
-        proposals.append(
-            DesignProposal(
-                path=path,
-                id=_required_str(fm, "id", path),
-                title=_optional_str(fm, "title") or _optional_str(fm, "summary"),
-                status=_required_str(fm, "status", path),
-                implementation_status=_optional_str(fm, "implementation_status"),
-                implemented_by=_list_of_strings(fm, "implemented_by"),
-                evidence=_list_of_strings(fm, "evidence"),
-                supersedes=_list_of_strings(fm, "supersedes"),
-                superseded_by=_optional_str(fm, "superseded_by"),
-                body=parsed.body,
-                frontmatter=fm,
-            )
-        )
-    return tuple(proposals)
+        try:
+            parsed = parse_markdown_file(path)
+            if not _is_design_proposal_frontmatter(parsed.frontmatter):
+                continue
+            proposals.append(_design_proposal_from_parsed(path, parsed))
+        except ValueError as error:
+            if strict:
+                raise
+            warnings.append(_design_proposal_load_warning(directory, path, error))
+    return tuple(proposals), tuple(warnings)
+
+
+def _design_proposal_from_parsed(path: Path, parsed: ParsedMarkdown) -> DesignProposal:
+    fm = parsed.frontmatter
+    return DesignProposal(
+        path=path,
+        id=_required_str(fm, "id", path),
+        title=_optional_str(fm, "title") or _optional_str(fm, "summary"),
+        status=_required_str(fm, "status", path),
+        implementation_status=_optional_str(fm, "implementation_status"),
+        implemented_by=_list_of_strings(fm, "implemented_by"),
+        evidence=_list_of_strings(fm, "evidence"),
+        supersedes=_list_of_strings(fm, "supersedes"),
+        superseded_by=_optional_str(fm, "superseded_by"),
+        body=parsed.body,
+        frontmatter=fm,
+    )
+
+
+def _design_proposal_load_warning(
+    directory: Path,
+    path: Path,
+    error: ValueError,
+) -> str:
+    try:
+        relative_path = path.relative_to(directory)
+    except ValueError:
+        relative_path = path
+    return f"Skipped {relative_path}: {error}"
 
 
 def _is_ignored_design_proposal_file(path: Path) -> bool:

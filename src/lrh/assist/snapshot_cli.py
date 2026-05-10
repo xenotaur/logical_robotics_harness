@@ -7,6 +7,8 @@ import pathlib
 import sys
 
 from lrh import version as lrh_version
+from lrh.control import loader as control_loader
+from lrh.control import models as control_models
 
 
 def build_parser(*, prog: str = "snapshot") -> argparse.ArgumentParser:
@@ -64,6 +66,162 @@ def build_parser(*, prog: str = "snapshot") -> argparse.ArgumentParser:
         "work_item_id", help="Work item identifier (for example WI-0003)."
     )
     return parser
+
+
+_DESIGN_PROPOSAL_IMPLEMENTATION_ORDER = (
+    "implemented",
+    "partial",
+    "not_started",
+    "deferred",
+    "obsolete",
+)
+
+
+def _canonical_design_proposal_status(status: str) -> str:
+    if status == "accepted":
+        return "adopted"
+    return status
+
+
+def _proposal_label(proposal: control_models.DesignProposal) -> str:
+    title = proposal.title
+    if title:
+        return f"{proposal.id} {title}"
+    return proposal.id
+
+
+def _format_traceability_line(label: str, references: tuple[str, ...]) -> str | None:
+    if not references:
+        return None
+    return f"    - {label}: {', '.join(sorted(references))}"
+
+
+def _format_design_proposal_item(
+    proposal: control_models.DesignProposal,
+    *,
+    include_traceability: bool,
+) -> list[str]:
+    lines = [f"  - {_proposal_label(proposal)}"]
+    if include_traceability:
+        implemented_by = _format_traceability_line(
+            "implemented_by", proposal.implemented_by
+        )
+        evidence = _format_traceability_line("evidence", proposal.evidence)
+        if implemented_by is not None:
+            lines.append(implemented_by)
+        if evidence is not None:
+            lines.append(evidence)
+    return lines
+
+
+def summarize_design_proposals(project_dir: pathlib.Path) -> str:
+    """Summarize design proposal lifecycle and implementation state."""
+    loaded_proposals, load_warnings = (
+        control_loader.load_design_proposals_from_project_dir_permissive(project_dir)
+    )
+    proposals = sorted(
+        loaded_proposals,
+        key=lambda proposal: proposal.id,
+    )
+    if not proposals:
+        if load_warnings:
+            warning_lines = ["- Warnings:"]
+            warning_lines.extend(f"  - {warning}" for warning in load_warnings)
+            return "\n".join(warning_lines)
+        return "- No design proposals found."
+
+    lines: list[str] = []
+    for implementation_status in _DESIGN_PROPOSAL_IMPLEMENTATION_ORDER:
+        matching = [
+            proposal
+            for proposal in proposals
+            if _canonical_design_proposal_status(proposal.status) == "adopted"
+            and proposal.implementation_status == implementation_status
+        ]
+        if not matching:
+            continue
+        if lines:
+            lines.append("")
+        lines.append(f"- Adopted / {implementation_status}:")
+        include_traceability = implementation_status in {"partial", "implemented"}
+        for proposal in matching:
+            lines.extend(
+                _format_design_proposal_item(
+                    proposal,
+                    include_traceability=include_traceability,
+                )
+            )
+
+    unspecified = [
+        proposal
+        for proposal in proposals
+        if _canonical_design_proposal_status(proposal.status) == "adopted"
+        and proposal.implementation_status is None
+    ]
+    if unspecified:
+        if lines:
+            lines.append("")
+        lines.append("- Adopted / unspecified:")
+        for proposal in unspecified:
+            lines.extend(
+                _format_design_proposal_item(
+                    proposal,
+                    include_traceability=False,
+                )
+            )
+
+    superseded = [
+        proposal
+        for proposal in proposals
+        if _canonical_design_proposal_status(proposal.status) == "superseded"
+    ]
+    if superseded:
+        if lines:
+            lines.append("")
+        lines.append("- Superseded:")
+        for proposal in superseded:
+            line = f"  - {_proposal_label(proposal)}"
+            if proposal.superseded_by:
+                line = f"{line} -> {proposal.superseded_by}"
+            lines.append(line)
+
+    warnings = [
+        *load_warnings,
+        *_design_proposal_traceability_warnings(proposals),
+    ]
+    if warnings:
+        if lines:
+            lines.append("")
+        lines.append("- Warnings:")
+        lines.extend(f"  - {warning}" for warning in warnings)
+
+    if not lines:
+        return "- No adopted or superseded design proposals found."
+    return "\n".join(lines)
+
+
+def _design_proposal_traceability_warnings(
+    proposals: list[control_models.DesignProposal],
+) -> list[str]:
+    warnings: list[str] = []
+    for proposal in proposals:
+        status = _canonical_design_proposal_status(proposal.status)
+        if status == "adopted" and proposal.implementation_status is None:
+            warnings.append(
+                f"{proposal.id} is adopted but has no implementation_status."
+            )
+        if (
+            proposal.implementation_status == "implemented"
+            and not proposal.implemented_by
+            and not proposal.evidence
+        ):
+            warnings.append(
+                f"{proposal.id} claims implementation_status=implemented "
+                "but has no evidence or implemented_by references."
+            )
+        if status == "superseded" and proposal.superseded_by is None:
+            warnings.append(f"{proposal.id} is superseded but has no superseded_by.")
+    return warnings
 
 
 def find_project_dir(project_root: pathlib.Path) -> pathlib.Path:
@@ -274,6 +432,10 @@ def generate_project_context(
         "## Design",
         "",
         summarize_file(project_dir / "design" / "design.md"),
+        "",
+        "## Design Proposals",
+        "",
+        summarize_design_proposals(project_dir),
         "",
         "## Roadmap",
         "",

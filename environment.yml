@@ -21,14 +21,43 @@ dependencies:
   - tzdata=2025c=hc9c84f9_1
   - wheel=0.46.3=pyhd8ed1ab_0
   - pip:
+      - aider-install==0.2.0
+      - argcomplete==3.6.3
+      - backports-tarfile==1.2.0
       - black==26.3.1
       - build==1.4.4
+      - certifi==2026.4.22
+      - charset-normalizer==3.4.7
       - click==8.3.2
       - coverage==7.13.5
-      - logical-robotics-harness==0.2.0
+      - docutils==0.22.4
+      - id==1.6.1
+      - idna==3.13
+      - importlib-metadata==9.0.0
+      - jaraco-classes==3.4.0
+      - jaraco-context==6.1.2
+      - jaraco-functools==4.4.0
+      - keyring==25.7.0
+      - logical-robotics-harness==0.2.5.dev41+g94cd9f505
+      - lrh==0.2.5.dev83+g40da6c798
+      - markdown-it-py==4.1.0
+      - mdurl==0.1.2
+      - more-itertools==11.0.2
       - mypy-extensions==1.1.0
+      - nh3==0.3.5
       - pathspec==1.0.4
       - platformdirs==4.9.4
+      - pygments==2.20.0
       - pyproject-hooks==1.2.0
       - pytokens==0.4.1
-      - ruff==0.15.9
+      - pyyaml==6.0.3
+      - readme-renderer==44.0
+      - requests==2.33.1
+      - requests-toolbelt==1.0.0
+      - rfc3986==2.0.0
+      - rich==15.0.0
+      - ruff==0.15.12
+      - twine==6.2.0
+      - urllib3==2.6.3
+      - uv==0.11.9
+      - zipp==3.23.1

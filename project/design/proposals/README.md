@@ -24,6 +24,13 @@ under `project/design/`, and the proposal's `status:` is set to
 
 ## Lifecycle
 
+Design proposals use two separate lifecycle axes: `status` answers
+whether the design decision governs the project, while
+`implementation_status` answers whether the governed design has been
+delivered and should be backed by `implemented_by` and/or `evidence`.
+The adopted design direction is captured in
+[`adopted/design-proposal-lifecycle-traceability/00_proposal.md`](adopted/design-proposal-lifecycle-traceability/00_proposal.md).
+
 `status: proposed` — drafted but not yet adopted. The author or a
 reviewer may still substantively change the proposal.
 
@@ -36,6 +43,11 @@ replacement in the frontmatter `superseded_by:` field.
 
 `status: rejected` — considered and explicitly declined. Kept for
 history.
+
+Implementation is staged separately from proposal adoption. The
+lifecycle-traceability proposal defines this order: parser and
+validation model; `lrh design organize`; snapshot reporting; and
+dogfood migration across LRH's own proposal set.
 
 ## Current proposal sets
 

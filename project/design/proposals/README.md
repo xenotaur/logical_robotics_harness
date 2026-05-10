@@ -20,14 +20,14 @@ Proposals are working artifacts. They become canonical only when
 their decisions are folded into `design.md`, `architecture.md`,
 `repository_spec.md`, or one of the related authoritative documents
 under `project/design/`, and the proposal's `status:` is set to
-`accepted` or `superseded`.
+`adopted` or `superseded`.
 
 ## Lifecycle
 
 `status: proposed` — drafted but not yet adopted. The author or a
 reviewer may still substantively change the proposal.
 
-`status: accepted` — the design has been adopted. Subsequent
+`status: adopted` — the design has been adopted. Subsequent
 changes go through new proposals or directly through edits to the
 canonical documents (with the proposal updated to reflect them).
 
@@ -39,47 +39,49 @@ history.
 
 ## Current proposal sets
 
-[`workstream-execution-framework/`](workstream-execution-framework/)
+[`proposed/workstream-execution-framework/`](proposed/workstream-execution-framework/)
 — Proposes adding a typed `workstream` artifact between focus and
 work_items, with a six-layer execution stack (control plane →
 templates → orchestration → agent runtime → observability+evidence
 → MCP bridges). Status: `proposed` (deferred long-term execution architecture).
-Near-term design decisions are captured in the accepted
-`workstreams-and-recursive-planning-tree/` proposal set; this set
+Near-term design decisions are captured in the adopted
+`adopted/workstreams-and-recursive-planning-tree/` proposal set; this set
 remains a retained source for long-term runtime/orchestration design
 concepts and should be revisited after workstream artifacts, validation,
 snapshots, and roadmap/focus/work-item alignment are in place. Includes
 a Pass-B worked-example appendix (`WS-LCATS-CORPORA-ANALYSIS`).
 
 
-[`workstreams-and-recursive-planning-tree/`](workstreams-and-recursive-planning-tree/)
+[`adopted/workstreams-and-recursive-planning-tree/`](adopted/workstreams-and-recursive-planning-tree/)
 — Proposes a documentation-first, minimal workstream planning model
 (Project → Workstream → Work Item) with recursive planning-tree
 semantics kept internal-ready and explicit non-goals deferring runtime
-implementation. Status: `accepted` (near-term design basis). The documentation-level
-Workstream Schema MVP is captured in `project/design/workstream_schema_mvp.md`.
+implementation. Status: `adopted` / `partial` (near-term design basis
+with control-plane slices underway). The documentation-level Workstream
+Schema MVP is captured in `project/design/workstream_schema_mvp.md`.
 
 
-[`safe-default-agentic-extra-packaging/`](safe-default-agentic-extra-packaging/)
+[`proposed/safe-default-agentic-extra-packaging/`](proposed/safe-default-agentic-extra-packaging/)
 — Proposes safe-default non-agentic `lrh` installs with explicit
 opt-in autonomous capability via `lrh[agentic]` and/or `lrh-agentic`.
 Status: `proposed` (packaging/governance boundary design; implementation deferred).
 
-[`tag-push-pypi-publishing/`](tag-push-pypi-publishing/)
+[`adopted/tag-push-pypi-publishing/`](adopted/tag-push-pypi-publishing/)
 — Proposes Option D tag-push release design for publishing the
 safe-default `lrh` distribution to PyPI via Trusted Publishing
 (OIDC), with TestPyPI rehearsal, installed-wheel smoke checks, and
-evidence-backed release outputs. Status: `accepted` (canonical release
-direction; implementation deferred).
+evidence-backed release outputs. Status: `adopted` / `partial`
+(canonical release direction; release-tag CI is implemented, while PyPI
+publishing remains deferred).
 
-[`prompt-execution-search-and-match/`](prompt-execution-search-and-match/)
+[`proposed/prompt-execution-search-and-match/`](proposed/prompt-execution-search-and-match/)
 — Proposes shared execution-record parsing and query infrastructure for
 exact prompt-ID lookup, prompt-file-to-record matching, and exploratory
 execution-record search. Status: `implemented` command surface, retained as
 background design context for the package-owned lookup, match, and search
 workflow documented in `PROMPTS.md` and `project/executions/README.md`.
 
-[`design-proposal-lifecycle-traceability/`](design-proposal-lifecycle-traceability/)
+[`proposed/design-proposal-lifecycle-traceability/`](proposed/design-proposal-lifecycle-traceability/)
 — Proposes first-class design-proposal decision lifecycle metadata,
 separate implementation lifecycle metadata, and traceability to work
 items and evidence. Status: `proposed` (design-only; implementation
@@ -163,5 +165,5 @@ applicable, repository-as-control-plane).
 Proposals must reference rather than duplicate canonical documents.
 When a proposal would update `design.md` or `architecture.md`, it
 states the diff in narrative form; the actual document edits land
-when the proposal is accepted, in a follow-on changeset that flips
-`status:` to `accepted`.
+when the proposal is adopted, in a follow-on changeset that flips
+`status:` to `adopted`.

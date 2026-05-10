@@ -2,9 +2,14 @@
 id: PROP-TAG-PUSH-PYPI-PUBLISHING
 type: design_proposal
 title: Option D tag-push PyPI publishing for safe-default lrh distribution
-status: accepted
+status: adopted
 created_on: 2026-05-05
-updated_on: 2026-05-06
+updated_on: 2026-05-10
+implementation_status: partial
+implemented_by:
+  - WI-RELEASE-TAG-CI
+evidence:
+  - EV-0004
 ---
 
 ## 1) Purpose

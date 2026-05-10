@@ -23,11 +23,11 @@ workflow guidance.
 If accepted and implemented, this proposal is expected to touch these
 canonical or near-canonical workflow documents:
 
-- [`PROMPTS.md`](../../../../PROMPTS.md) — prompt ID workflow, soft
+- [`PROMPTS.md`](../../../../../PROMPTS.md) — prompt ID workflow, soft
   idempotence guidance, and installed prompt command examples.
-- [`project/executions/README.md`](../../../executions/README.md) —
+- [`project/executions/README.md`](../../../../executions/README.md) —
   execution-record schema, status lifecycle, and lookup/search guidance.
-- [`project/design/design.md`](../../design.md) and
-  [`project/design/architecture.md`](../../architecture.md) — only if the
+- [`project/design/design.md`](../../../design.md) and
+  [`project/design/architecture.md`](../../../architecture.md) — only if the
   shared prompt-workflow query modules become part of the accepted core
   architecture narrative.

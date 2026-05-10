@@ -6,7 +6,7 @@ implementation explicitly out of scope for this change.
 
 ## Status
 
-`accepted`
+`adopted` / `partial`
 
 ## Documents
 
@@ -18,9 +18,10 @@ implementation explicitly out of scope for this change.
 
 ## Scope notes
 
-This proposal-set PR records design intent only. It does not add parser
-or model code, validators, CLI commands, runtime execution behavior,
-workstream directory creation, or automation.
+This proposal set is adopted as the near-term design basis. Implementation
+is partial: workstream documentation, schema, loader/model, validation,
+and planning-tree relationship slices have corresponding work items;
+autonomous runtime execution remains deferred.
 
 ## Reading order
 
@@ -29,7 +30,7 @@ workstream directory creation, or automation.
 
 ## Canonical-document touchpoints (on acceptance)
 
-This proposal is accepted as the near-term basis for
+This proposal is adopted as the near-term basis for
 workstream modeling. Follow-on project-control updates should align
 roadmap, current focus, and work items before implementation prompts are
 generated. Canonical design/control touchpoints include:

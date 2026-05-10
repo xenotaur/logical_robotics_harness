@@ -616,7 +616,7 @@ and §"Adoption plan" (§8). Each phase is gated independently.
 ### Document index
 
 ```text
-project/design/proposals/workstream-execution-framework/
+project/design/proposals/proposed/workstream-execution-framework/
   README.md                                  # set-level index (what each file is)
   00_proposal.md                             # this document — umbrella
   01_layer1_control_plane.md                 # workstream-aware loader/validator/precedence

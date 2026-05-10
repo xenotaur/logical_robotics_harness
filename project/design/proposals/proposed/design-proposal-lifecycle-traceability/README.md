@@ -9,6 +9,7 @@ Reading order:
    lifecycle metadata, traceability fields, validation direction, and
    future tooling stages.
 
-This proposal is design-only. It records a future direction for LRH and
-does not implement parser, validator, organizer, CLI, or snapshot
-behavior.
+This proposal remains proposed while LRH dogfoods its lifecycle
+metadata. Parser, validator, organizer, CLI, and snapshot behavior exist
+on this branch, but implementation status is intentionally left unset
+until linked work-item or evidence traceability is available.

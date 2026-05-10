@@ -9,7 +9,9 @@ Reading order:
    lifecycle metadata, traceability fields, validation direction, and
    future tooling stages.
 
-This proposal is adopted. Parser/model, validation, organizer, CLI, and
+This proposal is adopted as LRH's design direction for separating the
+decision lifecycle (`status`) from the implementation lifecycle
+(`implementation_status`). Parser/model, validation, organizer, CLI, and
 snapshot behavior exist, and `EV-0007` records the implementation evidence
 for those slices. The implementation remains partial because broader
 lifecycle dogfooding and any future generic typed-artifact lifecycle

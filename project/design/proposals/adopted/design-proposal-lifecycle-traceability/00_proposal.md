@@ -12,10 +12,10 @@ evidence:
 
 ## 1) Purpose
 
-Define a future LRH design direction for treating design proposals as
-first-class decision artifacts with explicit decision lifecycle metadata,
-separate implementation lifecycle metadata, and traceability to work
-items and evidence.
+Record the adopted LRH design direction for treating design proposals
+as first-class decision artifacts with explicit decision lifecycle
+metadata, separate implementation lifecycle metadata, and traceability
+to work items and evidence.
 
 This proposal was originally introduced as documentation/design only.
 Follow-up PRs have implemented the parser/model, validation checks,
@@ -101,7 +101,7 @@ Meanings:
 - `rejected`: considered and not chosen.
 - `superseded`: once governed, but replaced by another design proposal.
 
-LRH should use `adopted` as the future canonical term for a
+LRH uses `adopted` as the forward-looking canonical term for a
 governing design proposal. This corresponds to the common ADR concept of
 an accepted decision while avoiding ambiguity with implementation
 completion.
@@ -111,8 +111,7 @@ use `status: accepted`. During migration, tooling should treat
 `accepted` as the legacy spelling of `adopted`, emit a migration warning
 where appropriate, and avoid requiring existing documents to change in
 the same PR that introduces parser support. New lifecycle-aware
-proposal documents should prefer `adopted` once the convention is
-implemented.
+proposal documents should prefer `adopted`.
 
 ## 6) Implementation lifecycle metadata
 
@@ -314,8 +313,9 @@ This proposal does not:
 - move existing design proposals;
 - broadly refactor existing design documents.
 
-Follow-up PRs may update canonical design documents once this proposal
-is adopted and implementation work begins.
+The proposal itself was adopted as documentation/design first; separate
+follow-up PRs may update canonical design documents or implementation
+behavior.
 
 ## 13) ID convention migration note
 

@@ -469,7 +469,7 @@ A practical recent-prompt dogfooding flow is:
    notes, or prior `AD_HOC` records.
 
 For deeper design context, see
-`project/design/proposals/proposed/prompt-execution-search-and-match/`.
+`project/design/proposals/adopted/prompt-execution-search-and-match/`.
 
 ## Release workflow
 

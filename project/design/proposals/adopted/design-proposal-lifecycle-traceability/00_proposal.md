@@ -2,9 +2,12 @@
 id: PROP-DESIGN-PROPOSAL-LIFECYCLE-TRACEABILITY
 type: design_proposal
 title: Design Proposal Lifecycle and Implementation Traceability
-status: proposed
+status: adopted
 created_on: 2026-05-08
 updated_on: 2026-05-10
+implementation_status: partial
+evidence:
+  - EV-0007
 ---
 
 ## 1) Purpose
@@ -14,9 +17,11 @@ first-class decision artifacts with explicit decision lifecycle metadata,
 separate implementation lifecycle metadata, and traceability to work
 items and evidence.
 
-This proposal is documentation/design only. It does not implement
-parser behavior, validation checks, organizer commands, CLI behavior, or
-snapshot reporting.
+This proposal was originally introduced as documentation/design only.
+Follow-up PRs have implemented the parser/model, validation checks,
+organizer command, and snapshot reporting slices. The design remains
+marked partially implemented because broader lifecycle dogfooding and any
+future generic lifecycle framework remain intentionally deferred.
 
 ## 2) Motivation
 
@@ -77,10 +82,9 @@ Rules:
 - Existing unbucketed proposal files may be supported during migration.
 - A future organizer command may move files to their derived buckets.
 
-LRH currently has proposal-set directories under
-`project/design/proposals/`. This proposal does not move them. It
-records the target convention for future parser, validator, organizer,
-and dogfooding work.
+LRH now uses proposal-set directories under lifecycle buckets in
+`project/design/proposals/`. This proposal records the target convention
+that later parser, validator, organizer, and dogfooding work adopted.
 
 ## 5) Decision lifecycle metadata
 

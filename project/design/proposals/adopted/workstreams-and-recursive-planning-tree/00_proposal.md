@@ -90,7 +90,7 @@ This is a governance and capability boundary. It is **not** a
 guarantee of security sandboxing.
 
 Relationship to companion proposal:
-`project/design/proposals/proposed/safe-default-agentic-extra-packaging/`
+`project/design/proposals/adopted/safe-default-agentic-extra-packaging/`
 defines packaging and capability-boundary posture, while this proposal
 defines planning structure semantics (workstreams and recursive
 planning-tree modeling).

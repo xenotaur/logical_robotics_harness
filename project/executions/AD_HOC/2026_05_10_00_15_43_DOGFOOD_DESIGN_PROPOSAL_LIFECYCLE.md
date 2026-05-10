@@ -44,10 +44,9 @@ Updated adopted proposal metadata conservatively:
   implementation slices. Runtime orchestration and autonomous execution remain
   deferred.
 
-Kept other proposal decisions conservative. Proposed proposals remain proposed;
-where implementation state is noted, it is partial and not promoted to
-`implemented` because no valid evidence ID was added for a full completion
-claim.
+Kept other proposal decisions conservative. Proposed proposals remain proposed
+and do not assert `implementation_status: partial` unless linked work-item or
+evidence traceability is available.
 
 # Validation
 
@@ -63,6 +62,8 @@ claim.
 - `scripts/format --check` passed.
 - `scripts/lint` passed.
 - `scripts/test` passed with 425 tests.
+- Review response: removed ungrounded `implementation_status: partial` claims
+  from proposed proposals that had no `implemented_by` or `evidence` links.
 
 # Follow-up
 

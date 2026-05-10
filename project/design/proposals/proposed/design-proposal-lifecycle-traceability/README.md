@@ -10,6 +10,6 @@ Reading order:
    future tooling stages.
 
 This proposal remains proposed while LRH dogfoods its lifecycle
-metadata. Parser, validator, organizer, CLI, and snapshot behavior have
-partial implementation on this branch, but no implementation evidence ID
-is linked here yet.
+metadata. Parser, validator, organizer, CLI, and snapshot behavior exist
+on this branch, but implementation status is intentionally left unset
+until linked work-item or evidence traceability is available.

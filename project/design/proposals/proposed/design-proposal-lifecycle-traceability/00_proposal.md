@@ -5,7 +5,6 @@ title: Design Proposal Lifecycle and Implementation Traceability
 status: proposed
 created_on: 2026-05-08
 updated_on: 2026-05-10
-implementation_status: partial
 ---
 
 ## 1) Purpose

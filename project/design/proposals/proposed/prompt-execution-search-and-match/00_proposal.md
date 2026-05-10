@@ -5,7 +5,6 @@ title: Prompt execution search and match infrastructure
 status: proposed
 created_on: 2026-05-06
 updated_on: 2026-05-10
-implementation_status: partial
 ---
 
 ## 1) Purpose

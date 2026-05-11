@@ -227,6 +227,151 @@ class TestSnapshotCliDesignProposals(unittest.TestCase):
             self.assertIn("Skipped notes.md", output)
 
 
+class TestSnapshotCliWorkstreams(unittest.TestCase):
+    def test_project_context_includes_zero_workstream_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            args = snapshot_cli.build_parser(prog="snapshot").parse_args(["project"])
+
+            output = snapshot_cli.generate_project_context(project_dir, args)
+
+            self.assertIn("## Workstreams", output)
+            self.assertIn("Workstreams:\n  proposed: 0\n  active: 0", output)
+            self.assertIn("  resolved: 0", output)
+            self.assertIn("  abandoned: 0", output)
+            self.assertNotIn("Active workstreams:", output)
+
+    def test_workstream_summary_counts_statuses_and_lists_active(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_work_item(project_dir, "WI-CHILD")
+            _write_workstream(
+                project_dir,
+                "proposed",
+                "WS-PROPOSED",
+                "Proposed Workstream",
+                "proposed",
+                "conceived",
+            )
+            _write_workstream(
+                project_dir,
+                "active",
+                "WS-ACTIVE",
+                "Active Workstream",
+                "active",
+                "executing",
+                work_items=["WI-CHILD"],
+            )
+            _write_workstream(
+                project_dir,
+                "resolved",
+                "WS-RESOLVED",
+                "Resolved Workstream",
+                "resolved",
+                "closed",
+            )
+            _write_workstream(
+                project_dir,
+                "abandoned",
+                "WS-ABANDONED",
+                "Abandoned Workstream",
+                "abandoned",
+                "abandoned",
+            )
+
+            output = snapshot_cli.summarize_workstreams(project_dir)
+
+            self.assertIn("Workstreams:\n  proposed: 1\n  active: 1", output)
+            self.assertIn("  resolved: 1", output)
+            self.assertIn("  abandoned: 1", output)
+            self.assertIn("Active workstreams:", output)
+            self.assertIn("  WS-ACTIVE — Active Workstream", output)
+            self.assertIn("    stage: executing", output)
+            self.assertIn("    status: active", output)
+            self.assertIn("    children: 1", output)
+            self.assertIn("    work_items: 1", output)
+
+    def test_workstream_summary_ignores_readme_and_placeholder_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            proposed = project_dir / "workstreams" / "proposed"
+            proposed.mkdir(parents=True, exist_ok=True)
+            (proposed / "README.md").write_text("# Proposed\n", encoding="utf-8")
+            (proposed / "placeholder.md").write_text("placeholder\n", encoding="utf-8")
+            _write_workstream(
+                project_dir,
+                "proposed",
+                "WS-ONE",
+                "One Workstream",
+                "proposed",
+                "conceived",
+            )
+
+            output = snapshot_cli.summarize_workstreams(project_dir)
+
+            self.assertIn("  proposed: 1", output)
+            self.assertIn("  active: 0", output)
+
+    def test_workstream_summary_reports_bucket_status_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_workstream(
+                project_dir,
+                "active",
+                "WS-DRIFT",
+                "Drift Workstream",
+                "resolved",
+                "closed",
+            )
+
+            output = snapshot_cli.summarize_workstreams(project_dir)
+
+            self.assertIn("  active: 0", output)
+            self.assertIn("  resolved: 1", output)
+            self.assertIn("Warnings:", output)
+            self.assertIn("WORKSTREAM_BUCKET_STATUS_MISMATCH", output)
+            self.assertIn(
+                "workstream status 'resolved' does not match bucket 'active'", output
+            )
+
+    def test_workstream_summary_preserves_valid_counts_when_one_file_is_malformed(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_workstream(
+                project_dir,
+                "active",
+                "WS-GOOD",
+                "Good Workstream",
+                "active",
+                "executing",
+            )
+            bad_path = project_dir / "workstreams" / "proposed" / "WS-BAD.md"
+            bad_path.parent.mkdir(parents=True, exist_ok=True)
+            bad_path.write_text(
+                (
+                    "---\n"
+                    "id: WS-BAD\n"
+                    "kind: planning_node\n"
+                    "status: proposed\n"
+                    "stage: conceived\n"
+                    "---\n"
+                ),
+                encoding="utf-8",
+            )
+
+            output = snapshot_cli.summarize_workstreams(project_dir)
+
+            self.assertIn("  proposed: 0", output)
+            self.assertIn("  active: 1", output)
+            self.assertIn("Active workstreams:", output)
+            self.assertIn("  WS-GOOD — Good Workstream", output)
+            self.assertIn("Warnings:", output)
+            self.assertIn("Skipped proposed/WS-BAD.md", output)
+            self.assertIn("missing or invalid string field 'title'", output)
+
+
 def _write_snapshot_project_scaffold(root: Path) -> Path:
     project_dir = root / "project"
     for relative_path in (
@@ -251,6 +396,57 @@ def _write_snapshot_project_scaffold(root: Path) -> Path:
         encoding="utf-8",
     )
     return project_dir
+
+
+def _write_workstream(
+    project_dir: Path,
+    bucket: str,
+    workstream_id: str,
+    title: str,
+    status: str,
+    stage: str,
+    *,
+    work_items: list[str] | None = None,
+) -> None:
+    lines = [
+        "---",
+        f"id: {workstream_id}",
+        "kind: planning_node",
+        f"title: {title}",
+        f"status: {status}",
+        f"stage: {stage}",
+    ]
+    if work_items:
+        lines.append("work_items:")
+        lines.extend(f"  - {work_item_id}" for work_item_id in work_items)
+    lines.extend(["---", "", f"# {title}", ""])
+    path = project_dir / "workstreams" / bucket / f"{workstream_id}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines), encoding="utf-8")
+
+
+def _write_work_item(project_dir: Path, work_item_id: str) -> None:
+    path = project_dir / "work_items" / "active" / f"{work_item_id}.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        "\n".join(
+            [
+                "---",
+                f"id: {work_item_id}",
+                f"title: {work_item_id} Work Item",
+                "type: deliverable",
+                "status: active",
+                "blocked: false",
+                "blocked_reason: null",
+                "resolution: null",
+                "---",
+                "",
+                f"# {work_item_id} Work Item",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
 
 
 def _write_design_proposal(

@@ -69,6 +69,14 @@ def load_workstreams(root: Path) -> tuple[Workstream, ...]:
     return _load_workstreams(project_dir / "workstreams")
 
 
+def load_workstreams_from_project_dir_permissive(
+    project_dir: Path,
+) -> tuple[tuple[Workstream, ...], tuple[str, ...]]:
+    """Load valid workstreams and collect skipped-file warnings."""
+
+    return _load_workstreams_permissive(project_dir / "workstreams")
+
+
 def load_design_proposals(root: Path) -> tuple[DesignProposal, ...]:
     """Load design proposals from a project or repository root."""
 
@@ -150,6 +158,32 @@ def _load_workstreams(directory: Path) -> tuple[Workstream, ...]:
         parsed = parse_markdown_file(path)
         workstreams.append(_workstream_from_parsed(path, directory, parsed))
     return tuple(workstreams)
+
+
+def _load_workstreams_permissive(
+    directory: Path,
+) -> tuple[tuple[Workstream, ...], tuple[str, ...]]:
+    if not directory.exists():
+        return (), ()
+
+    workstreams: list[Workstream] = []
+    warnings: list[str] = []
+    for path in _iter_workstream_files(directory):
+        try:
+            parsed = parse_markdown_file(path)
+            workstreams.append(_workstream_from_parsed(path, directory, parsed))
+        except ValueError as error:
+            warnings.append(
+                f"Skipped {_relative_path_for_warning(path, directory)}: {error}"
+            )
+    return tuple(workstreams), tuple(warnings)
+
+
+def _relative_path_for_warning(path: Path, directory: Path) -> str:
+    try:
+        return str(path.relative_to(directory))
+    except ValueError:
+        return str(path)
 
 
 def _iter_workstream_files(directory: Path) -> tuple[Path, ...]:

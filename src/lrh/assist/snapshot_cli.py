@@ -9,6 +9,7 @@ import sys
 from lrh import version as lrh_version
 from lrh.control import loader as control_loader
 from lrh.control import models as control_models
+from lrh.control import planning_tree as control_planning_tree
 
 
 def build_parser(*, prog: str = "snapshot") -> argparse.ArgumentParser:
@@ -112,6 +113,158 @@ def _format_design_proposal_item(
         if evidence is not None:
             lines.append(evidence)
     return lines
+
+
+_WORKSTREAM_STATUS_ORDER = ("proposed", "active", "resolved", "abandoned")
+
+
+def summarize_workstreams(project_dir: pathlib.Path) -> str:
+    """Summarize workstream lifecycle state for read-only snapshots."""
+    workstreams, load_warnings = (
+        control_loader.load_workstreams_from_project_dir_permissive(project_dir)
+    )
+
+    work_items = _load_snapshot_work_items(project_dir)
+    relationship_index = control_planning_tree.build_planning_tree_from_artifacts(
+        workstreams=workstreams,
+        work_items=work_items,
+    )
+
+    counts = {status: 0 for status in _WORKSTREAM_STATUS_ORDER}
+    other_statuses: dict[str, int] = {}
+    for workstream in workstreams:
+        if workstream.status in counts:
+            counts[workstream.status] += 1
+        else:
+            other_statuses[workstream.status] = (
+                other_statuses.get(workstream.status, 0) + 1
+            )
+
+    lines = ["Workstreams:"]
+    lines.extend(f"  {status}: {counts[status]}" for status in _WORKSTREAM_STATUS_ORDER)
+    for status in sorted(other_statuses):
+        lines.append(f"  {status}: {other_statuses[status]}")
+
+    active_workstreams = sorted(
+        (workstream for workstream in workstreams if workstream.status == "active"),
+        key=lambda workstream: workstream.id,
+    )
+    if active_workstreams:
+        lines.extend(["", "Active workstreams:"])
+        for workstream in active_workstreams:
+            lines.extend(_format_active_workstream(workstream, relationship_index))
+
+    warnings = sorted(
+        dict.fromkeys(
+            (
+                *load_warnings,
+                *_workstream_snapshot_diagnostics(relationship_index, workstreams),
+            )
+        )
+    )
+    if warnings:
+        lines.extend(["", "Warnings:"])
+        lines.extend(f"  - {warning}" for warning in warnings)
+
+    return "\n".join(lines)
+
+
+def _load_snapshot_work_items(
+    project_dir: pathlib.Path,
+) -> tuple[control_models.WorkItem, ...]:
+    work_items: list[control_models.WorkItem] = []
+    for path in list_work_items(project_dir):
+        text = read_text_if_exists(path)
+        if text is None:
+            continue
+        frontmatter, body = parse_frontmatter(text)
+        work_item_id = frontmatter.get("id")
+        title = frontmatter.get("title")
+        item_type = frontmatter.get("type")
+        status = frontmatter.get("status")
+        if not all(
+            isinstance(value, str) for value in (work_item_id, title, item_type, status)
+        ):
+            continue
+        work_items.append(
+            control_models.WorkItem(
+                path=path,
+                id=work_item_id,
+                title=title,
+                type=item_type,
+                status=status,
+                priority=_optional_frontmatter_str(frontmatter, "priority"),
+                owner=_optional_frontmatter_str(frontmatter, "owner"),
+                parent_id=_optional_frontmatter_str(frontmatter, "parent_id"),
+                body=body,
+                frontmatter=frontmatter,
+            )
+        )
+    return tuple(work_items)
+
+
+def _optional_frontmatter_str(
+    frontmatter: dict[str, object],
+    field: str,
+) -> str | None:
+    value = frontmatter.get(field)
+    if isinstance(value, str):
+        return value
+    return None
+
+
+def _format_active_workstream(
+    workstream: control_models.Workstream,
+    relationship_index: control_planning_tree.PlanningTreeIndex,
+) -> list[str]:
+    lines = [f"  {workstream.id} — {workstream.title}"]
+    lines.append(f"    stage: {workstream.stage}")
+    lines.append(f"    status: {workstream.status}")
+
+    children = relationship_index.children_of(workstream.id)
+    if children:
+        work_item_count = sum(
+            1
+            for child_id in children
+            if relationship_index.artifacts_by_id[child_id].kind
+            == control_planning_tree.ARTIFACT_WORK_ITEM
+        )
+        lines.append(f"    children: {len(children)}")
+        lines.append(f"    work_items: {work_item_count}")
+    return lines
+
+
+def _workstream_snapshot_diagnostics(
+    relationship_index: control_planning_tree.PlanningTreeIndex,
+    workstreams: tuple[control_models.Workstream, ...],
+) -> list[str]:
+    diagnostics = [
+        f"{diagnostic.code}: {diagnostic.path}: {diagnostic.message}"
+        for diagnostic in relationship_index.diagnostics
+    ]
+    diagnostics.extend(_workstream_bucket_status_diagnostics(workstreams))
+    return diagnostics
+
+
+def _workstream_bucket_status_diagnostics(
+    workstreams: tuple[control_models.Workstream, ...],
+) -> list[str]:
+    diagnostics: list[str] = []
+    valid_statuses = set(_WORKSTREAM_STATUS_ORDER)
+    for workstream in workstreams:
+        if (
+            workstream.bucket is None
+            or workstream.status not in valid_statuses
+            or workstream.bucket == workstream.status
+        ):
+            continue
+        diagnostics.append(
+            "WORKSTREAM_BUCKET_STATUS_MISMATCH: "
+            f"{workstream.path}: "
+            f"workstream status '{workstream.status}' "
+            f"does not match bucket '{workstream.bucket}'"
+        )
+    return diagnostics
 
 
 def summarize_design_proposals(project_dir: pathlib.Path) -> str:
@@ -445,6 +598,10 @@ def generate_project_context(
         "",
         summarize_file(project_dir / "focus" / "current_focus.md"),
         "",
+        "## Workstreams",
+        "",
+        summarize_workstreams(project_dir),
+        "",
         maybe_optional_section(
             args.include_guardrails,
             "Guardrails",
@@ -585,6 +742,10 @@ def generate_work_item_context(
         "## Current Focus",
         "",
         summarize_file(project_dir / "focus" / "current_focus.md"),
+        "",
+        "## Workstreams",
+        "",
+        summarize_workstreams(project_dir),
         "",
         maybe_optional_section(
             args.include_design,

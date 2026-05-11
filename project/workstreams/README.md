@@ -95,8 +95,9 @@ conceived | assessed | designed | planned | executing | reviewing | closed | aba
 
 `lrh validate` checks this minimal vocabulary and the required frontmatter fields. It does not yet
 enforce hard status/stage combination rules; those remain documentation-level guidance for the MVP
-so users are not surprised by over-strict lifecycle checks. Snapshot and organizer behavior remain
-separate focused work items.
+so users are not surprised by over-strict lifecycle checks. `lrh snapshot project` now includes a
+read-only workstream summary with status counts and active-workstream details; organizer behavior
+remains a separate focused work item.
 
 ## Large-work lifecycle
 
@@ -138,14 +139,14 @@ LRH also includes a small internal planning-tree relationship index. It treats w
 planning nodes and work items as executable leaves, resolves `parent_id`, `children`, and
 `work_items` references by ID, and reports missing references, duplicate relationship IDs, simple
 workstream cycles, and conflicting parent/child declarations during validation. Paths and nested
-directories are not relationship semantics.
+directories are not relationship semantics. The same loaded model and relationship index power the
+read-only workstream section in `lrh snapshot project`.
 
 ## Non-goals for this directory MVP
 
 This directory establishes the human-facing home and introductory documentation for workstreams. It
 does not yet provide:
 
-- snapshot integration
 - organizer or tidy behavior
 - `lrh run`
 - agent execution

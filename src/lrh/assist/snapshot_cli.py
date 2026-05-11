@@ -10,7 +10,6 @@ from lrh import version as lrh_version
 from lrh.control import loader as control_loader
 from lrh.control import models as control_models
 from lrh.control import planning_tree as control_planning_tree
-from lrh.control import validator as control_validator
 
 
 def build_parser(*, prog: str = "snapshot") -> argparse.ArgumentParser:
@@ -121,18 +120,9 @@ _WORKSTREAM_STATUS_ORDER = ("proposed", "active", "resolved", "abandoned")
 
 def summarize_workstreams(project_dir: pathlib.Path) -> str:
     """Summarize workstream lifecycle state for read-only snapshots."""
-    try:
-        workstreams = control_loader.load_workstreams(project_dir)
-    except (FileNotFoundError, ValueError) as error:
-        return "\n".join(
-            [
-                "Workstreams:",
-                *[f"  {status}: 0" for status in _WORKSTREAM_STATUS_ORDER],
-                "",
-                "Warnings:",
-                f"  - Could not load workstreams: {error}",
-            ]
-        )
+    workstreams, load_warnings = (
+        control_loader.load_workstreams_from_project_dir_permissive(project_dir)
+    )
 
     work_items = _load_snapshot_work_items(project_dir)
     relationship_index = control_planning_tree.build_planning_tree_from_artifacts(
@@ -164,10 +154,17 @@ def summarize_workstreams(project_dir: pathlib.Path) -> str:
         for workstream in active_workstreams:
             lines.extend(_format_active_workstream(workstream, relationship_index))
 
-    diagnostics = _workstream_snapshot_diagnostics(project_dir, relationship_index)
-    if diagnostics:
+    warnings = sorted(
+        dict.fromkeys(
+            (
+                *load_warnings,
+                *_workstream_snapshot_diagnostics(relationship_index, workstreams),
+            )
+        )
+    )
+    if warnings:
         lines.extend(["", "Warnings:"])
-        lines.extend(f"  - {diagnostic}" for diagnostic in diagnostics)
+        lines.extend(f"  - {warning}" for warning in warnings)
 
     return "\n".join(lines)
 
@@ -238,21 +235,36 @@ def _format_active_workstream(
 
 
 def _workstream_snapshot_diagnostics(
-    project_dir: pathlib.Path,
     relationship_index: control_planning_tree.PlanningTreeIndex,
+    workstreams: tuple[control_models.Workstream, ...],
+) -> list[str]:
+    diagnostics = [
+        f"{diagnostic.code}: {diagnostic.path}: {diagnostic.message}"
+        for diagnostic in relationship_index.diagnostics
+    ]
+    diagnostics.extend(_workstream_bucket_status_diagnostics(workstreams))
+    return diagnostics
+
+
+def _workstream_bucket_status_diagnostics(
+    workstreams: tuple[control_models.Workstream, ...],
 ) -> list[str]:
     diagnostics: list[str] = []
-    for diagnostic in relationship_index.diagnostics:
+    valid_statuses = set(_WORKSTREAM_STATUS_ORDER)
+    for workstream in workstreams:
+        if (
+            workstream.bucket is None
+            or workstream.status not in valid_statuses
+            or workstream.bucket == workstream.status
+        ):
+            continue
         diagnostics.append(
-            f"{diagnostic.code}: {diagnostic.path}: {diagnostic.message}"
+            "WORKSTREAM_BUCKET_STATUS_MISMATCH: "
+            f"{workstream.path}: "
+            f"workstream status '{workstream.status}' "
+            f"does not match bucket '{workstream.bucket}'"
         )
-
-    validation_report = control_validator.validate_project(project_dir)
-    for issue in validation_report.issues:
-        if issue.code.startswith("WORKSTREAM_") or issue.code.startswith("PLANNING_"):
-            diagnostics.append(f"{issue.code}: {issue.file}: {issue.message}")
-
-    return sorted(dict.fromkeys(diagnostics))
+    return diagnostics
 
 
 def summarize_design_proposals(project_dir: pathlib.Path) -> str:

@@ -2,9 +2,9 @@
 execution_id: 2026_05_11_05_54_28_IMPLEMENT_WORKSTREAM_SNAPSHOT_MVP
 prompt_id: PROMPT(WI-WORKSTREAM-SNAPSHOT-MVP:IMPLEMENT_WORKSTREAM_SNAPSHOT_MVP)[2026-05-06T11:20:00-04:00]
 work_item: WI-WORKSTREAM-SNAPSHOT-MVP
-status: landed
+status: in_progress
 rerun_of: 
-pr: 
+pr: xenotaur/logical_robotics_harness#216
 commit: 
 created_at: 2026-05-11T05:54:28+00:00
 ---
@@ -25,9 +25,10 @@ Implemented read-only workstream visibility for `lrh snapshot project`.
 # Validation
 
 - `scripts/version tools` confirmed the task-phase tool versions available in this environment.
-- `scripts/format --check` passed.
+- `scripts/format --check --diff` passed.
 - `scripts/lint` passed.
 - `scripts/test` passed.
+- Follow-up review on PR #216 moved this record back to `in_progress` until merge/closeout updates can provide final landed metadata.
 
 # Follow-up
 

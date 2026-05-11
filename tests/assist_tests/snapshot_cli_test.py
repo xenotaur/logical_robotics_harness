@@ -334,6 +334,43 @@ class TestSnapshotCliWorkstreams(unittest.TestCase):
                 "workstream status 'resolved' does not match bucket 'active'", output
             )
 
+    def test_workstream_summary_preserves_valid_counts_when_one_file_is_malformed(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_workstream(
+                project_dir,
+                "active",
+                "WS-GOOD",
+                "Good Workstream",
+                "active",
+                "executing",
+            )
+            bad_path = project_dir / "workstreams" / "proposed" / "WS-BAD.md"
+            bad_path.parent.mkdir(parents=True, exist_ok=True)
+            bad_path.write_text(
+                (
+                    "---\n"
+                    "id: WS-BAD\n"
+                    "kind: planning_node\n"
+                    "status: proposed\n"
+                    "stage: conceived\n"
+                    "---\n"
+                ),
+                encoding="utf-8",
+            )
+
+            output = snapshot_cli.summarize_workstreams(project_dir)
+
+            self.assertIn("  proposed: 0", output)
+            self.assertIn("  active: 1", output)
+            self.assertIn("Active workstreams:", output)
+            self.assertIn("  WS-GOOD — Good Workstream", output)
+            self.assertIn("Warnings:", output)
+            self.assertIn("Skipped proposed/WS-BAD.md", output)
+            self.assertIn("missing or invalid string field 'title'", output)
+
 
 def _write_snapshot_project_scaffold(root: Path) -> Path:
     project_dir = root / "project"

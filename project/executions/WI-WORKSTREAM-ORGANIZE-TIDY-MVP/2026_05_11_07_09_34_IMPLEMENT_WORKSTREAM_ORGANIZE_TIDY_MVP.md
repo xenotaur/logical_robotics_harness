@@ -2,10 +2,10 @@
 execution_id: 2026_05_11_07_09_34_IMPLEMENT_WORKSTREAM_ORGANIZE_TIDY_MVP
 prompt_id: PROMPT(WI-WORKSTREAM-ORGANIZE-TIDY-MVP:IMPLEMENT_WORKSTREAM_ORGANIZE_TIDY_MVP)[2026-05-06T11:30:00-04:00]
 work_item: WI-WORKSTREAM-ORGANIZE-TIDY-MVP
-status: landed
-rerun_of: null
-pr: null
-commit: null
+status: in_progress
+rerun_of:
+pr:
+commit:
 created_at: 2026-05-11T07:09:34+00:00
 ---
 
@@ -47,4 +47,5 @@ Implemented the Workstream Organize/Tidy MVP as a focused, dry-run-first mainten
 Pause and review the Workstream Control Plane MVP before moving toward execution readiness,
 run-packet generation, or any future `lrh run` / autonomous execution work. This change deliberately
 avoids automated lifecycle advancement, stage/status rewriting, agent execution, execution backends,
-or orchestration.
+or orchestration. After merge, update this execution record to `landed` and fill `pr`/`commit`
+metadata.

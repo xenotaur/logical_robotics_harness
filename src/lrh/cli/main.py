@@ -20,6 +20,7 @@ from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
 from lrh.work_items import organize as work_items_organize
 from lrh.work_items import validate as work_items_validate
+from lrh.workstreams import organize as workstreams_organize
 
 
 def main() -> None:
@@ -207,6 +208,38 @@ def main() -> None:
         choices=("text", "json"),
         default="text",
         help="output format (default: text)",
+    )
+
+    workstreams_parser = subparsers.add_parser(
+        "workstreams",
+        help="Workstream maintenance commands.",
+    )
+    workstreams_subparsers = workstreams_parser.add_subparsers(
+        dest="workstreams_command"
+    )
+    workstreams_organize_parser = workstreams_subparsers.add_parser(
+        "organize",
+        help="Organize workstreams into metadata-derived status buckets.",
+    )
+    workstreams_organize_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    workstreams_organize_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="preview planned moves without writing files",
+    )
+    workstreams_organize_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="return non-zero when organization changes would be needed",
+    )
+    workstreams_organize_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="apply planned file moves",
     )
 
     design_parser = subparsers.add_parser(
@@ -594,6 +627,30 @@ def main() -> None:
                 print(work_items_validate.format_text(result))
             raise SystemExit(1 if result.errors else 0)
         parser.error("work-items requires a subcommand (try: lrh work-items organize)")
+
+    if args.command == "workstreams":
+        if args.workstreams_command == "organize":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            if args.apply and args.dry_run:
+                parser.error("--dry-run and --apply are mutually exclusive")
+            project_root = Path(args.project_root).expanduser().resolve()
+            plan = workstreams_organize.plan_organization(project_root=project_root)
+            if args.check:
+                print(workstreams_organize.build_text_report(plan))
+                raise SystemExit(1 if plan.planned_moves() else 0)
+            if args.apply:
+                try:
+                    workstreams_organize.apply_plan(plan)
+                except ValueError as err:
+                    print(workstreams_organize.build_text_report(plan))
+                    print(f"error: {err}")
+                    raise SystemExit(1) from err
+            print(workstreams_organize.build_text_report(plan, applied=args.apply))
+            raise SystemExit(0)
+        parser.error(
+            "workstreams requires a subcommand (try: lrh workstreams organize)"
+        )
 
     if args.command == "design":
         if args.design_command == "organize":

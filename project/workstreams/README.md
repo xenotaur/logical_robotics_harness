@@ -69,8 +69,19 @@ humans can scan the repository quickly.
 
 `lrh validate` reports drift when a workstream's metadata and directory placement disagree. This is
 a warning rather than a fatal error because status metadata is authoritative and bucket placement is
-navigational. Future organize or tidy commands may repair that drift based on metadata, following
-the same metadata-authoritative pattern used for work items.
+navigational.
+
+Use `lrh workstreams organize` to preview metadata-derived bucket moves. The command is dry-run-first
+by default and only moves files when `--apply` is provided:
+
+```bash
+lrh workstreams organize --dry-run
+lrh workstreams organize --apply
+```
+
+Organization uses frontmatter `status` as the source of truth, creates expected destination bucket
+directories as needed, and does not rewrite workstream frontmatter, IDs, stages, relationships, or
+content. Destination conflicts and invalid workstream metadata are reported instead of guessed.
 
 ## Status versus stage
 
@@ -96,8 +107,8 @@ conceived | assessed | designed | planned | executing | reviewing | closed | aba
 `lrh validate` checks this minimal vocabulary and the required frontmatter fields. It does not yet
 enforce hard status/stage combination rules; those remain documentation-level guidance for the MVP
 so users are not surprised by over-strict lifecycle checks. `lrh snapshot project` now includes a
-read-only workstream summary with status counts and active-workstream details; organizer behavior
-remains a separate focused work item.
+read-only workstream summary with status counts and active-workstream details. `lrh workstreams
+organize` can explicitly repair status-bucket drift without changing metadata.
 
 ## Large-work lifecycle
 
@@ -147,7 +158,7 @@ read-only workstream section in `lrh snapshot project`.
 This directory establishes the human-facing home and introductory documentation for workstreams. It
 does not yet provide:
 
-- organizer or tidy behavior
+- automated lifecycle advancement
 - `lrh run`
 - agent execution
 - orchestration

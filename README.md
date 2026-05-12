@@ -377,6 +377,25 @@ not replace full project validation (`lrh validate`).
 and consistency warnings). Flat legacy files under `project/work_items/*.md` are
 reported as warnings for compatibility, not errors.
 
+### Workstream status buckets
+
+Workstreams are organized under `project/workstreams/proposed/`, `active/`, `resolved/`, and
+`abandoned/`. Workstream frontmatter `status` is authoritative; bucket placement is a human-facing
+navigation projection.
+
+To preview or explicitly repair status-bucket drift without rewriting workstream metadata, use:
+
+```bash
+lrh workstreams organize --project-root . --dry-run
+lrh workstreams organize --project-root . --check
+lrh workstreams organize --project-root . --apply
+lrh validate
+```
+
+`lrh workstreams organize` defaults to preview behavior (non-mutating unless `--apply` is provided),
+reports invalid workstream metadata and destination conflicts instead of guessing, and does not edit
+workstream frontmatter, IDs, stages, relationships, or content.
+
 
 ## Near-term priorities
 

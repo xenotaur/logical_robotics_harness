@@ -3,21 +3,27 @@ id: WS-EXECUTION-FRAMEWORK
 kind: planning_node
 title: Bounded Agent Execution Framework
 status: proposed
-stage: conceived
+stage: planned
 origin: follow_up
 summary: Define and plan LRH's bounded execution loop for executable leaves, including run packets, agent-owned branches, PR/CI stabilization, and final run reports.
 related_focus:
-  - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
+  - FOCUS-EXECUTION-FRAMEWORK-PLANNING
 related_roadmap:
-  - ROADMAP-PHASE-01A
-  - ROADMAP-PHASE-02
+  - ROADMAP-PHASE-03
 work_items:
+  - WI-EXECUTION-READINESS-SCHEMA
+  - WI-RUN-PACKET-DRY-RUN
+  - WI-RUN-REPORT-MVP
+  - WI-AGENT-BRANCH-CONTAINMENT
+  - WI-GITHUB-PR-CI-OBSERVATION
+  - WI-BOUNDED-STABILIZATION-LOOP-DESIGN
   - WI-WORK-ITEM-EXECUTION-READY-CONCEPT-MVP
   - WI-RUN-PACKET-GENERATION-DESIGN-MVP
 exit_criteria:
   - execution-framework design is updated and reconciled with the workstream/planning-tree model
   - roadmap, current focus, and work items identify the first execution-framework implementation phase
   - first implementation work items are scoped before runtime automation begins
+  - first implementation package starts with execution readiness, dry-run run packets, and run reports
   - execution readiness and run-packet contracts are defined before agent backends are added
   - human/policy gates for merge, release, publish, and closeout remain explicit
 ---
@@ -71,10 +77,10 @@ core LRH until contracts, policy gates, and evidence expectations are clear.
   `project/design/workstream_schema_mvp.md`
 - Current focus context:
   `project/focus/current_focus.md`
-- Planning-tree and workstream foundation roadmap:
+- Execution, evidence, and status roadmap context:
+  `project/roadmap/phase_03_execution_evidence_status.md`
+- Planning-tree and workstream foundation background:
   `project/roadmap/phase_01a_planning_tree_workstreams.md`
-- Runtime and workspace roadmap context:
-  `project/roadmap/phase_02_runtime_and_workspace.md`
 - Existing execution-readiness/run-packet planning seeds:
   `WI-WORK-ITEM-EXECUTION-READY-CONCEPT-MVP` and `WI-RUN-PACKET-GENERATION-DESIGN-MVP`
 
@@ -85,6 +91,7 @@ This workstream can move toward resolution when:
 - execution-framework design is updated and reconciled with the workstream/planning-tree model;
 - roadmap, current focus, and work items identify the first execution-framework implementation phase;
 - first implementation work items are scoped before runtime automation begins;
+- first implementation package starts with execution readiness, dry-run run packets, and run reports;
 - execution readiness and run-packet contracts are defined before agent backends are added; and
 - human/policy gates for merge, release, publish, and closeout remain explicit.
 
@@ -106,4 +113,11 @@ backends, orchestration loops, tests for runtime execution behavior, or GitHub A
 
 ## Next phase
 
-Update roadmap, current focus, and work items to plan the execution-framework phase.
+Generate a prompt package for the first implementation work items:
+
+- `WI-EXECUTION-READINESS-SCHEMA`
+- `WI-RUN-PACKET-DRY-RUN`
+- `WI-RUN-REPORT-MVP`
+
+Do not start branch mutation, backend adapters, autonomous execution, or PR stabilization automation
+before those contracts exist.

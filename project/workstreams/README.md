@@ -168,3 +168,10 @@ does not yet provide:
 
 Those capabilities should be implemented later through separate, focused Workstream Control Plane
 MVP work items.
+
+## Current execution-framework workstream
+
+`proposed/WS-EXECUTION-FRAMEWORK.md` is the active planning record for the bounded execution
+framework phase. Its first implementation sequence is limited to execution readiness, dry-run run
+packets, and run reports; branch mutation, agent backends, autonomous stabilization, and
+merge/publish automation remain deferred until those contracts are stable.

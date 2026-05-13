@@ -17,7 +17,7 @@ children:
 The harness should be built in stages, with the earliest stages proving the project model and local
 workflow before deeper agent integration.
 
-## Current sequencing update (2026-05-05)
+## Current sequencing update (2026-05-13)
 
 Recently completed baseline work:
 
@@ -28,14 +28,12 @@ Recently completed baseline work:
 
 Immediate next ordering:
 
-1. complete **Phase 01A — Planning Tree and Workstream Foundation** as the explicit planning
-   prerequisite for the Workstream Control Plane MVP
-2. then implement the Workstream Control Plane MVP through the scoped work items created by
-   Phase 01A
-3. represent workstreams as first-class, repo-native planning artifacts before automation
-4. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item**
-5. keep parent/child structure metadata-driven rather than path-driven
-6. keep metadata authoritative and treat directory buckets as navigation projections
+1. treat the Workstream Control Plane MVP as the landed prerequisite for execution-framework planning
+2. plan **Phase 3 — Execution, Evidence, and Status** as a staged bounded execution-framework phase
+3. begin with execution readiness, dry-run run packets, and run reports for selected work items
+4. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item -> Run Packet -> Run Report**
+5. preserve human/policy gates for merge, release, publish, and closeout
+6. keep branch mutation, autonomous stabilization, and backend adapters deferred until contracts are stable
 7. sequence work through small reviewable work items before any execution-framework implementation
 
 Prompt-workflow integration note:
@@ -80,6 +78,51 @@ be read as deferred execution-framework shorthand, not as a safe-default command
 integrated `lrh run` alias is ever introduced for autonomous behavior, it must require the optional
 agentic capability and be unavailable in the default non-agentic install.
 
+
+## Near-term roadmap addition: Bounded Agent Execution Framework
+
+MVP goal:
+
+> LRH can prepare and eventually run bounded, auditable execution workflows for selected executable
+> leaves, using run packets, branch-contained PR stabilization, validation evidence, and final run
+> reports while preserving human/policy gates.
+
+Recommended staged deliverables:
+
+1. **Execution readiness schema** — define the work-item fields required before a selected leaf can
+   be used for future run-packet generation or execution workflows.
+2. **Run packet dry-run** — generate a human-reviewable packet without invoking an agent or mutating
+   branches.
+3. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
+   human verification tasks, and recommended next actions.
+4. **Agent branch containment design support** — document agent-owned branch namespaces, protected
+   merge gates, and branch policy assumptions before mutation-capable behavior.
+5. **GitHub PR/CI observation adapter** — read PR, review, and CI state without repository mutation.
+6. **Bounded stabilization loop design** — plan iteration limits, stop conditions, and escalation
+   rules before automation can respond to review or CI.
+7. **Backend adapter abstraction** — define backend-neutral contracts only after packet/report and
+   policy boundaries are stable.
+8. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
+   or bounded-auto execution.
+
+First implementation package after this planning PR:
+
+- `WI-EXECUTION-READINESS-SCHEMA`
+- `WI-RUN-PACKET-DRY-RUN`
+- `WI-RUN-REPORT-MVP`
+
+Explicitly deferred until later phases or optional capability work:
+
+- automatic merge to main
+- release or publish automation
+- secrets management beyond documented policy assumptions
+- privileged workflow execution
+- MCP bridges
+- telemetry systems
+- full autonomous execution
+- backend-specific implementations until contracts are stable
+- autonomous branch mutation before readiness, packet, and report contracts exist
+
 ## Phase 1 — Control Plane
 
 Define and implement the project control model:
@@ -107,14 +150,14 @@ Exit condition:
 
 ## Phase 3 — Execution, Evidence, and Status
 
-Add operational behavior:
-- work item execution scaffolding
-- evidence recording
-- synthesized status
-- run artifacts
+Phase 3 is now staged by the bounded execution-framework plan above. The canonical phase detail lives
+in `project/roadmap/phase_03_execution_evidence_status.md`, starting with execution readiness,
+dry-run run packets, and run reports before mutation-capable automation, PR stabilization loops, or
+agent backends.
 
 Exit condition:
-- LRH can execute a bounded workflow and produce evidence-backed status.
+- LRH can prepare bounded, evidence-backed execution artifacts and later execute bounded workflows
+  only after readiness, packet, report, and human/policy-gate contracts are stable.
 
 ## Phase 4 — MCP and Agent Integration
 

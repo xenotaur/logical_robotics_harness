@@ -39,7 +39,7 @@ contracts that tie status to evidence.
 
 The first implementation sequence after this planning PR should be:
 
-1. shared core state APIs needed by CLI/UI interpretation
+1. `WI-LRH-CORE-STATE-APIS-MVP`
 2. `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
 3. `WI-EXECUTION-READINESS-SCHEMA`
 4. `WI-RUN-PACKET-DRY-RUN`
@@ -76,7 +76,8 @@ This focus is complete when:
 
 1. the roadmap clearly stages the bounded execution-framework phase
 2. the execution-framework workstream points at the first implementation sequence
-3. work items exist for safe-default `lrh serve`, execution readiness, run packet dry-run, run report
+3. work items exist for shared core state APIs, safe-default `lrh serve`, execution readiness, run packet dry-run, run report
    MVP, branch containment, PR/CI observation, and bounded stabilization-loop design
-4. the first implementation prompt package can safely start with shared state APIs, a read-only serve
-   skeleton, readiness, dry-run packets, and run reports without backend or branch-mutation work
+4. the first implementation prompt package can safely start with `WI-LRH-CORE-STATE-APIS-MVP`,
+   `WI-LRH-SERVE-SAFE-DEFAULT-MVP`, readiness, dry-run packets, and run reports without backend or
+   branch-mutation work

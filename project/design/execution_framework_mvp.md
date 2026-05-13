@@ -596,8 +596,8 @@ The MVP should make unsafe authority visible rather than hiding it behind a succ
 Recommended design and implementation order:
 
 1. Align design/control-plane artifacts around safe-default `lrh serve` and optional agentic layers.
-2. Add or refine core state APIs as needed for shared CLI/UI interpretation.
-3. Implement a safe-default, read-only `lrh serve` skeleton.
+2. Complete `WI-LRH-CORE-STATE-APIS-MVP` to define core state APIs for shared CLI/UI interpretation.
+3. Complete `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a safe-default, read-only `lrh serve` skeleton.
 4. Add a prompt workbench MVP with editable preview, copy/download fallback, and no autonomous dispatch.
 5. Add run-state artifacts and manual run tracking under `project/runs/<RUN-ID>/`.
 6. Add manual evidence and report workflow support.

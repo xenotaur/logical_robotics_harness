@@ -19,7 +19,8 @@ related_workstreams:
 related_design:
   - project/design/execution_framework_mvp.md
   - project/design/proposals/adopted/safe-default-agentic-extra-packaging/00_proposal.md
-depends_on: []
+depends_on:
+  - WI-LRH-CORE-STATE-APIS-MVP
 blocked_by: []
 expected_actions:
   - edit_file
@@ -99,5 +100,5 @@ operate before adding durable run state, observation adapters, or optional agent
 
 ## Dependencies / Order
 
-After design/control-plane alignment and any core state APIs needed for shared CLI/UI
-interpretation. Before run-state UI, observation adapters, or optional agentic dispatch adapters.
+After design/control-plane alignment and `WI-LRH-CORE-STATE-APIS-MVP`. Before run-state UI,
+observation adapters, or optional agentic dispatch adapters.

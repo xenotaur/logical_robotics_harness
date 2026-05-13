@@ -50,6 +50,7 @@ preserving human/policy gates.
 
 The first implementation package should stay contract-first and dry-run-first:
 
+- `WI-LRH-CORE-STATE-APIS-MVP`
 - `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
 - `WI-EXECUTION-READINESS-SCHEMA`
 - `WI-RUN-PACKET-DRY-RUN`

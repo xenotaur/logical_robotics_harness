@@ -11,6 +11,7 @@ related_focus:
 related_roadmap:
   - ROADMAP-PHASE-03
 work_items:
+  - WI-LRH-CORE-STATE-APIS-MVP
   - WI-LRH-SERVE-SAFE-DEFAULT-MVP
   - WI-EXECUTION-READINESS-SCHEMA
   - WI-RUN-PACKET-DRY-RUN
@@ -134,7 +135,7 @@ backends, orchestration loops, tests for runtime execution behavior, or GitHub A
 
 Generate a prompt package for the first implementation sequence:
 
-- shared core state APIs needed by CLI/UI interpretation
+- `WI-LRH-CORE-STATE-APIS-MVP`
 - `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
 - `WI-EXECUTION-READINESS-SCHEMA`
 - `WI-RUN-PACKET-DRY-RUN`

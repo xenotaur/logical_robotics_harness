@@ -5,6 +5,7 @@ status: proposed
 parent: ROADMAP-CORE
 order: 3
 success_criteria:
+  - planning relationship/index validation and snapshot summaries are shared before serve/run surfaces infer planning-tree state
   - safe-default `lrh serve` can project current control-plane state without autonomous behavior
   - execution readiness fields are defined for selected executable leaves
   - dry-run run packets can be prepared without branch mutation or agent invocation
@@ -21,9 +22,10 @@ and validate execution readiness and run-packet contracts before mutation-capabl
 agent backends, or PR stabilization loops are implemented.
 
 Canonical living design: `project/design/execution_framework_mvp.md`. Its staged structure now starts
-with shared core state APIs and a safe-default `lrh serve` viewer/prompt workbench, then durable run
-artifacts, read-only observation adapters, optional agentic execution adapters, and later daemon or
-dashboard modes.
+with shared core state APIs, a planning relationship/index model, relationship validation,
+snapshot-visible planning summaries, and a safe-default `lrh serve` viewer/prompt workbench, then
+durable run artifacts, read-only observation adapters, optional agentic execution adapters, and later
+daemon or dashboard modes.
 
 ## Goal
 
@@ -35,30 +37,34 @@ preserving human/policy gates.
 ## Staged deliverables
 
 1. Shared core state and interpretation APIs.
-2. Safe-default `lrh serve` read-only viewer and prompt workbench.
-3. Execution readiness schema.
-4. Run packet dry-run.
-5. Durable run state and manual run tracking.
-6. Run report MVP.
-7. Agent branch containment design support.
-8. GitHub PR/CI observation adapter.
-9. Bounded stabilization loop design.
-10. Backend adapter abstraction.
-11. Manual/assisted/bounded-auto mode progression.
+2. Shared planning relationship/index model and validation.
+3. Snapshot-visible planning summaries.
+4. Safe-default `lrh serve` read-only viewer and prompt workbench.
+5. Opt-in execution readiness schema.
+6. Run packet request/dry-run distinction.
+7. Durable run state and manual run tracking.
+8. Run report MVP.
+9. Agent branch containment design support.
+10. GitHub PR/CI observation adapter.
+11. Bounded stabilization loop design.
+12. Backend adapter abstraction.
+13. Manual/assisted/bounded-auto mode progression.
 
 ## First implementation package
 
 The first implementation package should stay contract-first and dry-run-first:
 
 - `WI-LRH-CORE-STATE-APIS-MVP`
+- `WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP` / `WI-PLANNING-TREE-VALIDATION-RULES-MVP`
+- `WI-WORKSTREAM-SNAPSHOT-MVP`
 - `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
 - `WI-EXECUTION-READINESS-SCHEMA`
 - `WI-RUN-PACKET-DRY-RUN`
 - `WI-RUN-REPORT-MVP`
 
-These work items should establish the minimum local assist surface, project-control fields, packet
-contents, report contents, validation evidence expectations, and human closeout tasks needed before
-any branch mutation or backend adapter work begins.
+These work items should establish shared CLI/server planning interpretation, the minimum local assist
+surface, project-control fields, packet contents, report contents, validation evidence expectations,
+and human closeout tasks needed before any branch mutation or backend adapter work begins.
 
 ## Explicit deferrals
 

@@ -12,6 +12,9 @@ related_roadmap:
   - ROADMAP-PHASE-03
 work_items:
   - WI-LRH-CORE-STATE-APIS-MVP
+  - WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP
+  - WI-PLANNING-TREE-VALIDATION-RULES-MVP
+  - WI-WORKSTREAM-SNAPSHOT-MVP
   - WI-LRH-SERVE-SAFE-DEFAULT-MVP
   - WI-EXECUTION-READINESS-SCHEMA
   - WI-RUN-PACKET-DRY-RUN
@@ -25,7 +28,7 @@ exit_criteria:
   - execution-framework design is updated and reconciled with the workstream/planning-tree model
   - roadmap, current focus, and work items identify the first execution-framework implementation phase
   - first implementation work items are scoped before runtime automation begins
-  - first implementation package starts with shared state APIs, a safe-default serve skeleton, execution readiness, dry-run run packets, and run reports
+  - first implementation package starts with shared state APIs, planning relationship validation, snapshot-visible planning summaries, a safe-default serve skeleton, execution readiness, dry-run run packets, and run reports
   - execution readiness and run-packet contracts are defined before agent backends are added
   - human/policy gates for merge, release, publish, and closeout remain explicit
 ---
@@ -54,7 +57,9 @@ The intended future execution shape is:
 
 ```text
 selected executable leaf
--> shared state interpretation
+-> shared planning relationship/index model
+-> planning relationship validation
+-> snapshot-visible planning summary
 -> local `lrh serve` viewer / prompt workbench
 -> explicit human action
 -> run packet and durable run state
@@ -106,7 +111,7 @@ This workstream can move toward resolution when:
 - execution-framework design is updated and reconciled with the workstream/planning-tree model;
 - roadmap, current focus, and work items identify the first execution-framework implementation phase;
 - first implementation work items are scoped before runtime automation begins;
-- first implementation package starts with shared state APIs, a safe-default serve skeleton, execution readiness, dry-run run packets, and run reports;
+- first implementation package starts with shared state APIs, planning relationship validation, snapshot-visible planning summaries, a safe-default serve skeleton, execution readiness, dry-run run packets, and run reports;
 - execution readiness and run-packet contracts are defined before agent backends are added; and
 - human/policy gates for merge, release, publish, and closeout remain explicit.
 

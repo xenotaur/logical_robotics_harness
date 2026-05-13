@@ -26,6 +26,7 @@ forbidden_actions:
   - delete_branch
 acceptance:
   - snapshots include proposed/active/resolved/abandoned workstream summary
+  - snapshots expose planning relationship/index summaries before or alongside `lrh serve`
 required_evidence:
   - test_result
 artifacts_expected:
@@ -35,9 +36,11 @@ artifacts_expected:
 
 ## Summary
 
-Extend snapshot output to summarize workstream lifecycle status as a first-class
-project-control view.
+Extend snapshot output to summarize workstream lifecycle status and planning relationship/index state
+as a first-class project-control view before or alongside `lrh serve`.
 
 ## Safe-default alignment
 
 Snapshot visibility is observability only and must not imply execution, scheduling, or agent invocation.
+The local viewer should render this shared summary rather than becoming the first place planning-tree
+interpretation exists.

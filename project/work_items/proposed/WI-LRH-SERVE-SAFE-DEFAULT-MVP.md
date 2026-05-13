@@ -30,7 +30,7 @@ forbidden_actions:
   - delete_branch
 acceptance:
   - safe-default serve scope is implemented or documented as a local viewer and prompt workbench
-  - serve consumes shared control-plane state APIs rather than inventing a workflow engine
+  - serve consumes shared snapshot planning summaries and control-plane state APIs rather than inventing a workflow engine or tree interpreter
   - default writes are read-only or explicit-click LRH control-artifact writes only
   - autonomous dispatch, branch mutation, PR creation, CI-fix loops, review-fix loops, merge, and publish remain out of scope
 required_evidence:
@@ -54,8 +54,11 @@ operate before adding durable run state, observation adapters, or optional agent
 ## Required Changes
 
 - Define or implement a read-only local server skeleton that shows project identity, validation
-  status, current focus, active workstreams, active work items, and available next human actions.
-- Add a prompt workbench path for generated prompts with editable preview and copy/download fallback.
+  status, current focus, active workstreams, active work items, shared planning-tree/snapshot summary,
+  and available next human actions.
+- Add a prompt workbench path for generated prompts with editable preview, copy/download fallback,
+  and a safe-default "Generate run packet" action that renders a request artifact without executing,
+  simulating, dispatching, observing, mutating, or stabilizing anything.
 - Preserve a strict write boundary: no default write unless a human explicitly clicks to create or
   update LRH control artifacts such as prompt packets, manual run state, evidence, report drafts, or
   execution records.
@@ -66,13 +69,15 @@ operate before adding durable run state, observation adapters, or optional agent
 
 - Do not dispatch agents, mutate branches, push commits, open PRs automatically, run CI-fix loops,
   run review-response loops, merge, publish/release, or perform destructive actions.
-- Do not treat `lrh serve` as a sandbox or as a separate workflow engine.
+- Do not treat `lrh serve` as a sandbox, as a separate workflow engine, or as the first place that
+  planning-tree relationships are interpreted.
 - Do not force broad package-layout churn before concrete implementation pressure exists.
 
 ## Acceptance Criteria
 
 - safe-default serve scope is implemented or documented as a local viewer and prompt workbench
-- serve consumes shared control-plane state APIs rather than inventing a workflow engine
+- serve consumes shared snapshot planning summaries and control-plane state APIs rather than inventing
+  a workflow engine or tree interpreter
 - default writes are read-only or explicit-click LRH control-artifact writes only
 - autonomous dispatch, branch mutation, PR creation, CI-fix loops, review-fix loops, merge, and
   publish remain out of scope

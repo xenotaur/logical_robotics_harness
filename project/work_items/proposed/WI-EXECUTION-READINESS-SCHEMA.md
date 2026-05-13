@@ -30,7 +30,7 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - execution-readiness fields are documented for selected executable leaves
+  - execution-readiness fields are documented for selected or explicitly opted-in executable leaves
   - readiness explicitly preserves human approval before branch mutation or autonomous execution
   - the documented schema is sufficient input for run-packet dry-run work
   - non-goals defer validation code, branch mutation, and backend implementation
@@ -53,6 +53,8 @@ The execution-framework workstream needs a contract that distinguishes ordinary 
 - Document candidate readiness fields such as `autonomy_level`, `operation_risk`, `allowed_paths`, `forbidden_paths`, `validation_commands`, `max_review_rounds`, `max_ci_rounds`, `requires_human_merge`, and `requires_human_closeout`.
 - Specify which fields are required for the first dry-run packet contract and which are advisory until validation matures.
 - Describe how readiness metadata relates to workstream/work-item planning-tree semantics without making every work item executable by default.
+- Keep strict readiness validation opt-in for work items that declare execution/run metadata or are
+  passed to a run-packet/run command.
 - Update project-control documentation needed for later prompt generation.
 
 ## Non-Goals
@@ -62,7 +64,7 @@ The execution-framework workstream needs a contract that distinguishes ordinary 
 
 ## Acceptance Criteria
 
-- execution-readiness fields are documented for selected executable leaves
+- execution-readiness fields are documented for selected or explicitly opted-in executable leaves
 - readiness explicitly preserves human approval before branch mutation or autonomous execution
 - the documented schema is sufficient input for run-packet dry-run work
 - non-goals defer validation code, branch mutation, and backend implementation
@@ -84,6 +86,8 @@ The execution-framework workstream needs a contract that distinguishes ordinary 
 
 - Over-scoping readiness into runtime validation before the contract is reviewed.
 - Treating all work items as execution-ready by default.
+- Applying strict runner-readiness validation broadly enough to break existing planning/control-plane
+  work items.
 
 ## Dependencies / Order
 

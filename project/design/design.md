@@ -165,7 +165,7 @@ For meaningful prompt-driven work, LRH uses prompt IDs and execution records as 
 
 ### Bounded execution framework MVP
 
-The canonical living design and context package for bounded execution is `project/design/execution_framework_mvp.md`. Historical rationale remains under `project/design/proposals/`, while the MVP design records the current staged plan: Phase 1 `lrh run` structural support, Phase 2 ecosystem observation and containment adapters, and Phase 3 bounded runtime execution.
+The canonical living design and context package for bounded execution is `project/design/execution_framework_mvp.md`. Historical rationale remains under `project/design/proposals/`, while the MVP design records the current staged plan: shared planning relationship/index state and validation, snapshot-visible planning summaries, safe-default serve/request surfaces, opt-in execution readiness, durable run artifacts, ecosystem observation and containment adapters, and later bounded runtime execution.
 
 ### Workstreams and planning nodes
 

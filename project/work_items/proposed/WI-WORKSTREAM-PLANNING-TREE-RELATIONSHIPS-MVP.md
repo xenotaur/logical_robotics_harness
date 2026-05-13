@@ -28,6 +28,7 @@ forbidden_actions:
   - delete_branch
 acceptance:
   - parent/child references are validated via metadata
+  - the relationship/index model can resolve projects, workstreams, work items, active leaves, readiness/status summaries, and evidence/status links
   - path-derived relationship assumptions are avoided
 required_evidence:
   - test_result
@@ -39,7 +40,9 @@ artifacts_expected:
 ## Summary
 
 Add or prepare planning-tree relationship validation for workstreams and work items,
-anchored in metadata references rather than filesystem nesting.
+anchored in metadata references rather than filesystem nesting. The shared model should preserve the
+user-facing `Project -> Workstream -> Work Item` vocabulary while giving CLI, snapshot, request,
+serve, and future run surfaces one reusable relationship/index.
 
 ## Safe-default alignment
 

@@ -108,12 +108,19 @@ preparation, or exposed only as an installed-agentic alias.
 
 ## Bounded execution-framework planning
 
-The first execution-framework implementation package should be contract-first and dry-run-first:
+The first execution-framework implementation package should be contract-first and dry-run-first,
+while preserving shared planning interpretation before `lrh serve` or run surfaces consume it:
 
+- `proposed/WI-LRH-CORE-STATE-APIS-MVP.md`
+- `proposed/WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP.md`
+- `proposed/WI-PLANNING-TREE-VALIDATION-RULES-MVP.md`
+- `proposed/WI-WORKSTREAM-SNAPSHOT-MVP.md`
+- `proposed/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md`
 - `proposed/WI-EXECUTION-READINESS-SCHEMA.md`
 - `proposed/WI-RUN-PACKET-DRY-RUN.md`
 - `proposed/WI-RUN-REPORT-MVP.md`
 
 Follow-on planning items cover branch containment, read-only PR/CI observation, and bounded
 stabilization-loop design. Do not plan branch mutation, agent backends, autonomous stabilization, or
-merge/publish automation before readiness, packet, and report contracts exist.
+merge/publish automation before shared planning interpretation, readiness, packet, and report
+contracts exist.

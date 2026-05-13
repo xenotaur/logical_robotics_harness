@@ -30,7 +30,7 @@ forbidden_actions:
 acceptance:
   - shared state API scope is documented for validate, snapshot, request, serve, and future run dry-run consumers
   - API boundaries preserve source Markdown/frontmatter versus typed runtime object separation
-  - active focus, workstreams, work items, active leaf state, evidence, and status inputs are identified for reuse
+  - active focus, workstreams, work items, parent/child relationships, active leaf state, readiness/status summaries, evidence, and status inputs are identified for reuse
   - implementation remains safe-default and does not add autonomous dispatch, branch mutation, PR creation, or fix loops
 required_evidence:
   - manual_review
@@ -53,8 +53,10 @@ implementation package.
 ## Required Changes
 
 - Define the state API surfaces needed to load and summarize project identity, validation status,
-  current focus, active workstreams, active work items, active leaf state, evidence, status, and
-  prompt rendering inputs.
+  current focus, active workstreams, active work items, parent/child relationships, active leaf state,
+  readiness/status summaries, evidence/status links, and prompt rendering inputs.
+- Include a shared planning relationship/index model so `lrh snapshot`, `lrh serve`, request
+  templates, and future run/dry-run surfaces do not each infer workstream/work-item trees separately.
 - Preserve the boundary between human-readable source Markdown/frontmatter under `project/` and typed
   runtime objects under `src/lrh/`.
 - Identify which existing CLI commands already provide reusable behavior and which gaps must be
@@ -75,8 +77,8 @@ implementation package.
 - shared state API scope is documented for validate, snapshot, request, serve, and future run dry-run
   consumers
 - API boundaries preserve source Markdown/frontmatter versus typed runtime object separation
-- active focus, workstreams, work items, active leaf state, evidence, and status inputs are identified
-  for reuse
+- active focus, workstreams, work items, parent/child relationships, active leaf state,
+  readiness/status summaries, evidence, and status inputs are identified for reuse
 - implementation remains safe-default and does not add autonomous dispatch, branch mutation, PR
   creation, or fix loops
 

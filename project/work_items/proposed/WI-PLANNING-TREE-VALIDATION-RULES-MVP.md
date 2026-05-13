@@ -24,7 +24,7 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - cycle detection, missing references, and parent/child consistency rules are specified
+  - duplicate IDs, invalid planning record kinds, missing references, self-parenting, cycles, parent/child consistency, unexpected orphaned active records, and active workstreams with no actionable leaf are specified
   - rules are implementable without agentic dependencies or runtime execution
 required_evidence:
   - manual_review
@@ -36,6 +36,9 @@ artifacts_expected:
 ## Summary
 
 Define validation expectations for recursive planning-tree metadata before implementation work begins.
+The rules should cover duplicate IDs, invalid planning record kinds, unknown parent and child
+references, self-parenting, parent/child cycles, parent/children disagreement, unexpected orphaned
+active records, and active workstreams with no actionable leaf.
 
 ## Safe-default alignment
 

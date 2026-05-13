@@ -33,6 +33,7 @@ acceptance:
   - a dry-run run-packet contract is documented for selected execution-ready work items
   - packet contents include scope, constraints, validation commands, evidence expectations, and human gates
   - dry-run behavior explicitly avoids agent calls and branch mutation
+  - `lrh request run_packet_from_work_item` remains a safe-default artifact-rendering command distinct from future `lrh run --dry-run` semantics
   - the work item leaves backend adapters and PR automation out of scope
 required_evidence:
   - manual_review
@@ -53,7 +54,11 @@ Run packets are the bridge from project-control planning to bounded execution. T
 - Define a Markdown run-packet shape that captures selected work item scope, constraints, allowed/forbidden paths, validation commands, evidence expectations, and human approval state.
 - Plan dry-run generation behavior that writes or previews artifacts without invoking agents, creating branches, opening pull requests, or changing repository state outside the intended output.
 - Document how packet generation reports missing readiness fields and review tasks.
-- Keep any command naming provisional and avoid committing to autonomous `lrh run` behavior.
+- Keep the command surface explicit: `lrh request run_packet_from_work_item <WORK_ITEM_ID>` renders
+  the canonical packet/request artifact only, while future `lrh run WI-... --dry-run` may preview or
+  simulate a run using runner semantics.
+- Avoid documenting those commands as permanently semantically identical, even if early outputs are
+  the same or nearly the same.
 
 ## Non-Goals
 
@@ -65,6 +70,8 @@ Run packets are the bridge from project-control planning to bounded execution. T
 - a dry-run run-packet contract is documented for selected execution-ready work items
 - packet contents include scope, constraints, validation commands, evidence expectations, and human gates
 - dry-run behavior explicitly avoids agent calls and branch mutation
+- `lrh request run_packet_from_work_item` remains a safe-default artifact-rendering command distinct
+  from future `lrh run --dry-run` semantics
 - the work item leaves backend adapters and PR automation out of scope
 
 ## Validation Commands
@@ -83,8 +90,11 @@ Run packets are the bridge from project-control planning to bounded execution. T
 ## Risk Notes
 
 - Packet generation could be mistaken for permission to execute automatically.
+- A diagnostic request command could be mistaken for execution, simulation, observation, mutation, or
+  stabilization unless the distinction is documented.
 - Packet contents could duplicate work-item data without preserving explicit constraints.
 
 ## Dependencies / Order
 
-Second in the implementation package after readiness fields are defined.
+After shared core state APIs, planning relationship validation, snapshot-visible planning summaries,
+the safe-default `lrh serve` sequencing prerequisite, and `WI-EXECUTION-READINESS-SCHEMA`.

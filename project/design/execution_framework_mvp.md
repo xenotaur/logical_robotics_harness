@@ -131,12 +131,38 @@ Responsibilities:
 - load project control artifacts;
 - validate project state;
 - snapshot project state;
+- maintain a shared planning relationship/index model that resolves projects, workstreams, work
+  items, parent/child relationships, active leaves, readiness/status summaries, and evidence/status
+  links relevant to execution;
+- preserve the user-facing planning vocabulary `Project -> Workstream -> Work Item` while allowing
+  implementation internals to use a more general relationship/index model;
 - resolve focus, workstreams, work items, active leaves, evidence, and status;
 - expose prompt/request rendering inputs; and
 - keep raw Markdown/frontmatter source separate from typed runtime objects.
 
 Commands and surfaces such as `lrh validate`, `lrh snapshot`, `lrh request`, `lrh serve`, and later
 `lrh run --dry-run` must consume these same core APIs rather than each inventing a workflow engine.
+Request templates, UI projections, and run-oriented commands should not duplicate planning-tree
+inference outside this shared layer.
+
+Planning relationship validation is a prerequisite for trustworthy serve/run behavior. Layer 0 should
+validate or warn about duplicate IDs, invalid planning record kinds, unknown parent or child
+references, self-parenting, parent/child cycles, parent/children disagreement, unexpected orphaned
+active records, and active workstreams that have no actionable leaf before higher layers treat that
+state as execution context.
+
+The preferred sequencing is:
+
+```text
+planning relationship/index model
+-> planning relationship validation
+-> snapshot planning summary
+-> lrh serve renders the same summary
+```
+
+This keeps `lrh serve` a projection of the control plane. The viewer may add interaction and prompt
+workbench affordances, but the first place planning-tree interpretation appears should be shared
+snapshot-visible state rather than server-only logic.
 
 ### Layer 1: safe-default viewer and prompt workbench
 
@@ -147,7 +173,9 @@ Make the manual Huge Loop visible and easier to operate without making default L
 ```
 
 `lrh serve` is a local browser UI that projects existing/control-plane state. It is not a separate
-workflow engine and must not become an autonomous runner in the default package.
+workflow engine and must not become an autonomous runner in the default package. Its planning-tree
+view should render the same snapshot planning summary produced by Layer 0, not reinterpret
+workstream/work-item relationships independently.
 
 It should eventually show:
 
@@ -158,7 +186,8 @@ It should eventually show:
 - workstream tree / active leaf state;
 - current manual Huge Loop state;
 - available next human actions;
-- generated prompts in editable form;
+- generated prompts in editable form, including a safe-default "Generate run packet" action for
+  selected work items before any autonomous run capability exists;
 - copy-to-clipboard with a fallback download/copy path;
 - evidence and report checklists; and
 - later, observed PR/CI/review status after observation adapters exist.
@@ -302,6 +331,12 @@ Every layer must preserve:
 Execution readiness is candidate metadata on selected work items. It should evolve with the actual
 work-item schema, so this section is a starting contract rather than a final validator commitment.
 
+Strict execution-readiness validation remains opt-in. Existing work items should not be forced into
+runner-ready metadata all at once. Strong readiness checks should apply to selected or explicitly
+opted-in records, such as work items that declare execution/run metadata or that are passed to a run
+packet or run command. This preserves compatibility for planning/control-plane records while allowing
+strong validation where the execution framework is intentionally used.
+
 Candidate shape:
 
 ```yaml
@@ -347,6 +382,29 @@ without losing review context.
 A manual read-only investigation and a branch-mutating bounded-auto implementation can share a work
 item type, but they require different authority, controls, and evidence.
 
+## Prompt action selection
+
+Planning stage chooses the next planning prompt; run state chooses the next execution-loop prompt.
+This split prevents `lrh serve`, `lrh request`, and future run surfaces from treating planning
+workflow state as if it were already execution-loop state.
+
+Planning-stage prompt actions include:
+
+- pro/con assessment;
+- design assessment;
+- implementation plan;
+- prompt package;
+- audit; and
+- work items from audit.
+
+Execution-loop prompt actions include:
+
+- initial implementation prompt or run packet;
+- review-response prompt;
+- CI-response prompt;
+- stabilization prompt; and
+- evidence/report prompt.
+
 ## `lrh run` target model
 
 Recommended target semantics:
@@ -355,15 +413,34 @@ Recommended target semantics:
 canonical target: work item
 ```
 
-Recommended initial command shape:
+Desired long-term execution command family:
+
+```text
+lrh run WI-...
+```
+
+Potential preview/simulation form:
 
 ```text
 lrh run WI-... --dry-run
 ```
 
-This document uses `lrh run` as provisional execution-framework shorthand. Any final command naming
-must preserve the safe-default package boundary and should not imply autonomous capability in default
-LRH before optional agentic capability is designed and accepted.
+Stable safe-default diagnostic/request command:
+
+```text
+lrh request run_packet_from_work_item <WORK_ITEM_ID>
+```
+
+This document uses `lrh run` as execution-framework shorthand for the future command family. Any
+final command naming must preserve the safe-default package boundary and should not imply autonomous
+capability in default LRH before optional agentic capability is designed and accepted.
+
+`lrh request run_packet_from_work_item <WORK_ITEM_ID>` should remain narrowly constrained to
+rendering the canonical run packet/request artifact for a work item. It must not imply execution,
+simulation, dispatch, observation, mutation, or stabilization. `lrh run WI-... --dry-run` may
+eventually preview or simulate a run using the current runner semantics. The two commands may
+initially produce the same or nearly the same artifact, but they should not be documented as
+permanently semantically identical.
 
 Later target compilation can be layered on top of the work-item target:
 
@@ -596,13 +673,17 @@ The MVP should make unsafe authority visible rather than hiding it behind a succ
 Recommended design and implementation order:
 
 1. Align design/control-plane artifacts around safe-default `lrh serve` and optional agentic layers.
-2. Complete `WI-LRH-CORE-STATE-APIS-MVP` to define core state APIs for shared CLI/UI interpretation.
-3. Complete `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a safe-default, read-only `lrh serve` skeleton.
-4. Add a prompt workbench MVP with editable preview, copy/download fallback, and no autonomous dispatch.
-5. Add run-state artifacts and manual run tracking under `project/runs/<RUN-ID>/`.
-6. Add manual evidence and report workflow support.
-7. Add observation adapters for git, PR, CI, and review status.
-8. Add optional agentic dispatch adapters later, behind the adopted safe-default packaging boundary.
+2. Complete `WI-LRH-CORE-STATE-APIS-MVP` to define core state APIs for shared CLI/UI interpretation,
+   including the planning relationship/index model.
+3. Complete planning relationship validation and snapshot-visible planning summaries before or
+   alongside the first `lrh serve` skeleton.
+4. Complete `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a safe-default, read-only `lrh serve` skeleton that
+   renders the shared snapshot summary.
+5. Add a prompt workbench MVP with editable preview, copy/download fallback, and no autonomous dispatch.
+6. Add run-state artifacts and manual run tracking under `project/runs/<RUN-ID>/`.
+7. Add manual evidence and report workflow support.
+8. Add observation adapters for git, PR, CI, and review status.
+9. Add optional agentic dispatch adapters later, behind the adopted safe-default packaging boundary.
 
 Explicitly defer from the default/safe layer:
 

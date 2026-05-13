@@ -21,6 +21,9 @@ related_design:
   - project/design/proposals/adopted/safe-default-agentic-extra-packaging/00_proposal.md
 depends_on:
   - WI-LRH-CORE-STATE-APIS-MVP
+  - WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP
+  - WI-PLANNING-TREE-VALIDATION-RULES-MVP
+  - WI-WORKSTREAM-SNAPSHOT-MVP
 blocked_by: []
 expected_actions:
   - edit_file
@@ -105,5 +108,6 @@ operate before adding durable run state, observation adapters, or optional agent
 
 ## Dependencies / Order
 
-After design/control-plane alignment and `WI-LRH-CORE-STATE-APIS-MVP`. Before run-state UI,
-observation adapters, or optional agentic dispatch adapters.
+After design/control-plane alignment, `WI-LRH-CORE-STATE-APIS-MVP`, planning relationship
+validation, and `WI-WORKSTREAM-SNAPSHOT-MVP`. Before execution-readiness schema work that depends on
+serve sequencing, run-state UI, observation adapters, or optional agentic dispatch adapters.

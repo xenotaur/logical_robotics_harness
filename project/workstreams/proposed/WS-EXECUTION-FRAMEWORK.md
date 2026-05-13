@@ -141,6 +141,9 @@ backends, orchestration loops, tests for runtime execution behavior, or GitHub A
 Generate a prompt package for the first implementation sequence:
 
 - `WI-LRH-CORE-STATE-APIS-MVP`
+- `WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP`
+- `WI-PLANNING-TREE-VALIDATION-RULES-MVP`
+- `WI-WORKSTREAM-SNAPSHOT-MVP`
 - `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
 - `WI-EXECUTION-READINESS-SCHEMA`
 - `WI-RUN-PACKET-DRY-RUN`

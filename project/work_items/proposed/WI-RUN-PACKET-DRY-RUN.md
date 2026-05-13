@@ -96,4 +96,5 @@ Run packets are the bridge from project-control planning to bounded execution. T
 
 ## Dependencies / Order
 
-Second in the implementation package after readiness fields are defined.
+After shared core state APIs, planning relationship validation, snapshot-visible planning summaries,
+the safe-default `lrh serve` sequencing prerequisite, and `WI-EXECUTION-READINESS-SCHEMA`.

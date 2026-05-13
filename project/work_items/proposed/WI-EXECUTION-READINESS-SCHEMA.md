@@ -22,6 +22,7 @@ related_design:
   - project/design/proposals/adopted/workstreams-and-recursive-planning-tree/00_proposal.md
 depends_on:
   - WI-WORK-ITEM-EXECUTION-READY-CONCEPT-MVP
+  - WI-LRH-SERVE-SAFE-DEFAULT-MVP
 blocked_by: []
 expected_actions:
   - edit_file
@@ -91,4 +92,6 @@ The execution-framework workstream needs a contract that distinguishes ordinary 
 
 ## Dependencies / Order
 
-First in the implementation package. `WI-RUN-PACKET-DRY-RUN` and `WI-RUN-REPORT-MVP` should consume this contract rather than inventing their own readiness fields.
+After shared core state APIs, planning relationship validation, snapshot-visible planning summaries,
+and the safe-default `lrh serve` sequencing prerequisite. `WI-RUN-PACKET-DRY-RUN` and
+`WI-RUN-REPORT-MVP` should consume this contract rather than inventing their own readiness fields.

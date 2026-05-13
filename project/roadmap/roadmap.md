@@ -91,24 +91,36 @@ MVP goal:
 
 Recommended staged deliverables:
 
-1. **Execution readiness schema** — define the work-item fields required before a selected leaf can
-   be used for future run-packet generation or execution workflows.
-2. **Run packet dry-run** — generate a human-reviewable packet without invoking an agent or mutating
+1. **Shared core state APIs** — expose one reusable interpretation of project-control state for CLI,
+   request, serve, snapshot, and future dry-run surfaces.
+2. **Planning relationship/index validation** — validate workstream/work-item relationships before UI
+   or runtime surfaces infer planning-tree state.
+3. **Snapshot-visible planning summaries** — make planning-tree state visible through snapshots before
+   or alongside `lrh serve`.
+4. **Safe-default `lrh serve` viewer and prompt workbench** — render shared state without becoming an
+   autonomous runner or separate tree interpreter.
+5. **Execution readiness schema** — define the opt-in work-item fields required before a selected leaf
+   can be used for future run-packet generation or execution workflows.
+6. **Run packet dry-run** — generate a human-reviewable packet without invoking an agent or mutating
    branches.
-3. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
+7. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
    human verification tasks, and recommended next actions.
-4. **Agent branch containment design support** — document agent-owned branch namespaces, protected
+8. **Agent branch containment design support** — document agent-owned branch namespaces, protected
    merge gates, and branch policy assumptions before mutation-capable behavior.
-5. **GitHub PR/CI observation adapter** — read PR, review, and CI state without repository mutation.
-6. **Bounded stabilization loop design** — plan iteration limits, stop conditions, and escalation
-   rules before automation can respond to review or CI.
-7. **Backend adapter abstraction** — define backend-neutral contracts only after packet/report and
-   policy boundaries are stable.
-8. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
-   or bounded-auto execution.
+9. **GitHub PR/CI observation adapter** — read PR, review, and CI state without repository mutation.
+10. **Bounded stabilization loop design** — plan iteration limits, stop conditions, and escalation
+    rules before automation can respond to review or CI.
+11. **Backend adapter abstraction** — define backend-neutral contracts only after packet/report and
+    policy boundaries are stable.
+12. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
+    or bounded-auto execution.
 
 First implementation package after this planning PR:
 
+- `WI-LRH-CORE-STATE-APIS-MVP`
+- `WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP` / `WI-PLANNING-TREE-VALIDATION-RULES-MVP`
+- `WI-WORKSTREAM-SNAPSHOT-MVP`
+- `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
 - `WI-EXECUTION-READINESS-SCHEMA`
 - `WI-RUN-PACKET-DRY-RUN`
 - `WI-RUN-REPORT-MVP`

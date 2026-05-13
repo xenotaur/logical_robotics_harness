@@ -19,13 +19,12 @@ superseded_by: null
 ## Summary
 
 This proposal describes a future **workstream execution framework** for
-Logical Robotics Harness (LRH). The Workstream Control Plane MVP has
-now established workstream artifacts, schema, loader/model support,
-validation, planning-tree relationships, snapshot visibility, and
-organize/tidy behavior. This proposal therefore no longer treats
-workstreams themselves as the next speculative unit. Instead, it focuses
-on the next conceptual boundary: bounded, auditable execution of already
-approved executable leaves.
+Logical Robotics Harness (LRH). As the Workstream Control Plane MVP
+continues to mature through its active focus and reviewed implementation
+slices, this proposal remains the deferred design home for the execution
+concepts that should not be pulled into that MVP. It focuses on a later
+conceptual boundary: bounded, auditable execution of already approved
+executable leaves.
 
 The design intentionally distinguishes **unbounded agent autonomy** from
 **bounded, branch-contained, evidence-producing orchestration for

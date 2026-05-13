@@ -16,10 +16,13 @@ report outcomes.
 ## Status
 
 `proposed` (deferred) — this proposal set is retained as LRH's
-long-term execution architecture and is not rejected. The Workstream
-Control Plane MVP has landed; the next proposed design step is an
-execution-framework workstream that defines run packet/report schemas
-and a manual branch/PR pilot before any autonomous backend work.
+long-term execution architecture and is not rejected. While the active
+workstream-control focus remains the planning source of truth, this set
+captures the later execution-framework direction that should follow only
+after the MVP focus is closed or explicitly resequenced. A likely next
+execution-design step is a workstream artifact that defines run
+packet/report schemas and a manual branch/PR pilot before any autonomous
+backend work.
 
 ## Reading order
 

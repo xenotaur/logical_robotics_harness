@@ -33,15 +33,20 @@ orchestration for selected executable leaves.
   permissions, scope creep, and agent behavior drift.
 - Updated proposal README/navigation text so readers discover the new
   branch-containment and PR-stabilization framing.
+- Addressed PR review feedback by softening "MVP has landed" wording so
+  the proposal remains aligned with the active workstream-control focus
+  and does not declare the MVP complete ahead of focus closeout.
 
 # Validation
 
 - `scripts/version tools` completed before task-phase validation; Ruff,
   Black, Pyright, Python, and LRH CLI versions were available. Pylint and
   Conda were not installed, as reported by the tool-version summary.
-- `scripts/test` passed: 438 unit tests.
+- `scripts/format --check --diff` passed: Black reported 135 files
+  would be left unchanged.
 - `scripts/lint` passed: Ruff checks passed and Black reported 135 files
   would be left unchanged.
+- `scripts/test` passed: 438 unit tests.
 - `git diff --check` passed.
 - `lrh validate --project-dir project` passed with 0 errors and 0
   warnings.

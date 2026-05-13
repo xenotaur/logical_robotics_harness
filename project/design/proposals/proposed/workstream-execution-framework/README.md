@@ -1,34 +1,43 @@
 # Workstream Execution Framework — Proposal Set
 
-This proposal set proposes adding a new typed artifact, the
-**workstream**, between LRH's existing `focus` and `work_items`,
-together with a six-layer execution stack that turns a planned
-workstream into auditable, evidence-producing agent runs.
+This proposal set now frames LRH's future execution framework as
+bounded, branch-contained orchestration for already-approved executable
+leaves. The intended path is: selected executable leaf -> run packet ->
+agent-owned branch -> pull request -> bounded CI/review stabilization ->
+final run report -> human/policy merge and closeout gate.
 
-The set is structured as one umbrella proposal, six layer-specific
-sub-proposals (one per layer), and a Pass-B worked-example appendix
-that walks a real case (`WS-LCATS-CORPORA-ANALYSIS`) end-to-end
-across all six layers.
+The set is structured as one updated umbrella proposal, six older
+layer-specific sub-proposals (retained as background design material),
+and a Pass-B worked-example appendix. The umbrella document is the
+current entry point for branch containment, pull-request stabilization,
+least-privilege token posture, manual-mode equivalence, and final run
+report outcomes.
 
 ## Status
 
 `proposed` (deferred) — this proposal set is retained as LRH's
-long-term execution architecture and is not rejected, but it is
-explicitly deferred until workstream artifacts, validation, snapshots,
-and roadmap/current-focus/work-item alignment are in place.
+long-term execution architecture and is not rejected. While the active
+workstream-control focus remains the planning source of truth, this set
+captures the later execution-framework direction that should follow only
+after the MVP focus is closed or explicitly resequenced. A likely next
+execution-design step is a workstream artifact that defines run
+packet/report schemas and a manual branch/PR pilot before any autonomous
+backend work.
 
 ## Reading order
 
-Read in numeric order. The umbrella document
-([`00_proposal.md`](00_proposal.md)) is the entry point and stands
-on its own; the layer sub-proposals add precision in dependency
-order; the appendix grounds the framework in a real case.
+Read the umbrella document ([`00_proposal.md`](00_proposal.md)) first.
+It supersedes the older layer documents for the current bounded
+branch-level execution framing. The layer sub-proposals remain useful
+background for lifecycle, runtime, evidence, observability, and bridge
+concepts, and the appendix grounds the original framework in a real
+case.
 
-1. [`00_proposal.md`](00_proposal.md) — Umbrella proposal:
-   motivation, where workstreams sit in the existing model,
-   the six-layer stack overview, cross-cutting invariants
-   (manual-mode parity, repository-as-control-plane), build-vs-buy
-   positioning, risks, adoption plan.
+1. [`00_proposal.md`](00_proposal.md) — Updated umbrella proposal:
+   bounded branch-level agency, run packets, run reports, pull requests
+   as stabilization boundaries, least-privilege token posture,
+   manual-mode equivalence, human/policy gates, risks, and adoption
+   plan.
 
 2. [`01_layer1_control_plane.md`](01_layer1_control_plane.md) —
    Layer 1: extending the loader/validator/snapshot/precedence
@@ -182,13 +191,13 @@ repository-as-control-plane, manual-mode parity, typed lifecycle
 transitions, auditable transition history, backend/runtime abstraction,
 evidence-versus-observability separation, explicit human approval and
 closeout gates, and caution around automation laundering, excessive
-agency, cost surprise, and backend/vendor coupling.
+agency, cost surprise, unsafe workflow permissions, scope creep,
+agent behavior drift, and backend/vendor coupling.
 
 Deferred concepts from this set include agent runtime execution, a
 workstream orchestrator, automated stage advancement, MCP bridges,
-telemetry systems, `lrh run` / autonomous run command naming, and
-concrete execution backends (for example Claude/Codex/native adapters).
-Under safe-default packaging, future autonomous command examples should
-use `lrh agentic run` or `lrh-agentic run`; older `lrh run` wording is
-retained as legacy shorthand until command aliasing is explicitly
-decided.
+telemetry systems, `lrh run` / autonomous run command naming, concrete
+execution backends, GitHub/API automation, privileged workflow
+permissions, and CI/review stabilization loops. Future autonomous
+command names remain undecided and should respect the safe-default
+agentic packaging boundary.

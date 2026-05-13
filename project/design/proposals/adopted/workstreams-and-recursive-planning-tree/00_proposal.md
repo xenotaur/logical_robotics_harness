@@ -4,7 +4,7 @@ type: design_proposal
 title: Workstreams as first-class planning nodes with recursive planning-tree semantics
 status: adopted
 created_on: 2026-05-05
-updated_on: 2026-05-10
+updated_on: 2026-05-13
 implementation_status: partial
 implemented_by:
   - WI-WORKSTREAM-DIRECTORY-README-MVP
@@ -266,6 +266,24 @@ Agentic LRH:
 ```
 
 Core LRH prepares execution. Agentic LRH performs execution.
+
+Forward-looking execution containment note:
+
+Future controlled execution should treat ready executable leaves as
+inputs to bounded, policy-governed run workflows rather than as a grant
+of unbounded agent autonomy. A likely containment model is:
+
+```text
+agent-owned branches
+pull requests into protected human-reviewed branches
+CI/review stabilization inside bounded loops
+human/policy gate for merge, release, publish, and closeout
+```
+
+Detailed execution design belongs in the proposed
+`project/design/proposals/proposed/workstream-execution-framework/`
+proposal set. This adopted planning-tree proposal only defines how
+workstreams and executable leaves are represented and related.
 
 ## 9) Relationship to prompt IDs, execution records, evidence, and status
 

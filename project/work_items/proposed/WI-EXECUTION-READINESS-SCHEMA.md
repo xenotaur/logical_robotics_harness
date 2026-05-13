@@ -22,7 +22,10 @@ related_design:
   - project/design/proposals/adopted/workstreams-and-recursive-planning-tree/00_proposal.md
 depends_on:
   - WI-WORK-ITEM-EXECUTION-READY-CONCEPT-MVP
-  - WI-LRH-SERVE-SAFE-DEFAULT-MVP
+  - WI-LRH-CORE-STATE-APIS-MVP
+  - WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP
+  - WI-PLANNING-TREE-VALIDATION-RULES-MVP
+  - WI-WORKSTREAM-SNAPSHOT-MVP
 blocked_by: []
 expected_actions:
   - edit_file
@@ -43,7 +46,9 @@ artifacts_expected:
 
 ## Summary
 
-Define the work-item fields required before any work item can be used as an executable leaf for future run-packet generation or `lrh run`-style execution workflows.
+Define the work-item fields required before any selected work item can be used as an executable leaf
+for future run-packet generation or `lrh run`-style execution workflows. This is the first item in
+the first execution-contract implementation package.
 
 ## Problem / Context
 
@@ -92,6 +97,8 @@ The execution-framework workstream needs a contract that distinguishes ordinary 
 
 ## Dependencies / Order
 
-After shared core state APIs, planning relationship validation, snapshot-visible planning summaries,
-and the safe-default `lrh serve` sequencing prerequisite. `WI-RUN-PACKET-DRY-RUN` and
-`WI-RUN-REPORT-MVP` should consume this contract rather than inventing their own readiness fields.
+First in the first execution-contract implementation package, after prerequisite shared state APIs,
+planning relationship validation, and snapshot-visible planning summaries are available.
+`WI-LRH-SERVE-SAFE-DEFAULT-MVP` is not a prerequisite for this package; serve should later consume
+this contract rather than define it. `WI-RUN-PACKET-DRY-RUN` and `WI-RUN-REPORT-MVP` should consume
+this contract rather than inventing their own readiness fields.

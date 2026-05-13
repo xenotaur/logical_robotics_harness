@@ -108,19 +108,18 @@ preparation, or exposed only as an installed-agentic alias.
 
 ## Bounded execution-framework planning
 
-The first execution-framework implementation package should be contract-first and dry-run-first,
-while preserving shared planning interpretation before `lrh serve` or run surfaces consume it:
+The first execution-framework implementation package should be contract-first and dry-run-first:
 
-- `proposed/WI-LRH-CORE-STATE-APIS-MVP.md`
-- `proposed/WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP.md`
-- `proposed/WI-PLANNING-TREE-VALIDATION-RULES-MVP.md`
-- `proposed/WI-WORKSTREAM-SNAPSHOT-MVP.md`
-- `proposed/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md`
-- `proposed/WI-EXECUTION-READINESS-SCHEMA.md`
-- `proposed/WI-RUN-PACKET-DRY-RUN.md`
-- `proposed/WI-RUN-REPORT-MVP.md`
+1. `proposed/WI-EXECUTION-READINESS-SCHEMA.md`
+2. `proposed/WI-RUN-PACKET-DRY-RUN.md`
+3. `proposed/WI-RUN-REPORT-MVP.md`
 
-Follow-on planning items cover branch containment, read-only PR/CI observation, and bounded
-stabilization-loop design. Do not plan branch mutation, agent backends, autonomous stabilization, or
-merge/publish automation before shared planning interpretation, readiness, packet, and report
-contracts exist.
+Before generating that prompt package, verify prerequisite control-plane alignment: shared core state
+APIs, planning relationship/index validation, and snapshot-visible planning summaries. If a
+prerequisite is missing, complete it in a separate prompt rather than broadening the first
+execution-contract package.
+
+Follow-on planning items cover safe-default `lrh serve`, branch containment, read-only PR/CI
+observation, and bounded stabilization-loop design. Do not plan branch mutation, agent backends,
+autonomous stabilization, or merge/publish automation before shared planning interpretation,
+readiness, packet, and report contracts exist.

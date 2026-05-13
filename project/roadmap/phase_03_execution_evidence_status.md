@@ -21,11 +21,12 @@ selected executable leaves. The immediate phase is not to make agents autonomous
 and validate execution readiness and run-packet contracts before mutation-capable automation,
 agent backends, or PR stabilization loops are implemented.
 
-Canonical living design: `project/design/execution_framework_mvp.md`. Its staged structure now starts
-with shared core state APIs, a planning relationship/index model, relationship validation,
-snapshot-visible planning summaries, and a safe-default `lrh serve` viewer/prompt workbench, then
-durable run artifacts, read-only observation adapters, optional agentic execution adapters, and later
-daemon or dashboard modes.
+Canonical living design: `project/design/execution_framework_mvp.md`. Its staged structure separates
+prerequisite control-plane alignment from the first execution-contract package. Shared core state
+APIs, planning relationship/index validation, and snapshot-visible planning summaries must be
+available before packet generation relies on them. The first package is execution readiness, dry-run
+run packets, and run reports; safe-default `lrh serve`, durable run state UI, read-only observation
+adapters, optional agentic execution adapters, and later daemon/dashboard modes follow separately.
 
 ## Goal
 
@@ -50,21 +51,22 @@ preserving human/policy gates.
 12. Backend adapter abstraction.
 13. Manual/assisted/bounded-auto mode progression.
 
-## First implementation package
+## First execution-contract implementation package
 
-The first implementation package should stay contract-first and dry-run-first:
+The first execution-framework implementation package should stay contract-first and dry-run-first:
 
-- `WI-LRH-CORE-STATE-APIS-MVP`
-- `WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP` / `WI-PLANNING-TREE-VALIDATION-RULES-MVP`
-- `WI-WORKSTREAM-SNAPSHOT-MVP`
-- `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
-- `WI-EXECUTION-READINESS-SCHEMA`
-- `WI-RUN-PACKET-DRY-RUN`
-- `WI-RUN-REPORT-MVP`
+1. `WI-EXECUTION-READINESS-SCHEMA`
+2. `WI-RUN-PACKET-DRY-RUN`
+3. `WI-RUN-REPORT-MVP`
 
-These work items should establish shared CLI/server planning interpretation, the minimum local assist
-surface, project-control fields, packet contents, report contents, validation evidence expectations,
-and human closeout tasks needed before any branch mutation or backend adapter work begins.
+These work items establish project-control fields, packet contents, report contents, validation
+evidence expectations, and human closeout tasks needed before any branch mutation or backend adapter
+work begins.
+
+Prerequisites for that package are shared state/API interpretation, planning relationship/index
+validation, and snapshot-visible planning summaries. They should be verified before the first package
+starts and completed in a separate prerequisite prompt if missing. `WI-LRH-SERVE-SAFE-DEFAULT-MVP` is
+a later read-only/local-assist package, not part of the first execution-contract package.
 
 ## Explicit deferrals
 

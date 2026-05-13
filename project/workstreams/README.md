@@ -172,6 +172,8 @@ MVP work items.
 ## Current execution-framework workstream
 
 `proposed/WS-EXECUTION-FRAMEWORK.md` is the active planning record for the bounded execution
-framework phase. Its first implementation sequence is limited to execution readiness, dry-run run
-packets, and run reports; branch mutation, agent backends, autonomous stabilization, and
-merge/publish automation remain deferred until those contracts are stable.
+framework phase. Its first execution-contract implementation sequence is limited to execution
+readiness, dry-run run packets, and run reports. Shared state, planning relationship validation, and
+snapshot-visible summaries are prerequisites to verify separately; safe-default `lrh serve`, branch
+mutation, agent backends, autonomous stabilization, and merge/publish automation remain deferred
+until those contracts are stable.

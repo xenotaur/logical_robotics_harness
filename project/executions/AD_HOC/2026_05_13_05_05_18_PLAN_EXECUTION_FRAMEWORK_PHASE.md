@@ -36,6 +36,17 @@ record existed for the prompt ID.
   execution, MCP bridges, telemetry systems, full autonomous execution, backend-specific
   implementations, and autonomous branch mutation before readiness/packet/report contracts exist.
 
+# Review Follow-up
+
+- Addressed review feedback by assigning the active execution-framework phase its own focus ID,
+  `FOCUS-EXECUTION-FRAMEWORK-PLANNING`, while archiving the prior
+  `FOCUS-WORKSTREAM-CONTROL-PLANE-MVP` focus for historical references.
+- Updated only the execution-framework workstream and six intended execution-framework work items to
+  reference the new focus ID so current-focus snapshots do not pull in older workstream-control-plane
+  items.
+- Replaced the later Phase 3 summary in the core roadmap with a pointer to the canonical Phase 3
+  roadmap detail and rewrapped the proposal README status note.
+
 # Validation
 
 - `scripts/version tools` passed and reported Ruff/Black versions before task-phase validation.

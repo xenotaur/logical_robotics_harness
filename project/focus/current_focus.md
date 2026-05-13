@@ -1,5 +1,5 @@
 ---
-id: FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
+id: FOCUS-EXECUTION-FRAMEWORK-PLANNING
 title: Plan execution readiness and dry-run contracts for bounded execution
 status: active
 priority: high

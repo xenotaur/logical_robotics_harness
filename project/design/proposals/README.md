@@ -56,9 +56,9 @@ dogfood migration across LRH's own proposal set.
 leaves: run packet → agent-owned branch → pull request → bounded
 CI/review stabilization → final run report → human/policy merge and
 closeout gate. Status: `proposed` (now staged through the `WS-EXECUTION-FRAMEWORK`
-planning workstream, starting with readiness, dry-run packet, and report contracts before automation). The updated umbrella is the current entry point; older
-layer documents remain retained background for runtime, lifecycle,
-evidence, observability, and bridge concepts. Includes a Pass-B
+planning workstream, starting with readiness, dry-run packet, and report contracts before
+automation). The updated umbrella is the current entry point; older layer documents remain retained
+background for runtime, lifecycle, evidence, observability, and bridge concepts. Includes a Pass-B
 worked-example appendix (`WS-LCATS-CORPORA-ANALYSIS`).
 
 

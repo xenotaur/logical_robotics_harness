@@ -11,7 +11,7 @@ contributors:
   - anthony
 assigned_agents: []
 related_focus:
-  - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
+  - FOCUS-EXECUTION-FRAMEWORK-PLANNING
 related_roadmap:
   - ROADMAP-PHASE-03
 related_workstreams:

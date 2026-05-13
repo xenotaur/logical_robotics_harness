@@ -7,7 +7,7 @@ stage: planned
 origin: follow_up
 summary: Define and plan LRH's bounded execution loop for executable leaves, including run packets, agent-owned branches, PR/CI stabilization, and final run reports.
 related_focus:
-  - FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
+  - FOCUS-EXECUTION-FRAMEWORK-PLANNING
 related_roadmap:
   - ROADMAP-PHASE-03
 work_items:

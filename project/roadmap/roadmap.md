@@ -150,14 +150,14 @@ Exit condition:
 
 ## Phase 3 — Execution, Evidence, and Status
 
-Add operational behavior:
-- work item execution scaffolding
-- evidence recording
-- synthesized status
-- run artifacts
+Phase 3 is now staged by the bounded execution-framework plan above. The canonical phase detail lives
+in `project/roadmap/phase_03_execution_evidence_status.md`, starting with execution readiness,
+dry-run run packets, and run reports before mutation-capable automation, PR stabilization loops, or
+agent backends.
 
 Exit condition:
-- LRH can execute a bounded workflow and produce evidence-backed status.
+- LRH can prepare bounded, evidence-backed execution artifacts and later execute bounded workflows
+  only after readiness, packet, report, and human/policy-gate contracts are stable.
 
 ## Phase 4 — MCP and Agent Integration
 

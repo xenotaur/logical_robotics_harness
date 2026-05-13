@@ -81,6 +81,8 @@ agentic capability and be unavailable in the default non-agentic install.
 
 ## Near-term roadmap addition: Bounded Agent Execution Framework
 
+Canonical living design: `project/design/execution_framework_mvp.md`. The workstream is staged as Phase 1: `lrh run` structural support; Phase 2: ecosystem observation and containment adapters; and Phase 3: bounded runtime execution.
+
 MVP goal:
 
 > LRH can prepare and eventually run bounded, auditable execution workflows for selected executable

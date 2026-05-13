@@ -15,9 +15,9 @@ related_workstreams:
 
 # Current Focus
 
-The immediate priority is the **bounded agent execution framework planning phase**. This is not a
-push to make agents autonomous. The immediate phase is to define and validate execution readiness
-and run-packet contracts for selected work items while human approval gates remain in place.
+The immediate priority is **Phase 1 of the bounded agent execution framework**: `lrh run` structural support. This means execution readiness, run packet dry-run, and run report MVP contracts for selected work items while human approval gates remain in place.
+
+Canonical living design/context package: `project/design/execution_framework_mvp.md`.
 
 Recently completed:
 

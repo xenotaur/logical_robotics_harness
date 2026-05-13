@@ -14,6 +14,8 @@ supersedes: []
 superseded_by: null
 ---
 
+Canonical living MVP design: `project/design/execution_framework_mvp.md`. This proposal records rationale and future architecture; `execution_framework_mvp.md` records the current MVP architecture and staged implementation plan.
+
 # Workstream Execution Framework — Top-Level Proposal
 
 ## Summary

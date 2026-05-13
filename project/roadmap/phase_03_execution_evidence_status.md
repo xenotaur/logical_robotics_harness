@@ -19,6 +19,8 @@ selected executable leaves. The immediate phase is not to make agents autonomous
 and validate execution readiness and run-packet contracts before mutation-capable automation,
 agent backends, or PR stabilization loops are implemented.
 
+Canonical living design: `project/design/execution_framework_mvp.md`. Its staged structure is Phase 1: `lrh run` structural support, Phase 2: ecosystem observation and containment adapters, and Phase 3: bounded runtime execution.
+
 ## Goal
 
 LRH can prepare and eventually run bounded, auditable execution workflows for selected executable

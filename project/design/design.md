@@ -163,6 +163,10 @@ For meaningful prompt-driven work, LRH uses prompt IDs and execution records as 
 - Before starting prompt-driven implementation, contributors should apply soft idempotence checks against prior executions for the same prompt ID.
 - Prompt workflow records should remain lightweight and should not replace normal project artifacts such as roadmap, focus, work items, evidence, and status.
 
+### Bounded execution framework MVP
+
+The canonical living design and context package for bounded execution is `project/design/execution_framework_mvp.md`. Historical rationale remains under `project/design/proposals/`, while the MVP design records the current staged plan: Phase 1 `lrh run` structural support, Phase 2 ecosystem observation and containment adapters, and Phase 3 bounded runtime execution.
+
 ### Workstreams and planning nodes
 
 Workstreams are first-class, user-facing planning records under `project/workstreams/`. The normal

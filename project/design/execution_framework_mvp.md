@@ -7,7 +7,7 @@ prompts, work items, and implementation PRs should use as their controlling cont
 ## Purpose
 
 This document defines LRH's MVP execution framework: a staged path from execution-ready work items
-to bounded, auditable runtime execution.
+to safe, auditable, human-assisted execution support first, and optional bounded automation later.
 
 Core principle:
 
@@ -24,8 +24,9 @@ Before LRH automates work, the repository should represent:
 - how success will be evidenced; and
 - what remains human-gated.
 
-The MVP therefore starts with contracts that can be inspected manually before LRH mutates branches,
-opens pull requests, invokes agent backends, or runs stabilization loops.
+The MVP therefore starts with contracts and local assist surfaces that can be inspected and operated
+manually before LRH mutates branches, opens pull requests, invokes agent backends, or runs
+stabilization loops.
 
 ## Document ownership and layering
 
@@ -45,7 +46,7 @@ project/workstreams/
 project/roadmap, project/focus, project/work_items
   current implementation plan and executable leaves
 
-project/executions, project/evidence, run reports
+project/executions, project/runs, project/evidence, run reports
   what happened during execution
 ```
 
@@ -57,98 +58,142 @@ to this design.
 
 In scope for the MVP design:
 
+- core state and interpretation APIs used by CLI and UI surfaces;
+- safe-default `lrh serve` viewer and prompt workbench;
 - execution readiness;
 - run packet contract;
-- run state;
+- durable run state;
+- awaited-transition contracts;
 - run report;
-- ecosystem adapters;
-- branch containment;
-- bounded stabilization;
+- ecosystem observation adapters;
 - manual-mode parity;
 - evidence/provenance; and
 - human gates.
 
-Out of scope for the MVP or deferred to later phases:
+Out of scope for the default/safe layer, or deferred to optional agentic capability:
 
-- unbounded autonomous execution;
+- autonomous agent dispatch;
+- automatic branch mutation;
+- automatic pull-request creation;
+- automatic CI-fix or review-response loops;
 - automatic merge to main;
 - release/publish automation;
+- destructive actions;
 - secret-bearing workflows;
 - MCP bridges;
 - telemetry systems beyond basic evidence;
 - autonomy modes beyond the documented `autonomy_level` values; and
 - full backend-specific automation before contracts stabilize.
 
-## Architectural split: control plane vs runtime plane
+## Architectural split: safe control plane vs optional runtime authority
 
-The execution framework has two planes.
+The execution framework has two broad authority zones.
 
-Control plane:
+Default / safe LRH:
 
-- project artifacts;
-- workstreams;
-- work items;
-- policy;
-- run packet spec;
-- readiness validation;
-- evidence requirements; and
-- run reports.
+- load, validate, and snapshot project state;
+- generate requests and prompts;
+- serve a local viewer and prompt workbench;
+- show project, focus, workstream, work-item, and run state;
+- render, edit, copy, and download prompts;
+- support explicit-click writes to LRH control artifacts where appropriate; and
+- support manual evidence and report recording.
 
-Runtime plane:
+Agentic / opt-in LRH:
 
-- branch operations;
-- PR operations;
-- CI observation;
-- review observation;
-- agent backend calls; and
-- bounded stabilization loop.
+- dispatch external agents;
+- mutate branches;
+- open pull requests automatically;
+- run stabilization loops automatically;
+- invoke CI-fix or review-fix loops automatically; and
+- merge, publish, or release.
 
-Phase 1 strengthens the control plane before Phase 3 mutates anything. This keeps command naming,
-contracts, evidence expectations, and human gates reviewable before LRH adds runtime authority.
+The boundary is a capability and governance boundary, not a formal security sandbox claim. It aligns
+with the adopted safe-default agentic packaging proposal in
+`project/design/proposals/adopted/safe-default-agentic-extra-packaging/00_proposal.md`: safe/default
+LRH may include a human-assist `lrh serve` surface, while autonomous dispatch and mutation belong to
+optional agentic packaging after contracts and policy gates are stable. Implementation should
+initially preserve logical boundaries inside the existing `src/lrh/` package layout rather than force
+premature package churn.
 
-## Phase structure
+## Staged layer model
 
-### Phase 1: `lrh run` structural support
-
-Goal:
-
-```text
-Create the infrastructure for something that could be run, without running agents or mutating branches.
-```
-
-Deliverables:
-
-- execution readiness schema;
-- run packet dry-run;
-- run state model;
-- run report MVP;
-- readiness validation; and
-- manual-mode run checklist.
-
-Explicit non-goals:
-
-- no branch mutation;
-- no agent calls;
-- no PR creation; and
-- no runtime stabilization loop.
-
-### Phase 2: ecosystem observation and containment adapters
+### Layer 0: core state and interpretation APIs
 
 Goal:
 
 ```text
-Connect LRH to git/GitHub/CI/review ecosystem state safely before allowing mutation.
+Provide one shared interpretation of project state for CLI commands, the local viewer, and future dry-run packets.
 ```
 
-Deliverables:
+Responsibilities:
 
-- git branch policy model;
-- agent branch namespace;
-- repository cleanliness checks;
+- load project control artifacts;
+- validate project state;
+- snapshot project state;
+- resolve focus, workstreams, work items, active leaves, evidence, and status;
+- expose prompt/request rendering inputs; and
+- keep raw Markdown/frontmatter source separate from typed runtime objects.
+
+Commands and surfaces such as `lrh validate`, `lrh snapshot`, `lrh request`, `lrh serve`, and later
+`lrh run --dry-run` must consume these same core APIs rather than each inventing a workflow engine.
+
+### Layer 1: safe-default viewer and prompt workbench
+
+Goal:
+
+```text
+Make the manual Huge Loop visible and easier to operate without making default LRH autonomous.
+```
+
+`lrh serve` is a local browser UI that projects existing/control-plane state. It is not a separate
+workflow engine and must not become an autonomous runner in the default package.
+
+It should eventually show:
+
+- project identity and validation status;
+- current focus;
+- active workstreams;
+- active work items;
+- workstream tree / active leaf state;
+- current manual Huge Loop state;
+- available next human actions;
+- generated prompts in editable form;
+- copy-to-clipboard with a fallback download/copy path;
+- evidence and report checklists; and
+- later, observed PR/CI/review status after observation adapters exist.
+
+### Layer 2: run packet, run state, awaited transitions, and run reports
+
+Goal:
+
+```text
+Persist enough run context that manual and future automated runs share the same packet, state, event, evidence, and report shape.
+```
+
+Initial command shorthand remains:
+
+```text
+lrh run WI-... --dry-run
+```
+
+Layer 2 introduces `project/runs/<RUN-ID>/` contracts, manual-mode parity, awaited transitions, and
+recovery/resume semantics without requiring autonomous dispatch.
+
+### Layer 3: observation adapters
+
+Goal:
+
+```text
+Connect LRH to ecosystem state safely before allowing mutation.
+```
+
+Responsibilities:
+
+- git state observation;
 - GitHub PR/CI/review observation;
-- protected-branch assumptions;
-- backend-neutral adapter interfaces; and
-- least-privilege credential assumptions.
+- evidence extraction for run reports; and
+- no mutation, comments, pushes, PR creation, merges, or workflow reruns.
 
 Initial posture:
 
@@ -156,52 +201,97 @@ Initial posture:
 observe first, mutate later
 ```
 
-### Phase 3: bounded runtime execution
+### Layer 4: optional agentic execution adapters
 
 Goal:
 
 ```text
-Actually execute bounded runs inside the policy and containment model.
+Allow explicitly installed/selected agentic capability to satisfy the same contracts programmatically.
 ```
 
-Deliverables:
+Responsibilities, all outside the default safe layer:
 
-- dispatch backend prompt;
-- wait/observe backend response;
-- apply/update agent branch;
-- observe CI/review;
-- iterate within limits;
-- stop on abort criteria; and
-- emit final run report.
+- CLI agent dispatch;
+- cloud task dispatch;
+- branch mutation;
+- PR creation where authorized;
+- bounded stabilization; and
+- backend-specific adapter behavior.
 
-Human/policy gates remain for:
+### Layer 5: optional daemon / webhook / dashboard mode
 
-- merge to main;
-- release/publish;
-- work item closeout;
-- workstream closeout;
-- scope expansion; and
-- destructive actions.
+Goal:
+
+```text
+Support long-running orchestration only after durable run contracts and adapter boundaries are mature.
+```
+
+Possible future responsibilities:
+
+- resume pending transitions;
+- react to webhook or polling observations;
+- monitor multiple projects; and
+- coordinate long-running dashboards or daemon processes.
+
+## Safe-default `lrh serve` write boundary
+
+Default `lrh serve` may write LRH control artifacts only when the user explicitly initiates a write
+action. Acceptable explicit-click writes include:
+
+- saving a generated prompt packet under a run directory;
+- creating a manual run state;
+- recording a manually supplied PR URL;
+- recording manually supplied review feedback;
+- recording manually supplied validation evidence;
+- rendering a final report draft; and
+- creating an execution record through existing prompt-workflow conventions.
+
+Default `lrh serve` must not:
+
+- dispatch agents;
+- mutate code branches;
+- push commits;
+- open PRs automatically;
+- perform automated CI-fix loops;
+- perform automated review-response loops;
+- merge;
+- publish or release; or
+- perform destructive actions.
+
+## Local server safety posture
+
+`lrh serve` is a local assist UI, not a sandbox. Its default safety posture should be conservative:
+
+- bind to `127.0.0.1` by default;
+- do not bind to `0.0.0.0` unless explicitly requested;
+- use a per-session random token for state-changing requests;
+- avoid permissive CORS by default;
+- do not display secrets by default;
+- do not provide arbitrary filesystem browsing outside the project root;
+- provide a read-only mode;
+- require explicit confirmations/clicks for writes; and
+- avoid claiming that local hosting alone provides isolation from malicious project content.
 
 ## Cross-cutting requirements
 
-Every phase must preserve:
+Every layer must preserve:
 
 - **control-plane freshness** — substantial runs should update or produce project-control artifacts
   such as run packet, run state, execution record, run report, evidence, and work item/workstream
   closeout recommendation;
 - **manual-mode parity** — a human following the packet should produce the same evidence and report
   shape as an automated backend;
-- **human gates** — humans or explicit policy control merge, release, publish, closeout, scope
-  expansion, and destructive actions;
+- **explicit human gates** — humans or explicit policy control merge, release, publish, closeout,
+  scope expansion, destructive actions, and default-layer writes;
 - **least privilege** — each run gets only the authority needed for the selected target;
 - **evidence/provenance** — reports cite validation, logs, commits, review, screenshots, metrics,
   or other evidence rather than unsupported model claims;
-- **bounded loops** — backend calls, CI rounds, review rounds, time, and budget are capped;
+- **bounded loops** — backend calls, CI rounds, review rounds, time, and budget are capped when
+  optional agentic adapters eventually exist;
 - **abort criteria** — runs stop on policy violations, scope expansion, repeated failure, missing
   authority, or human rejection;
-- **sandboxing/containment** — work is scoped to an allowed workspace and, in later phases, an
-  agent-owned branch or stronger containment layer;
+- **containment clarity** — branch containment is a review boundary, and stronger containment is a
+  separate policy choice recorded in the run packet;
 - **backend neutrality** — LRH owns packet, state, and report contracts while adapters provide
   capabilities; and
 - **automation-laundering prevention** — final reports distinguish evidence, model claims, and
@@ -302,7 +392,7 @@ run_packet:
   workstream: WS-EXAMPLE
   prompt:
     source: project/work_items/proposed/WI-EXAMPLE.md
-    rendered: project/runs/RUN-YYYYMMDD-HHMMSS-WI-EXAMPLE/prompt.md
+    rendered: project/runs/RUN-YYYYMMDD-HHMMSS-WI-EXAMPLE/prompts/initial.md
   policy:
     autonomy_level: manual
     operation_risk: safe_local
@@ -331,6 +421,38 @@ The run packet authorizes what may be attempted. It is not run state and it is n
 report. The packet answers "what is allowed?"; state answers "where are we now?"; the report answers
 "what happened, what evidence exists, and what should happen next?"
 
+## Durable run layout and awaited transitions
+
+Planned run artifacts should be recoverable and inspectable:
+
+```text
+project/runs/
+  RUN-YYYYMMDD-HHMMSS-WI-EXAMPLE/
+    packet.yaml
+    state.yaml
+    events.jsonl
+    prompts/
+      initial.md
+      review_response.md
+      ci_response.md
+    evidence/
+      validation.md
+      review.md
+      ci.md
+    report.md
+```
+
+`events.jsonl` is the append-only recovery and audit log. `state.yaml` is a materialized convenience
+view derived from the latest known run position, not the sole source of history. A later runner or
+server should be able to resume from these artifacts after interruption.
+
+Awaited transitions represent pending work that may be satisfied manually or programmatically later.
+Examples include `awaiting_human_approval`, `awaiting_manual_pr_url`, `awaiting_validation_evidence`,
+`awaiting_ci_observation`, and `awaiting_review_feedback`. A human can satisfy an awaited transition
+through explicit control-artifact updates or future explicit-click `lrh serve` actions. Optional
+agentic adapters may later satisfy the same transition programmatically under the same packet, state,
+event, evidence, and report contracts.
+
 ## Run state contract
 
 Run state is the current lifecycle position of one run.
@@ -345,6 +467,8 @@ Candidate states:
 created
 packet_rendered
 awaiting_human_approval
+awaiting_manual_pr_url
+awaiting_validation_evidence
 branch_prepared
 pr_opened
 agent_running
@@ -357,9 +481,10 @@ completed
 reported
 ```
 
-Phase 1 may only use a small subset such as `created`, `packet_rendered`,
-`awaiting_human_approval`, `blocked`, and `reported`. Later phases can activate branch, PR, agent,
-CI, review, and stabilization states after adapters and policy gates exist.
+The first safe-default implementation may only use a small subset such as `created`,
+`packet_rendered`, `awaiting_human_approval`, `awaiting_validation_evidence`, `blocked`, and
+`reported`. Later layers can activate branch, PR, agent, CI, review, and stabilization states after
+adapters and policy gates exist.
 
 ## Run report contract
 
@@ -384,12 +509,12 @@ Recommended contents:
 
 - summary;
 - target;
-- branch/PR;
+- branch/PR when manually supplied or observed;
 - prompts/responses or links to logs;
-- commits;
+- commits when applicable;
 - validation commands;
-- CI checks;
-- review comments addressed;
+- CI checks when observed;
+- review comments addressed when supplied or observed;
 - remaining risks;
 - human verification steps; and
 - recommendation.
@@ -411,7 +536,7 @@ Future branch namespace:
 agents/<backend>/<workstream-or-work-item>
 ```
 
-Rules:
+Rules for optional mutation-capable layers:
 
 - agent can mutate agent-owned branch only;
 - PR targets protected `main` or selected protected integration branch;
@@ -419,12 +544,13 @@ Rules:
 - human controls merge to main; and
 - human/policy controls release, publish, and closeout.
 
-Phase boundaries:
+Layer boundaries:
 
 ```text
-Phase 1 does not create branches.
-Phase 2 observes and models branches.
-Phase 3 may mutate branches under policy.
+Layer 1 does not create or mutate branches.
+Layer 2 may describe branch policy in packets without mutating branches.
+Layer 3 observes and models branches.
+Layer 4 may mutate branches under optional agentic policy.
 ```
 
 Branch containment is a review boundary, not a complete sandbox. Stronger containment remains a
@@ -434,8 +560,8 @@ separate policy choice recorded in the run packet.
 
 Adapter categories:
 
-- Git adapter;
-- GitHub adapter;
+- Git observation adapter;
+- GitHub observation adapter;
 - CI/review observation adapter;
 - Agent backend adapter;
 - Manual backend; and
@@ -449,6 +575,7 @@ LRH owns the contract; adapters provide capabilities.
 
 Adapters should declare capabilities, required permissions, and unsupported operations. LRH should
 not let an adapter's convenience API redefine packet, state, report, evidence, or policy semantics.
+Observation adapters should arrive before mutation-capable adapters.
 
 ## Safety and risk model
 
@@ -457,25 +584,33 @@ Risks connect to controls as follows:
 - excessive agency -> selected target, bounded loops, branch containment, human gates;
 - prompt injection -> scoped context, no secrets by default, policy checks;
 - insecure output handling -> validation and review before applying outputs;
+- local UI confusion -> read-only mode, explicit-click writes, conservative bind/CORS/token defaults;
 - model denial of service/cost surprise -> max calls, max rounds, time/budget limits;
 - supply-chain risk -> provenance, CI, protected branches, artifact evidence; and
 - automation laundering -> final report distinguishes evidence from claims.
 
 The MVP should make unsafe authority visible rather than hiding it behind a successful-looking run.
 
-## Next implementation sequence
+## Recommended implementation sequence
 
-Next concrete implementation package:
+Recommended design and implementation order:
 
-1. Execution readiness schema MVP.
-2. Run packet dry-run MVP.
-3. Run report MVP.
+1. Align design/control-plane artifacts around safe-default `lrh serve` and optional agentic layers.
+2. Add or refine core state APIs as needed for shared CLI/UI interpretation.
+3. Implement a safe-default, read-only `lrh serve` skeleton.
+4. Add a prompt workbench MVP with editable preview, copy/download fallback, and no autonomous dispatch.
+5. Add run-state artifacts and manual run tracking under `project/runs/<RUN-ID>/`.
+6. Add manual evidence and report workflow support.
+7. Add observation adapters for git, PR, CI, and review status.
+8. Add optional agentic dispatch adapters later, behind the adopted safe-default packaging boundary.
 
-Explicitly defer:
+Explicitly defer from the default/safe layer:
 
 - GitHub mutation;
 - branch creation;
 - PR creation;
 - agent calls;
-- bounded stabilization loop; and
-- backend-specific adapters.
+- automated CI-fix loops;
+- automated review-response loops;
+- bounded stabilization loop execution; and
+- backend-specific autonomous adapters.

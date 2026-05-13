@@ -105,3 +105,15 @@ Command naming convention for new work items: use `lrh agentic run` or `lrh-agen
 autonomous execution. Treat older `lrh run` references as legacy deferred execution-framework shorthand
 until a future command-design work item decides whether `lrh run` is omitted, reserved for non-agentic
 preparation, or exposed only as an installed-agentic alias.
+
+## Bounded execution-framework planning
+
+The first execution-framework implementation package should be contract-first and dry-run-first:
+
+- `proposed/WI-EXECUTION-READINESS-SCHEMA.md`
+- `proposed/WI-RUN-PACKET-DRY-RUN.md`
+- `proposed/WI-RUN-REPORT-MVP.md`
+
+Follow-on planning items cover branch containment, read-only PR/CI observation, and bounded
+stabilization-loop design. Do not plan branch mutation, agent backends, autonomous stabilization, or
+merge/publish automation before readiness, packet, and report contracts exist.

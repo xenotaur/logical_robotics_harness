@@ -1,6 +1,6 @@
 ---
 id: FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
-title: Establish planning-tree semantics and workstreams safely
+title: Plan execution readiness and dry-run contracts for bounded execution
 status: active
 priority: high
 owner: anthony
@@ -8,71 +8,72 @@ related_principles:
   - PRINCIPLES-ENGINEERING
   - PRINCIPLES-EVALUATION
 related_roadmap:
-  - ROADMAP-PHASE-01A
+  - ROADMAP-PHASE-03
+related_workstreams:
+  - WS-EXECUTION-FRAMEWORK
 ---
 
 # Current Focus
 
-The immediate priority is establishing **planning-tree semantics and workstreams** as core LRH
-control-plane concepts. This remains a safe-default, non-agentic planning effort: LRH should be able
-to model, validate, and summarize planning relationships while humans remain responsible for deciding
-and executing work.
+The immediate priority is the **bounded agent execution framework planning phase**. This is not a
+push to make agents autonomous. The immediate phase is to define and validate execution readiness
+and run-packet contracts for selected work items while human approval gates remain in place.
 
 Recently completed:
 
-- reconciled near-term workstream design around recursive planning-tree concepts
-- accepted workstreams as user-facing planning nodes and work items as execution-ready leaves
-- aligned planning-tree work with safe-default packaging, where agentic execution is optional and deferred
-- retained workstream execution framework layers as deferred long-term architecture
-- closed prior release/toolchain and proposal alignment work needed before this planning step
+- landed the Workstream Control Plane MVP baseline for representing, loading, validating,
+  snapshotting, organizing, and tidying workstreams
+- created the first-class `WS-EXECUTION-FRAMEWORK` workstream
+- updated the proposed execution-framework design around bounded branch-level agency, run packets,
+  agent-owned branches, pull requests, bounded CI/review stabilization loops, final run reports, and
+  human/policy gates
 
 ## Why this is active now
 
-LRH needs a disciplined next sequence that introduces workstreams as first-class planning artifacts
-without jumping to runtime execution, orchestration, or autonomous behavior. This preserves
-repository-as-control-plane and manual-mode parity while keeping implementation slices small and
-reviewable.
+LRH now has enough project-control structure to plan the next execution-framework phase without
+jumping directly to runtime automation. The next work should make selected work items ready for
+future execution by defining readiness metadata, producing dry-run run packets, and producing final
+run-report contracts that tie status to evidence.
 
-## Safe-default requirements
+## First implementation slice
 
-All planning-tree and workstream work must:
+The first implementation package after this planning PR should include only:
 
-1. function without agentic capabilities or optional `lrh[agentic]` dependencies
-2. support human-assisted workflows by default, including reviewable prompts or run packets
-3. prepare future agentic execution by preserving explicit planning metadata and readiness concepts
-4. avoid autonomous invocation of coding agents, execution loops, PR stabilization loops, or adapters
-5. mark any agentic run command, adapter, stabilization-loop, or sandbox-envelope work as deferred / future / requires `lrh[agentic]`
+1. `WI-EXECUTION-READINESS-SCHEMA`
+2. `WI-RUN-PACKET-DRY-RUN`
+3. `WI-RUN-REPORT-MVP`
 
-Command naming convention: use `lrh agentic run` or `lrh-agentic run` for future autonomous execution.
-Treat older `lrh run` references as deferred execution-framework shorthand unless a future command-design
-work item explicitly assigns safe-default or installed-agentic alias semantics.
+This package should define the fields, generated artifacts, evidence expectations, and human review
+steps needed before any branch mutation, agent backend, or stabilization loop can be implemented.
 
-## Priorities
+## Human and policy gates
 
-1. Define planning-node schema and recursive relationship conventions (`parent_id`, `children`).
-2. Define execution-ready work items as human-executable leaves, not autonomous runs.
-3. Define planning-tree validation rules for references, cycles, and consistency before implementation.
-4. Define and document minimal workstream artifact conventions and bucket navigation.
-5. Define workstream-to-work-item relationship conventions compatible with the planning-tree model.
-6. Add design-level snapshot visibility and human-assisted run-packet generation work items.
-7. Only after design-level slices are clear, implement loader/model, validation, snapshot, and dry-run-first organize/tidy support through small reviewed work items.
+Execution-framework planning must preserve explicit human/policy gates for:
+
+- approving a work item as execution-ready
+- approving generated run packets before mutation-capable work
+- reviewing validation evidence and final run reports
+- merging pull requests
+- release or publish decisions
+- closing out work items and workstreams
 
 ## Non-Goals
 
-- Implementing runtime features, schemas in code, validation logic, or CLI commands in the planning PR.
-- Implementing `lrh agentic run` or any autonomous run command.
-- Adding agent runtime execution, orchestration, adapters, or automated stage advancement.
-- Adding PR stabilization loops or sandbox-envelope behavior.
-- Implementing MCP bridges, telemetry systems, or backend adapters.
-- Collapsing multiple MVP slices into one large implementation change.
+- Implementing runtime code, CLI behavior, schema validation, GitHub API integration, or tests for
+  runtime execution behavior in this planning PR.
+- Adding `lrh run` or any autonomous run command.
+- Invoking coding agents, mutating branches, or adding execution backends.
+- Implementing PR stabilization loops, CI response automation, or merge/publish automation.
+- Adding MCP bridges, telemetry systems, privileged workflow execution, or secrets-management
+  behavior beyond documented policy assumptions.
 
 ## Exit Criteria
 
 This focus is complete when:
 
-1. roadmap and work items clearly sequence the Planning Tree and Workstream Foundation
-2. workstreams are represented in project control as first-class artifacts
-3. planning-node and workstream relationship semantics are documented and validated through small reviewed work items
-4. human-assisted workflow generation is specified without implying autonomous execution
-5. deferred agentic work remains explicitly out of scope and tied to future optional `lrh[agentic]` capability
-6. the next implementation prompt can start with the first concrete MVP work item: `WI-PLANNING-NODE-SCHEMA-MVP`
+1. the roadmap clearly stages the bounded execution-framework phase
+2. the execution-framework workstream points at the first implementation sequence
+3. work items exist for execution readiness, run packet dry-run, run report MVP, branch containment,
+   PR/CI observation, and bounded stabilization-loop design
+4. the first implementation prompt package can safely start with readiness, dry-run packets, and run
+   reports without backend or branch-mutation work

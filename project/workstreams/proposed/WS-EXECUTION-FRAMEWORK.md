@@ -41,6 +41,8 @@ The core idea is that LRH should automate stereotyped PR/review/CI stabilization
 work items while preserving bounded authority, least privilege, auditable evidence, and human/policy
 gates for merge, release, publish, and closeout.
 
+The canonical living design is `project/design/execution_framework_mvp.md`. It defines the current three-phase structure: Phase 1: `lrh run` structural support; Phase 2: ecosystem observation and containment adapters; Phase 3: bounded runtime execution.
+
 The intended future execution shape is:
 
 ```text
@@ -66,6 +68,10 @@ implementation phase, and preserve the safe-default boundary that keeps autonomo
 core LRH until contracts, policy gates, and evidence expectations are clear.
 
 ## Relevant context
+
+Canonical living design/context package:
+
+- `project/design/execution_framework_mvp.md` — current MVP architecture and staged plan for bounded execution.
 
 - Adopted planning-tree proposal:
   `project/design/proposals/adopted/workstreams-and-recursive-planning-tree/00_proposal.md`

@@ -1,5 +1,7 @@
 # Workstream Execution Framework — Proposal Set
 
+Canonical living MVP design: `project/design/execution_framework_mvp.md`. The proposal records rationale and future architecture; `execution_framework_mvp.md` records the current MVP architecture and staged implementation plan.
+
 This proposal set now frames LRH's future execution framework as
 bounded, branch-contained orchestration for already-approved executable
 leaves. The intended path is: selected executable leaf -> run packet ->

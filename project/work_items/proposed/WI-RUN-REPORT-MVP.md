@@ -17,6 +17,7 @@ related_roadmap:
 related_workstreams:
   - WS-EXECUTION-FRAMEWORK
 related_design:
+  - project/design/execution_framework_mvp.md
   - project/design/proposals/proposed/workstream-execution-framework/00_proposal.md
   - project/design/proposals/adopted/workstreams-and-recursive-planning-tree/00_proposal.md
 depends_on:
@@ -76,6 +77,7 @@ Execution status must remain evidence-backed. Before LRH can automate branch-con
 ## Related Workstream and Designs
 
 - Workstream: `project/workstreams/proposed/WS-EXECUTION-FRAMEWORK.md`
+- Canonical living execution-framework MVP design: `project/design/execution_framework_mvp.md`
 - Proposed execution-framework proposal: `project/design/proposals/proposed/workstream-execution-framework/00_proposal.md`
 - Adopted planning-tree proposal: `project/design/proposals/adopted/workstreams-and-recursive-planning-tree/00_proposal.md`
 

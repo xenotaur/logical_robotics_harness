@@ -4,7 +4,7 @@ title: Workstream Execution Framework
 status: proposed
 type: design_proposal
 created_on: 2026-04-26
-updated_on: 2026-04-26
+updated_on: 2026-05-13
 owner: anthony
 related_focus:
   - FOCUS-BOOTSTRAP
@@ -18,621 +18,576 @@ superseded_by: null
 
 ## Summary
 
-This proposal introduces a **workstream** as a new typed artifact in the
-Logical Robotics Harness (LRH) control plane and lays out a six-layer
-execution framework that lets workstreams progress, mostly automatically,
-from conception through closure while staying entirely auditable from a
-Git checkout. A workstream is a coherent thread of work that sits between
-`focus` and `work_items`, advances through eight explicit lifecycle stages
-(`conceived → assessed → designed → planned → executing → reviewing →
-closed`, with `abandoned` as an off-ramp), and accretes Markdown+YAML
-artifacts under `project/workstreams/{bucket}/WS-{SLUG}/` as it moves.
-Around that artifact, the proposal stacks six layers — control plane
-extensions, first-party templates, the workstream orchestrator itself, an
-agent runtime adapter, an observability + evidence split, and MCP backend
-bridges — that together turn an LRH repository into something a Claude
-Agent SDK runtime can drive while a human reviews the diff.
+This proposal describes a future **workstream execution framework** for
+Logical Robotics Harness (LRH). The Workstream Control Plane MVP has
+now established workstream artifacts, schema, loader/model support,
+validation, planning-tree relationships, snapshot visibility, and
+organize/tidy behavior. This proposal therefore no longer treats
+workstreams themselves as the next speculative unit. Instead, it focuses
+on the next conceptual boundary: bounded, auditable execution of already
+approved executable leaves.
 
-The proposal is structured deliberately so that each layer is small,
-substitutable, and exercised by a worked example. Two non-negotiable
-constraints run through every layer: **manual-mode parity** (every
-workflow that an agent can perform must have a documented manual
-equivalent that produces structurally identical artifacts) and
-**repository-as-control-plane** (state lives in committed Markdown and
-YAML — never in a side database, never in an external service that the
-repo can't be reconstructed from).
+The design intentionally distinguishes **unbounded agent autonomy** from
+**bounded, branch-contained, evidence-producing orchestration for
+selected work items**. The target execution shape is:
 
-This document is the umbrella; one detailed sub-proposal per layer
-(`01_layer1_*.md` through `06_layer6_*.md`) defines the schemas, APIs,
-modules, tests, and worked examples for that layer, and a Pass-B appendix
-(`appendix_b_lcats_corpora_analysis.md`) walks a single workstream end to
-end across all six layers.
+```text
+selected executable leaf
+-> run packet
+-> agent-owned branch
+-> pull request
+-> bounded review/CI stabilization loop
+-> final run report
+-> human/policy merge and closeout gate
+```
+
+The proposed containment model is repository-native. LRH selects a ready
+work item or executable planning-tree leaf, packages the allowed goal,
+paths, commands, budgets, and evidence expectations into a run packet,
+and gives an execution backend only the authority needed to work in an
+agent-owned branch such as `agents/<backend>/<workstream-or-work-item>`.
+The pull request is the stabilization boundary: CI and review feedback
+may be addressed inside explicit iteration limits, but merge, release,
+publish, and workstream/work-item closeout remain human or policy gates.
+
+This is a design proposal only. It does not assert that LRH already
+supports autonomous execution, `lrh run`, GitHub API integration,
+execution backends, orchestration loops, or privileged workflow
+permissions. Those capabilities would need to be implemented later in
+staged workstreams with their own review, validation, and evidence.
 
 ## Table of contents
 
 1. [Motivation](#1-motivation)
 2. [Scope and non-goals](#2-scope-and-non-goals)
-3. [Where workstreams sit in the existing model](#3-where-workstreams-sit-in-the-existing-model)
-4. [The six-layer stack](#4-the-six-layer-stack)
-5. [Cross-cutting invariants](#5-cross-cutting-invariants)
-6. [Build vs. buy positioning](#6-build-vs-buy-positioning)
-7. [Risks and mitigations](#7-risks-and-mitigations)
-8. [Adoption plan](#8-adoption-plan)
-9. [Open questions](#9-open-questions)
-10. [Reading order and document index](#10-reading-order-and-document-index)
-11. [References](#11-references)
+3. [Where execution sits in the planning tree](#3-where-execution-sits-in-the-planning-tree)
+4. [Bounded branch-level agency](#4-bounded-branch-level-agency)
+5. [Run packets and run reports](#5-run-packets-and-run-reports)
+6. [Backend-neutral execution contract](#6-backend-neutral-execution-contract)
+7. [Evidence, observability, and lifecycle history](#7-evidence-observability-and-lifecycle-history)
+8. [Human and policy gates](#8-human-and-policy-gates)
+9. [Cross-cutting invariants](#9-cross-cutting-invariants)
+10. [Build vs. buy positioning](#10-build-vs-buy-positioning)
+11. [Risks and mitigations](#11-risks-and-mitigations)
+12. [Adoption plan](#12-adoption-plan)
+13. [Open questions](#13-open-questions)
+14. [Reading order and document index](#14-reading-order-and-document-index)
+15. [References](#15-references)
 
 ## 1. Motivation
 
-### Summary
+LRH's control plane can now represent workstreams and planning-tree
+relationships, but execution remains intentionally human-driven. The
+next design question is how LRH should eventually help execute selected
+leaves without turning the repository into an unbounded agent workspace.
+The answer proposed here is not "let an agent do whatever is next." It
+is a narrow workflow in which humans or policy select a specific leaf,
+LRH emits a bounded run packet, an execution backend works in an
+agent-owned branch, and the result is reviewed through a pull request
+with explicit evidence and stop conditions.
 
-LRH today has the bones of a control plane — typed models, frontmatter
-validation, a precedence resolver, evidence and execution records — but
-it has no first-class concept for "a piece of work that needs to advance
-through stages over time, possibly with help from an agent." We've been
-modeling that implicitly with `focus` plus a hand-curated cluster of
-related work items, which works for one or two threads but breaks down
-once a project has multiple parallel investigations, design efforts, or
-deliverables in flight. The workstream concept fills that gap.
+This addresses several practical needs:
 
-### Why now
+- work items should be executable without losing their workstream and
+  planning-tree context;
+- agent activity should leave durable repository evidence rather than
+  disappearing into an external transcript;
+- CI and review stabilization should be allowed, but only inside a
+  bounded loop;
+- merge-to-main, release, publish, and closeout should stay outside the
+  agent's unilateral authority; and
+- manual execution should remain a first-class equivalent path.
 
-Three forces make this the right time to introduce the abstraction:
-
-The Claude Agent SDK has matured enough that wrapping it as a runtime
-substrate is a reasonable bet rather than a research project — the SDK
-exposes typed `query()` and `ClaudeSDKClient` interfaces, hooks for
-PreToolUse/PostToolUse/Stop, structured outputs, and W3C trace-context
-propagation that we'd otherwise have to build ourselves
-([anthropics/claude-agent-sdk-python][cas]).
-
-The Model Context Protocol has stabilized enough to be the bridge
-substrate: MCP servers exist for ROS, browsers, filesystems, databases,
-and dozens of other backends, and the MCP specification is now hosted
-under the Linux Foundation as an open standard
-([modelcontextprotocol.io][mcp]).
-
-OpenTelemetry's GenAI semantic conventions have stabilized to the point
-where instrumenting agent runs against a known schema is a defensible
-default rather than a homegrown invention
-([OpenTelemetry GenAI semconv][otel-genai]).
-
-Borrowing these three substrates while keeping the *control plane* in
-LRH — repo-native, Git-tracked, human-readable — is the strategic bet
-this proposal locks in.
-
-### Concrete pain we're solving
-
-In the current LRH model, when a contributor wants to start a piece of
-work that has a non-trivial lifecycle — e.g. "build a corpus-analysis
-capability for LCATS" — they have to either jam everything into a single
-work item (which loses staged structure) or scatter the work across
-several work items connected only by `related_focus` (which loses the
-"this is one coherent thread" framing). Neither captures stages,
-gating, evidence-at-close, or the progression from a vague conception
-to a finished review. Worse, when an agent helps, there's no place to
-hang the agent's deliberation, the runtime trace, the cost budget, or
-the structured findings. Workstreams give us all of that in one
-artifact.
+The proposal preserves LRH's repo-native thesis while making branch and
+PR containment the primary safety boundary for future agentic work.
 
 ## 2. Scope and non-goals
 
-### Summary
-
-The proposal is intentionally larger than a single PR's worth of code,
-but each layer ships independently. This section nails down what we
-*are* committing to and what we are explicitly deferring.
-
 ### In scope
 
-The proposal commits to:
+This proposal specifies the desired future architecture for:
 
-A typed `Workstream` model in the control plane, mirrored by a directory
-schema under `project/workstreams/`, with frontmatter as the
-authoritative source of truth and bucket directories as a derived view —
-matching the conventions LRH already uses for work items
-(`project/design/repository_spec.md`, `project/work_items/README.md`).
+- selecting an already-approved executable work item or planning-tree
+  leaf;
+- building a run packet that constrains goals, paths, commands,
+  budgets, tokens, evidence, and stop conditions;
+- assigning execution to an agent-owned branch namespace such as
+  `agents/<backend>/<workstream-or-work-item>`;
+- opening a pull request as the stabilization boundary;
+- allowing a bounded CI/review loop with explicit maximum iteration
+  counts;
+- producing a final run report and evidence links;
+- preserving manual-mode parity through the same packet and report
+  shapes;
+- retaining typed lifecycle transitions and append-only transition
+  history where appropriate; and
+- keeping merge, release, publish, and closeout behind human or policy
+  gates.
 
-A small in-house orchestrator that advances a workstream through its
-stages, gated by mode and explicit `--confirm` flags, with an
-append-only `transitions[]` audit trail in frontmatter.
+### Non-goals for this design update
 
-A `RuntimeBackend` Protocol with three implementations — `claude` (wraps
-the Claude Agent SDK), `manual` (records human work as if it were a
-backend), and `fake` (for tests) — so the orchestrator can't tell who
-actually did the work.
+This proposal update does **not** implement or require:
 
-A telemetry layer that emits OTel-aligned spans on disk and an evidence
-layer that produces durable Markdown records under `project/evidence/`,
-with explicit extractors that turn traces into evidence.
+- runtime code;
+- CLI behavior changes;
+- `lrh run`;
+- GitHub API integration;
+- agent backends;
+- automation;
+- schema validation behavior;
+- execution backend selection;
+- orchestration loops;
+- privileged workflow permissions; or
+- tests for runtime execution behavior.
 
-A bridge layer that lets workstreams open MCP-backed sessions to
-external systems (ROS, simulators, browsers) and record what those
-sessions did as evidence.
+The framework described here is proposed/future architecture. Any
+implementation should arrive through smaller workstreams that first
+codify packet/report schemas, manual operation, permission policy, and
+validation behavior before enabling autonomous backends.
 
-CLI surface across all of the above (`lrh workstream`,
-`lrh observability`, `lrh evidence`, `lrh bridge`).
+## 3. Where execution sits in the planning tree
 
-### Out of scope (for this proposal)
+Workstreams organize meaningful efforts. Work items remain the concrete
+executable units. The recursive planning-tree model lets LRH identify
+ready executable leaves, but readiness alone should not grant execution
+authority.
 
-Intentionally deferred: a hosted UI, a multi-tenant evidence service,
-parallel orchestration of multiple workstreams in a single run, an
-`OpenTelemetry`-collector-backed default (we'll start with JSON files on
-disk and design the OTel backend but ship the file backend first),
-distributed agent execution across machines, automated prompt
-optimization, and any feature that requires synchronizing state between
-LRH and an external server-of-record. The design preserves the doors
-for these but does not walk through them.
-
-## 3. Where workstreams sit in the existing model
-
-### Summary
-
-Workstreams are a new layer between **current focus** and **work
-items**, refining a focus into one or more coherent threads of work
-without replacing either concept. Existing LRH artifacts — focus,
-work items, evidence, executions, contributors, principles, guardrails —
-keep their current meanings; workstreams reference them.
-
-### Precedence position
-
-The proposal adds workstreams to the canonical precedence chain. Today
-the chain is `principles → goal → roadmap → focus → work items →
-guardrails → runtime` (see
-`project/memory/decisions/precedence_semantics.md`). After this
-proposal lands, the chain is:
+Execution begins only after selection:
 
 ```text
-1. principles
-2. goal
-3. roadmap
-4. focus
-5. workstreams        # NEW
-6. work_items
-7. guardrails
-8. runtime
+Project / Workstream / Work Item planning tree
+  -> selected executable leaf
+  -> run packet
+  -> bounded branch-level run
 ```
 
-This reflects the operational truth that a workstream narrows a focus
-and groups work items, but is itself narrower than the focus that
-spawned it. Layer 1 sub-proposal
-(`01_layer1_control_plane.md`) specifies the precedence-resolver
-changes; the precedence-semantics decision record is updated in
-lockstep per the AGENTS.md "precedence maintenance note."
+A selected leaf should carry enough context to define an execution
+contract: parent workstream, acceptance criteria, allowed paths,
+validation commands, risk level, expected evidence, and explicit
+non-goals. LRH may derive defaults from workstream and work-item
+metadata, but the run packet is the concrete boundary for one run.
 
-### Relationship to existing artifacts
+The existing precedence principle still applies: repository control-plane
+artifacts guide runtime behavior, and runtime observations may produce
+evidence or reports but must not silently redefine project intent.
 
-A workstream **refines a focus** by carving out a coherent slice of it.
-A focus may have zero, one, or many active workstreams — most early
-focuses will have one. A workstream **groups work items**: each
-work item becomes a step in a workstream's `plan.md` (Layer 2) or a
-prompt in `prompts/` (Layer 3). Existing work items don't lose their
-identity; they gain a `related_workstream` field analogous to today's
-`related_focus`. A workstream **owns** an `executions/` directory of
-prompt-execution records (existing PROMPTS.md schema, see Layer 3) and
-**points at** evidence records under the project-level
-`project/evidence/` (so evidence remains globally discoverable, not
-buried inside workstreams).
+## 4. Bounded branch-level agency
 
-### Worked example (one paragraph)
+### Branch containment
 
-The LCATS project has `FOCUS-LCATS-CORPORA` covering "make the corpora
-processing reliable." Today that focus might have a half-dozen related
-work items pulling in different directions. After this proposal,
-`FOCUS-LCATS-CORPORA` has two workstreams: `WS-LCATS-CORPORA-UPDATE`
-(produce the next clean snapshot of the corpus) and
-`WS-LCATS-CORPORA-ANALYSIS` (analyze the corpus for issues so the
-update workstream knows what to fix). Each workstream walks the eight
-stages independently, references its own work items, and produces its
-own evidence — and the cross-workstream relationship is captured by a
-`sibling_workstreams` field. The Pass-B appendix walks
-`WS-LCATS-CORPORA-ANALYSIS` end-to-end as the canonical worked example
-for this whole proposal.
+Future automated execution should be contained in an agent-owned branch.
+The recommended namespace is:
 
-## 4. The six-layer stack
+```text
+agents/<backend>/<workstream-or-work-item>
+```
 
-### Summary
+Examples:
 
-The execution framework is a stack of six layers, each with its own
-sub-proposal and its own deliverable boundary. Layers communicate
-through narrow Protocols so each layer can be substituted independently
-and tested in isolation. The numbering matches the sub-proposal files.
+```text
+agents/codex/WI-WORKSTREAM-SNAPSHOT-MVP
+agents/manual/WS-EXECUTION-FRAMEWORK-PILOT
+agents/fake/WI-EXAMPLE-SMOKE
+```
 
-### Layer 1 — Control plane extensions (existing code, mostly)
+The exact slugging rules can be defined later, but the namespace should
+make ownership and backend visible at a glance. Branch containment is not
+a complete sandbox, but it gives LRH and repository maintainers a simple
+reviewable boundary: proposed changes are isolated until a human or
+policy-approved merge occurs.
 
-The control plane already loads, validates, and resolves projects;
-Layer 1 adds workstream-aware loading, validation, snapshotting, and
-precedence resolution. New module: `src/lrh/control/workstream.py` (and
-schema entries under `project/design/schemas/`). New CLI: `lrh
-workstream new|list|show|advance|resume|abandon|gates|tidy|validate`.
-This is the smallest layer — most of it is incremental on existing
-code. See `01_layer1_control_plane.md` for the schema and CLI.
+### Pull request as stabilization boundary
 
-### Layer 2 — Templates
+The pull request is the unit where execution output becomes reviewable.
+The branch may contain code, documentation, evidence stubs, run reports,
+and execution records. CI results, review comments, and requested changes
+attach to the PR rather than to an opaque agent session.
 
-LRH grows first-party Markdown templates for the per-stage artifacts a
-workstream emits (`workstream.md`, `conception.md`, `assessment.md`,
-`design.md`, `plan.md`, `prompts/`, `decisions/`). This is deliberately
-**not** spec-kit's templates — see [build vs. buy](#6-build-vs-buy-positioning).
-The templates live under `src/lrh/assist/templates/workstream/` and are
-loaded as package resources, matching the package-owned template
-direction documented in the repo-root README. See
-`02_layer2_templates.md` for the template inventory.
+A backend may respond to CI and review feedback only inside a bounded
+loop. A future run packet should specify limits such as:
 
-### Layer 3 — Workstream orchestration (the new core)
+```yaml
+stabilization:
+  max_ci_iterations: 3
+  max_review_iterations: 2
+  max_elapsed_minutes: 90
+  stop_on_new_scope: true
+```
 
-A small in-house state machine that advances a workstream through its
-stages. Modules under `src/lrh/workstream/`: `models.py`, `schema.py`,
-`state_machine.py`, `loader.py`, `writer.py`, `orchestrator.py`,
-`precedence.py`. The single load-bearing API is
-`advance_workstream(project, ws_id, *, runtime, observer, mode,
-rerun) -> AdvanceResult`. We **explicitly reject** LangGraph here:
-once LRH owns all state in the repo, LangGraph's value evaporates. See
-`03_layer3_workstream_orchestration.md` for the state machine, the
-`AdvanceResult` taxonomy, the two-step manual-advance pattern, and the
-parity tests.
+When a limit is reached, the backend stops and the run report records the
+remaining action items. The agent does not keep trying indefinitely, does
+not expand scope to make the PR pass, and does not merge its own work.
 
-### Layer 4 — Agent runtime
+### Least-privilege token model
 
-A `RuntimeBackend` Protocol with three implementations. Modules under
-`src/lrh/runtime/`: `api.py`, `models.py`, `claude_backend.py`,
-`manual_backend.py`, `fake_backend.py`, `hooks.py`, `permissions.py`,
-`budget.py`, `transcript.py`. The Claude backend wraps
-`anthropics/claude-agent-sdk-python` ([cas][cas]); the manual backend
-lets a human do the work and reports the same `RuntimeResult` shape;
-the fake backend is for tests. See `04_layer4_agent_runtime.md` for
-the Protocol, the `Outcome` enum, and the hook wiring.
+Future execution backends should receive the least authority required for
+the selected run. A default token posture should allow work on the
+agent-owned branch and PR comment/status interaction, but should not allow
+protected-branch writes, release publishing, secret mutation, or elevated
+workflow dispatch unless a repository policy explicitly grants those
+capabilities for the run.
 
-### Layer 5 — Observability and evidence (split into 5a and 5b)
+Unsafe workflow permissions deserve special caution. By default, LRH
+should avoid privileged PR workflows and any pattern where unreviewed
+agent-authored code can obtain repository secrets. Elevated permissions
+must be an explicit policy decision recorded in the run packet or its
+controlling workstream, not an ambient backend default.
 
-Two top-level packages with a unidirectional dependency: 5a
-`src/lrh/observability/` produces ephemeral spans and traces,
-JSON-on-disk by default with an OTel backend designed but not first;
-5b `src/lrh/evidence/` produces durable Markdown records under
-`project/evidence/` via extractors that read traces. This split
-matches OTel's "GenAI" semantic conventions ([otel-genai][otel-genai])
-plus LRH's own evidence model. See
-`05_layer5_observability_and_evidence.md` for the dataclasses, the
-extractor protocol, and the staging-and-promotion pattern for manual
-evidence.
+## 5. Run packets and run reports
 
-### Layer 6 — MCP backend bridges
+### Run packet
 
-Adapters that connect external systems via MCP. Modules under
-`src/lrh/bridges/`: `api.py`, `models.py`, `registry.py`, `config.py`,
-`lifecycle.py`, plus an `adapters/` subpackage (`mcp_adapter`,
-`ros_adapter`, `arena_bench_adapter`, `fake_adapter`). The Arena-Bench
-adapter ([ignc-research/arena-bench][arena-bench]) launches a roslaunch
-subprocess, waits for the ROS master plus a `scenario_loaded` flag, and
-runs both the upstream `robotmcp/ros-mcp-server` ([ros-mcp][ros-mcp])
-and a custom Arena-Bench scenario-control MCP server. See
-`06_layer6_mcp_bridges.md` for the Protocols, the lifecycle handling,
-and the NARROW DOORWAY worked example.
+A run packet is the proposed future artifact that turns a selected leaf
+into an executable contract. It should be human-readable and suitable for
+both manual and backend-driven execution.
 
-## 5. Cross-cutting invariants
+A packet should include, at minimum:
 
-### Summary
+- selected workstream/work-item IDs and source paths;
+- goal and non-goals;
+- allowed paths and forbidden paths;
+- allowed commands and required validation commands;
+- evidence expectations;
+- branch namespace and PR target;
+- backend mode (`manual`, `agent`, `fake`, or later adapters);
+- token/permission posture;
+- budget and elapsed-time caps;
+- maximum CI/review iteration counts;
+- stop conditions; and
+- closeout questions the final report must answer.
 
-Two invariants apply to every layer and are enforced in the test suite,
-not just in prose. Each layer's sub-proposal explains how it satisfies
-them.
+Illustrative shape:
 
-### Invariant A: manual-mode parity
+```yaml
+run_packet:
+  id: RUN-PACKET-EXAMPLE
+  selected_leaf: WI-EXAMPLE
+  parent_workstream: WS-EXAMPLE
+  branch: agents/codex/WI-EXAMPLE
+  target_branch: main
+  mode: agent
+  allowed_paths:
+    - src/lrh/example/
+    - tests/example/
+  forbidden_paths:
+    - .github/workflows/
+  validation_commands:
+    - scripts/test
+  evidence_expected:
+    - test output
+    - final run report
+  budget:
+    max_elapsed_minutes: 90
+    max_backend_spend_usd: 10
+  stabilization:
+    max_ci_iterations: 3
+    max_review_iterations: 2
+  gates:
+    merge: human_or_policy
+    release: human_or_policy
+    publish: human_or_policy
+    closeout: human_or_policy
+```
 
-For every workflow that an agent backend can perform, there must exist
-a documented manual workflow that a human can execute, producing
-**structurally identical** artifacts (same frontmatter schema, same
-file layout, same evidence-record shape, same transition-record shape).
-The manual backend in Layer 4 reports the same `RuntimeResult` shape
-that the Claude backend does. The evidence model in Layer 5b treats
-`source: human` and `source: agent_trace` as peers, validated against
-the same per-kind schemas. Layer 3 ships a `manual_parity_test.py`
-under `tests/workstream_tests/` that fails the build whenever the
-agent path produces an artifact that the manual path can't.
+### Run report
 
-This is **not** a hedge against agent failure — it's the structural
-property that lets LRH be useful in the LCATS-style "human collaborator
-reviews a sample of agent output" workflow at all. Pass B in the
-appendix demonstrates manual-mode parity in action by having a human
-collaborator produce evidence records in the same shape as the agent's
-records and comparing them in a cross-review run.
+A run report is the durable summary of what happened during one run. It
+should link to the run packet, branch, PR, commits, validation output,
+CI results, review trace, evidence records, and final assessment.
 
-### Invariant B: repository-as-control-plane
+The final assessment should use a constrained outcome vocabulary:
+
+- `done_with_evidence` — the run satisfied acceptance criteria and cites
+  independent evidence such as passing validation, review, screenshots,
+  metrics, logs, or reports;
+- `done_with_human_verification_steps` — the run completed its proposed
+  changes but requires named human checks before merge or closeout;
+- `not_done_with_action_items` — the run stopped with a clear remaining
+  action list; or
+- `infeasible_or_rejected_with_rationale` — the run could not or should
+  not proceed, with rationale and any evidence gathered.
+
+The report is not a marketing summary. It should make unfinished work,
+failed validation, scope deviations, and human verification needs visible.
+
+## 6. Backend-neutral execution contract
+
+The execution framework should remain backend-neutral. A future adapter
+contract should let LRH hand a run packet to different executors without
+changing the control-plane model.
+
+A backend adapter should be able to:
+
+- declare capabilities and permission requirements;
+- accept a run packet;
+- prepare or reuse the agent-owned branch;
+- perform bounded work under the packet constraints;
+- surface CI/review feedback without hiding it;
+- stop on budget, time, iteration, scope, or policy limits;
+- return structured run status and transcript references; and
+- produce or help populate the final run report.
+
+Manual mode must use the same contract. A human executing a packet should
+create the same branch/PR/report/evidence shape as an agent backend, even
+if the human performs every step manually. This keeps manual-mode parity
+from being a fallback story and makes it the baseline semantics for the
+future runtime.
+
+The historical layer documents in this proposal set use names such as
+`RuntimeBackend`, `RuntimeRequest`, and `RuntimeResult`. Those remain
+useful concepts, but later implementation should reconcile them with the
+run packet / run report boundary before committing to public APIs.
+
+## 7. Evidence, observability, and lifecycle history
+
+Evidence and observability should remain separate.
+
+Observability captures what happened during the run: transcripts, spans,
+logs, costs, command outputs, CI attempts, and review-loop iterations.
+These records may be verbose and operational.
+
+Evidence is the durable project-control claim: tests passed, review was
+performed, screenshots match expectations, a report was produced, a
+metric threshold was met, or a human verification step remains. Evidence
+should cite observability artifacts when useful, but it should not be
+replaced by raw traces.
+
+Typed lifecycle transitions remain valuable, especially for workstream
+stage changes and run status changes. Where LRH records transitions, the
+history should be append-only. A rerun or stabilization iteration should
+append a new event rather than rewriting prior outcomes.
+
+## 8. Human and policy gates
+
+The branch-level execution model draws a hard line between stabilization
+and authority.
+
+Backends may be allowed, within a packet, to:
+
+- edit allowed paths on an agent-owned branch;
+- run allowed commands;
+- push commits to the agent branch;
+- open or update a PR;
+- respond to CI failures within iteration limits; and
+- respond to review feedback within iteration limits.
+
+Backends should not be allowed by default to:
+
+- merge into protected branches;
+- tag releases;
+- publish packages;
+- mutate secrets;
+- approve their own PRs;
+- close workstreams or work items as completed; or
+- reinterpret project goals beyond the selected packet.
+
+Merge, release, publish, and workstream/work-item closeout require a
+human or explicit policy gate. A policy gate may eventually automate a
+decision, but it must be reviewable as policy, not hidden inside agent
+prompting.
+
+## 9. Cross-cutting invariants
+
+### Manual-mode parity
+
+For every workflow that an agent backend can perform, there must be a
+documented manual workflow that a human can execute while producing
+structurally equivalent artifacts: run packet, branch or documented patch
+source, pull request or review bundle, validation output, evidence, and
+run report.
+
+Manual mode is not merely a hedge against agent failure. It is the design
+pressure that keeps LRH from depending on a vendor-specific execution
+system for its core semantics.
+
+### Repository-as-control-plane
 
 Authoritative state lives in committed Markdown and YAML in the
-`project/` directory. Local runtime state (caches, logs, transient
-sessions, secrets) may exist but is non-authoritative and must not
-silently override repository artifacts — this is already an LRH
-principle (`project/design/design.md` §9). The proposal extends it:
+`project/` directory. Local runtime state, external dashboards, backend
+session logs, and CI-provider records may provide supporting data, but
+they must not silently override repository artifacts.
 
-Telemetry spans live on disk under `project/runs/RUN-{ulid}/spans.jsonl`
-in the default backend; an OTel-collector backend may stream
-**copies** of those spans elsewhere but the on-disk JSONL is the
-source of truth.
+The repository should explain:
 
-Evidence records under `project/evidence/` are the durable record of
-what happened; transcripts under `project/runs/RUN-{ulid}/` are the
-source for the body of evidence records but are themselves
-non-authoritative once an evidence record cites them.
+- which leaf was selected;
+- what packet constrained the run;
+- which branch and PR carried the work;
+- what evidence was produced;
+- what the final assessment was; and
+- which human or policy gate made merge/closeout decisions.
 
-A workstream's `transitions[]` array in frontmatter is append-only and
-is the audit trail for stage progression. Re-running an `advance` does
-not modify history; it appends new entries.
+### Anti-laundering posture
 
-This invariant is what makes LRH reproducible from a `git clone`. If
-the runtime substrate or the observability backend changes tomorrow,
-the repo still tells the full story.
+Automation must not launder uncertainty into completion claims. Passing
+CI, an agent-authored summary, or multiple correlated model reviews are
+not enough by themselves. LRH should require independent evidence,
+review trace, and explicit final assessment language before status or
+closeout claims are made.
 
-## 6. Build vs. buy positioning
+## 10. Build vs. buy positioning
 
-### Summary
+LRH's differentiators remain the control plane, planning-tree semantics,
+evidence model, and repository-native audit trail. Runtime engines,
+agent SDKs, CI providers, PR APIs, observability libraries, and MCP
+bridges are substitutable infrastructure.
 
-The proposal does real legwork comparing against the rest of the field
-and lands on a **hybrid**: build the differentiators, borrow the
-commodities. This section names what we build, what we borrow, and why
-each call lands where it does. The reasoning is summarized here; each
-layer's sub-proposal contains the layer-specific build/buy detail.
+The framework should therefore build:
 
-### What we build (LRH differentiators)
+- run packet and run report semantics;
+- lifecycle and gate vocabulary;
+- evidence expectations;
+- manual-mode equivalent workflows;
+- backend adapter boundaries; and
+- project-control integration.
 
-The control plane (existing), the workstream lifecycle (Layer 3), the
-evidence system (Layer 5b), and the MCP-to-evidence bridge wiring
-(Layer 6 plus extractor registration in Layer 5b). These are LRH's
-identity. There is no upstream substitute that owns repo-native typed
-artifacts with frontmatter as authoritative truth and structured
-evidence per workstream stage.
+It should borrow or wrap:
 
-### What we borrow (commodities)
+- agent runtimes;
+- CI and source-hosting APIs;
+- telemetry libraries;
+- MCP servers and bridges; and
+- review surfaces.
 
-The Claude Agent SDK is the runtime substrate
-([anthropics/claude-agent-sdk-python][cas]). It already does tool
-allowlisting, hooks, permission modes, and W3C trace context — there's
-no reason to rebuild any of that. We wrap it behind a `RuntimeBackend`
-Protocol so we can swap it later if we need to.
+The earlier version of this proposal named Claude Agent SDK, MCP,
+OpenTelemetry GenAI conventions, OpenLLMetry, Langfuse, spec-kit,
+OpenSpec, LangGraph, and robotics bridge substrates. Those references
+remain useful background, but this refined proposal does not require LRH
+to bind its execution model to any one vendor, API, or agent framework.
 
-OpenTelemetry GenAI semantic conventions are the schema for spans
-([OpenTelemetry GenAI semconv][otel-genai]). We align where the
-conventions are stable and use the `lrh.*` namespace for LRH-specific
-attributes that aren't covered. This is closer to a "schema we adopt"
-than a "library we depend on" — there's no GenAI semconv runtime, just
-a vocabulary.
+## 11. Risks and mitigations
 
-OpenLLMetry by Traceloop ([traceloop OpenLLMetry][openllmetry]) is the
-likely instrumentation library when we eventually wire an OTel-collector
-backend; Langfuse ([langfuse.com][langfuse]) is the likely
-self-hosted UI. Both are deferred — the JSON-on-disk backend is what
-ships first.
+### Risk 1 — Excessive agency
 
-The Model Context Protocol is the bridge substrate
-([modelcontextprotocol.io][mcp]). MCP servers for ROS, browsers,
-filesystems, databases, and dozens of others already exist; we
-front-load on `robotmcp/ros-mcp-server` ([ros-mcp][ros-mcp]) for the
-Arena-Bench adapter rather than writing our own ROS bridge.
+An execution backend could expand scope, keep iterating, or make changes
+outside the intended task. Mitigation: branch containment,
+least-privilege tokens, explicit run packets, allowed paths/commands,
+bounded CI/review loops, budget/time caps, stop conditions, and human or
+policy gates for merge and closeout.
 
-### What we deliberately don't borrow
+### Risk 2 — Automation laundering
 
-**spec-kit** ([github/spec-kit][spec-kit]) is positioned as adjacent,
-not upstream. It's a high-quality spec-driven-development toolkit, and
-LRH's templates speak LRH's frontmatter dialect — adopting spec-kit's
-templates would force a translation layer for marginal benefit. Layer 2
-documents this trade-off explicitly. spec-kit's "constitution" concept
-maps onto LRH's existing `principles/` directory, so the *idea* is
-embraced even though the artifacts aren't.
+Agent summaries, correlated model reviews, or green checks can create a
+false impression of independent completion. Mitigation: require
+independent evidence, CI results, review trace, and a final run report
+with constrained outcome vocabulary and visible human verification steps.
 
-**OpenSpec** ([Fission-AI/OpenSpec][openspec]) is a lighter-weight
-alternative to spec-kit aimed at AI coding assistants. It overlaps with
-LRH's spec layer but, like spec-kit, doesn't model the broader
-control plane (focus, work items, evidence, status). It's a useful
-reference for keeping LRH's spec layer lean.
+### Risk 3 — Cost surprise
 
-**LangGraph** is rejected at Layer 3. Once LRH owns all state in the
-repo, LangGraph is duplicating that state in an in-process graph. The
-Layer 3 sub-proposal walks through this trade-off carefully — there's
-~200 lines of in-house state machine that does what we need without
-the dependency.
+Agent execution and repeated stabilization attempts can cost real money.
+Mitigation: per-run budgets, elapsed-time caps, explicit maximum
+iteration counts, stop-on-new-scope behavior, and run reports that record
+why a loop stopped.
 
-**CrewAI / AutoGen / BMAD-METHOD** are agent-orchestration frameworks
-that target a different problem (multi-agent collaboration patterns).
-They're not bad, just not what we're building — LRH's "agency" is at
-the workstream level, not at the inter-agent-message level.
+### Risk 4 — Backend or vendor coupling
 
-### Why this lands here
+A design tied too closely to one SDK, provider, source host, or CI system
+would make LRH brittle. Mitigation: a backend-neutral adapter contract,
+manual-mode equivalent artifacts, capability declarations, and a
+repository-control model that remains useful without any autonomous
+backend.
 
-The high-leverage decision is that **LRH's value is the control plane
-and the evidence model**, not the runtime, the telemetry, the bridge
-plumbing, or the templates. Those are all things that mature externally
-faster than a small project could match. Wrapping each one behind a
-narrow Protocol means we can keep our own API stable while the
-substrates evolve.
+### Risk 5 — Unsafe workflow permissions
 
-## 7. Risks and mitigations
+Privileged PR workflows can expose secrets or let unreviewed code gain
+more authority than intended. Mitigation: avoid privileged PR workflows
+by default, deny protected-branch writes and secret mutation to execution
+backends, and require explicit recorded policy for elevated permissions.
 
-### Summary
+### Risk 6 — Scope creep
 
-Four risks dominate. Each is named explicitly so we can track whether
-we're addressing it.
+A selected task can become a broad refactor if the execution boundary is
+unclear. Mitigation: the selected work item and run packet constrain
+goals, non-goals, paths, commands, evidence, and closeout questions.
+Stabilization loops stop rather than silently expanding the mission.
 
-### Risk 1 — Automation laundering
+### Risk 7 — Agent behavior drift
 
-Multiple agent reviews of the same artifact look like independent
-confirmation but share a model and a prompt context, producing
-correlated false confidence. Mitigation: the cross-review pattern in
-the Pass-B appendix has a *human collaborator* produce evidence in the
-same shape and compares the two. Layer 5b's `cross_review_comparison`
-evidence kind exists specifically to record agreement rates and flag
-patterns of agent-only or human-only findings.
+Agent behavior may change across model versions, prompts, toolchains, or
+execution backends. Mitigation: adapter capability declarations, packet
+constraints, transcript/observability retention, structural validation of
+reports and evidence, and manual-mode parity for comparison.
 
-### Risk 2 — Soft idempotence
+## 12. Adoption plan
 
-Execution records (the existing PROMPTS.md pattern) are LRH's
-idempotence mechanism, but they're advisory, not enforced. An agent
-can re-run a side-effecting tool and produce duplicate evidence.
-Mitigation: Layer 4 budget enforcement plus Layer 3's `rerun=False`
-default plus the `NOOP_IDEMPOTENT` `AdvanceResult` outcome. Critical
-side effects (writes to `project/`, MCP tool calls with persistence
-semantics) get pre-tool-use hook checks per Layer 4.
+This proposal should be implemented, if adopted, in narrow stages:
 
-### Risk 3 — Agent behavior drift
+1. **Design/schema stage** — define run packet and run report schemas as
+   project-control artifacts. Include manual examples first.
+2. **Manual-mode stage** — document and support branch/PR/report flows
+   that humans can execute from a packet without autonomous backends.
+3. **Policy stage** — define token, branch, PR, permission, and gate
+   policies. Keep elevated permissions opt-in.
+4. **Adapter stage** — introduce a fake backend and one constrained real
+   backend behind the same contract.
+5. **Stabilization stage** — add bounded CI/review iteration handling
+   with maximum counts and stop conditions.
+6. **Evidence stage** — connect run reports, validation outputs, review
+   traces, and evidence records to workstream/work-item status.
+7. **Closeout stage** — define human/policy merge and closeout gates for
+   resolved work items and workstreams.
 
-Agents don't reliably follow prompts. The Pass-B example surfaced an
-agent that ignored a "do not summarize" instruction. Mitigation: Layer
-4 hooks (PostToolUse + Stop) can enforce structural constraints on
-written artifacts; Layer 5b evidence-record validation can reject
-records with extraneous content; production prompts in
-`prompts/PROMPT-XXX.md` get a `forbidden_actions` block analogous to
-the existing work-item field
-(`project/design/repository_spec.md` §"Work Items"). This won't
-eliminate drift; it does make drift visible.
+A recommended next concrete workstream is an execution-framework
+workstream artifact that plans the packet/report schema and manual-mode
+pilot before any autonomous backend work.
 
-### Risk 4 — ROS process-lifecycle fragility
+## 13. Open questions
 
-Layer 6's Arena-Bench adapter launches roslaunch as a subprocess.
-Gazebo and friends don't always die on `SIGTERM`. Mitigation: Layer 6
-specifies process-group handling (`os.setsid`, `killpg(SIGTERM)`,
-escalating to `SIGKILL` after a timeout) and a `lrh bridge cleanup`
-command for orphaned processes. The risk is real — robotics code is
-where this whole proposal will encounter the most operational reality
-— and we're being explicit about it.
+- What is the exact on-disk location for run packets and run reports:
+  under `project/runs/`, under related workstreams, or both?
+- Which fields are required in the first run packet schema, and which are
+  advisory until validation matures?
+- How should LRH represent a manual run that produces a patch without a
+  source-hosted pull request?
+- What branch slug rules avoid collisions while preserving readability?
+- Which CI/review feedback is safe for a backend to address without
+  re-approval, and which feedback requires a new packet?
+- How should policy gates be represented so they are auditable but not
+  over-engineered?
+- How should existing prompt execution records relate to future run
+  reports?
 
-### Risk 5 — Cost surprise
-
-Agent runs cost real money. The Pass-B example's pilot is $10; a
-production-scale run is $50+. Mitigation: Layer 4's two-level budget
-(per-call and per-workstream cumulative), plus Layer 5b cost-attribution
-extraction, plus the `expected_evidence_at_close` closure check that
-makes "did we even get our money's worth" a structural question.
-
-## 8. Adoption plan
-
-### Summary
-
-The framework ships in dependency order. Each phase is gated on
-manual-mode parity passing, evidence emission working, and existing
-LRH validation continuing to succeed.
-
-### Phase 1 — Layer 1 + Layer 2 (small)
-
-Add workstream schema, loader, validator, and the precedence position
-update; ship the package-owned templates. Outcome: `lrh workstream
-new` and `lrh workstream validate` work. No orchestration yet. Tests:
-schema validation, bucket-status consistency, parity with the work-item
-loader. This phase is mostly typing and copying patterns from
-`src/lrh/control/`.
-
-### Phase 2 — Layer 3 (the new core)
-
-Ship the orchestrator, the state machine, the two-step manual-advance
-pattern, and `manual_parity_test.py`. Outcome: `lrh workstream
-advance --mode manual` walks a workstream end to end without ever
-loading an agent backend. Tests: parity tests, transition-record
-invariants, gate logic, idempotence behavior on rerun.
-
-### Phase 3 — Layer 4 (agent runtime, behind a Protocol)
-
-Ship the `RuntimeBackend` Protocol, the manual + fake backends, and
-then the Claude backend. Outcome: `lrh workstream advance --mode
-agent` runs the Claude SDK against a sample workstream and writes a
-transcript. Tests: `Outcome` taxonomy coverage, hook enforcement,
-budget enforcement, transcript persistence.
-
-### Phase 4 — Layer 5 (observability + evidence)
-
-Ship Layer 5a (telemetry) first with the JSON-on-disk backend, then
-Layer 5b (evidence) with the built-in extractor set. Outcome: a
-workstream advance produces a `RUN-{ulid}/` directory and `lrh
-evidence extract` produces evidence records under
-`project/evidence/`. Tests: extractor coverage, schema-registry
-validation, manual stub-and-fill flow.
-
-### Phase 5 — Layer 6 (bridges)
-
-Ship the `BridgeAdapter` Protocol, the `fake_adapter`, and then the
-`arena_bench_adapter` in that order. Outcome: a workstream can open
-an Arena-Bench session, run NARROW DOORWAY, and emit metrics as
-evidence. Tests: lifecycle teardown under failure, MCP-server health
-checks, evidence extraction from bridge output.
-
-### Phase 6 — Pass-B realization in LCATS
-
-Move from worked-example doc to actual workstream:
-`WS-LCATS-CORPORA-ANALYSIS` ships against the LCATS repo with five
-real Poe stories from a small Gutenberg sample, runs in hybrid mode,
-and produces real evidence records. This is the integration test for
-the whole proposal.
-
-## 9. Open questions
-
-These are tracked here so they don't get lost; each layer's
-sub-proposal owns the resolution of the relevant ones.
-
-How rich should `expected_evidence_at_close` get? Pass B made it
-load-bearing for closure gating; it's currently per-evidence-kind
-counts. We may want per-kind structural assertions ("at least one
-`cross_review_comparison` record with `agreement_rate >= 0.7`"). Layer 3
-owns this.
-
-Should evidence records be allowed to *replace* prior records (versus
-strictly append)? Pass B assumed append-only. Some workstream stages
-(re-runs after prompt revision) might want supersedes/superseded_by
-semantics analogous to work items. Layer 5b owns this.
-
-Does the orchestrator emit operational telemetry for itself? Workstream
-cost is tracked; orchestrator overhead (loading, validating,
-idempotence checks) isn't. Layer 5a owns this; the answer is "probably
-yes, eventually."
-
-Do we need a workstream `parent` relationship in addition to
-`sibling_workstreams`? Pass B found siblings; longer LCATS work might
-have parent/child (a meta-workstream that spawns sub-workstreams).
-Layer 1 owns this.
-
-How do we handle the agent running corpora-update tooling itself
-(Pass B deferred this as out-of-pilot)? This affects the bridge
-layer's bound on what tools the agent can call. Layer 6 owns this.
-
-## 10. Reading order and document index
+## 14. Reading order and document index
 
 ### Recommended reading order
 
-For someone who wants the full picture:
+For the updated branch-contained execution framing, read this umbrella
+first. Then treat the older layer documents and appendix as retained
+background that still contain useful concepts, but not final API
+commitments.
 
-1. This document (umbrella).
-2. `appendix_b_lcats_corpora_analysis.md` (the worked example — read it
-   *before* the layer sub-proposals; it makes the abstractions concrete).
-3. `03_layer3_workstream_orchestration.md` (the new core — the most
-   load-bearing layer).
-4. `04_layer4_agent_runtime.md` (because the runtime Protocol is what
-   makes manual-mode parity testable).
-5. `05_layer5_observability_and_evidence.md` (because evidence is what
-   makes a workstream auditable).
-6. `06_layer6_mcp_bridges.md` (because bridges are how this connects to
-   the world).
-7. `01_layer1_control_plane.md` and `02_layer2_templates.md` (the
-   smallest, mostly boilerplate-ish layers).
-
-For someone who just wants to know whether to merge: read this document
-and §"Adoption plan" (§8). Each phase is gated independently.
+1. This document (updated umbrella).
+2. `03_layer3_workstream_orchestration.md` for lifecycle and transition
+   background.
+3. `04_layer4_agent_runtime.md` for runtime/backend abstraction
+   background.
+4. `05_layer5_observability_and_evidence.md` for the evidence and
+   observability split.
+5. `06_layer6_mcp_bridges.md` for bridge-adapter concerns.
+6. `01_layer1_control_plane.md` and `02_layer2_templates.md` for the
+   original workstream-control design context.
+7. `appendix_b_lcats_corpora_analysis.md` as a historical worked
+   example.
 
 ### Document index
 
 ```text
 project/design/proposals/proposed/workstream-execution-framework/
-  README.md                                  # set-level index (what each file is)
-  00_proposal.md                             # this document — umbrella
-  01_layer1_control_plane.md                 # workstream-aware loader/validator/precedence
-  02_layer2_templates.md                     # first-party templates
-  03_layer3_workstream_orchestration.md      # state machine + orchestrator + parity tests
-  04_layer4_agent_runtime.md                 # RuntimeBackend Protocol + Claude/manual/fake
-  05_layer5_observability_and_evidence.md    # 5a telemetry + 5b evidence
-  06_layer6_mcp_bridges.md                   # BridgeAdapter Protocol + Arena-Bench
-  appendix_b_lcats_corpora_analysis.md       # WS-LCATS-CORPORA-ANALYSIS end-to-end
+  README.md                                  # set-level index
+  00_proposal.md                             # updated umbrella proposal
+  01_layer1_control_plane.md                 # original control-plane layer background
+  02_layer2_templates.md                     # original template layer background
+  03_layer3_workstream_orchestration.md      # original orchestration layer background
+  04_layer4_agent_runtime.md                 # original runtime layer background
+  05_layer5_observability_and_evidence.md    # original observability/evidence background
+  06_layer6_mcp_bridges.md                   # original MCP bridge background
+  appendix_b_lcats_corpora_analysis.md       # historical worked example
 ```
 
-## 11. References
+## 15. References
 
-Citations inline in the text use the bracketed keys below. URLs are
-included so a reader can verify the claim against an authoritative
-source.
+Citations inline in the older layer documents use the bracketed keys
+below. URLs are included so a reader can verify the claim against an
+authoritative source.
 
 [cas]: https://github.com/anthropics/claude-agent-sdk-python
 "Claude Agent SDK (Python) — anthropics/claude-agent-sdk-python"

@@ -52,16 +52,14 @@ dogfood migration across LRH's own proposal set.
 ## Current proposal sets
 
 [`proposed/workstream-execution-framework/`](proposed/workstream-execution-framework/)
-— Proposes adding a typed `workstream` artifact between focus and
-work_items, with a six-layer execution stack (control plane →
-templates → orchestration → agent runtime → observability+evidence
-→ MCP bridges). Status: `proposed` (deferred long-term execution architecture).
-Near-term design decisions are captured in the adopted
-`adopted/workstreams-and-recursive-planning-tree/` proposal set; this set
-remains a retained source for long-term runtime/orchestration design
-concepts and should be revisited after workstream artifacts, validation,
-snapshots, and roadmap/focus/work-item alignment are in place. Includes
-a Pass-B worked-example appendix (`WS-LCATS-CORPORA-ANALYSIS`).
+— Proposes future bounded execution for already-approved executable
+leaves: run packet → agent-owned branch → pull request → bounded
+CI/review stabilization → final run report → human/policy merge and
+closeout gate. Status: `proposed` (deferred long-term execution
+architecture). The updated umbrella is the current entry point; older
+layer documents remain retained background for runtime, lifecycle,
+evidence, observability, and bridge concepts. Includes a Pass-B
+worked-example appendix (`WS-LCATS-CORPORA-ANALYSIS`).
 
 
 [`proposed/constitutional-sandbox-envelope/`](proposed/constitutional-sandbox-envelope/)

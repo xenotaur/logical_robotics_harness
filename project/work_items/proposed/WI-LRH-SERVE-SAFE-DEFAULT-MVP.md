@@ -44,8 +44,9 @@ artifacts_expected:
 
 ## Summary
 
-Define and later implement the first safe-default `lrh serve` MVP as a local project-state viewer and
-prompt workbench, not an autonomous runner.
+Define and later implement the safe-default `lrh serve` MVP as a local project-state viewer and
+prompt workbench, not an autonomous runner. This is a deferred read-only/local-assist package, not
+part of the first execution-contract implementation package.
 
 ## Problem / Context
 
@@ -109,5 +110,7 @@ operate before adding durable run state, observation adapters, or optional agent
 ## Dependencies / Order
 
 After design/control-plane alignment, `WI-LRH-CORE-STATE-APIS-MVP`, planning relationship
-validation, and `WI-WORKSTREAM-SNAPSHOT-MVP`. Before execution-readiness schema work that depends on
-serve sequencing, run-state UI, observation adapters, or optional agentic dispatch adapters.
+validation, `WI-WORKSTREAM-SNAPSHOT-MVP`, and the first execution-contract package when serve needs
+to expose readiness, packet, or report affordances. It must not block or broaden
+`WI-EXECUTION-READINESS-SCHEMA`, `WI-RUN-PACKET-DRY-RUN`, or `WI-RUN-REPORT-MVP`; those contracts
+should be defined first and then consumed by serve.

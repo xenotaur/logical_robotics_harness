@@ -15,7 +15,7 @@ related_workstreams:
 
 # Current Focus
 
-The immediate priority is **safe-default execution-framework alignment**: shared core state APIs with planning relationship/index validation, snapshot-visible planning summaries, an early read-only `lrh serve` viewer/prompt workbench, then durable run-state and run-report contracts for selected or explicitly opted-in work items. Human approval gates remain in place, and autonomous dispatch or branch mutation stays outside the default layer.
+The immediate priority is **safe-default execution-framework alignment**: keep prerequisite control-plane interpretation separate from the first execution-contract package, then define execution readiness, dry-run run packets, and run reports for selected or explicitly opted-in work items. Human approval gates remain in place, and `lrh serve`, autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation stay outside the first package.
 
 Canonical living design/context package: `project/design/execution_framework_mvp.md`.
 
@@ -38,20 +38,20 @@ to evidence.
 
 ## First implementation slice
 
-The first implementation sequence after this planning PR should be:
+The first execution-contract implementation package after this planning PR should be:
 
-1. `WI-LRH-CORE-STATE-APIS-MVP`
-2. `WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP` / `WI-PLANNING-TREE-VALIDATION-RULES-MVP`
-3. `WI-WORKSTREAM-SNAPSHOT-MVP`
-4. `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
-5. `WI-EXECUTION-READINESS-SCHEMA`
-6. `WI-RUN-PACKET-DRY-RUN`
-7. `WI-RUN-REPORT-MVP`
+1. `WI-EXECUTION-READINESS-SCHEMA`
+2. `WI-RUN-PACKET-DRY-RUN`
+3. `WI-RUN-REPORT-MVP`
 
-This sequence should expose current state safely and keep CLI/server planning interpretations shared,
-then define the fields, generated artifacts,
-evidence expectations, and human review steps needed before any branch mutation, agent backend, or
-stabilization loop can be implemented.
+This package should define the fields, generated artifacts, evidence expectations, and human review
+steps needed before any branch mutation, agent backend, or stabilization loop can be implemented.
+Shared core state APIs, planning relationship validation, and snapshot-visible planning summaries are
+prerequisite control-plane alignment, not part of the first execution-contract package. If a future
+prompt discovers one of those prerequisites is missing, it should stop and create a separate
+prerequisite prompt before starting the package above. The safe-default `lrh serve` viewer/prompt
+workbench is a later read-only/local-assist package and should consume these contracts rather than
+blocking or broadening the first package.
 
 ## Human and policy gates
 
@@ -79,10 +79,10 @@ Execution-framework planning must preserve explicit human/policy gates for:
 This focus is complete when:
 
 1. the roadmap clearly stages the bounded execution-framework phase
-2. the execution-framework workstream points at the first implementation sequence
+2. the execution-framework workstream points at the first execution-contract implementation package
 3. work items exist for shared core state APIs, planning relationship validation, snapshot-visible
    planning summaries, safe-default `lrh serve`, execution readiness, run packet dry-run, run report
    MVP, branch containment, PR/CI observation, and bounded stabilization-loop design
-4. the first implementation prompt package can safely start with `WI-LRH-CORE-STATE-APIS-MVP`,
-   planning relationship validation, `WI-WORKSTREAM-SNAPSHOT-MVP`, `WI-LRH-SERVE-SAFE-DEFAULT-MVP`,
-   readiness, dry-run packets, and run reports without backend or branch-mutation work
+4. the first execution-contract prompt package can safely start with
+   `WI-EXECUTION-READINESS-SCHEMA`, `WI-RUN-PACKET-DRY-RUN`, and `WI-RUN-REPORT-MVP` after prerequisite
+   control-plane alignment is verified

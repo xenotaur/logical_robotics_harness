@@ -30,7 +30,7 @@ Immediate next ordering:
 
 1. treat the Workstream Control Plane MVP as the landed prerequisite for execution-framework planning
 2. plan **Phase 3 — Execution, Evidence, and Status** as a staged bounded execution-framework phase
-3. begin with execution readiness, dry-run run packets, and run reports for selected work items
+3. begin the first execution-contract package with execution readiness, dry-run run packets, and run reports for selected work items
 4. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item -> Run Packet -> Run Report**
 5. preserve human/policy gates for merge, release, publish, and closeout
 6. keep branch mutation, autonomous stabilization, and backend adapters deferred until contracts are stable
@@ -81,7 +81,7 @@ agentic capability and be unavailable in the default non-agentic install.
 
 ## Near-term roadmap addition: Bounded Agent Execution Framework
 
-Canonical living design: `project/design/execution_framework_mvp.md`. The workstream is staged as Phase 1: `lrh run` structural support; Phase 2: ecosystem observation and containment adapters; and Phase 3: bounded runtime execution.
+Canonical living design: `project/design/execution_framework_mvp.md`. The workstream is staged as prerequisite control-plane alignment, first execution contracts, read-only/local-assist workbench, ecosystem observation, and only later bounded runtime execution.
 
 MVP goal:
 
@@ -91,39 +91,52 @@ MVP goal:
 
 Recommended staged deliverables:
 
+The first implementation package is not this entire list. The selected first package is the
+execution-contract sequence: `WI-EXECUTION-READINESS-SCHEMA`, `WI-RUN-PACKET-DRY-RUN`, and
+`WI-RUN-REPORT-MVP`. Items before that are prerequisites to verify or complete separately; items
+after that are deferred follow-on packages.
+
+Prerequisite control-plane alignment:
+
 1. **Shared core state APIs** — expose one reusable interpretation of project-control state for CLI,
    request, serve, snapshot, and future dry-run surfaces.
 2. **Planning relationship/index validation** — validate workstream/work-item relationships before UI
    or runtime surfaces infer planning-tree state.
 3. **Snapshot-visible planning summaries** — make planning-tree state visible through snapshots before
-   or alongside `lrh serve`.
-4. **Safe-default `lrh serve` viewer and prompt workbench** — render shared state without becoming an
-   autonomous runner or separate tree interpreter.
-5. **Execution readiness schema** — define the opt-in work-item fields required before a selected leaf
+   or alongside later `lrh serve` work.
+
+First execution-contract package:
+
+1. **Execution readiness schema** — define the opt-in work-item fields required before a selected leaf
    can be used for future run-packet generation or execution workflows.
-6. **Run packet dry-run** — generate a human-reviewable packet without invoking an agent or mutating
+2. **Run packet dry-run** — generate a human-reviewable packet without invoking an agent or mutating
    branches.
-7. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
+3. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
    human verification tasks, and recommended next actions.
-8. **Agent branch containment design support** — document agent-owned branch namespaces, protected
+
+Deferred follow-on packages:
+
+1. **Safe-default `lrh serve` viewer and prompt workbench** — render shared state and first-package
+   contracts without becoming an autonomous runner or separate tree interpreter.
+2. **Agent branch containment design support** — document agent-owned branch namespaces, protected
    merge gates, and branch policy assumptions before mutation-capable behavior.
-9. **GitHub PR/CI observation adapter** — read PR, review, and CI state without repository mutation.
-10. **Bounded stabilization loop design** — plan iteration limits, stop conditions, and escalation
-    rules before automation can respond to review or CI.
-11. **Backend adapter abstraction** — define backend-neutral contracts only after packet/report and
-    policy boundaries are stable.
-12. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
-    or bounded-auto execution.
+3. **GitHub PR/CI observation adapter** — read PR, review, and CI state without repository mutation.
+4. **Bounded stabilization loop design** — plan iteration limits, stop conditions, and escalation
+   rules before automation can respond to review or CI.
+5. **Backend adapter abstraction** — define backend-neutral contracts only after packet/report and
+   policy boundaries are stable.
+6. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
+   or bounded-auto execution.
 
-First implementation package after this planning PR:
+First execution-contract package after this planning PR:
 
-- `WI-LRH-CORE-STATE-APIS-MVP`
-- `WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP` / `WI-PLANNING-TREE-VALIDATION-RULES-MVP`
-- `WI-WORKSTREAM-SNAPSHOT-MVP`
-- `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
-- `WI-EXECUTION-READINESS-SCHEMA`
-- `WI-RUN-PACKET-DRY-RUN`
-- `WI-RUN-REPORT-MVP`
+1. `WI-EXECUTION-READINESS-SCHEMA`
+2. `WI-RUN-PACKET-DRY-RUN`
+3. `WI-RUN-REPORT-MVP`
+
+Prerequisites to verify before that package starts: shared core state APIs, planning
+relationship/index validation, and snapshot-visible planning summaries. Safe-default `lrh serve` is
+a deferred read-only/local-assist package, not part of the first execution-contract package.
 
 Explicitly deferred until later phases or optional capability work:
 

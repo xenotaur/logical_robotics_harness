@@ -116,6 +116,35 @@ optional agentic packaging after contracts and policy gates are stable. Implemen
 initially preserve logical boundaries inside the existing `src/lrh/` package layout rather than force
 premature package churn.
 
+
+## Implementation package boundary
+
+The execution-framework workstream is staged so future implementation prompts do not mix
+prerequisite control-plane alignment, execution contracts, local workbench UI, observation, and
+mutation-capable runtime authority.
+
+The selected first implementation package is the smallest coherent **execution-contract package**:
+
+1. `WI-EXECUTION-READINESS-SCHEMA`
+2. `WI-RUN-PACKET-DRY-RUN`
+3. `WI-RUN-REPORT-MVP`
+
+This package defines the opt-in readiness metadata, dry-run/manual run packet artifact, and
+evidence-backed run report shape needed for later execution work. It does not implement autonomous
+execution, backend dispatch, branch mutation, PR creation, stabilization loops, merge/release
+automation, or `lrh serve`.
+
+Prerequisite control-plane alignment remains separate from the first execution-contract package:
+
+- shared state/API interpretation for project-control artifacts;
+- planning-tree relationship/index validation; and
+- snapshot-visible planning summaries.
+
+If any prerequisite is incomplete when a future implementation prompt is prepared, complete it in a
+separate prerequisite prompt before starting the execution-contract package. The safe-default
+`lrh serve` viewer and prompt workbench is a later read-only/local-assist package that should consume
+the shared state and execution contracts; it is not part of the first execution-contract package.
+
 ## Staged layer model
 
 ### Layer 0: core state and interpretation APIs
@@ -672,18 +701,20 @@ The MVP should make unsafe authority visible rather than hiding it behind a succ
 
 Recommended design and implementation order:
 
-1. Align design/control-plane artifacts around safe-default `lrh serve` and optional agentic layers.
-2. Complete `WI-LRH-CORE-STATE-APIS-MVP` to define core state APIs for shared CLI/UI interpretation,
-   including the planning relationship/index model.
-3. Complete planning relationship validation and snapshot-visible planning summaries before or
-   alongside the first `lrh serve` skeleton.
-4. Complete `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a safe-default, read-only `lrh serve` skeleton that
-   renders the shared snapshot summary.
-5. Add a prompt workbench MVP with editable preview, copy/download fallback, and no autonomous dispatch.
-6. Add run-state artifacts and manual run tracking under `project/runs/<RUN-ID>/`.
-7. Add manual evidence and report workflow support.
-8. Add observation adapters for git, PR, CI, and review status.
-9. Add optional agentic dispatch adapters later, behind the adopted safe-default packaging boundary.
+1. Keep the prerequisite control-plane alignment separate from execution runtime work:
+   `WI-LRH-CORE-STATE-APIS-MVP`, planning relationship validation, and
+   `WI-WORKSTREAM-SNAPSHOT-MVP`.
+2. Start the first execution-contract package only when those prerequisites are available enough for
+   packet generation to use shared state instead of inventing its own planning interpretation.
+3. Implement the first execution-contract package in this order:
+   `WI-EXECUTION-READINESS-SCHEMA` -> `WI-RUN-PACKET-DRY-RUN` -> `WI-RUN-REPORT-MVP`.
+4. Add the safe-default `lrh serve` viewer/prompt workbench afterward as a read-only/local-assist
+   package that consumes shared state, readiness, packet, and report contracts.
+5. Add run-state artifacts and manual run tracking under `project/runs/<RUN-ID>/` after the artifact
+   contracts are reviewed.
+6. Add observation adapters for git, PR, CI, and review status only after packets/reports can express
+   the evidence they observe.
+7. Add optional agentic dispatch adapters later, behind the adopted safe-default packaging boundary.
 
 Explicitly defer from the default/safe layer:
 

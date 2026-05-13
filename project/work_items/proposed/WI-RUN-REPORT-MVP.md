@@ -43,7 +43,9 @@ artifacts_expected:
 
 ## Summary
 
-Define and generate a final Markdown run report with status, evidence, validation results, human verification tasks, and recommended next actions.
+Define and generate a final Markdown run report with status, evidence, validation results, human
+verification tasks, and recommended next actions. This is the third item in the first
+execution-contract implementation package.
 
 ## Problem / Context
 
@@ -88,4 +90,6 @@ Execution status must remain evidence-backed. Before LRH can automate branch-con
 
 ## Dependencies / Order
 
-Third in the implementation package after readiness and packet contracts.
+Third in the first execution-contract implementation package after readiness and packet contracts.
+Safe-default `lrh serve`, read-only observation adapters, branch mutation, backend dispatch,
+stabilization loops, and merge/release automation are deferred follow-on work.

@@ -43,7 +43,8 @@ artifacts_expected:
 
 ## Summary
 
-Generate a run packet from a selected execution-ready work item without calling an agent or mutating a branch.
+Generate a run packet from a selected execution-ready work item without calling an agent or mutating
+a branch. This is the second item in the first execution-contract implementation package.
 
 ## Problem / Context
 
@@ -96,5 +97,7 @@ Run packets are the bridge from project-control planning to bounded execution. T
 
 ## Dependencies / Order
 
-After shared core state APIs, planning relationship validation, snapshot-visible planning summaries,
-the safe-default `lrh serve` sequencing prerequisite, and `WI-EXECUTION-READINESS-SCHEMA`.
+Second in the first execution-contract implementation package, after
+`WI-EXECUTION-READINESS-SCHEMA` and after prerequisite shared state APIs, planning relationship
+validation, and snapshot-visible planning summaries are available. `WI-LRH-SERVE-SAFE-DEFAULT-MVP` is
+not part of this package; serve should later expose packet generation as a local-assist action.

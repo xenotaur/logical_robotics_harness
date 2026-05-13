@@ -28,7 +28,9 @@ exit_criteria:
   - execution-framework design is updated and reconciled with the workstream/planning-tree model
   - roadmap, current focus, and work items identify the first execution-framework implementation phase
   - first implementation work items are scoped before runtime automation begins
-  - first implementation package starts with shared state APIs, planning relationship validation, snapshot-visible planning summaries, a safe-default serve skeleton, execution readiness, dry-run run packets, and run reports
+  - first execution-contract implementation package is limited to execution readiness, dry-run run packets, and run reports
+  - prerequisite control-plane alignment is tracked separately from first-package execution contracts
+  - safe-default serve, observation, mutation, and autonomous runtime work are explicitly deferred from the first package
   - execution readiness and run-packet contracts are defined before agent backends are added
   - human/policy gates for merge, release, publish, and closeout remain explicit
 ---
@@ -111,7 +113,9 @@ This workstream can move toward resolution when:
 - execution-framework design is updated and reconciled with the workstream/planning-tree model;
 - roadmap, current focus, and work items identify the first execution-framework implementation phase;
 - first implementation work items are scoped before runtime automation begins;
-- first implementation package starts with shared state APIs, planning relationship validation, snapshot-visible planning summaries, a safe-default serve skeleton, execution readiness, dry-run run packets, and run reports;
+- first execution-contract implementation package is limited to execution readiness, dry-run run packets, and run reports;
+- prerequisite control-plane alignment is tracked separately from first-package execution contracts;
+- safe-default serve, observation, mutation, and autonomous runtime work are explicitly deferred from the first package;
 - execution readiness and run-packet contracts are defined before agent backends are added; and
 - human/policy gates for merge, release, publish, and closeout remain explicit.
 
@@ -138,16 +142,22 @@ backends, orchestration loops, tests for runtime execution behavior, or GitHub A
 
 ## Next phase
 
-Generate a prompt package for the first implementation sequence:
+Generate a prompt package for the first **execution-contract** implementation sequence:
 
-- `WI-LRH-CORE-STATE-APIS-MVP`
-- `WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP`
-- `WI-PLANNING-TREE-VALIDATION-RULES-MVP`
-- `WI-WORKSTREAM-SNAPSHOT-MVP`
-- `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
-- `WI-EXECUTION-READINESS-SCHEMA`
-- `WI-RUN-PACKET-DRY-RUN`
-- `WI-RUN-REPORT-MVP`
+1. `WI-EXECUTION-READINESS-SCHEMA`
+2. `WI-RUN-PACKET-DRY-RUN`
+3. `WI-RUN-REPORT-MVP`
 
-Do not start branch mutation, backend adapters, autonomous execution, PR creation, or PR
-stabilization automation before those contracts exist.
+Before that prompt package starts, verify the prerequisite control-plane alignment is sufficient:
+
+- shared core state/API interpretation (`WI-LRH-CORE-STATE-APIS-MVP` or equivalent landed behavior)
+- planning relationship/index validation
+- snapshot-visible planning summaries
+
+If any prerequisite is missing, create a separate prerequisite prompt first. Do not include
+`WI-LRH-SERVE-SAFE-DEFAULT-MVP` in the first execution-contract package; handle it later as a
+read-only/local-assist workbench package that consumes the readiness, packet, and report contracts.
+
+Do not start branch mutation, backend adapters, autonomous execution, PR creation, PR stabilization
+automation, merge/release automation, multi-agent orchestration, deep MCP integration, or destructive
+operations before those contracts exist and a later prompt explicitly grants that scope.

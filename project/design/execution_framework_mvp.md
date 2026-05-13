@@ -45,7 +45,7 @@ project/workstreams/
 project/roadmap, project/focus, project/work_items
   current implementation plan and executable leaves
 
-project/executions, evidence, run reports
+project/executions, project/evidence, run reports
   what happened during execution
 ```
 
@@ -76,7 +76,7 @@ Out of scope for the MVP or deferred to later phases:
 - secret-bearing workflows;
 - MCP bridges;
 - telemetry systems beyond basic evidence;
-- `policy_auto` autonomy; and
+- autonomy modes beyond the documented `autonomy_level` values; and
 - full backend-specific automation before contracts stabilize.
 
 ## Architectural split: control plane vs runtime plane
@@ -247,6 +247,12 @@ Key distinctions:
 - `autonomy_level` is not `operation_risk`;
 - `operation_risk` is not `containment`; and
 - `containment` is not `evidence`.
+
+Use `operation_risk` for the execution-readiness contract because it describes what kind of
+operation the run may perform. Existing planning examples that use `risk_level` should be treated as
+general planning-level risk summaries; implementation work should either migrate them to
+`operation_risk` for execution metadata or explicitly derive `operation_risk` from `risk_level`
+without losing review context.
 
 A manual read-only investigation and a branch-mutating bounded-auto implementation can share a work
 item type, but they require different authority, controls, and evidence.

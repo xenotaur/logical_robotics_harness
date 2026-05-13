@@ -50,7 +50,7 @@ The execution-framework workstream needs a contract that distinguishes ordinary 
 
 ## Required Changes
 
-- Document candidate readiness fields such as `autonomy_level`, `risk_level`, `allowed_paths`, `forbidden_paths`, `validation_commands`, `max_review_rounds`, `max_ci_rounds`, `requires_human_merge`, and `requires_human_closeout`.
+- Document candidate readiness fields such as `autonomy_level`, `operation_risk`, `allowed_paths`, `forbidden_paths`, `validation_commands`, `max_review_rounds`, `max_ci_rounds`, `requires_human_merge`, and `requires_human_closeout`.
 - Specify which fields are required for the first dry-run packet contract and which are advisory until validation matures.
 - Describe how readiness metadata relates to workstream/work-item planning-tree semantics without making every work item executable by default.
 - Update project-control documentation needed for later prompt generation.

@@ -96,29 +96,37 @@ execution-contract sequence: `WI-EXECUTION-READINESS-SCHEMA`, `WI-RUN-PACKET-DRY
 `WI-RUN-REPORT-MVP`. Items before that are prerequisites to verify or complete separately; items
 after that are deferred follow-on packages.
 
+Prerequisite control-plane alignment:
+
 1. **Shared core state APIs** — expose one reusable interpretation of project-control state for CLI,
    request, serve, snapshot, and future dry-run surfaces.
 2. **Planning relationship/index validation** — validate workstream/work-item relationships before UI
    or runtime surfaces infer planning-tree state.
 3. **Snapshot-visible planning summaries** — make planning-tree state visible through snapshots before
-   or alongside `lrh serve`.
-4. **Safe-default `lrh serve` viewer and prompt workbench** — render shared state without becoming an
-   autonomous runner or separate tree interpreter.
-5. **Execution readiness schema** — define the opt-in work-item fields required before a selected leaf
+   or alongside later `lrh serve` work.
+
+First execution-contract package:
+
+1. **Execution readiness schema** — define the opt-in work-item fields required before a selected leaf
    can be used for future run-packet generation or execution workflows.
-6. **Run packet dry-run** — generate a human-reviewable packet without invoking an agent or mutating
+2. **Run packet dry-run** — generate a human-reviewable packet without invoking an agent or mutating
    branches.
-7. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
+3. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
    human verification tasks, and recommended next actions.
-8. **Agent branch containment design support** — document agent-owned branch namespaces, protected
+
+Deferred follow-on packages:
+
+1. **Safe-default `lrh serve` viewer and prompt workbench** — render shared state and first-package
+   contracts without becoming an autonomous runner or separate tree interpreter.
+2. **Agent branch containment design support** — document agent-owned branch namespaces, protected
    merge gates, and branch policy assumptions before mutation-capable behavior.
-9. **GitHub PR/CI observation adapter** — read PR, review, and CI state without repository mutation.
-10. **Bounded stabilization loop design** — plan iteration limits, stop conditions, and escalation
-    rules before automation can respond to review or CI.
-11. **Backend adapter abstraction** — define backend-neutral contracts only after packet/report and
-    policy boundaries are stable.
-12. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
-    or bounded-auto execution.
+3. **GitHub PR/CI observation adapter** — read PR, review, and CI state without repository mutation.
+4. **Bounded stabilization loop design** — plan iteration limits, stop conditions, and escalation
+   rules before automation can respond to review or CI.
+5. **Backend adapter abstraction** — define backend-neutral contracts only after packet/report and
+   policy boundaries are stable.
+6. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
+   or bounded-auto execution.
 
 First execution-contract package after this planning PR:
 

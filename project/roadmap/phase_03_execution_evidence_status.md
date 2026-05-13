@@ -37,19 +37,31 @@ preserving human/policy gates.
 
 ## Staged deliverables
 
+The deliverable list is grouped by package boundary. It is not a single prompt package, and the
+read-only `lrh serve` workbench is intentionally deferred until after the first execution-contract
+package.
+
+### Prerequisite control-plane alignment
+
 1. Shared core state and interpretation APIs.
 2. Shared planning relationship/index model and validation.
 3. Snapshot-visible planning summaries.
-4. Safe-default `lrh serve` read-only viewer and prompt workbench.
-5. Opt-in execution readiness schema.
-6. Run packet request/dry-run distinction.
-7. Durable run state and manual run tracking.
-8. Run report MVP.
-9. Agent branch containment design support.
-10. GitHub PR/CI observation adapter.
-11. Bounded stabilization loop design.
-12. Backend adapter abstraction.
-13. Manual/assisted/bounded-auto mode progression.
+
+### First execution-contract package
+
+1. Opt-in execution readiness schema.
+2. Run packet request/dry-run distinction.
+3. Run report MVP.
+
+### Deferred follow-on packages
+
+1. Safe-default `lrh serve` read-only viewer and prompt workbench.
+2. Durable run state and manual run tracking.
+3. Agent branch containment design support.
+4. GitHub PR/CI observation adapter.
+5. Bounded stabilization loop design.
+6. Backend adapter abstraction.
+7. Manual/assisted/bounded-auto mode progression.
 
 ## First execution-contract implementation package
 

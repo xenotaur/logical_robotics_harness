@@ -10,8 +10,12 @@ LRH is designed for **AI-assisted engineering workflows**, where humans and agen
 
 The system begins by being able to **understand and validate itself** (self-hosting control plane), then evolves toward multiple repositories and agents. As part of that evolution, LRH can use a workspace/dashboard layer to help humans and tools discover, inspect, and coordinate active LRH projects, while each project's local `project/` directory remains authoritative.
 
-## Current Update (2026-04-22)
+## Current Update (2026-05-13)
 
+- Execution-framework planning now prioritizes a safe-default local `lrh serve` viewer and prompt
+  workbench that projects existing control-plane state, supports explicit-click LRH artifact writes,
+  and keeps autonomous dispatch, branch mutation, PR creation, CI-fix/review-fix loops, merge, and
+  publish outside the default layer.
 - Canonical assist interfaces are now `lrh request` and `lrh snapshot`, with assist module code under `src/lrh/assist/`.
 - Runtime request templates are now package-owned under `src/lrh/assist/templates/`, and assist runtime loading uses package-resource semantics.
 - Sequencing is now explicit as: maintain install/build smoke checks for package behavior → treat `lrh survey`/`src/lrh/assist/sourcetree_surveyor.py` as canonical → handle only follow-on survey capability expansion as separate work.
@@ -59,12 +63,13 @@ These are driven by a deterministic interpretation of project state.
 
 ### What LRH Is Becoming
 
-LRH is evolving toward a fully agent-capable control loop:
+LRH is evolving toward a safe-default human-assist loop with optional agent-capable layers:
 
-4. **Automate** → Execute the next valid actions  
-5. **Evaluate** → Assess outcomes against goals and evidence  
-6. **Control** → Iterate until objectives are satisfied  
-7. **Enforce Safety** → Prevent unsafe or invalid actions  
+4. **Assist** → Surface next valid human actions and prompt packets
+5. **Evaluate** → Assess outcomes against goals and evidence
+6. **Control** → Iterate through explicit artifacts and human gates
+7. **Optionally automate** → Add bounded agentic execution only behind explicit capability boundaries
+8. **Enforce safety** → Prevent unsafe or invalid actions
 
 ---
 

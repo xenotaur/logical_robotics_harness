@@ -46,8 +46,11 @@ A runtime environment may provide:
 The canonical user-facing distribution and CLI target is `lrh`. The
 default distribution should be safe-default and non-agentic so normal CLI
 users can install LRH with `pipx install lrh` once PyPI publishing is
-available. Future agentic capability should remain explicit through
-`lrh[agentic]` and/or a separate `lrh-agentic` distribution when that
+available. Safe-default user assistance may include local commands such as
+`lrh validate`, `lrh snapshot`, `lrh request`, and a local `lrh serve`
+viewer/prompt workbench that projects control-plane state without autonomous
+dispatch or branch mutation. Future agentic capability should remain explicit
+through `lrh[agentic]` and/or a separate `lrh-agentic` distribution when that
 package exists.
 
 This package split direction is a packaging and governance boundary, not

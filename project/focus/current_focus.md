@@ -15,7 +15,7 @@ related_workstreams:
 
 # Current Focus
 
-The immediate priority is **Phase 1 of the bounded agent execution framework**: `lrh run` structural support. This means execution readiness, run packet dry-run, and run report MVP contracts for selected work items while human approval gates remain in place.
+The immediate priority is **safe-default execution-framework alignment**: shared core state APIs, an early read-only `lrh serve` viewer/prompt workbench, then durable run-state and run-report contracts for selected work items. Human approval gates remain in place, and autonomous dispatch or branch mutation stays outside the default layer.
 
 Canonical living design/context package: `project/design/execution_framework_mvp.md`.
 
@@ -24,27 +24,30 @@ Recently completed:
 - landed the Workstream Control Plane MVP baseline for representing, loading, validating,
   snapshotting, organizing, and tidying workstreams
 - created the first-class `WS-EXECUTION-FRAMEWORK` workstream
-- updated the proposed execution-framework design around bounded branch-level agency, run packets,
-  agent-owned branches, pull requests, bounded CI/review stabilization loops, final run reports, and
-  human/policy gates
+- updated the execution-framework design to prioritize a safe-default local `lrh serve` viewer and
+  prompt workbench before durable run artifacts, observation adapters, or optional agentic execution
 
 ## Why this is active now
 
 LRH now has enough project-control structure to plan the next execution-framework phase without
-jumping directly to runtime automation. The next work should make selected work items ready for
-future execution by defining readiness metadata, producing dry-run run packets, and producing final
-run-report contracts that tie status to evidence.
+jumping directly to runtime automation. The next work should expose existing project/control-plane
+state through shared APIs and a local human-assist surface, then make selected work items ready for
+future execution by defining readiness metadata, durable run artifacts, and final run-report
+contracts that tie status to evidence.
 
 ## First implementation slice
 
-The first implementation package after this planning PR should include only:
+The first implementation sequence after this planning PR should be:
 
-1. `WI-EXECUTION-READINESS-SCHEMA`
-2. `WI-RUN-PACKET-DRY-RUN`
-3. `WI-RUN-REPORT-MVP`
+1. `WI-LRH-CORE-STATE-APIS-MVP`
+2. `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
+3. `WI-EXECUTION-READINESS-SCHEMA`
+4. `WI-RUN-PACKET-DRY-RUN`
+5. `WI-RUN-REPORT-MVP`
 
-This package should define the fields, generated artifacts, evidence expectations, and human review
-steps needed before any branch mutation, agent backend, or stabilization loop can be implemented.
+This sequence should expose current state safely, then define the fields, generated artifacts,
+evidence expectations, and human review steps needed before any branch mutation, agent backend, or
+stabilization loop can be implemented.
 
 ## Human and policy gates
 
@@ -61,8 +64,8 @@ Execution-framework planning must preserve explicit human/policy gates for:
 
 - Implementing runtime code, CLI behavior, schema validation, GitHub API integration, or tests for
   runtime execution behavior in this planning PR.
-- Adding `lrh run` or any autonomous run command.
-- Invoking coding agents, mutating branches, or adding execution backends.
+- Adding `lrh run` or any autonomous run command beyond safe-default design references.
+- Invoking coding agents, mutating branches, opening PRs automatically, or adding execution backends.
 - Implementing PR stabilization loops, CI response automation, or merge/publish automation.
 - Adding MCP bridges, telemetry systems, privileged workflow execution, or secrets-management
   behavior beyond documented policy assumptions.
@@ -73,7 +76,8 @@ This focus is complete when:
 
 1. the roadmap clearly stages the bounded execution-framework phase
 2. the execution-framework workstream points at the first implementation sequence
-3. work items exist for execution readiness, run packet dry-run, run report MVP, branch containment,
-   PR/CI observation, and bounded stabilization-loop design
-4. the first implementation prompt package can safely start with readiness, dry-run packets, and run
-   reports without backend or branch-mutation work
+3. work items exist for shared core state APIs, safe-default `lrh serve`, execution readiness, run packet dry-run, run report
+   MVP, branch containment, PR/CI observation, and bounded stabilization-loop design
+4. the first implementation prompt package can safely start with `WI-LRH-CORE-STATE-APIS-MVP`,
+   `WI-LRH-SERVE-SAFE-DEFAULT-MVP`, readiness, dry-run packets, and run reports without backend or
+   branch-mutation work

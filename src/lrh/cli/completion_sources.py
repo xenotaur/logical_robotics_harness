@@ -5,7 +5,7 @@ from __future__ import annotations
 import pathlib
 import re
 
-from lrh.assist import request_templates
+from lrh.assist import request_catalog, request_templates
 from lrh.control import parser as control_parser
 from lrh.work_items import validate as work_items_validate
 
@@ -24,13 +24,16 @@ def request_template_names(
 ) -> list[str]:
     """Return sorted request-template names from overrides and package resources."""
     try:
-        names = request_templates.request_template_names(
-            project_root=project_root,
-            template_dirs=template_dirs,
-            environ=environ,
+        names = set(
+            request_templates.request_template_names(
+                project_root=project_root,
+                template_dirs=template_dirs,
+                environ=environ,
+            )
         )
     except (FileNotFoundError, OSError):
-        return []
+        names = set()
+    names.update(request_catalog.request_names())
     return _filter_sorted(names, prefix)
 
 

@@ -6,7 +6,12 @@ import pathlib
 import re
 import sys
 
-from lrh.assist import request_service, request_templates, request_variables
+from lrh.assist import (
+    request_catalog,
+    request_service,
+    request_templates,
+    request_variables,
+)
 from lrh.cli import argcomplete_adapter
 
 
@@ -15,21 +20,21 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
     template_name_arg = parser.add_argument(
         "template_name",
         help=(
-            "Template base name (e.g. improve_coverage, bootstrap_project, "
-            "work_items_from_audit, codex_prompt_from_work_item, "
-            "ci_assess_status, ci_implement_workflow). Use "
-            "'lrh request templates list' and 'lrh request templates where' "
-            "for template diagnostics."
+            "Request name (e.g. improve-coverage, bootstrap-project, "
+            "work-items-from-audit, prompt-from-work-item, "
+            "assess-continuous-integration-status). Legacy template names "
+            "remain supported. Use 'lrh request templates list' and "
+            "'lrh request templates where' for template diagnostics."
         ),
     )
     target_arg = parser.add_argument(
         "target",
         nargs="?",
         help=(
-            "Optional target path or identifier. For coverage-style templates, "
+            "Optional target path or identifier. For coverage-style requests, "
             "this is usually a module path such as "
             "src/lrh/analysis/llm_extractor.py. For "
-            "codex_prompt_from_work_item, this may be a work-item ID, stem, "
+            "prompt-from-work-item, this may be a work-item ID, stem, "
             "or file path."
         ),
     )
@@ -178,8 +183,9 @@ def build_templates_parser(
     where_parser.add_argument(
         "logical_template_name",
         help=(
-            "Request template name, such as review_response, "
-            "request/review_response.md, or request/review_response."
+            "Request name or template name, such as review-response, "
+            "review_response, request/review_response.md, or "
+            "request/review_response."
         ),
     )
     return parser
@@ -245,13 +251,17 @@ def run_templates_cli(
         return 0
 
     logical_name = _request_logical_name(args.logical_template_name)
+    request_name = (
+        _request_template_base_name(logical_name)
+        if logical_name.startswith("request/") and logical_name.endswith(".md")
+        else logical_name
+    )
+    request_metadata = request_catalog.resolve(request_name)
+    if request_metadata is not None:
+        request_name = request_metadata.template_name
     try:
         resolution = request_templates.resolve_template(
-            (
-                _request_template_base_name(logical_name)
-                if logical_name.startswith("request/") and logical_name.endswith(".md")
-                else logical_name
-            ),
+            request_name,
             project_root=project_root,
             template_dirs=template_dirs,
         )
@@ -343,7 +353,7 @@ def run_request_cli(
 
     if argv and argv[0] == "codex-prompt-from-work-item":
         command_parser = build_codex_prompt_from_work_item_parser(
-            prog=f"{prog} codex-prompt-from-work-item"
+            prog=f"{prog} {argv[0]}"
         )
         try:
             command_args = command_parser.parse_args(argv[1:])
@@ -383,6 +393,10 @@ def run_request_cli(
             args = parser.parse_args(argv)
         except SystemExit as error:
             return int(error.code) if isinstance(error.code, int) else 2
+        request_metadata = request_catalog.resolve(args.template_name)
+        if request_metadata is not None:
+            args.request_name = args.template_name
+            args.template_name = request_metadata.template_name
 
     error = request_service.validate_args(args)
     if error:

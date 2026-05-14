@@ -14,8 +14,49 @@ class TestRequestCli(unittest.TestCase):
         parser = request_cli.build_parser(prog="lrh request")
         help_text = parser.format_help()
 
-        self.assertIn("ci_assess_status", help_text)
-        self.assertIn("ci_implement_workflow", help_text)
+        self.assertIn("assess-continuous-integration-status", help_text)
+        self.assertIn("prompt-from-work-item", help_text)
+
+    def test_canonical_request_name_uses_catalog_template_mapping(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["improve-coverage", "src/lrh/example.py"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("TARGET MODULE:", stdout.getvalue())
+        self.assertIn("src/lrh/example.py", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_canonical_request_name_preserves_name_in_validation_errors(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["improve-coverage"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("improve-coverage requires a target", stderr.getvalue())
+        self.assertNotIn("improve_coverage requires", stderr.getvalue())
+        self.assertEqual(stdout.getvalue(), "")
+
+    def test_templates_where_resolves_catalog_name(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["templates", "where", "improve-coverage"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("request/improve_coverage.md", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
 
     def test_template_dir_flag_uses_explicit_override(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -150,6 +191,59 @@ class TestRequestCli(unittest.TestCase):
             self.assertEqual(stderr.getvalue(), "")
             self.assertIn(
                 "Prompt ID: `PROMPT(AD_HOC:EXAMPLE_IMPLEMENTATION)", stdout.getvalue()
+            )
+            self.assertIn("Approved work item:", stdout.getvalue())
+
+    def test_prompt_from_work_item_generic_invocation_accepts_positional_target(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_item = root / "WI-EXAMPLE.md"
+            style_file = root / "STYLE.md"
+            work_item.write_text(
+                (
+                    "---\n"
+                    "id: WI-EXAMPLE\n"
+                    "title: Example item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "blocked: false\n"
+                    "---\n\n"
+                    "## Problem\n\n"
+                    "Need a canonical generic invocation.\n\n"
+                    "## Scope\n\n"
+                    "- Use the request catalog.\n\n"
+                    "## Required Changes\n\n"
+                    "- Preserve generic arguments.\n\n"
+                    "## Validation\n\n"
+                    "- Run request tests.\n\n"
+                    "## Acceptance Criteria\n\n"
+                    "- Canonical request renders.\n"
+                ),
+                encoding="utf-8",
+            )
+            style_file.write_text("# Style\n", encoding="utf-8")
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "prompt-from-work-item",
+                        str(work_item),
+                        "--style-file",
+                        str(style_file),
+                        "--prompt-id",
+                        "PROMPT(WI-EXAMPLE:REQUEST_CATALOG_TEST)[2026-05-14T00:00:00+00:00]",
+                    ],
+                    prog="lrh request",
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertIn(
+                "Prompt ID: `PROMPT(WI-EXAMPLE:REQUEST_CATALOG_TEST)", stdout.getvalue()
             )
             self.assertIn("Approved work item:", stdout.getvalue())
 

@@ -518,7 +518,7 @@ lrh request describe prompt-from-work-item
 lrh request describe codex_prompt_from_work_item
 ```
 
-Canonical flat names such as `prompt-from-work-item` are preferred for new usage. Legacy template names remain supported and can be inspected with `lrh request describe <legacy-name>`.
+Canonical flat names such as `prompt-from-work-item` are preferred for new usage. Legacy template names remain supported and can be inspected with `lrh request describe <legacy-name>`. The request names `list` and `describe` are reserved for catalog discovery commands, so avoid using those names for request-template overrides.
 
 ## GitHub review helpers
 

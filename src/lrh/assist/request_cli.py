@@ -24,8 +24,9 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
             "work-items-from-audit, prompt-from-work-item, "
             "assess-continuous-integration-status). Legacy template names "
             "remain supported. Use 'lrh request list' to discover cataloged "
-            "requests. Use 'lrh request templates list' and "
-            "'lrh request templates where' for template diagnostics."
+            "requests. 'list' and 'describe' are reserved catalog commands. "
+            "Use 'lrh request templates list' and 'lrh request templates "
+            "where' for template diagnostics."
         ),
     )
     target_arg = parser.add_argument(

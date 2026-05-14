@@ -2,7 +2,7 @@
 execution_id: 2026_05_14_06_33_04_REQUEST_DISCOVERABILITY
 prompt_id: PROMPT(AD_HOC:REQUEST_DISCOVERABILITY)[2026-05-05T13:55:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
 commit: 
@@ -28,4 +28,4 @@ Implemented `lrh request list`, `lrh request list --category <category>`, and `l
 
 # Follow-up
 
-No immediate follow-up required. Grouped execution commands and short aliases remain intentionally out of scope.
+Review follow-up documented reserved `list` and `describe` request names. Grouped execution commands and short aliases remain intentionally out of scope.

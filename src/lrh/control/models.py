@@ -37,6 +37,8 @@ class WorkItem:
     assigned_agents: tuple[str, ...] = ()
     related_focus: tuple[str, ...] = ()
     related_roadmap: tuple[str, ...] = ()
+    related_workstreams: tuple[str, ...] = ()
+    related_design: tuple[str, ...] = ()
     depends_on: tuple[str, ...] = ()
     blocked_by: tuple[str, ...] = ()
     expected_actions: tuple[str, ...] = ()
@@ -66,6 +68,7 @@ class Workstream:
     rationale: str | None = None
     related_focus: tuple[str, ...] = ()
     related_roadmap: tuple[str, ...] = ()
+    related_design: tuple[str, ...] = ()
     work_items: tuple[str, ...] = ()
     execution_records: tuple[str, ...] = ()
     evidence: tuple[str, ...] = ()

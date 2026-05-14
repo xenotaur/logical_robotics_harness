@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from lrh.control.models import ProjectState, WorkItem, Workstream
@@ -22,6 +22,15 @@ class PlanningArtifact:
     kind: str
     path: Path
     status: str
+    title: str = ""
+    related_focus: tuple[str, ...] = ()
+    related_roadmap: tuple[str, ...] = ()
+    related_workstreams: tuple[str, ...] = ()
+    related_design: tuple[str, ...] = ()
+    dependencies: tuple[str, ...] = ()
+    blockers: tuple[str, ...] = ()
+    evidence: tuple[str, ...] = ()
+    is_active_leaf: bool = False
 
 
 @dataclass(frozen=True)
@@ -81,6 +90,29 @@ class PlanningTreeIndex:
             and artifact_id not in self.parents_by_child_id
         )
 
+    def active_leaf_ids(self) -> tuple[str, ...]:
+        """Return active work-item leaf IDs suitable for readiness summaries."""
+
+        return tuple(
+            sorted(
+                artifact_id
+                for artifact_id, artifact in self.artifacts_by_id.items()
+                if artifact.is_active_leaf
+            )
+        )
+
+    def status_counts_by_kind(self) -> dict[str, dict[str, int]]:
+        """Return status counts grouped by planning artifact kind."""
+
+        counts: dict[str, dict[str, int]] = {}
+        for artifact in self.artifacts_by_id.values():
+            kind_counts = counts.setdefault(artifact.kind, {})
+            kind_counts[artifact.status] = kind_counts.get(artifact.status, 0) + 1
+        return {
+            kind: dict(sorted(kind_counts.items()))
+            for kind, kind_counts in sorted(counts.items())
+        }
+
     def unresolved_references(self) -> tuple[PlanningDiagnostic, ...]:
         """Return diagnostics for references that could not be resolved by ID."""
 
@@ -133,6 +165,7 @@ def build_planning_tree_from_artifacts(
 
     children_by_parent_id = _children_by_parent(relationships)
     parents_by_child_id = _parents_by_child(relationships)
+    _mark_active_leaves(artifacts_by_id, children_by_parent_id)
     _detect_parent_child_mismatches(
         artifacts_by_id,
         diagnostics,
@@ -197,12 +230,40 @@ def _index_artifacts(
                 )
             )
             continue
-        artifacts_by_id[artifact.id] = PlanningArtifact(
+        artifacts_by_id[artifact.id] = _planning_artifact(artifact, artifact_kind)
+
+
+def _planning_artifact(
+    artifact: Workstream | WorkItem,
+    artifact_kind: str,
+) -> PlanningArtifact:
+    related_design = getattr(artifact, "related_design", ())
+    if artifact_kind == ARTIFACT_WORK_ITEM:
+        return PlanningArtifact(
             id=artifact.id,
             kind=artifact_kind,
             path=artifact.path,
             status=artifact.status,
+            title=artifact.title,
+            related_focus=tuple(sorted(artifact.related_focus)),
+            related_roadmap=tuple(sorted(artifact.related_roadmap)),
+            related_workstreams=tuple(sorted(artifact.related_workstreams)),
+            related_design=tuple(sorted(related_design)),
+            dependencies=tuple(sorted(artifact.depends_on)),
+            blockers=tuple(sorted(artifact.blocked_by)),
+            evidence=tuple(sorted(artifact.required_evidence)),
         )
+    return PlanningArtifact(
+        id=artifact.id,
+        kind=artifact_kind,
+        path=artifact.path,
+        status=artifact.status,
+        title=artifact.title,
+        related_focus=tuple(sorted(artifact.related_focus)),
+        related_roadmap=tuple(sorted(artifact.related_roadmap)),
+        related_design=tuple(sorted(related_design)),
+        evidence=tuple(sorted(artifact.evidence)),
+    )
 
 
 def _collect_workstream_relationships(
@@ -417,6 +478,20 @@ def _parents_by_child(
         if relationship.parent_id not in parent_ids:
             parent_ids.append(relationship.parent_id)
     return {child_id: tuple(parent_ids) for child_id, parent_ids in parents.items()}
+
+
+def _mark_active_leaves(
+    artifacts_by_id: dict[str, PlanningArtifact],
+    children_by_parent_id: dict[str, tuple[str, ...]],
+) -> None:
+    for artifact_id, artifact in tuple(artifacts_by_id.items()):
+        if artifact.kind != ARTIFACT_WORK_ITEM:
+            continue
+        artifacts_by_id[artifact_id] = replace(
+            artifact,
+            is_active_leaf=artifact.status == "active"
+            and not children_by_parent_id.get(artifact_id),
+        )
 
 
 def _detect_parent_child_mismatches(

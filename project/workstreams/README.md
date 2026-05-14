@@ -151,12 +151,15 @@ planning nodes and work items as executable leaves, resolves `parent_id`, `child
 `work_items` references by ID, and reports duplicate planning IDs, missing references,
 self-parenting, workstream cycles, invalid work-item children, active work items with no planning
 parent, active workstreams with no active/proposed work-item leaf, and conflicting parent/child
-declarations during validation. Paths and nested directories are not relationship semantics. The
-same loaded model and relationship index power the read-only workstream section in
-`lrh snapshot project`. Invalid planning record kinds are validated by the workstream schema check
-(`kind: planning_node`). Explicit top-level markers for active workstreams are not in the schema yet,
-so orphan validation currently covers active work-item leaves rather than warning on every root
-active workstream.
+declarations during validation. The index also preserves summary metadata needed by snapshot,
+request, and future readiness consumers: titles, lifecycle statuses, `related_focus`,
+`related_roadmap`, `related_design`, work-item `related_workstreams`, work-item `depends_on` /
+`blocked_by`, evidence requirements, active leaf IDs, and status counts grouped by artifact kind.
+Paths and nested directories are not relationship semantics. The same loaded model and relationship
+index power the read-only workstream section in `lrh snapshot project`. Invalid planning record kinds
+are validated by the workstream schema check (`kind: planning_node`). Explicit top-level markers for
+active workstreams are not in the schema yet, so orphan validation currently covers active work-item
+leaves rather than warning on every root active workstream.
 
 ## Non-goals for this directory MVP
 

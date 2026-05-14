@@ -131,6 +131,14 @@ The first execution-framework implementation package should be contract-first an
 2. `proposed/WI-RUN-PACKET-DRY-RUN.md`
 3. `proposed/WI-RUN-REPORT-MVP.md`
 
+Execution readiness is opt-in work-item frontmatter. Ordinary work items require no readiness
+metadata. A selected executable leaf declares `execution_ready: true` plus required fields for
+autonomy, operation risk, allowed paths, validation commands, and required evidence. Advisory fields
+such as forbidden paths, expected artifacts, policy gates, agent constraints, and review/CI limits
+are preserved for dry-run packet/report generation. Human approval, merge, and closeout gates default
+to safe `true` runtime values when omitted; readiness metadata never authorizes branch mutation,
+backend dispatch, PR creation, merge, release, publish, or autonomous runtime execution by itself.
+
 Before generating that prompt package, verify prerequisite control-plane alignment: shared core state
 APIs, planning relationship/index validation, and snapshot-visible planning summaries. If a
 prerequisite is missing, complete it in a separate prompt rather than broadening the first

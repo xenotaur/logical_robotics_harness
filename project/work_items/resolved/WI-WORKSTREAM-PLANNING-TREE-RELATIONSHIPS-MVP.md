@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented by metadata-driven planning relationship/index support and shared core-state summaries recorded in project/executions/WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP/2026_05_14_02_35_49_IMPLEMENT_WORKSTREAM_PLANNING_TREE_RELATIONSHIPS_MVP.md.
 blocked_reason: null
 blocked: false
 id: WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP
 title: Validate metadata-driven planning-tree relationships
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented by the shared read-only core-state API, validation summary, planning relationships, active leaf summaries, evidence links, prompt inputs, and unit coverage recorded in project/executions/WI-LRH-CORE-STATE-APIS-MVP/2026_05_14_00_16_48_IMPLEMENT_CORE_STATE_APIS_MVP.md.
 blocked_reason: null
 blocked: false
 id: WI-LRH-CORE-STATE-APIS-MVP
 title: Define shared core state APIs for CLI and serve surfaces
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

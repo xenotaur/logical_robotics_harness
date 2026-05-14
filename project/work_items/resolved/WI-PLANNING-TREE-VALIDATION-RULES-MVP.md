@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented by deterministic planning-tree validation for IDs, references, parent/child consistency, cycles, active leaf gaps, and unit coverage recorded in project/executions/WI-PLANNING-TREE-VALIDATION-RULES-MVP/2026_05_14_00_42_39_IMPLEMENT_PLANNING_TREE_VALIDATION_RULES_MVP.md.
 blocked_reason: null
 blocked: false
 id: WI-PLANNING-TREE-VALIDATION-RULES-MVP
 title: Define planning-tree validation rules
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

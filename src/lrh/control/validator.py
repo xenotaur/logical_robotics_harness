@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from lrh.control import models, planning_tree, work_item_policy
+from lrh.control import execution_readiness, models, planning_tree, work_item_policy
 
 CONTRIBUTOR_REQUIRED_FIELDS = {"id", "type", "roles", "display_name", "status"}
 CONTRIBUTOR_TYPES = {"human", "agent"}
@@ -47,6 +47,12 @@ WORK_ITEM_LIST_FIELDS = {
     "acceptance",
     "required_evidence",
     "artifacts_expected",
+    "allowed_paths",
+    "forbidden_paths",
+    "validation_commands",
+    "expected_artifacts",
+    "policy_gates",
+    "agent_constraints",
 }
 
 WORKSTREAM_REQUIRED_FIELDS = {"id", "kind", "title", "status", "stage"}
@@ -751,6 +757,7 @@ def _work_item_model_from_artifact(artifact: _ParsedArtifact) -> models.WorkItem
         acceptance=_string_tuple_value(data, "acceptance"),
         required_evidence=_string_tuple_value(data, "required_evidence"),
         artifacts_expected=_string_tuple_value(data, "artifacts_expected"),
+        execution_readiness=execution_readiness.from_frontmatter(data),
         frontmatter=data,
     )
 
@@ -1168,6 +1175,18 @@ def _validate_work_item_schema(
         "WORK_ITEM_PARENT_ID_INVALID",
         issues,
     )
+    for readiness_issue in execution_readiness.validate_frontmatter(
+        artifact.path, data
+    ):
+        issues.append(
+            _issue(
+                project_root,
+                readiness_issue.path,
+                readiness_issue.severity,
+                readiness_issue.code,
+                readiness_issue.message,
+            )
+        )
 
 
 def _validate_optional_string_field(

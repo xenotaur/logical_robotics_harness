@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from lrh.control import execution_readiness
 from lrh.control.models import (
     Contributor,
     DesignProposal,
@@ -144,6 +145,7 @@ def _load_work_items(directory: Path) -> tuple[WorkItem, ...]:
                 acceptance=_list_of_strings(fm, "acceptance"),
                 required_evidence=_list_of_strings(fm, "required_evidence"),
                 artifacts_expected=_list_of_strings(fm, "artifacts_expected"),
+                execution_readiness=execution_readiness.from_frontmatter(fm),
                 body=parsed.body,
                 frontmatter=fm,
             )

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from lrh.control.models import ProjectState, WorkItem, Workstream
@@ -487,19 +487,8 @@ def _mark_active_leaves(
     for artifact_id, artifact in tuple(artifacts_by_id.items()):
         if artifact.kind != ARTIFACT_WORK_ITEM:
             continue
-        artifacts_by_id[artifact_id] = PlanningArtifact(
-            id=artifact.id,
-            kind=artifact.kind,
-            path=artifact.path,
-            status=artifact.status,
-            title=artifact.title,
-            related_focus=artifact.related_focus,
-            related_roadmap=artifact.related_roadmap,
-            related_workstreams=artifact.related_workstreams,
-            related_design=artifact.related_design,
-            dependencies=artifact.dependencies,
-            blockers=artifact.blockers,
-            evidence=artifact.evidence,
+        artifacts_by_id[artifact_id] = replace(
+            artifact,
             is_active_leaf=artifact.status == "active"
             and not children_by_parent_id.get(artifact_id),
         )

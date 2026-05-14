@@ -21,6 +21,7 @@ class PlanningArtifact:
     id: str
     kind: str
     path: Path
+    status: str
 
 
 @dataclass(frozen=True)
@@ -136,6 +137,16 @@ def build_planning_tree_from_artifacts(
         artifacts_by_id,
         diagnostics,
         workstreams,
+        work_items,
+        children_by_parent_id,
+        parents_by_child_id,
+    )
+
+    _detect_active_state_gaps(
+        artifacts_by_id,
+        diagnostics,
+        workstreams,
+        work_items,
         children_by_parent_id,
         parents_by_child_id,
     )
@@ -190,6 +201,7 @@ def _index_artifacts(
             id=artifact.id,
             kind=artifact_kind,
             path=artifact.path,
+            status=artifact.status,
         )
 
 
@@ -260,6 +272,20 @@ def _append_parent_id_relationship(
     parent_id: str,
     source_path: Path,
 ) -> None:
+    if child_id == parent_id:
+        diagnostics.append(
+            PlanningDiagnostic(
+                artifact_id=child_id,
+                path=source_path,
+                severity="error",
+                code="PLANNING_SELF_PARENT",
+                message=(
+                    f"planning artifact '{child_id}' cannot declare itself as parent"
+                ),
+            )
+        )
+        return
+
     parent = artifacts_by_id.get(parent_id)
     if parent is None or parent.kind != ARTIFACT_WORKSTREAM:
         diagnostics.append(
@@ -291,6 +317,20 @@ def _append_child_relationship(
     source_field: str,
     source_path: Path,
 ) -> None:
+    if parent_id == child_id:
+        diagnostics.append(
+            PlanningDiagnostic(
+                artifact_id=parent_id,
+                path=source_path,
+                severity="error",
+                code="PLANNING_SELF_PARENT",
+                message=(
+                    f"planning artifact '{parent_id}' cannot list itself as a child"
+                ),
+            )
+        )
+        return
+
     child = artifacts_by_id.get(child_id)
     if child is None:
         diagnostics.append(
@@ -383,6 +423,7 @@ def _detect_parent_child_mismatches(
     artifacts_by_id: dict[str, PlanningArtifact],
     diagnostics: list[PlanningDiagnostic],
     workstreams: tuple[Workstream, ...],
+    work_items: tuple[WorkItem, ...],
     children_by_parent_id: dict[str, tuple[str, ...]],
     parents_by_child_id: dict[str, tuple[str, ...]],
 ) -> None:
@@ -391,6 +432,13 @@ def _detect_parent_child_mismatches(
         for workstream in workstreams
         if workstream.parent_id
     }
+    declared_parent_by_child.update(
+        {
+            work_item.id: work_item.parent_id
+            for work_item in work_items
+            if work_item.parent_id
+        }
+    )
     for child_id, declared_parent_id in declared_parent_by_child.items():
         for inferred_parent_id in parents_by_child_id.get(child_id, ()):
             if inferred_parent_id == declared_parent_id:
@@ -425,6 +473,81 @@ def _detect_parent_child_mismatches(
                 ),
             )
         )
+
+
+def _detect_active_state_gaps(
+    artifacts_by_id: dict[str, PlanningArtifact],
+    diagnostics: list[PlanningDiagnostic],
+    workstreams: tuple[Workstream, ...],
+    work_items: tuple[WorkItem, ...],
+    children_by_parent_id: dict[str, tuple[str, ...]],
+    parents_by_child_id: dict[str, tuple[str, ...]],
+) -> None:
+    active_work_item_ids = {
+        work_item.id
+        for work_item in work_items
+        if work_item.status == "active" and work_item.id in artifacts_by_id
+    }
+    for work_item_id in sorted(active_work_item_ids):
+        if parents_by_child_id.get(work_item_id):
+            continue
+        artifact = artifacts_by_id[work_item_id]
+        diagnostics.append(
+            PlanningDiagnostic(
+                artifact_id=work_item_id,
+                path=artifact.path,
+                severity="warning",
+                code="PLANNING_ORPHANED_ACTIVE_WORK_ITEM",
+                message=(
+                    f"active work item '{work_item_id}' is not attached to a "
+                    "planning parent"
+                ),
+            )
+        )
+
+    active_workstream_ids = [
+        workstream.id
+        for workstream in workstreams
+        if workstream.status == "active" and workstream.id in artifacts_by_id
+    ]
+    for workstream_id in sorted(active_workstream_ids):
+        if _has_actionable_leaf(workstream_id, artifacts_by_id, children_by_parent_id):
+            continue
+        artifact = artifacts_by_id[workstream_id]
+        diagnostics.append(
+            PlanningDiagnostic(
+                artifact_id=workstream_id,
+                path=artifact.path,
+                severity="warning",
+                code="PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF",
+                message=(
+                    f"active workstream '{workstream_id}' has no active or "
+                    "proposed work-item leaf"
+                ),
+            )
+        )
+
+
+def _has_actionable_leaf(
+    workstream_id: str,
+    artifacts_by_id: dict[str, PlanningArtifact],
+    children_by_parent_id: dict[str, tuple[str, ...]],
+) -> bool:
+    visited: set[str] = set()
+    stack = list(reversed(children_by_parent_id.get(workstream_id, ())))
+    while stack:
+        child_id = stack.pop()
+        if child_id in visited:
+            continue
+        visited.add(child_id)
+        child = artifacts_by_id.get(child_id)
+        if child is None:
+            continue
+        if child.kind == ARTIFACT_WORK_ITEM and child.status in {"active", "proposed"}:
+            return True
+        if child.kind == ARTIFACT_WORKSTREAM:
+            stack.extend(reversed(children_by_parent_id.get(child_id, ())))
+    return False
 
 
 def _find_workstream_cycles(

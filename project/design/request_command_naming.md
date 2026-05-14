@@ -122,6 +122,55 @@ lrh request review pull-request-against-work-item ...
 lrh request assess repository ...
 ```
 
+## Grouped subcommand feasibility update — 2026-05-14
+
+After flat canonical names and catalog-backed `lrh request list` /
+`lrh request describe` became available, the current CLI surface does not yet
+justify grouped `lrh request` subcommands. Defer grouped forms for now and keep
+the canonical flat commands as the documented surface.
+
+Current evidence from the catalog and help output:
+
+- The request catalog has nine primary user-facing requests. `lrh request list`
+  already groups them by category in a short, scannable output.
+- Only two categories currently contain more than one request: `review` and
+  `ci`, with two requests each. The other categories each contain one request.
+- `lrh request --help` is not crowded by per-request subcommands because the
+  flat surface uses a single `template_name` positional argument and points
+  users to `list` and `describe` for discovery.
+- Request-specific flags are not yet organized by command family. Most options
+  remain shared template-rendering inputs, so category parsers would mostly
+  duplicate the existing flat parser rather than simplifying validation.
+- Compatibility would be achievable, but adding grouped wrappers now would add
+  another invocation vocabulary before there is evidence that users need it.
+
+Decision: choose the smallest compatibility-preserving path and do not implement
+`lrh request generate ...`, `lrh request review ...`, `lrh request propose ...`,
+`lrh request assess ...`, or `lrh request render ...` in this slice. Flat
+canonical names, legacy names, `lrh request list`, `lrh request describe`, and
+`lrh request templates ...` remain the supported request-discovery and
+rendering model.
+
+Revisit grouped subcommands when one or more of these trigger conditions is met:
+
+1. The catalog grows beyond a short flat list, or a category grows to three or
+   more primary task commands.
+2. A command family needs distinct required flags, mutually exclusive groups,
+   validation rules, or help text that would be clearer under a
+   category-specific parser.
+3. `lrh request --help`, shell completion, or catalog output becomes difficult
+   to scan in routine use.
+4. User documentation starts teaching families of request workflows more often
+   than individual canonical request names.
+5. Grouping can still be implemented as thin catalog-backed wrappers without
+   changing template override diagnostics or removing flat canonical and legacy
+   names.
+
+If those triggers are met later, grouped forms should be additive aliases that
+resolve through the existing request catalog. They should not replace flat
+canonical names, remove legacy names, or introduce short aliases in the same
+change.
+
 ## Compatibility policy
 
 Compatibility should be conservative because users may have existing scripts,

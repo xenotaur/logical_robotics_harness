@@ -64,7 +64,8 @@ The remaining seeds are future planning leaves, not active work items yet:
 - `WI-CI-REQUEST-TEMPLATES` — refresh `ci_assess_status` and `ci_implement_workflow` request
   templates so they apply the playbook.
 - `WI-CI-SKILL-PROTOTYPE` — design a CI setup/assessment Agent Skill prototype after playbook and
-  prompt stabilization.
+  prompt stabilization. LRH-only dogfooding evidence in `project/evidence/EV-0009.md` recommends
+  one additional non-LRH dogfood pass before skill design proceeds.
 - `WI-CI-TEMPLATE-FRAGMENTS-ASSESSMENT` — reassess reusable CI templates or fragments using
   dogfooding evidence.
 

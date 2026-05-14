@@ -27,7 +27,7 @@ currently exposes a kebab-case wrapper for the work-item prompt path.
 | `ci_implement_workflow.md` | `ci_implement_workflow` | `lrh request ci_implement_workflow ...` | CI workflow implementation request. |
 | `codex_prompt_from_work_item.md` | `codex_prompt_from_work_item` | `lrh request codex_prompt_from_work_item ...`; structured wrapper: `lrh request codex-prompt-from-work-item ...` | Generates a Codex Cloud-ready prompt from a work item. |
 | `improve_coverage.md` | `improve_coverage` | `lrh request improve_coverage ...` | Targeted test coverage improvement request. |
-| `pr_against_work_item.md` | `pr_against_work_item` | `lrh request pr_against_work_item ...` | Review a patch or PR-style change against a work item. |
+| `pr_against_work_item.md` | `pr_against_work_item` | `lrh request pr_against_work_item ...` | Review a patch or pull-request-style change against a work item. |
 | `review_protocol.md` | `review_protocol` | `lrh request review_protocol ...`; primarily included by `review_response` | Packaged review guidance helper; not expected to become a normal user-facing task command. |
 | `review_response.md` | `review_response` | `lrh request review_response ...` | Resolve or respond to pull-request review feedback. |
 | `work_items_from_audit.md` | `work_items_from_audit` | `lrh request work_items_from_audit ...` | Convert an audit report into proposed work items. |
@@ -57,7 +57,7 @@ available.
 | Current / legacy name | Proposed canonical name | Category | Rationale |
 | --- | --- | --- | --- |
 | `codex_prompt_from_work_item`; `codex-prompt-from-work-item` | `prompt-from-work-item` | `generate` | Focuses on the generated artifact instead of the vendor or execution environment. |
-| `pr_against_work_item`; `pr-against-work-item` | `review-pr-against-work-item` | `review` | Makes the review action explicit while preserving the work-item comparison target. |
+| `pr_against_work_item`; `pr-against-work-item`; candidate transitional alias `review-pr-against-work-item` | `review-pull-request-against-work-item` | `review` | Makes the review action explicit, expands the acronym, and preserves the work-item comparison target. |
 | `work_items_from_audit`; `work-items-from-audit` | `work-items-from-audit` | `propose` | Already clear and task-shaped; canonical form should be kebab-case. |
 | `assessment` | `assess-repository` | `assess` | Replaces a noun with a verb phrase and clarifies the default repository-level task. Scope flags can still narrow to current focus or a work item. |
 | `bootstrap_project`; `bootstrap-project` | `bootstrap-project` | `generate` | Existing intent is clear; canonical form should be kebab-case. |
@@ -108,7 +108,7 @@ Until those criteria are met, prefer a flat canonical surface:
 
 ```text
 lrh request prompt-from-work-item ...
-lrh request review-pr-against-work-item ...
+lrh request review-pull-request-against-work-item ...
 lrh request assess-repository ...
 lrh request assess-continuous-integration-status ...
 ```
@@ -118,7 +118,7 @@ wrappers first, not replacements for the flat canonical names:
 
 ```text
 lrh request generate prompt-from-work-item ...
-lrh request review pr-against-work-item ...
+lrh request review pull-request-against-work-item ...
 lrh request assess repository ...
 ```
 

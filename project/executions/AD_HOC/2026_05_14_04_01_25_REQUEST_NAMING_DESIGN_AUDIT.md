@@ -20,6 +20,8 @@ migration sequence without implementing CLI behavior changes.
 
 Design-only change completed. No request templates were renamed, no grouped
 subcommands were added, and no broad CLI behavior changes were implemented.
+A review follow-up expanded the proposed pull request review canonical name so
+the canonical form does not preserve the `pr` acronym.
 
 # Validation
 
@@ -32,6 +34,8 @@ subcommands were added, and no broad CLI behavior changes were implemented.
 - `scripts/validate` passed with existing planning orphan warnings for active
   work items; it was rerun after creating the execution record.
 - `scripts/test` passed: 450 tests.
+- Review follow-up validation reran `scripts/version tools`, `scripts/format --check --diff`, `scripts/lint`, and `scripts/test`.
+- Review follow-up also reran `scripts/validate`, which passed with the same existing planning orphan warnings.
 
 # Follow-up
 

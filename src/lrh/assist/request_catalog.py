@@ -32,6 +32,17 @@ _REQUESTS: tuple[RequestMetadata, ...] = (
         implementation_target="structured_work_item_prompt",
     ),
     RequestMetadata(
+        canonical_name="run-packet-from-work-item",
+        legacy_names=("run_packet_from_work_item",),
+        category="work-items",
+        template_name="run_packet_from_work_item",
+        description=(
+            "Render a non-mutating dry-run run packet from an "
+            "execution-ready work item."
+        ),
+        implementation_target="structured_run_packet",
+    ),
+    RequestMetadata(
         canonical_name="review-pull-request-against-work-item",
         legacy_names=(
             "review-pr-against-work-item",

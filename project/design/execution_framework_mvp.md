@@ -357,44 +357,64 @@ Every layer must preserve:
 
 ## Execution readiness contract
 
-Execution readiness is candidate metadata on selected work items. It should evolve with the actual
-work-item schema, so this section is a starting contract rather than a final validator commitment.
+Execution readiness is explicit, flat frontmatter metadata on selected work items. It is now a small
+MVP schema consumed as typed runtime state by LRH, while the source Markdown/frontmatter remains the
+authoritative repository artifact.
 
-Strict execution-readiness validation remains opt-in. Existing work items should not be forced into
-runner-ready metadata all at once. Strong readiness checks should apply to selected or explicitly
-opted-in records, such as work items that declare execution/run metadata or that are passed to a run
-packet or run command. This preserves compatibility for planning/control-plane records while allowing
-strong validation where the execution framework is intentionally used.
+Strict execution-readiness validation remains opt-in. Existing work items are ordinary planning items
+unless they declare readiness fields or a future packet-generation command validates a selected leaf
+with readiness required. This preserves compatibility for planning/control-plane records while
+allowing strong validation where the execution framework is intentionally used.
 
-Candidate shape:
+MVP frontmatter shape:
 
 ```yaml
-execution:
-  ready: true
-  prompt_source: project/work_items/proposed/WI-EXAMPLE.md
-  acceptance_criteria:
-    - acceptance criterion copied or derived from the work item
-  deliverables:
-    - expected deliverable or artifact
-  validation_commands:
-    - scripts/test
-  allowed_paths:
-    - src/lrh/example/
-    - tests/example/
-  forbidden_paths:
-    - .github/workflows/
-    - secrets/
-  autonomy_level: manual | human_gated | bounded_auto | sequential_bounded
-  operation_risk: read_only | safe_local | branch_mutating | repo_mutating | external_side_effect | destructive
-  containment: none | sacrificial_clone | sandboxed_filesystem | container | ephemeral_vm | monitored
-  max_agent_calls: 1
-  max_review_rounds: 3
-  max_ci_rounds: 3
-  requires_human_merge: true
-  requires_human_closeout: true
-  abort_criteria:
-    - stop if requested changes expand scope beyond the selected work item
+execution_ready: true
+autonomy_level: manual
+operation_risk: read_only
+allowed_paths:
+  - src/lrh/example/
+  - tests/example/
+forbidden_paths:
+  - .github/workflows/
+  - secrets/
+validation_commands:
+  - scripts/test
+required_evidence:
+  - manual_review
+expected_artifacts:
+  - code_diff
+requires_human_approval: true
+requires_human_merge: true
+requires_human_closeout: true
+max_review_rounds: 3
+max_ci_rounds: 3
+policy_gates:
+  - human_review_before_merge
+agent_constraints:
+  - no_branch_mutation_without_packet
 ```
+
+Required for an execution-ready leaf in the MVP:
+
+- `execution_ready: true`
+- `autonomy_level` (`manual`, `human_gated`, `bounded_auto`, or `sequential_bounded`)
+- `operation_risk` (`read_only`, `safe_local`, `branch_mutating`, `repo_mutating`,
+  `external_side_effect`, or `destructive`)
+- non-empty `allowed_paths`
+- non-empty `validation_commands`
+- non-empty `required_evidence`
+
+Advisory or safe-default fields for the first package:
+
+- `forbidden_paths`, `expected_artifacts`, `policy_gates`, and `agent_constraints` are captured for
+  run-packet/report generation but are not required yet.
+- `max_review_rounds` and `max_ci_rounds` are optional positive integers.
+- `requires_human_approval`, `requires_human_merge`, and `requires_human_closeout` default to `true`
+  in typed runtime state when omitted, so absent gate metadata never grants automation authority.
+
+Non-goals for this schema are runtime execution, branch mutation, PR creation, merge automation,
+release/publish automation, backend dispatch, and making every work item executable by default.
 
 Key distinctions:
 

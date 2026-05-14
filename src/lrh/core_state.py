@@ -14,6 +14,7 @@ from pathlib import Path
 from types import MappingProxyType
 from typing import Mapping
 
+from lrh.control import execution_readiness
 from lrh.control import loader as control_loader
 from lrh.control import models as control_models
 from lrh.control import planning_tree as control_planning_tree
@@ -65,6 +66,27 @@ class FocusState:
 
 
 @dataclass(frozen=True)
+class ExecutionReadinessState:
+    """Read-only executable-leaf readiness summary."""
+
+    execution_ready: bool
+    autonomy_level: str | None
+    operation_risk: str | None
+    allowed_paths: tuple[str, ...]
+    forbidden_paths: tuple[str, ...]
+    validation_commands: tuple[str, ...]
+    required_evidence: tuple[str, ...]
+    expected_artifacts: tuple[str, ...]
+    max_review_rounds: int | None
+    max_ci_rounds: int | None
+    requires_human_approval: bool
+    requires_human_merge: bool
+    requires_human_closeout: bool
+    policy_gates: tuple[str, ...]
+    agent_constraints: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class WorkItemState:
     """Read-only work-item state enriched with planning relationships."""
 
@@ -85,6 +107,7 @@ class WorkItemState:
     blocked_by: tuple[str, ...]
     required_evidence: tuple[str, ...]
     artifacts_expected: tuple[str, ...]
+    execution_readiness: ExecutionReadinessState | None
     is_current_focus_related: bool
     is_active_leaf: bool
     frontmatter_keys: tuple[str, ...]
@@ -448,6 +471,9 @@ def _work_item_states(
                 blocked_by=tuple(sorted(item.blocked_by)),
                 required_evidence=tuple(sorted(item.required_evidence)),
                 artifacts_expected=tuple(sorted(item.artifacts_expected)),
+                execution_readiness=_execution_readiness_state(
+                    item.execution_readiness
+                ),
                 is_current_focus_related=is_current_focus_related,
                 is_active_leaf=(
                     item.status == "active"
@@ -458,6 +484,30 @@ def _work_item_states(
             )
         )
     return tuple(sorted(states, key=lambda item: item.id))
+
+
+def _execution_readiness_state(
+    readiness: execution_readiness.ExecutionReadiness | None,
+) -> ExecutionReadinessState | None:
+    if readiness is None:
+        return None
+    return ExecutionReadinessState(
+        execution_ready=readiness.execution_ready,
+        autonomy_level=readiness.autonomy_level,
+        operation_risk=readiness.operation_risk,
+        allowed_paths=tuple(sorted(readiness.allowed_paths)),
+        forbidden_paths=tuple(sorted(readiness.forbidden_paths)),
+        validation_commands=readiness.validation_commands,
+        required_evidence=tuple(sorted(readiness.required_evidence)),
+        expected_artifacts=tuple(sorted(readiness.expected_artifacts)),
+        max_review_rounds=readiness.max_review_rounds,
+        max_ci_rounds=readiness.max_ci_rounds,
+        requires_human_approval=readiness.requires_human_approval,
+        requires_human_merge=readiness.requires_human_merge,
+        requires_human_closeout=readiness.requires_human_closeout,
+        policy_gates=tuple(sorted(readiness.policy_gates)),
+        agent_constraints=tuple(sorted(readiness.agent_constraints)),
+    )
 
 
 def _evidence_links(

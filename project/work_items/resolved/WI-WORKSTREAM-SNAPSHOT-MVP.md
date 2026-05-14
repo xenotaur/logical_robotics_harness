@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented by read-only snapshot planning/workstream observability recorded in project/executions/WI-WORKSTREAM-SNAPSHOT-MVP/2026_05_14_04_24_30_IMPLEMENT_WORKSTREAM_SNAPSHOT_MVP.md.
 blocked_reason: null
 blocked: false
 id: WI-WORKSTREAM-SNAPSHOT-MVP
 title: Summarize workstream lifecycle state in snapshots
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

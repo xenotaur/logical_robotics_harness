@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from lrh.control import execution_readiness
+
 
 @dataclass(frozen=True)
 class Focus:
@@ -46,6 +48,7 @@ class WorkItem:
     acceptance: tuple[str, ...] = ()
     required_evidence: tuple[str, ...] = ()
     artifacts_expected: tuple[str, ...] = ()
+    execution_readiness: execution_readiness.ExecutionReadiness | None = None
     body: str = ""
     frontmatter: dict[str, object] = field(default_factory=dict)
 

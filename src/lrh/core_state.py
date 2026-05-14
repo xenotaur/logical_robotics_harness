@@ -78,6 +78,9 @@ class WorkItemState:
     parent_ids: tuple[str, ...]
     child_ids: tuple[str, ...]
     related_focus: tuple[str, ...]
+    related_roadmap: tuple[str, ...]
+    related_workstreams: tuple[str, ...]
+    related_design: tuple[str, ...]
     depends_on: tuple[str, ...]
     blocked_by: tuple[str, ...]
     required_evidence: tuple[str, ...]
@@ -99,6 +102,9 @@ class WorkstreamState:
     path: Path
     parent_ids: tuple[str, ...]
     child_ids: tuple[str, ...]
+    related_focus: tuple[str, ...]
+    related_roadmap: tuple[str, ...]
+    related_design: tuple[str, ...]
     work_items: tuple[str, ...]
     evidence: tuple[str, ...]
     frontmatter_keys: tuple[str, ...]
@@ -131,6 +137,8 @@ class PlanningState:
     relationships: tuple[PlanningRelationshipState, ...]
     diagnostics: tuple[DiagnosticSummary, ...]
     cycles: tuple[tuple[str, ...], ...]
+    active_leaf_ids: tuple[str, ...]
+    status_counts_by_kind: Mapping[str, Mapping[str, int]]
 
 
 @dataclass(frozen=True)
@@ -244,7 +252,13 @@ def _empty_core_project_state(
     return CoreProjectState(
         identity=identity,
         validation=validation,
-        planning=PlanningState(relationships=(), diagnostics=(), cycles=()),
+        planning=PlanningState(
+            relationships=(),
+            diagnostics=(),
+            cycles=(),
+            active_leaf_ids=(),
+            status_counts_by_kind=MappingProxyType({}),
+        ),
         current_focus=None,
         workstreams=(),
         work_items=(),
@@ -356,6 +370,13 @@ def _planning_state(
         relationships=relationships,
         diagnostics=diagnostics,
         cycles=tuple(sorted(index.cycles)),
+        active_leaf_ids=index.active_leaf_ids(),
+        status_counts_by_kind=MappingProxyType(
+            {
+                kind: MappingProxyType(counts)
+                for kind, counts in index.status_counts_by_kind().items()
+            }
+        ),
     )
 
 
@@ -386,6 +407,9 @@ def _workstream_states(
             path=workstream.path,
             parent_ids=tuple(sorted(planning.parents_of(workstream.id))),
             child_ids=tuple(sorted(planning.children_of(workstream.id))),
+            related_focus=tuple(sorted(workstream.related_focus)),
+            related_roadmap=tuple(sorted(workstream.related_roadmap)),
+            related_design=tuple(sorted(workstream.related_design)),
             work_items=tuple(sorted(workstream.work_items)),
             evidence=tuple(sorted(workstream.evidence)),
             frontmatter_keys=tuple(sorted(workstream.frontmatter)),
@@ -417,6 +441,9 @@ def _work_item_states(
                 parent_ids=parent_ids,
                 child_ids=child_ids,
                 related_focus=tuple(sorted(item.related_focus)),
+                related_roadmap=tuple(sorted(item.related_roadmap)),
+                related_workstreams=tuple(sorted(item.related_workstreams)),
+                related_design=tuple(sorted(item.related_design)),
                 depends_on=tuple(sorted(item.depends_on)),
                 blocked_by=tuple(sorted(item.blocked_by)),
                 required_evidence=tuple(sorted(item.required_evidence)),

@@ -281,6 +281,64 @@ class TestPlanningTreeRelationships(unittest.TestCase):
                 )
             )
 
+    def test_unknown_related_workstream_is_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = _write_project_scaffold(Path(tmp_dir))
+            _write_work_item(root, "WI-RELATED", related_workstreams=("WS-MISSING",))
+
+            report = validate_project(root / "project")
+
+            self.assertTrue(
+                any(
+                    issue.code == "UNKNOWN_RELATED_WORKSTREAM"
+                    and issue.severity == "error"
+                    for issue in report.errors
+                )
+            )
+
+    def test_index_records_summary_metadata_for_readiness_consumers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = _write_project_scaffold(Path(tmp_dir))
+            _write_workstream(
+                root,
+                "WS-ACTIVE",
+                bucket="active",
+                work_items=("WI-A",),
+                related_design=("project/design/example.md",),
+            )
+            _write_work_item(
+                root,
+                "WI-A",
+                depends_on=("WI-B",),
+                related_workstreams=("WS-ACTIVE",),
+                related_design=("project/design/example.md",),
+            )
+            _write_work_item(root, "WI-B")
+
+            index = planning_tree.build_planning_tree(load_project(root))
+
+            self.assertEqual(index.active_leaf_ids(), ("WI-A", "WI-B"))
+            self.assertEqual(
+                index.status_counts_by_kind(),
+                {
+                    "work_item": {"active": 2},
+                    "workstream": {"active": 1},
+                },
+            )
+            self.assertEqual(
+                index.artifacts_by_id["WS-ACTIVE"].related_design,
+                ("project/design/example.md",),
+            )
+            self.assertEqual(index.artifacts_by_id["WI-A"].dependencies, ("WI-B",))
+            self.assertEqual(
+                index.artifacts_by_id["WI-A"].related_workstreams,
+                ("WS-ACTIVE",),
+            )
+            self.assertEqual(
+                index.artifacts_by_id["WI-A"].related_design,
+                ("project/design/example.md",),
+            )
+
 
 def _write_project_scaffold(root: Path) -> Path:
     (root / "project" / "focus").mkdir(parents=True)
@@ -303,6 +361,7 @@ def _write_workstream(
     parent_id: str | None = None,
     children: tuple[str, ...] = (),
     work_items: tuple[str, ...] = (),
+    related_design: tuple[str, ...] = (),
 ) -> None:
     _write(
         root / "project" / "workstreams" / bucket / f"{workstream_id}.md",
@@ -313,6 +372,7 @@ def _write_workstream(
             parent_id=parent_id,
             children=children,
             work_items=work_items,
+            related_design=related_design,
         ),
     )
 
@@ -325,6 +385,7 @@ def _workstream_text(
     parent_id: str | None = None,
     children: tuple[str, ...] = (),
     work_items: tuple[str, ...] = (),
+    related_design: tuple[str, ...] = (),
 ) -> str:
     fields = [
         "---",
@@ -338,6 +399,7 @@ def _workstream_text(
         fields.append(f"parent_id: {parent_id}")
     fields.extend(_list_field("children", children))
     fields.extend(_list_field("work_items", work_items))
+    fields.extend(_list_field("related_design", related_design))
     fields.extend(["---", ""])
     return "\n".join(fields)
 
@@ -347,6 +409,9 @@ def _write_work_item(
     work_item_id: str,
     *,
     parent_id: str | None = None,
+    depends_on: tuple[str, ...] = (),
+    related_workstreams: tuple[str, ...] = (),
+    related_design: tuple[str, ...] = (),
 ) -> None:
     fields = [
         "---",
@@ -360,6 +425,9 @@ def _write_work_item(
     ]
     if parent_id:
         fields.append(f"parent_id: {parent_id}")
+    fields.extend(_list_field("depends_on", depends_on))
+    fields.extend(_list_field("related_workstreams", related_workstreams))
+    fields.extend(_list_field("related_design", related_design))
     fields.extend(["---", ""])
     _write(
         root / "project" / "work_items" / "active" / f"{work_item_id}.md",

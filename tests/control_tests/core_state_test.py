@@ -25,6 +25,14 @@ class TestCoreState(unittest.TestCase):
             self.assertEqual(state.prompt_inputs.active_workstream_ids, ("WS-A",))
             self.assertEqual(state.workstreams_by_id["WS-A"].child_ids, ("WI-A",))
             self.assertEqual(state.work_items_by_id["WI-A"].parent_ids, ("WS-A",))
+            self.assertEqual(state.planning.active_leaf_ids, ("WI-A", "WI-B"))
+            self.assertEqual(
+                state.planning.status_counts_by_kind,
+                {
+                    "work_item": {"active": 2},
+                    "workstream": {"active": 1, "proposed": 1},
+                },
+            )
             self.assertEqual(
                 state.evidence_links,
                 (

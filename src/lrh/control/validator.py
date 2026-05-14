@@ -38,6 +38,8 @@ WORK_ITEM_LIST_FIELDS = {
     "assigned_agents",
     "related_focus",
     "related_roadmap",
+    "related_workstreams",
+    "related_design",
     "depends_on",
     "blocked_by",
     "expected_actions",
@@ -65,6 +67,7 @@ WORKSTREAM_LIST_FIELDS = {
     "children",
     "related_focus",
     "related_roadmap",
+    "related_design",
     "work_items",
     "execution_records",
     "evidence",
@@ -283,6 +286,7 @@ def validate_project(
             artifact,
             contributor_map,
             work_item_map,
+            set(workstream_map),
             focus_ids,
             issues,
         )
@@ -713,6 +717,7 @@ def _workstream_model_from_artifact(artifact: _ParsedArtifact) -> models.Workstr
         rationale=_optional_string_value(data, "rationale"),
         related_focus=_string_tuple_value(data, "related_focus"),
         related_roadmap=_string_tuple_value(data, "related_roadmap"),
+        related_design=_string_tuple_value(data, "related_design"),
         work_items=_string_tuple_value(data, "work_items"),
         execution_records=_string_tuple_value(data, "execution_records"),
         evidence=_string_tuple_value(data, "evidence"),
@@ -737,6 +742,8 @@ def _work_item_model_from_artifact(artifact: _ParsedArtifact) -> models.WorkItem
         assigned_agents=_string_tuple_value(data, "assigned_agents"),
         related_focus=_string_tuple_value(data, "related_focus"),
         related_roadmap=_string_tuple_value(data, "related_roadmap"),
+        related_workstreams=_string_tuple_value(data, "related_workstreams"),
+        related_design=_string_tuple_value(data, "related_design"),
         depends_on=_string_tuple_value(data, "depends_on"),
         blocked_by=_string_tuple_value(data, "blocked_by"),
         expected_actions=_string_tuple_value(data, "expected_actions"),
@@ -1205,6 +1212,7 @@ def _validate_work_item_references(
     artifact: _ParsedArtifact,
     contributor_map: dict[str, _ParsedArtifact],
     work_item_map: dict[str, _ParsedArtifact],
+    workstream_ids: set[str],
     focus_ids: set[str],
     issues: list[ValidationIssue],
 ) -> None:
@@ -1357,6 +1365,15 @@ def _validate_work_item_references(
         "related_focus",
         focus_ids,
         "UNKNOWN_RELATED_FOCUS",
+        issues,
+    )
+    _validate_relation_field(
+        project_root,
+        artifact.path,
+        data,
+        "related_workstreams",
+        workstream_ids,
+        "UNKNOWN_RELATED_WORKSTREAM",
         issues,
     )
 

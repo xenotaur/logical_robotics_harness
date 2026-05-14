@@ -1,6 +1,6 @@
 # CI Feasibility Assessment Request (Read-Only)
 
-Assess whether this repository is a good candidate for CI work using the LRH CI setup and debugging playbook at `docs/project-setup/ci.md`.
+Assess whether this repository is a good candidate for CI work using the LRH CI setup and debugging playbook. In an LRH source checkout the full playbook lives at `docs/project-setup/ci.md`; this generated request also includes the execution-critical playbook guidance below so it remains usable from an installed LRH package or in target repositories that do not contain that path.
 
 This is an assessment-only request.
 
@@ -23,7 +23,25 @@ OBJECTIVE
 
 Inspect the repository and produce a conservative CI migration feasibility assessment.
 
-The assessment must apply the playbook at `docs/project-setup/ci.md`, determine the project family before recommending workflows, discover canonical repository commands before proposing validation steps, and decide whether CI migration should proceed, adapt to repository conventions, or abort.
+The assessment must apply the CI playbook guidance in this request, use `docs/project-setup/ci.md` as the fuller source when that file is available, determine the project family before recommending workflows, discover canonical repository commands before proposing validation steps, and decide whether CI migration should proceed, adapt to repository conventions, or abort. Do not fail solely because the target repository lacks `docs/project-setup/ci.md`.
+
+
+==================================================
+PACKAGED CI PLAYBOOK SUMMARY
+==================================================
+
+Use this summary as the portable CI playbook when `docs/project-setup/ci.md` is not available in the target repository. If that file is available, read it as the fuller source and keep this summary as the execution-critical checklist.
+
+- Discover the project family first: Python package/tool, Python scripts/tools collection, Unix command/tool repository, Rust/Cargo, Rust/WASM/WebGPU, JavaScript/TypeScript, game/simulation, documentation/static site, mixed repository, or other.
+- Inventory existing commands and policy files before proposing CI: README/docs, `AGENTS.md`, `STYLE.md`, `PROMPTS.md`, `REVIEWS.md`, `scripts/`, `bin/`, `tools/`, `Makefile`, `justfile`, language package metadata, lockfiles, and existing workflow YAML.
+- Prefer repository-owned wrapper commands in CI. For LRH-like repositories, the normal validation sequence is `scripts/version tools`, `scripts/check-workflows`, `scripts/format --check --diff`, `scripts/lint`, and `scripts/test`.
+- Keep setup/bootstrap separate from validation. Setup may install dependencies or use caches/network; validation should be repeatable and evidence-producing. In Codex Cloud, run `scripts/develop` during environment setup/bootstrap, not routine task-phase validation.
+- Make tool/runtime versions visible before validation. If formatter/linter/test tool versions are missing or mismatched, report a setup/cache issue before debugging validation failures.
+- Design workflows so local and CI commands map clearly, use readable job/step names, and keep heavyweight smoke, packaging, release, GPU, browser, or simulation checks separate when practical.
+- When workflows are touched, run `scripts/check-workflows` or the closest project-approved workflow YAML check if available.
+- Debug with evidence: collect commit, working tree status, tool-version output, command logs, reports, screenshots, artifacts, or review notes before saying CI is flaky, fixed, unreproducible, or a pre-existing failure.
+- Treat stronger tooling such as actionlint, pre-commit, tox/nox, dev containers, or lockfile/toolchain changes as deliberate follow-ups unless the task explicitly requests them or repository evidence shows they are already canonical.
+- Use reusable workflow fragments only after repository family, commands, and existing CI state are understood; do not start with a universal template for an unfamiliar repository.
 
 ==================================================
 REQUIRED INSPECTION CHECKLIST
@@ -32,7 +50,7 @@ REQUIRED INSPECTION CHECKLIST
 Inspect and summarize evidence for all of the following:
 
 1. Project family and primary language(s)
-   - Identify the repository family described by `docs/project-setup/ci.md`: Python package/tool, Python scripts/tools collection, Unix command/tool repository, Rust/Cargo, Rust/WASM/WebGPU, JavaScript/TypeScript, game/simulation, documentation/static site, mixed repository, or other.
+   - Identify the repository family described by the packaged CI playbook summary: Python package/tool, Python scripts/tools collection, Unix command/tool repository, Rust/Cargo, Rust/WASM/WebGPU, JavaScript/TypeScript, game/simulation, documentation/static site, mixed repository, or other.
    - Identify dominant language(s) based on repository contents.
    - Note if repository is Python-first, mixed-language, or non-Python.
 
@@ -102,7 +120,7 @@ OUTPUT FORMAT (REQUIRED)
 # CI Feasibility Assessment
 
 ## Playbook Reference
-- CI playbook: `docs/project-setup/ci.md`
+- CI playbook: packaged summary in this generated request; fuller source `docs/project-setup/ci.md` when available
 
 ## Repository Signals
 - Project family:
@@ -144,7 +162,7 @@ If final status is `PROCEED_PYTHON_LRH_STYLE` or `PROCEED_WITH_ADAPTATION`, also
 DECISION RULES
 ==================================================
 
-- Follow `docs/project-setup/ci.md`.
+- Follow the packaged CI playbook summary in this request, and read `docs/project-setup/ci.md` as the fuller source when available.
 - Be conservative.
 - Prefer abort status over speculative migration when evidence is weak.
 - Do not recommend blindly copying LRH CI into non-Python, mixed-stack, or weak-fit repositories.

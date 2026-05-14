@@ -83,6 +83,23 @@ packaged CI playbook summary so generated prompts do not require that source
 checkout path in the target repository.
 
 
+### Dry-run run packets
+
+`lrh request run-packet-from-work-item <WORK_ITEM_ID>` renders a human-reviewable
+dry-run/manual run packet for a selected work item that has opted into execution
+readiness with `execution_ready: true` and the required readiness metadata. The
+command is an artifact-rendering request surface: it does not call agents, create
+or mutate branches, open or update pull requests, merge, release, publish, or run
+automated stabilization loops. Use `--out path/to/packet.md` to write the packet
+to an explicit output path; otherwise the packet is printed to stdout.
+
+This request is intentionally distinct from any future runner dry-run semantics.
+A later `lrh run --dry-run`-style surface may preview runner behavior, policy, or
+backend choices, while this command only renders a deterministic Markdown packet
+from the work-item source and readiness metadata. Missing or non-ready readiness
+metadata is reported as review-required diagnostics instead of being treated as
+permission to execute.
+
 ### Semantic work-item audit template
 
 `request/work_item_semantic_audit.md` is the conservative companion template for `lrh work-items audit`. The audit command reports deterministic lifecycle and traceability facts; the template asks a reviewer to compare those facts with work-item acceptance criteria, cite concrete repository evidence, and avoid optimistic closure when evidence is incomplete. Use it before resolving, abandoning, superseding, or splitting ambiguous proposed work items.

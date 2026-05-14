@@ -139,6 +139,14 @@ are preserved for dry-run packet/report generation. Human approval, merge, and c
 to safe `true` runtime values when omitted; readiness metadata never authorizes branch mutation,
 backend dispatch, PR creation, merge, release, publish, or autonomous runtime execution by itself.
 
+Dry-run run-packet generation consumes the same opt-in readiness metadata through
+`lrh request run-packet-from-work-item <WORK_ITEM_ID>` (legacy underscore form:
+`run_packet_from_work_item`). This request command only renders or writes the
+requested Markdown artifact. It is not a runner, does not dispatch agents, does
+not mutate branches or pull requests, and should not be treated as equivalent to
+future `lrh run --dry-run` semantics. Missing readiness fields produce
+review-required diagnostics for the selected work item.
+
 Before generating that prompt package, verify prerequisite control-plane alignment: shared core state
 APIs, planning relationship/index validation, and snapshot-visible planning summaries. If a
 prerequisite is missing, complete it in a separate prompt rather than broadening the first

@@ -11,6 +11,7 @@ from lrh.assist import (
     request_service,
     request_templates,
     request_variables,
+    run_packet,
 )
 from lrh.cli import argcomplete_adapter
 
@@ -22,6 +23,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         help=(
             "Request name (e.g. improve-coverage, bootstrap-project, "
             "work-items-from-audit, prompt-from-work-item, "
+            "run-packet-from-work-item, "
             "assess-continuous-integration-status). Legacy template names "
             "remain supported. Use 'lrh request list' to discover cataloged "
             "requests. 'list' and 'describe' are reserved catalog commands. "
@@ -146,6 +148,7 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
     """Build the request CLI parser."""
     parser = argparse.ArgumentParser(
         prog=prog,
+        formatter_class=argparse.RawTextHelpFormatter,
         description=(
             "Render an assist request from a template and input options. "
             "Optional completion is available via argcomplete; "
@@ -219,12 +222,15 @@ def _format_catalog_description(
     requested_name: str,
 ) -> str:
     """Format detailed metadata for one cataloged request."""
+    template_description = f"request/{metadata.template_name}.md"
+    if metadata.template_name == "run_packet_from_work_item":
+        template_description = "none (structured renderer)"
     lines = [
         f"canonical name: {metadata.canonical_name}",
         f"category: {metadata.category}",
         f"description: {metadata.description}",
         f"legacy names: {_format_legacy_names(metadata.legacy_names)}",
-        f"template: request/{metadata.template_name}.md",
+        f"template: {template_description}",
         f"implementation: {metadata.implementation_target}",
         "usage: lrh request " + metadata.canonical_name + " [options]",
     ]
@@ -397,6 +403,33 @@ def run_templates_cli(
     return 0
 
 
+def build_run_packet_from_work_item_parser(
+    *, prog: str = "request run-packet-from-work-item"
+) -> argparse.ArgumentParser:
+    """Build parser for dry-run run-packet generation."""
+    parser = argparse.ArgumentParser(
+        prog=prog,
+        description=(
+            "Render a dry-run/manual, non-mutating run packet from an "
+            "execution-ready LRH work item."
+        ),
+    )
+    parser.add_argument(
+        "target",
+        nargs="?",
+        help="Work-item ID, stem, filename, or markdown path.",
+    )
+    parser.add_argument(
+        "--work-item",
+        help="Explicit work-item ID or markdown path. Overrides the positional target.",
+    )
+    parser.add_argument(
+        "--out",
+        help="Output markdown path for the generated packet. Omit to print to stdout.",
+    )
+    return parser
+
+
 def build_codex_prompt_from_work_item_parser(
     *, prog: str = "request codex-prompt-from-work-item"
 ) -> argparse.ArgumentParser:
@@ -480,6 +513,52 @@ def run_request_cli(
             argv[1:],
             prog=f"{prog} templates",
         )
+
+    if argv and argv[0] in {"run-packet-from-work-item", "run_packet_from_work_item"}:
+        command_parser = build_run_packet_from_work_item_parser(
+            prog=f"{prog} {argv[0]}"
+        )
+        try:
+            command_args = command_parser.parse_args(argv[1:])
+        except SystemExit as error:
+            return int(error.code) if isinstance(error.code, int) else 2
+        target = command_args.work_item or command_args.target
+        if not target:
+            print(
+                "error: run-packet-from-work-item requires a work-item ID/path "
+                "or --work-item.",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            work_item_file, _ = request_service.resolve_work_item_file_for_request(
+                target_input=target,
+                explicit_work_item_file=None,
+            )
+            result = run_packet.render_run_packet_from_work_item(
+                work_item_file,
+                project_root=request_variables.find_repo_root() or pathlib.Path.cwd(),
+            )
+        except (FileNotFoundError, OSError, ValueError) as error:
+            print(str(error), file=sys.stderr)
+            return 2
+        if result.diagnostics:
+            print(
+                run_packet.format_readiness_diagnostics(result.diagnostics),
+                file=sys.stderr,
+            )
+            return 2
+        output_path = pathlib.Path(command_args.out) if command_args.out else None
+        if output_path is not None:
+            try:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(result.markdown, encoding="utf-8")
+            except OSError as error:
+                print(f"error: {error}", file=sys.stderr)
+                return 2
+        else:
+            sys.stdout.write(result.markdown)
+        return 0
 
     if argv and argv[0] == "codex-prompt-from-work-item":
         command_parser = build_codex_prompt_from_work_item_parser(

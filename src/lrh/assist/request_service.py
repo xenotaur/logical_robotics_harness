@@ -254,6 +254,23 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
     }
 
 
+def resolve_work_item_file_for_request(
+    *, target_input: str, explicit_work_item_file: str | None = None
+) -> tuple[str, str]:
+    """Resolve a work-item target by explicit path, repository-relative path, or ID."""
+    args = argparse.Namespace(
+        template_name="codex_prompt_from_work_item",
+        work_item_file=explicit_work_item_file,
+    )
+    resolved, resolution = _resolve_codex_work_item_file(
+        args=args,
+        target_input=target_input,
+    )
+    if resolved is None:
+        raise FileNotFoundError(f"error: No work item matched target '{target_input}'.")
+    return resolved, resolution
+
+
 def _resolve_codex_style_file(args: argparse.Namespace) -> str | None:
     """Resolve style-file behavior for codex_prompt_from_work_item templates."""
     if args.template_name != "codex_prompt_from_work_item":

@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from types import MappingProxyType
 
 from lrh import core_state
 
@@ -27,6 +28,12 @@ class TestCoreState(unittest.TestCase):
             self.assertEqual(
                 state.evidence_links,
                 (
+                    core_state.EvidenceLink(
+                        source_id="DP-A",
+                        source_kind="design_proposal",
+                        field="evidence",
+                        target="EV-DP",
+                    ),
                     core_state.EvidenceLink(
                         source_id="WI-B",
                         source_kind="work_item",
@@ -58,6 +65,13 @@ class TestCoreState(unittest.TestCase):
                 [workstream.id for workstream in state.workstreams],
                 ["WS-A", "WS-B"],
             )
+            self.assertEqual(
+                [
+                    relationship.child_id
+                    for relationship in state.planning.relationships
+                ],
+                ["WI-A"],
+            )
 
     def test_typed_summary_preserves_source_runtime_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -69,15 +83,36 @@ class TestCoreState(unittest.TestCase):
 
             self.assertEqual(item.title, "Beta")
             self.assertIn("required_evidence", item.frontmatter_keys)
-            self.assertEqual(
-                state.loaded_project.work_items_by_id["WI-B"].body, "Body text.\n"
+            self.assertFalse(hasattr(item, "frontmatter"))
+            self.assertIn("required_evidence", item.path.read_text(encoding="utf-8"))
+
+    def test_indexes_are_read_only_and_precomputed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            _write_representative_project(root)
+
+            state = core_state.load_core_project_state(root)
+
+            self.assertIsInstance(state.work_items_by_id, MappingProxyType)
+            self.assertIs(state.work_items_by_id, state.work_items_by_id)
+            with self.assertRaises(TypeError):
+                state.work_items_by_id["WI-Z"] = state.work_items_by_id["WI-A"]
+
+    def test_validation_errors_return_summary_without_strict_loader_raise(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            _write_representative_project(root, duplicate_work_item=True)
+
+            state = core_state.load_core_project_state(root)
+
+            self.assertFalse(state.validation.is_valid)
+            self.assertIn(
+                "WORK_ITEM_ID_DUPLICATE",
+                [diagnostic.code for diagnostic in state.validation.diagnostics],
             )
-            self.assertEqual(
-                state.loaded_project.work_items_by_id["WI-B"].frontmatter[
-                    "required_evidence"
-                ],
-                ["EV-2"],
-            )
+            self.assertIsNone(state.current_focus)
+            self.assertEqual(state.work_items, ())
+            self.assertEqual(state.prompt_inputs.active_leaf_work_item_ids, ())
 
     def test_incomplete_optional_planning_relationships_are_reported_read_only(
         self,
@@ -93,21 +128,22 @@ class TestCoreState(unittest.TestCase):
                 "PLANNING_UNKNOWN_PARENT_ID",
                 [diagnostic.code for diagnostic in state.validation.diagnostics],
             )
-            self.assertIn(
-                "PLANNING_UNKNOWN_PARENT_ID",
-                [diagnostic.code for diagnostic in state.planning.diagnostics],
-            )
-            self.assertEqual(
-                state.prompt_inputs.active_leaf_work_item_ids, ("WI-A", "WI-B")
-            )
+            self.assertEqual(state.planning.diagnostics, ())
+            self.assertEqual(state.prompt_inputs.active_leaf_work_item_ids, ())
 
 
-def _write_representative_project(root: Path, *, unknown_parent: bool = False) -> None:
+def _write_representative_project(
+    root: Path,
+    *,
+    unknown_parent: bool = False,
+    duplicate_work_item: bool = False,
+) -> None:
     project_dir = root / "project"
     (project_dir / "focus").mkdir(parents=True)
     (project_dir / "work_items" / "active").mkdir(parents=True)
     (project_dir / "workstreams" / "active").mkdir(parents=True)
     (project_dir / "workstreams" / "proposed").mkdir(parents=True)
+    (project_dir / "design" / "proposals" / "proposed").mkdir(parents=True)
     (project_dir / "evidence").mkdir(parents=True)
 
     _write(
@@ -160,6 +196,20 @@ depends_on:
 ---
 """,
     )
+    if duplicate_work_item:
+        _write(
+            project_dir / "work_items" / "active" / "WI-DUP.md",
+            """---
+id: WI-A
+title: Duplicate Alpha
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+---
+""",
+        )
     parent_line = "parent_id: WS-MISSING\n" if unknown_parent else ""
     _write(
         project_dir / "workstreams" / "active" / "WS-A.md",
@@ -188,6 +238,18 @@ stage: conceived
 """,
     )
     _write(
+        project_dir / "design" / "proposals" / "proposed" / "DP-A.md",
+        """---
+id: DP-A
+type: design_proposal
+title: Proposal A
+status: proposed
+evidence:
+  - EV-DP
+---
+""",
+    )
+    _write(
         project_dir / "evidence" / "EV-2.md",
         """---
 id: EV-2
@@ -200,6 +262,14 @@ title: Evidence Two
         """---
 id: EV-WS
 title: Workstream Evidence
+---
+""",
+    )
+    _write(
+        project_dir / "evidence" / "EV-DP.md",
+        """---
+id: EV-DP
+title: Design Proposal Evidence
 ---
 """,
     )

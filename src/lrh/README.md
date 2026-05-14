@@ -17,6 +17,16 @@ objects for:
 - evidence references
 - prompt-rendering inputs
 
+The API validates before strict typed loading by default. Validation-reportable
+structural errors therefore return a `ValidationSummary` instead of raising from
+strict loader indexes. Callers that have already validated can pass an existing
+validation report, and specialized callers can opt out of validation when they
+intentionally want loader-only interpretation.
+
+The returned object exposes immutable tuples and read-only mapping views for its
+shared summaries. It does not expose the mutable loader or planning-tree backing
+objects directly.
+
 The API does not execute work, mutate repositories, create branches, dispatch
 agents, or create pull requests. Future `validate`, `snapshot`, `request`,
 `serve`, and `run --dry-run` work should prefer this read/interpretation layer

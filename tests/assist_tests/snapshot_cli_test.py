@@ -336,10 +336,17 @@ class TestSnapshotCliWorkstreams(unittest.TestCase):
                 output.index("  WS-BETA — Beta Workstream"),
             )
 
-    def test_workstream_summary_reports_blocked_active_leaf_hint(self) -> None:
+    def test_workstream_summary_reports_inline_blocker_active_leaf_hint(
+        self,
+    ) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
-            _write_work_item(project_dir, "WI-BLOCKED", blocked_by=["WI-DEP"])
+            _write_work_item(
+                project_dir,
+                "WI-BLOCKED",
+                blocked_by=["WI-DEP"],
+                inline_blocked_by=True,
+            )
             _write_workstream(
                 project_dir,
                 "active",
@@ -354,6 +361,32 @@ class TestSnapshotCliWorkstreams(unittest.TestCase):
 
             self.assertIn("  active_leaves:", output)
             self.assertIn("    - WI-BLOCKED (blocked by WI-DEP)", output)
+
+    def test_workstream_summary_reports_blocked_state_active_leaf_hint(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_work_item(
+                project_dir,
+                "WI-BLOCKED",
+                blocked=True,
+                blocked_reason="Waiting for dependency",
+            )
+            _write_workstream(
+                project_dir,
+                "active",
+                "WS-ACTIVE",
+                "Active Workstream",
+                "active",
+                "executing",
+                work_items=["WI-BLOCKED"],
+            )
+
+            output = snapshot_cli.summarize_workstreams(project_dir)
+
+            self.assertIn("  active_leaves:", output)
+            self.assertIn("    - WI-BLOCKED (blocked: Waiting for dependency)", output)
 
     def test_workstream_summary_surfaces_planning_relationship_warnings(
         self,
@@ -506,7 +539,10 @@ def _write_work_item(
     project_dir: Path,
     work_item_id: str,
     *,
+    blocked: bool = False,
+    blocked_reason: str | None = None,
     blocked_by: list[str] | None = None,
+    inline_blocked_by: bool = False,
 ) -> None:
     path = project_dir / "work_items" / "active" / f"{work_item_id}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -518,13 +554,15 @@ def _write_work_item(
                 f"title: {work_item_id} Work Item",
                 "type: deliverable",
                 "status: active",
-                "blocked: false",
-                "blocked_reason: null",
+                f"blocked: {str(blocked).lower()}",
+                (
+                    f"blocked_reason: {blocked_reason}"
+                    if blocked_reason is not None
+                    else "blocked_reason: null"
+                ),
                 "resolution: null",
-                *(
-                    ["blocked_by:", *(f"  - {blocker}" for blocker in blocked_by)]
-                    if blocked_by
-                    else []
+                *_frontmatter_list_lines(
+                    "blocked_by", blocked_by, inline=inline_blocked_by
                 ),
                 "---",
                 "",
@@ -534,6 +572,19 @@ def _write_work_item(
         ),
         encoding="utf-8",
     )
+
+
+def _frontmatter_list_lines(
+    field: str,
+    values: list[str] | None,
+    *,
+    inline: bool = False,
+) -> list[str]:
+    if not values:
+        return []
+    if inline:
+        return [f"{field}: [{', '.join(values)}]"]
+    return [f"{field}:", *(f"  - {value}" for value in values)]
 
 
 def _write_design_proposal(

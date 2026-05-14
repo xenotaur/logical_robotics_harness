@@ -9,6 +9,7 @@ import sys
 from lrh import version as lrh_version
 from lrh.control import loader as control_loader
 from lrh.control import models as control_models
+from lrh.control import parser as control_parser
 from lrh.control import planning_tree as control_planning_tree
 
 
@@ -179,7 +180,11 @@ def _load_snapshot_work_items(
         text = read_text_if_exists(path)
         if text is None:
             continue
-        frontmatter, body = parse_frontmatter(text)
+        try:
+            parsed = control_parser.parse_markdown_text(text)
+        except ValueError:
+            continue
+        frontmatter = parsed.frontmatter
         work_item_id = frontmatter.get("id")
         title = frontmatter.get("title")
         item_type = frontmatter.get("type")
@@ -212,7 +217,7 @@ def _load_snapshot_work_items(
                 artifacts_expected=_frontmatter_str_list(
                     frontmatter, "artifacts_expected"
                 ),
-                body=body,
+                body=parsed.body,
                 frontmatter=frontmatter,
             )
         )
@@ -321,6 +326,10 @@ def _format_planning_relationship_summary(
 def _active_leaf_readiness_hint(
     artifact: control_planning_tree.PlanningArtifact,
 ) -> str:
+    if artifact.blocked:
+        if artifact.blocked_reason:
+            return f"blocked: {artifact.blocked_reason}"
+        return "blocked"
     if artifact.blockers:
         return f"blocked by {', '.join(artifact.blockers)}"
     return "unblocked by planning metadata"

@@ -2,7 +2,7 @@
 execution_id: 2026_05_14_22_58_37_DOGFOOD_CI_PLAYBOOK_SKILL_READINESS
 prompt_id: PROMPT(WI-CI-PLAYBOOK:DOGFOOD_CI_PLAYBOOK_AND_SKILL_READINESS)[2026-05-14T00:25:00-04:00]
 work_item: WI-CI-PLAYBOOK
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
 commit: 

@@ -33,6 +33,52 @@ class TestLrhRequestCli(unittest.TestCase):
         self.assertIn("--slug", result.stdout)
         self.assertIn("--out", result.stdout)
 
+    def test_lrh_request_list(self) -> None:
+        result = self._run_lrh(["request", "list"])
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stderr, "")
+        self.assertIn("work-items:\n", result.stdout)
+        self.assertIn("prompt-from-work-item", result.stdout)
+        self.assertIn("review:\n", result.stdout)
+        self.assertIn("review-response", result.stdout)
+
+    def test_lrh_request_list_category(self) -> None:
+        result = self._run_lrh(["request", "list", "--category", "review"])
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stderr, "")
+        self.assertIn("review:\n", result.stdout)
+        self.assertIn("review-response", result.stdout)
+        self.assertNotIn("work-items:\n", result.stdout)
+        self.assertNotIn("prompt-from-work-item", result.stdout)
+
+    def test_lrh_request_describe_canonical_name(self) -> None:
+        result = self._run_lrh(["request", "describe", "prompt-from-work-item"])
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stderr, "")
+        self.assertIn("canonical name: prompt-from-work-item", result.stdout)
+        self.assertIn("category: work-items", result.stdout)
+        self.assertIn("legacy names: codex-prompt-from-work-item", result.stdout)
+        self.assertIn("template: request/codex_prompt_from_work_item.md", result.stdout)
+        self.assertNotIn("resolved from:", result.stdout)
+
+    def test_lrh_request_describe_legacy_name(self) -> None:
+        result = self._run_lrh(["request", "describe", "review_response"])
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stderr, "")
+        self.assertIn(
+            "canonical name: review-response",
+            result.stdout,
+        )
+        self.assertIn("category: review", result.stdout)
+        self.assertIn("legacy names: review_response", result.stdout)
+        self.assertIn("resolved from: review_response", result.stdout)
+
+    def test_lrh_request_describe_unknown_name(self) -> None:
+        result = self._run_lrh(["request", "describe", "missing-request"])
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("error: unknown request name: missing-request", result.stderr)
+
     def test_lrh_request_canonical_improve_coverage(self) -> None:
         result = self._run_lrh(
             ["request", "improve-coverage", "src/lrh/analysis/llm_extractor.py"]

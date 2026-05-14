@@ -501,6 +501,25 @@ runbook, including local readiness checks, installed-wheel smoke testing,
 TestPyPI rehearsal, PyPI Trusted Publisher setup, tag-push publishing,
 post-release verification, failure recovery notes, and release evidence.
 
+
+## Assist request catalog
+
+Use the request catalog to discover supported assist request names before rendering a prompt:
+
+```bash
+# List canonical request names grouped by category.
+lrh request list
+
+# Limit the list to one category.
+lrh request list --category review
+
+# Show canonical metadata, legacy names, template source, and usage notes.
+lrh request describe prompt-from-work-item
+lrh request describe codex_prompt_from_work_item
+```
+
+Canonical flat names such as `prompt-from-work-item` are preferred for new usage. Legacy template names remain supported and can be inspected with `lrh request describe <legacy-name>`.
+
 ## GitHub review helpers
 
 LRH includes a GitHub CLI integration for PR comment/thread inspection and assist request generation for review responses.

@@ -18,13 +18,20 @@ exact execution record existed for the prompt ID.
 
 - Added `project/design/proposals/ci-capability-scaffolding.md` as a proposed design proposal for
   reusable CI capability scaffolding.
-- Added `project/workstreams/WS-CI-CAPABILITY-SCAFFOLDING.md` as a proposed workstream describing
-  phases for playbook, request-template refresh, CI Agent Skill prototype design, and
+- Added `project/workstreams/proposed/WS-CI-CAPABILITY-SCAFFOLDING.md` as a proposed workstream
+  describing phases for playbook, request-template refresh, CI Agent Skill prototype design, and
   template/fragments reassessment.
 - Updated roadmap, current focus, work-item README guidance, design proposal README navigation, and
   workstream README navigation with minimal links to the proposal and workstream.
 - Kept implementation of the CI playbook, CI request-template changes, Agent Skill, CI templates, and
   workflow changes out of scope.
+
+# Review follow-up
+
+- Moved the CI capability scaffolding workstream into `project/workstreams/proposed/` so the
+  workstream loader, validation discovery, snapshots, and planning indexes can see it.
+- Verified `load_workstreams(Path("project"))` includes `WS-CI-CAPABILITY-SCAFFOLDING` at the
+  proposed-bucket path.
 
 # Validation
 

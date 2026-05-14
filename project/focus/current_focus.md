@@ -55,8 +55,9 @@ blocking or broadening the first package.
 
 ## Adjacent CI capability design
 
-The CI capability scaffolding workstream (`project/workstreams/WS-CI-CAPABILITY-SCAFFOLDING.md`) is
-a proposed adjacent design/control-plane effort for reusing LRH's CI and toolchain reconciliation
+The CI capability scaffolding workstream
+(`project/workstreams/proposed/WS-CI-CAPABILITY-SCAFFOLDING.md`) is a proposed adjacent
+design/control-plane effort for reusing LRH's CI and toolchain reconciliation
 lessons. It should remain playbook- and prompt-design work for now, not CI workflow implementation or
 a universal template effort.
 

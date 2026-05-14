@@ -32,8 +32,12 @@ _REQUESTS: tuple[RequestMetadata, ...] = (
         implementation_target="structured_work_item_prompt",
     ),
     RequestMetadata(
-        canonical_name="review-pr-against-work-item",
-        legacy_names=("pr-against-work-item", "pr_against_work_item"),
+        canonical_name="review-pull-request-against-work-item",
+        legacy_names=(
+            "review-pr-against-work-item",
+            "pr-against-work-item",
+            "pr_against_work_item",
+        ),
         category="review",
         template_name="pr_against_work_item",
         description="Review a pull-request patch against a source work item.",
@@ -60,15 +64,19 @@ _REQUESTS: tuple[RequestMetadata, ...] = (
         description="Generate a request to bootstrap LRH project control files.",
     ),
     RequestMetadata(
-        canonical_name="assess-ci-status",
-        legacy_names=("ci-assess-status", "ci_assess_status"),
+        canonical_name="assess-continuous-integration-status",
+        legacy_names=("assess-ci-status", "ci-assess-status", "ci_assess_status"),
         category="ci",
         template_name="ci_assess_status",
         description="Assess whether LRH-style CI migration is appropriate.",
     ),
     RequestMetadata(
-        canonical_name="implement-ci-workflow",
-        legacy_names=("ci-implement-workflow", "ci_implement_workflow"),
+        canonical_name="implement-continuous-integration-workflow",
+        legacy_names=(
+            "implement-ci-workflow",
+            "ci-implement-workflow",
+            "ci_implement_workflow",
+        ),
         category="ci",
         template_name="ci_implement_workflow",
         description="Generate an assessment-gated CI workflow implementation request.",

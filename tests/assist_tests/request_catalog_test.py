@@ -29,6 +29,16 @@ class TestRequestCatalog(unittest.TestCase):
         self.assertEqual(metadata.canonical_name, "improve-coverage")
         self.assertEqual(metadata.template_name, "improve_coverage")
 
+    def test_canonical_names_follow_design_acronym_guidance(self) -> None:
+        canonical_names = request_catalog.canonical_names()
+
+        self.assertIn("review-pull-request-against-work-item", canonical_names)
+        self.assertIn("assess-continuous-integration-status", canonical_names)
+        self.assertIn("implement-continuous-integration-workflow", canonical_names)
+        self.assertNotIn("review-pr-against-work-item", canonical_names)
+        self.assertNotIn("assess-ci-status", canonical_names)
+        self.assertNotIn("implement-ci-workflow", canonical_names)
+
 
 if __name__ == "__main__":
     unittest.main()

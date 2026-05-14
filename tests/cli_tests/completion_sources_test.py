@@ -12,6 +12,16 @@ class TestCompletionSources(unittest.TestCase):
         self.assertTrue(names)
         self.assertTrue(all(name.startswith("ci_") for name in names))
 
+    def test_request_template_names_includes_catalog_canonical_names(self) -> None:
+        self.assertEqual(
+            completion_sources.request_template_names(prefix="improve-"),
+            ["improve-coverage"],
+        )
+        self.assertIn(
+            "assess-continuous-integration-status",
+            completion_sources.request_template_names(prefix="assess-"),
+        )
+
     def test_request_template_names_includes_explicit_templates(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             template_dir = pathlib.Path(temp_dir)

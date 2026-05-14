@@ -143,8 +143,8 @@ lrh request --help
 lrh request assess-repository --scope project
 lrh request assess-repository --scope current_focus
 lrh request assess-repository --scope work_item --target WI-0003
-lrh request assess-ci-status --background-text "Assess CI feasibility for this repository."
-lrh request implement-ci-workflow --background-file ci_assessment.md
+lrh request assess-continuous-integration-status --background-text "Assess CI feasibility for this repository."
+lrh request implement-continuous-integration-workflow --background-file ci_assessment.md
 lrh snapshot --help
 lrh snapshot work_item WI-0003 --project-root .
 lrh survey --help
@@ -223,7 +223,7 @@ Workflow summary:
 
 ```text
 Work item Markdown
-  -> lrh request codex-prompt-from-work-item
+  -> lrh request prompt-from-work-item
   -> Codex Cloud prompt
   -> PR
   -> execution record
@@ -320,12 +320,12 @@ Canonical mappings:
 | Canonical name | Compatibility aliases | Template target |
 | --- | --- | --- |
 | `prompt-from-work-item` | `codex-prompt-from-work-item`, `codex_prompt_from_work_item` | `codex_prompt_from_work_item` |
-| `review-pr-against-work-item` | `pr-against-work-item`, `pr_against_work_item` | `pr_against_work_item` |
+| `review-pull-request-against-work-item` | `review-pr-against-work-item`, `pr-against-work-item`, `pr_against_work_item` | `pr_against_work_item` |
 | `work-items-from-audit` | `work_items_from_audit` | `work_items_from_audit` |
 | `assess-repository` | `assessment` | `assessment` |
 | `bootstrap-project` | `bootstrap_project` | `bootstrap_project` |
-| `assess-ci-status` | `ci-assess-status`, `ci_assess_status` | `ci_assess_status` |
-| `implement-ci-workflow` | `ci-implement-workflow`, `ci_implement_workflow` | `ci_implement_workflow` |
+| `assess-continuous-integration-status` | `assess-ci-status`, `ci-assess-status`, `ci_assess_status` | `ci_assess_status` |
+| `implement-continuous-integration-workflow` | `implement-ci-workflow`, `ci-implement-workflow`, `ci_implement_workflow` | `ci_implement_workflow` |
 | `improve-coverage` | `improve_coverage` | `improve_coverage` |
 | `review-response` | `review_response` | `review_response` |
 
@@ -403,44 +403,45 @@ Examples:
 
 ```bash
 lrh request prompt-from-work-item \
-  --work-item project/work_items/active/WI-ASSIST-TEMPLATES-PACKAGING.md \
-  --slug implement-wi-assist-templates-packaging \
-  --out path/to/codex_prompt_request.md
+  project/work_items/active/WI-ASSIST-TEMPLATES-PACKAGING.md \
+  --style-file STYLE.md \
+  --prompt-id "PROMPT(WI-ASSIST-TEMPLATES-PACKAGING:IMPLEMENT)[2026-05-14T00:00:00+00:00]" \
+  > path/to/codex_prompt_request.md
 lrh request codex_prompt_from_work_item project/work_items/proposed/WI-EXAMPLE.md
 lrh request codex_prompt_from_work_item \
   --work-item-file project/work_items/proposed/WI-EXAMPLE.md \
   --style-file STYLE.md
 ```
 
-### 5) `assess-ci-status`
+### 5) `assess-continuous-integration-status`
 
 **Purpose**: Produce a read-only CI feasibility assessment before migration.
 
 **Inputs**:
 
-- request name: `assess-ci-status` (legacy: `ci-assess-status`, `ci_assess_status`)
+- request name: `assess-continuous-integration-status` (legacy: `assess-ci-status`, `ci-assess-status`, `ci_assess_status`)
 - optional `--background-file` or `--background-text`
 
 Example:
 
 ```bash
-lrh request assess-ci-status \
+lrh request assess-continuous-integration-status \
   --background-text "Assess whether this repository should get LRH-style Python CI."
 ```
 
-### 6) `implement-ci-workflow`
+### 6) `implement-continuous-integration-workflow`
 
 **Purpose**: Produce an assessment-gated implementation request for CI migration.
 
 **Inputs**:
 
-- request name: `implement-ci-workflow` (legacy: `ci-implement-workflow`, `ci_implement_workflow`)
+- request name: `implement-continuous-integration-workflow` (legacy: `implement-ci-workflow`, `ci-implement-workflow`, `ci_implement_workflow`)
 - optional `--background-file` or `--background-text`
 
 Example:
 
 ```bash
-lrh request implement-ci-workflow --background-file ci_assessment.md
+lrh request implement-continuous-integration-workflow --background-file ci_assessment.md
 ```
 
 ## Validation Notes

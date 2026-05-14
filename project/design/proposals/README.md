@@ -62,7 +62,7 @@ background for runtime, lifecycle, evidence, observability, and bridge concepts.
 worked-example appendix (`WS-LCATS-CORPORA-ANALYSIS`).
 
 
-[`ci-capability-scaffolding.md`](ci-capability-scaffolding.md)
+[`proposed/ci-capability-scaffolding.md`](proposed/ci-capability-scaffolding.md)
 — Proposes reusable CI capability scaffolding through a human playbook, CI request-template refresh,
 later CI Agent Skill prototype design, and dogfooded template/fragments reassessment. Status:
 `proposed` / `not_started` (design/control-plane alignment only; no CI workflow, playbook, template,

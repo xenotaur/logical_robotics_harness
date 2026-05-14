@@ -255,12 +255,18 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
 
 
 def resolve_work_item_file_for_request(
-    *, target_input: str, explicit_work_item_file: str | None = None
+    *,
+    target_input: str,
+    explicit_work_item_file: str | None = None,
+    command_name: str = "codex_prompt_from_work_item",
+    explicit_path_flag: str = "--work-item-file",
 ) -> tuple[str, str]:
     """Resolve a work-item target by explicit path, repository-relative path, or ID."""
     args = argparse.Namespace(
         template_name="codex_prompt_from_work_item",
         work_item_file=explicit_work_item_file,
+        work_item_command_name=command_name,
+        work_item_flag_name=explicit_path_flag,
     )
     resolved, resolution = _resolve_codex_work_item_file(
         args=args,
@@ -330,6 +336,11 @@ def _resolve_codex_work_item_file(
             f"{target_input}"
         )
 
+    command_name = getattr(
+        args, "work_item_command_name", "codex_prompt_from_work_item"
+    )
+    flag_name = getattr(args, "work_item_flag_name", "--work-item-file")
+
     work_item_root = _resolve_work_item_root()
     candidates = _find_work_item_candidates(
         target_input=target_input,
@@ -345,8 +356,8 @@ def _resolve_codex_work_item_file(
         raise FileNotFoundError(
             "error: No work item matched target "
             f"'{target_input}'. Searched:\n{searched}\n"
-            "Try: lrh request codex_prompt_from_work_item WI-EXAMPLE\n"
-            "Or:  lrh request codex_prompt_from_work_item --work-item-file "
+            f"Try: lrh request {command_name} WI-EXAMPLE\n"
+            f"Or:  lrh request {command_name} {flag_name} "
             "project/work_items/proposed/WI-EXAMPLE.md"
         )
 
@@ -355,10 +366,13 @@ def _resolve_codex_work_item_file(
         by_path.setdefault(path, resolution)
     if len(by_path) > 1:
         candidate_paths = "\n".join(f"- {path}" for path in sorted(by_path.keys()))
+        ambiguity_guidance = f"Pass {flag_name} with a work-item path explicitly."
+        if flag_name == "--work-item-file":
+            ambiguity_guidance = "Pass --work-item-file explicitly."
         raise FileNotFoundError(
             "error: Ambiguous work item target "
             f"'{target_input}'. Matches:\n{candidate_paths}\n"
-            "Pass --work-item-file explicitly."
+            f"{ambiguity_guidance}"
         )
 
     only_path = next(iter(by_path.keys()))

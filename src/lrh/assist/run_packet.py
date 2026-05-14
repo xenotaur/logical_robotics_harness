@@ -11,6 +11,7 @@ from lrh.control import execution_readiness
 from lrh.control import parser as control_parser
 
 _SECTION_HEADING_RE = re.compile(r"^##\s+(.+?)\s*$")
+_REQUIRED_WORK_ITEM_FIELDS = ("id", "title", "type", "status")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -30,10 +31,13 @@ def render_run_packet_from_work_item(
 
     path = pathlib.Path(work_item_path)
     parsed = control_parser.parse_markdown_file(path)
-    diagnostics = execution_readiness.validate_frontmatter(
-        path,
-        parsed.frontmatter,
-        require_ready=True,
+    diagnostics = (
+        *_validate_required_work_item_fields(path, parsed.frontmatter),
+        *execution_readiness.validate_frontmatter(
+            path,
+            parsed.frontmatter,
+            require_ready=True,
+        ),
     )
     if diagnostics:
         return RunPacketResult(
@@ -75,6 +79,26 @@ def format_readiness_diagnostics(
     for issue in diagnostics:
         lines.append(f"- {issue.code}: {issue.message} ({issue.path})")
     return "\n".join(lines)
+
+
+def _validate_required_work_item_fields(
+    path: pathlib.Path,
+    frontmatter: dict[str, Any],
+) -> tuple[execution_readiness.ExecutionReadinessIssue, ...]:
+    issues: list[execution_readiness.ExecutionReadinessIssue] = []
+    for field in _REQUIRED_WORK_ITEM_FIELDS:
+        value = frontmatter.get(field)
+        if isinstance(value, str) and value.strip():
+            continue
+        issues.append(
+            execution_readiness.ExecutionReadinessIssue(
+                path=path,
+                severity="error",
+                code="WORK_ITEM_REQUIRED_FIELD_MISSING",
+                message=f"missing required work-item field '{field}'",
+            )
+        )
+    return tuple(issues)
 
 
 def _render_ready_packet(

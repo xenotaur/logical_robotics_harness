@@ -26,7 +26,9 @@ Added deterministic packet sections for selected work-item identity, planning re
 summary, required changes, explicit scope, allowed and forbidden paths, forbidden actions, validation
 commands, expected evidence/artifacts, human gates, autonomy/risk metadata, missing-readiness review
 tasks, and dry-run/manual non-mutating reminders. Missing or non-ready readiness metadata returns clear
-review-required diagnostics and a non-zero CLI result.
+review-required diagnostics and a non-zero CLI result. Review-response updates also require
+packet generation to diagnose malformed work items that are missing required work-item fields before
+treating readiness metadata as sufficient.
 
 No autonomous runtime execution, branch mutation, pull-request creation or mutation, backend dispatch,
 merge, release, publish, or stabilization loop behavior was introduced.
@@ -37,7 +39,7 @@ merge, release, publish, or stabilization loop behavior was introduced.
 - `scripts/version tools` completed; Pylint is not installed in this environment, matching existing tool-report behavior.
 - `scripts/format --check --diff` passed after applying Black formatting to edited files.
 - `scripts/lint` passed.
-- `scripts/test` passed: 491 tests.
+- `scripts/test` passed: 495 tests.
 - `lrh validate` passed with 0 errors and 3 pre-existing orphaned-active-work-item warnings.
 - `lrh request run-packet-from-work-item WI-READY --out packet.md` passed against a temporary representative execution-ready work item and wrote a non-empty packet.
 

@@ -344,6 +344,16 @@ def _format_template_resolution(name: str, resolution) -> str:
     return f"{name}	{resolution.source}	{source_label}	{resolution.origin}"
 
 
+def _format_structured_request_resolution(
+    metadata: request_catalog.RequestMetadata,
+) -> str:
+    """Format diagnostics for cataloged requests without request templates."""
+    return (
+        f"{metadata.canonical_name}	structured	structured renderer	"
+        "no request template"
+    )
+
+
 def run_templates_cli(
     argv: list[str],
     *,
@@ -388,6 +398,9 @@ def run_templates_cli(
     )
     request_metadata = request_catalog.resolve(request_name)
     if request_metadata is not None:
+        if request_metadata.template_name == "run_packet_from_work_item":
+            print(_format_structured_request_resolution(request_metadata))
+            return 0
         request_name = request_metadata.template_name
     try:
         resolution = request_templates.resolve_template(
@@ -534,6 +547,8 @@ def run_request_cli(
             work_item_file, _ = request_service.resolve_work_item_file_for_request(
                 target_input=target,
                 explicit_work_item_file=None,
+                command_name="run-packet-from-work-item",
+                explicit_path_flag="--work-item",
             )
             result = run_packet.render_run_packet_from_work_item(
                 work_item_file,

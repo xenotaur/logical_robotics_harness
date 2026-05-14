@@ -4,15 +4,17 @@ This directory provides assist workflows for request generation and context snap
 
 ## Overview
 
-The assist request system builds a **request document** by:
+Most assist requests build a **request document** by:
 
 1. loading a template from package-owned resources under `src/lrh/assist/templates/request/` (installed as `lrh.assist.templates.request`)
 2. computing or loading variable values (paths, file contents, identifiers, etc.)
 3. rendering the template with those values
 
-In practice, a “request” is the final filled-in markdown prompt you can hand to an AI coding assistant (for example, to improve test coverage, bootstrap a project control plane, or derive work items from an audit).
+Some request surfaces are **structured renderers** instead: they load typed project-control inputs and render deterministic Markdown directly when a template would duplicate existing model logic. For example, `run-packet-from-work-item` consumes work-item readiness metadata and does not have a package request template.
 
-Template markdown files are bundled as package data in both editable installs (`pip install -e .`) and wheel installs (`pip install dist/*.whl`), so `lrh request ...` works outside a source checkout as long as LRH is installed.
+In practice, a “request” is the final filled-in markdown prompt or packet you can hand to a human reviewer or AI coding assistant (for example, to improve test coverage, bootstrap a project control plane, derive work items from an audit, or review a dry-run packet).
+
+Template markdown files are bundled as package data in both editable installs (`pip install -e .`) and wheel installs (`pip install dist/*.whl`), so template-backed `lrh request ...` commands work outside a source checkout as long as LRH is installed. Structured renderers are package code and do not require a template file.
 
 Review/repair request templates keep a packaged protocol at `src/lrh/assist/templates/request/review_protocol.md` for install-time portability, while repository-root `REVIEWS.md` remains the maintenance source of truth.
 
@@ -21,7 +23,7 @@ Review/repair request templates keep a packaged protocol at `src/lrh/assist/temp
 - **Template**: A markdown file with placeholders like `{{TARGET_MODULE_GHA}}`.
 - **Variables**: Values injected into placeholders. Some are computed (for example normalized target paths), others come from CLI flags or input files.
 - **File input variables**: File-based inputs expose both path and content forms so templates can choose either concise references or inline bodies (for example `{{STYLE_GUIDE_PATH}}` and `{{STYLE_GUIDE_CONTENT}}`, while preserving legacy names like `{{STYLE_GUIDE_CONTEXT}}`).
-- **Request generation**: Deterministic interpolation that replaces known placeholders and leaves unknown placeholders unchanged.
+- **Request generation**: For template-backed requests, deterministic interpolation replaces known placeholders and leaves unknown placeholders unchanged. Structured renderers produce deterministic Markdown from typed inputs without a request template.
 - **`RequestArgs`**: Planned typed argument model for Python callers.
 
 ## Template Override Resolution

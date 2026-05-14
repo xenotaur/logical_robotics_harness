@@ -76,6 +76,40 @@ Missing readiness.
             "missing execution-readiness field 'allowed_paths'", diagnostic_text
         )
 
+    def test_ready_metadata_with_missing_work_item_fields_is_diagnostic(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_item = _write_work_item(
+                root,
+                """---
+execution_ready: true
+autonomy_level: manual
+operation_risk: read_only
+allowed_paths:
+  - src/lrh/assist/
+validation_commands:
+  - scripts/test
+required_evidence:
+  - passing_tests
+---
+
+## Summary
+
+Malformed source work item.
+""",
+            )
+
+            result = run_packet.render_run_packet_from_work_item(
+                work_item,
+                project_root=root,
+            )
+
+        self.assertNotEqual(result.diagnostics, ())
+        self.assertIn("# Dry-Run Run Packet Review Required", result.markdown)
+        self.assertIn("WORK_ITEM_REQUIRED_FIELD_MISSING", result.markdown)
+        self.assertIn("missing required work-item field 'id'", result.markdown)
+        self.assertNotIn("# Dry-Run Run Packet: WI-READY", result.markdown)
+
     def test_non_execution_ready_work_item_has_review_required_diagnostic(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)

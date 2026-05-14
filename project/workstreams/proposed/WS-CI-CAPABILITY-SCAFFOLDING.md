@@ -11,7 +11,7 @@ related_focus:
 related_roadmap:
   - ROADMAP-PHASE-03
 related_design:
-  - project/design/proposals/ci-capability-scaffolding.md
+  - project/design/proposals/proposed/ci-capability-scaffolding.md
 work_items: []
 exit_criteria:
   - design proposal and control-plane links exist

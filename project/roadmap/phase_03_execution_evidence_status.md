@@ -65,7 +65,7 @@ package.
 
 ### Adjacent reusable capability work
 
-The CI capability scaffolding proposal (`project/design/proposals/ci-capability-scaffolding.md`)
+The CI capability scaffolding proposal (`project/design/proposals/proposed/ci-capability-scaffolding.md`)
 and workstream (`project/workstreams/proposed/WS-CI-CAPABILITY-SCAFFOLDING.md`) are adjacent to
 Phase 3 evidence and stabilization planning. They keep CI setup, assessment, implementation,
 debugging, and

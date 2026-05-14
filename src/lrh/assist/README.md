@@ -48,7 +48,23 @@ single command, run `lrh request --template-dir /path/to/templates ...`; that
 directory should contain paths such as `request/review_response.md`. Package
 fallback remains available when no override exists for the exact logical name.
 
-Lightweight diagnostics are available without printing template contents:
+Request-catalog discovery is available without inspecting template files:
+
+```bash
+lrh request list
+lrh request list --category review
+lrh request describe prompt-from-work-item
+lrh request describe review_response
+```
+
+`lrh request list` shows canonical request names grouped by category.
+`lrh request describe <name>` accepts canonical and legacy names and shows the
+canonical name, category, description, legacy names, implementation target, and
+template path. The request names `list` and `describe` are reserved for catalog
+discovery commands, so avoid using those names for request-template overrides.
+
+Lightweight template-resolution diagnostics are available without printing
+template contents:
 
 ```bash
 lrh request templates list
@@ -57,9 +73,9 @@ lrh request templates where request/review_response.md
 lrh request templates --template-dir /path/to/templates where request/review_response.md
 ```
 
-`list` shows each request template and the source LRH would use. `where` shows
-the single selected source for a logical template name, distinguishing filesystem
-overrides from package fallback.
+`templates list` shows each request template and the source LRH would use.
+`templates where` shows the single selected source for a logical template name,
+distinguishing filesystem overrides from package fallback.
 
 
 ### Semantic work-item audit template

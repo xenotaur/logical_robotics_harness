@@ -23,8 +23,10 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
             "Request name (e.g. improve-coverage, bootstrap-project, "
             "work-items-from-audit, prompt-from-work-item, "
             "assess-continuous-integration-status). Legacy template names "
-            "remain supported. Use 'lrh request templates list' and "
-            "'lrh request templates where' for template diagnostics."
+            "remain supported. Use 'lrh request list' to discover cataloged "
+            "requests. 'list' and 'describe' are reserved catalog commands. "
+            "Use 'lrh request templates list' and 'lrh request templates "
+            "where' for template diagnostics."
         ),
     )
     target_arg = parser.add_argument(
@@ -151,6 +153,128 @@ def build_parser(*, prog: str = "request") -> argparse.ArgumentParser:
         ),
     )
     return configure_parser(parser)
+
+
+def build_request_catalog_parser(*, prog: str = "request") -> argparse.ArgumentParser:
+    """Build parser for request-catalog discoverability commands."""
+    parser = argparse.ArgumentParser(
+        prog=prog,
+        description="Discover cataloged LRH assist requests.",
+    )
+    subparsers = parser.add_subparsers(dest="catalog_command")
+
+    list_parser = subparsers.add_parser(
+        "list",
+        help="List cataloged request names grouped by category.",
+    )
+    list_parser.add_argument(
+        "--category",
+        help="Limit output to one request category.",
+    )
+
+    describe_parser = subparsers.add_parser(
+        "describe",
+        help="Describe one cataloged request by canonical or legacy name.",
+    )
+    describe_parser.add_argument(
+        "request_name",
+        help="Canonical or legacy request name to describe.",
+    )
+    return parser
+
+
+def _group_requests_by_category(
+    requests: tuple[request_catalog.RequestMetadata, ...],
+) -> dict[str, list[request_catalog.RequestMetadata]]:
+    """Return request metadata grouped by category in catalog order."""
+    grouped: dict[str, list[request_catalog.RequestMetadata]] = {}
+    for metadata in requests:
+        grouped.setdefault(metadata.category, []).append(metadata)
+    return grouped
+
+
+def _format_legacy_names(legacy_names: tuple[str, ...]) -> str:
+    """Format legacy request names for user-facing output."""
+    if not legacy_names:
+        return "none"
+    return ", ".join(legacy_names)
+
+
+def _format_catalog_list(
+    requests: tuple[request_catalog.RequestMetadata, ...],
+) -> str:
+    """Format cataloged requests grouped by category."""
+    lines: list[str] = []
+    for category, category_requests in _group_requests_by_category(requests).items():
+        lines.append(f"{category}:")
+        for metadata in category_requests:
+            lines.append(f"  {metadata.canonical_name:<48} {metadata.description}")
+        lines.append("")
+    return "\n".join(lines).rstrip()
+
+
+def _format_catalog_description(
+    metadata: request_catalog.RequestMetadata,
+    *,
+    requested_name: str,
+) -> str:
+    """Format detailed metadata for one cataloged request."""
+    lines = [
+        f"canonical name: {metadata.canonical_name}",
+        f"category: {metadata.category}",
+        f"description: {metadata.description}",
+        f"legacy names: {_format_legacy_names(metadata.legacy_names)}",
+        f"template: request/{metadata.template_name}.md",
+        f"implementation: {metadata.implementation_target}",
+        "usage: lrh request " + metadata.canonical_name + " [options]",
+    ]
+    if requested_name != metadata.canonical_name:
+        lines.append(f"resolved from: {requested_name}")
+    return "\n".join(lines)
+
+
+def run_catalog_cli(
+    argv: list[str],
+    *,
+    prog: str,
+) -> int:
+    """Run request-catalog discoverability subcommands."""
+    parser = build_request_catalog_parser(prog=prog)
+    try:
+        args = parser.parse_args(argv)
+    except SystemExit as error:
+        return int(error.code) if isinstance(error.code, int) else 2
+
+    if args.catalog_command is None:
+        print(
+            "error: request catalog requires a subcommand (try: list or describe)",
+            file=sys.stderr,
+        )
+        return 2
+
+    if args.catalog_command == "list":
+        requests = request_catalog.all_requests()
+        if args.category:
+            requests = tuple(
+                metadata for metadata in requests if metadata.category == args.category
+            )
+            if not requests:
+                print(
+                    f"error: unknown request category: {args.category}",
+                    file=sys.stderr,
+                )
+                return 2
+        output = _format_catalog_list(requests)
+        if output:
+            print(output)
+        return 0
+
+    metadata = request_catalog.resolve(args.request_name)
+    if metadata is None:
+        print(f"error: unknown request name: {args.request_name}", file=sys.stderr)
+        return 2
+    print(_format_catalog_description(metadata, requested_name=args.request_name))
+    return 0
 
 
 def build_templates_parser(
@@ -345,6 +469,12 @@ def run_request_cli(
     prog: str,
 ) -> int:
     """Parse args and render a request."""
+    if argv and argv[0] in {"list", "describe"}:
+        return run_catalog_cli(
+            argv,
+            prog=prog,
+        )
+
     if argv and argv[0] == "templates":
         return run_templates_cli(
             argv[1:],

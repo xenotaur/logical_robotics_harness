@@ -29,6 +29,8 @@ class PlanningArtifact:
     related_design: tuple[str, ...] = ()
     dependencies: tuple[str, ...] = ()
     blockers: tuple[str, ...] = ()
+    blocked: bool = False
+    blocked_reason: str | None = None
     evidence: tuple[str, ...] = ()
     is_active_leaf: bool = False
 
@@ -251,6 +253,8 @@ def _planning_artifact(
             related_design=tuple(sorted(related_design)),
             dependencies=tuple(sorted(artifact.depends_on)),
             blockers=tuple(sorted(artifact.blocked_by)),
+            blocked=_frontmatter_bool(artifact.frontmatter, "blocked"),
+            blocked_reason=_frontmatter_str(artifact.frontmatter, "blocked_reason"),
             evidence=tuple(sorted(artifact.required_evidence)),
         )
     return PlanningArtifact(
@@ -264,6 +268,20 @@ def _planning_artifact(
         related_design=tuple(sorted(related_design)),
         evidence=tuple(sorted(artifact.evidence)),
     )
+
+
+def _frontmatter_bool(frontmatter: dict[str, object], field: str) -> bool:
+    value = frontmatter.get(field)
+    if isinstance(value, bool):
+        return value
+    return False
+
+
+def _frontmatter_str(frontmatter: dict[str, object], field: str) -> str | None:
+    value = frontmatter.get(field)
+    if isinstance(value, str) and value:
+        return value
+    return None
 
 
 def _collect_workstream_relationships(

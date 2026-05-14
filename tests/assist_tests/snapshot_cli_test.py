@@ -239,6 +239,13 @@ class TestSnapshotCliWorkstreams(unittest.TestCase):
             self.assertIn("Workstreams:\n  proposed: 0\n  active: 0", output)
             self.assertIn("  resolved: 0", output)
             self.assertIn("  abandoned: 0", output)
+            self.assertIn("Planning relationship index:", output)
+            self.assertIn(
+                "  mode: observability only; no execution or scheduling authority",
+                output,
+            )
+            self.assertIn("  relationships: 0", output)
+            self.assertIn("  active_leaves:\n    none", output)
             self.assertNotIn("Active workstreams:", output)
 
     def test_workstream_summary_counts_statuses_and_lists_active(self) -> None:
@@ -290,6 +297,128 @@ class TestSnapshotCliWorkstreams(unittest.TestCase):
             self.assertIn("    status: active", output)
             self.assertIn("    children: 1", output)
             self.assertIn("    work_items: 1", output)
+            self.assertIn("Planning relationship index:", output)
+            self.assertIn("  relationships: 1", output)
+            self.assertIn("    work_item: active: 1", output)
+            self.assertIn(
+                "    workstream: abandoned: 1, active: 1, proposed: 1, resolved: 1",
+                output,
+            )
+            self.assertIn("    - WI-CHILD (unblocked by planning metadata)", output)
+            self.assertIn("    - WS-ACTIVE: WI-CHILD", output)
+
+    def test_workstream_summary_lists_active_workstreams_deterministically(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_workstream(
+                project_dir,
+                "active",
+                "WS-BETA",
+                "Beta Workstream",
+                "active",
+                "executing",
+            )
+            _write_workstream(
+                project_dir,
+                "active",
+                "WS-ALPHA",
+                "Alpha Workstream",
+                "active",
+                "executing",
+            )
+
+            output = snapshot_cli.summarize_workstreams(project_dir)
+
+            self.assertLess(
+                output.index("  WS-ALPHA — Alpha Workstream"),
+                output.index("  WS-BETA — Beta Workstream"),
+            )
+
+    def test_snapshot_work_item_loader_preserves_inline_list_metadata(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_work_item(
+                project_dir,
+                "WI-INLINE",
+                blocked_by=["WI-DEP"],
+                inline_blocked_by=True,
+                related_workstreams=["WS-A"],
+                inline_related_workstreams=True,
+            )
+
+            (work_item,) = snapshot_cli._load_snapshot_work_items(project_dir)
+
+            self.assertEqual(work_item.blocked_by, ("WI-DEP",))
+            self.assertEqual(work_item.related_workstreams, ("WS-A",))
+
+    def test_workstream_summary_reports_inline_blocker_active_leaf_hint(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_work_item(
+                project_dir,
+                "WI-BLOCKED",
+                blocked_by=["WI-DEP"],
+                inline_blocked_by=True,
+            )
+            _write_workstream(
+                project_dir,
+                "active",
+                "WS-ACTIVE",
+                "Active Workstream",
+                "active",
+                "executing",
+                work_items=["WI-BLOCKED"],
+            )
+
+            output = snapshot_cli.summarize_workstreams(project_dir)
+
+            self.assertIn("  active_leaves:", output)
+            self.assertIn("    - WI-BLOCKED (blocked by WI-DEP)", output)
+
+    def test_workstream_summary_reports_blocked_state_active_leaf_hint(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_work_item(
+                project_dir,
+                "WI-BLOCKED",
+                blocked=True,
+                blocked_reason="Waiting for dependency",
+            )
+            _write_workstream(
+                project_dir,
+                "active",
+                "WS-ACTIVE",
+                "Active Workstream",
+                "active",
+                "executing",
+                work_items=["WI-BLOCKED"],
+            )
+
+            output = snapshot_cli.summarize_workstreams(project_dir)
+
+            self.assertIn("  active_leaves:", output)
+            self.assertIn("    - WI-BLOCKED (blocked: Waiting for dependency)", output)
+
+    def test_workstream_summary_surfaces_planning_relationship_warnings(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_work_item(project_dir, "WI-ORPHAN")
+
+            output = snapshot_cli.summarize_workstreams(project_dir)
+
+            self.assertIn("  planning_diagnostics: errors: 0, warnings: 1", output)
+            self.assertIn("Warnings:", output)
+            self.assertIn("PLANNING_ORPHANED_ACTIVE_WORK_ITEM", output)
 
     def test_workstream_summary_ignores_readme_and_placeholder_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -425,7 +554,17 @@ def _write_workstream(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
-def _write_work_item(project_dir: Path, work_item_id: str) -> None:
+def _write_work_item(
+    project_dir: Path,
+    work_item_id: str,
+    *,
+    blocked: bool = False,
+    blocked_reason: str | None = None,
+    blocked_by: list[str] | None = None,
+    inline_blocked_by: bool = False,
+    related_workstreams: list[str] | None = None,
+    inline_related_workstreams: bool = False,
+) -> None:
     path = project_dir / "work_items" / "active" / f"{work_item_id}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -436,9 +575,21 @@ def _write_work_item(project_dir: Path, work_item_id: str) -> None:
                 f"title: {work_item_id} Work Item",
                 "type: deliverable",
                 "status: active",
-                "blocked: false",
-                "blocked_reason: null",
+                f"blocked: {str(blocked).lower()}",
+                (
+                    f"blocked_reason: {blocked_reason}"
+                    if blocked_reason is not None
+                    else "blocked_reason: null"
+                ),
                 "resolution: null",
+                *_frontmatter_list_lines(
+                    "blocked_by", blocked_by, inline=inline_blocked_by
+                ),
+                *_frontmatter_list_lines(
+                    "related_workstreams",
+                    related_workstreams,
+                    inline=inline_related_workstreams,
+                ),
                 "---",
                 "",
                 f"# {work_item_id} Work Item",
@@ -447,6 +598,19 @@ def _write_work_item(project_dir: Path, work_item_id: str) -> None:
         ),
         encoding="utf-8",
     )
+
+
+def _frontmatter_list_lines(
+    field: str,
+    values: list[str] | None,
+    *,
+    inline: bool = False,
+) -> list[str]:
+    if not values:
+        return []
+    if inline:
+        return [f"{field}: [{', '.join(values)}]"]
+    return [f"{field}:", *(f"  - {value}" for value in values)]
 
 
 def _write_design_proposal(

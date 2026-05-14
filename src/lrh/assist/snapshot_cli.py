@@ -9,6 +9,7 @@ import sys
 from lrh import version as lrh_version
 from lrh.control import loader as control_loader
 from lrh.control import models as control_models
+from lrh.control import parser as control_parser
 from lrh.control import planning_tree as control_planning_tree
 
 
@@ -154,6 +155,8 @@ def summarize_workstreams(project_dir: pathlib.Path) -> str:
         for workstream in active_workstreams:
             lines.extend(_format_active_workstream(workstream, relationship_index))
 
+    lines.extend(["", *_format_planning_relationship_summary(relationship_index)])
+
     warnings = sorted(
         dict.fromkeys(
             (
@@ -177,7 +180,11 @@ def _load_snapshot_work_items(
         text = read_text_if_exists(path)
         if text is None:
             continue
-        frontmatter, body = parse_frontmatter(text)
+        try:
+            parsed = control_parser.parse_markdown_text(text)
+        except ValueError:
+            continue
+        frontmatter = parsed.frontmatter
         work_item_id = frontmatter.get("id")
         title = frontmatter.get("title")
         item_type = frontmatter.get("type")
@@ -196,7 +203,21 @@ def _load_snapshot_work_items(
                 priority=_optional_frontmatter_str(frontmatter, "priority"),
                 owner=_optional_frontmatter_str(frontmatter, "owner"),
                 parent_id=_optional_frontmatter_str(frontmatter, "parent_id"),
-                body=body,
+                related_focus=_frontmatter_str_list(frontmatter, "related_focus"),
+                related_roadmap=_frontmatter_str_list(frontmatter, "related_roadmap"),
+                related_workstreams=_frontmatter_str_list(
+                    frontmatter, "related_workstreams"
+                ),
+                related_design=_frontmatter_str_list(frontmatter, "related_design"),
+                depends_on=_frontmatter_str_list(frontmatter, "depends_on"),
+                blocked_by=_frontmatter_str_list(frontmatter, "blocked_by"),
+                required_evidence=_frontmatter_str_list(
+                    frontmatter, "required_evidence"
+                ),
+                artifacts_expected=_frontmatter_str_list(
+                    frontmatter, "artifacts_expected"
+                ),
+                body=parsed.body,
                 frontmatter=frontmatter,
             )
         )
@@ -211,6 +232,16 @@ def _optional_frontmatter_str(
     if isinstance(value, str):
         return value
     return None
+
+
+def _frontmatter_str_list(
+    frontmatter: dict[str, object],
+    field: str,
+) -> tuple[str, ...]:
+    value = frontmatter.get(field)
+    if not isinstance(value, list):
+        return ()
+    return tuple(sorted(item for item in value if isinstance(item, str)))
 
 
 def _format_active_workstream(
@@ -231,6 +262,97 @@ def _format_active_workstream(
         )
         lines.append(f"    children: {len(children)}")
         lines.append(f"    work_items: {work_item_count}")
+    return lines
+
+
+def _format_planning_relationship_summary(
+    relationship_index: control_planning_tree.PlanningTreeIndex,
+) -> list[str]:
+    lines = [
+        "Planning relationship index:",
+        "  mode: observability only; no execution or scheduling authority",
+        f"  relationships: {len(relationship_index.relationships)}",
+        f"  root_workstreams: {len(relationship_index.roots())}",
+    ]
+
+    lines.append("  artifact_status_counts:")
+    status_counts = relationship_index.status_counts_by_kind()
+    if status_counts:
+        for kind, counts in status_counts.items():
+            count_text = ", ".join(
+                f"{status}: {count}" for status, count in counts.items()
+            )
+            lines.append(f"    {kind}: {count_text}")
+    else:
+        lines.append("    none")
+
+    active_leaf_ids = relationship_index.active_leaf_ids()
+    lines.append("  active_leaves:")
+    if active_leaf_ids:
+        for leaf_id in active_leaf_ids:
+            artifact = relationship_index.artifacts_by_id[leaf_id]
+            readiness = _active_leaf_readiness_hint(artifact)
+            lines.append(f"    - {leaf_id} ({readiness})")
+    else:
+        lines.append("    none")
+
+    lines.append("  workstream_to_work_item:")
+    relationship_lines = _workstream_to_work_item_lines(relationship_index)
+    if relationship_lines:
+        lines.extend(relationship_lines)
+    else:
+        lines.append("    none")
+
+    if relationship_index.diagnostics:
+        error_count = sum(
+            1
+            for diagnostic in relationship_index.diagnostics
+            if diagnostic.severity == "error"
+        )
+        warning_count = sum(
+            1
+            for diagnostic in relationship_index.diagnostics
+            if diagnostic.severity == "warning"
+        )
+        lines.append(
+            f"  planning_diagnostics: errors: {error_count}, warnings: {warning_count}"
+        )
+    else:
+        lines.append("  planning_diagnostics: none")
+
+    return lines
+
+
+def _active_leaf_readiness_hint(
+    artifact: control_planning_tree.PlanningArtifact,
+) -> str:
+    if artifact.blocked:
+        if artifact.blocked_reason:
+            return f"blocked: {artifact.blocked_reason}"
+        return "blocked"
+    if artifact.blockers:
+        return f"blocked by {', '.join(artifact.blockers)}"
+    return "unblocked by planning metadata"
+
+
+def _workstream_to_work_item_lines(
+    relationship_index: control_planning_tree.PlanningTreeIndex,
+) -> list[str]:
+    lines: list[str] = []
+    for workstream_id in sorted(relationship_index.artifacts_by_id):
+        artifact = relationship_index.artifacts_by_id[workstream_id]
+        if artifact.kind != control_planning_tree.ARTIFACT_WORKSTREAM:
+            continue
+        direct_work_items = tuple(
+            child_id
+            for child_id in relationship_index.children_of(workstream_id)
+            if relationship_index.artifacts_by_id[child_id].kind
+            == control_planning_tree.ARTIFACT_WORK_ITEM
+        )
+        if direct_work_items:
+            lines.append(
+                f"    - {workstream_id}: {', '.join(sorted(direct_work_items))}"
+            )
     return lines
 
 

@@ -107,7 +107,9 @@ conceived | assessed | designed | planned | executing | reviewing | closed | aba
 `lrh validate` checks this minimal vocabulary and the required frontmatter fields. It does not yet
 enforce hard status/stage combination rules; those remain documentation-level guidance for the MVP
 so users are not surprised by over-strict lifecycle checks. `lrh snapshot project` now includes a
-read-only workstream summary with status counts and active-workstream details. `lrh workstreams
+read-only workstream summary with status counts, active-workstream details, planning relationship
+counts, active-leaf readiness hints from planning metadata, and planning diagnostics. Snapshot output
+is observability-only; it does not schedule work or grant execution authority. `lrh workstreams
 organize` can explicitly repair status-bucket drift without changing metadata.
 
 ## Large-work lifecycle

@@ -4,5 +4,5 @@ This directory contains human-facing guides for LRH maintainers and for people a
 
 ## Guides
 
-- [Release playbook](release.md) — maintainer release, TestPyPI, PyPI, and tag-push validation guidance.
+- [Release runbook](release.md) — maintainer release, TestPyPI, PyPI, and tag-push validation guidance.
 - [Project setup playbooks](project-setup/README.md) — reusable setup and hardening guidance for heterogeneous project repositories.

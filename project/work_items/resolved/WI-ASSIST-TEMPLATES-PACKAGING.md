@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: package-owned assist templates, package-resource loading, package-data configuration, docs, and tests are present; resolved as stale proposed item after deterministic lifecycle audit.
 blocked_reason: null
 blocked: false
 id: WI-ASSIST-TEMPLATES-PACKAGING
 title: Move assist templates into package-owned runtime location
 type: deliverable
-status: proposed
+status: resolved
 priority: high
 owner: anthony
 contributors:
@@ -109,3 +109,16 @@ For the future implementation PR, validate with existing repository commands:
 ## Notes
 
 This item is intentionally migration-only and sequencing-sensitive. It should remain a mechanical packaging/runtime-location change, not a template redesign.
+
+
+## Lifecycle Audit Resolution Evidence
+
+Resolved by the work-item lifecycle audit MVP as a high-confidence stale proposed item. Repository evidence shows:
+
+- package-owned request templates exist under `src/lrh/assist/templates/request/`
+- `src/lrh/assist/request_templates.py` loads templates through package-resource semantics
+- `pyproject.toml` includes `lrh.assist` template package data
+- assist documentation describes package-owned template loading
+- request-template tests cover package-resource loading behavior
+
+No residual acceptance criteria were identified for this migration-only item during the deterministic audit pass. Installability-hardening remains tracked separately by `WI-ASSIST-INSTALLABILITY-HARDENING`.

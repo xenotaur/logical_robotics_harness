@@ -61,6 +61,11 @@ lrh request templates --template-dir /path/to/templates where request/review_res
 the single selected source for a logical template name, distinguishing filesystem
 overrides from package fallback.
 
+
+### Semantic work-item audit template
+
+`request/work_item_semantic_audit.md` is the conservative companion template for `lrh work-items audit`. The audit command reports deterministic lifecycle and traceability facts; the template asks a reviewer to compare those facts with work-item acceptance criteria, cite concrete repository evidence, and avoid optimistic closure when evidence is incomplete. Use it before resolving, abandoning, superseding, or splitting ambiguous proposed work items.
+
 ## Command Line Usage
 
 ### Preferred usage

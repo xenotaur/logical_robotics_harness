@@ -6,10 +6,19 @@ import dataclasses
 import json
 import pathlib
 import re
+from typing import Any
 
 from lrh.control import parser as control_parser
 
 _ALLOWED_STATUSES = ("proposed", "active", "resolved", "abandoned")
+_REFERENCE_FIELDS_TO_DIRS = {
+    "related_roadmap": ("roadmap",),
+    "related_focus": ("focus",),
+    "related_workstream": ("workstreams",),
+    "related_workstreams": ("workstreams",),
+    "related_design": ("design",),
+}
+_DEPENDENCY_FIELDS = ("depends_on", "blocked_by")
 _WORK_ITEM_ID_PATTERN = re.compile(r"^WI-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*$")
 _WORK_ITEM_H1_ID_PATTERN = re.compile(
     r"^#\s*(WI-[A-Za-z0-9_]+(?:-[A-Za-z0-9_]+)*)(?:\s|:|$)"
@@ -52,6 +61,7 @@ def validate_work_items(project_root: pathlib.Path) -> WorkItemValidationResult:
 
     diagnostics: list[WorkItemDiagnostic] = []
     ids_to_paths: dict[str, list[pathlib.Path]] = {}
+    records_by_id: dict[str, tuple[pathlib.Path, dict[str, Any]]] = {}
     for path in discover_work_item_paths(work_items_root):
         rel = path.relative_to(project_root).as_posix()
         bucket = _bucket_for(path=path, work_items_root=work_items_root)
@@ -156,6 +166,9 @@ def validate_work_items(project_root: pathlib.Path) -> WorkItemValidationResult:
             )
         else:
             ids_to_paths.setdefault(fm_id, []).append(path)
+            parsed_frontmatter = _parse_frontmatter(path)
+            if parsed_frontmatter is not None:
+                records_by_id[fm_id] = (path, parsed_frontmatter)
 
         if record["has_frontmatter"] and record["frontmatter_status"] is None:
             diagnostics.append(
@@ -212,6 +225,8 @@ def validate_work_items(project_root: pathlib.Path) -> WorkItemValidationResult:
                     "H1 work item ID does not match frontmatter id.",
                 )
             )
+
+    diagnostics.extend(_validate_metadata_references(project_root, records_by_id))
 
     for wi, wi_paths in sorted(ids_to_paths.items()):
         if len(wi_paths) <= 1:
@@ -341,3 +356,151 @@ def _bucket_for(path: pathlib.Path, work_items_root: pathlib.Path) -> str | None
     if first in _ALLOWED_STATUSES:
         return first
     return "unknown"
+
+
+def _validate_metadata_references(
+    project_root: pathlib.Path,
+    records_by_id: dict[str, tuple[pathlib.Path, dict[str, Any]]],
+) -> list[WorkItemDiagnostic]:
+    diagnostics: list[WorkItemDiagnostic] = []
+    known_work_item_ids = set(records_by_id)
+    artifact_ids = _artifact_ids_by_directory(project_root)
+
+    dependency_graph: dict[str, tuple[str, ...]] = {}
+    for work_item_id, (path, frontmatter) in sorted(records_by_id.items()):
+        rel = path.relative_to(project_root).as_posix()
+        dependencies: list[str] = []
+        for field in _DEPENDENCY_FIELDS:
+            for target in _metadata_values(frontmatter.get(field)):
+                if not _looks_like_work_item_id(target):
+                    diagnostics.append(
+                        WorkItemDiagnostic(
+                            "warning",
+                            "unstructured-work-item-reference",
+                            rel,
+                            (
+                                f"Metadata field '{field}' contains non-WI "
+                                f"reference {target!r}."
+                            ),
+                        )
+                    )
+                    continue
+                dependencies.append(target)
+                if target not in known_work_item_ids:
+                    diagnostics.append(
+                        WorkItemDiagnostic(
+                            "error",
+                            "missing-work-item-reference",
+                            rel,
+                            (
+                                f"Metadata field '{field}' references unknown "
+                                f"work item {target}."
+                            ),
+                        )
+                    )
+
+        dependency_graph[work_item_id] = tuple(dependencies)
+
+        for field, directories in _REFERENCE_FIELDS_TO_DIRS.items():
+            allowed_ids = set().union(
+                *(artifact_ids.get(name, set()) for name in directories)
+            )
+            for target in _metadata_values(frontmatter.get(field)):
+                if target not in allowed_ids:
+                    diagnostics.append(
+                        WorkItemDiagnostic(
+                            "warning",
+                            "unresolved-metadata-reference",
+                            rel,
+                            (
+                                f"Metadata field '{field}' references unresolved "
+                                f"artifact {target}."
+                            ),
+                        )
+                    )
+
+    for cycle in _dependency_cycles(dependency_graph):
+        if not cycle:
+            continue
+        cycle_text = " -> ".join((*cycle, cycle[0]))
+        first = cycle[0]
+        path = records_by_id[first][0].relative_to(project_root).as_posix()
+        diagnostics.append(
+            WorkItemDiagnostic(
+                "error",
+                "work-item-dependency-cycle",
+                path,
+                f"Work-item dependency cycle detected: {cycle_text}.",
+            )
+        )
+
+    return diagnostics
+
+
+def _artifact_ids_by_directory(project_root: pathlib.Path) -> dict[str, set[str]]:
+    project_dir = project_root / "project"
+    result: dict[str, set[str]] = {}
+    for directory in _REFERENCE_FIELDS_TO_DIRS.values():
+        for directory_name in directory:
+            if directory_name in result:
+                continue
+            root = project_dir / directory_name
+            ids: set[str] = set()
+            if root.exists():
+                for path in sorted(root.glob("**/*.md")):
+                    if not path.is_file() or path.name.lower() == "readme.md":
+                        continue
+                    ids.add(path.stem)
+                    ids.add(path.relative_to(project_root).as_posix())
+                    ids.add(path.relative_to(project_dir).as_posix())
+                    parsed = _parse_frontmatter(path)
+                    if parsed is None:
+                        continue
+                    value = parsed.get("id")
+                    if isinstance(value, str) and value.strip():
+                        ids.add(value.strip())
+            result[directory_name] = ids
+    return result
+
+
+def _parse_frontmatter(path: pathlib.Path) -> dict[str, Any] | None:
+    try:
+        return control_parser.parse_markdown_file(path).frontmatter
+    except (OSError, UnicodeDecodeError, ValueError):
+        return None
+
+
+def _metadata_values(value: Any) -> tuple[str, ...]:
+    if isinstance(value, str):
+        stripped = value.strip()
+        return (stripped,) if stripped else ()
+    if isinstance(value, list):
+        return tuple(
+            item.strip() for item in value if isinstance(item, str) and item.strip()
+        )
+    return ()
+
+
+def _dependency_cycles(graph: dict[str, tuple[str, ...]]) -> list[tuple[str, ...]]:
+    cycles: list[tuple[str, ...]] = []
+    visited: set[str] = set()
+    visiting: list[str] = []
+
+    def visit(node: str) -> None:
+        if node in visiting:
+            cycle = tuple(visiting[visiting.index(node) :])
+            if cycle not in cycles:
+                cycles.append(cycle)
+            return
+        if node in visited:
+            return
+        visiting.append(node)
+        for target in graph.get(node, ()):  # missing targets are validated separately
+            if target in graph:
+                visit(target)
+        visiting.pop()
+        visited.add(node)
+
+    for node in sorted(graph):
+        visit(node)
+    return cycles

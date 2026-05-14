@@ -436,7 +436,7 @@ lrh request codex_prompt_from_work_item \
 
 ### 5) `assess-continuous-integration-status`
 
-**Purpose**: Produce a read-only CI feasibility assessment before migration.
+**Purpose**: Produce a read-only CI feasibility assessment before migration, applying the CI setup playbook at `docs/project-setup/ci.md`.
 
 **Inputs**:
 
@@ -452,7 +452,7 @@ lrh request assess-continuous-integration-status \
 
 ### 6) `implement-continuous-integration-workflow`
 
-**Purpose**: Produce an assessment-gated implementation request for CI migration.
+**Purpose**: Produce an assessment-gated implementation request for CI migration, applying the CI setup playbook at `docs/project-setup/ci.md`.
 
 **Inputs**:
 

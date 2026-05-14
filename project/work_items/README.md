@@ -123,3 +123,10 @@ Follow-on planning items cover safe-default `lrh serve`, branch containment, rea
 observation, and bounded stabilization-loop design. Do not plan branch mutation, agent backends,
 autonomous stabilization, or merge/publish automation before shared planning interpretation,
 readiness, packet, and report contracts exist.
+
+## CI capability scaffolding seeds
+
+`project/workstreams/WS-CI-CAPABILITY-SCAFFOLDING.md` proposes four concise future work-item seeds
+without creating executable leaves in this PR: `WI-CI-PLAYBOOK`, `WI-CI-REQUEST-TEMPLATES`,
+`WI-CI-SKILL-PROTOTYPE`, and `WI-CI-TEMPLATE-FRAGMENTS-ASSESSMENT`. Create those work items only
+when the corresponding phase is ready to execute.

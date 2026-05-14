@@ -185,3 +185,11 @@ readiness, dry-run run packets, and run reports. Shared state, planning relation
 snapshot-visible summaries are prerequisites to verify separately; safe-default `lrh serve`, branch
 mutation, agent backends, autonomous stabilization, and merge/publish automation remain deferred
 until those contracts are stable.
+
+## Current CI capability scaffolding workstream
+
+`WS-CI-CAPABILITY-SCAFFOLDING.md` is a proposed design/control-plane workstream for turning LRH's
+CI and toolchain reconciliation lessons into reusable CI setup, assessment, and implementation
+capability. Its initial phases are a human playbook, CI request-template refresh, later CI Agent Skill
+prototype design, and template/fragments reassessment after dogfooding.
+

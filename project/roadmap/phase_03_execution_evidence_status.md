@@ -63,6 +63,14 @@ package.
 6. Backend adapter abstraction.
 7. Manual/assisted/bounded-auto mode progression.
 
+### Adjacent reusable capability work
+
+The CI capability scaffolding proposal (`project/design/proposals/ci-capability-scaffolding.md`)
+and workstream (`project/workstreams/WS-CI-CAPABILITY-SCAFFOLDING.md`) are adjacent to Phase 3
+evidence and stabilization planning. They keep CI setup, assessment, implementation, debugging, and
+hardening guidance staged as a playbook and prompt/skill follow-up rather than a one-size-fits-all
+workflow template.
+
 ## First execution-contract implementation package
 
 The first execution-framework implementation package should stay contract-first and dry-run-first:

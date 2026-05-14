@@ -2,10 +2,10 @@
 execution_id: 2026_05_14_05_39_58_CI_CAPABILITY_CONTROL_PLANE_STABILIZATION
 prompt_id: PROMPT(AD_HOC:CI_CAPABILITY_CONTROL_PLANE_STABILIZATION)[2026-05-14T00:10:00-04:00]
 work_item: AD_HOC
-status: landed
-rerun_of: null
-pr: null
-commit: null
+status: in_progress
+rerun_of:
+pr: xenotaur/logical_robotics_harness#232
+commit:
 created_at: 2026-05-14T05:39:58+00:00
 ---
 

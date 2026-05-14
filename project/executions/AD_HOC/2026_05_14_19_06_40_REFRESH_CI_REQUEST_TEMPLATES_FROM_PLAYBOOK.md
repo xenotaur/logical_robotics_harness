@@ -2,10 +2,10 @@
 execution_id: 2026_05_14_19_06_40_REFRESH_CI_REQUEST_TEMPLATES_FROM_PLAYBOOK
 prompt_id: PROMPT(WI-CI-REQUEST-TEMPLATES:REFRESH_CI_REQUEST_TEMPLATES_FROM_PLAYBOOK)[2026-05-14T00:20:00-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: "#236"
+commit: 57380d2
 created_at: 2026-05-14T19:06:40+00:00
 ---
 
@@ -37,4 +37,4 @@ Refreshed LRH's CI assessment and implementation request templates so generated 
 
 # Follow-up
 
-Keep this record `in_progress` while the PR is open; update it with merge metadata and mark it `landed` only after the work has landed. Consider adding a dedicated `WI-CI-REQUEST-TEMPLATES` work-item file if this CI request-template refresh line of work should be tracked outside the current AD_HOC execution record.
+This execution has landed via PR #236 at merge commit `57380d2`. Consider adding a dedicated `WI-CI-REQUEST-TEMPLATES` work-item file if this CI request-template refresh line of work should be tracked outside the current AD_HOC execution record.

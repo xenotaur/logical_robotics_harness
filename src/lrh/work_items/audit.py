@@ -57,15 +57,12 @@ class WorkItemAuditReport:
             "validation_errors": self.validation_result.errors,
             "validation_warnings": self.validation_result.warnings,
             "findings": 0,
-            "candidate_stale": 0,
             "missing_traceability": 0,
             "terminal_missing_resolution": 0,
         }
         for item in self.items:
             counts["findings"] += len(item.findings)
             for finding in item.findings:
-                if finding.code == "candidate-stale-semantic-review":
-                    counts["candidate_stale"] += 1
                 if finding.code == "missing-traceability-links":
                     counts["missing_traceability"] += 1
                 if finding.code == "terminal-missing-resolution":
@@ -152,10 +149,6 @@ def format_markdown(report: WorkItemAuditReport) -> str:
             f"{summary['validation_warnings']} warning(s)"
         ),
         f"- Lifecycle findings: {summary['findings']}",
-        (
-            "- Candidate stale items requiring semantic review: "
-            f"{summary['candidate_stale']}"
-        ),
         f"- Items missing traceability links: {summary['missing_traceability']}",
         "",
         "## Deterministic validation diagnostics",
@@ -265,48 +258,7 @@ def _findings_for_item(
             )
         )
 
-    if work_item_id == "WI-ASSIST-TEMPLATES-PACKAGING" and status == "proposed":
-        stale_finding = _assist_template_packaging_finding(project_root)
-        if stale_finding is not None:
-            findings.append(stale_finding)
-
     return findings
-
-
-def _assist_template_packaging_finding(
-    project_root: pathlib.Path,
-) -> WorkItemAuditFinding | None:
-    facts: list[str] = []
-    template_dir = project_root / "src" / "lrh" / "assist" / "templates" / "request"
-    loader = project_root / "src" / "lrh" / "assist" / "request_templates.py"
-    pyproject = project_root / "pyproject.toml"
-    tests = project_root / "tests" / "assist_tests" / "request_templates_test.py"
-
-    if template_dir.is_dir():
-        facts.append("src/lrh/assist/templates/request/ exists")
-    if loader.is_file() and "importlib.resources" in loader.read_text(encoding="utf-8"):
-        facts.append("src/lrh/assist/request_templates.py uses package resources")
-    if pyproject.is_file() and "lrh.assist" in pyproject.read_text(encoding="utf-8"):
-        facts.append("pyproject.toml includes lrh.assist package data")
-    if tests.is_file() and "package_resources" in tests.read_text(encoding="utf-8"):
-        facts.append("tests cover package-resource template loading")
-
-    if len(facts) < 3:
-        return None
-    return WorkItemAuditFinding(
-        code="candidate-stale-semantic-review",
-        severity="warning",
-        kind="recommendation",
-        message=(
-            "Repository facts indicate the assist-template packaging capability may "
-            "already be present."
-        ),
-        evidence=tuple(facts),
-        recommendation=(
-            "Review acceptance criteria against the cited facts; if satisfied, move "
-            "the work item to resolved with resolution evidence."
-        ),
-    )
 
 
 def _parse_frontmatter(path: pathlib.Path) -> dict[str, Any] | None:

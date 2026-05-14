@@ -76,40 +76,6 @@ class WorkItemAuditTest(unittest.TestCase):
             findings = {finding.code for finding in report.items[0].findings}
             self.assertIn("terminal-missing-resolution", findings)
 
-    def test_assist_template_packaging_candidate_uses_repository_facts(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            root = pathlib.Path(tmp)
-            self._write(
-                root,
-                "project/work_items/proposed/WI-ASSIST-TEMPLATES-PACKAGING.md",
-                (
-                    "---\n"
-                    "id: WI-ASSIST-TEMPLATES-PACKAGING\n"
-                    "status: proposed\n"
-                    "related_roadmap:\n"
-                    "  - ROADMAP-PHASE-02\n"
-                    "---\n"
-                    "# WI-ASSIST-TEMPLATES-PACKAGING\n"
-                ),
-            )
-            self._write(root, "src/lrh/assist/templates/request/example.md", "x\n")
-            self._write(
-                root,
-                "src/lrh/assist/request_templates.py",
-                "import importlib.resources\n",
-            )
-            self._write(root, "pyproject.toml", '"lrh.assist" = ["templates/*.md"]\n')
-            self._write(
-                root,
-                "tests/assist_tests/request_templates_test.py",
-                "def test_package_resources(): pass\n",
-            )
-
-            report = work_items_audit.audit_work_items(root)
-
-            finding_codes = {f.code for item in report.items for f in item.findings}
-            self.assertIn("candidate-stale-semantic-review", finding_codes)
-
     def _write(self, root: pathlib.Path, rel: str, text: str) -> None:
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)

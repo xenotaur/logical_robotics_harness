@@ -5,7 +5,9 @@ title: CI Capability Scaffolding
 status: proposed
 created_on: 2026-05-14
 updated_on: 2026-05-14
-implementation_status: not_started
+implementation_status: partial
+implemented_by:
+  - WI-CI-PLAYBOOK
 related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
 related_roadmap:
@@ -26,8 +28,9 @@ file. It is a staged set of project-control guidance, request-template behavior,
 support that helps different repository families assess, design, implement, debug, and harden CI
 without erasing repository-specific conventions.
 
-This proposal is design/control-plane alignment only. It does not implement a CI playbook, update CI
-request templates, add an Agent Skill, add CI templates, or modify repository workflows.
+This proposal began as design/control-plane alignment only. The first implementation phase now adds
+the human CI playbook at `docs/project-setup/ci.md`; request-template updates, Agent Skill design,
+CI templates, and repository workflow changes remain out of scope for that playbook PR.
 
 ## Problem statement
 
@@ -53,9 +56,10 @@ canonical scripts, setup model, validation expectations, and review process.
 
 ## Proposed staged approach
 
-1. **Human playbook** — add a concise CI setup and debugging playbook, likely
-   `docs/project-setup/ci.md`, that captures environment parity, setup/validation separation,
+1. **Human playbook** — add a concise CI setup and debugging playbook at
+   `docs/project-setup/ci.md` that captures environment parity, setup/validation separation,
    canonical-command use, tool-version guardrails, workflow YAML checks, and evidence expectations.
+   This phase is implemented by `WI-CI-PLAYBOOK`.
 2. **Request-template refresh** — update existing LRH CI request templates, including
    `src/lrh/assist/templates/request/ci_assess_status.md` and
    `src/lrh/assist/templates/request/ci_implement_workflow.md`, so CI assessment and implementation
@@ -122,17 +126,19 @@ requirements.
 
 The design can be considered effective when:
 
-- a usable human CI setup and debugging playbook exists;
+- a usable human CI setup and debugging playbook exists at `docs/project-setup/ci.md`;
 - CI assessment and implementation requests apply that playbook;
 - any CI Agent Skill prototype is designed only after playbook and prompt stabilization; and
 - reusable templates or fragments are reassessed based on dogfooding evidence rather than assumed up
   front.
 
-## Follow-up work seeds
+## Work items and follow-up seeds
+
+`WI-CI-PLAYBOOK` is the first implementation leaf and creates the human CI setup and debugging
+playbook at `docs/project-setup/ci.md`.
 
 Likely follow-up work items, if adopted, are:
 
-- `WI-CI-PLAYBOOK` — create the human CI setup and debugging playbook;
 - `WI-CI-REQUEST-TEMPLATES` — refresh CI request templates to apply the playbook;
 - `WI-CI-SKILL-PROTOTYPE` — design a CI setup/assessment Agent Skill prototype after prompt
   stabilization; and

@@ -245,7 +245,7 @@ When editing GitHub Actions workflows, run:
 scripts/check-workflows
 ```
 
-This validates workflow YAML syntax locally and is also run by Meta CI. Deeper GitHub Actions semantic linting (for example `actionlint`) is intentionally deferred.
+This validates workflow YAML syntax locally and is also run by Meta CI. Deeper GitHub Actions semantic linting (for example `actionlint`) is intentionally deferred. For reusable setup, debugging, and hardening guidance across heterogeneous repositories, see the [CI setup and debugging playbook](docs/project-setup/ci.md).
 
 ### Agent workflow rules
 

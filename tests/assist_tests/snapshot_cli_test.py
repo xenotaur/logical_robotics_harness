@@ -336,6 +336,25 @@ class TestSnapshotCliWorkstreams(unittest.TestCase):
                 output.index("  WS-BETA — Beta Workstream"),
             )
 
+    def test_snapshot_work_item_loader_preserves_inline_list_metadata(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            project_dir = _write_snapshot_project_scaffold(Path(tmp_dir))
+            _write_work_item(
+                project_dir,
+                "WI-INLINE",
+                blocked_by=["WI-DEP"],
+                inline_blocked_by=True,
+                related_workstreams=["WS-A"],
+                inline_related_workstreams=True,
+            )
+
+            (work_item,) = snapshot_cli._load_snapshot_work_items(project_dir)
+
+            self.assertEqual(work_item.blocked_by, ("WI-DEP",))
+            self.assertEqual(work_item.related_workstreams, ("WS-A",))
+
     def test_workstream_summary_reports_inline_blocker_active_leaf_hint(
         self,
     ) -> None:
@@ -543,6 +562,8 @@ def _write_work_item(
     blocked_reason: str | None = None,
     blocked_by: list[str] | None = None,
     inline_blocked_by: bool = False,
+    related_workstreams: list[str] | None = None,
+    inline_related_workstreams: bool = False,
 ) -> None:
     path = project_dir / "work_items" / "active" / f"{work_item_id}.md"
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -563,6 +584,11 @@ def _write_work_item(
                 "resolution: null",
                 *_frontmatter_list_lines(
                     "blocked_by", blocked_by, inline=inline_blocked_by
+                ),
+                *_frontmatter_list_lines(
+                    "related_workstreams",
+                    related_workstreams,
+                    inline=inline_related_workstreams,
                 ),
                 "---",
                 "",

@@ -22,14 +22,14 @@ Implemented a focused read-only snapshot extension for workstream lifecycle and 
 - `scripts/version tools` passed before task-phase validation; Pylint is not installed in this environment, matching existing tool-report behavior.
 - `scripts/format --check --diff` passed.
 - `scripts/lint` passed.
-- `scripts/test` passed; review response run passed 456 tests.
+- `scripts/test` passed; latest review response run passed 457 tests.
 - `lrh validate` passed with 0 errors and 3 existing planning warnings for orphaned active work items.
 - `lrh snapshot project --project-root . --stdout` passed and displayed the new planning relationship index section.
 - `lrh snapshot` was tried directly and failed with the expected CLI usage error because the snapshot command requires a scope argument.
 
 # Review response
 
-Addressed PR review feedback by using the canonical control parser for snapshot work-item metadata, preserving inline YAML lists such as `blocked_by: [WI-DEP]`, and surfacing documented `blocked` / `blocked_reason` state in active-leaf readiness hints. Re-ran canonical validation after the review changes.
+Addressed PR review feedback by using the canonical control parser for snapshot work-item metadata, preserving inline YAML lists such as `blocked_by: [WI-DEP]` and `related_workstreams: [WS-A]`, and surfacing documented `blocked` / `blocked_reason` state in active-leaf readiness hints. Re-ran canonical validation after the review changes.
 
 # Follow-up
 

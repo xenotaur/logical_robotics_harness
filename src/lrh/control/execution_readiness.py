@@ -250,7 +250,7 @@ def _validate_field_types(
                 )
             )
     for field in sorted(INTEGER_FIELDS):
-        if field in frontmatter and not isinstance(frontmatter[field], int):
+        if field in frontmatter and not _is_integer(frontmatter[field]):
             issues.append(
                 ExecutionReadinessIssue(
                     path=path,
@@ -310,7 +310,9 @@ def _validate_positive_integer(
     if field not in frontmatter:
         return
     value = frontmatter[field]
-    if isinstance(value, int) and value >= 1:
+    if not _is_integer(value):
+        return
+    if value >= 1:
         return
     issues.append(
         ExecutionReadinessIssue(
@@ -354,7 +356,7 @@ def _bool_value(frontmatter: dict[str, Any], field: str, *, default: bool) -> bo
 
 def _int_value(frontmatter: dict[str, Any], field: str) -> int | None:
     value = frontmatter.get(field)
-    if isinstance(value, int):
+    if _is_integer(value):
         return value
     return None
 
@@ -364,6 +366,10 @@ def _string_tuple(frontmatter: dict[str, Any], field: str) -> tuple[str, ...]:
     if not _is_string_list(value):
         return ()
     return tuple(value)
+
+
+def _is_integer(value: Any) -> bool:
+    return type(value) is int
 
 
 def _is_string_list(value: Any) -> bool:

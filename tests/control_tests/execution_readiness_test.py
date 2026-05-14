@@ -117,6 +117,39 @@ required_evidence:
         self.assertEqual(len(issues), 1)
         self.assertEqual(issues[0].code, "EXECUTION_READINESS_NOT_READY")
 
+    def test_boolean_round_limits_are_rejected_as_malformed_integers(self) -> None:
+        frontmatter = {
+            "execution_ready": True,
+            "autonomy_level": "manual",
+            "operation_risk": "read_only",
+            "allowed_paths": ["project/"],
+            "validation_commands": ["lrh validate"],
+            "required_evidence": ["manual_review"],
+            "max_review_rounds": True,
+            "max_ci_rounds": False,
+        }
+
+        issues = execution_readiness.validate_frontmatter(
+            Path("WI-READY.md"), frontmatter
+        )
+        readiness = execution_readiness.from_frontmatter(frontmatter)
+
+        self.assertEqual(
+            [(issue.code, issue.message) for issue in issues],
+            [
+                (
+                    "EXECUTION_READINESS_INTEGER_FIELD_INVALID",
+                    "max_ci_rounds must be an integer",
+                ),
+                (
+                    "EXECUTION_READINESS_INTEGER_FIELD_INVALID",
+                    "max_review_rounds must be an integer",
+                ),
+            ],
+        )
+        self.assertIsNone(readiness.max_review_rounds)
+        self.assertIsNone(readiness.max_ci_rounds)
+
     def test_human_gates_default_to_safe_values_in_representation(self) -> None:
         readiness = execution_readiness.from_frontmatter(
             {

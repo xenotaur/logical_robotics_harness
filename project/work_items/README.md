@@ -143,8 +143,8 @@ readiness, packet, and report contracts exist.
 
 ## CI capability scaffolding seeds
 
-`project/workstreams/proposed/WS-CI-CAPABILITY-SCAFFOLDING.md` proposes four concise future
-work-item seeds without creating executable leaves in this PR: `WI-CI-PLAYBOOK`,
-`WI-CI-REQUEST-TEMPLATES`,
-`WI-CI-SKILL-PROTOTYPE`, and `WI-CI-TEMPLATE-FRAGMENTS-ASSESSMENT`. Create those work items only
-when the corresponding phase is ready to execute.
+`project/workstreams/proposed/WS-CI-CAPABILITY-SCAFFOLDING.md` proposes concise staged
+work-item seeds. `WI-CI-PLAYBOOK` is now the active first implementation leaf for the human CI setup
+and debugging playbook. The remaining seeds, `WI-CI-REQUEST-TEMPLATES`,
+`WI-CI-SKILL-PROTOTYPE`, and `WI-CI-TEMPLATE-FRAGMENTS-ASSESSMENT`, should be created only when
+the corresponding phase is ready to execute.

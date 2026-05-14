@@ -14,8 +14,22 @@ class TestRequestCli(unittest.TestCase):
         parser = request_cli.build_parser(prog="lrh request")
         help_text = parser.format_help()
 
-        self.assertIn("ci_assess_status", help_text)
-        self.assertIn("ci_implement_workflow", help_text)
+        self.assertIn("assess-ci-status", help_text)
+        self.assertIn("implement-ci-workflow", help_text)
+
+    def test_canonical_request_name_uses_catalog_template_mapping(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["improve-coverage", "src/lrh/example.py"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("TARGET MODULE:", stdout.getvalue())
+        self.assertIn("src/lrh/example.py", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
 
     def test_template_dir_flag_uses_explicit_override(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

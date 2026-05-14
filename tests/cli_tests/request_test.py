@@ -27,6 +27,14 @@ class TestLrhRequestCli(unittest.TestCase):
         self.assertIn("--slug", result.stdout)
         self.assertIn("--out", result.stdout)
 
+    def test_lrh_request_canonical_improve_coverage(self) -> None:
+        result = self._run_lrh(
+            ["request", "improve-coverage", "src/lrh/analysis/llm_extractor.py"]
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("TARGET MODULE:", result.stdout)
+        self.assertIn("src/lrh/analysis/llm_extractor.py", result.stdout)
+
     def test_lrh_request_improve_coverage(self) -> None:
         result = self._run_lrh(
             ["request", "improve_coverage", "src/lrh/analysis/llm_extractor.py"]

@@ -76,13 +76,13 @@ Example after installation:
 ```bash
 pip install lrh
 cd /tmp
-lrh request improve_coverage src/lrh/analysis/llm_extractor.py
+lrh request improve-coverage src/lrh/analysis/llm_extractor.py
 ```
 
 Basic example:
 
 ```bash
-lrh request improve_coverage src/lrh/analysis/llm_extractor.py
+lrh request improve-coverage src/lrh/analysis/llm_extractor.py
 ```
 
 You can inspect supported options with:
@@ -140,11 +140,11 @@ harness:
 
 ```bash
 lrh request --help
-lrh request assessment --scope project
-lrh request assessment --scope current_focus
-lrh request assessment --scope work_item --target WI-0003
-lrh request ci_assess_status --background-text "Assess CI feasibility for this repository."
-lrh request ci_implement_workflow --background-file ci_assessment.md
+lrh request assess-repository --scope project
+lrh request assess-repository --scope current_focus
+lrh request assess-repository --scope work_item --target WI-0003
+lrh request assess-ci-status --background-text "Assess CI feasibility for this repository."
+lrh request implement-ci-workflow --background-file ci_assessment.md
 lrh snapshot --help
 lrh snapshot work_item WI-0003 --project-root .
 lrh survey --help
@@ -181,7 +181,7 @@ In this flow, we assume you already have:
 Render a work-item proposal request from the audit:
 
 ```bash
-lrh request work_items_from_audit \
+lrh request work-items-from-audit \
   --audit-file path/to/audit.md \
   --style-file STYLE.md > path/to/work_item_proposals_request.md
 ```
@@ -202,13 +202,13 @@ and approving work.
 Render an implementation prompt request for the selected work item:
 
 ```bash
-lrh request codex-prompt-from-work-item \
+lrh request prompt-from-work-item \
   --work-item project/work_items/active/WI-ASSIST-TEMPLATES-PACKAGING.md \
   --slug implement-wi-assist-templates-packaging \
   --out path/to/codex_prompt_request.md
 ```
 
-Equivalent explicit form:
+Equivalent explicit form using the compatibility template name:
 
 ```bash
 lrh request codex_prompt_from_work_item \
@@ -307,48 +307,70 @@ print(result)
 
 The package CLI (`lrh request ...`) is preferred for interactive use.
 
+## Request catalog and naming
+
+`lrh request` resolves names through the package request catalog in
+`src/lrh/assist/request_catalog.py`. Canonical user-facing request names are
+hyphenated and verb-oriented. Existing template-oriented names remain supported
+as compatibility aliases, so existing scripts can keep using names such as
+`improve_coverage`, `assessment`, and `codex-prompt-from-work-item`.
+
+Canonical mappings:
+
+| Canonical name | Compatibility aliases | Template target |
+| --- | --- | --- |
+| `prompt-from-work-item` | `codex-prompt-from-work-item`, `codex_prompt_from_work_item` | `codex_prompt_from_work_item` |
+| `review-pr-against-work-item` | `pr-against-work-item`, `pr_against_work_item` | `pr_against_work_item` |
+| `work-items-from-audit` | `work_items_from_audit` | `work_items_from_audit` |
+| `assess-repository` | `assessment` | `assessment` |
+| `bootstrap-project` | `bootstrap_project` | `bootstrap_project` |
+| `assess-ci-status` | `ci-assess-status`, `ci_assess_status` | `ci_assess_status` |
+| `implement-ci-workflow` | `ci-implement-workflow`, `ci_implement_workflow` | `ci_implement_workflow` |
+| `improve-coverage` | `improve_coverage` | `improve_coverage` |
+| `review-response` | `review_response` | `review_response` |
+
 ## Examples
 
-### 1) `improve_coverage`
+### 1) `improve-coverage`
 
 **Purpose**: Generate a tests-focused request for one module.
 
 **Inputs**:
 
-- `template_name`: `improve_coverage`
+- request name: `improve-coverage` (legacy: `improve_coverage`)
 - `target`: module path (for example `src/lrh/analysis/llm_extractor.py`)
 
 Example:
 
 ```bash
-lrh request improve_coverage src/lrh/analysis/llm_extractor.py
+lrh request improve-coverage src/lrh/analysis/llm_extractor.py
 ```
 
-### 2) `bootstrap_project`
+### 2) `bootstrap-project`
 
 **Purpose**: Generate a project bootstrap request for a repository.
 
 **Inputs**:
 
-- `template_name`: `bootstrap_project`
+- request name: `bootstrap-project` (legacy: `bootstrap_project`)
 - `--repo-name` (or target value)
 - optional `--project-goal`, `--background-file`, `--project-type`, `--bootstrap-mode`
 
 Example:
 
 ```bash
-lrh request bootstrap_project \
+lrh request bootstrap-project \
   --repo-name lrh \
   --project-goal "Bootstrap LRH control files"
 ```
 
-### 3) `work_items_from_audit`
+### 3) `work-items-from-audit`
 
 **Purpose**: Turn an audit report into proposed work items.
 
 **Inputs**:
 
-- `template_name`: `work_items_from_audit`
+- request name: `work-items-from-audit` (legacy: `work_items_from_audit`)
 - `--audit-file` (required)
 - `--style-file` (required)
 - optional `--background-file` or `--background-text`
@@ -356,18 +378,18 @@ lrh request bootstrap_project \
 Example:
 
 ```bash
-lrh request work_items_from_audit \
+lrh request work-items-from-audit \
   --audit-file audits/style_audit_2026_04_10.md \
   --style-file STYLE.md
 ```
 
-### 4) `codex_prompt_from_work_item`
+### 4) `prompt-from-work-item`
 
 **Purpose**: Render an implementation prompt request for one approved work item.
 
 **Inputs**:
 
-- `template_name`: `codex_prompt_from_work_item`
+- request name: `prompt-from-work-item` (legacy: `codex-prompt-from-work-item`, `codex_prompt_from_work_item`)
 - positional `target` (required unless `--work-item-file` is passed):
   - direct file path, or
   - work-item `id` from frontmatter, or
@@ -380,7 +402,7 @@ lrh request work_items_from_audit \
 Examples:
 
 ```bash
-lrh request codex-prompt-from-work-item \
+lrh request prompt-from-work-item \
   --work-item project/work_items/active/WI-ASSIST-TEMPLATES-PACKAGING.md \
   --slug implement-wi-assist-templates-packaging \
   --out path/to/codex_prompt_request.md
@@ -390,42 +412,42 @@ lrh request codex_prompt_from_work_item \
   --style-file STYLE.md
 ```
 
-### 5) `ci_assess_status`
+### 5) `assess-ci-status`
 
 **Purpose**: Produce a read-only CI feasibility assessment before migration.
 
 **Inputs**:
 
-- `template_name`: `ci_assess_status`
+- request name: `assess-ci-status` (legacy: `ci-assess-status`, `ci_assess_status`)
 - optional `--background-file` or `--background-text`
 
 Example:
 
 ```bash
-lrh request ci_assess_status \
+lrh request assess-ci-status \
   --background-text "Assess whether this repository should get LRH-style Python CI."
 ```
 
-### 6) `ci_implement_workflow`
+### 6) `implement-ci-workflow`
 
 **Purpose**: Produce an assessment-gated implementation request for CI migration.
 
 **Inputs**:
 
-- `template_name`: `ci_implement_workflow`
+- request name: `implement-ci-workflow` (legacy: `ci-implement-workflow`, `ci_implement_workflow`)
 - optional `--background-file` or `--background-text`
 
 Example:
 
 ```bash
-lrh request ci_implement_workflow --background-file ci_assessment.md
+lrh request implement-ci-workflow --background-file ci_assessment.md
 ```
 
 ## Validation Notes
 
-- Some templates require specific arguments (for example `work_items_from_audit` requires both `--audit-file` and `--style-file`).
-- `codex_prompt_from_work_item` resolves a positional target only within work-item buckets (`proposed`, `active`, `resolved`, `abandoned`) and fails closed on ambiguous matches; use `--work-item-file` to disambiguate.
-- Path-like positional targets for `codex_prompt_from_work_item` (for example `project/work_items/active/WI-EXAMPLE.md`) are treated as authoritative file paths and fail fast if the file does not exist.
+- Some templates require specific arguments (for example `work-items-from-audit` requires both `--audit-file` and `--style-file`).
+- `prompt-from-work-item` resolves a positional target only within work-item buckets (`proposed`, `active`, `resolved`, `abandoned`) and fails closed on ambiguous matches; use `--work-item-file` to disambiguate.
+- Path-like positional targets for `prompt-from-work-item` (for example `project/work_items/active/WI-EXAMPLE.md`) are treated as authoritative file paths and fail fast if the file does not exist.
 - Invalid argument combinations are reported as CLI errors with a non-zero exit status.
 - Missing input/template files are reported as file errors with a non-zero exit status.
 

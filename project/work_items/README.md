@@ -53,6 +53,23 @@ When unblocked, set:
 - `blocked: false`
 - `blocked_reason: null`
 
+
+## Maintenance commands
+
+### `lrh work-items organize`
+
+`lrh work-items organize` is a conservative organization helper. It inspects work-item files, reports frontmatter or bucket changes that would make files match the status-bucket layout, and can apply those mechanical moves only when invoked with `--apply`. Use `--check` in validation contexts to fail when organization changes are still needed. It does not make semantic lifecycle decisions.
+
+### `lrh work-items validate`
+
+`lrh work-items validate` is deterministic and CI-friendly. It validates work-item hygiene such as required frontmatter identity/status, filename and bucket consistency, duplicate IDs, valid status values, terminal resolution metadata, structured dependency references, selected metadata references, and dependency cycles. It should not decide whether implementation work is complete.
+
+### `lrh work-items audit`
+
+`lrh work-items audit --format md` and `lrh work-items audit --format json` emit a non-mutating lifecycle report. The audit combines validation diagnostics with deterministic traceability signals, such as missing linkage metadata, terminal items lacking resolution evidence, execution records attached to non-terminal items.
+
+The audit distinguishes facts from recommendations. Use the semantic work-item audit assist template (`work_item_semantic_audit`) to compare acceptance criteria against concrete repository evidence before moving files or changing terminal metadata. Ambiguous proposed items should remain proposed until follow-up evidence or human design review resolves the uncertainty.
+
 ## Validation requirement
 
 Before committing work-item edits, run:

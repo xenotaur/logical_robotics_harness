@@ -18,6 +18,7 @@ from lrh.control import format_report, validate_project
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
+from lrh.work_items import audit as work_items_audit
 from lrh.work_items import organize as work_items_organize
 from lrh.work_items import validate as work_items_validate
 from lrh.workstreams import organize as workstreams_organize
@@ -208,6 +209,22 @@ def main() -> None:
         choices=("text", "json"),
         default="text",
         help="output format (default: text)",
+    )
+
+    work_items_audit_parser = work_items_subparsers.add_parser(
+        "audit",
+        help="Report deterministic work-item lifecycle and traceability signals.",
+    )
+    work_items_audit_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    work_items_audit_parser.add_argument(
+        "--format",
+        choices=("md", "json"),
+        default="md",
+        help="output format (default: md)",
     )
 
     workstreams_parser = subparsers.add_parser(
@@ -626,6 +643,20 @@ def main() -> None:
             else:
                 print(work_items_validate.format_text(result))
             raise SystemExit(1 if result.errors else 0)
+        if args.work_items_command == "audit":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            try:
+                report = work_items_audit.audit_work_items(project_root=project_root)
+            except (OSError, UnicodeDecodeError):
+                print("error: unable to read work-item files")
+                raise SystemExit(2)
+            if args.format == "json":
+                print(work_items_audit.format_json(report))
+            else:
+                print(work_items_audit.format_markdown(report))
+            raise SystemExit(0)
         parser.error("work-items requires a subcommand (try: lrh work-items organize)")
 
     if args.command == "workstreams":

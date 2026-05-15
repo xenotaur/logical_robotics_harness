@@ -24,8 +24,9 @@ agent backends, or PR stabilization loops are implemented.
 Canonical living design: `project/design/execution_framework_mvp.md`. Its staged structure separates
 prerequisite control-plane alignment from the first execution-contract package. Shared core state
 APIs, planning relationship/index validation, and snapshot-visible planning summaries must be
-available before packet generation relies on them. The first package is execution readiness, dry-run
-run packets, and run reports; safe-default `lrh serve`, durable run state UI, read-only observation
+available before packet generation relies on them. The first package of execution readiness, dry-run
+run packets, and run reports is complete. The current follow-on package is safe-default `lrh serve`;
+durable run state UI, read-only observation
 adapters, optional agentic execution adapters, and later daemon/dashboard modes follow separately.
 
 ## Goal
@@ -37,9 +38,9 @@ preserving human/policy gates.
 
 ## Staged deliverables
 
-The deliverable list is grouped by package boundary. It is not a single prompt package, and the
-read-only `lrh serve` workbench is intentionally deferred until after the first execution-contract
-package.
+The deliverable list is grouped by package boundary. It is not a single prompt package. The
+read-only `lrh serve` workbench is now the current follow-on package after the completed first
+execution-contract package.
 
 ### Prerequisite control-plane alignment
 
@@ -53,15 +54,18 @@ package.
 2. Run packet request/dry-run distinction.
 3. Run report MVP.
 
-### Deferred follow-on packages
+### Current follow-on package
 
 1. Safe-default `lrh serve` read-only viewer and prompt workbench.
-2. Durable run state and manual run tracking.
-3. Agent branch containment design support.
-4. GitHub PR/CI observation adapter.
-5. Bounded stabilization loop design.
-6. Backend adapter abstraction.
-7. Manual/assisted/bounded-auto mode progression.
+
+### Deferred follow-on packages
+
+1. Durable run state and manual run tracking.
+2. Agent branch containment design support.
+3. GitHub PR/CI observation adapter.
+4. Bounded stabilization loop design.
+5. Backend adapter abstraction.
+6. Manual/assisted/bounded-auto mode progression.
 
 ### Adjacent reusable capability work
 
@@ -87,7 +91,9 @@ work begins. Their prerequisite shared state/API interpretation, planning relati
 validation, and snapshot-visible planning summaries are also complete.
 
 The next package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a read-only/local-assist viewer and prompt
-workbench that consumes the completed contracts without becoming a runner.
+workbench that consumes the completed contracts without becoming a runner. Its four implementation
+slices are plan/control-plane refinement, local server skeleton, read-only
+project/workstream/work-item viewer, and prompt/run-packet/report workbench MVP.
 
 ## Explicit deferrals
 

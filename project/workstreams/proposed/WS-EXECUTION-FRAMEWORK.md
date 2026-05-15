@@ -40,9 +40,9 @@ exit_criteria:
 ## Purpose
 
 This workstream represents the next major stream of LRH project-control work after the Workstream
-Control Plane MVP: designing and staging a safe-default execution framework for approved executable leaves. The effort
-should turn the proposed execution-framework architecture into reviewable roadmap, focus, and
-work-item plans before any runtime automation begins.
+Control Plane MVP: designing and staging a safe-default execution framework for approved
+executable leaves. The effort should turn the proposed execution-framework architecture into
+reviewable roadmap, focus, and work-item plans before any runtime automation begins.
 
 The core idea is that default LRH should first help humans inspect current state, generate and edit
 prompts, record manual evidence, and prepare durable run artifacts. Optional agentic capability may
@@ -166,6 +166,24 @@ The next implementation package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a local re
 prompt workbench that consumes the completed shared state, readiness, run-packet, and run-report
 contracts. It should expose project/control-plane state and generated artifacts for human review; it
 should not reinterpret the planning tree independently or become an autonomous runner.
+
+The serve package is staged into four reviewable slices:
+
+1. **Safe-default serve plan/control-plane refinement** — land the package boundary, exclusions,
+   validation expectations, expected evidence, and next prompt without runtime code.
+2. **Local server skeleton** — introduce `lrh serve` as a default-package CLI command, bind to
+   `127.0.0.1` by default, render a minimal local page, avoid automatic writes, and prefer the Python
+   standard library unless a later implementation PR justifies a small dependency.
+3. **Read-only project/workstream/work-item viewer** — render project identity, validation status,
+   focus, workstreams, work items, planning summaries, readiness metadata, and evidence/status links
+   from shared LRH APIs without arbitrary filesystem browsing, secrets exposure, or server-only tree
+   interpretation.
+4. **Prompt/run-packet/report workbench MVP** — preview, edit in browser memory, copy, and download
+   generated prompts, run packets, and run-report drafts through existing renderers without
+   dispatching agents, mutating branches, creating PRs, or writing artifacts by default.
+
+The next implementation prompt after this planning slice is
+`PROMPT(WI-LRH-SERVE-SAFE-DEFAULT-MVP:IMPLEMENT_SERVE_LOCAL_SERVER_SKELETON)`.
 
 Keep branch containment, GitHub/CI observation, stabilization loops, backend adapters, branch
 mutation, PR creation, merge/release automation, multi-agent orchestration, deep MCP integration, and

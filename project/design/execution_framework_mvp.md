@@ -123,27 +123,28 @@ The execution-framework workstream is staged so future implementation prompts do
 prerequisite control-plane alignment, execution contracts, local workbench UI, observation, and
 mutation-capable runtime authority.
 
-The selected first implementation package is the smallest coherent **execution-contract package**:
+The prerequisite control-plane alignment and first execution-contract package are complete. The
+completed execution-contract package was the smallest coherent package for later execution work:
 
 1. `WI-EXECUTION-READINESS-SCHEMA`
 2. `WI-RUN-PACKET-DRY-RUN`
 3. `WI-RUN-REPORT-MVP`
 
-This package defines the opt-in readiness metadata, dry-run/manual run packet artifact, and
+That package defines the opt-in readiness metadata, dry-run/manual run packet artifact, and
 evidence-backed run report shape needed for later execution work. It does not implement autonomous
 execution, backend dispatch, branch mutation, PR creation, stabilization loops, merge/release
 automation, or `lrh serve`.
 
-Prerequisite control-plane alignment remains separate from the first execution-contract package:
+Completed prerequisite control-plane alignment remains separate from execution runtime work:
 
 - shared state/API interpretation for project-control artifacts;
 - planning-tree relationship/index validation; and
 - snapshot-visible planning summaries.
 
-If any prerequisite is incomplete when a future implementation prompt is prepared, complete it in a
-separate prerequisite prompt before starting the execution-contract package. The safe-default
-`lrh serve` viewer and prompt workbench is a later read-only/local-assist package that should consume
-the shared state and execution contracts; it is not part of the first execution-contract package.
+The next implementation package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP`: a safe-default `lrh serve`
+viewer and prompt workbench that consumes the shared state and execution contracts as a
+read-only/local-assist package. It must not reinterpret the planning tree independently or become an
+autonomous runner.
 
 ## Staged layer model
 
@@ -731,20 +732,20 @@ The MVP should make unsafe authority visible rather than hiding it behind a succ
 
 Recommended design and implementation order:
 
-1. Keep the prerequisite control-plane alignment separate from execution runtime work:
+1. Completed: keep the prerequisite control-plane alignment separate from execution runtime work:
    `WI-LRH-CORE-STATE-APIS-MVP`, planning relationship validation, and
    `WI-WORKSTREAM-SNAPSHOT-MVP`.
-2. Start the first execution-contract package only when those prerequisites are available enough for
-   packet generation to use shared state instead of inventing its own planning interpretation.
-3. Implement the first execution-contract package in this order:
-   `WI-EXECUTION-READINESS-SCHEMA` -> `WI-RUN-PACKET-DRY-RUN` -> `WI-RUN-REPORT-MVP`.
-4. Add the safe-default `lrh serve` viewer/prompt workbench afterward as a read-only/local-assist
-   package that consumes shared state, readiness, packet, and report contracts.
-5. Add run-state artifacts and manual run tracking under `project/runs/<RUN-ID>/` after the artifact
+2. Completed: implement the first execution-contract package once those prerequisites are available
+   enough for packet generation to use shared state instead of inventing its own planning
+   interpretation: `WI-EXECUTION-READINESS-SCHEMA` -> `WI-RUN-PACKET-DRY-RUN` ->
+   `WI-RUN-REPORT-MVP`.
+3. Next: add the safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP` viewer/prompt workbench as a
+   read-only/local-assist package that consumes shared state, readiness, packet, and report contracts.
+4. Add run-state artifacts and manual run tracking under `project/runs/<RUN-ID>/` after the artifact
    contracts are reviewed.
-6. Add observation adapters for git, PR, CI, and review status only after packets/reports can express
+5. Add observation adapters for git, PR, CI, and review status only after packets/reports can express
    the evidence they observe.
-7. Add optional agentic dispatch adapters later, behind the adopted safe-default packaging boundary.
+6. Add optional agentic dispatch adapters later, behind the adopted safe-default packaging boundary.
 
 Explicitly defer from the default/safe layer:
 

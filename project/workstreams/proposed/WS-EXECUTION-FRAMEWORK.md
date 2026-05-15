@@ -140,24 +140,33 @@ This workstream does not immediately implement:
 This project-control artifact also does not add CLI behavior, validation behavior, execution
 backends, orchestration loops, tests for runtime execution behavior, or GitHub API integration.
 
+## Completed foundation and execution contracts
+
+The closeout audit for the seven prerequisite and execution-contract work items found implementation
+evidence for all seven items and moved the three remaining execution-contract items to resolved.
+Completed foundation work now includes:
+
+1. `WI-LRH-CORE-STATE-APIS-MVP` — shared read-only project-state interpretation for validation,
+   snapshot, request, serve, and future dry-run consumers.
+2. `WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP` — metadata-driven workstream/work-item planning
+   relationship indexing and shared summaries.
+3. `WI-PLANNING-TREE-VALIDATION-RULES-MVP` — deterministic planning-tree validation for IDs,
+   references, parent/child consistency, cycles, and active-leaf gaps.
+4. `WI-WORKSTREAM-SNAPSHOT-MVP` — snapshot-visible workstream and planning summaries.
+
+Completed execution-contract work now includes:
+
+1. `WI-EXECUTION-READINESS-SCHEMA` — opt-in readiness metadata and selected-leaf validation.
+2. `WI-RUN-PACKET-DRY-RUN` — safe-default run-packet rendering through `lrh request`, not a runner.
+3. `WI-RUN-REPORT-MVP` — safe-default run-report rendering from explicit manual/dry-run inputs.
+
 ## Next phase
 
-Generate a prompt package for the first **execution-contract** implementation sequence:
+The next implementation package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a local read-only viewer and
+prompt workbench that consumes the completed shared state, readiness, run-packet, and run-report
+contracts. It should expose project/control-plane state and generated artifacts for human review; it
+should not reinterpret the planning tree independently or become an autonomous runner.
 
-1. `WI-EXECUTION-READINESS-SCHEMA`
-2. `WI-RUN-PACKET-DRY-RUN`
-3. `WI-RUN-REPORT-MVP`
-
-Before that prompt package starts, verify the prerequisite control-plane alignment is sufficient:
-
-- shared core state/API interpretation (`WI-LRH-CORE-STATE-APIS-MVP` or equivalent landed behavior)
-- planning relationship/index validation
-- snapshot-visible planning summaries
-
-If any prerequisite is missing, create a separate prerequisite prompt first. Do not include
-`WI-LRH-SERVE-SAFE-DEFAULT-MVP` in the first execution-contract package; handle it later as a
-read-only/local-assist workbench package that consumes the readiness, packet, and report contracts.
-
-Do not start branch mutation, backend adapters, autonomous execution, PR creation, PR stabilization
-automation, merge/release automation, multi-agent orchestration, deep MCP integration, or destructive
-operations before those contracts exist and a later prompt explicitly grants that scope.
+Keep branch containment, GitHub/CI observation, stabilization loops, backend adapters, branch
+mutation, PR creation, merge/release automation, multi-agent orchestration, deep MCP integration, and
+destructive operations deferred until a later prompt explicitly grants that scope.

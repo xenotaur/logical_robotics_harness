@@ -5,32 +5,32 @@ scope: project
 status: active
 generated_from:
   focus:
-    - FOCUS-CONTROL-PLANE-SEMANTICS
+    - FOCUS-EXECUTION-FRAMEWORK-PLANNING
   work_items:
-    - WI-0001
-    - WI-0002
-    - WI-0003
-    - WI-0004
-    - WI-PRECEDENCE-RESOLVER
-    - WI-SNAPSHOT-RESOLVED-CONTEXT
-    - WI-ASSIST-TEMPLATES-PACKAGING
-    - WI-ASSIST-INSTALLABILITY-HARDENING
-generated_at: 2026-05-05T05:21:32Z
+    - WI-LRH-CORE-STATE-APIS-MVP
+    - WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP
+    - WI-PLANNING-TREE-VALIDATION-RULES-MVP
+    - WI-WORKSTREAM-SNAPSHOT-MVP
+    - WI-EXECUTION-READINESS-SCHEMA
+    - WI-RUN-PACKET-DRY-RUN
+    - WI-RUN-REPORT-MVP
+    - WI-LRH-SERVE-SAFE-DEFAULT-MVP
+generated_at: 2026-05-15T19:45:27Z
 health: yellow
 ---
 
 # Current Status
 
-LRH has crossed the bootstrap threshold for control-plane foundations and now has canonical assist CLI entrypoints (`lrh request`, `lrh snapshot`, `lrh survey`) with package-owned survey implementation.
+LRH has crossed the bootstrap threshold for control-plane foundations and now has canonical assist CLI entrypoints (`lrh request`, `lrh snapshot`, `lrh survey`) with package-owned survey implementation. The execution-framework prerequisite and first execution-contract package are implemented; the next identified package is the safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP` local viewer / prompt workbench.
 
 ## Summary
 
-The immediate objective is to finish packaging-safe assist migration sequencing:
+The immediate execution-framework objective is to start the safe-default `lrh serve` local viewer / prompt workbench from completed prerequisites and contracts:
 
-- preserve package-owned template/runtime loading behavior
-- verify install/build behavior with smoke checks
-- keep `lrh survey` canonical on package-owned `sourcetree_surveyor`
-- plan only follow-on sourcetree capability expansion
+- reuse shared core-state APIs and planning-tree summaries
+- consume opt-in execution-readiness metadata
+- expose run-packet and run-report request artifacts for human review
+- keep autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation deferred
 
 Versioning hardening and release/versioning closeout are complete: LRH versioning is tag-derived via `setuptools-scm`, the `scripts/version` workflow (`verify`/`tag`/`push`) is in place, and final release validation succeeded for pushed tag `v0.2.4`.
 
@@ -39,6 +39,9 @@ Final release evidence for `v0.2.4` is successful across local and CI checks: `s
 Release-smoke isolation audit closeout remains in effect: diagnostic mode (`scripts/release-smoke <tag> --diagnose`) and optional strict isolation (`scripts/release-smoke <tag> --strict-isolation`) are implemented and documented. Default release-smoke behavior remains warning-oriented for pre-install LRH visibility to preserve local development usability, while strict mode is available when a clean preinstall environment is required. Evidence: `project/evidence/EV-0005.md`.
 
 Closeout note (2026-05-03): Completion and work-item tooling (`lrh work-items organize` + `lrh work-items validate`) is implemented, tested, and documented; work-item discovery edge cases including README handling in `lrh work-items validate` are resolved.
+
+
+Execution-framework closeout (2026-05-15): shared core state APIs, planning-tree validation, planning relationship indexing, snapshot-visible planning summaries, execution-readiness metadata, dry-run run-packet rendering, and run-report rendering are implemented and have execution records. The next implementation package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a read-only/local-assist viewer and prompt workbench.
 
 Evidence snapshot:
 - `lrh work-items organize --help` and `lrh work-items validate --help` are available in the CLI.
@@ -67,10 +70,10 @@ release. This is a packaging/governance boundary, not a security sandbox.
 
 ## Active Priorities
 
-- packaging/install smoke-test hardening
+- start `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a read-only/local-assist viewer and prompt workbench
 - preserve package-owned assist template/resource loading
 - maintain canonical `lrh survey` delegation to package code
-- plan sourcetree capability expansion as a distinct follow-on
+- keep later branch mutation, observation adapters, stabilization loops, and agent backends deferred
 
 ## Guardrail Summary
 
@@ -88,7 +91,7 @@ release. This is a packaging/governance boundary, not a security sandbox.
 
 ## Recommended Next Actions
 
-1. Keep WI-ASSIST-INSTALLABILITY-HARDENING evidence current with repeatable smoke checks.
+1. Generate the next prompt package for `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a safe-default read-only viewer / prompt workbench.
 2. Keep package-owned assist template/resource behavior stable.
 3. Keep `lrh survey` canonical on package-owned implementation.
-4. Plan WI-ASSIST-SOURCETREE-SURVEYOR-EXPANSION as a separate follow-on.
+4. Keep later branch mutation, observation adapters, stabilization loops, and agent backends deferred.

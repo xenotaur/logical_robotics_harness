@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented by opt-in execution-readiness metadata interpretation, strict selected-leaf validation, documentation, and tests recorded in project/executions/WI-EXECUTION-READINESS-SCHEMA/2026_05_14_21_04_06_IMPLEMENT_EXECUTION_READINESS_SCHEMA.md.
 blocked_reason: null
 blocked: false
 id: WI-EXECUTION-READINESS-SCHEMA
 title: Define execution readiness schema for executable leaves
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

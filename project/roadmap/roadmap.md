@@ -91,12 +91,11 @@ MVP goal:
 
 Recommended staged deliverables:
 
-The first implementation package is not this entire list. The selected first package is the
-execution-contract sequence: `WI-EXECUTION-READINESS-SCHEMA`, `WI-RUN-PACKET-DRY-RUN`, and
-`WI-RUN-REPORT-MVP`. Items before that are prerequisites to verify or complete separately; items
-after that are deferred follow-on packages.
+The prerequisite control-plane alignment and first execution-contract sequence are complete. The next
+implementation package is the safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP` local viewer / prompt
+workbench, with later mutation, observation, stabilization, and adapter work still deferred.
 
-Prerequisite control-plane alignment:
+Completed prerequisite control-plane alignment:
 
 1. **Shared core state APIs** — expose one reusable interpretation of project-control state for CLI,
    request, serve, snapshot, and future dry-run surfaces.
@@ -105,7 +104,7 @@ Prerequisite control-plane alignment:
 3. **Snapshot-visible planning summaries** — make planning-tree state visible through snapshots before
    or alongside later `lrh serve` work.
 
-First execution-contract package:
+Completed first execution-contract package:
 
 1. **Execution readiness schema** — define the opt-in work-item fields required before a selected leaf
    can be used for future run-packet generation or execution workflows.
@@ -128,15 +127,13 @@ Deferred follow-on packages:
 6. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
    or bounded-auto execution.
 
-First execution-contract package after this planning PR:
+Next implementation package:
 
-1. `WI-EXECUTION-READINESS-SCHEMA`
-2. `WI-RUN-PACKET-DRY-RUN`
-3. `WI-RUN-REPORT-MVP`
+1. `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
 
-Prerequisites to verify before that package starts: shared core state APIs, planning
-relationship/index validation, and snapshot-visible planning summaries. Safe-default `lrh serve` is
-a deferred read-only/local-assist package, not part of the first execution-contract package.
+This package should be a local read-only viewer / prompt workbench that consumes the completed
+shared state, execution-readiness, run-packet, and run-report contracts. It should not add autonomous
+runtime dispatch, branch mutation, PR creation, merge/release automation, or backend adapters.
 
 Explicitly deferred until later phases or optional capability work:
 

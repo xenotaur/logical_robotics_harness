@@ -102,6 +102,24 @@ from the work-item source and readiness metadata. Missing or non-ready readiness
 metadata is reported as review-required diagnostics instead of being treated as
 permission to execute.
 
+### Manual/dry-run run reports
+
+`lrh request run-report-from-work-item <WORK_ITEM_ID> --outcome <status>`
+renders a deterministic Markdown report for a manual or dry-run execution
+attempt. Supported statuses are `success`, `blocked`, `failed`, and
+`requires-human-review`. The command reuses execution-readiness metadata for
+intended validation, required evidence, expected artifacts, policy gates, and
+human gates, then records only the validation results, evidence references, and
+review tasks explicitly supplied by the caller.
+
+Validation commands listed as intended still require explicit validation results;
+recording a command as run is not treated as pass/fail evidence. Missing results
+or required evidence are reported as conservative diagnostics in the rendered
+report and on stderr for the CLI. Like run-packet generation, this request is an
+artifact-rendering surface only: it does not call agents, run validation
+commands, observe CI or PR state, mutate branches, open pull requests, merge,
+release, publish, or replace prompt execution records.
+
 ### Semantic work-item audit template
 
 `request/work_item_semantic_audit.md` is the conservative companion template for `lrh work-items audit`. The audit command reports deterministic lifecycle and traceability facts; the template asks a reviewer to compare those facts with work-item acceptance criteria, cite concrete repository evidence, and avoid optimistic closure when evidence is incomplete. Use it before resolving, abandoning, superseding, or splitting ambiguous proposed work items.

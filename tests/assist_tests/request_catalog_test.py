@@ -25,6 +25,14 @@ class TestRequestCatalog(unittest.TestCase):
         self.assertEqual(metadata.implementation_target, "structured_run_packet")
         self.assertIn("run_packet_from_work_item", metadata.legacy_names)
 
+    def test_run_report_request_is_structured_work_item_request(self) -> None:
+        metadata = request_catalog.require("run-report-from-work-item")
+
+        self.assertEqual(metadata.canonical_name, "run-report-from-work-item")
+        self.assertEqual(metadata.template_name, "run_report_from_work_item")
+        self.assertEqual(metadata.implementation_target, "structured_run_report")
+        self.assertIn("run_report_from_work_item", metadata.legacy_names)
+
     def test_unknown_request_name_raises_clear_error(self) -> None:
         with self.assertRaisesRegex(
             ValueError, "unknown request name: no-such-request"

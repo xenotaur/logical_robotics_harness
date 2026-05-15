@@ -12,6 +12,7 @@ from lrh.assist import (
     request_templates,
     request_variables,
     run_packet,
+    run_report,
 )
 from lrh.cli import argcomplete_adapter
 
@@ -23,7 +24,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         help=(
             "Request name (e.g. improve-coverage, bootstrap-project, "
             "work-items-from-audit, prompt-from-work-item, "
-            "run-packet-from-work-item, "
+            "run-packet-from-work-item, run-report-from-work-item, "
             "assess-continuous-integration-status). Legacy template names "
             "remain supported. Use 'lrh request list' to discover cataloged "
             "requests. 'list' and 'describe' are reserved catalog commands. "
@@ -223,7 +224,10 @@ def _format_catalog_description(
 ) -> str:
     """Format detailed metadata for one cataloged request."""
     template_description = f"request/{metadata.template_name}.md"
-    if metadata.template_name == "run_packet_from_work_item":
+    if metadata.template_name in {
+        "run_packet_from_work_item",
+        "run_report_from_work_item",
+    }:
         template_description = "none (structured renderer)"
     lines = [
         f"canonical name: {metadata.canonical_name}",
@@ -398,7 +402,10 @@ def run_templates_cli(
     )
     request_metadata = request_catalog.resolve(request_name)
     if request_metadata is not None:
-        if request_metadata.template_name == "run_packet_from_work_item":
+        if request_metadata.template_name in {
+            "run_packet_from_work_item",
+            "run_report_from_work_item",
+        }:
             print(_format_structured_request_resolution(request_metadata))
             return 0
         request_name = request_metadata.template_name
@@ -439,6 +446,117 @@ def build_run_packet_from_work_item_parser(
     parser.add_argument(
         "--out",
         help="Output markdown path for the generated packet. Omit to print to stdout.",
+    )
+    return parser
+
+
+def build_run_report_from_work_item_parser(
+    *, prog: str = "request run-report-from-work-item"
+) -> argparse.ArgumentParser:
+    """Build parser for manual/dry-run run-report generation."""
+    parser = argparse.ArgumentParser(
+        prog=prog,
+        description=(
+            "Render a manual/dry-run, non-mutating run report from an "
+            "execution-ready LRH work item and supplied evidence."
+        ),
+    )
+    parser.add_argument(
+        "target",
+        nargs="?",
+        help="Work-item ID, stem, filename, or markdown path.",
+    )
+    parser.add_argument(
+        "--work-item",
+        help="Explicit work-item ID or markdown path. Overrides the positional target.",
+    )
+    parser.add_argument(
+        "--outcome",
+        required=True,
+        choices=run_report.outcome_choices(),
+        help="Reported outcome status for the manual/dry-run attempt.",
+    )
+    parser.add_argument(
+        "--run-packet",
+        help="Linked run-packet path or identifier, if one exists.",
+    )
+    parser.add_argument(
+        "--validation-intended",
+        action="append",
+        default=[],
+        help=(
+            "Intended validation command. May be repeated. Defaults to "
+            "readiness validation_commands when omitted."
+        ),
+    )
+    parser.add_argument(
+        "--validation-run",
+        action="append",
+        default=[],
+        help="Validation command actually run. May be repeated.",
+    )
+    parser.add_argument(
+        "--validation-result",
+        action="append",
+        default=[],
+        help=(
+            "Validation result as 'command :: status' or "
+            "'command :: status :: evidence'. May be repeated."
+        ),
+    )
+    parser.add_argument(
+        "--evidence",
+        action="append",
+        default=[],
+        help=(
+            "Evidence reference path, log, report, screenshot, or review note. "
+            "May be repeated."
+        ),
+    )
+    parser.add_argument(
+        "--artifact",
+        action="append",
+        default=[],
+        help="Generated or expected artifact reference. May be repeated.",
+    )
+    parser.add_argument(
+        "--human-verification",
+        action="append",
+        default=[],
+        help="Human verification task. May be repeated.",
+    )
+    parser.add_argument(
+        "--policy-gate",
+        action="append",
+        default=[],
+        help="Policy-gate state. May be repeated.",
+    )
+    parser.add_argument(
+        "--human-gate",
+        action="append",
+        default=[],
+        help="Human-gate state. May be repeated.",
+    )
+    parser.add_argument(
+        "--risk",
+        action="append",
+        default=[],
+        help="Unresolved risk or missing evidence note. May be repeated.",
+    )
+    parser.add_argument(
+        "--next-action",
+        action="append",
+        default=[],
+        help="Recommended next action. May be repeated.",
+    )
+    parser.add_argument(
+        "--prompt-execution-record",
+        default="",
+        help="Related project/executions record path, when applicable.",
+    )
+    parser.add_argument(
+        "--out",
+        help="Output markdown path for the generated report. Omit to print to stdout.",
     )
     return parser
 
@@ -563,6 +681,72 @@ def run_request_cli(
                 file=sys.stderr,
             )
             return 2
+        output_path = pathlib.Path(command_args.out) if command_args.out else None
+        if output_path is not None:
+            try:
+                output_path.parent.mkdir(parents=True, exist_ok=True)
+                output_path.write_text(result.markdown, encoding="utf-8")
+            except OSError as error:
+                print(f"error: {error}", file=sys.stderr)
+                return 2
+        else:
+            sys.stdout.write(result.markdown)
+        return 0
+
+    if argv and argv[0] in {"run-report-from-work-item", "run_report_from_work_item"}:
+        command_parser = build_run_report_from_work_item_parser(
+            prog=f"{prog} {argv[0]}"
+        )
+        try:
+            command_args = command_parser.parse_args(argv[1:])
+        except SystemExit as error:
+            return int(error.code) if isinstance(error.code, int) else 2
+        target = command_args.work_item or command_args.target
+        if not target:
+            print(
+                "error: run-report-from-work-item requires a work-item ID/path "
+                "or --work-item.",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            work_item_file, _ = request_service.resolve_work_item_file_for_request(
+                target_input=target,
+                explicit_work_item_file=None,
+                command_name="run-report-from-work-item",
+                explicit_path_flag="--work-item",
+            )
+            validation_results = tuple(
+                run_report.parse_validation_result(value)
+                for value in command_args.validation_result
+            )
+            result = run_report.render_run_report(
+                run_report.RunReportInput(
+                    work_item_path=work_item_file,
+                    outcome=command_args.outcome,
+                    run_packet_path=command_args.run_packet,
+                    validation_commands_intended=tuple(
+                        command_args.validation_intended
+                    ),
+                    validation_commands_run=tuple(command_args.validation_run),
+                    validation_results=validation_results,
+                    evidence_references=tuple(command_args.evidence),
+                    artifact_references=tuple(command_args.artifact),
+                    human_verification_tasks=tuple(command_args.human_verification),
+                    policy_gate_states=tuple(command_args.policy_gate),
+                    human_gate_states=tuple(command_args.human_gate),
+                    unresolved_risks=tuple(command_args.risk),
+                    recommended_next_actions=tuple(command_args.next_action),
+                    prompt_execution_record=command_args.prompt_execution_record,
+                ),
+                project_root=request_variables.find_repo_root() or pathlib.Path.cwd(),
+            )
+        except (FileNotFoundError, OSError, ValueError) as error:
+            print(str(error), file=sys.stderr)
+            return 2
+        diagnostic_text = run_report.format_run_report_diagnostics(result.diagnostics)
+        if diagnostic_text:
+            print(diagnostic_text, file=sys.stderr)
         output_path = pathlib.Path(command_args.out) if command_args.out else None
         if output_path is not None:
             try:

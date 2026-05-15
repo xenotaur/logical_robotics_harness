@@ -147,6 +147,17 @@ not mutate branches or pull requests, and should not be treated as equivalent to
 future `lrh run --dry-run` semantics. Missing readiness fields produce
 review-required diagnostics for the selected work item.
 
+Run-report generation consumes the same readiness metadata and an explicitly
+supplied manual/dry-run outcome through
+`lrh request run-report-from-work-item <WORK_ITEM_ID> --outcome <success|blocked|failed|requires-human-review>`
+(legacy underscore form: `run_report_from_work_item`). Reports are deterministic
+Markdown artifacts that link the work item, optional run packet, intended and
+actual validation commands, validation results, evidence references, artifacts,
+human verification tasks, policy/human gate state, unresolved risks, and
+recommended next actions. They are not evidence by themselves, do not observe CI
+or PR state, do not replace `project/executions/` prompt records, and do not
+invoke agents or mutate branches, pull requests, releases, or project status.
+
 Before generating that prompt package, verify prerequisite control-plane alignment: shared core state
 APIs, planning relationship/index validation, and snapshot-visible planning summaries. If a
 prerequisite is missing, complete it in a separate prompt rather than broadening the first

@@ -645,14 +645,24 @@ Recommended contents:
 - human verification steps; and
 - recommendation.
 
+The MVP renderer is `lrh request run-report-from-work-item`. It remains on the safe-default request
+surface: it renders Markdown to stdout or `--out` from a work item plus explicit local flags, and it
+must not run validation commands, observe CI or PR state, dispatch agents, create branches, open PRs,
+merge, release, publish, or close work items. It reuses execution-readiness metadata for intended
+validation, required evidence, expected artifacts, policy gates, and human gates, and then records
+what the caller says was actually run or evidenced.
+
 The report should distinguish between:
 
 - evidence;
-- model claims; and
+- model or caller claims;
+- missing validation/evidence diagnostics; and
 - human verification still required.
 
-A report can recommend work-item or workstream closeout, but closeout remains a separate human or
-policy-gated decision.
+Run reports complement but do not replace prompt execution records. Execution records in
+`project/executions/` answer which prompt-driven PR work happened; run reports answer what happened
+during one manual/dry-run/future bounded execution attempt. A report can recommend work-item or
+workstream closeout, but closeout remains a separate human or policy-gated decision.
 
 ## Branch containment model
 

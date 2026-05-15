@@ -88,14 +88,15 @@ def render_run_report(
         ),
     )
     readiness = execution_readiness.from_frontmatter(parsed.frontmatter)
+    normalized_input = dataclasses.replace(report_input, outcome=outcome)
     diagnostics = _report_diagnostics(
-        report_input=report_input,
+        report_input=normalized_input,
         readiness=readiness,
         readiness_issues=readiness_issues,
     )
 
     markdown = _render_markdown(
-        report_input=report_input,
+        report_input=normalized_input,
         frontmatter=parsed.frontmatter,
         readiness=readiness,
         readiness_issues=readiness_issues,
@@ -168,17 +169,13 @@ def _report_diagnostics(
         )
 
     intended = _intended_validation_commands(report_input, readiness)
-    if (
-        intended
-        and not report_input.validation_commands_run
-        and not report_input.validation_results
-    ):
+    if intended and not report_input.validation_results:
         diagnostics.append(
             RunReportDiagnostic(
                 code="VALIDATION_RESULTS_MISSING",
                 message=(
-                    "intended validation commands are listed but no run "
-                    "commands or results were supplied"
+                    "intended validation commands are listed but no validation "
+                    "results were supplied"
                 ),
             )
         )

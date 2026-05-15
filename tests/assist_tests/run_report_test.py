@@ -91,6 +91,48 @@ class RunReportTest(unittest.TestCase):
         diagnostic_text = run_report.format_run_report_diagnostics(result.diagnostics)
         self.assertIn("unresolved review diagnostics", diagnostic_text)
 
+    def test_validation_run_without_results_is_diagnostic(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_item = _write_work_item(root, _ready_work_item_text())
+
+            result = run_report.render_run_report(
+                run_report.RunReportInput(
+                    work_item_path=work_item,
+                    outcome="success",
+                    validation_commands_run=("scripts/test",),
+                    evidence_references=("logs/test.txt",),
+                ),
+                project_root=root,
+            )
+
+        codes = {diagnostic.code for diagnostic in result.diagnostics}
+        self.assertIn("VALIDATION_RESULTS_MISSING", codes)
+        self.assertIn("- `scripts/test`", result.markdown)
+        self.assertIn("## Validation Results\n\n- None supplied.", result.markdown)
+        self.assertIn("human review required before treating", result.markdown)
+
+    def test_outcome_is_normalized_before_rendering_and_diagnostics(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_item = _write_work_item(root, _ready_work_item_text())
+
+            result = run_report.render_run_report(
+                run_report.RunReportInput(
+                    work_item_path=work_item,
+                    outcome=" success ",
+                    validation_results=(
+                        run_report.ValidationResult("scripts/test", "pass"),
+                    ),
+                ),
+                project_root=root,
+            )
+
+        codes = {diagnostic.code for diagnostic in result.diagnostics}
+        self.assertIn("SUCCESS_EVIDENCE_MISSING", codes)
+        self.assertIn("- Reported outcome: `success`", result.markdown)
+        self.assertNotIn("` success `", result.markdown)
+
     def test_non_ready_item_report_records_readiness_diagnostics(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)

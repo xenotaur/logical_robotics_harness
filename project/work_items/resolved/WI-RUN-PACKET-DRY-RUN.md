@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented by the safe-default `lrh request run-packet-from-work-item` renderer, readiness diagnostics, documentation, and tests recorded in project/executions/WI-RUN-PACKET-DRY-RUN/2026_05_14_22_55_00_IMPLEMENT_RUN_PACKET_DRY_RUN.md.
 blocked_reason: null
 blocked: false
 id: WI-RUN-PACKET-DRY-RUN
 title: Generate dry-run run packets from execution-ready work items
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

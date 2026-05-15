@@ -72,9 +72,10 @@ debugging, and
 hardening guidance staged as a playbook and prompt/skill follow-up rather than a one-size-fits-all
 workflow template.
 
-## First execution-contract implementation package
+## Execution-contract closeout and next package
 
-The first execution-framework implementation package should stay contract-first and dry-run-first:
+The first execution-framework contract package is complete and remains contract-first and
+dry-run-first:
 
 1. `WI-EXECUTION-READINESS-SCHEMA`
 2. `WI-RUN-PACKET-DRY-RUN`
@@ -82,12 +83,11 @@ The first execution-framework implementation package should stay contract-first 
 
 These work items establish project-control fields, packet contents, report contents, validation
 evidence expectations, and human closeout tasks needed before any branch mutation or backend adapter
-work begins.
+work begins. Their prerequisite shared state/API interpretation, planning relationship/index
+validation, and snapshot-visible planning summaries are also complete.
 
-Prerequisites for that package are shared state/API interpretation, planning relationship/index
-validation, and snapshot-visible planning summaries. They should be verified before the first package
-starts and completed in a separate prerequisite prompt if missing. `WI-LRH-SERVE-SAFE-DEFAULT-MVP` is
-a later read-only/local-assist package, not part of the first execution-contract package.
+The next package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a read-only/local-assist viewer and prompt
+workbench that consumes the completed contracts without becoming a runner.
 
 ## Explicit deferrals
 

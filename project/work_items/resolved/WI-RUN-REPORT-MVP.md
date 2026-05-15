@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented by the safe-default `lrh request run-report-from-work-item` renderer, evidence-backed report contract, documentation, and tests recorded in project/executions/WI-RUN-REPORT-MVP/2026_05_14_23_52_12_IMPLEMENT_RUN_REPORT_MVP.md.
 blocked_reason: null
 blocked: false
 id: WI-RUN-REPORT-MVP
 title: Define and generate final run report MVP
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

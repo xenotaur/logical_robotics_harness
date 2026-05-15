@@ -1,6 +1,6 @@
 ---
 id: FOCUS-EXECUTION-FRAMEWORK-PLANNING
-title: Plan execution readiness and dry-run contracts for bounded execution
+title: Advance safe-default serve viewer after execution contracts
 status: active
 priority: high
 owner: anthony
@@ -15,7 +15,7 @@ related_workstreams:
 
 # Current Focus
 
-The immediate priority is **safe-default execution-framework alignment**: keep prerequisite control-plane interpretation separate from the first execution-contract package, then define execution readiness, dry-run run packets, and run reports for selected or explicitly opted-in work items. Human approval gates remain in place, and `lrh serve`, autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation stay outside the first package.
+The immediate priority is **safe-default execution-framework closeout and next-package alignment**: the prerequisite control-plane interpretation work and first execution-contract package are implemented, so the next package is the safe-default `lrh serve` local viewer / prompt workbench. Human approval gates remain in place, and autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation stay outside the next package.
 
 Canonical living design/context package: `project/design/execution_framework_mvp.md`.
 
@@ -26,32 +26,25 @@ Recently completed:
 - created the first-class `WS-EXECUTION-FRAMEWORK` workstream
 - updated the execution-framework design to prioritize a safe-default local `lrh serve` viewer and
   prompt workbench before durable run artifacts, observation adapters, or optional agentic execution
+- implemented the shared core-state APIs, planning relationship validation/indexing, and
+  snapshot-visible planning summaries needed by later execution-framework surfaces
+- implemented the opt-in execution-readiness schema, safe-default dry-run run-packet renderer, and
+  safe-default run-report renderer
 
 ## Why this is active now
 
-LRH now has enough project-control structure to plan the next execution-framework phase without
-jumping directly to runtime automation. The next work should expose existing project/control-plane
-state through shared APIs, planning relationship validation, snapshot-visible summaries, and a local
-human-assist surface, then make selected or explicitly opted-in work items ready for future execution
-by defining readiness metadata, durable run artifacts, and final run-report contracts that tie status
-to evidence.
+LRH now has enough project-control structure to start the next execution-framework package without
+jumping directly to runtime automation. Shared APIs, planning relationship validation,
+snapshot-visible summaries, opt-in readiness metadata, dry-run packet rendering, and report rendering
+are in place; the next work should expose those capabilities through a local human-assist surface.
 
-## First implementation slice
+## Next implementation slice
 
-The first execution-contract implementation package after this planning PR should be:
-
-1. `WI-EXECUTION-READINESS-SCHEMA`
-2. `WI-RUN-PACKET-DRY-RUN`
-3. `WI-RUN-REPORT-MVP`
-
-This package should define the fields, generated artifacts, evidence expectations, and human review
-steps needed before any branch mutation, agent backend, or stabilization loop can be implemented.
-Shared core state APIs, planning relationship validation, and snapshot-visible planning summaries are
-prerequisite control-plane alignment, not part of the first execution-contract package. If a future
-prompt discovers one of those prerequisites is missing, it should stop and create a separate
-prerequisite prompt before starting the package above. The safe-default `lrh serve` viewer/prompt
-workbench is a later read-only/local-assist package and should consume these contracts rather than
-blocking or broadening the first package.
+The next implementation package should be `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a local read-only
+viewer / prompt workbench that consumes the completed shared state, execution-readiness, run-packet,
+and run-report contracts. This package should expose state and generated artifacts for human review
+without autonomous dispatch, branch mutation, PR creation, stabilization loops, merge/release
+automation, or backend adapters.
 
 ## Adjacent CI capability design
 
@@ -91,6 +84,5 @@ This focus is complete when:
 3. work items exist for shared core state APIs, planning relationship validation, snapshot-visible
    planning summaries, safe-default `lrh serve`, execution readiness, run packet dry-run, run report
    MVP, branch containment, PR/CI observation, and bounded stabilization-loop design
-4. the first execution-contract prompt package can safely start with
-   `WI-EXECUTION-READINESS-SCHEMA`, `WI-RUN-PACKET-DRY-RUN`, and `WI-RUN-REPORT-MVP` after prerequisite
-   control-plane alignment is verified
+4. the safe-default `lrh serve` viewer / prompt workbench package is ready to start from completed
+   shared state, readiness, run-packet, and run-report contracts

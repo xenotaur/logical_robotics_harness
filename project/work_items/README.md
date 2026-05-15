@@ -125,11 +125,12 @@ preparation, or exposed only as an installed-agentic alias.
 
 ## Bounded execution-framework planning
 
-The first execution-framework implementation package should be contract-first and dry-run-first:
+The first execution-framework implementation package was contract-first and dry-run-first and is now
+resolved:
 
-1. `proposed/WI-EXECUTION-READINESS-SCHEMA.md`
-2. `proposed/WI-RUN-PACKET-DRY-RUN.md`
-3. `proposed/WI-RUN-REPORT-MVP.md`
+1. `resolved/WI-EXECUTION-READINESS-SCHEMA.md`
+2. `resolved/WI-RUN-PACKET-DRY-RUN.md`
+3. `resolved/WI-RUN-REPORT-MVP.md`
 
 Execution readiness is opt-in work-item frontmatter. Ordinary work items require no readiness
 metadata. A selected executable leaf declares `execution_ready: true` plus required fields for
@@ -158,10 +159,10 @@ recommended next actions. They are not evidence by themselves, do not observe CI
 or PR state, do not replace `project/executions/` prompt records, and do not
 invoke agents or mutate branches, pull requests, releases, or project status.
 
-Before generating that prompt package, verify prerequisite control-plane alignment: shared core state
-APIs, planning relationship/index validation, and snapshot-visible planning summaries. If a
-prerequisite is missing, complete it in a separate prompt rather than broadening the first
-execution-contract package.
+The prerequisite control-plane alignment is also resolved: shared core state APIs, planning
+relationship/index validation, and snapshot-visible planning summaries. The next implementation
+package should be `proposed/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md` as a read-only local viewer / prompt
+workbench that consumes those contracts rather than broadening them.
 
 Follow-on planning items cover safe-default `lrh serve`, branch containment, read-only PR/CI
 observation, and bounded stabilization-loop design. Do not plan branch mutation, agent backends,

@@ -25,11 +25,12 @@ execution-contract items were marked resolved and moved with `lrh work-items org
 - `WI-RUN-PACKET-DRY-RUN`
 - `WI-RUN-REPORT-MVP`
 
-The execution-framework workstream, roadmap, focus, status, and work-item README now identify
-`WI-LRH-SERVE-SAFE-DEFAULT-MVP` as the next implementation package: a local read-only viewer / prompt
-workbench that consumes shared state, execution-readiness, run-packet, and run-report contracts. Later
-branch containment, GitHub/CI observation, stabilization loops, backend adapters, branch mutation,
-PR creation, and merge/release automation remain deferred.
+The execution-framework workstream, canonical design, roadmap, focus, status, serve work-item
+metadata, and work-item README now identify `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as the next
+implementation package: a local read-only viewer / prompt workbench that consumes shared state,
+execution-readiness, run-packet, and run-report contracts. Later branch containment, GitHub/CI
+observation, stabilization loops, backend adapters, branch mutation, PR creation, and merge/release
+automation remain deferred.
 
 # Validation
 
@@ -43,6 +44,7 @@ PR creation, and merge/release automation remain deferred.
 - `lrh validate` passed with 0 errors and 3 pre-existing planning orphan warnings.
 - `lrh snapshot` was tried and returned the expected usage error because the command requires a scope argument.
 - `lrh snapshot project --project-root . --stdout` passed and wrote project snapshot output to `/tmp/lrh_snapshot_project.txt`.
+- Review feedback then aligned `project/status/current_status.md` provenance/timestamp, added the completed execution-contract items to `WI-LRH-SERVE-SAFE-DEFAULT-MVP` dependencies, and refreshed canonical sequencing in `project/design/execution_framework_mvp.md`.
 
 # Follow-up
 

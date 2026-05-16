@@ -26,6 +26,8 @@ adding runtime server, viewer, workbench, dependency, dispatch, mutation, or aut
 - Preserved safe-default non-goals: no autonomous dispatch, branch mutation, PR creation or mutation,
   CI/review loops, merge, release, publish, destructive behavior, arbitrary filesystem browsing, or
   automatic writes.
+- Addressed review feedback by replacing bare `lrh snapshot` validation templates with
+  `lrh snapshot project --stdout` and using the existing `validation_output` evidence label.
 
 # Validation
 
@@ -35,7 +37,6 @@ adding runtime server, viewer, workbench, dependency, dispatch, mutation, or aut
 - `scripts/lint` — passed.
 - `scripts/test` — passed; 507 unittest tests passed.
 - `lrh validate` — passed with 0 errors and 3 existing planning orphan warnings.
-- `lrh snapshot` — failed with usage error because the installed command requires a scope argument.
 - `lrh snapshot project --stdout` — passed.
 
 # Follow-up

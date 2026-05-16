@@ -44,7 +44,7 @@ acceptance:
   - autonomous dispatch, branch mutation, PR creation or mutation, CI-fix loops, review-fix loops, merge, release, and publish remain out of scope
 required_evidence:
   - manual_review
-  - validation_log
+  - validation_output
 artifacts_expected:
   - documentation
   - tests
@@ -121,7 +121,7 @@ Validation commands:
 - `scripts/lint`
 - `scripts/test`
 - `lrh validate`
-- `lrh snapshot`
+- `lrh snapshot project --stdout`
 
 Expected evidence:
 
@@ -161,7 +161,7 @@ Validation commands:
 - `scripts/lint`
 - `scripts/test`
 - `lrh validate`
-- `lrh snapshot`
+- `lrh snapshot project --stdout`
 - focused CLI/server tests added in the PR
 
 Expected evidence:
@@ -195,7 +195,7 @@ Validation commands:
 - `scripts/lint`
 - `scripts/test`
 - `lrh validate`
-- `lrh snapshot`
+- `lrh snapshot project --stdout`
 - focused viewer model/rendering tests added in the PR
 
 Expected evidence:
@@ -230,7 +230,7 @@ Validation commands:
 - `scripts/lint`
 - `scripts/test`
 - `lrh validate`
-- `lrh snapshot`
+- `lrh snapshot project --stdout`
 - focused workbench renderer/no-write tests added in the PR
 
 Expected evidence:

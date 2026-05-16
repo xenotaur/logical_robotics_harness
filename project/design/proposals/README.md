@@ -61,9 +61,10 @@ execution implementation).
 
 [`proposed/lrh-console-visual-language/`](proposed/lrh-console-visual-language/)
 — Proposes Alternative D, the Enhanced Swimlane Console, as the future light/dark visual language
-for `lrh serve` dashboards and LRH Console views. Status: `proposed` / `not_started`
-(documentation-only direction; no UI, CSS, server-route, frontend-framework, or safe-default MVP
-scope changes).
+for `lrh serve` dashboards and LRH Console views, with UX review criteria and a first implemented
+`lrh serve` checklist for evaluating safe-default tranches without making mockups pixel-perfect
+acceptance criteria. Status: `proposed` / `not_started` (documentation-only direction; no UI, CSS,
+server-route, frontend-framework, or safe-default MVP scope changes).
 
 [`proposed/workstream-execution-framework/`](proposed/workstream-execution-framework/)
 — Proposes future bounded execution for already-approved executable

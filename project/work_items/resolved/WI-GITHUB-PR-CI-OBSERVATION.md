@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Resolved as design-level planning by the execution-framework Layer 3 observation-adapter boundary, which documents read-only PR/CI/review observation and defers mutation/backends; semantic audit evidence is recorded in project/evidence/EV-0010.md.
 blocked_reason: null
 blocked: false
 id: WI-GITHUB-PR-CI-OBSERVATION
 title: Design GitHub PR and CI observation adapter
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Resolved by current validation output with 0 errors and documented remaining planning orphan warnings; semantic audit evidence is recorded in project/evidence/EV-0010.md.
 blocked_reason: null
 blocked: false
 id: WI-VALIDATOR-PROJECT-CLEANUP
 title: Fix project metadata to pass validator
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

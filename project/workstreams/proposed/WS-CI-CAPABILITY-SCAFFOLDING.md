@@ -35,8 +35,8 @@ manager, container model, or validation stack.
 
 Recent LRH development-toolchain reconciliation work reduced recurring local, CI, and Codex lint and
 formatting mismatch noise. Those lessons are useful beyond LRH itself. A focused workstream keeps the
-next steps visible while preserving a design/control-plane boundary: the playbook phase is now in
-progress, while request-template changes, skill design, and reusable template experiments remain
+next steps visible while preserving a design/control-plane boundary: the playbook phase is now
+resolved, while request-template changes, skill design, and reusable template experiments remain
 future phases.
 
 ## Phases
@@ -56,8 +56,8 @@ future phases.
 
 ## Work-item leaves
 
-- `WI-CI-PLAYBOOK` — active first implementation leaf to create the human CI setup and debugging
-  playbook at `docs/project-setup/ci.md`.
+- `WI-CI-PLAYBOOK` — resolved first implementation leaf that created the human CI setup and
+  debugging playbook at `docs/project-setup/ci.md`.
 
 The remaining seeds are future planning leaves, not active work items yet:
 

@@ -21,11 +21,11 @@ health: yellow
 
 # Current Status
 
-LRH has crossed the bootstrap threshold for control-plane foundations and now has canonical assist CLI entrypoints (`lrh request`, `lrh snapshot`, `lrh survey`) with package-owned survey implementation. The execution-framework prerequisite and first execution-contract package are implemented; the next identified package is the safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP` local viewer / prompt workbench.
+LRH has crossed the bootstrap threshold for control-plane foundations and now has canonical assist CLI entrypoints (`lrh request`, `lrh snapshot`, `lrh survey`) with package-owned survey implementation. The execution-framework prerequisite package, first execution-contract package, and safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP` local viewer / prompt workbench are implemented.
 
 ## Summary
 
-The immediate execution-framework objective is to start the safe-default `lrh serve` local viewer /
+The immediate execution-framework objective closed the safe-default `lrh serve` local viewer /
 prompt workbench from completed prerequisites and contracts, sequenced through plan refinement, local
 server skeleton, read-only viewer, and prompt/run-packet/report workbench slices:
 
@@ -45,9 +45,8 @@ Closeout note (2026-05-03): Completion and work-item tooling (`lrh work-items or
 
 Execution-framework closeout (2026-05-15): shared core state APIs, planning-tree validation, planning
 relationship indexing, snapshot-visible planning summaries, execution-readiness metadata, dry-run
-run-packet rendering, and run-report rendering are implemented and have execution records. The next
-implementation package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a read-only/local-assist viewer and
-prompt workbench, beginning with the local server skeleton after this planning refinement.
+run-packet rendering, run-report rendering, and the safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
+read-only/local-assist viewer and prompt workbench are implemented and have execution records.
 
 Evidence snapshot:
 - `lrh work-items organize --help` and `lrh work-items validate --help` are available in the CLI.
@@ -76,8 +75,8 @@ release. This is a packaging/governance boundary, not a security sandbox.
 
 ## Active Priorities
 
-- start `WI-LRH-SERVE-SAFE-DEFAULT-MVP` with the safe-default local server skeleton after planning
-  refinement
+- keep the closed `WI-LRH-SERVE-SAFE-DEFAULT-MVP` safe-default boundary intact while selecting the
+  next execution-framework package
 - preserve package-owned assist template/resource loading
 - maintain canonical `lrh survey` delegation to package code
 - keep later branch mutation, observation adapters, stabilization loops, and agent backends deferred
@@ -98,9 +97,8 @@ release. This is a packaging/governance boundary, not a security sandbox.
 
 ## Recommended Next Actions
 
-1. Use the next implementation prompt,
-   `PROMPT(WI-LRH-SERVE-SAFE-DEFAULT-MVP:IMPLEMENT_SERVE_LOCAL_SERVER_SKELETON)`, to add only the
-   safe-default local server skeleton.
+1. Select the next execution-framework package with the same safe-default, human-gated boundary used
+   for `WI-LRH-SERVE-SAFE-DEFAULT-MVP`.
 2. Keep package-owned assist template/resource behavior stable.
 3. Keep `lrh survey` canonical on package-owned implementation.
 4. Keep later branch mutation, observation adapters, stabilization loops, and agent backends deferred.

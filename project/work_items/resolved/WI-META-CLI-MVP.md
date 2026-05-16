@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: completed
 blocked_reason: null
 blocked: false
 id: WI-META-CLI-MVP
 title: Meta CLI MVP: init / register / list
 type: deliverable
-status: active
+status: resolved
 priority: high
 owner: anthony
 contributors:

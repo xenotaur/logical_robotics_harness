@@ -3,6 +3,7 @@ import io
 import json
 import pathlib
 import socket
+import tempfile
 import threading
 import unittest
 import unittest.mock
@@ -26,7 +27,7 @@ class TestLrhServeCli(unittest.TestCase):
         self.assertEqual(err_ctx.exception.code, 0)
         self.assertEqual(stderr.getvalue(), "")
         output = stdout.getvalue()
-        self.assertIn("safe-default LRH local server skeleton", output)
+        self.assertIn("safe-default LRH local read-only viewer", output)
         self.assertIn("--host", output)
         self.assertIn("--port", output)
         self.assertIn("--allow-nonlocal-host", output)
@@ -105,8 +106,12 @@ class TestLrhServeCli(unittest.TestCase):
 
 
 class TestLrhServeRoutes(unittest.TestCase):
-    def _start_server(self) -> tuple[serve.ThreadingHTTPServer, str]:
-        config = serve.ServeConfig(port=0)
+    def _start_server(
+        self, project_root: pathlib.Path | None = None
+    ) -> tuple[serve.ThreadingHTTPServer, str]:
+        config = serve.ServeConfig(
+            port=0, project_root=project_root or pathlib.Path(".")
+        )
         httpd = serve.create_http_server(config)
         host, port = httpd.server_address[:2]
         thread = threading.Thread(target=httpd.serve_forever, daemon=True)
@@ -121,16 +126,20 @@ class TestLrhServeRoutes(unittest.TestCase):
             content_type = response.headers.get("Content-Type", "")
             return response.status, content_type, body
 
-    def test_index_health_and_status_routes_are_read_only_skeleton(self) -> None:
-        _httpd, base_url = self._start_server()
+    def test_index_health_and_status_routes_are_read_only_viewer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
 
-        index_status, index_type, index_body = self._read(base_url + "/")
-        health_status, health_type, health_body = self._read(base_url + "/health")
-        api_status, api_type, api_body = self._read(base_url + "/api/status")
+            index_status, index_type, index_body = self._read(base_url + "/")
+            health_status, health_type, health_body = self._read(base_url + "/health")
+            api_status, api_type, api_body = self._read(base_url + "/api/status")
 
         self.assertEqual(index_status, 200)
         self.assertIn("text/html", index_type)
-        self.assertIn("Safe-default local server skeleton", index_body)
+        self.assertIn("Safe-default read-only project viewer", index_body)
+        self.assertIn("Execution-ready leaves", index_body)
         self.assertIn("does not", index_body)
         self.assertEqual(health_status, 200)
         self.assertIn("application/json", health_type)
@@ -139,10 +148,101 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn("application/json", api_type)
         payload = json.loads(api_body)
         self.assertEqual(payload["status"], "ok")
-        self.assertEqual(payload["routes"], ["/", "/health", "/api/status"])
+        self.assertEqual(
+            payload["routes"], ["/", "/health", "/api/status", "/api/project"]
+        )
         self.assertFalse(payload["capabilities"]["write_routes"])
+        self.assertFalse(payload["capabilities"]["packet_generation"])
         self.assertEqual(payload["port"], _httpd.server_address[1])
         self.assertNotEqual(payload["port"], 0)
+
+    def test_project_api_returns_read_only_project_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(base_url + "/api/project")
+
+        self.assertEqual(status, 200)
+        self.assertIn("application/json", content_type)
+        payload = json.loads(body)
+        self.assertEqual(payload["mode"], "safe-default-read-only-viewer")
+        self.assertEqual(payload["project"]["name"], root.name)
+        self.assertEqual(payload["validation"]["status"], "valid")
+        self.assertEqual(payload["current_focus"]["id"], "FOCUS-1")
+        self.assertEqual(payload["workstreams"]["by_status"], {"active": 1})
+        self.assertEqual(
+            [item["id"] for item in payload["active_workstreams"]], ["WS-A"]
+        )
+        self.assertEqual(payload["work_items"]["by_status"], {"active": 2})
+        self.assertEqual(payload["work_items"]["by_type"], {"deliverable": 2})
+        self.assertEqual(
+            [item["id"] for item in payload["work_items"]["items"]], ["WI-A", "WI-B"]
+        )
+        self.assertEqual(payload["planning"]["active_leaf_ids"], ["WI-A", "WI-B"])
+        self.assertEqual(payload["execution"]["ready_count"], 1)
+        self.assertEqual(payload["execution"]["ready_work_items"][0]["id"], "WI-A")
+        self.assertEqual(
+            payload["execution"]["ready_work_items"][0]["run_packet"]["surface"],
+            "lrh request run-packet-from-work-item",
+        )
+        self.assertFalse(payload["capabilities"]["agent_dispatch"])
+        self.assertFalse(payload["capabilities"]["external_network_calls"])
+
+    def test_project_api_reports_validation_warnings_and_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root, unknown_contributor=True)
+
+            warning_payload = serve.project_viewer_payload(
+                serve.ServeConfig(project_root=root)
+            )
+
+            _write_viewer_project(root, duplicate_work_item=True)
+            error_payload = serve.project_viewer_payload(
+                serve.ServeConfig(project_root=root)
+            )
+
+        self.assertEqual(warning_payload["validation"]["status"], "valid")
+        self.assertEqual(warning_payload["validation"]["warning_count"], 1)
+        self.assertIn(
+            "FOCUS_UNKNOWN_ACTIVE_CONTRIBUTOR",
+            [diagnostic["code"] for diagnostic in warning_payload["diagnostics"]],
+        )
+        self.assertEqual(error_payload["validation"]["status"], "error")
+        self.assertGreaterEqual(error_payload["validation"]["error_count"], 1)
+        self.assertEqual(error_payload["work_items"]["total"], 0)
+
+    def test_project_api_handles_no_workstreams_or_ready_items(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_minimal_project(root)
+
+            payload = serve.project_viewer_payload(serve.ServeConfig(project_root=root))
+
+        self.assertEqual(payload["validation"]["status"], "valid")
+        self.assertEqual(
+            payload["workstreams"], {"total": 0, "by_status": {}, "items": []}
+        )
+        self.assertEqual(payload["active_workstreams"], [])
+        self.assertEqual(payload["planning"]["active_leaf_ids"], [])
+        self.assertEqual(payload["execution"]["ready_work_items"], [])
+        self.assertEqual(payload["execution"]["ready_count"], 0)
+
+    def test_project_route_does_not_mutate_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            tracked_file = root / "project" / "work_items" / "active" / "WI-A.md"
+            before = tracked_file.stat().st_mtime_ns
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, _body = self._read(base_url + "/api/project")
+            after = tracked_file.stat().st_mtime_ns
+
+        self.assertEqual(status, 200)
+        self.assertEqual(after, before)
 
     def test_arbitrary_file_paths_are_not_served(self) -> None:
         _httpd, base_url = self._start_server()
@@ -160,7 +260,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         for method in ("POST", "PUT", "DELETE", "PATCH", "OPTIONS"):
             with self.subTest(method=method):
                 request = urllib.request.Request(
-                    base_url + "/api/status", method=method
+                    base_url + "/api/project", method=method
                 )
 
                 with self.assertRaises(urllib.error.HTTPError) as err_ctx:
@@ -169,6 +269,135 @@ class TestLrhServeRoutes(unittest.TestCase):
                 self.assertEqual(err_ctx.exception.code, 405)
                 body = err_ctx.exception.read().decode("utf-8")
                 self.assertEqual(json.loads(body), {"error": "method_not_allowed"})
+
+
+def _write_minimal_project(root: pathlib.Path) -> None:
+    project_dir = root / "project"
+    (project_dir / "focus").mkdir(parents=True, exist_ok=True)
+    (project_dir / "work_items").mkdir(parents=True, exist_ok=True)
+    _write(
+        project_dir / "focus" / "current_focus.md",
+        """---
+id: FOCUS-1
+title: Current Focus
+status: active
+---
+Focus body.
+""",
+    )
+
+
+def _write_viewer_project(
+    root: pathlib.Path,
+    *,
+    unknown_contributor: bool = False,
+    duplicate_work_item: bool = False,
+) -> None:
+    _write_minimal_project(root)
+    project_dir = root / "project"
+    focus_file = project_dir / "focus" / "current_focus.md"
+    if unknown_contributor:
+        focus_file.write_text(
+            """---
+id: FOCUS-1
+title: Current Focus
+status: active
+active_contributors:
+  - missing-contributor
+---
+Focus body.
+""",
+            encoding="utf-8",
+        )
+    (project_dir / "work_items" / "active").mkdir(parents=True, exist_ok=True)
+    (project_dir / "workstreams" / "active").mkdir(parents=True, exist_ok=True)
+    _write(
+        project_dir / "work_items" / "active" / "WI-B.md",
+        """---
+id: WI-B
+title: Beta
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+related_focus:
+  - FOCUS-1
+---
+Body.
+""",
+    )
+    _write(
+        project_dir / "work_items" / "active" / "WI-A.md",
+        """---
+id: WI-A
+title: Alpha
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+related_focus:
+  - FOCUS-1
+execution_ready: true
+autonomy_level: human_gated
+operation_risk: read_only
+allowed_paths:
+  - src/lrh/serve.py
+forbidden_paths:
+  - .env
+validation_commands:
+  - scripts/test
+required_evidence:
+  - tests
+expected_artifacts:
+  - viewer-summary
+requires_human_approval: true
+requires_human_merge: true
+requires_human_closeout: true
+policy_gates:
+  - review
+agent_constraints:
+  - read-only serve route
+---
+Body.
+""",
+    )
+    if duplicate_work_item:
+        _write(
+            project_dir / "work_items" / "active" / "WI-DUP.md",
+            """---
+id: WI-A
+title: Duplicate Alpha
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+---
+Body.
+""",
+        )
+    _write(
+        project_dir / "workstreams" / "active" / "WS-A.md",
+        """---
+id: WS-A
+kind: planning_node
+title: Active Stream
+status: active
+stage: executing
+work_items:
+  - WI-A
+  - WI-B
+---
+Body.
+""",
+    )
+
+
+def _write(path: pathlib.Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -72,6 +72,20 @@ Proposal frontmatter `status` is authoritative; path buckets under
 `project/design/proposals/` are derived for human readability, while
 proposal-set relative paths are preserved within those buckets.
 
+The safe-default local server skeleton can be started with:
+
+```bash
+lrh serve
+```
+
+`lrh serve` binds to `127.0.0.1:8765` by default and exposes only minimal
+read-only skeleton routes (`/`, `/health`, and `/api/status`). It is a local
+viewer entrypoint, not an autonomous runner: it does not serve arbitrary files,
+dispatch agents, mutate branches, create or update pull requests, make external
+network calls, or provide write routes. Binding to non-local hosts such as
+`0.0.0.0` requires the explicit `--allow-nonlocal-host` opt-in and should be
+used only after reviewing the exposure risk.
+
 ## User installation
 
 Once LRH is published on PyPI, the preferred normal installation path for the

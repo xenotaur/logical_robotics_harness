@@ -9,7 +9,7 @@ import json
 import sys
 from pathlib import Path
 
-from lrh import prompt_workflow, prompt_workflow_match, prompt_workflow_search
+from lrh import prompt_workflow, prompt_workflow_match, prompt_workflow_search, serve
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
@@ -75,6 +75,12 @@ def main() -> None:
         "survey",
         add_help=False,
         help="Survey a Python source tree for assist planning workflows.",
+    )
+
+    subparsers.add_parser(
+        "serve",
+        add_help=False,
+        help="Start the safe-default local read-only server skeleton.",
     )
 
     subparsers.add_parser(
@@ -522,6 +528,14 @@ def main() -> None:
             sourcetree_surveyor.main(
                 argv=passthrough_args,
                 prog="lrh survey",
+            )
+        )
+
+    if args.command == "serve":
+        raise SystemExit(
+            serve.run_serve_cli(
+                argv=passthrough_args,
+                prog="lrh serve",
             )
         )
 

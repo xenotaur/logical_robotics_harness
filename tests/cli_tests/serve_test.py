@@ -126,6 +126,12 @@ class TestLrhServeRoutes(unittest.TestCase):
             content_type = response.headers.get("Content-Type", "")
             return response.status, content_type, body
 
+    def _head(self, url: str) -> tuple[int, str]:
+        request = urllib.request.Request(url, method="HEAD")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            content_type = response.headers.get("Content-Type", "")
+            return response.status, content_type
+
     def test_index_health_and_status_routes_are_read_only_viewer(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
@@ -149,7 +155,21 @@ class TestLrhServeRoutes(unittest.TestCase):
         payload = json.loads(api_body)
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(
-            payload["routes"], ["/", "/health", "/api/status", "/api/project"]
+            payload["routes"],
+            [
+                "/",
+                "/workbench",
+                "/workbench/prompt",
+                "/workbench/run-packet",
+                "/workbench/run-report",
+                "/health",
+                "/api/status",
+                "/api/project",
+                "/api/workbench",
+                "/api/workbench/prompt",
+                "/api/workbench/run-packet",
+                "/api/workbench/run-report",
+            ],
         )
         self.assertFalse(payload["capabilities"]["write_routes"])
         self.assertFalse(payload["capabilities"]["packet_generation"])
@@ -230,19 +250,150 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(payload["execution"]["ready_work_items"], [])
         self.assertEqual(payload["execution"]["ready_count"], 0)
 
-    def test_project_route_does_not_mutate_files(self) -> None:
+    def test_workbench_api_lists_deterministic_preview_actions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(base_url + "/api/workbench")
+
+        self.assertEqual(status, 200)
+        self.assertIn("application/json", content_type)
+        payload = json.loads(body)
+        self.assertEqual(payload["mode"], "safe-default-prompt-packet-report-workbench")
+        self.assertEqual(
+            [item["id"] for item in payload["work_items"]], ["WI-A", "WI-B"]
+        )
+        first = payload["work_items"][0]
+        self.assertEqual(
+            first["prompt_preview_url"], "/workbench/prompt?work_item=WI-A"
+        )
+        self.assertEqual(
+            first["packet_preview_url"], "/workbench/run-packet?work_item=WI-A"
+        )
+        self.assertEqual(
+            first["report_preview_url"], "/workbench/run-report?work_item=WI-A"
+        )
+        self.assertTrue(first["execution_ready"])
+        self.assertIn("no agent dispatch or backend execution", payload["safety"])
+        self.assertFalse(payload["capabilities"]["write_routes"])
+        self.assertFalse(payload["capabilities"]["branch_mutation"])
+
+    def test_workbench_prompt_preview_route_uses_prompt_renderer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(
+                base_url + "/api/workbench/prompt?work_item=WI-A"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn("application/json", content_type)
+        payload = json.loads(body)
+        self.assertEqual(payload["kind"], "prompt")
+        self.assertEqual(payload["work_item_id"], "WI-A")
+        self.assertIn(
+            "PROMPT(WI-A:LRH_SERVE_WORKBENCH_PREVIEW)[UNEXECUTED]", payload["markdown"]
+        )
+        self.assertIn("# ROLE", payload["markdown"])
+        self.assertEqual(payload["diagnostics"], [])
+
+    def test_workbench_run_packet_preview_reports_missing_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(
+                base_url + "/api/workbench/run-packet?work_item=WI-B"
+            )
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        self.assertEqual(payload["kind"], "run-packet")
+        self.assertIn("# Dry-Run Run Packet Review Required", payload["markdown"])
+        self.assertIn("execution_ready must be true", payload["markdown"])
+        self.assertTrue(payload["diagnostics"])
+
+    def test_workbench_run_report_preview_route_uses_report_renderer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(
+                base_url + "/api/workbench/run-report?work_item=WI-A"
+            )
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        self.assertEqual(payload["kind"], "run-report")
+        self.assertIn("# Run Report: WI-A", payload["markdown"])
+        self.assertIn("requires-human-review", payload["markdown"])
+        self.assertIn("does not execute work", payload["markdown"])
+
+    def test_workbench_download_is_in_memory_markdown_response(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(
+                base_url + "/workbench/run-packet?work_item=WI-A&download=1"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/markdown", content_type)
+        self.assertIn("# Dry-Run Run Packet: WI-A", body)
+
+    def test_project_and_workbench_routes_do_not_mutate_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
             _write_viewer_project(root)
             tracked_file = root / "project" / "work_items" / "active" / "WI-A.md"
             before = tracked_file.stat().st_mtime_ns
+            before_files = sorted(path.relative_to(root) for path in root.rglob("*"))
             _httpd, base_url = self._start_server(root)
 
-            status, _content_type, _body = self._read(base_url + "/api/project")
+            project_status, _content_type, _body = self._read(base_url + "/api/project")
+            packet_status, _packet_type, _packet_body = self._read(
+                base_url + "/api/workbench/run-packet?work_item=WI-A"
+            )
             after = tracked_file.stat().st_mtime_ns
+            after_files = sorted(path.relative_to(root) for path in root.rglob("*"))
 
-        self.assertEqual(status, 200)
+        self.assertEqual(project_status, 200)
+        self.assertEqual(packet_status, 200)
         self.assertEqual(after, before)
+        self.assertEqual(after_files, before_files)
+
+    def test_workbench_head_validates_artifact_work_item_query(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            html_status, html_type = self._head(
+                base_url + "/workbench/run-packet?work_item=WI-A"
+            )
+            api_status, api_type = self._head(
+                base_url + "/api/workbench/prompt?work_item=WI-A"
+            )
+
+            with self.assertRaises(urllib.error.HTTPError) as missing_query_ctx:
+                self._head(base_url + "/workbench/run-packet")
+            with self.assertRaises(urllib.error.HTTPError) as missing_item_ctx:
+                self._head(base_url + "/api/workbench/prompt?work_item=missing")
+
+        self.assertEqual(html_status, 200)
+        self.assertIn("text/html", html_type)
+        self.assertEqual(api_status, 200)
+        self.assertIn("application/json", api_type)
+        self.assertEqual(missing_query_ctx.exception.code, 404)
+        self.assertEqual(missing_item_ctx.exception.code, 404)
 
     def test_arbitrary_file_paths_are_not_served(self) -> None:
         _httpd, base_url = self._start_server()
@@ -253,6 +404,23 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(err_ctx.exception.code, 404)
         body = err_ctx.exception.read().decode("utf-8")
         self.assertEqual(json.loads(body), {"error": "not_found"})
+
+    def test_workbench_rejects_arbitrary_work_item_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                urllib.request.urlopen(
+                    base_url + "/api/workbench/prompt?work_item=../../STYLE.md",
+                    timeout=5,
+                )
+
+        self.assertEqual(err_ctx.exception.code, 404)
+        body = err_ctx.exception.read().decode("utf-8")
+        payload = json.loads(body)
+        self.assertEqual(payload["error"], "not_found")
 
     def test_write_methods_are_rejected(self) -> None:
         _httpd, base_url = self._start_server()
@@ -360,7 +528,32 @@ policy_gates:
 agent_constraints:
   - read-only serve route
 ---
-Body.
+## Summary
+Build the safe-default workbench.
+
+## Problem
+Local users need previewable prompt, packet, and report artifacts.
+
+## Scope
+- Add workbench preview routes.
+- Keep all actions read-only.
+
+## Out of Scope
+- Agent dispatch.
+- Branch mutation.
+
+## Required Changes
+- Render prompt previews.
+- Render packet previews.
+- Render report previews.
+
+## Validation
+- scripts/test
+
+## Acceptance Criteria
+- Prompt preview is available.
+- Packet preview is available.
+- Report preview is available.
 """,
     )
     if duplicate_work_item:

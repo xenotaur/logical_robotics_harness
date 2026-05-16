@@ -78,19 +78,27 @@ The safe-default local read-only viewer can be started with:
 lrh serve
 ```
 
-`lrh serve` binds to `127.0.0.1:8765` by default and exposes read-only routes
-(`/`, `/health`, `/api/status`, and `/api/project`). The index page and
-`/api/project` summarize the currently loaded project-control state through the
-shared core-state APIs: project identity, validation counts and diagnostics,
-current focus, workstream and work-item lifecycle summaries, planning-tree
-relationships, active leaves, execution-readiness metadata, and references to
-the existing run-packet/run-report request surfaces when a leaf is ready. It is
-a local viewer entrypoint, not an autonomous runner: it does not serve arbitrary
-files, dispatch agents, generate packets or reports, mutate branches, create or
-update pull requests, make external network calls, or provide write routes.
-Binding to non-local hosts such as `0.0.0.0` requires the explicit
-`--allow-nonlocal-host` opt-in and should be used only after reviewing the
-exposure risk.
+`lrh serve` binds to `127.0.0.1:8765` by default and exposes read-only routes:
+`/`, `/workbench`, `/workbench/prompt`, `/workbench/run-packet`,
+`/workbench/run-report`, `/health`, `/api/status`, `/api/project`,
+`/api/workbench`, `/api/workbench/prompt`, `/api/workbench/run-packet`, and
+`/api/workbench/run-report`. The index page and `/api/project` summarize the
+currently loaded project-control state through the shared core-state APIs: project
+identity, validation counts and diagnostics, current focus, workstream and
+work-item lifecycle summaries, planning-tree relationships, active leaves,
+execution-readiness metadata, and references to the existing run-packet and
+run-report request surfaces when a leaf is ready.
+
+The `/workbench` page is a local prompt/run-packet/run-report preview surface.
+It reuses the package prompt, run-packet, and run-report renderers to show
+copy-friendly Markdown and in-memory Markdown downloads for selected work items.
+These previews are not execution evidence and do not imply that rendered content
+has been run. The server remains a local viewer entrypoint, not an autonomous
+runner: it does not serve arbitrary files, dispatch agents, mutate branches,
+create or update pull requests, run CI loops, make external network calls, or
+provide write routes. Binding to non-local hosts such as `0.0.0.0` requires the
+explicit `--allow-nonlocal-host` opt-in and should be used only after reviewing
+the exposure risk.
 
 ## User installation
 

@@ -16,12 +16,33 @@ from pathlib import Path
 from typing import Any
 
 from lrh import core_state
+from lrh.assist import run_packet, run_report, work_item_prompt_core
 from lrh.control import loader as control_loader
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 UNSAFE_HOSTS = frozenset({"0.0.0.0", "::", ""})
+_WORKBENCH_ARTIFACT_ROUTES = frozenset(
+    {"/workbench/prompt", "/workbench/run-packet", "/workbench/run-report"}
+)
+_WORKBENCH_API_ROUTES = frozenset(
+    {"/api/workbench/prompt", "/api/workbench/run-packet", "/api/workbench/run-report"}
+)
+_STATUS_ROUTES = (
+    "/",
+    "/workbench",
+    "/workbench/prompt",
+    "/workbench/run-packet",
+    "/workbench/run-report",
+    "/health",
+    "/api/status",
+    "/api/project",
+    "/api/workbench",
+    "/api/workbench/prompt",
+    "/api/workbench/run-packet",
+    "/api/workbench/run-report",
+)
 
 
 @dataclass(frozen=True)
@@ -81,7 +102,7 @@ def status_payload(
         "host": host,
         "port": port,
         "project_root_name": project_root.name,
-        "routes": ["/", "/health", "/api/status", "/api/project"],
+        "routes": list(_STATUS_ROUTES),
         "capabilities": _safe_capabilities(),
     }
 
@@ -123,10 +144,12 @@ def render_index(
 <body>
   <main>
     <h1>Logical Robotics Harness</h1>
-    <p>Safe-default read-only project viewer.</p>
-    <p>This viewer summarizes existing LRH project-control state. It does not
-    serve arbitrary files, dispatch agents, mutate branches, create pull
-    requests, make external network calls, or provide write routes.</p>
+    <p>Safe-default read-only project viewer with a local preview workbench.</p>
+    <p>This viewer summarizes existing LRH project-control state. The workbench
+    can render prompt, run-packet, and run-report previews only after an
+    explicit local link click. It does not serve arbitrary files, dispatch
+    agents, mutate branches, create pull requests, make external network calls,
+    execute rendered content, or provide write routes.</p>
     <dl>
       <dt>Project</dt><dd>{project_name}</dd>
       <dt>Bind</dt><dd>{host}:{port}</dd>
@@ -146,8 +169,8 @@ def render_index(
     </section>
     <section>
       <h2>Execution-ready leaves</h2>
-      <p>Run-packet and run-report surfaces are references only; this page does
-      not generate packets or reports.</p>
+      <p>Workbench packet and report previews are local in-memory renderings;
+      they are not execution evidence and do not imply work has run.</p>
       {ready_items}
     </section>
     <section>
@@ -161,6 +184,10 @@ def render_index(
         <li><a href=\"/api/status\">/api/status</a></li>
         <li><a href=\"/api/project\">/api/project</a></li>
       </ul>
+    </section>
+    <section>
+      <h2>Prompt/packet/report workbench</h2>
+      <p><a href="/workbench">Open the local preview workbench</a>.</p>
     </section>
   </main>
 </body>
@@ -282,6 +309,299 @@ def project_viewer_payload(config: ServeConfig) -> dict[str, Any]:
     }
 
 
+@dataclass(frozen=True)
+class WorkbenchArtifact:
+    """Rendered safe-default workbench artifact metadata and Markdown."""
+
+    kind: str
+    work_item_id: str
+    title: str
+    markdown: str
+    diagnostics: tuple[dict[str, str], ...]
+
+
+def workbench_payload(config: ServeConfig) -> dict[str, object]:
+    """Return deterministic prompt/packet/report workbench index data."""
+
+    project_payload = project_viewer_payload(config)
+    work_items = project_payload["work_items"]
+    items = []
+    if isinstance(work_items, dict):
+        raw_items = work_items.get("items", [])
+        if isinstance(raw_items, list):
+            for item in raw_items:
+                if isinstance(item, dict):
+                    work_item_id = str(item["id"])
+                    items.append(
+                        {
+                            "id": work_item_id,
+                            "title": item["title"],
+                            "status": item["status"],
+                            "type": item["type"],
+                            "is_active_leaf": item["is_active_leaf"],
+                            "execution_ready": _work_item_execution_ready(item),
+                            "viewer_url": f"/#work-item-{_url_quote(work_item_id)}",
+                            "prompt_preview_url": (
+                                "/workbench/prompt?work_item="
+                                f"{_url_quote(work_item_id)}"
+                            ),
+                            "packet_preview_url": (
+                                "/workbench/run-packet?work_item="
+                                f"{_url_quote(work_item_id)}"
+                            ),
+                            "report_preview_url": (
+                                "/workbench/run-report?work_item="
+                                f"{_url_quote(work_item_id)}"
+                            ),
+                        }
+                    )
+    return {
+        "mode": "safe-default-prompt-packet-report-workbench",
+        "project": project_payload["project"],
+        "validation": project_payload["validation"],
+        "work_items": items,
+        "diagnostics": project_payload["diagnostics"],
+        "safety": _workbench_safety_notes(),
+        "capabilities": _safe_capabilities(),
+    }
+
+
+def render_workbench_index(config: ServeConfig) -> str:
+    """Render the local prompt/packet/report workbench page."""
+
+    payload = workbench_payload(config)
+    items = payload["work_items"]
+    if isinstance(items, list) and items:
+        item_rows = "".join(_workbench_item_row(item) for item in items)
+    else:
+        item_rows = "<p>No work items are currently available to preview.</p>"
+    diagnostics = _html_list(
+        _diagnostic_label(diagnostic) for diagnostic in payload["diagnostics"]
+    )
+    return """<!doctype html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\">
+  <title>LRH Serve Workbench</title>
+</head>
+<body>
+  <main>
+    <h1>LRH Prompt/Packet/Report Workbench</h1>
+    <p><a href=\"/\">Back to read-only viewer</a></p>
+    <p>This local workbench previews package-rendered Markdown from existing
+    LRH project-control files. Rendering happens only when you select a preview
+    or download link. It does not execute prompts, dispatch agents, mutate
+    branches, create pull requests, run CI loops, merge, release, publish, read
+    arbitrary files, or write repository files.</p>
+    <section>
+      <h2>Renderable work items</h2>
+      {item_rows}
+    </section>
+    <section>
+      <h2>Diagnostics</h2>
+      {diagnostics}
+    </section>
+    <section>
+      <h2>Read-only API</h2>
+      <ul>
+        <li><a href=\"/api/workbench\">/api/workbench</a></li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
+""".format(item_rows=item_rows, diagnostics=diagnostics)
+
+
+def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
+    """Render a copy-friendly HTML page for one workbench artifact."""
+
+    diagnostics = _html_list(_diagnostic_label(item) for item in artifact.diagnostics)
+    title = html.escape(f"{artifact.kind}: {artifact.work_item_id}")
+    markdown = html.escape(artifact.markdown)
+    work_item = _url_quote(artifact.work_item_id)
+    kind = _url_quote(artifact.kind)
+    return """<!doctype html>
+<html lang=\"en\">
+<head>
+  <meta charset=\"utf-8\">
+  <title>{title}</title>
+</head>
+<body>
+  <main>
+    <h1>{title}</h1>
+    <p><a href=\"/workbench\">Back to workbench</a> |
+    <a href=\"/#work-item-{work_item}\">Back to viewer context</a></p>
+    <p>This is a local in-memory preview only. It has not been executed and no
+    repository files were written.</p>
+    <p><a href=\"/workbench/{kind}?work_item={work_item}&amp;download=1\">
+    Download Markdown</a></p>
+    <section>
+      <h2>Diagnostics</h2>
+      {diagnostics}
+    </section>
+    <section>
+      <h2>Copy-friendly Markdown</h2>
+      <textarea rows=\"32\" cols=\"100\" readonly>{markdown}</textarea>
+    </section>
+  </main>
+</body>
+</html>
+""".format(
+        title=title,
+        work_item=work_item,
+        kind=kind,
+        diagnostics=diagnostics,
+        markdown=markdown,
+    )
+
+
+def render_workbench_artifact(
+    config: ServeConfig,
+    kind: str,
+    work_item_id: str,
+) -> WorkbenchArtifact:
+    """Render one prompt, run-packet, or run-report preview without writes."""
+
+    state = core_state.load_core_project_state(config.resolved_project_root())
+    item = _resolve_workbench_item(state, work_item_id)
+    project_root = config.resolved_project_root()
+    if kind == "prompt":
+        return _render_prompt_artifact(project_root, state, item)
+    if kind == "run-packet":
+        return _render_packet_artifact(project_root, state, item)
+    if kind == "run-report":
+        return _render_report_artifact(project_root, state, item)
+    raise ValueError(f"unsupported workbench artifact kind: {kind}")
+
+
+def _render_prompt_artifact(
+    project_root: Path,
+    state: core_state.CoreProjectState,
+    item: core_state.WorkItemState,
+) -> WorkbenchArtifact:
+    prompt_id = f"PROMPT({item.id}:LRH_SERVE_WORKBENCH_PREVIEW)[UNEXECUTED]"
+    style_path = _relative_repo_path(project_root, project_root / "STYLE.md")
+    work_item_path = _relative_repo_path(project_root, item.path)
+    markdown = work_item_prompt_core.generate_codex_cloud_prompt(
+        prompt_id=prompt_id,
+        work_item_path=item.path,
+        style_guide_path=style_path,
+        work_item_reference_path=work_item_path,
+    )
+    parsed = work_item_prompt_core.parse_work_item_markdown(item.path)
+    readiness = work_item_prompt_core.evaluate_prompt_readiness(parsed)
+    diagnostics = tuple(
+        {
+            "source": "prompt-workbench",
+            "file": _relative_project_path(state, item.path),
+            "severity": "error",
+            "code": "PROMPT_READINESS_BLOCKED",
+            "message": reason,
+        }
+        for reason in readiness.blocking_reasons
+    )
+    return WorkbenchArtifact(
+        kind="prompt",
+        work_item_id=item.id,
+        title=item.title,
+        markdown=markdown,
+        diagnostics=diagnostics,
+    )
+
+
+def _render_packet_artifact(
+    project_root: Path,
+    state: core_state.CoreProjectState,
+    item: core_state.WorkItemState,
+) -> WorkbenchArtifact:
+    result = run_packet.render_run_packet_from_work_item(
+        item.path,
+        project_root=project_root,
+    )
+    return WorkbenchArtifact(
+        kind="run-packet",
+        work_item_id=item.id,
+        title=item.title,
+        markdown=result.markdown,
+        diagnostics=_readiness_issue_dicts(state, result.diagnostics),
+    )
+
+
+def _render_report_artifact(
+    project_root: Path,
+    state: core_state.CoreProjectState,
+    item: core_state.WorkItemState,
+) -> WorkbenchArtifact:
+    result = run_report.render_run_report(
+        run_report.RunReportInput(
+            work_item_path=item.path,
+            outcome="requires-human-review",
+            human_verification_tasks=(
+                "Review this workbench preview before treating it as execution "
+                "evidence.",
+            ),
+            unresolved_risks=(
+                "Workbench preview only; no agent, validation, branch, PR, or CI "
+                "action ran.",
+            ),
+            recommended_next_actions=(
+                "If execution is desired, copy the prompt or packet into a "
+                "separate approved workflow.",
+            ),
+        ),
+        project_root=project_root,
+    )
+    diagnostics = tuple(
+        {
+            "source": "run-report-workbench",
+            "file": _relative_project_path(state, item.path),
+            "severity": "warning",
+            "code": diagnostic.code,
+            "message": diagnostic.message,
+        }
+        for diagnostic in result.diagnostics
+    )
+    return WorkbenchArtifact(
+        kind="run-report",
+        work_item_id=item.id,
+        title=item.title,
+        markdown=result.markdown,
+        diagnostics=diagnostics,
+    )
+
+
+def _resolve_workbench_item(
+    state: core_state.CoreProjectState,
+    work_item_id: str,
+) -> core_state.WorkItemState:
+    requested = work_item_id.strip()
+    for item in state.work_items:
+        if item.id == requested:
+            return item
+    raise FileNotFoundError(f"work item is not available in this project: {requested}")
+
+
+def _readiness_issue_dicts(
+    state: core_state.CoreProjectState,
+    diagnostics: tuple[object, ...],
+) -> tuple[dict[str, str], ...]:
+    return tuple(
+        {
+            "source": "run-packet-workbench",
+            "file": _relative_project_path(state, diagnostic.path),
+            "severity": diagnostic.severity,
+            "code": diagnostic.code,
+            "message": diagnostic.message,
+        }
+        for diagnostic in diagnostics
+        if hasattr(diagnostic, "path")
+        and hasattr(diagnostic, "severity")
+        and hasattr(diagnostic, "code")
+        and hasattr(diagnostic, "message")
+    )
+
+
 def _safe_capabilities() -> dict[str, bool]:
     return {
         "write_routes": False,
@@ -292,6 +612,10 @@ def _safe_capabilities() -> dict[str, bool]:
         "external_network_calls": False,
         "packet_generation": False,
         "report_generation": False,
+        "prompt_workbench": True,
+        "in_memory_downloads": True,
+        "packet_preview": True,
+        "report_preview": True,
     }
 
 
@@ -491,6 +815,80 @@ def _ready_item_label(item: object) -> str:
     )
 
 
+def _work_item_execution_ready(item: dict[str, object]) -> bool:
+    readiness = item.get("execution_readiness")
+    if not isinstance(readiness, dict):
+        return False
+    return bool(readiness.get("execution_ready"))
+
+
+def _workbench_item_row(item: object) -> str:
+    if not isinstance(item, dict):
+        return ""
+    work_item_id = str(item["id"])
+    title = html.escape(str(item["title"]))
+    status = html.escape(str(item["status"]))
+    item_type = html.escape(str(item["type"]))
+    ready = "yes" if item["execution_ready"] else "no"
+    prompt_url = html.escape(str(item["prompt_preview_url"]), quote=True)
+    packet_url = html.escape(str(item["packet_preview_url"]), quote=True)
+    report_url = html.escape(str(item["report_preview_url"]), quote=True)
+    quoted_id = _url_quote(work_item_id)
+    return (
+        f'<article id="workbench-item-{html.escape(work_item_id, quote=True)}">'
+        f"<h3>{html.escape(work_item_id)} — {title}</h3>"
+        f"<p>Status: {status}; Type: {item_type}; Execution-ready: {ready}</p>"
+        "<ul>"
+        f'<li><a href="{prompt_url}">Preview prompt</a></li>'
+        f'<li><a href="{packet_url}">Preview run packet</a></li>'
+        f'<li><a href="{report_url}">Preview run report</a></li>'
+        f'<li><a href="/#work-item-{quoted_id}">Viewer context</a></li>'
+        "</ul>"
+        "</article>"
+    )
+
+
+def _workbench_safety_notes() -> list[str]:
+    return [
+        "render previews only after explicit local GET requests",
+        "no agent dispatch or backend execution",
+        "no branch, commit, pull-request, merge, release, or publish mutation",
+        "no repository writes; downloads are generated from memory",
+        "no arbitrary filesystem browsing or arbitrary write paths",
+    ]
+
+
+def _kind_from_workbench_route(route: str) -> str:
+    return route.rsplit("/", maxsplit=1)[-1]
+
+
+def _artifact_payload(artifact: WorkbenchArtifact) -> dict[str, object]:
+    return {
+        "mode": "safe-default-workbench-artifact-preview",
+        "kind": artifact.kind,
+        "work_item_id": artifact.work_item_id,
+        "title": artifact.title,
+        "markdown": artifact.markdown,
+        "diagnostics": [dict(item) for item in artifact.diagnostics],
+        "safety": _workbench_safety_notes(),
+        "download_url": (
+            f"/workbench/{_url_quote(artifact.kind)}?"
+            f"work_item={_url_quote(artifact.work_item_id)}&download=1"
+        ),
+    }
+
+
+def _relative_repo_path(project_root: Path, path: Path) -> str:
+    try:
+        return path.resolve().relative_to(project_root.resolve()).as_posix()
+    except ValueError:
+        return path.name
+
+
+def _url_quote(value: str) -> str:
+    return urllib.parse.quote(value, safe="")
+
+
 def _diagnostic_label(diagnostic: object) -> str:
     if not isinstance(diagnostic, dict):
         return str(diagnostic)
@@ -551,6 +949,16 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     render_index(config, bound_address=self._bound_address()),
                 )
                 return
+            if route == "/workbench":
+                self._write_text(
+                    200,
+                    "text/html; charset=utf-8",
+                    render_workbench_index(config),
+                )
+                return
+            if route in _WORKBENCH_ARTIFACT_ROUTES:
+                self._write_workbench_artifact(route)
+                return
             if route == "/health":
                 self._write_json(200, {"status": "ok"})
                 return
@@ -563,23 +971,36 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             if route == "/api/project":
                 self._write_json(200, project_viewer_payload(config))
                 return
+            if route == "/api/workbench":
+                self._write_json(200, workbench_payload(config))
+                return
+            if route in _WORKBENCH_API_ROUTES:
+                self._write_workbench_artifact_json(route)
+                return
             self._write_json(404, {"error": "not_found"})
 
         def do_HEAD(self) -> None:
             route = self._route_path()
-            if route in {"/", "/health", "/api/status", "/api/project"}:
-                self.send_response(200)
-                self.send_header("Cache-Control", "no-store")
-                if route == "/":
-                    self.send_header("Content-Type", "text/html; charset=utf-8")
-                else:
-                    self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.end_headers()
+            if route in _WORKBENCH_ARTIFACT_ROUTES:
+                self._write_workbench_artifact_head(route)
                 return
-            self.send_response(404)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
+            if route in _WORKBENCH_API_ROUTES:
+                self._write_workbench_artifact_json_head(route)
+                return
+            if route in {
+                "/",
+                "/workbench",
+                "/health",
+                "/api/status",
+                "/api/project",
+                "/api/workbench",
+            }:
+                content_type = "application/json; charset=utf-8"
+                if route in {"/", "/workbench"}:
+                    content_type = "text/html; charset=utf-8"
+                self._write_head(200, content_type)
+                return
+            self._write_head(404, "application/json; charset=utf-8")
 
         def do_POST(self) -> None:
             self._write_json(405, {"error": "method_not_allowed"})
@@ -598,6 +1019,98 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
 
         def log_message(self, format: str, *args: object) -> None:
             return
+
+        def _write_workbench_artifact(self, route: str) -> None:
+            kind = _kind_from_workbench_route(route)
+            query = self._query_values()
+            work_item_id = query.get("work_item", "")
+            try:
+                artifact = render_workbench_artifact(config, kind, work_item_id)
+            except (FileNotFoundError, OSError, ValueError) as error:
+                self._write_json(404, {"error": "not_found", "message": str(error)})
+                return
+            if query.get("download") == "1":
+                self._write_download(artifact)
+                return
+            self._write_text(
+                200,
+                "text/html; charset=utf-8",
+                render_workbench_artifact_page(artifact),
+            )
+
+        def _write_workbench_artifact_head(self, route: str) -> None:
+            kind = _kind_from_workbench_route(route)
+            query = self._query_values()
+            work_item_id = query.get("work_item", "")
+            try:
+                artifact = render_workbench_artifact(config, kind, work_item_id)
+            except (FileNotFoundError, OSError, ValueError):
+                self._write_head(404, "application/json; charset=utf-8")
+                return
+            if query.get("download") == "1":
+                self._write_download_head(artifact)
+                return
+            self._write_head(200, "text/html; charset=utf-8")
+
+        def _write_workbench_artifact_json(self, route: str) -> None:
+            kind = _kind_from_workbench_route(route)
+            query = self._query_values()
+            work_item_id = query.get("work_item", "")
+            try:
+                artifact = render_workbench_artifact(config, kind, work_item_id)
+            except (FileNotFoundError, OSError, ValueError) as error:
+                self._write_json(404, {"error": "not_found", "message": str(error)})
+                return
+            self._write_json(200, _artifact_payload(artifact))
+
+        def _write_workbench_artifact_json_head(self, route: str) -> None:
+            kind = _kind_from_workbench_route(route)
+            query = self._query_values()
+            work_item_id = query.get("work_item", "")
+            try:
+                render_workbench_artifact(config, kind, work_item_id)
+            except (FileNotFoundError, OSError, ValueError):
+                self._write_head(404, "application/json; charset=utf-8")
+                return
+            self._write_head(200, "application/json; charset=utf-8")
+
+        def _write_download(self, artifact: WorkbenchArtifact) -> None:
+            filename = f"{artifact.work_item_id}-{artifact.kind}.md"
+            body = artifact.markdown.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/markdown; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header(
+                "Content-Disposition",
+                f'attachment; filename="{filename}"',
+            )
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _write_download_head(self, artifact: WorkbenchArtifact) -> None:
+            filename = f"{artifact.work_item_id}-{artifact.kind}.md"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/markdown; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header(
+                "Content-Disposition",
+                f'attachment; filename="{filename}"',
+            )
+            self.send_header(
+                "Content-Length", str(len(artifact.markdown.encode("utf-8")))
+            )
+            self.end_headers()
+
+        def _write_head(self, status_code: int, content_type: str) -> None:
+            self.send_response(status_code)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+
+        def _query_values(self) -> dict[str, str]:
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+            return {key: values[0] for key, values in query.items() if values}
 
         def _route_path(self) -> str:
             return urllib.parse.urlsplit(self.path).path

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Resolved by documented planning-node fields and implemented metadata-driven planning-tree model/validation; semantic audit evidence is recorded in project/evidence/EV-0010.md.
 blocked_reason: null
 blocked: false
 id: WI-PLANNING-NODE-SCHEMA-MVP
 title: Define planning-node schema semantics
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

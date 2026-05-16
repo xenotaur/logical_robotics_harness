@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Resolved by metadata-driven workstream/work-item relationship documentation, planning-tree index behavior, validation, and tests; semantic audit evidence is recorded in project/evidence/EV-0010.md.
 blocked_reason: null
 blocked: false
 id: WI-WORKSTREAM-WORK-ITEM-RELATIONSHIPS-MVP
 title: Define workstream to work item relationships
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

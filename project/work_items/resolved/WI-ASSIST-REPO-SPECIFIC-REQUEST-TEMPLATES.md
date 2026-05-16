@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Resolved by package-owned request template override routing, fallback behavior, diagnostics, tests, and assist documentation; semantic audit evidence is recorded in project/evidence/EV-0010.md.
 blocked_reason: null
 blocked: false
 id: WI-ASSIST-REPO-SPECIFIC-REQUEST-TEMPLATES
 title: Support repository-specific assist request template behavior
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

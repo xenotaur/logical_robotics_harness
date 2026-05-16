@@ -1,11 +1,11 @@
 ---
-resolution: Resolved as design-level planning by the execution-framework bounded-loop, abort, human-gate, and autonomy-mode documentation without adding mutation-capable automation; semantic audit evidence is recorded in project/evidence/EV-0010.md.
+resolution: null
 blocked_reason: null
 blocked: false
 id: WI-BOUNDED-STABILIZATION-LOOP-DESIGN
 title: Plan bounded review and CI stabilization loop
 type: deliverable
-status: resolved
+status: proposed
 owner: anthony
 contributors:
   - anthony

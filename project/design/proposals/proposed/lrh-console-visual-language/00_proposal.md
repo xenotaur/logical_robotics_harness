@@ -57,6 +57,16 @@ Out of scope:
 **This proposal defines the visual language and UX structure for future `lrh serve` dashboards. It
 does not expand the current safe-default MVP implementation scope.**
 
+## Mockup References
+
+### Light mode
+
+![LRH Console visual language light mode mockup](assets/alternative_d_enhanced_swimlane_console_light.png)
+
+### Dark mode
+
+![LRH Console visual language dark mode mockup](assets/alternative_d_enhanced_swimlane_console_dark.png)
+
 ## Motivation
 
 LRH's control plane intentionally carries human-readable and machine-interpretable information:

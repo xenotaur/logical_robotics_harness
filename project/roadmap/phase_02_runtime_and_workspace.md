@@ -39,7 +39,7 @@ Purpose:
 - track explicit setup state (`not_set_up`, `lrh_project_present`)
 
 Traceability:
-- work item: `project/work_items/active/WI-META-CLI-MVP.md`
+- work item: `project/work_items/resolved/WI-META-CLI-MVP.md`
 - work item: `project/work_items/active/WI-META-WORKSPACE-RESOLUTION.md`
 - spec alignment: Meta Control Plane MVP, Phase 1 (`init` / `register` / `list`)
 

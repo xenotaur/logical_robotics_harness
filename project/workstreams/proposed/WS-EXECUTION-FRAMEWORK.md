@@ -160,14 +160,14 @@ Completed execution-contract work now includes:
 2. `WI-RUN-PACKET-DRY-RUN` — safe-default run-packet rendering through `lrh request`, not a runner.
 3. `WI-RUN-REPORT-MVP` — safe-default run-report rendering from explicit manual/dry-run inputs.
 
-## Next phase
+## Closed serve package
 
-The next implementation package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a local read-only viewer and
-prompt workbench that consumes the completed shared state, readiness, run-packet, and run-report
-contracts. It should expose project/control-plane state and generated artifacts for human review; it
-should not reinterpret the planning tree independently or become an autonomous runner.
+`WI-LRH-SERVE-SAFE-DEFAULT-MVP` is closed as the local read-only viewer and prompt workbench package
+that consumes the completed shared state, readiness, run-packet, and run-report contracts. It exposes
+project/control-plane state and generated artifacts for human review; it does not reinterpret the
+planning tree independently or become an autonomous runner.
 
-The serve package is staged into four reviewable slices:
+The serve package was staged into four reviewable slices:
 
 1. **Safe-default serve plan/control-plane refinement** — land the package boundary, exclusions,
    validation expectations, expected evidence, and next prompt without runtime code.
@@ -182,8 +182,8 @@ The serve package is staged into four reviewable slices:
    generated prompts, run packets, and run-report drafts through existing renderers without
    dispatching agents, mutating branches, creating PRs, or writing artifacts by default.
 
-The next implementation prompt after this planning slice is
-`PROMPT(WI-LRH-SERVE-SAFE-DEFAULT-MVP:IMPLEMENT_SERVE_LOCAL_SERVER_SKELETON)`.
+The implementation prompts for these slices are recorded under
+`project/executions/WI-LRH-SERVE-SAFE-DEFAULT-MVP/`.
 
 Keep branch containment, GitHub/CI observation, stabilization loops, backend adapters, branch
 mutation, PR creation, merge/release automation, multi-agent orchestration, deep MCP integration, and

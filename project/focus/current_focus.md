@@ -15,7 +15,7 @@ related_workstreams:
 
 # Current Focus
 
-The immediate priority is **safe-default execution-framework closeout and next-package alignment**: the prerequisite control-plane interpretation work and first execution-contract package are implemented, so the next package is the safe-default `lrh serve` local viewer / prompt workbench. Human approval gates remain in place, and autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation stay outside the next package.
+The immediate priority is **safe-default execution-framework closeout and next-package alignment**: the prerequisite control-plane interpretation work, first execution-contract package, and safe-default `lrh serve` local viewer / prompt workbench are implemented. Human approval gates remain in place, and autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation remain outside the closed serve package.
 
 Canonical living design/context package: `project/design/execution_framework_mvp.md`.
 
@@ -33,20 +33,19 @@ Recently completed:
 
 ## Why this is active now
 
-LRH now has enough project-control structure to start the next execution-framework package without
+LRH now has enough project-control structure to close the safe-default serve package without
 jumping directly to runtime automation. Shared APIs, planning relationship validation,
-snapshot-visible summaries, opt-in readiness metadata, dry-run packet rendering, and report rendering
-are in place; the next work should expose those capabilities through a local human-assist surface.
+snapshot-visible summaries, opt-in readiness metadata, dry-run packet rendering, report rendering, and
+the local human-assist surface are in place.
 
-## Next implementation slice
+## Completed implementation slice
 
-The next implementation package should be `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a local read-only
-viewer / prompt workbench that consumes the completed shared state, execution-readiness, run-packet,
-and run-report contracts. Its selected sequence is: plan/control-plane refinement; local server
-skeleton; read-only project/workstream/work-item viewer; and prompt/run-packet/report workbench MVP.
-The next implementation prompt after planning should implement only the local server skeleton without
-autonomous dispatch, branch mutation, PR creation, stabilization loops, merge/release automation, or
-backend adapters.
+`WI-LRH-SERVE-SAFE-DEFAULT-MVP` is resolved as the local read-only viewer / prompt workbench package
+that consumes the completed shared state, execution-readiness, run-packet, and run-report contracts.
+Its completed sequence was: plan/control-plane refinement; local server skeleton; read-only
+project/workstream/work-item viewer; and prompt/run-packet/report workbench MVP. The package remained
+within the safe-default boundary: no autonomous dispatch, branch mutation, PR creation, stabilization
+loops, merge/release automation, or backend adapters.
 
 ## Adjacent CI capability design
 

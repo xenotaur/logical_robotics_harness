@@ -90,9 +90,9 @@ evidence expectations, and human closeout tasks needed before any branch mutatio
 work begins. Their prerequisite shared state/API interpretation, planning relationship/index
 validation, and snapshot-visible planning summaries are also complete.
 
-The next package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a read-only/local-assist viewer and prompt
-workbench that consumes the completed contracts without becoming a runner. Its four implementation
-slices are plan/control-plane refinement, local server skeleton, read-only
+`WI-LRH-SERVE-SAFE-DEFAULT-MVP` is closed as the read-only/local-assist viewer and prompt
+workbench package that consumes the completed contracts without becoming a runner. Its four
+implementation slices were plan/control-plane refinement, local server skeleton, read-only
 project/workstream/work-item viewer, and prompt/run-packet/report workbench MVP.
 
 ## Explicit deferrals

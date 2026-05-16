@@ -42,9 +42,11 @@ are in place; the next work should expose those capabilities through a local hum
 
 The next implementation package should be `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a local read-only
 viewer / prompt workbench that consumes the completed shared state, execution-readiness, run-packet,
-and run-report contracts. This package should expose state and generated artifacts for human review
-without autonomous dispatch, branch mutation, PR creation, stabilization loops, merge/release
-automation, or backend adapters.
+and run-report contracts. Its selected sequence is: plan/control-plane refinement; local server
+skeleton; read-only project/workstream/work-item viewer; and prompt/run-packet/report workbench MVP.
+The next implementation prompt after planning should implement only the local server skeleton without
+autonomous dispatch, branch mutation, PR creation, stabilization loops, merge/release automation, or
+backend adapters.
 
 ## Adjacent CI capability design
 
@@ -84,5 +86,5 @@ This focus is complete when:
 3. work items exist for shared core state APIs, planning relationship validation, snapshot-visible
    planning summaries, safe-default `lrh serve`, execution readiness, run packet dry-run, run report
    MVP, branch containment, PR/CI observation, and bounded stabilization-loop design
-4. the safe-default `lrh serve` viewer / prompt workbench package is ready to start from completed
-   shared state, readiness, run-packet, and run-report contracts
+4. the safe-default `lrh serve` viewer / prompt workbench package is staged into plan refinement,
+   local server skeleton, read-only viewer, and prompt/run-packet/report workbench slices

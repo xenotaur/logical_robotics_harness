@@ -30,7 +30,8 @@ Immediate next ordering:
 
 1. treat the Workstream Control Plane MVP as the landed prerequisite for execution-framework planning
 2. plan **Phase 3 — Execution, Evidence, and Status** as a staged bounded execution-framework phase
-3. begin the first execution-contract package with execution readiness, dry-run run packets, and run reports for selected work items
+3. start the safe-default `lrh serve` package as the next local viewer / prompt workbench after the
+   completed first execution-contract package
 4. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item -> Run Packet -> Run Report**
 5. preserve human/policy gates for merge, release, publish, and closeout
 6. keep branch mutation, autonomous stabilization, and backend adapters deferred until contracts are stable
@@ -113,18 +114,21 @@ Completed first execution-contract package:
 3. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
    human verification tasks, and recommended next actions.
 
-Deferred follow-on packages:
+Current follow-on package:
 
 1. **Safe-default `lrh serve` viewer and prompt workbench** — render shared state and first-package
    contracts without becoming an autonomous runner or separate tree interpreter.
-2. **Agent branch containment design support** — document agent-owned branch namespaces, protected
+
+Deferred follow-on packages:
+
+1. **Agent branch containment design support** — document agent-owned branch namespaces, protected
    merge gates, and branch policy assumptions before mutation-capable behavior.
-3. **GitHub PR/CI observation adapter** — read PR, review, and CI state without repository mutation.
-4. **Bounded stabilization loop design** — plan iteration limits, stop conditions, and escalation
+2. **GitHub PR/CI observation adapter** — read PR, review, and CI state without repository mutation.
+3. **Bounded stabilization loop design** — plan iteration limits, stop conditions, and escalation
    rules before automation can respond to review or CI.
-5. **Backend adapter abstraction** — define backend-neutral contracts only after packet/report and
+4. **Backend adapter abstraction** — define backend-neutral contracts only after packet/report and
    policy boundaries are stable.
-6. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
+5. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
    or bounded-auto execution.
 
 Next implementation package:

@@ -96,8 +96,9 @@ Default / safe LRH:
 - serve a local viewer and prompt workbench;
 - show project, focus, workstream, work-item, and run state;
 - render, edit, copy, and download prompts;
-- support explicit-click writes to LRH control artifacts where appropriate; and
-- support manual evidence and report recording.
+- keep writes deferred in the serve MVP except where a later prompt explicitly approves a narrow
+  control-artifact write; and
+- support manual evidence and report recording only after explicit write boundaries are approved.
 
 Agentic / opt-in LRH:
 
@@ -207,20 +208,34 @@ workflow engine and must not become an autonomous runner in the default package.
 view should render the same snapshot planning summary produced by Layer 0, not reinterpret
 workstream/work-item relationships independently.
 
-It should eventually show:
+The safe-default serve package is staged into four implementation slices:
 
-- project identity and validation status;
-- current focus;
-- active workstreams;
-- active work items;
-- workstream tree / active leaf state;
-- current manual Huge Loop state;
-- available next human actions;
-- generated prompts in editable form, including a safe-default "Generate run packet" action for
-  selected work items before any autonomous run capability exists;
-- copy-to-clipboard with a fallback download/copy path;
-- evidence and report checklists; and
-- later, observed PR/CI/review status after observation adapters exist.
+1. plan/control-plane refinement;
+2. local server skeleton;
+3. read-only project/workstream/work-item viewer; and
+4. prompt/run-packet/report workbench MVP.
+
+Implementation should introduce `lrh serve` as a default-package CLI command backed by package code
+under `src/lrh/`. The local server skeleton should start with Python standard-library serving if
+practical; any dependency must be justified in the implementation PR. The default bind address is
+`127.0.0.1`; `0.0.0.0` must not be available by default and requires explicit documented review if
+added later.
+
+The read-only viewer includes project identity, validation status, current focus, active workstreams,
+active work items, planning-tree/active-leaf summaries, execution-readiness metadata, evidence/status
+links, and report/checklist affordances from existing LRH APIs. It excludes arbitrary filesystem
+browsing, secret rendering, external network calls, repository mutation, branch mutation, PR creation
+or mutation, workflow reruns, and server-only planning-tree interpretation.
+
+The prompt workbench includes in-browser preview/editing, copy, and download flows for generated
+prompts, run packets, and run-report drafts using existing renderers. It excludes agent dispatch,
+simulation claims, CI/review response loops, automatic execution-record updates, branch/PR mutation,
+merge/release/publish automation, and auto-saving generated artifacts. Default writes remain deferred
+for the MVP; any future write must be an explicit-click, separately justified LRH control-artifact
+write and must never happen on page load, validation, preview, copy, or download.
+
+Later, after observation adapters exist, this surface may show observed PR/CI/review status as
+read-only state.
 
 ### Layer 2: run packet, run state, awaited transitions, and run reports
 

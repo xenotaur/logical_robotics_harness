@@ -51,6 +51,14 @@ dogfood migration across LRH's own proposal set.
 
 ## Current proposal sets
 
+[`proposed/lrh-conversations-storage-interop/`](proposed/lrh-conversations-storage-interop/)
+— Proposes a unified architecture for LRH Conversations, policy-aware storage,
+and external agent interop so raw AI-assisted development conversations remain
+private-by-default, non-authoritative until promoted, scoped, auditable, and
+portable across tools. Status: `proposed` / `not_started` (documentation-only
+direction; no storage, chat UI, MCP, GitHub, HTTP, model-provider, or run
+execution implementation).
+
 [`proposed/lrh-console-visual-language/`](proposed/lrh-console-visual-language/)
 — Proposes Alternative D, the Enhanced Swimlane Console, as the future light/dark visual language
 for `lrh serve` dashboards and LRH Console views. Status: `proposed` / `not_started`

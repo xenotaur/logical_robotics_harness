@@ -126,6 +126,12 @@ class TestLrhServeRoutes(unittest.TestCase):
             content_type = response.headers.get("Content-Type", "")
             return response.status, content_type, body
 
+    def _head(self, url: str) -> tuple[int, str]:
+        request = urllib.request.Request(url, method="HEAD")
+        with urllib.request.urlopen(request, timeout=5) as response:
+            content_type = response.headers.get("Content-Type", "")
+            return response.status, content_type
+
     def test_index_health_and_status_routes_are_read_only_viewer(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
@@ -153,10 +159,16 @@ class TestLrhServeRoutes(unittest.TestCase):
             [
                 "/",
                 "/workbench",
+                "/workbench/prompt",
+                "/workbench/run-packet",
+                "/workbench/run-report",
                 "/health",
                 "/api/status",
                 "/api/project",
                 "/api/workbench",
+                "/api/workbench/prompt",
+                "/api/workbench/run-packet",
+                "/api/workbench/run-report",
             ],
         )
         self.assertFalse(payload["capabilities"]["write_routes"])
@@ -357,6 +369,31 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(packet_status, 200)
         self.assertEqual(after, before)
         self.assertEqual(after_files, before_files)
+
+    def test_workbench_head_validates_artifact_work_item_query(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            html_status, html_type = self._head(
+                base_url + "/workbench/run-packet?work_item=WI-A"
+            )
+            api_status, api_type = self._head(
+                base_url + "/api/workbench/prompt?work_item=WI-A"
+            )
+
+            with self.assertRaises(urllib.error.HTTPError) as missing_query_ctx:
+                self._head(base_url + "/workbench/run-packet")
+            with self.assertRaises(urllib.error.HTTPError) as missing_item_ctx:
+                self._head(base_url + "/api/workbench/prompt?work_item=missing")
+
+        self.assertEqual(html_status, 200)
+        self.assertIn("text/html", html_type)
+        self.assertEqual(api_status, 200)
+        self.assertIn("application/json", api_type)
+        self.assertEqual(missing_query_ctx.exception.code, 404)
+        self.assertEqual(missing_item_ctx.exception.code, 404)
 
     def test_arbitrary_file_paths_are_not_served(self) -> None:
         _httpd, base_url = self._start_server()

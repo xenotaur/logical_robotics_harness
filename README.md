@@ -78,10 +78,12 @@ The safe-default local read-only viewer can be started with:
 lrh serve
 ```
 
-`lrh serve` binds to `127.0.0.1:8765` by default and exposes read-only routes
-(`/`, `/workbench`, `/health`, `/api/status`, `/api/project`, and
-`/api/workbench`). The index page and `/api/project` summarize the currently
-loaded project-control state through the shared core-state APIs: project
+`lrh serve` binds to `127.0.0.1:8765` by default and exposes read-only routes:
+`/`, `/workbench`, `/workbench/prompt`, `/workbench/run-packet`,
+`/workbench/run-report`, `/health`, `/api/status`, `/api/project`,
+`/api/workbench`, `/api/workbench/prompt`, `/api/workbench/run-packet`, and
+`/api/workbench/run-report`. The index page and `/api/project` summarize the
+currently loaded project-control state through the shared core-state APIs: project
 identity, validation counts and diagnostics, current focus, workstream and
 work-item lifecycle summaries, planning-tree relationships, active leaves,
 execution-readiness metadata, and references to the existing run-packet and

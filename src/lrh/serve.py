@@ -29,6 +29,20 @@ _WORKBENCH_ARTIFACT_ROUTES = frozenset(
 _WORKBENCH_API_ROUTES = frozenset(
     {"/api/workbench/prompt", "/api/workbench/run-packet", "/api/workbench/run-report"}
 )
+_STATUS_ROUTES = (
+    "/",
+    "/workbench",
+    "/workbench/prompt",
+    "/workbench/run-packet",
+    "/workbench/run-report",
+    "/health",
+    "/api/status",
+    "/api/project",
+    "/api/workbench",
+    "/api/workbench/prompt",
+    "/api/workbench/run-packet",
+    "/api/workbench/run-report",
+)
 
 
 @dataclass(frozen=True)
@@ -88,14 +102,7 @@ def status_payload(
         "host": host,
         "port": port,
         "project_root_name": project_root.name,
-        "routes": [
-            "/",
-            "/workbench",
-            "/health",
-            "/api/status",
-            "/api/project",
-            "/api/workbench",
-        ],
+        "routes": list(_STATUS_ROUTES),
         "capabilities": _safe_capabilities(),
     }
 
@@ -974,6 +981,12 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
 
         def do_HEAD(self) -> None:
             route = self._route_path()
+            if route in _WORKBENCH_ARTIFACT_ROUTES:
+                self._write_workbench_artifact_head(route)
+                return
+            if route in _WORKBENCH_API_ROUTES:
+                self._write_workbench_artifact_json_head(route)
+                return
             if route in {
                 "/",
                 "/workbench",
@@ -981,25 +994,13 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 "/api/status",
                 "/api/project",
                 "/api/workbench",
-                *_WORKBENCH_ARTIFACT_ROUTES,
-                *_WORKBENCH_API_ROUTES,
             }:
-                self.send_response(200)
-                self.send_header("Cache-Control", "no-store")
-                if (
-                    route == "/"
-                    or route == "/workbench"
-                    or route in _WORKBENCH_ARTIFACT_ROUTES
-                ):
-                    self.send_header("Content-Type", "text/html; charset=utf-8")
-                else:
-                    self.send_header("Content-Type", "application/json; charset=utf-8")
-                self.end_headers()
+                content_type = "application/json; charset=utf-8"
+                if route in {"/", "/workbench"}:
+                    content_type = "text/html; charset=utf-8"
+                self._write_head(200, content_type)
                 return
-            self.send_response(404)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_header("Cache-Control", "no-store")
-            self.end_headers()
+            self._write_head(404, "application/json; charset=utf-8")
 
         def do_POST(self) -> None:
             self._write_json(405, {"error": "method_not_allowed"})
@@ -1037,6 +1038,20 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 render_workbench_artifact_page(artifact),
             )
 
+        def _write_workbench_artifact_head(self, route: str) -> None:
+            kind = _kind_from_workbench_route(route)
+            query = self._query_values()
+            work_item_id = query.get("work_item", "")
+            try:
+                artifact = render_workbench_artifact(config, kind, work_item_id)
+            except (FileNotFoundError, OSError, ValueError):
+                self._write_head(404, "application/json; charset=utf-8")
+                return
+            if query.get("download") == "1":
+                self._write_download_head(artifact)
+                return
+            self._write_head(200, "text/html; charset=utf-8")
+
         def _write_workbench_artifact_json(self, route: str) -> None:
             kind = _kind_from_workbench_route(route)
             query = self._query_values()
@@ -1047,6 +1062,17 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 self._write_json(404, {"error": "not_found", "message": str(error)})
                 return
             self._write_json(200, _artifact_payload(artifact))
+
+        def _write_workbench_artifact_json_head(self, route: str) -> None:
+            kind = _kind_from_workbench_route(route)
+            query = self._query_values()
+            work_item_id = query.get("work_item", "")
+            try:
+                render_workbench_artifact(config, kind, work_item_id)
+            except (FileNotFoundError, OSError, ValueError):
+                self._write_head(404, "application/json; charset=utf-8")
+                return
+            self._write_head(200, "application/json; charset=utf-8")
 
         def _write_download(self, artifact: WorkbenchArtifact) -> None:
             filename = f"{artifact.work_item_id}-{artifact.kind}.md"
@@ -1061,6 +1087,26 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
+
+        def _write_download_head(self, artifact: WorkbenchArtifact) -> None:
+            filename = f"{artifact.work_item_id}-{artifact.kind}.md"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/markdown; charset=utf-8")
+            self.send_header("Cache-Control", "no-store")
+            self.send_header(
+                "Content-Disposition",
+                f'attachment; filename="{filename}"',
+            )
+            self.send_header(
+                "Content-Length", str(len(artifact.markdown.encode("utf-8")))
+            )
+            self.end_headers()
+
+        def _write_head(self, status_code: int, content_type: str) -> None:
+            self.send_response(status_code)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
 
         def _query_values(self) -> dict[str, str]:
             query = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)

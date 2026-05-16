@@ -25,6 +25,7 @@ Implemented the safe-default `lrh serve` local server skeleton for the local-ser
 - Rejected non-local host binding unless `--allow-nonlocal-host` is provided.
 - Preserved non-goals: no arbitrary file serving, no write routes, no agent dispatch, no branch or
   pull-request mutation, no external network calls, and no autonomous runtime execution.
+- Addressed review feedback for IPv6 loopback binding, write-method rejection, and live bound-port reporting.
 - Added focused CLI/config/route tests.
 - Documented the command and safety posture in `README.md`.
 
@@ -34,14 +35,16 @@ Implemented the safe-default `lrh serve` local server skeleton for the local-ser
   this environment.
 - `scripts/format --check --diff` passed.
 - `scripts/lint` passed.
-- `python -m unittest tests.cli_tests.serve_test` passed: 9 tests.
-- `scripts/test` passed: 516 tests.
+- `python -m unittest tests.cli_tests.serve_test` passed: 11 tests.
+- `scripts/test` passed: 518 tests.
 - `lrh validate` passed with 0 errors and 3 pre-existing planning orphan warnings.
 - `lrh snapshot project --stdout` passed.
 - `lrh snapshot` was tried and returned usage error because the current CLI requires a scope.
 - `lrh serve --help` passed.
 - Manual local route smoke passed by starting `lrh serve --port 0` and fetching `/health` from
   `127.0.0.1`.
+- Manual IPv6 route smoke passed by starting `lrh serve --host ::1 --port 0` and fetching
+  `/api/status` through `http.client`.
 
 # Follow-up
 

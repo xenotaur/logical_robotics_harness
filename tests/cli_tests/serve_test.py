@@ -2,6 +2,7 @@ import contextlib
 import io
 import json
 import pathlib
+import socket
 import threading
 import unittest
 import unittest.mock
@@ -85,6 +86,16 @@ class TestLrhServeCli(unittest.TestCase):
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["host"], "0.0.0.0")
 
+    def test_ipv6_loopback_uses_ipv6_server_class(self) -> None:
+        self.assertEqual(serve._address_family_for_host("::1"), socket.AF_INET6)
+
+    @unittest.skipUnless(socket.has_ipv6, "IPv6 is unavailable")
+    def test_ipv6_loopback_server_can_be_created(self) -> None:
+        httpd = serve.create_http_server(serve.ServeConfig(host="::1", port=0))
+        self.addCleanup(httpd.server_close)
+
+        self.assertEqual(httpd.address_family, socket.AF_INET6)
+
     def test_project_root_status_uses_name_not_file_contents(self) -> None:
         config = serve.ServeConfig(project_root=pathlib.Path("/tmp/example-project"))
         payload = serve.status_payload(config)
@@ -130,6 +141,8 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(payload["status"], "ok")
         self.assertEqual(payload["routes"], ["/", "/health", "/api/status"])
         self.assertFalse(payload["capabilities"]["write_routes"])
+        self.assertEqual(payload["port"], _httpd.server_address[1])
+        self.assertNotEqual(payload["port"], 0)
 
     def test_arbitrary_file_paths_are_not_served(self) -> None:
         _httpd, base_url = self._start_server()
@@ -143,14 +156,19 @@ class TestLrhServeRoutes(unittest.TestCase):
 
     def test_write_methods_are_rejected(self) -> None:
         _httpd, base_url = self._start_server()
-        request = urllib.request.Request(base_url + "/api/status", method="POST")
 
-        with self.assertRaises(urllib.error.HTTPError) as err_ctx:
-            urllib.request.urlopen(request, timeout=5)
+        for method in ("POST", "PUT", "DELETE", "PATCH", "OPTIONS"):
+            with self.subTest(method=method):
+                request = urllib.request.Request(
+                    base_url + "/api/status", method=method
+                )
 
-        self.assertEqual(err_ctx.exception.code, 405)
-        body = err_ctx.exception.read().decode("utf-8")
-        self.assertEqual(json.loads(body), {"error": "method_not_allowed"})
+                with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                    urllib.request.urlopen(request, timeout=5)
+
+                self.assertEqual(err_ctx.exception.code, 405)
+                body = err_ctx.exception.read().decode("utf-8")
+                self.assertEqual(json.loads(body), {"error": "method_not_allowed"})
 
 
 if __name__ == "__main__":

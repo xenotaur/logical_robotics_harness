@@ -6,6 +6,7 @@ import argparse
 import html
 import http.server
 import json
+import socket
 import socketserver
 import sys
 from dataclasses import dataclass
@@ -61,16 +62,20 @@ def validate_host(config: ServeConfig) -> None:
     )
 
 
-def status_payload(config: ServeConfig) -> dict[str, object]:
+def status_payload(
+    config: ServeConfig,
+    bound_address: tuple[object, ...] | None = None,
+) -> dict[str, object]:
     """Return deterministic skeleton status data without exposing file contents."""
 
     project_root = config.resolved_project_root()
+    host, port = _host_port_from_address(config, bound_address)
     return {
         "service": "lrh serve",
         "status": "ok",
         "mode": "safe-default-local-skeleton",
-        "host": config.host,
-        "port": config.port,
+        "host": host,
+        "port": port,
         "project_root_name": project_root.name,
         "routes": ["/", "/health", "/api/status"],
         "capabilities": {
@@ -84,13 +89,16 @@ def status_payload(config: ServeConfig) -> dict[str, object]:
     }
 
 
-def render_index(config: ServeConfig) -> str:
+def render_index(
+    config: ServeConfig,
+    bound_address: tuple[object, ...] | None = None,
+) -> str:
     """Render a minimal package-owned HTML index page."""
 
-    payload = status_payload(config)
+    payload = status_payload(config, bound_address=bound_address)
     project_name = html.escape(str(payload["project_root_name"]))
-    host = html.escape(config.host)
-    port = html.escape(str(config.port))
+    host = html.escape(str(payload["host"]))
+    port = html.escape(str(payload["port"]))
     return """<!doctype html>
 <html lang=\"en\">
 <head>
@@ -118,10 +126,39 @@ def render_index(config: ServeConfig) -> str:
 """.format(project_name=project_name, host=host, port=port)
 
 
+def _host_port_from_address(
+    config: ServeConfig,
+    bound_address: tuple[object, ...] | None,
+) -> tuple[str, int]:
+    if bound_address is None:
+        return config.host, config.port
+    host, port = bound_address[:2]
+    return str(host), int(port)
+
+
+def _address_family_for_host(host: str) -> socket.AddressFamily:
+    if ":" in host:
+        return socket.AF_INET6
+    return socket.AF_INET
+
+
+def _format_url_host(host: object) -> str:
+    text = str(host)
+    if ":" in text and not text.startswith("["):
+        return f"[{text}]"
+    return text
+
+
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     """Threaded HTTP server with daemon request threads for clean shutdown."""
 
     daemon_threads = True
+
+
+class ThreadingIPv6HTTPServer(ThreadingHTTPServer):
+    """Threaded HTTP server configured for IPv6 loopback binds."""
+
+    address_family = socket.AF_INET6
 
 
 def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler]:
@@ -133,13 +170,20 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
 
         def do_GET(self) -> None:
             if self.path == "/":
-                self._write_text(200, "text/html; charset=utf-8", render_index(config))
+                self._write_text(
+                    200,
+                    "text/html; charset=utf-8",
+                    render_index(config, bound_address=self._bound_address()),
+                )
                 return
             if self.path == "/health":
                 self._write_json(200, {"status": "ok"})
                 return
             if self.path == "/api/status":
-                self._write_json(200, status_payload(config))
+                self._write_json(
+                    200,
+                    status_payload(config, bound_address=self._bound_address()),
+                )
                 return
             self._write_json(404, {"error": "not_found"})
 
@@ -167,8 +211,20 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
         def do_DELETE(self) -> None:
             self._write_json(405, {"error": "method_not_allowed"})
 
+        def do_PATCH(self) -> None:
+            self._write_json(405, {"error": "method_not_allowed"})
+
+        def do_OPTIONS(self) -> None:
+            self._write_json(405, {"error": "method_not_allowed"})
+
         def log_message(self, format: str, *args: object) -> None:
             return
+
+        def _bound_address(self) -> tuple[object, ...] | None:
+            address = getattr(self.server, "server_address", None)
+            if isinstance(address, tuple):
+                return address
+            return None
 
         def _write_json(self, status_code: int, payload: dict[str, object]) -> None:
             body = json.dumps(payload, sort_keys=True).encode("utf-8")
@@ -200,7 +256,12 @@ def create_http_server(config: ServeConfig) -> ThreadingHTTPServer:
     """Create but do not start the configured HTTP server."""
 
     validate_host(config)
-    return ThreadingHTTPServer((config.host, config.port), make_handler(config))
+    server_class: type[ThreadingHTTPServer]
+    if _address_family_for_host(config.host) == socket.AF_INET6:
+        server_class = ThreadingIPv6HTTPServer
+    else:
+        server_class = ThreadingHTTPServer
+    return server_class((config.host, config.port), make_handler(config))
 
 
 def build_parser(prog: str) -> argparse.ArgumentParser:
@@ -267,9 +328,10 @@ def run_serve_cli(argv: list[str] | None = None, prog: str = "lrh serve") -> int
 
     httpd = create_http_server(config)
     actual_host, actual_port = httpd.server_address[:2]
+    url_host = _format_url_host(actual_host)
     print(
         "lrh serve listening on "
-        f"http://{actual_host}:{actual_port} "
+        f"http://{url_host}:{actual_port} "
         "(read-only safe-default skeleton)",
         flush=True,
     )

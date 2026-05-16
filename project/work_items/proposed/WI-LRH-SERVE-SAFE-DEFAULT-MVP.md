@@ -19,6 +19,7 @@ related_workstreams:
 related_design:
   - project/design/execution_framework_mvp.md
   - project/design/proposals/adopted/safe-default-agentic-extra-packaging/00_proposal.md
+  - project/design/proposals/proposed/lrh-console-visual-language/00_proposal.md
 depends_on:
   - WI-LRH-CORE-STATE-APIS-MVP
   - WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP
@@ -91,6 +92,13 @@ implementation prompts.
 9. **Default network posture:** bind to `127.0.0.1` by default. Do not bind to `0.0.0.0` unless a later
    prompt explicitly documents the risk, CLI spelling, and review evidence.
 10. **Next prompt:** `PROMPT(WI-LRH-SERVE-SAFE-DEFAULT-MVP:IMPLEMENT_SERVE_LOCAL_SERVER_SKELETON)`.
+
+## Future visual language direction
+
+Future dashboard design work should use the proposed LRH Console visual language in
+`project/design/proposals/proposed/lrh-console-visual-language/00_proposal.md` as directional UX
+guidance after the safe-default MVP stabilizes. That proposal is not an acceptance criterion for this
+MVP and does not expand this work item's read-only, safe-default implementation scope.
 
 ## Implementation Slices
 

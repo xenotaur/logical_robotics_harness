@@ -142,10 +142,9 @@ Completed prerequisite control-plane alignment remains separate from execution r
 - planning-tree relationship/index validation; and
 - snapshot-visible planning summaries.
 
-The next implementation package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP`: a safe-default `lrh serve`
-viewer and prompt workbench that consumes the shared state and execution contracts as a
-read-only/local-assist package. It must not reinterpret the planning tree independently or become an
-autonomous runner.
+`WI-LRH-SERVE-SAFE-DEFAULT-MVP` is closed as the safe-default `lrh serve` viewer and prompt
+workbench package that consumes the shared state and execution contracts as a read-only/local-assist
+package. It does not reinterpret the planning tree independently or become an autonomous runner.
 
 ## Staged layer model
 

@@ -429,7 +429,7 @@ See [`assets/README.md`](assets/README.md) for the placeholder asset convention.
 ## References / links
 
 - Safe-default `lrh serve` work item:
-  [`project/work_items/proposed/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md`](../../../../work_items/proposed/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md)
+  [`project/work_items/resolved/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md`](../../../../work_items/resolved/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md)
 - Meta control plane MVP spec:
   [`project/design/meta_control_plane_mvp_spec.md`](../../../meta_control_plane_mvp_spec.md)
 - Design proposal index:

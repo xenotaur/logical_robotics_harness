@@ -161,18 +161,18 @@ invoke agents or mutate branches, pull requests, releases, or project status.
 
 The prerequisite control-plane alignment is also resolved: shared core state APIs, planning
 relationship/index validation, and snapshot-visible planning summaries. The next implementation
-package should be `proposed/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md` as a read-only local viewer / prompt
+package is closed as `resolved/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md`, a read-only local viewer / prompt
 workbench that consumes those contracts rather than broadening them.
 
-Follow-on planning items cover safe-default `lrh serve`, branch containment, read-only PR/CI
-observation, and bounded stabilization-loop design. Do not plan branch mutation, agent backends,
+Remaining follow-on planning items cover branch containment, read-only PR/CI observation, and
+bounded stabilization-loop design. Do not plan branch mutation, agent backends,
 autonomous stabilization, or merge/publish automation before shared planning interpretation,
 readiness, packet, and report contracts exist.
 
 ## CI capability scaffolding seeds
 
 `project/workstreams/proposed/WS-CI-CAPABILITY-SCAFFOLDING.md` proposes concise staged
-work-item seeds. `WI-CI-PLAYBOOK` is now the active first implementation leaf for the human CI setup
+work-item seeds. `WI-CI-PLAYBOOK` is now resolved as the first implementation leaf for the human CI setup
 and debugging playbook. The remaining seeds, `WI-CI-REQUEST-TEMPLATES`,
 `WI-CI-SKILL-PROTOTYPE`, and `WI-CI-TEMPLATE-FRAGMENTS-ASSESSMENT`, should be created only when
 the corresponding phase is ready to execute.

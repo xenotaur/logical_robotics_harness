@@ -2,7 +2,7 @@
 execution_id: 2026_05_16_08_42_44_LRH_CONVERSATIONS_STORAGE_INTEROP_DESIGN
 prompt_id: PROMPT(AD_HOC:LRH_CONVERSATIONS_STORAGE_INTEROP_DESIGN)[2026-05-16T00:30:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:
@@ -43,6 +43,8 @@ promotion, and stable external adapter surfaces.
 
 # Follow-up
 
+- After this PR lands, update this execution record to `status: landed` and
+  fill `pr`/`commit` metadata.
 - Implement the proposal only through later staged PRs, beginning with policy
   typed models, an in-memory backend for tests, a filesystem backend for
   debugging/import/export, and metadata validation.

@@ -51,6 +51,12 @@ dogfood migration across LRH's own proposal set.
 
 ## Current proposal sets
 
+[`proposed/lrh-console-visual-language/`](proposed/lrh-console-visual-language/)
+— Proposes Alternative D, the Enhanced Swimlane Console, as the future light/dark visual language
+for `lrh serve` dashboards and LRH Console views. Status: `proposed` / `not_started`
+(documentation-only direction; no UI, CSS, server-route, frontend-framework, or safe-default MVP
+scope changes).
+
 [`proposed/workstream-execution-framework/`](proposed/workstream-execution-framework/)
 — Proposes future bounded execution for already-approved executable
 leaves: run packet → agent-owned branch → pull request → bounded

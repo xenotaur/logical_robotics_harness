@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: completed
 blocked_reason: null
 blocked: false
 id: WI-WORKSTREAM-DIRECTORY-README-MVP
 title: Add workstream directory buckets and README documentation
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

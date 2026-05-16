@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: completed
 blocked_reason: null
 blocked: false
 id: WI-LRH-SERVE-SAFE-DEFAULT-MVP
 title: Define safe-default lrh serve viewer and prompt workbench MVP
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

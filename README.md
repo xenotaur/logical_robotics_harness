@@ -448,7 +448,7 @@ workstream frontmatter, IDs, stages, relationships, or content.
 - `lrh meta register` and `lrh meta list` operate against the same resolved workspace context (`projects_dir`) used by `lrh meta where`, across hybrid/local/global modes
 - `lrh meta init` now defaults to `hybrid`; in hybrid mode, an optional positional directory (or `--workspace-root`) sets the catalog/workspace root
 
-See `project/design/architecture.md`, `project/design/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/active/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.
+See `project/design/architecture.md`, `project/design/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/resolved/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.
 
 ## Open design proposals
 

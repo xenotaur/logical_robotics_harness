@@ -160,7 +160,7 @@ Completed execution-contract work now includes:
 2. `WI-RUN-PACKET-DRY-RUN` — safe-default run-packet rendering through `lrh request`, not a runner.
 3. `WI-RUN-REPORT-MVP` — safe-default run-report rendering from explicit manual/dry-run inputs.
 
-## Next phase
+## Closed serve package
 
 The prerequisite control-plane state work is complete, the execution readiness / run-packet /
 run-report contracts are complete, and the safe-default `lrh serve` viewer/workbench package is

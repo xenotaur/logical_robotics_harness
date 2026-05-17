@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Resolved by the execution-framework design and safe-default run-packet request surface implemented in WI-RUN-PACKET-DRY-RUN; semantic audit evidence is recorded in project/evidence/EV-0010.md.
 blocked_reason: null
 blocked: false
 id: WI-RUN-PACKET-GENERATION-DESIGN-MVP
 title: Design human-assisted run-packet generation
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

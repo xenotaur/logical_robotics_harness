@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Resolved by the opt-in execution-readiness schema, documentation, runtime interpretation, validation helpers, and tests; semantic audit evidence is recorded in project/evidence/EV-0010.md.
 blocked_reason: null
 blocked: false
 id: WI-WORK-ITEM-EXECUTION-READY-CONCEPT-MVP
 title: Define execution-ready work item concept
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

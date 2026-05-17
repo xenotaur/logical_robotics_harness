@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Resolved by the proposed-bucket semantic audit closeout recorded in project/evidence/EV-0010.md and this prompt execution record.
 blocked_reason: null
 blocked: false
 id: WI-PROPOSED-BUCKET-SEMANTIC-AUDIT-FOLLOWUP
 title: Perform semantic audit follow-up for ambiguous proposed work items
 type: investigation
-status: proposed
+status: resolved
 priority: medium
 owner: anthony
 contributors:

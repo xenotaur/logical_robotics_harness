@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: completed
 blocked_reason: null
 blocked: false
 id: WI-WORKSTREAM-ORGANIZE-TIDY-MVP
 title: Add dry-run-first organize/tidy support for workstreams
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

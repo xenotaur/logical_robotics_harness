@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: completed
 blocked_reason: null
 blocked: false
 id: WI-CI-PLAYBOOK
 title: Create CI setup and debugging playbook
 type: deliverable
-status: active
+status: resolved
 owner: anthony
 contributors:
   - anthony

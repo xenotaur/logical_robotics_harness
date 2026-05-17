@@ -43,6 +43,13 @@ Release-smoke isolation audit closeout remains in effect: diagnostic mode (`scri
 Closeout note (2026-05-03): Completion and work-item tooling (`lrh work-items organize` + `lrh work-items validate`) is implemented, tested, and documented; work-item discovery edge cases including README handling in `lrh work-items validate` are resolved.
 
 
+
+Control-plane freshness note (2026-05-17): the stale active orphan leaves
+`WI-META-WORKSPACE-RESOLUTION` and `WI-SNAPSHOT-RESOLVED-CONTEXT` were audited and moved to
+resolved based on existing implementation/supersession evidence. `WI-META-CLI-MVP` was already
+resolved before this audit. `lrh validate` is expected to be warning-free for orphan active planning
+leaves after this cleanup.
+
 Execution-framework closeout (2026-05-16): shared core state APIs, planning-tree validation, planning
 relationship indexing, snapshot-visible planning summaries, execution-readiness metadata, dry-run
 run-packet rendering, run-report rendering, and the safe-default `lrh serve` viewer/workbench are

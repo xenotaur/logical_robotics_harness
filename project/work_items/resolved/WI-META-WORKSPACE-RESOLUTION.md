@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented by shared meta workspace resolution, hybrid/local/global workspace modes, `lrh meta where` diagnostics, and focused CLI/runtime tests recorded in the progress notes.
 blocked_reason: null
 blocked: false
 id: WI-META-WORKSPACE-RESOLUTION
 title: Meta workspace resolution and visibility contract
 type: deliverable
-status: active
+status: resolved
 priority: high
 owner: anthony
 contributors:
@@ -76,3 +76,13 @@ Define and then implement the shared workspace-resolution subsystem used across 
 - 2026-04-22: Implemented a shared `MetaWorkspace` resolution layer with documented precedence (flags → `LRH_CONFIG` → `LRH_WORKSPACE` → local discovery → global discovery), added minimal workspace config parsing for mode/path overrides, and wired `lrh meta register` / `lrh meta list` to the resolved workspace context.
 - 2026-04-22: Added focused tests for precedence behavior, nested local discovery, XDG global defaults, command integration outside workspace roots, and explicit resolution-failure messaging.
 - 2026-04-22: Updated Meta CLI UX so `lrh meta init` defaults to global initialization, added explicit `--mode {global,local}` on `meta init`, strengthened `meta`/`meta init` help text for workspace resolution + XDG defaults, and added `lrh help meta` / `lrh help meta init` aliases.
+
+
+## Audit Closeout
+
+- 2026-05-17 freshness audit: Resolved this stale active item after reviewing the implementation notes,
+  roadmap traceability, `README.md`, `project/design/meta_control_plane_mvp_spec.md`, and current
+  `src/lrh/meta/workspace.py` / `src/lrh/cli/main.py` surfaces. The required shared resolver,
+  documented precedence, XDG-style global defaults, explicit local and hybrid modes, TTY-aware
+  `meta init` behavior, and user-visible `lrh meta where` diagnostics are now implemented and tested.
+  No planning parent was added because the item is no longer active.

@@ -159,15 +159,19 @@ recommended next actions. They are not evidence by themselves, do not observe CI
 or PR state, do not replace `project/executions/` prompt records, and do not
 invoke agents or mutate branches, pull requests, releases, or project status.
 
-The prerequisite control-plane alignment is also resolved: shared core state APIs, planning
-relationship/index validation, and snapshot-visible planning summaries. The next implementation
-package should be `proposed/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md` as a read-only local viewer / prompt
-workbench that consumes those contracts rather than broadening them.
+The prerequisite control-plane alignment is resolved: shared core state APIs, planning
+relationship/index validation, and snapshot-visible planning summaries. The first execution-contract
+package and safe-default `lrh serve` viewer/workbench are also resolved; see
+`resolved/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md` for the completed local viewer / prompt workbench
+closeout.
 
-Follow-on planning items cover safe-default `lrh serve`, branch containment, read-only PR/CI
-observation, and bounded stabilization-loop design. Do not plan branch mutation, agent backends,
-autonomous stabilization, or merge/publish automation before shared planning interpretation,
-readiness, packet, and report contracts exist.
+The next implementation package is Layer 2 durable run state/manual run tracking. It should define
+manual run artifacts under `project/runs/<RUN-ID>/` and preserve parity between manual runs and
+future automated runs before observation, mutation, or backend-adapter work begins. Follow-on
+planning items still cover branch containment, read-only PR/CI observation, and bounded
+stabilization-loop design. Do not plan branch mutation, agent backends, autonomous stabilization, or
+merge/publish automation before shared planning interpretation, readiness, packet, report, and manual
+run-state contracts exist.
 
 ## CI capability scaffolding seeds
 

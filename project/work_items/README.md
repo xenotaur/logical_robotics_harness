@@ -70,6 +70,20 @@ When unblocked, set:
 
 The audit distinguishes facts from recommendations. Use the semantic work-item audit assist template (`work_item_semantic_audit`) to compare acceptance criteria against concrete repository evidence before moving files or changing terminal metadata. Ambiguous proposed items should remain proposed until follow-up evidence or human design review resolves the uncertainty.
 
+### Conservative audit closeout workflow
+
+Use the work-item audit workflow when the proposed bucket, a workstream, or a cluster of related work items appears stale or inconsistent:
+
+1. Run `lrh work-items validate` to check deterministic work-item hygiene before interpreting lifecycle state.
+2. Run `lrh work-items audit --format md` for a readable lifecycle report and `lrh work-items audit --format json` when a machine-readable artifact is useful.
+3. Render or read `lrh request work_item_semantic_audit` and apply it to the audit output plus the reviewed work-item files.
+4. Compare each acceptance criterion with concrete repository evidence such as code, tests, docs, validation output, evidence records, run reports, or review notes.
+5. Move only items that are clearly resolved, superseded, or abandoned; keep ambiguous items proposed and record the uncertainty in evidence or a narrower follow-up item.
+6. Treat execution records as traceability, not automatic completion proof.
+7. Record concise evidence for the closeout and then run `lrh work-items validate` and `lrh validate` again.
+
+The same workflow applies at workstream scale: audit the child work items and workstream metadata, keep semantic judgments evidence-backed, and avoid resolving a workstream only because its execution records exist or its children look old.
+
 ## Validation requirement
 
 Before committing work-item edits, run:
@@ -159,15 +173,19 @@ recommended next actions. They are not evidence by themselves, do not observe CI
 or PR state, do not replace `project/executions/` prompt records, and do not
 invoke agents or mutate branches, pull requests, releases, or project status.
 
-The prerequisite control-plane alignment is also resolved: shared core state APIs, planning
-relationship/index validation, and snapshot-visible planning summaries. The next implementation
-package is closed as `resolved/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md`, a read-only local viewer / prompt
-workbench that consumes those contracts rather than broadening them.
+The prerequisite control-plane alignment is resolved: shared core state APIs, planning
+relationship/index validation, and snapshot-visible planning summaries. The first execution-contract
+package and safe-default `lrh serve` viewer/workbench are also resolved; see
+`resolved/WI-LRH-SERVE-SAFE-DEFAULT-MVP.md` for the completed local viewer / prompt workbench
+closeout.
 
-Remaining follow-on planning items cover branch containment, read-only PR/CI observation, and
-bounded stabilization-loop design. Do not plan branch mutation, agent backends,
-autonomous stabilization, or merge/publish automation before shared planning interpretation,
-readiness, packet, and report contracts exist.
+The next implementation package is Layer 2 durable run state/manual run tracking. It should define
+manual run artifacts under `project/runs/<RUN-ID>/` and preserve parity between manual runs and
+future automated runs before observation, mutation, or backend-adapter work begins. Follow-on
+planning items still cover branch containment, read-only PR/CI observation, and bounded
+stabilization-loop design. Do not plan branch mutation, agent backends, autonomous stabilization, or
+merge/publish automation before shared planning interpretation, readiness, packet, report, and manual
+run-state contracts exist.
 
 ## CI capability scaffolding seeds
 

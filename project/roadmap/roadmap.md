@@ -25,6 +25,7 @@ Recently completed baseline work:
 - precedence resolver implementation and canonicalization closure validation (`WI-PRECEDENCE-RESOLVER`)
 - package CLI adoption for `lrh request` and `lrh snapshot`
 - reconciled near-term design basis that treats recursive planning-tree workstreams as accepted planning architecture
+- closed out the safe-default `lrh serve` local viewer / prompt workbench MVP
 
 Immediate next ordering:
 
@@ -82,7 +83,7 @@ agentic capability and be unavailable in the default non-agentic install.
 
 ## Near-term roadmap addition: Bounded Agent Execution Framework
 
-Canonical living design: `project/design/execution_framework_mvp.md`. The workstream is staged as prerequisite control-plane alignment, first execution contracts, read-only/local-assist workbench, ecosystem observation, and only later bounded runtime execution.
+Canonical living design: `project/design/execution_framework_mvp.md`. The workstream is staged as prerequisite control-plane alignment, first execution contracts, completed read-only/local-assist workbench, durable manual run state, ecosystem observation, and only later bounded runtime execution.
 
 MVP goal:
 
@@ -115,7 +116,7 @@ Completed first execution-contract package:
 3. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
    human verification tasks, and recommended next actions.
 
-Completed local-assist package:
+Completed safe-default serve package:
 
 1. **Safe-default `lrh serve` viewer and prompt workbench** — renders shared state and first-package
    contracts without becoming an autonomous runner or separate tree interpreter.
@@ -138,6 +139,15 @@ Deferred follow-on packages:
    policy boundaries are stable.
 5. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
    or bounded-auto execution.
+
+Next implementation package:
+
+1. **Layer 2: durable run state/manual run tracking**
+
+This package should define durable manual run-state artifacts and lifecycle transitions that consume
+the completed shared state, execution-readiness, run-packet, run-report, and safe-default serve
+contracts. It should not add autonomous runtime dispatch, observation adapters, branch containment,
+branch mutation, PR creation, merge/release automation, or backend adapters.
 
 Explicitly deferred until later phases or optional capability work:
 

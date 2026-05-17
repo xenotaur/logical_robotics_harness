@@ -30,6 +30,8 @@ Recently completed:
   snapshot-visible planning summaries needed by later execution-framework surfaces
 - implemented the opt-in execution-readiness schema, safe-default dry-run run-packet renderer, and
   safe-default run-report renderer
+- implemented the safe-default `lrh serve` local server skeleton, read-only project/workstream/work-item
+  viewer, and prompt/run-packet/report workbench
 
 ## Why this is active now
 
@@ -38,14 +40,14 @@ directly to observation or runtime automation. Shared APIs, planning relationshi
 snapshot-visible summaries, opt-in readiness metadata, dry-run packet rendering, report rendering, and
 the local human-assist surface are in place.
 
-## Completed implementation slice
+## Next implementation slice
 
-`WI-LRH-SERVE-SAFE-DEFAULT-MVP` is resolved as the local read-only viewer / prompt workbench package
-that consumes the completed shared state, execution-readiness, run-packet, and run-report contracts.
-Its completed sequence was: plan/control-plane refinement; local server skeleton; read-only
-project/workstream/work-item viewer; and prompt/run-packet/report workbench MVP. The package remained
-within the safe-default boundary: no autonomous dispatch, branch mutation, PR creation, stabilization
-loops, merge/release automation, or backend adapters.
+The next implementation package should be **Layer 2: durable run state/manual run tracking**. It
+should define manual-mode run artifacts such as `project/runs/<RUN-ID>/`, `packet.yaml`,
+`state.yaml`, `events.jsonl`, `prompts/`, `evidence/`, `report.md`, manual lifecycle states,
+explicit-click/manual update paths, and parity between manual runs and future automated runs. It
+should not add observation adapters, branch containment, autonomous dispatch, branch mutation, PR
+creation, stabilization loops, merge/release automation, or backend adapters.
 
 ## Next implementation package
 
@@ -77,8 +79,8 @@ Execution-framework planning must preserve explicit human/policy gates for:
 
 ## Non-Goals
 
-- Implementing runtime code, CLI behavior, schema validation, GitHub API integration, or tests for
-  runtime execution behavior in this planning PR.
+- Implementing observation adapters, branch containment, runtime automation, GitHub API integration,
+  or tests for mutation-capable runtime execution behavior in the next Layer 2 planning/implementation package.
 - Adding `lrh run` or any autonomous run command beyond safe-default design references.
 - Invoking coding agents, mutating branches, opening PRs automatically, or adding execution backends.
 - Implementing PR stabilization loops, CI response automation, or merge/publish automation.

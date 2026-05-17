@@ -55,7 +55,7 @@ Layer 2 durable run state/manual run tracking is the current follow-on package.
 2. Run packet request/dry-run distinction.
 3. Run report MVP.
 
-### Completed local-assist package
+### Completed safe-default serve package
 
 1. Safe-default `lrh serve` read-only viewer and prompt workbench.
 
@@ -82,7 +82,7 @@ debugging, and
 hardening guidance staged as a playbook and prompt/skill follow-up rather than a one-size-fits-all
 workflow template.
 
-## Execution-contract closeout and next package
+## Serve closeout and next package
 
 The first execution-framework contract package is complete and remains contract-first and
 dry-run-first:
@@ -96,15 +96,15 @@ evidence expectations, and human closeout tasks needed before any branch mutatio
 work begins. Their prerequisite shared state/API interpretation, planning relationship/index
 validation, and snapshot-visible planning summaries are also complete.
 
-`WI-LRH-SERVE-SAFE-DEFAULT-MVP` is closed as the read-only/local-assist viewer and prompt
-workbench package that consumes the completed contracts without becoming a runner. Its four
+The completed serve package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a read-only/local-assist viewer
+and prompt workbench that consumes the completed contracts without becoming a runner. Its four
 implementation slices were plan/control-plane refinement, local server skeleton, read-only
 project/workstream/work-item viewer, and prompt/run-packet/report workbench MVP.
 
-The next implementation package is **Layer 2: durable run state/manual run tracking**. It should
-remain manual and explicit-click oriented while defining the durable run layout and lifecycle; it
-should not introduce observation adapters, branch mutation, PR creation, stabilization loops, backend
-adapters, or autonomous execution.
+The next package is **Layer 2: durable run state/manual run tracking**. It should define durable
+manual run artifacts such as `project/runs/<RUN-ID>/`, `packet.yaml`, `state.yaml`, `events.jsonl`,
+`prompts/`, `evidence/`, `report.md`, manual lifecycle states, explicit-click/manual update paths,
+and parity between manual runs and future automated runs.
 
 ## Explicit deferrals
 

@@ -97,8 +97,10 @@ implementation prompts.
 
 Future dashboard design work should use the proposed LRH Console visual language in
 `project/design/proposals/proposed/lrh-console-visual-language/00_proposal.md` as directional UX
-guidance after the safe-default MVP stabilizes. That proposal is not an acceptance criterion for this
-MVP and does not expand this work item's read-only, safe-default implementation scope.
+guidance after the safe-default MVP stabilizes. That proposal now includes UX review criteria and a
+first implemented `lrh serve` review checklist that reviewers can use to assess safe-default UI
+tranches. The checklist is not a blocking acceptance criterion for this MVP and does not expand this
+work item's read-only, safe-default implementation scope.
 
 ## Implementation Slices
 

@@ -71,4 +71,4 @@ Follow-up migration PRs should be small and low-noise:
 4. Keep README navigation current for each affected folder.
 5. Link to `project/` artifacts instead of copying active project-control state.
 
-Existing documents such as [`../release.md`](../release.md) and [`../project-setup/`](../project-setup/) remain in place until focused follow-up PRs decide whether and how to migrate them.
+When migrating existing documents into this structure, preserve compatibility stubs for old paths when external or historical links may plausibly point there.

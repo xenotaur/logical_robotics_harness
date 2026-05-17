@@ -16,11 +16,9 @@ LRH uses a lightweight, GitHub-rendered, Diátaxis-inspired structure:
 
 Use [Documentation structure](reference/documentation-structure.md) when deciding where future documentation belongs.
 
-## Existing guides awaiting placement
+## Current how-to guides
 
-This PR establishes the destination structure; it does not migrate all existing content. Until follow-up PRs move or split them, these existing guides remain in place:
-
-- [Release runbook](release.md) — maintainer release, TestPyPI, PyPI, and tag-push validation guidance.
-- [Project setup playbooks](project-setup/README.md) — reusable setup and hardening guidance for heterogeneous project repositories.
+- [How to run a release](how-to/run-a-release.md) — maintainer release, TestPyPI, PyPI, and tag-push validation guidance.
+- [Project setup playbooks](how-to/project-setup/README.md) — reusable setup and hardening guidance for heterogeneous project repositories.
 
 Future content migration should prefer link-only compatibility updates and small, reviewable moves over broad rewrites.

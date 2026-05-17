@@ -29,7 +29,7 @@ support that helps different repository families assess, design, implement, debu
 without erasing repository-specific conventions.
 
 This proposal began as design/control-plane alignment only. The first implementation phase now adds
-the human CI playbook at `docs/project-setup/ci.md`; request-template updates, Agent Skill design,
+the human CI playbook at `docs/how-to/project-setup/ci.md`; request-template updates, Agent Skill design,
 CI templates, and repository workflow changes remain out of scope for that playbook PR.
 
 ## Problem statement
@@ -57,7 +57,7 @@ canonical scripts, setup model, validation expectations, and review process.
 ## Proposed staged approach
 
 1. **Human playbook** — add a concise CI setup and debugging playbook at
-   `docs/project-setup/ci.md` that captures environment parity, setup/validation separation,
+   `docs/how-to/project-setup/ci.md` that captures environment parity, setup/validation separation,
    canonical-command use, tool-version guardrails, workflow YAML checks, and evidence expectations.
    This phase is implemented by `WI-CI-PLAYBOOK`.
 2. **Request-template refresh** — update existing LRH CI request templates, including
@@ -126,7 +126,7 @@ requirements.
 
 The design can be considered effective when:
 
-- a usable human CI setup and debugging playbook exists at `docs/project-setup/ci.md`;
+- a usable human CI setup and debugging playbook exists at `docs/how-to/project-setup/ci.md`;
 - CI assessment and implementation requests apply that playbook;
 - any CI Agent Skill prototype is designed only after playbook and prompt stabilization; and
 - reusable templates or fragments are reassessed based on dogfooding evidence rather than assumed up
@@ -135,7 +135,7 @@ The design can be considered effective when:
 ## Work items and follow-up seeds
 
 `WI-CI-PLAYBOOK` is the first implementation leaf and creates the human CI setup and debugging
-playbook at `docs/project-setup/ci.md`.
+playbook at `docs/how-to/project-setup/ci.md`.
 
 Likely follow-up work items, if adopted, are:
 

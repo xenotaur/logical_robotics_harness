@@ -34,4 +34,4 @@ The adopted decision is reflected in:
 - `project/design/design.md`
 - `project/design/architecture.md`
 - `project/design/repository_spec.md`
-- `docs/release.md`
+- `docs/how-to/run-a-release.md`

@@ -20,6 +20,7 @@ How-to guides give task-specific operational instructions for people applying LR
 
 Add content here when the title can naturally start with “How to ...” and the reader should finish with a completed task. If the document mainly teaches a complete learning path, use [tutorials](../tutorials/README.md). If it defines exact stable behavior, use [reference](../reference/README.md). If it explains rationale, use [explanations](../explanations/README.md).
 
-## Currently relevant docs
+## Guides
 
-- [Project setup playbooks](../project-setup/README.md) currently contains how-to style setup and CI hardening guidance. It remains in place until a follow-up migration PR.
+- [How to run a release](run-a-release.md) — validate, tag, smoke-test, and publish LRH releases.
+- [Project setup playbooks](project-setup/README.md) — reusable setup and hardening guidance for heterogeneous project repositories.

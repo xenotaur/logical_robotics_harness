@@ -19,8 +19,10 @@ and then help orchestrate work to achieve that roadmap in a structured and inspe
 
 ## Current status
 
-This repository now has a working control-plane baseline (`lrh validate`) and assist CLI entrypoints
-(`lrh request`, `lrh snapshot`, `lrh survey`). Current planning emphasis is on packaging/runtime hardening for assist templates so installed-package usage does not depend on repository-relative paths.
+This repository now has a working control-plane baseline (`lrh validate`), assist CLI entrypoints
+(`lrh request`, `lrh snapshot`, `lrh survey`), and a safe-default local `lrh serve` viewer/workbench.
+Current execution-framework planning emphasis is Layer 2 durable run state/manual run tracking, not
+new autonomous runtime behavior.
 
 ## Planned top-level structure
 

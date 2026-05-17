@@ -31,12 +31,12 @@ Immediate next ordering:
 
 1. treat the Workstream Control Plane MVP as the landed prerequisite for execution-framework planning
 2. plan **Phase 3 — Execution, Evidence, and Status** as a staged bounded execution-framework phase
-3. start Layer 2 durable run state/manual run tracking after the completed safe-default `lrh serve`
-   viewer / prompt workbench package
-4. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item -> Run Packet -> Run Report**
-5. preserve human/policy gates for merge, release, publish, and closeout
-6. keep branch mutation, autonomous stabilization, and backend adapters deferred until contracts are stable
-7. sequence work through small reviewable work items before any execution-framework implementation
+3. treat the safe-default `lrh serve` local viewer / prompt workbench as completed closeout evidence
+4. identify **Layer 2: durable run state/manual run tracking** as the next execution-framework package
+5. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item -> Run Packet -> Run State -> Run Report**
+6. preserve human/policy gates for merge, release, publish, and closeout
+7. keep observation adapters, branch mutation, autonomous stabilization, and backend adapters deferred until manual run-state contracts are stable
+8. sequence work through small reviewable work items before any execution-framework implementation
 
 Prompt-workflow integration note:
 
@@ -94,9 +94,9 @@ MVP goal:
 Recommended staged deliverables:
 
 The prerequisite control-plane alignment, first execution-contract sequence, and safe-default
-`WI-LRH-SERVE-SAFE-DEFAULT-MVP` local viewer / prompt workbench package are complete. The next
-implementation package is Layer 2 durable run state/manual run tracking, with later mutation,
-observation, stabilization, and adapter work still deferred.
+`WI-LRH-SERVE-SAFE-DEFAULT-MVP` local viewer / prompt workbench are complete. The next
+implementation package is **Layer 2: durable run state/manual run tracking**, with later observation,
+mutation, stabilization, and adapter work still deferred.
 
 Completed prerequisite control-plane alignment:
 
@@ -118,15 +118,15 @@ Completed first execution-contract package:
 
 Completed safe-default serve package:
 
-1. **Safe-default `lrh serve` viewer and prompt workbench** — render shared state and first-package
+1. **Safe-default `lrh serve` viewer and prompt workbench** — renders shared state and first-package
    contracts without becoming an autonomous runner or separate tree interpreter.
 
-Current follow-on package:
+Next implementation package:
 
-1. **Layer 2 durable run state/manual run tracking** — define `project/runs/<RUN-ID>/`,
-   `packet.yaml`, `state.yaml`, `events.jsonl`, `prompts/`, `evidence/`, `report.md`, manual
-   lifecycle states, explicit-click/manual update paths, and parity between manual and future
-   automated runs.
+1. **Layer 2: durable run state/manual run tracking** — define and persist `project/runs/<RUN-ID>/`
+   artifacts such as `packet.yaml`, `state.yaml`, `events.jsonl`, `prompts/`, `evidence/`, and
+   `report.md`; manual-mode lifecycle states; explicit-click/manual update paths; and parity between
+   manual runs and future automated runs.
 
 Deferred follow-on packages:
 

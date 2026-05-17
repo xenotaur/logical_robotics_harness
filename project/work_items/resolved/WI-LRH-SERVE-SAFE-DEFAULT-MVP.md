@@ -1,5 +1,5 @@
 ---
-resolution: Verified and closed out after the four safe-default serve slices produced the local server skeleton, read-only project/workstream/work-item viewer, prompt/run-packet/report workbench, tests, and safe-default dogfood evidence recorded under project/executions/WI-LRH-SERVE-SAFE-DEFAULT-MVP/.
+resolution: Implemented by the safe-default `lrh serve` local viewer, read-only project/workstream/work-item APIs, and prompt/run-packet/report workbench, with evidence recorded in project/executions/WI-LRH-SERVE-SAFE-DEFAULT-MVP/ and closeout validation in the 2026-05-16 closeout execution record.
 blocked_reason: null
 blocked: false
 id: WI-LRH-SERVE-SAFE-DEFAULT-MVP
@@ -95,10 +95,9 @@ Closeout validation rechecked `src/lrh/serve.py`, `tests/cli_tests/serve_test.py
 8. **Writes:** defer writes for the MVP. A later PR may propose explicit-click writes only for narrow
    LRH control artifacts such as prompt packets, manual run records, evidence notes, report drafts, or
    execution records. No write may happen on page load, preview, validation, copy, or download.
-9. **Default network posture:** bind to `127.0.0.1` by default. Non-local hosts such as `0.0.0.0`
-   are refused unless the caller explicitly opts in with `--allow-nonlocal-host` after reviewing the
-   exposure risk.
-10. **Next package after closeout:** Layer 2 durable run state/manual run tracking.
+9. **Default network posture:** bind to `127.0.0.1` by default. Do not bind to `0.0.0.0` unless a later
+   prompt explicitly documents the risk, CLI spelling, and review evidence.
+10. **Closeout:** all four implementation slices are complete; the next package is Layer 2 durable run state/manual run tracking.
 
 ## Future visual language direction
 
@@ -254,6 +253,22 @@ Expected evidence:
 
 - Unit test output for workbench generation and no-write behavior.
 - Manual smoke evidence for preview/copy/download fallback.
+
+## Resolution Evidence
+
+Closed on 2026-05-16 after verifying the four serve implementation slices and safe-default dogfood
+evidence. The implementation records under `project/executions/WI-LRH-SERVE-SAFE-DEFAULT-MVP/`
+cover plan refinement, the local server skeleton, the read-only viewer, and the prompt/run-packet/report
+workbench MVP. Closeout validation confirmed `lrh serve --help`, `lrh serve --show-config`, local
+`/health` and `/api/status` route smoke checks, default `127.0.0.1` binding, non-local host refusal
+without explicit opt-in, no write routes, no agent dispatch, no arbitrary file serving, no branch or
+pull-request mutation, and no working-tree mutation from read-only route access.
+
+The next execution-framework implementation package is **Layer 2: durable run state/manual run
+tracking**. That package should remain planning/implementation work for `project/runs/<RUN-ID>/`
+layout, `packet.yaml`, `state.yaml`, `events.jsonl`, prompts, evidence, `report.md`, manual-mode
+lifecycle states, explicit-click/manual updates, and parity between manual runs and future automated
+runs; it is not implemented by this closeout.
 
 ## Cross-Slice Non-Goals
 

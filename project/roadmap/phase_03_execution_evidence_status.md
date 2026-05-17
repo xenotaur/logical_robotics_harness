@@ -25,10 +25,10 @@ Canonical living design: `project/design/execution_framework_mvp.md`. Its staged
 prerequisite control-plane alignment from the first execution-contract package. Shared core state
 APIs, planning relationship/index validation, and snapshot-visible planning summaries must be
 available before packet generation relies on them. The first package of execution readiness, dry-run
-run packets, and run reports is complete, and the safe-default `lrh serve` viewer/workbench package
-is complete. The current follow-on package is Layer 2 durable run state/manual run tracking;
-read-only observation adapters, optional agentic execution adapters, and later daemon/dashboard modes
-follow separately.
+run packets, and run reports is complete, and the safe-default `lrh serve` local viewer / prompt
+workbench is complete. The current follow-on package is **Layer 2: durable run state/manual run
+tracking**; read-only observation adapters, optional agentic execution adapters, and later
+daemon/dashboard modes follow separately.
 
 ## Goal
 
@@ -39,9 +39,9 @@ preserving human/policy gates.
 
 ## Staged deliverables
 
-The deliverable list is grouped by package boundary. It is not a single prompt package. Layer 2
-durable run state/manual run tracking is now the current follow-on package after the completed
-safe-default `lrh serve` workbench.
+The deliverable list is grouped by package boundary. It is not a single prompt package. The
+read-only `lrh serve` workbench is now complete after the completed first execution-contract package.
+Layer 2 durable run state/manual run tracking is the current follow-on package.
 
 ### Prerequisite control-plane alignment
 
@@ -61,7 +61,9 @@ safe-default `lrh serve` workbench.
 
 ### Current follow-on package
 
-1. Layer 2 durable run state/manual run tracking.
+1. Layer 2 durable run state/manual run tracking for `project/runs/<RUN-ID>/`, `packet.yaml`,
+   `state.yaml`, `events.jsonl`, prompts, evidence, `report.md`, manual-mode lifecycle states,
+   explicit-click/manual update paths, and parity between manual runs and future automated runs.
 
 ### Deferred follow-on packages
 

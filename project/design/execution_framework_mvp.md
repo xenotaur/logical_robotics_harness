@@ -762,8 +762,10 @@ Recommended design and implementation order:
    `WI-RUN-REPORT-MVP`.
 3. Completed: add the safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP` viewer/prompt workbench as a
    read-only/local-assist package that consumes shared state, readiness, packet, and report contracts.
-4. Next: add Layer 2 durable run-state artifacts and manual run tracking under
-   `project/runs/<RUN-ID>/` after the artifact contracts are reviewed.
+4. Next: add Layer 2 durable run state/manual run tracking under `project/runs/<RUN-ID>/`, including
+   `packet.yaml`, `state.yaml`, `events.jsonl`, prompts, evidence, `report.md`, manual-mode lifecycle
+   states, explicit-click/manual update paths, and parity between manual runs and future automated
+   runs.
 5. Add observation adapters for git, PR, CI, and review status only after packets/reports can express
    the evidence they observe.
 6. Add optional agentic dispatch adapters later, behind the adopted safe-default packaging boundary.

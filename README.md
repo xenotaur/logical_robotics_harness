@@ -74,7 +74,7 @@ Proposal frontmatter `status` is authoritative; path buckets under
 `project/design/proposals/` are derived for human readability, while
 proposal-set relative paths are preserved within those buckets.
 
-The safe-default local read-only viewer can be started with:
+The completed safe-default local read-only viewer / prompt workbench can be started with:
 
 ```bash
 lrh serve

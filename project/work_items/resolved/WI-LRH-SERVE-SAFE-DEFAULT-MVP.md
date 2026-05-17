@@ -1,5 +1,5 @@
 ---
-resolution: completed
+resolution: Implemented by the safe-default `lrh serve` local viewer, read-only project/workstream/work-item APIs, and prompt/run-packet/report workbench, with evidence recorded in project/executions/WI-LRH-SERVE-SAFE-DEFAULT-MVP/ and closeout validation in the 2026-05-16 closeout execution record.
 blocked_reason: null
 blocked: false
 id: WI-LRH-SERVE-SAFE-DEFAULT-MVP
@@ -91,7 +91,7 @@ implementation prompts.
    execution records. No write may happen on page load, preview, validation, copy, or download.
 9. **Default network posture:** bind to `127.0.0.1` by default. Do not bind to `0.0.0.0` unless a later
    prompt explicitly documents the risk, CLI spelling, and review evidence.
-10. **Next prompt:** `PROMPT(WI-LRH-SERVE-SAFE-DEFAULT-MVP:IMPLEMENT_SERVE_LOCAL_SERVER_SKELETON)`.
+10. **Closeout:** all four implementation slices are complete; the next package is Layer 2 durable run state/manual run tracking.
 
 ## Future visual language direction
 
@@ -246,6 +246,22 @@ Expected evidence:
 - Unit test output for workbench generation and no-write behavior.
 - Manual smoke evidence for preview/copy/download fallback.
 
+## Resolution Evidence
+
+Closed on 2026-05-16 after verifying the four serve implementation slices and safe-default dogfood
+evidence. The implementation records under `project/executions/WI-LRH-SERVE-SAFE-DEFAULT-MVP/`
+cover plan refinement, the local server skeleton, the read-only viewer, and the prompt/run-packet/report
+workbench MVP. Closeout validation confirmed `lrh serve --help`, `lrh serve --show-config`, local
+`/health` and `/api/status` route smoke checks, default `127.0.0.1` binding, non-local host refusal
+without explicit opt-in, no write routes, no agent dispatch, no arbitrary file serving, no branch or
+pull-request mutation, and no working-tree mutation from read-only route access.
+
+The next execution-framework implementation package is **Layer 2: durable run state/manual run
+tracking**. That package should remain planning/implementation work for `project/runs/<RUN-ID>/`
+layout, `packet.yaml`, `state.yaml`, `events.jsonl`, prompts, evidence, `report.md`, manual-mode
+lifecycle states, explicit-click/manual updates, and parity between manual runs and future automated
+runs; it is not implemented by this closeout.
+
 ## Cross-Slice Non-Goals
 
 - No autonomous runtime execution.
@@ -277,13 +293,14 @@ Expected evidence:
 
 ## Dependencies / Order
 
-The prerequisite control-plane alignment and first execution-contract package are complete. The serve
-package can now proceed in this order:
+The prerequisite control-plane alignment, first execution-contract package, and safe-default serve
+implementation slices are complete:
 
 1. safe-default serve plan/control-plane refinement;
 2. local server skeleton;
 3. read-only project/workstream/work-item viewer;
 4. prompt/run-packet/report workbench MVP.
 
-Later packages may add durable run state, read-only observation adapters, and optional agentic
-capability only after the safe-default viewer/workbench boundary remains stable and reviewed.
+The next package is Layer 2 durable run state/manual run tracking. Later packages may add read-only
+observation adapters and optional agentic capability only after the safe-default viewer/workbench and
+manual run-state boundaries remain stable and reviewed.

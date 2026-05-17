@@ -75,8 +75,8 @@ release. This is a packaging/governance boundary, not a security sandbox.
 
 ## Active Priorities
 
-- keep the closed `WI-LRH-SERVE-SAFE-DEFAULT-MVP` safe-default boundary intact while selecting the
-  next execution-framework package
+- keep the closed `WI-LRH-SERVE-SAFE-DEFAULT-MVP` safe-default boundary intact while advancing
+  **Layer 2: durable run state/manual run tracking** as the next execution-framework package
 - preserve package-owned assist template/resource loading
 - maintain canonical `lrh survey` delegation to package code
 - keep later branch mutation, observation adapters, stabilization loops, and agent backends deferred
@@ -97,8 +97,10 @@ release. This is a packaging/governance boundary, not a security sandbox.
 
 ## Recommended Next Actions
 
-1. Select the next execution-framework package with the same safe-default, human-gated boundary used
-   for `WI-LRH-SERVE-SAFE-DEFAULT-MVP`.
+1. Plan **Layer 2: durable run state/manual run tracking** for `project/runs/<RUN-ID>/`, `packet.yaml`,
+   `state.yaml`, `events.jsonl`, prompts, evidence, `report.md`, manual lifecycle states,
+   explicit-click/manual updates, and manual/future-automated parity.
 2. Keep package-owned assist template/resource behavior stable.
 3. Keep `lrh survey` canonical on package-owned implementation.
-4. Keep later branch mutation, observation adapters, stabilization loops, and agent backends deferred.
+4. Keep later observation adapters, branch mutation, stabilization loops, PR creation, merge/release
+   automation, destructive actions, and agent backends deferred.

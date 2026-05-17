@@ -25,9 +25,10 @@ Canonical living design: `project/design/execution_framework_mvp.md`. Its staged
 prerequisite control-plane alignment from the first execution-contract package. Shared core state
 APIs, planning relationship/index validation, and snapshot-visible planning summaries must be
 available before packet generation relies on them. The first package of execution readiness, dry-run
-run packets, and run reports is complete. The current follow-on package is safe-default `lrh serve`;
-durable run state UI, read-only observation
-adapters, optional agentic execution adapters, and later daemon/dashboard modes follow separately.
+run packets, and run reports is complete, and the safe-default `lrh serve` local viewer / prompt
+workbench is complete. The current follow-on package is **Layer 2: durable run state/manual run
+tracking**; read-only observation adapters, optional agentic execution adapters, and later
+daemon/dashboard modes follow separately.
 
 ## Goal
 
@@ -39,8 +40,8 @@ preserving human/policy gates.
 ## Staged deliverables
 
 The deliverable list is grouped by package boundary. It is not a single prompt package. The
-read-only `lrh serve` workbench is now the current follow-on package after the completed first
-execution-contract package.
+read-only `lrh serve` workbench is now complete after the completed first execution-contract package.
+Layer 2 durable run state/manual run tracking is the current follow-on package.
 
 ### Prerequisite control-plane alignment
 
@@ -54,18 +55,23 @@ execution-contract package.
 2. Run packet request/dry-run distinction.
 3. Run report MVP.
 
-### Current follow-on package
+### Completed local-assist package
 
 1. Safe-default `lrh serve` read-only viewer and prompt workbench.
 
+### Current follow-on package
+
+1. Layer 2 durable run state/manual run tracking for `project/runs/<RUN-ID>/`, `packet.yaml`,
+   `state.yaml`, `events.jsonl`, prompts, evidence, `report.md`, manual-mode lifecycle states,
+   explicit-click/manual update paths, and parity between manual runs and future automated runs.
+
 ### Deferred follow-on packages
 
-1. Durable run state and manual run tracking.
-2. Agent branch containment design support.
-3. GitHub PR/CI observation adapter.
-4. Bounded stabilization loop design.
-5. Backend adapter abstraction.
-6. Manual/assisted/bounded-auto mode progression.
+1. Agent branch containment design support.
+2. GitHub PR/CI observation adapter.
+3. Bounded stabilization loop design.
+4. Backend adapter abstraction.
+5. Manual/assisted/bounded-auto mode progression.
 
 ### Adjacent reusable capability work
 
@@ -94,6 +100,11 @@ validation, and snapshot-visible planning summaries are also complete.
 workbench package that consumes the completed contracts without becoming a runner. Its four
 implementation slices were plan/control-plane refinement, local server skeleton, read-only
 project/workstream/work-item viewer, and prompt/run-packet/report workbench MVP.
+
+The next implementation package is **Layer 2: durable run state/manual run tracking**. It should
+remain manual and explicit-click oriented while defining the durable run layout and lifecycle; it
+should not introduce observation adapters, branch mutation, PR creation, stabilization loops, backend
+adapters, or autonomous execution.
 
 ## Explicit deferrals
 

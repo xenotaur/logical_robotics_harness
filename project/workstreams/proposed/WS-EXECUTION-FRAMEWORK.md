@@ -188,3 +188,16 @@ The implementation prompts for these slices are recorded under
 Keep branch containment, GitHub/CI observation, stabilization loops, backend adapters, branch
 mutation, PR creation, merge/release automation, multi-agent orchestration, deep MCP integration, and
 destructive operations deferred until a later prompt explicitly grants that scope.
+
+## Next implementation package
+
+The next package is **Layer 2: durable run state/manual run tracking**. It should define durable,
+human-reviewable run records without adding autonomous runtime behavior. The planning boundary should
+cover `project/runs/<RUN-ID>/`, `packet.yaml`, `state.yaml`, `events.jsonl`, `prompts/`, `evidence/`,
+`report.md`, manual-mode lifecycle states, explicit-click/manual update paths, and parity between
+manual runs and future automated runs.
+
+Keep read-only observation adapters, branch containment, bounded stabilization loops, backend
+adapters, agent dispatch, branch mutation, PR creation, merge/release automation, destructive
+operations, multi-agent orchestration, and deep MCP integration deferred until a later prompt
+explicitly grants that scope.

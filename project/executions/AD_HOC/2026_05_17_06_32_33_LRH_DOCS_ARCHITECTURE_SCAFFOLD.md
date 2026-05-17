@@ -2,9 +2,9 @@
 execution_id: 2026_05_17_06_32_33_LRH_DOCS_ARCHITECTURE_SCAFFOLD
 prompt_id: PROMPT(AD_HOC:LRH_DOCS_ARCHITECTURE_SCAFFOLD)[2026-05-17T02:11:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
-pr:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/255
 commit:
 created_at: 2026-05-17T06:32:33+00:00
 ---

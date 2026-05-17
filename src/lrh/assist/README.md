@@ -80,7 +80,7 @@ lrh request templates --template-dir /path/to/templates where request/review_res
 distinguishing filesystem overrides from package fallback.
 
 CI request templates are self-contained for installed-package use: they mention
-`docs/project-setup/ci.md` as the fuller source when available, but include a
+`docs/how-to/project-setup/ci.md` as the fuller source when available, but include a
 packaged CI playbook summary so generated prompts do not require that source
 checkout path in the target repository.
 
@@ -491,7 +491,7 @@ lrh request codex_prompt_from_work_item \
 
 ### 5) `assess-continuous-integration-status`
 
-**Purpose**: Produce a read-only CI feasibility assessment before migration, applying packaged CI playbook guidance and the fuller `docs/project-setup/ci.md` source when available.
+**Purpose**: Produce a read-only CI feasibility assessment before migration, applying packaged CI playbook guidance and the fuller `docs/how-to/project-setup/ci.md` source when available.
 
 **Inputs**:
 
@@ -507,7 +507,7 @@ lrh request assess-continuous-integration-status \
 
 ### 6) `implement-continuous-integration-workflow`
 
-**Purpose**: Produce an assessment-gated implementation request for CI migration, applying packaged CI playbook guidance and the fuller `docs/project-setup/ci.md` source when available.
+**Purpose**: Produce an assessment-gated implementation request for CI migration, applying packaged CI playbook guidance and the fuller `docs/how-to/project-setup/ci.md` source when available.
 
 **Inputs**:
 

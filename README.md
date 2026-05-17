@@ -275,7 +275,7 @@ When editing GitHub Actions workflows, run:
 scripts/check-workflows
 ```
 
-This validates workflow YAML syntax locally and is also run by Meta CI. Deeper GitHub Actions semantic linting (for example `actionlint`) is intentionally deferred. For reusable setup, debugging, and hardening guidance across heterogeneous repositories, see the [CI setup and debugging playbook](docs/project-setup/ci.md).
+This validates workflow YAML syntax locally and is also run by Meta CI. Deeper GitHub Actions semantic linting (for example `actionlint`) is intentionally deferred. For reusable setup, debugging, and hardening guidance across heterogeneous repositories, see the [CI setup and debugging playbook](docs/how-to/project-setup/ci.md).
 
 ### Agent workflow rules
 
@@ -524,9 +524,9 @@ For deeper design context, see
 
 LRH releases are validated with the repository release scripts and published
 from version tags using the staged, publish-last workflow documented in
-`docs/release.md`.
+`docs/how-to/run-a-release.md`.
 
-See [`docs/release.md`](docs/release.md) for the canonical maintainer release
+See [`docs/how-to/run-a-release.md`](docs/how-to/run-a-release.md) for the canonical maintainer release
 runbook, including local readiness checks, installed-wheel smoke testing,
 TestPyPI rehearsal, PyPI Trusted Publisher setup, tag-push publishing,
 post-release verification, failure recovery notes, and release evidence.

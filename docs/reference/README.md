@@ -26,6 +26,6 @@ Add content here when the reader needs to look up exact behavior and expects the
 - [Schema reference](schemas/README.md) — project-control and file-format reference material.
 - [Documentation structure](documentation-structure.md) — placement guide for future human-facing docs.
 
-## Currently relevant docs
+## Related operational guides
 
-- [Release runbook](../release.md) contains command and release-process details, but it remains in its existing location until follow-up documentation migration.
+- [How to run a release](../how-to/run-a-release.md) contains command and release-process details for maintainers.

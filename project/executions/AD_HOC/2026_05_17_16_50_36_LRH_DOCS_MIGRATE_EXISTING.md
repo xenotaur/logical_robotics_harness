@@ -2,7 +2,7 @@
 execution_id: 2026_05_17_16_50_36_LRH_DOCS_MIGRATE_EXISTING
 prompt_id: PROMPT(AD_HOC:LRH_DOCS_MIGRATE_EXISTING)[2026-05-17T02:12:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:
@@ -33,6 +33,7 @@ paths.
   and Conda are not installed in this environment and were reported by the
   version script.
 - `lrh prompt check-execution --prompt-id "PROMPT(AD_HOC:LRH_DOCS_MIGRATE_EXISTING)[2026-05-17T02:12:00-04:00]" --project-root .` — passed soft-idempotence gate by reporting no prior execution records before work began.
+- `scripts/format --check --diff` — passed during review-feedback follow-up.
 - `scripts/lint` — passed.
 - `scripts/test` — initially failed because request-template tests still expected
   `docs/project-setup/ci.md`; after updating those expectations, rerun passed
@@ -41,4 +42,5 @@ paths.
 
 # Follow-up
 
-None required for this migration.
+- Keep this execution record `in_progress` while the PR is open; update it to
+  `landed` with PR and commit metadata after the change lands.

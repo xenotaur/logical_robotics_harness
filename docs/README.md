@@ -22,6 +22,7 @@ Use [Documentation structure](reference/documentation-structure.md) when decidin
 - [Generate a context snapshot](how-to/generate-a-snapshot.md) — render current `lrh snapshot` context packets.
 - [Survey a source tree](how-to/survey-a-source-tree.md) — inventory a Python source tree with `lrh survey`.
 - [Use request templates](how-to/use-request-templates.md) — discover and render current `lrh request` prompts and template diagnostics.
+- [Manage the work-item lifecycle](how-to/manage-work-item-lifecycle.md) — audit, ready, prompt, execute, and evidence-close work items conservatively.
 - [Register a project with an LRH meta workspace](how-to/register-a-project-with-meta.md) — initialize meta state and register project records.
 - [Inspect workspace state](how-to/inspect-workspace-state.md) — inspect active meta workspace paths and registered projects.
 - [Use the developer sandbox](how-to/use-the-developer-sandbox.md) — run LRH commands against isolated developer state.
@@ -34,6 +35,7 @@ Use [Documentation structure](reference/documentation-structure.md) when decidin
 - [`lrh snapshot`](reference/cli/snapshot.md)
 - [`lrh survey`](reference/cli/survey.md)
 - [`lrh request`](reference/cli/request.md)
+- [`lrh work-items`](reference/cli/work-items.md)
 - [`lrh meta`](reference/cli/meta.md)
 
 Future content migration should prefer link-only compatibility updates and small, reviewable moves over broad rewrites.

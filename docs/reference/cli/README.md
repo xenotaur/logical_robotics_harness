@@ -25,4 +25,5 @@ Add content here when the reader already knows which command they need and wants
 - [`snapshot`](snapshot.md) — generate Markdown context packets from project control files.
 - [`survey`](survey.md) — survey Python source trees for assist planning workflows.
 - [`request`](request.md) — render request prompts and inspect request-template resolution.
+- [`work-items`](work-items.md) — validate, audit, and diagnose prompt-readiness for work-item files.
 - [`meta`](meta.md) — manage LRH meta workspaces and project registry records.

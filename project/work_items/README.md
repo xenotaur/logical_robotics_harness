@@ -75,14 +75,57 @@ items may be useful capture artifacts and should continue to pass `lrh work-item
 frontmatter, references, and lifecycle metadata are valid. Implementation prompt readiness is a
 separate checkpoint: a selected item needs execution-facing sections such as `Scope`,
 `Required Changes`, `Acceptance Criteria`, and `Validation` before `lrh request prompt-from-work-item`
-can render a bounded prompt. The intended future split is documented in
-`project/design/work_item_readiness_workflow.md`: `lrh work-items readiness` diagnoses missing readiness details deterministically, while
-`lrh request ready-work-item` assists a human reviewer in refining the item without automatically
-mutating source files. Use `ready-work-item` when `prompt-from-work-item` or readiness diagnostics
-report missing sections; the request should turn unresolved context into `Open Questions`, not
-invented scope.
+can render a bounded prompt.
 
-The audit distinguishes facts from recommendations. Use the semantic work-item audit assist template (`work_item_semantic_audit`) to compare acceptance criteria against concrete repository evidence before moving files or changing terminal metadata. Ambiguous proposed items should remain proposed until follow-up evidence or human design review resolves the uncertainty.
+Use the current workflow in this order when preparing an item for execution:
+
+```bash
+lrh work-items validate
+lrh work-items audit --format md
+lrh work-items readiness --status proposed --format md
+lrh request ready-work-item WI-ASSIST-INSTALLABILITY-HARDENING
+# review/apply refinement PR
+lrh request prompt-from-work-item WI-ASSIST-INSTALLABILITY-HARDENING
+# optional: for execution-ready items, render a dry-run/manual packet before execution
+lrh request run-packet-from-work-item WI-EXAMPLE --out /tmp/run-packet.md
+# after implementation/evidence
+lrh request run-report-from-work-item WI-ASSIST-INSTALLABILITY-HARDENING --outcome success
+```
+
+Keep the lifecycle distinctions explicit:
+
+- **Valid** means deterministic work-item hygiene and references pass. It is not a claim that the
+  item is ready for execution.
+- **Audited** means lifecycle and traceability signals have been reported for review. Audit does not
+  make semantic closure decisions by itself.
+- **Ready** means the item has execution-facing body sections detailed enough for an implementation
+  prompt.
+- **Promptable** means readiness gates pass and no blocked, terminal, or human-only suitability signal
+  prevents prompt rendering.
+- **Executed** means a human or agent actually performed the work. Rendered prompts and packets alone
+  are not execution evidence.
+- **Evidence-closed** means validation output, artifacts, evidence records, run reports, or review notes
+  support the acceptance criteria and a human has reviewed the closeout decision.
+
+`lrh work-items readiness` diagnoses promptability but does not refine or mutate items.
+`lrh request ready-work-item` renders an assistive refinement request and should turn unresolved
+context into `Open Questions`, not invented scope. `lrh request prompt-from-work-item` should be used
+after readiness issues are resolved. `lrh request run-packet-from-work-item` renders a non-mutating
+dry-run/manual packet for execution-ready items, and `lrh request run-report-from-work-item` should be
+used only after implementation evidence exists.
+
+`WI-ASSIST-INSTALLABILITY-HARDENING` remains the concise dogfood example of a valid but initially
+not-ready item: it captures a real packaging concern and validates as project-control data, but it
+requires refinement before implementation prompting.
+
+See also:
+
+- [`docs/how-to/manage-work-item-lifecycle.md`](../../docs/how-to/manage-work-item-lifecycle.md) for
+  operational workflows.
+- [`docs/reference/cli/work-items.md`](../../docs/reference/cli/work-items.md) for exact command
+  behavior.
+- [`project/design/work_item_readiness_workflow.md`](../design/work_item_readiness_workflow.md) for the
+  design-plane boundary.
 
 ### Conservative audit closeout workflow
 

@@ -31,10 +31,11 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - workflow documentation explains validate, audit, readiness, ready-work-item, prompt-from-work-item, and run-report-from-work-item
+  - workflow documentation explains validate, audit, readiness, ready-work-item, prompt-from-work-item, run-packet-from-work-item, and run-report-from-work-item
   - docs preserve deterministic, assistive, and human-reviewed boundaries
   - examples show valid-but-not-ready and ready/promptable work items
   - documentation does not imply automatic mutation or closeout
+  - execution record captures this prompt-driven documentation run
 required_evidence:
   - manual_review
 artifacts_expected:
@@ -83,6 +84,10 @@ request generation, and human-reviewed lifecycle decisions separate.
 ## Validation
 
 - `scripts/version tools`
+- `scripts/test`
+- `scripts/lint`
 - `scripts/format --check`
 - `lrh work-items validate`
+- `lrh work-items audit --format md`
+- `lrh work-items readiness --status proposed --format md`
 - `lrh validate`

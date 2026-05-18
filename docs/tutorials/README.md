@@ -24,3 +24,4 @@ Add content here when the reader's main goal is learning a workflow from start t
 
 - [Your first LRH project](first-lrh-project.md) — create a minimal `project/` directory, run `lrh validate`, and generate a snapshot.
 - [Your first prompt-driven change](first-prompt-driven-change.md) — choose a prompt ID, apply soft idempotence, make a small change, and record execution.
+- [From thin work item to prompt-ready item](work-item-readiness.md) — diagnose readiness, render a readying request, and generate an implementation prompt.

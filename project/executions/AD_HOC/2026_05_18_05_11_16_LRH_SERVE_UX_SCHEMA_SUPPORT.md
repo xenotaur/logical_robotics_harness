@@ -21,13 +21,14 @@ Added a focused UX schema/support package for future `lrh serve` dashboard work.
 - Added typed view models for meta dashboard lanes, project cards, status badges, evidence summaries, validation summaries, and project inspector support.
 - Added `src/lrh/ux/README.md` documenting that this layer supports future Alternative D / enhanced swimlane dashboard adoption but does not implement the full UI, a frontend framework, mutating routes, or broad serve refactors.
 - Serve integration was explicitly deferred because adopting these contracts in the current single-file viewer would require a broader rendering/API refactor than this semantic support PR needs.
+- Review feedback follow-up tightened active-work derivation, removed synthetic validation pass/total counts, made status coercion tolerate non-string inputs, used project root path as the stable project identifier, and added adapter tests.
 
 # Validation
 
 - `scripts/version tools` completed; pylint is not installed in this environment, while Ruff and Black are available.
 - `python -m unittest tests.ux_tests.dashboard_test` passed.
 - `lrh validate` passed with 0 errors and 0 warnings.
-- `scripts/test` passed.
+- `scripts/test` passed (544 tests).
 - `scripts/lint` passed.
 - `scripts/format --check` passed after formatting the new module.
 

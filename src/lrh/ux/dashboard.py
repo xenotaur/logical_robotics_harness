@@ -204,14 +204,14 @@ class MetaDashboardView:
     total_projects: int
 
 
-def status_label(status: OperationalStatus | str) -> str:
+def status_label(status: object) -> str:
     """Return the human-facing label for an operational status value."""
 
     operational_status = coerce_operational_status(status)
     return _OPERATIONAL_STATUS_LABELS[operational_status]
 
 
-def status_badge(status: OperationalStatus | str) -> StatusBadgeView:
+def status_badge(status: object) -> StatusBadgeView:
     """Return badge metadata for an operational status value."""
 
     operational_status = coerce_operational_status(status)
@@ -222,11 +222,13 @@ def status_badge(status: OperationalStatus | str) -> StatusBadgeView:
     )
 
 
-def coerce_operational_status(status: OperationalStatus | str) -> OperationalStatus:
+def coerce_operational_status(status: object) -> OperationalStatus:
     """Coerce a status value, falling back to ``unknown`` for unsupported input."""
 
     if isinstance(status, OperationalStatus):
         return status
+    if not isinstance(status, str):
+        return OperationalStatus.UNKNOWN
     try:
         return OperationalStatus(status)
     except ValueError:
@@ -268,15 +270,10 @@ def validation_summary_from_core_state(
 ) -> ValidationSummaryView:
     """Build a validation dashboard summary from loaded core project state."""
 
-    errors = state.validation.error_count
-    warnings = state.validation.warning_count
-    passing = 1 if state.validation.is_valid else 0
     return ValidationSummaryView(
         state="available",
-        passing_count=passing,
-        total_count=1,
-        warnings_count=warnings,
-        errors_count=errors,
+        warnings_count=state.validation.warning_count,
+        errors_count=state.validation.error_count,
     )
 
 
@@ -300,14 +297,14 @@ def project_summary_from_core_state(
         validation_error_count=state.validation.error_count,
         validation_warning_count=state.validation.warning_count,
         blocker_count=_blocked_work_item_count(state),
-        has_active_work=bool(state.active_leaf_work_items or state.workstreams),
+        has_active_work=_has_active_work(state),
         awaiting_review=_has_review_waiting_work(state),
         steady=_is_known_steady(state),
     )
     status = derive_operational_status(inputs)
     focus = state.current_focus.title if state.current_focus is not None else None
     return ProjectSummaryView(
-        project_id=state.identity.project_name,
+        project_id=str(state.identity.project_root),
         name=state.identity.project_name,
         status=status,
         status_badge=status_badge(status),
@@ -360,6 +357,15 @@ def _has_explicit_stable_inputs(inputs: OperationalStatusInputs) -> bool:
         and (inputs.blocker_count is None or inputs.blocker_count == 0)
         and inputs.awaiting_review is not True
         and inputs.has_active_work is not True
+    )
+
+
+def _has_active_work(state: core_state.CoreProjectState) -> bool:
+    if state.active_leaf_work_items:
+        return True
+    return any(
+        workstream.status.lower() in _ACTIVE_STATUS_VALUES
+        for workstream in state.workstreams
     )
 
 

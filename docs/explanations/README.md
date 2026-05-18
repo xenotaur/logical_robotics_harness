@@ -22,4 +22,12 @@ Add content here when the reader is asking “why?”, “what does this mean?�
 
 ## Currently relevant docs
 
-No explanations have been migrated yet. Existing rationale in [`../../project/design/`](../../project/design/) and [`../../project/memory/`](../../project/memory/) remains authoritative project-control material unless a follow-up PR creates human-facing explanatory summaries here.
+- [Why LRH exists](why-lrh.md) — rationale for a repository-native, evidence-backed harness.
+- [Control-plane model](control-plane-model.md) — how principles, goals, roadmap, focus, work items, evidence, status, and guardrails fit together.
+- [Precedence model](precedence-model.md) — how higher-authority control-plane layers constrain lower-authority execution context.
+- [Evidence-backed status](evidence-backed-status.md) — why LRH status should be grounded in durable proof.
+- [Repository state versus runtime state](repository-state-vs-runtime-state.md) — how committed project state differs from derived runtime objects and local tool state.
+- [Prompt-driven workflow](prompt-driven-workflow.md) — how prompt IDs and execution records support traceability.
+- [Workspace and meta model](workspace-and-meta-model.md) — how workspace catalogs coordinate multiple LRH-compatible repositories without replacing project-local authority.
+
+Existing rationale in [`../../project/design/`](../../project/design/) and [`../../project/memory/`](../../project/memory/) remains authoritative project-control material. These explanations summarize and teach concepts; they do not replace or supersede the project control plane.

@@ -24,6 +24,10 @@ work_items:
   - WI-BOUNDED-STABILIZATION-LOOP-DESIGN
   - WI-WORK-ITEM-EXECUTION-READY-CONCEPT-MVP
   - WI-RUN-PACKET-GENERATION-DESIGN-MVP
+  - WI-WORK-ITEM-READINESS-DESIGN
+  - WI-WORK-ITEMS-READINESS-CLI-MVP
+  - WI-REQUEST-READY-WORK-ITEM-MVP
+  - WI-WORKFLOW-DOCS-READINESS-AUDIT-PROMPTING
 exit_criteria:
   - execution-framework design is updated and reconciled with the workstream/planning-tree model
   - roadmap, current focus, and work items identify the first execution-framework implementation phase
@@ -105,6 +109,13 @@ Canonical living design/context package:
   `project/roadmap/phase_01a_planning_tree_workstreams.md`
 - Existing execution-readiness/run-packet planning seeds:
   `WI-WORK-ITEM-EXECUTION-READY-CONCEPT-MVP` and `WI-RUN-PACKET-GENERATION-DESIGN-MVP`
+
+The work-item readiness design package adds a smaller prompt-readiness lane inside this workstream:
+
+- `WI-WORK-ITEM-READINESS-DESIGN` — design-plane alignment for valid/audited/ready/promptable work items.
+- `WI-WORK-ITEMS-READINESS-CLI-MVP` — deterministic readiness diagnostics.
+- `WI-REQUEST-READY-WORK-ITEM-MVP` — assistive readying request for human-reviewed refinement.
+- `WI-WORKFLOW-DOCS-READINESS-AUDIT-PROMPTING` — user-facing workflow docs after command implementation.
 
 ## Exit criteria
 

@@ -39,8 +39,8 @@ Purpose:
 - track explicit setup state (`not_set_up`, `lrh_project_present`)
 
 Traceability:
-- work item: `project/work_items/active/WI-META-CLI-MVP.md`
-- work item: `project/work_items/active/WI-META-WORKSPACE-RESOLUTION.md`
+- work item: `project/work_items/resolved/WI-META-CLI-MVP.md`
+- work item: `project/work_items/resolved/WI-META-WORKSPACE-RESOLUTION.md`
 - spec alignment: Meta Control Plane MVP, Phase 1 (`init` / `register` / `list`)
 
 Progress update (2026-04-22):
@@ -48,6 +48,7 @@ Progress update (2026-04-22):
 - `lrh meta list` implemented as the first explicit read path over registry records.
 - `lrh meta register` implemented as the registry write path with stable `project_id`, duplicate detection, and setup-state capture.
 - 2026-04-23: Landed hybrid/local/global runtime workspace resolution across `meta init`/`register`/`list`/`where`, including hybrid default init behavior, positional hybrid catalog root semantics, and normalized absolute path persistence in workspace configs.
+- 2026-05-17 freshness audit: `WI-META-WORKSPACE-RESOLUTION` is resolved; further meta expansion should be planned as new focused work rather than kept as this stale active leaf.
 
 ### Near-Term Slice: Assist Packaging and Installability
 

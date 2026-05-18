@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented by the safe-default `lrh serve` local viewer, read-only project/workstream/work-item APIs, and prompt/run-packet/report workbench, with evidence recorded in project/executions/WI-LRH-SERVE-SAFE-DEFAULT-MVP/ and closeout validation in the 2026-05-16 closeout execution record.
 blocked_reason: null
 blocked: false
 id: WI-LRH-SERVE-SAFE-DEFAULT-MVP
 title: Define safe-default lrh serve viewer and prompt workbench MVP
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony
@@ -54,26 +54,32 @@ artifacts_expected:
 
 ## Summary
 
-Define and later implement the safe-default `lrh serve` MVP as a local project-state viewer and
-prompt workbench, not an autonomous runner. The package consumes existing LRH control-plane state,
+Resolved closeout: the safe-default `lrh serve` MVP is implemented as a local project-state viewer and prompt workbench, not an autonomous runner. The package consumes existing LRH control-plane state,
 planning summaries, execution-readiness metadata, run-packet rendering, and run-report rendering. It
 must not introduce agent dispatch, branch mutation, PR creation or mutation, CI/review loops, merge,
 release, publish, destructive actions, arbitrary filesystem browsing, or automatic state changes.
 
-This work item is refined as one parent implementation package with four explicit slices rather than
-new child work items. That keeps the next PR small while leaving clear boundaries for subsequent
-implementation prompts.
+This work item landed as one parent implementation package with four explicit slices rather than new child work items. The next implementation package is Layer 2 durable run state/manual run tracking, not additional serve MVP scope.
+
+## Resolution
+
+Closed on 2026-05-16 after verifying the four serve slices and dogfood evidence:
+
+1. `REFINE_SERVE_SAFE_DEFAULT_PLAN` refined the package boundary and safe-default non-goals.
+2. `IMPLEMENT_SERVE_LOCAL_SERVER_SKELETON` introduced the local-only server skeleton and CLI.
+3. `IMPLEMENT_SERVE_READ_ONLY_VIEWER` added the read-only project/workstream/work-item viewer.
+4. `IMPLEMENT_SERVE_PROMPT_WORKBENCH_MVP` added prompt, run-packet, and run-report preview surfaces.
+
+Closeout validation rechecked `src/lrh/serve.py`, `tests/cli_tests/serve_test.py`, the prompt/run-packet/run-report renderers reused by the workbench, `lrh serve --help`, `lrh serve --show-config`, `/health`, `/api/status`, non-local host refusal, and repository non-mutation after read-only route access. The verified implementation keeps observation adapters, branch containment, stabilization loops, backend adapters, agent dispatch, branch mutation, PR creation, merge/release/publish automation, destructive operations, and Layer 2 durable run state/manual run tracking deferred to later packages.
 
 ## MVP Boundary Decisions
 
 1. **Exact MVP scope:** a local-only browser surface for inspecting LRH project-control state and for
    previewing/copying/downloading generated prompt, run-packet, and run-report artifacts.
-2. **Introduction shape:** add `lrh serve` as a normal safe-default CLI command backed by package code
-   under `src/lrh/` when implementation begins. Do not create a separate package or optional extra for
-   the skeleton unless concrete implementation pressure proves a dependency is needed.
-3. **Local server dependency:** start with the Python standard library if practical. A small dependency
-   may be proposed only in the local-server-skeleton implementation PR, with justification, tests, and
-   no transitive expansion into agentic behavior.
+2. **Introduction shape:** `lrh serve` is a normal safe-default CLI command backed by package code
+   under `src/lrh/`; it remains part of the default safe package, not a separate agentic package.
+3. **Local server dependency:** the implementation uses Python standard-library HTTP serving and does
+   not add a web framework dependency.
 4. **Read-only viewer includes:** project identity, validation status, current focus, workstreams,
    work items, planning-tree/active-leaf summaries, readiness metadata, evidence/status links, and
    report/checklist affordances sourced from existing LRH APIs and renderers.
@@ -91,7 +97,7 @@ implementation prompts.
    execution records. No write may happen on page load, preview, validation, copy, or download.
 9. **Default network posture:** bind to `127.0.0.1` by default. Do not bind to `0.0.0.0` unless a later
    prompt explicitly documents the risk, CLI spelling, and review evidence.
-10. **Next prompt:** `PROMPT(WI-LRH-SERVE-SAFE-DEFAULT-MVP:IMPLEMENT_SERVE_LOCAL_SERVER_SKELETON)`.
+10. **Closeout:** all four implementation slices are complete; the next package is Layer 2 durable run state/manual run tracking.
 
 ## Future visual language direction
 
@@ -104,23 +110,25 @@ work item's read-only, safe-default implementation scope.
 
 ## Implementation Slices
 
+These slices are retained as closeout history; all four are complete.
+
 ### Slice 1 — Safe-default serve plan/control-plane refinement
 
-Status: this planning slice should land before runtime code.
+Status: completed.
 
 Required changes:
 
-- Refine this work item with the package boundary, staged implementation plan, exclusions,
+- Refined this work item with the package boundary, staged implementation plan, exclusions,
   validation commands, expected evidence, and next prompt.
-- Refresh the execution-framework workstream and any stale roadmap/focus/status text so the next
-  phase points at the serve package rather than completed prerequisite or execution-contract work.
-- Add one prompt execution record for the planning prompt.
+- Refreshed the execution-framework workstream and stale roadmap/focus/status text so the next
+  phase pointed at the serve package after completed prerequisite and execution-contract work.
+- Added one prompt execution record for the planning prompt.
 
 Acceptance criteria:
 
 - The serve boundary answers the MVP scope, CLI/package shape, dependency posture, viewer scope,
   workbench scope, write policy, validation expectations, and next prompt.
-- The workstream names `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as the next package after completed
+- The workstream named `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as the then-next package after completed
   prerequisites/contracts.
 - No server, viewer, workbench, dependency, agent backend, mutation, or automation code is added.
 
@@ -141,7 +149,7 @@ Expected evidence:
 
 ### Slice 2 — Local server skeleton
 
-Next implementation prompt:
+Completed implementation prompt:
 `PROMPT(WI-LRH-SERVE-SAFE-DEFAULT-MVP:IMPLEMENT_SERVE_LOCAL_SERVER_SKELETON)`.
 
 Required changes:
@@ -248,6 +256,22 @@ Expected evidence:
 - Unit test output for workbench generation and no-write behavior.
 - Manual smoke evidence for preview/copy/download fallback.
 
+## Resolution Evidence
+
+Closed on 2026-05-16 after verifying the four serve implementation slices and safe-default dogfood
+evidence. The implementation records under `project/executions/WI-LRH-SERVE-SAFE-DEFAULT-MVP/`
+cover plan refinement, the local server skeleton, the read-only viewer, and the prompt/run-packet/report
+workbench MVP. Closeout validation confirmed `lrh serve --help`, `lrh serve --show-config`, local
+`/health` and `/api/status` route smoke checks, default `127.0.0.1` binding, non-local host refusal
+without explicit opt-in, no write routes, no agent dispatch, no arbitrary file serving, no branch or
+pull-request mutation, and no working-tree mutation from read-only route access.
+
+The next execution-framework implementation package is **Layer 2: durable run state/manual run
+tracking**. That package should remain planning/implementation work for `project/runs/<RUN-ID>/`
+layout, `packet.yaml`, `state.yaml`, `events.jsonl`, prompts, evidence, `report.md`, manual-mode
+lifecycle states, explicit-click/manual updates, and parity between manual runs and future automated
+runs; it is not implemented by this closeout.
+
 ## Cross-Slice Non-Goals
 
 - No autonomous runtime execution.
@@ -279,13 +303,12 @@ Expected evidence:
 
 ## Dependencies / Order
 
-The prerequisite control-plane alignment and first execution-contract package are complete. The serve
-package can now proceed in this order:
+The prerequisite control-plane alignment, first execution-contract package, and safe-default serve
+viewer/workbench package are complete. The next package is **Layer 2: durable run state/manual run
+tracking**. That package should remain manual and control-artifact oriented, likely defining
+`project/runs/<RUN-ID>/`, `packet.yaml`, `state.yaml`, `events.jsonl`, `prompts/`, `evidence/`,
+`report.md`, manual-mode lifecycle states, explicit-click/manual update paths, and parity between
+manual runs and future automated runs.
 
-1. safe-default serve plan/control-plane refinement;
-2. local server skeleton;
-3. read-only project/workstream/work-item viewer;
-4. prompt/run-packet/report workbench MVP.
-
-Later packages may add durable run state, read-only observation adapters, and optional agentic
-capability only after the safe-default viewer/workbench boundary remains stable and reviewed.
+Later packages may add read-only observation adapters and optional agentic capability only after the
+durable run-state/manual-run boundary remains stable and reviewed.

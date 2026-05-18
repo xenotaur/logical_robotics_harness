@@ -17,7 +17,7 @@ children:
 The harness should be built in stages, with the earliest stages proving the project model and local
 workflow before deeper agent integration.
 
-## Current sequencing update (2026-05-13)
+## Current sequencing update (2026-05-16)
 
 Recently completed baseline work:
 
@@ -25,17 +25,18 @@ Recently completed baseline work:
 - precedence resolver implementation and canonicalization closure validation (`WI-PRECEDENCE-RESOLVER`)
 - package CLI adoption for `lrh request` and `lrh snapshot`
 - reconciled near-term design basis that treats recursive planning-tree workstreams as accepted planning architecture
+- closed out the safe-default `lrh serve` local viewer / prompt workbench MVP
 
 Immediate next ordering:
 
 1. treat the Workstream Control Plane MVP as the landed prerequisite for execution-framework planning
 2. plan **Phase 3 — Execution, Evidence, and Status** as a staged bounded execution-framework phase
-3. start the safe-default `lrh serve` package as the next local viewer / prompt workbench after the
-   completed first execution-contract package
-4. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item -> Run Packet -> Run Report**
-5. preserve human/policy gates for merge, release, publish, and closeout
-6. keep branch mutation, autonomous stabilization, and backend adapters deferred until contracts are stable
-7. sequence work through small reviewable work items before any execution-framework implementation
+3. treat the safe-default `lrh serve` local viewer / prompt workbench as completed closeout evidence
+4. identify **Layer 2: durable run state/manual run tracking** as the next execution-framework package
+5. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item -> Run Packet -> Run State -> Run Report**
+6. preserve human/policy gates for merge, release, publish, and closeout
+7. keep observation adapters, branch mutation, autonomous stabilization, and backend adapters deferred until manual run-state contracts are stable
+8. sequence work through small reviewable work items before any execution-framework implementation
 
 Prompt-workflow integration note:
 
@@ -82,7 +83,7 @@ agentic capability and be unavailable in the default non-agentic install.
 
 ## Near-term roadmap addition: Bounded Agent Execution Framework
 
-Canonical living design: `project/design/execution_framework_mvp.md`. The workstream is staged as prerequisite control-plane alignment, first execution contracts, read-only/local-assist workbench, ecosystem observation, and only later bounded runtime execution.
+Canonical living design: `project/design/execution_framework_mvp.md`. The workstream is staged as prerequisite control-plane alignment, first execution contracts, completed read-only/local-assist workbench, durable manual run state, ecosystem observation, and only later bounded runtime execution.
 
 MVP goal:
 
@@ -92,9 +93,10 @@ MVP goal:
 
 Recommended staged deliverables:
 
-The prerequisite control-plane alignment and first execution-contract sequence are complete. The next
-implementation package is the safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP` local viewer / prompt
-workbench, with later mutation, observation, stabilization, and adapter work still deferred.
+The prerequisite control-plane alignment, first execution-contract sequence, and safe-default
+`WI-LRH-SERVE-SAFE-DEFAULT-MVP` local viewer / prompt workbench are complete. The next
+implementation package is **Layer 2: durable run state/manual run tracking**, with later observation,
+mutation, stabilization, and adapter work still deferred.
 
 Completed prerequisite control-plane alignment:
 
@@ -114,10 +116,17 @@ Completed first execution-contract package:
 3. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
    human verification tasks, and recommended next actions.
 
-Current follow-on package:
+Completed safe-default serve package:
 
-1. **Safe-default `lrh serve` viewer and prompt workbench** — render shared state and first-package
+1. **Safe-default `lrh serve` viewer and prompt workbench** — renders shared state and first-package
    contracts without becoming an autonomous runner or separate tree interpreter.
+
+Next implementation package:
+
+1. **Layer 2: durable run state/manual run tracking** — define and persist `project/runs/<RUN-ID>/`
+   artifacts such as `packet.yaml`, `state.yaml`, `events.jsonl`, `prompts/`, `evidence/`, and
+   `report.md`; manual-mode lifecycle states; explicit-click/manual update paths; and parity between
+   manual runs and future automated runs.
 
 Deferred follow-on packages:
 
@@ -133,11 +142,12 @@ Deferred follow-on packages:
 
 Next implementation package:
 
-1. `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
+1. **Layer 2: durable run state/manual run tracking**
 
-This package should be a local read-only viewer / prompt workbench that consumes the completed
-shared state, execution-readiness, run-packet, and run-report contracts. It should not add autonomous
-runtime dispatch, branch mutation, PR creation, merge/release automation, or backend adapters.
+This package should define durable manual run-state artifacts and lifecycle transitions that consume
+the completed shared state, execution-readiness, run-packet, run-report, and safe-default serve
+contracts. It should not add autonomous runtime dispatch, observation adapters, branch containment,
+branch mutation, PR creation, merge/release automation, or backend adapters.
 
 Explicitly deferred until later phases or optional capability work:
 

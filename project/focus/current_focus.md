@@ -1,6 +1,6 @@
 ---
 id: FOCUS-EXECUTION-FRAMEWORK-PLANNING
-title: Advance safe-default serve viewer after execution contracts
+title: Align Layer 2 durable run state after safe-default serve closeout
 status: active
 priority: high
 owner: anthony
@@ -15,7 +15,7 @@ related_workstreams:
 
 # Current Focus
 
-The immediate priority is **safe-default execution-framework closeout and next-package alignment**: the prerequisite control-plane interpretation work and first execution-contract package are implemented, so the next package is the safe-default `lrh serve` local viewer / prompt workbench. Human approval gates remain in place, and autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation stay outside the next package.
+The immediate priority is **Layer 2 durable run state/manual run tracking alignment** after safe-default execution-framework closeout: the prerequisite control-plane interpretation work, first execution-contract package, and safe-default `lrh serve` local viewer / prompt workbench are implemented. Human approval gates remain in place, and observation adapters, autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation remain outside the next package.
 
 Canonical living design/context package: `project/design/execution_framework_mvp.md`.
 
@@ -30,23 +30,33 @@ Recently completed:
   snapshot-visible planning summaries needed by later execution-framework surfaces
 - implemented the opt-in execution-readiness schema, safe-default dry-run run-packet renderer, and
   safe-default run-report renderer
+- implemented the safe-default `lrh serve` local server skeleton, read-only project/workstream/work-item
+  viewer, and prompt/run-packet/report workbench
 
 ## Why this is active now
 
-LRH now has enough project-control structure to start the next execution-framework package without
-jumping directly to runtime automation. Shared APIs, planning relationship validation,
-snapshot-visible summaries, opt-in readiness metadata, dry-run packet rendering, and report rendering
-are in place; the next work should expose those capabilities through a local human-assist surface.
+LRH now has enough project-control structure to plan durable manual run state without jumping
+directly to observation or runtime automation. Shared APIs, planning relationship validation,
+snapshot-visible summaries, opt-in readiness metadata, dry-run packet rendering, report rendering, and
+the local human-assist surface are in place.
 
 ## Next implementation slice
 
-The next implementation package should be `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a local read-only
-viewer / prompt workbench that consumes the completed shared state, execution-readiness, run-packet,
-and run-report contracts. Its selected sequence is: plan/control-plane refinement; local server
-skeleton; read-only project/workstream/work-item viewer; and prompt/run-packet/report workbench MVP.
-The next implementation prompt after planning should implement only the local server skeleton without
-autonomous dispatch, branch mutation, PR creation, stabilization loops, merge/release automation, or
-backend adapters.
+The next implementation package should be **Layer 2: durable run state/manual run tracking**. It
+should define manual-mode run artifacts such as `project/runs/<RUN-ID>/`, `packet.yaml`,
+`state.yaml`, `events.jsonl`, `prompts/`, `evidence/`, `report.md`, manual lifecycle states,
+explicit-click/manual update paths, and parity between manual runs and future automated runs. It
+should not add observation adapters, branch containment, autonomous dispatch, branch mutation, PR
+creation, stabilization loops, merge/release automation, or backend adapters.
+
+## Next implementation package
+
+The next package is **Layer 2: durable run state/manual run tracking**. It should identify the
+`project/runs/<RUN-ID>/` layout, `packet.yaml`, `state.yaml`, `events.jsonl`, prompts, evidence,
+`report.md`, manual-mode run lifecycle states, explicit-click/manual update paths, and parity between
+manual runs and future automated runs. It should not implement observation adapters, branch
+containment, stabilization loops, backend adapters, agent dispatch, branch mutation, PR creation,
+merge/release automation, or destructive actions.
 
 ## Adjacent CI capability design
 
@@ -69,8 +79,8 @@ Execution-framework planning must preserve explicit human/policy gates for:
 
 ## Non-Goals
 
-- Implementing runtime code, CLI behavior, schema validation, GitHub API integration, or tests for
-  runtime execution behavior in this planning PR.
+- Implementing observation adapters, branch containment, runtime automation, GitHub API integration,
+  or tests for mutation-capable runtime execution behavior in the next Layer 2 planning/implementation package.
 - Adding `lrh run` or any autonomous run command beyond safe-default design references.
 - Invoking coding agents, mutating branches, opening PRs automatically, or adding execution backends.
 - Implementing PR stabilization loops, CI response automation, or merge/publish automation.
@@ -82,9 +92,9 @@ Execution-framework planning must preserve explicit human/policy gates for:
 This focus is complete when:
 
 1. the roadmap clearly stages the bounded execution-framework phase
-2. the execution-framework workstream points at the first execution-contract implementation package
-3. work items exist for shared core state APIs, planning relationship validation, snapshot-visible
-   planning summaries, safe-default `lrh serve`, execution readiness, run packet dry-run, run report
-   MVP, branch containment, PR/CI observation, and bounded stabilization-loop design
-4. the safe-default `lrh serve` viewer / prompt workbench package is staged into plan refinement,
-   local server skeleton, read-only viewer, and prompt/run-packet/report workbench slices
+2. the execution-framework workstream identifies Layer 2 durable run state/manual run tracking as the
+   next implementation package
+3. the completed safe-default `lrh serve` viewer / prompt workbench package is resolved with
+   evidence-backed closeout
+4. later observation, branch containment, stabilization-loop, backend-adapter, branch-mutation,
+   PR-creation, merge/release automation, and destructive-operation work remains deferred

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Resolved by safe-default agentic packaging boundary evidence and documentation that marks agentic dispatch, adapters, stabilization loops, sandbox envelopes, and lrh run naming as deferred/future; semantic audit evidence is recorded in project/evidence/EV-0010.md.
 blocked_reason: null
 blocked: false
 id: WI-AGENTIC-CAPABILITY-DEFERRAL-MVP
 title: Record deferred agentic capability backlog
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

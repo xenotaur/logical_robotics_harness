@@ -142,10 +142,15 @@ Completed prerequisite control-plane alignment remains separate from execution r
 - planning-tree relationship/index validation; and
 - snapshot-visible planning summaries.
 
-The next implementation package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP`: a safe-default `lrh serve`
+The completed follow-on package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP`: a safe-default `lrh serve`
 viewer and prompt workbench that consumes the shared state and execution contracts as a
-read-only/local-assist package. It must not reinterpret the planning tree independently or become an
-autonomous runner.
+read-only/local-assist package. It does not reinterpret the planning tree independently or become an
+autonomous runner. The next implementation package is Layer 2 durable run state/manual run tracking.
+
+The safe-default serve package is now complete. The next implementation package is **Layer 2:
+durable run state/manual run tracking**, which should define durable manual run artifacts and
+lifecycle state without adding observation adapters, branch containment, backend adapters, branch
+mutation, PR creation, merge/release automation, destructive operations, or autonomous dispatch.
 
 ## Staged layer model
 
@@ -208,18 +213,16 @@ workflow engine and must not become an autonomous runner in the default package.
 view should render the same snapshot planning summary produced by Layer 0, not reinterpret
 workstream/work-item relationships independently.
 
-The safe-default serve package is staged into four implementation slices:
+The safe-default serve package landed in four implementation slices:
 
 1. plan/control-plane refinement;
 2. local server skeleton;
 3. read-only project/workstream/work-item viewer; and
 4. prompt/run-packet/report workbench MVP.
 
-Implementation should introduce `lrh serve` as a default-package CLI command backed by package code
-under `src/lrh/`. The local server skeleton should start with Python standard-library serving if
-practical; any dependency must be justified in the implementation PR. The default bind address is
-`127.0.0.1`; `0.0.0.0` must not be available by default and requires explicit documented review if
-added later.
+`lrh serve` is a default-package CLI command backed by package code under `src/lrh/` and uses
+Python standard-library HTTP serving. The default bind address is `127.0.0.1`; `0.0.0.0` is refused
+by default and requires an explicit non-local host opt-in.
 
 The read-only viewer includes project identity, validation status, current focus, active workstreams,
 active work items, planning-tree/active-leaf summaries, execution-readiness metadata, evidence/status
@@ -252,7 +255,10 @@ lrh run WI-... --dry-run
 ```
 
 Layer 2 introduces `project/runs/<RUN-ID>/` contracts, manual-mode parity, awaited transitions, and
-recovery/resume semantics without requiring autonomous dispatch.
+recovery/resume semantics without requiring autonomous dispatch. The next implementation package is
+manual run tracking: likely `packet.yaml`, `state.yaml`, `events.jsonl`, `prompts/`, `evidence/`,
+`report.md`, manual-mode lifecycle states, explicit-click/manual update paths, and parity between
+manual runs and future automated runs.
 
 ### Layer 3: observation adapters
 
@@ -754,10 +760,12 @@ Recommended design and implementation order:
    enough for packet generation to use shared state instead of inventing its own planning
    interpretation: `WI-EXECUTION-READINESS-SCHEMA` -> `WI-RUN-PACKET-DRY-RUN` ->
    `WI-RUN-REPORT-MVP`.
-3. Next: add the safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP` viewer/prompt workbench as a
+3. Completed: add the safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP` viewer/prompt workbench as a
    read-only/local-assist package that consumes shared state, readiness, packet, and report contracts.
-4. Add run-state artifacts and manual run tracking under `project/runs/<RUN-ID>/` after the artifact
-   contracts are reviewed.
+4. Next: add Layer 2 durable run state/manual run tracking under `project/runs/<RUN-ID>/`, including
+   `packet.yaml`, `state.yaml`, `events.jsonl`, prompts, evidence, `report.md`, manual-mode lifecycle
+   states, explicit-click/manual update paths, and parity between manual runs and future automated
+   runs.
 5. Add observation adapters for git, PR, CI, and review status only after packets/reports can express
    the evidence they observe.
 6. Add optional agentic dispatch adapters later, behind the adopted safe-default packaging boundary.

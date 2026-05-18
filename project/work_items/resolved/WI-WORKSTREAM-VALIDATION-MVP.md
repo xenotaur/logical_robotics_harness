@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: completed
 blocked_reason: null
 blocked: false
-id: WI-WORKSTREAM-LOADER-MODEL-MVP
-title: Add typed workstream loader and model support
+id: WI-WORKSTREAM-VALIDATION-MVP
+title: Validate workstream metadata, IDs, and bucket/status consistency
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony
@@ -16,7 +16,7 @@ related_roadmap:
   - ROADMAP-PHASE-01
   - ROADMAP-PHASE-01A
 depends_on:
-  - WI-WORKSTREAM-SCHEMA-MVP
+  - WI-WORKSTREAM-LOADER-MODEL-MVP
 blocked_by: []
 expected_actions:
   - edit_file
@@ -25,8 +25,8 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - workstreams load as typed control-plane artifacts
-  - loader behavior remains reusable across client repositories
+  - required metadata and valid status/stage are validated
+  - unique IDs and bucket/status drift are validated
 required_evidence:
   - test_result
 artifacts_expected:
@@ -36,9 +36,9 @@ artifacts_expected:
 
 ## Summary
 
-Implement typed workstream model and loader support to ingest workstream artifacts as
-planning nodes in the control plane.
+Add control-plane validation for workstream metadata authority, valid lifecycle values,
+unique identity, and directory projection consistency.
 
 ## Safe-default alignment
 
-Loader/model support should represent planning nodes without introducing autonomous execution behavior.
+Validation must stay deterministic and non-agentic.

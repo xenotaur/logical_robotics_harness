@@ -80,7 +80,7 @@ lrh request templates --template-dir /path/to/templates where request/review_res
 distinguishing filesystem overrides from package fallback.
 
 CI request templates are self-contained for installed-package use: they mention
-`docs/project-setup/ci.md` as the fuller source when available, but include a
+`docs/how-to/project-setup/ci.md` as the fuller source when available, but include a
 packaged CI playbook summary so generated prompts do not require that source
 checkout path in the target repository.
 
@@ -123,6 +123,19 @@ release, publish, or replace prompt execution records.
 ### Semantic work-item audit template
 
 `request/work_item_semantic_audit.md` is the conservative companion template for `lrh work-items audit`. The audit command reports deterministic lifecycle and traceability facts; the template asks a reviewer to compare those facts with work-item acceptance criteria, cite concrete repository evidence, and avoid optimistic closure when evidence is incomplete. Use it before resolving, abandoning, superseding, or splitting ambiguous proposed work items.
+
+Typical closeout flow:
+
+```bash
+lrh work-items validate
+lrh work-items audit --format md
+lrh work-items audit --format json
+lrh request work_item_semantic_audit
+```
+
+Use the rendered template as review guidance, not as an automatic lifecycle decision. Save a concise evidence record that names the reviewed items, cites the repository facts used for each recommendation, lists any items intentionally left proposed, and records validation results. Execution records can help identify relevant history, but they are not proof that acceptance criteria are satisfied.
+
+For workstream hygiene, apply the same template to the workstream's child work items and metadata: deterministic audit output identifies stale or weakly linked artifacts, while semantic review decides whether the workstream or individual leaves can be resolved.
 
 ## Command Line Usage
 
@@ -478,7 +491,7 @@ lrh request codex_prompt_from_work_item \
 
 ### 5) `assess-continuous-integration-status`
 
-**Purpose**: Produce a read-only CI feasibility assessment before migration, applying packaged CI playbook guidance and the fuller `docs/project-setup/ci.md` source when available.
+**Purpose**: Produce a read-only CI feasibility assessment before migration, applying packaged CI playbook guidance and the fuller `docs/how-to/project-setup/ci.md` source when available.
 
 **Inputs**:
 
@@ -494,7 +507,7 @@ lrh request assess-continuous-integration-status \
 
 ### 6) `implement-continuous-integration-workflow`
 
-**Purpose**: Produce an assessment-gated implementation request for CI migration, applying packaged CI playbook guidance and the fuller `docs/project-setup/ci.md` source when available.
+**Purpose**: Produce an assessment-gated implementation request for CI migration, applying packaged CI playbook guidance and the fuller `docs/how-to/project-setup/ci.md` source when available.
 
 **Inputs**:
 

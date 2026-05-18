@@ -30,7 +30,7 @@ exit_criteria:
   - first implementation work items are scoped before runtime automation begins
   - first execution-contract implementation package is limited to execution readiness, dry-run run packets, and run reports
   - prerequisite control-plane alignment is tracked separately from first-package execution contracts
-  - safe-default serve, observation, mutation, and autonomous runtime work are explicitly deferred from the first package
+  - safe-default serve is complete after the first package, while observation, mutation, and autonomous runtime work remain explicitly deferred
   - execution readiness and run-packet contracts are defined before agent backends are added
   - human/policy gates for merge, release, publish, and closeout remain explicit
 ---
@@ -115,7 +115,7 @@ This workstream can move toward resolution when:
 - first implementation work items are scoped before runtime automation begins;
 - first execution-contract implementation package is limited to execution readiness, dry-run run packets, and run reports;
 - prerequisite control-plane alignment is tracked separately from first-package execution contracts;
-- safe-default serve, observation, mutation, and autonomous runtime work are explicitly deferred from the first package;
+- safe-default serve is complete after the first package, while observation, mutation, and autonomous runtime work remain explicitly deferred;
 - execution readiness and run-packet contracts are defined before agent backends are added; and
 - human/policy gates for merge, release, publish, and closeout remain explicit.
 
@@ -160,31 +160,41 @@ Completed execution-contract work now includes:
 2. `WI-RUN-PACKET-DRY-RUN` — safe-default run-packet rendering through `lrh request`, not a runner.
 3. `WI-RUN-REPORT-MVP` — safe-default run-report rendering from explicit manual/dry-run inputs.
 
-## Next phase
+## Closed serve package
 
-The next implementation package is `WI-LRH-SERVE-SAFE-DEFAULT-MVP` as a local read-only viewer and
-prompt workbench that consumes the completed shared state, readiness, run-packet, and run-report
-contracts. It should expose project/control-plane state and generated artifacts for human review; it
-should not reinterpret the planning tree independently or become an autonomous runner.
+The prerequisite control-plane state work is complete, the execution readiness / run-packet /
+run-report contracts are complete, and the safe-default `lrh serve` viewer/workbench package is
+complete. The serve closeout verified the four slices: plan/control-plane refinement, local server
+skeleton, read-only project/workstream/work-item viewer, and prompt/run-packet/report workbench MVP.
 
-The serve package is staged into four reviewable slices:
+The next implementation package is **Layer 2: durable run state/manual run tracking**. Keep it as a
+manual, explicit-control-artifact package that gives human-run work the same durable shape future
+automated runs must use. The package should likely define, but this closeout does not implement:
 
-1. **Safe-default serve plan/control-plane refinement** — land the package boundary, exclusions,
-   validation expectations, expected evidence, and next prompt without runtime code.
-2. **Local server skeleton** — introduce `lrh serve` as a default-package CLI command, bind to
-   `127.0.0.1` by default, render a minimal local page, avoid automatic writes, and prefer the Python
-   standard library unless a later implementation PR justifies a small dependency.
-3. **Read-only project/workstream/work-item viewer** — render project identity, validation status,
-   focus, workstreams, work items, planning summaries, readiness metadata, and evidence/status links
-   from shared LRH APIs without arbitrary filesystem browsing, secrets exposure, or server-only tree
-   interpretation.
-4. **Prompt/run-packet/report workbench MVP** — preview, edit in browser memory, copy, and download
-   generated prompts, run packets, and run-report drafts through existing renderers without
-   dispatching agents, mutating branches, creating PRs, or writing artifacts by default.
+1. `project/runs/<RUN-ID>/` layout;
+2. `packet.yaml`;
+3. `state.yaml`;
+4. `events.jsonl`;
+5. `prompts/`;
+6. `evidence/`;
+7. `report.md`;
+8. manual-mode run lifecycle states;
+9. explicit-click/manual update paths; and
+10. parity between manual runs and future automated runs.
 
-The next implementation prompt after this planning slice is
-`PROMPT(WI-LRH-SERVE-SAFE-DEFAULT-MVP:IMPLEMENT_SERVE_LOCAL_SERVER_SKELETON)`.
-
-Keep branch containment, GitHub/CI observation, stabilization loops, backend adapters, branch
+Keep observation adapters, branch containment, stabilization loops, backend adapters, branch
 mutation, PR creation, merge/release automation, multi-agent orchestration, deep MCP integration, and
 destructive operations deferred until a later prompt explicitly grants that scope.
+
+## Next implementation package
+
+The next package is **Layer 2: durable run state/manual run tracking**. It should define durable,
+human-reviewable run records without adding autonomous runtime behavior. The planning boundary should
+cover `project/runs/<RUN-ID>/`, `packet.yaml`, `state.yaml`, `events.jsonl`, `prompts/`, `evidence/`,
+`report.md`, manual-mode lifecycle states, explicit-click/manual update paths, and parity between
+manual runs and future automated runs.
+
+Keep read-only observation adapters, branch containment, bounded stabilization loops, backend
+adapters, agent dispatch, branch mutation, PR creation, merge/release automation, destructive
+operations, multi-agent orchestration, and deep MCP integration deferred until a later prompt
+explicitly grants that scope.

@@ -1,403 +1,421 @@
-"""ChatGPT PDF conversation import helpers."""
+"""Local ChatGPT PDF conversation transcript import helpers."""
 
+from __future__ import annotations
+
+import argparse
 import dataclasses
-import datetime
 import hashlib
-import json
-import pathlib
 import re
+import sys
+import zlib
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Sequence
 
 from lrh.conversations import sensitivity
 
-SOURCE_TOOL = "chatgpt"
-SOURCE_ADAPTER = "chatgpt_pdf"
-AUTHORITY = "non_authoritative_context"
-SCANNER_NAME = "lrh_builtin_sensitive_scan"
-SCANNER_VERSION = 1
 ADAPTER_VERSION = 1
-PDFCROWD_FOOTER = "Printed using ChatGPT to PDF, powered by PDFCrowd HTML to PDF API."
 
 
 class PdfImportError(ValueError):
-    """Raised when a ChatGPT PDF transcript cannot be imported."""
+    """Raised when a PDF cannot be converted by the lightweight importer."""
 
 
 @dataclasses.dataclass(frozen=True)
-class PdfConversationSource:
-    path: pathlib.Path
-    source_tool: str
-    source_adapter: str
-    sha256: str
-    page_count: int
+class PdfExtraction:
+    """Text and metadata extracted from a supported local PDF."""
+
+    text: str
+    page_count: int | None
+    warnings: tuple[str, ...]
 
 
 @dataclasses.dataclass(frozen=True)
-class ConversionWarning:
-    code: str
-    message: str
+class ConversationPdfTranscript:
+    """Markdown transcript and metadata produced from a local PDF."""
+
+    markdown: str
+    extraction: PdfExtraction
+    sensitivity_result: sensitivity.SensitiveScanResult | None
 
 
-@dataclasses.dataclass(frozen=True)
-class MarkdownTranscript:
-    title: str
-    frontmatter: dict[str, object]
-    body: str
-    warnings: tuple[ConversionWarning, ...]
-    sensitivity: sensitivity.SensitiveScanResult | None
-
-    def to_markdown(self) -> str:
-        return "\n".join(
-            ("---", _yaml_dump(self.frontmatter), "---", "", self.body, "")
-        )
-
-
-def convert_chatgpt_pdf_to_markdown(
-    pdf_path: pathlib.Path,
+def convert_pdf_file(
+    input_path: Path,
     *,
-    privacy: str = "private",
+    output_path: Path | None = None,
+    force: bool = False,
+    include_frontmatter: bool = True,
     scan_sensitive: bool = True,
-    include_page_breaks: bool = False,
-    extracted_at: datetime.datetime | None = None,
-) -> MarkdownTranscript:
-    source = _build_source(pdf_path)
-    title, extracted_text = _extract_pdf_text(
-        source.path, include_page_breaks=include_page_breaks
+) -> ConversationPdfTranscript:
+    """Convert a local text-layer PDF into a Markdown conversation transcript."""
+
+    source_path = input_path.expanduser()
+    if not source_path.exists():
+        raise PdfImportError(f"PDF input does not exist: {source_path}")
+    if not source_path.is_file():
+        raise PdfImportError(f"PDF input is not a file: {source_path}")
+    pdf_bytes = source_path.read_bytes()
+    source_hash = hashlib.sha256(pdf_bytes).hexdigest()
+    extraction = extract_pdf_text(pdf_bytes)
+    scan_result = (
+        sensitivity.scan_text_for_sensitive_findings(extraction.text)
+        if scan_sensitive
+        else None
     )
-    cleaned_text = _clean_extracted_text(extracted_text, title)
-    if not cleaned_text.strip():
-        raise PdfImportError(
-            f"No non-empty transcript text found in PDF: {source.path}"
-        )
+    markdown = render_markdown_transcript(
+        extraction=extraction,
+        source_file=source_path.name,
+        source_file_sha256=source_hash,
+        include_frontmatter=include_frontmatter,
+        scan_result=scan_result,
+        scan_sensitive=scan_sensitive,
+    )
+    if output_path is not None:
+        destination = output_path.expanduser()
+        if destination.exists() and not force:
+            raise PdfImportError(f"Output already exists: {destination}")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(markdown, encoding="utf-8")
+    return ConversationPdfTranscript(
+        markdown=markdown,
+        extraction=extraction,
+        sensitivity_result=scan_result,
+    )
 
-    warnings: list[ConversionWarning] = []
+
+def extract_pdf_text(pdf_bytes: bytes) -> PdfExtraction:
+    """Extract text from simple PDF text-showing operators.
+
+    This intentionally remains a lightweight, dependency-free text-layer extractor.
+    It handles PDF literal-string escapes, `Tj` string operands, and `TJ` array
+    operands in raw and Flate-decoded streams. It is not OCR and does not claim
+    complete PDF layout reconstruction.
+    """
+
+    if not pdf_bytes.startswith(b"%PDF-"):
+        raise PdfImportError("Input is not a PDF file")
+    if _has_trailer_encrypt_key(pdf_bytes):
+        raise PdfImportError("Encrypted PDF is not supported")
+
+    warnings: list[str] = []
+    stream_payloads = _extract_stream_payloads(pdf_bytes)
+    if not stream_payloads:
+        warnings.append("no_pdf_streams_found")
+        stream_payloads = [pdf_bytes]
+
+    chunks: list[str] = []
+    for payload in stream_payloads:
+        chunks.extend(_extract_text_showing_chunks(payload))
+    text = _normalize_extracted_text(chunks)
+    if not text:
+        raise PdfImportError("PDF does not appear to contain an extractable text layer")
+
+    page_count = _extract_page_count(pdf_bytes)
+    if page_count is None:
+        warnings.append("page_count_unknown")
+    warnings.append("turn_boundaries_not_inferred")
+    return PdfExtraction(text=text, page_count=page_count, warnings=tuple(warnings))
+
+
+def render_markdown_transcript(
+    *,
+    extraction: PdfExtraction,
+    source_file: str,
+    source_file_sha256: str,
+    include_frontmatter: bool = True,
+    scan_result: sensitivity.SensitiveScanResult | None = None,
+    scan_sensitive: bool = True,
+) -> str:
+    """Render extracted PDF text as a Markdown transcript."""
+
+    body = extraction.text.strip() + "\n"
+    if not include_frontmatter:
+        return body
+
     sensitivity_status = "unscanned"
-    scan_metadata: dict[str, object] = {"status": "not_run"}
-    scan_result: sensitivity.SensitiveScanResult | None = None
-
-    if scan_sensitive:
-        scan_result = sensitivity.scan_text_for_sensitive_findings(cleaned_text)
-        if scan_result.finding_count:
-            sensitivity_status = "potential"
-            warnings.append(
-                ConversionWarning(
-                    code="sensitivity_potential",
-                    message=(
-                        "Potential sensitive content detected; "
-                        "review before sharing."
-                    ),
-                )
-            )
-        else:
-            sensitivity_status = "none_detected"
+    scan_metadata: dict[str, object] = {"status": "not_scanned"}
+    if scan_result is not None:
+        sensitivity_status = "potential" if scan_result.findings else "none_detected"
+        categories = sorted({finding.category for finding in scan_result.findings})
         scan_metadata = {
             "status": "scanned",
-            "scanner": SCANNER_NAME,
-            "scanner_version": SCANNER_VERSION,
-            "finding_count": scan_result.finding_count,
-            "categories": list(scan_result.categories),
+            "scanner": "lrh_builtin_sensitive_scan",
+            "scanner_version": 1,
+            "finding_count": len(scan_result.findings),
+            "categories": categories,
         }
+    elif scan_sensitive:
+        scan_metadata = {"status": "failed_or_unavailable"}
 
-    frontmatter = {
+    metadata: dict[str, object] = {
         "kind": "lrh_conversation_transcript",
         "schema_version": 1,
         "source_format": "pdf",
-        "source_tool": source.source_tool,
-        "source_adapter": source.source_adapter,
-        "privacy": privacy,
+        "source_tool": "chatgpt",
+        "source_adapter": "chatgpt_pdf",
+        "privacy": "private",
         "sensitivity": sensitivity_status,
         "sensitivity_scan": scan_metadata,
-        "authority": AUTHORITY,
-        "source_file": source.path.name,
-        "source_file_sha256": source.sha256,
-        "page_count": source.page_count,
-        "extracted_at": (
-            extracted_at or datetime.datetime.now(datetime.UTC)
-        ).isoformat(),
+        "authority": "non_authoritative_context",
+        "source_file": source_file,
+        "source_file_sha256": source_file_sha256,
+        "page_count": extraction.page_count,
+        "extracted_at": datetime.now(timezone.utc).isoformat(),
         "adapter_version": ADAPTER_VERSION,
-        "warnings": [{"code": w.code, "message": w.message} for w in warnings],
+        "warnings": list(extraction.warnings),
     }
-    body = "\n".join(
-        (
-            f"# {title}",
-            "",
-            "> Imported from a ChatGPT PDF export. Review before publication.",
-            "",
-            "## Extraction Notes",
-            f"- Source file: `{source.path.name}`",
-            f"- Source adapter: `{SOURCE_ADAPTER}`",
-            "",
-            "## Extracted Transcript",
-            cleaned_text,
-            "",
-        )
-    )
-    return MarkdownTranscript(
-        title=title,
-        frontmatter=frontmatter,
-        body=body,
-        warnings=tuple(warnings),
-        sensitivity=scan_result,
-    )
+    return f"---\n{_yaml_mapping(metadata)}---\n\n{body}"
 
 
-def _build_source(pdf_path: pathlib.Path) -> PdfConversationSource:
-    if not pdf_path.exists() or not pdf_path.is_file():
-        raise PdfImportError(f"PDF file does not exist: {pdf_path}")
-
-    raw_bytes = pdf_path.read_bytes()
-    if not raw_bytes.startswith(b"%PDF-"):
-        raise PdfImportError(f"Unreadable PDF: {pdf_path}")
-    if _has_trailer_encrypt_key(raw_bytes):
-        raise PdfImportError(f"Encrypted PDF is not supported: {pdf_path}")
-
-    return PdfConversationSource(
-        path=pdf_path,
-        source_tool=SOURCE_TOOL,
-        source_adapter=SOURCE_ADAPTER,
-        sha256=hashlib.sha256(raw_bytes).hexdigest(),
-        page_count=_extract_page_count(raw_bytes),
-    )
+def _extract_stream_payloads(pdf_bytes: bytes) -> list[bytes]:
+    payloads: list[bytes] = []
+    for match in re.finditer(rb"stream\r?\n(.*?)\r?\nendstream", pdf_bytes, re.DOTALL):
+        stream_start = match.start()
+        header = pdf_bytes[max(0, stream_start - 300) : stream_start]
+        payload = match.group(1)
+        if b"/FlateDecode" in header:
+            try:
+                payload = zlib.decompress(payload)
+            except zlib.error:
+                continue
+        payloads.append(payload)
+    return payloads
 
 
-def _has_trailer_encrypt_key(raw_bytes: bytes) -> bool:
-    for trailer_match in re.finditer(
-        rb"trailer\s*<<(.*?)>>", raw_bytes, flags=re.DOTALL
-    ):
-        trailer_body = trailer_match.group(1)
-        if re.search(rb"/Encrypt(?![#A-Za-z0-9_.+-])", trailer_body):
-            return True
-    return False
-
-
-def _extract_page_count(raw_bytes: bytes) -> int:
-    counts = [
-        int(match.group(1))
-        for match in re.finditer(
-            rb"/Type\s*/Pages\b(?:(?!endobj).)*?/Count\s+(\d+)",
-            raw_bytes,
-            flags=re.DOTALL,
-        )
-    ]
-    if counts:
-        return max(counts)
-    return len(re.findall(rb"/Type\s*/Page\b", raw_bytes))
-
-
-def _extract_pdf_text(
-    pdf_path: pathlib.Path, *, include_page_breaks: bool
-) -> tuple[str, str]:
-    raw = pdf_path.read_bytes().decode("latin-1", errors="ignore")
-    chunks = _extract_text_showing_chunks(raw)
-    if not chunks:
-        raise PdfImportError(f"No extractable text found in PDF: {pdf_path}")
-
-    combined = "\n".join(chunks).replace("\r\n", "\n").replace("\r", "\n")
-    if include_page_breaks:
-        combined = combined.replace("\n\f\n", "\n\n---\n\n")
-    combined = combined.strip()
-    if not combined:
-        raise PdfImportError(f"Empty extracted PDF transcript for file: {pdf_path}")
-    first = next((line.strip() for line in combined.splitlines() if line.strip()), "")
-    return (first or pdf_path.stem), combined
-
-
-def _extract_text_showing_chunks(raw: str) -> list[str]:
-    tokens = _parse_pdf_tokens(raw)
+def _extract_text_showing_chunks(content: bytes) -> list[str]:
     chunks: list[str] = []
-    for index, token in enumerate(tokens):
-        previous = tokens[index - 1] if index else None
-        if token == "Tj" and isinstance(previous, _PdfString):
-            chunks.append(previous.text)
-        elif token == "TJ" and isinstance(previous, _PdfArray):
-            array_text = "".join(
-                item.text for item in previous.items if isinstance(item, _PdfString)
-            )
-            if array_text:
-                chunks.append(array_text)
+    index = 0
+    while index < len(content):
+        byte = content[index]
+        if byte == ord("("):
+            raw_string, next_index = _parse_pdf_literal_string(content, index)
+            operator_index = _skip_pdf_whitespace(content, next_index)
+            if content[operator_index : operator_index + 2] == b"Tj":
+                chunks.append(_decode_pdf_string(raw_string))
+                index = operator_index + 2
+                continue
+            index = next_index
+            continue
+        if byte == ord("["):
+            raw_strings, next_index = _parse_pdf_array_strings(content, index)
+            operator_index = _skip_pdf_whitespace(content, next_index)
+            if content[operator_index : operator_index + 2] == b"TJ":
+                chunks.append("".join(_decode_pdf_string(part) for part in raw_strings))
+                index = operator_index + 2
+                continue
+            index = next_index
+            continue
+        index += 1
     return chunks
 
 
-@dataclasses.dataclass(frozen=True)
-class _PdfString:
-    text: str
-
-
-@dataclasses.dataclass(frozen=True)
-class _PdfArray:
-    items: tuple[object, ...]
-
-
-def _parse_pdf_tokens(
-    raw: str, start: int = 0, stop: str | None = None
-) -> list[object]:
-    tokens: list[object] = []
-    index = start
-    while index < len(raw):
-        char = raw[index]
-        if stop is not None and char == stop:
-            return tokens
-        if char.isspace():
-            index += 1
-            continue
-        if char == "%":
-            index = raw.find("\n", index)
-            if index == -1:
-                return tokens
-            continue
-        if char == "(":
-            value, index = _parse_pdf_literal_string(raw, index)
-            tokens.append(_PdfString(value))
-            continue
-        if char == "[":
-            array, index = _parse_pdf_array(raw, index)
-            tokens.append(array)
-            continue
-        if char in "]<>{}/":
-            index += 1
-            continue
-
-        end = index
-        while end < len(raw) and not raw[end].isspace() and raw[end] not in "[]<>{}/()":
-            end += 1
-        tokens.append(raw[index:end])
-        index = end
-    return tokens
-
-
-def _parse_pdf_array(raw: str, start: int) -> tuple[_PdfArray, int]:
-    items: list[object] = []
-    index = start + 1
-    while index < len(raw):
-        char = raw[index]
-        if char.isspace():
-            index += 1
-            continue
-        if char == "]":
-            return _PdfArray(tuple(items)), index + 1
-        if char == "(":
-            value, index = _parse_pdf_literal_string(raw, index)
-            items.append(_PdfString(value))
-            continue
-        if char == "[":
-            nested, index = _parse_pdf_array(raw, index)
-            items.append(nested)
-            continue
-        end = index
-        while end < len(raw) and not raw[end].isspace() and raw[end] not in "[]()":
-            end += 1
-        items.append(raw[index:end])
-        index = end
-    return _PdfArray(tuple(items)), index
-
-
-def _parse_pdf_literal_string(raw: str, start: int) -> tuple[str, int]:
-    chars: list[str] = []
-    index = start + 1
+def _parse_pdf_array_strings(content: bytes, start: int) -> tuple[list[bytes], int]:
+    strings: list[bytes] = []
     depth = 1
-    while index < len(raw):
-        char = raw[index]
-        if char == "\\":
-            unescaped, index = _parse_pdf_escape(raw, index)
-            chars.append(unescaped)
+    index = start + 1
+    while index < len(content) and depth > 0:
+        byte = content[index]
+        if byte == ord("("):
+            raw_string, index = _parse_pdf_literal_string(content, index)
+            strings.append(raw_string)
             continue
-        if char == "(":
+        if byte == ord("["):
             depth += 1
-            chars.append(char)
-            index += 1
-            continue
-        if char == ")":
+        elif byte == ord("]"):
             depth -= 1
-            index += 1
-            if depth == 0:
-                return "".join(chars), index
-            chars.append(char)
-            continue
-        chars.append(char)
         index += 1
-    return "".join(chars), index
+    return strings, index
 
 
-def _parse_pdf_escape(raw: str, start: int) -> tuple[str, int]:
-    if start + 1 >= len(raw):
-        return "", start + 1
-
-    char = raw[start + 1]
-    escapes = {
-        "n": "\n",
-        "r": "\r",
-        "t": "\t",
-        "b": "\b",
-        "f": "\f",
-        "(": "(",
-        ")": ")",
-        "\\": "\\",
-    }
-    if char in escapes:
-        return escapes[char], start + 2
-    if char in "\n\r":
-        index = start + 2
-        if char == "\r" and index < len(raw) and raw[index] == "\n":
+def _parse_pdf_literal_string(content: bytes, start: int) -> tuple[bytes, int]:
+    result = bytearray()
+    depth = 1
+    index = start + 1
+    while index < len(content) and depth > 0:
+        byte = content[index]
+        if byte == ord("\\"):
+            if index + 1 < len(content):
+                result.append(byte)
+                index += 1
+                result.append(content[index])
             index += 1
-        return "", index
-    if char in "01234567":
-        end = start + 2
-        while end < len(raw) and end < start + 4 and raw[end] in "01234567":
-            end += 1
-        return chr(int(raw[start + 1 : end], 8)), end
-    return char, start + 2
-
-
-def _clean_extracted_text(text: str, title: str) -> str:
-    cleaned_lines: list[str] = []
-    title_seen = False
-    for raw_line in text.splitlines():
-        line = raw_line.rstrip()
-        stripped = line.strip()
-        if not stripped:
-            cleaned_lines.append("")
             continue
-        if stripped == PDFCROWD_FOOTER or re.fullmatch(r"\d+/\d+", stripped):
+        if byte == ord("("):
+            depth += 1
+            result.append(byte)
+        elif byte == ord(")"):
+            depth -= 1
+            if depth > 0:
+                result.append(byte)
+        else:
+            result.append(byte)
+        index += 1
+    return bytes(result), index
+
+
+def _decode_pdf_string(raw: bytes) -> str:
+    unescaped = _unescape_pdf_text(raw)
+    for encoding in ("utf-8", "utf-16-be", "latin-1"):
+        try:
+            return unescaped.decode(encoding)
+        except UnicodeDecodeError:
             continue
-        if stripped == title and title_seen:
+    return unescaped.decode("latin-1", errors="replace")
+
+
+def _unescape_pdf_text(raw: bytes) -> bytes:
+    result = bytearray()
+    index = 0
+    escapes = {
+        ord("n"): b"\n",
+        ord("r"): b"\r",
+        ord("t"): b"\t",
+        ord("b"): b"\b",
+        ord("f"): b"\f",
+        ord("("): b"(",
+        ord(")"): b")",
+        ord("\\"): b"\\",
+    }
+    while index < len(raw):
+        byte = raw[index]
+        if byte != ord("\\"):
+            result.append(byte)
+            index += 1
             continue
-        if stripped == title:
-            title_seen = True
-        cleaned_lines.append(line)
-    return re.sub(r"\n{3,}", "\n\n", "\n".join(cleaned_lines)).strip()
+        if index + 1 >= len(raw):
+            index += 1
+            continue
+        next_byte = raw[index + 1]
+        if next_byte in (ord("\n"), ord("\r")):
+            index += 2
+            if next_byte == ord("\r") and index < len(raw) and raw[index] == ord("\n"):
+                index += 1
+            continue
+        if ord("0") <= next_byte <= ord("7"):
+            end = index + 1
+            while end < min(index + 4, len(raw)) and ord("0") <= raw[end] <= ord("7"):
+                end += 1
+            result.append(int(raw[index + 1 : end], 8))
+            index = end
+            continue
+        replacement = escapes.get(next_byte)
+        if replacement is None:
+            result.append(next_byte)
+        else:
+            result.extend(replacement)
+        index += 2
+    return bytes(result)
 
 
-def _yaml_dump(data: dict[str, object]) -> str:
-    return "\n".join(_yaml_lines(data, 0))
+def _skip_pdf_whitespace(content: bytes, index: int) -> int:
+    while index < len(content) and content[index] in b"\x00\t\n\f\r ":
+        index += 1
+    return index
 
 
-def _yaml_lines(value: object, indent: int) -> list[str]:
+def _normalize_extracted_text(chunks: Sequence[str]) -> str:
+    lines = [chunk.strip() for chunk in chunks if chunk.strip()]
+    return "\n".join(lines).strip()
+
+
+def _has_trailer_encrypt_key(pdf_bytes: bytes) -> bool:
+    trailer_key = b"trailer"
+    index = 0
+    while True:
+        trailer_index = pdf_bytes.find(trailer_key, index)
+        if trailer_index < 0:
+            return False
+        dict_start = pdf_bytes.find(b"<<", trailer_index + len(trailer_key))
+        if dict_start < 0:
+            return False
+        dict_end = pdf_bytes.find(b">>", dict_start + 2)
+        if dict_end < 0:
+            return False
+        trailer_dict = pdf_bytes[dict_start : dict_end + 2]
+        if re.search(rb"(?<![A-Za-z0-9_])\/Encrypt(?![A-Za-z0-9_])", trailer_dict):
+            return True
+        index = dict_end + 2
+
+
+def _extract_page_count(pdf_bytes: bytes) -> int | None:
+    patterns = (
+        rb"/Type\s*/Pages\b(?:(?!endobj).)*?/Count\s+(\d+)",
+        rb"/Count\s+(\d+)(?:(?!endobj).)*?/Type\s*/Pages\b",
+    )
+    counts: list[int] = []
+    for pattern in patterns:
+        for match in re.finditer(pattern, pdf_bytes, re.DOTALL):
+            counts.append(int(match.group(1)))
+    if not counts:
+        return None
+    return max(counts)
+
+
+def _yaml_mapping(mapping: dict[str, object], *, indent: int = 0) -> str:
+    lines: list[str] = []
     prefix = " " * indent
-    if isinstance(value, dict):
-        lines: list[str] = []
-        for key, nested_value in value.items():
-            if isinstance(nested_value, (dict, list)):
-                lines.append(f"{prefix}{key}:")
-                lines.extend(_yaml_lines(nested_value, indent + 2))
+    for key, value in mapping.items():
+        if isinstance(value, dict):
+            lines.append(f"{prefix}{key}:")
+            lines.append(_yaml_mapping(value, indent=indent + 2).rstrip("\n"))
+        elif isinstance(value, list):
+            lines.append(f"{prefix}{key}:")
+            if value:
+                for item in value:
+                    lines.append(f"{prefix}  - {_yaml_scalar(item)}")
             else:
-                lines.append(f"{prefix}{key}: {_yaml_scalar(nested_value)}")
-        return lines
-    if isinstance(value, list):
-        lines = []
-        for item in value:
-            if isinstance(item, (dict, list)):
-                lines.append(f"{prefix}-")
-                lines.extend(_yaml_lines(item, indent + 2))
-            else:
-                lines.append(f"{prefix}- {_yaml_scalar(item)}")
-        return lines
-    return [f"{prefix}{_yaml_scalar(value)}"]
+                lines[-1] = f"{prefix}{key}: []"
+        else:
+            lines.append(f"{prefix}{key}: {_yaml_scalar(value)}")
+    return "\n".join(lines) + "\n"
 
 
 def _yaml_scalar(value: object) -> str:
-    if isinstance(value, str):
-        return json.dumps(value, ensure_ascii=False)
-    if isinstance(value, bool):
-        return "true" if value else "false"
     if value is None:
         return "null"
-    return str(value)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, int):
+        return str(value)
+    text = str(value)
+    escaped = (
+        text.replace("\\", "\\\\")
+        .replace('"', '\\"')
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace("\t", "\\t")
+    )
+    return f'"{escaped}"'
+
+
+def run_convert_pdf_cli(argv: Sequence[str] | None = None, *, prog: str) -> int:
+    parser = argparse.ArgumentParser(prog=prog)
+    parser.add_argument("input_pdf", help="local ChatGPT/browser Save-as-PDF input")
+    parser.add_argument("--out", required=True, help="Markdown transcript output path")
+    parser.add_argument("--force", action="store_true", help="overwrite output path")
+    parser.add_argument(
+        "--no-frontmatter",
+        action="store_true",
+        help="write only extracted Markdown text",
+    )
+    parser.add_argument(
+        "--no-scan-sensitive",
+        action="store_true",
+        help="skip the local deterministic sensitivity scanner",
+    )
+    args = parser.parse_args(argv)
+    try:
+        result = convert_pdf_file(
+            Path(args.input_pdf),
+            output_path=Path(args.out),
+            force=args.force,
+            include_frontmatter=not args.no_frontmatter,
+            scan_sensitive=not args.no_scan_sensitive,
+        )
+    except PdfImportError as err:
+        print(f"error: {err}", file=sys.stderr)
+        return 1
+    print(f"wrote {args.out}")
+    for warning in result.extraction.warnings:
+        print(f"warning: {warning}", file=sys.stderr)
+    return 0

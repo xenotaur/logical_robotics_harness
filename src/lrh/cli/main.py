@@ -15,6 +15,7 @@ from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
+from lrh.conversations import pdf_import
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
@@ -82,6 +83,19 @@ def main() -> None:
         "serve",
         add_help=False,
         help="Start the safe-default local read-only server skeleton.",
+    )
+
+    conversation_parser = subparsers.add_parser(
+        "conversation",
+        help="Conversation import and analysis commands.",
+    )
+    conversation_subparsers = conversation_parser.add_subparsers(
+        dest="conversation_command"
+    )
+    conversation_subparsers.add_parser(
+        "convert-pdf",
+        add_help=False,
+        help="Convert a local ChatGPT PDF export to Markdown.",
     )
 
     subparsers.add_parser(
@@ -562,6 +576,18 @@ def main() -> None:
                 argv=passthrough_args,
                 prog="lrh serve",
             )
+        )
+
+    if args.command == "conversation":
+        if args.conversation_command == "convert-pdf":
+            raise SystemExit(
+                pdf_import.run_convert_pdf_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation convert-pdf",
+                )
+            )
+        parser.error(
+            "conversation requires a subcommand (try: lrh conversation convert-pdf)"
         )
 
     if args.command == "prompt":

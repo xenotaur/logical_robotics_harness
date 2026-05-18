@@ -55,9 +55,11 @@ dogfood migration across LRH's own proposal set.
 — Proposes a unified architecture for LRH Conversations, policy-aware storage,
 and external agent interop so raw AI-assisted development conversations remain
 private-by-default, non-authoritative until promoted, scoped, auditable, and
-portable across tools. Status: `proposed` / `not_started` (documentation-only
-direction; no storage, chat UI, MCP, GitHub, HTTP, model-provider, or run
-execution implementation).
+portable across tools. The set now includes a focused ChatGPT PDF conversion
+adapter design as an early manual capture path from browser Save as PDF exports
+to private-by-default, non-authoritative Markdown transcripts. Status: `proposed`
+/ `not_started` (documentation-only direction; no storage, chat UI, converter,
+scanner, MCP, GitHub, HTTP, model-provider, or run execution implementation).
 
 [`proposed/lrh-console-visual-language/`](proposed/lrh-console-visual-language/)
 — Proposes Alternative D, the Enhanced Swimlane Console, as the future light/dark visual language

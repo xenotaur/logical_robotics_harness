@@ -17,11 +17,16 @@ provider integration, or run execution behavior.
    — umbrella proposal covering motivation, target use cases, core decisions,
    storage and conversation models, adapter surfaces, security and privacy,
    implementation phases, open questions, and tradeoffs.
+2. [`01_chatgpt_pdf_import.md`](01_chatgpt_pdf_import.md)
+   — focused design note and future command contract for converting ChatGPT
+   browser Save as PDF exports into private-by-default, non-authoritative
+   Markdown conversation transcripts.
 
 ## Reading order
 
 1. `README.md` (this file)
 2. `00_proposal.md`
+3. `01_chatgpt_pdf_import.md`
 
 ## Canonical-document touchpoints
 

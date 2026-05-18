@@ -22,4 +22,5 @@ Add content here when the reader's main goal is learning a workflow from start t
 
 ## Currently relevant docs
 
-No tutorials have been migrated yet. This section is a destination for follow-up PRs after the documentation architecture is in place.
+- [Your first LRH project](first-lrh-project.md) — create a minimal `project/` directory, run `lrh validate`, and generate a snapshot.
+- [Your first prompt-driven change](first-prompt-driven-change.md) — choose a prompt ID, apply soft idempotence, make a small change, and record execution.

@@ -32,3 +32,15 @@ agents, or create pull requests. Future `validate`, `snapshot`, `request`,
 `serve`, and `run --dry-run` work should prefer this read/interpretation layer
 when they need shared project-state inference rather than re-deriving it from raw
 frontmatter dictionaries.
+
+## Serve triage view-model contract
+
+`lrh.serve_triage` defines the typed, JSON-serializable contract for the
+planned operational triage surface behind future `lrh serve` swimlanes. It
+contains read-only project cards, validation/readiness badges, deterministic
+lane assignments, capability-gap projections, action-affordance metadata, and
+a top-level workspace view. The classifier consumes only already-projected card
+fields; it does not inspect files, dispatch agents, expose private runtime
+state, or mutate repositories. Planned-but-not-implemented affordances are
+represented as capability gaps rather than validation errors.
+

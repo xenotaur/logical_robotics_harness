@@ -68,6 +68,18 @@ When unblocked, set:
 
 `lrh work-items audit --format md` and `lrh work-items audit --format json` emit a non-mutating lifecycle report. The audit combines validation diagnostics with deterministic traceability signals, such as missing linkage metadata, terminal items lacking resolution evidence, execution records attached to non-terminal items.
 
+### Work-item readiness and prompting
+
+A structurally valid work item is not necessarily ready for implementation prompting. Thin proposed
+items may be useful capture artifacts and should continue to pass `lrh work-items validate` when their
+frontmatter, references, and lifecycle metadata are valid. Implementation prompt readiness is a
+separate checkpoint: a selected item needs execution-facing sections such as `Scope`,
+`Required Changes`, `Acceptance Criteria`, and `Validation` before `lrh request prompt-from-work-item`
+can render a bounded prompt. The intended future split is documented in
+`project/design/work_item_readiness_workflow.md`: `lrh work-items readiness` diagnoses missing
+readiness details deterministically, while `lrh request ready-work-item` assists a human reviewer in
+refining the item without automatically mutating source files.
+
 The audit distinguishes facts from recommendations. Use the semantic work-item audit assist template (`work_item_semantic_audit`) to compare acceptance criteria against concrete repository evidence before moving files or changing terminal metadata. Ambiguous proposed items should remain proposed until follow-up evidence or human design review resolves the uncertainty.
 
 ### Conservative audit closeout workflow

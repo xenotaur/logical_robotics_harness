@@ -237,6 +237,12 @@ merge/release/publish automation, and auto-saving generated artifacts. Default w
 for the MVP; any future write must be an explicit-click, separately justified LRH control-artifact
 write and must never happen on page load, validation, preview, copy, or download.
 
+A follow-up light UX alignment pass added semantic LRH Console page regions, accessible textual status
+badges, explicit evidence-unavailable language, and small semantic CSS token scaffolding to the
+package-owned `lrh serve` HTML. This prepares the first tranche for the proposed Alternative D visual
+language without implementing full swimlanes, a frontend framework, a theme switcher, or mutating UI
+actions.
+
 Later, after observation adapters exist, this surface may show observed PR/CI/review status as
 read-only state.
 

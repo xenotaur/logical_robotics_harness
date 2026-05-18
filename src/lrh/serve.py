@@ -120,7 +120,7 @@ def render_index(
     port = html.escape(str(status["port"]))
     validation = payload["validation"]
     focus = payload["current_focus"]
-    focus_text = "None loaded"
+    focus_text = "Unknown / unavailable"
     if isinstance(focus, dict):
         focus_text = f"{focus['id']} — {focus['title']} ({focus['status']})"
     active_workstreams = _html_list(
@@ -135,68 +135,108 @@ def render_index(
     diagnostics = _html_list(
         _diagnostic_label(diagnostic) for diagnostic in payload["diagnostics"]
     )
+    evidence_summary = _evidence_summary_label(payload)
+    validation_badge_class = _status_badge_class(str(validation["status"]))
+    validation_label = _status_badge_label(str(validation["status"]))
     return """<!doctype html>
-<html lang=\"en\">
+<html lang=\"en\" data-theme=\"light\">
 <head>
   <meta charset=\"utf-8\">
   <title>LRH Serve</title>
+  {styles}
 </head>
 <body>
-  <main>
-    <h1>Logical Robotics Harness</h1>
-    <p>Safe-default read-only project viewer with a local preview workbench.</p>
-    <p>This viewer summarizes existing LRH project-control state. The workbench
-    can render prompt, run-packet, and run-report previews only after an
-    explicit local link click. It does not serve arbitrary files, dispatch
-    agents, mutate branches, create pull requests, make external network calls,
-    execute rendered content, or provide write routes.</p>
-    <dl>
-      <dt>Project</dt><dd>{project_name}</dd>
-      <dt>Bind</dt><dd>{host}:{port}</dd>
-      <dt>Validation</dt><dd>{validation_status} ({error_count} errors,
-      {warning_count} warnings)</dd>
-      <dt>Current focus</dt><dd>{focus_text}</dd>
-      <dt>Work items</dt><dd>{work_item_count}</dd>
-      <dt>Workstreams</dt><dd>{workstream_count}</dd>
-    </dl>
-    <section>
-      <h2>Active workstreams</h2>
-      {active_workstreams}
-    </section>
-    <section>
-      <h2>Active leaf work items</h2>
-      {active_leaves}
-    </section>
-    <section>
-      <h2>Execution-ready leaves</h2>
-      <p>Workbench packet and report previews are local in-memory renderings;
-      they are not execution evidence and do not imply work has run.</p>
-      {ready_items}
-    </section>
-    <section>
-      <h2>Diagnostics</h2>
-      {diagnostics}
-    </section>
-    <section>
-      <h2>Read-only API</h2>
-      <ul>
-        <li><a href=\"/health\">/health</a></li>
-        <li><a href=\"/api/status\">/api/status</a></li>
-        <li><a href=\"/api/project\">/api/project</a></li>
-      </ul>
-    </section>
-    <section>
-      <h2>Prompt/packet/report workbench</h2>
-      <p><a href="/workbench">Open the local preview workbench</a>.</p>
-    </section>
-  </main>
+  <div class=\"lrh-app-shell\">
+    <header class=\"lrh-page-header\">
+      <p class=\"lrh-eyebrow\">LRH Console preview</p>
+      <h1>Logical Robotics Harness</h1>
+      <p>Safe-default read-only project viewer with a local preview workbench.</p>
+      <aside class=\"lrh-guardrail-callout\" aria-label=\"Safe-default guardrails\">
+        This viewer summarizes existing LRH project-control state. The workbench
+        can render prompt, run-packet, and run-report previews only after an
+        explicit local link click. It does not serve arbitrary files, dispatch
+        agents, mutate branches, create pull requests, make external network calls,
+        execute rendered content, or provide write routes.
+      </aside>
+    </header>
+    <nav class=\"lrh-control-spine\" aria-label=\"Read-only LRH serve navigation\">
+      <a href=\"#system-overview\">System overview</a>
+      <a href=\"#project-summary\">Project summary</a>
+      <a href=\"#evidence-summary\">Evidence summary</a>
+      <a href=\"#validation-summary\">Validation summary</a>
+      <a href=\"/workbench\">Open preview workbench</a>
+    </nav>
+    <main id=\"main-content\" class=\"lrh-main-content\">
+      <section id=\"system-overview\" class=\"lrh-system-overview\"
+        aria-labelledby=\"system-overview-heading\">
+        <h2 id=\"system-overview-heading\">System overview</h2>
+        <dl class=\"lrh-summary-grid\">
+          <div><dt>Project</dt><dd>{project_name}</dd></div>
+          <div><dt>Bind</dt><dd>{host}:{port}</dd></div>
+          <div><dt>Validation</dt><dd><span
+            class=\"lrh-status-badge {validation_badge_class}\">
+            {validation_label}</span></dd></div>
+          <div><dt>Current focus</dt><dd>{focus_text}</dd></div>
+          <div><dt>Work items</dt><dd>{work_item_count}</dd></div>
+          <div><dt>Workstreams</dt><dd>{workstream_count}</dd></div>
+        </dl>
+      </section>
+      <section id=\"project-summary\" class=\"lrh-project-summary\"
+        aria-labelledby=\"project-summary-heading\">
+        <h2 id=\"project-summary-heading\">Project summary</h2>
+        <section class=\"lrh-console-region\"
+          aria-labelledby=\"active-workstreams-heading\">
+          <h3 id=\"active-workstreams-heading\">Active workstreams</h3>
+          {active_workstreams}
+        </section>
+        <section class=\"lrh-console-region\" aria-labelledby=\"active-leaves-heading\">
+          <h3 id=\"active-leaves-heading\">Active leaf work items</h3>
+          {active_leaves}
+        </section>
+        <section class=\"lrh-console-region\"
+          aria-labelledby=\"execution-ready-heading\">
+          <h3 id=\"execution-ready-heading\">Execution-ready leaves</h3>
+          <p>Workbench packet and report previews are local in-memory renderings;
+          they are not execution evidence and do not imply work has run.</p>
+          {ready_items}
+        </section>
+      </section>
+      <section id=\"evidence-summary\" class=\"lrh-evidence-summary\"
+        aria-labelledby=\"evidence-summary-heading\">
+        <h2 id=\"evidence-summary-heading\">Evidence summary</h2>
+        <p>{evidence_summary}</p>
+      </section>
+      <section id=\"validation-summary\" class=\"lrh-validation-summary\"
+        aria-labelledby=\"validation-summary-heading\">
+        <h2 id=\"validation-summary-heading\">Validation summary</h2>
+        <p><span
+          class=\"lrh-status-badge {validation_badge_class}\">{validation_label}</span>
+        ({error_count} errors, {warning_count} warnings)</p>
+        {diagnostics}
+      </section>
+      <section class=\"lrh-console-region\" aria-labelledby=\"read-only-api-heading\">
+        <h2 id=\"read-only-api-heading\">Read-only API</h2>
+        <ul>
+          <li><a href=\"/health\">/health</a></li>
+          <li><a href=\"/api/status\">/api/status</a></li>
+          <li><a href=\"/api/project\">/api/project</a></li>
+        </ul>
+      </section>
+      <section class=\"lrh-console-region\" aria-labelledby=\"workbench-heading\">
+        <h2 id=\"workbench-heading\">Prompt/packet/report workbench</h2>
+        <p><a href=\"/workbench\">Open the local preview workbench</a>.</p>
+      </section>
+    </main>
+  </div>
 </body>
 </html>
 """.format(
+        styles=_base_styles(),
         project_name=project_name,
         host=host,
         port=port,
-        validation_status=html.escape(str(validation["status"])),
+        validation_badge_class=validation_badge_class,
+        validation_label=validation_label,
         error_count=validation["error_count"],
         warning_count=validation["warning_count"],
         focus_text=html.escape(focus_text),
@@ -206,6 +246,7 @@ def render_index(
         active_leaves=active_leaves,
         ready_items=ready_items,
         diagnostics=diagnostics,
+        evidence_summary=html.escape(evidence_summary),
     )
 
 
@@ -374,43 +415,55 @@ def render_workbench_index(config: ServeConfig) -> str:
     if isinstance(items, list) and items:
         item_rows = "".join(_workbench_item_row(item) for item in items)
     else:
-        item_rows = "<p>No work items are currently available to preview.</p>"
+        item_rows = (
+            '<p class="lrh-muted">No work items are currently available to preview.</p>'
+        )
     diagnostics = _html_list(
         _diagnostic_label(diagnostic) for diagnostic in payload["diagnostics"]
     )
     return """<!doctype html>
-<html lang=\"en\">
+<html lang=\"en\" data-theme=\"light\">
 <head>
   <meta charset=\"utf-8\">
   <title>LRH Serve Workbench</title>
+  {styles}
 </head>
 <body>
-  <main>
-    <h1>LRH Prompt/Packet/Report Workbench</h1>
-    <p><a href=\"/\">Back to read-only viewer</a></p>
-    <p>This local workbench previews package-rendered Markdown from existing
-    LRH project-control files. Rendering happens only when you select a preview
-    or download link. It does not execute prompts, dispatch agents, mutate
-    branches, create pull requests, run CI loops, merge, release, publish, read
-    arbitrary files, or write repository files.</p>
-    <section>
-      <h2>Renderable work items</h2>
-      {item_rows}
-    </section>
-    <section>
-      <h2>Diagnostics</h2>
-      {diagnostics}
-    </section>
-    <section>
-      <h2>Read-only API</h2>
-      <ul>
-        <li><a href=\"/api/workbench\">/api/workbench</a></li>
-      </ul>
-    </section>
-  </main>
+  <div class=\"lrh-app-shell\">
+    <header class=\"lrh-page-header\">
+      <p class=\"lrh-eyebrow\">LRH Console preview</p>
+      <h1>LRH Prompt/Packet/Report Workbench</h1>
+      <p><a href=\"/\">Back to read-only viewer</a></p>
+      <aside class=\"lrh-guardrail-callout\" aria-label=\"Workbench guardrails\">
+        This local workbench previews package-rendered Markdown from existing
+        LRH project-control files. Rendering happens only when you select a preview
+        or download link. It does not execute prompts, dispatch agents, mutate
+        branches, create pull requests, run CI loops, merge, release, publish, read
+        arbitrary files, or write repository files.
+      </aside>
+    </header>
+    <main id=\"main-content\" class=\"lrh-main-content\">
+      <section class=\"lrh-console-region\"
+        aria-labelledby=\"renderable-work-items-heading\">
+        <h2 id=\"renderable-work-items-heading\">Renderable work items</h2>
+        {item_rows}
+      </section>
+      <section class=\"lrh-validation-summary\"
+        aria-labelledby=\"workbench-diagnostics-heading\">
+        <h2 id=\"workbench-diagnostics-heading\">Diagnostics</h2>
+        {diagnostics}
+      </section>
+      <section class=\"lrh-console-region\" aria-labelledby=\"workbench-api-heading\">
+        <h2 id=\"workbench-api-heading\">Read-only API</h2>
+        <ul>
+          <li><a href=\"/api/workbench\">/api/workbench</a></li>
+        </ul>
+      </section>
+    </main>
+  </div>
 </body>
 </html>
-""".format(item_rows=item_rows, diagnostics=diagnostics)
+""".format(styles=_base_styles(), item_rows=item_rows, diagnostics=diagnostics)
 
 
 def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
@@ -422,32 +475,46 @@ def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
     work_item = _url_quote(artifact.work_item_id)
     kind = _url_quote(artifact.kind)
     return """<!doctype html>
-<html lang=\"en\">
+<html lang=\"en\" data-theme=\"light\">
 <head>
   <meta charset=\"utf-8\">
   <title>{title}</title>
+  {styles}
 </head>
 <body>
-  <main>
-    <h1>{title}</h1>
-    <p><a href=\"/workbench\">Back to workbench</a> |
-    <a href=\"/#work-item-{work_item}\">Back to viewer context</a></p>
-    <p>This is a local in-memory preview only. It has not been executed and no
-    repository files were written.</p>
-    <p><a href=\"/workbench/{kind}?work_item={work_item}&amp;download=1\">
-    Download Markdown</a></p>
-    <section>
-      <h2>Diagnostics</h2>
-      {diagnostics}
-    </section>
-    <section>
-      <h2>Copy-friendly Markdown</h2>
-      <textarea rows=\"32\" cols=\"100\" readonly>{markdown}</textarea>
-    </section>
-  </main>
+  <div class=\"lrh-app-shell\">
+    <header class=\"lrh-page-header\">
+      <p class=\"lrh-eyebrow\">LRH Console preview</p>
+      <h1>{title}</h1>
+      <nav class=\"lrh-control-spine\" aria-label=\"Artifact preview navigation\">
+        <a href=\"/workbench\">Back to workbench</a>
+        <a href=\"/#work-item-{work_item}\">Back to viewer context</a>
+        <a href=\"/workbench/{kind}?work_item={work_item}&amp;download=1\">
+          Download Markdown</a>
+      </nav>
+      <aside class=\"lrh-guardrail-callout\" aria-label=\"Artifact preview guardrails\">
+        This is a local in-memory preview only. It has not been executed and no
+        repository files were written. Preview content is unavailable as execution
+        evidence until a separate approved workflow runs and records evidence.
+      </aside>
+    </header>
+    <main id=\"main-content\" class=\"lrh-main-content\">
+      <section class=\"lrh-validation-summary\"
+        aria-labelledby=\"artifact-diagnostics-heading\">
+        <h2 id=\"artifact-diagnostics-heading\">Diagnostics</h2>
+        {diagnostics}
+      </section>
+      <section class=\"lrh-workbench-artifact\"
+        aria-labelledby=\"copy-markdown-heading\">
+        <h2 id=\"copy-markdown-heading\">Copy-friendly Markdown</h2>
+        <textarea rows=\"32\" cols=\"100\" readonly>{markdown}</textarea>
+      </section>
+    </main>
+  </div>
 </body>
 </html>
 """.format(
+        styles=_base_styles(),
         title=title,
         work_item=work_item,
         kind=kind,
@@ -617,6 +684,166 @@ def _safe_capabilities() -> dict[str, bool]:
         "packet_preview": True,
         "report_preview": True,
     }
+
+
+def _base_styles() -> str:
+    """Return small semantic token scaffolding for package-owned serve pages."""
+
+    return """<style>
+  :root {
+    --lrh-color-surface-page: #f7f5ef;
+    --lrh-color-surface-panel: #fffdf8;
+    --lrh-color-text-primary: #18212f;
+    --lrh-color-text-muted: #5f6b7a;
+    --lrh-color-border-subtle: #d9d2c4;
+    --lrh-color-status-needs-attention-bg: #ffe8e8;
+    --lrh-color-status-needs-attention-text: #7f1d1d;
+    --lrh-color-status-active-work-bg: #e8f1ff;
+    --lrh-color-status-active-work-text: #16396b;
+    --lrh-color-status-awaiting-review-bg: #fff4d6;
+    --lrh-color-status-awaiting-review-text: #614600;
+    --lrh-color-status-stable-bg: #e4f7ec;
+    --lrh-color-status-stable-text: #14532d;
+    --lrh-color-status-unknown-bg: #eceff3;
+    --lrh-color-status-unknown-text: #3f4856;
+    --lrh-focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.45);
+  }
+
+  [data-theme="dark"] {
+    --lrh-color-surface-page: #101722;
+    --lrh-color-surface-panel: #172131;
+    --lrh-color-text-primary: #f7f5ef;
+    --lrh-color-text-muted: #b8c1cc;
+    --lrh-color-border-subtle: #334155;
+    --lrh-color-status-needs-attention-bg: #4a1f24;
+    --lrh-color-status-needs-attention-text: #ffd7d7;
+    --lrh-color-status-active-work-bg: #1e3a5f;
+    --lrh-color-status-active-work-text: #d8e9ff;
+    --lrh-color-status-awaiting-review-bg: #453514;
+    --lrh-color-status-awaiting-review-text: #ffe9a8;
+    --lrh-color-status-stable-bg: #173b29;
+    --lrh-color-status-stable-text: #c9f7d9;
+    --lrh-color-status-unknown-bg: #2b3544;
+    --lrh-color-status-unknown-text: #e2e8f0;
+  }
+
+  body {
+    background: var(--lrh-color-surface-page);
+    color: var(--lrh-color-text-primary);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  a { color: inherit; }
+  a:focus-visible, textarea:focus-visible {
+    box-shadow: var(--lrh-focus-ring);
+    outline: none;
+  }
+
+  .lrh-app-shell { margin: 0 auto; max-width: 72rem; padding: 2rem; }
+  .lrh-page-header, .lrh-control-spine, .lrh-console-region,
+  .lrh-system-overview, .lrh-project-summary, .lrh-evidence-summary,
+  .lrh-validation-summary, .lrh-workbench-artifact {
+    background: var(--lrh-color-surface-panel);
+    border: 1px solid var(--lrh-color-border-subtle);
+    border-radius: 1rem;
+    margin-block: 1rem;
+    padding: 1rem;
+  }
+  .lrh-control-spine { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+  .lrh-eyebrow, .lrh-muted { color: var(--lrh-color-text-muted); }
+  .lrh-guardrail-callout {
+    border-inline-start: 0.35rem solid var(--lrh-color-border-subtle);
+    padding-inline-start: 1rem;
+  }
+  .lrh-summary-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  }
+  .lrh-summary-grid div {
+    border-block-start: 1px solid var(--lrh-color-border-subtle);
+    padding-block-start: 0.5rem;
+  }
+  .lrh-summary-grid dt { color: var(--lrh-color-text-muted); font-weight: 700; }
+  .lrh-status-badge {
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    display: inline-block;
+    font-weight: 700;
+    padding: 0.15rem 0.55rem;
+  }
+  .lrh-status-badge--needs-attention {
+    background: var(--lrh-color-status-needs-attention-bg);
+    color: var(--lrh-color-status-needs-attention-text);
+  }
+  .lrh-status-badge--active-work {
+    background: var(--lrh-color-status-active-work-bg);
+    color: var(--lrh-color-status-active-work-text);
+  }
+  .lrh-status-badge--awaiting-review {
+    background: var(--lrh-color-status-awaiting-review-bg);
+    color: var(--lrh-color-status-awaiting-review-text);
+  }
+  .lrh-status-badge--stable {
+    background: var(--lrh-color-status-stable-bg);
+    color: var(--lrh-color-status-stable-text);
+  }
+  .lrh-status-badge--unknown {
+    background: var(--lrh-color-status-unknown-bg);
+    color: var(--lrh-color-status-unknown-text);
+  }
+  textarea { box-sizing: border-box; max-width: 100%; width: 100%; }
+</style>"""
+
+
+def _status_badge_class(status: str) -> str:
+    normalized = status.strip().lower().replace("_", "-").replace(" ", "-")
+    if normalized in {"valid", "stable", "ok", "complete", "completed", "landed"}:
+        return "lrh-status-badge--stable"
+    if normalized in {"active", "in-progress", "planned", "ready"}:
+        return "lrh-status-badge--active-work"
+    if normalized in {"review", "awaiting-review", "requires-human-review"}:
+        return "lrh-status-badge--awaiting-review"
+    if normalized in {"error", "failed", "blocked", "needs-attention"}:
+        return "lrh-status-badge--needs-attention"
+    return "lrh-status-badge--unknown"
+
+
+def _status_badge_label(status: str) -> str:
+    text = status.strip() or "unknown"
+    return html.escape(text.replace("_", " ").replace("-", " ").title())
+
+
+def _evidence_summary_label(payload: dict[str, Any]) -> str:
+    work_items = payload.get("work_items", {})
+    workstream_payload = payload.get("workstreams", {})
+    required_evidence = 0
+    if isinstance(work_items, dict):
+        for item in work_items.get("items", []):
+            if isinstance(item, dict):
+                evidence = item.get("required_evidence", [])
+                if isinstance(evidence, list):
+                    required_evidence += len(evidence)
+    declared_workstream_evidence = 0
+    if isinstance(workstream_payload, dict):
+        for workstream in workstream_payload.get("items", []):
+            if isinstance(workstream, dict):
+                evidence = workstream.get("evidence", [])
+                if isinstance(evidence, list):
+                    declared_workstream_evidence += len(evidence)
+    if required_evidence or declared_workstream_evidence:
+        return (
+            "Declared evidence references are visible in project-control data: "
+            f"{required_evidence} work-item requirements and "
+            f"{declared_workstream_evidence} workstream evidence links. "
+            "Observed run/test evidence is not yet available in this serve view."
+        )
+    return (
+        "Evidence unavailable: this serve view has no observed run/test evidence "
+        "to display."
+    )
 
 
 def _empty_grouped_summary() -> dict[str, object]:

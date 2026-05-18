@@ -68,6 +68,13 @@ for `lrh serve` dashboards and LRH Console views, with UX review criteria and a 
 acceptance criteria. Status: `proposed` / `not_started` (documentation-only direction; no UI, CSS,
 server-route, frontend-framework, or safe-default MVP scope changes).
 
+[`proposed/lrh-serve-operational-triage-mvp/`](proposed/lrh-serve-operational-triage-mvp/)
+— Proposes a safe-default, read-only/meta-aware `lrh serve` operational triage dashboard and
+prompt workbench for registered projects, deterministic swimlanes, project/design/workstream/work-item
+drill-down, readiness-aware prompt affordances, and first-class capability gaps. Status: `proposed` /
+`not_started` (documentation-only direction; no UI, server-route, write endpoint, autonomous dispatch,
+or repository-mutation behavior).
+
 [`proposed/workstream-execution-framework/`](proposed/workstream-execution-framework/)
 — Proposes future bounded execution for already-approved executable
 leaves: run packet → agent-owned branch → pull request → bounded

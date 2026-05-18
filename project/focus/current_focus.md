@@ -58,6 +58,15 @@ manual runs and future automated runs. It should not implement observation adapt
 containment, stabilization loops, backend adapters, agent dispatch, branch mutation, PR creation,
 merge/release automation, or destructive actions.
 
+## Supporting Design Work
+
+- The LRH Serve Operational Triage MVP design proposal defines a meta-aware, operational,
+  safe-default, state-aware triage extension viewer for `lrh serve`. As the viewer sprint is
+  completed and carried forward, this design is intended to help LRH and other registered
+  LRH-managed projects inspect validation state, current focus, design/workstream/work-item
+  traceability, readiness, and prompt-generation affordances so humans can choose the next safe
+  prompt-driven action more quickly.
+
 ## Adjacent CI capability design
 
 The CI capability scaffolding workstream

@@ -291,6 +291,118 @@ Do not hard-code LRH repository-specific project names or paths. The dashboard m
 for client projects that have their own `project/` control directories and potentially different
 project registries.
 
+## UX Review Criteria
+
+Reviewers should use these criteria to evaluate implemented LRH Console and `lrh serve` UX against
+the proposed visual language. They are review aids, not a blanket expansion of the safe-default MVP
+acceptance criteria. A tranche can be acceptable when it is safe, semantic, evidence-aware, and
+compatible with the visual direction even if full Alternative D polish is intentionally deferred.
+
+### Safe-default scope
+
+- Does the implemented UI preserve read-only safe-default behavior unless a separate guardrailed
+  action design has landed?
+- Do any quick actions clearly distinguish navigation and read-only inspection from mutating
+  operations?
+- Does the UX avoid implying autonomous execution, agent dispatch, branch mutation, CI repair, merge,
+  release, publish, or persistence when the implementation does not safely support it?
+
+### Information architecture
+
+- Does the page structure preserve the intended hierarchy: Meta → Project → Workstream → Work Item →
+  Run → Evidence?
+- Does the page make the user's current scope clear, including which project, workstream, work item,
+  run, or evidence source is being inspected?
+- Does the first-level meta view help answer “what needs attention now?” rather than only presenting
+  undifferentiated project cards?
+
+### Semantic status
+
+- Are statuses represented with text labels and icons or other redundant cues, not color alone?
+- Are operational states distinguished from lifecycle states where needed?
+- Are **Unknown** and unavailable states explicit rather than silently inferred, hidden, or displayed
+  as optimistic defaults?
+
+### Evidence-first display
+
+- Does each status or health claim expose its evidence basis, validation result, artifact count, run
+  status, timestamp, or a clear “unknown/unavailable” marker?
+- Does the UI avoid optimistic summaries detached from tests, validation output, logs, reports, review
+  notes, screenshots, source artifacts, or declared evidence gaps?
+- Can a reviewer trace important claims back to a source artifact or intentionally absent evidence
+  marker?
+
+### Swimlane / grouping behavior
+
+- If swimlanes are implemented, are lane memberships visually obvious at a glance?
+- Do lane backgrounds, borders, labels, icons, and card placement all reinforce grouping?
+- Are lanes deterministic and understandable when empty, sparse, or crowded?
+- Does an inspector, detail page, or drill-down preserve enough lane context for the user to know why
+  the item appeared in that group?
+
+### Theming
+
+- Are light and dark modes structurally equivalent if both are implemented?
+- Are theme values expressed through semantic tokens or equivalent role-based styling rather than
+  one-off hard-coded colors?
+- Does the interface remain readable in both modes, including status badges, focus indicators, links,
+  disabled controls, and evidence chips?
+
+### Accessibility
+
+- Is state not conveyed by color alone?
+- Are interactive elements keyboard reachable and visibly focused?
+- Are controls labeled by default?
+- Are icon-only controls avoided or given accessible names?
+- Are visual-heavy views paired with text, list, or table alternatives where appropriate?
+- Does the implemented structure remain useful to assistive technologies when decorative visual
+  grouping is removed?
+
+### Implementation discipline
+
+- Does the implementation avoid selecting a heavy frontend framework without a separate design
+  decision?
+- Does it avoid hard-coding LRH-repository-specific project names, paths, or fixture data into reusable
+  UI code?
+- Are diffs narrow, testable, and scoped to the tranche under review?
+- Do templates, classes, view models, routes, and tests use semantic names rather than names tied only
+  to current colors or geometry?
+
+## First Implemented `lrh serve` UX Review Checklist
+
+Use this checklist for the first review after the first implemented `lrh serve` tranche lands. The
+checklist helps reviewers compare the initial safe-default UX against this visual-language direction
+without requiring pixel-perfect Alternative D implementation.
+
+- Does the first page expose a clear page structure, including title, current project/root context,
+  primary sections, and safe-default framing?
+- Is project/control-plane state represented semantically rather than as anonymous raw data dumps?
+- Are statuses textual and redundant, not color-only?
+- Are routes, view models, and data shapes compatible with future swimlanes, detail views, and
+  evidence drill-downs even if swimlanes are not implemented in the first tranche?
+- Is the server read-only and safe by default, with no automatic writes, dispatch, branch mutation, PR
+  mutation, merge, release, publish, or unsupported filesystem browsing?
+- Are templates, CSS classes, route names, and view-model fields named semantically rather than
+  visually, so later token/theme work can change presentation without rewriting meaning?
+- Is evidence, validation, readiness, run, or artifact state surfaced where available, or at least not
+  obscured when unavailable?
+- Does the UI avoid pretending to provide quick actions that are not safely implemented?
+- Are mockup references treated as illustrative direction rather than pixel-perfect acceptance
+  criteria?
+
+### Review Outcome Categories
+
+Use these categories to keep review feedback lightweight and tranche-aware:
+
+- **Meets standard:** the implementation aligns with the visual-language principles for the current
+  tranche.
+- **Acceptable for tranche:** the implementation is safe and semantically sound, but visual polish or
+  full Alternative D alignment is intentionally deferred.
+- **Needs follow-up:** the implementation is safe but needs a follow-up issue, work item, or design
+  note for UX debt.
+- **Blocks merge:** the implementation creates unsafe affordances, misleading status, inaccessible
+  state communication, or hard-to-reverse architecture.
+
 ## Open questions
 
 - Exact token names and final color values.

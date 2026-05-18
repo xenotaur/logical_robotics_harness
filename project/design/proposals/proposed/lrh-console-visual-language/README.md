@@ -15,7 +15,8 @@ templates, frontend dependencies, or mutating dashboard behavior.
 1. [`00_proposal.md`](00_proposal.md)
    — umbrella proposal covering scope, motivation, visual direction, conceptual model, information
    architecture, UI patterns, semantic status vocabulary, theme tokens, accessibility, safe-default
-   constraints, implementation guidance, open questions, and mockup asset placeholders.
+   constraints, UX review criteria, the first implemented `lrh serve` review checklist,
+   implementation guidance, open questions, and mockup asset placeholders.
 
 ## Reading order
 

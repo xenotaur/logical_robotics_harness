@@ -10,7 +10,6 @@ for flagging potential sensitive content in conversation transcripts. It is a
 safety rail only: it does not certify that content is safe to publish, does not
 redact source text, and public export should still require human review.
 
-
 ## ChatGPT PDF import
 
 `lrh.conversations.pdf_import` provides the first local, dependency-free

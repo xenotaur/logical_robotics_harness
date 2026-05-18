@@ -1,6 +1,6 @@
 # CI Migration Implementation Request (Assessment-Gated)
 
-Implement a focused CI migration PR only if this repository is an appropriate candidate under the LRH CI setup and debugging playbook. In an LRH source checkout the full playbook lives at `docs/project-setup/ci.md`; this generated request also includes the execution-critical playbook guidance below so it remains usable from an installed LRH package or in target repositories that do not contain that path.
+Implement a focused CI migration PR only if this repository is an appropriate candidate under the LRH CI setup and debugging playbook. In an LRH source checkout the full playbook lives at `docs/how-to/project-setup/ci.md`; this generated request also includes the execution-critical playbook guidance below so it remains usable from an installed LRH package or in target repositories that do not contain that path.
 
 Do not start from a one-size-fits-all workflow template. Discover the project family, canonical commands, setup requirements, and existing CI state before editing files.
 
@@ -19,7 +19,7 @@ You must independently inspect the repository before changing files.
 PACKAGED CI PLAYBOOK SUMMARY
 ==================================================
 
-Use this summary as the portable CI playbook when `docs/project-setup/ci.md` is not available in the target repository. If that file is available, read it as the fuller source and keep this summary as the execution-critical checklist.
+Use this summary as the portable CI playbook when `docs/how-to/project-setup/ci.md` is not available in the target repository. If that file is available, read it as the fuller source and keep this summary as the execution-critical checklist.
 
 - Discover the project family first: Python package/tool, Python scripts/tools collection, Unix command/tool repository, Rust/Cargo, Rust/WASM/WebGPU, JavaScript/TypeScript, game/simulation, documentation/static site, mixed repository, or other.
 - Inventory existing commands and policy files before editing CI: README/docs, `AGENTS.md`, `STYLE.md`, `PROMPTS.md`, `REVIEWS.md`, `scripts/`, `bin/`, `tools/`, `Makefile`, `justfile`, language package metadata, lockfiles, and existing workflow YAML.
@@ -38,7 +38,7 @@ MANDATORY GATE: RE-ASSESS BEFORE EDITING
 
 Before editing any file:
 
-1. Apply the CI playbook guidance embedded in this request. If `docs/project-setup/ci.md` exists, read it as the fuller source; if it does not exist, continue with the packaged summary in this request rather than failing on the missing path.
+1. Apply the CI playbook guidance embedded in this request. If `docs/how-to/project-setup/ci.md` exists, read it as the fuller source; if it does not exist, continue with the packaged summary in this request rather than failing on the missing path.
 2. Inspect the repository and produce a brief suitability gate covering:
    - project family and language profile
    - packaging/build/test/tooling baseline
@@ -205,7 +205,7 @@ PR SUMMARY REQUIREMENTS
 
 Your final summary must include:
 - assessment gate result
-- playbook guidance used: packaged summary in this generated request, plus `docs/project-setup/ci.md` when available
+- playbook guidance used: packaged summary in this generated request, plus `docs/how-to/project-setup/ci.md` when available
 - files changed
 - workflows/scripts added or updated
 - setup/bootstrap vs validation boundary

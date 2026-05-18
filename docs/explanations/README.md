@@ -1,0 +1,25 @@
+# Explanations
+
+Explanations describe LRH concepts, rationale, tradeoffs, and design background.
+
+## What belongs here
+
+- Conceptual overviews that help readers understand LRH's model.
+- Rationale for accepted architecture and workflow choices.
+- Comparisons, tradeoffs, and context that make reference and how-to material easier to apply.
+- Links to authoritative decisions or proposals under [`../../project/`](../../project/) when design authority matters.
+
+## What does not belong here
+
+- Step-by-step task recipes.
+- First-time guided exercises.
+- Exact command catalogs, schemas, or file-format definitions.
+- Duplicated project-control records, evidence, or active status.
+
+## How to decide whether to add content here
+
+Add content here when the reader is asking “why?”, “what does this mean?”, or “how should I think about this?”. If the content tells them exactly what to type or how to complete a task, use [how-to guides](../how-to/README.md). If it defines stable behavior, use [reference](../reference/README.md).
+
+## Currently relevant docs
+
+No explanations have been migrated yet. Existing rationale in [`../../project/design/`](../../project/design/) and [`../../project/memory/`](../../project/memory/) remains authoritative project-control material unless a follow-up PR creates human-facing explanatory summaries here.

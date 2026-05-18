@@ -16,7 +16,7 @@ work_items:
   - WI-CI-PLAYBOOK
 exit_criteria:
   - design proposal and control-plane links exist
-  - human CI setup and debugging playbook exists at `docs/project-setup/ci.md`
+  - human CI setup and debugging playbook exists at `docs/how-to/project-setup/ci.md`
   - CI assessment and implementation request templates apply the playbook
   - CI Agent Skill prototype is considered only after playbook and prompt stabilization
   - reusable templates or fragments are reassessed using dogfooding evidence
@@ -44,7 +44,7 @@ future phases.
 1. **Design proposal and control-plane alignment** — add the CI capability scaffolding proposal,
    create this workstream, and link relevant roadmap, focus, README, and work-item planning notes.
 2. **Human playbook** — create a concise CI setup and debugging playbook at
-   `docs/project-setup/ci.md`, covering canonical scripts, setup/validation separation, version
+   `docs/how-to/project-setup/ci.md`, covering canonical scripts, setup/validation separation, version
    guardrails, workflow YAML checks, and evidence expectations. This phase is implemented by
    `WI-CI-PLAYBOOK`.
 3. **CI request-template refresh** — update CI assessment and implementation request templates to
@@ -57,7 +57,7 @@ future phases.
 ## Work-item leaves
 
 - `WI-CI-PLAYBOOK` — resolved first implementation leaf that created the human CI setup and
-  debugging playbook at `docs/project-setup/ci.md`.
+  debugging playbook at `docs/how-to/project-setup/ci.md`.
 
 The remaining seeds are future planning leaves, not active work items yet:
 
@@ -79,7 +79,7 @@ The remaining seeds are future planning leaves, not active work items yet:
 
 ## Exit criteria
 
-This workstream can move toward resolution when the playbook at `docs/project-setup/ci.md` exists,
+This workstream can move toward resolution when the playbook at `docs/how-to/project-setup/ci.md` exists,
 CI request templates apply it, skill-prototype design has been considered after stabilization, and
 any template or fragment decision
 is grounded in dogfooding evidence.

@@ -15,24 +15,24 @@ generated_from:
     - WI-RUN-PACKET-DRY-RUN
     - WI-RUN-REPORT-MVP
     - WI-LRH-SERVE-SAFE-DEFAULT-MVP
-generated_at: 2026-05-15T19:45:27Z
+generated_at: 2026-05-17T21:50:21Z
 health: yellow
 ---
 
 # Current Status
 
-LRH has crossed the bootstrap threshold for control-plane foundations and now has canonical assist CLI entrypoints (`lrh request`, `lrh snapshot`, `lrh survey`) with package-owned survey implementation. The execution-framework prerequisite package, first execution-contract package, and safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP` local viewer / prompt workbench are implemented.
+LRH has crossed the bootstrap threshold for control-plane foundations and now has canonical assist CLI entrypoints (`lrh request`, `lrh snapshot`, `lrh survey`) plus the safe-default `lrh serve` local viewer/workbench. The execution-framework prerequisite work, first execution-contract package, and serve MVP are implemented; the next identified package is Layer 2 durable run state/manual run tracking.
 
 ## Summary
 
-The immediate execution-framework objective closed the safe-default `lrh serve` local viewer /
-prompt workbench from completed prerequisites and contracts, sequenced through plan refinement, local
-server skeleton, read-only viewer, and prompt/run-packet/report workbench slices:
+The immediate execution-framework objective is to start **Layer 2: durable run state/manual run
+tracking** from completed prerequisites, contracts, and the completed safe-default serve surface. The
+next package should define durable manual run artifacts and lifecycle state while continuing to:
 
 - reuse shared core-state APIs and planning-tree summaries
 - consume opt-in execution-readiness metadata
-- expose run-packet and run-report request artifacts for human review
-- keep autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation deferred
+- preserve run-packet and run-report artifacts for human review
+- keep observation adapters, branch containment, autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation deferred
 
 Versioning hardening and release/versioning closeout are complete: LRH versioning is tag-derived via `setuptools-scm`, the `scripts/version` workflow (`verify`/`tag`/`push`) is in place, and final release validation succeeded for pushed tag `v0.2.4`.
 
@@ -43,10 +43,18 @@ Release-smoke isolation audit closeout remains in effect: diagnostic mode (`scri
 Closeout note (2026-05-03): Completion and work-item tooling (`lrh work-items organize` + `lrh work-items validate`) is implemented, tested, and documented; work-item discovery edge cases including README handling in `lrh work-items validate` are resolved.
 
 
-Execution-framework closeout (2026-05-15): shared core state APIs, planning-tree validation, planning
+
+Control-plane freshness note (2026-05-17): the stale active orphan leaves
+`WI-META-WORKSPACE-RESOLUTION` and `WI-SNAPSHOT-RESOLVED-CONTEXT` were audited and moved to
+resolved based on existing implementation/supersession evidence. `WI-META-CLI-MVP` was already
+resolved before this audit. `lrh validate` is expected to be warning-free for orphan active planning
+leaves after this cleanup.
+
+Execution-framework closeout (2026-05-16): shared core state APIs, planning-tree validation, planning
 relationship indexing, snapshot-visible planning summaries, execution-readiness metadata, dry-run
-run-packet rendering, run-report rendering, and the safe-default `WI-LRH-SERVE-SAFE-DEFAULT-MVP`
-read-only/local-assist viewer and prompt workbench are implemented and have execution records.
+run-packet rendering, run-report rendering, and the safe-default `lrh serve` viewer/workbench are
+implemented and have execution records. The next implementation package is Layer 2 durable run
+state/manual run tracking.
 
 Evidence snapshot:
 - `lrh work-items organize --help` and `lrh work-items validate --help` are available in the CLI.
@@ -75,8 +83,8 @@ release. This is a packaging/governance boundary, not a security sandbox.
 
 ## Active Priorities
 
-- keep the closed `WI-LRH-SERVE-SAFE-DEFAULT-MVP` safe-default boundary intact while selecting the
-  next execution-framework package
+- keep the closed `WI-LRH-SERVE-SAFE-DEFAULT-MVP` safe-default boundary intact while advancing
+  **Layer 2: durable run state/manual run tracking** as the next execution-framework package
 - preserve package-owned assist template/resource loading
 - maintain canonical `lrh survey` delegation to package code
 - keep later branch mutation, observation adapters, stabilization loops, and agent backends deferred
@@ -97,8 +105,10 @@ release. This is a packaging/governance boundary, not a security sandbox.
 
 ## Recommended Next Actions
 
-1. Select the next execution-framework package with the same safe-default, human-gated boundary used
-   for `WI-LRH-SERVE-SAFE-DEFAULT-MVP`.
+1. Plan **Layer 2: durable run state/manual run tracking** for `project/runs/<RUN-ID>/`, `packet.yaml`,
+   `state.yaml`, `events.jsonl`, prompts, evidence, `report.md`, manual lifecycle states,
+   explicit-click/manual updates, and manual/future-automated parity.
 2. Keep package-owned assist template/resource behavior stable.
 3. Keep `lrh survey` canonical on package-owned implementation.
-4. Keep later branch mutation, observation adapters, stabilization loops, and agent backends deferred.
+4. Keep later observation adapters, branch mutation, stabilization loops, PR creation, merge/release
+   automation, destructive actions, and agent backends deferred.

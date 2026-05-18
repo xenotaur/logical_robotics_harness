@@ -28,7 +28,7 @@ class TestTemplatePathAndLoading(unittest.TestCase):
         loaded = request_templates.load_template_text("ci_assess_status")
         self.assertIn("PACKAGED CI PLAYBOOK SUMMARY", loaded)
         self.assertIn("Do not fail solely because", loaded)
-        self.assertIn("docs/project-setup/ci.md", loaded)
+        self.assertIn("docs/how-to/project-setup/ci.md", loaded)
 
     def test_ci_implement_workflow_template_loads_from_package_resources(self) -> None:
         loaded = request_templates.load_template_text("ci_implement_workflow")
@@ -40,7 +40,7 @@ class TestTemplatePathAndLoading(unittest.TestCase):
         loaded = request_templates.load_template_text("ci_implement_workflow")
         self.assertIn("PACKAGED CI PLAYBOOK SUMMARY", loaded)
         self.assertIn("continue with the packaged summary", loaded)
-        self.assertIn("docs/project-setup/ci.md", loaded)
+        self.assertIn("docs/how-to/project-setup/ci.md", loaded)
 
     def test_work_item_semantic_audit_template_loads_from_package_resources(
         self,

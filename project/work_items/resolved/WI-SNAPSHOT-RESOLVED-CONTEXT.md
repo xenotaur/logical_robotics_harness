@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Superseded and completed by later shared core-state, planning-tree relationship, and workstream snapshot MVP work; `lrh snapshot project` now reports focus, contributors, workstream planning summaries, active leaves, and planning diagnostics.
 blocked_reason: null
 blocked: false
 id: WI-SNAPSHOT-RESOLVED-CONTEXT
 title: Make snapshot output reflect resolved control-plane context
 type: deliverable
-status: active
+status: resolved
 owner: anthony
 contributors:
   - anthony
@@ -62,3 +62,13 @@ This is the clearest user-facing proof that Phase 1 semantics are working.
 
 - 2026-04-22: `lrh snapshot` is now a package CLI entrypoint (`lrh snapshot ...`) with dedicated assist module code.
 - 2026-04-22: Snapshot packets include structured summaries and focus-related work item filtering, but do not yet consume full precedence-resolved contributor/context outputs.
+
+
+## Audit Closeout
+
+- 2026-05-17 freshness audit: Resolved this stale Phase 1 active item as superseded/completed by the
+  later core-state and workstream snapshot packages. Current `lrh snapshot project` output includes
+  current focus context, contributor summaries, workstream lifecycle counts, planning relationship
+  counts, active leaf hints, direct workstream-to-work-item relationships, and planning diagnostics.
+  The remaining future snapshot/runtime enhancements belong to the current execution-framework / Layer
+  2 run-state planning rather than this older orphaned active leaf.

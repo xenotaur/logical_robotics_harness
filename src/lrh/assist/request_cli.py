@@ -7,6 +7,7 @@ import re
 import sys
 
 from lrh.assist import (
+    ready_work_item,
     request_catalog,
     request_service,
     request_templates,
@@ -23,7 +24,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         "template_name",
         help=(
             "Request name (e.g. improve-coverage, bootstrap-project, "
-            "work-items-from-audit, prompt-from-work-item, "
+            "work-items-from-audit, ready-work-item, prompt-from-work-item, "
             "run-packet-from-work-item, run-report-from-work-item, "
             "assess-continuous-integration-status). Legacy template names "
             "remain supported. Use 'lrh request list' to discover cataloged "
@@ -39,8 +40,8 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
             "Optional target path or identifier. For coverage-style requests, "
             "this is usually a module path such as "
             "src/lrh/analysis/llm_extractor.py. For "
-            "prompt-from-work-item, this may be a work-item ID, stem, "
-            "or file path."
+            "prompt-from-work-item and ready-work-item, this may be a work-item "
+            "ID, stem, or file path."
         ),
     )
     template_name_arg.completer = argcomplete_adapter.request_template_completer
@@ -423,6 +424,36 @@ def run_templates_cli(
     return 0
 
 
+def build_ready_work_item_parser(
+    *, prog: str = "request ready-work-item"
+) -> argparse.ArgumentParser:
+    """Build parser for assistive work-item readiness refinement requests."""
+    parser = argparse.ArgumentParser(
+        prog=prog,
+        description=(
+            "Render a non-mutating request that helps refine a thin LRH "
+            "work item toward prompt-from-work-item readiness."
+        ),
+    )
+    parser.add_argument(
+        "target",
+        nargs="?",
+        help="Work-item ID, stem, filename, or markdown path.",
+    )
+    parser.add_argument(
+        "--work-item",
+        help="Explicit work-item ID or markdown path. Overrides the positional target.",
+    )
+    parser.add_argument(
+        "--template-dir",
+        help=(
+            "Template override root containing logical paths such as "
+            "request/ready_work_item.md."
+        ),
+    )
+    return parser
+
+
 def build_run_packet_from_work_item_parser(
     *, prog: str = "request run-packet-from-work-item"
 ) -> argparse.ArgumentParser:
@@ -644,6 +675,41 @@ def run_request_cli(
             argv[1:],
             prog=f"{prog} templates",
         )
+
+    if argv and argv[0] == "ready-work-item":
+        command_parser = build_ready_work_item_parser(prog=f"{prog} {argv[0]}")
+        try:
+            command_args = command_parser.parse_args(argv[1:])
+        except SystemExit as error:
+            return int(error.code) if isinstance(error.code, int) else 2
+        target = command_args.work_item or command_args.target
+        if not target:
+            print(
+                "error: ready-work-item requires a work-item ID/path or --work-item.",
+                file=sys.stderr,
+            )
+            return 2
+        try:
+            work_item_file, _ = request_service.resolve_work_item_file_for_request(
+                target_input=target,
+                explicit_work_item_file=None,
+                command_name="ready-work-item",
+                explicit_path_flag="--work-item",
+            )
+            result = ready_work_item.render_ready_work_item_request(
+                work_item_file,
+                project_root=request_variables.find_repo_root() or pathlib.Path.cwd(),
+                template_dirs=(
+                    [command_args.template_dir] if command_args.template_dir else None
+                ),
+            )
+        except (FileNotFoundError, OSError, ValueError) as error:
+            print(str(error), file=sys.stderr)
+            return 2
+        sys.stdout.write(result.markdown)
+        if not result.markdown.endswith("\n"):
+            sys.stdout.write("\n")
+        return 0
 
     if argv and argv[0] in {"run-packet-from-work-item", "run_packet_from_work_item"}:
         command_parser = build_run_packet_from_work_item_parser(

@@ -16,6 +16,7 @@ class TestRequestCli(unittest.TestCase):
 
         self.assertIn("assess-continuous-integration-status", help_text)
         self.assertIn("prompt-from-work-item", help_text)
+        self.assertIn("ready-work-item", help_text)
         self.assertIn("run-report-from-work-item", help_text)
 
     def test_canonical_request_name_uses_catalog_template_mapping(self) -> None:
@@ -1180,6 +1181,102 @@ def _isolated_template_environment():
                 yield
         finally:
             os.chdir(old_cwd)
+
+    def test_ready_work_item_renders_request_for_thin_item(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / ".git").mkdir()
+            work_item = root / "project" / "work_items" / "proposed" / "WI-THIN.md"
+            roadmap = root / "project" / "roadmap" / "phase_03.md"
+            work_item.parent.mkdir(parents=True, exist_ok=True)
+            roadmap.parent.mkdir(parents=True, exist_ok=True)
+            roadmap.write_text(
+                "---\n"
+                "id: ROADMAP-PHASE-03\n"
+                "title: Phase 3\n"
+                "status: active\n"
+                "---\n\n"
+                "# Phase 3\n",
+                encoding="utf-8",
+            )
+            work_item.write_text(
+                "---\n"
+                "id: WI-THIN\n"
+                "title: Thin item\n"
+                "type: deliverable\n"
+                "status: proposed\n"
+                "blocked: false\n"
+                "related_roadmap:\n"
+                "  - ROADMAP-PHASE-03\n"
+                "acceptance:\n"
+                "  - Request renders.\n"
+                "---\n\n"
+                "## Summary\n\nThin.\n",
+                encoding="utf-8",
+            )
+
+            old_cwd = pathlib.Path.cwd()
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            try:
+                os.chdir(root)
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    exit_code = request_cli.run_request_cli(
+                        ["ready-work-item", "WI-THIN"],
+                        prog="lrh request",
+                    )
+            finally:
+                os.chdir(old_cwd)
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertIn("# Ready Work Item Refinement Request", stdout.getvalue())
+            self.assertIn("missing Scope section", stdout.getvalue())
+            self.assertIn("ROADMAP-PHASE-03", stdout.getvalue())
+            self.assertIn("- `## Open Questions`", stdout.getvalue())
+
+    def test_prompt_from_work_item_still_reports_thin_item_not_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / ".git").mkdir()
+            work_item = root / "project" / "work_items" / "proposed" / "WI-THIN.md"
+            style = root / "STYLE.md"
+            work_item.parent.mkdir(parents=True, exist_ok=True)
+            work_item.write_text(
+                "---\n"
+                "id: WI-THIN\n"
+                "title: Thin item\n"
+                "type: deliverable\n"
+                "status: proposed\n"
+                "blocked: false\n"
+                "---\n\n"
+                "## Summary\n\nThin.\n",
+                encoding="utf-8",
+            )
+            style.write_text("# Style\n", encoding="utf-8")
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "prompt-from-work-item",
+                        str(work_item),
+                        "--style-file",
+                        str(style),
+                        "--prompt-id",
+                        "PROMPT(WI-THIN:TEST)[2026-05-18T00:00:00+00:00]",
+                    ],
+                    prog="lrh request",
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertIn("# Work Item Not Ready", stdout.getvalue())
+            self.assertIn("missing Scope section", stdout.getvalue())
 
 
 if __name__ == "__main__":

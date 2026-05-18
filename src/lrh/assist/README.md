@@ -10,7 +10,13 @@ Most assist requests build a **request document** by:
 2. computing or loading variable values (paths, file contents, identifiers, etc.)
 3. rendering the template with those values
 
-Some request surfaces are **structured renderers** instead: they load typed project-control inputs and render deterministic Markdown directly when a template would duplicate existing model logic. For example, `run-packet-from-work-item` consumes work-item readiness metadata and does not have a package request template.
+Some request surfaces combine typed project-control inputs with package-owned templates. For example,
+`ready-work-item` resolves one work item, reuses prompt-readiness diagnostics, gathers referenced
+context, and renders the packaged `request/ready_work_item.md` template without mutating source files.
+Other request surfaces are **structured renderers** instead: they load typed project-control inputs and
+render deterministic Markdown directly when a template would duplicate existing model logic. For
+example, `run-packet-from-work-item` consumes work-item readiness metadata and does not have a package
+request template.
 
 In practice, a “request” is the final filled-in markdown prompt or packet you can hand to a human reviewer or AI coding assistant (for example, to improve test coverage, bootstrap a project control plane, derive work items from an audit, or review a dry-run packet).
 
@@ -83,6 +89,34 @@ CI request templates are self-contained for installed-package use: they mention
 `docs/how-to/project-setup/ci.md` as the fuller source when available, but include a
 packaged CI playbook summary so generated prompts do not require that source
 checkout path in the target repository.
+
+### Ready work-item refinement requests
+
+`lrh request ready-work-item <WORK_ITEM_ID>` renders an assistive, non-mutating
+Markdown request for refining a valid-but-thin work item toward
+`lrh request prompt-from-work-item` readiness. It is useful when
+`prompt-from-work-item` reports missing readiness sections such as `Scope`,
+`Required Changes`, `Acceptance Criteria`, or `Validation`.
+
+The command resolves the selected work item by ID, stem, filename, or path; reuses
+the same prompt-readiness diagnostics as `prompt-from-work-item`; and includes
+resolvable frontmatter context such as `related_roadmap`, `related_focus`,
+`related_design`, `related_workstreams`, and `depends_on`. The rendered request
+asks a human reviewer or coding assistant to propose conservative sections for
+human review, including `Problem`, `Scope`, `Out of Scope`, `Required Changes`,
+`Likely Files`, `Validation`, `Acceptance Criteria`, and `Open Questions`.
+
+This command does not replace `prompt-from-work-item`: it prepares or refines the
+work item so a later implementation prompt can be generated. It does not edit the
+work item, implement the underlying task, dispatch agents, or close lifecycle
+records. Unresolved context in the rendered request should become open questions
+rather than invented scope.
+
+Example:
+
+```bash
+lrh request ready-work-item WI-ASSIST-INSTALLABILITY-HARDENING
+```
 
 
 ### Dry-run run packets
@@ -219,6 +253,7 @@ lrh request --help
 lrh request assess-repository --scope project
 lrh request assess-repository --scope current_focus
 lrh request assess-repository --scope work_item --target WI-0003
+lrh request ready-work-item WI-ASSIST-INSTALLABILITY-HARDENING
 lrh request assess-continuous-integration-status --background-text "Assess CI feasibility for this repository."
 lrh request implement-continuous-integration-workflow --background-file ci_assessment.md
 lrh snapshot --help
@@ -273,7 +308,21 @@ and saves it as `path/to/work_item.md`.
 This step is intentionally manual: LRH expects human judgment when prioritizing
 and approving work.
 
-### Step 4 — Generate a Codex implementation prompt
+### Step 4 — Refine thin work items if needed
+
+If `prompt-from-work-item` reports missing readiness sections, render a
+ready-work-item request first and use the output as a human-reviewed refinement
+proposal:
+
+```bash
+lrh request ready-work-item WI-ASSIST-INSTALLABILITY-HARDENING \
+  > path/to/ready_request.md
+```
+
+Apply only reviewed, grounded section updates to the work item, then rerun prompt
+generation.
+
+### Step 5 — Generate a Codex implementation prompt
 
 Render an implementation prompt request for the selected work item:
 
@@ -305,7 +354,7 @@ Work item Markdown
   -> execution record
 ```
 
-### Step 5 — Review the resulting patch against the work item
+### Step 6 — Review the resulting patch against the work item
 
 After implementation, review the proposed change against the same work item:
 

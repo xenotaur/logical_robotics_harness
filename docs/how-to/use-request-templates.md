@@ -49,6 +49,8 @@ Inspect template override resolution:
 ```bash
 lrh request templates list
 lrh request templates where review-response
+lrh request templates --template-dir .lrh/templates list
+lrh request templates --template-dir .lrh/templates where review-response
 ```
 
 Use a filesystem template override root:
@@ -74,6 +76,7 @@ python -m lrh.cli.main request list
 
 - `list` and `describe` are reserved catalog commands, not renderable request names.
 - `templates` is also a diagnostics namespace. Use `lrh request templates list` or `lrh request templates where <name>`.
+- For `lrh request templates`, place `--template-dir` before `list` or `where`; for example, `lrh request templates --template-dir .lrh/templates list`.
 - `--template-dir` expects a root containing logical paths such as `request/review_response.md`; pass it more than once only when you need explicit override precedence.
 - Some requests validate their inputs. For example, a work-item prompt needs a resolvable work-item file or identifier.
 

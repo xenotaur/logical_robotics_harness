@@ -15,6 +15,8 @@ lrh request prompt-from-work-item --work-item-file project/work_items/active/WI-
 lrh request bootstrap-project --repo-name example --project-goal "Adopt LRH control files."
 lrh request templates list
 lrh request templates where review-response
+lrh request templates --template-dir .lrh/templates list
+lrh request templates --template-dir .lrh/templates where review-response
 python -m lrh.cli.main request list
 ```
 
@@ -46,8 +48,9 @@ Catalog and template diagnostics:
 
 - `lrh request list [--category CATEGORY]`: list cataloged requests grouped by category.
 - `lrh request describe REQUEST_NAME`: show canonical metadata for a canonical or legacy name.
-- `lrh request templates list [--template-dir DIR]`: show request templates and selected source.
-- `lrh request templates where NAME [--template-dir DIR]`: show the selected source for one request template.
+- `lrh request templates [--template-dir DIR] list`: show request templates and selected source.
+- `lrh request templates [--template-dir DIR] where NAME`: show the selected source for one request template.
+- Place `--template-dir` before `list` or `where`; the option belongs to the `templates` parent parser.
 
 ## Current behavior and limitations
 

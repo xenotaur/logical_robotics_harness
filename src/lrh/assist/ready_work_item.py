@@ -187,6 +187,8 @@ def _resolve_reference(
     searched: list[str] = []
     for candidate in direct_candidates:
         searched.append(_display_path(candidate, project_root=project_root))
+        if not _is_within_directory(candidate, project_root):
+            continue
         if candidate.is_file():
             return candidate, searched
 
@@ -273,7 +275,7 @@ def _render_referenced_context(
 
     lines: list[str] = []
     if resolved:
-        lines.append("## Resolved Context")
+        lines.append("### Resolved Context")
         for context in resolved:
             title = f" — {context.title}" if context.title else ""
             status = f" (status: {context.status})" if context.status else ""
@@ -287,7 +289,7 @@ def _render_referenced_context(
     if unresolved:
         if lines:
             lines.append("")
-        lines.append("## Unresolved Context")
+        lines.append("### Unresolved Context")
         for context in unresolved:
             searched = ", ".join(f"`{item}`" for item in context.searched)
             lines.append(
@@ -328,6 +330,15 @@ def _excerpt(body: str, *, max_chars: int = 360) -> str:
     if len(text) <= max_chars:
         return text
     return f"{text[: max_chars - 1].rstrip()}…"
+
+
+def _is_within_directory(path: pathlib.Path, directory: pathlib.Path) -> bool:
+    """Return whether ``path`` resolves inside ``directory``."""
+    try:
+        path.resolve().relative_to(directory.resolve())
+    except (OSError, ValueError):
+        return False
+    return True
 
 
 def _display_path(path: pathlib.Path, *, project_root: pathlib.Path) -> str:

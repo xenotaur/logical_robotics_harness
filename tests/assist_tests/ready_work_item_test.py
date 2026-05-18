@@ -47,6 +47,53 @@ class TestReadyWorkItemRequest(unittest.TestCase):
 
             self.assertEqual(work_item.read_text(encoding="utf-8"), original)
 
+    def test_render_does_not_read_references_outside_project_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            workspace = pathlib.Path(temp_dir)
+            root = workspace / "repo"
+            root.mkdir()
+            (root / ".git").mkdir()
+            outside = workspace / "outside_secret.md"
+            outside.write_text(
+                "---\n"
+                "id: OUTSIDE-SECRET\n"
+                "title: Outside Secret\n"
+                "---\n\n"
+                "SECRET OUTSIDE CONTENT\n",
+                encoding="utf-8",
+            )
+            work_item = root / "project" / "work_items" / "proposed" / "WI-THIN.md"
+            work_item.parent.mkdir(parents=True, exist_ok=True)
+            work_item.write_text(
+                "---\n"
+                "id: WI-THIN\n"
+                "title: Thin item\n"
+                "type: deliverable\n"
+                "status: proposed\n"
+                "blocked: false\n"
+                "related_design:\n"
+                f"  - {outside.as_posix()}\n"
+                "related_evidence:\n"
+                "  - ../outside_secret.md\n"
+                "acceptance:\n"
+                "  - Reviewed proposal exists.\n"
+                "---\n\n"
+                "## Summary\n\n"
+                "Needs more detail.\n",
+                encoding="utf-8",
+            )
+
+            result = ready_work_item.render_ready_work_item_request(
+                work_item,
+                project_root=root,
+            )
+
+            self.assertNotIn("SECRET OUTSIDE CONTENT", result.markdown)
+            self.assertNotIn("Outside Secret", result.markdown)
+            self.assertIn("was not resolved", result.markdown)
+            self.assertEqual(result.resolved_context, ())
+            self.assertEqual(len(result.unresolved_context), 2)
+
     def _write_project_fixture(self, root: pathlib.Path) -> pathlib.Path:
         roadmap = root / "project" / "roadmap" / "phase_03.md"
         focus = root / "project" / "focus" / "current_focus.md"

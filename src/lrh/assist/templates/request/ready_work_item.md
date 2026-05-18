@@ -24,9 +24,9 @@ Readiness status: **{{READINESS_STATUS}}**
 
 ## Target Work Item Source
 
-```markdown
+````markdown
 {{WORK_ITEM_CONTENT}}
-```
+````
 
 ## Requested Output Sections
 

@@ -24,10 +24,14 @@ Created `docs/tutorials/first-lrh-project.md` and `docs/tutorials/first-prompt-d
 
 - `scripts/version tools` passed before task-phase validation; Ruff `0.15.12` and Black `26.3.1` matched repository expectations.
 - Manually walked through the first-project tutorial in a temporary directory: created `project/focus/current_focus.md`, ran `lrh validate --project-dir project`, and generated a snapshot with `lrh snapshot project --project-root . --output /tmp/my-first-lrh-project-snapshot.md`.
-- Manually smoke-tested prompt workflow commands used in the prompt-driven tutorial: `scripts/prompts/label-prompt --slug improve-docs-example`, `lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .`, and `scripts/prompts/record-execution ... --dry-run`.
+- Review feedback addressed: replaced source-checkout-only prompt helper examples with portable `lrh prompt label` and `lrh prompt record-execution --project-root .` examples, while noting repo-local wrappers for LRH maintainers.
+- Review feedback addressed: corrected the rerun execution ID example to the documented `YYYY_MM_DD_HH_MM_SS_<SLUG>` format.
+- Manually smoke-tested prompt workflow commands used in the prompt-driven tutorial: `lrh prompt label --slug improve-docs-example --project-root .`, `lrh prompt record-execution ... --project-root . --dry-run`, and the rerun `lrh prompt record-execution ... --rerun-of 2026_05_18_12_00_00_IMPROVE_DOCS_EXAMPLE --project-root . --dry-run`.
 - Manually checked relative Markdown links in the new tutorial files and `docs/tutorials/README.md` with a small Python script.
+- `scripts/format --check --diff` passed.
 - `scripts/lint` passed.
 - `scripts/test` passed: 531 tests.
+- `lrh validate --project-dir project` passed.
 
 # Follow-up
 

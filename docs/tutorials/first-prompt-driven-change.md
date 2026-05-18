@@ -27,13 +27,13 @@ PROMPT(<WORK_ITEM_OR_AD_HOC>:<SLUG_UPPER_UNDERSCORE>)[<ISO8601_TIMESTAMP_WITH_OF
 
 Use a work-item ID when the prompt directly advances a work item. Use `AD_HOC` when no work item applies.
 
-For an ad hoc documentation change, you can ask LRH to generate a prompt label:
+For an ad hoc documentation change, you can ask LRH to generate a prompt label from the repository root of the project you are changing:
 
 ```bash
-scripts/prompts/label-prompt --slug improve-docs-example
+lrh prompt label --slug improve-docs-example --project-root .
 ```
 
-The output includes a `prompt_id` and a suggested execution-record path. Keep the full prompt ID with the prompt text you submit to a human or agent.
+The output includes a `prompt_id` and a suggested execution-record path. Keep the full prompt ID with the prompt text you submit to a human or agent. If you are working from an LRH source checkout, the repo-local `scripts/prompts/label-prompt` wrapper is also available, but installed `lrh prompt ...` commands are the portable form for client repositories.
 
 For this tutorial, examples use a placeholder:
 
@@ -101,14 +101,15 @@ For documentation-only changes, also manually inspect copy-paste commands and li
 After the work and validation, create an execution record for the prompt. Use `AD_HOC` when no work item applies:
 
 ```bash
-scripts/prompts/record-execution \
+lrh prompt record-execution \
   --prompt-id "$PROMPT_ID" \
   --work-item AD_HOC \
   --slug improve-docs-example \
-  --status in_progress
+  --status in_progress \
+  --project-root .
 ```
 
-The helper writes a Markdown file under `project/executions/AD_HOC/`. Use the generated file to summarize:
+The helper writes a Markdown file under `project/executions/AD_HOC/`. In an LRH source checkout, maintainers may use the equivalent repo-local wrapper `scripts/prompts/record-execution`; outside that checkout, use `lrh prompt record-execution`. Use the generated file to summarize:
 
 - what changed;
 - the result;
@@ -128,15 +129,16 @@ lrh prompt check-execution --prompt-id "$PROMPT_ID" --project-root .
 Then apply the status rules from `PROMPTS.md` and `project/executions/README.md`. If the new run is intentionally a rerun of a prior failed, reverted, or superseded execution, pass `--rerun-of` when recording the new execution:
 
 ```bash
-scripts/prompts/record-execution \
+lrh prompt record-execution \
   --prompt-id "$PROMPT_ID" \
   --work-item AD_HOC \
   --slug improve-docs-example-rerun \
   --status in_progress \
-  --rerun-of 2026_05_18_120000_IMPROVE_DOCS_EXAMPLE
+  --rerun-of 2026_05_18_12_00_00_IMPROVE_DOCS_EXAMPLE \
+  --project-root .
 ```
 
-Use the actual prior `execution_id` from the existing record.
+Use the actual prior `execution_id` from the existing record exactly; execution IDs use the `YYYY_MM_DD_HH_MM_SS_<SLUG>` format documented in `project/executions/README.md`.
 
 ## What success looks like
 

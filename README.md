@@ -74,6 +74,19 @@ Proposal frontmatter `status` is authoritative; path buckets under
 `project/design/proposals/` are derived for human readability, while
 proposal-set relative paths are preserved within those buckets.
 
+ChatGPT browser Save-as-PDF exports can be converted locally into
+private-by-default Markdown conversation transcripts with:
+
+```bash
+lrh conversation convert-pdf INPUT.pdf --out OUTPUT.md
+```
+
+The converter performs no model calls or cloud uploads. It uses a lightweight
+text-layer extractor for simple `Tj` and `TJ` PDF text operators, rejects
+encrypted PDFs when encryption is declared in the trailer, emits provenance
+frontmatter, and runs the local sensitivity scanner by default. It is not OCR
+and does not infer authoritative speaker turns from weak PDF layout clues.
+
 The completed safe-default local read-only viewer / prompt workbench can be started with:
 
 ```bash

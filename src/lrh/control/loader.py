@@ -5,7 +5,15 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from lrh.control.models import Contributor, Focus, ProjectState, WorkItem, Workstream
+from lrh.control import execution_readiness
+from lrh.control.models import (
+    Contributor,
+    DesignProposal,
+    Focus,
+    ProjectState,
+    WorkItem,
+    Workstream,
+)
 from lrh.control.parser import ParsedMarkdown, parse_markdown_file
 
 
@@ -33,6 +41,11 @@ def load_project(root: Path) -> ProjectState:
     workstreams = load_workstreams(project_dir)
     workstreams_by_id = _index_by_id(workstreams, artifact_label="workstream")
 
+    design_proposals = load_design_proposals(project_dir)
+    design_proposals_by_id = _index_by_id(
+        design_proposals, artifact_label="design proposal"
+    )
+
     contributors = _load_contributors(project_dir / "contributors")
     contributors_by_id = _index_by_id(contributors, artifact_label="contributor")
 
@@ -43,6 +56,8 @@ def load_project(root: Path) -> ProjectState:
         work_items_by_id=work_items_by_id,
         workstreams=workstreams,
         workstreams_by_id=workstreams_by_id,
+        design_proposals=design_proposals,
+        design_proposals_by_id=design_proposals_by_id,
         contributors=contributors,
         contributors_by_id=contributors_by_id,
     )
@@ -53,6 +68,37 @@ def load_workstreams(root: Path) -> tuple[Workstream, ...]:
 
     project_dir = find_project_dir(root)
     return _load_workstreams(project_dir / "workstreams")
+
+
+def load_workstreams_from_project_dir_permissive(
+    project_dir: Path,
+) -> tuple[tuple[Workstream, ...], tuple[str, ...]]:
+    """Load valid workstreams and collect skipped-file warnings."""
+
+    return _load_workstreams_permissive(project_dir / "workstreams")
+
+
+def load_design_proposals(root: Path) -> tuple[DesignProposal, ...]:
+    """Load design proposals from a project or repository root."""
+
+    project_dir = find_project_dir(root)
+    return load_design_proposals_from_project_dir(project_dir)
+
+
+def load_design_proposals_from_project_dir(
+    project_dir: Path,
+) -> tuple[DesignProposal, ...]:
+    """Load design proposals from an already resolved project directory."""
+
+    return _load_design_proposals(project_dir / "design" / "proposals")
+
+
+def load_design_proposals_from_project_dir_permissive(
+    project_dir: Path,
+) -> tuple[tuple[DesignProposal, ...], tuple[str, ...]]:
+    """Load valid design proposals and collect skipped-file warnings."""
+
+    return _load_design_proposals_permissive(project_dir / "design" / "proposals")
 
 
 def _load_focus(path: Path) -> Focus:
@@ -90,6 +136,8 @@ def _load_work_items(directory: Path) -> tuple[WorkItem, ...]:
                 assigned_agents=_list_of_strings(fm, "assigned_agents"),
                 related_focus=_list_of_strings(fm, "related_focus"),
                 related_roadmap=_list_of_strings(fm, "related_roadmap"),
+                related_workstreams=_list_of_strings(fm, "related_workstreams"),
+                related_design=_list_of_strings(fm, "related_design"),
                 depends_on=_list_of_strings(fm, "depends_on"),
                 blocked_by=_list_of_strings(fm, "blocked_by"),
                 expected_actions=_list_of_strings(fm, "expected_actions"),
@@ -97,6 +145,7 @@ def _load_work_items(directory: Path) -> tuple[WorkItem, ...]:
                 acceptance=_list_of_strings(fm, "acceptance"),
                 required_evidence=_list_of_strings(fm, "required_evidence"),
                 artifacts_expected=_list_of_strings(fm, "artifacts_expected"),
+                execution_readiness=execution_readiness.from_frontmatter(fm),
                 body=parsed.body,
                 frontmatter=fm,
             )
@@ -113,6 +162,32 @@ def _load_workstreams(directory: Path) -> tuple[Workstream, ...]:
         parsed = parse_markdown_file(path)
         workstreams.append(_workstream_from_parsed(path, directory, parsed))
     return tuple(workstreams)
+
+
+def _load_workstreams_permissive(
+    directory: Path,
+) -> tuple[tuple[Workstream, ...], tuple[str, ...]]:
+    if not directory.exists():
+        return (), ()
+
+    workstreams: list[Workstream] = []
+    warnings: list[str] = []
+    for path in _iter_workstream_files(directory):
+        try:
+            parsed = parse_markdown_file(path)
+            workstreams.append(_workstream_from_parsed(path, directory, parsed))
+        except ValueError as error:
+            warnings.append(
+                f"Skipped {_relative_path_for_warning(path, directory)}: {error}"
+            )
+    return tuple(workstreams), tuple(warnings)
+
+
+def _relative_path_for_warning(path: Path, directory: Path) -> str:
+    try:
+        return str(path.relative_to(directory))
+    except ValueError:
+        return str(path)
 
 
 def _iter_workstream_files(directory: Path) -> tuple[Path, ...]:
@@ -155,6 +230,7 @@ def _workstream_from_parsed(
         rationale=_optional_str(fm, "rationale"),
         related_focus=_list_of_strings(fm, "related_focus"),
         related_roadmap=_list_of_strings(fm, "related_roadmap"),
+        related_design=_list_of_strings(fm, "related_design"),
         work_items=_list_of_strings(fm, "work_items"),
         execution_records=_list_of_strings(fm, "execution_records"),
         evidence=_list_of_strings(fm, "evidence"),
@@ -173,6 +249,82 @@ def _workstream_bucket(path: Path, workstreams_dir: Path) -> str | None:
     if not relative_parts:
         return None
     return relative_parts[0]
+
+
+def _load_design_proposals(directory: Path) -> tuple[DesignProposal, ...]:
+    proposals, _warnings = _load_design_proposals_from_directory(directory, strict=True)
+    return proposals
+
+
+def _load_design_proposals_permissive(
+    directory: Path,
+) -> tuple[tuple[DesignProposal, ...], tuple[str, ...]]:
+    return _load_design_proposals_from_directory(directory, strict=False)
+
+
+def _load_design_proposals_from_directory(
+    directory: Path,
+    *,
+    strict: bool,
+) -> tuple[tuple[DesignProposal, ...], tuple[str, ...]]:
+    if not directory.exists():
+        return (), ()
+
+    proposals: list[DesignProposal] = []
+    warnings: list[str] = []
+    for path in sorted(directory.glob("**/*.md")):
+        if _is_ignored_design_proposal_file(path):
+            continue
+        try:
+            parsed = parse_markdown_file(path)
+            if not _is_design_proposal_frontmatter(parsed.frontmatter):
+                continue
+            proposals.append(_design_proposal_from_parsed(path, parsed))
+        except ValueError as error:
+            if strict:
+                raise
+            warnings.append(_design_proposal_load_warning(directory, path, error))
+    return tuple(proposals), tuple(warnings)
+
+
+def _design_proposal_from_parsed(path: Path, parsed: ParsedMarkdown) -> DesignProposal:
+    fm = parsed.frontmatter
+    return DesignProposal(
+        path=path,
+        id=_required_str(fm, "id", path),
+        title=_optional_str(fm, "title") or _optional_str(fm, "summary"),
+        status=_required_str(fm, "status", path),
+        implementation_status=_optional_str(fm, "implementation_status"),
+        implemented_by=_list_of_strings(fm, "implemented_by"),
+        evidence=_list_of_strings(fm, "evidence"),
+        supersedes=_list_of_strings(fm, "supersedes"),
+        superseded_by=_optional_str(fm, "superseded_by"),
+        body=parsed.body,
+        frontmatter=fm,
+    )
+
+
+def _design_proposal_load_warning(
+    directory: Path,
+    path: Path,
+    error: ValueError,
+) -> str:
+    try:
+        relative_path = path.relative_to(directory)
+    except ValueError:
+        relative_path = path
+    return f"Skipped {relative_path}: {error}"
+
+
+def _is_ignored_design_proposal_file(path: Path) -> bool:
+    return path.name in {"README.md", "index.md"}
+
+
+def _is_design_proposal_frontmatter(frontmatter: dict[str, Any]) -> bool:
+    return (
+        frontmatter.get("type") == "design_proposal"
+        or frontmatter.get("kind") == "design_proposal"
+    )
 
 
 def _load_contributors(directory: Path) -> tuple[Contributor, ...]:

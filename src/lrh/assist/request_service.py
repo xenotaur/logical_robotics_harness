@@ -16,56 +16,65 @@ _WORK_ITEM_H1_ID_PATTERN = re.compile(
 )
 
 
+def _request_display_name(args: argparse.Namespace) -> str:
+    """Return the user-facing request name to use in diagnostics."""
+    request_name = getattr(args, "request_name", None)
+    if isinstance(request_name, str) and request_name.strip():
+        return request_name.strip()
+    return args.template_name
+
+
 def validate_args(args: argparse.Namespace) -> str | None:
     """Validate request arguments and return an error message if invalid."""
     target_input = resolve_target_input(args)
+    display_name = _request_display_name(args)
 
     if args.template_name == "improve_coverage" and not target_input:
-        return "error: improve_coverage requires a target module path."
+        return f"error: {display_name} requires a target module path."
 
     if args.template_name == "bootstrap_project":
         if not args.repo_name and not target_input:
             return (
-                "error: bootstrap_project requires --repo-name or a target value "
+                f"error: {display_name} requires --repo-name or a target value "
                 "that can be used as the repository identifier."
             )
 
     if args.template_name == "assessment":
         if not args.scope:
             return (
-                "error: assessment requires --scope "
+                f"error: {display_name} requires --scope "
                 "(project, current_focus, or work_item)."
             )
         if args.scope == "work_item" and not target_input:
             return (
-                "error: assessment --scope work_item requires --target "
+                f"error: {display_name} --scope work_item requires --target "
                 "(for example --target WI-0003)."
             )
 
     if args.template_name == "work_items_from_audit":
         if not args.audit_file:
-            return "error: work_items_from_audit requires --audit-file."
+            return f"error: {display_name} requires --audit-file."
         if not args.style_file:
-            return "error: work_items_from_audit requires --style-file."
+            return f"error: {display_name} requires --style-file."
 
     if args.template_name == "codex_prompt_from_work_item":
         if not args.work_item_file and not target_input:
             return (
-                "error: codex_prompt_from_work_item requires a target "
+                f"error: {display_name} requires a target "
                 "work item ID/path or --work-item-file."
             )
 
     if args.template_name == "review_response":
         if not target_input:
-            return "error: review_response requires a target PR URL."
+            return f"error: {display_name} requires a target PR URL."
 
     if args.template_name == "pr_against_work_item":
         if not args.work_item_file:
-            return "error: pr_against_work_item requires --work-item-file."
+            return f"error: {display_name} requires --work-item-file."
         if not args.patch_file:
-            return "error: pr_against_work_item requires --patch-file."
+            return f"error: {display_name} requires --patch-file."
         if not args.style_file:
-            return "error: pr_against_work_item requires --style-file."
+            return f"error: {display_name} requires --style-file."
 
     return None
 
@@ -245,6 +254,29 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
     }
 
 
+def resolve_work_item_file_for_request(
+    *,
+    target_input: str,
+    explicit_work_item_file: str | None = None,
+    command_name: str = "codex_prompt_from_work_item",
+    explicit_path_flag: str = "--work-item-file",
+) -> tuple[str, str]:
+    """Resolve a work-item target by explicit path, repository-relative path, or ID."""
+    args = argparse.Namespace(
+        template_name="codex_prompt_from_work_item",
+        work_item_file=explicit_work_item_file,
+        work_item_command_name=command_name,
+        work_item_flag_name=explicit_path_flag,
+    )
+    resolved, resolution = _resolve_codex_work_item_file(
+        args=args,
+        target_input=target_input,
+    )
+    if resolved is None:
+        raise FileNotFoundError(f"error: No work item matched target '{target_input}'.")
+    return resolved, resolution
+
+
 def _resolve_codex_style_file(args: argparse.Namespace) -> str | None:
     """Resolve style-file behavior for codex_prompt_from_work_item templates."""
     if args.template_name != "codex_prompt_from_work_item":
@@ -304,6 +336,11 @@ def _resolve_codex_work_item_file(
             f"{target_input}"
         )
 
+    command_name = getattr(
+        args, "work_item_command_name", "codex_prompt_from_work_item"
+    )
+    flag_name = getattr(args, "work_item_flag_name", "--work-item-file")
+
     work_item_root = _resolve_work_item_root()
     candidates = _find_work_item_candidates(
         target_input=target_input,
@@ -319,8 +356,8 @@ def _resolve_codex_work_item_file(
         raise FileNotFoundError(
             "error: No work item matched target "
             f"'{target_input}'. Searched:\n{searched}\n"
-            "Try: lrh request codex_prompt_from_work_item WI-EXAMPLE\n"
-            "Or:  lrh request codex_prompt_from_work_item --work-item-file "
+            f"Try: lrh request {command_name} WI-EXAMPLE\n"
+            f"Or:  lrh request {command_name} {flag_name} "
             "project/work_items/proposed/WI-EXAMPLE.md"
         )
 
@@ -329,10 +366,13 @@ def _resolve_codex_work_item_file(
         by_path.setdefault(path, resolution)
     if len(by_path) > 1:
         candidate_paths = "\n".join(f"- {path}" for path in sorted(by_path.keys()))
+        ambiguity_guidance = f"Pass {flag_name} with a work-item path explicitly."
+        if flag_name == "--work-item-file":
+            ambiguity_guidance = "Pass --work-item-file explicitly."
         raise FileNotFoundError(
             "error: Ambiguous work item target "
             f"'{target_input}'. Matches:\n{candidate_paths}\n"
-            "Pass --work-item-file explicitly."
+            f"{ambiguity_guidance}"
         )
 
     only_path = next(iter(by_path.keys()))

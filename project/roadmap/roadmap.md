@@ -17,7 +17,7 @@ children:
 The harness should be built in stages, with the earliest stages proving the project model and local
 workflow before deeper agent integration.
 
-## Current sequencing update (2026-05-05)
+## Current sequencing update (2026-05-16)
 
 Recently completed baseline work:
 
@@ -25,18 +25,18 @@ Recently completed baseline work:
 - precedence resolver implementation and canonicalization closure validation (`WI-PRECEDENCE-RESOLVER`)
 - package CLI adoption for `lrh request` and `lrh snapshot`
 - reconciled near-term design basis that treats recursive planning-tree workstreams as accepted planning architecture
+- closed out the safe-default `lrh serve` local viewer / prompt workbench MVP
 
 Immediate next ordering:
 
-1. complete **Phase 01A — Planning Tree and Workstream Foundation** as the explicit planning
-   prerequisite for the Workstream Control Plane MVP
-2. then implement the Workstream Control Plane MVP through the scoped work items created by
-   Phase 01A
-3. represent workstreams as first-class, repo-native planning artifacts before automation
-4. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item**
-5. keep parent/child structure metadata-driven rather than path-driven
-6. keep metadata authoritative and treat directory buckets as navigation projections
-7. sequence work through small reviewable work items before any execution-framework implementation
+1. treat the Workstream Control Plane MVP as the landed prerequisite for execution-framework planning
+2. plan **Phase 3 — Execution, Evidence, and Status** as a staged bounded execution-framework phase
+3. treat the safe-default `lrh serve` local viewer / prompt workbench as completed closeout evidence
+4. identify **Layer 2: durable run state/manual run tracking** as the next execution-framework package
+5. keep user-facing concepts simple and explicit: **Project -> Workstream -> Work Item -> Run Packet -> Run State -> Run Report**
+6. preserve human/policy gates for merge, release, publish, and closeout
+7. keep observation adapters, branch mutation, autonomous stabilization, and backend adapters deferred until manual run-state contracts are stable
+8. sequence work through small reviewable work items before any execution-framework implementation
 
 Prompt-workflow integration note:
 
@@ -80,6 +80,87 @@ be read as deferred execution-framework shorthand, not as a safe-default command
 integrated `lrh run` alias is ever introduced for autonomous behavior, it must require the optional
 agentic capability and be unavailable in the default non-agentic install.
 
+
+## Near-term roadmap addition: Bounded Agent Execution Framework
+
+Canonical living design: `project/design/execution_framework_mvp.md`. The workstream is staged as prerequisite control-plane alignment, first execution contracts, completed read-only/local-assist workbench, durable manual run state, ecosystem observation, and only later bounded runtime execution.
+
+MVP goal:
+
+> LRH can prepare and eventually run bounded, auditable execution workflows for selected executable
+> leaves, using run packets, branch-contained PR stabilization, validation evidence, and final run
+> reports while preserving human/policy gates.
+
+Recommended staged deliverables:
+
+The prerequisite control-plane alignment, first execution-contract sequence, and safe-default
+`WI-LRH-SERVE-SAFE-DEFAULT-MVP` local viewer / prompt workbench are complete. The next
+implementation package is **Layer 2: durable run state/manual run tracking**, with later observation,
+mutation, stabilization, and adapter work still deferred.
+
+Completed prerequisite control-plane alignment:
+
+1. **Shared core state APIs** — expose one reusable interpretation of project-control state for CLI,
+   request, serve, snapshot, and future dry-run surfaces.
+2. **Planning relationship/index validation** — validate workstream/work-item relationships before UI
+   or runtime surfaces infer planning-tree state.
+3. **Snapshot-visible planning summaries** — make planning-tree state visible through snapshots before
+   or alongside later `lrh serve` work.
+
+Completed first execution-contract package:
+
+1. **Execution readiness schema** — define the opt-in work-item fields required before a selected leaf
+   can be used for future run-packet generation or execution workflows.
+2. **Run packet dry-run** — generate a human-reviewable packet without invoking an agent or mutating
+   branches.
+3. **Run report MVP** — define and generate final Markdown reports with status, validation evidence,
+   human verification tasks, and recommended next actions.
+
+Completed safe-default serve package:
+
+1. **Safe-default `lrh serve` viewer and prompt workbench** — renders shared state and first-package
+   contracts without becoming an autonomous runner or separate tree interpreter.
+
+Next implementation package:
+
+1. **Layer 2: durable run state/manual run tracking** — define and persist `project/runs/<RUN-ID>/`
+   artifacts such as `packet.yaml`, `state.yaml`, `events.jsonl`, `prompts/`, `evidence/`, and
+   `report.md`; manual-mode lifecycle states; explicit-click/manual update paths; and parity between
+   manual runs and future automated runs.
+
+Deferred follow-on packages:
+
+1. **Agent branch containment design support** — document agent-owned branch namespaces, protected
+   merge gates, and branch policy assumptions before mutation-capable behavior.
+2. **GitHub PR/CI observation adapter** — read PR, review, and CI state without repository mutation.
+3. **Bounded stabilization loop design** — plan iteration limits, stop conditions, and escalation
+   rules before automation can respond to review or CI.
+4. **Backend adapter abstraction** — define backend-neutral contracts only after packet/report and
+   policy boundaries are stable.
+5. **Manual/assisted/bounded-auto mode progression** — preserve manual-mode parity before assisted
+   or bounded-auto execution.
+
+Next implementation package:
+
+1. **Layer 2: durable run state/manual run tracking**
+
+This package should define durable manual run-state artifacts and lifecycle transitions that consume
+the completed shared state, execution-readiness, run-packet, run-report, and safe-default serve
+contracts. It should not add autonomous runtime dispatch, observation adapters, branch containment,
+branch mutation, PR creation, merge/release automation, or backend adapters.
+
+Explicitly deferred until later phases or optional capability work:
+
+- automatic merge to main
+- release or publish automation
+- secrets management beyond documented policy assumptions
+- privileged workflow execution
+- MCP bridges
+- telemetry systems
+- full autonomous execution
+- backend-specific implementations until contracts are stable
+- autonomous branch mutation before readiness, packet, and report contracts exist
+
 ## Phase 1 — Control Plane
 
 Define and implement the project control model:
@@ -107,14 +188,14 @@ Exit condition:
 
 ## Phase 3 — Execution, Evidence, and Status
 
-Add operational behavior:
-- work item execution scaffolding
-- evidence recording
-- synthesized status
-- run artifacts
+Phase 3 is now staged by the bounded execution-framework plan above. The canonical phase detail lives
+in `project/roadmap/phase_03_execution_evidence_status.md`, starting with execution readiness,
+dry-run run packets, and run reports before mutation-capable automation, PR stabilization loops, or
+agent backends.
 
 Exit condition:
-- LRH can execute a bounded workflow and produce evidence-backed status.
+- LRH can prepare bounded, evidence-backed execution artifacts and later execute bounded workflows
+  only after readiness, packet, report, and human/policy-gate contracts are stable.
 
 ## Phase 4 — MCP and Agent Integration
 

@@ -146,7 +146,7 @@ non-agentic; future autonomous capability must stay explicit through
 package exists.
 
 Accepted release architecture is Option D from
-`project/design/proposals/tag-push-pypi-publishing/`: version-tag push
+`project/design/proposals/adopted/tag-push-pypi-publishing/`: version-tag push
 publishing of the safe-default `lrh` package using PyPI Trusted
 Publishing. Implementation should proceed through narrow, evidence-backed
 PRs: metadata/resource hardening, build/smoke scripts, CI smoke checks,
@@ -162,6 +162,18 @@ For meaningful prompt-driven work, LRH uses prompt IDs and execution records as 
 - Execution records are stored under `project/executions/` per `project/executions/README.md`.
 - Before starting prompt-driven implementation, contributors should apply soft idempotence checks against prior executions for the same prompt ID.
 - Prompt workflow records should remain lightweight and should not replace normal project artifacts such as roadmap, focus, work items, evidence, and status.
+
+### Bounded execution framework MVP
+
+The canonical living design and context package for bounded execution is `project/design/execution_framework_mvp.md`. Historical rationale remains under `project/design/proposals/`, while the MVP design records the current staged plan: shared planning relationship/index state and validation, snapshot-visible planning summaries, safe-default serve/request surfaces, opt-in execution readiness, durable run artifacts, ecosystem observation and containment adapters, and later bounded runtime execution.
+
+### Work-item readiness workflow
+
+`project/design/work_item_readiness_workflow.md` defines the design-plane boundary between valid,
+audited, ready, promptable, prompted, executed, and evidence-reported work items. In particular,
+ordinary `lrh work-items validate` hygiene remains separate from implementation-prompt readiness;
+future `lrh work-items readiness` diagnostics and `lrh request ready-work-item` assistance should make
+that boundary explicit without automatically mutating work-item source files.
 
 ### Workstreams and planning nodes
 

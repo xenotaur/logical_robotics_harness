@@ -1,6 +1,6 @@
 ---
-id: FOCUS-WORKSTREAM-CONTROL-PLANE-MVP
-title: Establish planning-tree semantics and workstreams safely
+id: FOCUS-EXECUTION-FRAMEWORK-PLANNING
+title: Align Layer 2 durable run state after safe-default serve closeout
 status: active
 priority: high
 owner: anthony
@@ -8,71 +8,102 @@ related_principles:
   - PRINCIPLES-ENGINEERING
   - PRINCIPLES-EVALUATION
 related_roadmap:
-  - ROADMAP-PHASE-01A
+  - ROADMAP-PHASE-03
+related_workstreams:
+  - WS-EXECUTION-FRAMEWORK
 ---
 
 # Current Focus
 
-The immediate priority is establishing **planning-tree semantics and workstreams** as core LRH
-control-plane concepts. This remains a safe-default, non-agentic planning effort: LRH should be able
-to model, validate, and summarize planning relationships while humans remain responsible for deciding
-and executing work.
+The immediate priority is **Layer 2 durable run state/manual run tracking alignment** after safe-default execution-framework closeout: the prerequisite control-plane interpretation work, first execution-contract package, and safe-default `lrh serve` local viewer / prompt workbench are implemented. Human approval gates remain in place, and observation adapters, autonomous dispatch, branch mutation, PR creation, stabilization loops, and merge/publish automation remain outside the next package.
+
+Canonical living design/context package: `project/design/execution_framework_mvp.md`.
 
 Recently completed:
 
-- reconciled near-term workstream design around recursive planning-tree concepts
-- accepted workstreams as user-facing planning nodes and work items as execution-ready leaves
-- aligned planning-tree work with safe-default packaging, where agentic execution is optional and deferred
-- retained workstream execution framework layers as deferred long-term architecture
-- closed prior release/toolchain and proposal alignment work needed before this planning step
+- landed the Workstream Control Plane MVP baseline for representing, loading, validating,
+  snapshotting, organizing, and tidying workstreams
+- created the first-class `WS-EXECUTION-FRAMEWORK` workstream
+- updated the execution-framework design to prioritize a safe-default local `lrh serve` viewer and
+  prompt workbench before durable run artifacts, observation adapters, or optional agentic execution
+- implemented the shared core-state APIs, planning relationship validation/indexing, and
+  snapshot-visible planning summaries needed by later execution-framework surfaces
+- implemented the opt-in execution-readiness schema, safe-default dry-run run-packet renderer, and
+  safe-default run-report renderer
+- implemented the safe-default `lrh serve` local server skeleton, read-only project/workstream/work-item
+  viewer, and prompt/run-packet/report workbench
 
 ## Why this is active now
 
-LRH needs a disciplined next sequence that introduces workstreams as first-class planning artifacts
-without jumping to runtime execution, orchestration, or autonomous behavior. This preserves
-repository-as-control-plane and manual-mode parity while keeping implementation slices small and
-reviewable.
+LRH now has enough project-control structure to plan durable manual run state without jumping
+directly to observation or runtime automation. Shared APIs, planning relationship validation,
+snapshot-visible summaries, opt-in readiness metadata, dry-run packet rendering, report rendering, and
+the local human-assist surface are in place.
 
-## Safe-default requirements
+## Next implementation slice
 
-All planning-tree and workstream work must:
+The next implementation package should be **Layer 2: durable run state/manual run tracking**. It
+should define manual-mode run artifacts such as `project/runs/<RUN-ID>/`, `packet.yaml`,
+`state.yaml`, `events.jsonl`, `prompts/`, `evidence/`, `report.md`, manual lifecycle states,
+explicit-click/manual update paths, and parity between manual runs and future automated runs. It
+should not add observation adapters, branch containment, autonomous dispatch, branch mutation, PR
+creation, stabilization loops, merge/release automation, or backend adapters.
 
-1. function without agentic capabilities or optional `lrh[agentic]` dependencies
-2. support human-assisted workflows by default, including reviewable prompts or run packets
-3. prepare future agentic execution by preserving explicit planning metadata and readiness concepts
-4. avoid autonomous invocation of coding agents, execution loops, PR stabilization loops, or adapters
-5. mark any agentic run command, adapter, stabilization-loop, or sandbox-envelope work as deferred / future / requires `lrh[agentic]`
+## Next implementation package
 
-Command naming convention: use `lrh agentic run` or `lrh-agentic run` for future autonomous execution.
-Treat older `lrh run` references as deferred execution-framework shorthand unless a future command-design
-work item explicitly assigns safe-default or installed-agentic alias semantics.
+The next package is **Layer 2: durable run state/manual run tracking**. It should identify the
+`project/runs/<RUN-ID>/` layout, `packet.yaml`, `state.yaml`, `events.jsonl`, prompts, evidence,
+`report.md`, manual-mode run lifecycle states, explicit-click/manual update paths, and parity between
+manual runs and future automated runs. It should not implement observation adapters, branch
+containment, stabilization loops, backend adapters, agent dispatch, branch mutation, PR creation,
+merge/release automation, or destructive actions.
 
-## Priorities
+## Supporting Design Work
 
-1. Define planning-node schema and recursive relationship conventions (`parent_id`, `children`).
-2. Define execution-ready work items as human-executable leaves, not autonomous runs.
-3. Define planning-tree validation rules for references, cycles, and consistency before implementation.
-4. Define and document minimal workstream artifact conventions and bucket navigation.
-5. Define workstream-to-work-item relationship conventions compatible with the planning-tree model.
-6. Add design-level snapshot visibility and human-assisted run-packet generation work items.
-7. Only after design-level slices are clear, implement loader/model, validation, snapshot, and dry-run-first organize/tidy support through small reviewed work items.
+- The LRH Serve Operational Triage MVP design proposal defines a meta-aware, operational,
+  safe-default, state-aware triage extension viewer for `lrh serve`. As the viewer sprint is
+  completed and carried forward, this design is intended to help LRH and other registered
+  LRH-managed projects inspect validation state, current focus, design/workstream/work-item
+  traceability, readiness, and prompt-generation affordances so humans can choose the next safe
+  prompt-driven action more quickly.
+
+## Adjacent CI capability design
+
+The CI capability scaffolding workstream
+(`project/workstreams/proposed/WS-CI-CAPABILITY-SCAFFOLDING.md`) is a proposed adjacent
+design/control-plane effort for reusing LRH's CI and toolchain reconciliation
+lessons. It should remain playbook- and prompt-design work for now, not CI workflow implementation or
+a universal template effort.
+
+## Human and policy gates
+
+Execution-framework planning must preserve explicit human/policy gates for:
+
+- approving a work item as execution-ready
+- approving generated run packets before mutation-capable work
+- reviewing validation evidence and final run reports
+- merging pull requests
+- release or publish decisions
+- closing out work items and workstreams
 
 ## Non-Goals
 
-- Implementing runtime features, schemas in code, validation logic, or CLI commands in the planning PR.
-- Implementing `lrh agentic run` or any autonomous run command.
-- Adding agent runtime execution, orchestration, adapters, or automated stage advancement.
-- Adding PR stabilization loops or sandbox-envelope behavior.
-- Implementing MCP bridges, telemetry systems, or backend adapters.
-- Collapsing multiple MVP slices into one large implementation change.
+- Implementing observation adapters, branch containment, runtime automation, GitHub API integration,
+  or tests for mutation-capable runtime execution behavior in the next Layer 2 planning/implementation package.
+- Adding `lrh run` or any autonomous run command beyond safe-default design references.
+- Invoking coding agents, mutating branches, opening PRs automatically, or adding execution backends.
+- Implementing PR stabilization loops, CI response automation, or merge/publish automation.
+- Adding MCP bridges, telemetry systems, privileged workflow execution, or secrets-management
+  behavior beyond documented policy assumptions.
 
 ## Exit Criteria
 
 This focus is complete when:
 
-1. roadmap and work items clearly sequence the Planning Tree and Workstream Foundation
-2. workstreams are represented in project control as first-class artifacts
-3. planning-node and workstream relationship semantics are documented and validated through small reviewed work items
-4. human-assisted workflow generation is specified without implying autonomous execution
-5. deferred agentic work remains explicitly out of scope and tied to future optional `lrh[agentic]` capability
-6. the next implementation prompt can start with the first concrete MVP work item: `WI-PLANNING-NODE-SCHEMA-MVP`
+1. the roadmap clearly stages the bounded execution-framework phase
+2. the execution-framework workstream identifies Layer 2 durable run state/manual run tracking as the
+   next implementation package
+3. the completed safe-default `lrh serve` viewer / prompt workbench package is resolved with
+   evidence-backed closeout
+4. later observation, branch containment, stabilization-loop, backend-adapter, branch-mutation,
+   PR-creation, merge/release automation, and destructive-operation work remains deferred

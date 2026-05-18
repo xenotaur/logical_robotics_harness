@@ -7,6 +7,10 @@ import pathlib
 import sys
 
 from lrh import version as lrh_version
+from lrh.control import loader as control_loader
+from lrh.control import models as control_models
+from lrh.control import parser as control_parser
+from lrh.control import planning_tree as control_planning_tree
 
 
 def build_parser(*, prog: str = "snapshot") -> argparse.ArgumentParser:
@@ -64,6 +68,435 @@ def build_parser(*, prog: str = "snapshot") -> argparse.ArgumentParser:
         "work_item_id", help="Work item identifier (for example WI-0003)."
     )
     return parser
+
+
+_DESIGN_PROPOSAL_IMPLEMENTATION_ORDER = (
+    "implemented",
+    "partial",
+    "not_started",
+    "deferred",
+    "obsolete",
+)
+
+
+def _canonical_design_proposal_status(status: str) -> str:
+    if status == "accepted":
+        return "adopted"
+    return status
+
+
+def _proposal_label(proposal: control_models.DesignProposal) -> str:
+    title = proposal.title
+    if title:
+        return f"{proposal.id} {title}"
+    return proposal.id
+
+
+def _format_traceability_line(label: str, references: tuple[str, ...]) -> str | None:
+    if not references:
+        return None
+    return f"    - {label}: {', '.join(sorted(references))}"
+
+
+def _format_design_proposal_item(
+    proposal: control_models.DesignProposal,
+    *,
+    include_traceability: bool,
+) -> list[str]:
+    lines = [f"  - {_proposal_label(proposal)}"]
+    if include_traceability:
+        implemented_by = _format_traceability_line(
+            "implemented_by", proposal.implemented_by
+        )
+        evidence = _format_traceability_line("evidence", proposal.evidence)
+        if implemented_by is not None:
+            lines.append(implemented_by)
+        if evidence is not None:
+            lines.append(evidence)
+    return lines
+
+
+_WORKSTREAM_STATUS_ORDER = ("proposed", "active", "resolved", "abandoned")
+
+
+def summarize_workstreams(project_dir: pathlib.Path) -> str:
+    """Summarize workstream lifecycle state for read-only snapshots."""
+    workstreams, load_warnings = (
+        control_loader.load_workstreams_from_project_dir_permissive(project_dir)
+    )
+
+    work_items = _load_snapshot_work_items(project_dir)
+    relationship_index = control_planning_tree.build_planning_tree_from_artifacts(
+        workstreams=workstreams,
+        work_items=work_items,
+    )
+
+    counts = {status: 0 for status in _WORKSTREAM_STATUS_ORDER}
+    other_statuses: dict[str, int] = {}
+    for workstream in workstreams:
+        if workstream.status in counts:
+            counts[workstream.status] += 1
+        else:
+            other_statuses[workstream.status] = (
+                other_statuses.get(workstream.status, 0) + 1
+            )
+
+    lines = ["Workstreams:"]
+    lines.extend(f"  {status}: {counts[status]}" for status in _WORKSTREAM_STATUS_ORDER)
+    for status in sorted(other_statuses):
+        lines.append(f"  {status}: {other_statuses[status]}")
+
+    active_workstreams = sorted(
+        (workstream for workstream in workstreams if workstream.status == "active"),
+        key=lambda workstream: workstream.id,
+    )
+    if active_workstreams:
+        lines.extend(["", "Active workstreams:"])
+        for workstream in active_workstreams:
+            lines.extend(_format_active_workstream(workstream, relationship_index))
+
+    lines.extend(["", *_format_planning_relationship_summary(relationship_index)])
+
+    warnings = sorted(
+        dict.fromkeys(
+            (
+                *load_warnings,
+                *_workstream_snapshot_diagnostics(relationship_index, workstreams),
+            )
+        )
+    )
+    if warnings:
+        lines.extend(["", "Warnings:"])
+        lines.extend(f"  - {warning}" for warning in warnings)
+
+    return "\n".join(lines)
+
+
+def _load_snapshot_work_items(
+    project_dir: pathlib.Path,
+) -> tuple[control_models.WorkItem, ...]:
+    work_items: list[control_models.WorkItem] = []
+    for path in list_work_items(project_dir):
+        text = read_text_if_exists(path)
+        if text is None:
+            continue
+        try:
+            parsed = control_parser.parse_markdown_text(text)
+        except ValueError:
+            continue
+        frontmatter = parsed.frontmatter
+        work_item_id = frontmatter.get("id")
+        title = frontmatter.get("title")
+        item_type = frontmatter.get("type")
+        status = frontmatter.get("status")
+        if not all(
+            isinstance(value, str) for value in (work_item_id, title, item_type, status)
+        ):
+            continue
+        work_items.append(
+            control_models.WorkItem(
+                path=path,
+                id=work_item_id,
+                title=title,
+                type=item_type,
+                status=status,
+                priority=_optional_frontmatter_str(frontmatter, "priority"),
+                owner=_optional_frontmatter_str(frontmatter, "owner"),
+                parent_id=_optional_frontmatter_str(frontmatter, "parent_id"),
+                related_focus=_frontmatter_str_list(frontmatter, "related_focus"),
+                related_roadmap=_frontmatter_str_list(frontmatter, "related_roadmap"),
+                related_workstreams=_frontmatter_str_list(
+                    frontmatter, "related_workstreams"
+                ),
+                related_design=_frontmatter_str_list(frontmatter, "related_design"),
+                depends_on=_frontmatter_str_list(frontmatter, "depends_on"),
+                blocked_by=_frontmatter_str_list(frontmatter, "blocked_by"),
+                required_evidence=_frontmatter_str_list(
+                    frontmatter, "required_evidence"
+                ),
+                artifacts_expected=_frontmatter_str_list(
+                    frontmatter, "artifacts_expected"
+                ),
+                body=parsed.body,
+                frontmatter=frontmatter,
+            )
+        )
+    return tuple(work_items)
+
+
+def _optional_frontmatter_str(
+    frontmatter: dict[str, object],
+    field: str,
+) -> str | None:
+    value = frontmatter.get(field)
+    if isinstance(value, str):
+        return value
+    return None
+
+
+def _frontmatter_str_list(
+    frontmatter: dict[str, object],
+    field: str,
+) -> tuple[str, ...]:
+    value = frontmatter.get(field)
+    if not isinstance(value, list):
+        return ()
+    return tuple(sorted(item for item in value if isinstance(item, str)))
+
+
+def _format_active_workstream(
+    workstream: control_models.Workstream,
+    relationship_index: control_planning_tree.PlanningTreeIndex,
+) -> list[str]:
+    lines = [f"  {workstream.id} — {workstream.title}"]
+    lines.append(f"    stage: {workstream.stage}")
+    lines.append(f"    status: {workstream.status}")
+
+    children = relationship_index.children_of(workstream.id)
+    if children:
+        work_item_count = sum(
+            1
+            for child_id in children
+            if relationship_index.artifacts_by_id[child_id].kind
+            == control_planning_tree.ARTIFACT_WORK_ITEM
+        )
+        lines.append(f"    children: {len(children)}")
+        lines.append(f"    work_items: {work_item_count}")
+    return lines
+
+
+def _format_planning_relationship_summary(
+    relationship_index: control_planning_tree.PlanningTreeIndex,
+) -> list[str]:
+    lines = [
+        "Planning relationship index:",
+        "  mode: observability only; no execution or scheduling authority",
+        f"  relationships: {len(relationship_index.relationships)}",
+        f"  root_workstreams: {len(relationship_index.roots())}",
+    ]
+
+    lines.append("  artifact_status_counts:")
+    status_counts = relationship_index.status_counts_by_kind()
+    if status_counts:
+        for kind, counts in status_counts.items():
+            count_text = ", ".join(
+                f"{status}: {count}" for status, count in counts.items()
+            )
+            lines.append(f"    {kind}: {count_text}")
+    else:
+        lines.append("    none")
+
+    active_leaf_ids = relationship_index.active_leaf_ids()
+    lines.append("  active_leaves:")
+    if active_leaf_ids:
+        for leaf_id in active_leaf_ids:
+            artifact = relationship_index.artifacts_by_id[leaf_id]
+            readiness = _active_leaf_readiness_hint(artifact)
+            lines.append(f"    - {leaf_id} ({readiness})")
+    else:
+        lines.append("    none")
+
+    lines.append("  workstream_to_work_item:")
+    relationship_lines = _workstream_to_work_item_lines(relationship_index)
+    if relationship_lines:
+        lines.extend(relationship_lines)
+    else:
+        lines.append("    none")
+
+    if relationship_index.diagnostics:
+        error_count = sum(
+            1
+            for diagnostic in relationship_index.diagnostics
+            if diagnostic.severity == "error"
+        )
+        warning_count = sum(
+            1
+            for diagnostic in relationship_index.diagnostics
+            if diagnostic.severity == "warning"
+        )
+        lines.append(
+            f"  planning_diagnostics: errors: {error_count}, warnings: {warning_count}"
+        )
+    else:
+        lines.append("  planning_diagnostics: none")
+
+    return lines
+
+
+def _active_leaf_readiness_hint(
+    artifact: control_planning_tree.PlanningArtifact,
+) -> str:
+    if artifact.blocked:
+        if artifact.blocked_reason:
+            return f"blocked: {artifact.blocked_reason}"
+        return "blocked"
+    if artifact.blockers:
+        return f"blocked by {', '.join(artifact.blockers)}"
+    return "unblocked by planning metadata"
+
+
+def _workstream_to_work_item_lines(
+    relationship_index: control_planning_tree.PlanningTreeIndex,
+) -> list[str]:
+    lines: list[str] = []
+    for workstream_id in sorted(relationship_index.artifacts_by_id):
+        artifact = relationship_index.artifacts_by_id[workstream_id]
+        if artifact.kind != control_planning_tree.ARTIFACT_WORKSTREAM:
+            continue
+        direct_work_items = tuple(
+            child_id
+            for child_id in relationship_index.children_of(workstream_id)
+            if relationship_index.artifacts_by_id[child_id].kind
+            == control_planning_tree.ARTIFACT_WORK_ITEM
+        )
+        if direct_work_items:
+            lines.append(
+                f"    - {workstream_id}: {', '.join(sorted(direct_work_items))}"
+            )
+    return lines
+
+
+def _workstream_snapshot_diagnostics(
+    relationship_index: control_planning_tree.PlanningTreeIndex,
+    workstreams: tuple[control_models.Workstream, ...],
+) -> list[str]:
+    diagnostics = [
+        f"{diagnostic.code}: {diagnostic.path}: {diagnostic.message}"
+        for diagnostic in relationship_index.diagnostics
+    ]
+    diagnostics.extend(_workstream_bucket_status_diagnostics(workstreams))
+    return diagnostics
+
+
+def _workstream_bucket_status_diagnostics(
+    workstreams: tuple[control_models.Workstream, ...],
+) -> list[str]:
+    diagnostics: list[str] = []
+    valid_statuses = set(_WORKSTREAM_STATUS_ORDER)
+    for workstream in workstreams:
+        if (
+            workstream.bucket is None
+            or workstream.status not in valid_statuses
+            or workstream.bucket == workstream.status
+        ):
+            continue
+        diagnostics.append(
+            "WORKSTREAM_BUCKET_STATUS_MISMATCH: "
+            f"{workstream.path}: "
+            f"workstream status '{workstream.status}' "
+            f"does not match bucket '{workstream.bucket}'"
+        )
+    return diagnostics
+
+
+def summarize_design_proposals(project_dir: pathlib.Path) -> str:
+    """Summarize design proposal lifecycle and implementation state."""
+    loaded_proposals, load_warnings = (
+        control_loader.load_design_proposals_from_project_dir_permissive(project_dir)
+    )
+    proposals = sorted(
+        loaded_proposals,
+        key=lambda proposal: proposal.id,
+    )
+    if not proposals:
+        if load_warnings:
+            warning_lines = ["- Warnings:"]
+            warning_lines.extend(f"  - {warning}" for warning in load_warnings)
+            return "\n".join(warning_lines)
+        return "- No design proposals found."
+
+    lines: list[str] = []
+    for implementation_status in _DESIGN_PROPOSAL_IMPLEMENTATION_ORDER:
+        matching = [
+            proposal
+            for proposal in proposals
+            if _canonical_design_proposal_status(proposal.status) == "adopted"
+            and proposal.implementation_status == implementation_status
+        ]
+        if not matching:
+            continue
+        if lines:
+            lines.append("")
+        lines.append(f"- Adopted / {implementation_status}:")
+        include_traceability = implementation_status in {"partial", "implemented"}
+        for proposal in matching:
+            lines.extend(
+                _format_design_proposal_item(
+                    proposal,
+                    include_traceability=include_traceability,
+                )
+            )
+
+    unspecified = [
+        proposal
+        for proposal in proposals
+        if _canonical_design_proposal_status(proposal.status) == "adopted"
+        and proposal.implementation_status is None
+    ]
+    if unspecified:
+        if lines:
+            lines.append("")
+        lines.append("- Adopted / unspecified:")
+        for proposal in unspecified:
+            lines.extend(
+                _format_design_proposal_item(
+                    proposal,
+                    include_traceability=False,
+                )
+            )
+
+    superseded = [
+        proposal
+        for proposal in proposals
+        if _canonical_design_proposal_status(proposal.status) == "superseded"
+    ]
+    if superseded:
+        if lines:
+            lines.append("")
+        lines.append("- Superseded:")
+        for proposal in superseded:
+            line = f"  - {_proposal_label(proposal)}"
+            if proposal.superseded_by:
+                line = f"{line} -> {proposal.superseded_by}"
+            lines.append(line)
+
+    warnings = [
+        *load_warnings,
+        *_design_proposal_traceability_warnings(proposals),
+    ]
+    if warnings:
+        if lines:
+            lines.append("")
+        lines.append("- Warnings:")
+        lines.extend(f"  - {warning}" for warning in warnings)
+
+    if not lines:
+        return "- No adopted or superseded design proposals found."
+    return "\n".join(lines)
+
+
+def _design_proposal_traceability_warnings(
+    proposals: list[control_models.DesignProposal],
+) -> list[str]:
+    warnings: list[str] = []
+    for proposal in proposals:
+        status = _canonical_design_proposal_status(proposal.status)
+        if status == "adopted" and proposal.implementation_status is None:
+            warnings.append(
+                f"{proposal.id} is adopted but has no implementation_status."
+            )
+        if (
+            proposal.implementation_status == "implemented"
+            and not proposal.implemented_by
+            and not proposal.evidence
+        ):
+            warnings.append(
+                f"{proposal.id} claims implementation_status=implemented "
+                "but has no evidence or implemented_by references."
+            )
+        if status == "superseded" and proposal.superseded_by is None:
+            warnings.append(f"{proposal.id} is superseded but has no superseded_by.")
+    return warnings
 
 
 def find_project_dir(project_root: pathlib.Path) -> pathlib.Path:
@@ -275,6 +708,10 @@ def generate_project_context(
         "",
         summarize_file(project_dir / "design" / "design.md"),
         "",
+        "## Design Proposals",
+        "",
+        summarize_design_proposals(project_dir),
+        "",
         "## Roadmap",
         "",
         summarize_file(project_dir / "roadmap" / "roadmap.md"),
@@ -282,6 +719,10 @@ def generate_project_context(
         "## Current Focus",
         "",
         summarize_file(project_dir / "focus" / "current_focus.md"),
+        "",
+        "## Workstreams",
+        "",
+        summarize_workstreams(project_dir),
         "",
         maybe_optional_section(
             args.include_guardrails,
@@ -423,6 +864,10 @@ def generate_work_item_context(
         "## Current Focus",
         "",
         summarize_file(project_dir / "focus" / "current_focus.md"),
+        "",
+        "## Workstreams",
+        "",
+        summarize_workstreams(project_dir),
         "",
         maybe_optional_section(
             args.include_design,

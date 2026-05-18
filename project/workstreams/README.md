@@ -69,8 +69,19 @@ humans can scan the repository quickly.
 
 `lrh validate` reports drift when a workstream's metadata and directory placement disagree. This is
 a warning rather than a fatal error because status metadata is authoritative and bucket placement is
-navigational. Future organize or tidy commands may repair that drift based on metadata, following
-the same metadata-authoritative pattern used for work items.
+navigational.
+
+Use `lrh workstreams organize` to preview metadata-derived bucket moves. The command is dry-run-first
+by default and only moves files when `--apply` is provided:
+
+```bash
+lrh workstreams organize --dry-run
+lrh workstreams organize --apply
+```
+
+Organization uses frontmatter `status` as the source of truth, creates expected destination bucket
+directories as needed, and does not rewrite workstream frontmatter, IDs, stages, relationships, or
+content. Destination conflicts and invalid workstream metadata are reported instead of guessed.
 
 ## Status versus stage
 
@@ -95,8 +106,11 @@ conceived | assessed | designed | planned | executing | reviewing | closed | aba
 
 `lrh validate` checks this minimal vocabulary and the required frontmatter fields. It does not yet
 enforce hard status/stage combination rules; those remain documentation-level guidance for the MVP
-so users are not surprised by over-strict lifecycle checks. Snapshot and organizer behavior remain
-separate focused work items.
+so users are not surprised by over-strict lifecycle checks. `lrh snapshot project` now includes a
+read-only workstream summary with status counts, active-workstream details, planning relationship
+counts, active-leaf readiness hints from planning metadata, and planning diagnostics. Snapshot output
+is observability-only; it does not schedule work or grant execution authority. `lrh workstreams
+organize` can explicitly repair status-bucket drift without changing metadata.
 
 ## Large-work lifecycle
 
@@ -136,17 +150,25 @@ inferred from path, while continuing to treat frontmatter metadata as authoritat
 
 LRH also includes a small internal planning-tree relationship index. It treats workstreams as
 planning nodes and work items as executable leaves, resolves `parent_id`, `children`, and
-`work_items` references by ID, and reports missing references, duplicate relationship IDs, simple
-workstream cycles, and conflicting parent/child declarations during validation. Paths and nested
-directories are not relationship semantics.
+`work_items` references by ID, and reports duplicate planning IDs, missing references,
+self-parenting, workstream cycles, invalid work-item children, active work items with no planning
+parent, active workstreams with no active/proposed work-item leaf, and conflicting parent/child
+declarations during validation. The index also preserves summary metadata needed by snapshot,
+request, and future readiness consumers: titles, lifecycle statuses, `related_focus`,
+`related_roadmap`, `related_design`, work-item `related_workstreams`, work-item `depends_on` /
+`blocked_by`, evidence requirements, active leaf IDs, and status counts grouped by artifact kind.
+Paths and nested directories are not relationship semantics. The same loaded model and relationship
+index power the read-only workstream section in `lrh snapshot project`. Invalid planning record kinds
+are validated by the workstream schema check (`kind: planning_node`). Explicit top-level markers for
+active workstreams are not in the schema yet, so orphan validation currently covers active work-item
+leaves rather than warning on every root active workstream.
 
 ## Non-goals for this directory MVP
 
 This directory establishes the human-facing home and introductory documentation for workstreams. It
 does not yet provide:
 
-- snapshot integration
-- organizer or tidy behavior
+- automated lifecycle advancement
 - `lrh run`
 - agent execution
 - orchestration
@@ -156,3 +178,19 @@ does not yet provide:
 
 Those capabilities should be implemented later through separate, focused Workstream Control Plane
 MVP work items.
+
+## Current execution-framework workstream
+
+`proposed/WS-EXECUTION-FRAMEWORK.md` is the active planning record for the bounded execution
+framework phase. Its first execution-contract implementation sequence is complete, and the
+safe-default `lrh serve` viewer/workbench package is complete. The next package is Layer 2 durable
+run state/manual run tracking; branch mutation, agent backends, autonomous stabilization, and
+merge/publish automation remain deferred until manual run-state contracts are stable.
+
+## Current CI capability scaffolding workstream
+
+`WS-CI-CAPABILITY-SCAFFOLDING.md` is a proposed design/control-plane workstream for turning LRH's
+CI and toolchain reconciliation lessons into reusable CI setup, assessment, and implementation
+capability. Its initial phases are a human playbook, CI request-template refresh, later CI Agent Skill
+prototype design, and template/fragments reassessment after dogfooding.
+

@@ -19,8 +19,10 @@ and then help orchestrate work to achieve that roadmap in a structured and inspe
 
 ## Current status
 
-This repository now has a working control-plane baseline (`lrh validate`) and assist CLI entrypoints
-(`lrh request`, `lrh snapshot`, `lrh survey`). Current planning emphasis is on packaging/runtime hardening for assist templates so installed-package usage does not depend on repository-relative paths.
+This repository now has a working control-plane baseline (`lrh validate`), assist CLI entrypoints
+(`lrh request`, `lrh snapshot`, `lrh survey`), and a safe-default local `lrh serve` viewer/workbench.
+Current execution-framework planning emphasis is Layer 2 durable run state/manual run tracking, not
+new autonomous runtime behavior.
 
 ## Planned top-level structure
 
@@ -60,6 +62,45 @@ For package version reporting, both of these are supported (resolved via install
 lrh --version
 lrh version
 ```
+
+Design proposal lifecycle buckets can be previewed and applied with:
+
+```bash
+lrh design organize
+lrh design organize --apply
+```
+
+Proposal frontmatter `status` is authoritative; path buckets under
+`project/design/proposals/` are derived for human readability, while
+proposal-set relative paths are preserved within those buckets.
+
+The completed safe-default local read-only viewer / prompt workbench can be started with:
+
+```bash
+lrh serve
+```
+
+`lrh serve` binds to `127.0.0.1:8765` by default and exposes read-only routes:
+`/`, `/workbench`, `/workbench/prompt`, `/workbench/run-packet`,
+`/workbench/run-report`, `/health`, `/api/status`, `/api/project`,
+`/api/workbench`, `/api/workbench/prompt`, `/api/workbench/run-packet`, and
+`/api/workbench/run-report`. The index page and `/api/project` summarize the
+currently loaded project-control state through the shared core-state APIs: project
+identity, validation counts and diagnostics, current focus, workstream and
+work-item lifecycle summaries, planning-tree relationships, active leaves,
+execution-readiness metadata, and references to the existing run-packet and
+run-report request surfaces when a leaf is ready.
+
+The `/workbench` page is a local prompt/run-packet/run-report preview surface.
+It reuses the package prompt, run-packet, and run-report renderers to show
+copy-friendly Markdown and in-memory Markdown downloads for selected work items.
+These previews are not execution evidence and do not imply that rendered content
+has been run. The server remains a local viewer entrypoint, not an autonomous
+runner: it does not serve arbitrary files, dispatch agents, mutate branches,
+create or update pull requests, run CI loops, make external network calls, or
+provide write routes. Binding to non-local hosts such as `0.0.0.0` requires the
+explicit `--allow-nonlocal-host` opt-in and should be used only after reviewing
+the exposure risk.
 
 ## User installation
 
@@ -234,7 +275,7 @@ When editing GitHub Actions workflows, run:
 scripts/check-workflows
 ```
 
-This validates workflow YAML syntax locally and is also run by Meta CI. Deeper GitHub Actions semantic linting (for example `actionlint`) is intentionally deferred.
+This validates workflow YAML syntax locally and is also run by Meta CI. Deeper GitHub Actions semantic linting (for example `actionlint`) is intentionally deferred. For reusable setup, debugging, and hardening guidance across heterogeneous repositories, see the [CI setup and debugging playbook](docs/how-to/project-setup/ci.md).
 
 ### Agent workflow rules
 
@@ -366,6 +407,25 @@ not replace full project validation (`lrh validate`).
 and consistency warnings). Flat legacy files under `project/work_items/*.md` are
 reported as warnings for compatibility, not errors.
 
+### Workstream status buckets
+
+Workstreams are organized under `project/workstreams/proposed/`, `active/`, `resolved/`, and
+`abandoned/`. Workstream frontmatter `status` is authoritative; bucket placement is a human-facing
+navigation projection.
+
+To preview or explicitly repair status-bucket drift without rewriting workstream metadata, use:
+
+```bash
+lrh workstreams organize --project-root . --dry-run
+lrh workstreams organize --project-root . --check
+lrh workstreams organize --project-root . --apply
+lrh validate
+```
+
+`lrh workstreams organize` defaults to preview behavior (non-mutating unless `--apply` is provided),
+reports invalid workstream metadata and destination conflicts instead of guessing, and does not edit
+workstream frontmatter, IDs, stages, relationships, or content.
+
 
 ## Near-term priorities
 
@@ -388,7 +448,7 @@ reported as warnings for compatibility, not errors.
 - `lrh meta register` and `lrh meta list` operate against the same resolved workspace context (`projects_dir`) used by `lrh meta where`, across hybrid/local/global modes
 - `lrh meta init` now defaults to `hybrid`; in hybrid mode, an optional positional directory (or `--workspace-root`) sets the catalog/workspace root
 
-See `project/design/architecture.md`, `project/design/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/active/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.
+See `project/design/architecture.md`, `project/design/repository_spec.md`, `project/roadmap/phase_02_runtime_and_workspace.md`, `project/work_items/resolved/WI-META-CLI-MVP.md`, and the `project/` directory for the current seed design.
 
 ## Open design proposals
 
@@ -400,7 +460,7 @@ sub-proposals or appendices.
 
 Currently open:
 
-- `project/design/proposals/workstream-execution-framework/` —
+- `project/design/proposals/proposed/workstream-execution-framework/` —
   proposes adding a typed `workstream` artifact between focus and
   work_items, with a six-layer execution stack (control plane →
   templates → orchestration → agent runtime →
@@ -458,18 +518,37 @@ A practical recent-prompt dogfooding flow is:
    notes, or prior `AD_HOC` records.
 
 For deeper design context, see
-`project/design/proposals/prompt-execution-search-and-match/`.
+`project/design/proposals/adopted/prompt-execution-search-and-match/`.
 
 ## Release workflow
 
 LRH releases are validated with the repository release scripts and published
 from version tags using the staged, publish-last workflow documented in
-`docs/release.md`.
+`docs/how-to/run-a-release.md`.
 
-See [`docs/release.md`](docs/release.md) for the canonical maintainer release
+See [`docs/how-to/run-a-release.md`](docs/how-to/run-a-release.md) for the canonical maintainer release
 runbook, including local readiness checks, installed-wheel smoke testing,
 TestPyPI rehearsal, PyPI Trusted Publisher setup, tag-push publishing,
 post-release verification, failure recovery notes, and release evidence.
+
+
+## Assist request catalog
+
+Use the request catalog to discover supported assist request names before rendering a prompt:
+
+```bash
+# List canonical request names grouped by category.
+lrh request list
+
+# Limit the list to one category.
+lrh request list --category review
+
+# Show canonical metadata, legacy names, template source, and usage notes.
+lrh request describe prompt-from-work-item
+lrh request describe codex_prompt_from_work_item
+```
+
+Canonical flat names such as `prompt-from-work-item` are preferred for new usage. Legacy template names remain supported and can be inspected with `lrh request describe <legacy-name>`. The request names `list` and `describe` are reserved for catalog discovery commands, so avoid using those names for request-template overrides.
 
 ## GitHub review helpers
 

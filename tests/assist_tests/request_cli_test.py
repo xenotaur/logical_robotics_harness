@@ -14,8 +14,113 @@ class TestRequestCli(unittest.TestCase):
         parser = request_cli.build_parser(prog="lrh request")
         help_text = parser.format_help()
 
-        self.assertIn("ci_assess_status", help_text)
-        self.assertIn("ci_implement_workflow", help_text)
+        self.assertIn("assess-continuous-integration-status", help_text)
+        self.assertIn("prompt-from-work-item", help_text)
+        self.assertIn("ready-work-item", help_text)
+        self.assertIn("run-report-from-work-item", help_text)
+
+    def test_canonical_request_name_uses_catalog_template_mapping(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["improve-coverage", "src/lrh/example.py"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("TARGET MODULE:", stdout.getvalue())
+        self.assertIn("src/lrh/example.py", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_canonical_request_name_preserves_name_in_validation_errors(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["improve-coverage"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("improve-coverage requires a target", stderr.getvalue())
+        self.assertNotIn("improve_coverage requires", stderr.getvalue())
+        self.assertEqual(stdout.getvalue(), "")
+
+    def test_catalog_describe_structured_run_packet_has_no_template_path(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["describe", "run-packet-from-work-item"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("implementation: structured_run_packet", stdout.getvalue())
+        self.assertIn("template: none (structured renderer)", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_catalog_describe_structured_run_report_has_no_template_path(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["describe", "run-report-from-work-item"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("implementation: structured_run_report", stdout.getvalue())
+        self.assertIn("template: none (structured renderer)", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_templates_where_resolves_catalog_name(self) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["templates", "where", "improve-coverage"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("request/improve_coverage.md", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_templates_where_structured_run_packet_does_not_require_template(
+        self,
+    ) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["templates", "where", "run-packet-from-work-item"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("run-packet-from-work-item", stdout.getvalue())
+        self.assertIn("structured renderer", stdout.getvalue())
+        self.assertIn("no request template", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_templates_where_structured_run_report_does_not_require_template(
+        self,
+    ) -> None:
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            exit_code = request_cli.run_request_cli(
+                ["templates", "where", "run-report-from-work-item"],
+                prog="lrh request",
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("run-report-from-work-item", stdout.getvalue())
+        self.assertIn("structured renderer", stdout.getvalue())
+        self.assertIn("no request template", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
 
     def test_template_dir_flag_uses_explicit_override(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -44,6 +149,311 @@ class TestRequestCli(unittest.TestCase):
         self.assertEqual(exit_code, 0)
         self.assertEqual(stdout.getvalue(), "cli example\n")
         self.assertEqual(stderr.getvalue(), "")
+
+    def test_run_packet_from_work_item_command_writes_output_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / ".git").mkdir()
+            work_item = root / "project" / "work_items" / "proposed" / "WI-READY.md"
+            work_item.parent.mkdir(parents=True)
+            work_item.write_text(
+                (
+                    "---\n"
+                    "id: WI-READY\n"
+                    "title: Ready Item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "execution_ready: true\n"
+                    "autonomy_level: manual\n"
+                    "operation_risk: read_only\n"
+                    "allowed_paths:\n"
+                    "  - src/lrh/assist/\n"
+                    "validation_commands:\n"
+                    "  - scripts/test\n"
+                    "required_evidence:\n"
+                    "  - passing_tests\n"
+                    "---\n\n"
+                    "## Summary\n\n"
+                    "Generate a packet.\n"
+                ),
+                encoding="utf-8",
+            )
+            out_file = root / "packets" / "WI-READY.md"
+            old_cwd = pathlib.Path.cwd()
+            try:
+                os.chdir(root)
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    exit_code = request_cli.run_request_cli(
+                        [
+                            "run-packet-from-work-item",
+                            "WI-READY",
+                            "--out",
+                            str(out_file),
+                        ],
+                        prog="lrh request",
+                    )
+            finally:
+                os.chdir(old_cwd)
+            out_file_exists = out_file.is_file()
+            rendered = out_file.read_text(encoding="utf-8") if out_file_exists else ""
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertTrue(out_file_exists)
+        self.assertIn("# Dry-Run Run Packet: WI-READY", rendered)
+        self.assertIn(
+            "- Source path: `project/work_items/proposed/WI-READY.md`", rendered
+        )
+
+    def test_run_packet_from_work_item_command_writes_stdout_when_out_omitted(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / ".git").mkdir()
+            work_item = root / "project" / "work_items" / "proposed" / "WI-READY.md"
+            work_item.parent.mkdir(parents=True)
+            work_item.write_text(
+                (
+                    "---\n"
+                    "id: WI-READY\n"
+                    "title: Ready Item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "execution_ready: true\n"
+                    "autonomy_level: manual\n"
+                    "operation_risk: read_only\n"
+                    "allowed_paths:\n"
+                    "  - src/lrh/assist/\n"
+                    "validation_commands:\n"
+                    "  - scripts/test\n"
+                    "required_evidence:\n"
+                    "  - passing_tests\n"
+                    "---\n\n"
+                    "## Summary\n\n"
+                    "Preview a packet.\n"
+                ),
+                encoding="utf-8",
+            )
+            old_cwd = pathlib.Path.cwd()
+            try:
+                os.chdir(root)
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    exit_code = request_cli.run_request_cli(
+                        ["run-packet-from-work-item", "WI-READY"],
+                        prog="lrh request",
+                    )
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("# Dry-Run Run Packet: WI-READY", stdout.getvalue())
+        self.assertIn("Preview a packet.", stdout.getvalue())
+        self.assertEqual(stderr.getvalue(), "")
+
+    def test_run_packet_from_work_item_no_match_uses_run_packet_guidance(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / ".git").mkdir()
+            old_cwd = pathlib.Path.cwd()
+            try:
+                os.chdir(root)
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    exit_code = request_cli.run_request_cli(
+                        ["run-packet-from-work-item", "WI-MISSING"],
+                        prog="lrh request",
+                    )
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("lrh request run-packet-from-work-item", stderr.getvalue())
+        self.assertIn("--work-item", stderr.getvalue())
+        self.assertNotIn("codex_prompt_from_work_item", stderr.getvalue())
+
+    def test_run_packet_from_work_item_command_rejects_non_ready_item(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / ".git").mkdir()
+            work_item = root / "project" / "work_items" / "proposed" / "WI-NOPE.md"
+            work_item.parent.mkdir(parents=True)
+            work_item.write_text(
+                (
+                    "---\n"
+                    "id: WI-NOPE\n"
+                    "title: Nope\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "---\n"
+                ),
+                encoding="utf-8",
+            )
+            old_cwd = pathlib.Path.cwd()
+            try:
+                os.chdir(root)
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    exit_code = request_cli.run_request_cli(
+                        ["run_packet_from_work_item", "WI-NOPE"],
+                        prog="lrh request",
+                    )
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(exit_code, 2)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("not execution-ready", stderr.getvalue())
+        self.assertIn("EXECUTION_READINESS_NOT_READY", stderr.getvalue())
+
+    def test_run_report_from_work_item_command_writes_output_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / ".git").mkdir()
+            work_item = root / "project" / "work_items" / "proposed" / "WI-READY.md"
+            work_item.parent.mkdir(parents=True)
+            work_item.write_text(
+                (
+                    "---\n"
+                    "id: WI-READY\n"
+                    "title: Ready Item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "execution_ready: true\n"
+                    "autonomy_level: manual\n"
+                    "operation_risk: read_only\n"
+                    "allowed_paths:\n"
+                    "  - src/lrh/assist/\n"
+                    "validation_commands:\n"
+                    "  - scripts/test\n"
+                    "required_evidence:\n"
+                    "  - passing_tests\n"
+                    "expected_artifacts:\n"
+                    "  - run_report\n"
+                    "policy_gates:\n"
+                    "  - manual_review\n"
+                    "---\n\n"
+                    "## Summary\n\n"
+                    "Generate a report.\n"
+                ),
+                encoding="utf-8",
+            )
+            out_file = root / "reports" / "WI-READY.md"
+            old_cwd = pathlib.Path.cwd()
+            try:
+                os.chdir(root)
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    exit_code = request_cli.run_request_cli(
+                        [
+                            "run-report-from-work-item",
+                            "WI-READY",
+                            "--outcome",
+                            "success",
+                            "--run-packet",
+                            "packets/WI-READY.md",
+                            "--validation-run",
+                            "scripts/test",
+                            "--validation-result",
+                            "scripts/test :: pass :: logs/test.txt",
+                            "--evidence",
+                            "logs/test.txt",
+                            "--human-verification",
+                            "Review report.",
+                            "--next-action",
+                            "Close out after human review.",
+                            "--out",
+                            str(out_file),
+                        ],
+                        prog="lrh request",
+                    )
+            finally:
+                os.chdir(old_cwd)
+
+            rendered_report = out_file.read_text(encoding="utf-8")
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("# Run Report: WI-READY", rendered_report)
+        self.assertIn("logs/test.txt", rendered_report)
+
+    def test_run_report_from_work_item_missing_evidence_warns_but_writes_stdout(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / ".git").mkdir()
+            work_item = root / "project" / "work_items" / "proposed" / "WI-READY.md"
+            work_item.parent.mkdir(parents=True)
+            work_item.write_text(
+                (
+                    "---\n"
+                    "id: WI-READY\n"
+                    "title: Ready Item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "execution_ready: true\n"
+                    "autonomy_level: manual\n"
+                    "operation_risk: read_only\n"
+                    "allowed_paths:\n"
+                    "  - src/lrh/assist/\n"
+                    "validation_commands:\n"
+                    "  - scripts/test\n"
+                    "required_evidence:\n"
+                    "  - passing_tests\n"
+                    "---\n"
+                ),
+                encoding="utf-8",
+            )
+            old_cwd = pathlib.Path.cwd()
+            try:
+                os.chdir(root)
+                stdout = io.StringIO()
+                stderr = io.StringIO()
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    exit_code = request_cli.run_request_cli(
+                        [
+                            "run_report_from_work_item",
+                            "WI-READY",
+                            "--outcome",
+                            "success",
+                        ],
+                        prog="lrh request",
+                    )
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(exit_code, 0)
+        self.assertIn("# Run Report: WI-READY", stdout.getvalue())
+        self.assertIn("EVIDENCE_REFERENCES_MISSING", stderr.getvalue())
 
     def test_codex_prompt_from_work_item_command_writes_output_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -150,6 +560,59 @@ class TestRequestCli(unittest.TestCase):
             self.assertEqual(stderr.getvalue(), "")
             self.assertIn(
                 "Prompt ID: `PROMPT(AD_HOC:EXAMPLE_IMPLEMENTATION)", stdout.getvalue()
+            )
+            self.assertIn("Approved work item:", stdout.getvalue())
+
+    def test_prompt_from_work_item_generic_invocation_accepts_positional_target(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            work_item = root / "WI-EXAMPLE.md"
+            style_file = root / "STYLE.md"
+            work_item.write_text(
+                (
+                    "---\n"
+                    "id: WI-EXAMPLE\n"
+                    "title: Example item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "blocked: false\n"
+                    "---\n\n"
+                    "## Problem\n\n"
+                    "Need a canonical generic invocation.\n\n"
+                    "## Scope\n\n"
+                    "- Use the request catalog.\n\n"
+                    "## Required Changes\n\n"
+                    "- Preserve generic arguments.\n\n"
+                    "## Validation\n\n"
+                    "- Run request tests.\n\n"
+                    "## Acceptance Criteria\n\n"
+                    "- Canonical request renders.\n"
+                ),
+                encoding="utf-8",
+            )
+            style_file.write_text("# Style\n", encoding="utf-8")
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "prompt-from-work-item",
+                        str(work_item),
+                        "--style-file",
+                        str(style_file),
+                        "--prompt-id",
+                        "PROMPT(WI-EXAMPLE:REQUEST_CATALOG_TEST)[2026-05-14T00:00:00+00:00]",
+                    ],
+                    prog="lrh request",
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertIn(
+                "Prompt ID: `PROMPT(WI-EXAMPLE:REQUEST_CATALOG_TEST)", stdout.getvalue()
             )
             self.assertIn("Approved work item:", stdout.getvalue())
 
@@ -718,6 +1181,102 @@ def _isolated_template_environment():
                 yield
         finally:
             os.chdir(old_cwd)
+
+    def test_ready_work_item_renders_request_for_thin_item(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / ".git").mkdir()
+            work_item = root / "project" / "work_items" / "proposed" / "WI-THIN.md"
+            roadmap = root / "project" / "roadmap" / "phase_03.md"
+            work_item.parent.mkdir(parents=True, exist_ok=True)
+            roadmap.parent.mkdir(parents=True, exist_ok=True)
+            roadmap.write_text(
+                "---\n"
+                "id: ROADMAP-PHASE-03\n"
+                "title: Phase 3\n"
+                "status: active\n"
+                "---\n\n"
+                "# Phase 3\n",
+                encoding="utf-8",
+            )
+            work_item.write_text(
+                "---\n"
+                "id: WI-THIN\n"
+                "title: Thin item\n"
+                "type: deliverable\n"
+                "status: proposed\n"
+                "blocked: false\n"
+                "related_roadmap:\n"
+                "  - ROADMAP-PHASE-03\n"
+                "acceptance:\n"
+                "  - Request renders.\n"
+                "---\n\n"
+                "## Summary\n\nThin.\n",
+                encoding="utf-8",
+            )
+
+            old_cwd = pathlib.Path.cwd()
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            try:
+                os.chdir(root)
+                with (
+                    contextlib.redirect_stdout(stdout),
+                    contextlib.redirect_stderr(stderr),
+                ):
+                    exit_code = request_cli.run_request_cli(
+                        ["ready-work-item", "WI-THIN"],
+                        prog="lrh request",
+                    )
+            finally:
+                os.chdir(old_cwd)
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertIn("# Ready Work Item Refinement Request", stdout.getvalue())
+            self.assertIn("missing Scope section", stdout.getvalue())
+            self.assertIn("ROADMAP-PHASE-03", stdout.getvalue())
+            self.assertIn("- `## Open Questions`", stdout.getvalue())
+
+    def test_prompt_from_work_item_still_reports_thin_item_not_ready(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            (root / ".git").mkdir()
+            work_item = root / "project" / "work_items" / "proposed" / "WI-THIN.md"
+            style = root / "STYLE.md"
+            work_item.parent.mkdir(parents=True, exist_ok=True)
+            work_item.write_text(
+                "---\n"
+                "id: WI-THIN\n"
+                "title: Thin item\n"
+                "type: deliverable\n"
+                "status: proposed\n"
+                "blocked: false\n"
+                "---\n\n"
+                "## Summary\n\nThin.\n",
+                encoding="utf-8",
+            )
+            style.write_text("# Style\n", encoding="utf-8")
+
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "prompt-from-work-item",
+                        str(work_item),
+                        "--style-file",
+                        str(style),
+                        "--prompt-id",
+                        "PROMPT(WI-THIN:TEST)[2026-05-18T00:00:00+00:00]",
+                    ],
+                    prog="lrh request",
+                )
+
+            self.assertEqual(exit_code, 0)
+            self.assertEqual(stderr.getvalue(), "")
+            self.assertIn("# Work Item Not Ready", stdout.getvalue())
+            self.assertIn("missing Scope section", stdout.getvalue())
 
 
 if __name__ == "__main__":

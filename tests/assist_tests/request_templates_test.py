@@ -24,9 +24,37 @@ class TestTemplatePathAndLoading(unittest.TestCase):
         loaded = request_templates.load_template_text("ci_assess_status")
         self.assertIn("CI Feasibility Assessment Request", loaded)
 
+    def test_ci_assess_status_template_includes_portable_ci_playbook(self) -> None:
+        loaded = request_templates.load_template_text("ci_assess_status")
+        self.assertIn("PACKAGED CI PLAYBOOK SUMMARY", loaded)
+        self.assertIn("Do not fail solely because", loaded)
+        self.assertIn("docs/how-to/project-setup/ci.md", loaded)
+
     def test_ci_implement_workflow_template_loads_from_package_resources(self) -> None:
         loaded = request_templates.load_template_text("ci_implement_workflow")
         self.assertIn("CI Migration Implementation Request", loaded)
+
+    def test_ci_implement_workflow_template_includes_portable_ci_playbook(
+        self,
+    ) -> None:
+        loaded = request_templates.load_template_text("ci_implement_workflow")
+        self.assertIn("PACKAGED CI PLAYBOOK SUMMARY", loaded)
+        self.assertIn("continue with the packaged summary", loaded)
+        self.assertIn("docs/how-to/project-setup/ci.md", loaded)
+
+    def test_work_item_semantic_audit_template_loads_from_package_resources(
+        self,
+    ) -> None:
+        loaded = request_templates.load_template_text("work_item_semantic_audit")
+        self.assertIn("Semantic Work-Item Lifecycle Audit Request", loaded)
+        self.assertIn("Avoid optimistic closure", loaded)
+
+    def test_ready_work_item_template_loads_from_package_resources(self) -> None:
+        loaded = request_templates.load_template_text("ready_work_item")
+
+        self.assertIn("Ready Work Item Refinement Request", loaded)
+        self.assertIn("{{READINESS_DIAGNOSTICS}}", loaded)
+        self.assertIn("Open Questions", loaded)
 
     def test_missing_template_raises_file_not_found_error(self) -> None:
         with self.assertRaisesRegex(FileNotFoundError, "Template not found"):

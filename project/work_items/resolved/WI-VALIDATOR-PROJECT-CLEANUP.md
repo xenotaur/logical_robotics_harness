@@ -1,0 +1,51 @@
+---
+resolution: Resolved by current validation output with 0 errors and documented remaining planning orphan warnings; semantic audit evidence is recorded in project/evidence/EV-0010.md.
+blocked_reason: null
+blocked: false
+id: WI-VALIDATOR-PROJECT-CLEANUP
+title: Fix project metadata to pass validator
+type: operation
+status: resolved
+owner: anthony
+contributors:
+  - anthony
+assigned_agents: []
+related_focus:
+  - FOCUS-CONTROL-PLANE-SEMANTICS
+depends_on: []
+blocked_by: []
+---
+
+## Summary
+
+The current `project/` directory does not pass validation (reported errors and warnings from `lrh validate`).
+
+This work item brings all project metadata into compliance with the validator.
+
+## Goals
+
+- Achieve zero validation errors
+- Minimize warnings where appropriate
+- Ensure consistency with contributor and ownership semantics
+
+## Proposed Actions
+
+- Run `lrh validate`
+- Fix:
+  - missing required fields
+  - invalid enums
+  - unknown references
+  - owner / contributor inconsistencies
+- Review warnings and resolve where appropriate
+
+## Acceptance Criteria
+
+- `lrh validate` reports:
+  - 0 errors
+  - acceptable or documented warnings
+- All contributor references resolve
+- All ownership semantics align with design
+
+## Notes
+
+This is required before enabling validator enforcement in CI.

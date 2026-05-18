@@ -2,7 +2,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lrh.control.loader import load_project, load_workstreams
+from lrh.control.loader import (
+    load_project,
+    load_workstreams,
+    load_workstreams_from_project_dir_permissive,
+)
 
 
 class TestWorkstreamLoader(unittest.TestCase):
@@ -138,6 +142,40 @@ exit_criteria:
             )
             self.assertEqual(workstream.evidence, ("project/evidence/test.md",))
             self.assertEqual(workstream.exit_criteria, ("Tests pass",))
+
+    def test_permissive_loader_preserves_valid_workstreams_after_bad_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = _write_project_scaffold(Path(tmp_dir))
+            (root / "project" / "workstreams" / "active" / "WS-GOOD.md").write_text(
+                """---
+id: WS-GOOD
+kind: planning_node
+title: Good Workstream
+status: active
+stage: executing
+---
+""",
+                encoding="utf-8",
+            )
+            (root / "project" / "workstreams" / "proposed" / "WS-BAD.md").write_text(
+                """---
+id: WS-BAD
+kind: planning_node
+status: proposed
+stage: conceived
+---
+""",
+                encoding="utf-8",
+            )
+
+            workstreams, warnings = load_workstreams_from_project_dir_permissive(
+                root / "project"
+            )
+
+            self.assertEqual([workstream.id for workstream in workstreams], ["WS-GOOD"])
+            self.assertEqual(len(warnings), 1)
+            self.assertIn("Skipped proposed/WS-BAD.md", warnings[0])
+            self.assertIn("missing or invalid string field 'title'", warnings[0])
 
 
 def _write_project_scaffold(root: Path) -> Path:

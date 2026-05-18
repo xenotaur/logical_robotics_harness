@@ -91,6 +91,54 @@ class WorkItemsValidateTest(unittest.TestCase):
             self.assertIn("malformed-frontmatter", codes)
             self.assertIn("frontmatter-not-mapping", codes)
 
+    def test_missing_dependency_reference_is_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._write(
+                root,
+                "project/work_items/proposed/WI-REF.md",
+                "---\nid: WI-REF\nstatus: proposed\ndepends_on:\n  - WI-MISSING\n---\n",
+            )
+            result = work_items_validate.validate_work_items(root)
+            codes = {d.code for d in result.diagnostics}
+            self.assertIn("missing-work-item-reference", codes)
+
+    def test_related_roadmap_reference_is_validated_as_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._write(
+                root,
+                "project/work_items/proposed/WI-ROADMAP.md",
+                (
+                    "---\n"
+                    "id: WI-ROADMAP\n"
+                    "status: proposed\n"
+                    "related_roadmap:\n"
+                    "  - ROADMAP-MISSING\n"
+                    "---\n"
+                ),
+            )
+            result = work_items_validate.validate_work_items(root)
+            codes = {d.code for d in result.diagnostics}
+            self.assertIn("unresolved-metadata-reference", codes)
+
+    def test_dependency_cycle_is_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._write(
+                root,
+                "project/work_items/proposed/WI-A.md",
+                "---\nid: WI-A\nstatus: proposed\ndepends_on:\n  - WI-B\n---\n",
+            )
+            self._write(
+                root,
+                "project/work_items/proposed/WI-B.md",
+                "---\nid: WI-B\nstatus: proposed\ndepends_on:\n  - WI-A\n---\n",
+            )
+            result = work_items_validate.validate_work_items(root)
+            codes = {d.code for d in result.diagnostics}
+            self.assertIn("work-item-dependency-cycle", codes)
+
     def test_json_schema(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)

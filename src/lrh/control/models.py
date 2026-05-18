@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from lrh.control import execution_readiness
+
 
 @dataclass(frozen=True)
 class Focus:
@@ -37,6 +39,8 @@ class WorkItem:
     assigned_agents: tuple[str, ...] = ()
     related_focus: tuple[str, ...] = ()
     related_roadmap: tuple[str, ...] = ()
+    related_workstreams: tuple[str, ...] = ()
+    related_design: tuple[str, ...] = ()
     depends_on: tuple[str, ...] = ()
     blocked_by: tuple[str, ...] = ()
     expected_actions: tuple[str, ...] = ()
@@ -44,6 +48,7 @@ class WorkItem:
     acceptance: tuple[str, ...] = ()
     required_evidence: tuple[str, ...] = ()
     artifacts_expected: tuple[str, ...] = ()
+    execution_readiness: execution_readiness.ExecutionReadiness | None = None
     body: str = ""
     frontmatter: dict[str, object] = field(default_factory=dict)
 
@@ -66,11 +71,29 @@ class Workstream:
     rationale: str | None = None
     related_focus: tuple[str, ...] = ()
     related_roadmap: tuple[str, ...] = ()
+    related_design: tuple[str, ...] = ()
     work_items: tuple[str, ...] = ()
     execution_records: tuple[str, ...] = ()
     evidence: tuple[str, ...] = ()
     exit_criteria: tuple[str, ...] = ()
     closeout: str | None = None
+    body: str = ""
+    frontmatter: dict[str, object] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class DesignProposal:
+    """Design-proposal artifact loaded from project/design/proposals/**/*.md."""
+
+    path: Path
+    id: str
+    title: str | None
+    status: str
+    implementation_status: str | None = None
+    implemented_by: tuple[str, ...] = ()
+    evidence: tuple[str, ...] = ()
+    supersedes: tuple[str, ...] = ()
+    superseded_by: str | None = None
     body: str = ""
     frontmatter: dict[str, object] = field(default_factory=dict)
 
@@ -103,6 +126,8 @@ class ProjectState:
     work_items_by_id: dict[str, WorkItem]
     workstreams: tuple[Workstream, ...]
     workstreams_by_id: dict[str, Workstream]
+    design_proposals: tuple[DesignProposal, ...]
+    design_proposals_by_id: dict[str, DesignProposal]
     contributors: tuple[Contributor, ...]
     contributors_by_id: dict[str, Contributor]
 

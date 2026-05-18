@@ -91,3 +91,43 @@ class WorkItemsCliTest(unittest.TestCase):
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 1)
+
+    def test_audit_markdown_and_json_exit_zero(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            path = root / "project/work_items/proposed/WI-CLI-AUDIT-1.md"
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                "---\nid: WI-CLI-AUDIT-1\nstatus: proposed\n---\n# WI-CLI-AUDIT-1\n",
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            with unittest.mock.patch(
+                "sys.argv",
+                ["lrh", "work-items", "audit", "--project-root", str(root)],
+            ):
+                with contextlib.redirect_stdout(stdout):
+                    with self.assertRaises(SystemExit) as err:
+                        cli_main.main()
+            self.assertEqual(err.exception.code, 0)
+            self.assertIn("# Work Item Lifecycle Audit", stdout.getvalue())
+
+            stdout = io.StringIO()
+            with unittest.mock.patch(
+                "sys.argv",
+                [
+                    "lrh",
+                    "work-items",
+                    "audit",
+                    "--project-root",
+                    str(root),
+                    "--format",
+                    "json",
+                ],
+            ):
+                with contextlib.redirect_stdout(stdout):
+                    with self.assertRaises(SystemExit) as err:
+                        cli_main.main()
+            self.assertEqual(err.exception.code, 0)
+            self.assertIn('"schema_version": "1.0"', stdout.getvalue())

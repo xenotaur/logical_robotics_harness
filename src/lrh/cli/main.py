@@ -700,11 +700,15 @@ def main() -> None:
             if passthrough_args:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
             project_root = Path(args.project_root).expanduser().resolve()
-            report = work_items_readiness.evaluate_readiness(
-                project_root=project_root,
-                work_item_id=args.work_item_id,
-                status=args.status,
-            )
+            try:
+                report = work_items_readiness.evaluate_readiness(
+                    project_root=project_root,
+                    work_item_id=args.work_item_id,
+                    status=args.status,
+                )
+            except work_items_readiness.WorkItemReadinessError as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
             if args.format == "json":
                 print(work_items_readiness.format_json(report))
             else:

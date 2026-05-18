@@ -77,7 +77,29 @@ class WorkItemReadinessTest(unittest.TestCase):
             text = work_items_readiness.format_markdown(report)
             self.assertIn("# Work Item Readiness", text)
             self.assertIn("## WI-READY", text)
-            self.assertIn("prompt_ready: yes", text)
+            self.assertIn("- prompt_ready: `yes`", text)
+
+    def test_malformed_work_item_is_reported_not_crashed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            self._write(
+                root,
+                "project/work_items/proposed/WI-BAD.md",
+                "# not a work item\n",
+            )
+            report = work_items_readiness.evaluate_readiness(project_root=root)
+            self.assertEqual(len(report.items), 1)
+            self.assertFalse(report.items[0].prompt_ready)
+            self.assertIn("malformed", report.items[0].blocking_reasons[0])
+
+    def test_explicit_missing_work_item_id_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            with self.assertRaises(work_items_readiness.WorkItemReadinessError):
+                work_items_readiness.evaluate_readiness(
+                    project_root=root,
+                    work_item_id="WI-MISSING",
+                )
 
     def _write(self, root: pathlib.Path, rel: str, text: str) -> None:
         path = root / rel

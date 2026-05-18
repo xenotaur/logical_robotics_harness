@@ -117,7 +117,8 @@ Suggested later options:
 
 ```bash
 --source chatgpt-pdf
---privacy private|public|transient
+--privacy private|shared_private|public|secret
+--durability transient|session|durable|versioned|sealed
 --scan-sensitive / --no-scan-sensitive
 --include-page-breaks
 --no-frontmatter
@@ -128,6 +129,7 @@ Suggested later options:
 Expected command behavior:
 
 - read one local PDF file;
+- keep privacy and durability as separate policy axes;
 - preflight that the file is a supported, extractable-text PDF;
 - write one Markdown transcript to `--out`;
 - refuse to overwrite an existing output path unless `--force` is supplied;

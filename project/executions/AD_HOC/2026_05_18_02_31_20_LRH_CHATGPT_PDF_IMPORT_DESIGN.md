@@ -2,7 +2,7 @@
 execution_id: 2026_05_18_02_31_20_LRH_CHATGPT_PDF_IMPORT_DESIGN
 prompt_id: PROMPT(AD_HOC:LRH_CHATGPT_PDF_IMPORT_DESIGN)[2026-05-16T00:45:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:
@@ -21,6 +21,9 @@ privacy, authority, and sensitivity metadata.
 - Added `project/design/proposals/proposed/lrh-conversations-storage-interop/01_chatgpt_pdf_import.md`.
 - Recorded the future command contract:
   `lrh conversation convert-pdf INPUT.pdf --out OUTPUT.md`.
+- Addressed review feedback by keeping `--privacy` aligned to documented
+  privacy classes and leaving transient/session behavior on the durability
+  axis.
 - Documented default metadata values: `privacy: private`,
   `authority: non_authoritative_context`, and `scan_sensitive: true`.
 - Documented the conversion pipeline, Markdown frontmatter shape,

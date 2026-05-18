@@ -23,10 +23,21 @@ python -m lrh.cli.main request list
 Structured work-item helpers with explicit output support are also implemented:
 
 ```bash
+lrh request ready-work-item WI-ASSIST-INSTALLABILITY-HARDENING
+lrh request prompt-from-work-item WI-EXAMPLE
 lrh request run-packet-from-work-item WI-EXAMPLE --out /tmp/run-packet.md
 lrh request run-report-from-work-item WI-EXAMPLE --outcome success --out /tmp/run-report.md
 lrh request codex-prompt-from-work-item --work-item project/work_items/active/WI-EXAMPLE.md --slug implement-example --out /tmp/prompt.md
 ```
+
+Work-item request surfaces have different responsibilities:
+
+- `ready-work-item` renders a non-mutating refinement request for a valid but thin work item.
+- `prompt-from-work-item` renders an implementation prompt after readiness issues are resolved.
+- `run-packet-from-work-item` renders a non-mutating dry-run/manual run packet for an execution-ready item.
+- `run-report-from-work-item` renders a manual/dry-run report from explicitly supplied outcomes, validation results, evidence, artifacts, risks, and review tasks.
+
+These commands print Markdown to stdout unless a structured renderer supports `--out`. They do not edit work-item files, dispatch agents, run validation commands, create pull requests, merge branches, publish releases, or close lifecycle records.
 
 ## Important options and arguments
 

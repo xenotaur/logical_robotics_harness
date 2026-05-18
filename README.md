@@ -407,6 +407,15 @@ not replace full project validation (`lrh validate`).
 and consistency warnings). Flat legacy files under `project/work_items/*.md` are
 reported as warnings for compatibility, not errors.
 
+For implementation-oriented workflows, keep validation, audit, readiness, prompting, and
+evidence closeout separate. Start with `lrh work-items validate`, inspect lifecycle signals with
+`lrh work-items audit --format md`, diagnose prompt-readiness with `lrh work-items readiness`,
+then use `lrh request ready-work-item`, `prompt-from-work-item`, `run-packet-from-work-item`, and
+`run-report-from-work-item` only as reviewable artifact renderers. See
+[`docs/how-to/manage-work-item-lifecycle.md`](docs/how-to/manage-work-item-lifecycle.md) for the
+operational workflow and [`docs/reference/cli/work-items.md`](docs/reference/cli/work-items.md) for
+exact command behavior.
+
 ### Workstream status buckets
 
 Workstreams are organized under `project/workstreams/proposed/`, `active/`, `resolved/`, and

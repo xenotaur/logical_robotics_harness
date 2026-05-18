@@ -24,6 +24,36 @@ Template markdown files are bundled as package data in both editable installs (`
 
 Review/repair request templates keep a packaged protocol at `src/lrh/assist/templates/request/review_protocol.md` for install-time portability, while repository-root `REVIEWS.md` remains the maintenance source of truth.
 
+## Work-item workflow surfaces
+
+The work-item assist surfaces sit after deterministic control-plane checks:
+
+```bash
+lrh work-items validate
+lrh work-items audit --format md
+lrh work-items readiness --status proposed --format md
+lrh request ready-work-item WI-ASSIST-INSTALLABILITY-HARDENING
+lrh request prompt-from-work-item WI-ASSIST-INSTALLABILITY-HARDENING
+lrh request run-packet-from-work-item WI-EXAMPLE --out /tmp/run-packet.md
+lrh request run-report-from-work-item WI-EXAMPLE --outcome success --evidence project/evidence/EV-EXAMPLE.md
+```
+
+Use these commands by boundary:
+
+- `validate`, `audit`, and `readiness` are deterministic reporting commands.
+- `ready-work-item`, `prompt-from-work-item`, `run-packet-from-work-item`, and
+  `run-report-from-work-item` render reviewable Markdown artifacts.
+- Lifecycle moves, implementation decisions, and evidence closeout remain
+  human-reviewed control-plane changes.
+
+`WI-ASSIST-INSTALLABILITY-HARDENING` is the standard valid-but-not-ready example:
+LRH can validate and audit it, but readiness diagnostics explain why it needs
+refinement before a bounded implementation prompt. See
+[`docs/how-to/manage-work-item-lifecycle.md`](../../../docs/how-to/manage-work-item-lifecycle.md)
+for the full operational workflow and
+[`docs/reference/cli/work-items.md`](../../../docs/reference/cli/work-items.md) for exact
+work-item command behavior.
+
 ## Key Concepts
 
 - **Template**: A markdown file with placeholders like `{{TARGET_MODULE_GHA}}`.

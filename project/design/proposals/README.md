@@ -16,11 +16,16 @@ and a single umbrella document. Each document carries
 `parent:` link (for sub-proposals and appendices) or no parent
 (for the umbrella document at the top of the set).
 
-Proposals are working artifacts. They become canonical only when
-their decisions are folded into `design.md`, `architecture.md`,
-`repository_spec.md`, or one of the related authoritative documents
-under `project/design/`, and the proposal's `status:` is set to
-`adopted` or `superseded`.
+Proposals are working artifacts. Lifecycle-aware proposals distinguish
+`status`, which answers whether the design decision governs the project,
+from `implementation_status`, which answers whether the governed design
+has been delivered. Implementation claims should be backed by
+`implemented_by` work items and `evidence` links.
+
+Adopted design proposals govern future work even before implementation
+lands. Their decisions may later be folded into `design.md`,
+`architecture.md`, `repository_spec.md`, or one of the related
+authoritative documents under `project/design/`.
 
 ## Lifecycle
 
@@ -214,6 +219,7 @@ applicable, repository-as-control-plane).
 
 Proposals must reference rather than duplicate canonical documents.
 When a proposal would update `design.md` or `architecture.md`, it
-states the diff in narrative form; the actual document edits land
-when the proposal is adopted, in a follow-on changeset that flips
-`status:` to `adopted`.
+states the diff in narrative form. Canonical document edits may land in
+the same changeset that adopts the proposal, or later when
+implementation work begins. The proposal `status:` remains the
+authoritative decision lifecycle signal.

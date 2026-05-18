@@ -22,5 +22,12 @@ Add content here when the title can naturally start with “How to ...” and th
 
 ## Guides
 
+- [Validate a project control directory](validate-a-project.md) — run current `lrh validate` checks against an LRH `project/` directory.
+- [Generate a context snapshot](generate-a-snapshot.md) — render current `lrh snapshot` context packets.
+- [Survey a source tree](survey-a-source-tree.md) — inventory a Python source tree with `lrh survey`.
+- [Use request templates](use-request-templates.md) — discover and render current `lrh request` prompts and template diagnostics.
+- [Register a project with an LRH meta workspace](register-a-project-with-meta.md) — initialize meta state and register project records.
+- [Inspect workspace state](inspect-workspace-state.md) — inspect active meta workspace paths and registered projects.
+- [Use the developer sandbox](use-the-developer-sandbox.md) — run LRH commands against isolated developer state.
 - [How to run a release](run-a-release.md) — validate, tag, smoke-test, and publish LRH releases.
 - [Project setup playbooks](project-setup/README.md) — reusable setup and hardening guidance for heterogeneous project repositories.

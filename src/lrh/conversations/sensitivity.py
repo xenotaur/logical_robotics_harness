@@ -69,7 +69,7 @@ _SECRET_ASSIGNMENT_PATTERN = re.compile(
     r"(?P<value>[^\s'\"]{4,})"
 )
 _TOKEN_PREFIX_PATTERN = re.compile(
-    r"(?<![A-Za-z0-9_])(?:sk-[A-Za-z0-9]{16,}|ghp_[A-Za-z0-9_]{16,}|github_pat_[A-Za-z0-9_]{20,})"
+    r"(?<![A-Za-z0-9_])(?:sk-[A-Za-z0-9_-]{16,}|ghp_[A-Za-z0-9_]{16,}|github_pat_[A-Za-z0-9_]{20,})"
 )
 _URL_CREDENTIALS_PATTERN = re.compile(
     r"\b[a-z][a-z0-9+.-]*://[^\s/@:]+:[^\s/@]+@[^\s]+",

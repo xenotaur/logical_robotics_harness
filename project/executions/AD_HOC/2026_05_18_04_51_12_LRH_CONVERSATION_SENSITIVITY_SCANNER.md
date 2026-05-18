@@ -2,7 +2,7 @@
 execution_id: 2026_05_18_04_51_12_LRH_CONVERSATION_SENSITIVITY_SCANNER
 prompt_id: PROMPT(AD_HOC:LRH_CONVERSATION_SENSITIVITY_SCANNER)[2026-05-16T00:46:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:
@@ -20,6 +20,7 @@ Implemented a narrow, deterministic local sensitivity scanner for LRH conversati
 - Kept findings to redacted previews only; the scanner does not redact source text or certify publish safety.
 - Added focused `unittest` coverage for detections, Luhn filtering, preview redaction, no-finding behavior, and deterministic category ordering.
 - Added a short `src/lrh/conversations/README.md` note describing scanner limitations.
+- Review follow-up broadened `sk-` token matching for separator-bearing token shapes and kept this record `in_progress` while PR metadata is unavailable.
 
 # Validation
 
@@ -28,9 +29,10 @@ Implemented a narrow, deterministic local sensitivity scanner for LRH conversati
 - `scripts/format --check` initially reported formatting changes needed for the new files.
 - `scripts/format` reformatted the new scanner and test files.
 - `scripts/lint` passed.
-- `scripts/test` passed: 541 tests.
+- `scripts/test` passed: 542 tests.
 - `scripts/format --check` passed after formatting.
 - `lrh validate` passed with 0 errors and 0 warnings.
+- Review follow-up validation reran `scripts/version tools`, `scripts/format --check --diff`, `scripts/format`, `scripts/format --check --diff`, `scripts/lint`, `scripts/test`, and `lrh validate`.
 
 # Follow-up
 

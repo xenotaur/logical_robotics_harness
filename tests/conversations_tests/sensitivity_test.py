@@ -46,6 +46,18 @@ abc123
 
         self.assertIn("token.known_prefix", rule_ids)
 
+    def test_detects_separator_bearing_sk_token_prefix(self) -> None:
+        token = "sk-proj-abcdefghijklmnopqrstuvwxyz123456"
+        result = sensitivity.scan_text_for_sensitive_findings(f"token: {token}")
+
+        self.assertEqual(result.status, sensitivity.STATUS_POTENTIAL)
+        self.assertIn(
+            "token.known_prefix", {finding.rule_id for finding in result.findings}
+        )
+        self.assertIn(
+            "<TOKEN>", [finding.redacted_preview for finding in result.findings]
+        )
+
     def test_detects_url_with_credentials(self) -> None:
         text = "Fetch https://user:pass@example.com/private.git"
         result = sensitivity.scan_text_for_sensitive_findings(text)

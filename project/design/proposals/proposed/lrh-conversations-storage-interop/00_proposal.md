@@ -39,7 +39,10 @@ history into authoritative project state.
 This is a design-only proposal. It records storage semantics, conversation
 semantics, protocol boundaries, safety rules, and implementation phasing. It
 does not implement storage code, a chat UI, an MCP server, a GitHub App, model
-provider integration, HTTP behavior, or run execution behavior.
+provider integration, HTTP behavior, or run execution behavior. The companion
+[`01_chatgpt_pdf_import.md`](01_chatgpt_pdf_import.md) design note records an
+early manual capture path for converting ChatGPT browser Save as PDF exports
+into private-by-default, non-authoritative Markdown transcripts.
 
 ## Motivation
 

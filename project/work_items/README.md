@@ -76,11 +76,11 @@ frontmatter, references, and lifecycle metadata are valid. Implementation prompt
 separate checkpoint: a selected item needs execution-facing sections such as `Scope`,
 `Required Changes`, `Acceptance Criteria`, and `Validation` before `lrh request prompt-from-work-item`
 can render a bounded prompt. The intended future split is documented in
-`project/design/work_item_readiness_workflow.md`: the planned `lrh work-items readiness` command
-diagnoses missing readiness details deterministically, while `lrh request ready-work-item` assists a
-human reviewer in refining the item without automatically mutating source files. Use
-`ready-work-item` when `prompt-from-work-item` reports missing readiness sections; the request should
-turn unresolved context into `Open Questions`, not invented scope.
+`project/design/work_item_readiness_workflow.md`: `lrh work-items readiness` diagnoses missing readiness details deterministically, while
+`lrh request ready-work-item` assists a human reviewer in refining the item without automatically
+mutating source files. Use `ready-work-item` when `prompt-from-work-item` or readiness diagnostics
+report missing sections; the request should turn unresolved context into `Open Questions`, not
+invented scope.
 
 The audit distinguishes facts from recommendations. Use the semantic work-item audit assist template (`work_item_semantic_audit`) to compare acceptance criteria against concrete repository evidence before moving files or changing terminal metadata. Ambiguous proposed items should remain proposed until follow-up evidence or human design review resolves the uncertainty.
 

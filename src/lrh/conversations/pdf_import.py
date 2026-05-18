@@ -3,6 +3,7 @@
 import dataclasses
 import datetime
 import hashlib
+import json
 import pathlib
 import re
 
@@ -72,6 +73,7 @@ def convert_chatgpt_pdf_to_markdown(
     sensitivity_status = "unscanned"
     scan_metadata: dict[str, object] = {"status": "not_run"}
     scan_result: sensitivity.SensitiveScanResult | None = None
+
     if scan_sensitive:
         scan_result = sensitivity.scan_text_for_sensitive_findings(cleaned_text)
         if scan_result.finding_count:
@@ -114,7 +116,6 @@ def convert_chatgpt_pdf_to_markdown(
         "adapter_version": ADAPTER_VERSION,
         "warnings": [{"code": w.code, "message": w.message} for w in warnings],
     }
-
     body = "\n".join(
         (
             f"# {title}",
@@ -142,30 +143,55 @@ def convert_chatgpt_pdf_to_markdown(
 def _build_source(pdf_path: pathlib.Path) -> PdfConversationSource:
     if not pdf_path.exists() or not pdf_path.is_file():
         raise PdfImportError(f"PDF file does not exist: {pdf_path}")
+
     raw_bytes = pdf_path.read_bytes()
     if not raw_bytes.startswith(b"%PDF-"):
         raise PdfImportError(f"Unreadable PDF: {pdf_path}")
-    if b"/Encrypt" in raw_bytes:
+    if _has_trailer_encrypt_key(raw_bytes):
         raise PdfImportError(f"Encrypted PDF is not supported: {pdf_path}")
+
     return PdfConversationSource(
         path=pdf_path,
         source_tool=SOURCE_TOOL,
         source_adapter=SOURCE_ADAPTER,
         sha256=hashlib.sha256(raw_bytes).hexdigest(),
-        page_count=max(1, len(re.findall(rb"/Type\s*/Page\b", raw_bytes))),
+        page_count=_extract_page_count(raw_bytes),
     )
+
+
+def _has_trailer_encrypt_key(raw_bytes: bytes) -> bool:
+    for trailer_match in re.finditer(
+        rb"trailer\s*<<(.*?)>>", raw_bytes, flags=re.DOTALL
+    ):
+        trailer_body = trailer_match.group(1)
+        if re.search(rb"/Encrypt(?![#A-Za-z0-9_.+-])", trailer_body):
+            return True
+    return False
+
+
+def _extract_page_count(raw_bytes: bytes) -> int:
+    counts = [
+        int(match.group(1))
+        for match in re.finditer(
+            rb"/Type\s*/Pages\b(?:(?!endobj).)*?/Count\s+(\d+)",
+            raw_bytes,
+            flags=re.DOTALL,
+        )
+    ]
+    if counts:
+        return max(counts)
+    return len(re.findall(rb"/Type\s*/Page\b", raw_bytes))
 
 
 def _extract_pdf_text(
     pdf_path: pathlib.Path, *, include_page_breaks: bool
 ) -> tuple[str, str]:
     raw = pdf_path.read_bytes().decode("latin-1", errors="ignore")
-    matches = re.findall(r"\((.*?)\)\s*Tj", raw, flags=re.DOTALL)
-    chunks = [_unescape_pdf_text(token) for token in matches if token]
+    chunks = _extract_text_showing_chunks(raw)
     if not chunks:
         raise PdfImportError(f"No extractable text found in PDF: {pdf_path}")
-    combined = "\n".join(chunks).replace("\r\n", "\n")
-    combined = combined.replace("\\n", "\n")
+
+    combined = "\n".join(chunks).replace("\r\n", "\n").replace("\r", "\n")
     if include_page_breaks:
         combined = combined.replace("\n\f\n", "\n\n---\n\n")
     combined = combined.strip()
@@ -175,8 +201,150 @@ def _extract_pdf_text(
     return (first or pdf_path.stem), combined
 
 
-def _unescape_pdf_text(text: str) -> str:
-    return text.replace(r"\(", "(").replace(r"\)", ")").replace(r"\\", "\\")
+def _extract_text_showing_chunks(raw: str) -> list[str]:
+    tokens = _parse_pdf_tokens(raw)
+    chunks: list[str] = []
+    for index, token in enumerate(tokens):
+        previous = tokens[index - 1] if index else None
+        if token == "Tj" and isinstance(previous, _PdfString):
+            chunks.append(previous.text)
+        elif token == "TJ" and isinstance(previous, _PdfArray):
+            array_text = "".join(
+                item.text for item in previous.items if isinstance(item, _PdfString)
+            )
+            if array_text:
+                chunks.append(array_text)
+    return chunks
+
+
+@dataclasses.dataclass(frozen=True)
+class _PdfString:
+    text: str
+
+
+@dataclasses.dataclass(frozen=True)
+class _PdfArray:
+    items: tuple[object, ...]
+
+
+def _parse_pdf_tokens(
+    raw: str, start: int = 0, stop: str | None = None
+) -> list[object]:
+    tokens: list[object] = []
+    index = start
+    while index < len(raw):
+        char = raw[index]
+        if stop is not None and char == stop:
+            return tokens
+        if char.isspace():
+            index += 1
+            continue
+        if char == "%":
+            index = raw.find("\n", index)
+            if index == -1:
+                return tokens
+            continue
+        if char == "(":
+            value, index = _parse_pdf_literal_string(raw, index)
+            tokens.append(_PdfString(value))
+            continue
+        if char == "[":
+            array, index = _parse_pdf_array(raw, index)
+            tokens.append(array)
+            continue
+        if char in "]<>{}/":
+            index += 1
+            continue
+
+        end = index
+        while end < len(raw) and not raw[end].isspace() and raw[end] not in "[]<>{}/()":
+            end += 1
+        tokens.append(raw[index:end])
+        index = end
+    return tokens
+
+
+def _parse_pdf_array(raw: str, start: int) -> tuple[_PdfArray, int]:
+    items: list[object] = []
+    index = start + 1
+    while index < len(raw):
+        char = raw[index]
+        if char.isspace():
+            index += 1
+            continue
+        if char == "]":
+            return _PdfArray(tuple(items)), index + 1
+        if char == "(":
+            value, index = _parse_pdf_literal_string(raw, index)
+            items.append(_PdfString(value))
+            continue
+        if char == "[":
+            nested, index = _parse_pdf_array(raw, index)
+            items.append(nested)
+            continue
+        end = index
+        while end < len(raw) and not raw[end].isspace() and raw[end] not in "[]()":
+            end += 1
+        items.append(raw[index:end])
+        index = end
+    return _PdfArray(tuple(items)), index
+
+
+def _parse_pdf_literal_string(raw: str, start: int) -> tuple[str, int]:
+    chars: list[str] = []
+    index = start + 1
+    depth = 1
+    while index < len(raw):
+        char = raw[index]
+        if char == "\\":
+            unescaped, index = _parse_pdf_escape(raw, index)
+            chars.append(unescaped)
+            continue
+        if char == "(":
+            depth += 1
+            chars.append(char)
+            index += 1
+            continue
+        if char == ")":
+            depth -= 1
+            index += 1
+            if depth == 0:
+                return "".join(chars), index
+            chars.append(char)
+            continue
+        chars.append(char)
+        index += 1
+    return "".join(chars), index
+
+
+def _parse_pdf_escape(raw: str, start: int) -> tuple[str, int]:
+    if start + 1 >= len(raw):
+        return "", start + 1
+
+    char = raw[start + 1]
+    escapes = {
+        "n": "\n",
+        "r": "\r",
+        "t": "\t",
+        "b": "\b",
+        "f": "\f",
+        "(": "(",
+        ")": ")",
+        "\\": "\\",
+    }
+    if char in escapes:
+        return escapes[char], start + 2
+    if char in "\n\r":
+        index = start + 2
+        if char == "\r" and index < len(raw) and raw[index] == "\n":
+            index += 1
+        return "", index
+    if char in "01234567":
+        end = start + 2
+        while end < len(raw) and end < start + 4 and raw[end] in "01234567":
+            end += 1
+        return chr(int(raw[start + 1 : end], 8)), end
+    return char, start + 2
 
 
 def _clean_extracted_text(text: str, title: str) -> str:
@@ -227,10 +395,7 @@ def _yaml_lines(value: object, indent: int) -> list[str]:
 
 def _yaml_scalar(value: object) -> str:
     if isinstance(value, str):
-        if value == "" or any(ch in value for ch in [":", "#", "\n", '"']):
-            escaped = value.replace("\\", "\\\\").replace('"', '\\"')
-            return f'"{escaped}"'
-        return value
+        return json.dumps(value, ensure_ascii=False)
     if isinstance(value, bool):
         return "true" if value else "false"
     if value is None:

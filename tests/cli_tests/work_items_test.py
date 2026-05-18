@@ -131,3 +131,74 @@ class WorkItemsCliTest(unittest.TestCase):
                         cli_main.main()
             self.assertEqual(err.exception.code, 0)
             self.assertIn('"schema_version": "1.0"', stdout.getvalue())
+
+    def test_readiness_markdown_and_json_exit_zero(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            path = root / "project/work_items/proposed/WI-CLI-READY-1.md"
+            path.parent.mkdir(parents=True)
+            path.write_text(
+                (
+                    "---\n"
+                    "id: WI-CLI-READY-1\n"
+                    "status: proposed\n"
+                    "title: x\n"
+                    "type: deliverable\n"
+                    "blocked: false\n"
+                    "---\n"
+                    "# WI-CLI-READY-1\n"
+                ),
+                encoding="utf-8",
+            )
+
+            stdout = io.StringIO()
+            with unittest.mock.patch(
+                "sys.argv",
+                ["lrh", "work-items", "readiness", "--project-root", str(root)],
+            ):
+                with contextlib.redirect_stdout(stdout):
+                    with self.assertRaises(SystemExit) as err:
+                        cli_main.main()
+            self.assertEqual(err.exception.code, 0)
+            self.assertIn("# Work Item Readiness", stdout.getvalue())
+            self.assertIn("recommended_next:", stdout.getvalue())
+
+            stdout = io.StringIO()
+            with unittest.mock.patch(
+                "sys.argv",
+                [
+                    "lrh",
+                    "work-items",
+                    "readiness",
+                    "--project-root",
+                    str(root),
+                    "--format",
+                    "json",
+                ],
+            ):
+                with contextlib.redirect_stdout(stdout):
+                    with self.assertRaises(SystemExit) as err:
+                        cli_main.main()
+            self.assertEqual(err.exception.code, 0)
+            self.assertIn('"schema_version": "1.0"', stdout.getvalue())
+
+    def test_readiness_missing_work_item_id_returns_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            stdout = io.StringIO()
+            with unittest.mock.patch(
+                "sys.argv",
+                [
+                    "lrh",
+                    "work-items",
+                    "readiness",
+                    "WI-MISSING",
+                    "--project-root",
+                    str(root),
+                ],
+            ):
+                with contextlib.redirect_stdout(stdout):
+                    with self.assertRaises(SystemExit) as err:
+                        cli_main.main()
+            self.assertEqual(err.exception.code, 1)
+            self.assertIn("work item not found", stdout.getvalue())

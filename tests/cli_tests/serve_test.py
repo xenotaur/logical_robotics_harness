@@ -145,6 +145,11 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(index_status, 200)
         self.assertIn("text/html", index_type)
         self.assertIn("Safe-default read-only project viewer", index_body)
+        self.assertIn('class="lrh-app-shell"', index_body)
+        self.assertIn('id="system-overview"', index_body)
+        self.assertIn('class="lrh-status-badge lrh-status-badge--stable"', index_body)
+        self.assertIn("Evidence summary", index_body)
+        self.assertIn("Observed run/test evidence is not yet available", index_body)
         self.assertIn("Execution-ready leaves", index_body)
         self.assertIn("does not", index_body)
         self.assertEqual(health_status, 200)
@@ -250,6 +255,22 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(payload["execution"]["ready_work_items"], [])
         self.assertEqual(payload["execution"]["ready_count"], 0)
 
+    def test_workbench_html_uses_semantic_read_only_regions(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(base_url + "/workbench")
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn('class="lrh-page-header"', body)
+        self.assertIn('class="lrh-guardrail-callout"', body)
+        self.assertIn("Renderable work items", body)
+        self.assertIn("Preview run packet", body)
+        self.assertIn("does not execute prompts", body)
+
     def test_workbench_api_lists_deterministic_preview_actions(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
@@ -334,6 +355,22 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn("# Run Report: WI-A", payload["markdown"])
         self.assertIn("requires-human-review", payload["markdown"])
         self.assertIn("does not execute work", payload["markdown"])
+
+    def test_workbench_artifact_html_labels_preview_as_not_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(
+                base_url + "/workbench/run-packet?work_item=WI-A"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn('class="lrh-workbench-artifact"', body)
+        self.assertIn("Copy-friendly Markdown", body)
+        self.assertIn("unavailable as execution", body)
 
     def test_workbench_download_is_in_memory_markdown_response(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

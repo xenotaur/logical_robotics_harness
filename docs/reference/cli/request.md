@@ -20,11 +20,11 @@ lrh request templates --template-dir .lrh/templates where review-response
 python -m lrh.cli.main request list
 ```
 
-Structured work-item helpers with explicit output support are also implemented:
+Work-item helper invocations include both stdout-only renderers and structured helpers with explicit output support:
 
 ```bash
-lrh request ready-work-item WI-ASSIST-INSTALLABILITY-HARDENING
-lrh request prompt-from-work-item WI-EXAMPLE
+lrh request ready-work-item WI-ASSIST-INSTALLABILITY-HARDENING > /tmp/ready-work-item.md
+lrh request prompt-from-work-item WI-EXAMPLE > /tmp/prompt.md
 lrh request run-packet-from-work-item WI-EXAMPLE --out /tmp/run-packet.md
 lrh request run-report-from-work-item WI-EXAMPLE --outcome success --out /tmp/run-report.md
 lrh request codex-prompt-from-work-item --work-item project/work_items/active/WI-EXAMPLE.md --slug implement-example --out /tmp/prompt.md

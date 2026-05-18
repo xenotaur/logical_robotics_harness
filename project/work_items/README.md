@@ -86,6 +86,8 @@ lrh work-items readiness --status proposed --format md
 lrh request ready-work-item WI-ASSIST-INSTALLABILITY-HARDENING
 # review/apply refinement PR
 lrh request prompt-from-work-item WI-ASSIST-INSTALLABILITY-HARDENING
+# optional: for execution-ready items, render a dry-run/manual packet before execution
+lrh request run-packet-from-work-item WI-EXAMPLE --out /tmp/run-packet.md
 # after implementation/evidence
 lrh request run-report-from-work-item WI-ASSIST-INSTALLABILITY-HARDENING --outcome success
 ```

@@ -8,6 +8,26 @@ report structure, lifecycle, traceability, and prompt-readiness signals. They do
 not perform semantic closeout, execute work, or mutate files unless an explicitly
 mutating helper such as `organize --apply` is used.
 
+## Organization
+
+```bash
+lrh work-items organize
+lrh work-items organize --dry-run
+lrh work-items organize --check
+lrh work-items organize --apply
+lrh work-items organize --project-root /path/to/repository --check
+```
+
+`organize` is a conservative status-bucket helper. By default, and with
+`--dry-run`, it previews frontmatter or path changes that would make work-item
+files match the status-bucket layout. `--check` exits non-zero when mechanical
+organization changes are still needed and is appropriate for validation
+contexts. `--apply` performs only those mechanical organization changes.
+
+Use `organize` for bucket/frontmatter hygiene, not semantic lifecycle decisions.
+It should not decide whether a work item is complete, abandoned, prompt-ready,
+or evidence-closed.
+
 ## Validation
 
 ```bash

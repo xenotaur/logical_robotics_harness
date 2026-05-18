@@ -26,6 +26,12 @@ class TestLrhRequestCli(unittest.TestCase):
         self.assertIn("lrh request", result.stdout)
         self.assertIn("--work-item-file", result.stdout)
 
+    def test_lrh_request_ready_work_item_help(self) -> None:
+        result = self._run_lrh(["request", "ready-work-item", "--help"])
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("ready-work-item", result.stdout)
+        self.assertIn("--work-item", result.stdout)
+
     def test_lrh_request_codex_prompt_from_work_item_help(self) -> None:
         result = self._run_lrh(["request", "codex-prompt-from-work-item", "--help"])
         self.assertEqual(result.returncode, 0)
@@ -39,6 +45,7 @@ class TestLrhRequestCli(unittest.TestCase):
         self.assertEqual(result.stderr, "")
         self.assertIn("work-items:\n", result.stdout)
         self.assertIn("prompt-from-work-item", result.stdout)
+        self.assertIn("ready-work-item", result.stdout)
         self.assertIn("review:\n", result.stdout)
         self.assertIn("review-response", result.stdout)
 

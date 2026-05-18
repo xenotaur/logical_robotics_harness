@@ -24,6 +24,14 @@ class RequestMetadata:
 
 _REQUESTS: tuple[RequestMetadata, ...] = (
     RequestMetadata(
+        canonical_name="ready-work-item",
+        legacy_names=(),
+        category="work-items",
+        template_name="ready_work_item",
+        description=("Render a non-mutating refinement request for a thin work item."),
+        implementation_target="structured_ready_work_item",
+    ),
+    RequestMetadata(
         canonical_name="prompt-from-work-item",
         legacy_names=("codex-prompt-from-work-item", "codex_prompt_from_work_item"),
         category="work-items",

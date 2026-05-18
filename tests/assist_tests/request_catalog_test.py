@@ -33,6 +33,14 @@ class TestRequestCatalog(unittest.TestCase):
         self.assertEqual(metadata.implementation_target, "structured_run_report")
         self.assertIn("run_report_from_work_item", metadata.legacy_names)
 
+    def test_ready_work_item_is_canonical_without_aliases(self) -> None:
+        metadata = request_catalog.require("ready-work-item")
+
+        self.assertEqual(metadata.canonical_name, "ready-work-item")
+        self.assertEqual(metadata.legacy_names, ())
+        self.assertEqual(metadata.template_name, "ready_work_item")
+        self.assertEqual(metadata.implementation_target, "structured_ready_work_item")
+
     def test_unknown_request_name_raises_clear_error(self) -> None:
         with self.assertRaisesRegex(
             ValueError, "unknown request name: no-such-request"

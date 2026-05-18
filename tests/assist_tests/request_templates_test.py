@@ -49,6 +49,13 @@ class TestTemplatePathAndLoading(unittest.TestCase):
         self.assertIn("Semantic Work-Item Lifecycle Audit Request", loaded)
         self.assertIn("Avoid optimistic closure", loaded)
 
+    def test_ready_work_item_template_loads_from_package_resources(self) -> None:
+        loaded = request_templates.load_template_text("ready_work_item")
+
+        self.assertIn("Ready Work Item Refinement Request", loaded)
+        self.assertIn("{{READINESS_DIAGNOSTICS}}", loaded)
+        self.assertIn("Open Questions", loaded)
+
     def test_missing_template_raises_file_not_found_error(self) -> None:
         with self.assertRaisesRegex(FileNotFoundError, "Template not found"):
             request_templates.load_template_text("does_not_exist")

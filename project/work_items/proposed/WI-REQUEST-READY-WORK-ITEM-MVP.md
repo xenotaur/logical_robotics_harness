@@ -64,8 +64,9 @@ not automatically modify the control-plane source.
 
 ## Required Changes
 
-- Add request command/template or structured renderer support for `ready-work-item`.
-- Reuse readiness diagnostics from `lrh work-items readiness` when available.
+- Add `ready-work-item` command support backed by a package-owned request template.
+- Reuse the existing `prompt-from-work-item` readiness diagnostics (`evaluate_prompt_readiness`) for
+  the MVP; keep broader deterministic `lrh work-items readiness` extraction as follow-up work.
 - Document the request command and its non-mutating behavior.
 - Add tests for command discovery, rendering, and missing-section guidance.
 

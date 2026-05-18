@@ -2,7 +2,7 @@
 execution_id: 2026_05_18_02_08_18_LRH_SERVE_LIGHT_UX_ALIGNMENT
 prompt_id: PROMPT(AD_HOC:LRH_SERVE_LIGHT_UX_ALIGNMENT)[2026-05-16T00:13:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
 commit: 
@@ -44,6 +44,7 @@ Touched the package-owned serve UI in `src/lrh/serve.py`:
 
 # Follow-up
 
+- After merge, set this execution record status to `landed` and fill `pr`/`commit` metadata.
 - Full Alternative D swimlanes, a style specimen route, persisted theme preference, and richer
   evidence/run observation should remain future UX/schema work after the supporting control-plane
   data exists.

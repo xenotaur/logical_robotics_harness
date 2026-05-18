@@ -21,6 +21,7 @@ from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
 from lrh.work_items import audit as work_items_audit
 from lrh.work_items import organize as work_items_organize
+from lrh.work_items import readiness as work_items_readiness
 from lrh.work_items import validate as work_items_validate
 from lrh.workstreams import organize as workstreams_organize
 
@@ -241,6 +242,30 @@ def main() -> None:
         help="target repository root (default: current directory)",
     )
     work_items_audit_parser.add_argument(
+        "--format",
+        choices=("md", "json"),
+        default="md",
+        help="output format (default: md)",
+    )
+
+    work_items_readiness_parser = work_items_subparsers.add_parser(
+        "readiness",
+        help="Report deterministic prompt-readiness diagnostics for work items.",
+    )
+    work_items_readiness_parser.add_argument(
+        "work_item_id", nargs="?", help="work-item ID"
+    )
+    work_items_readiness_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    work_items_readiness_parser.add_argument(
+        "--status",
+        choices=("proposed", "active", "resolved", "abandoned"),
+        help="filter by frontmatter status",
+    )
+    work_items_readiness_parser.add_argument(
         "--format",
         choices=("md", "json"),
         default="md",
@@ -696,6 +721,24 @@ def main() -> None:
                 print(work_items_audit.format_json(report))
             else:
                 print(work_items_audit.format_markdown(report))
+            raise SystemExit(0)
+        if args.work_items_command == "readiness":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            try:
+                report = work_items_readiness.evaluate_readiness(
+                    project_root=project_root,
+                    work_item_id=args.work_item_id,
+                    status=args.status,
+                )
+            except work_items_readiness.WorkItemReadinessError as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
+            if args.format == "json":
+                print(work_items_readiness.format_json(report))
+            else:
+                print(work_items_readiness.format_markdown(report))
             raise SystemExit(0)
         parser.error("work-items requires a subcommand (try: lrh work-items organize)")
 

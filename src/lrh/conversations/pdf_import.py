@@ -389,8 +389,20 @@ def _yaml_scalar(value: object) -> str:
 
 
 def run_convert_pdf_cli(argv: Sequence[str] | None = None, *, prog: str) -> int:
-    parser = argparse.ArgumentParser(prog=prog)
-    parser.add_argument("input_pdf", help="local ChatGPT/browser Save-as-PDF input")
+    parser = argparse.ArgumentParser(
+        prog=prog,
+        description=(
+            "Convert a local ChatGPT PDF conversation export with extractable "
+            "text into a private Markdown transcript. OCR and scanned PDFs are "
+            "not supported. Output frontmatter defaults to privacy=private and "
+            "authority=non_authoritative_context. The sensitivity scan is "
+            "heuristic and does not certify that content is safe to publish."
+        ),
+    )
+    parser.add_argument(
+        "input_pdf",
+        help="local ChatGPT/browser Save-as-PDF input with an extractable text layer",
+    )
     parser.add_argument("--out", required=True, help="Markdown transcript output path")
     parser.add_argument("--force", action="store_true", help="overwrite output path")
     parser.add_argument(
@@ -401,7 +413,10 @@ def run_convert_pdf_cli(argv: Sequence[str] | None = None, *, prog: str) -> int:
     parser.add_argument(
         "--no-scan-sensitive",
         action="store_true",
-        help="skip the local deterministic sensitivity scanner",
+        help=(
+            "skip the local heuristic sensitivity scanner and mark frontmatter "
+            "sensitivity as unscanned"
+        ),
     )
     args = parser.parse_args(argv)
     try:
@@ -412,10 +427,47 @@ def run_convert_pdf_cli(argv: Sequence[str] | None = None, *, prog: str) -> int:
             include_frontmatter=not args.no_frontmatter,
             scan_sensitive=not args.no_scan_sensitive,
         )
-    except PdfImportError as err:
+    except (OSError, PdfImportError) as err:
         print(f"error: {err}", file=sys.stderr)
         return 1
-    print(f"wrote {args.out}")
+
+    sensitivity_status = _transcript_sensitivity_status(
+        result.sensitivity_result,
+        scan_sensitive=not args.no_scan_sensitive,
+    )
+    sensitivity_warning_count = 0
+    if result.sensitivity_result is not None and result.sensitivity_result.findings:
+        sensitivity_warning_count = 1
+        finding_count = len(result.sensitivity_result.findings)
+        print(
+            "warning: potential sensitive content detected "
+            f"by heuristic scanner ({finding_count} finding(s))",
+            file=sys.stderr,
+        )
     for warning in result.extraction.warnings:
         print(f"warning: {warning}", file=sys.stderr)
+
+    warning_count = len(result.extraction.warnings) + sensitivity_warning_count
+    page_count = (
+        str(result.extraction.page_count)
+        if result.extraction.page_count is not None
+        else "unknown"
+    )
+    print(f"Converted ChatGPT PDF transcript: {args.out}")
+    print(f"Pages: {page_count}")
+    print("Privacy: private")
+    print(f"Sensitivity: {sensitivity_status}")
+    print(f"Warnings: {warning_count}")
     return 0
+
+
+def _transcript_sensitivity_status(
+    scan_result: sensitivity.SensitiveScanResult | None,
+    *,
+    scan_sensitive: bool,
+) -> str:
+    if scan_result is None:
+        return "unscanned" if not scan_sensitive else "failed_or_unavailable"
+    if scan_result.findings:
+        return "potential"
+    return "none_detected"

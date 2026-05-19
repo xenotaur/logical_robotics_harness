@@ -40,6 +40,8 @@ _STATUS_ROUTES = (
     "/meta",
     "/meta/project",
     "/project/<project_id>",
+    "/project/<project_id>/work-items/<work_item_id>",
+    "/project/<project_id>/work-items/<work_item_id>/prompt",
     "/health",
     "/api/status",
     "/api/project",
@@ -1138,6 +1140,112 @@ def render_workbench_artifact_page(artifact: WorkbenchArtifact) -> str:
     )
 
 
+def render_project_work_item_page(
+    config: ServeConfig,
+    project_id: str,
+    work_item_id: str,
+) -> tuple[int, str]:
+    """Render a read-only readiness detail page for one work item."""
+
+    try:
+        scoped_config = _config_for_project_selector(config, project_id)
+        state = core_state.load_core_project_state(
+            scoped_config.resolved_project_root()
+        )
+        item = _resolve_workbench_item(state, work_item_id)
+    except (FileNotFoundError, OSError, ValueError) as error:
+        return 404, json.dumps({"error": "not_found", "message": str(error)})
+    readiness = item.execution_readiness
+    readiness_state = "unknown"
+    if item.status == "blocked":
+        readiness_state = "blocked"
+    elif readiness is None:
+        readiness_state = "not ready"
+    elif readiness.execution_ready:
+        readiness_state = "ready"
+    else:
+        readiness_state = "not ready"
+    disabled = "disabled" if readiness_state != "ready" else ""
+    source_path = _relative_repo_path(scoped_config.resolved_project_root(), item.path)
+    validation_commands = (
+        ", ".join(readiness.validation_commands) if readiness is not None else "missing"
+    )
+    required_evidence = (
+        ", ".join(readiness.required_evidence) if readiness is not None else "missing"
+    )
+    allowed_paths = (
+        ", ".join(readiness.allowed_paths) if readiness is not None else "missing"
+    )
+    forbidden_paths = (
+        ", ".join(readiness.forbidden_paths) if readiness is not None else "missing"
+    )
+    prompt_preview = (
+        f"/project/{_url_quote(project_id)}/work-items/{_url_quote(item.id)}/prompt"
+    )
+    prompt_download = f"/workbench/prompt?work_item={_url_quote(item.id)}&download=1"
+    cli_command = (
+        "lrh request codex-prompt-from-work-item " f"--work-item {html.escape(item.id)}"
+    )
+    page = f"""<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>{html.escape(item.id)}</title>{_base_styles()}</head>
+<body><div class="lrh-app-shell">
+<h1>{html.escape(item.id)} — {html.escape(item.title)}</h1>
+<p>Project: {html.escape(project_id)} | Status: {html.escape(item.status)}
+| Type: {html.escape(item.type)}</p>
+<p>Source path: <code>{html.escape(source_path)}</code></p>
+<p>Readiness state: <strong>{html.escape(readiness_state)}</strong></p>
+<p>Required changes summary: work item content is the source of truth; use prompt
+preview for a bounded implementation request.</p>
+<p>Acceptance criteria summary: see the approved work item and linked criteria in
+source markdown.</p>
+<p>Validation commands: {html.escape(validation_commands)}</p>
+<p>Required evidence: {html.escape(required_evidence)}</p>
+<p>Allowed paths: {html.escape(allowed_paths)}</p>
+<p>Forbidden paths: {html.escape(forbidden_paths)}</p>
+<h2>Prompt affordances</h2>
+<ul>
+<li><a href="{prompt_preview}">Preview generated prompt</a></li>
+<li><button {disabled}>Copy generated prompt</button></li>
+<li><a href="{prompt_download}">Download generated prompt Markdown</a></li>
+<li>Equivalent CLI: <code>{cli_command}</code></li>
+</ul>
+<p>Capability gaps: none detected for prompt rendering path; uses shared request
+renderer.</p>
+</div></body></html>"""
+    return 200, page
+
+
+def _config_for_project_selector(
+    config: ServeConfig, project_selector: str
+) -> ServeConfig:
+    """Return project-scoped config for a project selector when possible."""
+
+    try:
+        workspace = meta_workspace.resolve_meta_workspace(
+            cwd=config.resolved_project_root()
+        )
+        selection = meta_workspace.inspect_registered_project_in_workspace(
+            workspace,
+            selector=project_selector,
+        )
+    except (
+        meta_workspace.MetaRegistryError,
+        meta_workspace.MetaWorkspaceResolutionError,
+        ValueError,
+    ):
+        return config
+    resolved_path = selection.resolved_project_path
+    if resolved_path is None:
+        return config
+    return ServeConfig(
+        host=config.host,
+        port=config.port,
+        project_root=resolved_path,
+        allow_nonlocal_host=config.allow_nonlocal_host,
+    )
+
+
 def render_workbench_artifact(
     config: ServeConfig,
     kind: str,
@@ -1816,6 +1924,38 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 )
                 return
             if route.startswith("/project/"):
+                parts = route.split("/")
+                if len(parts) >= 5 and parts[3] == "work-items":
+                    project_selector = urllib.parse.unquote(parts[2])
+                    work_item_id = urllib.parse.unquote(parts[4])
+                    if len(parts) == 6 and parts[5] == "prompt":
+                        try:
+                            scoped_config = _config_for_project_selector(
+                                config, project_selector
+                            )
+                            artifact = render_workbench_artifact(
+                                scoped_config, "prompt", work_item_id
+                            )
+                        except (FileNotFoundError, OSError, ValueError) as error:
+                            self._write_json(
+                                404, {"error": "not_found", "message": str(error)}
+                            )
+                            return
+                        self._write_text(
+                            200,
+                            "text/html; charset=utf-8",
+                            render_workbench_artifact_page(artifact),
+                        )
+                        return
+                    if len(parts) == 5:
+                        status_code, body = render_project_work_item_page(
+                            config, project_selector, work_item_id
+                        )
+                        if status_code == 200:
+                            self._write_text(200, "text/html; charset=utf-8", body)
+                        else:
+                            self._write_json(status_code, json.loads(body))
+                        return
                 project_selector = urllib.parse.unquote(route.removeprefix("/project/"))
                 status_code, body = render_project_operational_dashboard(
                     config, project_selector

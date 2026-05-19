@@ -170,6 +170,8 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/meta",
                 "/meta/project",
                 "/project/<project_id>",
+                "/project/<project_id>/work-items/<work_item_id>",
+                "/project/<project_id>/work-items/<work_item_id>/prompt",
                 "/health",
                 "/api/status",
                 "/api/project",
@@ -325,6 +327,79 @@ class TestLrhServeRoutes(unittest.TestCase):
         )
         self.assertIn("# ROLE", payload["markdown"])
         self.assertEqual(payload["diagnostics"], [])
+
+    def test_project_work_item_route_shows_readiness_and_prompt_affordances(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(
+                base_url + "/project/main/work-items/WI-A"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("Readiness state: <strong>ready</strong>", body)
+        self.assertIn("Preview generated prompt", body)
+        self.assertIn("Equivalent CLI:", body)
+
+    def test_project_work_item_prompt_route_renders_escaped_prompt_preview(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(
+                base_url + "/project/main/work-items/WI-A/prompt"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("Copy-friendly Markdown", body)
+        self.assertIn("<textarea", body)
+
+    def test_project_work_item_route_uses_selected_registered_project(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(
+                base_url + "/project/alpha/work-items/WI-A"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("Project: alpha", body)
+        self.assertIn("Readiness state: <strong>ready</strong>", body)
+
+    def test_project_work_item_prompt_route_uses_selected_registered_project(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(
+                base_url + "/project/alpha/work-items/WI-A/prompt"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("prompt: WI-A", body)
+        self.assertIn("Copy-friendly Markdown", body)
 
     def test_workbench_run_packet_preview_reports_missing_readiness(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

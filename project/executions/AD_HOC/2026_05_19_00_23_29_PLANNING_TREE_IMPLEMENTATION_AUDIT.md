@@ -2,7 +2,7 @@
 execution_id: 2026_05_19_00_23_29_PLANNING_TREE_IMPLEMENTATION_AUDIT
 prompt_id: PROMPT(AD_HOC:PLANNING_TREE_IMPLEMENTATION_AUDIT)[2026-05-16T18:00:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
 commit: 

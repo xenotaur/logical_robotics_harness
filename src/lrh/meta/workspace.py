@@ -54,6 +54,15 @@ class MetaInitResult:
 
 
 @dataclasses.dataclass(frozen=True)
+class MetaProjectLoadResult:
+    """Tolerant project-record load result for read-only meta dashboards."""
+
+    registry_name: str
+    record: MetaProjectRecord | None
+    error: str | None = None
+
+
+@dataclasses.dataclass(frozen=True)
 class MetaProjectRecord:
     """Typed representation of one registered project record."""
 
@@ -1514,6 +1523,22 @@ def list_registered_projects_in_workspace(
     workspace: MetaWorkspace,
 ) -> tuple[MetaProjectRecord, ...]:
     """Load project records in stable directory order from workspace projects_dir."""
+    results = list_registered_project_loads_in_workspace(workspace)
+    records: list[MetaProjectRecord] = []
+    for result in results:
+        if result.record is None:
+            raise MetaRegistryError(
+                result.error or "project record could not be loaded"
+            )
+        records.append(result.record)
+    return tuple(records)
+
+
+def list_registered_project_loads_in_workspace(
+    workspace: MetaWorkspace,
+) -> tuple[MetaProjectLoadResult, ...]:
+    """Load project records in stable order while isolating per-record failures."""
+
     projects_dir = _require_projects_dir(workspace.projects_dir, mode=workspace.mode)
 
     try:
@@ -1523,12 +1548,28 @@ def list_registered_projects_in_workspace(
             f"unable to enumerate registry directory {projects_dir}: {err}"
         ) from err
 
-    records: list[MetaProjectRecord] = []
+    results: list[MetaProjectLoadResult] = []
     for record_dir in project_entries:
         if not record_dir.is_dir():
             continue
-        records.append(_load_project_record(record_dir))
-    return tuple(records)
+        try:
+            record = _load_project_record(record_dir)
+        except MetaRegistryError as err:
+            results.append(
+                MetaProjectLoadResult(
+                    registry_name=record_dir.name,
+                    record=None,
+                    error=str(err),
+                )
+            )
+        else:
+            results.append(
+                MetaProjectLoadResult(
+                    registry_name=record.registry_name,
+                    record=record,
+                )
+            )
+    return tuple(results)
 
 
 def _require_projects_dir(

@@ -18,6 +18,8 @@ from typing import Any
 from lrh import core_state
 from lrh.assist import run_packet, run_report, work_item_prompt_core
 from lrh.control import loader as control_loader
+from lrh.meta import workspace as meta_workspace
+from lrh.ux import dashboard
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
@@ -35,10 +37,13 @@ _STATUS_ROUTES = (
     "/workbench/prompt",
     "/workbench/run-packet",
     "/workbench/run-report",
+    "/meta",
+    "/meta/project",
     "/health",
     "/api/status",
     "/api/project",
     "/api/workbench",
+    "/api/meta",
     "/api/workbench/prompt",
     "/api/workbench/run-packet",
     "/api/workbench/run-report",
@@ -348,6 +353,503 @@ def project_viewer_payload(config: ServeConfig) -> dict[str, Any]:
         "diagnostics": diagnostics,
         "capabilities": _safe_capabilities(),
     }
+
+
+def meta_dashboard_payload(config: ServeConfig) -> dict[str, object]:
+    """Return a read-only operational triage dashboard for registered projects."""
+
+    try:
+        workspace = meta_workspace.resolve_meta_workspace(
+            cwd=config.resolved_project_root(),
+            options=meta_workspace.MetaWorkspaceResolveOptions(),
+        )
+        load_results = meta_workspace.list_registered_project_loads_in_workspace(
+            workspace
+        )
+        workspace_payload: dict[str, object] = {
+            "mode": workspace.mode,
+            "resolution_source": workspace.resolution_source,
+            "catalog_root_name": workspace.catalog_root.name,
+        }
+    except (
+        meta_workspace.MetaWorkspaceResolutionError,
+        meta_workspace.MetaRegistryError,
+    ) as err:
+        load_results = ()
+        workspace_payload = {
+            "mode": "unknown",
+            "resolution_source": "unavailable",
+            "error": str(err),
+        }
+
+    cards = [
+        _operational_card_from_load_result(workspace, result) for result in load_results
+    ]
+    meta_view = dashboard.build_meta_dashboard(cards)
+    return {
+        "mode": "safe-default-read-only-meta-triage",
+        "workspace": workspace_payload,
+        "total_projects": meta_view.total_projects,
+        "lanes": [
+            {
+                "status": lane.status.value,
+                "label": lane.label,
+                "description": lane.description,
+                "count": lane.count,
+                "projects": [
+                    _operational_card_payload(project) for project in lane.projects
+                ],
+            }
+            for lane in meta_view.lanes
+        ],
+        "capabilities": _safe_capabilities(),
+    }
+
+
+def render_meta_dashboard(config: ServeConfig) -> str:
+    """Render the read-only registered-project swimlane dashboard."""
+
+    payload = meta_dashboard_payload(config)
+    workspace = payload["workspace"]
+    workspace_note = "Meta workspace available."
+    if isinstance(workspace, dict) and workspace.get("error"):
+        workspace_note = f"Meta workspace unavailable: {workspace['error']}"
+    lane_html = "".join(_meta_lane_html(lane) for lane in payload["lanes"])
+    if payload["total_projects"] == 0:
+        empty_note = (
+            '<p class="lrh-muted">No registered projects are available in the '
+            "active meta workspace.</p>"
+        )
+    else:
+        empty_note = ""
+    return """<!doctype html>
+<html lang=\"en\" data-theme=\"light\">
+<head>
+  <meta charset=\"utf-8\">
+  <title>LRH Meta Operational Triage</title>
+  {styles}
+</head>
+<body>
+  <div class=\"lrh-app-shell\">
+    <header class=\"lrh-page-header\">
+      <p class=\"lrh-eyebrow\">LRH Console preview</p>
+      <h1>Meta Operational Triage</h1>
+      <p><a href=\"/\">Back to project viewer</a></p>
+      <aside class=\"lrh-guardrail-callout\" aria-label=\"Meta dashboard guardrails\">
+        This safe-default, read-only dashboard summarizes registered projects from
+        the LRH meta workspace. It does not inspect arbitrary files, expose secrets,
+        dispatch agents, create branches, commit, open pull requests, merge, release,
+        publish, or provide write routes. Meta workspace state is informative only;
+        project-local project/ control planes remain authoritative.
+      </aside>
+    </header>
+    <main id=\"main-content\" class=\"lrh-main-content\">
+      <section class=\"lrh-console-region\" aria-labelledby=\"meta-summary-heading\">
+        <h2 id=\"meta-summary-heading\">Registered project swimlanes</h2>
+        <p>{workspace_note}</p>
+        <p>Total registered projects shown: {total_projects}</p>
+        {empty_note}
+      </section>
+      {lane_html}
+      <section class=\"lrh-console-region\" aria-labelledby=\"meta-api-heading\">
+        <h2 id=\"meta-api-heading\">Read-only API</h2>
+        <ul><li><a href=\"/api/meta\">/api/meta</a></li></ul>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
+""".format(
+        styles=_base_styles(),
+        workspace_note=html.escape(workspace_note),
+        total_projects=html.escape(str(payload["total_projects"])),
+        empty_note=empty_note,
+        lane_html=lane_html,
+    )
+
+
+def render_meta_project_placeholder(project_selector: str) -> str:
+    """Render a deterministic placeholder for future project detail pages."""
+
+    selector = html.escape(project_selector or "unknown")
+    return """<!doctype html>
+<html lang=\"en\" data-theme=\"light\">
+<head><meta charset=\"utf-8\"><title>LRH Meta Project</title>{styles}</head>
+<body>
+  <div class=\"lrh-app-shell\">
+    <header class=\"lrh-page-header\">
+      <p class=\"lrh-eyebrow\">LRH Console preview</p>
+      <h1>Project detail: {selector}</h1>
+      <p><a href=\"/meta\">Back to meta triage dashboard</a></p>
+    </header>
+    <main class=\"lrh-main-content\">
+      <section class=\"lrh-console-region\">
+        <h2>Not implemented yet</h2>
+        <p>This read-only detail route is reserved for future project inspectors.
+        No repository mutation, arbitrary file browsing, or agent dispatch is
+        available.</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
+""".format(styles=_base_styles(), selector=selector)
+
+
+def _operational_card_from_load_result(
+    workspace: meta_workspace.MetaWorkspace,
+    result: meta_workspace.MetaProjectLoadResult,
+) -> dashboard.ProjectOperationalCard:
+    if result.record is None:
+        return dashboard.unavailable_project_operational_card(
+            registry_name=result.registry_name,
+            message=result.error or "project record could not be loaded",
+        )
+    record = result.record
+    gaps = [
+        dashboard.CapabilityGapView(
+            field="source_state",
+            state="not_implemented",
+            message=(
+                "Live/cache inspection is not implemented for registered "
+                "projects yet."
+            ),
+        ),
+        dashboard.CapabilityGapView(
+            field="adopted_not_implemented_design_count",
+            state="not_implemented",
+            message="Design implementation counting is not exposed by core-state yet.",
+        ),
+    ]
+    source_state = "unknown"
+    validation_status = "unknown"
+    validation_error_count = None
+    validation_warning_count = None
+    current_focus_summary = None
+    active_workstream_count = None
+    active_work_item_count = None
+    blocker_count = None
+    awaiting_review = None
+    steady = None
+    ready_leaf_count = None
+    readiness_deficient_leaf_count = None
+    diagnostics: tuple[str, ...] = ()
+    project_root = _registered_project_control_root(workspace, record)
+    if project_root is not None:
+        try:
+            project_payload = project_viewer_payload(
+                ServeConfig(project_root=project_root)
+            )
+        except (FileNotFoundError, OSError, ValueError) as err:
+            source_state = "unavailable"
+            validation_status = "unavailable"
+            diagnostics = (str(err),)
+        else:
+            validation = project_payload.get("validation", {})
+            if isinstance(validation, dict):
+                validation_status = str(validation.get("status", "unknown"))
+                validation_error_count = _optional_int(validation.get("error_count"))
+                validation_warning_count = _optional_int(
+                    validation.get("warning_count")
+                )
+            if _project_payload_is_unavailable(project_payload):
+                source_state = "unavailable"
+                diagnostics = tuple(
+                    _diagnostic_label(diagnostic)
+                    for diagnostic in project_payload.get("diagnostics", [])
+                )
+            else:
+                source_state = "live"
+            focus = project_payload.get("current_focus")
+            if isinstance(focus, dict):
+                current_focus_summary = (
+                    f"{focus['id']} — {focus['title']} ({focus['status']})"
+                )
+            workstreams = project_payload.get("active_workstreams")
+            if isinstance(workstreams, list):
+                active_workstream_count = len(workstreams)
+            work_items = project_payload.get("work_items")
+            if isinstance(work_items, dict):
+                active_work_item_count = _status_count(work_items, "active")
+                blocker_count = _blocked_work_item_count(work_items)
+                awaiting_review = _has_review_waiting_work(work_items)
+            workstream_summary = project_payload.get("workstreams")
+            if awaiting_review is not True and isinstance(workstream_summary, dict):
+                awaiting_review = _has_reviewing_workstream(workstream_summary)
+            steady = _project_payload_is_steady(
+                project_payload,
+                active_workstream_count=active_workstream_count,
+                active_work_item_count=active_work_item_count,
+            )
+            execution = project_payload.get("execution")
+            if isinstance(execution, dict):
+                active_leaf_count = execution.get("active_leaf_count")
+                ready_count = execution.get("ready_count")
+                if isinstance(ready_count, int):
+                    ready_leaf_count = ready_count
+                if isinstance(active_leaf_count, int) and isinstance(ready_count, int):
+                    readiness_deficient_leaf_count = max(
+                        active_leaf_count - ready_count, 0
+                    )
+    return dashboard.project_operational_card_from_record(
+        record,
+        source_state=source_state,
+        validation_status=validation_status,
+        validation_error_count=validation_error_count,
+        validation_warning_count=validation_warning_count,
+        current_focus_summary=current_focus_summary,
+        active_workstream_count=active_workstream_count,
+        active_work_item_count=active_work_item_count,
+        blocker_count=blocker_count,
+        awaiting_review=awaiting_review,
+        steady=steady,
+        ready_leaf_count=ready_leaf_count,
+        readiness_deficient_leaf_count=readiness_deficient_leaf_count,
+        adopted_not_implemented_design_count=None,
+        capability_gaps=tuple(gaps),
+        diagnostics=diagnostics,
+    )
+
+
+def _registered_project_control_root(
+    workspace: meta_workspace.MetaWorkspace,
+    record: meta_workspace.MetaProjectRecord,
+) -> Path | None:
+    repo_path = _registered_repo_path(workspace, record.repo_locator)
+    if repo_path is None:
+        return None
+    project_dir = (record.project_dir or "project").strip() or "project"
+    if project_dir in {".", "./", ""}:
+        return repo_path
+    if project_dir == "project":
+        return repo_path
+    return repo_path / project_dir
+
+
+def _registered_repo_path(
+    workspace: meta_workspace.MetaWorkspace,
+    repo_locator: str | None,
+) -> Path | None:
+    if repo_locator is None:
+        return None
+    parsed = urllib.parse.urlsplit(repo_locator)
+    if parsed.scheme and parsed.netloc:
+        return None
+    if "://" in repo_locator:
+        return None
+    repo_path = Path(repo_locator).expanduser()
+    if repo_path.is_absolute():
+        return repo_path
+    base_dir = workspace.workspace_root
+    if base_dir is None:
+        base_dir = workspace.config_path.parent
+    return base_dir / repo_path
+
+
+def _status_count(summary: dict[str, object], status: str) -> int | None:
+    by_status = summary.get("by_status")
+    if not isinstance(by_status, dict):
+        return None
+    value = by_status.get(status, 0)
+    return value if isinstance(value, int) else None
+
+
+def _optional_int(value: object) -> int | None:
+    return value if isinstance(value, int) else None
+
+
+def _project_payload_is_unavailable(payload: dict[str, object]) -> bool:
+    diagnostics = payload.get("diagnostics", [])
+    if not isinstance(diagnostics, list):
+        return False
+    return any(
+        isinstance(diagnostic, dict)
+        and diagnostic.get("code") == "PROJECT_CONTROL_DIR_NOT_FOUND"
+        for diagnostic in diagnostics
+    )
+
+
+def _blocked_work_item_count(work_items: dict[str, object]) -> int | None:
+    raw_items = work_items.get("items")
+    if not isinstance(raw_items, list):
+        return None
+    count = 0
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        blocked_by = item.get("blocked_by")
+        status = str(item.get("status", "")).lower()
+        if (isinstance(blocked_by, list) and blocked_by) or status in {
+            "blocked",
+            "stalled",
+        }:
+            count += 1
+    return count
+
+
+def _has_review_waiting_work(work_items: dict[str, object]) -> bool | None:
+    raw_items = work_items.get("items")
+    if not isinstance(raw_items, list):
+        return None
+    review_statuses = {
+        "awaiting_review",
+        "review",
+        "in_review",
+        "ready_for_review",
+        "ready-for-review",
+    }
+    return any(
+        isinstance(item, dict)
+        and str(item.get("status", "")).lower() in review_statuses
+        for item in raw_items
+    )
+
+
+def _has_reviewing_workstream(workstreams: dict[str, object]) -> bool | None:
+    raw_items = workstreams.get("items")
+    if not isinstance(raw_items, list):
+        return None
+    return any(
+        isinstance(item, dict) and str(item.get("stage", "")).lower() == "reviewing"
+        for item in raw_items
+    )
+
+
+def _project_payload_is_steady(
+    payload: dict[str, object],
+    *,
+    active_workstream_count: int | None,
+    active_work_item_count: int | None,
+) -> bool | None:
+    validation = payload.get("validation")
+    if not isinstance(validation, dict):
+        return None
+    if validation.get("status") != "valid":
+        return False
+    if active_workstream_count is None or active_work_item_count is None:
+        return None
+    focus = payload.get("current_focus")
+    work_items = payload.get("work_items")
+    has_control_state = isinstance(focus, dict) or (
+        isinstance(work_items, dict) and _optional_int(work_items.get("total")) != 0
+    )
+    return (
+        has_control_state
+        and active_workstream_count == 0
+        and active_work_item_count == 0
+    )
+
+
+def _operational_card_payload(project: object) -> dict[str, object]:
+    if not isinstance(project, dashboard.ProjectOperationalCard):
+        return {}
+    return {
+        "project_id": project.project_id,
+        "display_name": project.display_name,
+        "registry_name": project.registry_name,
+        "short_name": project.short_name,
+        "locator": project.locator,
+        "source_state": project.source_state,
+        "validation_status": project.validation_status,
+        "validation_error_count": project.validation_error_count,
+        "validation_warning_count": project.validation_warning_count,
+        "status": project.status.value,
+        "current_focus_summary": project.current_focus_summary,
+        "active_workstream_count": project.active_workstream_count,
+        "active_work_item_count": project.active_work_item_count,
+        "ready_leaf_count": project.ready_leaf_count,
+        "readiness_deficient_leaf_count": project.readiness_deficient_leaf_count,
+        "adopted_not_implemented_design_count": (
+            project.adopted_not_implemented_design_count
+        ),
+        "detail_url": project.detail_url,
+        "capability_gaps": [
+            {"field": gap.field, "state": gap.state, "message": gap.message}
+            for gap in project.capability_gaps
+        ],
+        "diagnostics": list(project.diagnostics),
+    }
+
+
+def _meta_lane_html(lane: object) -> str:
+    if not isinstance(lane, dict):
+        return ""
+    cards = lane.get("projects", [])
+    card_html = "".join(
+        _meta_card_html(card) for card in cards if isinstance(card, dict)
+    )
+    if not card_html:
+        card_html = '<p class="lrh-muted">No projects in this lane.</p>'
+    label = html.escape(str(lane["label"]))
+    status = html.escape(str(lane["status"]), quote=True)
+    count = html.escape(str(lane["count"]))
+    description = html.escape(str(lane["description"]))
+    return (
+        f'<section class="lrh-console-region lrh-meta-lane" '
+        f'aria-labelledby="meta-lane-{status}-heading">'
+        f'<h2 id="meta-lane-{status}-heading">{label} ({count})</h2>'
+        f"<p>{description}</p>{card_html}</section>"
+    )
+
+
+def _meta_card_html(card: dict[str, object]) -> str:
+    name = html.escape(str(card["display_name"]))
+    project_id = html.escape(str(card["project_id"]))
+    detail_url = html.escape(str(card.get("detail_url") or "/meta/project"), quote=True)
+    registry_anchor = html.escape(
+        str(card.get("registry_name") or project_id), quote=True
+    )
+    gaps = card.get("capability_gaps", [])
+    gap_items = []
+    if isinstance(gaps, list):
+        for gap in gaps:
+            if isinstance(gap, dict):
+                field = gap.get("field", "capability")
+                state = gap.get("state", "unknown")
+                message = gap.get("message", "")
+                gap_items.append(f"{field}: {state} — {message}")
+    gap_html = _html_list(gap_items)
+    diagnostics = card.get("diagnostics", [])
+    diagnostic_html = _html_list(diagnostics if isinstance(diagnostics, list) else [])
+    fields = (
+        ("Project ID", "project_id"),
+        ("Short name", "short_name"),
+        ("Locator", "locator"),
+        ("Source state", "source_state"),
+        ("Validation status", "validation_status"),
+        ("Current focus", "current_focus_summary"),
+        ("Active workstreams", "active_workstream_count"),
+        ("Active work items", "active_work_item_count"),
+        ("Ready leaves", "ready_leaf_count"),
+        ("Readiness-deficient leaves", "readiness_deficient_leaf_count"),
+        (
+            "Adopted designs not implemented",
+            "adopted_not_implemented_design_count",
+        ),
+    )
+    field_html = "".join(
+        _card_definition_html(card, label, key) for label, key in fields
+    )
+    return (
+        f'<article class="lrh-project-card" id="meta-project-{registry_anchor}">'
+        f'<h3><a href="{detail_url}">{name}</a></h3>'
+        f'<dl class="lrh-summary-grid">{field_html}</dl>'
+        f"<h4>Capability gaps</h4>{gap_html}"
+        f"<h4>Diagnostics</h4>{diagnostic_html}</article>"
+    )
+
+
+def _card_definition_html(card: dict[str, object], label: str, key: str) -> str:
+    return (
+        f"<div><dt>{html.escape(label)}</dt>"
+        f"<dd>{_display_card_value(card.get(key))}</dd></div>"
+    )
+
+
+def _display_card_value(value: object) -> str:
+    if value is None or value == "":
+        return "<span>Unknown / not implemented</span>"
+    return html.escape(str(value))
 
 
 @dataclass(frozen=True)
@@ -679,6 +1181,7 @@ def _safe_capabilities() -> dict[str, bool]:
         "external_network_calls": False,
         "packet_generation": False,
         "report_generation": False,
+        "meta_dashboard": True,
         "prompt_workbench": True,
         "in_memory_downloads": True,
         "packet_preview": True,
@@ -1183,6 +1686,22 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     render_workbench_index(config),
                 )
                 return
+            if route == "/meta":
+                self._write_text(
+                    200,
+                    "text/html; charset=utf-8",
+                    render_meta_dashboard(config),
+                )
+                return
+            if route == "/meta/project":
+                self._write_text(
+                    200,
+                    "text/html; charset=utf-8",
+                    render_meta_project_placeholder(
+                        self._query_values().get("project", "unknown")
+                    ),
+                )
+                return
             if route in _WORKBENCH_ARTIFACT_ROUTES:
                 self._write_workbench_artifact(route)
                 return
@@ -1201,6 +1720,9 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             if route == "/api/workbench":
                 self._write_json(200, workbench_payload(config))
                 return
+            if route == "/api/meta":
+                self._write_json(200, meta_dashboard_payload(config))
+                return
             if route in _WORKBENCH_API_ROUTES:
                 self._write_workbench_artifact_json(route)
                 return
@@ -1217,13 +1739,16 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             if route in {
                 "/",
                 "/workbench",
+                "/meta",
+                "/meta/project",
                 "/health",
                 "/api/status",
                 "/api/project",
                 "/api/workbench",
+                "/api/meta",
             }:
                 content_type = "application/json; charset=utf-8"
-                if route in {"/", "/workbench"}:
+                if route in {"/", "/workbench", "/meta", "/meta/project"}:
                     content_type = "text/html; charset=utf-8"
                 self._write_head(200, content_type)
                 return

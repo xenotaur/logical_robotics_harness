@@ -167,10 +167,13 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/workbench/prompt",
                 "/workbench/run-packet",
                 "/workbench/run-report",
+                "/meta",
+                "/meta/project",
                 "/health",
                 "/api/status",
                 "/api/project",
                 "/api/workbench",
+                "/api/meta",
                 "/api/workbench/prompt",
                 "/api/workbench/run-packet",
                 "/api/workbench/run-report",
@@ -432,6 +435,239 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(missing_query_ctx.exception.code, 404)
         self.assertEqual(missing_item_ctx.exception.code, 404)
 
+    def test_meta_route_renders_empty_registry(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(base_url + "/meta")
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("Meta Operational Triage", body)
+        self.assertIn("Total registered projects shown: 0", body)
+        self.assertIn("No registered projects", body)
+        self.assertIn("Needs Attention (0)", body)
+        self.assertIn("Unknown (0)", body)
+
+    def test_meta_route_renders_multiple_projects_in_lane_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            beta = root / "repos" / "beta"
+            _write_viewer_project(alpha)
+            _write_viewer_project(beta)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "beta", "repos/beta", display_name="Beta")
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        self.assertIn("application/json", content_type)
+        payload = json.loads(body)
+        self.assertEqual(
+            [lane["label"] for lane in payload["lanes"]],
+            [
+                "Needs Attention",
+                "Active Work",
+                "Awaiting Review",
+                "Stable",
+                "Blocked",
+                "Unknown",
+            ],
+        )
+        active_lane = payload["lanes"][1]
+        self.assertEqual(active_lane["count"], 2)
+        self.assertEqual(
+            [card["display_name"] for card in active_lane["projects"]],
+            ["Alpha", "Beta"],
+        )
+        first_card = active_lane["projects"][0]
+        self.assertEqual(first_card["source_state"], "live")
+        self.assertEqual(first_card["validation_status"], "valid")
+        self.assertEqual(first_card["active_work_item_count"], 2)
+        self.assertEqual(first_card["ready_leaf_count"], 1)
+        self.assertEqual(first_card["readiness_deficient_leaf_count"], 1)
+        self.assertEqual(first_card["detail_url"], "/meta/project?project=alpha")
+        self.assertTrue(first_card["capability_gaps"])
+
+    def test_meta_route_isolates_unavailable_project_record(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            (root / "projects" / "broken").mkdir(parents=True)
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        needs_attention = payload["lanes"][0]
+        self.assertEqual(needs_attention["count"], 1)
+        broken = needs_attention["projects"][0]
+        self.assertEqual(broken["display_name"], "broken")
+        self.assertEqual(broken["source_state"], "unavailable")
+        self.assertEqual(broken["validation_status"], "unavailable")
+        self.assertIn("missing project record file", broken["diagnostics"][0])
+
+    def test_meta_route_escapes_dynamic_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "escape",
+                "https://example.test/repo?<script>",
+                display_name='<script>alert("x")</script>',
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/meta")
+
+        self.assertEqual(status, 200)
+        self.assertIn("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;", body)
+        self.assertNotIn('<script>alert("x")</script>', body)
+        self.assertIn("https://example.test/repo?&lt;script&gt;", body)
+
+    def test_meta_route_honors_registered_project_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "repos" / "custom"
+            _write_minimal_project(repo / "docs")
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "custom",
+                "repos/custom",
+                display_name="Custom Dir",
+                project_dir="docs/project",
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        stable_lane = payload["lanes"][3]
+        self.assertEqual(stable_lane["count"], 1)
+        custom = stable_lane["projects"][0]
+        self.assertEqual(custom["display_name"], "Custom Dir")
+        self.assertEqual(custom["source_state"], "live")
+        self.assertEqual(custom["validation_status"], "valid")
+
+    def test_meta_route_propagates_warning_counts_to_needs_attention(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            warned = root / "repos" / "warned"
+            _write_viewer_project(warned, unknown_contributor=True)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "warned", "repos/warned", display_name="Warned")
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        needs_attention = payload["lanes"][0]
+        self.assertEqual(needs_attention["count"], 1)
+        warned_card = needs_attention["projects"][0]
+        self.assertEqual(warned_card["display_name"], "Warned")
+        self.assertEqual(warned_card["validation_status"], "valid")
+        self.assertEqual(warned_card["validation_warning_count"], 1)
+
+    def test_meta_route_derives_review_blocked_stable_and_workstream_lanes(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            active_stream = root / "repos" / "active-stream"
+            review_stream = root / "repos" / "review-stream"
+            blocked_repo = root / "repos" / "blocked"
+            stable_repo = root / "repos" / "stable"
+            _write_viewer_project(active_stream)
+            _write_reviewing_workstream_project(review_stream)
+            _write_blocked_project(blocked_repo)
+            _write_minimal_project(stable_repo)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root, "active-stream", "repos/active-stream", display_name="Active"
+            )
+            _write_project_record(
+                root, "review-stream", "repos/review-stream", display_name="Review"
+            )
+            _write_project_record(
+                root, "blocked", "repos/blocked", display_name="Blocked"
+            )
+            _write_project_record(root, "stable", "repos/stable", display_name="Stable")
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        self.assertEqual(payload["lanes"][1]["projects"][0]["display_name"], "Active")
+        self.assertEqual(payload["lanes"][2]["projects"][0]["display_name"], "Review")
+        self.assertEqual(payload["lanes"][3]["projects"][0]["display_name"], "Stable")
+        self.assertEqual(payload["lanes"][4]["projects"][0]["display_name"], "Blocked")
+
+    def test_meta_route_marks_local_path_without_project_unavailable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            (root / "repos" / "empty").mkdir(parents=True)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "empty", "repos/empty", display_name="Empty")
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        empty = payload["lanes"][0]["projects"][0]
+        self.assertEqual(empty["display_name"], "Empty")
+        self.assertEqual(empty["source_state"], "unavailable")
+        self.assertIn("PROJECT_CONTROL_DIR_NOT_FOUND", empty["diagnostics"][0])
+
+    def test_meta_detail_links_url_encode_registry_names(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "name with & hash#",
+                "https://example.test/repo",
+                display_name="Remote",
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        card = payload["lanes"][5]["projects"][0]
+        self.assertEqual(
+            card["detail_url"],
+            "/meta/project?project=name%20with%20%26%20hash%23",
+        )
+
+    def test_meta_feature_introduces_no_write_route(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _httpd, base_url = self._start_server(root)
+
+            request = urllib.request.Request(base_url + "/meta", method="POST")
+            with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                urllib.request.urlopen(request, timeout=5)
+
+            status, content_type = self._head(base_url + "/meta")
+
+        self.assertEqual(err_ctx.exception.code, 405)
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+
     def test_arbitrary_file_paths_are_not_served(self) -> None:
         _httpd, base_url = self._start_server()
 
@@ -476,6 +712,65 @@ class TestLrhServeRoutes(unittest.TestCase):
                 self.assertEqual(json.loads(body), {"error": "method_not_allowed"})
 
 
+def _write_local_meta_workspace(root: pathlib.Path) -> None:
+    _write(
+        root / ".lrh" / "config.toml",
+        "\n".join(
+            [
+                'schema_version = "0.1"',
+                "",
+                "[workspace]",
+                'name = "test workspace"',
+                'mode = "local"',
+                "",
+                "[paths]",
+                f"catalog_root = {json.dumps(str(root))}",
+                f"projects_dir = {json.dumps(str(root / 'projects'))}",
+                f"config_dir = {json.dumps(str(root / '.lrh'))}",
+                f"state_dir = {json.dumps(str(root / 'private' / 'state'))}",
+                f"cache_dir = {json.dumps(str(root / 'private' / 'cache'))}",
+                "",
+            ]
+        ),
+    )
+    (root / "projects").mkdir(parents=True, exist_ok=True)
+
+
+def _write_project_record(
+    root: pathlib.Path,
+    registry_name: str,
+    repo_locator: str,
+    *,
+    display_name: str,
+    project_dir: str = "project",
+) -> None:
+    _write(
+        root / "projects" / registry_name / "project.toml",
+        "\n".join(
+            [
+                'schema_version = "0.1"',
+                "",
+                "[project]",
+                f"short_name = {json.dumps(registry_name)}",
+                f"display_name = {json.dumps(display_name)}",
+                'status = "active"',
+                'setup_state = "unknown"',
+                "",
+                "[identity]",
+                f"project_id = {json.dumps(f'proj-{registry_name}')}",
+                "",
+                "[locators]",
+                f"repo_locator = {json.dumps(repo_locator)}",
+                f"project_dir = {json.dumps(project_dir)}",
+                "",
+                "[registry]",
+                f"directory_name = {json.dumps(registry_name)}",
+                "",
+            ]
+        ),
+    )
+
+
 def _write_minimal_project(root: pathlib.Path) -> None:
     project_dir = root / "project"
     (project_dir / "focus").mkdir(parents=True, exist_ok=True)
@@ -488,6 +783,63 @@ title: Current Focus
 status: active
 ---
 Focus body.
+""",
+    )
+
+
+def _write_reviewing_workstream_project(root: pathlib.Path) -> None:
+    _write_viewer_project(root)
+    _write(
+        root / "project" / "workstreams" / "active" / "WS-A.md",
+        """---
+id: WS-A
+kind: planning_node
+title: Active Stream
+status: active
+stage: reviewing
+work_items:
+  - WI-A
+  - WI-B
+---
+Body.
+""",
+    )
+
+
+def _write_blocked_project(root: pathlib.Path) -> None:
+    _write_minimal_project(root)
+    _write(
+        root / "project" / "work_items" / "active" / "WI-DEP.md",
+        """---
+id: WI-DEP
+title: Dependency
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+related_focus:
+  - FOCUS-1
+---
+Body.
+""",
+    )
+    _write(
+        root / "project" / "work_items" / "active" / "WI-BLOCKED.md",
+        """---
+id: WI-BLOCKED
+title: Blocked Work
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+blocked_by:
+  - WI-DEP
+related_focus:
+  - FOCUS-1
+---
+Body.
 """,
     )
 

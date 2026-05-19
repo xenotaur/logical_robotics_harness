@@ -6,6 +6,7 @@ import pathlib
 import unittest
 
 from lrh import core_state
+from lrh.meta import workspace as meta_workspace
 from lrh.ux import dashboard
 
 
@@ -147,6 +148,61 @@ class MetaDashboardViewTest(unittest.TestCase):
         self.assertEqual(view.lanes[1].count, 2)
         self.assertEqual(view.lanes[-1].projects[0].name, "zeta")
 
+    def test_project_operational_card_uses_warning_and_workstream_counts(self) -> None:
+        warned = dashboard.project_operational_card_from_record(
+            _record("warned"),
+            source_state="live",
+            validation_status="valid",
+            validation_error_count=0,
+            validation_warning_count=1,
+            active_work_item_count=0,
+        )
+        active_stream = dashboard.project_operational_card_from_record(
+            _record("stream"),
+            source_state="live",
+            validation_status="valid",
+            validation_error_count=0,
+            validation_warning_count=0,
+            active_workstream_count=1,
+            active_work_item_count=0,
+        )
+
+        self.assertEqual(warned.status, dashboard.OperationalStatus.NEEDS_ATTENTION)
+        self.assertEqual(active_stream.status, dashboard.OperationalStatus.ACTIVE_WORK)
+
+    def test_project_operational_card_uses_blocked_review_and_steady_inputs(
+        self,
+    ) -> None:
+        blocked = dashboard.project_operational_card_from_record(
+            _record("blocked"),
+            source_state="live",
+            validation_error_count=0,
+            validation_warning_count=0,
+            blocker_count=1,
+            active_work_item_count=1,
+        )
+        review = dashboard.project_operational_card_from_record(
+            _record("review"),
+            source_state="live",
+            validation_error_count=0,
+            validation_warning_count=0,
+            awaiting_review=True,
+            active_work_item_count=1,
+        )
+        stable = dashboard.project_operational_card_from_record(
+            _record("stable"),
+            source_state="live",
+            validation_error_count=0,
+            validation_warning_count=0,
+            active_workstream_count=0,
+            active_work_item_count=0,
+            steady=True,
+        )
+
+        self.assertEqual(blocked.status, dashboard.OperationalStatus.BLOCKED)
+        self.assertEqual(review.status, dashboard.OperationalStatus.AWAITING_REVIEW)
+        self.assertEqual(stable.status, dashboard.OperationalStatus.STABLE)
+
 
 class EvidenceSummaryViewTest(unittest.TestCase):
     def test_unknown_and_unavailable_evidence_are_explicit(self) -> None:
@@ -274,6 +330,18 @@ class CoreStateAdapterTest(unittest.TestCase):
 
         self.assertEqual(summary.status, dashboard.OperationalStatus.BLOCKED)
         self.assertEqual(summary.active_work_count, 1)
+
+
+def _record(name: str) -> meta_workspace.MetaProjectRecord:
+    return meta_workspace.MetaProjectRecord(
+        registry_name=name,
+        short_name=name,
+        display_name=name.title(),
+        project_id=f"proj-{name}",
+        repo_locator=f"repos/{name}",
+        project_dir="project",
+        setup_state="unknown",
+    )
 
 
 def _project(

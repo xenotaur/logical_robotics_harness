@@ -95,14 +95,25 @@ lrh serve
 
 `lrh serve` binds to `127.0.0.1:8765` by default and exposes read-only routes:
 `/`, `/workbench`, `/workbench/prompt`, `/workbench/run-packet`,
-`/workbench/run-report`, `/health`, `/api/status`, `/api/project`,
-`/api/workbench`, `/api/workbench/prompt`, `/api/workbench/run-packet`, and
-`/api/workbench/run-report`. The index page and `/api/project` summarize the
-currently loaded project-control state through the shared core-state APIs: project
+`/workbench/run-report`, `/meta`, `/meta/project`, `/health`, `/api/status`,
+`/api/project`, `/api/workbench`, `/api/meta`, `/api/workbench/prompt`,
+`/api/workbench/run-packet`, and `/api/workbench/run-report`. The index page and
+`/api/project` summarize the currently loaded project-control state through the
+shared core-state APIs: project
 identity, validation counts and diagnostics, current focus, workstream and
 work-item lifecycle summaries, planning-tree relationships, active leaves,
 execution-readiness metadata, and references to the existing run-packet and
 run-report request surfaces when a leaf is ready.
+
+The `/meta` page is a safe-default, read-only operational triage dashboard for
+registered projects in the active LRH meta workspace. It renders deterministic
+operational swimlanes, per-project source/validation/readiness summaries when
+available, explicit unavailable/unknown states when a project cannot be inspected,
+and capability gaps for fields not implemented yet. The page follows the staged
+serve design in
+`project/design/proposals/proposed/lrh-serve-operational-triage-mvp/00_proposal.md`
+and treats meta workspace data as coordinating context rather than an override of
+project-local `project/` control planes.
 
 The `/workbench` page is a local prompt/run-packet/run-report preview surface.
 It reuses the package prompt, run-packet, and run-report renderers to show

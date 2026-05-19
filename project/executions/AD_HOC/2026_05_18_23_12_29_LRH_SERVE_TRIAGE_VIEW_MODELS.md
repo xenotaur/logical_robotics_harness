@@ -2,7 +2,7 @@
 execution_id: 2026_05_18_23_12_29_LRH_SERVE_TRIAGE_VIEW_MODELS
 prompt_id: PROMPT(AD_HOC:LRH_SERVE_TRIAGE_VIEW_MODELS)[2026-05-18T17:05:00-04:00]
 work_item: AD_HOC
-status: planned
+status: in_progress
 rerun_of: 
 pr: 
 commit: 

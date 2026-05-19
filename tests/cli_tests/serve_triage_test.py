@@ -30,6 +30,7 @@ class ServeTriageTest(unittest.TestCase):
         }
 
         self.assertEqual(assignments["attention"].lane_id, "needs_attention")
+        self.assertIn("validation status is error", assignments["attention"].rationale)
         self.assertIn("validation error_count is 1", assignments["attention"].rationale)
         self.assertEqual(assignments["validation"].lane_id, "needs_validation")
         self.assertEqual(assignments["ready"].lane_id, "ready_for_prompted_work")
@@ -37,6 +38,24 @@ class ServeTriageTest(unittest.TestCase):
         self.assertEqual(assignments["blocked"].lane_id, "paused_blocked")
         self.assertEqual(assignments["stable"].lane_id, "stable_complete")
         self.assertEqual(assignments["unknown"].lane_id, "unknown_unavailable")
+
+    def test_error_status_without_error_count_has_clear_rationale(self) -> None:
+        assignment = serve_triage.classify_project_card(
+            _card("status-only-error", validation=serve_triage.ValidationBadge("error"))
+        )
+
+        self.assertEqual(assignment.lane_id, "needs_attention")
+        self.assertEqual(assignment.rationale, ("validation status is error",))
+
+    def test_blocked_status_without_blocker_count_has_clear_rationale(self) -> None:
+        assignment = serve_triage.classify_project_card(
+            _card(
+                "status-only-blocked", readiness=serve_triage.ReadinessBadge("blocked")
+            )
+        )
+
+        self.assertEqual(assignment.lane_id, "paused_blocked")
+        self.assertEqual(assignment.rationale, ("readiness status is blocked",))
 
     def test_unavailable_capability_gap_classifies_unknown_unavailable(self) -> None:
         card = _card(

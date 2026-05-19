@@ -457,7 +457,9 @@ def _unknown_unavailable_rationale(card: ProjectOperationalCard) -> tuple[str, .
 
 def _attention_rationale(card: ProjectOperationalCard) -> tuple[str, ...]:
     reasons = []
-    if card.validation.status == "error" or card.validation.error_count > 0:
+    if card.validation.status == "error":
+        reasons.append("validation status is error")
+    if card.validation.error_count > 0:
         reasons.append(f"validation error_count is {card.validation.error_count}")
     if card.safety_issue_count > 0:
         reasons.append(f"safety_issue_count is {card.safety_issue_count}")
@@ -474,7 +476,9 @@ def _blocked_rationale(card: ProjectOperationalCard) -> tuple[str, ...]:
         reasons.append("paused is true")
     if card.blocker_count > 0:
         reasons.append(f"blocker_count is {card.blocker_count}")
-    if card.readiness.status == "blocked" or card.readiness.blocker_count > 0:
+    if card.readiness.status == "blocked":
+        reasons.append("readiness status is blocked")
+    if card.readiness.blocker_count > 0:
         reasons.append(f"readiness blocker_count is {card.readiness.blocker_count}")
     if _has_gap(card, {"blocked"}):
         reasons.append("blocked capability gap is present")

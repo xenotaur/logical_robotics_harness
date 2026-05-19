@@ -30,7 +30,10 @@ objects directly.
 The API does not execute work, mutate repositories, create branches, dispatch
 agents, or create pull requests. `lrh serve` uses this read/interpretation layer
 for project summaries, the read-only `/meta` operational swimlane dashboard, and
-registered-project operational detail pages at `/project/<project_id>`;
+registered-project operational detail pages at `/project/<project_id>`, plus
+design/workstream traceability drill-down pages at
+`/project/<project_id>/designs/<design_id>` and
+`/project/<project_id>/workstreams/<workstream_id>`;
 work-item readiness/detail pages at
 `/project/<project_id>/work-items/<work_item_id>` and prompt preview workbench
 pages at `/project/<project_id>/work-items/<work_item_id>/prompt`;

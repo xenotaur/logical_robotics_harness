@@ -31,7 +31,7 @@ class TestLrhServeCli(unittest.TestCase):
         self.assertIn("--host", output)
         self.assertIn("--port", output)
         self.assertIn("--allow-nonlocal-host", output)
-        self.assertIn("not an autonomous runner", output)
+        self.assertIn("not an autonomous runner", " ".join(output.split()))
 
     def test_default_config_binds_to_localhost(self) -> None:
         parser = serve.build_parser("lrh serve")
@@ -170,6 +170,8 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/meta",
                 "/meta/project",
                 "/project/<project_id>",
+                "/project/<project_id>/designs/<design_id>",
+                "/project/<project_id>/workstreams/<workstream_id>",
                 "/project/<project_id>/work-items/<work_item_id>",
                 "/project/<project_id>/work-items/<work_item_id>/prompt",
                 "/health",
@@ -745,6 +747,58 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn("Validation summary", body)
         self.assertIn("Capability gaps", body)
         self.assertIn("Back to meta triage dashboard", body)
+        self.assertIn('<a href="/project/alpha/designs/DP-1">', body)
+        self.assertIn('<a href="/project/alpha/workstreams/WS-A">', body)
+
+    def test_design_detail_route_renders_lifecycle_and_traceability(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(
+                base_url + "/project/alpha/designs/DP-1"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("Design: DP-1", body)
+        self.assertIn("Status: adopted", body)
+        self.assertIn("Implementation status: not_started", body)
+        self.assertIn("Prompt actions are not implemented", body)
+
+    def test_workstream_detail_route_renders_relationships_and_escaping(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write(
+                alpha / "project" / "workstreams" / "active" / "WS-B.md",
+                """---
+id: WS-B
+kind: planning_node
+title: Child <stream>
+status: active
+stage: planning
+parent_id: WS-A
+---
+Body.
+""",
+            )
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+            status, content_type, body = self._read(
+                base_url + "/project/alpha/workstreams/WS-B"
+            )
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("Workstream: WS-B", body)
+        self.assertIn("Parent: WS-A", body)
+        self.assertIn("Child &lt;stream&gt;", body)
 
     def test_project_dashboard_route_escapes_dynamic_fields(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -794,6 +848,46 @@ class TestLrhServeRoutes(unittest.TestCase):
                 self._head(base_url + "/project/missing")
 
         self.assertEqual(err_ctx.exception.code, 404)
+
+    def test_detail_routes_support_custom_project_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha / "control")
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "alpha",
+                "repos/alpha",
+                display_name="Alpha",
+                project_dir="control",
+            )
+            _httpd, base_url = self._start_server(root)
+            design_status, _, _ = self._read(base_url + "/project/alpha/designs/DP-1")
+            workstream_status, _, _ = self._read(
+                base_url + "/project/alpha/workstreams/WS-A"
+            )
+        self.assertEqual(design_status, 200)
+        self.assertEqual(workstream_status, 200)
+
+    def test_detail_head_matches_get_not_found_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            with self.assertRaises(urllib.error.HTTPError) as get_err:
+                urllib.request.urlopen(
+                    base_url + "/project/alpha/designs/DOES-NOT-EXIST", timeout=5
+                )
+            with self.assertRaises(urllib.error.HTTPError) as head_err:
+                self._head(base_url + "/project/alpha/designs/DOES-NOT-EXIST")
+
+        self.assertEqual(get_err.exception.code, 404)
+        self.assertEqual(head_err.exception.code, 404)
 
     def test_meta_feature_introduces_no_write_route(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1114,6 +1208,22 @@ stage: executing
 work_items:
   - WI-A
   - WI-B
+---
+Body.
+""",
+    )
+    _write(
+        project_dir / "design" / "proposals" / "adopted" / "DP-1.md",
+        """---
+id: DP-1
+type: design_proposal
+title: Design One
+status: adopted
+implementation_status: not_started
+implemented_by:
+  - WI-A
+related_workstreams:
+  - WS-A
 ---
 Body.
 """,

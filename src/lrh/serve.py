@@ -40,6 +40,8 @@ _STATUS_ROUTES = (
     "/meta",
     "/meta/project",
     "/project/<project_id>",
+    "/project/<project_id>/designs/<design_id>",
+    "/project/<project_id>/workstreams/<workstream_id>",
     "/project/<project_id>/work-items/<work_item_id>",
     "/project/<project_id>/work-items/<work_item_id>/prompt",
     "/health",
@@ -529,6 +531,26 @@ def render_project_operational_dashboard(
     locator = html.escape(str(selected.get("locator") or "Unknown / unavailable"))
     source_state = html.escape(str(selected.get("source_state") or "unknown"))
     validation_status = html.escape(str(selected.get("validation_status") or "unknown"))
+    design_links = _html_link_list(
+        [
+            (
+                f"/project/{_url_quote(project_selector)}/designs/"
+                f"{_url_quote(design['id'])}",
+                f"{design['id']} — {design['title']}",
+            )
+            for design in _project_design_summaries(project_selector, config)
+        ]
+    )
+    workstream_links = _html_link_list(
+        [
+            (
+                f"/project/{_url_quote(project_selector)}/workstreams/"
+                f"{_url_quote(workstream['id'])}",
+                f"{workstream['id']} — {workstream['title']}",
+            )
+            for workstream in _project_workstream_summaries(project_selector, config)
+        ]
+    )
     return (
         200,
         """<!doctype html>
@@ -560,10 +582,12 @@ def render_project_operational_dashboard(
     </section>
     <section class=\"lrh-console-region\"><h2>Design summary</h2>
       <p>Adopted but not implemented: {adopted_not_implemented_design_count}.</p>
+      <h3>Design detail pages</h3>{design_links}
     </section>
     <section class=\"lrh-console-region\"><h2>Workstream summary</h2>
       <p>Active workstreams: {active_workstream_count}. Blocked/paused/completed
       counts are exposed as capability gaps when unavailable.</p>
+      <h3>Workstream detail pages</h3>{workstream_links}
     </section>
     <section class=\"lrh-console-region\"><h2>Work item summary</h2>
       <p>Active: {active_work_item_count}; ready leaves: {ready_leaf_count};
@@ -596,6 +620,8 @@ def render_project_operational_dashboard(
             readiness_deficient_leaf_count=_display_card_value(
                 selected.get("readiness_deficient_leaf_count")
             ),
+            design_links=design_links,
+            workstream_links=workstream_links,
             gaps=_html_list(
                 [
                     (
@@ -606,6 +632,169 @@ def render_project_operational_dashboard(
                     for gap in selected.get("capability_gaps", [])
                     if isinstance(gap, dict)
                 ]
+            ),
+        ),
+    )
+
+
+def _project_from_meta_selector(
+    config: ServeConfig, project_selector: str
+) -> tuple[meta_workspace.MetaProjectRecord | None, Path | None]:
+    workspace = meta_workspace.resolve_meta_workspace(
+        cwd=config.resolved_project_root(),
+        options=meta_workspace.MetaWorkspaceResolveOptions(),
+    )
+    for result in meta_workspace.list_registered_project_loads_in_workspace(workspace):
+        if result.record is None:
+            continue
+        if project_selector in {result.registry_name, result.record.project_id}:
+            return result.record, _registered_project_control_root(
+                workspace, result.record
+            )
+    return None, None
+
+
+def _project_design_summaries(
+    project_selector: str, config: ServeConfig
+) -> list[dict[str, str]]:
+    _record, project_root = _project_from_meta_selector(config, project_selector)
+    if project_root is None:
+        return []
+    loaded = control_loader.load_project(project_root)
+    return [
+        {"id": item.id, "title": item.title or "Untitled"}
+        for item in loaded.design_proposals
+    ]
+
+
+def _project_workstream_summaries(
+    project_selector: str, config: ServeConfig
+) -> list[dict[str, str]]:
+    _record, project_root = _project_from_meta_selector(config, project_selector)
+    if project_root is None:
+        return []
+    loaded = control_loader.load_project(project_root)
+    return [{"id": item.id, "title": item.title} for item in loaded.workstreams]
+
+
+def render_design_detail_page(
+    config: ServeConfig, project_selector: str, design_id: str
+) -> tuple[int, str]:
+    _record, project_root = _project_from_meta_selector(config, project_selector)
+    if project_root is None:
+        return 404, json.dumps(
+            {"error": "not_found", "project": project_selector}, indent=2
+        )
+    loaded = control_loader.load_project(project_root)
+    proposal = loaded.design_proposals_by_id.get(design_id)
+    if proposal is None:
+        return 404, json.dumps({"error": "not_found", "design": design_id}, indent=2)
+    related_workstreams = [
+        w.id for w in loaded.workstreams if design_id in w.related_design
+    ]
+    related_work_items = [
+        w.id for w in loaded.work_items if design_id in w.related_design
+    ]
+    related_workstream_html = _html_link_list(
+        [
+            (
+                f"/project/{_url_quote(project_selector)}/workstreams/"
+                f"{_url_quote(item)}",
+                item,
+            )
+            for item in related_workstreams
+        ]
+    )
+    return (
+        200,
+        """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Design detail</title>{styles}</head><body><div class="lrh-app-shell">
+<header class="lrh-page-header"><h1>Design: {design_id}</h1>
+<p><a href="/project/{project}">Back to project dashboard</a></p></header>
+<main class="lrh-main-content"><section class="lrh-console-region">
+<h2>Lifecycle and source</h2><p>Title: {title}</p><p>Status: {status}</p>
+<p>Implementation status: {implementation_status}</p><p>Source: {source}</p>
+</section><section class="lrh-console-region"><h2>Traceability</h2>
+<h3>Related workstreams</h3>{related_workstreams}
+<h3>Related work items</h3>{related_work_items}
+<h3>Implemented by</h3>{implemented_by}<h3>Evidence</h3>{evidence}
+<h3>Supersedes</h3>{supersedes}<p>Superseded by: {superseded_by}</p></section>
+<section class="lrh-console-region"><h2>Capability gaps</h2>{gaps}</section>
+</main></div></body></html>""".format(
+            styles=_base_styles(),
+            design_id=html.escape(proposal.id),
+            project=_url_quote(project_selector),
+            title=html.escape(str(proposal.title or "Untitled")),
+            status=html.escape(proposal.status),
+            implementation_status=html.escape(
+                str(proposal.implementation_status or "unknown / not implemented")
+            ),
+            source=html.escape(str(_relative_repo_path(project_root, proposal.path))),
+            related_workstreams=related_workstream_html,
+            related_work_items=_html_list(related_work_items),
+            implemented_by=_html_list(list(proposal.implemented_by)),
+            evidence=_html_list(list(proposal.evidence)),
+            supersedes=_html_list(list(proposal.supersedes)),
+            superseded_by=html.escape(str(proposal.superseded_by or "none")),
+            gaps=_html_list(
+                ["Prompt actions are not implemented for design detail pages yet."]
+            ),
+        ),
+    )
+
+
+def render_workstream_detail_page(
+    config: ServeConfig, project_selector: str, workstream_id: str
+) -> tuple[int, str]:
+    _record, project_root = _project_from_meta_selector(config, project_selector)
+    if project_root is None:
+        return 404, json.dumps(
+            {"error": "not_found", "project": project_selector}, indent=2
+        )
+    loaded = control_loader.load_project(project_root)
+    workstream = loaded.workstreams_by_id.get(workstream_id)
+    if workstream is None:
+        return 404, json.dumps(
+            {"error": "not_found", "workstream": workstream_id}, indent=2
+        )
+    parent = workstream.parent_id or "none"
+    children_html = _html_link_list(
+        [
+            (
+                f"/project/{_url_quote(project_selector)}/workstreams/"
+                f"{_url_quote(child)}",
+                child,
+            )
+            for child in workstream.children
+        ]
+    )
+    work_item_html = _html_list(list(workstream.work_items))
+    return (
+        200,
+        """<!doctype html><html lang="en"><head><meta charset="utf-8">
+<title>Workstream detail</title>{styles}</head><body><div class="lrh-app-shell">
+<header class="lrh-page-header"><h1>Workstream: {workstream_id}</h1>
+<p><a href="/project/{project}">Back to project dashboard</a></p></header>
+<main class="lrh-main-content"><section class="lrh-console-region">
+<h2>Identity and status</h2><p>Title: {title}</p><p>Status: {status}</p>
+<p>Stage: {stage}</p><p>Summary: {summary}</p><p>Source: {source}</p></section>
+<section class="lrh-console-region"><h2>Relationships</h2><p>Parent: {parent}</p>
+<h3>Children</h3>{children}<h3>Work items</h3>{work_items}</section>
+<section class="lrh-console-region"><h2>Capability gaps</h2>{gaps}</section>
+</main></div></body></html>""".format(
+            styles=_base_styles(),
+            workstream_id=html.escape(workstream.id),
+            project=_url_quote(project_selector),
+            title=html.escape(workstream.title),
+            status=html.escape(workstream.status),
+            stage=html.escape(workstream.stage),
+            summary=html.escape(str(workstream.summary or "unknown")),
+            source=html.escape(str(_relative_repo_path(project_root, workstream.path))),
+            parent=html.escape(parent),
+            children=children_html,
+            work_items=work_item_html,
+            gaps=_html_list(
+                ["Hierarchy diagnostics are not fully exposed by shared APIs yet."]
             ),
         ),
     )
@@ -1749,6 +1938,24 @@ def _html_list(items: object) -> str:
     )
 
 
+def _html_link_list(items: list[tuple[str, str]]) -> str:
+    """Render a list of escaped anchor links."""
+
+    if not items:
+        return "<p>None.</p>"
+    return (
+        "<ul>"
+        + "".join(
+            (
+                f'<li><a href="{html.escape(href, quote=True)}">'
+                f"{html.escape(label)}</a></li>"
+            )
+            for href, label in items
+        )
+        + "</ul>"
+    )
+
+
 def _artifact_label(artifact: object) -> str:
     if not isinstance(artifact, dict):
         return str(artifact)
@@ -1924,38 +2131,58 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 )
                 return
             if route.startswith("/project/"):
-                parts = route.split("/")
-                if len(parts) >= 5 and parts[3] == "work-items":
-                    project_selector = urllib.parse.unquote(parts[2])
-                    work_item_id = urllib.parse.unquote(parts[4])
-                    if len(parts) == 6 and parts[5] == "prompt":
-                        try:
-                            scoped_config = _config_for_project_selector(
-                                config, project_selector
-                            )
-                            artifact = render_workbench_artifact(
-                                scoped_config, "prompt", work_item_id
-                            )
-                        except (FileNotFoundError, OSError, ValueError) as error:
-                            self._write_json(
-                                404, {"error": "not_found", "message": str(error)}
-                            )
-                            return
-                        self._write_text(
-                            200,
-                            "text/html; charset=utf-8",
-                            render_workbench_artifact_page(artifact),
+                remainder = route.removeprefix("/project/")
+                parts = [
+                    urllib.parse.unquote(part) for part in remainder.split("/") if part
+                ]
+                if len(parts) == 3 and parts[1] == "designs":
+                    status_code, body = render_design_detail_page(
+                        config, parts[0], parts[2]
+                    )
+                    if status_code == 200:
+                        self._write_text(200, "text/html; charset=utf-8", body)
+                    else:
+                        self._write_json(status_code, json.loads(body))
+                    return
+                if len(parts) == 3 and parts[1] == "workstreams":
+                    status_code, body = render_workstream_detail_page(
+                        config, parts[0], parts[2]
+                    )
+                    if status_code == 200:
+                        self._write_text(200, "text/html; charset=utf-8", body)
+                    else:
+                        self._write_json(status_code, json.loads(body))
+                    return
+                if len(parts) == 3 and parts[1] == "work-items":
+                    status_code, body = render_project_work_item_page(
+                        config, parts[0], parts[2]
+                    )
+                    if status_code == 200:
+                        self._write_text(200, "text/html; charset=utf-8", body)
+                    else:
+                        self._write_json(status_code, json.loads(body))
+                    return
+                if (
+                    len(parts) == 4
+                    and parts[1] == "work-items"
+                    and parts[3] == "prompt"
+                ):
+                    try:
+                        scoped_config = _config_for_project_selector(config, parts[0])
+                        artifact = render_workbench_artifact(
+                            scoped_config, "prompt", parts[2]
+                        )
+                    except (FileNotFoundError, OSError, ValueError) as error:
+                        self._write_json(
+                            404, {"error": "not_found", "message": str(error)}
                         )
                         return
-                    if len(parts) == 5:
-                        status_code, body = render_project_work_item_page(
-                            config, project_selector, work_item_id
-                        )
-                        if status_code == 200:
-                            self._write_text(200, "text/html; charset=utf-8", body)
-                        else:
-                            self._write_json(status_code, json.loads(body))
-                        return
+                    self._write_text(
+                        200,
+                        "text/html; charset=utf-8",
+                        render_workbench_artifact_page(artifact),
+                    )
+                    return
                 project_selector = urllib.parse.unquote(route.removeprefix("/project/"))
                 status_code, body = render_project_operational_dashboard(
                     config, project_selector
@@ -1994,6 +2221,24 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
         def do_HEAD(self) -> None:
             route = self._route_path()
             if route.startswith("/project/"):
+                remainder = route.removeprefix("/project/")
+                parts = [
+                    urllib.parse.unquote(part) for part in remainder.split("/") if part
+                ]
+                if len(parts) == 3 and parts[1] in {"designs", "workstreams"}:
+                    if parts[1] == "designs":
+                        status_code, _body = render_design_detail_page(
+                            config, parts[0], parts[2]
+                        )
+                    else:
+                        status_code, _body = render_workstream_detail_page(
+                            config, parts[0], parts[2]
+                        )
+                    if status_code == 200:
+                        self._write_head(200, "text/html; charset=utf-8")
+                    else:
+                        self._write_head(status_code, "application/json; charset=utf-8")
+                    return
                 project_selector = urllib.parse.unquote(route.removeprefix("/project/"))
                 status_code, _body = render_project_operational_dashboard(
                     config, project_selector

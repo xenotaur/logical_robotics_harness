@@ -30,7 +30,10 @@ objects directly.
 The API does not execute work, mutate repositories, create branches, dispatch
 agents, or create pull requests. `lrh serve` uses this read/interpretation layer
 for project summaries, the read-only `/meta` operational swimlane dashboard, and
-registered-project operational detail pages at `/project/<project_id>`;
+registered-project operational detail pages at `/project/<project_id>`, plus
+design/workstream traceability drill-down pages at
+`/project/<project_id>/designs/<design_id>` and
+`/project/<project_id>/workstreams/<workstream_id>`;
 future `validate`, `snapshot`, `request`, `serve`, and `run --dry-run` work should
 prefer the same layer when they need shared project-state inference rather than
 re-deriving it from raw frontmatter dictionaries.

@@ -2,7 +2,7 @@
 execution_id: 2026_05_19_19_05_02_META_SERVE_LOCAL_STATE_DESIGN_ALIGNMENT
 prompt_id: PROMPT(AD_HOC:META_SERVE_LOCAL_STATE_DESIGN_ALIGNMENT)[2026-05-19T13:45:00-04:00]
 work_item: AD_HOC
-status: planned
+status: in_progress
 rerun_of:
 pr:
 commit: 8112bcc

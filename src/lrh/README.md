@@ -28,7 +28,8 @@ shared summaries. It does not expose the mutable loader or planning-tree backing
 objects directly.
 
 The API does not execute work, mutate repositories, create branches, dispatch
-agents, or create pull requests. Future `validate`, `snapshot`, `request`,
-`serve`, and `run --dry-run` work should prefer this read/interpretation layer
-when they need shared project-state inference rather than re-deriving it from raw
-frontmatter dictionaries.
+agents, or create pull requests. `lrh serve` uses this read/interpretation layer
+for project summaries and its read-only `/meta` operational swimlane dashboard;
+future `validate`, `snapshot`, `request`, `serve`, and `run --dry-run` work should
+prefer the same layer when they need shared project-state inference rather than
+re-deriving it from raw frontmatter dictionaries.

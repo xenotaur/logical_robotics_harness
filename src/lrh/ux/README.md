@@ -6,7 +6,7 @@ The initial dashboard support is grounded in the proposed LRH Console visual lan
 
 - an operational dashboard status vocabulary distinct from work-item lifecycle status;
 - deterministic status badges and lane ordering;
-- typed meta-dashboard, lane, project, validation, and evidence view models;
+- typed meta-dashboard, lane, project, validation, evidence, capability-gap, and operational-card view models;
 - conservative status derivation helpers that return `unknown` when available data is insufficient.
 
-Future `lrh serve` work can adopt these view models when rendering meta/project dashboards without introducing a frontend framework, mutating UI actions, or hard-coded LRH-repository fixture data.
+The `/meta` route in `lrh serve` now consumes these view models for its safe-default, read-only registered-project swimlane dashboard without introducing a frontend framework, mutating UI actions, or hard-coded LRH-repository fixture data.

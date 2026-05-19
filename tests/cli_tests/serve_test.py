@@ -167,10 +167,13 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/workbench/prompt",
                 "/workbench/run-packet",
                 "/workbench/run-report",
+                "/meta",
+                "/meta/project",
                 "/health",
                 "/api/status",
                 "/api/project",
                 "/api/workbench",
+                "/api/meta",
                 "/api/workbench/prompt",
                 "/api/workbench/run-packet",
                 "/api/workbench/run-report",
@@ -432,6 +435,119 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(missing_query_ctx.exception.code, 404)
         self.assertEqual(missing_item_ctx.exception.code, 404)
 
+    def test_meta_route_renders_empty_registry(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(base_url + "/meta")
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("Meta Operational Triage", body)
+        self.assertIn("Total registered projects shown: 0", body)
+        self.assertIn("No registered projects", body)
+        self.assertIn("Needs Attention (0)", body)
+        self.assertIn("Unknown (0)", body)
+
+    def test_meta_route_renders_multiple_projects_in_lane_order(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            beta = root / "repos" / "beta"
+            _write_viewer_project(alpha)
+            _write_viewer_project(beta)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "beta", "repos/beta", display_name="Beta")
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        self.assertIn("application/json", content_type)
+        payload = json.loads(body)
+        self.assertEqual(
+            [lane["label"] for lane in payload["lanes"]],
+            [
+                "Needs Attention",
+                "Active Work",
+                "Awaiting Review",
+                "Stable",
+                "Blocked",
+                "Unknown",
+            ],
+        )
+        active_lane = payload["lanes"][1]
+        self.assertEqual(active_lane["count"], 2)
+        self.assertEqual(
+            [card["display_name"] for card in active_lane["projects"]],
+            ["Alpha", "Beta"],
+        )
+        first_card = active_lane["projects"][0]
+        self.assertEqual(first_card["source_state"], "live")
+        self.assertEqual(first_card["validation_status"], "valid")
+        self.assertEqual(first_card["active_work_item_count"], 2)
+        self.assertEqual(first_card["ready_leaf_count"], 1)
+        self.assertEqual(first_card["readiness_deficient_leaf_count"], 1)
+        self.assertEqual(first_card["detail_url"], "/meta/project?project=alpha")
+        self.assertTrue(first_card["capability_gaps"])
+
+    def test_meta_route_isolates_unavailable_project_record(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            (root / "projects" / "broken").mkdir(parents=True)
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        needs_attention = payload["lanes"][0]
+        self.assertEqual(needs_attention["count"], 1)
+        broken = needs_attention["projects"][0]
+        self.assertEqual(broken["display_name"], "broken")
+        self.assertEqual(broken["source_state"], "unavailable")
+        self.assertEqual(broken["validation_status"], "unavailable")
+        self.assertIn("missing project record file", broken["diagnostics"][0])
+
+    def test_meta_route_escapes_dynamic_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "escape",
+                "https://example.test/repo?<script>",
+                display_name='<script>alert("x")</script>',
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/meta")
+
+        self.assertEqual(status, 200)
+        self.assertIn("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;", body)
+        self.assertNotIn('<script>alert("x")</script>', body)
+        self.assertIn("https://example.test/repo?&lt;script&gt;", body)
+
+    def test_meta_feature_introduces_no_write_route(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _httpd, base_url = self._start_server(root)
+
+            request = urllib.request.Request(base_url + "/meta", method="POST")
+            with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                urllib.request.urlopen(request, timeout=5)
+
+            status, content_type = self._head(base_url + "/meta")
+
+        self.assertEqual(err_ctx.exception.code, 405)
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+
     def test_arbitrary_file_paths_are_not_served(self) -> None:
         _httpd, base_url = self._start_server()
 
@@ -474,6 +590,64 @@ class TestLrhServeRoutes(unittest.TestCase):
                 self.assertEqual(err_ctx.exception.code, 405)
                 body = err_ctx.exception.read().decode("utf-8")
                 self.assertEqual(json.loads(body), {"error": "method_not_allowed"})
+
+
+def _write_local_meta_workspace(root: pathlib.Path) -> None:
+    _write(
+        root / ".lrh" / "config.toml",
+        "\n".join(
+            [
+                'schema_version = "0.1"',
+                "",
+                "[workspace]",
+                'name = "test workspace"',
+                'mode = "local"',
+                "",
+                "[paths]",
+                f'catalog_root = "{root}"',
+                f'projects_dir = "{root / "projects"}"',
+                f'config_dir = "{root / ".lrh"}"',
+                f'state_dir = "{root / "private" / "state"}"',
+                f'cache_dir = "{root / "private" / "cache"}"',
+                "",
+            ]
+        ),
+    )
+    (root / "projects").mkdir(parents=True, exist_ok=True)
+
+
+def _write_project_record(
+    root: pathlib.Path,
+    registry_name: str,
+    repo_locator: str,
+    *,
+    display_name: str,
+) -> None:
+    _write(
+        root / "projects" / registry_name / "project.toml",
+        "\n".join(
+            [
+                'schema_version = "0.1"',
+                "",
+                "[project]",
+                f"short_name = {json.dumps(registry_name)}",
+                f"display_name = {json.dumps(display_name)}",
+                'status = "active"',
+                'setup_state = "unknown"',
+                "",
+                "[identity]",
+                f"project_id = {json.dumps(f'proj-{registry_name}')}",
+                "",
+                "[locators]",
+                f"repo_locator = {json.dumps(repo_locator)}",
+                'project_dir = "project"',
+                "",
+                "[registry]",
+                f"directory_name = {json.dumps(registry_name)}",
+                "",
+            ]
+        ),
+    )
 
 
 def _write_minimal_project(root: pathlib.Path) -> None:

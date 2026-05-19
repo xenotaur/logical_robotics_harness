@@ -486,7 +486,7 @@ def _optional_positive(value: int | None) -> bool | None:
 
 def _meta_project_detail_url(registry_name: str) -> str:
     selector = urllib.parse.quote(registry_name, safe="")
-    return f"/meta/project?project={selector}"
+    return f"/project/{selector}"
 
 
 def _project_sort_name(project: ProjectSummaryView | ProjectOperationalCard) -> str:

@@ -169,6 +169,7 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/workbench/run-report",
                 "/meta",
                 "/meta/project",
+                "/project/<project_id>",
                 "/health",
                 "/api/status",
                 "/api/project",
@@ -491,7 +492,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(first_card["active_work_item_count"], 2)
         self.assertEqual(first_card["ready_leaf_count"], 1)
         self.assertEqual(first_card["readiness_deficient_leaf_count"], 1)
-        self.assertEqual(first_card["detail_url"], "/meta/project?project=alpha")
+        self.assertEqual(first_card["detail_url"], "/project/alpha")
         self.assertTrue(first_card["capability_gaps"])
 
     def test_meta_route_isolates_unavailable_project_record(self) -> None:
@@ -649,8 +650,75 @@ class TestLrhServeRoutes(unittest.TestCase):
         card = payload["lanes"][5]["projects"][0]
         self.assertEqual(
             card["detail_url"],
-            "/meta/project?project=name%20with%20%26%20hash%23",
+            "/project/name%20with%20%26%20hash%23",
         )
+
+    def test_project_dashboard_route_renders_registered_project_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type, body = self._read(base_url + "/project/alpha")
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("Project Operational Dashboard: Alpha", body)
+        self.assertIn("Validation summary", body)
+        self.assertIn("Capability gaps", body)
+        self.assertIn("Back to meta triage dashboard", body)
+
+    def test_project_dashboard_route_escapes_dynamic_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "escape",
+                "https://example.test/repo?<script>",
+                display_name='<script>alert("x")</script>',
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/project/escape")
+
+        self.assertEqual(status, 200)
+        self.assertIn("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;", body)
+        self.assertNotIn('<script>alert("x")</script>', body)
+
+    def test_project_dashboard_route_unknown_project_returns_not_found(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _httpd, base_url = self._start_server(root)
+
+            with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                urllib.request.urlopen(base_url + "/project/missing", timeout=5)
+
+        self.assertEqual(err_ctx.exception.code, 404)
+
+    def test_project_dashboard_head_supports_existing_and_missing_projects(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type = self._head(base_url + "/project/alpha")
+            self.assertEqual(status, 200)
+            self.assertIn("text/html", content_type)
+
+            with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                self._head(base_url + "/project/missing")
+
+        self.assertEqual(err_ctx.exception.code, 404)
 
     def test_meta_feature_introduces_no_write_route(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

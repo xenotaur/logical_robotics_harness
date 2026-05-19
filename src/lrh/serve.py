@@ -39,6 +39,7 @@ _STATUS_ROUTES = (
     "/workbench/run-report",
     "/meta",
     "/meta/project",
+    "/project/<project_id>",
     "/health",
     "/api/status",
     "/api/project",
@@ -494,6 +495,118 @@ def render_meta_project_placeholder(project_selector: str) -> str:
 </body>
 </html>
 """.format(styles=_base_styles(), selector=selector)
+
+
+def render_project_operational_dashboard(
+    config: ServeConfig, project_selector: str
+) -> tuple[int, str]:
+    """Render a read-only operational dashboard for one registered project."""
+
+    payload = meta_dashboard_payload(config)
+    selected: dict[str, object] | None = None
+    for lane in payload.get("lanes", []):
+        if not isinstance(lane, dict):
+            continue
+        for card in lane.get("projects", []):
+            if not isinstance(card, dict):
+                continue
+            registry_name = str(card.get("registry_name") or "")
+            project_id = str(card.get("project_id") or "")
+            if project_selector in {registry_name, project_id}:
+                selected = card
+                break
+        if selected is not None:
+            break
+    if selected is None:
+        return (
+            404,
+            json.dumps({"error": "not_found", "project": project_selector}, indent=2),
+        )
+    display_name = html.escape(str(selected.get("display_name") or project_selector))
+    project_id = html.escape(str(selected.get("project_id") or "unknown"))
+    locator = html.escape(str(selected.get("locator") or "Unknown / unavailable"))
+    source_state = html.escape(str(selected.get("source_state") or "unknown"))
+    validation_status = html.escape(str(selected.get("validation_status") or "unknown"))
+    return (
+        200,
+        """<!doctype html>
+<html lang=\"en\" data-theme=\"light\">
+<head><meta charset=\"utf-8\"><title>LRH Project Dashboard</title>{styles}</head>
+<body>
+<div class=\"lrh-app-shell\">
+  <header class=\"lrh-page-header\">
+    <p class=\"lrh-eyebrow\">LRH Console preview</p>
+    <h1>Project Operational Dashboard: {display_name}</h1>
+    <p><a href=\"/meta\">Back to meta triage dashboard</a></p>
+  </header>
+  <main class=\"lrh-main-content\">
+    <section class=\"lrh-console-region\"><h2>Project identity and source state</h2>
+      <dl class=\"lrh-summary-grid\">
+        <div><dt>Project ID</dt><dd>{project_id}</dd></div>
+        <div><dt>Locator</dt><dd>{locator}</dd></div>
+        <div><dt>Authority</dt><dd>Project-local project/ control plane is
+        authoritative.
+        </dd></div>
+        <div><dt>Source state</dt><dd>{source_state}</dd></div>
+      </dl></section>
+    <section class=\"lrh-console-region\"><h2>Validation summary</h2>
+      <p>Status: {validation_status}; errors: {error_count};
+      warnings: {warning_count}.</p>
+    </section>
+    <section class=\"lrh-console-region\"><h2>Current focus summary</h2>
+      <p>{current_focus}</p>
+    </section>
+    <section class=\"lrh-console-region\"><h2>Design summary</h2>
+      <p>Adopted but not implemented: {adopted_not_implemented_design_count}.</p>
+    </section>
+    <section class=\"lrh-console-region\"><h2>Workstream summary</h2>
+      <p>Active workstreams: {active_workstream_count}. Blocked/paused/completed
+      counts are exposed as capability gaps when unavailable.</p>
+    </section>
+    <section class=\"lrh-console-region\"><h2>Work item summary</h2>
+      <p>Active: {active_work_item_count}; ready leaves: {ready_leaf_count};
+      readiness-deficient leaves: {readiness_deficient_leaf_count}; blocked
+      leaves: unknown / not implemented.</p>
+    </section>
+    <section class=\"lrh-console-region\"><h2>Capability gaps</h2>{gaps}</section>
+  </main>
+</div>
+</body></html>""".format(
+            styles=_base_styles(),
+            display_name=display_name,
+            project_id=project_id,
+            locator=locator,
+            source_state=source_state,
+            validation_status=validation_status,
+            error_count=html.escape(str(selected.get("validation_error_count"))),
+            warning_count=html.escape(str(selected.get("validation_warning_count"))),
+            current_focus=_display_card_value(selected.get("current_focus_summary")),
+            adopted_not_implemented_design_count=_display_card_value(
+                selected.get("adopted_not_implemented_design_count")
+            ),
+            active_workstream_count=_display_card_value(
+                selected.get("active_workstream_count")
+            ),
+            active_work_item_count=_display_card_value(
+                selected.get("active_work_item_count")
+            ),
+            ready_leaf_count=_display_card_value(selected.get("ready_leaf_count")),
+            readiness_deficient_leaf_count=_display_card_value(
+                selected.get("readiness_deficient_leaf_count")
+            ),
+            gaps=_html_list(
+                [
+                    (
+                        f"{gap.get('field', 'capability')}: "
+                        f"{gap.get('state', 'unknown')} — "
+                        f"{gap.get('message', '')}"
+                    )
+                    for gap in selected.get("capability_gaps", [])
+                    if isinstance(gap, dict)
+                ]
+            ),
+        ),
+    )
 
 
 def _operational_card_from_load_result(
@@ -1702,6 +1815,16 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     ),
                 )
                 return
+            if route.startswith("/project/"):
+                project_selector = urllib.parse.unquote(route.removeprefix("/project/"))
+                status_code, body = render_project_operational_dashboard(
+                    config, project_selector
+                )
+                if status_code == 200:
+                    self._write_text(200, "text/html; charset=utf-8", body)
+                else:
+                    self._write_json(status_code, json.loads(body))
+                return
             if route in _WORKBENCH_ARTIFACT_ROUTES:
                 self._write_workbench_artifact(route)
                 return
@@ -1730,6 +1853,16 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
 
         def do_HEAD(self) -> None:
             route = self._route_path()
+            if route.startswith("/project/"):
+                project_selector = urllib.parse.unquote(route.removeprefix("/project/"))
+                status_code, _body = render_project_operational_dashboard(
+                    config, project_selector
+                )
+                if status_code == 200:
+                    self._write_head(200, "text/html; charset=utf-8")
+                else:
+                    self._write_head(status_code, "application/json; charset=utf-8")
+                return
             if route in _WORKBENCH_ARTIFACT_ROUTES:
                 self._write_workbench_artifact_head(route)
                 return
@@ -1748,7 +1881,12 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 "/api/meta",
             }:
                 content_type = "application/json; charset=utf-8"
-                if route in {"/", "/workbench", "/meta", "/meta/project"}:
+                if route in {
+                    "/",
+                    "/workbench",
+                    "/meta",
+                    "/meta/project",
+                }:
                     content_type = "text/html; charset=utf-8"
                 self._write_head(200, content_type)
                 return

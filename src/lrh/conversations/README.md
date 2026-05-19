@@ -13,7 +13,9 @@ redact source text, and public export should still require human review.
 ## ChatGPT PDF import
 
 `lrh.conversations.pdf_import` provides the first local, dependency-free
-ChatGPT browser-PDF transcript conversion helper. It preflights local PDF files,
+ChatGPT browser-PDF transcript conversion helper and backs the
+`lrh conversation convert-pdf INPUT.pdf --out OUTPUT.md` CLI command. It
+preflights local PDF files,
 rejects trailer-declared encryption, extracts simple text-layer `Tj` and `TJ`
 operands with PDF string-escape handling, writes private-by-default Markdown
 frontmatter, and runs the local sensitivity scanner unless disabled. The

@@ -20,6 +20,16 @@ Conversation documentation covers user-facing workflows for capturing, reviewing
 
 Add content here when the reader's problem starts with conversation material: capture it, preserve provenance, review it safely, or promote it into durable LRH artifacts. If the resulting artifact is a stable schema, document the schema in [reference](../reference/README.md) and link from here.
 
+## Implemented CLI support
+
+LRH includes `lrh conversation convert-pdf INPUT.pdf --out OUTPUT.md` for
+converting local ChatGPT PDF conversation exports with extractable text into
+private, non-authoritative Markdown transcripts. The command does not perform
+OCR, storage import, redaction, model calls, or public export; its sensitivity
+scan is heuristic and does not certify publication safety. See the
+[`lrh conversation` CLI reference](../reference/cli/conversation.md) for exact
+options and exit behavior.
+
 ## Currently relevant docs
 
 - [Conversation capture options](conversation-capture-options.md) — current manual capture/export choices, safety guidance, and implementation-status boundaries.

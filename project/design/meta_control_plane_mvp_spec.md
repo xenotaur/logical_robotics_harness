@@ -227,3 +227,91 @@ focus = "Working on style guide consolidation"
 8. Use `.lrh/` for workspace runtime/tool configuration in local and hybrid catalog roots.
 9. Use `private/` for ignored non-authoritative runtime state (local in `local`; global in `hybrid`/`global`).
 10. Keep CLI and any dashboard view aligned to the same meta model, with `lrh meta where` as primary diagnostics.
+
+---
+
+## 10. Project registration state model (meta/local-state alignment)
+
+To keep `lrh meta` and `lrh serve` aligned, project registration metadata should model
+identity, optional local checkout bindings, project-control path resolution, and last-observed checks
+as distinct concerns.
+
+### 10.1 Identity
+
+- `repo_locator`: portable project identity (often a remote URL).
+- `repo_locator_check`: last-observed check object with:
+  - `status`
+  - `checked_as_of`
+
+Suggested `repo_locator_check.status` values:
+- `valid`
+- `invalid`
+- `unsupported`
+- `skipped`
+- `unknown`
+
+### 10.2 Checkout
+
+- `local_repo_path`: optional machine-local checkout binding.
+- `local_repo_path_check`: last-observed check object with:
+  - `status`
+  - `checked_as_of`
+
+Suggested `local_repo_path_check.status` values:
+- `exists`
+- `missing`
+- `inaccessible`
+- `unknown`
+
+### 10.3 Project path
+
+- `project_dir`: LRH control-plane path relative to resolved repository root.
+- `resolved_project_path`: derived local path when a checkout is available.
+- `project_path_check`: last-observed check object with:
+  - `status`
+  - `checked_as_of`
+
+Suggested `project_path_check.status` values:
+- `exists`
+- `missing`
+- `inaccessible`
+- `unknown`
+
+### 10.4 Observation semantics
+
+All `*_check` values represent **last-observed facts**, not permanent truth claims.
+Checks can become stale as local checkouts, permissions, or remote endpoints change.
+
+### 10.5 Storage and privacy policy
+
+- Portable identity metadata is shareable by default.
+- Machine-local checkout bindings are private by default.
+- Observation checks are private by default.
+- Source-controlled persistence of local/private state requires explicit trusted opt-in.
+
+Configuration concept:
+
+```bash
+lrh meta config set trusted-persistent-local-state true
+```
+
+### 10.6 Command-surface split
+
+- `lrh meta register`: user-invoked creation/normalization command; may perform bounded
+  URL interpretation/checking.
+- `lrh meta refresh`: user-invoked observation update command; refreshes checks without silently
+  changing identity.
+- `lrh meta config`: key/value workspace/meta configuration surface.
+- `lrh meta set` / `lrh meta unset`: typed project-record update commands for structured fields.
+- `lrh serve`: consumes resolved local state and must not follow remote URLs in this MVP.
+
+### 10.7 Sequence alignment for meta/serve implementation
+
+- **PR0**: control-plane/design alignment (this document set).
+- **PR1**: identity/checkout/project/observation model and storage policy.
+- **PR2**: `lrh meta config` support for trusted persistent local state.
+- **PR3**: `lrh meta register` / `lrh meta refresh` observation checks.
+- **PR4**: `lrh meta set` / `lrh meta unset` typed project fields.
+- **PR5**: `inspect`/`list` setup-state visibility.
+- **PR6**: `lrh serve` consumes resolved local project state.
+- **PR7**: serve operational fields and initial usability ordering.

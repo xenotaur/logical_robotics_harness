@@ -28,8 +28,10 @@ The command is local and private-by-default:
 
 - `--out OUTPUT.md` — required Markdown transcript output path.
 - `--force` — overwrite an existing output file.
+- `--no-frontmatter` — write only the extracted transcript text and omit
+  privacy, authority, sensitivity, and other transcript metadata.
 - `--no-scan-sensitive` — skip the local heuristic sensitivity scanner and mark
-  transcript frontmatter as `sensitivity: unscanned`.
+  transcript frontmatter as `sensitivity: unscanned` when frontmatter is written.
 
 ### Exit behavior
 
@@ -38,5 +40,6 @@ PDFs without extractable text, converter failures, and existing outputs when
 `--force` is not supplied.
 
 On success it prints a concise deterministic summary, including output path,
-page count when available, privacy, sensitivity status, and warning count.
-Extraction warnings and potential sensitivity findings are printed as warnings.
+page count when available, metadata status, and warning count. When frontmatter
+is written, the summary includes privacy and sensitivity status. Extraction
+warnings and potential sensitivity findings are printed as warnings.

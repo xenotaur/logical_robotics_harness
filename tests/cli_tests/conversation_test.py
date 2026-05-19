@@ -136,6 +136,54 @@ class ConversationCliTest(unittest.TestCase):
                 "hello from ChatGPT PDF", output_path.read_text(encoding="utf-8")
             )
 
+    def test_convert_pdf_sensitive_findings_warn_and_count(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = pathlib.Path(temp_dir)
+            input_path = temp_path / "conversation.pdf"
+            output_path = temp_path / "conversation.md"
+            self._write_pdf(input_path, b"BT (email user@example.com) Tj ET")
+
+            completed = self._run_lrh(
+                "conversation",
+                "convert-pdf",
+                str(input_path),
+                "--out",
+                str(output_path),
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn(
+                'sensitivity: "potential"', output_path.read_text(encoding="utf-8")
+            )
+            self.assertIn("Sensitivity: potential", completed.stdout)
+            self.assertIn("Warnings: 2", completed.stdout)
+            self.assertIn("potential sensitive content detected", completed.stderr)
+            self.assertIn("warning: turn_boundaries_not_inferred", completed.stderr)
+
+    def test_convert_pdf_no_frontmatter_summary_notes_metadata_omitted(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = pathlib.Path(temp_dir)
+            input_path = temp_path / "conversation.pdf"
+            output_path = temp_path / "conversation.md"
+            self._write_pdf(input_path)
+
+            completed = self._run_lrh(
+                "conversation",
+                "convert-pdf",
+                str(input_path),
+                "--out",
+                str(output_path),
+                "--no-frontmatter",
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertEqual(
+                output_path.read_text(encoding="utf-8"), "hello from ChatGPT PDF\n"
+            )
+            self.assertIn("Metadata: omitted (--no-frontmatter)", completed.stdout)
+            self.assertNotIn("Privacy: private", completed.stdout)
+            self.assertNotIn("Sensitivity:", completed.stdout)
+
     def test_convert_pdf_no_scan_sensitive_marks_unscanned(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = pathlib.Path(temp_dir)

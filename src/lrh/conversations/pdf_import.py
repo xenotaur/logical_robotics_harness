@@ -431,10 +431,7 @@ def run_convert_pdf_cli(argv: Sequence[str] | None = None, *, prog: str) -> int:
         print(f"error: {err}", file=sys.stderr)
         return 1
 
-    sensitivity_status = _transcript_sensitivity_status(
-        result.sensitivity_result,
-        scan_sensitive=not args.no_scan_sensitive,
-    )
+    sensitivity_status = _transcript_sensitivity_status(result.sensitivity_result)
     sensitivity_warning_count = 0
     if result.sensitivity_result is not None and result.sensitivity_result.findings:
         sensitivity_warning_count = 1
@@ -455,19 +452,18 @@ def run_convert_pdf_cli(argv: Sequence[str] | None = None, *, prog: str) -> int:
     )
     print(f"Converted ChatGPT PDF transcript: {args.out}")
     print(f"Pages: {page_count}")
-    print("Privacy: private")
-    print(f"Sensitivity: {sensitivity_status}")
+    if args.no_frontmatter:
+        print("Metadata: omitted (--no-frontmatter)")
+    else:
+        print("Privacy: private")
+        print(f"Sensitivity: {sensitivity_status}")
     print(f"Warnings: {warning_count}")
     return 0
 
 
 def _transcript_sensitivity_status(
     scan_result: sensitivity.SensitiveScanResult | None,
-    *,
-    scan_sensitive: bool,
 ) -> str:
     if scan_result is None:
-        return "unscanned" if not scan_sensitive else "failed_or_unavailable"
-    if scan_result.findings:
-        return "potential"
-    return "none_detected"
+        return "unscanned"
+    return scan_result.status

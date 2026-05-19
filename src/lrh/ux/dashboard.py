@@ -8,6 +8,7 @@ Markdown.
 
 from __future__ import annotations
 
+import urllib.parse
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -194,6 +195,8 @@ class ProjectOperationalCard:
     locator: str | None = None
     source_state: str = "unknown"
     validation_status: str = "unknown"
+    validation_error_count: int | None = None
+    validation_warning_count: int | None = None
     current_focus_summary: str | None = None
     active_workstream_count: int | None = None
     active_work_item_count: int | None = None
@@ -391,9 +394,14 @@ def project_operational_card_from_record(
     *,
     source_state: str = "unknown",
     validation_status: str = "unknown",
+    validation_error_count: int | None = None,
+    validation_warning_count: int | None = None,
     current_focus_summary: str | None = None,
     active_workstream_count: int | None = None,
     active_work_item_count: int | None = None,
+    blocker_count: int | None = None,
+    awaiting_review: bool | None = None,
+    steady: bool | None = None,
     ready_leaf_count: int | None = None,
     readiness_deficient_leaf_count: int | None = None,
     adopted_not_implemented_design_count: int | None = None,
@@ -404,19 +412,17 @@ def project_operational_card_from_record(
 
     project_id = record.project_id or record.registry_name
     display_name = record.display_name or record.short_name or record.registry_name
+    has_active_work = _optional_positive(active_work_item_count)
+    if has_active_work is not True:
+        has_active_work = _optional_positive(active_workstream_count)
     status = derive_operational_status(
         OperationalStatusInputs(
-            validation_error_count=(
-                (1 if validation_status == "error" else 0)
-                if validation_status in {"valid", "error"}
-                else None
-            ),
-            validation_warning_count=0 if validation_status == "valid" else None,
-            has_active_work=(
-                (active_work_item_count > 0)
-                if active_work_item_count is not None
-                else None
-            ),
+            validation_error_count=validation_error_count,
+            validation_warning_count=validation_warning_count,
+            blocker_count=blocker_count,
+            has_active_work=has_active_work,
+            awaiting_review=awaiting_review,
+            steady=steady,
         )
     )
     if source_state == "unavailable" and validation_status not in {"valid", "error"}:
@@ -431,13 +437,15 @@ def project_operational_card_from_record(
         locator=record.repo_locator,
         source_state=source_state,
         validation_status=validation_status,
+        validation_error_count=validation_error_count,
+        validation_warning_count=validation_warning_count,
         current_focus_summary=current_focus_summary,
         active_workstream_count=active_workstream_count,
         active_work_item_count=active_work_item_count,
         ready_leaf_count=ready_leaf_count,
         readiness_deficient_leaf_count=readiness_deficient_leaf_count,
         adopted_not_implemented_design_count=adopted_not_implemented_design_count,
-        detail_url=f"/meta/project?project={record.registry_name}",
+        detail_url=_meta_project_detail_url(record.registry_name),
         capability_gaps=capability_gaps,
         diagnostics=diagnostics,
     )
@@ -464,10 +472,21 @@ def unavailable_project_operational_card(
         registry_name=registry_name,
         source_state="unavailable",
         validation_status="unavailable",
-        detail_url=f"/meta/project?project={registry_name}",
+        detail_url=_meta_project_detail_url(registry_name),
         capability_gaps=(gap,),
         diagnostics=(message,),
     )
+
+
+def _optional_positive(value: int | None) -> bool | None:
+    if value is None:
+        return None
+    return value > 0
+
+
+def _meta_project_detail_url(registry_name: str) -> str:
+    selector = urllib.parse.quote(registry_name, safe="")
+    return f"/meta/project?project={selector}"
 
 
 def _project_sort_name(project: ProjectSummaryView | ProjectOperationalCard) -> str:

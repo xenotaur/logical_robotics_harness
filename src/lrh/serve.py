@@ -383,7 +383,7 @@ def meta_dashboard_payload(config: ServeConfig) -> dict[str, object]:
         }
 
     cards = [
-        _operational_card_from_load_result(config, result) for result in load_results
+        _operational_card_from_load_result(workspace, result) for result in load_results
     ]
     meta_view = dashboard.build_meta_dashboard(cards)
     return {
@@ -497,7 +497,7 @@ def render_meta_project_placeholder(project_selector: str) -> str:
 
 
 def _operational_card_from_load_result(
-    config: ServeConfig,
+    workspace: meta_workspace.MetaWorkspace,
     result: meta_workspace.MetaProjectLoadResult,
 ) -> dashboard.ProjectOperationalCard:
     if result.record is None:
@@ -523,13 +523,18 @@ def _operational_card_from_load_result(
     ]
     source_state = "unknown"
     validation_status = "unknown"
+    validation_error_count = None
+    validation_warning_count = None
     current_focus_summary = None
     active_workstream_count = None
     active_work_item_count = None
+    blocker_count = None
+    awaiting_review = None
+    steady = None
     ready_leaf_count = None
     readiness_deficient_leaf_count = None
     diagnostics: tuple[str, ...] = ()
-    project_root = _registered_project_root(config, record)
+    project_root = _registered_project_control_root(workspace, record)
     if project_root is not None:
         try:
             project_payload = project_viewer_payload(
@@ -540,10 +545,21 @@ def _operational_card_from_load_result(
             validation_status = "unavailable"
             diagnostics = (str(err),)
         else:
-            source_state = "live"
             validation = project_payload.get("validation", {})
             if isinstance(validation, dict):
                 validation_status = str(validation.get("status", "unknown"))
+                validation_error_count = _optional_int(validation.get("error_count"))
+                validation_warning_count = _optional_int(
+                    validation.get("warning_count")
+                )
+            if _project_payload_is_unavailable(project_payload):
+                source_state = "unavailable"
+                diagnostics = tuple(
+                    _diagnostic_label(diagnostic)
+                    for diagnostic in project_payload.get("diagnostics", [])
+                )
+            else:
+                source_state = "live"
             focus = project_payload.get("current_focus")
             if isinstance(focus, dict):
                 current_focus_summary = (
@@ -555,6 +571,16 @@ def _operational_card_from_load_result(
             work_items = project_payload.get("work_items")
             if isinstance(work_items, dict):
                 active_work_item_count = _status_count(work_items, "active")
+                blocker_count = _blocked_work_item_count(work_items)
+                awaiting_review = _has_review_waiting_work(work_items)
+            workstream_summary = project_payload.get("workstreams")
+            if awaiting_review is not True and isinstance(workstream_summary, dict):
+                awaiting_review = _has_reviewing_workstream(workstream_summary)
+            steady = _project_payload_is_steady(
+                project_payload,
+                active_workstream_count=active_workstream_count,
+                active_work_item_count=active_work_item_count,
+            )
             execution = project_payload.get("execution")
             if isinstance(execution, dict):
                 active_leaf_count = execution.get("active_leaf_count")
@@ -569,9 +595,14 @@ def _operational_card_from_load_result(
         record,
         source_state=source_state,
         validation_status=validation_status,
+        validation_error_count=validation_error_count,
+        validation_warning_count=validation_warning_count,
         current_focus_summary=current_focus_summary,
         active_workstream_count=active_workstream_count,
         active_work_item_count=active_work_item_count,
+        blocker_count=blocker_count,
+        awaiting_review=awaiting_review,
+        steady=steady,
         ready_leaf_count=ready_leaf_count,
         readiness_deficient_leaf_count=readiness_deficient_leaf_count,
         adopted_not_implemented_design_count=None,
@@ -580,29 +611,133 @@ def _operational_card_from_load_result(
     )
 
 
-def _registered_project_root(
-    config: ServeConfig,
+def _registered_project_control_root(
+    workspace: meta_workspace.MetaWorkspace,
     record: meta_workspace.MetaProjectRecord,
 ) -> Path | None:
-    if record.repo_locator is None:
+    repo_path = _registered_repo_path(workspace, record.repo_locator)
+    if repo_path is None:
         return None
-    parsed = urllib.parse.urlsplit(record.repo_locator)
+    project_dir = (record.project_dir or "project").strip() or "project"
+    if project_dir in {".", "./", ""}:
+        return repo_path
+    if project_dir == "project":
+        return repo_path
+    return repo_path / project_dir
+
+
+def _registered_repo_path(
+    workspace: meta_workspace.MetaWorkspace,
+    repo_locator: str | None,
+) -> Path | None:
+    if repo_locator is None:
+        return None
+    parsed = urllib.parse.urlsplit(repo_locator)
     if parsed.scheme and parsed.netloc:
         return None
-    if "://" in record.repo_locator:
+    if "://" in repo_locator:
         return None
-    path = Path(record.repo_locator).expanduser()
-    if path.is_absolute():
-        return path
-    return config.resolved_project_root() / path
+    repo_path = Path(repo_locator).expanduser()
+    if repo_path.is_absolute():
+        return repo_path
+    base_dir = workspace.workspace_root
+    if base_dir is None:
+        base_dir = workspace.config_path.parent
+    return base_dir / repo_path
 
 
 def _status_count(summary: dict[str, object], status: str) -> int | None:
     by_status = summary.get("by_status")
     if not isinstance(by_status, dict):
         return None
-    value = by_status.get(status)
+    value = by_status.get(status, 0)
     return value if isinstance(value, int) else None
+
+
+def _optional_int(value: object) -> int | None:
+    return value if isinstance(value, int) else None
+
+
+def _project_payload_is_unavailable(payload: dict[str, object]) -> bool:
+    diagnostics = payload.get("diagnostics", [])
+    if not isinstance(diagnostics, list):
+        return False
+    return any(
+        isinstance(diagnostic, dict)
+        and diagnostic.get("code") == "PROJECT_CONTROL_DIR_NOT_FOUND"
+        for diagnostic in diagnostics
+    )
+
+
+def _blocked_work_item_count(work_items: dict[str, object]) -> int | None:
+    raw_items = work_items.get("items")
+    if not isinstance(raw_items, list):
+        return None
+    count = 0
+    for item in raw_items:
+        if not isinstance(item, dict):
+            continue
+        blocked_by = item.get("blocked_by")
+        status = str(item.get("status", "")).lower()
+        if (isinstance(blocked_by, list) and blocked_by) or status in {
+            "blocked",
+            "stalled",
+        }:
+            count += 1
+    return count
+
+
+def _has_review_waiting_work(work_items: dict[str, object]) -> bool | None:
+    raw_items = work_items.get("items")
+    if not isinstance(raw_items, list):
+        return None
+    review_statuses = {
+        "awaiting_review",
+        "review",
+        "in_review",
+        "ready_for_review",
+        "ready-for-review",
+    }
+    return any(
+        isinstance(item, dict)
+        and str(item.get("status", "")).lower() in review_statuses
+        for item in raw_items
+    )
+
+
+def _has_reviewing_workstream(workstreams: dict[str, object]) -> bool | None:
+    raw_items = workstreams.get("items")
+    if not isinstance(raw_items, list):
+        return None
+    return any(
+        isinstance(item, dict) and str(item.get("stage", "")).lower() == "reviewing"
+        for item in raw_items
+    )
+
+
+def _project_payload_is_steady(
+    payload: dict[str, object],
+    *,
+    active_workstream_count: int | None,
+    active_work_item_count: int | None,
+) -> bool | None:
+    validation = payload.get("validation")
+    if not isinstance(validation, dict):
+        return None
+    if validation.get("status") != "valid":
+        return False
+    if active_workstream_count is None or active_work_item_count is None:
+        return None
+    focus = payload.get("current_focus")
+    work_items = payload.get("work_items")
+    has_control_state = isinstance(focus, dict) or (
+        isinstance(work_items, dict) and _optional_int(work_items.get("total")) != 0
+    )
+    return (
+        has_control_state
+        and active_workstream_count == 0
+        and active_work_item_count == 0
+    )
 
 
 def _operational_card_payload(project: object) -> dict[str, object]:
@@ -616,6 +751,8 @@ def _operational_card_payload(project: object) -> dict[str, object]:
         "locator": project.locator,
         "source_state": project.source_state,
         "validation_status": project.validation_status,
+        "validation_error_count": project.validation_error_count,
+        "validation_warning_count": project.validation_warning_count,
         "status": project.status.value,
         "current_focus_summary": project.current_focus_summary,
         "active_workstream_count": project.active_workstream_count,

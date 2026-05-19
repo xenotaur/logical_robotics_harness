@@ -2,7 +2,7 @@
 execution_id: 2026_05_19_00_24_24_LRH_SERVE_META_SWIMLANE_PAGE
 prompt_id: PROMPT(AD_HOC:LRH_SERVE_META_SWIMLANE_PAGE)[2026-05-18T17:10:00-04:00]
 work_item: AD_HOC
-status: planned
+status: in_progress
 rerun_of: 
 pr: 
 commit: 

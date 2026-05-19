@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Serve Operational Triage MVP
 status: proposed
 created_on: 2026-05-18
-updated_on: 2026-05-18
+updated_on: 2026-05-19
 implementation_status: not_started
 related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
@@ -267,6 +267,59 @@ fields and offer a repair/readiness prompt affordance.
 The prompt workbench is a transient human-assist page for one promptable
 leaf or repair task. It should show the generated prompt, equivalent CLI
 command, source inputs, missing inputs, and copy/download controls.
+
+
+## Meta/local-state alignment required for serve triage
+
+For the serve MVP to be operationally useful across LRH and other registered projects,
+`lrh serve` should consume a shared resolved project-state model produced by `lrh meta`
+rather than re-implementing locator or checkout logic in the serve layer.
+
+### Identity / checkout / project / observation model
+
+- **Identity**
+  - `repo_locator` is the portable project identity (often a remote URL).
+  - `repo_locator_check = {status, checked_as_of}`.
+- **Checkout**
+  - `local_repo_path` is an optional local checkout binding.
+  - `local_repo_path_check = {status, checked_as_of}`.
+- **Project**
+  - `project_dir` is relative to the resolved repository root.
+  - `resolved_project_path` is derived when a local checkout is available.
+  - `project_path_check = {status, checked_as_of}`.
+- **Observation semantics**
+  - check statuses are last-observed facts, not permanent truth claims.
+
+Suggested status values:
+
+- `repo_locator_check.status`: `valid | invalid | unsupported | skipped | unknown`
+- `local_repo_path_check.status`: `exists | missing | inaccessible | unknown`
+- `project_path_check.status`: `exists | missing | inaccessible | unknown`
+
+### Storage trust boundary
+
+- Portable identity metadata is shareable by default.
+- Machine-local checkout bindings are private by default.
+- Observation checks are private by default.
+- Source-controlled persistence of local/private state requires explicit trusted opt-in
+  via a workspace/meta config toggle, for example:
+
+```bash
+lrh meta config set trusted-persistent-local-state true
+```
+
+### Command responsibilities
+
+- `lrh meta register`: creation/normalization command that may perform bounded
+  user-triggered locator interpretation/checking.
+- `lrh meta refresh`: observation refresh command that updates checks without silently
+  changing identity fields.
+- `lrh meta config`: key/value configuration surface (including trusted local-state persistence).
+- `lrh meta set` / `lrh meta unset`: typed project-record field updates.
+- `lrh serve`: consumes shared resolved meta state and must not follow remote URLs in this MVP.
+
+This keeps `register`/`refresh` as explicit trust-boundary operations and keeps
+`serve` as a deterministic local-inspection surface.
 
 ## Safe-default behavior and security/privacy boundaries
 

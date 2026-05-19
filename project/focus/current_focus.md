@@ -60,6 +60,14 @@ merge/release automation, or destructive actions.
 
 ## Supporting Design Work
 
+- Meta/local-state design alignment for serve operational triage is now explicitly staged as a
+  prerequisite support slice: identity (`repo_locator`), optional checkout binding
+  (`local_repo_path`), project-control resolution (`project_dir` relative to repo root),
+  last-observed checks (`{status, checked_as_of}`), and private-by-default local-state policy
+  with explicit trusted persistence opt-in. The planned implementation sequence is PR0 design
+  alignment followed by PR1-PR7 command/model rollout so `lrh serve` can consume shared
+  resolved local project state without following remote URLs in this MVP.
+
 - The LRH Serve Operational Triage MVP design proposal defines a meta-aware, operational,
   safe-default, state-aware triage extension viewer for `lrh serve`. As the viewer sprint is
   completed and carried forward, this design is intended to help LRH and other registered

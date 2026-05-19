@@ -37,5 +37,6 @@ Use [Documentation structure](reference/documentation-structure.md) when decidin
 - [`lrh request`](reference/cli/request.md)
 - [`lrh work-items`](reference/cli/work-items.md)
 - [`lrh meta`](reference/cli/meta.md)
+- [`lrh conversation`](reference/cli/conversation.md)
 
 Future content migration should prefer link-only compatibility updates and small, reviewable moves over broad rewrites.

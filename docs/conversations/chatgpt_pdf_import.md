@@ -43,7 +43,7 @@ When frontmatter is enabled (default), LRH adds transcript metadata including:
 - `authority`
 - source file hash
 - page count
-- extraction warnings
+- warnings
 
 Example synthetic frontmatter snippet:
 

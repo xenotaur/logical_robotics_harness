@@ -3,9 +3,9 @@ privacy: private
 sensitivity: none_detected
 authority: non_authoritative_context
 source_adapter: chatgpt_pdf
-source_sha256: 0000000000000000000000000000000000000000000000000000000000000000
+source_file_sha256: 0000000000000000000000000000000000000000000000000000000000000000
 page_count: 2
-extraction_warnings: []
+warnings: []
 ---
 
 # Conversation (synthetic)

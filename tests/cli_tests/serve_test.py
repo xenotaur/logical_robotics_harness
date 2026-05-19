@@ -31,7 +31,7 @@ class TestLrhServeCli(unittest.TestCase):
         self.assertIn("--host", output)
         self.assertIn("--port", output)
         self.assertIn("--allow-nonlocal-host", output)
-        self.assertIn("not an autonomous runner", output)
+        self.assertIn("not an autonomous runner", " ".join(output.split()))
 
     def test_default_config_binds_to_localhost(self) -> None:
         parser = serve.build_parser("lrh serve")

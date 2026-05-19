@@ -2131,7 +2131,6 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 )
                 return
             if route.startswith("/project/"):
-<<<<<<< codex/add-design-and-workstream-traceability-pages
                 remainder = route.removeprefix("/project/")
                 parts = [
                     urllib.parse.unquote(part) for part in remainder.split("/") if part
@@ -2154,40 +2153,36 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     else:
                         self._write_json(status_code, json.loads(body))
                     return
-=======
-                parts = route.split("/")
-                if len(parts) >= 5 and parts[3] == "work-items":
-                    project_selector = urllib.parse.unquote(parts[2])
-                    work_item_id = urllib.parse.unquote(parts[4])
-                    if len(parts) == 6 and parts[5] == "prompt":
-                        try:
-                            scoped_config = _config_for_project_selector(
-                                config, project_selector
-                            )
-                            artifact = render_workbench_artifact(
-                                scoped_config, "prompt", work_item_id
-                            )
-                        except (FileNotFoundError, OSError, ValueError) as error:
-                            self._write_json(
-                                404, {"error": "not_found", "message": str(error)}
-                            )
-                            return
-                        self._write_text(
-                            200,
-                            "text/html; charset=utf-8",
-                            render_workbench_artifact_page(artifact),
+                if len(parts) == 3 and parts[1] == "work-items":
+                    status_code, body = render_project_work_item_page(
+                        config, parts[0], parts[2]
+                    )
+                    if status_code == 200:
+                        self._write_text(200, "text/html; charset=utf-8", body)
+                    else:
+                        self._write_json(status_code, json.loads(body))
+                    return
+                if (
+                    len(parts) == 4
+                    and parts[1] == "work-items"
+                    and parts[3] == "prompt"
+                ):
+                    try:
+                        scoped_config = _config_for_project_selector(config, parts[0])
+                        artifact = render_workbench_artifact(
+                            scoped_config, "prompt", parts[2]
+                        )
+                    except (FileNotFoundError, OSError, ValueError) as error:
+                        self._write_json(
+                            404, {"error": "not_found", "message": str(error)}
                         )
                         return
-                    if len(parts) == 5:
-                        status_code, body = render_project_work_item_page(
-                            config, project_selector, work_item_id
-                        )
-                        if status_code == 200:
-                            self._write_text(200, "text/html; charset=utf-8", body)
-                        else:
-                            self._write_json(status_code, json.loads(body))
-                        return
->>>>>>> main
+                    self._write_text(
+                        200,
+                        "text/html; charset=utf-8",
+                        render_workbench_artifact_page(artifact),
+                    )
+                    return
                 project_selector = urllib.parse.unquote(route.removeprefix("/project/"))
                 status_code, body = render_project_operational_dashboard(
                     config, project_selector

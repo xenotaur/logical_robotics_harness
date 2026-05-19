@@ -34,6 +34,9 @@ registered-project operational detail pages at `/project/<project_id>`, plus
 design/workstream traceability drill-down pages at
 `/project/<project_id>/designs/<design_id>` and
 `/project/<project_id>/workstreams/<workstream_id>`;
+work-item readiness/detail pages at
+`/project/<project_id>/work-items/<work_item_id>` and prompt preview workbench
+pages at `/project/<project_id>/work-items/<work_item_id>/prompt`;
 future `validate`, `snapshot`, `request`, `serve`, and `run --dry-run` work should
 prefer the same layer when they need shared project-state inference rather than
 re-deriving it from raw frontmatter dictionaries.

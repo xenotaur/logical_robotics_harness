@@ -529,21 +529,22 @@ def render_project_operational_dashboard(
     locator = html.escape(str(selected.get("locator") or "Unknown / unavailable"))
     source_state = html.escape(str(selected.get("source_state") or "unknown"))
     validation_status = html.escape(str(selected.get("validation_status") or "unknown"))
-    design_links = _html_list(
+    design_links = _html_link_list(
         [
             (
-                f'<a href="/project/{_url_quote(project_selector)}/designs/'
-                f'{_url_quote(design["id"])}">{design["id"]} — {design["title"]}</a>'
+                f"/project/{_url_quote(project_selector)}/designs/"
+                f"{_url_quote(design['id'])}",
+                f"{design['id']} — {design['title']}",
             )
             for design in _project_design_summaries(project_selector, config)
         ]
     )
-    workstream_links = _html_list(
+    workstream_links = _html_link_list(
         [
             (
-                f'<a href="/project/{_url_quote(project_selector)}/workstreams/'
-                f'{_url_quote(workstream["id"])}">{workstream["id"]} — '
-                f'{workstream["title"]}</a>'
+                f"/project/{_url_quote(project_selector)}/workstreams/"
+                f"{_url_quote(workstream['id'])}",
+                f"{workstream['id']} — {workstream['title']}",
             )
             for workstream in _project_workstream_summaries(project_selector, config)
         ]
@@ -657,7 +658,7 @@ def _project_design_summaries(
     _record, project_root = _project_from_meta_selector(config, project_selector)
     if project_root is None:
         return []
-    loaded = control_loader.load_project(project_root / "project")
+    loaded = control_loader.load_project(project_root)
     return [
         {"id": item.id, "title": item.title or "Untitled"}
         for item in loaded.design_proposals
@@ -670,7 +671,7 @@ def _project_workstream_summaries(
     _record, project_root = _project_from_meta_selector(config, project_selector)
     if project_root is None:
         return []
-    loaded = control_loader.load_project(project_root / "project")
+    loaded = control_loader.load_project(project_root)
     return [{"id": item.id, "title": item.title} for item in loaded.workstreams]
 
 
@@ -682,7 +683,7 @@ def render_design_detail_page(
         return 404, json.dumps(
             {"error": "not_found", "project": project_selector}, indent=2
         )
-    loaded = control_loader.load_project(project_root / "project")
+    loaded = control_loader.load_project(project_root)
     proposal = loaded.design_proposals_by_id.get(design_id)
     if proposal is None:
         return 404, json.dumps({"error": "not_found", "design": design_id}, indent=2)
@@ -692,11 +693,12 @@ def render_design_detail_page(
     related_work_items = [
         w.id for w in loaded.work_items if design_id in w.related_design
     ]
-    related_workstream_html = _html_list(
+    related_workstream_html = _html_link_list(
         [
             (
-                f'<a href="/project/{_url_quote(project_selector)}/workstreams/'
-                f'{_url_quote(item)}">{html.escape(item)}</a>'
+                f"/project/{_url_quote(project_selector)}/workstreams/"
+                f"{_url_quote(item)}",
+                item,
             )
             for item in related_workstreams
         ]
@@ -725,7 +727,7 @@ def render_design_detail_page(
             implementation_status=html.escape(
                 str(proposal.implementation_status or "unknown / not implemented")
             ),
-            source=html.escape(str(proposal.path)),
+            source=html.escape(str(_relative_repo_path(project_root, proposal.path))),
             related_workstreams=related_workstream_html,
             related_work_items=_html_list(related_work_items),
             implemented_by=_html_list(list(proposal.implemented_by)),
@@ -747,18 +749,19 @@ def render_workstream_detail_page(
         return 404, json.dumps(
             {"error": "not_found", "project": project_selector}, indent=2
         )
-    loaded = control_loader.load_project(project_root / "project")
+    loaded = control_loader.load_project(project_root)
     workstream = loaded.workstreams_by_id.get(workstream_id)
     if workstream is None:
         return 404, json.dumps(
             {"error": "not_found", "workstream": workstream_id}, indent=2
         )
     parent = workstream.parent_id or "none"
-    children_html = _html_list(
+    children_html = _html_link_list(
         [
             (
-                f'<a href="/project/{_url_quote(project_selector)}/workstreams/'
-                f'{_url_quote(child)}">{html.escape(child)}</a>'
+                f"/project/{_url_quote(project_selector)}/workstreams/"
+                f"{_url_quote(child)}",
+                child,
             )
             for child in workstream.children
         ]
@@ -784,7 +787,7 @@ def render_workstream_detail_page(
             status=html.escape(workstream.status),
             stage=html.escape(workstream.stage),
             summary=html.escape(str(workstream.summary or "unknown")),
-            source=html.escape(str(workstream.path)),
+            source=html.escape(str(_relative_repo_path(project_root, workstream.path))),
             parent=html.escape(parent),
             children=children_html,
             work_items=work_item_html,
@@ -1827,6 +1830,24 @@ def _html_list(items: object) -> str:
     )
 
 
+def _html_link_list(items: list[tuple[str, str]]) -> str:
+    """Render a list of escaped anchor links."""
+
+    if not items:
+        return "<p>None.</p>"
+    return (
+        "<ul>"
+        + "".join(
+            (
+                f'<li><a href="{html.escape(href, quote=True)}">'
+                f"{html.escape(label)}</a></li>"
+            )
+            for href, label in items
+        )
+        + "</ul>"
+    )
+
+
 def _artifact_label(artifact: object) -> str:
     if not isinstance(artifact, dict):
         return str(artifact)
@@ -2067,7 +2088,18 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     urllib.parse.unquote(part) for part in remainder.split("/") if part
                 ]
                 if len(parts) == 3 and parts[1] in {"designs", "workstreams"}:
-                    self._write_head(200, "text/html; charset=utf-8")
+                    if parts[1] == "designs":
+                        status_code, _body = render_design_detail_page(
+                            config, parts[0], parts[2]
+                        )
+                    else:
+                        status_code, _body = render_workstream_detail_page(
+                            config, parts[0], parts[2]
+                        )
+                    if status_code == 200:
+                        self._write_head(200, "text/html; charset=utf-8")
+                    else:
+                        self._write_head(status_code, "application/json; charset=utf-8")
                     return
                 project_selector = urllib.parse.unquote(route.removeprefix("/project/"))
                 status_code, _body = render_project_operational_dashboard(

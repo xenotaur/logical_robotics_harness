@@ -672,8 +672,8 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn("Validation summary", body)
         self.assertIn("Capability gaps", body)
         self.assertIn("Back to meta triage dashboard", body)
-        self.assertIn("/project/alpha/designs/DP-1", body)
-        self.assertIn("/project/alpha/workstreams/WS-A", body)
+        self.assertIn('<a href="/project/alpha/designs/DP-1">', body)
+        self.assertIn('<a href="/project/alpha/workstreams/WS-A">', body)
 
     def test_design_detail_route_renders_lifecycle_and_traceability(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -773,6 +773,46 @@ Body.
                 self._head(base_url + "/project/missing")
 
         self.assertEqual(err_ctx.exception.code, 404)
+
+    def test_detail_routes_support_custom_project_dir(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha / "control")
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "alpha",
+                "repos/alpha",
+                display_name="Alpha",
+                project_dir="control",
+            )
+            _httpd, base_url = self._start_server(root)
+            design_status, _, _ = self._read(base_url + "/project/alpha/designs/DP-1")
+            workstream_status, _, _ = self._read(
+                base_url + "/project/alpha/workstreams/WS-A"
+            )
+        self.assertEqual(design_status, 200)
+        self.assertEqual(workstream_status, 200)
+
+    def test_detail_head_matches_get_not_found_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            with self.assertRaises(urllib.error.HTTPError) as get_err:
+                urllib.request.urlopen(
+                    base_url + "/project/alpha/designs/DOES-NOT-EXIST", timeout=5
+                )
+            with self.assertRaises(urllib.error.HTTPError) as head_err:
+                self._head(base_url + "/project/alpha/designs/DOES-NOT-EXIST")
+
+        self.assertEqual(get_err.exception.code, 404)
+        self.assertEqual(head_err.exception.code, 404)
 
     def test_meta_feature_introduces_no_write_route(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:

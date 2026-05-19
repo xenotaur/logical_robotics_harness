@@ -1853,6 +1853,16 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
 
         def do_HEAD(self) -> None:
             route = self._route_path()
+            if route.startswith("/project/"):
+                project_selector = urllib.parse.unquote(route.removeprefix("/project/"))
+                status_code, _body = render_project_operational_dashboard(
+                    config, project_selector
+                )
+                if status_code == 200:
+                    self._write_head(200, "text/html; charset=utf-8")
+                else:
+                    self._write_head(status_code, "application/json; charset=utf-8")
+                return
             if route in _WORKBENCH_ARTIFACT_ROUTES:
                 self._write_workbench_artifact_head(route)
                 return
@@ -1864,7 +1874,6 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 "/workbench",
                 "/meta",
                 "/meta/project",
-                "/project/<project_id>",
                 "/health",
                 "/api/status",
                 "/api/project",
@@ -1877,7 +1886,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     "/workbench",
                     "/meta",
                     "/meta/project",
-                } or route.startswith("/project/"):
+                }:
                     content_type = "text/html; charset=utf-8"
                 self._write_head(200, content_type)
                 return

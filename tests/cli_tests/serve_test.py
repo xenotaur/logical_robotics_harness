@@ -700,6 +700,26 @@ class TestLrhServeRoutes(unittest.TestCase):
 
         self.assertEqual(err_ctx.exception.code, 404)
 
+    def test_project_dashboard_head_supports_existing_and_missing_projects(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            alpha = root / "repos" / "alpha"
+            _write_viewer_project(alpha)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+
+            status, content_type = self._head(base_url + "/project/alpha")
+            self.assertEqual(status, 200)
+            self.assertIn("text/html", content_type)
+
+            with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                self._head(base_url + "/project/missing")
+
+        self.assertEqual(err_ctx.exception.code, 404)
+
     def test_meta_feature_introduces_no_write_route(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)

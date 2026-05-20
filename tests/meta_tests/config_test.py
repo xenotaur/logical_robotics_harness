@@ -45,6 +45,46 @@ class TestMetaConfig(unittest.TestCase):
                 workspace.get_meta_config_value(ws, "trusted-persistent-local-state")
             )
 
+    def test_set_writes_key_inside_meta_table(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            ws = self._workspace(root)
+            ws.config_path.write_text(
+                "\n".join(
+                    [
+                        "[workspace]",
+                        'name = "Demo"',
+                        'mode = "local"',
+                        "",
+                        "[paths]",
+                        f'catalog_root = "{root}"',
+                        f'projects_dir = "{root / "projects"}"',
+                        "",
+                        "[meta]",
+                        "",
+                        "[extra]",
+                        "flag = true",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+
+            workspace.set_meta_config_value(
+                ws, "trusted-persistent-local-state", "true"
+            )
+
+            config_text = ws.config_path.read_text(encoding="utf-8")
+            self.assertIn("[meta]", config_text)
+            self.assertIn("trusted_persistent_local_state = true", config_text)
+            self.assertLess(
+                config_text.index("trusted_persistent_local_state = true"),
+                config_text.index("[extra]"),
+            )
+            self.assertTrue(
+                workspace.get_meta_config_value(ws, "trusted-persistent-local-state")
+            )
+
     def test_invalid_key_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             ws = self._workspace(pathlib.Path(tmp_dir))

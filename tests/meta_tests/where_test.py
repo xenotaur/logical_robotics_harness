@@ -303,6 +303,29 @@ class TestMetaWhereCli(unittest.TestCase):
             after = {path: path.stat().st_mtime_ns for path in tracked_paths}
             self.assertEqual(before, after)
 
+    def test_meta_where_reports_registry_error_for_invalid_meta_value(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            workspace_root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                workspace_root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Local"),
+            )
+            config_path = workspace_root / ".lrh" / "config.toml"
+            config_text = config_path.read_text(encoding="utf-8")
+            config_path.write_text(
+                config_text.replace(
+                    'authority = "catalog_only"',
+                    'trusted_persistent_local_state = "yes"',
+                ),
+                encoding="utf-8",
+            )
+
+            result = self._run_lrh(["meta", "where"], cwd=workspace_root)
+
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("error: invalid meta config type", result.stdout)
+            self.assertEqual(result.stderr, "")
+
 
 if __name__ == "__main__":
     unittest.main()

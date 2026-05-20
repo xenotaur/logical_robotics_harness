@@ -236,14 +236,37 @@ def _set_meta_config_canonical(
     workspace: MetaWorkspace, canonical_key: str, value: bool
 ) -> None:
     text = _workspace_config_text(workspace)
-    line = f"{canonical_key} = {'true' if value else 'false'}"
+    key_line = f"{canonical_key} = {'true' if value else 'false'}"
     pattern = re.compile(rf"(?m)^\s*{re.escape(canonical_key)}\s*=\s*(true|false)\s*$")
     if pattern.search(text):
-        updated = pattern.sub(line, text, count=1)
-    elif "[meta]" in text:
-        updated = text.rstrip() + "\n" + line + "\n"
+        updated = pattern.sub(key_line, text, count=1)
+        workspace.config_path.write_text(updated, encoding="utf-8")
+        return
+
+    lines = text.splitlines()
+    meta_header_index: int | None = None
+    next_header_index: int | None = None
+    for index, raw_line in enumerate(lines):
+        stripped = raw_line.strip()
+        if stripped == "[meta]":
+            meta_header_index = index
+            continue
+        if (
+            meta_header_index is not None
+            and stripped.startswith("[")
+            and stripped.endswith("]")
+        ):
+            next_header_index = index
+            break
+
+    if meta_header_index is None:
+        updated = text.rstrip() + "\n\n[meta]\n" + key_line + "\n"
     else:
-        updated = text.rstrip() + "\n\n[meta]\n" + line + "\n"
+        insert_at = next_header_index if next_header_index is not None else len(lines)
+        new_lines = [*lines[:insert_at], key_line, *lines[insert_at:]]
+        updated = "\n".join(new_lines)
+        if text.endswith("\n"):
+            updated += "\n"
     workspace.config_path.write_text(updated, encoding="utf-8")
 
 

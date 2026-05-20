@@ -53,7 +53,7 @@ Top-level subcommands:
 - `--workspace-root WORKSPACE_ROOT`: explicit workspace/catalog root directory.
 - `--force`: replace incompatible managed paths/content when safe.
 
-Workspace-resolution options for `list`, `where`, `register`, and `inspect`:
+Workspace-resolution options for `list`, `where`, `register`, `inspect`, and `config`:
 
 - `--workspace`, `--workspace-root`: explicit workspace/catalog root containing `.lrh/config.toml`.
 - `--config CONFIG`: explicit workspace `config.toml` path.

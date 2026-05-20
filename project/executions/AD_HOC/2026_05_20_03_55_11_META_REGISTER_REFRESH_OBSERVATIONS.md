@@ -2,7 +2,7 @@
 execution_id: 2026_05_20_03_55_11_META_REGISTER_REFRESH_OBSERVATIONS
 prompt_id: PROMPT(AD_HOC:META_REGISTER_REFRESH_OBSERVATIONS)[2026-05-19T14:00:00-04:00]
 work_item: AD_HOC
-status: planned
+status: in_progress
 rerun_of: 
 pr: 
 commit: 

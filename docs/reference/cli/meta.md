@@ -107,3 +107,15 @@ Workspace-resolution options for `list`, `where`, `register`, `inspect`, `refres
 `meta refresh` argument:
 
 - `project`: project selector. It may be an exact project ID, short name, or registry name.
+
+
+## Set and unset project fields
+
+```bash
+lrh meta set PROJECT --local-repo-path /path/to/repo
+lrh meta set PROJECT --project-dir project
+lrh meta set PROJECT --display-name "Display Name" --short-name short
+lrh meta unset PROJECT --local-repo-path
+```
+
+`--local-repo-path` writes to private runtime state by default. When `trusted-persistent-local-state=true`, it writes to trusted workspace state.

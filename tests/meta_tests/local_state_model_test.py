@@ -90,6 +90,60 @@ class TestLocalStateModelResolution(unittest.TestCase):
             )
             self.assertEqual(resolved.source_state, "local_available")
 
+    def test_trusted_checkout_binding_ignored_without_trust_toggle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            trusted_repo = root / "trusted"
+            trusted_repo.mkdir()
+            ws = self._workspace(root)
+            record = self._record(repo_locator="https://github.com/example/demo.git")
+            request = local_state_model.ResolveContextRequest(
+                trusted_checkout_binding=local_state_model.CheckoutBinding(
+                    local_repo_path=trusted_repo,
+                    storage_source="trusted_workspace",
+                )
+            )
+
+            resolved = local_state_model.resolve_project_context(
+                record,
+                workspace_context=ws,
+                request=request,
+            )
+
+            self.assertIsNone(resolved.resolved_repo_path)
+            self.assertEqual(
+                resolved.resolved_repo_path_source, "repo_locator_remote_url"
+            )
+
+    def test_trusted_checkout_binding_used_when_trust_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            trusted_repo = root / "trusted"
+            trusted_repo.mkdir()
+            ws = self._workspace(root)
+            record = self._record(repo_locator="https://github.com/example/demo.git")
+            request = local_state_model.ResolveContextRequest(
+                trusted_checkout_binding=local_state_model.CheckoutBinding(
+                    local_repo_path=trusted_repo,
+                    storage_source="trusted_workspace",
+                ),
+                storage_policy=local_state_model.storage_policy_from_trust(
+                    trusted_persistent_local_state=True
+                ),
+            )
+
+            resolved = local_state_model.resolve_project_context(
+                record,
+                workspace_context=ws,
+                request=request,
+            )
+
+            self.assertEqual(resolved.resolved_repo_path, trusted_repo.resolve())
+            self.assertEqual(
+                resolved.resolved_repo_path_source,
+                "trusted_workspace_checkout_binding",
+            )
+
     def test_observation_check_serializes_status_and_checked_as_of(self) -> None:
         check = local_state_model.ObservationCheck(
             status="ok",
@@ -160,6 +214,36 @@ class TestLocalStateModelResolution(unittest.TestCase):
             self.assertEqual(
                 resolved.resolved_repo_path_source, "repo_locator_remote_url"
             )
+
+    def test_absolute_project_dir_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "repo"
+            repo.mkdir()
+            ws = self._workspace(root)
+            record = self._record(repo_locator=str(repo), project_dir="/etc")
+
+            resolved = local_state_model.resolve_project_context(
+                record,
+                workspace_context=ws,
+            )
+
+            self.assertIsNone(resolved.resolved_project_path)
+
+    def test_escaping_project_dir_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "repo"
+            repo.mkdir()
+            ws = self._workspace(root)
+            record = self._record(repo_locator=str(repo), project_dir="../escape")
+
+            resolved = local_state_model.resolve_project_context(
+                record,
+                workspace_context=ws,
+            )
+
+            self.assertIsNone(resolved.resolved_project_path)
 
 
 if __name__ == "__main__":

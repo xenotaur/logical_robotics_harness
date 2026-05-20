@@ -5,7 +5,6 @@ from __future__ import annotations
 import dataclasses
 import datetime
 import pathlib
-import urllib.parse
 from typing import Literal
 
 from lrh.meta import workspace
@@ -124,7 +123,10 @@ def resolve_project_context(
         )
         resolved_source = "private_checkout_binding"
         source_state = "local_available"
-    elif request.trusted_checkout_binding is not None:
+    elif (
+        request.storage_policy.trusted_persistent_local_state
+        and request.trusted_checkout_binding is not None
+    ):
         resolved_repo_path = _normalize_runtime_path(
             request.trusted_checkout_binding.local_repo_path
         )
@@ -141,8 +143,9 @@ def resolve_project_context(
 
     resolved_project_path: pathlib.Path | None = None
     if resolved_repo_path is not None and record.project_dir is not None:
-        resolved_project_path = workspace._normalize_path(
-            resolved_repo_path / record.project_dir
+        resolved_project_path = _resolve_project_path(
+            resolved_repo_path=resolved_repo_path,
+            project_dir=record.project_dir,
         )
 
     return ResolvedProjectContext(
@@ -161,23 +164,27 @@ def _resolved_repo_from_locator(
     record: workspace.MetaProjectRecord,
     workspace_context: workspace.MetaWorkspace,
 ) -> pathlib.Path | None:
-    repo_locator = record.repo_locator
-    if repo_locator is None:
-        return None
-    parsed = urllib.parse.urlsplit(repo_locator)
-    if parsed.scheme and parsed.netloc:
-        return None
-    if "://" in repo_locator:
+    return workspace._resolved_local_repo_path(
+        record.repo_locator,
+        workspace=workspace_context,
+    )
+
+
+def _resolve_project_path(
+    *,
+    resolved_repo_path: pathlib.Path,
+    project_dir: str,
+) -> pathlib.Path | None:
+    project_subpath = pathlib.Path(project_dir)
+    if project_subpath.is_absolute():
         return None
 
-    repo_path = pathlib.Path(repo_locator).expanduser()
-    if repo_path.is_absolute():
-        return workspace._normalize_path(repo_path)
-
-    base_dir = workspace_context.workspace_root
-    if base_dir is None:
-        base_dir = workspace_context.config_path.parent
-    return workspace._normalize_path(base_dir / repo_path)
+    candidate = workspace._normalize_path(resolved_repo_path / project_subpath)
+    try:
+        candidate.relative_to(resolved_repo_path)
+    except ValueError:
+        return None
+    return candidate
 
 
 def _normalize_runtime_path(path: pathlib.Path) -> pathlib.Path:

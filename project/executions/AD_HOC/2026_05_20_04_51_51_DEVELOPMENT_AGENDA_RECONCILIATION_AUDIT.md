@@ -2,7 +2,7 @@
 execution_id: 2026_05_20_04_51_51_DEVELOPMENT_AGENDA_RECONCILIATION_AUDIT
 prompt_id: PROMPT(AD_HOC:DEVELOPMENT_AGENDA_RECONCILIATION_AUDIT)[2026-05-19T17:55:04-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:
@@ -22,8 +22,6 @@ missing, underrepresented, stale/overbroad, duplicate, and ambiguous threads.
 - Added one audit document with required sections, status classifications, and
   a human-reviewable proposed agenda patch.
 - Did **not** edit `project/focus/development_agenda.md` directly.
-- Did **not** update `project/audits/README.md` because no new audit convention
-  was introduced.
 
 Files changed:
 
@@ -34,7 +32,7 @@ Files changed:
 
 - `lrh prompt check-execution --prompt-id "PROMPT(AD_HOC:DEVELOPMENT_AGENDA_RECONCILIATION_AUDIT)[2026-05-19T17:55:04-04:00]" --project-root .`
 - `scripts/version tools`
-- `scripts/format --check`
+- `scripts/format --check --diff`
 - `scripts/lint`
 - `scripts/test`
 - `lrh validate`

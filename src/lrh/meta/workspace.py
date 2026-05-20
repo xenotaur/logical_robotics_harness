@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import hashlib
 import json
 import os
@@ -120,6 +121,16 @@ class MetaRegisterResult:
     project_id: str
     setup_state: str
     record_path: pathlib.Path
+
+
+@dataclasses.dataclass(frozen=True)
+class MetaRefreshResult:
+    """Summary of one observation refresh write."""
+
+    selector: str
+    record_path: pathlib.Path
+    setup_state: str
+    checks: dict[str, dict[str, str]]
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1364,6 +1375,12 @@ def register_project_in_workspace(
             "choose a different --directory-name or rerun with --force"
         )
 
+    checks = _build_observations(
+        repo_locator=repo_locator,
+        project_dir=project_dir,
+        workspace=workspace,
+    )
+
     record_path.write_text(
         _project_record_text(
             directory_name=directory_name,
@@ -1373,6 +1390,7 @@ def register_project_in_workspace(
             repo_locator=repo_locator,
             project_dir=project_dir,
             setup_state=setup_state,
+            checks=checks,
         ),
         encoding="utf-8",
     )
@@ -1385,6 +1403,107 @@ def register_project_in_workspace(
     )
 
 
+def _now_utc_iso() -> str:
+    return datetime.datetime.now(datetime.UTC).isoformat()
+
+
+def _check_repo_locator(
+    repo_locator: str,
+    *,
+    workspace: MetaWorkspace,
+    resolved_repo_path: pathlib.Path | None,
+) -> str:
+    del workspace
+    locator = _analyze_locator(repo_locator)
+    if locator.kind == "local_path":
+        if resolved_repo_path is None:
+            return "invalid"
+        return "valid" if resolved_repo_path.is_dir() else "invalid"
+    if locator.kind == "github_url":
+        return "skipped"
+    if locator.kind == "url":
+        return "unsupported"
+    return "unknown"
+
+
+def _check_local_repo_path(path: pathlib.Path | None) -> str:
+    if path is None:
+        return "unknown"
+    try:
+        return "exists" if path.is_dir() else "missing"
+    except OSError:
+        return "inaccessible"
+
+
+def _check_project_path(
+    *,
+    resolved_repo_path: pathlib.Path | None,
+    project_dir: str,
+) -> str:
+    if resolved_repo_path is None:
+        return "unknown"
+    project_subpath = pathlib.Path(project_dir)
+    if project_subpath.is_absolute():
+        return "inaccessible"
+    resolved_project_path = _normalize_path(resolved_repo_path / project_subpath)
+    try:
+        resolved_project_path.relative_to(resolved_repo_path)
+    except ValueError:
+        return "inaccessible"
+    if resolved_project_path is None:
+        return "inaccessible"
+    try:
+        return "exists" if resolved_project_path.is_dir() else "missing"
+    except OSError:
+        return "inaccessible"
+
+
+def _build_observations(
+    *,
+    repo_locator: str,
+    project_dir: str,
+    workspace: MetaWorkspace,
+) -> dict[str, dict[str, str]]:
+    now = _now_utc_iso()
+    locator = _analyze_locator(repo_locator)
+    resolved_repo_path = _resolved_local_repo_path(repo_locator, workspace=workspace)
+
+    checks = {
+        "repo_locator_check": {
+            "status": _check_repo_locator(
+                repo_locator,
+                workspace=workspace,
+                resolved_repo_path=resolved_repo_path,
+            ),
+            "checked_as_of": now,
+        }
+    }
+
+    if locator.kind == "local_path":
+        checks["local_repo_path_check"] = {
+            "status": _check_local_repo_path(resolved_repo_path),
+            "checked_as_of": now,
+        }
+        checks["project_path_check"] = {
+            "status": _check_project_path(
+                resolved_repo_path=resolved_repo_path,
+                project_dir=project_dir,
+            ),
+            "checked_as_of": now,
+        }
+    else:
+        checks["local_repo_path_check"] = {
+            "status": "skipped",
+            "checked_as_of": now,
+        }
+        checks["project_path_check"] = {
+            "status": "skipped",
+            "checked_as_of": now,
+        }
+
+    return checks
+
+
 def _project_record_text(
     *,
     directory_name: str,
@@ -1394,7 +1513,31 @@ def _project_record_text(
     repo_locator: str,
     project_dir: str,
     setup_state: str,
+    checks: dict[str, dict[str, str]] | None = None,
 ) -> str:
+    checks = checks or {}
+    repo_locator_check = checks.get("repo_locator_check", {})
+    local_repo_path_check = checks.get("local_repo_path_check", {})
+    project_path_check = checks.get("project_path_check", {})
+    repo_locator_check_status = repo_locator_check.get("status", "unknown")
+    repo_locator_check_checked_as_of = repo_locator_check.get("checked_as_of", "")
+    local_repo_path_check_status = local_repo_path_check.get("status", "unknown")
+    local_repo_path_check_checked_as_of = local_repo_path_check.get("checked_as_of", "")
+    project_path_check_status = project_path_check.get("status", "unknown")
+    project_path_check_checked_as_of = project_path_check.get("checked_as_of", "")
+    obs_lines = [
+        f"repo_locator_check_status = {_toml_basic_string(repo_locator_check_status)}",
+        "repo_locator_check_checked_as_of = "
+        f"{_toml_basic_string(repo_locator_check_checked_as_of)}",
+        "local_repo_path_check_status = "
+        f"{_toml_basic_string(local_repo_path_check_status)}",
+        "local_repo_path_check_checked_as_of = "
+        f"{_toml_basic_string(local_repo_path_check_checked_as_of)}",
+        f"project_path_check_status = {_toml_basic_string(project_path_check_status)}",
+        "project_path_check_checked_as_of = "
+        f"{_toml_basic_string(project_path_check_checked_as_of)}",
+    ]
+
     return "\n".join(
         [
             'schema_version = "0.1"',
@@ -1411,6 +1554,9 @@ def _project_record_text(
             "[locators]",
             f"repo_locator = {_toml_basic_string(repo_locator)}",
             f"project_dir = {_toml_basic_string(project_dir)}",
+            "",
+            "[observations]",
+            *obs_lines,
             "",
             "[registry]",
             f"directory_name = {_toml_basic_string(directory_name)}",
@@ -1640,6 +1786,122 @@ def _stable_project_id(repo_locator: str, project_dir: str) -> str:
     source = f"{repo_locator}\n{project_dir}".encode("utf-8")
     digest = hashlib.sha256(source).hexdigest()
     return f"proj-{digest[:16]}"
+
+
+def refresh_project_observations_in_workspace(
+    workspace: MetaWorkspace,
+    *,
+    selector: str,
+) -> MetaRefreshResult:
+    normalized_selector = selector.strip()
+    if not normalized_selector:
+        raise MetaRegistryError("project selector must not be empty")
+
+    records = list_registered_projects_in_workspace(workspace)
+    candidates = _matching_records(records, selector=normalized_selector)
+    if not candidates:
+        raise MetaRegistryError(
+            "no registered project matched selector "
+            f"{normalized_selector!r} (checked project_id, short_name, registry_name)"
+        )
+    if len(candidates) > 1:
+        matched_names = ", ".join(record.registry_name for record in candidates)
+        raise MetaRegistryError(
+            "ambiguous project selector "
+            f"{normalized_selector!r}; matching registry entries: {matched_names}"
+        )
+
+    record = candidates[0]
+    if record.repo_locator is None or record.project_dir is None:
+        raise MetaRegistryError("selected record is missing locator fields")
+    setup_state = _detect_setup_state(record.repo_locator, record.project_dir)
+    checks = _build_observations(
+        repo_locator=record.repo_locator,
+        project_dir=record.project_dir,
+        workspace=workspace,
+    )
+    record_path = workspace.projects_dir / record.registry_name / "project.toml"
+    _update_observations_block(
+        record_path=record_path,
+        setup_state=setup_state,
+        checks=checks,
+    )
+    return MetaRefreshResult(
+        selector=selector,
+        record_path=record_path,
+        setup_state=setup_state,
+        checks=checks,
+    )
+
+
+def _update_observations_block(
+    *,
+    record_path: pathlib.Path,
+    setup_state: str,
+    checks: dict[str, dict[str, str]],
+) -> None:
+    content = record_path.read_text(encoding="utf-8")
+    lines = content.splitlines()
+
+    def _section_range(section_name: str) -> tuple[int, int] | None:
+        header = f"[{section_name}]"
+        start = None
+        for index, line in enumerate(lines):
+            if line.strip() == header:
+                start = index
+                break
+        if start is None:
+            return None
+        end = len(lines)
+        for index in range(start + 1, len(lines)):
+            stripped = lines[index].strip()
+            if stripped.startswith("[") and stripped.endswith("]"):
+                end = index
+                break
+        return start, end
+
+    project_range = _section_range("project")
+    if project_range is not None:
+        start, end = project_range
+        for index in range(start + 1, end):
+            if lines[index].strip().startswith("setup_state"):
+                lines[index] = f"setup_state = {_toml_basic_string(setup_state)}"
+                break
+
+    now = _now_utc_iso()
+    repo_locator_check = checks.get("repo_locator_check", {})
+    local_repo_path_check = checks.get("local_repo_path_check", {})
+    project_path_check = checks.get("project_path_check", {})
+
+    new_obs_block = [
+        "[observations]",
+        "repo_locator_check_status = "
+        f"{_toml_basic_string(repo_locator_check.get('status', 'unknown'))}",
+        "repo_locator_check_checked_as_of = "
+        f"{_toml_basic_string(repo_locator_check.get('checked_as_of', now))}",
+        "local_repo_path_check_status = "
+        f"{_toml_basic_string(local_repo_path_check.get('status', 'skipped'))}",
+        "local_repo_path_check_checked_as_of = "
+        f"{_toml_basic_string(local_repo_path_check.get('checked_as_of', now))}",
+        "project_path_check_status = "
+        f"{_toml_basic_string(project_path_check.get('status', 'skipped'))}",
+        "project_path_check_checked_as_of = "
+        f"{_toml_basic_string(project_path_check.get('checked_as_of', now))}",
+    ]
+
+    obs_range = _section_range("observations")
+    if obs_range is None:
+        registry_range = _section_range("registry")
+        if registry_range is None:
+            lines.extend([""] + new_obs_block + [""])
+        else:
+            start, _ = registry_range
+            lines = lines[:start] + new_obs_block + [""] + lines[start:]
+    else:
+        start, end = obs_range
+        lines = lines[:start] + new_obs_block + lines[end:]
+
+    record_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def list_registered_projects(root: pathlib.Path) -> tuple[MetaProjectRecord, ...]:

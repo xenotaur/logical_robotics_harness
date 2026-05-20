@@ -433,6 +433,130 @@ class TestMetaRegisterCli(unittest.TestCase):
             self.assertIn("duplicate registration detected", second.stdout)
             self.assertEqual(forced.returncode, 0)
 
+    def test_register_project_initializes_observation_checks_for_local_path(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "client-repo"
+            (repo / "project").mkdir(parents=True)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+
+            result = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(repo_locator=str(repo)),
+            )
+            parsed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertIn("observations", parsed)
+            obs = parsed["observations"]
+            self.assertEqual(obs["repo_locator_check_status"], "valid")
+            self.assertEqual(obs["local_repo_path_check_status"], "exists")
+            self.assertEqual(obs["project_path_check_status"], "exists")
+            self.assertIn("T", obs["repo_locator_check_checked_as_of"])
+
+    def test_refresh_project_updates_checks_without_changing_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "client-repo"
+            (repo / "project").mkdir(parents=True)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+            result = workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(repo_locator=str(repo)),
+            )
+            initial = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            project_id = initial["identity"]["project_id"]
+            (repo / "project").rmdir()
+
+            ws = workspace.MetaWorkspace(
+                mode="local",
+                config_path=root / ".lrh" / "config.toml",
+                projects_dir=root / "projects",
+                state_dir=root / "private" / "state",
+                cache_dir=root / "private" / "cache",
+                catalog_root=root,
+                workspace_root=root,
+                config_dir=root / ".lrh",
+                resolution_source="legacy(root)",
+            )
+            workspace.refresh_project_observations_in_workspace(
+                ws, selector="client-repo"
+            )
+            refreshed = tomllib.loads(result.record_path.read_text(encoding="utf-8"))
+            self.assertEqual(refreshed["identity"]["project_id"], project_id)
+            self.assertEqual(
+                refreshed["observations"]["project_path_check_status"], "missing"
+            )
+
+    def test_refresh_cli_updates_observations_and_preserves_custom_status(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "repos" / "demo-repo"
+            (repo / "project").mkdir(parents=True)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+            workspace.register_project(
+                root,
+                spec=workspace.MetaRegisterSpec(
+                    repo_locator="repos/demo-repo",
+                    directory_name="demo-repo",
+                ),
+            )
+            record_path = root / "projects" / "demo-repo" / "project.toml"
+            record_text = record_path.read_text(encoding="utf-8")
+            record_path.write_text(
+                record_text.replace('status = "active"', 'status = "paused"')
+                + '\n[custom]\nkeep = "yes"\n',
+                encoding="utf-8",
+            )
+
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(pathlib.Path("src").resolve())
+            done = subprocess.run(
+                [sys.executable, "-m", "lrh.cli.main", "meta", "refresh", "demo-repo"],
+                cwd=root,
+                check=False,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            self.assertEqual(done.returncode, 0, msg=done.stderr)
+            refreshed = tomllib.loads(record_path.read_text(encoding="utf-8"))
+            self.assertEqual(refreshed["project"]["status"], "paused")
+            self.assertEqual(refreshed["custom"]["keep"], "yes")
+            self.assertEqual(
+                refreshed["observations"]["local_repo_path_check_status"],
+                "exists",
+            )
+
+    def test_refresh_cli_reports_no_match(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            workspace.init_workspace(
+                root,
+                spec=workspace.MetaWorkspaceSpec(workspace_name="Demo Workspace"),
+            )
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(pathlib.Path("src").resolve())
+            done = subprocess.run(
+                [sys.executable, "-m", "lrh.cli.main", "meta", "refresh", "missing"],
+                cwd=root,
+                check=False,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+            self.assertNotEqual(done.returncode, 0)
+            self.assertIn("no registered project matched selector", done.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

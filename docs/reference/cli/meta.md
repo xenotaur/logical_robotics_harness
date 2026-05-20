@@ -18,6 +18,7 @@ lrh meta list
 lrh meta register /path/to/project-repo
 lrh meta register https://github.com/xenotaur/taurworks/tree/master/project
 lrh meta inspect example
+lrh meta refresh example
 lrh meta config list
 lrh meta config get trusted-persistent-local-state
 lrh meta config set trusted-persistent-local-state true
@@ -25,13 +26,14 @@ lrh meta config unset trusted-persistent-local-state
 python -m lrh.cli.main meta where --json
 ```
 
-Use workspace-resolution flags on `list`, `where`, `register`, and `inspect` when needed:
+Use workspace-resolution flags on `list`, `where`, `register`, and `inspect`, and `refresh` when needed:
 
 ```bash
 lrh meta where --workspace /path/to/workspace
 lrh meta list --config /path/to/.lrh/config.toml
 lrh meta register /path/to/project-repo --mode local
-lrh meta inspect example --workspace /path/to/workspace
+lrh meta inspect example
+lrh meta refresh example --workspace /path/to/workspace
 ```
 
 ## Important options and arguments
@@ -43,6 +45,7 @@ Top-level subcommands:
 - `list`: list registered projects from the active workspace registry.
 - `register`: register one project repository in the workspace registry.
 - `inspect`: inspect one registered project with workspace context.
+- `refresh`: re-check and update observation state for one registered project.
 - `config`: manage trusted workspace meta configuration keys.
 
 `meta init` options:
@@ -53,7 +56,7 @@ Top-level subcommands:
 - `--workspace-root WORKSPACE_ROOT`: explicit workspace/catalog root directory.
 - `--force`: replace incompatible managed paths/content when safe.
 
-Workspace-resolution options for `list`, `where`, `register`, `inspect`, and `config`:
+Workspace-resolution options for `list`, `where`, `register`, `inspect`, `refresh`, and `config`:
 
 - `--workspace`, `--workspace-root`: explicit workspace/catalog root containing `.lrh/config.toml`.
 - `--config CONFIG`: explicit workspace `config.toml` path.
@@ -99,3 +102,8 @@ Workspace-resolution options for `list`, `where`, `register`, `inspect`, and `co
 - `set KEY VALUE`: set validated boolean values (`true/false`, `yes/no`, `1/0`).
 - `unset KEY`: restore default value (`false`).
 - Supported key: `trusted-persistent-local-state` (underscore alias accepted).
+
+
+`meta refresh` argument:
+
+- `project`: project selector. It may be an exact project ID, short name, or registry name.

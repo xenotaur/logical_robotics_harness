@@ -436,6 +436,39 @@ def main() -> None:
         action="store_true",
         help="emit machine-readable JSON for the active workspace",
     )
+
+    meta_config_parser = meta_subparsers.add_parser(
+        "config",
+        help="Manage workspace meta configuration.",
+    )
+    _add_meta_workspace_resolution_args(meta_config_parser)
+    meta_config_subparsers = meta_config_parser.add_subparsers(
+        dest="meta_config_command"
+    )
+    meta_config_subparsers.add_parser(
+        "list", help="List supported config keys and values."
+    )
+    meta_config_get_parser = meta_config_subparsers.add_parser(
+        "get", help="Get one config value."
+    )
+    meta_config_get_parser.add_argument(
+        "key", help="config key (prefer hyphenated names)"
+    )
+    meta_config_set_parser = meta_config_subparsers.add_parser(
+        "set", help="Set one config value."
+    )
+    meta_config_set_parser.add_argument(
+        "key", help="config key (prefer hyphenated names)"
+    )
+    meta_config_set_parser.add_argument(
+        "value", help="boolean value: true/false, yes/no, 1/0"
+    )
+    meta_config_unset_parser = meta_config_subparsers.add_parser(
+        "unset", help="Unset one config value to default."
+    )
+    meta_config_unset_parser.add_argument(
+        "key", help="config key (prefer hyphenated names)"
+    )
     meta_register_parser = meta_subparsers.add_parser(
         "register",
         help="Register a project repository in the workspace registry.",
@@ -890,25 +923,79 @@ def main() -> None:
                         mode=args.mode,
                     ),
                 )
-            except workspace.MetaWorkspaceResolutionError as err:
+            except (
+                workspace.MetaWorkspaceResolutionError,
+                workspace.MetaRegistryError,
+            ) as err:
                 print(f"error: {err}")
                 raise SystemExit(1) from err
 
-            installed_version = lrh_version.get_installed_version()
-            workspace_data = workspace.meta_workspace_where_payload(
-                active_workspace,
-                lrh_version=installed_version,
-            )
-            if args.json:
-                print(json.dumps(workspace_data, indent=2, sort_keys=True))
-            else:
-                print(
-                    workspace.format_meta_workspace_where(
-                        active_workspace,
-                        lrh_version=installed_version,
-                    )
+            try:
+                installed_version = lrh_version.get_installed_version()
+                workspace_data = workspace.meta_workspace_where_payload(
+                    active_workspace,
+                    lrh_version=installed_version,
                 )
-            raise SystemExit(0)
+                if args.json:
+                    print(json.dumps(workspace_data, indent=2, sort_keys=True))
+                else:
+                    print(
+                        workspace.format_meta_workspace_where(
+                            active_workspace,
+                            lrh_version=installed_version,
+                        )
+                    )
+                raise SystemExit(0)
+            except workspace.MetaRegistryError as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
+
+        if args.meta_command == "config":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            try:
+                active_workspace = workspace.resolve_meta_workspace(
+                    cwd=Path.cwd(),
+                    options=workspace.MetaWorkspaceResolveOptions(
+                        workspace_path=(
+                            Path(args.workspace).expanduser()
+                            if args.workspace
+                            else None
+                        ),
+                        config_path=(
+                            Path(args.config).expanduser() if args.config else None
+                        ),
+                        mode=args.mode,
+                    ),
+                )
+                command = args.meta_config_command
+                if command == "list":
+                    values = workspace.read_meta_config(active_workspace)
+                    for key, value in values.items():
+                        print(f"{key}={'true' if value else 'false'}")
+                    raise SystemExit(0)
+                if command == "get":
+                    value = workspace.get_meta_config_value(active_workspace, args.key)
+                    print("true" if value else "false")
+                    raise SystemExit(0)
+                if command == "set":
+                    value = workspace.set_meta_config_value(
+                        active_workspace, args.key, args.value
+                    )
+                    print("true" if value else "false")
+                    raise SystemExit(0)
+                if command == "unset":
+                    workspace.unset_meta_config_value(active_workspace, args.key)
+                    print("false")
+                    raise SystemExit(0)
+                parser.error("meta config requires a subcommand (list/get/set/unset)")
+            except (
+                workspace.MetaWorkspaceResolutionError,
+                workspace.MetaRegistryError,
+                ValueError,
+            ) as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
 
         if args.meta_command == "register":
             if passthrough_args:

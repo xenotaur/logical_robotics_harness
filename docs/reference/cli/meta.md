@@ -18,6 +18,10 @@ lrh meta list
 lrh meta register /path/to/project-repo
 lrh meta register https://github.com/xenotaur/taurworks/tree/master/project
 lrh meta inspect example
+lrh meta config list
+lrh meta config get trusted-persistent-local-state
+lrh meta config set trusted-persistent-local-state true
+lrh meta config unset trusted-persistent-local-state
 python -m lrh.cli.main meta where --json
 ```
 
@@ -39,6 +43,7 @@ Top-level subcommands:
 - `list`: list registered projects from the active workspace registry.
 - `register`: register one project repository in the workspace registry.
 - `inspect`: inspect one registered project with workspace context.
+- `config`: manage trusted workspace meta configuration keys.
 
 `meta init` options:
 
@@ -48,7 +53,7 @@ Top-level subcommands:
 - `--workspace-root WORKSPACE_ROOT`: explicit workspace/catalog root directory.
 - `--force`: replace incompatible managed paths/content when safe.
 
-Workspace-resolution options for `list`, `where`, `register`, and `inspect`:
+Workspace-resolution options for `list`, `where`, `register`, `inspect`, and `config`:
 
 - `--workspace`, `--workspace-root`: explicit workspace/catalog root containing `.lrh/config.toml`.
 - `--config CONFIG`: explicit workspace `config.toml` path.
@@ -85,3 +90,12 @@ Workspace-resolution options for `list`, `where`, `register`, and `inspect`:
 - [Register a project with an LRH meta workspace](../../how-to/register-a-project-with-meta.md)
 - [Inspect workspace state](../../how-to/inspect-workspace-state.md)
 - [Use the developer sandbox](../../how-to/use-the-developer-sandbox.md)
+
+
+`meta config` commands:
+
+- `list`: print known key/value pairs.
+- `get KEY`: print canonical boolean value (`true`/`false`).
+- `set KEY VALUE`: set validated boolean values (`true/false`, `yes/no`, `1/0`).
+- `unset KEY`: restore default value (`false`).
+- Supported key: `trusted-persistent-local-state` (underscore alias accepted).

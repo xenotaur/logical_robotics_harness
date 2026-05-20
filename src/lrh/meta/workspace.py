@@ -147,6 +147,139 @@ class MetaWorkspace:
 
 
 @dataclasses.dataclass(frozen=True)
+class MetaConfigKey:
+    """Canonical metadata for supported ``lrh meta config`` keys."""
+
+    canonical: str
+    cli_name: str
+
+
+_META_CONFIG_TRUST_KEY = MetaConfigKey(
+    canonical="trusted_persistent_local_state",
+    cli_name="trusted-persistent-local-state",
+)
+
+
+def _meta_config_key_map() -> dict[str, str]:
+    return {
+        _META_CONFIG_TRUST_KEY.canonical: _META_CONFIG_TRUST_KEY.canonical,
+        _META_CONFIG_TRUST_KEY.cli_name: _META_CONFIG_TRUST_KEY.canonical,
+    }
+
+
+def normalize_meta_config_key(raw_key: str) -> str:
+    key = raw_key.strip()
+    if not key:
+        raise MetaRegistryError("config key must not be empty")
+    canonical = _meta_config_key_map().get(key)
+    if canonical is None:
+        raise MetaRegistryError(
+            f"unknown config key {raw_key!r}; supported keys: "
+            f"{_META_CONFIG_TRUST_KEY.cli_name}"
+        )
+    return canonical
+
+
+def parse_meta_config_bool(raw_value: str) -> bool:
+    value = raw_value.strip().lower()
+    if value in {"true", "yes", "1"}:
+        return True
+    if value in {"false", "no", "0"}:
+        return False
+    raise MetaRegistryError(
+        "invalid boolean value "
+        f"{raw_value!r}; expected one of: true, false, yes, no, 1, 0"
+    )
+
+
+def _workspace_config_text(workspace: MetaWorkspace) -> str:
+    try:
+        return workspace.config_path.read_text(encoding="utf-8")
+    except OSError as err:
+        raise MetaRegistryError(
+            f"unable to read workspace config at {workspace.config_path}: {err}"
+        ) from err
+
+
+def read_meta_config(workspace: MetaWorkspace) -> dict[str, bool]:
+    parsed = tomllib.loads(_workspace_config_text(workspace))
+    raw_meta = parsed.get("meta")
+    if not isinstance(raw_meta, dict):
+        raw_meta = {}
+    trusted = raw_meta.get(_META_CONFIG_TRUST_KEY.canonical, False)
+    if not isinstance(trusted, bool):
+        raise MetaRegistryError(
+            "invalid meta config type for trusted_persistent_local_state; expected bool"
+        )
+    return {_META_CONFIG_TRUST_KEY.canonical: trusted}
+
+
+def get_meta_config_value(workspace: MetaWorkspace, key: str) -> bool:
+    canonical = normalize_meta_config_key(key)
+    return read_meta_config(workspace)[canonical]
+
+
+def set_meta_config_value(workspace: MetaWorkspace, key: str, raw_value: str) -> bool:
+    canonical = normalize_meta_config_key(key)
+    bool_value = parse_meta_config_bool(raw_value)
+    _set_meta_config_canonical(workspace, canonical, bool_value)
+    return bool_value
+
+
+def unset_meta_config_value(workspace: MetaWorkspace, key: str) -> bool:
+    canonical = normalize_meta_config_key(key)
+    _set_meta_config_canonical(workspace, canonical, False)
+    return False
+
+
+def _set_meta_config_canonical(
+    workspace: MetaWorkspace, canonical_key: str, value: bool
+) -> None:
+    text = _workspace_config_text(workspace)
+    key_line = f"{canonical_key} = {'true' if value else 'false'}"
+    pattern = re.compile(rf"(?m)^\s*{re.escape(canonical_key)}\s*=\s*(true|false)\s*$")
+    if pattern.search(text):
+        updated = pattern.sub(key_line, text, count=1)
+        workspace.config_path.write_text(updated, encoding="utf-8")
+        return
+
+    lines = text.splitlines()
+    meta_header_index: int | None = None
+    next_header_index: int | None = None
+    for index, raw_line in enumerate(lines):
+        stripped = raw_line.strip()
+        if stripped == "[meta]":
+            meta_header_index = index
+            continue
+        if (
+            meta_header_index is not None
+            and stripped.startswith("[")
+            and stripped.endswith("]")
+        ):
+            next_header_index = index
+            break
+
+    if meta_header_index is None:
+        updated = text.rstrip() + "\n\n[meta]\n" + key_line + "\n"
+    else:
+        insert_at = next_header_index if next_header_index is not None else len(lines)
+        new_lines = [*lines[:insert_at], key_line, *lines[insert_at:]]
+        updated = "\n".join(new_lines)
+        if text.endswith("\n"):
+            updated += "\n"
+    workspace.config_path.write_text(updated, encoding="utf-8")
+
+
+def storage_policy_for_workspace(workspace: MetaWorkspace):
+    from lrh.meta import local_state_model
+
+    trusted = get_meta_config_value(workspace, _META_CONFIG_TRUST_KEY.canonical)
+    return local_state_model.storage_policy_from_trust(
+        trusted_persistent_local_state=trusted
+    )
+
+
+@dataclasses.dataclass(frozen=True)
 class MetaInspectResult:
     """Typed inspection payload for one selected project plus workspace context."""
 
@@ -169,6 +302,9 @@ def meta_workspace_where_payload(
     workspace_root = (
         str(workspace.workspace_root) if workspace.workspace_root is not None else None
     )
+    trusted_local_state = get_meta_config_value(
+        workspace, _META_CONFIG_TRUST_KEY.canonical
+    )
     return {
         "lrh_version": normalized_lrh_version,
         "mode": workspace.mode,
@@ -180,6 +316,7 @@ def meta_workspace_where_payload(
         "projects_dir": str(workspace.projects_dir),
         "state_dir": str(workspace.state_dir),
         "cache_dir": str(workspace.cache_dir),
+        "trusted_persistent_local_state": trusted_local_state,
         "path_scope": {
             "catalog": path_scope["catalog"],
             "config": path_scope["config"],
@@ -211,6 +348,8 @@ def format_meta_workspace_where(
         f"state: {data['state_dir']} ({path_scope['state']})",
         f"cache: {data['cache_dir']} ({path_scope['cache']})",
         f"runtime: {path_scope['runtime_note']}",
+        "trusted persistent local state: "
+        f"{'true' if data['trusted_persistent_local_state'] else 'false'}",
     ]
     if data["workspace_root"] is not None:
         lines.append(f"workspace root: {data['workspace_root']}")

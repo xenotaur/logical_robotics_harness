@@ -516,6 +516,13 @@ def main() -> None:
         action="store_true",
         help="allow deliberate duplicates and overwrite existing target records",
     )
+    meta_refresh_parser = meta_subparsers.add_parser(
+        "refresh",
+        help="Refresh observation checks for one registered project.",
+    )
+    _add_meta_workspace_resolution_args(meta_refresh_parser)
+    meta_refresh_parser.add_argument("project", help="project selector")
+
     meta_inspect_parser = meta_subparsers.add_parser(
         "inspect",
         help="Inspect one registered project with workspace context.",
@@ -1036,6 +1043,37 @@ def main() -> None:
 
             print(f"Registered project in {result.record_path}")
             print(f"project_id={result.project_id}")
+            print(f"setup_state={result.setup_state}")
+            raise SystemExit(0)
+
+        if args.meta_command == "refresh":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            try:
+                active_workspace = workspace.resolve_meta_workspace(
+                    cwd=Path.cwd(),
+                    options=workspace.MetaWorkspaceResolveOptions(
+                        workspace_path=(
+                            Path(args.workspace).expanduser()
+                            if args.workspace
+                            else None
+                        ),
+                        config_path=(
+                            Path(args.config).expanduser() if args.config else None
+                        ),
+                        mode=args.mode,
+                    ),
+                )
+                result = workspace.refresh_project_observations_in_workspace(
+                    active_workspace, selector=args.project
+                )
+            except (
+                workspace.MetaWorkspaceResolutionError,
+                workspace.MetaRegistryError,
+            ) as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
+            print(f"Refreshed project observations in {result.record_path}")
             print(f"setup_state={result.setup_state}")
             raise SystemExit(0)
 

@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 
 pr: 
-commit: a2f92ab
+commit: 
 created_at: 2026-05-20T06:42:06+00:00
 ---
 
@@ -15,12 +15,12 @@ Added a focused design-proposal document for a tool-agnostic activity-lane and o
 
 # Result
 
-Created `project/design/proposals/activity-lanes-and-observational-dashboard.md` with the requested 18 sections and explicit local-first/read-only MVP boundaries; updated `project/design/proposals/README.md`; validated with repository CLI checks.
+Created `project/design/proposals/proposed/activity-lanes-and-observational-dashboard.md` with the requested 18 sections and explicit local-first/read-only MVP boundaries; updated `project/design/proposals/README.md`; validated with repository CLI checks.
 
 # Validation
 
 - `scripts/version tools`
-- `lrh validate` (0 errors, 1 warning for intentionally unbucketed proposal path)
+- `lrh validate` (0 errors, 0 warnings)
 
 # Follow-up
 

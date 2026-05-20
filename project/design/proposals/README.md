@@ -57,7 +57,7 @@ dogfood migration across LRH's own proposal set.
 ## Current proposal sets
 
 
-[`activity-lanes-and-observational-dashboard.md`](activity-lanes-and-observational-dashboard.md)
+[`proposed/activity-lanes-and-observational-dashboard.md`](proposed/activity-lanes-and-observational-dashboard.md)
 — Proposes a lightweight, tool-agnostic activity-lane model (`project/activity/ACT-*.md`) plus
 observational adapters and derived dashboard snapshots so LRH can coordinate mixed workflows
 (ChatGPT, Codex Cloud/App, Claude, VS Code/manual editing, GitHub PR stabilization) without

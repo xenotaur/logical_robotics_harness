@@ -134,6 +134,15 @@ class MetaRefreshResult:
 
 
 @dataclasses.dataclass(frozen=True)
+class MetaSetResult:
+    """Summary of one successful meta set/unset write."""
+
+    selector: str
+    record_path: pathlib.Path
+    project_id: str
+
+
+@dataclasses.dataclass(frozen=True)
 class MetaWorkspaceResolveOptions:
     """Optional explicit overrides for workspace resolution."""
 
@@ -1786,6 +1795,234 @@ def _stable_project_id(repo_locator: str, project_dir: str) -> str:
     source = f"{repo_locator}\n{project_dir}".encode("utf-8")
     digest = hashlib.sha256(source).hexdigest()
     return f"proj-{digest[:16]}"
+
+
+def set_project_fields_in_workspace(
+    workspace: MetaWorkspace,
+    *,
+    selector: str,
+    local_repo_path: str | None = None,
+    project_dir: str | None = None,
+    short_name: str | None = None,
+    display_name: str | None = None,
+) -> MetaSetResult:
+    normalized_selector = selector.strip()
+    if not normalized_selector:
+        raise MetaRegistryError("project selector must not be empty")
+
+    record = _resolve_single_record(workspace, selector=normalized_selector)
+    if record.project_id is None:
+        raise MetaRegistryError("selected record is missing project_id")
+    updates = 0
+    if local_repo_path is not None:
+        _set_checkout_binding(
+            workspace=workspace,
+            project_id=record.project_id,
+            local_repo_path=local_repo_path,
+        )
+        updates += 1
+
+    record_path = workspace.projects_dir / record.registry_name / "project.toml"
+    if any(value is not None for value in (project_dir, short_name, display_name)):
+        _update_project_record_fields(
+            record_path=record_path,
+            project_dir=project_dir,
+            short_name=short_name,
+            display_name=display_name,
+        )
+        updates += 1
+
+    if updates == 0:
+        raise MetaRegistryError("meta set requires at least one field flag")
+
+    return MetaSetResult(
+        selector=selector,
+        record_path=record_path,
+        project_id=record.project_id,
+    )
+
+
+def unset_project_fields_in_workspace(
+    workspace: MetaWorkspace,
+    *,
+    selector: str,
+    local_repo_path: bool = False,
+) -> MetaSetResult:
+    normalized_selector = selector.strip()
+    if not normalized_selector:
+        raise MetaRegistryError("project selector must not be empty")
+    if not local_repo_path:
+        raise MetaRegistryError("meta unset requires at least one field flag")
+
+    record = _resolve_single_record(workspace, selector=normalized_selector)
+    if record.project_id is None:
+        raise MetaRegistryError("selected record is missing project_id")
+    _unset_checkout_binding(workspace=workspace, project_id=record.project_id)
+    return MetaSetResult(
+        selector=selector,
+        record_path=workspace.projects_dir / record.registry_name / "project.toml",
+        project_id=record.project_id,
+    )
+
+
+def _resolve_single_record(
+    workspace: MetaWorkspace, *, selector: str
+) -> MetaProjectRecord:
+    records = list_registered_projects_in_workspace(workspace)
+    candidates = _matching_records(records, selector=selector)
+    if not candidates:
+        raise MetaRegistryError(
+            "no registered project matched selector "
+            f"{selector!r} (checked project_id, short_name, registry_name)"
+        )
+    if len(candidates) > 1:
+        matched_names = ", ".join(record.registry_name for record in candidates)
+        raise MetaRegistryError(
+            "ambiguous project selector "
+            f"{selector!r}; matching registry entries: {matched_names}"
+        )
+    return candidates[0]
+
+
+def _validate_project_dir(value: str) -> str:
+    normalized = _normalized_required_value("project_dir", value)
+    path = pathlib.Path(normalized)
+    if path.is_absolute():
+        raise MetaRegistryError("project_dir must be relative to repo root")
+    if any(segment == ".." for segment in path.parts):
+        raise MetaRegistryError(
+            "project_dir must not contain traversal segments ('..')"
+        )
+    return normalized
+
+
+def _canonical_local_repo_path(raw_path: str) -> str:
+    normalized = _normalized_required_value("local_repo_path", raw_path)
+    return str(pathlib.Path(normalized).expanduser().resolve())
+
+
+def _update_project_record_fields(
+    *,
+    record_path: pathlib.Path,
+    project_dir: str | None,
+    short_name: str | None,
+    display_name: str | None,
+) -> None:
+    parsed = tomllib.loads(record_path.read_text(encoding="utf-8"))
+    project_data = _required_table(parsed, record_path, "project")
+    locators_data = _required_table(parsed, record_path, "locators")
+
+    if project_dir is not None:
+        locators_data["project_dir"] = _validate_project_dir(project_dir)
+    if short_name is not None:
+        project_data["short_name"] = _normalized_required_value(
+            "short_name", short_name
+        )
+    if display_name is not None:
+        project_data["display_name"] = _normalized_required_value(
+            "display_name", display_name
+        )
+
+    _write_project_record_tables(record_path, parsed)
+
+
+def _write_project_record_tables(
+    record_path: pathlib.Path, parsed: dict[str, object]
+) -> None:
+    project_data = _required_table(parsed, record_path, "project")
+    identity_data = _required_table(parsed, record_path, "identity")
+    locators_data = _required_table(parsed, record_path, "locators")
+    registry_data = _required_table(parsed, record_path, "registry")
+    obs_data = _required_table(parsed, record_path, "observations")
+
+    content = _project_record_text(
+        directory_name=_normalized_required_value(
+            "directory_name", str(registry_data["directory_name"])
+        ),
+        short_name=_normalized_required_value(
+            "short_name", str(project_data["short_name"])
+        ),
+        display_name=_normalized_required_value(
+            "display_name", str(project_data["display_name"])
+        ),
+        project_id=_normalized_required_value(
+            "project_id", str(identity_data["project_id"])
+        ),
+        repo_locator=_normalized_required_value(
+            "repo_locator", str(locators_data["repo_locator"])
+        ),
+        project_dir=_normalized_required_value(
+            "project_dir", str(locators_data["project_dir"])
+        ),
+        setup_state=_normalized_required_value(
+            "setup_state", str(project_data.get("setup_state", "not_checked"))
+        ),
+        checks={
+            "repo_locator_check": {
+                "status": str(obs_data.get("repo_locator_check_status", "unknown")),
+                "checked_as_of": str(
+                    obs_data.get("repo_locator_check_checked_as_of", "")
+                ),
+            },
+            "local_repo_path_check": {
+                "status": str(obs_data.get("local_repo_path_check_status", "unknown")),
+                "checked_as_of": str(
+                    obs_data.get("local_repo_path_check_checked_as_of", "")
+                ),
+            },
+            "project_path_check": {
+                "status": str(obs_data.get("project_path_check_status", "unknown")),
+                "checked_as_of": str(
+                    obs_data.get("project_path_check_checked_as_of", "")
+                ),
+            },
+        },
+    )
+    record_path.write_text(content + "\n", encoding="utf-8")
+
+
+def _bindings_file_path(workspace: MetaWorkspace, *, trusted: bool) -> pathlib.Path:
+    if trusted:
+        return workspace.catalog_root / ".lrh" / "trusted_local_state.toml"
+    return workspace.state_dir / "local_state.toml"
+
+
+def _set_checkout_binding(
+    *, workspace: MetaWorkspace, project_id: str, local_repo_path: str
+) -> None:
+    trusted = read_meta_config(workspace)["trusted_persistent_local_state"]
+    binding_path = _bindings_file_path(workspace, trusted=trusted)
+    _write_binding(
+        binding_path, project_id, _canonical_local_repo_path(local_repo_path)
+    )
+
+
+def _unset_checkout_binding(*, workspace: MetaWorkspace, project_id: str) -> None:
+    for trusted in (False, True):
+        binding_path = _bindings_file_path(workspace, trusted=trusted)
+        _write_binding(binding_path, project_id, None)
+
+
+def _write_binding(
+    path: pathlib.Path, project_id: str, local_repo_path: str | None
+) -> None:
+    data: dict[str, str] = {}
+    if path.exists():
+        parsed = tomllib.loads(path.read_text(encoding="utf-8"))
+        raw_bindings = parsed.get("bindings", {})
+        if isinstance(raw_bindings, dict):
+            for key, value in raw_bindings.items():
+                if isinstance(key, str) and isinstance(value, str):
+                    data[key] = value
+    if local_repo_path is None:
+        data.pop(project_id, None)
+    else:
+        data[project_id] = local_repo_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lines = ['schema_version = "0.1"', "", "[bindings]"]
+    for key in sorted(data):
+        lines.append(f"{_toml_basic_string(key)} = {_toml_basic_string(data[key])}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def refresh_project_observations_in_workspace(

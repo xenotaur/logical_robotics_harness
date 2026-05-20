@@ -539,6 +539,26 @@ def main() -> None:
         "project",
         help="project selector (exact project_id, short_name, or registry_name)",
     )
+    meta_set_parser = meta_subparsers.add_parser(
+        "set",
+        help="Set first-class fields for one registered project.",
+    )
+    _add_meta_workspace_resolution_args(meta_set_parser)
+    meta_set_parser.add_argument("project", help="project selector")
+    meta_set_parser.add_argument("--local-repo-path", help="local checkout path")
+    meta_set_parser.add_argument("--project-dir", help="project/ path relative to repo")
+    meta_set_parser.add_argument("--display-name", help="display name")
+    meta_set_parser.add_argument("--short-name", help="short name")
+
+    meta_unset_parser = meta_subparsers.add_parser(
+        "unset",
+        help="Unset first-class fields for one registered project.",
+    )
+    _add_meta_workspace_resolution_args(meta_unset_parser)
+    meta_unset_parser.add_argument("project", help="project selector")
+    meta_unset_parser.add_argument(
+        "--local-repo-path", action="store_true", help="unset local checkout path"
+    )
 
     argcomplete_adapter.enable_completion(parser)
 
@@ -1106,6 +1126,69 @@ def main() -> None:
                 print(f"error: {err}")
                 raise SystemExit(1) from err
             print(workspace.format_project_inspect(inspect_result))
+            raise SystemExit(0)
+        if args.meta_command == "set":
+            try:
+                active_workspace = workspace.resolve_meta_workspace(
+                    cwd=Path.cwd(),
+                    options=workspace.MetaWorkspaceResolveOptions(
+                        workspace_path=(
+                            Path(args.workspace).expanduser()
+                            if args.workspace
+                            else None
+                        ),
+                        config_path=(
+                            Path(args.config).expanduser() if args.config else None
+                        ),
+                        mode=args.mode,
+                    ),
+                )
+                result = workspace.set_project_fields_in_workspace(
+                    active_workspace,
+                    selector=args.project,
+                    local_repo_path=args.local_repo_path,
+                    project_dir=args.project_dir,
+                    short_name=args.short_name,
+                    display_name=args.display_name,
+                )
+            except (
+                workspace.MetaWorkspaceResolutionError,
+                workspace.MetaRegistryError,
+            ) as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
+            print(f"Updated project in {result.record_path}")
+            print(f"project_id={result.project_id}")
+            raise SystemExit(0)
+        if args.meta_command == "unset":
+            try:
+                active_workspace = workspace.resolve_meta_workspace(
+                    cwd=Path.cwd(),
+                    options=workspace.MetaWorkspaceResolveOptions(
+                        workspace_path=(
+                            Path(args.workspace).expanduser()
+                            if args.workspace
+                            else None
+                        ),
+                        config_path=(
+                            Path(args.config).expanduser() if args.config else None
+                        ),
+                        mode=args.mode,
+                    ),
+                )
+                result = workspace.unset_project_fields_in_workspace(
+                    active_workspace,
+                    selector=args.project,
+                    local_repo_path=args.local_repo_path,
+                )
+            except (
+                workspace.MetaWorkspaceResolutionError,
+                workspace.MetaRegistryError,
+            ) as err:
+                print(f"error: {err}")
+                raise SystemExit(1) from err
+            print(f"Updated project in {result.record_path}")
+            print(f"project_id={result.project_id}")
             raise SystemExit(0)
 
         parser.error("meta requires a subcommand (try: lrh meta init)")

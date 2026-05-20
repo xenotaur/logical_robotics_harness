@@ -44,7 +44,7 @@ Top-level subcommands:
 - `where`: show the active workspace and how it was resolved.
 - `list`: list registered projects from the active workspace registry.
 - `register`: register one project repository in the workspace registry.
-- `inspect`: inspect one registered project with workspace context.
+- `inspect`: inspect one registered project with grouped workspace/identity/checkout/project/storage/setup context.
 - `refresh`: re-check and update observation state for one registered project.
 - `config`: manage trusted workspace meta configuration keys.
 
@@ -86,7 +86,8 @@ Workspace-resolution options for `list`, `where`, `register`, `inspect`, `refres
 - `meta register` is offline and writes registry files in the resolved workspace.
 - Supported GitHub tree locators are normalized by default so `repo_locator` stores the repository/ref locator and `project_dir` stores the tail path such as `project`.
 - `meta list` prints `No registered projects found under projects/.` when the registry is empty.
-- `meta inspect` performs derived local path existence checks when applicable; remote locators may not have local path checks.
+- `meta inspect` renders grouped sections (`Workspace`, `Identity`, `Checkout`, `Project`, `Storage`, `Setup`) and prints observation checks as `status as of <timestamp>`.
+- `meta list` includes compact setup triage fields (`setup_state`, `setup_checked_as_of`, `checkout_storage`).
 
 ## Related how-to pages
 

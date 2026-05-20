@@ -56,6 +56,14 @@ dogfood migration across LRH's own proposal set.
 
 ## Current proposal sets
 
+
+[`activity-lanes-and-observational-dashboard.md`](activity-lanes-and-observational-dashboard.md)
+— Proposes a lightweight, tool-agnostic activity-lane model (`project/activity/ACT-*.md`) plus
+observational adapters and derived dashboard snapshots so LRH can coordinate mixed workflows
+(ChatGPT, Codex Cloud/App, Claude, VS Code/manual editing, GitHub PR stabilization) without
+requiring centralized `lrh run` mediation. Status: `proposed` / `not_started` (documentation-only
+proposal; no runtime implementation in this PR).
+
 [`proposed/lrh-conversations-storage-interop/`](proposed/lrh-conversations-storage-interop/)
 — Proposes a unified architecture for LRH Conversations, policy-aware storage,
 and external agent interop so raw AI-assisted development conversations remain

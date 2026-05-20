@@ -1128,6 +1128,8 @@ def main() -> None:
             print(workspace.format_project_inspect(inspect_result))
             raise SystemExit(0)
         if args.meta_command == "set":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
             try:
                 active_workspace = workspace.resolve_meta_workspace(
                     cwd=Path.cwd(),
@@ -1157,10 +1159,15 @@ def main() -> None:
             ) as err:
                 print(f"error: {err}")
                 raise SystemExit(1) from err
-            print(f"Updated project in {result.record_path}")
+            if result.updated_record:
+                print(f"Updated project record in {result.record_path}")
+            for binding_path in result.binding_paths:
+                print(f"Updated checkout binding in {binding_path}")
             print(f"project_id={result.project_id}")
             raise SystemExit(0)
         if args.meta_command == "unset":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
             try:
                 active_workspace = workspace.resolve_meta_workspace(
                     cwd=Path.cwd(),
@@ -1187,7 +1194,12 @@ def main() -> None:
             ) as err:
                 print(f"error: {err}")
                 raise SystemExit(1) from err
-            print(f"Updated project in {result.record_path}")
+            if result.updated_record:
+                print(f"Updated project record in {result.record_path}")
+            for binding_path in result.binding_paths:
+                print(f"Updated checkout binding in {binding_path}")
+            if not result.updated_record and not result.binding_paths:
+                print("No checkout binding found to unset.")
             print(f"project_id={result.project_id}")
             raise SystemExit(0)
 

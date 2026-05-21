@@ -311,6 +311,14 @@ class MetaInspectResult:
     repo_path_exists: bool | None
     resolved_project_path: pathlib.Path | None
     project_path_exists: bool | None
+    source_state: str | None = None
+    resolved_repo_path_source: str | None = None
+    trusted_persistent_local_state: bool = False
+    checkout_binding_storage: str = "none"
+    observation_storage: str = "private"
+    repo_locator_check: dict[str, str] | None = None
+    local_repo_path_check: dict[str, str] | None = None
+    project_path_check: dict[str, str] | None = None
 
 
 def meta_workspace_where_payload(
@@ -2280,7 +2288,11 @@ def _require_projects_dir(
     return projects_dir
 
 
-def format_project_records(records: tuple[MetaProjectRecord, ...]) -> str:
+def format_project_records(
+    records: tuple[MetaProjectRecord, ...],
+    *,
+    workspace: MetaWorkspace | None = None,
+) -> str:
     """Render records as plain, inspectable text for ``lrh meta list``."""
     if not records:
         return "No registered projects found under projects/."
@@ -2290,18 +2302,45 @@ def format_project_records(records: tuple[MetaProjectRecord, ...]) -> str:
         if index > 1:
             lines.append("")
         lines.extend(
-            [
-                f"[{index}] {record.registry_name}",
-                f"  registry_name: {record.registry_name}",
-                f"  short_name: {_display_value(record.short_name)}",
-                f"  display_name: {_display_value(record.display_name)}",
-                f"  project_id: {_display_value(record.project_id)}",
-                f"  repo_locator: {_display_value(record.repo_locator)}",
-                f"  project_dir: {_display_value(record.project_dir)}",
-                f"  setup_state: {_display_value(record.setup_state)}",
-            ]
+            _format_project_record_lines(
+                index=index,
+                record=record,
+                workspace=workspace,
+            )
         )
     return "\n".join(lines)
+
+
+def _format_project_record_lines(
+    *, index: int, record: MetaProjectRecord, workspace: MetaWorkspace | None
+) -> list[str]:
+    lines = [
+        f"[{index}] {record.registry_name}",
+        f"  registry_name: {record.registry_name}",
+        f"  short_name: {_display_value(record.short_name)}",
+        f"  display_name: {_display_value(record.display_name)}",
+        f"  project_id: {_display_value(record.project_id)}",
+        f"  repo_locator: {_display_value(record.repo_locator)}",
+        f"  project_dir: {_display_value(record.project_dir)}",
+        f"  setup_state: {_display_value(record.setup_state)}",
+    ]
+    if workspace is None:
+        return lines
+    observations = _read_project_observations(
+        workspace, registry_name=record.registry_name
+    )
+    setup_checked_as_of = _lookup_latest_checked_as_of(observations)
+    checkout_storage = _resolve_checkout_storage(
+        workspace=workspace,
+        project_id=record.project_id,
+    )
+    lines.extend(
+        [
+            f"  setup_checked_as_of: {setup_checked_as_of}",
+            f"  checkout_storage: {checkout_storage}",
+        ]
+    )
+    return lines
 
 
 def _load_project_record(record_dir: pathlib.Path) -> MetaProjectRecord:
@@ -2407,19 +2446,51 @@ def inspect_registered_project_in_workspace(
         )
 
     record = candidates[0]
-    resolved_repo_path = _resolved_local_repo_path(
-        record.repo_locator,
-        workspace=workspace,
+    from lrh.meta import local_state_model
+
+    trusted_persistent_local_state = get_meta_config_value(
+        workspace, _META_CONFIG_TRUST_KEY.canonical
     )
+    storage_policy = storage_policy_for_workspace(workspace)
+    observations = _read_project_observations(
+        workspace, registry_name=record.registry_name
+    )
+    checks = _observations_to_checks(observations)
+
+    private_binding = _read_checkout_binding(
+        workspace, project_id=record.project_id, trusted=False
+    )
+    trusted_binding = _read_checkout_binding(
+        workspace, project_id=record.project_id, trusted=True
+    )
+    resolved_context = local_state_model.resolve_project_context(
+        record,
+        workspace_context=workspace,
+        request=local_state_model.ResolveContextRequest(
+            private_checkout_binding=private_binding,
+            trusted_checkout_binding=trusted_binding,
+            storage_policy=storage_policy,
+        ),
+    )
+    resolved_repo_path = resolved_context.resolved_repo_path
     repo_exists = (
         resolved_repo_path.exists() if resolved_repo_path is not None else None
     )
-
-    resolved_project_path: pathlib.Path | None = None
-    project_exists: bool | None = None
-    if resolved_repo_path is not None and record.project_dir is not None:
-        resolved_project_path = _normalize_path(resolved_repo_path / record.project_dir)
-        project_exists = resolved_project_path.exists()
+    resolved_project_path = resolved_context.resolved_project_path
+    project_exists = (
+        resolved_project_path.exists() if resolved_project_path is not None else None
+    )
+    checks = _effective_checks_from_resolved_paths(
+        checks=checks,
+        repo_exists=repo_exists,
+        project_exists=project_exists,
+    )
+    checkout_binding_storage = "none"
+    if private_binding is not None:
+        checkout_binding_storage = "private"
+    elif trusted_binding is not None and trusted_persistent_local_state:
+        checkout_binding_storage = "workspace"
+    observation_storage = "workspace" if trusted_persistent_local_state else "private"
 
     return MetaInspectResult(
         workspace=workspace,
@@ -2428,6 +2499,14 @@ def inspect_registered_project_in_workspace(
         repo_path_exists=repo_exists,
         resolved_project_path=resolved_project_path,
         project_path_exists=project_exists,
+        source_state=resolved_context.source_state,
+        resolved_repo_path_source=resolved_context.resolved_repo_path_source,
+        trusted_persistent_local_state=trusted_persistent_local_state,
+        checkout_binding_storage=checkout_binding_storage,
+        observation_storage=observation_storage,
+        repo_locator_check=checks["repo_locator_check"],
+        local_repo_path_check=checks["local_repo_path_check"],
+        project_path_check=checks["project_path_check"],
     )
 
 
@@ -2475,20 +2554,37 @@ def format_project_inspect(result: MetaInspectResult) -> str:
         f"  resolution_source: {workspace_data.resolution_source}",
         f"  projects_dir: {workspace_data.projects_dir}",
         "",
-        "Project Record:",
+        "Identity:",
         f"  registry_name: {record.registry_name}",
         f"  project_id: {_display_value(record.project_id)}",
         f"  short_name: {_display_value(record.short_name)}",
         f"  display_name: {_display_value(record.display_name)}",
         f"  repo_locator: {_display_value(record.repo_locator)}",
-        f"  project_dir: {_display_value(record.project_dir)}",
-        f"  setup_state: {_display_value(record.setup_state)}",
+        "  repo_locator_check: " f"{_format_check_value(result.repo_locator_check)}",
         "",
-        "Derived:",
+        "Checkout:",
+        f"  local_repo_path: {_display_path(result.resolved_repo_path)}",
+        f"  storage: {result.checkout_binding_storage}",
+        "  resolved_repo_path_source: "
+        f"{_display_value(result.resolved_repo_path_source)}",
+        "  local_repo_path_check: "
+        f"{_format_check_value(result.local_repo_path_check)}",
+        "",
+        "Project:",
+        f"  project_dir: {_display_value(record.project_dir)}",
         f"  resolved_repo_path: {_display_path(result.resolved_repo_path)}",
-        f"  repo_path_exists: {_display_optional_bool(result.repo_path_exists)}",
         f"  resolved_project_path: {_display_path(result.resolved_project_path)}",
-        f"  project_path_exists: {_display_optional_bool(result.project_path_exists)}",
+        "  project_path_check: " f"{_format_check_value(result.project_path_check)}",
+        "",
+        "Storage:",
+        "  trusted_persistent_local_state: "
+        f"{str(result.trusted_persistent_local_state).lower()}",
+        f"  checkout_binding_storage: {result.checkout_binding_storage}",
+        f"  observation_storage: {result.observation_storage}",
+        "",
+        "Setup:",
+        f"  source_state: {_display_value(result.source_state)}",
+        f"  setup_state: {_display_value(record.setup_state)}",
     ]
     if workspace_data.workspace_root is not None:
         lines.insert(4, f"  workspace_root: {workspace_data.workspace_root}")
@@ -2505,3 +2601,133 @@ def _display_path(path: pathlib.Path | None) -> str:
     if path is None:
         return "<not_applicable>"
     return str(path)
+
+
+def _read_checkout_binding(
+    workspace: MetaWorkspace, *, project_id: str | None, trusted: bool
+):
+    if not project_id:
+        return None
+    binding_path = _bindings_file_path(workspace, trusted=trusted)
+    if not binding_path.exists():
+        return None
+    parsed = _read_toml_file(binding_path, context="checkout bindings")
+    raw_bindings = parsed.get("bindings", {})
+    if not isinstance(raw_bindings, dict):
+        return None
+    local_repo_path = raw_bindings.get(project_id)
+    if not isinstance(local_repo_path, str):
+        return None
+    from lrh.meta import local_state_model
+
+    return local_state_model.CheckoutBinding(
+        local_repo_path=pathlib.Path(local_repo_path),
+        storage_source="trusted_workspace" if trusted else "private_runtime",
+    )
+
+
+def _format_check_value(check: dict[str, str] | None) -> str:
+    if check is None:
+        return "<unknown>"
+    status = check.get("status", "unknown")
+    checked = check.get("checked_as_of", "")
+    if checked:
+        return f"{status} as of {checked}"
+    return status
+
+
+def _read_project_observations(
+    workspace: MetaWorkspace, *, registry_name: str
+) -> dict[str, str]:
+    project_file = workspace.projects_dir / registry_name / "project.toml"
+    parsed = _read_toml_file(project_file, context="project record")
+    observations = _optional_table(parsed, "observations")
+    if observations is None:
+        return {}
+    return {str(key): str(value) for key, value in observations.items()}
+
+
+def _read_toml_file(path: pathlib.Path, *, context: str) -> dict[str, object]:
+    try:
+        content = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as err:
+        raise MetaRegistryError(f"{context} is not valid UTF-8: {path}") from err
+    except OSError as err:
+        raise MetaRegistryError(f"unable to read {context} file {path}: {err}") from err
+    try:
+        parsed = tomllib.loads(content)
+    except tomllib.TOMLDecodeError as err:
+        raise MetaRegistryError(f"invalid TOML in {path}: {err}") from err
+    if not isinstance(parsed, dict):
+        raise MetaRegistryError(f"expected TOML table in {path}")
+    return parsed
+
+
+def _observations_to_checks(observations: dict[str, str]) -> dict[str, dict[str, str]]:
+    return {
+        "repo_locator_check": {
+            "status": observations.get("repo_locator_check_status", "unknown"),
+            "checked_as_of": observations.get("repo_locator_check_checked_as_of", ""),
+        },
+        "local_repo_path_check": {
+            "status": observations.get("local_repo_path_check_status", "unknown"),
+            "checked_as_of": observations.get(
+                "local_repo_path_check_checked_as_of", ""
+            ),
+        },
+        "project_path_check": {
+            "status": observations.get("project_path_check_status", "unknown"),
+            "checked_as_of": observations.get("project_path_check_checked_as_of", ""),
+        },
+    }
+
+
+def _optional_table(parsed: dict[str, object], key: str) -> dict[str, object] | None:
+    value = parsed.get(key)
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return value
+    raise MetaRegistryError(f"expected [{key}] table to be a mapping")
+
+
+def _effective_checks_from_resolved_paths(
+    *,
+    checks: dict[str, dict[str, str]],
+    repo_exists: bool | None,
+    project_exists: bool | None,
+) -> dict[str, dict[str, str]]:
+    effective = dict(checks)
+    now = datetime.datetime.now(datetime.UTC).isoformat()
+    if repo_exists is not None:
+        effective["local_repo_path_check"] = {
+            "status": "exists" if repo_exists else "missing",
+            "checked_as_of": now,
+        }
+    if project_exists is not None:
+        effective["project_path_check"] = {
+            "status": "exists" if project_exists else "missing",
+            "checked_as_of": now,
+        }
+    return effective
+
+
+def _lookup_latest_checked_as_of(observations: dict[str, str]) -> str:
+    values = [
+        observations.get("repo_locator_check_checked_as_of", ""),
+        observations.get("local_repo_path_check_checked_as_of", ""),
+        observations.get("project_path_check_checked_as_of", ""),
+    ]
+    non_empty = sorted(value for value in values if value)
+    return non_empty[-1] if non_empty else "<unknown>"
+
+
+def _resolve_checkout_storage(
+    *, workspace: MetaWorkspace, project_id: str | None
+) -> str:
+    if _read_checkout_binding(workspace, project_id=project_id, trusted=False):
+        return "private"
+    if _read_checkout_binding(workspace, project_id=project_id, trusted=True):
+        if get_meta_config_value(workspace, _META_CONFIG_TRUST_KEY.canonical):
+            return "workspace"
+    return "none"

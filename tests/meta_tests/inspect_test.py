@@ -35,13 +35,14 @@ class TestMetaInspectRuntime(unittest.TestCase):
 
             self.assertIn("Workspace:", output)
             self.assertIn("mode: local", output)
-            self.assertIn("Project Record:", output)
+            self.assertIn("Identity:", output)
             self.assertIn("short_name: demo", output)
             self.assertIn(f"repo_locator: {repo}", output)
             self.assertIn("project_dir: project", output)
-            self.assertIn("Derived:", output)
-            self.assertIn("repo_path_exists: true", output)
-            self.assertIn("project_path_exists: true", output)
+            self.assertIn("Checkout:", output)
+            self.assertIn("resolved_repo_path_source: repo_locator_local_path", output)
+            self.assertIn("local_repo_path_check: exists as of", output)
+            self.assertIn("project_path_check: exists as of", output)
 
     def test_inspect_project_not_found(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -86,8 +87,8 @@ class TestMetaInspectRuntime(unittest.TestCase):
             )
             output = workspace.format_project_inspect(inspect_result)
 
-            self.assertIn("repo_path_exists: false", output)
-            self.assertIn("project_path_exists: false", output)
+            self.assertIn("local_repo_path_check: missing as of", output)
+            self.assertIn("project_path_check: missing as of", output)
 
     def test_inspect_resolves_relative_repo_locator_from_workspace_context(
         self,
@@ -121,12 +122,12 @@ class TestMetaInspectRuntime(unittest.TestCase):
             output = workspace.format_project_inspect(inspect_result)
 
             self.assertIn(f"resolved_repo_path: {repo.resolve()}", output)
-            self.assertIn("repo_path_exists: true", output)
+            self.assertIn("local_repo_path_check: exists as of", output)
             self.assertIn(
                 f"resolved_project_path: {(repo / 'project').resolve()}",
                 output,
             )
-            self.assertIn("project_path_exists: true", output)
+            self.assertIn("project_path_check: exists as of", output)
 
     def test_inspect_remote_locator_is_truth_first_and_not_applicable(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -156,12 +157,13 @@ class TestMetaInspectRuntime(unittest.TestCase):
                 "resolved_repo_path: <not_applicable>",
                 output,
             )
-            self.assertIn("repo_path_exists: <not_applicable>", output)
+            self.assertIn("source_state: remote_only", output)
+            self.assertIn("resolved_repo_path_source: repo_locator_remote_url", output)
             self.assertIn(
                 "resolved_project_path: <not_applicable>",
                 output,
             )
-            self.assertIn("project_path_exists: <not_applicable>", output)
+            self.assertIn("project_path_check: skipped as of", output)
 
 
 class TestMetaInspectCli(unittest.TestCase):
@@ -205,9 +207,9 @@ class TestMetaInspectCli(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             self.assertIn("Workspace:", result.stdout)
             self.assertIn("resolution_source: local_discovery", result.stdout)
-            self.assertIn("Project Record:", result.stdout)
+            self.assertIn("Identity:", result.stdout)
             self.assertIn("short_name: demo", result.stdout)
-            self.assertIn("Derived:", result.stdout)
+            self.assertIn("Storage:", result.stdout)
 
     def test_lrh_meta_inspect_cli_project_not_found(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -275,7 +277,7 @@ class TestMetaInspectCli(unittest.TestCase):
 
             self.assertEqual(result.returncode, 0)
             self.assertIn(f"resolved_repo_path: {repo.resolve()}", result.stdout)
-            self.assertIn("repo_path_exists: true", result.stdout)
+            self.assertIn("local_repo_path_check: exists as of", result.stdout)
 
 
 if __name__ == "__main__":

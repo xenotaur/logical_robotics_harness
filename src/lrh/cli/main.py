@@ -929,7 +929,7 @@ def main() -> None:
                 print(f"error: {err}")
                 raise SystemExit(1) from err
 
-            print(workspace.format_project_records(records))
+            print(workspace.format_project_records(records, workspace=active_workspace))
             raise SystemExit(0)
 
         if args.meta_command == "where":

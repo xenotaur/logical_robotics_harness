@@ -291,6 +291,17 @@ class TestMetaListCli(unittest.TestCase):
                         'repo_locator = "https://example.com/demo.git"',
                         'project_dir = "project"',
                         "",
+                        "[observations]",
+                        'repo_locator_check_status = "valid"',
+                        "repo_locator_check_checked_as_of = "
+                        '"2026-05-20T12:00:00+00:00"',
+                        'local_repo_path_check_status = "skipped"',
+                        "local_repo_path_check_checked_as_of = "
+                        '"2026-05-20T12:00:00+00:00"',
+                        'project_path_check_status = "skipped"',
+                        "project_path_check_checked_as_of = "
+                        '"2026-05-20T12:00:00+00:00"',
+                        "",
                     ]
                 ),
                 encoding="utf-8",
@@ -301,6 +312,9 @@ class TestMetaListCli(unittest.TestCase):
             self.assertEqual(result.returncode, 0)
             self.assertIn("[1] demo", result.stdout)
             self.assertIn("project_id: proj-demo-001", result.stdout)
+            self.assertIn(
+                "setup_checked_as_of: 2026-05-20T12:00:00+00:00", result.stdout
+            )
 
 
 if __name__ == "__main__":

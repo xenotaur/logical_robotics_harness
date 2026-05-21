@@ -773,6 +773,29 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertIn("Diagnostics", body)
         self.assertLess(body.index("Next useful action"), body.index("Diagnostics"))
 
+    def test_meta_route_remote_only_setup_guidance_shell_quotes_registry_name(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "name with & hash#",
+                "https://example.test/repo",
+                display_name="Remote",
+            )
+            _httpd, base_url = self._start_server(root)
+            _status, _content_type, body = self._read(base_url + "/meta")
+
+        self.assertIn(
+            (
+                "Run: lrh meta set &#x27;name with &amp; hash#&#x27; "
+                "--local-repo-path PATH"
+            ),
+            body,
+        )
+
     def test_meta_route_falls_back_to_default_project_dir_when_record_omits_it(
         self,
     ) -> None:
@@ -933,6 +956,8 @@ Body.
         self.assertIn("Next useful action", body)
         self.assertIn("Validation summary", body)
         self.assertIn("lrh meta set remote-only --local-repo-path PATH", body)
+        self.assertIn("errors: <span>Unknown / not implemented</span>", body)
+        self.assertIn("warnings: <span>Unknown / not implemented</span>", body)
         self.assertLess(
             body.index("Next useful action"), body.index("Validation summary")
         )

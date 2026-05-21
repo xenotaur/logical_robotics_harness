@@ -554,12 +554,15 @@ def render_project_operational_dashboard(
     )
     setup_guidance = ""
     if selected.get("source_state") == "needs_local_checkout":
-        registry = html.escape(str(selected.get("registry_name") or project_selector))
+        registry = str(selected.get("registry_name") or project_selector)
+        quoted_registry = shlex.quote(registry)
         setup_guidance = (
             '<section class="lrh-console-region"><h2>Next useful action</h2>'
             "<p>This project is remote-only in the registry. Bind a local checkout "
             "to unlock project-control validation and triage facts.</p>"
-            f"<p>Run: <code>lrh meta set {registry} --local-repo-path PATH</code></p>"
+            "<p>Run: <code>"
+            f"{html.escape(f'lrh meta set {quoted_registry} --local-repo-path PATH')}"
+            "</code></p>"
             "</section>"
         )
     return (
@@ -626,8 +629,8 @@ def render_project_operational_dashboard(
             locator=locator,
             source_state=source_state,
             validation_status=validation_status,
-            error_count=html.escape(str(selected.get("validation_error_count"))),
-            warning_count=html.escape(str(selected.get("validation_warning_count"))),
+            error_count=_display_card_value(selected.get("validation_error_count")),
+            warning_count=_display_card_value(selected.get("validation_warning_count")),
             current_focus=_display_card_value(selected.get("current_focus_summary")),
             adopted_not_implemented_design_count=_display_card_value(
                 selected.get("adopted_not_implemented_design_count")
@@ -1228,8 +1231,11 @@ def _meta_card_setup_guidance_html(card: dict[str, object]) -> str:
     if source_state != "needs_local_checkout":
         return ""
     locator = _display_card_value(card.get("locator"))
-    registry_name = html.escape(str(card.get("registry_name") or "project"), quote=True)
-    guidance = html.escape(f"Run: lrh meta set {registry_name} --local-repo-path PATH")
+    registry_name = str(card.get("registry_name") or "project")
+    quoted_registry_name = shlex.quote(registry_name)
+    guidance = html.escape(
+        f"Run: lrh meta set {quoted_registry_name} --local-repo-path PATH"
+    )
     return (
         "<h4>Next useful action</h4>"
         "<p>Set a local checkout path for this remote-only project before "

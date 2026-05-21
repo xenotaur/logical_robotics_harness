@@ -691,7 +691,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(payload["lanes"][3]["projects"][0]["display_name"], "Stable")
         self.assertEqual(payload["lanes"][4]["projects"][0]["display_name"], "Blocked")
 
-    def test_meta_route_marks_local_path_without_project_unavailable(self) -> None:
+    def test_meta_route_marks_local_path_without_project_missing_project(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
             (root / "repos" / "empty").mkdir(parents=True)
@@ -705,8 +705,78 @@ class TestLrhServeRoutes(unittest.TestCase):
         payload = json.loads(body)
         empty = payload["lanes"][0]["projects"][0]
         self.assertEqual(empty["display_name"], "Empty")
-        self.assertEqual(empty["source_state"], "unavailable")
+        self.assertEqual(empty["source_state"], "missing_project")
         self.assertIn("PROJECT_CONTROL_DIR_NOT_FOUND", empty["diagnostics"][0])
+
+    def test_meta_route_marks_missing_local_checkout_as_missing_repo(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "missing-repo",
+                "repos/missing-repo",
+                display_name="Missing Repo",
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        project = _find_meta_project(payload, "Missing Repo")
+        self.assertEqual(project["display_name"], "Missing Repo")
+        self.assertEqual(project["source_state"], "missing_repo")
+        self.assertIn("LOCAL_REPO_PATH_MISSING", project["diagnostics"][0])
+
+    def test_meta_route_remote_only_includes_local_checkout_guidance(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "remote-only",
+                "https://example.test/team/remote-only",
+                display_name="Remote Only",
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        project = _find_meta_project(payload, "Remote Only")
+        self.assertEqual(project["display_name"], "Remote Only")
+        self.assertEqual(project["source_state"], "needs_local_checkout")
+        self.assertIn(
+            "Run: lrh meta set remote-only --local-repo-path PATH",
+            project["diagnostics"][0],
+        )
+
+    def test_meta_route_falls_back_to_default_project_dir_when_record_omits_it(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "repos" / "legacy"
+            _write_minimal_project(repo)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "legacy",
+                "repos/legacy",
+                display_name="Legacy",
+                project_dir=None,
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        project = _find_meta_project(payload, "Legacy")
+        self.assertEqual(project["source_state"], "live")
+        self.assertEqual(project["validation_status"], "valid")
 
     def test_meta_detail_links_url_encode_registry_names(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -973,14 +1043,27 @@ def _write_local_meta_workspace(root: pathlib.Path) -> None:
     (root / "projects").mkdir(parents=True, exist_ok=True)
 
 
+def _find_meta_project(
+    payload: dict[str, object], display_name: str
+) -> dict[str, object]:
+    for lane in payload["lanes"]:
+        for project in lane["projects"]:
+            if project["display_name"] == display_name:
+                return project
+    raise AssertionError(f"project {display_name!r} not found in meta payload")
+
+
 def _write_project_record(
     root: pathlib.Path,
     registry_name: str,
     repo_locator: str,
     *,
     display_name: str,
-    project_dir: str = "project",
+    project_dir: str | None = "project",
 ) -> None:
+    locator_lines = [f"repo_locator = {json.dumps(repo_locator)}"]
+    if project_dir is not None:
+        locator_lines.append(f"project_dir = {json.dumps(project_dir)}")
     _write(
         root / "projects" / registry_name / "project.toml",
         "\n".join(
@@ -997,8 +1080,7 @@ def _write_project_record(
                 f"project_id = {json.dumps(f'proj-{registry_name}')}",
                 "",
                 "[locators]",
-                f"repo_locator = {json.dumps(repo_locator)}",
-                f"project_dir = {json.dumps(project_dir)}",
+                *locator_lines,
                 "",
                 "[registry]",
                 f"directory_name = {json.dumps(registry_name)}",

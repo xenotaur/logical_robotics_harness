@@ -10,3 +10,4 @@ The initial dashboard support is grounded in the proposed LRH Console visual lan
 - conservative status derivation helpers that return `unknown` when available data is insufficient.
 
 The `/meta` route in `lrh serve` now consumes these view models for its safe-default, read-only registered-project swimlane dashboard without introducing a frontend framework, mutating UI actions, or hard-coded LRH-repository fixture data.
+For source-state resolution, `lrh serve` consumes shared resolved local meta state and does not fetch or inspect remote repository URLs in this MVP.

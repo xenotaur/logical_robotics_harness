@@ -6,6 +6,7 @@ import argparse
 import html
 import http.server
 import json
+import shlex
 import socket
 import socketserver
 import sys
@@ -838,8 +839,18 @@ def _operational_card_from_load_result(
     ready_leaf_count = None
     readiness_deficient_leaf_count = None
     diagnostics: tuple[str, ...] = ()
+    inspect_result = _inspect_registered_project(workspace, result.registry_name)
+    if inspect_result is not None:
+        source_state = _source_state_from_inspect_result(inspect_result)
+        diagnostics = _diagnostics_for_source_state(inspect_result, source_state)
     project_root = _registered_project_control_root(workspace, record)
-    if project_root is not None:
+    if inspect_result is not None and source_state in {"live", "missing_project"}:
+        project_root = inspect_result.resolved_project_path
+    should_load_project_payload = project_root is not None and source_state not in {
+        "missing_repo",
+        "needs_local_checkout",
+    }
+    if should_load_project_payload:
         try:
             project_payload = project_viewer_payload(
                 ServeConfig(project_root=project_root)
@@ -857,7 +868,8 @@ def _operational_card_from_load_result(
                     validation.get("warning_count")
                 )
             if _project_payload_is_unavailable(project_payload):
-                source_state = "unavailable"
+                if source_state in {"unknown", "live"}:
+                    source_state = "missing_project"
                 diagnostics = tuple(
                     _diagnostic_label(diagnostic)
                     for diagnostic in project_payload.get("diagnostics", [])
@@ -913,6 +925,50 @@ def _operational_card_from_load_result(
         capability_gaps=tuple(gaps),
         diagnostics=diagnostics,
     )
+
+
+def _inspect_registered_project(
+    workspace: meta_workspace.MetaWorkspace, registry_name: str
+) -> meta_workspace.MetaInspectResult | None:
+    try:
+        return meta_workspace.inspect_registered_project_in_workspace(
+            workspace, selector=registry_name
+        )
+    except meta_workspace.MetaRegistryError:
+        return None
+
+
+def _source_state_from_inspect_result(
+    inspect_result: meta_workspace.MetaInspectResult,
+) -> str:
+    if inspect_result.repo_path_exists is False:
+        return "missing_repo"
+    if inspect_result.project_path_exists is False:
+        return "missing_project"
+    if inspect_result.project_path_exists is True:
+        return "live"
+    if inspect_result.source_state == "remote_only":
+        return "needs_local_checkout"
+    return "inaccessible"
+
+
+def _diagnostics_for_source_state(
+    inspect_result: meta_workspace.MetaInspectResult, source_state: str
+) -> tuple[str, ...]:
+    if source_state in {"live", "unknown"}:
+        return ()
+    if source_state == "needs_local_checkout":
+        project_name = inspect_result.record.registry_name
+        return (
+            "This project has a remote locator but no local checkout binding. "
+            f"Run: lrh meta set {shlex.quote(project_name)} --local-repo-path PATH. "
+            f"Then: lrh meta refresh {shlex.quote(project_name)}.",
+        )
+    if source_state == "missing_repo":
+        return ("LOCAL_REPO_PATH_MISSING",)
+    if source_state == "missing_project":
+        return ("PROJECT_CONTROL_DIR_NOT_FOUND",)
+    return ("PROJECT_SOURCE_STATE_INACCESSIBLE",)
 
 
 def _registered_project_control_root(

@@ -552,6 +552,19 @@ def render_project_operational_dashboard(
             for workstream in _project_workstream_summaries(project_selector, config)
         ]
     )
+    setup_guidance = ""
+    if selected.get("source_state") == "needs_local_checkout":
+        registry = str(selected.get("registry_name") or project_selector)
+        quoted_registry = shlex.quote(registry)
+        setup_guidance = (
+            '<section class="lrh-console-region"><h2>Next useful action</h2>'
+            "<p>This project is remote-only in the registry. Bind a local checkout "
+            "to unlock project-control validation and triage facts.</p>"
+            "<p>Run: <code>"
+            f"{html.escape(f'lrh meta set {quoted_registry} --local-repo-path PATH')}"
+            "</code></p>"
+            "</section>"
+        )
     return (
         200,
         """<!doctype html>
@@ -574,10 +587,17 @@ def render_project_operational_dashboard(
         </dd></div>
         <div><dt>Source state</dt><dd>{source_state}</dd></div>
       </dl></section>
+    <section class=\"lrh-console-region\"><h2>Primary operational summary</h2>
+      <p>Validation status: {validation_status}. Active workstreams:
+      {active_workstream_count}. Active work items: {active_work_item_count}.</p>
+      <p>Ready leaves: {ready_leaf_count}. Readiness-deficient leaves:
+      {readiness_deficient_leaf_count}.</p>
+      <p>Current focus: {current_focus}.</p>
+    </section>
+    {setup_guidance}
     <section class=\"lrh-console-region\"><h2>Validation summary</h2>
       <p>Status: {validation_status}; errors: {error_count};
-      warnings: {warning_count}.</p>
-    </section>
+      warnings: {warning_count}.</p></section>
     <section class=\"lrh-console-region\"><h2>Current focus summary</h2>
       <p>{current_focus}</p>
     </section>
@@ -596,6 +616,10 @@ def render_project_operational_dashboard(
       leaves: unknown / not implemented.</p>
     </section>
     <section class=\"lrh-console-region\"><h2>Capability gaps</h2>{gaps}</section>
+    <section class=\"lrh-console-region\"><h2>Diagnostics and details</h2>
+      <p>Detailed diagnostics and storage/debug views remain available through
+      meta lanes, per-card diagnostics, and detail pages.</p>
+    </section>
   </main>
 </div>
 </body></html>""".format(
@@ -605,8 +629,8 @@ def render_project_operational_dashboard(
             locator=locator,
             source_state=source_state,
             validation_status=validation_status,
-            error_count=html.escape(str(selected.get("validation_error_count"))),
-            warning_count=html.escape(str(selected.get("validation_warning_count"))),
+            error_count=_display_card_value(selected.get("validation_error_count")),
+            warning_count=_display_card_value(selected.get("validation_warning_count")),
             current_focus=_display_card_value(selected.get("current_focus_summary")),
             adopted_not_implemented_design_count=_display_card_value(
                 selected.get("adopted_not_implemented_design_count")
@@ -634,6 +658,7 @@ def render_project_operational_dashboard(
                     if isinstance(gap, dict)
                 ]
             ),
+            setup_guidance=setup_guidance,
         ),
     )
 
@@ -1190,12 +1215,33 @@ def _meta_card_html(card: dict[str, object]) -> str:
     field_html = "".join(
         _card_definition_html(card, label, key) for label, key in fields
     )
+    setup_guidance = _meta_card_setup_guidance_html(card)
     return (
         f'<article class="lrh-project-card" id="meta-project-{registry_anchor}">'
         f'<h3><a href="{detail_url}">{name}</a></h3>'
         f'<dl class="lrh-summary-grid">{field_html}</dl>'
+        f"{setup_guidance}"
         f"<h4>Capability gaps</h4>{gap_html}"
         f"<h4>Diagnostics</h4>{diagnostic_html}</article>"
+    )
+
+
+def _meta_card_setup_guidance_html(card: dict[str, object]) -> str:
+    source_state = str(card.get("source_state") or "unknown")
+    if source_state != "needs_local_checkout":
+        return ""
+    locator = _display_card_value(card.get("locator"))
+    registry_name = str(card.get("registry_name") or "project")
+    quoted_registry_name = shlex.quote(registry_name)
+    guidance = html.escape(
+        f"Run: lrh meta set {quoted_registry_name} --local-repo-path PATH"
+    )
+    return (
+        "<h4>Next useful action</h4>"
+        "<p>Set a local checkout path for this remote-only project before "
+        "operational summaries can be resolved.</p>"
+        f"<p>Locator: {locator}</p>"
+        f"<p>{guidance}</p>"
     )
 
 

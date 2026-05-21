@@ -6,6 +6,7 @@ import argparse
 import html
 import http.server
 import json
+import shlex
 import socket
 import socketserver
 import sys
@@ -845,9 +846,10 @@ def _operational_card_from_load_result(
     project_root = _registered_project_control_root(workspace, record)
     if inspect_result is not None and source_state in {"live", "missing_project"}:
         project_root = inspect_result.resolved_project_path
-    should_load_project_payload = project_root is not None and (
-        inspect_result is None or source_state in {"live", "missing_project", "unknown"}
-    )
+    should_load_project_payload = project_root is not None and source_state not in {
+        "missing_repo",
+        "needs_local_checkout",
+    }
     if should_load_project_payload:
         try:
             project_payload = project_viewer_payload(
@@ -959,8 +961,8 @@ def _diagnostics_for_source_state(
         project_name = inspect_result.record.registry_name
         return (
             "This project has a remote locator but no local checkout binding. "
-            f"Run: lrh meta set {project_name} --local-repo-path PATH. "
-            f"Then: lrh meta refresh {project_name}.",
+            f"Run: lrh meta set {shlex.quote(project_name)} --local-repo-path PATH. "
+            f"Then: lrh meta refresh {shlex.quote(project_name)}.",
         )
     if source_state == "missing_repo":
         return ("LOCAL_REPO_PATH_MISSING",)

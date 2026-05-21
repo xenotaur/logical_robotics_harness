@@ -753,6 +753,31 @@ class TestLrhServeRoutes(unittest.TestCase):
             project["diagnostics"][0],
         )
 
+    def test_meta_route_falls_back_to_default_project_dir_when_record_omits_it(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "repos" / "legacy"
+            _write_minimal_project(repo)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "legacy",
+                "repos/legacy",
+                display_name="Legacy",
+                project_dir=None,
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        project = _find_meta_project(payload, "Legacy")
+        self.assertEqual(project["source_state"], "live")
+        self.assertEqual(project["validation_status"], "valid")
+
     def test_meta_detail_links_url_encode_registry_names(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
@@ -1034,8 +1059,11 @@ def _write_project_record(
     repo_locator: str,
     *,
     display_name: str,
-    project_dir: str = "project",
+    project_dir: str | None = "project",
 ) -> None:
+    locator_lines = [f"repo_locator = {json.dumps(repo_locator)}"]
+    if project_dir is not None:
+        locator_lines.append(f"project_dir = {json.dumps(project_dir)}")
     _write(
         root / "projects" / registry_name / "project.toml",
         "\n".join(
@@ -1052,8 +1080,7 @@ def _write_project_record(
                 f"project_id = {json.dumps(f'proj-{registry_name}')}",
                 "",
                 "[locators]",
-                f"repo_locator = {json.dumps(repo_locator)}",
-                f"project_dir = {json.dumps(project_dir)}",
+                *locator_lines,
                 "",
                 "[registry]",
                 f"directory_name = {json.dumps(registry_name)}",

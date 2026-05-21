@@ -40,6 +40,7 @@ class TestMetaInspectRuntime(unittest.TestCase):
             self.assertIn(f"repo_locator: {repo}", output)
             self.assertIn("project_dir: project", output)
             self.assertIn("Checkout:", output)
+            self.assertIn("resolved_repo_path_source: repo_locator_local_path", output)
             self.assertIn("local_repo_path_check: exists as of", output)
             self.assertIn("project_path_check: exists as of", output)
 
@@ -157,6 +158,7 @@ class TestMetaInspectRuntime(unittest.TestCase):
                 output,
             )
             self.assertIn("source_state: remote_only", output)
+            self.assertIn("resolved_repo_path_source: repo_locator_remote_url", output)
             self.assertIn(
                 "resolved_project_path: <not_applicable>",
                 output,

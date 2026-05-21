@@ -2641,7 +2641,9 @@ def _read_project_observations(
 ) -> dict[str, str]:
     project_file = workspace.projects_dir / registry_name / "project.toml"
     parsed = _read_toml_file(project_file, context="project record")
-    observations = _required_table(parsed, project_file, "observations")
+    observations = _optional_table(parsed, "observations")
+    if observations is None:
+        return {}
     return {str(key): str(value) for key, value in observations.items()}
 
 
@@ -2678,6 +2680,15 @@ def _observations_to_checks(observations: dict[str, str]) -> dict[str, dict[str,
             "checked_as_of": observations.get("project_path_check_checked_as_of", ""),
         },
     }
+
+
+def _optional_table(parsed: dict[str, object], key: str) -> dict[str, object] | None:
+    value = parsed.get(key)
+    if value is None:
+        return None
+    if isinstance(value, dict):
+        return value
+    raise MetaRegistryError(f"expected [{key}] table to be a mapping")
 
 
 def _effective_checks_from_resolved_paths(

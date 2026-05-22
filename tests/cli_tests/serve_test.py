@@ -571,6 +571,13 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(first_card["readiness_deficient_leaf_count"], 1)
         self.assertEqual(first_card["detail_url"], "/project/alpha")
         self.assertTrue(first_card["capability_gaps"])
+        self.assertFalse(
+            any(
+                gap.get("field") == "source_state"
+                and gap.get("state") == "not_implemented"
+                for gap in first_card["capability_gaps"]
+            )
+        )
 
     def test_meta_route_isolates_unavailable_project_record(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -748,6 +755,13 @@ class TestLrhServeRoutes(unittest.TestCase):
         project = _find_meta_project(payload, "Remote Only")
         self.assertEqual(project["display_name"], "Remote Only")
         self.assertEqual(project["source_state"], "needs_local_checkout")
+        self.assertFalse(
+            any(
+                gap.get("field") == "source_state"
+                and gap.get("state") == "not_implemented"
+                for gap in project.get("capability_gaps", [])
+            )
+        )
         self.assertIn(
             "Run: lrh meta set remote-only --local-repo-path PATH",
             project["diagnostics"][0],

@@ -838,14 +838,6 @@ def _operational_card_from_load_result(
     record = result.record
     gaps = [
         dashboard.CapabilityGapView(
-            field="source_state",
-            state="not_implemented",
-            message=(
-                "Live/cache inspection is not implemented for registered "
-                "projects yet."
-            ),
-        ),
-        dashboard.CapabilityGapView(
             field="adopted_not_implemented_design_count",
             state="not_implemented",
             message="Design implementation counting is not exposed by core-state yet.",
@@ -868,6 +860,17 @@ def _operational_card_from_load_result(
     if inspect_result is not None:
         source_state = _source_state_from_inspect_result(inspect_result)
         diagnostics = _diagnostics_for_source_state(inspect_result, source_state)
+    else:
+        gaps.append(
+            dashboard.CapabilityGapView(
+                field="source_state_detail",
+                state="not_implemented",
+                message=(
+                    "Source-state detail inspection is not available for this "
+                    "project in the current environment."
+                ),
+            )
+        )
     project_root = _registered_project_control_root(workspace, record)
     if inspect_result is not None and source_state in {"live", "missing_project"}:
         project_root = inspect_result.resolved_project_path

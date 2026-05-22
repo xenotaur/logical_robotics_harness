@@ -25,6 +25,7 @@ Add content here when the reader needs to look up exact behavior and expects the
 - [CLI reference](cli/README.md) — command-oriented reference material.
 - [Schema reference](schemas/README.md) — project-control and file-format reference material.
 - [Documentation structure](documentation-structure.md) — placement guide for future human-facing docs.
+- [Docs audit artifact convention](docs-audit-artifact-convention.md) — Markdown-first contract for docs-audit artifacts used by prompt-driven docs organization workflows.
 
 ## Related operational guides
 

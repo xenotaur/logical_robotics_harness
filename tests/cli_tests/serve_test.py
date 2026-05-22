@@ -571,16 +571,12 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(first_card["readiness_deficient_leaf_count"], 1)
         self.assertEqual(first_card["detail_url"], "/project/alpha")
         self.assertTrue(first_card["capability_gaps"])
-        self.assertNotIn(
-            {
-                "field": "source_state",
-                "state": "not_implemented",
-                "message": (
-                    "Live/cache inspection is not implemented for registered "
-                    "projects yet."
-                ),
-            },
-            first_card["capability_gaps"],
+        self.assertFalse(
+            any(
+                gap.get("field") == "source_state"
+                and gap.get("state") == "not_implemented"
+                for gap in first_card["capability_gaps"]
+            )
         )
 
     def test_meta_route_isolates_unavailable_project_record(self) -> None:

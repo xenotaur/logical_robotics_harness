@@ -43,6 +43,8 @@ Release-smoke isolation audit closeout remains in effect: diagnostic mode (`scri
 Closeout note (2026-05-03): Completion and work-item tooling (`lrh work-items organize` + `lrh work-items validate`) is implemented, tested, and documented; work-item discovery edge cases including README handling in `lrh work-items validate` are resolved.
 
 
+Documentation closeout note (2026-05-22): the broad human-facing docs reorg is now closed after navigation dogfooding and CLI-help accuracy audit. The docs index and section READMEs are aligned to current moved paths, and remaining gaps are tracked as narrow follow-up work items rather than as an open-ended docs reorg stream.
+
 
 Control-plane freshness note (2026-05-17): the stale active orphan leaves
 `WI-META-WORKSPACE-RESOLUTION` and `WI-SNAPSHOT-RESOLVED-CONTEXT` were audited and moved to

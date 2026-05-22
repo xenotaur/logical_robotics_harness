@@ -38,5 +38,7 @@ Use [Documentation structure](reference/documentation-structure.md) when decidin
 - [`lrh work-items`](reference/cli/work-items.md)
 - [`lrh meta`](reference/cli/meta.md)
 - [`lrh conversation`](reference/cli/conversation.md)
+- [`lrh serve`](reference/cli/serve.md)
+- Prompt workflow commands (`lrh prompt`, `lrh match`, `lrh search`) are currently documented in [Prompt workflow](tutorials/first-prompt-driven-change.md) and [PROMPTS.md](../PROMPTS.md).
 
 Future content migration should prefer link-only compatibility updates and small, reviewable moves over broad rewrites.

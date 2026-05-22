@@ -3,9 +3,9 @@ execution_id: 2026_05_22_19_12_08_DOCS_AUDIT_ARTIFACT_CONVENTION
 prompt_id: PROMPT(AD_HOC:DOCS_AUDIT_ARTIFACT_CONVENTION)[2026-05-22T10:10:00-04:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
-pr: 
-commit: 
+rerun_of:
+pr:
+commit:
 created_at: 2026-05-22T19:12:08+00:00
 ---
 

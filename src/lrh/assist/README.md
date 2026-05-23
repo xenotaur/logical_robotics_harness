@@ -482,6 +482,7 @@ Canonical mappings:
 | `assess-continuous-integration-status` | `assess-ci-status`, `ci-assess-status`, `ci_assess_status` | `ci_assess_status` |
 | `implement-continuous-integration-workflow` | `implement-ci-workflow`, `ci-implement-workflow`, `ci_implement_workflow` | `ci_implement_workflow` |
 | `improve-coverage` | `improve_coverage` | `improve_coverage` |
+| `audit-docs` | `audit_docs` | `audit_docs` |
 | `review-response` | `review_response` | `review_response` |
 
 ## Examples
@@ -528,6 +529,11 @@ lrh request bootstrap-project \
 - request name: `work-items-from-audit` (legacy: `work_items_from_audit`)
 - `--audit-file` (required)
 - `--style-file` (required)
+
+### 4) `audit-docs`
+
+**Purpose**: Generate a downstream-agent prompt for repository documentation audits.
+This command renders a request artifact only; it does not reorganize docs directly.
 - optional `--background-file` or `--background-text`
 
 Example:

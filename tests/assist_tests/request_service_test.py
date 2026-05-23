@@ -23,6 +23,7 @@ class TestBuildVariables(unittest.TestCase):
             "background_text": None,
             "project_type": None,
             "bootstrap_mode": "minimal",
+            "phase": None,
             "audit_file": None,
             "work_item_file": (
                 "project/work_items/proposed/WI-INTERPRETATION-VALIDATION.md"
@@ -131,6 +132,7 @@ class TestRequestTemplateOverrides(unittest.TestCase):
             package_root=[],
             target_agent=None,
             audit_output=None,
+            phase=None,
             out=None,
         )
 
@@ -855,3 +857,87 @@ class TestReviewResponseTemplate(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOrganizeDocsTemplate(unittest.TestCase):
+    def _args(self, **overrides: str | None) -> argparse.Namespace:
+        defaults = {
+            "template_name": "organize_docs",
+            "target": None,
+            "target_option": None,
+            "scope": None,
+            "repo_name": None,
+            "project_goal": None,
+            "background_file": None,
+            "background_text": None,
+            "project_type": None,
+            "bootstrap_mode": "minimal",
+            "phase": None,
+            "audit_file": None,
+            "work_item_file": None,
+            "style_file": None,
+            "patch_file": None,
+            "show_vars": False,
+            "prompt_id": None,
+            "force": False,
+            "template_dir": None,
+            "repo_root": None,
+            "project_root": None,
+            "docs_root": None,
+            "control_root": None,
+            "package_root": [],
+            "target_agent": None,
+            "audit_output": None,
+            "out": None,
+        }
+        defaults.update(overrides)
+        return argparse.Namespace(**defaults)
+
+    def test_rendering_with_explicit_audit_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            audit_path = (
+                root / "lcats" / "project" / "audits" / "2026-05-22-docs-audit.md"
+            )
+            audit_path.parent.mkdir(parents=True)
+            audit_path.write_text("# Docs Audit\n", encoding="utf-8")
+
+            rendered, variables = request_service.generate_request(
+                self._args(audit_file=str(audit_path))
+            )
+
+        self.assertIn("read the docs audit artifact first", rendered)
+        self.assertIn("2026-05-22-docs-audit.md", rendered)
+        self.assertTrue(
+            variables["AUDIT_PATH"].endswith(
+                "lcats/project/audits/2026-05-22-docs-audit.md"
+            )
+        )
+
+    def test_rendering_without_audit_path_includes_discovery_guidance(self) -> None:
+        rendered, _ = request_service.generate_request(self._args())
+        self.assertIn("small discovery pass", rendered)
+        self.assertIn("do not make broad moves based on assumptions", rendered)
+
+    def test_rendering_with_nested_roots_and_phase(self) -> None:
+        rendered, variables = request_service.generate_request(
+            self._args(
+                repo_root=".",
+                project_root="./lcats",
+                docs_root="./lcats/docs",
+                control_root="./lcats/project",
+                phase="tutorials",
+            )
+        )
+        self.assertEqual(variables["REQUEST_PROJECT_ROOT"], "lcats")
+        self.assertEqual(variables["REQUEST_DOCS_ROOT"], "lcats/docs")
+        self.assertEqual(variables["REQUEST_CONTROL_ROOT"], "lcats/project")
+        self.assertIn("phase`: `tutorials`", rendered)
+
+    def test_rendering_includes_scope_and_policy_guidance(self) -> None:
+        rendered, _ = request_service.generate_request(self._args())
+        self.assertIn("one scoped documentation-organization PR", rendered)
+        self.assertIn("one phase", rendered)
+        self.assertIn("Diátaxis categories distinct", rendered)
+        self.assertIn("project/docs boundary", rendered)
+        self.assertIn("soft-idempotence", rendered)

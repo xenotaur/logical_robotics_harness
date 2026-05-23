@@ -31,6 +31,14 @@ class TestBuildVariables(unittest.TestCase):
             "patch_file": None,
             "show_vars": False,
             "prompt_id": None,
+            "repo_root": None,
+            "project_root": None,
+            "docs_root": None,
+            "control_root": None,
+            "package_root": [],
+            "target_agent": None,
+            "audit_output": None,
+            "out": None,
         }
         defaults.update(overrides)
         return argparse.Namespace(**defaults)
@@ -52,6 +60,47 @@ class TestBuildVariables(unittest.TestCase):
         self.assertEqual(variables["WORK_ITEM_CONTENT"], variables["WORK_ITEM"])
         self.assertIn("LRH STYLE GUIDE", variables["STYLE_GUIDE_CONTENT"])
         self.assertIn("WI-INTERPRETATION-VALIDATION", variables["WORK_ITEM_CONTENT"])
+
+    def test_build_variables_sets_audit_docs_defaults(self) -> None:
+        args = self._build_args(template_name="audit_docs")
+
+        variables = request_service.build_variables(args)
+
+        self.assertEqual(variables["REQUEST_REPO_ROOT"], ".")
+        self.assertEqual(variables["REQUEST_PROJECT_ROOT"], ".")
+        self.assertEqual(variables["REQUEST_DOCS_ROOT"], "docs")
+        self.assertEqual(variables["REQUEST_CONTROL_ROOT"], "project")
+        self.assertEqual(
+            variables["REQUEST_AUDIT_OUTPUT"],
+            "project/audits/YYYY-MM-DD-docs-audit.md",
+        )
+        self.assertIn(
+            "describe package roots manually", variables["REQUEST_PACKAGE_ROOTS"]
+        )
+
+    def test_build_variables_sets_audit_docs_nested_paths(self) -> None:
+        args = self._build_args(
+            template_name="audit_docs",
+            repo_root=".",
+            project_root="./lcats",
+            docs_root="./lcats/docs",
+            control_root="./lcats/project",
+            package_root=["./lcats/lcats", "./lcats/plugins"],
+            target_agent="Codex Cloud",
+            audit_output="./lcats/project/audits/2026-05-22-docs-audit.md",
+        )
+
+        variables = request_service.build_variables(args)
+
+        self.assertEqual(variables["REQUEST_PROJECT_ROOT"], "lcats")
+        self.assertEqual(variables["REQUEST_DOCS_ROOT"], "lcats/docs")
+        self.assertEqual(variables["REQUEST_CONTROL_ROOT"], "lcats/project")
+        self.assertIn("lcats/lcats", variables["REQUEST_PACKAGE_ROOTS"])
+        self.assertIn("lcats/plugins", variables["REQUEST_PACKAGE_ROOTS"])
+        self.assertEqual(
+            variables["REQUEST_AUDIT_OUTPUT"],
+            "lcats/project/audits/2026-05-22-docs-audit.md",
+        )
 
 
 class TestRequestTemplateOverrides(unittest.TestCase):
@@ -75,6 +124,14 @@ class TestRequestTemplateOverrides(unittest.TestCase):
             prompt_id=None,
             force=False,
             template_dir=None,
+            repo_root=None,
+            project_root=None,
+            docs_root=None,
+            control_root=None,
+            package_root=[],
+            target_agent=None,
+            audit_output=None,
+            out=None,
         )
 
     def test_package_template_renders_when_no_overrides_exist(self) -> None:
@@ -175,6 +232,18 @@ class TestRequestTemplateOverrides(unittest.TestCase):
             "Template not found: request/does_not_exist.md",
         ):
             request_service.generate_request(self._args("does_not_exist"))
+
+    def test_audit_docs_template_contains_diataxis_and_execution_guidance(self) -> None:
+        args = self._args("audit_docs")
+        rendered, _ = request_service.generate_request(args)
+
+        self.assertIn("tutorials", rendered)
+        self.assertIn("how-to guides", rendered)
+        self.assertIn("reference", rendered)
+        self.assertIn("explanations", rendered)
+        self.assertIn("docs-audit.md", rendered)
+        self.assertIn("soft-idempotence", rendered)
+        self.assertNotIn("src/lrh/", rendered)
 
 
 class TestCodexPromptFromWorkItemResolution(unittest.TestCase):

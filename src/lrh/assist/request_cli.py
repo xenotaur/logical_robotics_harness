@@ -143,6 +143,57 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
             "the current timestamp."
         ),
     )
+    parser.add_argument(
+        "--repo-root",
+        help="Repository checkout root for documentation-audit request rendering.",
+    )
+    parser.add_argument(
+        "--project-root",
+        help=(
+            "Effective product/project root for documentation-audit rendering. "
+            "Defaults to --repo-root when omitted."
+        ),
+    )
+    parser.add_argument(
+        "--docs-root",
+        help=(
+            "Human-facing docs root for documentation-audit rendering. "
+            "Defaults to <project-root>/docs."
+        ),
+    )
+    parser.add_argument(
+        "--control-root",
+        help=(
+            "Control-plane root for documentation-audit rendering. "
+            "Defaults to <project-root>/project."
+        ),
+    )
+    parser.add_argument(
+        "--package-root",
+        action="append",
+        default=[],
+        help=(
+            "Package/code root for documentation-audit rendering. " "May be repeated."
+        ),
+    )
+    parser.add_argument(
+        "--target-agent",
+        help=(
+            "Optional target assistant phrasing for documentation-audit "
+            "requests (defaults to Codex Cloud)."
+        ),
+    )
+    parser.add_argument(
+        "--audit-output",
+        help=(
+            "Suggested audit artifact path for documentation-audit rendering. "
+            "Defaults to <control-root>/audits/YYYY-MM-DD-docs-audit.md."
+        ),
+    )
+    parser.add_argument(
+        "--out",
+        help="Output markdown path for generated request prompts.",
+    )
     return parser
 
 
@@ -861,7 +912,6 @@ def run_request_cli(
         args = mapped_args
         output_path = pathlib.Path(command_args.out) if command_args.out else None
     else:
-        output_path = None
         parser = build_parser(prog=prog)
         try:
             args = parser.parse_args(argv)
@@ -871,6 +921,7 @@ def run_request_cli(
         if request_metadata is not None:
             args.request_name = args.template_name
             args.template_name = request_metadata.template_name
+        output_path = pathlib.Path(args.out) if getattr(args, "out", None) else None
 
     error = request_service.validate_args(args)
     if error:

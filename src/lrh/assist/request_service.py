@@ -216,6 +216,30 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
     )
     style_file_path = request_variables.normalize_file_reference(style_file)
     patch_file_path = request_variables.normalize_file_reference(args.patch_file)
+    repo_root = pathlib.Path(getattr(args, "repo_root", None) or ".")
+    project_root_value = getattr(args, "project_root", None)
+    project_root = pathlib.Path(project_root_value) if project_root_value else repo_root
+    docs_root_value = getattr(args, "docs_root", None)
+    docs_root = (
+        pathlib.Path(docs_root_value) if docs_root_value else project_root / "docs"
+    )
+    control_root = (
+        pathlib.Path(getattr(args, "control_root", None))
+        if getattr(args, "control_root", None)
+        else project_root / "project"
+    )
+    package_roots = tuple(
+        pathlib.Path(value) for value in (getattr(args, "package_root", None) or [])
+    )
+    audit_output = (
+        pathlib.Path(getattr(args, "audit_output", None))
+        if getattr(args, "audit_output", None)
+        else control_root / "audits" / "YYYY-MM-DD-docs-audit.md"
+    )
+    package_roots_value = (
+        "\n".join(f"  - `{path.as_posix()}`" for path in package_roots)
+        or "  - `(describe package roots manually if multiple apply)`"
+    )
 
     return {
         "TEMPLATE_NAME": args.template_name,
@@ -251,6 +275,13 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
         "PATCH_FILE": patch_file_path,
         "PATCH_PATH": patch_file_path,
         "PATCH_CONTENT": patch_text,
+        "REQUEST_REPO_ROOT": repo_root.as_posix(),
+        "REQUEST_PROJECT_ROOT": project_root.as_posix(),
+        "REQUEST_DOCS_ROOT": docs_root.as_posix(),
+        "REQUEST_CONTROL_ROOT": control_root.as_posix(),
+        "REQUEST_PACKAGE_ROOTS": package_roots_value,
+        "REQUEST_TARGET_AGENT": getattr(args, "target_agent", None) or "Codex Cloud",
+        "REQUEST_AUDIT_OUTPUT": audit_output.as_posix(),
     }
 
 

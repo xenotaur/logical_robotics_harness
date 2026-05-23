@@ -76,3 +76,8 @@ Catalog and template diagnostics:
 
 - [Use request templates](../../how-to/use-request-templates.md)
 - [Validate a project control directory](../../how-to/validate-a-project.md)
+
+
+## organize-docs
+
+`lrh request organize-docs` generates a downstream-agent prompt for one scoped documentation-organization PR. It does not reorganize documentation directly.

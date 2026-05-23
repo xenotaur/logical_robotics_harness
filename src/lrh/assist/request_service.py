@@ -282,6 +282,7 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
         "REQUEST_PACKAGE_ROOTS": package_roots_value,
         "REQUEST_TARGET_AGENT": getattr(args, "target_agent", None) or "Codex Cloud",
         "REQUEST_AUDIT_OUTPUT": audit_output.as_posix(),
+        "REQUEST_ORGANIZE_DOCS_PHASE": getattr(args, "phase", None) or "",
     }
 
 

@@ -714,7 +714,7 @@ class TestLrhServeRoutes(unittest.TestCase):
         payload = json.loads(body)
         card = _find_meta_project(payload, "Dot Root")
         self.assertIn(
-            f"cd {repo} && lrh validate",
+            f"cd {repo.resolve()} && lrh validate",
             card["validation_next_action"],
         )
 

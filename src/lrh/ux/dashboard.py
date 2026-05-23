@@ -206,6 +206,8 @@ class ProjectOperationalCard:
     detail_url: str | None = None
     capability_gaps: tuple[CapabilityGapView, ...] = ()
     diagnostics: tuple[str, ...] = ()
+    validation_diagnostics: tuple[str, ...] = ()
+    validation_next_action: str | None = None
 
 
 @dataclass(frozen=True)
@@ -407,6 +409,8 @@ def project_operational_card_from_record(
     adopted_not_implemented_design_count: int | None = None,
     capability_gaps: tuple[CapabilityGapView, ...] = (),
     diagnostics: tuple[str, ...] = (),
+    validation_diagnostics: tuple[str, ...] = (),
+    validation_next_action: str | None = None,
 ) -> ProjectOperationalCard:
     """Build a conservative operational card from one meta registry record."""
 
@@ -448,6 +452,8 @@ def project_operational_card_from_record(
         detail_url=_meta_project_detail_url(record.registry_name),
         capability_gaps=capability_gaps,
         diagnostics=diagnostics,
+        validation_diagnostics=validation_diagnostics,
+        validation_next_action=validation_next_action,
     )
 
 

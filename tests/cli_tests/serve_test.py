@@ -662,6 +662,66 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(warned_card["display_name"], "Warned")
         self.assertEqual(warned_card["validation_status"], "valid")
         self.assertEqual(warned_card["validation_warning_count"], 1)
+        self.assertEqual(warned_card["validation_diagnostics"], [])
+        self.assertIsNone(warned_card["validation_next_action"])
+
+    def test_meta_route_error_cards_include_actionable_validation_diagnostics(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            broken = root / "repos" / "broken"
+            _write_viewer_project(broken, duplicate_work_item=True)
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "broken", "repos/broken", display_name="Broken")
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        broken_card = _find_meta_project(payload, "Broken")
+        self.assertEqual(broken_card["validation_status"], "error")
+        self.assertTrue(broken_card["validation_diagnostics"])
+        self.assertTrue(
+            any(
+                "Validation errors:" in item
+                for item in broken_card["validation_diagnostics"]
+            )
+        )
+        self.assertIn("lrh validate", broken_card["validation_next_action"])
+
+    def test_meta_route_error_card_validation_diagnostics_are_html_escaped(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            escaped = root / "repos" / "escaped"
+            _write_viewer_project(escaped, duplicate_work_item=True)
+            _write(
+                escaped / "project" / "focus" / "current.md",
+                """---
+id: FOCUS-1
+title: Focus
+status: active
+active_workstream_ids:
+  - WS-A
+active_contributor_ids:
+  - contributor<script>
+---
+Body.
+""",
+            )
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root, "escaped", "repos/escaped", display_name="Escaped"
+            )
+            _httpd, base_url = self._start_server(root)
+            _status, _content_type, body = self._read(base_url + "/meta")
+
+        self.assertIn("Validation diagnostics", body)
+        self.assertIn("&amp;&amp; lrh validate", body)
+        self.assertNotIn("<h4>Validation diagnostics</h4><p>None.</p>", body)
 
     def test_meta_route_derives_review_blocked_stable_and_workstream_lanes(
         self,

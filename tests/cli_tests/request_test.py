@@ -357,6 +357,48 @@ class TestLrhRequestCli(unittest.TestCase):
             self.assertEqual(result.stdout, "")
             self.assertNotIn("Traceback", result.stderr)
 
+    def test_lrh_request_audit_docs_writes_output_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            out_file = root / "artifacts" / "audit-docs.prompt.md"
+            result = subprocess.run(
+                [
+                    "lrh",
+                    "request",
+                    "audit-docs",
+                    "--repo-root",
+                    ".",
+                    "--project-root",
+                    "./lcats",
+                    "--docs-root",
+                    "./lcats/docs",
+                    "--control-root",
+                    "./lcats/project",
+                    "--package-root",
+                    "./lcats/lcats",
+                    "--package-root",
+                    "./lcats/plugins",
+                    "--audit-output",
+                    "./lcats/project/audits/2026-05-23-docs-audit.md",
+                    "--out",
+                    str(out_file),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                cwd=temp_dir,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+            self.assertTrue(out_file.is_file())
+            rendered = out_file.read_text(encoding="utf-8")
+            self.assertIn("Classify documentation needs using Diátaxis", rendered)
+            self.assertIn("`lcats/project/audits/2026-05-23-docs-audit.md`", rendered)
+            self.assertIn("  - `lcats/lcats`", rendered)
+            self.assertIn("  - `lcats/plugins`", rendered)
+
 
 if __name__ == "__main__":
     unittest.main()

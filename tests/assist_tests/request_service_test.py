@@ -74,7 +74,9 @@ class TestBuildVariables(unittest.TestCase):
             variables["REQUEST_AUDIT_OUTPUT"],
             "project/audits/YYYY-MM-DD-docs-audit.md",
         )
-        self.assertIn("describe package roots manually", variables["REQUEST_PACKAGE_ROOTS"])
+        self.assertIn(
+            "describe package roots manually", variables["REQUEST_PACKAGE_ROOTS"]
+        )
 
     def test_build_variables_sets_audit_docs_nested_paths(self) -> None:
         args = self._build_args(

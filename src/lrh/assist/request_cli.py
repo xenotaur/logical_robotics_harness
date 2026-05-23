@@ -173,8 +173,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         action="append",
         default=[],
         help=(
-            "Package/code root for documentation-audit rendering. "
-            "May be repeated."
+            "Package/code root for documentation-audit rendering. " "May be repeated."
         ),
     )
     parser.add_argument(

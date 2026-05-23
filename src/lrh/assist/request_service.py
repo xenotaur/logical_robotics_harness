@@ -220,7 +220,9 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
     project_root_value = getattr(args, "project_root", None)
     project_root = pathlib.Path(project_root_value) if project_root_value else repo_root
     docs_root_value = getattr(args, "docs_root", None)
-    docs_root = pathlib.Path(docs_root_value) if docs_root_value else project_root / "docs"
+    docs_root = (
+        pathlib.Path(docs_root_value) if docs_root_value else project_root / "docs"
+    )
     control_root = (
         pathlib.Path(getattr(args, "control_root", None))
         if getattr(args, "control_root", None)
@@ -234,9 +236,10 @@ def build_variables(args: argparse.Namespace) -> dict[str, str]:
         if getattr(args, "audit_output", None)
         else control_root / "audits" / "YYYY-MM-DD-docs-audit.md"
     )
-    package_roots_value = "\n".join(
-        f"- `{path.as_posix()}`" for path in package_roots
-    ) or "- `(describe package roots manually if multiple apply)`"
+    package_roots_value = (
+        "\n".join(f"  - `{path.as_posix()}`" for path in package_roots)
+        or "  - `(describe package roots manually if multiple apply)`"
+    )
 
     return {
         "TEMPLATE_NAME": args.template_name,

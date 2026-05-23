@@ -856,6 +856,8 @@ def _operational_card_from_load_result(
     ready_leaf_count = None
     readiness_deficient_leaf_count = None
     diagnostics: tuple[str, ...] = ()
+    validation_diagnostics: tuple[str, ...] = ()
+    validation_next_action: str | None = None
     inspect_result = _inspect_registered_project(workspace, result.registry_name)
     if inspect_result is not None:
         source_state = _source_state_from_inspect_result(inspect_result)
@@ -895,6 +897,14 @@ def _operational_card_from_load_result(
                 validation_warning_count = _optional_int(
                     validation.get("warning_count")
                 )
+            validation_diagnostics = _validation_diagnostics_from_project_payload(
+                project_payload, validation_status=validation_status
+            )
+            validation_next_action = _validation_next_action_for_card(
+                project_root=project_root,
+                source_state=source_state,
+                validation_status=validation_status,
+            )
             if _project_payload_is_unavailable(project_payload):
                 if source_state in {"unknown", "live"}:
                     source_state = "missing_project"
@@ -952,6 +962,59 @@ def _operational_card_from_load_result(
         adopted_not_implemented_design_count=None,
         capability_gaps=tuple(gaps),
         diagnostics=diagnostics,
+        validation_diagnostics=validation_diagnostics,
+        validation_next_action=validation_next_action,
+    )
+
+
+def _validation_diagnostics_from_project_payload(
+    project_payload: dict[str, object], *, validation_status: str
+) -> tuple[str, ...]:
+    if validation_status != "error":
+        return ()
+    diagnostics = project_payload.get("diagnostics", [])
+    items: list[str] = []
+    validation = project_payload.get("validation", {})
+    if isinstance(validation, dict):
+        error_count = _optional_int(validation.get("error_count"))
+        warning_count = _optional_int(validation.get("warning_count"))
+        if error_count is not None:
+            items.append(f"Validation errors: {error_count}.")
+        if warning_count is not None:
+            items.append(f"Validation warnings: {warning_count}.")
+    if isinstance(diagnostics, list):
+        for diagnostic in diagnostics:
+            if not isinstance(diagnostic, dict):
+                continue
+            if diagnostic.get("severity") != "error":
+                continue
+            items.append(_diagnostic_label(diagnostic))
+            if len(items) >= 5:
+                break
+    if not items:
+        items.append("validation_error_details: not_implemented")
+    return tuple(items)
+
+
+def _validation_next_action_for_card(
+    *,
+    project_root: Path | None,
+    source_state: str,
+    validation_status: str,
+) -> str | None:
+    if validation_status != "error":
+        return None
+    if project_root is not None and source_state in {"live", "missing_project"}:
+        checkout_root = project_root
+        if project_root.name == "project":
+            checkout_root = project_root.parent
+        return (
+            "Run validation from the project checkout: "
+            f"cd {shlex.quote(str(checkout_root))} && lrh validate"
+        )
+    return (
+        "Run validation for this project from its checkout, or inspect the "
+        "project detail page for validation output."
     )
 
 
@@ -1156,6 +1219,8 @@ def _operational_card_payload(project: object) -> dict[str, object]:
             for gap in project.capability_gaps
         ],
         "diagnostics": list(project.diagnostics),
+        "validation_diagnostics": list(project.validation_diagnostics),
+        "validation_next_action": project.validation_next_action,
     }
 
 
@@ -1199,6 +1264,15 @@ def _meta_card_html(card: dict[str, object]) -> str:
     gap_html = _html_list(gap_items)
     diagnostics = card.get("diagnostics", [])
     diagnostic_html = _html_list(diagnostics if isinstance(diagnostics, list) else [])
+    validation_diagnostics = card.get("validation_diagnostics", [])
+    validation_items = (
+        validation_diagnostics if isinstance(validation_diagnostics, list) else []
+    )
+    validation_html = ""
+    if validation_items:
+        validation_html = (
+            f"<h4>Validation diagnostics</h4>{_html_list(validation_items)}"
+        )
     fields = (
         ("Project ID", "project_id"),
         ("Short name", "short_name"),
@@ -1224,8 +1298,21 @@ def _meta_card_html(card: dict[str, object]) -> str:
         f'<h3><a href="{detail_url}">{name}</a></h3>'
         f'<dl class="lrh-summary-grid">{field_html}</dl>'
         f"{setup_guidance}"
+        f"{validation_html}"
+        f"{_meta_card_validation_next_action_html(card)}"
         f"<h4>Capability gaps</h4>{gap_html}"
         f"<h4>Diagnostics</h4>{diagnostic_html}</article>"
+    )
+
+
+def _meta_card_validation_next_action_html(card: dict[str, object]) -> str:
+    next_action = card.get("validation_next_action")
+    if not isinstance(next_action, str):
+        return ""
+    if not next_action.strip():
+        return ""
+    return (
+        "<h4>Validation next action</h4>" f"<p>{html.escape(next_action.strip())}</p>"
     )
 
 

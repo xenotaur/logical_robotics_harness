@@ -691,6 +691,33 @@ class TestLrhServeRoutes(unittest.TestCase):
         )
         self.assertIn("lrh validate", broken_card["validation_next_action"])
 
+    def test_meta_route_error_cards_with_project_dir_dot_use_repo_root_command(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            repo = root / "repos" / "dot-root"
+            _write_viewer_project(repo, duplicate_work_item=True)
+            _write_local_meta_workspace(root)
+            _write_project_record(
+                root,
+                "dot-root",
+                "repos/dot-root",
+                display_name="Dot Root",
+                project_dir=".",
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(base_url + "/api/meta")
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        card = _find_meta_project(payload, "Dot Root")
+        self.assertIn(
+            f"cd {repo} && lrh validate",
+            card["validation_next_action"],
+        )
+
     def test_meta_route_error_card_validation_diagnostics_are_html_escaped(
         self,
     ) -> None:
@@ -722,6 +749,19 @@ Body.
         self.assertIn("Validation diagnostics", body)
         self.assertIn("&amp;&amp; lrh validate", body)
         self.assertNotIn("<h4>Validation diagnostics</h4><p>None.</p>", body)
+
+    def test_meta_route_valid_cards_do_not_render_validation_diagnostics_section(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root / "repos" / "alpha")
+            _write_local_meta_workspace(root)
+            _write_project_record(root, "alpha", "repos/alpha", display_name="Alpha")
+            _httpd, base_url = self._start_server(root)
+            _status, _content_type, body = self._read(base_url + "/meta")
+
+        self.assertNotIn("<h4>Validation diagnostics</h4>", body)
 
     def test_meta_route_derives_review_blocked_stable_and_workstream_lanes(
         self,

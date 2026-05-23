@@ -1005,7 +1005,9 @@ def _validation_next_action_for_card(
     if validation_status != "error":
         return None
     if project_root is not None and source_state in {"live", "missing_project"}:
-        checkout_root = project_root.parent
+        checkout_root = project_root
+        if project_root.name == "project":
+            checkout_root = project_root.parent
         return (
             "Run validation from the project checkout: "
             f"cd {shlex.quote(str(checkout_root))} && lrh validate"
@@ -1263,9 +1265,14 @@ def _meta_card_html(card: dict[str, object]) -> str:
     diagnostics = card.get("diagnostics", [])
     diagnostic_html = _html_list(diagnostics if isinstance(diagnostics, list) else [])
     validation_diagnostics = card.get("validation_diagnostics", [])
-    validation_html = _html_list(
+    validation_items = (
         validation_diagnostics if isinstance(validation_diagnostics, list) else []
     )
+    validation_html = ""
+    if validation_items:
+        validation_html = (
+            f"<h4>Validation diagnostics</h4>{_html_list(validation_items)}"
+        )
     fields = (
         ("Project ID", "project_id"),
         ("Short name", "short_name"),
@@ -1291,7 +1298,7 @@ def _meta_card_html(card: dict[str, object]) -> str:
         f'<h3><a href="{detail_url}">{name}</a></h3>'
         f'<dl class="lrh-summary-grid">{field_html}</dl>'
         f"{setup_guidance}"
-        f"<h4>Validation diagnostics</h4>{validation_html}"
+        f"{validation_html}"
         f"{_meta_card_validation_next_action_html(card)}"
         f"<h4>Capability gaps</h4>{gap_html}"
         f"<h4>Diagnostics</h4>{diagnostic_html}</article>"

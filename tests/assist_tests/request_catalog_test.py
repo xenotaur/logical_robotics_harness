@@ -62,6 +62,7 @@ class TestRequestCatalog(unittest.TestCase):
         self.assertNotIn("review-pr-against-work-item", canonical_names)
         self.assertNotIn("assess-ci-status", canonical_names)
         self.assertNotIn("implement-ci-workflow", canonical_names)
+        self.assertIn("organize-docs", canonical_names)
 
 
 if __name__ == "__main__":

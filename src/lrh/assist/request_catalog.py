@@ -112,6 +112,16 @@ _REQUESTS: tuple[RequestMetadata, ...] = (
         description="Generate an assessment-gated CI workflow implementation request.",
     ),
     RequestMetadata(
+        canonical_name="organize-docs",
+        legacy_names=("organize_docs",),
+        category="documentation",
+        template_name="organize_docs",
+        description=(
+            "Generate a downstream-agent prompt for one scoped documentation "
+            "organization PR."
+        ),
+    ),
+    RequestMetadata(
         canonical_name="audit-docs",
         legacy_names=("audit_docs",),
         category="documentation",

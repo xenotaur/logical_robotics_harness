@@ -51,6 +51,7 @@ General renderer:
 - `--repo-name REPO_NAME`, `--project-goal PROJECT_GOAL`, `--project-type PROJECT_TYPE`, `--bootstrap-mode {minimal,full}`: bootstrap-oriented inputs.
 - `--background-file BACKGROUND_FILE` or `--background-text BACKGROUND_TEXT`: background context inputs. These options are mutually exclusive.
 - `--audit-file AUDIT_FILE`, `--work-item-file WORK_ITEM_FILE`, `--style-file STYLE_FILE`, `--patch-file PATCH_FILE`: file inputs injected into templates that need them.
+- `--phase PHASE`: optional documentation-organization phase hint used by `organize-docs` prompt rendering (for example `scaffold`, `migrate`, `command-docs`, `explanations`, `tutorials`, or `closeout`).
 - `--force`: for `review_response`, emit the full prompt even when no unresolved review threads are found.
 - `--show-vars`: print computed variables to stderr for debugging.
 - `--prompt-id PROMPT_ID`: explicit prompt ID for `codex_prompt_from_work_item`; otherwise one is generated.
@@ -76,3 +77,9 @@ Catalog and template diagnostics:
 
 - [Use request templates](../../how-to/use-request-templates.md)
 - [Validate a project control directory](../../how-to/validate-a-project.md)
+
+
+## organize-docs
+
+`lrh request organize-docs` generates a downstream-agent prompt for one scoped documentation-organization PR. It does not reorganize documentation directly.
+Use `--phase` to include a phase-bounded implementation hint in the generated prompt.

@@ -97,6 +97,15 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         help="Bootstrap scope hint for bootstrap-oriented templates.",
     )
     parser.add_argument(
+        "--phase",
+        help=(
+            "Optional documentation-organization phase selector (for example "
+            "scaffold, migrate, command-docs, explanations, tutorials, "
+            "or closeout)."
+        ),
+    )
+
+    parser.add_argument(
         "--audit-file",
         help="Path to a UTF-8 audit report injected as {{AUDIT_REPORT}}.",
     )

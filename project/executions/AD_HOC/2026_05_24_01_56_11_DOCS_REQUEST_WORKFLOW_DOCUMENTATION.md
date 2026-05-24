@@ -2,9 +2,9 @@
 execution_id: 2026_05_24_01_56_11_DOCS_REQUEST_WORKFLOW_DOCUMENTATION
 prompt_id: PROMPT(AD_HOC:DOCS_REQUEST_WORKFLOW_DOCUMENTATION)[2026-05-22T10:13:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/306
 commit: 7dda77c19c4af163ab16ee0400d0591bdee0fa9a
 created_at: 2026-05-24T01:56:11+00:00
 ---

@@ -19,14 +19,14 @@ lrh request organize_docs \
   --project-root ./lcats \
   --docs-root ./lcats/docs \
   --control-root ./lcats/project \
-  --audit ./lcats/project/audits/YYYY-MM-DD-docs-audit.md \
+  --audit-file ./lcats/project/audits/YYYY-MM-DD-docs-audit.md \
   --out organize-docs.prompt.md
 ```
 
 ## Expected output
 
 - A Markdown implementation prompt scoped to docs-organization work.
-- If `--audit` is provided, the audit content is injected into the prompt context.
+- If `--audit-file` is provided, the audit content is injected into the prompt context.
 - No documentation files are modified by this command itself.
 
 ## Related guides

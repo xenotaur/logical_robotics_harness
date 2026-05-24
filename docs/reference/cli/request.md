@@ -86,9 +86,13 @@ Use `--phase` to include a phase-bounded implementation hint in the generated pr
 
 ## Documentation request workflows
 
-Use template names with underscores:
+Use canonical request names from `lrh request list` (hyphenated), with underscore aliases accepted for compatibility:
 
 ```bash
+lrh request audit-docs [options]
+lrh request organize-docs [options]
+
+# Compatibility aliases
 lrh request audit_docs [options]
 lrh request organize_docs [options]
 ```

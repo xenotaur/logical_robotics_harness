@@ -24,7 +24,7 @@ Add content here when the reader already knows which command they need and wants
 - [`validate`](validate.md) — validate LRH project control files.
 - [`snapshot`](snapshot.md) — generate Markdown context packets from project control files.
 - [`survey`](survey.md) — survey Python source trees for assist planning workflows.
-- [`request`](request.md) — render request prompts and inspect request-template resolution.
+- [`request`](request.md) — render request prompts and inspect request-template resolution, including `audit_docs` and `organize_docs`.
 - [`conversation`](conversation.md) — convert local conversation artifacts such as ChatGPT PDF exports.
 - [`serve`](serve.md) — start the safe-default local read-only server skeleton.
 - [`work-items`](work-items.md) — validate, audit, and diagnose prompt-readiness for work-item files.

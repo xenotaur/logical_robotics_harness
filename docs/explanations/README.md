@@ -28,6 +28,7 @@ Add content here when the reader is asking “why?”, “what does this mean?�
 - [Evidence-backed status](evidence-backed-status.md) — why LRH status should be grounded in durable proof.
 - [Repository state versus runtime state](repository-state-vs-runtime-state.md) — how committed project state differs from derived runtime objects and local tool state.
 - [Prompt-driven workflow](prompt-driven-workflow.md) — how prompt IDs and execution records support traceability.
+- [Docs audit workflow](docs-audit-workflow.md) — why LRH splits documentation diagnosis and intervention into two request prompts.
 - [Why work-item validation, audit, readiness, and prompting are separate](work-item-lifecycle-boundaries.md) — explains the lifecycle boundaries that keep planning, execution, and evidence closeout distinct.
 - [Workspace and meta model](workspace-and-meta-model.md) — how workspace catalogs coordinate multiple LRH-compatible repositories without replacing project-local authority.
 

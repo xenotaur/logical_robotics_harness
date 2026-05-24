@@ -83,3 +83,96 @@ Catalog and template diagnostics:
 
 `lrh request organize-docs` generates a downstream-agent prompt for one scoped documentation-organization PR. It does not reorganize documentation directly.
 Use `--phase` to include a phase-bounded implementation hint in the generated prompt.
+
+## Documentation request workflows
+
+Use canonical request names from `lrh request list` (hyphenated), with underscore aliases accepted for compatibility:
+
+```bash
+lrh request audit-docs [options]
+lrh request organize-docs [options]
+
+# Compatibility aliases
+lrh request audit_docs [options]
+lrh request organize_docs [options]
+```
+
+These are request renderers, not mutating documentation commands. They generate Markdown prompts to stdout unless `--out` is provided.
+
+### Purpose
+
+- `audit_docs`: generate a docs-audit prompt that asks a downstream assistant to assess documentation structure and quality.
+- `organize_docs`: generate a scoped docs-organization prompt, typically informed by an audit artifact.
+
+### Supported options for docs workflows
+
+- `--repo-root REPO_ROOT`: repository checkout root.
+- `--project-root PROJECT_ROOT`: effective product root; defaults to `--repo-root` when omitted.
+- `--docs-root DOCS_ROOT`: human-facing docs root; defaults to `<project-root>/docs`.
+- `--control-root CONTROL_ROOT`: control-plane root; defaults to `<project-root>/project`.
+- `--package-root PACKAGE_ROOT`: package/code root; may be repeated.
+- `--target-agent TARGET_AGENT`: assistant-target phrasing; defaults to `Codex Cloud`.
+- `--audit-output AUDIT_OUTPUT`: suggested audit artifact path; defaults to `<control-root>/audits/YYYY-MM-DD-docs-audit.md`.
+- `--phase PHASE`: optional docs-organization phase hint (for example `scaffold`, `migrate`, `command-docs`, `explanations`, `tutorials`, `closeout`).
+- `--audit-file AUDIT_FILE`: path to a UTF-8 audit file injected into prompt context (commonly used with `organize_docs`).
+- `--out OUT`: write generated prompt Markdown to a file instead of stdout.
+
+### `--audit` versus implemented option names
+
+Current CLI behavior supports `--audit-file` (documented in help output). Some planning documents and examples may use `--audit` as shorthand intent, but the implemented option is `--audit-file`.
+
+For `organize_docs`, audit context is strongly recommended for best results, but not technically required by the parser.
+
+### Output behavior
+
+- Exit `0` on successful render.
+- Print prompt Markdown to stdout by default.
+- When `--out` is provided, write the prompt file and still avoid repository doc mutations.
+
+### Known limitations
+
+- `audit_docs` and `organize_docs` do not execute doc edits; they only generate prompts.
+- No automatic audit-file existence enforcement occurs at CLI parse time beyond normal file-read behavior when file content is requested.
+- `python -m lrh.cli.main request audit_docs --help` and similar forms display top-level `lrh request` help text rather than per-template subcommand help.
+
+### Examples
+
+Standard layout:
+
+```bash
+lrh request audit_docs \
+  --repo-root . \
+  --project-root . \
+  --docs-root docs \
+  --control-root project \
+  --out audit-docs.prompt.md
+```
+
+Nested LCATS-style layout:
+
+```bash
+lrh request audit_docs \
+  --repo-root . \
+  --project-root ./lcats \
+  --docs-root ./lcats/docs \
+  --control-root ./lcats/project \
+  --package-root ./lcats/lcats \
+  --out audit-docs.prompt.md
+```
+
+Organization prompt using an audit artifact (`--audit-file`):
+
+```bash
+lrh request organize_docs \
+  --repo-root . \
+  --project-root ./lcats \
+  --docs-root ./lcats/docs \
+  --control-root ./lcats/project \
+  --audit-file ./lcats/project/audits/YYYY-MM-DD-docs-audit.md \
+  --out organize-docs.prompt.md
+```
+
+### Related how-to pages
+
+- [Audit project docs request prompts](../../how-to/audit-project-docs.md)
+- [Organize project docs request prompts](../../how-to/organize-project-docs.md)

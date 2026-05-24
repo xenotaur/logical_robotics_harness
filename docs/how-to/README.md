@@ -26,6 +26,8 @@ Add content here when the title can naturally start with “How to ...” and th
 - [Generate a context snapshot](generate-a-snapshot.md) — render current `lrh snapshot` context packets.
 - [Survey a source tree](survey-a-source-tree.md) — inventory a Python source tree with `lrh survey`.
 - [Use request templates](use-request-templates.md) — discover and render current `lrh request` prompts and template diagnostics.
+- [Audit project docs request prompts](audit-project-docs.md) — generate a docs-audit prompt for standard and nested project layouts.
+- [Organize project docs request prompts](organize-project-docs.md) — generate a scoped docs-organization prompt from audit context.
 - [Manage the work-item lifecycle](manage-work-item-lifecycle.md) — audit, ready, prompt, execute, and evidence-close work items conservatively.
 - [Register a project with an LRH meta workspace](register-a-project-with-meta.md) — initialize meta state and register project records.
 - [Inspect workspace state](inspect-workspace-state.md) — inspect active meta workspace paths and registered projects.

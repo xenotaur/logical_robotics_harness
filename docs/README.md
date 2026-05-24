@@ -22,6 +22,8 @@ Use [Documentation structure](reference/documentation-structure.md) when decidin
 - [Generate a context snapshot](how-to/generate-a-snapshot.md) — render current `lrh snapshot` context packets.
 - [Survey a source tree](how-to/survey-a-source-tree.md) — inventory a Python source tree with `lrh survey`.
 - [Use request templates](how-to/use-request-templates.md) — discover and render current `lrh request` prompts and template diagnostics.
+- [Audit project docs request prompts](how-to/audit-project-docs.md) — generate docs-audit prompts for standard and nested layouts.
+- [Organize project docs request prompts](how-to/organize-project-docs.md) — generate docs-organization prompts from audit artifacts.
 - [Manage the work-item lifecycle](how-to/manage-work-item-lifecycle.md) — audit, ready, prompt, execute, and evidence-close work items conservatively.
 - [Register a project with an LRH meta workspace](how-to/register-a-project-with-meta.md) — initialize meta state and register project records.
 - [Inspect workspace state](how-to/inspect-workspace-state.md) — inspect active meta workspace paths and registered projects.

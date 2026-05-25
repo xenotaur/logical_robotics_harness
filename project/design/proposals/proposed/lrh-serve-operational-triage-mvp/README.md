@@ -35,3 +35,11 @@ If adopted later, this proposal would likely inform future updates to:
 - `project/design/meta_control_plane_mvp_spec.md`
 - `project/design/workstream_schema_mvp.md`
 - future `lrh serve` route/view-model implementation documentation
+
+
+## Companion semantics refinement
+
+- [`../meta-operational-triage-semantics/00_proposal.md`](../meta-operational-triage-semantics/00_proposal.md)
+  — proposed meta triage semantics companion that refines lane definitions,
+  evidence requirements, and suggested-action expectations for follow-on
+  dashboard iterations.

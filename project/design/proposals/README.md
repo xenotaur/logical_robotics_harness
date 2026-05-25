@@ -81,6 +81,15 @@ for `lrh serve` dashboards and LRH Console views, with UX review criteria and a 
 acceptance criteria. Status: `proposed` / `not_started` (documentation-only direction; no UI, CSS,
 server-route, frontend-framework, or safe-default MVP scope changes).
 
+
+[`proposed/meta-operational-triage-semantics/`](proposed/meta-operational-triage-semantics/)
+— Companion semantics proposal for the LRH meta operational triage dashboard,
+defining action-oriented lane meaning, deterministic precedence, evidence-backed
+classification, suggested-action contracts, lifecycle-vs-lane separation, and
+target vocabulary migration from current field names. Status: `proposed` /
+`not_started` (documentation/control-plane only; no dashboard runtime
+implementation in the proposal PR).
+
 [`proposed/lrh-serve-operational-triage-mvp/`](proposed/lrh-serve-operational-triage-mvp/)
 — Proposes a safe-default, read-only/meta-aware `lrh serve` operational triage dashboard and
 prompt workbench for registered projects, deterministic swimlanes, project/design/workstream/work-item

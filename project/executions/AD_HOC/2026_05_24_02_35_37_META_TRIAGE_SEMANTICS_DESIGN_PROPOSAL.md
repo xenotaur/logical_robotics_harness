@@ -4,8 +4,8 @@ prompt_id: PROMPT(AD_HOC:META_TRIAGE_SEMANTICS_DESIGN_PROPOSAL)[2026-05-23T15:00
 work_item: AD_HOC
 status: in_progress
 rerun_of:
-pr:
-commit: 4b102e5
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/308
+commit: fee2a2c
 created_at: 2026-05-24T02:35:37+00:00
 ---
 

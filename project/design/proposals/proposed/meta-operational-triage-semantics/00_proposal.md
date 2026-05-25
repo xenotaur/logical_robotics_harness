@@ -117,6 +117,8 @@ validation_status -> control_plane_validation.status
 lane -> triage_lane
 ```
 
+Canonical lane encoding: internal lane values use lowercase snake_case (for example `needs_attention`), while UI labels use Title Case (for example `Needs Attention`).
+
 Recommended UI labels:
 
 ```text
@@ -337,7 +339,7 @@ classification must expose evidence and the next useful action where possible.
 project_issue:
   Something is wrong in the registered project or control plane.
 
-lrh_capability_gap:
+capability_gap:
   LRH cannot yet derive or expose a useful fact.
 
 dashboard_bug:
@@ -350,7 +352,7 @@ operator_warning:
 Examples:
 
 - `project_issue`: broken work-item reference; missing required frontmatter.
-- `lrh_capability_gap`: adopted-design implementation count not yet exposed.
+- `capability_gap`: adopted-design implementation count not yet exposed.
 - `dashboard_bug`: card says source access live and also says source access
   capability is not implemented.
 - `operator_warning`: active focus exists but no executable leaves are exposed.

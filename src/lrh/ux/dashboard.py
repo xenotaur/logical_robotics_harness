@@ -31,7 +31,7 @@ _OPERATIONAL_STATUS_LABELS = {
     OperationalStatus.NEEDS_ATTENTION: "Needs Attention",
     OperationalStatus.ACTIVE_WORK: "Active Work",
     OperationalStatus.AWAITING_REVIEW: "Awaiting Review",
-    OperationalStatus.STABLE: "Stable",
+    OperationalStatus.STABLE: "Stable / No Action Needed",
     OperationalStatus.BLOCKED: "Blocked",
     OperationalStatus.UNKNOWN: "Unknown",
 }

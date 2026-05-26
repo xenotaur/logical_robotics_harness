@@ -552,7 +552,7 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "Needs Attention",
                 "Active Work",
                 "Awaiting Review",
-                "Stable",
+                "Stable / No Action Needed",
                 "Blocked",
                 "Unknown",
             ],
@@ -883,9 +883,16 @@ Body.
             status, _content_type, body = self._read(base_url + "/meta")
 
         self.assertEqual(status, 200)
+        self.assertIn("Project source access", body)
+        self.assertIn("Control-plane validation", body)
+        self.assertIn("LRH capability gaps", body)
+        self.assertIn("Other diagnostics", body)
+        self.assertNotIn("Source state", body)
+        self.assertNotIn("Validation status", body)
         self.assertIn("Next useful action", body)
-        self.assertIn("Diagnostics", body)
-        self.assertLess(body.index("Next useful action"), body.index("Diagnostics"))
+        self.assertLess(
+            body.index("Next useful action"), body.index("Other diagnostics")
+        )
 
     def test_meta_route_remote_only_setup_guidance_shell_quotes_registry_name(
         self,

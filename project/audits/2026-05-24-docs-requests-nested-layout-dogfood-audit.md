@@ -60,6 +60,12 @@ Both request templates rendered successfully with nested roots and produced boun
 2. Add a regression test that asserts nested-root `organize_docs` invocation with `--audit-file` works and that `--audit` ambiguity is either intentionally preserved or intentionally resolved.
 3. Consider harmonizing option names so `organize_docs` input and `audit_docs` output are less confusable (`--audit-file` vs `--audit-output`).
 
+# Follow-up triage (PR 6 planning)
+
+1. **Small enough for immediate follow-up PR**: add explicit `--audit` alias to `--audit-file`, add regression coverage proving `organize_docs` accepts the alias in nested-root usage, and refresh user docs to show the shorthand.
+2. **Broader follow-up work item**: option-name harmonization (`--audit-file` vs `--audit-output`) remains a larger naming/compatibility discussion and should stay separate from this focused pass.
+3. **No longer relevant**: preserving `--audit` ambiguity as expected behavior is superseded once the explicit alias ships.
+
 # Evidence artifacts
 
 - Generated prompt: `/tmp/lcats_fixture/audit-docs.prompt.md`

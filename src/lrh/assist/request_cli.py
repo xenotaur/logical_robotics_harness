@@ -107,6 +107,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
 
     parser.add_argument(
         "--audit-file",
+        "--audit",
         help="Path to a UTF-8 audit report injected as {{AUDIT_REPORT}}.",
     )
     parser.add_argument(

@@ -107,7 +107,6 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
 
     parser.add_argument(
         "--audit-file",
-        "--audit",
         help="Path to a UTF-8 audit report injected as {{AUDIT_REPORT}}.",
     )
     parser.add_argument(
@@ -736,6 +735,9 @@ def run_request_cli(
             argv[1:],
             prog=f"{prog} templates",
         )
+
+    if argv and argv[0] in {"organize-docs", "organize_docs"}:
+        argv = ["--audit-file" if arg == "--audit" else arg for arg in argv]
 
     if argv and argv[0] == "ready-work-item":
         command_parser = build_ready_work_item_parser(prog=f"{prog} {argv[0]}")

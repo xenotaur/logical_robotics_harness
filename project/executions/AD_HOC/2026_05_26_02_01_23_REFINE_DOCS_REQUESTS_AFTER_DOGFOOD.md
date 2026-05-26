@@ -2,10 +2,10 @@
 execution_id: 2026_05_26_02_01_23_REFINE_DOCS_REQUESTS_AFTER_DOGFOOD
 prompt_id: PROMPT(AD_HOC:REFINE_DOCS_REQUESTS_AFTER_DOGFOOD)[2026-05-22T10:15:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
-commit: 
+commit: 7187e081c133c20529f60b376ff07a5ebfae7a7e
 created_at: 2026-05-26T02:01:23+00:00
 ---
 

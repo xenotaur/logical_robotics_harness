@@ -438,6 +438,12 @@ class TestLrhRequestCli(unittest.TestCase):
             self.assertIn("read the docs audit artifact first", rendered)
             self.assertIn("2026-05-24-docs.md", rendered)
 
+    def test_lrh_request_audit_docs_audit_shorthand_is_rejected(self) -> None:
+        result = self._run_lrh(["request", "audit-docs", "--audit", "audit.md"])
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("ambiguous option: --audit", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

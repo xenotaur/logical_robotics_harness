@@ -535,6 +535,7 @@ lrh request bootstrap-project \
 **Purpose**: Generate a downstream-agent prompt for repository documentation audits.
 This command renders a request artifact only; it does not reorganize docs directly.
 - optional `--background-file` or `--background-text`
+- use `--audit-output` (not `--audit`) to set the suggested audit artifact path
 
 Example:
 

@@ -535,16 +535,42 @@ lrh request bootstrap-project \
 **Purpose**: Generate a downstream-agent prompt for repository documentation audits.
 This command renders a request artifact only; it does not reorganize docs directly.
 - optional `--background-file` or `--background-text`
+- use `--audit-output` (not `--audit`) to set the suggested audit artifact path
 
 Example:
 
 ```bash
-lrh request work-items-from-audit \
-  --audit-file audits/style_audit_2026_04_10.md \
-  --style-file STYLE.md
+lrh request audit-docs \
+  --repo-root . \
+  --project-root ./lcats \
+  --docs-root ./lcats/docs \
+  --control-root ./lcats/project \
+  --package-root ./lcats/lcats \
+  --audit-output ./lcats/project/audits/2026-05-23-docs-audit.md
 ```
 
-### 4) `prompt-from-work-item`
+### 5) `organize-docs`
+
+**Purpose**: Generate a downstream-agent prompt for one scoped docs-organization phase.
+
+**Inputs**:
+
+- request name: `organize-docs` (legacy: `organize_docs`)
+- optional `--audit-file` (alias: `--audit`) for an audit artifact path
+- optional phase/roots via `--phase`, `--repo-root`, `--project-root`, `--docs-root`, `--control-root`
+
+Example:
+
+```bash
+lrh request organize-docs \
+  --repo-root . \
+  --project-root ./lcats \
+  --docs-root ./lcats/docs \
+  --control-root ./lcats/project \
+  --audit ./lcats/project/audits/2026-05-24-docs-audit.md \
+  --phase tutorials
+```
+### 6) `prompt-from-work-item`
 
 **Purpose**: Render an implementation prompt request for one approved work item.
 

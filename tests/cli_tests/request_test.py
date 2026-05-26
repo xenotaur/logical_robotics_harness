@@ -399,6 +399,51 @@ class TestLrhRequestCli(unittest.TestCase):
             self.assertIn("  - `lcats/lcats`", rendered)
             self.assertIn("  - `lcats/plugins`", rendered)
 
+    def test_lrh_request_organize_docs_accepts_audit_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            audit_path = root / "lcats" / "project" / "audits" / "2026-05-24-docs.md"
+            audit_path.parent.mkdir(parents=True, exist_ok=True)
+            audit_path.write_text("# Audit\n", encoding="utf-8")
+            out_file = root / "artifacts" / "organize-docs.prompt.md"
+            result = subprocess.run(
+                [
+                    "lrh",
+                    "request",
+                    "organize-docs",
+                    "--repo-root",
+                    ".",
+                    "--project-root",
+                    "./lcats",
+                    "--docs-root",
+                    "./lcats/docs",
+                    "--control-root",
+                    "./lcats/project",
+                    "--audit",
+                    str(audit_path),
+                    "--out",
+                    str(out_file),
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                cwd=temp_dir,
+            )
+
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stdout, "")
+            self.assertEqual(result.stderr, "")
+            self.assertTrue(out_file.is_file())
+            rendered = out_file.read_text(encoding="utf-8")
+            self.assertIn("read the docs audit artifact first", rendered)
+            self.assertIn("2026-05-24-docs.md", rendered)
+
+    def test_lrh_request_audit_docs_audit_shorthand_is_rejected(self) -> None:
+        result = self._run_lrh(["request", "audit-docs", "--audit", "audit.md"])
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stdout, "")
+        self.assertIn("ambiguous option: --audit", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -736,6 +736,9 @@ def run_request_cli(
             prog=f"{prog} templates",
         )
 
+    if argv and argv[0] in {"organize-docs", "organize_docs"}:
+        argv = ["--audit-file" if arg == "--audit" else arg for arg in argv]
+
     if argv and argv[0] == "ready-work-item":
         command_parser = build_ready_work_item_parser(prog=f"{prog} {argv[0]}")
         try:

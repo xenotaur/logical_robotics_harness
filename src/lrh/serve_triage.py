@@ -53,7 +53,7 @@ LANE_LABELS: Mapping[LaneId, str] = {
     "ready_for_prompted_work": "Ready for Prompted Work",
     "active_in_progress": "Active / In Progress",
     "paused_blocked": "Paused / Blocked",
-    "stable_complete": "Stable / Complete",
+    "stable_complete": "Stable / No Action Needed",
     "unknown_unavailable": "Unknown / Unavailable",
 }
 

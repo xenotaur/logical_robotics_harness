@@ -30,7 +30,7 @@ class OperationalStatusTest(unittest.TestCase):
         )
         self.assertEqual(
             dashboard.status_label(dashboard.OperationalStatus.STABLE),
-            "Stable",
+            "Stable / No Action Needed",
         )
         self.assertEqual(
             dashboard.status_label(dashboard.OperationalStatus.BLOCKED),

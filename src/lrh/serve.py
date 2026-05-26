@@ -1277,8 +1277,8 @@ def _meta_card_html(card: dict[str, object]) -> str:
         ("Project ID", "project_id"),
         ("Short name", "short_name"),
         ("Locator", "locator"),
-        ("Source state", "source_state"),
-        ("Validation status", "validation_status"),
+        ("Project source access", "source_state"),
+        ("Control-plane validation", "validation_status"),
         ("Current focus", "current_focus_summary"),
         ("Active workstreams", "active_workstream_count"),
         ("Active work items", "active_work_item_count"),
@@ -1300,8 +1300,8 @@ def _meta_card_html(card: dict[str, object]) -> str:
         f"{setup_guidance}"
         f"{validation_html}"
         f"{_meta_card_validation_next_action_html(card)}"
-        f"<h4>Capability gaps</h4>{gap_html}"
-        f"<h4>Diagnostics</h4>{diagnostic_html}</article>"
+        f"<h4>LRH capability gaps</h4>{gap_html}"
+        f"<h4>Other diagnostics</h4>{diagnostic_html}</article>"
     )
 
 

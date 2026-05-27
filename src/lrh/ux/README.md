@@ -7,6 +7,7 @@ The initial dashboard support is grounded in the proposed LRH Console visual lan
 - an operational dashboard status vocabulary distinct from work-item lifecycle status;
 - deterministic status badges and lane ordering;
 - typed meta-dashboard, lane, project, validation, evidence, capability-gap, and operational-card view models;
+- semantic meta-dashboard operational-card fields (for example `project_source_access`, `control_plane_validation`, `triage_lane`, and `lrh_capability_gaps`) with legacy aliases retained during migration;
 - meta-project operational cards that carry actionable validation diagnostics and next-action guidance when validation status is `error`;
 - conservative status derivation helpers that return `unknown` when available data is insufficient.
 

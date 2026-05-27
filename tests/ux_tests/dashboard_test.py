@@ -203,6 +203,36 @@ class MetaDashboardViewTest(unittest.TestCase):
         self.assertEqual(review.status, dashboard.OperationalStatus.AWAITING_REVIEW)
         self.assertEqual(stable.status, dashboard.OperationalStatus.STABLE)
 
+    def test_project_operational_card_semantic_fields_match_legacy_aliases(
+        self,
+    ) -> None:
+        card = dashboard.project_operational_card_from_record(
+            _record("semantic"),
+            source_state="live",
+            validation_status="error",
+            validation_error_count=2,
+            validation_warning_count=1,
+            capability_gaps=(
+                dashboard.CapabilityGapView(
+                    field="source_state",
+                    state="unknown",
+                    message="Source state is unknown.",
+                ),
+            ),
+            diagnostics=("example diagnostic",),
+            validation_diagnostics=("missing metadata",),
+            validation_next_action="Run: lrh validate",
+        )
+
+        self.assertEqual(card.project_source_access, card.source_state)
+        self.assertEqual(
+            card.control_plane_validation["status"],
+            card.validation_status,
+        )
+        self.assertEqual(card.triage_lane, card.lane)
+        self.assertEqual(card.lrh_capability_gaps, card.capability_gaps)
+        self.assertEqual(card.other_diagnostics, card.diagnostics)
+
 
 class EvidenceSummaryViewTest(unittest.TestCase):
     def test_unknown_and_unavailable_evidence_are_explicit(self) -> None:

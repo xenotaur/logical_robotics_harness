@@ -1200,10 +1200,14 @@ def _operational_card_payload(project: object) -> dict[str, object]:
         "registry_name": project.registry_name,
         "short_name": project.short_name,
         "locator": project.locator,
+        "project_source_access": project.project_source_access,
         "source_state": project.source_state,
+        "control_plane_validation": project.control_plane_validation,
         "validation_status": project.validation_status,
         "validation_error_count": project.validation_error_count,
         "validation_warning_count": project.validation_warning_count,
+        "triage_lane": project.triage_lane,
+        "lane": project.lane,
         "status": project.status.value,
         "current_focus_summary": project.current_focus_summary,
         "active_workstream_count": project.active_workstream_count,
@@ -1214,10 +1218,17 @@ def _operational_card_payload(project: object) -> dict[str, object]:
             project.adopted_not_implemented_design_count
         ),
         "detail_url": project.detail_url,
+        "lrh_capability_gaps": [
+            {"field": gap.field, "state": gap.state, "message": gap.message}
+            for gap in project.lrh_capability_gaps
+        ],
         "capability_gaps": [
             {"field": gap.field, "state": gap.state, "message": gap.message}
             for gap in project.capability_gaps
         ],
+        "project_issues": [],
+        "operator_warnings": [],
+        "other_diagnostics": list(project.other_diagnostics),
         "diagnostics": list(project.diagnostics),
         "validation_diagnostics": list(project.validation_diagnostics),
         "validation_next_action": project.validation_next_action,

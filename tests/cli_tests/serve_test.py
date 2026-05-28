@@ -564,12 +564,25 @@ class TestLrhServeRoutes(unittest.TestCase):
             ["Alpha", "Beta"],
         )
         first_card = active_lane["projects"][0]
+        self.assertEqual(first_card["project_source_access"], "live")
         self.assertEqual(first_card["source_state"], "live")
+        self.assertEqual(
+            first_card["validation_status"],
+            first_card["control_plane_validation"]["status"],
+        )
         self.assertEqual(first_card["validation_status"], "valid")
+        self.assertEqual(first_card["triage_lane"], first_card["lane"])
+        self.assertEqual(first_card["triage_lane"], "active_work")
         self.assertEqual(first_card["active_work_item_count"], 2)
         self.assertEqual(first_card["ready_leaf_count"], 1)
         self.assertEqual(first_card["readiness_deficient_leaf_count"], 1)
         self.assertEqual(first_card["detail_url"], "/project/alpha")
+        self.assertEqual(
+            first_card["lrh_capability_gaps"], first_card["capability_gaps"]
+        )
+        self.assertEqual(first_card["project_issues"], [])
+        self.assertEqual(first_card["operator_warnings"], [])
+        self.assertEqual(first_card["other_diagnostics"], first_card["diagnostics"])
         self.assertTrue(first_card["capability_gaps"])
         self.assertFalse(
             any(

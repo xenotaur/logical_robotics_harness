@@ -209,6 +209,36 @@ class ProjectOperationalCard:
     validation_diagnostics: tuple[str, ...] = ()
     validation_next_action: str | None = None
 
+    @property
+    def project_source_access(self) -> str:
+        return self.source_state
+
+    @property
+    def control_plane_validation(self) -> dict[str, object]:
+        return {
+            "status": self.validation_status,
+            "error_count": self.validation_error_count,
+            "warning_count": self.validation_warning_count,
+            "top_messages": list(self.validation_diagnostics),
+            "repro_command": self.validation_next_action,
+        }
+
+    @property
+    def triage_lane(self) -> str:
+        return self.status.value
+
+    @property
+    def lane(self) -> str:
+        return self.triage_lane
+
+    @property
+    def lrh_capability_gaps(self) -> tuple[CapabilityGapView, ...]:
+        return self.capability_gaps
+
+    @property
+    def other_diagnostics(self) -> tuple[str, ...]:
+        return self.diagnostics
+
 
 @dataclass(frozen=True)
 class OperationalLaneView:

@@ -1,0 +1,281 @@
+#!/usr/bin/env python3
+"""Audit ChatGPT/PDF conversion behavior against a local PDF dataset."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import importlib.util
+import json
+import os
+import pathlib
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+from typing import Any
+
+TARGET_SHA256 = "e22bb22f25edd544762d5013fe468e3ba53ee74b489e1808fa2d72d24957fd17"
+RESULT_CATEGORIES = [
+    "PASS",
+    "FAIL-BUG",
+    "FAIL-DIAGNOSTICS",
+    "UNSUPPORTED-EXPECTED",
+    "SKIPPED-NO-BACKEND",
+    "ERROR-AUDIT",
+]
+
+
+def _default_dataset_root() -> pathlib.Path:
+    return pathlib.Path.home() / "Workspace/LogicalRoboticsHarness/Datasets/ChatSessions"
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--dataset-root", type=pathlib.Path, default=_default_dataset_root())
+    parser.add_argument("--out", type=pathlib.Path, default=pathlib.Path("tmp/chatgpt-pdf-audit"))
+    return parser.parse_args()
+
+
+def sha256_file(path: pathlib.Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        while chunk := fh.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def run_command(command: list[str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(command, text=True, capture_output=True, check=False)
+
+
+def detect_libraries() -> dict[str, bool]:
+    libs = {"pypdf": False, "fitz": False, "pdfplumber": False}
+    for lib in libs:
+        libs[lib] = importlib.util.find_spec(lib) is not None
+    return libs
+
+
+def probe_pdf_text(path: pathlib.Path, libraries: dict[str, bool]) -> dict[str, Any]:
+    status: dict[str, Any] = {
+        "probe_backend": None,
+        "independent_probe_status": "backend-missing",
+        "independent_probe_page_count": None,
+        "independent_probe_text_chars_sampled": None,
+        "independent_probe_text_found": False,
+        "probe_error": None,
+    }
+
+    try:
+        if libraries.get("pypdf"):
+            from pypdf import PdfReader  # type: ignore
+
+            status["probe_backend"] = "pypdf"
+            reader = PdfReader(str(path))
+            if getattr(reader, "is_encrypted", False):
+                status["independent_probe_status"] = "encrypted"
+                return status
+            sample = "".join((page.extract_text() or "") for page in reader.pages[:5])
+            status["independent_probe_page_count"] = len(reader.pages)
+            status["independent_probe_text_chars_sampled"] = len(sample)
+            status["independent_probe_text_found"] = bool(sample.strip())
+            status["independent_probe_status"] = (
+                "text-found" if sample.strip() else "no-text-sampled"
+            )
+            return status
+        if libraries.get("fitz"):
+            import fitz  # type: ignore
+
+            status["probe_backend"] = "fitz"
+            with fitz.open(path) as doc:
+                if doc.is_encrypted:
+                    status["independent_probe_status"] = "encrypted"
+                    return status
+                parts: list[str] = []
+                page_count = len(doc)
+                for page in doc[:5]:
+                    parts.append(page.get_text("text") or "")
+                sample = "".join(parts)
+                status["independent_probe_page_count"] = page_count
+                status["independent_probe_text_chars_sampled"] = len(sample)
+                status["independent_probe_text_found"] = bool(sample.strip())
+                status["independent_probe_status"] = (
+                    "text-found" if sample.strip() else "no-text-sampled"
+                )
+                return status
+        if libraries.get("pdfplumber"):
+            import pdfplumber  # type: ignore
+
+            status["probe_backend"] = "pdfplumber"
+            with pdfplumber.open(path) as pdf:
+                parts = []
+                pages = pdf.pages[:5]
+                for page in pages:
+                    parts.append(page.extract_text() or "")
+                sample = "".join(parts)
+                status["independent_probe_page_count"] = len(pdf.pages)
+                status["independent_probe_text_chars_sampled"] = len(sample)
+                status["independent_probe_text_found"] = bool(sample.strip())
+                status["independent_probe_status"] = (
+                    "text-found" if sample.strip() else "no-text-sampled"
+                )
+                return status
+    except Exception as exc:  # pragma: no cover - diagnostic path
+        status["independent_probe_status"] = "unreadable"
+        status["probe_error"] = f"{type(exc).__name__}: {exc}"
+        return status
+
+    return status
+
+
+def markdown_smoke_checks(markdown_path: pathlib.Path) -> tuple[str, str]:
+    text = markdown_path.read_text(encoding="utf-8")
+    required = [
+        "kind: lrh_conversation_transcript",
+        "source_format: pdf",
+        "source_tool: chatgpt",
+        "source_adapter: chatgpt_pdf",
+        "privacy: private",
+        "authority: non_authoritative_context",
+        "sensitivity:",
+        "source_file_sha256:",
+        "page_count:",
+    ]
+    missing = [item for item in required if item not in text]
+    footer_bad = "pdfcrowd.com" in text.lower()
+    page_counter_bad = bool(re.search(r"^\d+/\d+$", text, flags=re.MULTILINE))
+    metadata_ok = "ok" if not missing else f"missing:{','.join(missing)}"
+    cleanup_ok = "ok" if not footer_bad and not page_counter_bad else "failed"
+    return metadata_ok, cleanup_ok
+
+
+def classify(result: dict[str, Any]) -> str:
+    probe_status = result["independent_probe_status"]
+    has_text = result.get("independent_probe_text_found", False)
+    exit_code = result["lrh_convert_exit_code"]
+    stderr = result["lrh_convert_stderr"].lower()
+    if exit_code == 0:
+        if result.get("metadata_check_status") == "ok" and result.get("cleanup_check_status") == "ok":
+            return "PASS"
+        return "FAIL-DIAGNOSTICS"
+    if probe_status == "backend-missing":
+        return "SKIPPED-NO-BACKEND"
+    if has_text:
+        if "extractable text layer" in stderr or "backend" in stderr or "dependency" in stderr:
+            return "FAIL-DIAGNOSTICS"
+        return "FAIL-BUG"
+    if probe_status in {"encrypted", "no-text-sampled", "unreadable"}:
+        return "UNSUPPORTED-EXPECTED"
+    return "ERROR-AUDIT"
+
+
+def main() -> int:
+    args = parse_args()
+    dataset_root = args.dataset_root.expanduser().resolve()
+    out_root = args.out.expanduser().resolve()
+
+    if not dataset_root.exists():
+        print(f"dataset root not found: {dataset_root}", file=sys.stderr)
+        return 2
+
+    out_root.mkdir(parents=True, exist_ok=True)
+    logs_dir = out_root / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
+
+    libraries = detect_libraries()
+    file_exe = shutil.which("file")
+
+    results: list[dict[str, Any]] = []
+    pdf_paths = sorted(dataset_root.glob("*.pdf"))
+
+    for pdf_path in pdf_paths:
+        result: dict[str, Any] = {
+            "filename": str(pdf_path.name),
+            "size_bytes": pdf_path.stat().st_size,
+            "sha256": sha256_file(pdf_path),
+            "file_output": None,
+            "library_availability": libraries,
+            "lrh_convert_exit_code": None,
+            "lrh_convert_stdout": "",
+            "lrh_convert_stderr": "",
+            "markdown_output_path": None,
+            "metadata_check_status": None,
+            "cleanup_check_status": None,
+            "notes": [],
+        }
+        if result["sha256"] == TARGET_SHA256:
+            result["notes"].append("matches_target_sha256")
+
+        if file_exe:
+            file_run = run_command([file_exe, str(pdf_path)])
+            result["file_output"] = (file_run.stdout or file_run.stderr).strip()
+
+        result.update(probe_pdf_text(pdf_path, libraries))
+
+        with tempfile.TemporaryDirectory(prefix="lrh-convert-pdf-") as tmpdir:
+            markdown_path = pathlib.Path(tmpdir) / f"{pdf_path.stem}.md"
+            convert_run = run_command(
+                ["lrh", "conversation", "convert-pdf", str(pdf_path), "--out", str(markdown_path)]
+            )
+            result["lrh_convert_exit_code"] = convert_run.returncode
+            result["lrh_convert_stdout"] = convert_run.stdout.strip()
+            result["lrh_convert_stderr"] = convert_run.stderr.strip()
+
+            if markdown_path.exists():
+                copied_output = out_root / f"{pdf_path.stem}.converted.md"
+                copied_output.write_text(markdown_path.read_text(encoding="utf-8"), encoding="utf-8")
+                result["markdown_output_path"] = str(copied_output)
+                metadata_status, cleanup_status = markdown_smoke_checks(copied_output)
+                result["metadata_check_status"] = metadata_status
+                result["cleanup_check_status"] = cleanup_status
+
+        result["classification"] = classify(result)
+        log_path = logs_dir / f"{pdf_path.stem}.json"
+        log_path.write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")
+        results.append(result)
+
+    summary_json = out_root / "summary.json"
+    summary_json.write_text(json.dumps(results, indent=2, sort_keys=True), encoding="utf-8")
+
+    counts: dict[str, int] = {key: 0 for key in RESULT_CATEGORIES}
+    for row in results:
+        counts[row["classification"]] = counts.get(row["classification"], 0) + 1
+
+    lines = [
+        "# ChatGPT PDF Dataset Audit Summary",
+        "",
+        f"- dataset_root: `{dataset_root}`",
+        f"- pdf_count: {len(results)}",
+        "- library_availability:",
+    ]
+    for lib_name, available in libraries.items():
+        lines.append(f"  - {lib_name}: {'available' if available else 'missing'}")
+    lines.append("- classification_counts:")
+    for key in RESULT_CATEGORIES:
+        lines.append(f"  - {key}: {counts.get(key, 0)}")
+    lines.append("")
+    lines.append("## Files")
+    lines.append("")
+    lines.append("| filename | sha256 | classification | probe | lrh_exit | notes |")
+    lines.append("|---|---|---|---|---:|---|")
+    for row in results:
+        notes = ",".join(row["notes"]) if row["notes"] else ""
+        lines.append(
+            "| {filename} | {sha256} | {classification} | {probe} | {exit_code} | {notes} |".format(
+                filename=row["filename"],
+                sha256=row["sha256"][:12],
+                classification=row["classification"],
+                probe=row["independent_probe_status"],
+                exit_code=row["lrh_convert_exit_code"],
+                notes=notes,
+            )
+        )
+
+    (out_root / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(f"wrote audit summary: {out_root / 'summary.md'}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

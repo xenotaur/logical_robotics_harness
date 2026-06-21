@@ -98,8 +98,9 @@ Define a minimal, conservative skill infrastructure that:
 
 **Location after `lrh setup`:** `~/.claude/skills/create-skill/`
 
-**Self-hosted copy:** `lrh/.claude/skills/create-skill/` (available when
-working in the LRH repo itself, without needing `lrh setup`)
+**Self-hosted copy:** `.claude/skills/create-skill/` at the LRH repository
+root (available when working in the LRH repo itself, without needing
+`lrh setup`; auto-discovered by Claude Code in the repo root session)
 
 **File structure:**
 
@@ -181,8 +182,8 @@ Skills in `src/lrh/skills/` must be declared as package data in
 `pipx install lrh`. The mechanism is the same one already used for
 `src/lrh/assist/templates/`.
 
-Skills for LRH's own development (self-hosting) live at
-`lrh/.claude/skills/` and are auto-discovered by Claude Code when working
+Skills for LRH's own development (self-hosting) live at `.claude/skills/`
+at the repository root and are auto-discovered by Claude Code when working
 inside the LRH repository. They do not need to be installed.
 
 The initial set contains only `create-skill`. Future skills (e.g., a
@@ -288,7 +289,7 @@ stages, each backed by a work item:
 **Stage 1 — Core skill (`WI-SKILLS-CREATE-SKILL`)**
 
 - `src/lrh/skills/create-skill/SKILL.md` + `references/` (3 files)
-- `lrh/.claude/skills/create-skill/` — self-hosting copy
+- `.claude/skills/create-skill/` at the repository root — self-hosting copy
 - `pyproject.toml` package data declaration for `src/lrh/skills/`
 
 Stage 1 delivers immediate value with no new Python code and no new CLI
@@ -364,7 +365,8 @@ This proposal can be considered effectively implemented when:
 
 - `src/lrh/skills/create-skill/SKILL.md` and references exist and are
   valid (pass `quick_validate.py`);
-- `lrh/.claude/skills/create-skill/` provides self-hosting access;
+- `.claude/skills/create-skill/` at the repository root provides
+  self-hosting access;
 - `lrh setup` installs LRH skills to `~/.claude/skills/` idempotently;
 - `lrh setup --dry-run` shows what would be installed without writing; and
 - dogfooding confirms that `/create-skill` successfully guides creation of
@@ -376,7 +378,8 @@ This proposal can be considered effectively implemented when:
 Proposed work item seeds, if adopted:
 
 - `WI-SKILLS-CREATE-SKILL` — implement `src/lrh/skills/create-skill/` and
-  `lrh/.claude/skills/create-skill/` with package data declaration
+  `.claude/skills/create-skill/` (repo-root self-hosting copy) with package
+  data declaration
 - `WI-SKILLS-LRH-SETUP` — implement `lrh setup` Phase 1
 - `WI-SKILLS-UPGRADE-AWARENESS` — Phase 2 upgrade-aware setup
 - `WI-SKILLS-PROJECT-INTEGRATION` — Phase 3 project CLAUDE.md integration

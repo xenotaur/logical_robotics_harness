@@ -57,6 +57,13 @@ dogfood migration across LRH's own proposal set.
 ## Current proposal sets
 
 
+[`proposed/lrh-project-local-skills/`](proposed/lrh-project-local-skills/)
+— Proposes first-class support for distributing Claude Code project-local skills through LRH: a
+`create-skill` skill that guides users through creating well-structured skills following LRH
+conventions; a `src/lrh/skills/` package directory for distributable skills; and a new `lrh setup`
+CLI command that installs LRH skills globally to `~/.claude/skills/`. Status: `proposed` /
+`not_started` (documentation-only proposal; no CLI, packaging, or skill implementation in this PR).
+
 [`proposed/activity-lanes-and-observational-dashboard.md`](proposed/activity-lanes-and-observational-dashboard.md)
 — Proposes a lightweight, tool-agnostic activity-lane model (`project/activity/ACT-*.md`) plus
 observational adapters and derived dashboard snapshots so LRH can coordinate mixed workflows

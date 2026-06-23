@@ -208,6 +208,36 @@ Key expectations:
 
 ---
 
+## Claude Code skills
+
+LRH distributes project-local Claude Code skills through two locations:
+
+- **`src/lrh/skills/<name>/`** — canonical source, distributed as Python
+  package data via `pyproject.toml`. This is the authoritative version.
+- **`.claude/skills/<name>/`** — self-hosted copy, auto-discovered by Claude
+  Code when working in the LRH repository. No installation step required.
+
+**Sync requirement:** When adding or modifying a skill, update
+`src/lrh/skills/<name>/` first and copy the result to `.claude/skills/<name>/`
+in the same PR. Both locations must be byte-for-byte identical at commit time.
+
+Verify for a given skill with:
+
+```bash
+diff -r src/lrh/skills/<name>/ .claude/skills/<name>/
+```
+
+Note: `src/lrh/skills/` also contains `__init__.py` (Python packaging) and
+`__pycache__/` (build artefacts). These are not copied to `.claude/skills/`
+and should be excluded from any top-level diff.
+
+Future CI enforcement is tracked as a Stage 3 item in `WS-SKILLS`.
+
+To install LRH skills globally (making them available in any project on
+your machine), run `lrh setup` once it is implemented (`WI-SKILLS-LRH-SETUP`).
+
+---
+
 ## Control-plane source of truth
 
 `project/` is LRH's human-readable source of truth for the control plane.

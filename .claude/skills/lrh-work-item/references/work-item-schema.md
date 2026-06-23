@@ -1,19 +1,29 @@
 # LRH Work Item — YAML Frontmatter Field Reference
 
 This document is the authoritative field reference for LRH work item YAML
-frontmatter. Validated against the LRH schema as of June 2026.
+frontmatter. Validated against `src/lrh/control/validator.py` and the
+project work-items README (June 2026).
 
 ---
 
 ## Required fields
 
-These five fields are required by `lrh validate` and must be present on every
+These fields are required by `lrh validate` and must be present on every
 work item.
+
+### Schema-required (`WORK_ITEM_REQUIRED_FIELDS` in `validator.py`)
 
 | Field | Type | Constraints |
 |---|---|---|
 | `id` | string | SCREAMING-KEBAB-CASE; must match the filename stem exactly |
+| `title` | string | Short human-readable title; used in listings and prompts |
+| `type` | string | See type vocabulary below; `lrh validate` also validates against allowed values |
 | `status` | string | `proposed`, `active`, `resolved`, or `abandoned` |
+
+### Policy-required (enforced via `_validate_work_item_policy_required_fields`)
+
+| Field | Type | Constraints |
+|---|---|---|
 | `blocked` | boolean | `true` or `false`; `true` only valid when `status: active` |
 | `blocked_reason` | string or null | `null` unless `blocked: true` |
 | `resolution` | string or null | `null` unless status is terminal (`resolved` or `abandoned`) |
@@ -39,12 +49,10 @@ These fields are not enforced as required by the schema but are present on
 all well-formed work items and expected by downstream prompts such as
 `lrh request prompt-from-work-item`.
 
-### Identity and description
+### Identity
 
 | Field | Type | Notes |
 |---|---|---|
-| `title` | string | Short human-readable title; used in listings and prompts |
-| `type` | string | See type vocabulary below |
 | `owner` | string | GitHub handle or name of the responsible person |
 | `contributors` | list of strings | Other contributors beyond the owner |
 | `assigned_agents` | list | Usually `[]`; populated only when an agent has been assigned |
@@ -74,7 +82,8 @@ all well-formed work items and expected by downstream prompts such as
 
 ## Type vocabulary
 
-Use the value that best describes what the work item produces:
+Use the value that best describes what the work item produces. `lrh validate`
+validates `type` against this allowed-value list.
 
 | Value | Use when |
 |---|---|
@@ -137,6 +146,8 @@ resolution: null
 blocked_reason: null
 blocked: false
 id: WI-EXAMPLE
+title: Short descriptive title
+type: deliverable
 status: proposed
 ---
 ```

@@ -57,14 +57,22 @@ body, confirms before writing, then validates with `lrh validate`.
 ## Problem / Context
 
 Work items are currently authored manually with no guided structure. Thin items
-missing key sections (Required Changes, Acceptance Criteria, Validation
-Commands) fail `lrh request prompt-from-work-item` readiness checks and require
+missing key sections (Scope, Required Changes, Acceptance Criteria, Validation)
+fail `lrh request prompt-from-work-item` readiness checks and require
 an additional `lrh request ready-work-item` pass. A guided skill that produces
 complete, prompt-ready items from the start reduces this friction.
 
 `WI-SKILLS-CREATE-SKILL` (now merged as PR #314) established the skill
 infrastructure (`src/lrh/skills/`, `.claude/skills/`, `pyproject.toml`
 package-data). This item adds the first workflow skill to that infrastructure.
+
+## Scope
+
+- Implement `src/lrh/skills/lrh-work-item/` with SKILL.md and three
+  references files, and mirror byte-for-byte to `.claude/skills/lrh-work-item/`
+- Create work item, workstream update, and execution record in `project/`
+- Create `CLAUDE.md` with a Skills index listing `/create-skill` and
+  `/lrh-work-item`
 
 ## Required Changes
 
@@ -109,13 +117,11 @@ package-data). This item adds the first workflow skill to that infrastructure.
 - `lrh validate` passes with 0 errors.
 - `CLAUDE.md` lists `/lrh-work-item` in the Skills section.
 
-## Validation Commands
+## Validation
 
-```bash
-scripts/version tools
-lrh validate
-diff -r src/lrh/skills/lrh-work-item/ .claude/skills/lrh-work-item/
-```
+- `scripts/version tools`
+- `lrh validate`
+- `diff -r src/lrh/skills/lrh-work-item/ .claude/skills/lrh-work-item/`
 
 ## Risk Notes
 

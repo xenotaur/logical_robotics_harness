@@ -13,8 +13,8 @@ argument-hint: [WI-ID]
 # lrh-work-item Skill
 
 This skill creates a new LRH work item file at
-`project/work_items/proposed/WI-<ID>.md` following the LRH schema and body
-conventions. It interviews the user, researches related project context,
+`project/work_items/proposed/<ID>.md` (where `<ID>` is the full `WI-*`
+identifier) following the LRH schema and body conventions. It interviews the user, researches related project context,
 proposes a complete work item for review, and writes the file only after
 explicit confirmation. All output is shown to the user before any files are
 written.
@@ -44,9 +44,9 @@ Load these before running any step:
    frontmatter.
 
 2. **`references/work-item-body-guide.md`** — Section-by-section authoring
-   guide for the work item body: what goes in Summary, Problem/Context,
-   Required Changes, Non-Goals, Acceptance Criteria, Validation Commands, and
-   Risk Notes. Read this to produce a body that passes prompt-from-work-item
+   guide for the work item body: what goes in Summary, Problem/Context, Scope,
+   Required Changes, Non-Goals, Acceptance Criteria, Validation, and Risk
+   Notes. Read this to produce a body that passes prompt-from-work-item
    readiness checks.
 
 3. **`references/lrh-work-item-workflow.md`** — How this skill fits the
@@ -76,11 +76,14 @@ If found:
 
 ### 2. Interview
 
-Ask all seven questions at once to avoid multiple round-trips. Collect all
+Ask all eight questions at once to avoid multiple round-trips. Collect all
 answers before proposing anything.
 
-1. **Problem statement:** What problem does this work item solve, or what does
-   it deliver? One paragraph suitable for the `## Summary` section.
+1. **Title and summary:**
+   - **Title:** A short one-line title for the `title` frontmatter field
+     (e.g., `Implement lrh-work-item Claude Code skill`).
+   - **Problem statement:** What problem does this work item solve, or what
+     does it deliver? One paragraph suitable for the `## Summary` section.
 
 2. **Type:** Is this a `deliverable` (files, code, docs, config, or skills to
    produce), `operation` (maintenance, tidy, or process task), `investigation`
@@ -138,6 +141,12 @@ The `project/work_items/proposed/` directory already exists; do not recreate
 it. Set `status: proposed`, `blocked: false`, `blocked_reason: null`,
 `resolution: null`.
 
+Important formatting rule for the `## Validation` section: use bullet-listed
+commands (lines starting with `- `), not a fenced code block. The readiness
+parser only extracts bullets; a code block produces an empty list and the
+item will fail `lrh work-items readiness` with "missing Validation commands"
+even though the section exists.
+
 ### 6. Validate
 
 Run:
@@ -175,12 +184,12 @@ Before reporting completion, verify:
 
 - [ ] `project/work_items/proposed/<ID>.md` exists
 - [ ] Filename stem exactly matches the `id` frontmatter field
-- [ ] Required fields present: `id`, `status`, `blocked`, `blocked_reason`,
-      `resolution`
+- [ ] Required fields present: `id`, `title`, `type`, `status`, `blocked`,
+      `blocked_reason`, `resolution`
 - [ ] `status: proposed` and file is in `proposed/` directory bucket
 - [ ] `blocked: false`, `blocked_reason: null`, `resolution: null`
-- [ ] Body contains all required sections: Summary, Problem/Context,
-      Required Changes, Non-Goals, Acceptance Criteria, Validation Commands
+- [ ] Body contains all required sections: Summary, Problem/Context, Scope,
+      Required Changes, Non-Goals, Acceptance Criteria, Validation
 - [ ] `lrh validate` reports 0 errors
 - [ ] The confirm-before-write gate (Step 4) was honoured
 

@@ -2,7 +2,7 @@
 execution_id: 2026_06_23_12_00_00_LRH_WORK_ITEM_SKILL
 prompt_id: PROMPT(WI-SKILLS-LRH-WORK-ITEM:LRH_WORK_ITEM_SKILL)[2026-06-23T12:00:00-07:00]
 work_item: WI-SKILLS-LRH-WORK-ITEM
-status: landed
+status: in_progress
 rerun_of:
 pr:
 commit:

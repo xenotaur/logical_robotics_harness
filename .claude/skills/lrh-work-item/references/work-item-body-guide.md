@@ -9,6 +9,11 @@ work item, what belongs in each section, and how to write content that passes
 ## Required sections
 
 These sections must be present for an item to be considered prompt-ready.
+The section heading names are exact — the readiness parser lowercases headings
+and keys on specific strings: `summary`, `scope`, `required changes`,
+`acceptance criteria`, and `validation`. Using different heading names (e.g.
+`## Validation Commands` instead of `## Validation`) will cause readiness
+checks to fail even though the content looks correct.
 
 ### `## Summary`
 
@@ -34,6 +39,26 @@ Two to four sentences explaining:
 
 Cite related design docs, workstreams, or prior work items by path or ID.
 Do not repeat the Summary — extend it.
+
+---
+
+### `## Scope`
+
+One to four bullets stating what is in scope for this work item. This section
+is distinct from `## Required Changes` — Scope describes the bounded purpose,
+while Required Changes lists the specific files and actions.
+
+**Good:**
+
+```
+- Implement `src/lrh/skills/lrh-work-item/` and mirror to `.claude/skills/`
+- Create work item and execution records in `project/`
+- Add a `## Skills` index entry to `CLAUDE.md`
+```
+
+**Avoid combining with Required Changes.** A work item with no `## Scope`
+section will fail `lrh work-items readiness` with "missing Scope section",
+even if `## Required Changes` is present and detailed.
 
 ---
 
@@ -102,34 +127,35 @@ human review.
 
 ---
 
-### `## Validation Commands`
+### `## Validation`
 
 List the exact commands an implementor should run to verify the item is
-complete. These are the commands that produce evidence for `required_evidence`.
+complete. The heading must be exactly `## Validation` — the readiness parser
+keys on the lowercase string `"validation"`, so `## Validation Commands`
+will not be recognised.
+
+These are the commands that produce evidence for `required_evidence`.
+
+**Format:** use bullet-listed commands, not a code block. The readiness
+parser calls `_extract_bullets` on this section and only recognises lines
+that start with `- `. A fenced code block will produce an empty validation
+list and fail the readiness check.
 
 Standard LRH validation sequence:
 
-```bash
-scripts/version tools
-lrh validate
-```
+- `scripts/version tools`
+- `lrh validate`
 
-For items that touch Python package behavior or tests:
+For items that touch Python package behavior or tests, add:
 
-```bash
-scripts/version tools
-scripts/format --check --diff
-scripts/lint
-scripts/test
-lrh validate
-```
+- `scripts/format --check --diff`
+- `scripts/lint`
+- `scripts/test`
 
-Add item-specific validation after the canonical sequence. For example:
+Add item-specific commands as additional bullets:
 
-```bash
-diff -r src/lrh/skills/lrh-work-item/ .claude/skills/lrh-work-item/
-python -c "import lrh.skills"
-```
+- `diff -r src/lrh/skills/lrh-work-item/ .claude/skills/lrh-work-item/`
+- `` `python -c "import lrh.skills"` ``
 
 ---
 

@@ -70,7 +70,7 @@ edit files automatically.
 that has passed readiness checks. It requires:
 
 - All required body sections (Summary, Problem/Context, Required Changes,
-  Non-Goals, Acceptance Criteria, Validation Commands).
+  Non-Goals, Acceptance Criteria, Validation).
 - No blocking issues flagged by `lrh work-items readiness`.
 - `status: proposed` or `status: active`.
 

@@ -1,5 +1,5 @@
 ---
-name: create-skill
+name: lrh-create-skill
 description: >
   Create a new project-local Claude Code skill following the LRH pattern.
   Use when the user wants to add a skill to this project, automate a
@@ -10,7 +10,7 @@ disable-model-invocation: true
 argument-hint: [skill-name]
 ---
 
-# create-skill Skill
+# lrh-create-skill Skill
 
 This skill creates a new project-local Claude Code skill following LRH
 conventions: structured frontmatter, numbered execution steps, domain
@@ -22,10 +22,10 @@ before any files are written.
 
 ## Inputs
 
-The user provides a skill name as the argument to `/create-skill`. Example:
+The user provides a skill name as the argument to `/lrh-create-skill`. Example:
 
 ```
-/create-skill lrh-work-item
+/lrh-create-skill lrh-work-item
 ```
 
 The name must be kebab-case (lowercase letters, digits, and hyphens only).

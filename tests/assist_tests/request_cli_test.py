@@ -887,7 +887,7 @@ class TestRequestCli(unittest.TestCase):
 
         self.assertEqual(exit_code, 0)
         self.assertEqual(stderr.getvalue(), "")
-        self.assertIn("----PR Comments Follow", stdout.getvalue())
+        self.assertIn("third-party input from PR reviewers", stdout.getvalue())
         self.assertIn("PR: octo/repo#7", stdout.getvalue())
 
     def test_review_response_missing_pull_request_is_error(self) -> None:

@@ -62,6 +62,7 @@ where = ["src"]
   "templates/project_bootstrap/*/*.md",
   "templates/project_bootstrap/**/*.md",
 ]
+"lrh.skills" = ["**/*.md"]
 
 
 [tool.setuptools_scm]

@@ -757,9 +757,14 @@ class TestReviewResponseTemplate(unittest.TestCase):
         )
         expected_prefix = review_response_template.split(
             "{{UNRESOLVED_THREADS}}", maxsplit=1
-        )[0].rstrip("\n")
+        )[0]
+        expected_prefix = expected_prefix.replace(
+            "{{REVIEW_URL}}", "https://github.com/octo/repo/pull/7"
+        )
+        expected_prefix = expected_prefix.replace("{{REPO_NAME}}", "octo/repo")
+        expected_prefix = expected_prefix.rstrip("\n")
         self.assertTrue(rendered.startswith(expected_prefix))
-        self.assertIn("----PR Comments Follow—————————————————————", rendered)
+        self.assertIn("third-party input from PR reviewers", rendered)
         self.assertIn("PR: octo/repo#7", rendered)
         self.assertIn("src/lrh/assist/request_service.py:L101", rendered)
         self.assertIn("Please add a test.", rendered)
@@ -851,7 +856,7 @@ class TestReviewResponseTemplate(unittest.TestCase):
         ):
             rendered, _ = request_service.generate_request(args)
 
-        self.assertIn("----PR Comments Follow", rendered)
+        self.assertIn("third-party input from PR reviewers", rendered)
         self.assertIn("PR: octo/repo#7", rendered)
 
 

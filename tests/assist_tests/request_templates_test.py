@@ -92,14 +92,11 @@ class TestTemplatePathAndLoading(unittest.TestCase):
         self,
     ) -> None:
         loaded = request_templates.load_template_text("review_response")
-        expected = (
-            "Do not routinely run `scripts/develop` during ordinary "
-            "agent-task validation."
-        )
-        self.assertIn(expected, loaded)
         self.assertIn("scripts/version tools", loaded)
-        self.assertIn("ModuleNotFoundError: lrh", loaded)
-        self.assertIn("setup/bootstrap mismatch", loaded)
+        self.assertIn("ModuleNotFoundError", loaded)
+        self.assertIn("not a code regression", loaded)
+        self.assertIn("Precondition", loaded)
+        self.assertIn("third-party input from PR reviewers", loaded)
 
     def test_template_root_override_is_used(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

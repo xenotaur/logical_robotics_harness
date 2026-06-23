@@ -1,6 +1,14 @@
-# Review Protocol
+# Review Protocol — LRH-Specific Overrides and Supplements
 
-This document is the canonical review protocol for LRH-generated review/repair prompts.
+This document records LRH-specific overrides and supplements to the base
+review-response protocol. The base protocol is maintained in
+`src/lrh/assist/templates/request/review_protocol.md` and its steps are
+embedded in `src/lrh/assist/templates/request/review_response.md`.
+
+Agents working in the LRH repository read this file when the
+`review_response` template instructs them to check for a `REVIEWS.md` at
+the repository root. Content here takes precedence over the base protocol
+for LRH-specific cases.
 
 ## 1) Triage each reported comment/issue
 

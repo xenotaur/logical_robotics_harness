@@ -149,14 +149,16 @@ After writing, check these conditions. Fix any failure before proceeding.
 - `disable-model-invocation` is present and reflects the answer from Step 2.
 - `argument-hint` is present when the skill takes arguments.
 - No unknown keys are present (valid keys: `name`, `description`,
-  `disable-model-invocation`, `argument-hint`, `context`).
+  `when_to_use`, `argument-hint`, `arguments`, `disable-model-invocation`,
+  `user-invocable`, `allowed-tools`, `disallowed-tools`, `model`, `effort`,
+  `context`, `agent`, `hooks`, `paths`, `shell`).
 
 ### 7. Update CLAUDE.md and report
 
 **CLAUDE.md update:**
 
 - If `CLAUDE.md` exists: add or update a `## Skills` section with a bullet
-  for the new skill: `` - `/name` — one-line description ``.
+  for the new skill: `` - `/<name>` — one-line description ``.
 - If `CLAUDE.md` does not exist: create a minimal stub containing only a
   `## Skills` section with the new skill entry. Do not invent other content.
 

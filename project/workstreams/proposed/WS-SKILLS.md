@@ -13,6 +13,7 @@ related_design:
   - project/design/proposals/proposed/lrh-project-local-skills/00_proposal.md
 work_items:
   - WI-SKILLS-CREATE-SKILL
+  - WI-SKILLS-LRH-WORK-ITEM
 exit_criteria:
   - create-skill skill is available in .claude/skills/ and src/lrh/skills/
   - lrh setup installs LRH skills to ~/.claude/skills/ idempotently

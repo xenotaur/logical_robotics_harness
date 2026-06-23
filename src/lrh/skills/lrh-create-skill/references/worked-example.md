@@ -27,7 +27,7 @@ description: >
 
 - **No `disable-model-invocation`** — this is a domain-specific skill.
   Auto-triggering on scenario keywords is desirable. Contrast with
-  `create-skill`, where `disable-model-invocation: true` is required because
+  `lrh-create-skill`, where `disable-model-invocation: true` is required because
   the skill writes files and should only run on explicit user intent.
 
 - **Specific trigger phrases** in the description ("implement", "add",
@@ -86,7 +86,7 @@ overwrite or extend. Do not silently overwrite existing work.
 ```
 
 **Annotation:** The first step is always a guard check. For `new-scenario`
-it checks the scenarios directory. For `create-skill` it checks
+it checks the scenarios directory. For `lrh-create-skill` it checks
 `.claude/skills/<name>/`. This prevents accidental overwrites.
 
 ```markdown
@@ -165,7 +165,7 @@ users who might try to extend the skill's scope mid-run.
 
 ---
 
-## Key design contrasts: new-scenario vs. create-skill
+## Key design contrasts: new-scenario vs. lrh-create-skill
 
 | Aspect | new-scenario | create-skill |
 |---|---|---|
@@ -175,7 +175,7 @@ users who might try to extend the skill's scope mid-run.
 | Target audience | prosoc contributors | LRH project developers |
 | Output | `scenario.md` + `scenario.yml` | `SKILL.md` + `references/` + `CLAUDE.md` entry |
 
-The confirm-before-write gate in `create-skill` is the primary LRH addition.
+The confirm-before-write gate in `lrh-create-skill` is the primary LRH addition.
 `new-scenario` omits it because the risk of a bad scenario draft is low
-(it is marked DRAFTED and requires human promotion). `create-skill` includes
+(it is marked DRAFTED and requires human promotion). `lrh-create-skill` includes
 it because writing a poorly-scoped skill to disk has higher correction cost.

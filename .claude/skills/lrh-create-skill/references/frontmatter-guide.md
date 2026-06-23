@@ -19,7 +19,7 @@ Convention in this project: set `name` equal to the directory name for
 clarity, even though it is not required.
 
 ```yaml
-name: create-skill
+name: lrh-create-skill
 ```
 
 ---
@@ -290,7 +290,7 @@ description: One sentence describing what this skill does and when to use it.
 
 ```yaml
 ---
-name: create-skill
+name: lrh-create-skill
 description: >
   Create a new project-local Claude Code skill following the LRH pattern.
   Use when the user wants to add a skill to this project, automate a

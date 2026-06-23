@@ -6,7 +6,7 @@ status: proposed
 stage: executing
 origin: ad_hoc
 summary: >
-  Establish first-class Claude Code skill support in LRH: the create-skill
+  Establish first-class Claude Code skill support in LRH: the lrh-create-skill
   skill, src/lrh/skills/ package directory, lrh setup installer, and
   subsequent workflow skills (lrh-work-item, lrh-workstream, lrh-assess).
 related_design:
@@ -15,7 +15,7 @@ work_items:
   - WI-SKILLS-CREATE-SKILL
   - WI-SKILLS-LRH-WORK-ITEM
 exit_criteria:
-  - create-skill skill is available in .claude/skills/ and src/lrh/skills/
+  - lrh-create-skill skill is available in .claude/skills/ and src/lrh/skills/
   - lrh setup installs LRH skills to ~/.claude/skills/ idempotently
   - at least one workflow skill (lrh-work-item) is implemented and dogfooded
 ---
@@ -30,7 +30,7 @@ versioned, project-aware Claude Code skills committed to the repository.
 ## Stages
 
 **Stage 1 — Core skill infrastructure (WI-SKILLS-CREATE-SKILL)**
-Implement `create-skill`: the self-bootstrapping skill that creates new
+Implement `lrh-create-skill`: the self-bootstrapping skill that creates new
 project-local skills. Establishes `src/lrh/skills/`, `.claude/skills/`,
 and `pyproject.toml` package-data declaration.
 

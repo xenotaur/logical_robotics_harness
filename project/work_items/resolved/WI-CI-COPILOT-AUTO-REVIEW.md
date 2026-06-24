@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Workflow implemented and merged in PR #321 (commit 90d0a1b232d53e820baf8f37126ccaa04cae82d0); post-merge investigation revealed the GitHub reviewer API silently ignores Copilot bot — actual automation requires a repository ruleset (Settings → Rules → Rulesets → enable "Automatically request Copilot code review")
 blocked_reason: null
 blocked: false
 id: WI-CI-COPILOT-AUTO-REVIEW
 title: Add GitHub Actions workflow to auto-request Copilot PR review
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

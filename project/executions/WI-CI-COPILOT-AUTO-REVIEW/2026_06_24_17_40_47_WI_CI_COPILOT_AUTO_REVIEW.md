@@ -2,14 +2,14 @@
 execution_id: 2026_06_24_17_40_47_WI_CI_COPILOT_AUTO_REVIEW
 prompt_id: PROMPT(WI-CI-COPILOT-AUTO-REVIEW:WI_CI_COPILOT_AUTO_REVIEW)[2026-06-24T17:36:40-04:00]
 work_item: WI-CI-COPILOT-AUTO-REVIEW
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/321
-commit:
+commit: 90d0a1b232d53e820baf8f37126ccaa04cae82d0
 created_at: 2026-06-24T17:40:47-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CI-COPILOT-AUTO-REVIEW.md
-session_transcript: pending
+session_transcript: claude-app:local_16783f02-bd57-4a5d-b624-ec1e7e05681b
 ---
 
 # Summary

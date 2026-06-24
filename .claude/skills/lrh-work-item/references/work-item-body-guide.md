@@ -185,7 +185,7 @@ that govern this work item's scope. Example:
 
 ```
 - Workstream: `project/workstreams/proposed/WS-SKILLS.md`
-- Design: `project/design/proposals/proposed/lrh-project-local-skills/00_proposal.md`
+- Design: `project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md`
 ```
 
 ---

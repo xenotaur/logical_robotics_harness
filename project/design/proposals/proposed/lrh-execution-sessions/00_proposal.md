@@ -12,7 +12,7 @@ superseded_by: null
 related_design:
   - PROMPTS.md
   - project/executions/README.md
-  - project/design/proposals/proposed/lrh-project-local-skills/00_proposal.md
+  - project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md
   - project/design/proposals/proposed/workstream-execution-framework/00_proposal.md
   - project/design/proposals/adopted/workstreams-and-recursive-planning-tree/00_proposal.md
   - project/design/proposals/proposed/lrh-conversations-storage-interop/00_proposal.md

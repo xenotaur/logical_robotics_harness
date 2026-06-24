@@ -172,7 +172,12 @@ scripts/version tools
 scripts/format --check --diff
 scripts/lint
 scripts/test
+lrh validate
 ```
+
+Then run any **item-specific validation commands** extracted from the work
+item's `## Validation` section in Step 2 (for example `diff -r src/ .claude/`
+for skills items, or `python -c "import lrh.skills"` for package checks).
 
 If format or lint fails, repair and re-run before continuing. If tests fail,
 fix the underlying issue. **Do not create a PR with failing validation.**

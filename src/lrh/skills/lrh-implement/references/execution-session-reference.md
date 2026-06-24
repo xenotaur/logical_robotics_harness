@@ -25,8 +25,11 @@ user for a short descriptive slug if one is not obvious.
 The command outputs a `prompt_id` in the form:
 
 ```
-PROMPT(<WI-ID-OR-AD_HOC>:<SLUG_UPPER>)[<ISO8601-TIMESTAMP>]
+PROMPT(<WI-ID-OR-AD_HOC>:<SLUG_UPPER_UNDERSCORE>)[<ISO8601-TIMESTAMP>]
 ```
+
+`<SLUG_UPPER_UNDERSCORE>` is the slug with `-` replaced by `_` then
+uppercased: `wi-skills-lrh-setup` → `WI_SKILLS_LRH_SETUP`.
 
 ### Check for prior execution
 
@@ -49,7 +52,7 @@ lrh prompt record-execution \
 ```
 
 This creates a new file at:
-`project/executions/<WI-ID-OR-AD_HOC>/<timestamp>_<SLUG_UPPER>.md`
+`project/executions/<WI-ID-OR-AD_HOC>/<timestamp>_<SLUG_UPPER_UNDERSCORE>.md`
 
 Immediately edit the generated file to add the three optional fields (below).
 

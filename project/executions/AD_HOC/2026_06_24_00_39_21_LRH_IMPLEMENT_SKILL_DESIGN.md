@@ -2,10 +2,10 @@
 execution_id: 2026_06_24_00_39_21_LRH_IMPLEMENT_SKILL_DESIGN
 prompt_id: PROMPT(AD_HOC:LRH_IMPLEMENT_SKILL_DESIGN)[2026-06-24T00:25:25-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/318
+commit: 2f503a4e17611d261b50031b789f335b7668078c
 created_at: 2026-06-24T00:39:21-04:00
 agent: claude_app
 instruction_source: ad_hoc conversation — design session for /lrh-implement skill

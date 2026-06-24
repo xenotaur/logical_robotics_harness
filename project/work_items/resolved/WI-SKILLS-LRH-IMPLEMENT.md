@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Delivered /lrh-implement skill (SKILL.md + 3 reference files, self-hosted copy, CLAUDE.md entry) in PR #319"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-IMPLEMENT
 title: Implement lrh-implement Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -57,6 +57,15 @@ dogfood migration across LRH's own proposal set.
 ## Current proposal sets
 
 
+[`proposed/lrh-execution-sessions/`](proposed/lrh-execution-sessions/)
+— Formalizes the three-phase execution session model (design → instruction → execution) for
+Claude.app and Codex Cloud workflows; proposes optional `agent`, `instruction_source`, and
+`session_transcript` fields for execution records to make Claude.app-driven PRs traceable to their
+source session JSONL; integrates execution sessions into the existing workstream → work-item →
+execution-record hierarchy; and notes where Taurcode meta-prompts belong in LRH's distribution
+model (likely `src/lrh/skills/` once `PROP-LRH-PROJECT-LOCAL-SKILLS` ships). Status: `proposed` /
+`not_started` (documentation-only proposal; no CLI, schema, or runtime changes in this PR).
+
 [`proposed/lrh-project-local-skills/`](proposed/lrh-project-local-skills/)
 — Proposes first-class support for distributing Claude Code project-local skills through LRH: a
 `create-skill` skill that guides users through creating well-structured skills following LRH

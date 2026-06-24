@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/317
 commit: 8555593
 created_at: 2026-06-23T18:17:03-04:00
 agent: claude_app
-session_transcript: claude-app:<session-id-from-this-conversation>
+session_transcript: pending
 ---
 
 # Summary
@@ -60,5 +60,6 @@ scripts/test  — 666 tests OK
 - Stage 1 work item: update `project/executions/README.md` and `PROMPTS.md`
   to document the three optional fields and the three-phase model
   (`WI-EXEC-SESSIONS-DOCS`)
-- Replace `<session-id-from-this-conversation>` above with the actual
-  session ID from `~/.claude/projects/` once known
+- Update `session_transcript` from `pending` to `claude-app:<session-id>`
+  once the session ID is known (look in `~/.claude/projects/` for the
+  JSONL file from this session)

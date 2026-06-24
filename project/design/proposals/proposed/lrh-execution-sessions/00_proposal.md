@@ -182,11 +182,15 @@ execution backend:
 - **Codex Cloud:** the user generates a structured prompt file with
   `lrh prompt label` and submits it to Codex Cloud. The prompt file
   is the instruction artifact.
-- **Claude.app:** the user (or Claude) restates the design explicitly
-  at the start of or within the session (the "instruction phase"
-  marker), then optionally generates a Taurcode meta-prompt for
-  future reuse. The restatement is within the same session; the
-  meta-prompt is a distributable artifact.
+- **Claude.app:** the user runs `lrh prompt label --slug <slug>` to
+  mint a canonical prompt ID, then `lrh prompt check-execution
+  --prompt-id "<id>"` for soft idempotence. They then restate the
+  design explicitly in the session (the "instruction phase" marker)
+  and optionally generate a Taurcode meta-prompt for future reuse.
+  Minting the prompt ID before implementation begins ensures the
+  resulting execution record has a `prompt_id` that `lrh search` and
+  `lrh prompt check-execution` can find. The restatement is within
+  the same session; the meta-prompt is a distributable artifact.
 - **Manual:** the work item's acceptance criteria and validation
   commands serve as the instruction phase artifact.
 
@@ -245,15 +249,35 @@ lets `lrh search` filter by backend without depending on other fields.
   (e.g., `taurcode:lrh-review-response-protocol-fix`)
 - For manual runs: the work item ID or design proposal reference
 
-`session_transcript` references the Claude.app session JSONL:
-- Full local path (absolute, user-private):
-  `~/.claude/projects/-Users-example-Workspace-lrh/a1b2c3d4-e5f6-7890-abcd-ef1234567890.jsonl`
-- Or short form: `claude-app:a1b2c3d4-e5f6-7890-abcd-ef1234567890`
+`session_transcript` references the Claude.app session by its session
+ID using the short form:
+
+```
+claude-app:<session-id>
+```
+
+The short form is the only value that should appear in committed
+execution records. Absolute paths such as
+`~/.claude/projects/<project-slug>/<session-id>.jsonl` leak the
+author's username and local workspace layout to anyone who clones the
+repository. Absolute paths are appropriate only as local discovery
+output (e.g., from a future `lrh sessions discover` command) and
+should not be written into committed frontmatter.
+
+If the session ID is not yet known when the record is created, use
+the sentinel value `pending` and update the field before or when the
+PR lands.
+
+Stage 2 validator behavior: `lrh validate` should warn on any
+`session_transcript` value that begins with `/`, `~`, or a Windows
+drive letter, and suggest converting to the `claude-app:<session-id>`
+short form.
 
 These fields are observability references, not control-plane claims.
 The session transcript is private by default and is not committed to
-the repository. Referencing it in the execution record preserves
-traceability without leaking conversation content.
+the repository. Referencing the session ID in the execution record
+preserves traceability without leaking conversation content or local
+path information.
 
 #### Example: Claude.app-driven execution record
 

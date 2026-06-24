@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #321 (commit 90d0a1b); pull_request_target trigger confirmed working
 blocked_reason: null
 blocked: false
 id: WI-CI-COPILOT-AUTO-REVIEW
 title: Add GitHub Actions workflow to auto-request Copilot PR review
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

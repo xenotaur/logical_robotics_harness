@@ -2,7 +2,7 @@
 execution_id: 2026_06_23_18_17_03_E_STRATEGY_EXECUTION_SESSIONS_DESIGN
 prompt_id: PROMPT(AD_HOC:E_STRATEGY_EXECUTION_SESSIONS_DESIGN)[2026-06-23T18:02:58-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/317
 commit: 8555593

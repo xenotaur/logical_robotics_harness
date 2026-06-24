@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #315 (237b82e)
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-WORK-ITEM
 title: Implement lrh-work-item Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -2,10 +2,10 @@
 execution_id: 2026_06_23_12_00_00_LRH_WORK_ITEM_SKILL
 prompt_id: PROMPT(WI-SKILLS-LRH-WORK-ITEM:LRH_WORK_ITEM_SKILL)[2026-06-23T12:00:00-07:00]
 work_item: WI-SKILLS-LRH-WORK-ITEM
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/315
+commit: 237b82ea505a983838815c2a6cf7eaf72ee18a0d
 created_at: 2026-06-23T19:00:00+00:00
 ---
 

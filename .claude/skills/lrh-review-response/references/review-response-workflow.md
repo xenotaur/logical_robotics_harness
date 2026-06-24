@@ -38,16 +38,18 @@ response back to the original.
 
 **`rerun_of` population:**
 
-Search for the original execution ID using the branch slug (without the
-`-review` suffix):
+Search for the original execution ID. Convert the branch slug (without the
+`-review` suffix) to upper-underscore form before searching:
 
 ```bash
-find project/executions/ -name "*<branch-slug>*.md" | grep -v review
+UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -v "_REVIEW"
 ```
 
 Example: branch `xenotaur/feat/wi-skills-lrh-review-response` →
-slug `wi-skills-lrh-review-response` → search for
-`*wi_skills_lrh_review_response*` (note: filenames use `_` not `-`).
+slug `wi-skills-lrh-review-response` → `UPPER_SLUG=WI_SKILLS_LRH_REVIEW_RESPONSE` →
+search for `*WI_SKILLS_LRH_REVIEW_RESPONSE*.md`, exclude files containing
+`_REVIEW`.
 
 If the original record is found, set:
 
@@ -80,8 +82,8 @@ new slug (e.g., `wi-skills-lrh-setup-review-r2` if supplied manually).
 
 ### No open comments
 
-`lrh request review_response` outputs `"Nothing to resolve: no unresolved
-review threads found for <repo>#<N>"` when there are no open comments. The
+`lrh request review_response` outputs `Nothing to resolve: no unresolved
+review threads found for <repo>#<N>` when there are no open comments. The
 skill detects this at Step 2 and exits cleanly without touching any files or
 minting a prompt ID.
 

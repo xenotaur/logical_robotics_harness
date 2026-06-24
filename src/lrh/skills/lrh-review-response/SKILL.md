@@ -85,7 +85,7 @@ PRs cannot receive new commits through this skill).
 lrh request review_response <pr-url>
 ```
 
-If the output begins with `"Nothing to resolve:"`, report this to the user
+If the output begins with `Nothing to resolve:`, report this to the user
 and exit cleanly — do not proceed further.
 
 Store the full output for Step 5. Do not re-emit or restructure it; the
@@ -104,6 +104,26 @@ the `<username>/<type>/` prefix and append `-review`:
 ```
 xenotaur/feat/wi-skills-lrh-review-response → wi-skills-lrh-review-response-review
 ```
+
+Convert the slug to its upper-underscore form for file lookup (replace `-`
+with `_`, then uppercase):
+
+```
+wi-skills-lrh-review-response-review → WI_SKILLS_LRH_REVIEW_RESPONSE_REVIEW
+```
+
+Before minting, check for an existing review-response execution record on
+this branch. `lrh prompt check-execution` cannot catch duplicates here because
+each invocation mints a new timestamped ID:
+
+```bash
+find project/executions/AD_HOC/ -name "*<UPPER_SLUG>*.md"
+```
+
+If any file is found, **stop and report** — do not continue unless the user
+explicitly asks for a rerun.
+
+Then mint and run the secondary idempotence check:
 
 ```bash
 lrh prompt label --slug <slug>
@@ -183,13 +203,22 @@ instruction_source: <pr-url>
 session_transcript: pending
 ```
 
-Find the original execution ID to populate `rerun_of`:
+Find the original execution ID to populate `rerun_of`. Convert the branch
+slug to upper-underscore form before searching, and exclude files whose names
+contain `_REVIEW` (case-sensitive match for the uppercase suffix):
 
 ```bash
-find project/executions/ -name "*<branch-slug>*.md" | grep -v review
+UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -v "_REVIEW"
 ```
 
 If found, add `rerun_of: <original-execution-id>` to the frontmatter.
+
+Run `lrh validate` to confirm the execution record is valid before committing:
+
+```bash
+lrh validate
+```
 
 Commit the execution record and push as an additional commit to the open PR.
 

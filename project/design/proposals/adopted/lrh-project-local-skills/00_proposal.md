@@ -2,11 +2,13 @@
 id: PROP-LRH-PROJECT-LOCAL-SKILLS
 type: design_proposal
 title: LRH Project-Local Skills — create-skill and lrh setup
-status: proposed
+status: adopted
 created_on: 2026-06-21
-updated_on: 2026-06-21
-implementation_status: not_started
-implemented_by: []
+updated_on: 2026-06-24
+implementation_status: partial
+implemented_by:
+  - WI-SKILLS-CREATE-SKILL
+  - WI-SKILLS-LRH-WORK-ITEM
 supersedes: []
 superseded_by: null
 ---

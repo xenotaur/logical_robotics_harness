@@ -7,23 +7,30 @@ per-machine installation command.
 
 ## Status
 
-`proposed` / `not_started`
+`adopted` / `partial`
 
-This is a documentation-only design proposal. It does not implement any
-CLI command, packaging change, or skill file.
+`lrh-create-skill` and `lrh-work-item` are shipped. `lrh setup` and
+`lrh-implement` remain to be implemented.
 
 ## Documents
 
 1. [`00_proposal.md`](00_proposal.md)
    — umbrella proposal covering motivation, problem statement, the three
-   coupled component designs, design choice rationale, a staged
-   implementation plan, non-goals, risks, acceptance criteria, and work
-   item seeds.
+   coupled component designs (`create-skill`, `src/lrh/skills/`, `lrh setup`),
+   design choice rationale, staged implementation plan, non-goals, risks,
+   acceptance criteria, and work item seeds.
+
+2. [`01_lrh_implement_skill.md`](01_lrh_implement_skill.md)
+   — sub-proposal for `/lrh-implement`, a Claude Code skill encoding the
+   instruction and execution phases of the three-phase execution session
+   model. Covers lifecycle placement, 10-step execution design, three
+   reference files, key design decisions, and acceptance criteria.
 
 ## Reading order
 
 1. `README.md` (this file)
 2. `00_proposal.md`
+3. `01_lrh_implement_skill.md`
 
 ## Canonical-document touchpoints
 

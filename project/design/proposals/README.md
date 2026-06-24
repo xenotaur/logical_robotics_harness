@@ -63,15 +63,8 @@ Claude.app and Codex Cloud workflows; proposes optional `agent`, `instruction_so
 `session_transcript` fields for execution records to make Claude.app-driven PRs traceable to their
 source session JSONL; integrates execution sessions into the existing workstream → work-item →
 execution-record hierarchy; and notes where Taurcode meta-prompts belong in LRH's distribution
-model (likely `src/lrh/skills/` once `PROP-LRH-PROJECT-LOCAL-SKILLS` ships). Status: `proposed` /
+model (`src/lrh/skills/` per the now-adopted `PROP-LRH-PROJECT-LOCAL-SKILLS`). Status: `proposed` /
 `not_started` (documentation-only proposal; no CLI, schema, or runtime changes in this PR).
-
-[`proposed/lrh-project-local-skills/`](proposed/lrh-project-local-skills/)
-— Proposes first-class support for distributing Claude Code project-local skills through LRH: a
-`create-skill` skill that guides users through creating well-structured skills following LRH
-conventions; a `src/lrh/skills/` package directory for distributable skills; and a new `lrh setup`
-CLI command that installs LRH skills globally to `~/.claude/skills/`. Status: `proposed` /
-`not_started` (documentation-only proposal; no CLI, packaging, or skill implementation in this PR).
 
 [`proposed/activity-lanes-and-observational-dashboard.md`](proposed/activity-lanes-and-observational-dashboard.md)
 — Proposes a lightweight, tool-agnostic activity-lane model (`project/activity/ACT-*.md`) plus
@@ -136,6 +129,14 @@ semi-autonomous LRH execution: agents may propose arbitrary actions, but
 only policy-checked, sandboxed, logged, and interruptible capabilities may
 execute. Status: `proposed` / `not_started` (documentation-only design;
 no runtime behavior changes).
+
+[`adopted/lrh-project-local-skills/`](adopted/lrh-project-local-skills/)
+— Establishes first-class Claude Code skill support in LRH: the `src/lrh/skills/` package directory,
+the `lrh-create-skill` and `lrh-work-item` distributable skills, and the `lrh setup` per-machine
+installer. A sub-proposal (`01_lrh_implement_skill.md`) designs `/lrh-implement`, the skill that
+encodes the three-phase execution session model for implementing work items. Status: `adopted` /
+`partial` (`lrh-create-skill` and `lrh-work-item` shipped; `lrh-implement` and `lrh setup`
+remain to be implemented).
 
 [`adopted/workstreams-and-recursive-planning-tree/`](adopted/workstreams-and-recursive-planning-tree/)
 — Proposes a documentation-first, minimal workstream planning model

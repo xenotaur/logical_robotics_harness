@@ -26,7 +26,7 @@ forbidden_actions:
   - add_copilot_to_codeowners
 acceptance:
   - .github/workflows/request-copilot-review.yml exists and is syntactically valid
-  - workflow triggers on pull_request types opened, reopened, and ready_for_review
+  - workflow triggers on pull_request_target types opened, reopened, and ready_for_review
   - draft PRs are excluded via the job-level if condition
   - Copilot appears as a requested reviewer on the PR that introduces the workflow
   - lrh validate passes with 0 errors
@@ -66,7 +66,7 @@ tools get no Copilot review. Option A does not scale and is easily forgotten.
 ## Required Changes
 
 1. Create `.github/workflows/request-copilot-review.yml` with:
-   - Trigger: `pull_request: types: [opened, reopened, ready_for_review]`
+   - Trigger: `pull_request_target: types: [opened, reopened, ready_for_review]`
    - Job condition: `if: github.event.pull_request.draft == false` (skip drafts)
    - Permissions block: `pull-requests: write` (required for GITHUB_TOKEN to modify reviewers)
    - Step using the raw GitHub REST API — not `gh pr edit --add-reviewer` (which may reject
@@ -90,7 +90,7 @@ tools get no Copilot review. Option A does not scale and is easily forgotten.
 ## Acceptance Criteria
 
 - `.github/workflows/request-copilot-review.yml` exists and is syntactically valid
-- Workflow is triggered by `pull_request: types: [opened, reopened, ready_for_review]`
+- Workflow is triggered by `pull_request_target: types: [opened, reopened, ready_for_review]`
 - Draft PRs are excluded via `if: github.event.pull_request.draft == false`
 - Copilot appears as a requested reviewer on the PR that introduces this workflow (self-test)
 - `lrh validate` passes with 0 errors after the file is added

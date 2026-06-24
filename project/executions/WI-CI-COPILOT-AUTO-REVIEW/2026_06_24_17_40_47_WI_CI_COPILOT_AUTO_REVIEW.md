@@ -5,7 +5,7 @@ work_item: WI-CI-COPILOT-AUTO-REVIEW
 status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/321
-commit: 90d0a1b
+commit: 90d0a1b232d53e820baf8f37126ccaa04cae82d0
 created_at: 2026-06-24T17:40:47-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CI-COPILOT-AUTO-REVIEW.md

@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 2026_06_24_17_40_47_WI_CI_COPILOT_AUTO_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/321
-commit: 90d0a1b
+commit: 90d0a1b232d53e820baf8f37126ccaa04cae82d0
 created_at: 2026-06-24T18:04:28-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/321

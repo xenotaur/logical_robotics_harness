@@ -14,6 +14,7 @@ related_design:
 work_items:
   - WI-SKILLS-CREATE-SKILL
   - WI-SKILLS-LRH-WORK-ITEM
+  - WI-SKILLS-LRH-IMPLEMENT
 exit_criteria:
   - lrh-create-skill skill is available in .claude/skills/ and src/lrh/skills/
   - lrh setup installs LRH skills to ~/.claude/skills/ idempotently

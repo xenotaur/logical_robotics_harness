@@ -43,13 +43,14 @@ Search for the original execution ID. Convert the branch slug (without the
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -v "_REVIEW"
+find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -v "_REVIEW\.md$"
 ```
 
 Example: branch `xenotaur/feat/wi-skills-lrh-review-response` →
 slug `wi-skills-lrh-review-response` → `UPPER_SLUG=WI_SKILLS_LRH_REVIEW_RESPONSE` →
-search for `*WI_SKILLS_LRH_REVIEW_RESPONSE*.md`, exclude files containing
-`_REVIEW`.
+search for `*WI_SKILLS_LRH_REVIEW_RESPONSE*.md`, exclude files whose names end
+with `_REVIEW.md` (review-response records end with that suffix; primary records
+do not).
 
 If the original record is found, set:
 

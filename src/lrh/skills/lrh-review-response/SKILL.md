@@ -205,11 +205,11 @@ session_transcript: pending
 
 Find the original execution ID to populate `rerun_of`. Convert the branch
 slug to upper-underscore form before searching, and exclude files whose names
-contain `_REVIEW` (case-sensitive match for the uppercase suffix):
+end with `_REVIEW.md` (those are review-response records, not primary ones):
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -v "_REVIEW"
+find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -v "_REVIEW\.md$"
 ```
 
 If found, add `rerun_of: <original-execution-id>` to the frontmatter.

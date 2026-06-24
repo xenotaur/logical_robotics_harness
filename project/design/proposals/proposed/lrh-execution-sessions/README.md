@@ -36,7 +36,7 @@ The central proposal defines:
 - `PROMPTS.md` — prompt workflow; the three-phase model extends this
 - `project/executions/README.md` — execution-record schema; optional
   new fields are proposed here
-- `project/design/proposals/proposed/lrh-project-local-skills/` —
+- `project/design/proposals/adopted/lrh-project-local-skills/` —
   the distributable-skills proposal this proposal builds on for
   Taurcode meta-prompt placement
 - `project/design/proposals/proposed/workstream-execution-framework/`

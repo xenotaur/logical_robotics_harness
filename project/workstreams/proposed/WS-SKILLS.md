@@ -10,7 +10,7 @@ summary: >
   skill, src/lrh/skills/ package directory, lrh setup installer, and
   subsequent workflow skills (lrh-work-item, lrh-workstream, lrh-assess).
 related_design:
-  - project/design/proposals/proposed/lrh-project-local-skills/00_proposal.md
+  - project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md
 work_items:
   - WI-SKILLS-CREATE-SKILL
   - WI-SKILLS-LRH-WORK-ITEM

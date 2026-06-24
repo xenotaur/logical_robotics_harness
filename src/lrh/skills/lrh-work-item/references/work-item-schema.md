@@ -172,7 +172,7 @@ related_roadmap: []
 related_workstreams:
   - WS-SKILLS
 related_design:
-  - project/design/proposals/proposed/lrh-project-local-skills/00_proposal.md
+  - project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md
 depends_on:
   - WI-SKILLS-CREATE-SKILL
 blocked_by: []

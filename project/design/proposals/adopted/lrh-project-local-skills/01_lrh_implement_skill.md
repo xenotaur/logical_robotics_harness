@@ -132,7 +132,7 @@ If a `WI-*` ID was given: locate the file across all bucket directories
 (`find project/work_items/ -name "<ID>.md"`), confirm it exists, then run:
 
 ```bash
-lrh work-items readiness --status proposed --format md
+lrh work-items readiness <WI-ID> --format md
 ```
 
 If the item is flagged as not prompt-ready, **warn prominently** but allow
@@ -204,9 +204,8 @@ type from the work item's `type` field:
 | `evaluation` | `audit` |
 | ad-hoc / unknown | `fix` or `chore` |
 
-The username prefix comes from `git config user.name` or a project
-convention (e.g., `xenotaur` for this repository). Example:
-`xenotaur/feat/wi-skills-lrh-setup`.
+The username prefix is the GitHub login; retrieve it with
+`gh api user --jq .login`. Example: `xenotaur/feat/wi-skills-lrh-setup`.
 
 **Do not use the `agents/<backend>/<id>` namespace** — that is reserved for
 future autonomous execution backends, not human-driven Claude.app sessions
@@ -272,9 +271,9 @@ instruction_source: <work-item path, e.g. project/work_items/proposed/WI-SKILLS-
 session_transcript: pending
 ```
 
-Commit the execution record on the same branch before pushing, so the PR
-contains the record stub and reviewers can see what execution this PR
-corresponds to.
+Commit the execution record and push it as an additional commit to the
+already-open PR. Reviewers can then see the execution record stub alongside
+the implementation changes.
 
 ### Step 10 — Report and offer closeout
 

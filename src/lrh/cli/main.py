@@ -127,6 +127,21 @@ def main() -> None:
         help="Search LRH project records.",
     )
 
+    setup_parser = subparsers.add_parser(
+        "setup",
+        help="Install LRH skills to ~/.claude/skills/.",
+    )
+    setup_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="preview what would be installed without writing files",
+    )
+    setup_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="overwrite user-modified skills without warning",
+    )
+
     project_parser = subparsers.add_parser(
         "project",
         help="Project bootstrap and management helpers.",
@@ -1204,6 +1219,17 @@ def main() -> None:
             raise SystemExit(0)
 
         parser.error("meta requires a subcommand (try: lrh meta init)")
+
+    if args.command == "setup":
+        if passthrough_args:
+            parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+        from lrh.skills import installer
+
+        report = installer.install_skills(dry_run=args.dry_run, force=args.force)
+        output = installer.format_report(report, dry_run=args.dry_run)
+        if output:
+            print(output)
+        raise SystemExit(0)
 
     if passthrough_args:
         parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")

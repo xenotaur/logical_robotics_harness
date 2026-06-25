@@ -2,8 +2,8 @@
 id: WS-SKILLS
 kind: planning_node
 title: Claude Code Skills Infrastructure
-status: proposed
-stage: executing
+status: resolved
+stage: closed
 origin: ad_hoc
 summary: >
   Establish first-class Claude Code skill support in LRH: the lrh-create-skill
@@ -51,3 +51,18 @@ and `/lrh-assess` skills. Each is a separate work item.
 - Do not upload skills to the claude.ai Skills API.
 - Do not auto-install skills during `lrh request bootstrap_project`.
 - Do not implement `lrh run` or any autonomous execution in this workstream.
+
+## Closeout
+
+All five work items resolved and all exit criteria met as of 2026-06-25.
+
+Delivered:
+- `src/lrh/skills/` package with four distributable skills: `lrh-create-skill`,
+  `lrh-work-item`, `lrh-implement`, `lrh-review-response`
+- `lrh setup` CLI command (idempotent, `--dry-run`, `--force`) with 13 unit tests
+- `.claude/skills/` self-hosted copies of all four skills for LRH repo sessions
+- `CLAUDE.md` skill index entries for all four skills
+- `pyproject.toml` package-data declaration for `lrh.skills`
+
+PRs: #316 (create-skill), #317 (lrh-work-item), #319 (lrh-implement),
+     #321 (lrh-review-response), #325 (lrh-setup)

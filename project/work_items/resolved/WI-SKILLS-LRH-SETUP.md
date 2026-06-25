@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Delivered lrh setup command (installer.py + CLI wiring + 13 tests) in PR #325"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-SETUP
 title: Implement lrh setup command to install skills globally
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

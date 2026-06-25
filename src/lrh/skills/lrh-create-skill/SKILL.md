@@ -125,7 +125,25 @@ If the user redirects or declines, adjust the proposal and show it again.
 Do not skip this gate — it is the key LRH addition that prevents
 over-specified or incorrectly-scoped skills from being written to disk.
 
-### 5. Write files
+### 5. Create branch from main
+
+```bash
+git checkout main && git pull
+git checkout -b <branch-name>
+```
+
+Branch naming: `<username>/feat/<skill-name>`. Get the username:
+
+```bash
+gh api user --jq .login
+```
+
+Use the skill name (the argument to `/lrh-create-skill`) as the slug.
+Example: `xenotaur/feat/lrh-work-item`
+
+Always use `feat` — skills are deliverables.
+
+### 6. Write files
 
 Create the following under `.claude/skills/<name>/`:
 
@@ -140,7 +158,15 @@ Create the following under `.claude/skills/<name>/`:
 
 If `.claude/skills/` or `.claude/skills/<name>/` do not exist, create them.
 
-### 6. Validate frontmatter
+Then create the package copy under `src/lrh/skills/<name>/` with the same
+files. Both locations must be byte-for-byte identical per CONTRIBUTING.md.
+Verify with:
+
+```bash
+diff -r src/lrh/skills/<name>/ .claude/skills/<name>/
+```
+
+### 7. Validate frontmatter
 
 After writing, check these conditions. Fix any failure before proceeding.
 
@@ -153,20 +179,35 @@ After writing, check these conditions. Fix any failure before proceeding.
   `user-invocable`, `allowed-tools`, `disallowed-tools`, `model`, `effort`,
   `context`, `agent`, `hooks`, `paths`, `shell`).
 
-### 7. Update CLAUDE.md and report
-
-**CLAUDE.md update:**
+### 8. Update CLAUDE.md
 
 - If `CLAUDE.md` exists: add or update a `## Skills` section with a bullet
   for the new skill: `` - `/<name>` — one-line description ``.
 - If `CLAUDE.md` does not exist: create a minimal stub containing only a
   `## Skills` section with the new skill entry. Do not invent other content.
 
-**Report to the user:**
+### 9. Commit and open PR
+
+Stage and commit all skill files and the CLAUDE.md update:
+
+```bash
+git add .claude/skills/<name>/ src/lrh/skills/<name>/ CLAUDE.md
+git commit -m "Add /<name> skill"
+git push -u origin <branch-name>
+gh pr create --title "Add /<name> skill" --body "..."
+```
+
+Include in the PR body: what the skill does, the files created, and a test
+plan describing how to verify the skill works after merge.
+
+Note: the skill is not discoverable by Claude Code until the PR is merged
+and the session is restarted.
+
+### 10. Report
 
 - What files were created and where.
 - What each `references/` file contains and when it will be loaded.
-- Whether `.claude/skills/` was newly created (restart required).
+- The PR URL.
 - Any caveats or judgment calls made during generation.
 - Whether the user would like to invoke `anthropic-skills:skill-creator`
   to evaluate and iterate on the new skill.
@@ -177,7 +218,9 @@ After writing, check these conditions. Fix any failure before proceeding.
 
 Before reporting completion, verify:
 
+- [ ] Branch created from a fresh `git pull` of main
 - [ ] `.claude/skills/<name>/SKILL.md` exists with valid YAML frontmatter
+- [ ] `src/lrh/skills/<name>/SKILL.md` exists and is byte-for-byte identical
 - [ ] `name` is kebab-case and matches the directory name
 - [ ] `description` is ≤ 1024 characters
 - [ ] `disable-model-invocation` reflects the intended invocation mode
@@ -186,6 +229,7 @@ Before reporting completion, verify:
       Quality Checklist, What This Skill Does Not Do
 - [ ] The confirm-before-write gate (Step 4) was honoured
 - [ ] `CLAUDE.md` has been updated with a skills index entry
+- [ ] PR opened and URL reported to the user
 
 ---
 
@@ -195,8 +239,6 @@ Before reporting completion, verify:
   `anthropic-skills:skill-creator` for evaluation and iteration.
 - Does not install skills globally to `~/.claude/skills/` — that requires
   `lrh setup` (not yet implemented).
-- Does not create `src/lrh/skills/` package copies — those must be added
-  manually as a separate step for LRH distribution (see `CONTRIBUTING.md`).
 - Does not modify existing skills — only creates new ones.
 - Does not create a full `CLAUDE.md` — only adds or updates the `## Skills`
   section; broader project CLAUDE.md content is a separate concern.

@@ -15,6 +15,7 @@ work_items:
   - WI-SKILLS-CREATE-SKILL
   - WI-SKILLS-LRH-WORK-ITEM
   - WI-SKILLS-LRH-IMPLEMENT
+  - WI-SKILLS-LRH-SETUP
   - WI-SKILLS-LRH-REVIEW-RESPONSE
 exit_criteria:
   - lrh-create-skill skill is available in .claude/skills/ and src/lrh/skills/

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.resources
+import importlib.resources.abc
 import shutil
 from dataclasses import dataclass
 from enum import Enum
@@ -29,6 +30,7 @@ class SkillResult:
 class InstallReport:
     results: list[SkillResult]
     newly_created_skills_dir: bool
+    skills_dir: Path
 
 
 def _skill_names() -> list[str]:
@@ -40,9 +42,11 @@ def _skill_names() -> list[str]:
     )
 
 
-def _collect_pkg_files(node: object, prefix: str = "") -> dict[str, bytes]:
+def _collect_pkg_files(
+    node: importlib.resources.abc.Traversable, prefix: str = ""
+) -> dict[str, bytes]:
     result: dict[str, bytes] = {}
-    for item in node.iterdir():  # type: ignore[union-attr]
+    for item in node.iterdir():
         rel = f"{prefix}/{item.name}" if prefix else item.name
         if item.is_file():
             result[rel] = item.read_bytes()
@@ -66,9 +70,11 @@ def _skill_differs_from_package(skill_name: str, skills_dir: Path) -> bool:
     return pkg_files != fs_files
 
 
-def _copy_resource_tree(node: object, dest_dir: Path) -> None:
+def _copy_resource_tree(
+    node: importlib.resources.abc.Traversable, dest_dir: Path
+) -> None:
     dest_dir.mkdir(parents=True, exist_ok=True)
-    for item in node.iterdir():  # type: ignore[union-attr]
+    for item in node.iterdir():
         if item.is_file():
             (dest_dir / item.name).write_bytes(item.read_bytes())
         elif item.is_dir():
@@ -77,7 +83,9 @@ def _copy_resource_tree(node: object, dest_dir: Path) -> None:
 
 def _copy_skill(skill_name: str, skills_dir: Path) -> None:
     dest = skills_dir / skill_name
-    if dest.exists():
+    if dest.is_symlink() or (dest.exists() and not dest.is_dir()):
+        dest.unlink()
+    elif dest.is_dir():
         shutil.rmtree(dest)
     src = importlib.resources.files(_SKILLS_PACKAGE).joinpath(skill_name)
     _copy_resource_tree(src, dest)
@@ -114,7 +122,9 @@ def install_skills(
             status = SkillStatus.UP_TO_DATE
         results.append(SkillResult(name=name, status=status))
 
-    return InstallReport(results=results, newly_created_skills_dir=newly_created)
+    return InstallReport(
+        results=results, newly_created_skills_dir=newly_created, skills_dir=target
+    )
 
 
 def format_report(report: InstallReport, dry_run: bool = False) -> str:
@@ -135,7 +145,7 @@ def format_report(report: InstallReport, dry_run: bool = False) -> str:
             lines.append(f"  {verb}: {result.name}")
     if report.newly_created_skills_dir and not dry_run:
         lines.append(
-            "\nnote: ~/.claude/skills/ was newly created."
+            f"\nnote: {report.skills_dir} was newly created."
             " Restart Claude Code to discover the installed skills."
         )
     return "\n".join(lines)

@@ -71,13 +71,16 @@ class TestFormatReport(unittest.TestCase):
         self,
         statuses: list[installer.SkillStatus],
         newly_created: bool = False,
+        skills_dir: Path | None = None,
     ) -> installer.InstallReport:
         results = [
             installer.SkillResult(name=f"skill-{i}", status=s)
             for i, s in enumerate(statuses)
         ]
         return installer.InstallReport(
-            results=results, newly_created_skills_dir=newly_created
+            results=results,
+            newly_created_skills_dir=newly_created,
+            skills_dir=skills_dir or Path("/fake/skills"),
         )
 
     def test_format_installed(self) -> None:
@@ -112,9 +115,13 @@ class TestFormatReport(unittest.TestCase):
 
     def test_restart_note_when_newly_created(self) -> None:
         report = self._make_report(
-            [installer.SkillStatus.INSTALLED], newly_created=True
+            [installer.SkillStatus.INSTALLED],
+            newly_created=True,
+            skills_dir=Path("/custom/skills"),
         )
-        self.assertIn("Restart Claude Code", installer.format_report(report))
+        output = installer.format_report(report)
+        self.assertIn("Restart Claude Code", output)
+        self.assertIn("/custom/skills", output)
 
     def test_no_restart_note_in_dry_run(self) -> None:
         report = self._make_report(

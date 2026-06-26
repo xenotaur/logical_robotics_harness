@@ -109,9 +109,7 @@ guidance ("Require human approval for high-impact actions").
 - `lrh-work-item-workflow.md` has a new orchestration section
 - `diff src/lrh/skills/lrh-work-item/SKILL.md .claude/skills/lrh-work-item/SKILL.md`
   reports no differences
-- `diff src/lrh/skills/lrh-work-item/references/lrh-work-item-workflow.md \`
-  `.claude/skills/lrh-work-item/references/lrh-work-item-workflow.md`
-  reports no differences
+- `diff src/lrh/skills/lrh-work-item/references/lrh-work-item-workflow.md .claude/skills/lrh-work-item/references/lrh-work-item-workflow.md` reports no differences
 - `lrh validate` reports 0 errors
 
 ## Validation
@@ -128,4 +126,4 @@ guidance ("Require human approval for high-impact actions").
   confirm gate fires in any context, but it should be noted in the workflow
   doc so future skill authors understand the trade-off.
 - The `when_to_use` field narrows auto-trigger surface but cannot fully
-  prevent keyword matching; the confirm gate remains the last line of defence.
+  prevent keyword matching; the confirm gate remains the last line of defense.

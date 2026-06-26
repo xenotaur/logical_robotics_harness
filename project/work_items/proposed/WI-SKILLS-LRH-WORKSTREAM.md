@@ -25,7 +25,7 @@ forbidden_actions:
   - implement_lrh_proposal
   - implement_lrh_design_step4
 acceptance:
-  - "/lrh-workstream <WS-ID> creates project/workstreams/proposed/<WS-ID>.md with valid kind: planning_node frontmatter"
+  - "/lrh-workstream <WS-ID> creates project/workstreams/proposed/<WS-ID>.md with valid kind: planning_node and stage: conceived frontmatter"
   - lrh validate reports 0 errors after the skill creates a workstream
   - Confirm-before-write gate is present in the skill execution steps
   - "CLAUDE.md ## Skills index includes a /lrh-workstream entry"
@@ -84,9 +84,12 @@ slash-command path from design conversation to any control-plane artifact.
    non-goals.
 2. Create `src/lrh/skills/lrh-workstream/references/workstream-schema.md` —
    YAML frontmatter field reference: required fields (`id`, `kind:
-   planning_node`, `title`, `status`), lifecycle vocabulary (`proposed`,
-   `active`, `resolved`, `abandoned`), optional relationship fields
-   (`work_items`, `related_proposals`, `depends_on`, `blocked_by`).
+   planning_node`, `title`, `status`, `stage`), stage vocabulary (`conceived`,
+   `assessed`, `designed`, `planned`, `executing`, `reviewing`, `closed`,
+   `abandoned`), lifecycle vocabulary for `status` (`proposed`, `active`,
+   `resolved`, `abandoned`), supported list fields (`work_items`,
+   `related_design`, `children`). Cross-reference `src/lrh/control/validator.py`
+   `WORKSTREAM_REQUIRED_FIELDS` and `WORKSTREAM_LIST_FIELDS` as authoritative.
 3. Create `src/lrh/skills/lrh-workstream/references/workstream-body-guide.md`
    — section guide for: Summary, Motivation, Scope, Work Items, Non-Goals,
    Exit Criteria. Mirrors the discipline in `work-item-body-guide.md`.
@@ -109,7 +112,7 @@ slash-command path from design conversation to any control-plane artifact.
 
 - `/lrh-workstream <WS-ID>` creates `project/workstreams/proposed/<WS-ID>.md`
   with valid frontmatter: `id`, `kind: planning_node`, `title`,
-  `status: proposed`
+  `status: proposed`, `stage: conceived`
 - `lrh validate` reports 0 errors after the skill runs
 - The skill has an explicit confirm-before-write gate before writing any file
 - `CLAUDE.md` `## Skills` index includes a `/lrh-workstream` entry

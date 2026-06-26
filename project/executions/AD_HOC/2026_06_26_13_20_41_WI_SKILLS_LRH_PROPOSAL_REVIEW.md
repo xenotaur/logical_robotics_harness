@@ -2,14 +2,14 @@
 execution_id: 2026_06_26_13_20_41_WI_SKILLS_LRH_PROPOSAL_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_LRH_PROPOSAL_REVIEW)[2026-06-26T13:15:57-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/328
-commit: 8b87304
+commit: f183e9c
 created_at: 2026-06-26T13:20:41-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/328
-session_transcript: pending
+session_transcript: claude-app:local_5d607d17-5c38-4dcf-b83e-ea913d88c9af
 ---
 
 # Summary
@@ -46,5 +46,5 @@ No comments were skipped.
 
 # Follow-up
 
-- Update `session_transcript: pending` to `claude-app:<session-id>` after
+- Update `session_transcript: claude-app:local_5d607d17-5c38-4dcf-b83e-ea913d88c9af` to `claude-app:<session-id>` after
   session ends.

@@ -163,6 +163,17 @@ Example: `xenotaur/feat/wi-skills-lrh-setup`
 
 ### 6. Write file
 
+Re-check that the work item does not already exist on the freshly pulled
+main — the Step 1 check may be stale if main advanced since the session
+started:
+
+```bash
+find project/work_items/ -name "<ID>.md"
+```
+
+If found, stop and report — ask the user to overwrite, extend, or abort
+before proceeding.
+
 Create `project/work_items/proposed/<ID>.md` with the confirmed content.
 The `project/work_items/proposed/` directory already exists; do not recreate
 it. Set `status: proposed`, `blocked: false`, `blocked_reason: null`,
@@ -208,6 +219,16 @@ If a workstream was identified in Step 2, read its current `work_items:`
 list from the YAML frontmatter and show the user what adding the new ID
 would look like. Wait for explicit approval before editing the workstream
 file.
+
+If the user approves, edit the workstream, then validate and push the change
+to the open PR as an additional commit — do not leave it uncommitted:
+
+```bash
+lrh validate
+git add project/workstreams/<WS-ID>.md
+git commit -m "Update workstream <WS-ID>: add <ID>"
+git push
+```
 
 **Report to the user:**
 

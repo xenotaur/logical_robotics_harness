@@ -145,7 +145,18 @@ Always use `feat` — skills are deliverables.
 
 ### 6. Write files
 
-Create the following under `.claude/skills/<name>/`:
+Re-check that the skill does not already exist on the freshly pulled main —
+the Step 1 check may be stale if main advanced since the session started:
+
+```bash
+ls src/lrh/skills/<name>/ .claude/skills/<name>/ 2>&1
+```
+
+If either path exists, stop and report — ask the user to overwrite, extend,
+or abort before proceeding.
+
+Create files under `src/lrh/skills/<name>/` first — this is the authoritative
+location per CONTRIBUTING.md:
 
 - **`SKILL.md`** — frontmatter from Step 4, body following the LRH pattern
   from `references/lrh-skill-pattern.md`. Each execution step should have
@@ -156,11 +167,10 @@ Create the following under `.claude/skills/<name>/`:
   Keep reference files factual and load-on-demand; do not repeat content
   that is already in `SKILL.md`.
 
-If `.claude/skills/` or `.claude/skills/<name>/` do not exist, create them.
+If `src/lrh/skills/<name>/` does not exist, create it.
 
-Then create the package copy under `src/lrh/skills/<name>/` with the same
-files. Both locations must be byte-for-byte identical per CONTRIBUTING.md.
-Verify with:
+Then copy to the self-hosted location `.claude/skills/<name>/`. Both
+locations must be byte-for-byte identical. Verify with:
 
 ```bash
 diff -r src/lrh/skills/<name>/ .claude/skills/<name>/

@@ -2,13 +2,13 @@
 execution_id: 2026_06_25_20_06_14_ADD_PR_WORKFLOW_TO_SKILLS_REVIEW
 prompt_id: PROMPT(AD_HOC:ADD_PR_WORKFLOW_TO_SKILLS_REVIEW)[2026-06-25T19:53:15-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_06_25_19_45_27_ADD_PR_WORKFLOW_TO_SKILLS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/327
 commit: 8ffed99
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/327
-session_transcript: pending
+session_transcript: claude-app:6ca47ac2-78b7-46b5-9ca4-1e80a8720b8b
 created_at: 2026-06-25T20:06:14-04:00
 ---
 

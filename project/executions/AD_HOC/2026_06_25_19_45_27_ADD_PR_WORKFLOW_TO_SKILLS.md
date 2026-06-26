@@ -2,13 +2,13 @@
 execution_id: 2026_06_25_19_45_27_ADD_PR_WORKFLOW_TO_SKILLS
 prompt_id: PROMPT(AD_HOC:ADD_PR_WORKFLOW_TO_SKILLS)[2026-06-25T19:36:53-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/327
 commit: 88f04bc
 agent: claude_app
 instruction_source: ad_hoc conversation — gap identified during /lrh-create-skill lrh-design session
-session_transcript: pending
+session_transcript: claude-app:6ca47ac2-78b7-46b5-9ca4-1e80a8720b8b
 created_at: 2026-06-25T19:45:27-04:00
 ---
 

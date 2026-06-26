@@ -134,7 +134,45 @@ If the user redirects or declines, adjust the proposal and show it again.
 Do not skip this gate — it prevents incorrectly-scoped work items from
 being committed to the control plane.
 
-### 5. Write file
+### 5. Create branch from main
+
+```bash
+git checkout main && git pull
+git checkout -b <branch-name>
+```
+
+Branch naming: `<username>/<type>/<slug>`. Get the username:
+
+```bash
+gh api user --jq .login
+```
+
+Derive `<slug>` from the work item ID (lower-kebab):
+`WI-SKILLS-LRH-SETUP` → `wi-skills-lrh-setup`
+
+Map the work item `type` (known from Step 2) to `<type>`:
+
+| Work item type | Branch type |
+|---|---|
+| `deliverable` | `feat` |
+| `operation` | `chore` |
+| `investigation` | `spike` |
+| `evaluation` | `audit` |
+
+Example: `xenotaur/feat/wi-skills-lrh-setup`
+
+### 6. Write file
+
+Re-check that the work item does not already exist on the freshly pulled
+main — the Step 1 check may be stale if main advanced since the session
+started:
+
+```bash
+find project/work_items/ -name "<ID>.md"
+```
+
+If found, stop and report — ask the user to overwrite, extend, or abort
+before proceeding.
 
 Create `project/work_items/proposed/<ID>.md` with the confirmed content.
 The `project/work_items/proposed/` directory already exists; do not recreate
@@ -147,7 +185,7 @@ parser only extracts bullets; a code block produces an empty list and the
 item will fail `lrh work-items readiness` with "missing Validation commands"
 even though the section exists.
 
-### 6. Validate
+### 7. Validate
 
 Run:
 
@@ -159,7 +197,21 @@ Fix any errors before proceeding. Common failures: required frontmatter field
 missing, `status` value does not match directory bucket, filename stem does
 not match `id` field.
 
-### 7. Offer workstream update and report
+### 8. Commit and open PR
+
+Stage and commit the work item file:
+
+```bash
+git add project/work_items/proposed/<ID>.md
+git commit -m "Add work item <ID>: <title>"
+git push -u origin <branch-name>
+gh pr create --title "Add work item <ID>: <title>" --body "..."
+```
+
+Include in the PR body: the work item summary, type, related workstream, and
+acceptance criteria.
+
+### 9. Offer workstream update and report
 
 **Workstream update (offer, not automatic):**
 
@@ -168,10 +220,21 @@ list from the YAML frontmatter and show the user what adding the new ID
 would look like. Wait for explicit approval before editing the workstream
 file.
 
+If the user approves, edit the workstream, then validate and push the change
+to the open PR as an additional commit — do not leave it uncommitted:
+
+```bash
+lrh validate
+git add project/workstreams/<WS-ID>.md
+git commit -m "Update workstream <WS-ID>: add <ID>"
+git push
+```
+
 **Report to the user:**
 
 - The file created and its path.
 - The `lrh validate` outcome.
+- The PR URL.
 - Which fields were inferred vs. directly from user answers — be explicit
   so the user can correct mismatches.
 - Suggested next steps per `references/lrh-work-item-workflow.md`.
@@ -182,6 +245,7 @@ file.
 
 Before reporting completion, verify:
 
+- [ ] Branch created from a fresh `git pull` of main
 - [ ] `project/work_items/proposed/<ID>.md` exists
 - [ ] Filename stem exactly matches the `id` frontmatter field
 - [ ] Required fields present: `id`, `title`, `type`, `status`, `blocked`,
@@ -192,6 +256,7 @@ Before reporting completion, verify:
       Required Changes, Non-Goals, Acceptance Criteria, Validation
 - [ ] `lrh validate` reports 0 errors
 - [ ] The confirm-before-write gate (Step 4) was honoured
+- [ ] PR opened and URL reported to the user
 
 ---
 
@@ -202,7 +267,7 @@ Before reporting completion, verify:
 - Does not promote work items to `active` or `resolved` — status changes
   are human decisions.
 - Does not implement the work item — it creates the planning artifact only.
-- Does not automatically update workstreams — Step 7 offers; the user
+- Does not automatically update workstreams — Step 9 offers; the user
   decides.
 - Does not create execution records — those are produced during
   implementation.

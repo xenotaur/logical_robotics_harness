@@ -2,8 +2,8 @@
 id: WS-SKILLS-DOC
 kind: planning_node
 title: Diataxis Documentation Skills
-status: proposed
-stage: designed
+status: resolved
+stage: closed
 origin: follow_up
 summary: >
   Implement and land three Claude Code documentation workflow skills

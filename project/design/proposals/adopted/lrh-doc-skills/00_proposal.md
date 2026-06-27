@@ -2,11 +2,14 @@
 id: PROP-LRH-DOC-SKILLS
 type: design_proposal
 title: LRH Diataxis Documentation Skills — lrh-doc-audit, lrh-doc-organize, lrh-doc-work
-status: proposed
+status: adopted
 created_on: 2026-06-27
 updated_on: 2026-06-27
-implementation_status: not_started
-implemented_by: []
+implementation_status: implemented
+implemented_by:
+  - WI-SKILLS-LRH-DOC-AUDIT
+  - WI-SKILLS-LRH-DOC-ORGANIZE
+  - WI-SKILLS-LRH-DOC-WORK
 supersedes: []
 superseded_by: null
 related_design:

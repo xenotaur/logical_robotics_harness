@@ -2,13 +2,13 @@
 execution_id: 2026_06_27_01_05_25_WI_SKILLS_LRH_DOC_AUDIT
 prompt_id: PROMPT(WI-SKILLS-LRH-DOC-AUDIT:WI_SKILLS_LRH_DOC_AUDIT)[2026-06-27T00:59:42-04:00]
 work_item: WI-SKILLS-LRH-DOC-AUDIT
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/336
-commit: 14ef199
+commit: 2cca26a
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-LRH-DOC-AUDIT.md
-session_transcript: pending
+session_transcript: claude-app:local_1137bbd3-29eb-4c2e-be43-11a4f4c79216
 ---
 
 # Summary

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented /lrh-doc-audit skill in PR #336 (commit 2cca26a); SKILL.md, diataxis-criteria.md, audit-requirements.md created in src/ and mirrored to .claude/; cross-reference added to audit_docs.md; CLAUDE.md updated
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-DOC-AUDIT
 title: Implement lrh-doc-audit Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

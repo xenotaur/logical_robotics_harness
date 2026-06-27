@@ -159,9 +159,8 @@ workstream). Consistent with how `lrh-review-response` auto-detects its PR.
   interface.
 - Does not automate the closeout of existing `audit_docs` runs — prior
   audit artifacts produced via `lrh request` are not migrated.
-- Does not migrate existing skill files from `.claude/skills/` to
-  `src/lrh/skills/` — distributable copies are a follow-on concern for
-  all three skills.
+- Does not upload LRH skills to the claude.ai Skills API — cloud
+  distribution adds API key requirements and is out of scope.
 
 ## Implementation Plan
 
@@ -179,6 +178,7 @@ artifact is consumed by `lrh-doc-organize`.
 Each work item produces:
 - `.claude/skills/<name>/SKILL.md`
 - `.claude/skills/<name>/references/*.md` (2 files per skill)
+- `src/lrh/skills/<name>/` — package copy for global installation via `lrh setup`
 - Cross-reference comment edits to relevant templates
 - `CLAUDE.md` skill index entry
 

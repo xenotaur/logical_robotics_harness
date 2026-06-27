@@ -10,3 +10,4 @@
 - `/lrh-doc-audit` — Audit a repository's documentation against the Diataxis framework and write a structured audit artifact
 - `/lrh-doc-organize` — Implement one scoped phase of Diataxis-informed documentation reorganization as a reviewable PR
 - `/lrh-doc-work` — Update a repository's documentation to reflect recently completed work (merged PR, resolved WI, or closed WS)
+- `/lrh-closeout` — Automate the post-execution closeout workflow: land execution records, resolve work items, close workstreams, and adopt proposals

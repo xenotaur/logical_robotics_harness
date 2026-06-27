@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: implemented
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-DESIGN-STEP4
 title: Update /lrh-design Step 4 with scope-assessment sub-step
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

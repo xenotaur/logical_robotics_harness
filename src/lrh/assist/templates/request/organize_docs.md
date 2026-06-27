@@ -1,3 +1,4 @@
+<!-- Skill reference: .claude/skills/lrh-doc-organize/references/ -->
 # PR Request: Organize Documentation (one scoped PR)
 
 Target agent: {{REQUEST_TARGET_AGENT}}

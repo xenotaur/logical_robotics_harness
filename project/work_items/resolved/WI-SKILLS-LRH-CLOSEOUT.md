@@ -1,5 +1,5 @@
 ---
-resolution: "Implemented /lrh-closeout work item planning artifact in PR #341 (commit 9fc4dbf)"
+resolution: "Implemented /lrh-closeout skill (Phase 1: edit-in-place) in PR #342 (commit 28730a2)"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-CLOSEOUT

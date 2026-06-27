@@ -2,13 +2,13 @@
 execution_id: 2026_06_27_18_51_19_WI_SKILLS_LRH_CLOSEOUT
 prompt_id: PROMPT(WI-SKILLS-LRH-CLOSEOUT:WI_SKILLS_LRH_CLOSEOUT)[2026-06-27T18:36:02-04:00]
 work_item: WI-SKILLS-LRH-CLOSEOUT
-status: in_progress
+status: landed
 agent: claude_app
 instruction_source: project/work_items/resolved/WI-SKILLS-LRH-CLOSEOUT.md
-session_transcript: pending
+session_transcript: claude-app:6f9b846e-c6f9-45aa-9cf9-8c744ec57026
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/342
-commit: 
+commit: 28730a2449826b588e83b5a72731cecdea77b109
 created_at: 2026-06-27T18:51:19-04:00
 ---
 

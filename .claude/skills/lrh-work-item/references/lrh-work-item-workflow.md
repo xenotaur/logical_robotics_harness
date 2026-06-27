@@ -133,9 +133,9 @@ if the file is in the wrong bucket.
 
 `/lrh-work-item` can be invoked by orchestrating skills (`/lrh-design`,
 `/lrh-proposal`, `/lrh-workstream`) when they need to create companion work
-items as part of a design-capture workflow. This is enabled by the `when_to_use`
-field in the frontmatter, which replaced the former `disable-model-invocation:
-true` flag.
+items as part of a design-capture workflow. This is enabled by removing
+`disable-model-invocation: true`; the `when_to_use` field was added in its
+place to provide guidance that reduces accidental auto-invocations.
 
 ### Why the confirm gate is sufficient write protection
 
@@ -155,9 +155,10 @@ invocation. The confirm gate fires in any invocation context — direct user cal
 or orchestrated call — so write protection is preserved regardless of how the
 skill is triggered.
 
-The `when_to_use` field narrows the auto-trigger surface (Claude will not invoke
-this skill when the user is simply asking about work items) while still allowing
-explicit invocation from both users and orchestrating skills.
+The `when_to_use` field narrows the auto-trigger surface — Claude is less likely
+to invoke this skill when the user is simply asking about work items — while
+still allowing explicit invocation from both users and orchestrating skills.
+`when_to_use` is guidance, not a hard platform guarantee.
 
 ### Preloading into forked subagents
 

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented /lrh-doc-organize skill in PR #337 (commit dda610e); SKILL.md (11-step flow with prompt-ID mint at Step 3), diataxis-criteria.md, organize-constraints.md, organize-workflow.md created in src/ and mirrored to .claude/; cross-reference added to organize_docs.md; CLAUDE.md updated
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-DOC-ORGANIZE
 title: Implement lrh-doc-organize Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

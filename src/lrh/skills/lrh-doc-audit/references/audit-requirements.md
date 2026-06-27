@@ -72,12 +72,21 @@ reference doc.
 ### Stale internal links
 
 For each markdown file, extract all `[text](path)` links where `path` does
-not start with `http://` or `https://`. Verify each target exists relative
-to the file's location. Report:
+not start with `http://` or `https://`. Apply these normalizations before
+the filesystem existence check:
+
+1. **Skip pure fragment links** — if the entire target is `#something` (an
+   in-page anchor), skip it; there is no file to check.
+2. **Strip fragment suffix** — if the target is `file.md#section`, check
+   only `file.md`; ignore the `#section` part.
+3. **Resolve relative to the containing file** — check the normalized path
+   relative to the directory of the file being scanned.
+
+Report any target that still fails after these normalizations:
 
 - File containing the broken link
-- Broken link target
-- Expected resolved path
+- Broken link target (as written)
+- Expected resolved path (after normalization)
 
 ### Navigation gaps
 
@@ -88,74 +97,62 @@ Check for missing cross-references:
 
 ---
 
-## Artifact Schema
+## Artifact Schema (v1)
 
-The audit artifact must include all of the following sections in order.
-Omitting "Proposed First PR Scope" is not permitted — it is consumed by
-`/lrh-doc-organize`.
+The audit artifact must conform to the v1 convention defined in
+`docs/reference/docs-audit-artifact-convention.md`. That file is the
+authoritative reference; this section summarizes the required elements.
 
-```markdown
-# Documentation Audit — <repository-name> — YYYY-MM-DD
+### Required frontmatter
 
-## Repository Overview
-
-Brief description of the repository: its purpose, primary audience, and
-scale of existing documentation (rough file count, directory structure).
-
-## Documentation Inventory
-
-Table or annotated list of all discovered documentation files:
-
-| Path | Current Type | Diataxis Quadrant | Notes |
-|---|---|---|---|
-| README.md | Mixed | Tutorial + Reference | Quickstart + config table |
-| docs/how-to/deploy.md | How-to | How-to | Clear; no issues |
-| docs/concepts/auth.md | Explanation | Explanation | Good coverage |
-| ... | | | |
-
-## Diataxis Coverage
-
-Assessment of each quadrant:
-
-**Tutorial:** [present / thin / absent] — [details]
-**How-to:** [present / thin / absent] — [details]
-**Reference:** [present / thin / absent] — [details]
-**Explanation:** [present / thin / absent] — [details]
-
-## Stale Links and Navigation Gaps
-
-List of broken internal links, with file and target.
-List of navigation gaps (missing cross-references).
-If none: "No stale links found. No navigation gaps identified."
-
-## Gaps and Recommendations
-
-Prioritized list of missing or underserved documentation. For each item:
-- Recommended content (specific, not vague)
-- Diataxis quadrant it would fill
-- Rationale (evidence-backed: reference specific files or absence thereof)
-
-## Proposed First PR Scope
-
-A scoped list of changes appropriate for a single reviewable PR — consumed
-directly by `/lrh-doc-organize`. Should be achievable in one PR without
-reorganizing everything at once:
-
-- [Move/rename/create]: specific file action with source and destination
-- [Create stub]: new file with title and target quadrant
-- [Update README]: specific section to add, move, or remove
-
-Keep this section actionable and concrete. Scope it to changes that are
-clearly improvements and carry low regression risk.
-
-## Notes
-
-Any constraints, caveats, or context that does not fit elsewhere:
-- Paths intentionally excluded from the audit and why
-- Uncertainty about classification decisions
-- Content identified as planned (not yet implemented) vs. current reality
-- Suggestions for future audit passes
+```yaml
+---
+id: AUDIT-DOCS-YYYY-MM-DD
+audit_type: docs
+schema_version: 1
+status: proposed
+repo_root: .
+project_root: .
+docs_root: docs
+control_root: project
+package_roots: []
+framework: diataxis
+recommended_next_prompt: organize_docs
+recommended_phase: scaffold
+---
 ```
+
+Populate `repo_root`, `project_root`, `docs_root`, `control_root`, and
+`package_roots` with the actual paths discovered in Step 3. These fields
+make the artifact portable and consumable by future tooling.
+
+### Required headings (in order)
+
+All 14 sections must be present. Small subheadings are permitted; the
+top-level headings must match exactly so downstream prompts and future
+validators can reliably consume the artifact.
+
+```
+## Summary
+## Scope and roots inspected
+## Current documentation inventory
+## Current project and package layout
+## Diataxis classification
+## Navigation findings
+## Accuracy findings
+## Stale or ambiguous links
+## Project-control-plane vs human-docs boundary
+## Recommended target documentation structure
+## Recommended phased PRs
+## Proposed first PR scope
+## Risks and cautions
+## Validation commands for follow-up PRs
+```
+
+**"Proposed first PR scope" is mandatory.** It is consumed directly by
+`/lrh-doc-organize` to scope the first reorganization PR. Keep it
+actionable and concrete: specific file moves, stub creations, or README
+edits — no vague recommendations.
 
 ---
 
@@ -172,9 +169,9 @@ a reorganization, which defeats the purpose of separating the two operations.
    The only file written by this skill is the audit artifact itself.
 
 3. **Allow only trivial link fixes.** If a stale link is clearly a typo and
-   the fix is unambiguous, it may be noted in the audit Notes section as a
-   "safe inline fix" — but it still requires user confirmation and a separate
-   commit, not bundled with the audit artifact.
+   the fix is unambiguous, it may be noted in the "Risks and cautions" section
+   as a "safe inline fix" — but it still requires user confirmation and a
+   separate commit, not bundled with the audit artifact.
 
 4. **Base gaps on current reality, not templates.** Do not flag the absence
    of documentation that "should" exist based on convention if there is no

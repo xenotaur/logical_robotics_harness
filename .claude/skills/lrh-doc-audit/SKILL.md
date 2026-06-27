@@ -108,8 +108,17 @@ When a file is clearly mixed, note which quadrants it spans.
 
 ### Step 5 — Gap and stale-link analysis
 
-**Stale links:** scan all markdown files for internal links. Verify each
-`[text](path)` target exists. List any that do not, with the file and line.
+**Stale links:** scan all markdown files for internal links. For each
+`[text](path)` target that does not begin with `http://` or `https://`:
+
+1. **Skip pure fragment links** — if the entire target is `#something`,
+   it is an in-page anchor; skip the filesystem check entirely.
+2. **Strip fragment before checking** — if the target is `file.md#section`,
+   check only `file.md` for existence; ignore the `#section` suffix.
+3. **Resolve relative to the containing file** — check the resulting path
+   relative to the directory of the file being scanned.
+
+List any target that fails after these normalizations, with the file and line.
 
 **Navigation gaps:** check for missing cross-links between related docs
 (e.g., a how-to that references a concept with no explanation doc to link to).
@@ -120,16 +129,9 @@ are underserved or entirely absent. Note specific missing content.
 ### Step 6 — Draft audit artifact
 
 Using the schema from `references/audit-requirements.md`, draft the full
-audit artifact in memory (do not write yet). Required sections:
-
-1. Repository Overview
-2. Documentation Inventory (per-file table with path, current type, Diataxis
-   quadrant, notes)
-3. Diataxis Coverage (per-quadrant assessment)
-4. Stale Links and Navigation Gaps
-5. Gaps and Recommendations (prioritized, evidence-backed)
-6. Proposed First PR Scope (scoped list for `/lrh-doc-organize` to consume)
-7. Notes
+audit artifact in memory (do not write yet). The schema is the v1 convention
+from `docs/reference/docs-audit-artifact-convention.md` — see that file and
+`audit-requirements.md` for the full required frontmatter and heading list.
 
 ### Step 7 — Confirm gate (human gate)
 
@@ -199,4 +201,4 @@ Before reporting completion, verify:
 - Does not update docs to reflect new work — that is `/lrh-doc-work`
 - Does not open a PR automatically — offers commit to main or PR after confirm
 - Does not write to any path outside `project/audits/docs/`
-- Does not audit control-plane `project/` files (those are work items, not docs)
+- Discovers `project/` control-plane files and classifies them as **Meta** — does not force them into Diataxis quadrants or treat them as documentation

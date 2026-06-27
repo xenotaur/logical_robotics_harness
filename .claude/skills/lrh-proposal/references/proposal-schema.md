@@ -15,7 +15,7 @@ design proposal.
 
 | Field | Type | Constraints |
 |---|---|---|
-| `id` | string | `PROP-*` form; stable, unique identifier for this proposal |
+| `id` | string | Stable, unique identifier for this proposal; LRH projects conventionally use `PROP-*` form, downstream projects may use other prefixes (e.g., `DP-*`). The schema does not enforce a specific prefix — follow the project's established convention. |
 | `status` | string | See status vocabulary below |
 | `type` | string | Must be exactly `design_proposal`; or use `kind: design_proposal` |
 

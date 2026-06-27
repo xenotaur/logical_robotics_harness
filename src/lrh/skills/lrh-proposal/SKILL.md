@@ -205,10 +205,17 @@ appropriate next step:
 
 - **Small scope (one PR):** offer to invoke `/lrh-work-item` to create a
   companion work item.
-- **Medium scope (multiple PRs):** offer to invoke `/lrh-workstream` and
-  then `/lrh-work-item` for each immediate task.
-- **Large scope (multi-stage):** offer to invoke `/lrh-workstream` first;
-  defer individual work items until workstream scope is defined.
+- **Medium scope (multiple PRs):** check whether `/lrh-workstream` is listed
+  in `CLAUDE.md ## Skills`. If it is, offer to invoke it followed by
+  `/lrh-work-item` for each immediate task. If it is not yet available,
+  direct the user to create a workstream manually at
+  `project/workstreams/proposed/<WS-ID>.md` following the workstream schema,
+  then offer `/lrh-work-item` for each immediate task.
+- **Large scope (multi-stage):** check whether `/lrh-workstream` is listed
+  in `CLAUDE.md ## Skills`. If it is, offer to invoke it first; defer
+  individual work items until workstream scope is defined. If it is not yet
+  available, direct the user to the manual workstream path and defer work
+  items.
 
 Do not automatically invoke any skill — offer and wait for the user to confirm.
 

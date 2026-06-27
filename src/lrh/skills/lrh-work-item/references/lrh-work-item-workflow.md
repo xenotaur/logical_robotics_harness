@@ -129,6 +129,46 @@ if the file is in the wrong bucket.
 
 ---
 
+## Orchestration: invoking this skill from other skills
+
+`/lrh-work-item` can be invoked by orchestrating skills (`/lrh-design`,
+`/lrh-proposal`, `/lrh-workstream`) when they need to create companion work
+items as part of a design-capture workflow. This is enabled by the `when_to_use`
+field in the frontmatter, which replaced the former `disable-model-invocation:
+true` flag.
+
+### Why the confirm gate is sufficient write protection
+
+The former `disable-model-invocation: true` flag conflated two concerns:
+
+1. Preventing accidental keyword auto-triggering.
+2. Blocking explicit model invocation via the Skill tool.
+
+The first concern is desirable. The second prevents composition — orchestrating
+skills cannot call `/lrh-work-item` as a sub-task without requiring the user to
+manually type the slash command, defeating the purpose of skill composition.
+
+The Step 4 confirm gate shows the complete proposed work item and requires
+explicit user approval before any file is written. This satisfies OWASP LLM08
+("Require human approval for high-impact actions") without blocking programmatic
+invocation. The confirm gate fires in any invocation context — direct user call
+or orchestrated call — so write protection is preserved regardless of how the
+skill is triggered.
+
+The `when_to_use` field narrows the auto-trigger surface (Claude will not invoke
+this skill when the user is simply asking about work items) while still allowing
+explicit invocation from both users and orchestrating skills.
+
+### Preloading into forked subagents
+
+Removing `disable-model-invocation` also allows this skill to be preloaded into
+forked subagents (`context: fork`). This is low-risk because the confirm gate
+fires in any context, but skill authors building agents that fork should be aware
+that the skill will be available in sub-contexts and that the gate remains the
+last line of defense.
+
+---
+
 ## LRH-specific constraints this skill enforces
 
 - Work items are always created in `proposed/` — they are never created

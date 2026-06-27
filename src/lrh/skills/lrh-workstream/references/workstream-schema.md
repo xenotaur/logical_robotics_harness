@@ -15,7 +15,7 @@ workstream.
 
 | Field | Type | Constraints |
 |---|---|---|
-| `id` | string | Stable, unique identifier; LRH projects conventionally use `WS-*` form. Not schema-enforced — follow the project's established convention. |
+| `id` | string | Must start with `WS-`. The validator emits a `WORKSTREAM_ID_CONVENTION` warning for IDs that do not, and the loader only discovers workstreams via `WS-*.md` filename glob — files with other prefixes are silently ignored. |
 | `kind` | string | Must be exactly `planning_node` (the only valid value in `WORKSTREAM_KINDS`) |
 | `title` | string | Short human-readable title; used in listings and snapshots |
 | `status` | string | See status vocabulary below |

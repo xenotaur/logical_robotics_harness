@@ -56,10 +56,12 @@ Work through these steps in order. Do not skip the confirmation gate (Step 4).
 
 ### 1. Check for existing workstream
 
-Search all bucket directories for a file whose stem matches the requested ID:
+Search all bucket directories for a file whose stem matches the requested ID.
+The `project/workstreams/` tree may not exist in freshly bootstrapped repos —
+suppress errors and treat an absent directory as "not found":
 
 ```bash
-find project/workstreams/ -name "<WS-ID>.md"
+find project/workstreams/ -name "<WS-ID>.md" 2>/dev/null
 ```
 
 If found:
@@ -152,15 +154,20 @@ Re-check that the workstream does not already exist on the freshly pulled
 main — the Step 1 check may be stale:
 
 ```bash
-find project/workstreams/ -name "<WS-ID>.md"
+find project/workstreams/ -name "<WS-ID>.md" 2>/dev/null
 ```
 
 If found, stop and report — ask the user to overwrite, extend, or abort
 before proceeding.
 
+Create the bucket directory if it does not exist, then write the file:
+
+```bash
+mkdir -p project/workstreams/proposed/
+```
+
 Create `project/workstreams/proposed/<WS-ID>.md` with the confirmed content.
-The `project/workstreams/proposed/` directory already exists; do not recreate
-it. Set `status: proposed`, `stage: <chosen>` (default `conceived`).
+Set `status: proposed`, `stage: <chosen>` (default `conceived`).
 
 ### 7. Validate
 

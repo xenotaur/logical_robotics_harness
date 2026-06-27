@@ -120,10 +120,14 @@ independent copies are safe. No cross-skill read machinery needed.
 - `docs/docs-audit.md` — visible in the docs tree, mixes control-plane with content
 - `project/docs/docs-audit-YYYY-MM-DD.md` — control plane, dated for history
 
-**Chosen: `project/docs/`**. Audit artifacts are planning documents, not
-documentation. Placing them in the control plane is consistent with how
-execution records, work items, and proposals are stored. The dated filename
-preserves history across multiple audit runs.
+**Chosen: `project/audits/docs/`**. Audit artifacts are planning documents,
+not documentation. `project/audits/` names the artifact type, consistent
+with `project/executions/`, `project/work_items/`, and `project/workstreams/`.
+The `docs/` sub-directory names the subject of the audit. The dated filename
+preserves history across multiple audit runs. `project/docs/` was considered
+but rejected: it sounds like a content directory rather than a typed artifact
+store, and would be the only `project/` subdirectory not named for its
+artifact type.
 
 ### Decision 4: `lrh-doc-audit` does not open a PR
 

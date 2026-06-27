@@ -11,7 +11,6 @@ summary: >
   Option C-1 design established in PROP-LRH-DOC-SKILLS.
 related_design:
   - project/design/proposals/proposed/lrh-doc-skills/00_proposal.md
-  - project/workstreams/resolved/WS-SKILLS.md
 work_items:
   - WI-SKILLS-LRH-DOC-AUDIT
   - WI-SKILLS-LRH-DOC-ORGANIZE

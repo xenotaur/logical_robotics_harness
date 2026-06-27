@@ -28,7 +28,7 @@ forbidden_actions:
   - implement_lrh_doc_organize
 acceptance:
   - .claude/skills/lrh-doc-work/SKILL.md exists with valid frontmatter
-  - src/lrh/skills/lrh-doc-work/ is an exact copy of .claude/skills/lrh-doc-work/
+  - .claude/skills/lrh-doc-work/ is an exact copy of src/lrh/skills/lrh-doc-work/
   - CLAUDE.md ## Skills has a /lrh-doc-work entry
   - lrh validate passes with 0 errors
 required_evidence:
@@ -79,10 +79,10 @@ review cycle already present in LRH for code changes.
 
 ## Required Changes
 
-1. Create `.claude/skills/lrh-doc-work/SKILL.md`
-2. Create `.claude/skills/lrh-doc-work/references/diataxis-criteria.md`
-3. Create `.claude/skills/lrh-doc-work/references/doc-work-scope.md`
-4. Create `src/lrh/skills/lrh-doc-work/` as an exact copy of `.claude/skills/lrh-doc-work/`
+1. Create `src/lrh/skills/lrh-doc-work/SKILL.md`
+2. Create `src/lrh/skills/lrh-doc-work/references/diataxis-criteria.md`
+3. Create `src/lrh/skills/lrh-doc-work/references/doc-work-scope.md`
+4. Copy `src/lrh/skills/lrh-doc-work/` to `.claude/skills/lrh-doc-work/` (byte-for-byte)
 5. Add `/lrh-doc-work` entry to `CLAUDE.md ## Skills`
 6. Verify `diff -r src/lrh/skills/lrh-doc-work/ .claude/skills/lrh-doc-work/` is empty
 
@@ -99,7 +99,7 @@ review cycle already present in LRH for code changes.
 ## Acceptance Criteria
 
 - `.claude/skills/lrh-doc-work/SKILL.md` exists with valid frontmatter
-- `src/lrh/skills/lrh-doc-work/` is an exact copy of `.claude/skills/lrh-doc-work/`
+- `.claude/skills/lrh-doc-work/` is an exact copy of `src/lrh/skills/lrh-doc-work/`
 - `CLAUDE.md ## Skills` has a `/lrh-doc-work` entry
 - `lrh validate` passes with 0 errors
 

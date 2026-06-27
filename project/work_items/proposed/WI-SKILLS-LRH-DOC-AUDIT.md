@@ -29,7 +29,7 @@ forbidden_actions:
   - implement_lrh_doc_work
 acceptance:
   - .claude/skills/lrh-doc-audit/SKILL.md exists with valid frontmatter
-  - src/lrh/skills/lrh-doc-audit/ is an exact copy of .claude/skills/lrh-doc-audit/
+  - .claude/skills/lrh-doc-audit/ is an exact copy of src/lrh/skills/lrh-doc-audit/
   - src/lrh/assist/templates/request/audit_docs.md carries a cross-reference comment
   - CLAUDE.md ## Skills has a /lrh-doc-audit entry
   - lrh validate passes with 0 errors
@@ -83,10 +83,10 @@ template format.
 
 ## Required Changes
 
-1. Create `.claude/skills/lrh-doc-audit/SKILL.md`
-2. Create `.claude/skills/lrh-doc-audit/references/diataxis-criteria.md`
-3. Create `.claude/skills/lrh-doc-audit/references/audit-requirements.md`
-4. Create `src/lrh/skills/lrh-doc-audit/` as an exact copy of `.claude/skills/lrh-doc-audit/`
+1. Create `src/lrh/skills/lrh-doc-audit/SKILL.md`
+2. Create `src/lrh/skills/lrh-doc-audit/references/diataxis-criteria.md`
+3. Create `src/lrh/skills/lrh-doc-audit/references/audit-requirements.md`
+4. Copy `src/lrh/skills/lrh-doc-audit/` to `.claude/skills/lrh-doc-audit/` (byte-for-byte)
 5. Add cross-reference comment to `src/lrh/assist/templates/request/audit_docs.md`
 6. Add `/lrh-doc-audit` entry to `CLAUDE.md ## Skills`
 7. Verify `diff -r src/lrh/skills/lrh-doc-audit/ .claude/skills/lrh-doc-audit/` is empty
@@ -102,7 +102,7 @@ template format.
 
 - `.claude/skills/lrh-doc-audit/SKILL.md` exists with valid frontmatter
   (`name`, `description`, `disable-model-invocation: true`, `argument-hint`)
-- `src/lrh/skills/lrh-doc-audit/` is an exact copy of `.claude/skills/lrh-doc-audit/`
+- `.claude/skills/lrh-doc-audit/` is an exact copy of `src/lrh/skills/lrh-doc-audit/`
 - `src/lrh/assist/templates/request/audit_docs.md` carries the comment:
   `<!-- Skill reference: .claude/skills/lrh-doc-audit/references/ -->`
 - `CLAUDE.md ## Skills` has a `/lrh-doc-audit` entry

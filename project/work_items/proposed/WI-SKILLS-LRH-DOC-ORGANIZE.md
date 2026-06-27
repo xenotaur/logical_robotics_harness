@@ -28,7 +28,7 @@ forbidden_actions:
   - implement_lrh_doc_work
 acceptance:
   - .claude/skills/lrh-doc-organize/SKILL.md exists with valid frontmatter
-  - src/lrh/skills/lrh-doc-organize/ is an exact copy of .claude/skills/lrh-doc-organize/
+  - .claude/skills/lrh-doc-organize/ is an exact copy of src/lrh/skills/lrh-doc-organize/
   - src/lrh/assist/templates/request/organize_docs.md carries a cross-reference comment
   - CLAUDE.md ## Skills has a /lrh-doc-organize entry
   - lrh validate passes with 0 errors
@@ -81,11 +81,11 @@ LRH execution record, and traceability back to the governing proposal.
 
 ## Required Changes
 
-1. Create `.claude/skills/lrh-doc-organize/SKILL.md`
-2. Create `.claude/skills/lrh-doc-organize/references/diataxis-criteria.md`
-3. Create `.claude/skills/lrh-doc-organize/references/organize-constraints.md`
-4. Create `.claude/skills/lrh-doc-organize/references/organize-workflow.md`
-5. Create `src/lrh/skills/lrh-doc-organize/` as an exact copy of `.claude/skills/lrh-doc-organize/`
+1. Create `src/lrh/skills/lrh-doc-organize/SKILL.md`
+2. Create `src/lrh/skills/lrh-doc-organize/references/diataxis-criteria.md`
+3. Create `src/lrh/skills/lrh-doc-organize/references/organize-constraints.md`
+4. Create `src/lrh/skills/lrh-doc-organize/references/organize-workflow.md`
+5. Copy `src/lrh/skills/lrh-doc-organize/` to `.claude/skills/lrh-doc-organize/` (byte-for-byte)
 6. Add cross-reference comment to `src/lrh/assist/templates/request/organize_docs.md`
 7. Add `/lrh-doc-organize` entry to `CLAUDE.md ## Skills`
 8. Verify `diff -r src/lrh/skills/lrh-doc-organize/ .claude/skills/lrh-doc-organize/` is empty
@@ -100,7 +100,7 @@ LRH execution record, and traceability back to the governing proposal.
 ## Acceptance Criteria
 
 - `.claude/skills/lrh-doc-organize/SKILL.md` exists with valid frontmatter
-- `src/lrh/skills/lrh-doc-organize/` is an exact copy of `.claude/skills/lrh-doc-organize/`
+- `.claude/skills/lrh-doc-organize/` is an exact copy of `src/lrh/skills/lrh-doc-organize/`
 - `src/lrh/assist/templates/request/organize_docs.md` carries the comment:
   `<!-- Skill reference: .claude/skills/lrh-doc-organize/references/ -->`
 - `CLAUDE.md ## Skills` has a `/lrh-doc-organize` entry

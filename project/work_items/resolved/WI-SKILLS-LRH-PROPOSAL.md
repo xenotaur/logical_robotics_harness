@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: implemented
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-PROPOSAL
 title: Implement /lrh-proposal Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

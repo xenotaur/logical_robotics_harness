@@ -2,14 +2,14 @@
 execution_id: 2026_06_26_13_44_20_WI_SKILLS_LRH_PROPOSAL
 prompt_id: PROMPT(WI-SKILLS-LRH-PROPOSAL:WI_SKILLS_LRH_PROPOSAL)[2026-06-26T13:31:29-04:00]
 work_item: WI-SKILLS-LRH-PROPOSAL
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/329
-commit: 09368ad
+commit: 4189549
 created_at: 2026-06-26T13:44:20-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-LRH-PROPOSAL.md
-session_transcript: pending
+session_transcript: claude-app:local_5d607d17-5c38-4dcf-b83e-ea913d88c9af
 ---
 
 # Summary

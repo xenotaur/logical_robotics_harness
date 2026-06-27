@@ -1,11 +1,12 @@
 # Diataxis Classification Criteria
 
 Reference material for classifying documentation against the Diataxis
-four-quadrant framework. Apply at Step 4 of `/lrh-doc-audit`.
+four-quadrant framework. Apply at Step 5 of `/lrh-doc-organize` when
+evaluating whether candidate scope items respect Diataxis quadrant boundaries.
 
 Source: https://diataxis.fr/ (Daniele Procida)
 
-<!-- Template counterpart: src/lrh/assist/templates/request/audit_docs.md -->
+<!-- Template counterpart: src/lrh/assist/templates/request/organize_docs.md -->
 
 ---
 

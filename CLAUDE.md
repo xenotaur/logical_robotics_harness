@@ -7,3 +7,4 @@
 - `/lrh-design` — Generate a structured design for a feature, improvement, or system
 - `/lrh-proposal` — Create a new LRH design proposal in project/design/proposals/proposed/
 - `/lrh-workstream` — Create a new LRH workstream planning node in project/workstreams/proposed/
+- `/lrh-doc-audit` — Audit a repository's documentation against the Diataxis framework and write a structured audit artifact

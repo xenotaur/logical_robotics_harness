@@ -1,3 +1,4 @@
+<!-- Skill reference: .claude/skills/lrh-doc-audit/references/ -->
 # Documentation Audit Request (Prompt-Generating Only)
 
 Target agent: {{REQUEST_TARGET_AGENT}}

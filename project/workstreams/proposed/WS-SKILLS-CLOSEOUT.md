@@ -12,7 +12,8 @@ summary: >
 related_design:
   - project/design/proposals/proposed/lrh-closeout/00_proposal.md
   - project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md
-work_items: []
+work_items:
+  - WI-SKILLS-LRH-CLOSEOUT
 exit_criteria:
   - /lrh-closeout skill exists at .claude/skills/lrh-closeout/ and src/lrh/skills/lrh-closeout/ and passes lrh validate with 0 errors
   - CLAUDE.md ## Skills index updated with /lrh-closeout entry

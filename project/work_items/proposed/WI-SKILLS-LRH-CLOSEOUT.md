@@ -33,6 +33,7 @@ acceptance:
   - src/lrh/skills/lrh-closeout/references/closeout-workflow.md exists
   - diff -r src/lrh/skills/lrh-closeout/ .claude/skills/lrh-closeout/ reports no differences
   - CLAUDE.md lists /lrh-closeout in the Skills section
+  - WI-SKILLS-LRH-CLOSEOUT present in WS-SKILLS-CLOSEOUT.md work_items list
   - lrh validate reports 0 errors
 required_evidence:
   - manual_review
@@ -43,6 +44,7 @@ artifacts_expected:
   - .claude/skills/lrh-closeout/SKILL.md
   - .claude/skills/lrh-closeout/references/closeout-workflow.md
   - CLAUDE.md (Skills section updated with /lrh-closeout)
+  - project/workstreams/proposed/WS-SKILLS-CLOSEOUT.md (work_items updated)
 ---
 
 ## Summary
@@ -154,6 +156,8 @@ remain stable between phases.
 - `diff -r src/lrh/skills/lrh-closeout/ .claude/skills/lrh-closeout/`
   reports no differences.
 - `CLAUDE.md` lists `/lrh-closeout` in the Skills section.
+- `WI-SKILLS-LRH-CLOSEOUT` is present in `WS-SKILLS-CLOSEOUT.md`
+  `work_items:` list.
 - `lrh validate` reports 0 errors.
 
 ## Validation

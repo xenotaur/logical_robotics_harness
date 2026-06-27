@@ -105,16 +105,34 @@ When citing sources: only cite sources you are confident are real. If no
 credible source is available for a claim, say so explicitly rather than
 inventing a citation. Prefer explicit gaps over fabricated references.
 
-### Step 4 — Offer follow-on
+### Step 4 — Assess scope and offer follow-on
 
-After delivering the design, offer:
+After delivering the design, assess the scope of the resulting work and offer
+the appropriate LRH artifact(s). Do not automatically invoke any skill — assess
+and offer; wait for the user to decide.
 
-- To capture the design as an LRH work item via `/lrh-work-item` (include a
-  suggested work item title if the design is well-scoped).
-- To produce a proposal document in `project/design/proposals/` if the idea
-  is significant enough to warrant one.
+**Scope assessment — apply this matrix:**
 
-Do not automatically do either — always offer and wait for the user to decide.
+| Scope signal | Offer |
+|---|---|
+| Single PR, well-bounded, no novel architectural decisions | `/lrh-work-item` only |
+| Multiple PRs, novel decisions, or uncertain scope | `/lrh-proposal` ± `/lrh-workstream` ± `/lrh-work-item` |
+| Complex multi-stage work, deferred scope, or multiple contributors | `/lrh-proposal` + `/lrh-workstream` first; work items later |
+
+**Guidance:**
+
+- **`/lrh-proposal`** — captures the design decision and its rationale as a
+  durable record. Offer when the design involves a significant architectural
+  choice, affects multiple areas of the codebase, or needs to be referenced
+  by future work.
+- **`/lrh-workstream`** — groups related work under a planning node. Offer
+  when implementation will span multiple PRs or involve multiple contributors.
+- **`/lrh-work-item`** — captures a single bounded task. Offer when the design
+  maps cleanly to one deliverable, operation, investigation, or evaluation.
+  Include a suggested title and type when offering this.
+
+State which combination you are recommending and why, then wait for the user
+to confirm before invoking anything.
 
 ---
 
@@ -130,7 +148,7 @@ Before reporting the design complete, verify:
 - [ ] Pros/cons are evaluated against best practices
 - [ ] A clear recommendation is made
 - [ ] Any choices that depend on user-supplied information are flagged
-- [ ] Follow-on offer (work item or proposal) was made
+- [ ] Scope assessed and appropriate artifact(s) offered (work item, proposal, and/or workstream)
 
 ---
 

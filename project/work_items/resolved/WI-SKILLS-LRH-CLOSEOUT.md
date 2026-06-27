@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented /lrh-closeout work item planning artifact in PR #341 (commit 9fc4dbf)"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-CLOSEOUT
 title: Implement lrh-closeout Claude Code skill (Phase 1)
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

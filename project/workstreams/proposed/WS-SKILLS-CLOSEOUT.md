@@ -8,12 +8,10 @@ origin: follow_up
 summary: >
   Implement the /lrh-closeout skill (Phase 1: edit-in-place) and the
   lrh prompt update-execution CLI command (Phase 2: CLI + skill upgrade),
-  automating the third phase of the LRH three-phase execution session model.
+  automating the post-execution closeout workflow for LRH sessions.
 related_design:
   - project/design/proposals/proposed/lrh-closeout/00_proposal.md
   - project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md
-  - project/workstreams/resolved/WS-SKILLS.md
-  - project/workstreams/resolved/WS-SKILLS-DOC.md
 work_items: []
 exit_criteria:
   - /lrh-closeout skill exists at .claude/skills/lrh-closeout/ and src/lrh/skills/lrh-closeout/ and passes lrh validate with 0 errors

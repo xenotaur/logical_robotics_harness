@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented /lrh-doc-work skill in PR #338 (commit cd12f8c); SKILL.md (12-step flow with prompt-ID mint at Step 3, resolved-only enforcement for WI/WS inputs, gh pr diff in Step 4, generic work-reference placeholder in stub/stale templates), diataxis-criteria.md, doc-work-scope.md created in src/ and mirrored to .claude/; CLAUDE.md updated
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-DOC-WORK
 title: Implement lrh-doc-work Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

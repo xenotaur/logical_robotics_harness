@@ -63,7 +63,7 @@ Work through these steps in order. Do not skip Step 7 (confirm gate).
 
 Determine the type and identity of the completed work:
 
-- **PR URL** (`https://...`): fetch the PR metadata and diff.
+- **PR URL** (`https://...`): fetch the PR metadata.
   ```bash
   gh pr view <pr-url> --json title,body,mergedAt,state,files
   ```
@@ -73,13 +73,16 @@ Determine the type and identity of the completed work:
   ```bash
   find project/work_items/resolved/ -name "<WI-ID>.md"
   ```
-  If not found in `resolved/`, check `proposed/` and warn that the work item
-  may not yet be resolved.
+  If not found in `resolved/`, check `proposed/` to confirm whether the file
+  exists and report its location, then **stop** — the skill operates only on
+  resolved work items.
 
 - **WS-ID** (`WS-*`): locate the workstream file.
   ```bash
-  find project/workstreams/ -name "<WS-ID>.md"
+  find project/workstreams/resolved/ -name "<WS-ID>.md"
   ```
+  If not found in `resolved/`, stop and report — the skill operates only on
+  closed workstreams.
 
 - **Auto-detect**: inspect the current branch and recent git log to find the
   most recent merged PR or resolved work item. Report what was detected and
@@ -93,7 +96,8 @@ Diataxis classification (Step 6) derive from these files.
 
 ### Step 3 — Mint prompt ID + idempotence check
 
-Before reading any files or making changes, mint a prompt ID:
+Before reading the work reference or making any changes to the repository,
+mint a prompt ID:
 
 ```bash
 lrh prompt label --slug doc-work-<work-reference-slug>
@@ -116,8 +120,13 @@ Store the prompt ID for use in Step 12 (execution record).
 Read the work reference to understand what changed:
 
 - **PR**: read the PR body (what was built), the file diff (what changed),
-  and the PR title. Focus on user-visible changes: new CLI commands, new
-  config options, changed APIs, new concepts, changed workflows.
+  and the PR title. Fetch the diff explicitly — `gh pr view` only returns
+  metadata and file names, not the patch:
+  ```bash
+  gh pr diff <pr-url>
+  ```
+  Focus on user-visible changes: new CLI commands, new config options,
+  changed APIs, new concepts, changed workflows.
 - **WI**: read the full work item file. Focus on the Summary, Acceptance
   Criteria, and Required Changes sections. Identify what was delivered.
 - **WS**: read the workstream file and all resolved work items under it.
@@ -183,11 +192,16 @@ Execute each confirmed doc action from Step 7:
 - **Create new doc**: create the file at the appropriate location for its
   Diataxis quadrant. Use a stub if the full content would require knowledge
   beyond what the work reference provides; mark stubs clearly.
+  ```markdown
+  > **Stub:** This document is a placeholder. Full content will be added after
+  > the feature is exercised in production. See <work-reference> for context.
+  ```
 - **Mark stale**: if a doc describes behavior that has changed and a full
-  update is out of scope for this run, add a notice at the top:
+  update is out of scope for this run, add a notice at the top rather than
+  leaving it silently wrong:
   ```markdown
   > **Note:** This doc is under review. Some content may not reflect recent
-  > changes. See PR #<N> for context.
+  > changes. See <work-reference> for context.
   ```
 
 Keep the change surface minimal — update only what the completed work

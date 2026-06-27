@@ -37,7 +37,7 @@ Key design choices:
   derived from the work reference type: `pr-<number>`, `wi-<kebab>`, `ws-<kebab>`
 - Confirm gate at Step 7 before branch creation or any file changes
 - Branch naming: `<username>/chore/doc-work-<work-reference-slug>`
-- Execution record slug: `doc-work-<work-reference-slug>` (AD_HOC bucket)
+- Runtime invocations of the skill create an AD_HOC execution record with slug `doc-work-<work-reference-slug>` (this implementation record is in `WI-SKILLS-LRH-DOC-WORK/` as the governing work item)
 - No template cross-reference: no `lrh request` analog exists for this skill
 - `doc-work-scope.md` covers all three reference types (PR, WI, WS), auto-detect
   mode, scope rules (update-only, no audit/reorganize), stale-doc handling, PR

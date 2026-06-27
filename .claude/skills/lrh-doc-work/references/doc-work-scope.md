@@ -107,7 +107,7 @@ mark it clearly:
 
 ```markdown
 > **Stub:** This document is a placeholder. Full content will be added after
-> the feature is exercised in production. See PR #<N> for context.
+> the feature is exercised in production. See <work-reference> for context.
 ```
 
 ### Stale doc handling
@@ -118,28 +118,11 @@ silently wrong:
 
 ```markdown
 > **Note:** This doc is under review. Some content may not reflect recent
-> changes. See PR #<N> for context.
+> changes. See <work-reference> for context.
 ```
 
 Do not delete docs that have become stale — mark them and leave removal for
 a future `/lrh-doc-organize` phase.
-
----
-
-## PR vs. Direct-Commit Guidance
-
-Use a PR (the default) for all doc updates that:
-- Create new files
-- Substantially rewrite existing sections
-- Affect multiple files
-- Would benefit from review before publication
-
-Use a direct commit to main (skip the PR) only for:
-- Single-file updates of ≤ 5 lines (e.g., updating a version number in a
-  reference table)
-- Fixes to obvious factual errors (typos in a command name, wrong flag value)
-
-If in doubt, use a PR.
 
 ---
 

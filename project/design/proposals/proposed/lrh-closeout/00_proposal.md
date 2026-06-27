@@ -23,19 +23,19 @@ related_design:
 ## Summary
 
 This proposal introduces a `/lrh-closeout` Claude Code skill that automates
-the third phase of the LRH three-phase execution session model (instruction →
-execution → **closeout**): updating execution records to `landed`, resolving
-work items, closing workstreams, and adopting governing proposals. It also
-specifies a `lrh prompt update-execution` CLI command as a forward requirement
-to replace the skill's initial edit-in-place mechanism once the CLI is
-implemented.
+the post-execution closeout workflow for LRH sessions: updating execution
+records to `landed`, resolving work items, closing workstreams, and adopting
+governing proposals. It also specifies a `lrh prompt update-execution` CLI
+command as a forward requirement to replace the skill's initial edit-in-place
+mechanism once the CLI is implemented.
 
 ## Background / Motivation
 
 The three-phase execution session model (documented in
-`project/design/proposals/proposed/lrh-execution-sessions/`) defines a
-closeout phase but provides no tooling to execute it. In practice, closeout
-has been performed manually in every LRH session:
+`project/design/proposals/proposed/lrh-execution-sessions/`) ends at
+execution — no closeout phase is defined, and no tooling exists for
+post-execution closeout. In practice, closeout has been performed manually
+in every LRH session:
 
 - editing execution record frontmatter (`status: in_progress → landed`,
   `pr:`, `commit:`, `session_transcript:`)
@@ -61,7 +61,7 @@ Two prior proposals establish the context:
 - `PROP-LRH-EXECUTION-SESSIONS` (proposed) defines the three-phase model,
   execution record fields, and the `session_transcript` convention.
 
-`/lrh-closeout` is the missing third-phase complement to `/lrh-implement`
+`/lrh-closeout` is the missing post-execution complement to `/lrh-implement`
 and `/lrh-review-response`.
 
 ## Design Decisions
@@ -180,19 +180,18 @@ human-authored prose and is not updated by the CLI.
 **Question:** How should the skill handle `session_transcript` when the
 session ID is not known?
 
-**Context:** `execution-session-reference.md` documents two session ID
-formats: (1) the UUID stem of the JSONL file at
-`~/.claude/projects/<slug>/*.jsonl` (local CLI sessions); (2) a
-`local_<UUID>` prefix from the Claude.ai web app URL (Agent SDK /
-web-backed sessions). These are different values; JSONL auto-detection
-is not reliable in web-backed mode.
+**Context:** `execution-session-reference.md` documents one session ID
+format: the UUID stem of the JSONL file at
+`~/.claude/projects/<slug>/*.jsonl`, stored as `claude-app:<uuid>`.
+JSONL auto-detection is reliable in CLI-backed sessions but may not
+locate the correct file in web-backed sessions.
 
 **Chosen: 3-way resolution at Step 3, surfaced at the confirm gate:**
 
 1. **Found via JSONL:** "Detected session ID `<uuid>`. Is this correct?"
 2. **Not found / wrong format:** "Could not auto-detect. Provide it, or
-   confirm `:pending` is acceptable."
-3. **User confirms `:pending`:** set `session_transcript: pending`; include
+   confirm `pending` is acceptable."
+3. **User confirms `pending`:** set `session_transcript: pending`; include
    a reminder in the Step 8 report to update before archiving.
 
 `session_transcript: pending` is explicitly first-class per
@@ -206,7 +205,7 @@ not yet known"). This field must never block the closeout workflow.
 ```
 Step 1 — Parse input
          Accept: PR URL, WI ID, WS ID, or auto-detect from in_progress records
-         Auto-detect: find project/executions/ -name "*.md" | grep status:\ in_progress
+         Auto-detect: grep -rl '^status: in_progress' project/executions/ --include='*.md'
          Read pr: field from candidates; if ambiguous, list and ask
 
 Step 2 — Assess state → build closeout plan
@@ -246,7 +245,7 @@ resolution protocol (frontmatter fields, `mv` to `resolved/`), WS
 closeout protocol (`stage: closed`, `status: resolved`), proposal
 adoption protocol (`status: adopted`, `implementation_status: implemented`,
 `implemented_by: [WI IDs]`), and session transcript auto-detection
-(JSONL path pattern, CLI vs. web-mode behavior).
+(JSONL path pattern, `claude-app:<uuid>` format, `pending` sentinel).
 
 No `diataxis-criteria.md` is needed — this skill performs no documentation
 classification. Per-skill reference files follow the convention established
@@ -268,9 +267,9 @@ by `PROP-LRH-PROJECT-LOCAL-SKILLS` and `PROP-LRH-DOC-SKILLS`.
   is always opt-in.
 - Does not implement `lrh design organize --apply` for proposal bucket moves
   — the skill uses `mv` directly because it knows exactly which files to move.
-- Does not cover the design or instruction phases of the three-phase model
-  — those remain the `/lrh-design`, `/lrh-proposal`, and `/lrh-implement`
-  skills.
+- Does not cover the design or instruction phases of the three-phase
+  execution session model — those remain the `/lrh-design`, `/lrh-proposal`,
+  and `/lrh-implement` skills.
 - Does not handle abandoned work items (WI with no PR ever opened) — that
   edge case is flagged with a warning and left for human resolution.
 
@@ -305,11 +304,12 @@ both phases.
 
 ## Cross-References
 
-- Three-phase model (governs the closeout phase):
+- Three-phase execution session model (design → instruction → execution;
+  closeout workflow extends it):
   `project/design/proposals/proposed/lrh-execution-sessions/00_proposal.md`
 - Skill distribution pattern:
   `project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md`
-- Closeout phase definition and field reference:
+- Execution record fields and session transcript format reference:
   `src/lrh/skills/lrh-implement/references/lrh-implement-workflow.md`
   `src/lrh/skills/lrh-implement/references/execution-session-reference.md`
 - Prior skills workstreams (structural precedents):

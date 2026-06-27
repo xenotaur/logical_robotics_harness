@@ -2,13 +2,13 @@
 execution_id: 2026_06_27_15_03_48_WS_SKILLS_CLOSEOUT_REVIEW
 prompt_id: PROMPT(AD_HOC:WS_SKILLS_CLOSEOUT_REVIEW)[2026-06-27T15:01:58-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/340
-session_transcript: pending
+session_transcript: claude-app:local_6f9b846e-c6f9-45aa-9cf9-8c744ec57026
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/340
-commit: 
+commit: 559e972
 created_at: 2026-06-27T15:03:48-04:00
 ---
 

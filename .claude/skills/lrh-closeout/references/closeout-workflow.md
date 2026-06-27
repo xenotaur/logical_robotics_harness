@@ -21,8 +21,8 @@ before touching any files.
 | WI | Found in `proposed/` | Resolve: set `status: resolved`, write `resolution:`, `mv` to `resolved/` |
 | WI | Found in `resolved/` | Skip — already resolved |
 | WI | Not found anywhere | Warn user; ask how to proceed |
-| WS | All listed WIs in `resolved/` AND WS in `workstreams/proposed/` | Offer closeout |
-| WS | Any listed WI still in `proposed/` | Skip — not all WIs resolved |
+| WS | All listed WIs resolved (on disk or planned in this closeout) AND WS in `workstreams/proposed/` | Offer closeout |
+| WS | Any listed WI would remain unresolved after this closeout | Skip — not all WIs resolved |
 | WS | Already in `workstreams/resolved/` | Skip |
 | Proposal | WS would close AND proposal in `proposals/proposed/` | Offer adoption |
 | Proposal | WS not closing (or WS skipped) | Skip adoption — WS must close first |
@@ -122,15 +122,17 @@ Run `lrh validate` after the move. The validator checks that each WI's
 ### Readiness check
 
 Before offering WS closeout, verify that every ID in the WS's `work_items:`
-list is present in `project/work_items/resolved/`:
+list will be resolved after this closeout. Treat WIs marked `resolve and move`
+in the current closeout plan as resolved (post-plan state). For WIs not in the
+plan, check disk:
 
 ```bash
-# For each WI-ID in the workstream's work_items: list:
+# For each WI-ID not already planned for resolution:
 find project/work_items/resolved/ -name "<WI-ID>.md"
 ```
 
-If any WI is still in `proposed/`, skip WS closeout and note it in the
-closeout plan.
+If any WI would remain unresolved after this closeout, skip WS closeout and
+note it in the closeout plan.
 
 ### Required frontmatter changes
 
@@ -200,15 +202,13 @@ the local workspace layout to everyone who clones the repository.
 
 ### JSONL auto-detection
 
-```bash
-ls ~/.claude/projects/-Users-centaur-Workspace-LogicalRoboticsHarness-logical-robotics-harness/*.jsonl 2>/dev/null
-```
+Derive the project slug dynamically — Claude Code normalizes both `/` and
+`_` to `-` when creating the project directory:
 
-The project slug is the absolute project root path with each `/` replaced
-by `-`. If the project root is
-`/Users/centaur/Workspace/LogicalRoboticsHarness/logical_robotics_harness`,
-the slug is:
-`-Users-centaur-Workspace-LogicalRoboticsHarness-logical-robotics-harness`.
+```bash
+project_slug=$(git rev-parse --show-toplevel | sed 's|[/_]|-|g')
+ls ~/.claude/projects/${project_slug}/*.jsonl 2>/dev/null
+```
 
 ### Reliable failure for web-backed sessions
 

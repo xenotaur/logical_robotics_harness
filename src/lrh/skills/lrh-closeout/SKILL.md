@@ -102,12 +102,18 @@ gh pr view <pr-url> --json state,mergeCommit \
   past this point
 
 **2. Execution record(s):**
-Find all execution records linked to this PR:
+Find all execution records linked to this PR by `pr:` field:
 ```bash
 grep -rl "^pr: <pr-url>" project/executions/ --include='*.md'
 ```
-For each: check `status:` field. See decision matrix in
-`references/closeout-workflow.md` for `in_progress` / `landed` / missing
+If no records are found (common when `/lrh-implement` left `pr:` blank), fall
+back to listing all in-progress records:
+```bash
+grep -rl '^status: in_progress' project/executions/ --include='*.md'
+```
+Present the fallback candidates to the user and ask which one(s) belong to
+this PR. For each matched record: check `status:` field. See decision matrix
+in `references/closeout-workflow.md` for `in_progress` / `landed` / missing
 actions.
 
 **3. Work item(s):**
@@ -120,9 +126,12 @@ decision matrix for actions.
 **4. Workstream (if linked from WI):**
 Read the `related_workstreams:` field of the WI. For each workstream:
 - Read `work_items:` from the WS file
-- Check whether every listed WI is in `project/work_items/resolved/`
-- If all resolved AND WS is in `workstreams/proposed/` → offer closeout
-- If any WI is still in `proposed/` → skip (not ready)
+- Check whether every listed WI will be resolved after this closeout. Treat
+  WIs already marked `resolve and move` in the current plan as resolved —
+  assess WS readiness from the **post-plan state**, not the current on-disk
+  state. Check disk only for WIs not mentioned in the current plan.
+- If all WIs resolve (on disk or planned) AND WS is in `workstreams/proposed/` → offer closeout
+- If any WI would remain unresolved after this closeout → skip (not ready)
 
 **5. Proposal (if WS would be closed):**
 Read `related_design:` from the WS file; identify any proposals in
@@ -137,15 +146,16 @@ Present the full plan as a table:
 | Execution record `<id>` | `in_progress` | update to `landed` |
 | WI `<WI-ID>` | in `proposed/` | resolve and move |
 | WS `<WS-ID>` | in `proposed/`, 1/2 WIs resolved | skip — not all WIs resolved |
-| PROP-`<slug>` | in `proposed/` | offer adoption (WS not closing) |
+| PROP-`<slug>` | in `proposed/` | skip — governing WS not closing |
 
 ### Step 3 — Resolve session transcript
 
-Attempt JSONL auto-detection. The project slug is the absolute project path
-with `/` replaced by `-`:
+Attempt JSONL auto-detection. Derive the project slug dynamically — Claude
+Code normalizes both `/` and `_` to `-` when creating the project directory:
 
 ```bash
-ls ~/.claude/projects/-Users-centaur-Workspace-LogicalRoboticsHarness-logical-robotics-harness/*.jsonl 2>/dev/null
+project_slug=$(git rev-parse --show-toplevel | sed 's|[/_]|-|g')
+ls ~/.claude/projects/${project_slug}/*.jsonl 2>/dev/null
 ```
 
 **3-way resolution:**

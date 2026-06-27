@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: implemented
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-WORK-ITEM-COMPOSABLE
 title: Make /lrh-work-item composable by enabling model invocation
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

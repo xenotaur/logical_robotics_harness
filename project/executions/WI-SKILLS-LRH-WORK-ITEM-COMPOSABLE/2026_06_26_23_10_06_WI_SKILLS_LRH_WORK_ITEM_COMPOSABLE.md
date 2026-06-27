@@ -2,14 +2,14 @@
 execution_id: 2026_06_26_23_10_06_WI_SKILLS_LRH_WORK_ITEM_COMPOSABLE
 prompt_id: PROMPT(WI-SKILLS-LRH-WORK-ITEM-COMPOSABLE:WI_SKILLS_LRH_WORK_ITEM_COMPOSABLE)[2026-06-26T23:07:12-04:00]
 work_item: WI-SKILLS-LRH-WORK-ITEM-COMPOSABLE
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/331
-commit: acd8f7b
+commit: 4e9cbc4
 created_at: 2026-06-26T23:10:06-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-LRH-WORK-ITEM-COMPOSABLE.md
-session_transcript: pending
+session_transcript: claude-app:local_5d607d17-5c38-4dcf-b83e-ea913d88c9af
 ---
 
 # Summary

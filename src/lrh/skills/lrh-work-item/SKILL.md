@@ -6,7 +6,12 @@ description: >
   as a formal work item. Interviews the user, researches related workstreams
   and focus, proposes complete frontmatter and body sections, and writes the
   file after explicit confirmation. Validates with lrh validate.
-disable-model-invocation: true
+when_to_use: >
+  Invoke only when explicitly creating a new LRH work item planning artifact
+  in project/work_items/proposed/. Do not invoke when the user is discussing,
+  reading, or querying work items. Suitable for orchestration from /lrh-design,
+  /lrh-proposal, or /lrh-workstream when those skills need to create companion
+  work items as part of a design-capture workflow.
 argument-hint: [WI-ID]
 ---
 

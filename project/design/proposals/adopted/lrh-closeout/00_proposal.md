@@ -8,6 +8,9 @@ updated_on: 2026-06-27
 implementation_status: implemented
 implemented_by:
   - WI-SKILLS-LRH-CLOSEOUT
+  - WI-SKILLS-CLOSEOUT-GATE-FIX
+  - WI-SKILLS-CLOSEOUT-UX-FIX
+  - WI-PROMPT-CLI-CLOSEOUT
 supersedes: []
 superseded_by: null
 related_design:

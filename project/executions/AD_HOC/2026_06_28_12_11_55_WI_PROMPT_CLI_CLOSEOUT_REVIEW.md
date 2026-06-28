@@ -2,13 +2,13 @@
 execution_id: 2026_06_28_12_11_55_WI_PROMPT_CLI_CLOSEOUT_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_PROMPT_CLI_CLOSEOUT_REVIEW)[2026-06-28T11:57:04-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_06_28_11_36_25_WI_PROMPT_CLI_CLOSEOUT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/345
-commit: 
+commit: 1f25acaea45d947ccbbd47accf53302fe018264d
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/345
-session_transcript: pending
+session_transcript: claude-app:6f9b846e-c6f9-45aa-9cf9-8c744ec57026
 created_at: 2026-06-28T12:11:55-04:00
 ---
 

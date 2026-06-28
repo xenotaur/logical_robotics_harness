@@ -2,13 +2,13 @@
 execution_id: 2026_06_28_11_36_25_WI_PROMPT_CLI_CLOSEOUT
 prompt_id: PROMPT(WI-PROMPT-CLI-CLOSEOUT:WI_PROMPT_CLI_CLOSEOUT)[2026-06-28T11:30:26-04:00]
 work_item: WI-PROMPT-CLI-CLOSEOUT
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/345
-commit: 
+commit: 1f25acaea45d947ccbbd47accf53302fe018264d
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-PROMPT-CLI-CLOSEOUT.md
-session_transcript: pending
+session_transcript: claude-app:6f9b846e-c6f9-45aa-9cf9-8c744ec57026
 created_at: 2026-06-28T11:36:25-04:00
 ---
 

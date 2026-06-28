@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Session Closeout — /lrh-closeout Skill and lrh prompt update-execution CLI
 status: adopted
 created_on: 2026-06-27
-updated_on: 2026-06-27
+updated_on: 2026-06-28
 implementation_status: implemented
 implemented_by:
   - WI-SKILLS-LRH-CLOSEOUT

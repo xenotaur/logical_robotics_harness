@@ -130,7 +130,12 @@ Read the `related_workstreams:` field of the WI. For each workstream:
   WIs already marked `resolve and move` in the current plan as resolved —
   assess WS readiness from the **post-plan state**, not the current on-disk
   state. Check disk only for WIs not mentioned in the current plan.
-- If all WIs resolve (on disk or planned) AND WS is in `workstreams/proposed/` → offer closeout
+- If all WIs resolve (on disk or planned) AND WS is in `workstreams/proposed/`:
+  - Also read `exit_criteria:` from the WS file
+  - Include the criteria list in the plan output as a sub-list below the WS
+    row — the user must see the criteria at assessment time
+  - Mark the WS as "offer closeout — exit criteria confirmation required at
+    Step 4"
 - If any WI would remain unresolved after this closeout → skip (not ready)
 
 **5. Proposal (if WS would be closed):**
@@ -184,6 +189,16 @@ Before touching any files, show the user:
 - For any WI being resolved: the `resolution:` text to be written. If the
   user has not already stated it, ask: "What should the `resolution:` note
   say for `<WI-ID>`?" (one-line summary; e.g., `"Implemented and merged in PR #342 (commit abc1234)"`)
+
+**WS exit criteria confirmation:** for any WS where closeout is being offered,
+display the full `exit_criteria:` list (already shown at Step 2, repeated here
+for the gate) and ask:
+
+> "Are all of these WS exit criteria met? [y/N]"
+
+Only include the WS closeout action in the confirmed plan if the user answers
+`y`. If the user answers `n` or expresses doubt about any criterion, remove WS
+closeout from the plan and note which criterion(a) blocked it.
 
 **Wait for explicit confirmation before touching any files.** If the user
 redirects, updates the resolution text, or asks to skip an action, adjust the
@@ -306,8 +321,10 @@ Before reporting completion, verify:
   is a human action.
 - Does not automatically write memories — Step 7 prompts the user; writing
   is always opt-in.
-- Does not replace human judgment on WS exit criteria — the skill checks
-  structural completeness (all listed WIs resolved), not semantic completeness.
+- Does not enforce WS exit criteria programmatically — prose criteria are
+  human-authored and cannot be machine-checked. The skill surfaces them at
+  Step 2 and requires human confirmation at Step 4, but the judgment is the
+  user's.
 - Does not automate the `resolution:` prose — the one-line summary is
   human-authored and confirmed at Step 4.
 - Does not handle the design or instruction phases — those remain

@@ -134,6 +134,13 @@ find project/work_items/resolved/ -name "<WI-ID>.md"
 If any WI would remain unresolved after this closeout, skip WS closeout and
 note it in the closeout plan.
 
+**The structural check is necessary but not sufficient.** After confirming
+that all `work_items:` are resolved, also read the WS `exit_criteria:` list
+and include it in the Step 2 plan output. At Step 4, enumerate the criteria
+and require explicit human confirmation (`y`) before including WS closeout in
+the confirmed plan. The `exit_criteria:` list is the authoritative definition
+of done — WIs can be resolved while prose criteria remain unmet.
+
 ### Required frontmatter changes
 
 ```yaml

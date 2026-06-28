@@ -292,6 +292,203 @@ class PromptCliTest(unittest.TestCase):
                 )
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
 
+    def test_lrh_prompt_update_execution_lands_record(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record_dir = pathlib.Path(temp_dir) / "project/executions/WI-EXAMPLE"
+            record_dir.mkdir(parents=True)
+            record = record_dir / "2026_01_01_00_00_00_WI_EXAMPLE.md"
+            record.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_WI_EXAMPLE\n"
+                "status: in_progress\n"
+                "pr:\n"
+                "commit:\n"
+                "---\n",
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "update-execution",
+                    "--execution-id",
+                    "2026_01_01_00_00_00_WI_EXAMPLE",
+                    "--status",
+                    "landed",
+                    "--pr",
+                    "https://github.com/example/repo/pull/1",
+                    "--commit",
+                    "abc1234",
+                    "--session-transcript",
+                    "claude-app:test-uuid",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn("updated:", completed.stdout)
+            updated = record.read_text(encoding="utf-8")
+            self.assertIn("status: landed", updated)
+            self.assertIn("commit: abc1234", updated)
+            self.assertIn("session_transcript: claude-app:test-uuid", updated)
+
+    def test_lrh_prompt_update_execution_inserts_session_transcript_when_absent(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record_dir = pathlib.Path(temp_dir) / "project/executions/WI-EXAMPLE"
+            record_dir.mkdir(parents=True)
+            record = record_dir / "2026_01_01_00_00_00_WI_EXAMPLE_NO_ST.md"
+            record.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_WI_EXAMPLE_NO_ST\n"
+                "status: in_progress\n"
+                "pr:\n"
+                "commit:\n"
+                "---\n",
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "update-execution",
+                    "--execution-id",
+                    "2026_01_01_00_00_00_WI_EXAMPLE_NO_ST",
+                    "--status",
+                    "landed",
+                    "--commit",
+                    "abc1234",
+                    "--session-transcript",
+                    "claude-app:inserted-uuid",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            updated = record.read_text(encoding="utf-8")
+            self.assertIn("session_transcript: claude-app:inserted-uuid", updated)
+            commit_pos = updated.index("commit:")
+            st_pos = updated.index("session_transcript:")
+            self.assertGreater(st_pos, commit_pos)
+
+    def test_lrh_prompt_update_execution_missing_commit_returns_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "update-execution",
+                    "--execution-id",
+                    "2026_01_01_00_00_00_WI_EXAMPLE",
+                    "--status",
+                    "landed",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+            self.assertNotEqual(completed.returncode, 0)
+            self.assertIn("--commit", completed.stderr)
+
+    def test_lrh_prompt_update_execution_does_not_rewrite_body_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record_dir = pathlib.Path(temp_dir) / "project/executions/WI-EXAMPLE"
+            record_dir.mkdir(parents=True)
+            record = record_dir / "2026_01_01_00_00_00_WI_EXAMPLE_BODY.md"
+            record.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_WI_EXAMPLE_BODY\n"
+                "status: in_progress\n"
+                "pr:\n"
+                "commit:\n"
+                "---\n"
+                "\n"
+                "# Result\n"
+                "\n"
+                "status: old-prose-value\n"
+                "pr: should-not-change\n",
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "update-execution",
+                    "--execution-id",
+                    "2026_01_01_00_00_00_WI_EXAMPLE_BODY",
+                    "--status",
+                    "landed",
+                    "--pr",
+                    "https://github.com/example/repo/pull/99",
+                    "--commit",
+                    "def5678",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            updated = record.read_text(encoding="utf-8")
+            self.assertIn("status: landed", updated)
+            self.assertIn("pr: https://github.com/example/repo/pull/99", updated)
+            self.assertIn("status: old-prose-value", updated)
+            self.assertIn("pr: should-not-change", updated)
+
+    def test_lrh_prompt_update_execution_unknown_id_returns_1(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            (pathlib.Path(temp_dir) / "project/executions").mkdir(parents=True)
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "update-execution",
+                    "--execution-id",
+                    "NONEXISTENT_ID",
+                    "--status",
+                    "landed",
+                    "--commit",
+                    "abc1234",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+            self.assertEqual(completed.returncode, 1, msg=completed.stderr)
+            self.assertIn("No execution record found", completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

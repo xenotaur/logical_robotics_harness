@@ -2,13 +2,13 @@
 execution_id: 2026_06_27_23_12_36_WI_SKILLS_CLOSEOUT_GATE_FIX_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_CLOSEOUT_GATE_FIX_REVIEW)[2026-06-27T23:10:29-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_06_27_23_01_36_WI_SKILLS_CLOSEOUT_GATE_FIX
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/343
-commit: 
+commit: fa0bf6002d42db581dba5d31b96622b9a474f3c7
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/343
-session_transcript: pending
+session_transcript: claude-app:6f9b846e-c6f9-45aa-9cf9-8c744ec57026
 created_at: 2026-06-27T23:12:36-04:00
 ---
 

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #343 (commit fa0bf60)"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-CLOSEOUT-GATE-FIX
 title: Improve /lrh-closeout confirm gate to surface WS exit criteria
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

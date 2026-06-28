@@ -125,13 +125,27 @@ def _replace_or_insert_frontmatter_field(
     *,
     insert_after: str | None = None,
 ) -> str:
-    """Replace a YAML frontmatter field, or insert it after another field."""
-    pattern = re.compile(rf"^{re.escape(field)}: .*$", re.MULTILINE)
-    if pattern.search(text):
-        return pattern.sub(f"{field}: {value}", text)
+    """Replace a YAML frontmatter field, or insert it after another field.
+
+    Only operates on the leading frontmatter block (between the first pair of
+    ``---`` delimiters) to avoid matching field names that appear in the body.
+    Matches ``field:`` with or without a trailing space so both empty and
+    non-empty field values are handled correctly.
+    """
+    fm_match = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
+    if fm_match is None:
+        return text
+    fm_text = fm_match.group(1)
+    fm_start, fm_end = fm_match.start(1), fm_match.end(1)
+
+    pattern = re.compile(rf"^{re.escape(field)}:.*$", re.MULTILINE)
+    if pattern.search(fm_text):
+        new_fm = pattern.sub(f"{field}: {value}", fm_text)
+        return text[:fm_start] + new_fm + text[fm_end:]
     if insert_after is not None:
-        anchor = re.compile(rf"^({re.escape(insert_after)}: .*)$", re.MULTILINE)
-        return anchor.sub(rf"\1\n{field}: {value}", text, count=1)
+        anchor = re.compile(rf"^({re.escape(insert_after)}:.*$)", re.MULTILINE)
+        new_fm = anchor.sub(rf"\1\n{field}: {value}", fm_text, count=1)
+        return text[:fm_start] + new_fm + text[fm_end:]
     return text
 
 
@@ -252,7 +266,7 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
                 print(f"  {m.path.as_posix()}", file=sys.stderr)
             return 2
         record = matches[0]
-        if record.status not in ("in_progress", "landed"):
+        if record.status != "in_progress":
             print(
                 f"Cannot update status from '{record.status}' to 'landed': "
                 "only in_progress → landed is supported.",

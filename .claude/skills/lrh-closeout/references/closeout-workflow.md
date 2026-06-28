@@ -242,7 +242,7 @@ When the user later provides the session ID (from the browser URL), update
 with:
 
 ```bash
-/Users/centaur/anaconda3/envs/LRH/bin/lrh prompt update-execution \
+lrh prompt update-execution \
   --execution-id <id> \
   --status landed \
   --commit <sha> \

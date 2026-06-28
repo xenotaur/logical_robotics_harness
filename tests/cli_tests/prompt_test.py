@@ -301,8 +301,8 @@ class PromptCliTest(unittest.TestCase):
                 "---\n"
                 "execution_id: 2026_01_01_00_00_00_WI_EXAMPLE\n"
                 "status: in_progress\n"
-                "pr: \n"
-                "commit: \n"
+                "pr:\n"
+                "commit:\n"
                 "---\n",
                 encoding="utf-8",
             )
@@ -350,8 +350,8 @@ class PromptCliTest(unittest.TestCase):
                 "---\n"
                 "execution_id: 2026_01_01_00_00_00_WI_EXAMPLE_NO_ST\n"
                 "status: in_progress\n"
-                "pr: \n"
-                "commit: \n"
+                "pr:\n"
+                "commit:\n"
                 "---\n",
                 encoding="utf-8",
             )
@@ -410,6 +410,56 @@ class PromptCliTest(unittest.TestCase):
             )
             self.assertNotEqual(completed.returncode, 0)
             self.assertIn("--commit", completed.stderr)
+
+    def test_lrh_prompt_update_execution_does_not_rewrite_body_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record_dir = pathlib.Path(temp_dir) / "project/executions/WI-EXAMPLE"
+            record_dir.mkdir(parents=True)
+            record = record_dir / "2026_01_01_00_00_00_WI_EXAMPLE_BODY.md"
+            record.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_WI_EXAMPLE_BODY\n"
+                "status: in_progress\n"
+                "pr:\n"
+                "commit:\n"
+                "---\n"
+                "\n"
+                "# Result\n"
+                "\n"
+                "status: old-prose-value\n"
+                "pr: should-not-change\n",
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "update-execution",
+                    "--execution-id",
+                    "2026_01_01_00_00_00_WI_EXAMPLE_BODY",
+                    "--status",
+                    "landed",
+                    "--pr",
+                    "https://github.com/example/repo/pull/99",
+                    "--commit",
+                    "def5678",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            updated = record.read_text(encoding="utf-8")
+            self.assertIn("status: landed", updated)
+            self.assertIn("pr: https://github.com/example/repo/pull/99", updated)
+            self.assertIn("status: old-prose-value", updated)
+            self.assertIn("pr: should-not-change", updated)
 
     def test_lrh_prompt_update_execution_unknown_id_returns_1(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -214,7 +214,7 @@ Execute all confirmed actions. Abort on any error rather than partially completi
 Call the CLI to update all four fields atomically:
 
 ```bash
-/Users/centaur/anaconda3/envs/LRH/bin/lrh prompt update-execution \
+lrh prompt update-execution \
   --execution-id <execution-id> \
   --status landed \
   --pr <pr-url> \

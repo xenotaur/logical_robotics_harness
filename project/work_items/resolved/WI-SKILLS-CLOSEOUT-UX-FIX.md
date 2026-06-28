@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #344 (commit 3c2220b)"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-CLOSEOUT-UX-FIX
 title: Echo mid-skill offers in /lrh-closeout final report
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

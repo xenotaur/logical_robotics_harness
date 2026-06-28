@@ -2,13 +2,13 @@
 execution_id: 2026_06_28_02_12_26_WI_SKILLS_CLOSEOUT_UX_FIX
 prompt_id: PROMPT(WI-SKILLS-CLOSEOUT-UX-FIX:WI_SKILLS_CLOSEOUT_UX_FIX)[2026-06-28T02:10:20-04:00]
 work_item: WI-SKILLS-CLOSEOUT-UX-FIX
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/344
-commit: 
+commit: 3c2220b6773cdbc6b97b29d48d7f05aa215f9ab2
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-CLOSEOUT-UX-FIX.md
-session_transcript: pending
+session_transcript: claude-app:6f9b846e-c6f9-45aa-9cf9-8c744ec57026
 created_at: 2026-06-28T02:12:26-04:00
 ---
 

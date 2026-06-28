@@ -5,10 +5,9 @@ description: >
   URL, WI ID, WS ID, or auto-detected from in-progress execution records, the
   skill assesses all artifact states, resolves the session transcript, presents
   a full closeout plan at a human gate, executes confirmed actions (landing
-  execution records, resolving work items, closing workstreams, adopting
-  proposals), validates, prompts for session reflection, and reports. Phase 1
-  uses edit-in-place for execution record updates; Phase 2 (WI-PROMPT-CLI-CLOSEOUT)
-  will upgrade Step 5 to use lrh prompt update-execution.
+  execution records via lrh prompt update-execution, resolving work items,
+  closing workstreams, adopting proposals), validates, prompts for session
+  reflection, and reports.
 disable-model-invocation: true
 argument-hint: "[pr-url | WI-ID | WS-ID]"
 ---
@@ -206,21 +205,31 @@ the revised plan before asking for final confirmation.
 redirects, updates the resolution text, or asks to skip an action, adjust the
 plan and show it again.
 
-### Step 5 — Execute confirmed actions (Phase 1: edit-in-place)
+### Step 5 — Execute confirmed actions
 
-Execute all confirmed actions. Read each file before editing; abort on any
-mismatch rather than partially completing.
+Execute all confirmed actions. Abort on any error rather than partially completing.
 
 **Execution records** (for each record marked `update to landed`):
 
-Edit the YAML frontmatter in-place. Read the file first, then update:
-- `status: in_progress` → `status: landed`
-- `pr:` → set to PR URL (if not already set)
-- `commit:` → set to merge commit SHA
-- `session_transcript:` → set to the resolved value from Step 3
+Call the CLI to update all four fields atomically:
 
-See `references/closeout-workflow.md` for the full field update protocol and
-valid field values.
+```bash
+/Users/centaur/anaconda3/envs/LRH/bin/lrh prompt update-execution \
+  --execution-id <execution-id> \
+  --status landed \
+  --pr <pr-url> \
+  --commit <merge-commit-sha> \
+  --session-transcript <resolved-value-from-step-3> \
+  --project-root .
+```
+
+The `--execution-id` is the `execution_id:` field value from the record
+(e.g. `2026_06_28_11_30_26_WI_PROMPT_CLI_CLOSEOUT`). The command finds the
+record by scanning `project/executions/**/*.md`, updates the four frontmatter
+fields in-place, and prints `updated: <path>` on success.
+
+See `references/closeout-workflow.md` for valid field values and the
+`session_transcript:` `pending` convention.
 
 **Work items** (for each WI marked `resolve and move`):
 
@@ -332,8 +341,6 @@ Before reporting completion, verify:
 
 ## What This Skill Does Not Do
 
-- Does not call `lrh prompt update-execution` — Phase 1 uses edit-in-place;
-  the CLI is implemented in `WI-PROMPT-CLI-CLOSEOUT` (Phase 2).
 - Does not close GitHub PRs — the skill records an already-merged PR; closing
   is a human action.
 - Does not automatically write memories — Step 7 prompts the user; writing

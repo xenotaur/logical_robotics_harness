@@ -118,6 +118,33 @@ def find_matching_execution_records(
     return [(record.path, record.status) for record in result.records]
 
 
+def _replace_or_insert_frontmatter_field(
+    text: str,
+    field: str,
+    value: str,
+    *,
+    insert_after: str | None = None,
+) -> str:
+    """Replace a YAML frontmatter field, or insert it after another field."""
+    pattern = re.compile(rf"^{re.escape(field)}: .*$", re.MULTILINE)
+    if pattern.search(text):
+        return pattern.sub(f"{field}: {value}", text)
+    if insert_after is not None:
+        anchor = re.compile(rf"^({re.escape(insert_after)}: .*)$", re.MULTILINE)
+        return anchor.sub(rf"\1\n{field}: {value}", text, count=1)
+    return text
+
+
+def find_execution_record_by_id(
+    project_root: str,
+    execution_id: str,
+    output_root: str = "project/executions",
+) -> list[prompt_workflow_records.ExecutionRecord]:
+    """Return all execution records whose ``execution_id`` matches."""
+    records = prompt_workflow_records.load_execution_records(project_root, output_root)
+    return [r for r in records if r.execution_id == execution_id]
+
+
 def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     parser = argparse.ArgumentParser(prog=prog, description="Prompt workflow helpers.")
     subparsers = parser.add_subparsers(dest="prompt_command")
@@ -164,6 +191,23 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     check_parser.add_argument("--project-root", default=".")
     check_parser.add_argument("--output-root", default="project/executions")
 
+    update_parser = subparsers.add_parser(
+        "update-execution",
+        help="Update an in-progress execution record to landed.",
+    )
+    update_parser.add_argument("--execution-id", required=True)
+    update_parser.add_argument(
+        "--status",
+        required=True,
+        choices=["landed"],
+        help="Target status (only 'landed' is supported).",
+    )
+    update_parser.add_argument("--pr", default=None)
+    update_parser.add_argument("--commit", default=None)
+    update_parser.add_argument("--session-transcript", default=None)
+    update_parser.add_argument("--project-root", default=".")
+    update_parser.add_argument("--output-root", default="project/executions")
+
     args = parser.parse_args(argv)
     if args.prompt_command is None:
         parser.error("prompt requires a subcommand (try: lrh prompt label)")
@@ -184,6 +228,53 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
                 file=sys.stderr,
             )
         return result.exit_code
+
+    if args.prompt_command == "update-execution":
+        if args.commit is None:
+            parser.error("--commit is required when --status landed")
+        matches = find_execution_record_by_id(
+            args.project_root,
+            args.execution_id,
+            args.output_root,
+        )
+        if not matches:
+            print(
+                f"No execution record found with execution_id: {args.execution_id}",
+                file=sys.stderr,
+            )
+            return 1
+        if len(matches) > 1:
+            print(
+                f"Multiple records found for execution_id: {args.execution_id}",
+                file=sys.stderr,
+            )
+            for m in matches:
+                print(f"  {m.path.as_posix()}", file=sys.stderr)
+            return 2
+        record = matches[0]
+        if record.status not in ("in_progress", "landed"):
+            print(
+                f"Cannot update status from '{record.status}' to 'landed': "
+                "only in_progress → landed is supported.",
+                file=sys.stderr,
+            )
+            return 1
+        text = record.path.read_text(encoding="utf-8")
+        text = _replace_or_insert_frontmatter_field(text, "status", args.status)
+        if args.pr is not None:
+            text = _replace_or_insert_frontmatter_field(text, "pr", args.pr)
+        if args.commit is not None:
+            text = _replace_or_insert_frontmatter_field(text, "commit", args.commit)
+        if args.session_transcript is not None:
+            text = _replace_or_insert_frontmatter_field(
+                text,
+                "session_transcript",
+                args.session_transcript,
+                insert_after="commit",
+            )
+        record.path.write_text(text, encoding="utf-8")
+        print(f"updated: {record.path.as_posix()}")
+        return 0
 
     try:
         slug = normalize_slug(args.slug)

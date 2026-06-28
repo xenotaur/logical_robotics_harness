@@ -242,6 +242,10 @@ When the user later provides the session ID (from the browser URL), update
 with:
 
 ```bash
-# Edit the frontmatter manually (Phase 1) or:
-# lrh prompt update-execution --execution-id <id> --session-transcript claude-app:<uuid>  (Phase 2)
+/Users/centaur/anaconda3/envs/LRH/bin/lrh prompt update-execution \
+  --execution-id <id> \
+  --status landed \
+  --commit <sha> \
+  --session-transcript claude-app:<uuid> \
+  --project-root .
 ```

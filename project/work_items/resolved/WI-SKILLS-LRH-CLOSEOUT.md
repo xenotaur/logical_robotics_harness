@@ -15,7 +15,7 @@ related_roadmap: []
 related_workstreams:
   - WS-SKILLS-CLOSEOUT
 related_design:
-  - project/design/proposals/proposed/lrh-closeout/00_proposal.md
+  - project/design/proposals/adopted/lrh-closeout/00_proposal.md
   - project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md
 depends_on: []
 blocked_by: []

@@ -10,10 +10,13 @@ summary: >
   lrh prompt update-execution CLI command (Phase 2: CLI + skill upgrade),
   automating the post-execution closeout workflow for LRH sessions.
 related_design:
-  - project/design/proposals/proposed/lrh-closeout/00_proposal.md
+  - project/design/proposals/adopted/lrh-closeout/00_proposal.md
   - project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md
 work_items:
   - WI-SKILLS-LRH-CLOSEOUT
+  - WI-PROMPT-CLI-CLOSEOUT
+  - WI-SKILLS-CLOSEOUT-GATE-FIX
+  - WI-SKILLS-CLOSEOUT-UX-FIX
 exit_criteria:
   - /lrh-closeout skill exists at .claude/skills/lrh-closeout/ and src/lrh/skills/lrh-closeout/ and passes lrh validate with 0 errors
   - CLAUDE.md ## Skills index updated with /lrh-closeout entry
@@ -21,6 +24,10 @@ exit_criteria:
   - lrh prompt update-execution CLI command implemented and documented
   - skill's Step 5 upgraded to use lrh prompt update-execution (edit-in-place replaced)
   - WI-PROMPT-CLI-CLOSEOUT resolved in project/work_items/resolved/
+  - /lrh-closeout confirm gate surfaces full WS exit_criteria list with per-criterion confirmation
+  - WI-SKILLS-CLOSEOUT-GATE-FIX resolved in project/work_items/resolved/
+  - /lrh-closeout Step 8 report echoes memory written in Step 7 and re-states pending offers
+  - WI-SKILLS-CLOSEOUT-UX-FIX resolved in project/work_items/resolved/
 ---
 
 ## Purpose

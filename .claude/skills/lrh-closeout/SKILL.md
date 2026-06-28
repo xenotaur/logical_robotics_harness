@@ -297,6 +297,21 @@ Report to the user:
   archiving the session (the real session ID is the UUID from the browser URL)
 - Offer to run `/export` to archive the session transcript locally
 
+**Memory written (Step 7 outcome):** state explicitly whether memory was
+written this session. If yes: include a one-line summary of each memory
+persisted (e.g., "Memory written: feedback on WS premature closure —
+`feedback_closeout_ws_exit_criteria.md`"). If no: "Memory: nothing written
+this session."
+
+**Pending offers:** re-state any action that was offered during the skill run
+but was not included in the confirmed plan. For each skipped action, give a
+one-line reason:
+- "WS `<WS-ID>` closeout: skipped — `<WI-ID>` and `<WI-ID>` still unresolved"
+- "Proposal `<slug>` adoption: skipped — governing WS not closing"
+- Any offer the user deferred at Step 4
+
+If no offers were skipped, omit this section.
+
 ---
 
 ## Quality Checklist

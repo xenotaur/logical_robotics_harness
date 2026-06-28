@@ -55,25 +55,50 @@ research supports placing high-priority actionable items where users look last.
 The issue is cross-cutting (all 10 skills carry the pattern), but this WI
 scopes the fix to `/lrh-closeout` only. Other skills are a separate concern.
 
+## Scope
+
+- `src/lrh/skills/lrh-closeout/SKILL.md` — Step 8 report section only
+- `.claude/skills/lrh-closeout/SKILL.md` — byte-for-byte mirror
+
 ## Required Changes
 
-TODO: flesh out with `lrh request ready-work-item`. Key changes expected:
-- In `src/lrh/skills/lrh-closeout/SKILL.md` Step 8, add two report items:
-  (a) confirmation of memory written (if Step 7 resulted in a write), with
-  one-line summary of what was persisted
-  (b) re-statement of any pending offers not yet acted on (e.g., offers
-  declined or deferred at Step 4)
-- Mirror changes to `.claude/skills/lrh-closeout/`
+1. **`SKILL.md` Step 8 — report section**: add two items after the existing
+   bullet list:
+   (a) **Memory confirmation:** "Memory written: [one-line summary]" if Step 7
+   resulted in a write; "Memory: nothing written this session" if the user
+   declined. This makes the Step 7 outcome visible to anyone who skims to
+   the end of the output.
+   (b) **Pending offers:** re-state any actions that were offered during the
+   skill run but not included in the confirmed plan — e.g., WS closeout
+   skipped (not all WIs resolved), proposal adoption skipped (WS not
+   closing), or any offer the user deferred at Step 4. Format:
+   "Pending: [offer] — [reason it was not actioned]".
 
-## Non-Goals
+2. **Mirror** all changes byte-for-byte to `.claude/skills/lrh-closeout/`.
+
+## Out of Scope
 
 - Does not update any skill other than `/lrh-closeout` — the all-skills
   UX pass is a separate work item
 - Does not change Step 7 behaviour — writing is still opt-in
+- Does not add new offers; only surfaces offers already made earlier in the
+  same skill run
+
+## Likely Files
+
+- `src/lrh/skills/lrh-closeout/SKILL.md` (Step 8)
+- `.claude/skills/lrh-closeout/SKILL.md` (mirror)
 
 ## Acceptance Criteria
 
-TODO: flesh out with `lrh request ready-work-item`.
+- `/lrh-closeout` Step 8 report includes a memory bullet confirming whether
+  Step 7 resulted in a write (with one-line summary) or not.
+- `/lrh-closeout` Step 8 report includes a pending-offers section re-stating
+  any action offered but not confirmed during the skill run (WS closeout
+  skipped, proposal adoption skipped, etc.).
+- `diff -r src/lrh/skills/lrh-closeout/ .claude/skills/lrh-closeout/`
+  reports no differences.
+- `lrh validate` reports 0 errors.
 
 ## Validation
 

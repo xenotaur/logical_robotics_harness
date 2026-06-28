@@ -2,13 +2,13 @@
 execution_id: 2026_06_28_14_25_10_LRH_SETUP_CLI_TESTS_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_SETUP_CLI_TESTS_REVIEW)[2026-06-28T14:16:23-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_06_28_14_06_26_LRH_SETUP_CLI_TESTS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/346
-commit: 
+commit: 348b2f6074e327d314ebf7a97186ced7b9ac44f4
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/346
-session_transcript: pending
+session_transcript: claude-app:6f9b846e-c6f9-45aa-9cf9-8c744ec57026
 created_at: 2026-06-28T14:25:10-04:00
 ---
 

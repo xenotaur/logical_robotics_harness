@@ -197,8 +197,10 @@ for the gate) and ask:
 > "Are all of these WS exit criteria met? [y/N]"
 
 Only include the WS closeout action in the confirmed plan if the user answers
-`y`. If the user answers `n` or expresses doubt about any criterion, remove WS
-closeout from the plan and note which criterion(a) blocked it.
+`y`. If the user answers `n` or expresses doubt about any criteria, remove WS
+closeout from the plan — and also remove any proposal-adoption action whose
+offer depended on that WS closing — then note which criteria blocked it. Show
+the revised plan before asking for final confirmation.
 
 **Wait for explicit confirmation before touching any files.** If the user
 redirects, updates the resolution text, or asks to skip an action, adjust the

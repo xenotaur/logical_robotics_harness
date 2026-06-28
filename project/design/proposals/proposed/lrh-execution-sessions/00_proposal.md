@@ -4,8 +4,8 @@ type: design_proposal
 title: LRH Execution Sessions — Three-Phase Model and Claude.app Session Traceability
 status: proposed
 created_on: 2026-06-23
-updated_on: 2026-06-23
-implementation_status: not_started
+updated_on: 2026-06-28
+implementation_status: partial
 implemented_by: []
 supersedes: []
 superseded_by: null
@@ -434,7 +434,7 @@ populate the new fields manually in execution records even before the
 This proposal is documentation-only. Implementation proceeds in
 stages, each backed by a separate work item.
 
-### Stage 0 — This proposal (current PR)
+### Stage 0 — This proposal (done)
 
 - `project/design/proposals/proposed/lrh-execution-sessions/` with
   this umbrella document and README.
@@ -443,7 +443,7 @@ stages, each backed by a separate work item.
 Deliverable: a written design with a specific vocabulary for future
 implementation work.
 
-### Stage 1 — Documentation additions (`WI-EXEC-SESSIONS-DOCS`)
+### Stage 1 — Documentation additions (`WI-EXEC-SESSIONS-DOCS`) — not_started
 
 - Update `project/executions/README.md` to document the new optional
   fields: `agent`, `instruction_source`, `session_transcript`.
@@ -453,9 +453,14 @@ implementation work.
   unknown frontmatter fields without error. If they do not, a
   targeted fix belongs here.
 
-Stage 1 is documentation-only and can land quickly.
+Stage 1 is documentation-only and can land quickly. As of 2026-06-28,
+163 execution records already use the new fields organically (populated
+by `/lrh-implement`), but neither README.md nor PROMPTS.md documents
+them. The fields are documented in `.claude/skills/lrh-implement/
+references/execution-session-reference.md`, but that is skill-internal,
+not the canonical location.
 
-### Stage 2 — Schema validation (`WI-EXEC-SESSIONS-SCHEMA`)
+### Stage 2 — Schema validation (`WI-EXEC-SESSIONS-SCHEMA`) — not_started
 
 - Update `lrh validate` to recognize and validate the optional new
   fields: `agent` value set, `session_transcript` path or short-form,
@@ -465,7 +470,11 @@ Stage 1 is documentation-only and can land quickly.
   the field is present; flag records with `session_transcript` that
   reference missing local files (advisory, not error).
 
-### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`)
+As of 2026-06-28, `lrh validate` has no execution-record validation
+logic; the new fields pass through silently without enum checking or
+path-format warnings.
+
+### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`) — not_started
 
 - `lrh sessions discover [--project-root .]` — scan
   `~/.claude/projects/<project-slug>/` for JSONL files and list
@@ -477,13 +486,18 @@ Stage 1 is documentation-only and can land quickly.
 This stage requires local filesystem access to `~/.claude/projects/`
 and is a new CLI command surface.
 
-### Stage 4 — Skill (`WI-EXEC-SESSIONS-SKILL`)
+### Stage 4 — Skill — done (subsumed by /lrh-implement)
 
-- Implement `src/lrh/skills/lrh-execution-session/` as a Claude Code
-  skill.
-- Depends on `PROP-LRH-PROJECT-LOCAL-SKILLS` Stage 1 shipping.
-- Self-hosting copy at `.claude/skills/lrh-execution-session/` in
-  the LRH repository for dogfooding before `lrh setup` ships.
+The proposed `lrh-execution-session` skill's 7 steps are fully
+covered by `/lrh-implement`, which shipped in WS-SKILLS (resolved).
+`/lrh-implement` covers all seven steps and adds readiness checking,
+a human plan-confirm gate, and branch creation. It populates `agent`,
+`instruction_source`, and `session_transcript` in every execution
+record it creates.
+
+A separate `lrh-execution-session` skill is not warranted.
+`PROP-LRH-PROJECT-LOCAL-SKILLS` is already adopted; the project-local
+skill mechanism is in place.
 
 ## Non-goals
 
@@ -569,17 +583,17 @@ This proposal can be considered effectively implemented when:
 
 ## Work items
 
-Proposed work item seeds, if adopted:
+Status as of 2026-06-28:
 
 - `WI-EXEC-SESSIONS-DOCS` — update `project/executions/README.md`
   and `PROMPTS.md` to document the three-phase model and optional
-  new fields
+  new fields — **not started**
 - `WI-EXEC-SESSIONS-SCHEMA` — update `lrh validate` for the new
-  optional fields; add tests
+  optional fields; add tests — **not started**
 - `WI-EXEC-SESSIONS-DISCOVERY` — implement `lrh sessions discover`
-  and `lrh sessions link` commands
-- `WI-EXEC-SESSIONS-SKILL` — implement `lrh-execution-session`
-  Claude Code skill (depends on `PROP-LRH-PROJECT-LOCAL-SKILLS`)
+  and `lrh sessions link` commands — **deferred**
+- `WI-EXEC-SESSIONS-SKILL` — **superseded** by `/lrh-implement`
+  (WS-SKILLS); no separate skill needed
 
 ## References
 

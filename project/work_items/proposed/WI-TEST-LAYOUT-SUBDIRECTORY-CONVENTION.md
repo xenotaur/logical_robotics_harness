@@ -112,9 +112,10 @@ as the first step of a two-part layout migration (see
 
 ## Risk Notes
 
-- pytest discovery must pick up the new subdirectory. Verify `pytest.ini` /
-  `pyproject.toml` `testpaths` does not restrict to a single level, or add
-  `tests/cli_tests/main_tests/` explicitly if needed.
+- `unittest` discovery (`python -m unittest discover -s tests -p '*_test.py'`,
+  as used by `scripts/test`) recurses into subdirectories by default, so the
+  new `tests/cli_tests/main_tests/` directory should be discovered automatically.
+  Verify after the move that `scripts/test` still finds and runs the relocated file.
 - The `__init__.py` is required for consistency with all other test
-  subdirectories; omitting it may cause import errors on some pytest
-  configurations.
+  subdirectories; omitting it causes `unittest` to fail to import test modules
+  that use package-relative imports.

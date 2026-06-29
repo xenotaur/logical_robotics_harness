@@ -548,6 +548,7 @@ LRH uses the [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en
 ### Format
 
 ```
+<type>: <description>
 <type>(<scope>): <description>
 ```
 

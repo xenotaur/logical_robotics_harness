@@ -2,10 +2,10 @@
 execution_id: 2026_06_29_01_57_44_WI_CLI_WIRING_TESTS_VALIDATE_GITHUB_WORKSTREAMS_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_CLI_WIRING_TESTS_VALIDATE_GITHUB_WORKSTREAMS_REVIEW)[2026-06-29T01:51:56-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/350
-commit: f907d64
+commit: 75e3a10d34b03f60e2aab0e0ad10caaee245fa8b
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/350
 session_transcript: claude-app:56e26950-a2c7-4fe5-acae-55216781527b

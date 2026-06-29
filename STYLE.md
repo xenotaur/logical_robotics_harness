@@ -541,6 +541,42 @@ PRs should be:
   - lint passes
   - formatting passes
 
+## Commit Message Format
+
+LRH uses the [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) specification.
+
+### Format
+
+```
+<type>: <description>
+<type>(<scope>): <description>
+```
+
+- **`type`** — required; one of the values below
+- **`scope`** — optional; a noun in parentheses describing the area of change (e.g. `feat(prompt):`, `chore(closeout):`)
+- **`description`** — short imperative summary in the present tense
+
+### Required types
+
+| Type | When to use |
+|---|---|
+| `feat` | A new feature or capability |
+| `fix` | A bug fix |
+| `chore` | Maintenance work: build, tooling, CI, dependency updates, planning artifacts |
+| `docs` | Documentation-only changes |
+| `test` | Adding or updating tests |
+| `refactor` | Code change that neither fixes a bug nor adds a feature |
+
+### Breaking changes
+
+Append `!` after the type/scope to signal a breaking change:
+
+```
+feat(cli)!: rename --work-item flag to --wi
+```
+
+A `BREAKING CHANGE:` footer in the commit body is also valid per the spec.
+
 ## Review Guidance
 
 Reviewers should evaluate changes in this order:

@@ -2,13 +2,13 @@
 execution_id: 2026_06_29_00_40_37_WI_TEST_LAYOUT_SUBDIRECTORY_CONVENTION_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_TEST_LAYOUT_SUBDIRECTORY_CONVENTION_REVIEW)[2026-06-29T00:36:14-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/347
-commit: d561061
+commit: 46179c4830daed2617ae371bef05e8d39897aad4
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/347
-session_transcript: pending
+session_transcript: claude-app:56e26950-a2c7-4fe5-acae-55216781527b
 created_at: 2026-06-29T00:40:37-04:00
 ---
 

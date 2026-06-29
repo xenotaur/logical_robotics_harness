@@ -2,10 +2,10 @@
 execution_id: 2026_06_29_01_32_15_WI_TEST_LAYOUT_MAIN_TESTS_MIGRATION_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_TEST_LAYOUT_MAIN_TESTS_MIGRATION_REVIEW)[2026-06-29T01:17:44-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/348
-commit: 5d9c8a1
+commit: 46880bca8946d24d522cd05d16f983169f5d99e4
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/348
 session_transcript: claude-app:56e26950-a2c7-4fe5-acae-55216781527b

@@ -26,7 +26,7 @@ forbidden_actions:
 acceptance:
   - Audit report identifies every file in tests/meta_tests/ and classifies it as true module mirror, CLI-dispatch test, or integration test
   - Report assesses whether the current placement creates real confusion or gaps
-  - Report recommends one of: leave as-is, split into meta_tests/ (module mirrors) + cli_tests/main_tests/meta_tests/ (CLI dispatch), or another approach
+  - "Report recommends one of: leave as-is, split into meta_tests/ (module mirrors) + cli_tests/main_tests/meta_tests/ (CLI dispatch), or another approach"
   - Report is captured as a design artifact or work item comment with a concrete follow-on action
   - lrh validate passes with 0 errors
 required_evidence:
@@ -48,19 +48,19 @@ a documented decision to leave it as-is.
 The `tests/meta_tests/` directory serves two distinct purposes that the
 STYLE.md rules do not account for: (1) it is a true module mirror for
 `src/lrh/meta/` (containing `workspace_test.py` and `local_state_model_test.py`),
-and (2) it houses CLI-level subprocess tests for the `lrh meta` subcommand
-group (`init_test.py`, `list_test.py`, `register_test.py`, `inspect_test.py`,
-`set_unset_test.py`, `where_test.py`, `config_test.py`) — which test
-`main.py` dispatch, not `src/lrh/meta/` library code directly.
+and (2) it houses tests for the `lrh meta` subcommand group (`init_test.py`,
+`list_test.py`, `register_test.py`, `inspect_test.py`, `set_unset_test.py`,
+`where_test.py`, `config_test.py`).
 
 This ambiguity was surfaced during the test-layout design session that
 produced `WI-TEST-LAYOUT-SUBDIRECTORY-CONVENTION` and
-`WI-TEST-LAYOUT-MAIN-TESTS-MIGRATION`. A post-design survey confirmed that
-the `meta` CLI wiring is properly tested (all meta subcommand tests go
-through `subprocess.run([sys.executable, "-m", "lrh.cli.main", *args])`),
-so there is no correctness gap. The question is whether the directory
-structure should be made consistent with the new convention once the two
-layout migration WIs are complete.
+`WI-TEST-LAYOUT-MAIN-TESTS-MIGRATION`. A post-design survey found that most
+`meta` subcommand tests route through `subprocess.run([sys.executable, "-m",
+"lrh.cli.main", *args])`, but `config_test.py` was subsequently found to
+import `lrh.meta` library modules directly with no subprocess or `cli_main`
+call — meaning `lrh meta config` CLI dispatch may be untested at the wiring
+layer. The audit must determine whether this is a real gap and, if so, flag
+it for `WI-CLI-WIRING-TESTS-VALIDATE-GITHUB-WORKSTREAMS` or a new WI.
 
 This investigation should be executed after both migration WIs land so the
 auditor can evaluate the post-migration state of `tests/cli_tests/` and
@@ -69,6 +69,8 @@ auditor can evaluate the post-migration state of `tests/cli_tests/` and
 ## Scope
 
 - Classify every file in `tests/meta_tests/` as: true module mirror, CLI-dispatch test, or integration test
+- For each CLI-dispatch test file, confirm whether it routes through `cli_main.main()` or `subprocess.run([..., "lrh.cli.main", ...])` or tests the library directly
+- Explicitly assess whether `lrh meta config` CLI wiring is tested at the dispatch layer
 - Assess whether the dual-purpose placement causes real confusion, maintenance risk, or convention violations
 - Evaluate the proposed split: true mirrors stay in `tests/meta_tests/`; CLI-dispatch tests move to `tests/cli_tests/main_tests/meta_tests/`
 - Produce a written recommendation: reorganize (with a follow-on operation WI) or leave as-is (with documented rationale)

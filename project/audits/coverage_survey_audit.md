@@ -1,7 +1,7 @@
 # Coverage Survey Audit
 
 **Date:** 2026-06-29
-**Objective:** Survey the existing Python code in `src/` to assess which modules have the most and the least coverage provided by tests in `tests/`, as a first step toward improving codebase coverage.
+**Objective:** Survey the existing Python code in `src/lrh/` to assess which modules have the most and the least coverage provided by tests in `tests/`, as a first step toward improving codebase coverage.
 
 ## 1. Methodology
 
@@ -12,9 +12,11 @@ The coverage data was collected following the project conventions:
 
 The results highlight areas of the codebase with missing test coverage, alongside areas that are well-tested, conforming to the deterministic and hermetic unit testing policies described in `AGENTS.md` and `STYLE.md`.
 
+*Note:* The canonical `scripts/coverage` job measures coverage with `--source=src/lrh` and currently misses existing test directories that are not importable packages. Therefore, the audit does not measure all unit tests under `tests/` and some modules reported as 0% may actually have tests that are missed by the coverage tool's discovery.
+
 ## 2. Least Covered Modules
 
-The following modules in `src/` exhibit the lowest unit test coverage:
+The following modules in `src/lrh/` exhibit the lowest unit test coverage:
 
 | Module | Coverage | Statements | Missed |
 |--------|----------|------------|--------|
@@ -31,7 +33,7 @@ The following modules in `src/` exhibit the lowest unit test coverage:
 
 ### Insights
 
-* **Development Scripts (`src/lrh/dev/*`):** These modules have 0% unit test coverage. This is expected as per `AGENTS.md`, which states that unit tests should remain hermetic and avoid calling `pip`, Git remotes, or long-running subprocesses. Testing these modules likely requires smoke tests under `tests/smoke/` rather than standard unit tests.
+* **Development Scripts (`src/lrh/dev/*`):** These modules are reported with 0% unit test coverage. However, `tests/dev_tests/release_smoke_test.py` and `tests/dev_tests/versioning_test.py` exist and contain active tests. The canonical coverage job currently has a discovery gap that misses non-importable test directories, so this 0% figure is an artifact of the coverage configuration rather than a true absence of tests. Addressing the discovery gap is needed before determining whether more tests are required.
 * **External Integrations (`src/lrh/integrations/github/*`):** Coverage is extremely low (10-19%). This stems from the policy of avoiding network access in standard unit tests. To improve coverage here without violating `STYLE.md`, we must use fakes, stubs, or mocks at the external boundary.
 * **CLI and Workflows (`src/lrh/cli/main.py`, `src/lrh/prompt_workflow.py`):** These contain significant application logic and orchestration but lack robust coverage, representing a primary risk surface for regressions.
 

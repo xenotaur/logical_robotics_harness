@@ -5,4 +5,4 @@
   external ChatGPT PDF dogfood dataset.
 - [`planning_tree_implementation_audit.md`](planning_tree_implementation_audit.md)
 - [`coverage_survey_audit.md`](coverage_survey_audit.md):
-  audit report of unit test coverage across the `src/` directory.
+  audit report of unit test coverage across the `src/lrh/` directory.

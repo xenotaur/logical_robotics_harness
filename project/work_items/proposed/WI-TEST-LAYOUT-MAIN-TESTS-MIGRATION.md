@@ -28,7 +28,7 @@ forbidden_actions:
   - add_cli_wiring_tests
 acceptance:
   - All per-subcommand test files for main.py subcommands live under tests/cli_tests/main_tests/
-  - True module mirrors (argcomplete_adapter, completion_sources, github_cli, serve, serve_triage, version_integration) remain at tests/cli_tests/
+  - True module mirrors (argcomplete_adapter, completion_sources, github_cli, serve, serve_triage) and the integration test (version_integration) remain at tests/cli_tests/
   - tests/cli_tests/main_test.py remains at tests/cli_tests/ (whole-CLI wiring)
   - No orphaned files remain at the old paths
   - scripts/test passes with 0 failures
@@ -86,7 +86,7 @@ wiring file `main_test.py`.
 ## Required Changes
 
 Move the following files from `tests/cli_tests/` to
-`tests/cli_tests/main_tests/` (pure relocation — no content changes):
+`tests/cli_tests/main_tests/`:
 
 1. `conversation_test.py`
 2. `design_test.py`
@@ -100,6 +100,13 @@ Move the following files from `tests/cli_tests/` to
 10. `snapshot_test.py`
 11. `work_items_test.py`
 
+For each moved file, update any `Path(__file__).resolve().parents[N]` repo-root
+expressions: files currently at depth `tests/cli_tests/` use `parents[2]` to
+reach the repo root; after moving one level deeper to
+`tests/cli_tests/main_tests/`, these must be updated to `parents[3]`. Check
+every moved file for this pattern before committing. No other logic changes
+are permitted.
+
 Files that stay at `tests/cli_tests/` (true module mirrors or whole-CLI):
 
 - `main_test.py` — whole-CLI wiring tests
@@ -110,14 +117,11 @@ Files that stay at `tests/cli_tests/` (true module mirrors or whole-CLI):
 - `serve_triage_test.py` → mirrors `src/lrh/serve_triage.py`
 - `version_integration_test.py` → integration test (broader than one module)
 
-Update any internal imports within moved files if needed (check for relative
-imports or module-path assumptions).
-
 ## Non-Goals
 
 - Do not address the `meta_tests/` directory ambiguity — that is
   `WI-META-TESTS-LAYOUT-AUDIT`.
-- Do not add or modify any test logic.
+- Do not modify test logic beyond updating `parents[N]` repo-root path expressions necessitated by the directory move.
 - Do not create new tests for any subcommand.
 - Do not add CLI wiring tests for subcommands lacking them — that is
   `WI-CLI-WIRING-TESTS-VALIDATE-GITHUB-WORKSTREAMS`.
@@ -138,10 +142,18 @@ imports or module-path assumptions).
 
 ## Risk Notes
 
-- pytest discovery: confirm `pyproject.toml` testpaths or `pytest.ini`
-  recurse into `tests/cli_tests/main_tests/`. The `__init__.py` created
-  by `WI-TEST-LAYOUT-SUBDIRECTORY-CONVENTION` should be sufficient, but
-  verify before submitting.
+- **Path-depth breakage:** Several files compute the repo root via
+  `Path(__file__).resolve().parents[2]`. At the current depth
+  (`tests/cli_tests/`), `parents[2]` is the repo root. After the move to
+  `tests/cli_tests/main_tests/`, `parents[2]` resolves to `tests/`, breaking
+  subprocess cwd and project-root arguments. Every moved file must be audited
+  for this pattern and updated to `parents[3]` before `scripts/test` will
+  pass. Known affected files: `conversation_test.py`, `match_test.py`,
+  `project_doctor_test.py`, `project_init_test.py`, `prompt_test.py`,
+  `search_test.py`, `setup_test.py`, `snapshot_test.py`.
+- `unittest` discovery (`scripts/test`) recurses into subdirectories by
+  default; the `__init__.py` from `WI-TEST-LAYOUT-SUBDIRECTORY-CONVENTION`
+  should be sufficient, but verify after the move.
 - Moving eleven files in one PR is the minimum necessary to reach a
   consistent state; splitting further would leave `tests/cli_tests/` in a
   partially-migrated state that contradicts the new rule.

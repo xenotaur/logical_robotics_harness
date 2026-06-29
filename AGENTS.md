@@ -83,6 +83,7 @@ Do not generate optimistic summaries that are detached from tests, logs, metrics
 - Avoid hidden magic in repo discovery.
 - Keep formats stable and documented.
 - Preserve human readability of `project/` documents.
+- Use Conventional Commits for all commit messages; see `STYLE.md` for the full format and required types.
 
 ## Immediate task guidance
 

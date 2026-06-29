@@ -2,14 +2,14 @@
 execution_id: 2026_06_29_08_20_26_WI_EXEC_SESSIONS_DOCS_SCHEMA_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_EXEC_SESSIONS_DOCS_SCHEMA_REVIEW)[2026-06-29T02:10:04-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/351
-commit:
+commit: e84ea044202844f482a1a61ece58fa51b23d0fb7
 created_at: 2026-06-29T08:20:26-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/351
-session_transcript: pending
+session_transcript: claude-app:365fad90-1bd6-4f33-b832-e22ed6690f05
 ---
 
 # Summary

@@ -25,9 +25,9 @@ forbidden_actions:
   - delete_branch
   - modify_library_code
 acceptance:
-  - tests/cli_tests/main_tests/validate_test.py exists with at least one subprocess or cli_main.main() test exercising the main.py dispatch path
+  - tests/cli_tests/main_tests/validate_test.py exists with tests covering exit-code 0/1 and --work-items / --project-dir argument parsing
   - tests/cli_tests/main_tests/github_test.py exists with at least one test routing through main.py (not importing lrh.cli.github directly)
-  - tests/cli_tests/main_tests/workstreams_test.py exists with at least one test routing through main.py for lrh workstreams organize
+  - tests/cli_tests/main_tests/workstreams_test.py exists with tests covering --dry-run default behavior and missing-subcommand error
   - scripts/test passes with 0 failures
   - lrh validate passes with 0 errors
 required_evidence:
@@ -51,19 +51,20 @@ paths are currently exercised only by library-level tests or not at all.
 A survey conducted during the test-layout design session found three
 subcommands with no test that routes through `src/lrh/cli/main.py`:
 
-- **`lrh validate`** (`main.py` lines 614–622): parses `--project-dir` and
-  `--work-items`, calls `validate_project()`, formats the report, and exits
-  with code 0 or 1. `control_tests/validator_test.py` tests `validate_project()`
-  directly but the CLI wiring layer is untested.
+- **`lrh validate`** (dispatches `validate_project()` from `src/lrh/cli/main.py`):
+  parses `--project-dir` and `--work-items`, calls `validate_project()`,
+  formats the report, and exits with code 0 or 1.
+  `control_tests/validator_test.py` tests `validate_project()` directly but
+  the CLI wiring layer is untested.
 
-- **`lrh github`** (`main.py` lines 632–638): dispatches to
-  `github_cli.run_github_cli()`. `cli_tests/github_cli_test.py` imports
+- **`lrh github`** (dispatches to `github_cli.run_github_cli()` from
+  `src/lrh/cli/main.py`): `cli_tests/github_cli_test.py` imports
   `lrh.cli.github` directly and never routes through `main.py`.
 
-- **`lrh workstreams organize`** (`main.py` lines 820–841): parses
-  `--dry-run`, `--apply`, `--project-dir` args and dispatches to
-  `workstreams_organize.*`. `workstreams_tests/organize_test.py` tests the
-  library directly.
+- **`lrh workstreams organize`** (dispatches to `workstreams_organize.*` from
+  `src/lrh/cli/main.py`): parses `--dry-run`, `--apply`, `--project-dir` args
+  and dispatches to `workstreams_organize.*`.
+  `workstreams_tests/organize_test.py` tests the library directly.
 
 This is the same class of gap fixed for `lrh setup` in PR #346. Tests that
 bypass `main.py` do not verify argument parsing, exit-code contracts, or

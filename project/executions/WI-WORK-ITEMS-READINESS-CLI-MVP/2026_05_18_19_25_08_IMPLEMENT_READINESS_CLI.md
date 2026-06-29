@@ -2,10 +2,11 @@
 execution_id: 2026_05_18_19_25_08_IMPLEMENT_READINESS_CLI
 prompt_id: PROMPT(WI-WORK-ITEMS-READINESS-CLI-MVP:IMPLEMENT_READINESS_CLI)[2026-05-17T02:06:00-04:00]
 work_item: WI-WORK-ITEMS-READINESS-CLI-MVP
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/268
+commit: 8e2e00ee54d661d881bce9114758b86ff539b9e8
+session_transcript: pending
 created_at: 2026-05-18T19:25:08+00:00
 ---
 

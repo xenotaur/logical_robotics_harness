@@ -2,10 +2,11 @@
 execution_id: 2026_05_18_04_44_19_IMPLEMENT_READY_WORK_ITEM_REQUEST
 prompt_id: PROMPT(WI-REQUEST-READY-WORK-ITEM-MVP:IMPLEMENT_READY_WORK_ITEM_REQUEST)[2026-05-17T02:05:00-04:00]
 work_item: WI-REQUEST-READY-WORK-ITEM-MVP
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/264
+commit: 6534b7fc158045cd5d36f68d4c730f2c826cbcd7
+session_transcript: pending
 created_at: 2026-05-18T04:44:19+00:00
 ---
 

@@ -18,6 +18,7 @@ before touching any files.
 | Execution record | `status: in_progress` | Update to `landed` (Step 5) |
 | Execution record | `status: landed` | Skip — already closed out |
 | Execution record | Missing entirely | Warn user; ask whether to proceed without it |
+| Execution record | `work_item: AD_HOC` | No WI to resolve — closeout scope is execution record update only; do not search for WIs via PR diff or working tree |
 | WI | Found in `proposed/` | Resolve: set `status: resolved`, write `resolution:`, `mv` to `resolved/` |
 | WI | Found in `resolved/` | Skip — already resolved |
 | WI | Not found anywhere | Warn user; ask how to proceed |

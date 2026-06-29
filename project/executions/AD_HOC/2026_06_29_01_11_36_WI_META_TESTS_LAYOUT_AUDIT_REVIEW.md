@@ -2,10 +2,10 @@
 execution_id: 2026_06_29_01_11_36_WI_META_TESTS_LAYOUT_AUDIT_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_META_TESTS_LAYOUT_AUDIT_REVIEW)[2026-06-29T01:09:18-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/349
-commit: 6e0e309
+commit: 3ff1a1ee2092eac821a25eb5e24915dc81a3c7e9
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/349
 session_transcript: claude-app:56e26950-a2c7-4fe5-acae-55216781527b

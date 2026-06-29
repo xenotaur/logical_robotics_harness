@@ -391,36 +391,27 @@ for a particular repo) belongs at the user-local tier. A meta-prompt
 encoding a generalizable LRH workflow (e.g., "run the three-phase
 execution session model for any task") belongs at the package tier.
 
-#### Future `lrh-execution-session` skill
+#### `lrh-execution-session` skill — superseded by `/lrh-implement`
 
-When `PROP-LRH-PROJECT-LOCAL-SKILLS` is adopted and Stage 1 ships,
-the three-phase execution session model should be encoded as a
-Claude Code skill:
+The originally proposed `lrh-execution-session` skill has been superseded.
+`/lrh-implement` (shipped in WS-SKILLS, resolved 2026-06-28) covers all
+seven steps of the originally planned skill and adds readiness checking,
+a human plan-confirm gate, and branch creation. `PROP-LRH-PROJECT-LOCAL-SKILLS`
+is already adopted and the project-local skill mechanism is in place.
 
-```text
-src/lrh/skills/lrh-execution-session/
-  SKILL.md
-  references/
-    execution-session-workflow.md   # three-phase model reference
-    session-transcript-guide.md     # how to find and reference JSONL files
-    taurcode-meta-prompt-guide.md   # instruction-phase artifact guidance
-```
+For reference, the seven steps the skill was intended to cover:
 
-The skill would guide Claude through:
-
-1. Performing the `lrh prompt label` + `check-execution` idempotence
-   check.
+1. Performing the `lrh prompt label` + `check-execution` idempotence check.
 2. Confirming the design phase is complete or explicitly captured.
 3. Restating the design (instruction phase marker).
 4. Optionally generating a Taurcode meta-prompt for future reuse.
 5. Implementing the work (execution phase).
 6. Running validation.
-7. Creating the PR and the execution record with the new optional
-   fields filled in.
+7. Creating the PR and the execution record with the new optional fields filled in.
 
-This skill is deferred until `PROP-LRH-PROJECT-LOCAL-SKILLS` ships.
-In the interim, the three-phase model in `PROMPTS.md` and this
-proposal serves as the reference for Claude.app sessions.
+All seven are implemented in `/lrh-implement`. A separate
+`lrh-execution-session` skill is not warranted. See Stage 4 in the
+implementation plan below.
 
 #### Independence from `lrh-project-local-skills`
 
@@ -474,7 +465,7 @@ As of 2026-06-28, `lrh validate` has no execution-record validation
 logic; the new fields pass through silently without enum checking or
 path-format warnings.
 
-### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`) — not_started
+### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`) — deferred
 
 - `lrh sessions discover [--project-root .]` — scan
   `~/.claude/projects/<project-slug>/` for JSONL files and list

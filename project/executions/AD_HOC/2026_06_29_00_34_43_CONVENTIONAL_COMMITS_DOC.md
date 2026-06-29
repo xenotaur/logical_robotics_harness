@@ -2,14 +2,14 @@
 execution_id: 2026_06_29_00_34_43_CONVENTIONAL_COMMITS_DOC
 prompt_id: PROMPT(AD_HOC:CONVENTIONAL_COMMITS_DOC)[2026-06-28T15:30:12-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: "352"
-commit: 2e967b7
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/352
+commit: 36b8c861bd0d6ccdcc491c84df4cb9e915fd883d
 created_at: 2026-06-29T00:34:43-04:00
 agent: claude_app
 instruction_source: ad_hoc conversation — document Conventional Commits 1.0.0 in STYLE.md and AGENTS.md
-session_transcript: pending
+session_transcript: claude-app:5aa27ed0-d65b-4452-af71-f9c1fb8225e8
 ---
 
 # Summary

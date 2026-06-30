@@ -7,7 +7,8 @@ title: Wire prior-art check into lrh-design, lrh-proposal, lrh-workstream
 type: deliverable
 status: proposed
 owner: anthony
-contributors: []
+contributors:
+  - anthony
 assigned_agents: []
 related_focus: []
 related_roadmap: []
@@ -29,6 +30,9 @@ acceptance:
   - Each of lrh-design, lrh-proposal, lrh-workstream has references/prior-art-check.md with synced-copy header comment
   - lrh-design SKILL.md Step 3a includes the prior-art check as an explicit required sub-step
   - lrh-proposal and lrh-workstream body guides include a required Prior Art Check section
+  - diff -r src/lrh/skills/lrh-design/ .claude/skills/lrh-design/ reports no differences
+  - diff -r src/lrh/skills/lrh-proposal/ .claude/skills/lrh-proposal/ reports no differences
+  - diff -r src/lrh/skills/lrh-workstream/ .claude/skills/lrh-workstream/ reports no differences
   - lrh validate reports 0 errors
 required_evidence:
   - manual_review
@@ -36,10 +40,20 @@ required_evidence:
 artifacts_expected:
   - src/lrh/skills/lrh-design/references/prior-art-check.md
   - .claude/skills/lrh-design/references/prior-art-check.md
+  - src/lrh/skills/lrh-design/SKILL.md
+  - .claude/skills/lrh-design/SKILL.md
   - src/lrh/skills/lrh-proposal/references/prior-art-check.md
   - .claude/skills/lrh-proposal/references/prior-art-check.md
+  - src/lrh/skills/lrh-proposal/references/proposal-body-guide.md
+  - .claude/skills/lrh-proposal/references/proposal-body-guide.md
+  - src/lrh/skills/lrh-proposal/SKILL.md
+  - .claude/skills/lrh-proposal/SKILL.md
   - src/lrh/skills/lrh-workstream/references/prior-art-check.md
   - .claude/skills/lrh-workstream/references/prior-art-check.md
+  - src/lrh/skills/lrh-workstream/references/workstream-body-guide.md
+  - .claude/skills/lrh-workstream/references/workstream-body-guide.md
+  - src/lrh/skills/lrh-workstream/SKILL.md
+  - .claude/skills/lrh-workstream/SKILL.md
 ---
 
 ## Summary
@@ -70,14 +84,19 @@ canonical procedure content.
 - `src/lrh/skills/lrh-design/references/prior-art-check.md` — new (copy)
 - `.claude/skills/lrh-design/references/prior-art-check.md` — new (copy)
 - `src/lrh/skills/lrh-design/SKILL.md` — add prior-art sub-step to Step 3a
+- `.claude/skills/lrh-design/SKILL.md` — mirror of above
 - `src/lrh/skills/lrh-proposal/references/prior-art-check.md` — new (copy)
 - `.claude/skills/lrh-proposal/references/prior-art-check.md` — new (copy)
 - `src/lrh/skills/lrh-proposal/references/proposal-body-guide.md` — add `## Prior Art Check` section
+- `.claude/skills/lrh-proposal/references/proposal-body-guide.md` — mirror of above
 - `src/lrh/skills/lrh-proposal/SKILL.md` — add reference to prior-art-check.md in Reference Knowledge
+- `.claude/skills/lrh-proposal/SKILL.md` — mirror of above
 - `src/lrh/skills/lrh-workstream/references/prior-art-check.md` — new (copy)
 - `.claude/skills/lrh-workstream/references/prior-art-check.md` — new (copy)
 - `src/lrh/skills/lrh-workstream/references/workstream-body-guide.md` — add `## Prior Art Check` section
+- `.claude/skills/lrh-workstream/references/workstream-body-guide.md` — mirror of above
 - `src/lrh/skills/lrh-workstream/SKILL.md` — add reference to prior-art-check.md in Reference Knowledge
+- `.claude/skills/lrh-workstream/SKILL.md` — mirror of above
 
 ## Non-Goals
 

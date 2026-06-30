@@ -7,7 +7,8 @@ title: Wire prior-art check into lrh-work-item and lrh-implement
 type: deliverable
 status: proposed
 owner: anthony
-contributors: []
+contributors:
+  - anthony
 assigned_agents: []
 related_focus: []
 related_roadmap: []
@@ -34,8 +35,14 @@ required_evidence:
 artifacts_expected:
   - src/lrh/skills/lrh-work-item/references/prior-art-check.md
   - .claude/skills/lrh-work-item/references/prior-art-check.md
+  - src/lrh/skills/lrh-work-item/SKILL.md
+  - .claude/skills/lrh-work-item/SKILL.md
+  - src/lrh/skills/lrh-work-item/references/work-item-body-guide.md
+  - .claude/skills/lrh-work-item/references/work-item-body-guide.md
   - src/lrh/skills/lrh-implement/references/prior-art-check.md
   - .claude/skills/lrh-implement/references/prior-art-check.md
+  - src/lrh/skills/lrh-implement/SKILL.md
+  - .claude/skills/lrh-implement/SKILL.md
 ---
 
 ## Summary
@@ -68,10 +75,13 @@ on `WI-PAC-SHARED-REFERENCE` for the canonical procedure content.
 - `src/lrh/skills/lrh-work-item/references/prior-art-check.md` — new (copy)
 - `.claude/skills/lrh-work-item/references/prior-art-check.md` — new (copy)
 - `src/lrh/skills/lrh-work-item/SKILL.md` — extend Step 3 and Reference Knowledge
+- `.claude/skills/lrh-work-item/SKILL.md` — mirror of above
 - `src/lrh/skills/lrh-work-item/references/work-item-body-guide.md` — document verdict format in `## Problem / Context` section
+- `.claude/skills/lrh-work-item/references/work-item-body-guide.md` — mirror of above
 - `src/lrh/skills/lrh-implement/references/prior-art-check.md` — new (copy)
 - `.claude/skills/lrh-implement/references/prior-art-check.md` — new (copy)
 - `src/lrh/skills/lrh-implement/SKILL.md` — add Step 1.5
+- `.claude/skills/lrh-implement/SKILL.md` — mirror of above
 
 ## Non-Goals
 
@@ -85,6 +95,8 @@ on `WI-PAC-SHARED-REFERENCE` for the canonical procedure content.
 - `lrh-work-item` SKILL.md Step 3 explicitly covers code/library duplication
   and records the verdict in the WI body
 - `lrh-implement` SKILL.md has a Step 1.5 for prior-art check (warn-don't-block)
+- `diff -r src/lrh/skills/lrh-work-item/ .claude/skills/lrh-work-item/` reports no differences
+- `diff -r src/lrh/skills/lrh-implement/ .claude/skills/lrh-implement/` reports no differences
 - `lrh validate` reports 0 errors
 
 ## Validation

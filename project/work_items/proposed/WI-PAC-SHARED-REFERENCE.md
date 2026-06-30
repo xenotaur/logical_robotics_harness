@@ -7,7 +7,8 @@ title: Create shared prior-art-check reference and backlog entry
 type: deliverable
 status: proposed
 owner: anthony
-contributors: []
+contributors:
+  - anthony
 assigned_agents: []
 related_focus: []
 related_roadmap: []

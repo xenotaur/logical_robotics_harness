@@ -119,6 +119,80 @@ Use the report as closeout support, not as an automatic lifecycle transition.
 Human review should confirm that required evidence exists before moving work
 items, status, focus, or roadmap records.
 
+## What makes a work item ready: examples
+
+A work item can be structurally valid — passes `lrh work-items validate` — while
+still being too thin to generate a bounded implementation prompt. The difference
+is whether the Markdown body contains the execution-facing sections that
+`prompt-from-work-item` requires.
+
+**Valid but not ready** (passes `validate`, blocked by `readiness`):
+
+```markdown
+## Summary
+
+Harden template loading to use package resources.
+
+## Problem / Context
+
+Templates are loaded via source-tree-relative paths, which breaks installed packages.
+```
+
+Running `lrh work-items readiness WI-EXAMPLE` on this item reports:
+
+```
+- prompt_ready: no
+- blocking:
+  - missing section: Scope
+  - missing section: Required Changes
+  - missing section: Acceptance Criteria
+  - missing section: Validation
+```
+
+**Ready and promptable** (passes `validate` and `readiness`):
+
+```markdown
+## Summary
+
+Harden template loading to use package resources.
+
+## Scope
+
+Replace source-tree-relative path construction in `template_resolver.py` with
+`importlib.resources.files(...)` so templates load correctly from both source
+checkouts and installed wheels.
+
+## Required Changes
+
+- Edit `src/lrh/assist/template_resolver.py` to use `importlib.resources`.
+- Add or extend smoke tests under `tests/smoke/` to verify `lrh request`
+  loads templates correctly after `pip install`.
+
+## Acceptance Criteria
+
+- Template loading uses package resources rather than source-tree-relative paths.
+- Smoke tests verify `lrh request` behavior from an installed package context.
+
+## Validation
+
+- `scripts/test` — all unit tests pass.
+- `scripts/smoke` — smoke tests pass against an installed wheel.
+- `lrh validate` — 0 errors.
+```
+
+Use `lrh request ready-work-item WI-EXAMPLE` to render a non-mutating request
+that proposes the missing sections based on the work item's existing metadata
+and referenced context. Review and apply what fits; leave uncertain details as
+`Open Questions` rather than invented scope.
+
+## Design reference
+
+The vocabulary used here — valid, audited, ready, promptable, executed,
+evidence-closed — is defined in
+[`project/design/work_item_readiness_workflow.md`](../../project/design/work_item_readiness_workflow.md).
+That design note also documents the reasoning behind keeping `lrh work-items validate`
+permissive toward thin proposed items.
+
 ## When not to use each command
 
 - Do not use `validate` to reject thin but structurally valid proposed items.

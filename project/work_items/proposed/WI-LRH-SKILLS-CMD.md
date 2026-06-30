@@ -33,6 +33,7 @@ acceptance:
   - lrh skills install --dry-run prints report without writing files
   - lrh skills install --force overwrites user-modified skills without prompting
   - lrh setup does not exist as a command or alias
+  - updated src/lrh/skills/ files have byte-for-byte identical .claude/skills/ mirrors
   - scripts/test passes with 0 failures
   - lrh validate reports 0 errors
 required_evidence:
@@ -47,6 +48,10 @@ artifacts_expected:
   - src/lrh/skills/lrh-implement/references/lrh-implement-workflow.md (updated)
   - src/lrh/skills/lrh-review-response/SKILL.md (updated)
   - src/lrh/skills/lrh-work-item/references/work-item-body-guide.md (updated)
+  - .claude/skills/lrh-create-skill/SKILL.md (mirrored update)
+  - .claude/skills/lrh-implement/references/lrh-implement-workflow.md (mirrored update)
+  - .claude/skills/lrh-review-response/SKILL.md (mirrored update)
+  - .claude/skills/lrh-work-item/references/work-item-body-guide.md (mirrored update)
 ---
 
 ## Summary
@@ -77,8 +82,10 @@ no deprecation alias is needed.
 - Add `--local` flag: write to `./.claude/skills/` instead of `~/.claude/skills/`
 - Rename `tests/cli_tests/setup_test.py` → `tests/cli_tests/skills_test.py`
   via `git mv` and update test strings; add a test for `--local`
-- Update all Category A references to `lrh setup` in `CONTRIBUTING.md` and
-  the four `src/lrh/skills/` files identified above
+- Update `lrh setup` references in `CONTRIBUTING.md` and the four
+  `src/lrh/skills/` files identified above, mirroring each skill update to
+  its `.claude/skills/` self-hosted copy per `CONTRIBUTING.md`'s
+  byte-for-byte parity requirement
 
 ## Required Changes
 
@@ -98,11 +105,15 @@ no deprecation alias is needed.
    - Replace `lrh setup` → `lrh skills install`
    - Remove the stale `(WI-SKILLS-LRH-SETUP)` parenthetical
 
-4. Edit the four `src/lrh/skills/` files that reference `lrh setup`:
+4. Edit the four `src/lrh/skills/` files that reference `lrh setup`, and
+   copy each edited file to its `.claude/skills/` mirror so both locations
+   stay byte-for-byte identical (per `CONTRIBUTING.md`):
    - `lrh-create-skill/SKILL.md` — fix stale "not yet implemented" note
    - `lrh-implement/references/lrh-implement-workflow.md` — fix stale "future" note
    - `lrh-review-response/SKILL.md` — update non-goal reference
    - `lrh-work-item/references/work-item-body-guide.md` — update example
+   - For each: `diff -r src/lrh/skills/<name>/ .claude/skills/<name>/` must
+     report no differences after the edit
 
 ## Non-Goals
 
@@ -120,6 +131,8 @@ no deprecation alias is needed.
 - `lrh skills install --dry-run` prints the expected report without writing files.
 - `lrh skills install --force` overwrites user-modified skills without prompting.
 - `lrh setup` returns an unrecognized-command error — no alias exists.
+- Each updated `src/lrh/skills/<name>/` file has a byte-for-byte identical
+  `.claude/skills/<name>/` mirror.
 - `scripts/test` passes with 0 failures.
 - `lrh validate` reports 0 errors.
 
@@ -132,6 +145,10 @@ no deprecation alias is needed.
 - `lrh validate`
 - `lrh skills install --dry-run` (manual smoke test)
 - `lrh setup` (should fail — confirms alias removed)
+- `diff -r src/lrh/skills/lrh-create-skill/ .claude/skills/lrh-create-skill/`
+- `diff -r src/lrh/skills/lrh-implement/ .claude/skills/lrh-implement/`
+- `diff -r src/lrh/skills/lrh-review-response/ .claude/skills/lrh-review-response/`
+- `diff -r src/lrh/skills/lrh-work-item/ .claude/skills/lrh-work-item/`
 
 ## Risk Notes
 

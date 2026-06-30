@@ -99,4 +99,8 @@ item, edit Markdown, dispatch an executor, or decide project closeout.
   `ready-work-item`, `prompt-from-work-item`, `run-packet-from-work-item`, and
   `run-report-from-work-item`.
 - [How to manage the work-item lifecycle](../../how-to/manage-work-item-lifecycle.md)
-  shows how to combine validation, audit, readiness, prompting, and reporting.
+  shows how to combine validation, audit, readiness, prompting, and reporting,
+  including a before/after example of a valid-but-not-ready vs ready work item.
+- [Work-item readiness workflow design](../../../project/design/work_item_readiness_workflow.md)
+  defines the lifecycle vocabulary and the reasoning behind keeping `validate`
+  permissive toward thin proposed items.

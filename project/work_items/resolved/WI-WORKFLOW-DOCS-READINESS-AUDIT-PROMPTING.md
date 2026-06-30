@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #354 (commit 193a718)"
 blocked_reason: null
 blocked: false
 id: WI-WORKFLOW-DOCS-READINESS-AUDIT-PROMPTING
 title: Document readiness, audit, prompting, and reporting workflow
 type: deliverable
-status: proposed
+status: resolved
 priority: medium
 owner: anthony
 contributors:

@@ -2,14 +2,14 @@
 execution_id: 2026_06_29_21_37_11_WI_WORKFLOW_DOCS_READINESS_AUDIT_PROMPTING_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_WORKFLOW_DOCS_READINESS_AUDIT_PROMPTING_REVIEW)[2026-06-29T20:17:00-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_06_29_20_05_40_WI_WORKFLOW_DOCS_READINESS_AUDIT_PROMPTING
-pr: "354"
-commit: 558ffcd
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/354
+commit: 193a71867816bdb71d80f44fb9080e0269387472
 created_at: 2026-06-29T21:37:11-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/354
-session_transcript: pending
+session_transcript: claude-app:aee573a9-b59f-4250-8516-ff21741d32e2
 ---
 
 # Summary

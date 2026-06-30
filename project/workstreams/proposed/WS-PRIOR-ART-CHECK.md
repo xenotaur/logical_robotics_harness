@@ -72,11 +72,11 @@ To be created via `/lrh-work-item`:
 
 ## Background / Rationale
 
-Design discussion (this session) walked through and rejected: a root-level
+Design discussion for this workstream walked through and rejected: a root-level
 `PRIOR_ART.md` (root is already crowded), `project/conventions/` (category
 error — `project/` is control-plane artifacts, not skill instruction
 content), `docs/` Diataxis placement (wrong audience — agent-executed
-procedure, not human-read documentation), and a plain `common/` directory
+procedure, not human-readable documentation), and a plain `common/` directory
 (would be picked up by `lrh skills install` as an installable skill, unlike
 an underscore-prefixed directory, which `src/lrh/skills/installer.py:41`
 already excludes).

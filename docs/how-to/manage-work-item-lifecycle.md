@@ -141,12 +141,16 @@ Templates are loaded via source-tree-relative paths, which breaks installed pack
 Running `lrh work-items readiness WI-EXAMPLE` on this item reports:
 
 ```
-- prompt_ready: no
+- prompt_ready: `no`
 - blocking:
-  - missing section: Scope
-  - missing section: Required Changes
-  - missing section: Acceptance Criteria
-  - missing section: Validation
+  - missing Scope section
+  - missing Required Changes section
+  - missing Acceptance Criteria
+  - missing Validation commands
+- warnings:
+  - none
+- recommended_next:
+  - `lrh request ready-work-item WI-EXAMPLE`
 ```
 
 **Ready and promptable** (passes `validate` and `readiness`):

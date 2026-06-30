@@ -2,14 +2,14 @@
 execution_id: 2026_06_30_15_21_35_WS_PRIOR_ART_CHECK_REVIEW
 prompt_id: PROMPT(AD_HOC:WS_PRIOR_ART_CHECK_REVIEW)[2026-06-30T15:20:47-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: null
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/356
-commit: 53b9a83
+commit: 37a1f6b8
 created_at: 2026-06-30T15:21:35-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/356
-session_transcript: pending
+session_transcript: claude-app:cf151d13-af10-4a8c-9aac-9686b4c23234
 ---
 
 # Summary

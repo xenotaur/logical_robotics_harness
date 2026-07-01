@@ -45,8 +45,14 @@ Load these before running any step:
 
 2. **`references/proposal-body-guide.md`** — Section-by-section authoring
    guide for the proposal body: what goes in Summary, Background/Motivation,
-   Design Decisions, Non-Goals, Implementation Plan, and cross-references.
-   Read this to produce a body that follows LRH proposal conventions.
+   Prior Art Check, Design Decisions, Non-Goals, Implementation Plan, and
+   cross-references. Read this to produce a body that follows LRH proposal
+   conventions.
+
+3. **`references/prior-art-check.md`** — Prior art / build-vs-buy check
+   procedure (duplication search + demand search). Run this during Step 3
+   (research) and record both verdicts in the `## Prior Art Check` body
+   section before drafting Design Decisions.
 
 ---
 

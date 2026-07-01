@@ -42,8 +42,9 @@ clarification request at Step 1.
 
 ## Reference Knowledge
 
-No references are needed. The design framework is embedded in the execution
-steps below.
+1. **`references/prior-art-check.md`** — Prior art / build-vs-buy check
+   procedure (duplication search + demand search). Read before Step 3a and
+   apply as a required sub-step before proceeding to best-practices review.
 
 ---
 
@@ -73,6 +74,16 @@ reputable sources where applicable.
 Understand the goal, context, constraints, and any prior art or related
 work in the project. For LRH projects: note how the idea fits the
 three-phase model, skill pattern, or control-plane conventions.
+
+Then run the prior art check (see `references/prior-art-check.md`):
+- **Duplication search** — does something like this already exist in-repo,
+  in sibling repos, or as an external library? Record the verdict. If a
+  duplicate is found, stop and surface it to the user before continuing.
+- **Demand search** — is there an existing work item, proposal, or backlog
+  entry requesting this? Record the verdict. If a match is found, offer to
+  close/link it at Step 4; do not auto-close.
+
+Record both verdicts in the design output before proceeding to Step 3b.
 
 **b. Review best practices**
 Identify the relevant engineering, architectural, or documentation domain.
@@ -142,6 +153,7 @@ Before reporting the design complete, verify:
 
 - [ ] Topic was restated to confirm understanding
 - [ ] Any blockers were surfaced before the design was produced
+- [ ] Prior art check performed (duplication search + demand search); verdicts recorded in design output
 - [ ] Best practices were surveyed; any citations given are real, not invented
 - [ ] High-level design is present
 - [ ] Low-level choices are enumerated

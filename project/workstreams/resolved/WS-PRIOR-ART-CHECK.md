@@ -2,8 +2,8 @@
 id: WS-PRIOR-ART-CHECK
 kind: planning_node
 title: Prior Art / Build-vs-Buy Check for Design and Work-Item Skills
-status: proposed
-stage: designed
+status: resolved
+stage: closed
 origin: design_review
 summary: Add a mandatory, non-blocking prior-art/build-vs-buy check to /lrh-design, /lrh-proposal, /lrh-workstream, /lrh-work-item, and /lrh-implement so new designs and code record whether an existing in-repo, sibling-repo, or library implementation was found before proceeding.
 related_focus: []

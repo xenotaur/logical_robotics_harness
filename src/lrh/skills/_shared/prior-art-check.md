@@ -23,9 +23,10 @@ new work is needed or should instead extend/replace what exists.
 
 1. **In-repo:** grep `src/`, `project/design/proposals/`, and
    `.claude/skills/` for terms derived from the topic title/summary.
+   Suppress errors for absent paths (some are optional in client repos).
 
    ```bash
-   grep -rl "<key-term>" src/ project/design/proposals/ .claude/skills/
+   grep -rl "<key-term>" src/ project/design/proposals/ .claude/skills/ 2>/dev/null
    ```
 
 2. **Sibling repos:** ask the user: "Are there sibling repositories that
@@ -64,14 +65,14 @@ request, allowing it to be closed or linked. This is not a blocker.
    overlapping titles or summaries.
 
    ```bash
-   grep -rl "<key-term>" project/work_items/proposed/
+   grep -rl "<key-term>" project/work_items/proposed/ 2>/dev/null
    ```
 
 2. **Design proposals:** search `project/design/proposals/proposed/` for
    proposals asking for the same capability.
 
    ```bash
-   grep -rl "<key-term>" project/design/proposals/proposed/
+   grep -rl "<key-term>" project/design/proposals/proposed/ 2>/dev/null
    ```
 
 3. **Backlog:** check `project/design/backlog.md` for entries matching the

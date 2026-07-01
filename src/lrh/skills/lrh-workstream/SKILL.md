@@ -44,9 +44,14 @@ Load these before running any step:
    frontmatter.
 
 2. **`references/workstream-body-guide.md`** — Section-by-section authoring
-   guide for the workstream body: what goes in Purpose, Scope, Work Items,
-   Exit Criteria, and Non-Goals. Read this to produce a body that passes
-   review.
+   guide for the workstream body: what goes in Purpose, Scope, Prior Art
+   Check, Work Items, Exit Criteria, and Non-Goals. Read this to produce a
+   body that passes review.
+
+3. **`references/prior-art-check.md`** — Prior art / build-vs-buy check
+   procedure (duplication search + demand search). Run this during Step 3
+   (research) and record both verdicts in the `## Prior Art Check` body
+   section before defining Work Items.
 
 ---
 

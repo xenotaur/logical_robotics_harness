@@ -43,6 +43,34 @@ what must be true to close.
 
 ---
 
+### `## Prior Art Check`
+
+Record the results of the prior art check (see `references/prior-art-check.md`)
+here, between Scope and Work Items. This section is required for all new
+workstreams.
+
+Use the verdict format from the shared procedure:
+
+```
+### Duplication search
+- In-repo: <No existing implementation found | Related: <path>>
+- Sibling repos: <None identified | See: <repo/path>>
+- External libraries: <None identified | Consider: <library name>>
+- Recommendation: <Proceed | Block — extend existing <path> instead | Block — adopt <library> instead>
+
+### Demand search
+- Work items: <None found | Found: WI-<ID> — "<title>" (may be satisfied)>
+- Proposals: <None found | Found: PROP-<ID> — "<title>" (may be satisfied)>
+- Backlog: <No matching entries | Found: <entry title> (may be satisfied)>
+- Recommendation: <No action | Offer to close/link: <IDs>>
+```
+
+If the duplication search recommends blocking, surface the finding to the
+user before continuing with Work Items. If the demand search finds a match,
+note it and re-state the offer at the end of the skill run.
+
+---
+
 ### `## Work Items`
 
 A prose paragraph or bulleted list of the work items belonging to this

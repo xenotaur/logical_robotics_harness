@@ -1,6 +1,6 @@
 # Prior Art Check — Procedure
 
-<!-- CANONICAL SOURCE: src/lrh/skills/_shared/prior-art-check.md
+<!-- SYNCED COPY: master is src/lrh/skills/_shared/prior-art-check.md
      Per-skill copies live at references/prior-art-check.md in each
      consuming skill. If you edit this file, update all copies.
      See project/design/backlog.md for the deferred automated drift-check. -->

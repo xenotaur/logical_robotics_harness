@@ -37,6 +37,34 @@ Do not repeat the Summary — extend it with the "why."
 
 ---
 
+### `## Prior Art Check`
+
+Record the results of the prior art check (see `references/prior-art-check.md`)
+here, between Background/Motivation and Design Decisions. This section is
+required for all new proposals.
+
+Use the verdict format from the shared procedure:
+
+```
+### Duplication search
+- In-repo: <No existing implementation found | Related: <path>>
+- Sibling repos: <None identified | See: <repo/path>>
+- External libraries: <None identified | Consider: <library name>>
+- Recommendation: <Proceed | Block — extend existing <path> instead | Block — adopt <library> instead>
+
+### Demand search
+- Work items: <None found | Found: WI-<ID> — "<title>" (may be satisfied)>
+- Proposals: <None found | Found: PROP-<ID> — "<title>" (may be satisfied)>
+- Backlog: <No matching entries | Found: <entry title> (may be satisfied)>
+- Recommendation: <No action | Offer to close/link: <IDs>>
+```
+
+If the duplication search recommends blocking, surface the finding to the
+user before continuing with Design Decisions. If the demand search finds a
+match, note it and re-state the offer at the end of the skill run.
+
+---
+
 ### `## Design Decisions`
 
 The core of the proposal. For each design decision:

@@ -53,6 +53,10 @@ Load these before running any step:
    command sequence, failure handling, and evidence to record. Read to run
    and report validation correctly.
 
+4. **`references/prior-art-check.md`** — Prior art / build-vs-buy check
+   procedure (duplication search + demand search). Used in Step 1.5 to
+   validate or perform a prior-art check before implementation begins.
+
 ---
 
 ## Execution Steps
@@ -80,6 +84,27 @@ whether to continue — do not hard-block.
 
 **Ad-hoc input:** summarize the stated goal back to the user and confirm the
 understanding before proceeding.
+
+### Step 1.5 — Validate or perform prior-art check
+
+**For work item input:** check whether the work item's `## Problem / Context`
+section already contains a prior-art check (duplication search + demand search
+verdicts). If it does, note "prior-art check present in WI" and proceed.
+
+**If the work item predates this check or is missing verdicts:**
+Run a quick check using `references/prior-art-check.md`:
+- **Duplication search** — does something like this already exist in-repo,
+  in sibling repos, or as an external library?
+- **Demand search** — is there an existing work item, proposal, or backlog
+  entry requesting this?
+
+**This step is warn-don't-block:** if a prior-art check is absent or a
+potential duplicate is found, surface a warning to the user and wait for
+acknowledgement before continuing. Do not hard-stop implementation unless
+the user directs you to. Record the outcome in the execution record's Result
+section (for demand matches) or flag as a warning (for duplication findings).
+
+**For ad-hoc input:** always run a quick prior-art check as above.
 
 ### Step 2 — Read and understand the task
 

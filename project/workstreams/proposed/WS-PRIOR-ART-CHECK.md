@@ -9,7 +9,10 @@ summary: Add a mandatory, non-blocking prior-art/build-vs-buy check to /lrh-desi
 related_focus: []
 related_roadmap: []
 related_design: []
-work_items: []
+work_items:
+  - WI-PAC-SHARED-REFERENCE
+  - WI-PAC-DESIGN-SKILLS
+  - WI-PAC-IMPL-SKILLS
 exit_criteria:
   - A canonical prior-art-check procedure exists at src/lrh/skills/_shared/prior-art-check.md, excluded from lrh skills install by its leading-underscore directory name
   - Each of lrh-design, lrh-proposal, lrh-workstream, lrh-work-item, and lrh-implement has its own references/prior-art-check.md copy carrying a header comment naming the _shared master

@@ -40,6 +40,28 @@ lrh prompt check-execution --prompt-id "<id>" --project-root .
 If this returns a `landed` or `in_progress` record, stop and report to the
 user — do not proceed without explicit instruction to rerun.
 
+### Update execution record to landed
+
+Use this after a PR merges, typically from `/lrh-closeout` Step 5:
+
+```bash
+lrh prompt update-execution \
+  --execution-id <execution-id> \
+  --status landed \
+  --pr <pr-url> \
+  --commit <merge-commit-sha> \
+  --session-transcript <claude-app:uuid-or-pending> \
+  --project-root .
+```
+
+- `--execution-id`: the `execution_id:` field value from the record
+  (e.g. `2026_06_28_11_30_26_WI_PROMPT_CLI_CLOSEOUT`)
+- `--commit`: required when `--status landed`; use the merge commit SHA
+- `--session-transcript`: optional; if absent when the record was created,
+  the command inserts it after the `commit:` line
+- Only `in_progress → landed` is a valid status transition
+- Prints `updated: <path>` on success; exits non-zero with a message on error
+
 ### Create execution record
 
 ```bash

@@ -60,6 +60,11 @@ Load these before running any step:
    `lrh request prompt-from-work-item`, and execution records. Read this to
    give the user accurate next-step guidance.
 
+4. **`references/prior-art-check.md`** — Prior art / build-vs-buy check
+   procedure (duplication search + demand search). Run this during Step 3
+   (research) and record the verdict in the `## Problem / Context` body
+   section to confirm the work item does not duplicate existing work.
+
 ---
 
 ## Execution Steps
@@ -124,6 +129,18 @@ Before proposing, read:
   `related_roadmap`, if applicable.
 - A few similar existing work items — to follow naming, scope, and
   `forbidden_actions` conventions established in this project.
+
+Then run the prior art check (see `references/prior-art-check.md`):
+- **Duplication search** — does something like this already exist in-repo,
+  in sibling repos, or as an external library? Record the verdict. If a
+  duplicate is found, stop and surface it to the user before proposing the
+  work item.
+- **Demand search** — is there an existing work item, proposal, or backlog
+  entry requesting this? Record the verdict. If a match is found, offer to
+  close/link it at Step 9; do not auto-close.
+
+Record both verdicts in the `## Problem / Context` body section of the
+proposed work item before presenting it to the user.
 
 Then propose the complete work item: frontmatter (all fields) and body
 (all required sections with content). Show it to the user before writing.

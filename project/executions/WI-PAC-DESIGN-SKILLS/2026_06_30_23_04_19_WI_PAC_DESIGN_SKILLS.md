@@ -2,14 +2,14 @@
 execution_id: 2026_06_30_23_04_19_WI_PAC_DESIGN_SKILLS
 prompt_id: PROMPT(WI-PAC-DESIGN-SKILLS:WI_PAC_DESIGN_SKILLS)[2026-06-30T22:57:35-04:00]
 work_item: WI-PAC-DESIGN-SKILLS
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/359
+commit: 5034ef4b73008eb976f97abecc3f4be0c6626d0d
 created_at: 2026-06-30T23:04:19-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-PAC-DESIGN-SKILLS.md
-session_transcript: pending
+session_transcript: claude-app:cf151d13-af10-4a8c-9aac-9686b4c23234
 ---
 
 # Summary

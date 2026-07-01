@@ -51,7 +51,7 @@ Load these before running any step:
 3. **`references/prior-art-check.md`** — Prior art / build-vs-buy check
    procedure (duplication search + demand search). Run this during Step 3
    (research) and record both verdicts in the `## Prior Art Check` body
-   section before proposing scope.
+   section before defining Work Items.
 
 ---
 

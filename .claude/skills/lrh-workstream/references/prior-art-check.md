@@ -96,8 +96,10 @@ Write both verdicts into the artifact being created or updated:
 
 - **`/lrh-design`:** as a required sub-section at the end of Step 3a,
   before Step 3b (best practices review).
-- **`/lrh-proposal` and `/lrh-workstream`:** as a `## Prior Art Check`
-  body section between Background/Motivation and Design Decisions.
+- **`/lrh-proposal`:** as a `## Prior Art Check` body section between
+  Background/Motivation and Design Decisions.
+- **`/lrh-workstream`:** as a `## Prior Art Check` body section between
+  Scope and Work Items.
 - **`/lrh-work-item`:** in the `## Problem / Context` body section,
   appended after the motivating context.
 - **`/lrh-implement`:** in the execution record's Result section if a

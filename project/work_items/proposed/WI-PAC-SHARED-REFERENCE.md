@@ -26,7 +26,7 @@ forbidden_actions:
   - implement_wi_pac_design_skills
   - implement_wi_pac_impl_skills
 acceptance:
-  - src/lrh/skills/_shared/prior-art-check.md exists with the 3-part search procedure (in-repo / sibling-repo / external library)
+  - src/lrh/skills/_shared/prior-art-check.md exists with a duplication search (in-repo / sibling-repo / external library) and a demand search (work items / proposals / backlog)
   - project/design/backlog.md exists with the validator drift-check entry
   - lrh validate reports 0 errors
 required_evidence:
@@ -42,15 +42,20 @@ artifacts_expected:
 Create the canonical prior-art-check procedure at
 `src/lrh/skills/_shared/prior-art-check.md` and initialize
 `project/design/backlog.md` with the deferred validator drift-check entry.
+The procedure covers two complementary searches: a **duplication search**
+("does something like this already exist?") and a **demand search** ("is
+something like this already requested?").
 
 ## Problem / Context
 
 Five LRH skills (`/lrh-design`, `/lrh-proposal`, `/lrh-workstream`,
-`/lrh-work-item`, `/lrh-implement`) have no structured "has this already
-been built?" check before committing new designs or code. A real duplication
-incident in a sibling repo (LCATS) motivated `WS-PRIOR-ART-CHECK` to add
-this check. The shared reference doc authored here is the dependency for the
-two wiring work items (`WI-PAC-DESIGN-SKILLS`, `WI-PAC-IMPL-SKILLS`).
+`/lrh-work-item`, `/lrh-implement`) have no structured check before
+committing new designs or code for either (a) existing implementations that
+would duplicate the work (potential blocker) or (b) existing requests asking
+for the work (potential closeout opportunity). A real duplication incident in
+a sibling repo (LCATS) motivated `WS-PRIOR-ART-CHECK`. The shared reference
+doc authored here is the dependency for the two wiring work items
+(`WI-PAC-DESIGN-SKILLS`, `WI-PAC-IMPL-SKILLS`).
 
 The `_shared/` directory is excluded from `lrh skills install` by the
 leading-underscore convention in `src/lrh/skills/installer.py:41` — no
@@ -58,8 +63,11 @@ installer change is needed.
 
 ## Scope
 
-- Create `src/lrh/skills/_shared/prior-art-check.md` with the 3-part search
-  procedure and required output format
+- Create `src/lrh/skills/_shared/prior-art-check.md` with:
+  - **Duplication search**: in-repo, sibling-repo, external library
+  - **Demand search**: existing work items, proposals, and backlog entries
+    requesting the same capability (flag as closeout opportunity, not blocker)
+  - Required output format for both sub-searches
 - Create `project/design/backlog.md` with the deferred validator drift-check
   entry (noting sync between copies as comment-only/manual for now)
 
@@ -79,9 +87,9 @@ installer change is needed.
 
 ## Acceptance Criteria
 
-- `src/lrh/skills/_shared/prior-art-check.md` exists with the 3-part search
-  procedure (in-repo / sibling-repo / external library) and required output
-  format
+- `src/lrh/skills/_shared/prior-art-check.md` exists with both sub-searches:
+  duplication search (in-repo / sibling-repo / external library) and demand
+  search (work items / proposals / backlog), each with its own verdict format
 - `project/design/backlog.md` exists with the validator drift-check entry
 - `lrh validate` reports 0 errors
 

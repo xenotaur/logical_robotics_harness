@@ -2,14 +2,14 @@
 execution_id: 2026_06_30_21_40_58_WI_PAC_SHARED_REFERENCE
 prompt_id: PROMPT(AD_HOC:WI_PAC_SHARED_REFERENCE)[2026-06-30T21:38:28-04:00]
 work_item: WI-PAC-SHARED-REFERENCE
-status: in_progress
+status: landed
 rerun_of: null
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/358
+commit: b08b8d90
 created_at: 2026-06-30T21:40:58-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-PAC-SHARED-REFERENCE.md
-session_transcript: pending
+session_transcript: claude-app:cf151d13-af10-4a8c-9aac-9686b4c23234
 ---
 
 # Summary

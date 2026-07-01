@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented shared prior-art-check reference (src/lrh/skills/_shared/prior-art-check.md) and project/design/backlog.md in PR #358 (commit b08b8d90)"
 blocked_reason: null
 blocked: false
 id: WI-PAC-SHARED-REFERENCE
 title: Create shared prior-art-check reference and backlog entry
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

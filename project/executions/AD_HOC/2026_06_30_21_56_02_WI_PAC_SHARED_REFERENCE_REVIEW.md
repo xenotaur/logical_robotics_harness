@@ -2,14 +2,14 @@
 execution_id: 2026_06_30_21_56_02_WI_PAC_SHARED_REFERENCE_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_PAC_SHARED_REFERENCE_REVIEW)[2026-06-30T21:48:32-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_06_30_21_40_58_WI_PAC_SHARED_REFERENCE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/358
-commit: f7c8e5c
+commit: b08b8d90
 created_at: 2026-06-30T21:56:02-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/358
-session_transcript: pending
+session_transcript: claude-app:cf151d13-af10-4a8c-9aac-9686b4c23234
 ---
 
 # Summary

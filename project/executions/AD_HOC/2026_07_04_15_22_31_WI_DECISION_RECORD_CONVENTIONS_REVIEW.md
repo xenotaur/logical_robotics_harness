@@ -2,14 +2,14 @@
 execution_id: 2026_07_04_15_22_31_WI_DECISION_RECORD_CONVENTIONS_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_DECISION_RECORD_CONVENTIONS_REVIEW)[2026-07-04T15:17:35-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/363
-commit: 56dffc2
+commit: 111f7ab13d83d5a553b522a6fcf136c201506bf4
 created_at: 2026-07-04T15:22:31-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/363
-session_transcript: pending
+session_transcript: claude-app:bbcb758a-f12c-44cf-ad69-3dc5cadf53b6
 ---
 
 # Summary

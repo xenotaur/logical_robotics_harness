@@ -28,7 +28,7 @@ forbidden_actions:
   - add_decision_schema
 acceptance:
   - design.md documents the two-tier decision model (decision_log.md vs project/memory/decisions/<slug>.md) and the promotion criterion, citing precedence_semantics.md as the worked example
-  - project/memory/decisions/precedence_semantics.md has valid YAML frontmatter including an id: DEC-* field
+  - "project/memory/decisions/precedence_semantics.md has valid YAML frontmatter including an id: DEC-* field"
   - lrh validate reports 0 errors
   - project/memory/decision_log.md is unmodified
   - No new schema files added under project/design/schemas/

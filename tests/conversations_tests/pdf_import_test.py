@@ -133,5 +133,103 @@ class TestPdfImport(unittest.TestCase):
         self.assertIn("error: mocked import error", mock_stderr.getvalue())
 
 
+class TestRenderMarkdownTranscript(unittest.TestCase):
+    def setUp(self) -> None:
+        self.extraction = pdf_import.PdfExtraction(
+            text="Mock extracted text", page_count=5, warnings=("test_warning",)
+        )
+        self.source_file = "test.pdf"
+        self.source_file_sha256 = "deadbeef"
+
+    def test_no_frontmatter(self) -> None:
+        result = pdf_import.render_markdown_transcript(
+            extraction=self.extraction,
+            source_file=self.source_file,
+            source_file_sha256=self.source_file_sha256,
+            include_frontmatter=False,
+        )
+        self.assertEqual(result, "Mock extracted text\n")
+
+    def test_with_frontmatter_unscanned(self) -> None:
+        result = pdf_import.render_markdown_transcript(
+            extraction=self.extraction,
+            source_file=self.source_file,
+            source_file_sha256=self.source_file_sha256,
+            include_frontmatter=True,
+            scan_sensitive=False,
+        )
+        self.assertIn("---\n", result)
+        self.assertIn('sensitivity: "unscanned"', result)
+        self.assertIn('status: "not_scanned"', result)
+        self.assertIn('source_file: "test.pdf"', result)
+        self.assertIn("page_count: 5", result)
+        self.assertIn('- "test_warning"', result)
+        self.assertIn("\nMock extracted text\n", result)
+
+    def test_with_frontmatter_scan_failed(self) -> None:
+        result = pdf_import.render_markdown_transcript(
+            extraction=self.extraction,
+            source_file=self.source_file,
+            source_file_sha256=self.source_file_sha256,
+            include_frontmatter=True,
+            scan_sensitive=True,
+            scan_result=None,
+        )
+        self.assertIn('sensitivity: "unscanned"', result)
+        self.assertIn('status: "failed_or_unavailable"', result)
+
+    def test_with_frontmatter_clean_scan(self) -> None:
+        from lrh.conversations import sensitivity
+
+        scan_result = sensitivity.SensitiveScanResult(
+            status="none_detected", finding_count=0, categories=(), findings=()
+        )
+        result = pdf_import.render_markdown_transcript(
+            extraction=self.extraction,
+            source_file=self.source_file,
+            source_file_sha256=self.source_file_sha256,
+            include_frontmatter=True,
+            scan_sensitive=True,
+            scan_result=scan_result,
+        )
+        self.assertIn('sensitivity: "none_detected"', result)
+        self.assertIn('status: "scanned"', result)
+        self.assertIn("finding_count: 0", result)
+        self.assertIn("categories: []", result)
+
+    def test_with_frontmatter_with_findings(self) -> None:
+        from lrh.conversations import sensitivity
+
+        finding = sensitivity.SensitiveFinding(
+            category="email",
+            severity="medium",
+            confidence="high",
+            line_number=1,
+            start_offset=0,
+            end_offset=5,
+            rule_id="email.basic",
+            redacted_preview="<EMAIL>",
+        )
+        scan_result = sensitivity.SensitiveScanResult(
+            status="potential",
+            finding_count=1,
+            categories=("email",),
+            findings=(finding,),
+        )
+        result = pdf_import.render_markdown_transcript(
+            extraction=self.extraction,
+            source_file=self.source_file,
+            source_file_sha256=self.source_file_sha256,
+            include_frontmatter=True,
+            scan_sensitive=True,
+            scan_result=scan_result,
+        )
+        self.assertIn('sensitivity: "potential"', result)
+        self.assertIn('status: "scanned"', result)
+        self.assertIn("finding_count: 1", result)
+        self.assertIn("categories:", result)
+        self.assertIn('- "email"', result)
+
+
 if __name__ == "__main__":
     unittest.main()

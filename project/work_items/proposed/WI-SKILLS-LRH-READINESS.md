@@ -13,9 +13,7 @@ assigned_agents: []
 related_focus: []
 related_roadmap: []
 related_workstreams: []
-related_design:
-  - .claude/skills/lrh-work-item/references/lrh-work-item-workflow.md
-  - .claude/skills/lrh-implement/SKILL.md
+related_design: []
 depends_on: []
 blocked_by: []
 expected_actions:
@@ -29,7 +27,7 @@ forbidden_actions:
 acceptance:
   - .claude/skills/lrh-readiness/SKILL.md and src/lrh/skills/lrh-readiness/SKILL.md exist and are identical
   - Skill runs lrh work-items readiness <WI-ID>; if already ready, reports and stops without further action
-  - "If not ready, skill runs lrh request ready-work-item <WI-ID>, shows the proposal, and applies it only after explicit user confirmation"
+  - "If not ready, skill runs lrh request ready-work-item <WI-ID>, drafts a Proposed Work-Item Patch from the rendered request per its Expected Response Shape, shows that patch, and applies it only after explicit user confirmation"
   - After applying, skill re-runs lrh work-items readiness to confirm the item now passes, or reports remaining gaps if it does not
   - Demonstrated end-to-end against WI-AGENT-BRANCH-CONTAINMENT (currently prompt_ready:no, blocking:missing Scope section, missing Validation commands)
   - lrh validate reports 0 errors
@@ -46,12 +44,12 @@ artifacts_expected:
 ## Summary
 
 Implement a `/lrh-readiness` Claude Code skill that closes the loop `lrh
-request ready-work-item` currently leaves open: it renders an assistive
-refinement proposal for a thin work item but "does not edit files
-automatically." This skill checks readiness, gets the proposal, shows it for
-confirmation, applies it, and re-validates — matching the confirm-gate →
-write → validate pattern every other LRH skill already uses for its own
-artifact type.
+request ready-work-item` currently leaves open: it renders a non-mutating
+refinement request for a thin work item but does not itself produce or apply
+a patch. This skill checks readiness, drafts a `## Proposed Work-Item Patch`
+from the rendered request, shows that patch for confirmation, applies it, and
+re-validates — matching the confirm-gate → write → validate pattern every
+other LRH skill already uses for its own artifact type.
 
 ## Problem / Context
 
@@ -79,9 +77,12 @@ only to prompt-readiness of a work item's body sections.
 ## Required Changes
 
 1. Create `src/lrh/skills/lrh-readiness/SKILL.md` following the LRH skill
-   pattern: interview-free (single `WI-*` ID argument), run readiness check,
-   run `ready-work-item` if needed, confirm gate, apply patch, re-validate,
-   commit.
+   pattern: interview-free (single `WI-*` ID argument), run readiness check;
+   if not ready, run `ready-work-item`, then draft a `## Proposed
+   Work-Item Patch` from the rendered request per its Expected Response
+   Shape (`src/lrh/assist/templates/request/ready_work_item.md:37-62`) —
+   do not apply the raw rendered request text; confirm gate on the drafted
+   patch; apply; re-validate; commit.
 2. Mirror to `.claude/skills/lrh-readiness/SKILL.md`.
 3. Add a `## Skills` entry to `CLAUDE.md`.
 
@@ -99,7 +100,7 @@ only to prompt-readiness of a work item's body sections.
 
 - `src/lrh/skills/lrh-readiness/SKILL.md` and `.claude/skills/lrh-readiness/SKILL.md` exist and are identical (`diff -r`).
 - Given a ready `WI-*`, the skill reports readiness and takes no further action.
-- Given a not-ready `WI-*` (e.g. `WI-AGENT-BRANCH-CONTAINMENT`), the skill renders the `ready-work-item` proposal, shows it, and only writes after confirmation.
+- Given a not-ready `WI-*` (e.g. `WI-AGENT-BRANCH-CONTAINMENT`), the skill renders the `ready-work-item` request, drafts a `## Proposed Work-Item Patch` from it, shows that patch, and only writes after confirmation.
 - After applying, `lrh work-items readiness <WI-ID>` reports `prompt_ready: yes`, or the skill reports which gaps remain.
 - `lrh validate` reports 0 errors.
 

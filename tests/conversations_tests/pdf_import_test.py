@@ -1,6 +1,8 @@
+import io
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from lrh.conversations import pdf_import
 
@@ -115,6 +117,20 @@ class TestPdfImport(unittest.TestCase):
             self.assertIn('source_file: "true: file.pdf"', written)
             self.assertIn('sensitivity: "potential"', written)
             self.assertIn("email user@example.com", written)
+
+    @patch("sys.stderr", new_callable=io.StringIO)
+    @patch("lrh.conversations.pdf_import.convert_pdf_file")
+    def test_run_convert_pdf_cli_error_handling(
+        self, mock_convert: unittest.mock.MagicMock, mock_stderr: io.StringIO
+    ) -> None:
+        mock_convert.side_effect = pdf_import.PdfImportError("mocked import error")
+
+        result = pdf_import.run_convert_pdf_cli(
+            ["dummy.pdf", "--out", "out.md"], prog="pdf-import"
+        )
+
+        self.assertEqual(result, 1)
+        self.assertIn("error: mocked import error", mock_stderr.getvalue())
 
 
 if __name__ == "__main__":

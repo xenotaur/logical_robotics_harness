@@ -23,19 +23,18 @@ forbidden_actions:
   - force_push
   - delete_branch
   - mutate_work_items
-  - mutate_execution_records
   - invoke_lrh_closeout
   - implement_audit_work_items_template
 acceptance:
   - src/lrh/skills/lrh-work-audit/SKILL.md exists with valid frontmatter
-  - .claude/skills/lrh-work-audit/SKILL.md is an exact copy of the src/ tree
+  - .claude/skills/lrh-work-audit/ directory tree is an exact mirror of src/lrh/skills/lrh-work-audit/
   - SKILL.md contains a cross-reference comment pointing to src/lrh/assist/templates/request/audit_work_items.md
   - CLAUDE.md ## Skills section has a /lrh-work-audit entry
   - lrh validate passes with 0 errors
   - diff -r src/lrh/skills/lrh-work-audit/ .claude/skills/lrh-work-audit/ is clean
 required_evidence:
   - manual_review
-  - validation_output
+  - lrh_validate
 artifacts_expected:
   - src/lrh/skills/lrh-work-audit/SKILL.md
   - src/lrh/skills/lrh-work-audit/references/drift-detection-lens.md
@@ -90,7 +89,7 @@ template in this work item (tracked separately in WI-TEMPLATE-AUDIT-WORK-ITEMS).
 ## Acceptance Criteria
 
 - `src/lrh/skills/lrh-work-audit/SKILL.md` exists with valid frontmatter.
-- `.claude/skills/lrh-work-audit/` is an exact mirror of the `src/` tree.
+- `.claude/skills/lrh-work-audit/` directory tree is an exact mirror of `src/lrh/skills/lrh-work-audit/`.
 - `SKILL.md` contains a `<!-- Template counterpart -->` comment referencing
   `src/lrh/assist/templates/request/audit_work_items.md`.
 - `CLAUDE.md` `## Skills` section lists `/lrh-work-audit`.

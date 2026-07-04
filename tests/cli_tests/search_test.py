@@ -68,6 +68,33 @@ class SearchCliTest(unittest.TestCase):
         )
         self.assertEqual(completed.stderr, "")
 
+    def test_lrh_search_executions_empty_query_returns_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            self._write_record(project_root, "project/executions/AD_HOC/search.md")
+
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "search",
+                    "executions",
+                    "",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+
+        self.assertEqual(completed.returncode, 2, msg=completed.stderr)
+        self.assertIn("error: query must not be empty", completed.stderr)
+        self.assertEqual(completed.stdout, "")
+
     def test_lrh_search_executions_no_match_returns_1(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             project_root = pathlib.Path(temp_dir)

@@ -2,7 +2,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lrh.control.loader import find_project_dir, load_project
+from lrh.control.loader import (
+    find_project_dir,
+    load_project,
+    load_workstreams_from_project_dir_permissive,
+)
 
 
 class TestControlLoader(unittest.TestCase):
@@ -127,6 +131,42 @@ status: active
 
             with self.assertRaisesRegex(ValueError, "duplicate contributor id: dup-1"):
                 load_project(root)
+
+    def test_load_workstreams_from_project_dir_permissive_catches_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            project_dir = root / "project"
+            workstreams_dir = project_dir / "workstreams" / "active"
+            workstreams_dir.mkdir(parents=True)
+
+            (workstreams_dir / "WS-VALID.md").write_text(
+                "---\n"
+                "id: WS-VALID\n"
+                "kind: feature\n"
+                "title: Valid\n"
+                "status: active\n"
+                "stage: planning\n"
+                "---\n",
+                encoding="utf-8",
+            )
+            (workstreams_dir / "WS-INVALID.md").write_text(
+                "Not a valid markdown with frontmatter",
+                encoding="utf-8",
+            )
+
+            workstreams, warnings = load_workstreams_from_project_dir_permissive(
+                project_dir
+            )
+
+            self.assertEqual(len(workstreams), 1)
+            self.assertEqual(workstreams[0].id, "WS-VALID")
+
+            self.assertEqual(len(warnings), 1)
+            self.assertIn(
+                "Skipped active/WS-INVALID.md: markdown file must begin with "
+                "YAML frontmatter",
+                warnings[0],
+            )
 
 
 if __name__ == "__main__":

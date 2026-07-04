@@ -135,7 +135,8 @@ status: active
     def test_load_workstreams_from_project_dir_permissive_catches_errors(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)
-            workstreams_dir = root / "workstreams" / "active"
+            project_dir = root / "project"
+            workstreams_dir = project_dir / "workstreams" / "active"
             workstreams_dir.mkdir(parents=True)
 
             (workstreams_dir / "WS-VALID.md").write_text(
@@ -153,7 +154,9 @@ status: active
                 encoding="utf-8",
             )
 
-            workstreams, warnings = load_workstreams_from_project_dir_permissive(root)
+            workstreams, warnings = load_workstreams_from_project_dir_permissive(
+                project_dir
+            )
 
             self.assertEqual(len(workstreams), 1)
             self.assertEqual(workstreams[0].id, "WS-VALID")

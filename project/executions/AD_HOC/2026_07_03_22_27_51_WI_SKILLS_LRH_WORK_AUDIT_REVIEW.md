@@ -2,14 +2,14 @@
 execution_id: 2026_07_03_22_27_51_WI_SKILLS_LRH_WORK_AUDIT_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_LRH_WORK_AUDIT_REVIEW)[2026-07-01T14:37:19-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/361
-commit: a88590286d742bf61c79bf990c57eedecdfaf399
+commit: f3d465c8839585fe895cdead42ca525ffc36b131
 created_at: 2026-07-03T22:27:51-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/361
-session_transcript: pending
+session_transcript: claude-app:aee573a9-b59f-4250-8516-ff21741d32e2
 ---
 
 # Summary

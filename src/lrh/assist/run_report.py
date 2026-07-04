@@ -442,9 +442,11 @@ def _artifact_references(
     values: list[str] = []
     values.extend(report_input.artifact_references)
     if readiness is not None:
+        seen = set(values)
         for artifact in readiness.expected_artifacts:
-            if artifact not in values:
+            if artifact not in seen:
                 values.append(artifact)
+                seen.add(artifact)
     return tuple(values)
 
 

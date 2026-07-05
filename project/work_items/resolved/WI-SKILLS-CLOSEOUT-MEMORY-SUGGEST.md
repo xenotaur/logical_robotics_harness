@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #373 (commit 7637db7664b1559b4c49b059e7779af39a1c16fc)"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-CLOSEOUT-MEMORY-SUGGEST
 title: Draft memory candidates in /lrh-closeout Step 7 before asking the user
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

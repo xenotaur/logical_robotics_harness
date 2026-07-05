@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #370, demonstrated end-to-end and confirmed against WI-AGENT-BRANCH-CONTAINMENT in PR #371 (commit efabde90b4bb9845ce7e17f6cd9b36d4bc1141ef)"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-READINESS
 title: Implement /lrh-readiness skill to close the ready-work-item apply loop
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

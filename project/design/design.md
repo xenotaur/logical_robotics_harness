@@ -392,6 +392,24 @@ Meta commands should surface enough information for users to inspect the active 
 - Significant changes should be reflected in:
   - `memory/decision_log.md`
 
+### Decision-record tiers
+
+LRH records decisions in two tiers, both under `project/memory/`:
+
+- **`decision_log.md`** — the default landing spot. A chronological,
+  append-only log of dated entries; this is where every decision starts.
+- **`decisions/<slug>.md`** — a promoted, single-topic file for a decision
+  that other documents need to cite independently and repeatedly, outside
+  the log's chronological narrative. Promote a log entry into its own file
+  when it becomes a load-bearing invariant referenced from multiple other
+  documents — the way `decisions/precedence_semantics.md` was promoted out
+  of the log because `architecture.md`, `repository_spec.md`, `AGENTS.md`,
+  and several work items all needed to cite it directly.
+
+Promoted files use a `DEC-*` id (SCREAMING-KEBAB-CASE, matching the `WI-*`
+and `PROP-*` convention) in their YAML frontmatter, so they can be cited by
+id rather than by path. `decision_log.md` entries are not individually
+id'd — they are addressed by their dated heading within the log.
 
 ---
 

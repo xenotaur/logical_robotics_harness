@@ -1,3 +1,9 @@
+---
+id: DEC-PRECEDENCE-SEMANTICS
+status: accepted
+date: 2026-04-22
+---
+
 # Canonical Precedence Semantics
 
 Status: accepted  

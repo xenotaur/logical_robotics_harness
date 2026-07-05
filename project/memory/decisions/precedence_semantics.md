@@ -1,3 +1,7 @@
+---
+id: DEC-PRECEDENCE-SEMANTICS
+---
+
 # Canonical Precedence Semantics
 
 Status: accepted  

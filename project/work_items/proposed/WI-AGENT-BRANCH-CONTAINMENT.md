@@ -80,7 +80,9 @@ Future execution may use agent-owned branches and pull requests, but branch muta
 
 - `scripts/version tools`
 - `lrh validate`
-- `scripts/test` when the implementation change touches package behavior or validation logic
+
+Also run `scripts/test` if the implementation touches package behavior or
+validation logic.
 
 ## Related Workstream and Designs
 

@@ -297,14 +297,15 @@ straight to asking.
 Then present the candidates (or the explicit "nothing stands out" finding)
 and ask: "Does this look right — anything to add, edit, or drop?"
 
-If the user confirms, adds, or edits: write the resulting content using the
-auto-memory system (`~/.claude/projects/<project-slug>/memory/`). Update
-`MEMORY.md` with a pointer. See the session memory instructions for file
-format.
+If candidates were presented and the user confirms, adds, or edits: write
+the resulting content using the auto-memory system
+(`~/.claude/projects/<project-slug>/memory/`). Update `MEMORY.md` with a
+pointer. See the session memory instructions for file format.
 
-If the user declines all candidates: proceed to Step 8 without writing
-anything. Drafting candidates is a proposal, not a default — nothing is
-written until the user confirms.
+If the user declines all candidates, or confirms the "nothing stands out"
+finding with no additions: proceed to Step 8 without writing anything.
+Confirming that nothing stands out is not itself content to persist — only
+write when there is an actual candidate or user-supplied fact to record.
 
 ### Step 8 — Report and commit
 

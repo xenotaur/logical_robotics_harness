@@ -106,26 +106,11 @@ redirects (requests changes, disputes a grounding claim, wants an Open
 Question resolved first), revise and show again. Do not proceed past this
 gate without approval.
 
-### Step 5 — Apply the patch
+### Step 5 — Select the target branch
 
-Read the current work item file. Apply only the sections confirmed at
-Step 4 — typically inserting or replacing the missing body sections named
-in Step 1's `blocking:` list. Do not touch sections the user did not
-confirm, and do not silently absorb scope beyond what was shown.
-
-### Step 6 — Re-validate
-
-```bash
-lrh work-items readiness <WI-ID> --format md
-lrh validate
-```
-
-If `prompt_ready` is now `yes`: proceed to Step 7.
-
-If still `no`: report the remaining `blocking:` items to the user. Do not
-force the item through or invent content to satisfy the remaining gaps.
-
-### Step 7 — Commit
+Do this before touching the work item file — applying the patch first and
+choosing the branch afterward risks leaving the edit uncommitted on whatever
+branch the skill happened to start from.
 
 Check whether the work item already has an open PR:
 
@@ -133,30 +118,81 @@ Check whether the work item already has an open PR:
 gh pr list --state open --search "<WI-ID>"
 ```
 
-If an open PR is found: check out its branch and commit there as an
-additional commit — do not open a competing PR.
+If an open PR is found: check it out and pull, so the patch lands there as
+an additional commit — do not open a competing PR.
 
-If none is found: create a new branch from a fresh `main` and open a PR,
-following the same branch-naming convention as `/lrh-work-item`
-(`<username>/<type>/<slug>-readiness`, type derived from the work item's
-`type` field):
+```bash
+git checkout <existing-branch-name>
+git pull
+```
+
+If none is found: create a new branch from a fresh `main`. The branch
+**type** is mapped from the work item's `type` field — the same mapping
+`/lrh-work-item` uses, not the raw `type` value:
+
+| Work item type | Branch type |
+|---|---|
+| `deliverable` | `feat` |
+| `operation` | `chore` |
+| `investigation` | `spike` |
+| `evaluation` | `audit` |
 
 ```bash
 git checkout main && git pull
-git checkout -b <branch-name>
+git checkout -b <username>/<mapped-type>/<slug>-readiness
+```
+
+### Step 6 — Apply the patch
+
+Read the current work item file. Apply only the sections confirmed at
+Step 4 — typically inserting or replacing the missing body sections named
+in Step 1's `blocking:` list. Do not touch sections the user did not
+confirm, and do not silently absorb scope beyond what was shown.
+
+### Step 7 — Re-validate
+
+```bash
+lrh work-items readiness <WI-ID> --format md
+lrh validate
+```
+
+Both conditions must hold before proceeding to Step 8:
+
+- `prompt_ready: yes`
+- `lrh validate` reports 0 errors
+
+If `lrh validate` reports any errors — even if `prompt_ready` is now `yes`
+— **stop and report** the errors. Do not commit a control-plane change with
+malformed frontmatter or invalid references.
+
+If `prompt_ready` is still `no`: report the remaining `blocking:` items to
+the user. Do not force the item through or invent content to satisfy the
+remaining gaps.
+
+### Step 8 — Commit and push
+
+```bash
 git add project/work_items/<bucket>/<WI-ID>.md
-git commit -m "Refine <WI-ID> toward prompt-readiness"
+git commit -m "chore(work-items): refine <WI-ID> toward prompt-readiness"
 git push -u origin <branch-name>
+```
+
+If Step 5 created a new branch, open a PR:
+
+```bash
 gh pr create --title "Refine <WI-ID> toward prompt-readiness" --body "..."
 ```
 
-### Step 8 — Report
+If Step 5 reused an existing PR's branch, this push lands as an additional
+commit there — do not open a competing PR.
+
+### Step 9 — Report
 
 Report to the user:
 
 - Whether the item was already ready, or a one-line summary of what was
   added
-- The re-validated `prompt_ready` status
+- The re-validated `prompt_ready` status and `lrh validate` result
 - PR URL (existing or newly opened)
 - Any remaining Open Questions or blocking items
 
@@ -171,9 +207,13 @@ Before reporting completion, verify:
 - [ ] If not ready, the rendered request was used to draft a patch — the
       raw rendered request was never shown or applied as the fix
 - [ ] User confirmed at Step 4 before any files were touched
+- [ ] Target branch selected/created before the work item file was touched
 - [ ] Only the confirmed sections were applied
-- [ ] `lrh work-items readiness` and `lrh validate` re-run after applying
+- [ ] `lrh work-items readiness` and `lrh validate` re-run after applying;
+      commit only proceeded if both `prompt_ready: yes` and `lrh validate`
+      reported 0 errors
 - [ ] Existing open PR reused if one exists; no competing PR opened
+- [ ] Commit message follows Conventional Commits (`STYLE.md`)
 
 ---
 

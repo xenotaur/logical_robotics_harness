@@ -38,6 +38,14 @@ Hello.
         self.assertIsNone(parsed.frontmatter["github"])
         self.assertIsNone(parsed.frontmatter["description"])
 
+    def test_parse_markdown_text_missing_closing_delimiter_raises_value_error(
+        self,
+    ) -> None:
+        with self.assertRaisesRegex(
+            ValueError, "missing closing YAML frontmatter delimiter '---'"
+        ):
+            parse_markdown_text("---\nid: EOF\n")
+
     def test_parse_markdown_file_reads_from_disk(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             path = Path(tmp_dir) / "sample.md"

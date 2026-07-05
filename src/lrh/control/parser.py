@@ -51,7 +51,7 @@ def _split_frontmatter_and_body(text: str) -> tuple[str, str]:
             closing_end = line_end
             break
 
-        start = idx + 3
+        start = line_end + 1
 
     if closing_start is None or closing_end is None:
         raise ValueError("missing closing YAML frontmatter delimiter '---'")

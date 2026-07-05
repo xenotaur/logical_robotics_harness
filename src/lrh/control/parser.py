@@ -34,21 +34,24 @@ def _split_frontmatter_and_body(text: str) -> tuple[str, str]:
     closing_start: int | None = None
     closing_end: int | None = None
 
-    scan_index = 4
-    while scan_index <= len(text):
-        line_end = text.find("\n", scan_index)
+    start = 4
+    while True:
+        idx = text.find("---", start)
+        if idx == -1:
+            break
+
+        line_start = text.rfind("\n", 0, idx) + 1
+        line_end = text.find("\n", idx)
         if line_end == -1:
             line_end = len(text)
-        line = text[scan_index:line_end]
 
+        line = text[line_start:line_end]
         if line.strip() == "---":
-            closing_start = scan_index
+            closing_start = line_start
             closing_end = line_end
             break
 
-        if line_end == len(text):
-            break
-        scan_index = line_end + 1
+        start = idx + 3
 
     if closing_start is None or closing_end is None:
         raise ValueError("missing closing YAML frontmatter delimiter '---'")

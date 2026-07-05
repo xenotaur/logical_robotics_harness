@@ -2,14 +2,14 @@
 execution_id: 2026_07_05_02_51_26_WI_DECISION_RECORD_CONVENTIONS
 prompt_id: PROMPT(WI-DECISION-RECORD-CONVENTIONS:WI_DECISION_RECORD_CONVENTIONS)[2026-07-05T02:43:23-04:00]
 work_item: WI-DECISION-RECORD-CONVENTIONS
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/374
-commit: 560c096
+commit: d76cbd319911dc4f6b137bb90141834716320a6b
 created_at: 2026-07-05T02:51:26-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-DECISION-RECORD-CONVENTIONS.md
-session_transcript: pending
+session_transcript: claude-app:bbcb758a-f12c-44cf-ad69-3dc5cadf53b6
 ---
 
 # Summary

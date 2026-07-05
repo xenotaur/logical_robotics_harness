@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #374 (commit d76cbd31); documented the two-tier decision model in design.md and retrofitted DEC-PRECEDENCE-SEMANTICS onto precedence_semantics.md."
 blocked_reason: null
 blocked: false
 id: WI-DECISION-RECORD-CONVENTIONS
 title: Document the decision_log.md / project/memory/decisions two-tier model and add DEC-* ID convention
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

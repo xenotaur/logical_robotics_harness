@@ -48,6 +48,15 @@ Document and prepare internal policy/config support for agent-owned branch names
 
 Future execution may use agent-owned branches and pull requests, but branch mutation must be planned behind explicit containment policies. This design support should come after packet and report contracts exist.
 
+## Scope
+
+- Document branch namespace conventions and protected merge-gate
+  assumptions for future agent-owned branches.
+- Identify the policy/config fields required before any mutation-capable
+  branch behavior is implemented.
+- Explicitly defer automatic merge, release/publish automation, and
+  privileged workflow execution as non-goals.
+
 ## Required Changes
 
 - Document branch namespace conventions for future agent-owned branches.
@@ -67,11 +76,13 @@ Future execution may use agent-owned branches and pull requests, but branch muta
 - automatic merge and publish automation remain explicitly deferred
 - the work item does not implement branch mutation
 
-## Validation Commands
+## Validation
 
 - `scripts/version tools`
 - `lrh validate`
-- `scripts/test` when the implementation change touches package behavior or validation logic
+
+Also run `scripts/test` if the implementation touches package behavior or
+validation logic.
 
 ## Related Workstream and Designs
 

@@ -281,13 +281,30 @@ If clean (0 errors, 0 warnings): proceed to Step 7.
 
 ### Step 7 — Session reflection
 
-Ask the user: "Is there anything from this session worth persisting to memory?"
+Before asking the user anything, review this session's actual changes and
+decisions — corrected assumptions, discovered conventions or gotchas,
+design decisions and their rationale, anything a fresh session would have
+no way to re-derive from code or git history alone. Apply the same bar the
+auto-memory system already uses: surprising, non-obvious, durable, and not
+already fully captured by an existing memory or derivable by reading the
+current project state.
 
-If yes: ask for the content and write it using the auto-memory system
-(`~/.claude/projects/<project-slug>/memory/`). Update `MEMORY.md` with a
-pointer. See the session memory instructions for file format.
+Draft 0-3 candidate suggestions from that review. Each candidate is one
+line naming the rule or fact, plus one line of why it matters. If nothing
+in the session clears that bar, say so explicitly — do not silently skip
+straight to asking.
 
-If no (or after writing): proceed to Step 8.
+Then present the candidates (or the explicit "nothing stands out" finding)
+and ask: "Does this look right — anything to add, edit, or drop?"
+
+If the user confirms, adds, or edits: write the resulting content using the
+auto-memory system (`~/.claude/projects/<project-slug>/memory/`). Update
+`MEMORY.md` with a pointer. See the session memory instructions for file
+format.
+
+If the user declines all candidates: proceed to Step 8 without writing
+anything. Drafting candidates is a proposal, not a default — nothing is
+written until the user confirms.
 
 ### Step 8 — Report and commit
 

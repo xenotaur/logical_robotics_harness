@@ -2,6 +2,8 @@
 title: "Security Audit Report - Subprocess, XSS, and Secrets Scanning"
 date: 2026-07-05
 status: completed
+type: audit
+scope: security
 ---
 
 # Security Audit Report: 2026-07-05
@@ -12,9 +14,10 @@ This document captures a lightweight security audit performed across the reposit
 
 ### 1. Subprocess Execution and Timeouts
 
-The codebase uses `subprocess.run` extensively in its development and release scripts, specifically:
+The codebase uses `subprocess.run` across development scripts and integrations, including:
 - `src/lrh/dev/versioning.py`
 - `src/lrh/dev/release_smoke.py`
+- `src/lrh/integrations/github/gh_client.py`
 
 **Observation:**
 These calls correctly avoid `shell=True` (using `shell=False` implicitly by passing lists of arguments), successfully mitigating the most critical command injection vectors. However, the `subprocess.run` invocations do not define a `timeout`.

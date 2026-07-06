@@ -6,9 +6,9 @@ scope, authority, or constraints, which layer controls interpretation?
 LRH's canonical precedence semantics are defined by the accepted decision record in
 [`project/memory/decisions/precedence_semantics.md`](../../project/memory/decisions/precedence_semantics.md).
 This page is only an explanation of that model. See
-[`project/design/design.md`](../../project/design/design.md) §14
-("Decision-record tiers") for why this decision is a promoted single-topic
-file rather than an entry in `project/memory/decision_log.md`.
+[`design.md` §14 "Decision-record tiers"](../../project/design/design.md#decision-record-tiers)
+for why this decision is a promoted single-topic file rather than an entry
+in `project/memory/decision_log.md`.
 
 ## Resolution order
 
@@ -103,4 +103,5 @@ Authoritative sources:
 - [precedence implementation](../../src/lrh/control_plane/precedence.py);
 - [precedence tests](../../tests/control_plane_tests/precedence_test.py);
 - [repository specification precedence section](../../project/design/repository_spec.md#precedence);
-- [decision-record tiers](../../project/design/design.md) (`design.md` §14) — why this decision is a promoted file rather than a `decision_log.md` entry.
+- [decision-record tiers](../../project/design/design.md#decision-record-tiers)
+  (`design.md` §14).

@@ -317,9 +317,8 @@ def _inspect(path: pathlib.Path) -> dict[str, str | bool | None]:
 
 
 def _split_frontmatter_for_inspect(text: str) -> tuple[str | None, str]:
-    # ⚡ Bolt Optimization: Using str.find() instead of line-by-line slicing.
-    # Worst-case scenario (no delimiter) now runs in ~0.01s instead of ~0.07s
-    # because we avoid millions of temporary string allocations.
+    # Use str.find() instead of line-by-line slicing to avoid O(N^2) behavior
+    # on very large files missing closing frontmatter delimiters.
     start = 4
     while True:
         idx = text.find("---", start)
@@ -336,7 +335,7 @@ def _split_frontmatter_for_inspect(text: str) -> tuple[str | None, str]:
             body_start = line_end + 1 if line_end < len(text) else line_end
             return text[4:line_start], text[body_start:]
 
-        start = idx + 3
+        start = line_end + 1
     return None, text
 
 

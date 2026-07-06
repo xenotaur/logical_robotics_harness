@@ -148,7 +148,9 @@ Body text here.
 ## Precedence
 
 Canonical precedence semantics are defined in
-`project/memory/decisions/precedence_semantics.md`.
+`project/memory/decisions/precedence_semantics.md`. See `design.md` §14
+("Decision-record tiers") for why this decision is a promoted single-topic
+file rather than an entry in `project/memory/decision_log.md`.
 
 Resolver precedence order is:
 

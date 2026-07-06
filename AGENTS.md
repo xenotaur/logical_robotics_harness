@@ -74,7 +74,9 @@ Do not generate optimistic summaries that are detached from tests, logs, metrics
 ## Precedence maintenance note
 
 - Canonical precedence semantics are defined in `project/memory/decisions/precedence_semantics.md`.
-- Any precedence change must keep documentation, `src/lrh/control_plane/precedence.py`, and `tests/control_plane/test_precedence.py` synchronized in the same change set.
+  See `project/design/design.md` §14 ("Decision-record tiers") for why this
+  lives in its own promoted file rather than in `project/memory/decision_log.md`.
+- Any precedence change must keep documentation, `src/lrh/control_plane/precedence.py`, and `tests/control_plane_tests/precedence_test.py` synchronized in the same change set.
 
 ## Engineering style
 

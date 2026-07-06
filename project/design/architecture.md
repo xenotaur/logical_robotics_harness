@@ -102,6 +102,8 @@ This answers: **what is actually true right now?**
 This answers: **what constraints, risks, and authorization boundaries apply to proposed actions?**
 
 Canonical precedence semantics are documented in `project/memory/decisions/precedence_semantics.md`.
+See `design.md` §14 ("Decision-record tiers") for why this decision is a
+promoted single-topic file rather than an entry in `project/memory/decision_log.md`.
 
 
 ## Execution lifecycle

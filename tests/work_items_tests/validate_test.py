@@ -166,6 +166,12 @@ class WorkItemsValidateTest(unittest.TestCase):
                 any(d.code == "malformed-frontmatter" for d in result.diagnostics)
             )
 
+    def test_missing_closing_frontmatter_delimiter_is_handled(self) -> None:
+        text = "---\nid: WI-BAD-1\nstatus: active\nbody without close"
+        front, body = work_items_validate._split_frontmatter_for_inspect(text)
+        self.assertIsNone(front)
+        self.assertEqual(body, text)
+
     def test_filename_and_unknown_bucket_are_errors(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)

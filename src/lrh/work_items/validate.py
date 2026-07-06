@@ -317,18 +317,25 @@ def _inspect(path: pathlib.Path) -> dict[str, str | bool | None]:
 
 
 def _split_frontmatter_for_inspect(text: str) -> tuple[str | None, str]:
-    scan_index = 4
-    while scan_index <= len(text):
-        line_end = text.find("\n", scan_index)
+    # Use str.find() instead of line-by-line slicing to avoid O(N^2) behavior
+    # on very large files missing closing frontmatter delimiters.
+    start = 4
+    while True:
+        idx = text.find("---", start)
+        if idx == -1:
+            break
+
+        line_start = text.rfind("\n", 0, idx) + 1
+        line_end = text.find("\n", idx)
         if line_end == -1:
             line_end = len(text)
-        line = text[scan_index:line_end]
+
+        line = text[line_start:line_end]
         if line.strip() == "---":
             body_start = line_end + 1 if line_end < len(text) else line_end
-            return text[4:scan_index], text[body_start:]
-        if line_end == len(text):
-            break
-        scan_index = line_end + 1
+            return text[4:line_start], text[body_start:]
+
+        start = line_end + 1
     return None, text
 
 

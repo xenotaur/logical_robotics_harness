@@ -134,7 +134,7 @@ def main() -> None:
     skills_subparsers = skills_parser.add_subparsers(dest="skills_command")
     skills_install_parser = skills_subparsers.add_parser(
         "install",
-        help="Install LRH skills to ~/.claude/skills/.",
+        help="Install LRH skills to ~/.claude/skills/ (or ./.claude/skills/ with --local).",
     )
     skills_install_parser.add_argument(
         "--dry-run",

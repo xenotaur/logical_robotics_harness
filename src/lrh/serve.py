@@ -2563,6 +2563,9 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
 
         def _write_download(self, artifact: WorkbenchArtifact) -> None:
             filename = f"{artifact.work_item_id}-{artifact.kind}.md"
+            safe_filename = (
+                filename.replace('"', "_").replace("\r", "").replace("\n", "")
+            )
             body = artifact.markdown.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/markdown; charset=utf-8")
@@ -2570,7 +2573,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self._add_security_headers()
             self.send_header(
                 "Content-Disposition",
-                f'attachment; filename="{filename}"',
+                f'attachment; filename="{safe_filename}"',
             )
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
@@ -2578,13 +2581,16 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
 
         def _write_download_head(self, artifact: WorkbenchArtifact) -> None:
             filename = f"{artifact.work_item_id}-{artifact.kind}.md"
+            safe_filename = (
+                filename.replace('"', "_").replace("\r", "").replace("\n", "")
+            )
             self.send_response(200)
             self.send_header("Content-Type", "text/markdown; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
             self._add_security_headers()
             self.send_header(
                 "Content-Disposition",
-                f'attachment; filename="{filename}"',
+                f'attachment; filename="{safe_filename}"',
             )
             self.send_header(
                 "Content-Length", str(len(artifact.markdown.encode("utf-8")))

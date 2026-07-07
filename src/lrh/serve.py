@@ -2557,7 +2557,8 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self.send_header("X-Frame-Options", "DENY")
             self.send_header(
                 "Content-Security-Policy",
-                "default-src 'none'; style-src 'unsafe-inline'",
+                "default-src 'none'; style-src 'unsafe-inline'; "
+                "base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
             )
 
         def _write_download(self, artifact: WorkbenchArtifact) -> None:

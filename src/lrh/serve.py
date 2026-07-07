@@ -2552,12 +2552,22 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 return
             self._write_head(200, "application/json; charset=utf-8")
 
+        def _add_security_headers(self) -> None:
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "DENY")
+            self.send_header(
+                "Content-Security-Policy",
+                "default-src 'none'; style-src 'unsafe-inline'; "
+                "base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+            )
+
         def _write_download(self, artifact: WorkbenchArtifact) -> None:
             filename = f"{artifact.work_item_id}-{artifact.kind}.md"
             body = artifact.markdown.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/markdown; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
+            self._add_security_headers()
             self.send_header(
                 "Content-Disposition",
                 f'attachment; filename="{filename}"',
@@ -2571,6 +2581,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self.send_response(200)
             self.send_header("Content-Type", "text/markdown; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
+            self._add_security_headers()
             self.send_header(
                 "Content-Disposition",
                 f'attachment; filename="{filename}"',
@@ -2584,6 +2595,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self.send_response(status_code)
             self.send_header("Content-Type", content_type)
             self.send_header("Cache-Control", "no-store")
+            self._add_security_headers()
             self.end_headers()
 
         def _query_values(self) -> dict[str, str]:
@@ -2604,6 +2616,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self.send_response(status_code)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Cache-Control", "no-store")
+            self._add_security_headers()
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)
@@ -2618,6 +2631,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self.send_response(status_code)
             self.send_header("Content-Type", content_type)
             self.send_header("Cache-Control", "no-store")
+            self._add_security_headers()
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
             self.wfile.write(body)

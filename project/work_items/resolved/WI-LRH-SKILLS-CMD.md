@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #380 (commit 761684e)
 blocked_reason: null
 blocked: false
 id: WI-LRH-SKILLS-CMD
 title: Rename lrh setup to lrh skills install and add --local flag
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

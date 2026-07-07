@@ -2,10 +2,10 @@
 execution_id: 2026_07_06_03_34_25_DECISION_TIER_DOC_CROSS_REFERENCES
 prompt_id: PROMPT(AD_HOC:DECISION_TIER_DOC_CROSS_REFERENCES)[2026-07-06T03:30:25-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/377
-commit: cd5d36b
+commit: 187b3d6b88012bcee49b0f169c13412c4a67517a
 created_at: 2026-07-06T03:34:25-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/377

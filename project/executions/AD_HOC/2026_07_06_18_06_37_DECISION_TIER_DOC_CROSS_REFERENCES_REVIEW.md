@@ -2,14 +2,14 @@
 execution_id: 2026_07_06_18_06_37_DECISION_TIER_DOC_CROSS_REFERENCES_REVIEW
 prompt_id: PROMPT(AD_HOC:DECISION_TIER_DOC_CROSS_REFERENCES_REVIEW)[2026-07-06T17:54:45-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_06_03_34_25_DECISION_TIER_DOC_CROSS_REFERENCES
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/377
-commit: 97d062b
+commit: 187b3d6b88012bcee49b0f169c13412c4a67517a
 created_at: 2026-07-06T18:06:37-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/377
-session_transcript: pending
+session_transcript: claude-app:bbcb758a-f12c-44cf-ad69-3dc5cadf53b6
 ---
 
 # Summary

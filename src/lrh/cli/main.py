@@ -127,19 +127,29 @@ def main() -> None:
         help="Search LRH project records.",
     )
 
-    setup_parser = subparsers.add_parser(
-        "setup",
+    skills_parser = subparsers.add_parser(
+        "skills",
+        help="Manage LRH Claude Code skills.",
+    )
+    skills_subparsers = skills_parser.add_subparsers(dest="skills_command")
+    skills_install_parser = skills_subparsers.add_parser(
+        "install",
         help="Install LRH skills to ~/.claude/skills/.",
     )
-    setup_parser.add_argument(
+    skills_install_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="preview what would be installed without writing files",
     )
-    setup_parser.add_argument(
+    skills_install_parser.add_argument(
         "--force",
         action="store_true",
         help="overwrite user-modified skills without warning",
+    )
+    skills_install_parser.add_argument(
+        "--local",
+        action="store_true",
+        help="install to ./.claude/skills/ instead of ~/.claude/skills/",
     )
 
     project_parser = subparsers.add_parser(
@@ -1220,16 +1230,21 @@ def main() -> None:
 
         parser.error("meta requires a subcommand (try: lrh meta init)")
 
-    if args.command == "setup":
-        if passthrough_args:
-            parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
-        from lrh.skills import installer
+    if args.command == "skills":
+        if args.skills_command == "install":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            from lrh.skills import installer
 
-        report = installer.install_skills(dry_run=args.dry_run, force=args.force)
-        output = installer.format_report(report, dry_run=args.dry_run)
-        if output:
-            print(output)
-        raise SystemExit(0)
+            skills_dir = Path.cwd() / ".claude" / "skills" if args.local else None
+            report = installer.install_skills(
+                skills_dir=skills_dir, dry_run=args.dry_run, force=args.force
+            )
+            output = installer.format_report(report, dry_run=args.dry_run)
+            if output:
+                print(output)
+            raise SystemExit(0)
+        parser.error("skills requires a subcommand (try: lrh skills install)")
 
     if passthrough_args:
         parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")

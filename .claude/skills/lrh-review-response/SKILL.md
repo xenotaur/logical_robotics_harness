@@ -254,7 +254,7 @@ Before reporting completion, verify:
 - Does not create a new branch or new PR — operates on the existing PR branch.
 - Does not automatically resolve GitHub review conversations — human decision.
 - Does not implement multiple PR review responses in one invocation.
-- Does not implement `lrh setup` — that is `WI-SKILLS-LRH-SETUP`.
+- Does not implement `lrh skills install` or modify its behavior.
 - Does not modify `lrh request review_response` or its template.
 - Does not automatically update `session_transcript` from `pending` to the
   real session ID.

@@ -248,7 +248,7 @@ Before reporting completion, verify:
 - Does not evaluate skill quality or run evals — hand off to
   `anthropic-skills:skill-creator` for evaluation and iteration.
 - Does not install skills globally to `~/.claude/skills/` — that requires
-  `lrh setup` (not yet implemented).
+  `lrh skills install`.
 - Does not modify existing skills — only creates new ones.
 - Does not create a full `CLAUDE.md` — only adds or updates the `## Skills`
   section; broader project CLAUDE.md content is a separate concern.

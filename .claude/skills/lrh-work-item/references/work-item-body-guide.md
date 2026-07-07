@@ -114,7 +114,7 @@ Non-goals serve two purposes: they bound the implementation and they document
 deferred work for future items. Write them as negative imperatives:
 
 ```
-- Do not implement `lrh setup` — that is WI-SKILLS-LRH-SETUP.
+- Do not implement `lrh skills list` — defer to a future work item.
 - Do not add skill evaluation logic — defer to anthropic-skills:skill-creator.
 - Do not modify existing skills.
 ```

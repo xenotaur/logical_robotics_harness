@@ -49,11 +49,11 @@ Not called by this skill. `prompt-from-work-item` generates a prompt file for
 submission to Codex Cloud. In a Claude.app session, Claude reads the work item
 directly — a rendered prompt file adds a step with no benefit.
 
-### `lrh setup` (future — WI-SKILLS-LRH-SETUP)
+### `lrh skills install`
 
-Once `lrh setup` ships, `/lrh-implement` will be available in any project on
-the machine, not just in the LRH repo session. Until then, the skill is LRH
-repo-local (auto-discovered from `.claude/skills/lrh-implement/`).
+`lrh skills install` installs LRH skills globally to `~/.claude/skills/`, making
+`/lrh-implement` available in any project on the machine. Use `--local` to install
+to `./.claude/skills/` for a project-scoped installation instead.
 
 ---
 

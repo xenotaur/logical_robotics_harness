@@ -234,7 +234,7 @@ and should be excluded from any top-level diff.
 Future CI enforcement is tracked as a Stage 3 item in `WS-SKILLS`.
 
 To install LRH skills globally (making them available in any project on
-your machine), run `lrh setup` once it is implemented (`WI-SKILLS-LRH-SETUP`).
+your machine), run `lrh skills install`.
 
 ---
 

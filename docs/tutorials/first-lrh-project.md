@@ -133,3 +133,4 @@ Next, try adding one concept at a time:
 - Add work items under `project/work_items/active/` after reading the work-item examples in this repository.
 - Read the CLI reference for [`lrh validate`](../reference/cli/validate.md) and [`lrh snapshot`](../reference/cli/snapshot.md).
 - Read the explanation of the [control-plane model](../explanations/control-plane-model.md) to understand how the pieces fit together.
+- If you use Claude Code, see [Keep skills up to date](../how-to/keep-skills-up-to-date.md) — installed `/lrh-*` skills are a copy and do not update automatically when LRH is upgraded.

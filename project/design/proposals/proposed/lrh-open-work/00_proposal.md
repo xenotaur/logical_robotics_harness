@@ -20,6 +20,8 @@ related_design:
   - .claude/skills/lrh-closeout/SKILL.md
 ---
 
+# Holistic Open-Work Survey — `/lrh-open-work` Skill, Companion Request Template, and Deterministic Git/Audit CLI Modules
+
 ## Summary
 
 This proposal defines `/lrh-open-work`, a Claude Code skill (with a companion
@@ -117,7 +119,11 @@ json/md`, fixture-repo tests).
   half (`gh pr list --state all` → tracked/merged-stale/orphaned) reuses the
   existing, already-mocked `gh_client.run_gh_json` wrapper
   (`src/lrh/integrations/github/gh_client.py`) — no new test infrastructure
-  needed.
+  needed. `gh pr list` defaults to `--limit 30`; repos with more than 30
+  historical PRs would silently under-report, producing false
+  orphaned/stale-merged classifications. The PR-list call must pass
+  `--paginate` (or an explicit `--limit` high enough to cover the repo's
+  full PR history) so classification is complete regardless of repo size.
 - `lrh audits list-followups` — new small CLI group. Deterministic half:
   discover `project/audits/*.md`, extract candidate follow-up bullets from
   headings matched by a loose keyword heuristic (sampled headings vary:

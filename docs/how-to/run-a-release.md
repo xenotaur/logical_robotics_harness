@@ -193,7 +193,7 @@ The PyPI project and Trusted Publisher entries are configured manually in the
 PyPI web UI by a maintainer with access to that project.
 
 Current implementation: the `pypi` GitHub environment has a required-reviewer
-protection rule (reviewer: `anthony`, GitHub handle `xenotaur`), so
+protection rule (reviewer: `xenotaur`, i.e. Anthony Francis), so
 `release.yml`'s `publish-pypi` job pauses for manual approval after
 `build-check-smoke` succeeds. The `testpypi` environment intentionally has no
 protection rule. See `project/memory/decision_log.md` (2026-07-09: "PyPI
@@ -227,8 +227,12 @@ pending `pypi` deployment once `build-check-smoke` has succeeded.
 ## Tagging and publishing
 
 Do not push a production release tag until the release-readiness checklist is
-complete, local validation has passed, and any required TestPyPI rehearsal has
-been verified.
+complete and local validation has passed. Pushing the tag does not immediately
+publish: the `pypi` environment's required-reviewer gate holds the real
+publish pending approval (see
+[Rehearse-then-approve sequencing](#rehearse-then-approve-sequencing) above).
+When a TestPyPI rehearsal is warranted, verify it during that pending window,
+before approving the deployment — not before pushing the tag.
 
 Create or confirm the release tag and then push it:
 

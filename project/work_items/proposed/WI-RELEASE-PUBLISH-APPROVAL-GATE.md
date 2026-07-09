@@ -57,7 +57,7 @@ decision record.
 In scope:
 
 - configure a required-reviewer protection rule on the `pypi` GitHub
-  environment (reviewer: `anthony` / GitHub handle `xenotaur`)
+  environment (reviewer: `xenotaur`, i.e. Anthony Francis)
 - confirm the `testpypi` environment remains unprotected
 - update `docs/how-to/run-a-release.md` to document the tag/rehearsal
   collision and the rehearse-then-approve procedure it enables: push a real

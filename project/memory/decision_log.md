@@ -28,7 +28,7 @@ approval before any real PyPI publish, while leaving TestPyPI unprotected.
 ### Decision
 
 - Add a required-reviewer protection rule to the `pypi` GitHub environment,
-  reviewer: `anthony` (GitHub handle `xenotaur`). This pauses `release.yml`'s
+  reviewer: `xenotaur` (Anthony Francis). This pauses `release.yml`'s
   `publish-pypi` job for manual approval after `build-check-smoke` succeeds,
   creating a window to dispatch `testpypi-rehearsal.yml` against the same tag
   and verify a TestPyPI install before approving the real publish.

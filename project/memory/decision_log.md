@@ -1,5 +1,72 @@
 # Decision Log
 
+## 2026-07-09: Decision: PyPI Release Environment Protection Rules
+
+### Summary
+
+Resolve the open design question from `PROP-TAG-PUSH-PYPI-PUBLISHING` §12
+("whether to use GitHub environments/protection rules") by requiring manual
+approval before any real PyPI publish, while leaving TestPyPI unprotected.
+
+### Context
+
+- `release.yml` triggers on any `push: tags: v*.*.*` with no gate between a
+  successful build/smoke job and the real PyPI publish step.
+- `testpypi-rehearsal.yml` is `workflow_dispatch`-only and can only be
+  dispatched against a tag ref that already contains the workflow file in its
+  tree. No existing tag (`v0.2.0`-`v0.2.4`) postdates the file's addition
+  (2026-05-06), so rehearsal against those tags is currently impossible.
+- Because `release.yml` and `testpypi-rehearsal.yml` both key off the same
+  `vMAJOR.MINOR.PATCH` tag shape, pushing a tag for rehearsal purposes also
+  arms a real production publish attempt, with no manual checkpoint, unless a
+  GitHub environment protection rule intervenes.
+- `docs/how-to/run-a-release.md` already listed "confirm GitHub environment
+  protection and approval rules for `pypi` match maintainer intent" as a
+  release checklist item, but the intent itself was never decided or
+  implemented.
+
+### Decision
+
+- Add a required-reviewer protection rule to the `pypi` GitHub environment,
+  reviewer: `anthony` (GitHub handle `xenotaur`). This pauses `release.yml`'s
+  `publish-pypi` job for manual approval after `build-check-smoke` succeeds,
+  creating a window to dispatch `testpypi-rehearsal.yml` against the same tag
+  and verify a TestPyPI install before approving the real publish.
+- Leave the `testpypi` environment without protection rules for now; TestPyPI
+  publishes are disposable and low-stakes, and the rehearsal path should not
+  itself require an approval gate.
+- Configured via `gh api -X PUT repos/xenotaur/logical_robotics_harness/environments/pypi`
+  on 2026-07-09.
+
+### Rationale
+
+- This is the only mechanism available today that lets a maintainer rehearse
+  via TestPyPI before a real PyPI publish, given both workflows share the
+  same tag-trigger shape and `release.yml` otherwise has no delay or gate.
+- Solo-maintainer project: a self-approvable required reviewer is sufficient;
+  `prevent_self_review` was left at GitHub's default (`false`) since there is
+  no second maintainer to require.
+- Protecting `testpypi` as well would add friction without a corresponding
+  safety benefit, since TestPyPI failures are cheap to recover from (publish
+  a new rehearsal version; no user-facing consequence).
+
+### Alternatives considered
+
+1. Leave `pypi` unprotected and rely on maintainer discipline to check
+   TestPyPI before tagging.
+   Pros: no GitHub configuration needed.
+   Cons: no actual gate; a tag push races straight to a real, non-revocable
+   publish; contradicts the phased rehearsal-then-publish intent in
+   `PROP-TAG-PUSH-PYPI-PUBLISHING` §15.
+2. Protect `testpypi` too.
+   Pros: symmetric governance.
+   Cons: unnecessary friction for a disposable, low-stakes target; nothing
+   currently depends on TestPyPI stability.
+
+### Status
+
+Accepted
+
 ## 2026-04-23: Decision: Survey JSON Schema Deferral (YAGNI / Evolutionary Design)
 
 ### Summary

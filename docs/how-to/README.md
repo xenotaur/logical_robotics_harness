@@ -32,5 +32,6 @@ Add content here when the title can naturally start with “How to ...” and th
 - [Register a project with an LRH meta workspace](register-a-project-with-meta.md) — initialize meta state and register project records.
 - [Inspect workspace state](inspect-workspace-state.md) — inspect active meta workspace paths and registered projects.
 - [Use the developer sandbox](use-the-developer-sandbox.md) — run LRH commands against isolated developer state.
+- [Keep skills up to date](keep-skills-up-to-date.md) — check for and apply updates to installed Claude Code skills.
 - [How to run a release](run-a-release.md) — validate, tag, smoke-test, and publish LRH releases.
 - [Project setup playbooks](project-setup/README.md) — reusable setup and hardening guidance for heterogeneous project repositories.

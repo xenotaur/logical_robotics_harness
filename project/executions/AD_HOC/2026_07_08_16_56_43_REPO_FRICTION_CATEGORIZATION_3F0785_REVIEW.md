@@ -2,14 +2,14 @@
 execution_id: 2026_07_08_16_56_43_REPO_FRICTION_CATEGORIZATION_3F0785_REVIEW
 prompt_id: PROMPT(AD_HOC:REPO_FRICTION_CATEGORIZATION_3F0785_REVIEW)[2026-07-08T16:55:57-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/385
-commit: 
+commit: fd1f30c0d8851e8dbd753f917e3ccd70e5c0bb58
 created_at: 2026-07-08T16:56:43-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/385
-session_transcript: pending
+session_transcript: claude-app:684b2d61-a0a1-4de2-996a-3b5ee9b779da
 ---
 
 # Summary

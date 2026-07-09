@@ -120,6 +120,15 @@ Useful smoke-test modes:
 Run a TestPyPI rehearsal before the first real PyPI release and whenever release
 mechanics change.
 
+**Tag collision warning:** `release.yml` triggers on any pushed tag matching
+`vMAJOR.MINOR.PATCH`, with no distinction between a "rehearsal" tag and a
+production tag. Pushing a tag to satisfy the rehearsal's tag-ref requirement
+therefore also arms a real `release.yml` publish attempt at the same time.
+There is no way to create a tag that only the rehearsal workflow can see. See
+[Rehearse-then-approve sequencing](#rehearse-then-approve-sequencing) below
+for how the `pypi` environment's required-reviewer gate is used to make this
+safe.
+
 Current implementation:
 
 - Workflow: **TestPyPI rehearsal publish**
@@ -183,11 +192,47 @@ setup steps in PyPI and GitHub:
 The PyPI project and Trusted Publisher entries are configured manually in the
 PyPI web UI by a maintainer with access to that project.
 
+Current implementation: the `pypi` GitHub environment has a required-reviewer
+protection rule (reviewer: `xenotaur`, i.e. Anthony Francis), so
+`release.yml`'s `publish-pypi` job pauses for manual approval after
+`build-check-smoke` succeeds. The `testpypi` environment intentionally has no
+protection rule. See `project/memory/decision_log.md` (2026-07-09: "PyPI
+Release Environment Protection Rules") for the rationale.
+
+## Rehearse-then-approve sequencing
+
+Because the `pypi` environment requires manual approval and `testpypi-rehearsal.yml`
+can only be dispatched against a tag that already contains the workflow file,
+the recommended sequence for the first release, and for any release where
+rehearsal is warranted, is:
+
+1. Push the intended real release tag as usual (see
+   [Tagging and publishing](#tagging-and-publishing) below).
+2. **Release tag validation** and **Smoke validation** run automatically and
+   complete. `release.yml`'s `build-check-smoke` job also runs automatically
+   and completes, but `publish-pypi` pauses with status "Waiting for review"
+   because the `pypi` environment requires approval.
+3. While `publish-pypi` is pending, open **TestPyPI rehearsal publish** in
+   GitHub Actions and dispatch it against the same tag.
+4. Verify the TestPyPI package page and a clean-environment install (see
+   [TestPyPI rehearsal](#testpypi-rehearsal) above).
+5. If the rehearsal looks correct, approve the pending `pypi` deployment to
+   let the real publish proceed. If it does not, reject the deployment; the
+   tag's version cannot be reused, so fix forward with a new version per
+   [Failure and recovery notes](#failure-and-recovery-notes).
+
+For routine releases where rehearsal is not warranted, simply approve the
+pending `pypi` deployment once `build-check-smoke` has succeeded.
+
 ## Tagging and publishing
 
 Do not push a production release tag until the release-readiness checklist is
-complete, local validation has passed, and any required TestPyPI rehearsal has
-been verified.
+complete and local validation has passed. Pushing the tag does not immediately
+publish: the `pypi` environment's required-reviewer gate holds the real
+publish pending approval (see
+[Rehearse-then-approve sequencing](#rehearse-then-approve-sequencing) above).
+When a TestPyPI rehearsal is warranted, verify it during that pending window,
+before approving the deployment — not before pushing the tag.
 
 Create or confirm the release tag and then push it:
 

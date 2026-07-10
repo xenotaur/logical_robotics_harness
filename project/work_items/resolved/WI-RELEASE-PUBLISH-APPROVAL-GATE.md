@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #386 (commit 6481760): pypi environment required-reviewer gate configured, testpypi left unprotected, run-a-release.md documents the rehearse-then-approve sequencing."
 blocked_reason: null
 blocked: false
 id: WI-RELEASE-PUBLISH-APPROVAL-GATE
 title: Add required-reviewer approval gate to PyPI publish environment
 type: operation
-status: proposed
+status: resolved
 priority: high
 owner: anthony
 contributors:

@@ -2,13 +2,13 @@
 execution_id: 2026_07_09_16_38_19_LRH_PYPI_INSTALLABILITY_STATUS_A4C549_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_PYPI_INSTALLABILITY_STATUS_A4C549_REVIEW)[2026-07-09T16:32:36-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/386
-commit: 00142ff817ab2885e7cdaf8008e4d62ba9d61780
+commit: 64817601233a07826401d11e1942a168209f4888
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/386
-session_transcript: pending
+session_transcript: claude-app:fe9f132a-5c11-42e9-b404-36562a7b88ce
 created_at: 2026-07-09T16:38:19-04:00
 ---
 

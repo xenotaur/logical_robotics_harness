@@ -125,6 +125,34 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
             ]
         )
 
+    def test_check_template_sources_accepts_all_package_sources(self) -> None:
+        output = (
+            "assessment\tpackage\tpackage fallback\t"
+            "lrh.assist.templates/request/assessment.md\n"
+            "review_response\tpackage\tpackage fallback\t"
+            "lrh.assist.templates/request/review_response.md"
+        )
+        release_smoke._check_template_sources_are_package(output)
+
+    def test_check_template_sources_rejects_empty_output(self) -> None:
+        with self.assertRaisesRegex(
+            release_smoke.ReleaseSmokeError, "returned no templates"
+        ):
+            release_smoke._check_template_sources_are_package("")
+
+    def test_check_template_sources_rejects_non_package_source(self) -> None:
+        output = (
+            "assessment\tpackage\tpackage fallback\t"
+            "lrh.assist.templates/request/assessment.md\n"
+            "review_response\tproject\tfilesystem override\t"
+            "/repo/.lrh/templates/request/review_response.md"
+        )
+        with self.assertRaisesRegex(
+            release_smoke.ReleaseSmokeError,
+            "review_response.*resolved from source 'project'",
+        ):
+            release_smoke._check_template_sources_are_package(output)
+
 
 class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
     def test_parser_enables_diagnostic_and_strict_isolation_modes(self) -> None:
@@ -353,6 +381,11 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 command_envs.append(env)
                 if command == [str(fake_lrh), "--version"]:
                     return "lrh 0.2.1"
+                if command[-3:] == ["request", "templates", "list"]:
+                    return (
+                        "fake_template\tpackage\tpackage fallback\t"
+                        "lrh.assist.templates/request/fake_template.md"
+                    )
                 return ""
 
             with (
@@ -421,6 +454,34 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             [str(fake_lrh), "survey", "--help"],
         ):
             self.assertIn(help_command, commands)
+        self.assertIn(
+            [str(fake_lrh), "request", "templates", "list"],
+            commands,
+        )
+        init_project_root = fake_root / "smoke-project"
+        self.assertIn(
+            [
+                str(fake_lrh),
+                "project",
+                "init",
+                "--profile",
+                "minimal",
+                "--project-root",
+                str(init_project_root),
+            ],
+            commands,
+        )
+        self.assertIn(
+            [
+                str(fake_lrh),
+                "snapshot",
+                "project",
+                "--project-root",
+                str(init_project_root),
+                "--stdout",
+            ],
+            commands,
+        )
         self.assertTrue(
             commands.index(
                 [
@@ -471,7 +532,14 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ) -> str:
                 del cwd, env
                 commands.append(command)
-                return "lrh 0.2.1" if command[-1] == "--version" else ""
+                if command[-1] == "--version":
+                    return "lrh 0.2.1"
+                if command[-3:] == ["request", "templates", "list"]:
+                    return (
+                        "fake_template\tpackage\tpackage fallback\t"
+                        "lrh.assist.templates/request/fake_template.md"
+                    )
+                return ""
 
             diagnostics = release_smoke.IsolationDiagnostics(
                 python_executable=fake_python,
@@ -549,7 +617,14 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ) -> str:
                 del cwd, env
                 commands.append(command)
-                return "lrh 0.2.1" if command[-1] == "--version" else ""
+                if command[-1] == "--version":
+                    return "lrh 0.2.1"
+                if command[-3:] == ["request", "templates", "list"]:
+                    return (
+                        "fake_template\tpackage\tpackage fallback\t"
+                        "lrh.assist.templates/request/fake_template.md"
+                    )
+                return ""
 
             with (
                 mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
@@ -658,7 +733,14 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ) -> str:
                 del cwd, env
                 commands.append(command)
-                return "lrh 0.2.1" if command[-1] == "--version" else ""
+                if command[-1] == "--version":
+                    return "lrh 0.2.1"
+                if command[-3:] == ["request", "templates", "list"]:
+                    return (
+                        "fake_template\tpackage\tpackage fallback\t"
+                        "lrh.assist.templates/request/fake_template.md"
+                    )
+                return ""
 
             with (
                 mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
@@ -767,7 +849,14 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ) -> str:
                 del cwd, env
                 commands.append(command)
-                return "lrh 0.2.1" if command[-1] == "--version" else ""
+                if command[-1] == "--version":
+                    return "lrh 0.2.1"
+                if command[-3:] == ["request", "templates", "list"]:
+                    return (
+                        "fake_template\tpackage\tpackage fallback\t"
+                        "lrh.assist.templates/request/fake_template.md"
+                    )
+                return ""
 
             with (
                 mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),

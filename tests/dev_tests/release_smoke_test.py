@@ -125,6 +125,61 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
             ]
         )
 
+    def test_check_template_sources_accepts_all_package_sources(self) -> None:
+        output = (
+            "assessment\tpackage\tpackage fallback\t"
+            "lrh.assist.templates/request/assessment.md\n"
+            "review_response\tpackage\tpackage fallback\t"
+            "lrh.assist.templates/request/review_response.md"
+        )
+        release_smoke._check_template_sources_are_package(output)
+
+    def test_check_template_sources_rejects_empty_output(self) -> None:
+        with self.assertRaisesRegex(
+            release_smoke.ReleaseSmokeError, "returned no templates"
+        ):
+            release_smoke._check_template_sources_are_package("")
+
+    def test_check_template_sources_rejects_non_package_source(self) -> None:
+        output = (
+            "assessment\tpackage\tpackage fallback\t"
+            "lrh.assist.templates/request/assessment.md\n"
+            "review_response\tproject\tfilesystem override\t"
+            "/repo/.lrh/templates/request/review_response.md"
+        )
+        with self.assertRaisesRegex(
+            release_smoke.ReleaseSmokeError,
+            "review_response.*resolved from source 'project'",
+        ):
+            release_smoke._check_template_sources_are_package(output)
+
+    def test_override_free_environment_strips_template_override_sources(self) -> None:
+        base_environ = {
+            "PATH": "/usr/bin",
+            "LRH_TEMPLATE_DIR": "/maintainer/overrides",
+            "XDG_CONFIG_HOME": "/maintainer/.config",
+            "HOME": "/maintainer/home",
+        }
+        fake_home = pathlib.Path("/tmp/fake-home")
+
+        result = release_smoke._override_free_environment(
+            base_environ, fake_home=fake_home
+        )
+
+        self.assertNotIn("LRH_TEMPLATE_DIR", result)
+        self.assertNotIn("XDG_CONFIG_HOME", result)
+        self.assertEqual(result["HOME"], str(fake_home))
+        self.assertEqual(result["PATH"], "/usr/bin")
+
+    def test_override_free_environment_does_not_mutate_input(self) -> None:
+        base_environ = {"LRH_TEMPLATE_DIR": "/maintainer/overrides"}
+
+        release_smoke._override_free_environment(
+            base_environ, fake_home=pathlib.Path("/tmp/fake-home")
+        )
+
+        self.assertIn("LRH_TEMPLATE_DIR", base_environ)
+
 
 class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
     def test_parser_enables_diagnostic_and_strict_isolation_modes(self) -> None:
@@ -353,12 +408,31 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 command_envs.append(env)
                 if command == [str(fake_lrh), "--version"]:
                     return "lrh 0.2.1"
+                if command[-3:] == ["request", "templates", "list"]:
+                    return (
+                        "fake_template\tpackage\tpackage fallback\t"
+                        "lrh.assist.templates/request/fake_template.md"
+                    )
                 return ""
+
+            def _fake_twine_check() -> None:
+                # Keep commands/command_envs in lockstep: _run_twine_check
+                # doesn't go through _fake_run, so it must append to both
+                # lists itself or later commands.index(...)-based lookups
+                # into command_envs silently shift by one.
+                commands.append(["<twine-check>"])
+                command_envs.append(None)
 
             with (
                 mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
                 mock.patch.dict(
-                    release_smoke.os.environ, {"PYTHONPATH": "/workspace/src"}
+                    release_smoke.os.environ,
+                    {
+                        "PYTHONPATH": "/workspace/src",
+                        "LRH_TEMPLATE_DIR": "/maintainer/overrides",
+                        "XDG_CONFIG_HOME": "/maintainer/.config",
+                        "HOME": "/maintainer/home",
+                    },
                 ),
                 mock.patch.object(
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
@@ -366,7 +440,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch.object(
                     release_smoke,
                     "_run_twine_check",
-                    side_effect=lambda: commands.append(["<twine-check>"]),
+                    side_effect=_fake_twine_check,
                 ) as twine_check,
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
@@ -421,6 +495,44 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             [str(fake_lrh), "survey", "--help"],
         ):
             self.assertIn(help_command, commands)
+        self.assertIn(
+            [str(fake_lrh), "request", "templates", "list"],
+            commands,
+        )
+        template_list_index = commands.index(
+            [str(fake_lrh), "request", "templates", "list"]
+        )
+        template_list_env = command_envs[template_list_index]
+        self.assertIsInstance(template_list_env, dict)
+        self.assertNotIn("LRH_TEMPLATE_DIR", template_list_env)
+        self.assertNotIn("XDG_CONFIG_HOME", template_list_env)
+        self.assertEqual(
+            template_list_env["HOME"], str(fake_root / "template-list-cwd")
+        )
+        init_project_root = fake_root / "smoke-project"
+        self.assertIn(
+            [
+                str(fake_lrh),
+                "project",
+                "init",
+                "--profile",
+                "minimal",
+                "--project-root",
+                str(init_project_root),
+            ],
+            commands,
+        )
+        self.assertIn(
+            [
+                str(fake_lrh),
+                "snapshot",
+                "project",
+                "--project-root",
+                str(init_project_root),
+                "--stdout",
+            ],
+            commands,
+        )
         self.assertTrue(
             commands.index(
                 [
@@ -471,7 +583,14 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ) -> str:
                 del cwd, env
                 commands.append(command)
-                return "lrh 0.2.1" if command[-1] == "--version" else ""
+                if command[-1] == "--version":
+                    return "lrh 0.2.1"
+                if command[-3:] == ["request", "templates", "list"]:
+                    return (
+                        "fake_template\tpackage\tpackage fallback\t"
+                        "lrh.assist.templates/request/fake_template.md"
+                    )
+                return ""
 
             diagnostics = release_smoke.IsolationDiagnostics(
                 python_executable=fake_python,
@@ -549,7 +668,14 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ) -> str:
                 del cwd, env
                 commands.append(command)
-                return "lrh 0.2.1" if command[-1] == "--version" else ""
+                if command[-1] == "--version":
+                    return "lrh 0.2.1"
+                if command[-3:] == ["request", "templates", "list"]:
+                    return (
+                        "fake_template\tpackage\tpackage fallback\t"
+                        "lrh.assist.templates/request/fake_template.md"
+                    )
+                return ""
 
             with (
                 mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
@@ -658,7 +784,14 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ) -> str:
                 del cwd, env
                 commands.append(command)
-                return "lrh 0.2.1" if command[-1] == "--version" else ""
+                if command[-1] == "--version":
+                    return "lrh 0.2.1"
+                if command[-3:] == ["request", "templates", "list"]:
+                    return (
+                        "fake_template\tpackage\tpackage fallback\t"
+                        "lrh.assist.templates/request/fake_template.md"
+                    )
+                return ""
 
             with (
                 mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),
@@ -767,7 +900,14 @@ class ReleaseSmokeRunTest(unittest.TestCase):
             ) -> str:
                 del cwd, env
                 commands.append(command)
-                return "lrh 0.2.1" if command[-1] == "--version" else ""
+                if command[-1] == "--version":
+                    return "lrh 0.2.1"
+                if command[-3:] == ["request", "templates", "list"]:
+                    return (
+                        "fake_template\tpackage\tpackage fallback\t"
+                        "lrh.assist.templates/request/fake_template.md"
+                    )
+                return ""
 
             with (
                 mock.patch("tempfile.mkdtemp", return_value=str(fake_root)),

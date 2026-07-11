@@ -128,6 +128,26 @@ def _venv_command_environment(
     return sanitized
 
 
+def _override_free_environment(
+    base_environ: collections.abc.Mapping[str, str],
+    *,
+    fake_home: pathlib.Path,
+) -> dict[str, str]:
+    """Return an environment with all template-override sources neutralized.
+
+    ``TemplateResolver._filesystem_sources()`` consults ``LRH_TEMPLATE_DIR``
+    and the ``XDG_CONFIG_HOME``/``HOME``-derived user template directory in
+    addition to cwd-relative project overrides. Pinning ``cwd`` alone is not
+    enough to guarantee a package-only resolution: a maintainer with either
+    of those set locally would otherwise see spurious smoke-test failures.
+    """
+    sanitized = dict(base_environ)
+    sanitized.pop("LRH_TEMPLATE_DIR", None)
+    sanitized.pop("XDG_CONFIG_HOME", None)
+    sanitized["HOME"] = str(fake_home)
+    return sanitized
+
+
 def _run(
     command: list[str],
     *,
@@ -598,12 +618,18 @@ def run_release_smoke(
         # cwd (not a --project-root flag), so pin cwd to an isolated,
         # override-free directory to prove package-resource resolution
         # rather than accidentally inheriting this repo's own overrides.
+        # cwd alone is not sufficient: also neutralize LRH_TEMPLATE_DIR and
+        # XDG_CONFIG_HOME/HOME so a maintainer's local template overrides
+        # can't leak into the smoke venv and produce a false failure.
         template_list_cwd = venv_root / "template-list-cwd"
         template_list_cwd.mkdir()
+        template_list_env = _override_free_environment(
+            venv_command_env, fake_home=template_list_cwd
+        )
         template_list_output = _run(
             [str(lrh_bin), "request", "templates", "list"],
             cwd=template_list_cwd,
-            env=venv_command_env,
+            env=template_list_env,
         )
         _check_template_sources_are_package(template_list_output)
 

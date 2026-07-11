@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #387 (commit fd5d71b): scripts/release-smoke now runs real installed-wheel invocations (lrh request templates list, lrh project init + snapshot) proving package-resource template loading works outside a source checkout; also fixed a pre-existing tests/dev_tests/ test-discovery gap and hardened the check against maintainer-local template-override env vars."
 blocked_reason: null
 blocked: false
 id: WI-ASSIST-INSTALLABILITY-HARDENING
 title: Harden installed-package template loading and packaging smoke checks
 type: operation
-status: proposed
+status: resolved
 priority: high
 owner: anthony
 contributors:

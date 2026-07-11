@@ -2,13 +2,13 @@
 execution_id: 2026_07_11_02_52_17_WI_ASSIST_INSTALLABILITY_HARDENING_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_ASSIST_INSTALLABILITY_HARDENING_REVIEW)[2026-07-11T02:44:04-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_11_02_27_56_WI_ASSIST_INSTALLABILITY_HARDENING
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/387
-commit: a5d18f02f669abba8a724aa13cff5d18d4b10ec4
+commit: fd5d71b73642255b916bff0e886c8f2c442a80c1
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/387
-session_transcript: pending
+session_transcript: claude-app:fe9f132a-5c11-42e9-b404-36562a7b88ce
 created_at: 2026-07-11T02:52:17-04:00
 ---
 

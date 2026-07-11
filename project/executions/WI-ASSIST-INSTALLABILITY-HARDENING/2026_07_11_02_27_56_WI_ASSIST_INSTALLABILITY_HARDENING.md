@@ -2,13 +2,13 @@
 execution_id: 2026_07_11_02_27_56_WI_ASSIST_INSTALLABILITY_HARDENING
 prompt_id: PROMPT(WI-ASSIST-INSTALLABILITY-HARDENING:WI_ASSIST_INSTALLABILITY_HARDENING)[2026-07-10T19:56:18-04:00]
 work_item: WI-ASSIST-INSTALLABILITY-HARDENING
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/387
-commit: 0dbefa33460b66349efdb74d43da08ed8a54cd96
+commit: fd5d71b73642255b916bff0e886c8f2c442a80c1
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-ASSIST-INSTALLABILITY-HARDENING.md
-session_transcript: pending
+session_transcript: claude-app:fe9f132a-5c11-42e9-b404-36562a7b88ce
 created_at: 2026-07-11T02:27:56-04:00
 ---
 

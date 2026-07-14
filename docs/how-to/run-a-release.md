@@ -102,6 +102,20 @@ lrh snapshot --help
 lrh survey --help
 ```
 
+These `--help` checks only verify argparse wiring, not real behavior. The
+smoke test also runs real, non-`--help` invocations to prove package-resource
+template loading actually works from the installed wheel (not just a source
+checkout):
+
+- `lrh request templates list`, run from an isolated directory with no
+  project/user template overrides. Every resolved template must report
+  `source: package` (`importlib.resources`-backed, see
+  `lrh.assist.template_resolver`); any other source fails the smoke test.
+- `lrh project init --profile minimal --project-root <tmp>` followed by
+  `lrh snapshot project --project-root <tmp> --stdout`, which exercises
+  package-resource bootstrap-template loading and a real end-to-end
+  `snapshot` run against real (if minimal) project state.
+
 When an expected version is supplied, the smoke test also checks `lrh --version`
 against that version. The script resolves the built wheel dynamically from
 `dist/`; do not hard-code a wheel filename.

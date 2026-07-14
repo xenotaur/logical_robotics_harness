@@ -128,6 +128,26 @@ def _venv_command_environment(
     return sanitized
 
 
+def _override_free_environment(
+    base_environ: collections.abc.Mapping[str, str],
+    *,
+    fake_home: pathlib.Path,
+) -> dict[str, str]:
+    """Return an environment with all template-override sources neutralized.
+
+    ``TemplateResolver._filesystem_sources()`` consults ``LRH_TEMPLATE_DIR``
+    and the ``XDG_CONFIG_HOME``/``HOME``-derived user template directory in
+    addition to cwd-relative project overrides. Pinning ``cwd`` alone is not
+    enough to guarantee a package-only resolution: a maintainer with either
+    of those set locally would otherwise see spurious smoke-test failures.
+    """
+    sanitized = dict(base_environ)
+    sanitized.pop("LRH_TEMPLATE_DIR", None)
+    sanitized.pop("XDG_CONFIG_HOME", None)
+    sanitized["HOME"] = str(fake_home)
+    return sanitized
+
+
 def _run(
     command: list[str],
     *,
@@ -497,6 +517,37 @@ def _resolve_wheel_path(expected_version: str) -> pathlib.Path:
     return wheel_paths[0]
 
 
+def _check_template_sources_are_package(list_output: str) -> None:
+    """Raise if any resolved request template did not come from package resources.
+
+    The smoke venv has no project or user template override directories, so
+    every resolved template must report ``source: package`` (via
+    ``importlib.resources``, see ``lrh.assist.template_resolver``). A
+    filesystem/override source here would mean the venv unexpectedly picked
+    up templates from outside the installed wheel.
+    """
+    lines = [line for line in list_output.splitlines() if line.strip()]
+    if not lines:
+        raise ReleaseSmokeError(
+            "'lrh request templates list' returned no templates; expected "
+            "package-bundled request templates to be listed"
+        )
+    for line in lines:
+        columns = line.split("\t")
+        if len(columns) < 2:
+            raise ReleaseSmokeError(
+                f"unexpected 'lrh request templates list' output line: {line!r}"
+            )
+        name, source = columns[0], columns[1]
+        if source != "package":
+            raise ReleaseSmokeError(
+                f"template '{name}' resolved from source '{source}', expected "
+                "'package'; installed-wheel template resolution should fall "
+                "back to package resources with no overrides present\n"
+                f"full output:\n{list_output}"
+            )
+
+
 def run_release_smoke(
     expected_version: str,
     *,
@@ -562,6 +613,53 @@ def run_release_smoke(
             [str(lrh_bin), "survey", "--help"],
         ):
             _run(help_command, env=venv_command_env)
+
+        # 'request templates list' discovers project_root by walking up from
+        # cwd (not a --project-root flag), so pin cwd to an isolated,
+        # override-free directory to prove package-resource resolution
+        # rather than accidentally inheriting this repo's own overrides.
+        # cwd alone is not sufficient: also neutralize LRH_TEMPLATE_DIR and
+        # XDG_CONFIG_HOME/HOME so a maintainer's local template overrides
+        # can't leak into the smoke venv and produce a false failure.
+        template_list_cwd = venv_root / "template-list-cwd"
+        template_list_cwd.mkdir()
+        template_list_env = _override_free_environment(
+            venv_command_env, fake_home=template_list_cwd
+        )
+        template_list_output = _run(
+            [str(lrh_bin), "request", "templates", "list"],
+            cwd=template_list_cwd,
+            env=template_list_env,
+        )
+        _check_template_sources_are_package(template_list_output)
+
+        # Exercise bootstrap-template package-resource loading and a real
+        # end-to-end 'snapshot' run against real project state, not --help.
+        init_project_root = venv_root / "smoke-project"
+        init_project_root.mkdir()
+        _run(
+            [
+                str(lrh_bin),
+                "project",
+                "init",
+                "--profile",
+                "minimal",
+                "--project-root",
+                str(init_project_root),
+            ],
+            env=venv_command_env,
+        )
+        _run(
+            [
+                str(lrh_bin),
+                "snapshot",
+                "project",
+                "--project-root",
+                str(init_project_root),
+                "--stdout",
+            ],
+            env=venv_command_env,
+        )
 
         if normalized_version:
             expected_line = f"lrh {normalized_version}"

@@ -258,8 +258,9 @@ Offer (do not automatically do):
   already present
 - A reminder that `session_transcript: pending` should be updated to
   `claude-app:<session-id>` after the session ends
-- Next steps: merge PR, move work item to `resolved/` with a non-null
-  `resolution` value once the PR lands
+- Next steps: wait for reviewer comments and run `/lrh-review-response
+  <PR-URL>` to address them (repeat as needed); once the PR is clean, merge
+  it and move the work item to `resolved/` with a non-null `resolution` value
 
 ---
 

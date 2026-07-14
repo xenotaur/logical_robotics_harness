@@ -130,6 +130,17 @@ only policy-checked, sandboxed, logged, and interruptible capabilities may
 execute. Status: `proposed` / `not_started` (documentation-only design;
 no runtime behavior changes).
 
+[`proposed/dev-toolchain-env-resolution.md`](proposed/dev-toolchain-env-resolution.md)
+— Frames whether LRH-managed projects should rely on Taurworks
+(`.taurworks/config.toml [activation.environment]` + `tw activate`) to resolve
+which environment their canonical `scripts/format`/`scripts/lint`/`scripts/test`
+run in, or own a Taurworks-free mechanism. Separates version *enforcement*
+(LRH-native) from environment *resolution* (the open coupling question), and
+recommends Option C: native version guardrails plus optional, detected Taurworks
+resolution — avoiding an LRH↔Taurworks circular dependency, since Taurworks is
+itself LRH-managed. Status: `proposed` / `not_started` (documentation-only; no
+script, schema, or runtime change).
+
 [`adopted/lrh-project-local-skills/`](adopted/lrh-project-local-skills/)
 — Establishes first-class Claude Code skill support in LRH: the `src/lrh/skills/` package directory,
 the `lrh-create-skill` and `lrh-work-item` distributable skills, and the `lrh setup` per-machine

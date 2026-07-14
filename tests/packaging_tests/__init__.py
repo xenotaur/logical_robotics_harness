@@ -1,1 +1,1 @@
-"""Tests for repository scripts."""
+"""Tests for packaging and pyproject metadata."""

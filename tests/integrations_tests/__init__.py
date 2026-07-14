@@ -1,1 +1,1 @@
-"""Tests for repository scripts."""
+"""Tests for GitHub integration in lrh.integrations.github."""

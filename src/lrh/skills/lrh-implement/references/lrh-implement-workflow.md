@@ -23,8 +23,15 @@ lrh request ready-work-item <ID>    ← refine if thin
 project/executions/<WI-ID>/         ← execution record (in_progress)
     │
     ▼
+/lrh-review-response <PR-URL>       ← address reviewer comments (repeat as needed)
+    │
+    ▼
 Merge PR + closeout (human)         ← update record to landed, resolve WI
 ```
+
+The PR is rarely mergeable the moment it opens — expect at least one round of
+`/lrh-review-response` before it lands. Do not offer "merge PR" as the next
+step without first accounting for outstanding review comments.
 
 ---
 
@@ -54,6 +61,15 @@ directly — a rendered prompt file adds a step with no benefit.
 `lrh skills install` installs LRH skills globally to `~/.claude/skills/`, making
 `/lrh-implement` available in any project on the machine. Use `--local` to install
 to `./.claude/skills/` for a project-scoped installation instead.
+
+### `/lrh-review-response <PR-URL>`
+
+Run after `/lrh-implement` opens a PR, once reviewer comments arrive — not
+called by this skill directly, but it is the expected next step before
+merging. Fetches open comments, triages each (presence / validity /
+feasibility), applies fixes, and pushes them as additional commits to the
+same PR with a linked `AD_HOC` execution record. Repeat for further rounds
+of comments; only proceed to "After the PR lands" once the PR is clean.
 
 ---
 

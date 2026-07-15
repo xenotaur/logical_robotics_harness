@@ -31,7 +31,7 @@ acceptance:
   - When the active black or ruff version is outside the pinned bound, the canonical script exits non-zero BEFORE running the tool, instead of silently reformatting or linting under the wrong version
   - The failure message names the expected pinned version, the detected active version, and the two supported remedies (activate the documented project environment, or run under Taurworks)
   - The guardrail works in a bare CI checkout with no .taurworks/ present and no Taurworks on PATH (native enforcement is not gated on Taurworks detection)
-  - Reproduces the 2026-07-14 near-miss as a regression guard: with base-anaconda black 25.11.0 active, scripts/format --check and scripts/lint fail fast on the version mismatch rather than proposing an out-of-scope reformat of src/taurworks/manager.py-class files
+  - Regression guard for the 2026-07-14 failure mode: with an out-of-bound Black active (e.g. base-anaconda black 25.11.0 vs the 26.3.1 pin), scripts/format --check and scripts/lint fail fast on the version mismatch rather than running the wrong-version tool and proposing an out-of-scope reformat
   - Tests cover in-bound (pass), out-of-bound (fail-fast with explanatory message), and missing-tool cases
   - lrh validate passes 0 errors / 0 warnings on the full project after the change
 required_evidence:

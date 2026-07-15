@@ -2,13 +2,13 @@
 execution_id: 2026_07_15_17_06_21_ADOPT_DEV_TOOLCHAIN_ENV_RESOLUTION_REVIEW
 prompt_id: PROMPT(AD_HOC:ADOPT_DEV_TOOLCHAIN_ENV_RESOLUTION_REVIEW)[2026-07-15T17:02:34-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/392
+commit: d4d04a45737b24da584cf1b11e3128e390e48175
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/392
-session_transcript: pending
+session_transcript: claude-app:b8e5ff6e-fe7f-4b7b-b279-2b73cb2d65ea
 created_at: 2026-07-15T17:06:21-04:00
 ---
 
@@ -65,8 +65,9 @@ lrh validate                  — 0 errors, 0 warnings (operative gate)
 
 # Follow-up
 
-- Update `session_transcript: pending` to `claude-app:<session-id>` after the
-  session ends.
-- At merge/closeout: set `status: landed`, populate `pr:` and `commit:` with the
-  merge metadata for this record and land the WI/proposal per the closeout
-  workflow.
+- Closed out: PR #392 merged (commit `d4d04a4`); this record set to `landed`
+  with `pr`, `commit`, and `session_transcript` populated via `/lrh-closeout`.
+- `WI-DEV-TOOLCHAIN-VERSION-GUARDRAILS` remains `proposed` — PR #392 filed it as
+  a planning artifact; the native guardrail implementation is future work.
+- `PROP-DEV-TOOLCHAIN-ENV-RESOLUTION` was adopted within PR #392; no separate
+  adoption step needed.

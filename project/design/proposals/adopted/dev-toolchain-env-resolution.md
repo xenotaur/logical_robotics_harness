@@ -2,10 +2,12 @@
 id: PROP-DEV-TOOLCHAIN-ENV-RESOLUTION
 type: design_proposal
 title: Dev Toolchain Environment Resolution — Reliance on Taurworks Activation
-status: proposed
+status: adopted
 created_on: 2026-07-14
 updated_on: 2026-07-14
 implementation_status: not_started
+implemented_by:
+  - WI-DEV-TOOLCHAIN-VERSION-GUARDRAILS
 supersedes: []
 superseded_by: null
 ---
@@ -153,11 +155,32 @@ have it — never a hard dependency. This resolves the coupling question in the
 direction that avoids the LRH↔Taurworks circularity while still reusing the
 shipped activation machinery where it earns its keep.
 
-This proposal does not itself implement either half. If adopted, it would spawn:
+This proposal does not itself implement either half. It spawns:
 (1) an LRH work item for native version guardrails in the canonical scripts
 (coordinated with `dev_toolchain_reconciliation.md`), and (2) a definition of the
 optional Taurworks detection/interface contract, coordinated with
 `taurworks`'s `WI-ACTIVATION-PRODUCERS-0001`.
+
+### Decision & follow-ons (adopted 2026-07-14)
+
+**Option C is adopted.** Version enforcement is LRH-native and mandatory;
+Taurworks activation is an optional, detected resolver, never a hard dependency.
+This resolves the framed coupling question in the direction that avoids the
+LRH↔Taurworks circularity (§6) while still reusing shipped activation machinery
+where it earns its keep.
+
+Two artifacts carry the decision into implementation, kept distinct from this
+decision record:
+
+1. **`WI-DEV-TOOLCHAIN-VERSION-GUARDRAILS`** (`project/work_items/`) — native
+   Black/Ruff runtime-version guardrails in the canonical scripts. It stands on
+   its own even if the Taurworks-resolution question stayed open, and would have
+   turned the §2 incident into an immediate, explanatory failure. This is
+   `implemented_by` for this proposal.
+2. **The optional-Taurworks detection/interface contract** — settled below in
+   §9 as part of this adoption. A follow-on `WI-*` is deliberately **not** filed
+   yet; it is spun only once the contract has stabilized against `taurworks`'s
+   `WI-ACTIVATION-PRODUCERS-0001` (producer side of `[activation.environment]`).
 
 ## 8) Non-goals
 
@@ -166,12 +189,63 @@ optional Taurworks detection/interface contract, coordinated with
 - No decision on non-conda environment strategies (venv/Docker) — out of scope.
 - No new hard runtime dependency is being adopted by writing this document.
 
-## 9) Open questions
+## 9) Optional Taurworks detection/interface contract (settled at adoption)
 
-- Where should a native env guardrail live — inside `scripts/*`, a shared
-  `scripts/_env.sh` sourced by each, or CI bootstrap only?
-- What is the minimal, stable Taurworks detection contract (presence of `tw` on
-  PATH? a `taurworks project activate --print` probe?) that LRH can depend on
-  without pinning Taurworks internals?
-- Should LRH ship a fallback for contributors who use neither Taurworks nor the
-  documented env (e.g. a clear "activate X, or run under Taurworks" error)?
+Adopting Option C requires a stable, documented boundary so LRH can *consume*
+Taurworks resolution when present without depending on Taurworks internals. The
+three open questions from the proposed draft are resolved here as design
+direction; the guardrail work item (§7) implements the native half, and a
+follow-on `WI-*` implements this optional half only once the contract is
+confirmed against `taurworks`'s `WI-ACTIVATION-PRODUCERS-0001`.
+
+### 9.1 Where the native guardrail lives
+
+A shared, POSIX-`sh` **`scripts/_env.sh`**, sourced by `scripts/format`,
+`scripts/lint`, and `scripts/test`. This keeps one implementation of the version
+check rather than three copies, runs it in every environment that invokes a
+canonical script (bare CI included), and keeps the guardrail independent of any
+Taurworks detection. CI-bootstrap-only checks were rejected: they would not fire
+for local or agent callers, which is exactly where the §2 incident originated.
+The detection logic in §9.2 lives in the same shared file so both halves stay
+coherent.
+
+### 9.2 Minimal, stable Taurworks detection contract
+
+LRH treats Taurworks as an **optional resolver** discovered through a narrow,
+version-tolerant probe, never through `.taurworks/` internals or config parsing:
+
+1. **Gate on `tw` on `PATH`.** If `command -v tw` fails, Taurworks is absent;
+   skip resolution entirely and proceed with the active environment (the native
+   guardrail from §9.1 remains the safety net).
+2. **Resolve via a print-only probe, not activation side effects.** When `tw` is
+   present, LRH asks Taurworks to *report* the environment it would activate for
+   the current project — a read-only `--print`-style query (e.g.
+   `taurworks project activate --print`) that emits the resolved environment
+   without switching shells or `cd`-ing. LRH depends only on: (a) the command
+   exists and exits `0` when an environment is resolvable, (b) it exits non-zero
+   (and LRH falls back) when none is, and (c) its stdout is a single stable
+   token LRH can compare/act on. LRH does **not** parse `.taurworks/config.toml`
+   itself, does **not** depend on `[activation.environment]` schema shape, and
+   does **not** depend on `tw activate`'s sourced shell side effects.
+3. **Producer coordination.** The exact `--print` surface is the seam that must
+   be agreed with `taurworks`'s `WI-ACTIVATION-PRODUCERS-0001`, which ships the
+   writer side of `[activation.environment]`. The follow-on `WI-*` for this half
+   is filed only after that command's contract (name, flags, exit codes, stdout
+   format) is confirmed — pinning it now would couple LRH to an unshipped,
+   still-moving surface.
+
+If Taurworks resolves an environment that the native guardrail then finds
+version-incompatible, the guardrail still wins and fails fast: detection is a
+convenience that *resolves* the environment, and enforcement is the invariant
+that *validates* it (the resolve-vs-validate split from §6).
+
+### 9.3 Fallback for contributors using neither Taurworks nor the documented env
+
+Yes. The native guardrail's failure message is the fallback UX: when the active
+Black/Ruff versions fall outside the `constraints-dev.txt` bounds and no
+Taurworks resolver corrected them, the script exits non-zero with an explanatory
+message naming the expected bounds, the detected versions, and the two supported
+remedies — "activate the documented project environment, or run under Taurworks."
+This turns the silent near-miss of §2 into a loud, actionable error in every
+environment. Concrete wording is an acceptance detail of
+`WI-DEV-TOOLCHAIN-VERSION-GUARDRAILS`.

@@ -130,16 +130,19 @@ only policy-checked, sandboxed, logged, and interruptible capabilities may
 execute. Status: `proposed` / `not_started` (documentation-only design;
 no runtime behavior changes).
 
-[`proposed/dev-toolchain-env-resolution.md`](proposed/dev-toolchain-env-resolution.md)
-— Frames whether LRH-managed projects should rely on Taurworks
+[`adopted/dev-toolchain-env-resolution.md`](adopted/dev-toolchain-env-resolution.md)
+— Decides whether LRH-managed projects should rely on Taurworks
 (`.taurworks/config.toml [activation.environment]` + `tw activate`) to resolve
 which environment their canonical `scripts/format`/`scripts/lint`/`scripts/test`
 run in, or own a Taurworks-free mechanism. Separates version *enforcement*
-(LRH-native) from environment *resolution* (the open coupling question), and
-recommends Option C: native version guardrails plus optional, detected Taurworks
-resolution — avoiding an LRH↔Taurworks circular dependency, since Taurworks is
-itself LRH-managed. Status: `proposed` / `not_started` (documentation-only; no
-script, schema, or runtime change).
+(LRH-native) from environment *resolution* (the coupling question), and adopts
+Option C: native version guardrails plus optional, detected Taurworks resolution
+— avoiding an LRH↔Taurworks circular dependency, since Taurworks is itself
+LRH-managed. Settles the optional-Taurworks detection/interface contract (§9) and
+spawns `WI-DEV-TOOLCHAIN-VERSION-GUARDRAILS` for the native half. Status:
+`adopted` / `not_started` (documentation-only decision; guardrail implementation
+tracked by the work item, optional-resolver work item deferred until the contract
+is confirmed against `taurworks`'s `WI-ACTIVATION-PRODUCERS-0001`).
 
 [`adopted/lrh-project-local-skills/`](adopted/lrh-project-local-skills/)
 — Establishes first-class Claude Code skill support in LRH: the `src/lrh/skills/` package directory,

@@ -39,6 +39,12 @@ acceptance:
 required_evidence:
   - manual_review
   - lrh_validate
+artifacts_expected:
+  - src/lrh/skills/lrh-confirm-fixes/SKILL.md
+  - src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md
+  - .claude/skills/lrh-confirm-fixes/SKILL.md
+  - .claude/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md
+  - CLAUDE.md
 ---
 
 # Implement `/lrh-confirm-fixes` Claude Code skill
@@ -67,7 +73,8 @@ and wire the one-way handoff from `/lrh-review-response`.
 - `src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md` —
   lifecycle placement, the verification taxonomy, the `gh api graphql`
   primitives (thread listing, `databaseId`→URL mapping, `resolveReviewThread`,
-  `isResolved` check), the CI check (`statusCheckRollup`), the `_CONFIRM`
+  `isResolved` check), the CI check (`gh pr checks --json name,state,bucket`,
+  aggregated and re-checked post-push per Decision 8), the `_CONFIRM`
   execution-record convention with `rerun_of` population, and idempotency /
   re-run edge cases (Decision 14).
 - `.claude/skills/lrh-confirm-fixes/` — byte-for-byte mirror of the `src/` tree.

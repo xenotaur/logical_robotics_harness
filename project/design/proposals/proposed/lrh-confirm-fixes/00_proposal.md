@@ -256,10 +256,30 @@ thread resolution.**
 
 A thread can be correctly resolved on a red build — resolution reflects whether
 the diff addresses a comment, which is orthogonal to CI. So CI gates only the
-final verdict. The skill checks `gh pr view <pr> --json statusCheckRollup`
-(the rollup state is robust across check types) and reports three states:
-green → "ready to merge"; pending → "not yet ready — CI pending"; failing →
-"not ready — CI failing." Threads are resolved regardless of CI state.
+final verdict, and threads are resolved regardless of CI state.
+
+**CI check mechanism:** `gh pr view --json statusCheckRollup` returns an
+*array* of per-check `CheckRun`/`StatusContext` objects — there is no single
+top-level rollup `state` field to read (verified empirically: the CLI emits
+one entry per check, each with its own `conclusion`/`status` or `state`).
+Reading it as a single rollup state either fails to parse or misclassifies CI.
+The skill instead uses `gh pr checks <pr> --json name,state,bucket`, which
+pre-normalizes each check into a `bucket` of `pass` / `fail` / `pending` /
+`skipping` / `cancel`. Aggregate: **green** iff every bucket is `pass`;
+**failing** if any bucket is `fail` or `cancel`; otherwise **pending** (`gh pr
+checks` also exits 8 specifically for "checks pending", usable as a fast
+short-circuit). Use `--required` to scope the aggregation to required checks
+only, avoiding false negatives from optional/skipped checks.
+
+**Staleness:** Step 7 pushes the `_CONFIRM` execution record as a new commit,
+which moves `HEAD` *after* any CI status gathered earlier in the run (Step 2's
+provisional check, shown at the confirm gate). A verdict computed from that
+earlier status would describe a commit the human is not actually being told to
+merge — a stale "ready" report while the real HEAD's checks are still pending
+or could fail. The skill therefore treats the Step 2 CI read as provisional
+context only, and re-fetches CI (`gh pr checks`, aggregated as above) against
+the post-push `HEAD` SHA immediately before emitting the final verdict in
+Step 8 — see Decision 13.
 
 ### Decision 9: Execution record — AD_HOC with `rerun_of`
 
@@ -347,7 +367,10 @@ Step 1 — Detect PR and verify branch
 
 Step 2 — Gather state
          Fetch comments (lrh request review_response); list unresolved threads
-         (gh api graphql reviewThreads); check CI (gh pr view --json statusCheckRollup)
+         (gh api graphql reviewThreads); read provisional CI status
+         (gh pr checks --json name,state,bucket, aggregated per Decision 8).
+         This CI read is context for the confirm gate only — it is superseded
+         by the Step 8 re-check against the post-push HEAD.
 
 Step 3 — Fresh-eyes verification
          Read each thread's comment against the HEAD diff; classify into the
@@ -355,21 +378,31 @@ Step 3 — Fresh-eyes verification
 
 Step 4 — Confirm gate (human gate)
          Show: batch of Clear-satisfied threads to resolve (author + bot/human
-         tag), the surfaced exceptions by bucket, CI status, provisional verdict.
+         tag), the surfaced exceptions by bucket, provisional CI status.
          Wait for explicit confirmation.
 
 Step 5 — Execute confirmed resolutions
          resolveReviewThread for each confirmed thread (skip already-resolved).
          For Unaddressed threads, offer /lrh-review-response (bounded; its own gate).
 
-Step 6 — Compute readiness verdict
-         Green iff all verifiable threads resolved AND no open exceptions AND CI green.
+Step 6 — Compute thread-resolution verdict
+         Green (thread component) iff all verifiable threads resolved AND no
+         open exceptions remain. This does not depend on CI and is not
+         affected by the Step 7 push.
 
 Step 7 — Create execution record and validate
          AD_HOC _CONFIRM record with rerun_of; lrh validate; commit + push.
+         This is the commit the human will actually be asked to merge, so CI
+         must be (re-)evaluated against the resulting HEAD, not the
+         pre-push commit.
 
 Step 8 — Readiness report
-         Verdict + surfaced exceptions + gh pr merge one-liner (human clicks).
+         Re-fetch CI (gh pr checks, aggregated) against the post-push HEAD SHA.
+         Final verdict = Step 6 thread-resolution verdict AND this re-checked
+         CI state. Report the verdict, the exact HEAD SHA it was checked
+         against, surfaced exceptions, and the gh pr merge one-liner (human
+         clicks). If CI is still pending at the post-push SHA, report
+         "not yet ready — CI pending on <sha>" rather than a false green.
 ```
 
 ### Decision 14: Reference file structure

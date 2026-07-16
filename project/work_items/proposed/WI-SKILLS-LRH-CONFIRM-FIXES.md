@@ -49,7 +49,7 @@ artifacts_expected:
 
 # Implement `/lrh-confirm-fixes` Claude Code skill
 
-## Objective
+## Summary
 
 Implement the `/lrh-confirm-fixes` skill as designed in `PROP-LRH-CONFIRM-FIXES`:
 a pre-merge pass that independently verifies pushed review fixes against the
@@ -57,40 +57,59 @@ current `HEAD` diff, resolves the review threads the diff plainly satisfies,
 surfaces the exceptions, and ends at a merge-readiness verdict without merging
 the PR.
 
+## Problem
+
+The LRH execution lifecycle today is `/lrh-implement → /lrh-review-response
+(repeat) → [nothing] → human merges → /lrh-closeout`. No step independently
+verifies that pushed fixes actually resolved the reviewers' comments, or marks
+the review threads resolved. `/lrh-review-response` cannot fill this gap
+itself — it writes the fixes, so a same-run verification would be
+self-attestation. `/lrh-closeout` cannot either — it requires `state: MERGED`
+and runs after the point where thread resolution matters. `PROP-LRH-CONFIRM-FIXES`
+(`project/design/proposals/proposed/lrh-confirm-fixes/00_proposal.md`) captures
+the full design: 14 decisions covering independence, the "exceptions are the
+product" verification taxonomy, the single batch confirm gate, and why merge
+stays explicitly out of scope. `WS-SKILLS-CONFIRM-FIXES` governs this
+implementation.
+
 ## Scope
 
-Produce the skill following the `/lrh-*` project-local skill pattern
-(`SKILL.md` + `references/`, confirm gate, "What This Skill Does Not Do"),
-and wire the one-way handoff from `/lrh-review-response`.
+- Implement `/lrh-confirm-fixes` as a new project-local skill following the
+  `/lrh-*` pattern (`SKILL.md` + `references/`, confirm gate, "What This
+  Skill Does Not Do")
+- Wire the one-way handoff pointer and `rerun_of` exclusion-glob fix into
+  `/lrh-review-response`
+- Mirror all changes to `.claude/skills/`
 
-### Deliverables
+## Required Changes
 
-- `src/lrh/skills/lrh-confirm-fixes/SKILL.md` — 8-step flow per
+- Create `src/lrh/skills/lrh-confirm-fixes/SKILL.md` — 8-step flow per
   `PROP-LRH-CONFIRM-FIXES` Decision 13 (detect PR → gather state → fresh-eyes
   verification → confirm gate → execute resolutions → compute verdict →
   record + validate → readiness report), with `disable-model-invocation: true`
   and an `argument-hint` for the PR URL.
-- `src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md` —
+- Create `src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md` —
   lifecycle placement, the verification taxonomy, the `gh api graphql`
   primitives (thread listing, `databaseId`→URL mapping, `resolveReviewThread`,
   `isResolved` check), the CI check (`gh pr checks --json name,state,bucket`,
   aggregated and re-checked post-push per Decision 8), the `_CONFIRM`
   execution-record convention with `rerun_of` population, and idempotency /
   re-run edge cases (Decision 14).
-- `.claude/skills/lrh-confirm-fixes/` — byte-for-byte mirror of the `src/` tree.
-- `CLAUDE.md ## Skills` — add the `/lrh-confirm-fixes` entry.
-
-### Handoff wiring to `/lrh-review-response` (Decisions 9 and 11)
-
+- Mirror both files to `.claude/skills/lrh-confirm-fixes/`.
+- Add a `/lrh-confirm-fixes` index entry to `CLAUDE.md ## Skills`.
 - Insert a `/lrh-confirm-fixes` node into the lifecycle diagram in
-  `review-response-workflow.md`, between "repeat review rounds" and
-  "Merge + closeout".
-- Add a one-line next-step pointer to `/lrh-review-response`'s Step 7 report.
-- Update `/lrh-review-response`'s `rerun_of` exclusion glob (in both `SKILL.md`
-  and `review-response-workflow.md`) to exclude `_CONFIRM.md` in addition to
-  `_REVIEW.md`, so a confirm record is never mismatched as a primary record.
-- Mirror all `/lrh-review-response` edits to both `src/lrh/skills/` and
-  `.claude/skills/`.
+  `src/lrh/skills/lrh-review-response/references/review-response-workflow.md`,
+  between "repeat review rounds" and "Merge + closeout".
+- Add a one-line next-step pointer to `/lrh-review-response`'s Step 7 report
+  in `src/lrh/skills/lrh-review-response/SKILL.md`.
+- Update `/lrh-review-response`'s `rerun_of` exclusion glob (in both
+  `SKILL.md` and `review-response-workflow.md`) to exclude `_CONFIRM.md` in
+  addition to `_REVIEW.md`, so a confirm record is never mismatched as a
+  primary record.
+- Mirror the above `/lrh-review-response` edits to
+  `.claude/skills/lrh-review-response/`.
+- Add `WI-SKILLS-LRH-CONFIRM-FIXES` to `WS-SKILLS-CONFIRM-FIXES.md`'s
+  `work_items:` list (it is already present; confirm on landing).
 
 ## Design Constraints
 
@@ -101,13 +120,23 @@ and wire the one-way handoff from `/lrh-review-response`.
   threads. Never resolve a thread the diff does not plainly satisfy.
 - **Single batch confirm gate per run** (Decision 4) — not per-thread, not
   zero-gate.
-- **Merge stays out of scope** (Decision 5) — end at a readiness verdict plus a
-  `gh pr merge` one-liner; do not merge, do not trigger closeout.
 - **Reuse `lrh request review_response`** for comment fetch and `gh api graphql`
   for thread operations (Decision 10) — no new CLI or `request_catalog.py`
   entry.
 
-## Acceptance
+## Non-Goals
+
+- Does not merge the PR — end at a readiness verdict plus a `gh pr merge`
+  one-liner; merge stays a human action (Decision 5).
+- Does not trigger `/lrh-closeout` — closeout runs post-merge.
+- Does not resolve any thread the diff does not plainly satisfy — ambiguous,
+  partial, and problematic threads are surfaced, never guess-resolved.
+- Does not silently loop `/lrh-review-response` — unaddressed threads are
+  detected and the fix skill is offered, not auto-invoked.
+- Does not modify `lrh request review_response` or its template, and does not
+  add a new `lrh request` catalog entry.
+
+## Acceptance Criteria
 
 - `src/lrh/skills/lrh-confirm-fixes/SKILL.md` exists with valid frontmatter
 - `src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md` exists
@@ -121,3 +150,10 @@ and wire the one-way handoff from `/lrh-review-response`.
 - `WI-SKILLS-LRH-CONFIRM-FIXES` present in `WS-SKILLS-CONFIRM-FIXES.md`
   `work_items` list
 - `lrh validate` reports 0 errors
+
+## Validation
+
+- `scripts/version tools`
+- `lrh validate`
+- `diff -r src/lrh/skills/lrh-confirm-fixes/ .claude/skills/lrh-confirm-fixes/`
+- `diff -r src/lrh/skills/lrh-review-response/ .claude/skills/lrh-review-response/`

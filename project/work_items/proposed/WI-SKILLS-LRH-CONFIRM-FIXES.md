@@ -57,7 +57,7 @@ current `HEAD` diff, resolves the review threads the diff plainly satisfies,
 surfaces the exceptions, and ends at a merge-readiness verdict without merging
 the PR.
 
-## Problem / Context
+## Problem
 
 The LRH execution lifecycle today is `/lrh-implement → /lrh-review-response
 (repeat) → [nothing] → human merges → /lrh-closeout`. No step independently
@@ -83,32 +83,33 @@ implementation.
 
 ## Required Changes
 
-1. Create `src/lrh/skills/lrh-confirm-fixes/SKILL.md` — 8-step flow per
-   `PROP-LRH-CONFIRM-FIXES` Decision 13 (detect PR → gather state → fresh-eyes
-   verification → confirm gate → execute resolutions → compute verdict →
-   record + validate → readiness report), with `disable-model-invocation: true`
-   and an `argument-hint` for the PR URL.
-2. Create `src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md` —
-   lifecycle placement, the verification taxonomy, the `gh api graphql`
-   primitives (thread listing, `databaseId`→URL mapping, `resolveReviewThread`,
-   `isResolved` check), the CI check (`gh pr checks --json name,state,bucket`,
-   aggregated and re-checked post-push per Decision 8), the `_CONFIRM`
-   execution-record convention with `rerun_of` population, and idempotency /
-   re-run edge cases (Decision 14).
-3. Mirror both files to `.claude/skills/lrh-confirm-fixes/`.
-4. Add a `/lrh-confirm-fixes` index entry to `CLAUDE.md ## Skills`.
-5. Insert a `/lrh-confirm-fixes` node into the lifecycle diagram in
-   `src/lrh/skills/lrh-review-response/references/review-response-workflow.md`,
-   between "repeat review rounds" and "Merge + closeout".
-6. Add a one-line next-step pointer to `/lrh-review-response`'s Step 7 report
-   in `src/lrh/skills/lrh-review-response/SKILL.md`.
-7. Update `/lrh-review-response`'s `rerun_of` exclusion glob (in both
-   `SKILL.md` and `review-response-workflow.md`) to exclude `_CONFIRM.md` in
-   addition to `_REVIEW.md`, so a confirm record is never mismatched as a
-   primary record.
-8. Mirror steps 5–7 to `.claude/skills/lrh-review-response/`.
-9. Add `WI-SKILLS-LRH-CONFIRM-FIXES` to `WS-SKILLS-CONFIRM-FIXES.md`'s
-   `work_items:` list (it is already present; confirm on landing).
+- Create `src/lrh/skills/lrh-confirm-fixes/SKILL.md` — 8-step flow per
+  `PROP-LRH-CONFIRM-FIXES` Decision 13 (detect PR → gather state → fresh-eyes
+  verification → confirm gate → execute resolutions → compute verdict →
+  record + validate → readiness report), with `disable-model-invocation: true`
+  and an `argument-hint` for the PR URL.
+- Create `src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md` —
+  lifecycle placement, the verification taxonomy, the `gh api graphql`
+  primitives (thread listing, `databaseId`→URL mapping, `resolveReviewThread`,
+  `isResolved` check), the CI check (`gh pr checks --json name,state,bucket`,
+  aggregated and re-checked post-push per Decision 8), the `_CONFIRM`
+  execution-record convention with `rerun_of` population, and idempotency /
+  re-run edge cases (Decision 14).
+- Mirror both files to `.claude/skills/lrh-confirm-fixes/`.
+- Add a `/lrh-confirm-fixes` index entry to `CLAUDE.md ## Skills`.
+- Insert a `/lrh-confirm-fixes` node into the lifecycle diagram in
+  `src/lrh/skills/lrh-review-response/references/review-response-workflow.md`,
+  between "repeat review rounds" and "Merge + closeout".
+- Add a one-line next-step pointer to `/lrh-review-response`'s Step 7 report
+  in `src/lrh/skills/lrh-review-response/SKILL.md`.
+- Update `/lrh-review-response`'s `rerun_of` exclusion glob (in both
+  `SKILL.md` and `review-response-workflow.md`) to exclude `_CONFIRM.md` in
+  addition to `_REVIEW.md`, so a confirm record is never mismatched as a
+  primary record.
+- Mirror the above `/lrh-review-response` edits to
+  `.claude/skills/lrh-review-response/`.
+- Add `WI-SKILLS-LRH-CONFIRM-FIXES` to `WS-SKILLS-CONFIRM-FIXES.md`'s
+  `work_items:` list (it is already present; confirm on landing).
 
 ## Design Constraints
 

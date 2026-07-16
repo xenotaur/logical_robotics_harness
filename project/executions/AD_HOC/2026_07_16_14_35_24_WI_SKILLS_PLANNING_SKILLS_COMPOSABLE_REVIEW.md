@@ -2,14 +2,14 @@
 execution_id: 2026_07_16_14_35_24_WI_SKILLS_PLANNING_SKILLS_COMPOSABLE_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_PLANNING_SKILLS_COMPOSABLE_REVIEW)[2026-07-16T14:25:55-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/394
-commit: 
+commit: 4a81f06193d5ae3de81139605655d7c043e010b1
 created_at: 2026-07-16T14:35:24-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/394
-session_transcript: pending
+session_transcript: claude-app:49a80683-68ef-40ff-a81c-28253a11ca8e
 ---
 
 # Summary

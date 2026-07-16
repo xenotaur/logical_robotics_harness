@@ -2,14 +2,14 @@
 execution_id: 2026_07_16_15_58_09_WI_CONFIRM_FIXES_HEADING_FIX_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_CONFIRM_FIXES_HEADING_FIX_REVIEW)[2026-07-16T15:40:03-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/395
-commit: 
+commit: 1ec380553bb7f816748604aebfc1252bd8dd6ad0
 created_at: 2026-07-16T15:58:09-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/395
-session_transcript: pending
+session_transcript: claude-app:49a80683-68ef-40ff-a81c-28253a11ca8e
 ---
 
 # Summary

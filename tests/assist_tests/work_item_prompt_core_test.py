@@ -72,6 +72,42 @@ class TestWorkItemPromptCore(unittest.TestCase):
                 "Add focused tests only where needed for this work item", prompt
             )
 
+    def test_parse_recognizes_problem_context_heading_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            work_item_path = pathlib.Path(temp_dir) / "WI-EXAMPLE.md"
+            work_item_path.write_text(
+                (
+                    "---\n"
+                    "id: WI-EXAMPLE\n"
+                    "title: Example item\n"
+                    "type: deliverable\n"
+                    "status: proposed\n"
+                    "blocked: false\n"
+                    "---\n\n"
+                    "## Summary\n\n"
+                    "One-line summary.\n\n"
+                    "## Problem / Context\n\n"
+                    "Richer problem context that should feed the objective.\n"
+                ),
+                encoding="utf-8",
+            )
+
+            parsed = work_item_prompt_core.parse_work_item_markdown(work_item_path)
+
+            self.assertEqual(
+                parsed.problem,
+                "Richer problem context that should feed the objective.",
+            )
+
+            data = work_item_prompt_core.build_work_item_prompt_data(
+                parsed=parsed,
+                readiness=work_item_prompt_core.evaluate_prompt_readiness(parsed),
+                prompt_id="PROMPT(AD_HOC:TEST)[2026-04-24T20:05:00-04:00]",
+                work_item_path=work_item_path.as_posix(),
+                style_guide_path="STYLE.md",
+            )
+            self.assertEqual(data.objective, parsed.problem)
+
     def test_readiness_blocks_resolved_items(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             work_item_path = self._write_work_item(

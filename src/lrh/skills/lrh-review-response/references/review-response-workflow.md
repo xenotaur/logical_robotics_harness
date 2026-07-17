@@ -24,6 +24,12 @@ PR review (Codex, Copilot, human)   ← reviewers post comments
 (repeat if further review rounds)
     │
     ▼
+/lrh-confirm-fixes <pr-url>         ← fresh-eyes verification against the
+    │  current diff (never against this skill's report); resolves threads
+    │  the diff plainly satisfies; surfaces exceptions; ends at a
+    │  merge-readiness verdict + gh pr merge one-liner
+    │
+    ▼
 Merge PR + closeout (human)         ← update records to landed, resolve WI
 ```
 
@@ -43,14 +49,14 @@ Search for the original execution ID. Convert the branch slug (without the
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -v "_REVIEW\.md$"
+find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
 ```
 
 Example: branch `xenotaur/feat/wi-skills-lrh-review-response` →
 slug `wi-skills-lrh-review-response` → `UPPER_SLUG=WI_SKILLS_LRH_REVIEW_RESPONSE` →
 search for `*WI_SKILLS_LRH_REVIEW_RESPONSE*.md`, exclude files whose names end
-with `_REVIEW.md` (review-response records end with that suffix; primary records
-do not).
+with `_REVIEW.md` or `_CONFIRM.md` (review-response and `/lrh-confirm-fixes`
+side records end with those suffixes; primary records do not).
 
 If the original record is found, set:
 

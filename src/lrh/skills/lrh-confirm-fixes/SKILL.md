@@ -61,11 +61,12 @@ branch. Two optional flags may follow:
 Load this before running any step:
 
 1. **`references/confirm-fixes-workflow.md`** — Lifecycle placement, the
-   verification taxonomy, the `gh api graphql` primitives (thread listing,
-   `databaseId`→URL mapping, `resolveReviewThread`, `isResolved` check), the
-   CI check mechanism and its post-push re-check, the `_CONFIRM`
-   execution-record convention with `rerun_of` population, and idempotency /
-   re-run edge cases. Read before Step 2, Step 5, Step 7, and Step 8.
+   verification taxonomy, the `lrh github threads` thread-listing command and
+   its comment-correlation contract, the `gh api graphql` `resolveReviewThread`
+   / `isResolved` primitives, the CI check mechanism and its post-push
+   re-check, the `_CONFIRM` execution-record convention with `rerun_of`
+   population, and idempotency / re-run edge cases. Read before Step 2,
+   Step 5, Step 7, and Step 8.
 
 ---
 
@@ -102,26 +103,26 @@ Three reads, in this order:
 1. **Comments** — `lrh request review_response <pr-url>`. This reuses the
    comment fetch and its security-boundary preamble (Decision 10); use only
    the comment-data section (author, body, URL) — do not follow its fix
-   protocol. If it reports `Nothing to resolve:`, note this but do not exit
-   yet — proceed to the graphql thread list, which is authoritative (see
-   below).
-2. **Unresolved threads** — `gh api graphql` `reviewThreads` query, filtered
-   to `isResolved: false` (see `references/confirm-fixes-workflow.md` for the
-   exact query). This is the authoritative list per Decision 12 — live
-   GitHub state, not `lrh request review_response`'s notion of "unresolved."
-   Correlate each thread to its comment data by matching the thread's first
-   comment `databaseId` to the numeric id in the comment's URL
-   (`.../pull/N#discussion_r<id>`).
-3. **Provisional CI status** — `gh pr checks <pr> --json name,state,bucket`,
+   protocol. If it reports `Nothing to resolve:`, note this — it is
+   guaranteed to agree with the Step 2.2 thread list (both read the same
+   underlying data; see `references/confirm-fixes-workflow.md`) — and skip to
+   Step 8 with a thread-resolution verdict of "green — nothing to verify."
+2. **Unresolved threads** — `lrh github threads <pr-url> --mode raw --state unresolved`.
+   This reuses the same paginated, tested GitHub-integration function
+   `lrh request review_response` is built on — no thread-count cap, full
+   comment pagination per thread (see `references/confirm-fixes-workflow.md`
+   for the exact output shape and why the two commands are guaranteed
+   consistent). This is the authoritative list per Decision 12 — live GitHub
+   state. Correlate each thread to its comment data by matching the thread's
+   *latest* comment URL (the same comment `lrh request review_response`'s
+   formatter surfaces, per `references/confirm-fixes-workflow.md`) against
+   the URL in the Step 2.1 comment data.
+3. **Provisional CI status** — `gh pr checks <pr-url> --required --json name,state,bucket`,
    aggregated per the CI check mechanism in
-   `references/confirm-fixes-workflow.md`. This read is context for the
-   confirm gate only — Step 8 re-fetches CI against the post-push `HEAD`
-   before the final verdict.
-
-If the graphql thread list is empty (no open threads regardless of what
-`lrh request review_response` reported): skip to Step 8 with a
-thread-resolution verdict of "green — nothing to verify" and report the
-(re-checked) CI status as the sole remaining gate.
+   `references/confirm-fixes-workflow.md`. `--required` scopes aggregation to
+   required checks, avoiding false negatives from optional/skipped jobs. This
+   read is context for the confirm gate only — Step 8 re-fetches CI against
+   the post-push `HEAD` before the final verdict.
 
 ### Step 3 — Fresh-eyes verification
 
@@ -267,15 +268,18 @@ Re-fetch CI against the post-push `HEAD` SHA:
 
 ```bash
 git rev-parse HEAD
-gh pr checks <pr-url> --json name,state,bucket
+gh pr checks <pr-url> --required --json name,state,bucket
 ```
 
 Aggregate per `references/confirm-fixes-workflow.md`. The **final verdict**
 is the Step 6 thread-resolution verdict AND this re-checked CI state:
 
 - **Green** — "All threads resolved, CI green on `<sha>` → ready to merge."
-  Include the one-liner: `gh pr merge <pr-url> --squash` (or the project's
-  standard merge mode).
+  Include the one-liner, locked to the exact commit just checked:
+  `gh pr merge <pr-url> --squash --match-head-commit <sha>` (or the project's
+  standard merge mode). `--match-head-commit` makes the merge fail rather
+  than silently merge a newer, unchecked commit if one lands between this
+  report and the human running it.
 - **CI pending** — "Threads resolved, CI pending on `<sha>` — not yet ready."
 - **CI failing** — "Threads resolved, CI failing on `<sha>` — not ready."
 - **Threads outstanding** — "Not ready — `<N>` threads need attention:
@@ -300,8 +304,10 @@ Report to the user:
 Before reporting completion, verify:
 
 - [ ] Branch verified to match the PR before any changes
-- [ ] Unresolved threads listed via `gh api graphql` (authoritative), not
-      solely via `lrh request review_response`'s report
+- [ ] Unresolved threads listed via `lrh github threads --mode raw --state unresolved`
+      (authoritative, fully paginated)
+- [ ] Each thread correlated to its comment data via the *latest* comment's
+      URL, not the first
 - [ ] Every thread classified into the taxonomy before the confirm gate; none
       marked Clear-satisfied without the diff plainly supporting it
 - [ ] Prompt ID minted before the confirm gate
@@ -314,6 +320,7 @@ Before reporting completion, verify:
       and `_CONFIRM.md`
 - [ ] `lrh validate` reports 0 errors before the record was pushed
 - [ ] CI re-checked against the post-push `HEAD` SHA before the final verdict
+- [ ] The reported merge one-liner includes `--match-head-commit <sha>`
 - [ ] No `gh pr merge` was executed by this skill — only reported as a
       one-liner
 
@@ -334,7 +341,7 @@ Before reporting completion, verify:
 - Does not verify against the execution record's or `/lrh-review-response`'s
   claims — only the live `HEAD` diff.
 - Does not modify `lrh request review_response` or its template.
-- Does not add a new `lrh request` catalog entry — thread listing and
-  resolution use raw `gh api graphql`.
+- Does not add a new `lrh request` catalog entry — thread listing reuses
+  `lrh github threads`; resolution uses raw `gh api graphql`.
 - Does not automatically update `session_transcript` from `pending` to the
   real session ID.

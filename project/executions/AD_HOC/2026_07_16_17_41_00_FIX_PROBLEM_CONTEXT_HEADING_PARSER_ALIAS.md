@@ -2,14 +2,14 @@
 execution_id: 2026_07_16_17_41_00_FIX_PROBLEM_CONTEXT_HEADING_PARSER_ALIAS
 prompt_id: PROMPT(AD_HOC:FIX_PROBLEM_CONTEXT_HEADING_PARSER_ALIAS)[2026-07-16T17:41:00-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/396
+commit: 7d00e666ce223dc45d1576f4fa4550098280e104
 created_at: 2026-07-16T17:41:00-04:00
 agent: claude_app
 instruction_source: background task spawned from project/executions/AD_HOC/2026_07_16_15_58_09_WI_CONFIRM_FIXES_HEADING_FIX_REVIEW.md
-session_transcript: pending
+session_transcript: claude-app:60ba59d7-8a73-40d3-ae27-8239ea98463f
 ---
 
 # Summary

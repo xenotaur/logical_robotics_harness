@@ -2,14 +2,14 @@
 execution_id: 2026_07_17_16_49_32_ELEGANT_HERTZ_C15B67_REVIEW
 prompt_id: PROMPT(AD_HOC:ELEGANT_HERTZ_C15B67_REVIEW)[2026-07-17T01:08:06-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_16_17_41_00_FIX_PROBLEM_CONTEXT_HEADING_PARSER_ALIAS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/396
-commit:
+commit: 7d00e666ce223dc45d1576f4fa4550098280e104
 created_at: 2026-07-17T16:49:32-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/396
-session_transcript: pending
+session_transcript: claude-app:60ba59d7-8a73-40d3-ae27-8239ea98463f
 ---
 
 # Summary

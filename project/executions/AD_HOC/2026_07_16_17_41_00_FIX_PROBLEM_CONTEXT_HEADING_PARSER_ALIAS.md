@@ -2,10 +2,10 @@
 execution_id: 2026_07_16_17_41_00_FIX_PROBLEM_CONTEXT_HEADING_PARSER_ALIAS
 prompt_id: PROMPT(AD_HOC:FIX_PROBLEM_CONTEXT_HEADING_PARSER_ALIAS)[2026-07-16T17:41:00-04:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of:
-pr: https://github.com/xenotaur/logical_robotics_harness/pull/396
-commit: de78b082ac723b141199403e7bbb859b4c112c92
+pr:
+commit:
 created_at: 2026-07-16T17:41:00-04:00
 agent: claude_app
 instruction_source: background task spawned from project/executions/AD_HOC/2026_07_16_15_58_09_WI_CONFIRM_FIXES_HEADING_FIX_REVIEW.md
@@ -51,10 +51,20 @@ broken before this fix and confirmed fixed after, via direct parser calls
 (see Validation). Its heading was left unchanged since it already matches
 the documented convention.
 
-A repo-wide grep for `## Problem / Context` across
-`project/work_items/**/*.md` found only that one file plus the
-already-locally-patched `WI-SKILLS-LRH-CONFIRM-FIXES.md` (which now reads
-`## Problem`, from PR #395). No other files were affected.
+**Correction (review response):** the original affected-file audit in this
+section was wrong. It reported finding only that one file via
+`grep -rl "## Problem / Context" project/work_items/`, but a `git grep`
+against the same tree finds 44 matching work items, spanning both
+`proposed/` and `resolved/`, most pre-dating this session (e.g.
+`WI-AGENT-BRANCH-CONTAINMENT.md`, first added 2026-07-05). The original
+command's result was inaccurate — cause not determined, but the file
+contents were unchanged and not the result of concurrent edits (confirmed
+via `git blame`). Flagged by reviewer `chatgpt-codex-connector` on PR #396.
+Re-verified by parsing all 44 affected files directly:
+`parse_work_item_markdown()` now returns a non-empty `parsed.problem` for
+all 44, with zero remaining failures — the alias fallback is a generic
+key-lookup fix, not file-specific, so file count does not change the fix
+itself, only the evidence claim about scope.
 
 # Validation
 
@@ -68,6 +78,9 @@ lrh validate  — 0 errors, 0 warnings
 Direct parser verification against project/work_items/resolved/WI-SKILLS-LRH-WORK-ITEM-COMPOSABLE.md:
   parsed.problem non-empty: True (before fix: False)
   build_work_item_prompt_data().objective == parsed.problem: True (before fix: fell back to summary)
+Direct parser verification against all 44 files matching `## Problem / Context`
+(re-run during review response, see project/executions/AD_HOC/2026_07_17_01_08_06_ELEGANT_HERTZ_C15B67_REVIEW.md):
+  files with non-empty parsed.problem after fix: 44 / 44
 ```
 
 # Follow-up
@@ -77,3 +90,6 @@ Direct parser verification against project/work_items/resolved/WI-SKILLS-LRH-WOR
 - No other files require heading or parser changes; the alias fallback
   covers all current and future work items using the documented
   `## Problem / Context` heading.
+- After PR #396 merges, set `status: landed` and fill `pr`/`commit` with
+  merge metadata (see `project/executions/WI-RELEASE-TAG-CI/2026_04_29_03_12_03_ADDRESS_REVIEW_FEEDBACK.md`
+  for the convention).

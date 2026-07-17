@@ -1,0 +1,260 @@
+# lrh-confirm-fixes Workflow Context
+
+Where `/lrh-confirm-fixes` sits in the LRH lifecycle, the verification
+taxonomy, the `gh api graphql` primitives for thread listing and resolution,
+the CI check mechanism, the `_CONFIRM` execution-record convention, and
+idempotency / re-run edge cases. Read this before Step 2, Step 5, Step 7, and
+Step 8 of `SKILL.md`.
+
+---
+
+## Lifecycle placement
+
+```
+/lrh-implement WI-<ID>              ← opens the PR
+    │
+    ▼
+PR review (Codex, Copilot, human)   ← reviewers post comments
+    │
+    ▼
+/lrh-review-response <pr-url>       ← fetches comments, fixes, pushes
+    │
+    ▼
+(repeat if further review rounds)
+    │
+    ▼
+/lrh-confirm-fixes <pr-url>         ← THIS SKILL
+    │  Fresh-eyes verification against the current HEAD diff
+    │  Resolves threads the diff plainly satisfies (single batch gate)
+    │  Surfaces exceptions: unaddressed / partial / ambiguous / problematic
+    │  Ends at a merge-readiness verdict + gh pr merge one-liner
+    │  Creates AD_HOC _CONFIRM execution record with rerun_of link
+    │
+    ▼
+Merge PR (human) + closeout          ← update records to landed, resolve WI
+```
+
+`/lrh-confirm-fixes` is the pre-merge complement `/lrh-review-response` cannot
+be (it writes the fixes, so a same-run check is self-attestation) and
+`/lrh-closeout` cannot be (it requires `state: MERGED`, so it runs too late).
+See `PROP-LRH-CONFIRM-FIXES` for the full design — 14 decisions covering
+independence, the verification taxonomy, the confirm-gate shape, and why
+merge stays out of scope.
+
+---
+
+## Verification taxonomy
+
+Applied to every unresolved thread at Step 3. The guardrail: **never mark a
+thread Clear-satisfied unless the current diff plainly resolves it.**
+
+| Bucket | Definition | Action |
+|---|---|---|
+| Clear-satisfied | The diff plainly resolves the comment — the exact concern raised is fixed at the location described | Resolve (batch) |
+| Unaddressed | The diff does not act on the comment at all | Surface; offer `/lrh-review-response` |
+| Partial | Some instances of the pattern are fixed, others are not (e.g. "you fixed line 17, please also fix line 19" and only line 17 changed) | Surface; do not resolve |
+| Ambiguous | The diff does not give enough information to decide either way | Surface; do not resolve |
+| Problematic resolution | A fix is present but appears wrong, incomplete, or introduces a new issue | Surface as a genuine finding — this is not the same as Clear-satisfied even though *something* changed |
+| Problematic comment | The reviewer's comment is itself wrong, or conflicts with a documented design decision (a Non-Goal, a decision in the governing proposal, a trade-off discussed in the implementing session) | Surface with skip-rationale — reuses `/lrh-review-response`'s validity-check reasoning |
+
+Ambiguous is the honest default when uncertain. Resolving a thread is an
+outward, GitHub-visible action; a wrong resolution is more costly to notice
+and correct than an over-cautious surface.
+
+---
+
+## `gh api graphql` primitives
+
+### List unresolved threads
+
+```bash
+gh api graphql -f query='
+{
+  repository(owner:"<owner>", name:"<repo>") {
+    pullRequest(number:<N>) {
+      reviewThreads(first:50) {
+        nodes {
+          id
+          isResolved
+          comments(first:1) {
+            nodes { databaseId author { login } }
+          }
+        }
+      }
+    }
+  }
+}'
+```
+
+Filter the returned `nodes` to `isResolved == false` client-side (the query
+itself does not support server-side filtering on this field). Each node's
+`id` (a `PRRT_...` string) is the thread ID used by the resolve mutation
+below; `comments.nodes[0].databaseId` is the numeric ID used to correlate
+this thread to a comment from `lrh request review_response`'s output.
+
+For threads with more than one comment, `comments(first:1)` returns only the
+first — sufficient for correlation, since `lrh request review_response`
+reports the same first-comment URL for a thread.
+
+### Map a comment URL to its `databaseId`
+
+A review-comment URL has the form:
+
+```
+https://github.com/<owner>/<repo>/pull/<N>#discussion_r<id>
+```
+
+The numeric `<id>` suffix **is** the comment's `databaseId`. No API call is
+needed for this half of the mapping — parse it directly from the URL string
+in `lrh request review_response`'s comment-data output.
+
+### Resolve one thread
+
+```bash
+gh api graphql -f query='
+mutation {
+  resolveReviewThread(input:{threadId:"<PRRT_...>"}) {
+    thread { id isResolved }
+  }
+}'
+```
+
+Check `isResolved` on the thread (from the Step 2 listing) before calling
+this — skip threads already resolved. The mutation is idempotent in effect
+(resolving an already-resolved thread is a no-op from GitHub's side), but
+skipping avoids an unnecessary API call and keeps the execution record's
+"resolved by this run" count accurate.
+
+### Tagging bot vs. human authors
+
+GraphQL's `author { login }` does not reliably distinguish bots via
+`__typename` alone — several automated reviewers observed in practice post as
+regular-looking logins rather than GitHub App/Bot accounts (e.g.
+`copilot-pull-request-reviewer`, `chatgpt-codex-connector`). Tag an author as
+bot if either:
+
+- the login ends in `[bot]`, or
+- the login matches a known automated-reviewer name (maintain a small list
+  seeded with `copilot-pull-request-reviewer`, `chatgpt-codex-connector`,
+  `github-actions`; extend as new reviewers are observed).
+
+Otherwise tag as human. This tag drives resolution pre-selection at the
+confirm gate (Decision 6) — bot threads are always pre-selected; human
+threads are pre-selected unless `--surface-human` was passed.
+
+---
+
+## CI check mechanism
+
+`gh pr view --json statusCheckRollup` returns an *array* of per-check
+`CheckRun`/`StatusContext` objects — there is no single top-level rollup
+`state` field. Reading it as one aggregate value either fails to parse or
+misclassifies CI. Use `gh pr checks` instead, which pre-normalizes each
+check into a `bucket`:
+
+```bash
+gh pr checks <pr-url> --json name,state,bucket
+```
+
+`bucket` is one of `pass`, `fail`, `pending`, `skipping`, `cancel`. Aggregate:
+
+- **green** iff every bucket is `pass`
+- **failing** if any bucket is `fail` or `cancel`
+- **pending** otherwise
+
+`gh pr checks` also exits with code `8` specifically for "checks pending" —
+usable as a fast short-circuit before parsing JSON. Add `--required` to scope
+the aggregation to required checks only, avoiding false negatives from
+optional or intentionally-skipped checks.
+
+### Why CI is checked twice
+
+Step 2 reads CI early, before any thread is resolved, purely as context shown
+at the confirm gate (a human deciding whether to proceed benefits from
+knowing CI state, even provisionally). But Step 7 pushes the `_CONFIRM`
+execution record as a new commit — this moves `HEAD`. A verdict computed from
+the Step 2 read would describe the pre-push commit, not the commit the human
+is actually being told to merge. Step 8 re-fetches CI against the post-push
+`HEAD` SHA before emitting the final verdict, so the report never claims
+"ready to merge" against a commit whose checks haven't actually run yet.
+
+---
+
+## `_CONFIRM` execution-record convention
+
+Confirm-fixes executions use `AD_HOC` as the work item bucket, mirroring
+`/lrh-review-response`'s `AD_HOC` convention — one primary execution entry per
+work item, with side records linked via `rerun_of`.
+
+**Filename suffix:** `_CONFIRM.md`, parallel to `/lrh-review-response`'s
+`_REVIEW.md`.
+
+**Slug derivation:** strip `<username>/<type>/` from the branch name, append
+`-confirm`:
+
+```
+xenotaur/feat/wi-skills-lrh-confirm-fixes → wi-skills-lrh-confirm-fixes-confirm
+```
+
+**`rerun_of` population:** search for the primary record, excluding *both*
+review-response and confirm-fixes side records:
+
+```bash
+UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
+```
+
+If found, set `rerun_of: <execution_id-from-the-primary-record>`. If not
+found (the PR was created outside `/lrh-implement`, as in a planning-only PR
+with no primary record), leave `rerun_of:` empty and note it in the body.
+
+**Cross-skill consequence:** `/lrh-review-response`'s own `rerun_of` search
+must also exclude `_CONFIRM.md` files (in addition to its existing
+`_REVIEW.md` exclusion) — otherwise a confirm-fixes side record could be
+mismatched as the primary record for a later review-response run on the same
+branch. This exclusion-glob update is applied to both
+`src/lrh/skills/lrh-review-response/SKILL.md` and
+`references/review-response-workflow.md` (and mirrored to `.claude/skills/`)
+as part of this skill's implementation, not as a follow-up.
+
+---
+
+## Idempotency and re-run edge cases
+
+The source of truth is **live GitHub thread state**, not the execution
+record. Each run re-queries unresolved threads against the current `HEAD`;
+threads resolved by a prior run drop out of the query automatically. This
+makes re-runs naturally idempotent without special-casing.
+
+### A prior `_CONFIRM` record exists on this branch
+
+Unlike `/lrh-review-response`'s hard stop on a prior `_REVIEW` record (a
+re-run there would double-push code), a prior `_CONFIRM` record is **not** a
+blocker. Warn the user and proceed. Rationale: a confirm-fixes re-run is
+cheap (mostly reads plus, at most, thread-resolution API calls) and safe —
+GitHub thread state may have legitimately changed since the last run (a
+reviewer replied, `/lrh-review-response` addressed more comments, CI
+finished). A hard stop here would force an unnecessary explicit-rerun dance
+for the normal "verify again after another review round" flow.
+
+### All threads already resolved, CI green
+
+A re-run in this state is a clean no-op: Step 2's thread list is empty, Step
+6's thread-resolution verdict is green with nothing to do, and Step 8 reports
+"already ready to merge" with the current `HEAD` SHA. No execution record
+content changes meaningfully, but the record is still created for audit
+continuity (each run's `_CONFIRM` record documents what was checked and when).
+
+### Partial resolution across rounds
+
+Run 1 resolves 3 of 5 threads, surfaces 2 as Unaddressed, and the user runs
+`/lrh-review-response` to address them. Run 2 of `/lrh-confirm-fixes` sees
+only the 2 previously-unaddressed threads (the 3 resolved ones no longer
+appear in the graphql query) — this is the designed flow, not an error
+condition.
+
+### No open comments at all
+
+If the graphql thread list is empty and `lrh request review_response` also
+reports `Nothing to resolve:`, skip straight to the CI-only verdict path
+(Step 8) — there is nothing to verify or resolve.

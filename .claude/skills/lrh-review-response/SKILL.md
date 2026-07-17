@@ -205,11 +205,12 @@ session_transcript: pending
 
 Find the original execution ID to populate `rerun_of`. Convert the branch
 slug to upper-underscore form before searching, and exclude files whose names
-end with `_REVIEW.md` (those are review-response records, not primary ones):
+end with `_REVIEW.md` or `_CONFIRM.md` (those are review-response and
+confirm-fixes side records, not primary ones):
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -v "_REVIEW\.md$"
+find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
 ```
 
 If found, add `rerun_of: <original-execution-id>` to the frontmatter.
@@ -229,6 +230,8 @@ Report to the user:
 - Validation evidence (tool versions, test count, result)
 - Reminder that `session_transcript: pending` should be updated to
   `claude-app:<session-id>` after the session ends
+- Suggest running `/lrh-confirm-fixes <pr-url>` before merge to verify the
+  fixes against the current diff and resolve the review threads
 
 ---
 

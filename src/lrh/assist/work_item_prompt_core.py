@@ -83,7 +83,7 @@ def parse_work_item_markdown(work_item_path: Path) -> ParsedWorkItem:
         item_type=item_type,
         blocked=blocked,
         summary=sections.get("summary", ""),
-        problem=sections.get("problem", ""),
+        problem=sections.get("problem", sections.get("problem / context", "")),
         scope=sections.get("scope", ""),
         out_of_scope=sections.get("out of scope", sections.get("non-goals", "")),
         required_changes=sections.get("required changes", ""),

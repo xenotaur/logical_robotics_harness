@@ -2,11 +2,12 @@
 id: PROP-LRH-CONFIRM-FIXES
 type: design_proposal
 title: LRH Pre-Merge Verification — /lrh-confirm-fixes Skill for Fresh-Eyes Thread Resolution
-status: proposed
+status: adopted
 created_on: 2026-07-15
-updated_on: 2026-07-15
-implementation_status: not_started
-implemented_by: []
+updated_on: 2026-07-17
+implementation_status: implemented
+implemented_by:
+  - WI-SKILLS-LRH-CONFIRM-FIXES
 supersedes: []
 superseded_by: null
 related_design:

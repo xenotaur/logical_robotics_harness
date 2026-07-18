@@ -2,14 +2,14 @@
 execution_id: 2026_07_17_18_55_17_WI_SKILLS_LRH_CONFIRM_FIXES
 prompt_id: PROMPT(WI-SKILLS-LRH-CONFIRM-FIXES:WI_SKILLS_LRH_CONFIRM_FIXES)[2026-07-17T17:46:02-04:00]
 work_item: WI-SKILLS-LRH-CONFIRM-FIXES
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/397
-commit: 
+commit: d6f3b9468772b3a6e61ec6acea20a14358f83e8d
 created_at: 2026-07-17T18:55:17-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-LRH-CONFIRM-FIXES.md
-session_transcript: pending
+session_transcript: claude-app:49a80683-68ef-40ff-a81c-28253a11ca8e
 ---
 
 # Summary

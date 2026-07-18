@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented in PR #397 (commit d6f3b946); review fixes landed via recovery PR #398 (commit 3b1dde5f) after a merge race dropped them from #397."
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-CONFIRM-FIXES
 title: Implement lrh-confirm-fixes Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

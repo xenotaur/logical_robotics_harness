@@ -2,8 +2,8 @@
 id: WS-SKILLS-CONFIRM-FIXES
 kind: planning_node
 title: LRH Pre-Merge Verification Skill
-status: proposed
-stage: designed
+status: resolved
+stage: closed
 origin: follow_up
 summary: >
   Implement the /lrh-confirm-fixes skill, a pre-merge pass that independently

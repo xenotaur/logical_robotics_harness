@@ -196,6 +196,32 @@ aggregation to required checks only, avoiding false negatives from optional
 or intentionally-skipped checks — always include it; the example above is
 not optional.
 
+### Fallback when the repo has no required-check branch protection
+
+`--required` filters to checks GitHub's branch-protection rules mark as
+required. If the target repo has no branch-protection rule marking any
+check as required, there is nothing for the flag to filter to and the
+command **exits non-zero** with the message `no required checks reported on
+the '<branch>' branch` — it does not return an empty list. Observed on this
+repo (`logical_robotics_harness` has no required-check branch protection)
+verifying PR #399: 5 checks (`coverage`, `installed-wheel-smoke`, `lint`,
+`Check workflow files`, `tests`) were all `SUCCESS`, yet `--required` still
+exited 1. Treating that exit code as "CI failing" would produce a false
+not-ready verdict against genuinely green CI.
+
+Whenever `gh pr checks <pr-url> --required --json name,state,bucket` exits
+non-zero with a message matching `no required checks reported`, fall back
+to the unfiltered form and aggregate over every reported check instead:
+
+```bash
+gh pr checks <pr-url> --json name,state,bucket
+```
+
+Apply the same green/failing/pending aggregation rules to the fallback's
+output. This fallback applies independently at both CI reads — Step 2's
+provisional read and Step 8's post-push re-check — since either may hit a
+repo without required-check branch protection.
+
 ### Why CI is checked twice
 
 Step 2 reads CI early, before any thread is resolved, purely as context shown

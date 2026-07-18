@@ -123,9 +123,14 @@ Three reads, in this order:
 3. **Provisional CI status** — `gh pr checks <pr-url> --required --json name,state,bucket`,
    aggregated per the CI check mechanism in
    `references/confirm-fixes-workflow.md`. `--required` scopes aggregation to
-   required checks, avoiding false negatives from optional/skipped jobs. This
-   read is context for the confirm gate only — Step 8 re-fetches CI against
-   the post-push `HEAD` before the final verdict.
+   required checks, avoiding false negatives from optional/skipped jobs. If
+   this exits non-zero with a message matching "no required checks
+   reported", the repo has no branch-protection rule marking any check as
+   required — fall back to `gh pr checks <pr-url> --json name,state,bucket`
+   (without `--required`) and aggregate over all reported checks (see
+   `references/confirm-fixes-workflow.md`). This read is context for the
+   confirm gate only — Step 8 re-fetches CI against the post-push `HEAD`
+   before the final verdict.
 
 ### Step 3 — Fresh-eyes verification
 
@@ -273,6 +278,11 @@ Re-fetch CI against the post-push `HEAD` SHA:
 git rev-parse HEAD
 gh pr checks <pr-url> --required --json name,state,bucket
 ```
+
+If this exits non-zero with a message matching "no required checks
+reported", fall back to `gh pr checks <pr-url> --json name,state,bucket`
+(without `--required`) and aggregate over all reported checks — same
+fallback as Step 2 (see `references/confirm-fixes-workflow.md`).
 
 Aggregate per `references/confirm-fixes-workflow.md`. The **final verdict**
 is the Step 6 thread-resolution verdict AND this re-checked CI state:

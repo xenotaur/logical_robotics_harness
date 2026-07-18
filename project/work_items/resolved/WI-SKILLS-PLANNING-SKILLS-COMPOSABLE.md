@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #399 (commit 67c1230e)."
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-PLANNING-SKILLS-COMPOSABLE
 title: Make /lrh-proposal and /lrh-workstream composable by enabling model invocation
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

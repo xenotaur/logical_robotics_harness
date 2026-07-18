@@ -2,14 +2,14 @@
 execution_id: 2026_07_18_02_46_34_WI_SKILLS_PLANNING_SKILLS_COMPOSABLE
 prompt_id: PROMPT(WI-SKILLS-PLANNING-SKILLS-COMPOSABLE:WI_SKILLS_PLANNING_SKILLS_COMPOSABLE)[2026-07-18T02:43:20-04:00]
 work_item: WI-SKILLS-PLANNING-SKILLS-COMPOSABLE
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/399
-commit: 
+commit: 67c1230e2e6f36c3266c03537ba27c41c20537e0
 created_at: 2026-07-18T02:46:34-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-PLANNING-SKILLS-COMPOSABLE.md
-session_transcript: pending
+session_transcript: claude-app:49a80683-68ef-40ff-a81c-28253a11ca8e
 ---
 
 # Summary

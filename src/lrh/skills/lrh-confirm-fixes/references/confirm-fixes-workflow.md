@@ -1,10 +1,11 @@
 # lrh-confirm-fixes Workflow Context
 
 Where `/lrh-confirm-fixes` sits in the LRH lifecycle, the verification
-taxonomy, the `gh api graphql` primitives for thread listing and resolution,
-the CI check mechanism, the `_CONFIRM` execution-record convention, and
-idempotency / re-run edge cases. Read this before Step 2, Step 5, Step 7, and
-Step 8 of `SKILL.md`.
+taxonomy, the `lrh github threads` thread-listing command and its
+comment-correlation contract, the `gh api graphql` `resolveReviewThread`
+primitive, the CI check mechanism, the `_CONFIRM` execution-record
+convention, and idempotency / re-run edge cases. Read this before Step 2,
+Step 5, Step 7, and Step 8 of `SKILL.md`.
 
 ---
 
@@ -63,50 +64,77 @@ and correct than an over-cautious surface.
 
 ---
 
-## `gh api graphql` primitives
+## Thread listing: `lrh github threads`
 
 ### List unresolved threads
 
 ```bash
-gh api graphql -f query='
+lrh github threads <pr-url> --mode raw --state all
+```
+
+Filter the returned `threads[]` client-side to `isResolved == false` —
+**deliberately ignore `isOutdated`.** A thread whose commented-on diff line
+later moved or was removed is marked `isOutdated: true` by GitHub, but it is
+still an open, unresolved concern until a human or `resolveReviewThread`
+actually resolves it. Do not use `--state unresolved`: that built-in filter
+(`_matches_state` in `src/lrh/integrations/github/formatters.py`) requires
+*both* `not isResolved` and `not isOutdated`, which silently drops
+outdated-but-unresolved threads — exactly the threads a "did the fix really
+address this" verification pass most needs to see. This is the authoritative
+list per Decision 12: every thread GitHub still considers unresolved,
+regardless of diff drift.
+
+`lrh request review_response` uses that narrower `state="unresolved"` filter
+internally (`src/lrh/assist/request_service.py`,
+`formatters.has_threads_for_state(threads_data, state="unresolved")`), so its
+`Nothing to resolve:` report and this broader `isResolved`-only list **can
+legitimately disagree** when outdated-but-unresolved threads exist — that is
+`/lrh-confirm-fixes` doing its job, not a bug. Both commands still read the
+same underlying `get_pull_review_threads()` data (see Step 2 in `SKILL.md`);
+only the state filter applied on top differs, and by design.
+
+`get_pull_review_threads()` fully paginates both the thread list (100 per
+page, following `pageInfo.hasNextPage`/`endCursor`) and each thread's
+comments — there is no 50-thread cap and no missed-thread risk on large PRs,
+unlike a hand-rolled single-page GraphQL query.
+
+`--mode raw` returns (verified empirically — the underlying GraphQL query
+requests only these fields, no `path`/`line`/`startLine`):
+
+```json
 {
-  repository(owner:"<owner>", name:"<repo>") {
-    pullRequest(number:<N>) {
-      reviewThreads(first:50) {
-        nodes {
-          id
-          isResolved
-          comments(first:1) {
-            nodes { databaseId author { login } }
-          }
-        }
+  "pull_request": {"owner": "...", "repo": "...", "number": N},
+  "threads": [
+    {
+      "id": "PRRT_...",
+      "isResolved": false,
+      "isOutdated": false,
+      "comments": {
+        "nodes": [
+          {"id": "PRRC_...", "body": "...", "author": {"login": "..."}, "url": "https://github.com/.../pull/N#discussion_r..."}
+        ]
       }
     }
-  }
-}'
+  ]
+}
 ```
 
-Filter the returned `nodes` to `isResolved == false` client-side (the query
-itself does not support server-side filtering on this field). Each node's
-`id` (a `PRRT_...` string) is the thread ID used by the resolve mutation
-below; `comments.nodes[0].databaseId` is the numeric ID used to correlate
-this thread to a comment from `lrh request review_response`'s output.
+`threads[].id` (a `PRRT_...` string) is the thread ID used by the resolve
+mutation below. `threads[].comments.nodes[]` includes every comment in the
+thread (also fully paginated), each with its own `url`. There is no
+file-path or line-number field on a thread — locate the comment's context
+via `gh pr diff <pr-url>` and the comment `body` text instead.
 
-For threads with more than one comment, `comments(first:1)` returns only the
-first — sufficient for correlation, since `lrh request review_response`
-reports the same first-comment URL for a thread.
+### Correlate a thread to its comment data
 
-### Map a comment URL to its `databaseId`
-
-A review-comment URL has the form:
-
-```
-https://github.com/<owner>/<repo>/pull/<N>#discussion_r<id>
-```
-
-The numeric `<id>` suffix **is** the comment's `databaseId`. No API call is
-needed for this half of the mapping — parse it directly from the URL string
-in `lrh request review_response`'s comment-data output.
+`lrh request review_response`'s formatter (`formatters.py`,
+`format_threads_review`) surfaces the **latest** comment in each thread
+(`nodes[-1]`), not the first — a thread with a reply has its earlier
+comments dropped from that output. Correlate by matching `threads[].comments.nodes[-1].url`
+from the `lrh github threads` output against the `url:` line in
+`lrh request review_response`'s comment-data output — both are the same
+comment, from the same underlying data, so this match is exact, not
+heuristic.
 
 ### Resolve one thread
 
@@ -153,7 +181,7 @@ misclassifies CI. Use `gh pr checks` instead, which pre-normalizes each
 check into a `bucket`:
 
 ```bash
-gh pr checks <pr-url> --json name,state,bucket
+gh pr checks <pr-url> --required --json name,state,bucket
 ```
 
 `bucket` is one of `pass`, `fail`, `pending`, `skipping`, `cancel`. Aggregate:
@@ -163,9 +191,10 @@ gh pr checks <pr-url> --json name,state,bucket
 - **pending** otherwise
 
 `gh pr checks` also exits with code `8` specifically for "checks pending" —
-usable as a fast short-circuit before parsing JSON. Add `--required` to scope
-the aggregation to required checks only, avoiding false negatives from
-optional or intentionally-skipped checks.
+usable as a fast short-circuit before parsing JSON. `--required` scopes the
+aggregation to required checks only, avoiding false negatives from optional
+or intentionally-skipped checks — always include it; the example above is
+not optional.
 
 ### Why CI is checked twice
 
@@ -250,11 +279,16 @@ continuity (each run's `_CONFIRM` record documents what was checked and when).
 Run 1 resolves 3 of 5 threads, surfaces 2 as Unaddressed, and the user runs
 `/lrh-review-response` to address them. Run 2 of `/lrh-confirm-fixes` sees
 only the 2 previously-unaddressed threads (the 3 resolved ones no longer
-appear in the graphql query) — this is the designed flow, not an error
-condition.
+appear in `lrh github threads`' output) — this is the designed flow, not an
+error condition.
 
 ### No open comments at all
 
-If the graphql thread list is empty and `lrh request review_response` also
-reports `Nothing to resolve:`, skip straight to the CI-only verdict path
-(Step 8) — there is nothing to verify or resolve.
+Treat `lrh github threads --mode raw --state all`, filtered to
+`isResolved == false`, as authoritative — not `lrh request review_response`'s
+`Nothing to resolve:` report, which uses a narrower filter that excludes
+outdated threads (see the Thread listing section above). Skip straight to
+the CI-only verdict path (Step 8) only when the `isResolved == false` list
+itself is empty. A `Nothing to resolve:` report with a non-empty
+`isResolved == false` list means outdated-but-unresolved threads exist —
+proceed to verify them normally; do not skip.

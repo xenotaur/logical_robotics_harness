@@ -193,8 +193,11 @@ gh pr checks <pr-url> --required --json name,state,bucket
 `gh pr checks` also exits with code `8` specifically for "checks pending" —
 usable as a fast short-circuit before parsing JSON. `--required` scopes the
 aggregation to required checks only, avoiding false negatives from optional
-or intentionally-skipped checks — always include it; the example above is
-not optional.
+or intentionally-skipped checks — always attempt it first, exactly as shown
+above; the example above is the default invocation, not an option to skip.
+The one documented exception, where `--required` is deliberately dropped
+after the distinguishing check below rules out a timing race, is covered
+next.
 
 ### `--required` error: two different causes, one message
 

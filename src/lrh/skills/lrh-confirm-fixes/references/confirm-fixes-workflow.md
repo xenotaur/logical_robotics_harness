@@ -271,6 +271,20 @@ Branch the fallback on that count:
   **pending** and note in the report that required-check status could not
   be verified; do not assume either case.
 
+**Both branches verified against real repos, not just code-reading.** The
+`count is 0` case was confirmed on this repo (above). The `count is > 0`
+case — the harder one to verify, since it requires a repo that actually has
+a `required_status_checks` rule — was confirmed against `vercel/next.js`
+(default branch `canary`): `gh api repos/vercel/next.js/rules/branches/canary
+--jq '[.[] | select(.type=="required_status_checks")]'` returns a non-empty
+array with 3 named contexts (`thank you, next`, `thank you, build`,
+`Potentially publish release`). Cross-checked with `gh pr checks --required`
+against a live open PR on that repo (#95928): it succeeded and returned the
+correctly filtered checks rather than erroring — confirming `--required`
+behaves normally once required checks exist and have posted status, and
+that the error this section handles is specifically the empty/not-yet-posted
+case, not a general property of `--required` on protected repos.
+
 This distinguishing check applies independently at both CI reads — Step 2's
 provisional read and Step 8's post-push re-check — since either may hit a
 `--required`-empty result, and each needs its own base-branch rules lookup

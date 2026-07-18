@@ -125,12 +125,15 @@ Three reads, in this order:
    `references/confirm-fixes-workflow.md`. `--required` scopes aggregation to
    required checks, avoiding false negatives from optional/skipped jobs. If
    this exits non-zero with a message matching "no required checks
-   reported", the repo has no branch-protection rule marking any check as
-   required — fall back to `gh pr checks <pr-url> --json name,state,bucket`
-   (without `--required`) and aggregate over all reported checks (see
-   `references/confirm-fixes-workflow.md`). This read is context for the
-   confirm gate only — Step 8 re-fetches CI against the post-push `HEAD`
-   before the final verdict.
+   reported", **do not assume the repo has no required-check protection** —
+   that exact error also fires when required checks are configured but
+   haven't reported yet (a real `gh` limitation, not a repo-config fact; see
+   `references/confirm-fixes-workflow.md`). Run the branch-rules check
+   described there to distinguish the two cases before deciding whether to
+   fall back to the unfiltered `gh pr checks <pr-url> --json name,state,bucket`
+   or treat CI as pending. This read is context for the confirm gate only —
+   Step 8 re-fetches CI against the post-push `HEAD` before the final
+   verdict.
 
 ### Step 3 — Fresh-eyes verification
 
@@ -280,9 +283,13 @@ gh pr checks <pr-url> --required --json name,state,bucket
 ```
 
 If this exits non-zero with a message matching "no required checks
-reported", fall back to `gh pr checks <pr-url> --json name,state,bucket`
-(without `--required`) and aggregate over all reported checks — same
-fallback as Step 2 (see `references/confirm-fixes-workflow.md`).
+reported", run the same branch-rules distinguishing check as Step 2 (see
+`references/confirm-fixes-workflow.md`) before deciding whether to fall
+back or treat CI as pending. **This risk is sharpest here**: Step 8 runs
+immediately after Step 7 pushes the `_CONFIRM` commit, so required checks
+on the fresh `HEAD` are more likely than usual to not have started
+reporting yet — falling back to the unfiltered aggregate in that window
+could report a false green built only from optional checks.
 
 Aggregate per `references/confirm-fixes-workflow.md`. The **final verdict**
 is the Step 6 thread-resolution verdict AND this re-checked CI state:

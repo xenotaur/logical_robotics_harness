@@ -196,31 +196,83 @@ aggregation to required checks only, avoiding false negatives from optional
 or intentionally-skipped checks — always include it; the example above is
 not optional.
 
-### Fallback when the repo has no required-check branch protection
+### `--required` error: two different causes, one message
 
 `--required` filters to checks GitHub's branch-protection rules mark as
 required. If the target repo has no branch-protection rule marking any
 check as required, there is nothing for the flag to filter to and the
 command **exits non-zero** with the message `no required checks reported on
 the '<branch>' branch` — it does not return an empty list. Observed on this
-repo (`logical_robotics_harness` has no required-check branch protection)
-verifying PR #399: 5 checks (`coverage`, `installed-wheel-smoke`, `lint`,
-`Check workflow files`, `tests`) were all `SUCCESS`, yet `--required` still
-exited 1. Treating that exit code as "CI failing" would produce a false
-not-ready verdict against genuinely green CI.
+repo (`logical_robotics_harness` has no required-status-check branch
+protection) verifying PR #399: 5 checks (`coverage`, `installed-wheel-smoke`,
+`lint`, `Check workflow files`, `tests`) were all `SUCCESS`, yet `--required`
+still exited 1. Treating that exit code as "CI failing" would produce a
+false not-ready verdict against genuinely green CI.
 
-Whenever `gh pr checks <pr-url> --required --json name,state,bucket` exits
-non-zero with a message matching `no required checks reported`, fall back
-to the unfiltered form and aggregate over every reported check instead:
+**But the exact same error also fires for a second, unrelated reason:** `gh
+pr checks --required` only reports required checks that have already posted
+a status — a required check that is configured but hasn't started yet (or
+hasn't posted its first status update) is silently absent from the rollup,
+not shown as `pending` (upstream-confirmed, `cli/cli` issue #8855; verified
+in the installed `gh` v2.95.0 source, `pkg/cmd/pr/checks/checks.go`: the
+error is raised whenever the required-filtered check list is empty,
+regardless of *why* it's empty). This is most likely to bite immediately
+after a push — exactly when Step 8 runs, right after Step 7 pushes the
+`_CONFIRM` commit — because the fresh `HEAD`'s required checks may not have
+started reporting yet.
+
+**Do not fall back to the unfiltered aggregate on this error alone** — a
+repo with real required-check protection could get a false green built only
+from optional/non-required checks. First distinguish which case applies:
 
 ```bash
-gh pr checks <pr-url> --json name,state,bucket
+OWNER_REPO=$(echo "<pr-url>" | sed -E 's#https://github.com/([^/]+/[^/]+)/pull/.*#\1#')
+BASE_BRANCH=$(gh pr view <pr-url> --json baseRefName --jq '.baseRefName')
+gh api "repos/${OWNER_REPO}/rules/branches/${BASE_BRANCH}" --jq '[.[] | select(.type=="required_status_checks")] | length'
 ```
 
-Apply the same green/failing/pending aggregation rules to the fallback's
-output. This fallback applies independently at both CI reads — Step 2's
+This is the "Get rules for a branch" REST endpoint, which lists every
+active rule (from branch protection *and* repository rulesets) affecting
+the branch. Unlike the legacy `repos/{owner}/{repo}/branches/{branch}/protection`
+endpoint — which 404s for an unprotected branch and requires admin
+permissions to read when protection *does* exist — `rules/branches/{branch}`
+returns `200` with a plain array for both protected and unprotected
+branches, using the same read access `gh pr checks` already has. Verified
+live against this repo: `main` returns
+`["copilot_code_review","deletion","non_fast_forward"]` — no
+`required_status_checks` entry, confirming the PR #399 case was genuinely
+"no protection," not a timing race.
+
+Branch the fallback on that count:
+
+- **Count is `0`** — no `required_status_checks` rule exists on the base
+  branch. Confirmed no required-check protection; safe to fall back to the
+  unfiltered form and aggregate over every reported check:
+
+  ```bash
+  gh pr checks <pr-url> --json name,state,bucket
+  ```
+
+  Apply the same green/failing/pending aggregation rules to its output.
+
+- **Count is `> 0`** — a `required_status_checks` rule exists, but
+  `--required` reported zero checks. Per the `gh` limitation above, this
+  means the required checks likely haven't started reporting yet, not that
+  none are required. **Do not fall back.** Treat CI as **pending**
+  (re-check later — a Step 8 re-run after the required checks start
+  reporting will either resolve cleanly or surface a real failure) — never
+  report green in this state.
+
+- **The `gh api rules/branches` call itself fails** (e.g. unexpected
+  permission error) — the distinguishing check is inconclusive. Treat CI as
+  **pending** and note in the report that required-check status could not
+  be verified; do not assume either case.
+
+This distinguishing check applies independently at both CI reads — Step 2's
 provisional read and Step 8's post-push re-check — since either may hit a
-repo without required-check branch protection.
+`--required`-empty result, and each needs its own base-branch rules lookup
+(the PR's base branch does not change between the two reads, so the lookup
+result may be cached within a single skill run if convenient).
 
 ### Why CI is checked twice
 

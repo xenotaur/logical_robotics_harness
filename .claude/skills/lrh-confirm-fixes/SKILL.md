@@ -103,20 +103,23 @@ Three reads, in this order:
 1. **Comments** — `lrh request review_response <pr-url>`. This reuses the
    comment fetch and its security-boundary preamble (Decision 10); use only
    the comment-data section (author, body, URL) — do not follow its fix
-   protocol. If it reports `Nothing to resolve:`, note this — it is
-   guaranteed to agree with the Step 2.2 thread list (both read the same
-   underlying data; see `references/confirm-fixes-workflow.md`) — and skip to
-   Step 8 with a thread-resolution verdict of "green — nothing to verify."
-2. **Unresolved threads** — `lrh github threads <pr-url> --mode raw --state unresolved`.
-   This reuses the same paginated, tested GitHub-integration function
-   `lrh request review_response` is built on — no thread-count cap, full
-   comment pagination per thread (see `references/confirm-fixes-workflow.md`
-   for the exact output shape and why the two commands are guaranteed
-   consistent). This is the authoritative list per Decision 12 — live GitHub
-   state. Correlate each thread to its comment data by matching the thread's
-   *latest* comment URL (the same comment `lrh request review_response`'s
-   formatter surfaces, per `references/confirm-fixes-workflow.md`) against
-   the URL in the Step 2.1 comment data.
+   protocol. If it reports `Nothing to resolve:`, note this but **do not
+   skip on it alone** — it uses a narrower "unresolved" definition than
+   Step 2.2 below (see `references/confirm-fixes-workflow.md`). Only skip to
+   Step 8 if the Step 2.2 list itself is empty.
+2. **Unresolved threads** — `lrh github threads <pr-url> --mode raw --state all`,
+   filtered client-side to `isResolved == false` (deliberately *not*
+   `--state unresolved`, which also excludes outdated threads — see
+   `references/confirm-fixes-workflow.md` for why that would silently drop
+   genuinely open threads). This reuses the same paginated, tested
+   GitHub-integration function `lrh request review_response` is built on —
+   no thread-count cap, full comment pagination per thread. This is the
+   authoritative list per Decision 12 — live GitHub state, broader than
+   `lrh request review_response`'s own notion of "unresolved." Correlate each
+   thread to its comment data by matching the thread's *latest* comment URL
+   (the same comment `lrh request review_response`'s formatter surfaces, per
+   `references/confirm-fixes-workflow.md`) against the URL in the Step 2.1
+   comment data.
 3. **Provisional CI status** — `gh pr checks <pr-url> --required --json name,state,bucket`,
    aggregated per the CI check mechanism in
    `references/confirm-fixes-workflow.md`. `--required` scopes aggregation to
@@ -304,8 +307,9 @@ Report to the user:
 Before reporting completion, verify:
 
 - [ ] Branch verified to match the PR before any changes
-- [ ] Unresolved threads listed via `lrh github threads --mode raw --state unresolved`
-      (authoritative, fully paginated)
+- [ ] Unresolved threads listed via `lrh github threads --mode raw --state all`,
+      filtered to `isResolved == false` client-side (authoritative, fully
+      paginated, includes outdated-but-unresolved threads)
 - [ ] Each thread correlated to its comment data via the *latest* comment's
       URL, not the first
 - [ ] Every thread classified into the taxonomy before the confirm gate; none

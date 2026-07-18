@@ -69,25 +69,37 @@ and correct than an over-cautious surface.
 ### List unresolved threads
 
 ```bash
-lrh github threads <pr-url> --mode raw --state unresolved
+lrh github threads <pr-url> --mode raw --state all
 ```
 
-This is a CLI entry point (`src/lrh/cli/github.py`) over
-`lrh.integrations.github.pull_reviews.get_pull_review_threads()` — the same
-function `lrh request review_response` calls internally
-(`src/lrh/assist/request_service.py`, `review_response` template branch) with
-the same `state="unresolved"` filter (`not isResolved and not isOutdated`,
-in `formatters._matches_state`). **The two commands are provably reading
-identical underlying data**, not just likely-consistent — this is the basis
-for the Step 2 guarantee that `lrh request review_response`'s `Nothing to
-resolve:` report and an empty `lrh github threads` result can never disagree.
+Filter the returned `threads[]` client-side to `isResolved == false` —
+**deliberately ignore `isOutdated`.** A thread whose commented-on diff line
+later moved or was removed is marked `isOutdated: true` by GitHub, but it is
+still an open, unresolved concern until a human or `resolveReviewThread`
+actually resolves it. Do not use `--state unresolved`: that built-in filter
+(`_matches_state` in `src/lrh/integrations/github/formatters.py`) requires
+*both* `not isResolved` and `not isOutdated`, which silently drops
+outdated-but-unresolved threads — exactly the threads a "did the fix really
+address this" verification pass most needs to see. This is the authoritative
+list per Decision 12: every thread GitHub still considers unresolved,
+regardless of diff drift.
+
+`lrh request review_response` uses that narrower `state="unresolved"` filter
+internally (`src/lrh/assist/request_service.py`,
+`formatters.has_threads_for_state(threads_data, state="unresolved")`), so its
+`Nothing to resolve:` report and this broader `isResolved`-only list **can
+legitimately disagree** when outdated-but-unresolved threads exist — that is
+`/lrh-confirm-fixes` doing its job, not a bug. Both commands still read the
+same underlying `get_pull_review_threads()` data (see Step 2 in `SKILL.md`);
+only the state filter applied on top differs, and by design.
 
 `get_pull_review_threads()` fully paginates both the thread list (100 per
 page, following `pageInfo.hasNextPage`/`endCursor`) and each thread's
 comments — there is no 50-thread cap and no missed-thread risk on large PRs,
 unlike a hand-rolled single-page GraphQL query.
 
-`--mode raw` returns:
+`--mode raw` returns (verified empirically — the underlying GraphQL query
+requests only these fields, no `path`/`line`/`startLine`):
 
 ```json
 {
@@ -97,8 +109,6 @@ unlike a hand-rolled single-page GraphQL query.
       "id": "PRRT_...",
       "isResolved": false,
       "isOutdated": false,
-      "path": "src/...",
-      "line": 42,
       "comments": {
         "nodes": [
           {"id": "PRRC_...", "body": "...", "author": {"login": "..."}, "url": "https://github.com/.../pull/N#discussion_r..."}
@@ -111,7 +121,9 @@ unlike a hand-rolled single-page GraphQL query.
 
 `threads[].id` (a `PRRT_...` string) is the thread ID used by the resolve
 mutation below. `threads[].comments.nodes[]` includes every comment in the
-thread (also fully paginated), each with its own `url`.
+thread (also fully paginated), each with its own `url`. There is no
+file-path or line-number field on a thread — locate the comment's context
+via `gh pr diff <pr-url>` and the comment `body` text instead.
 
 ### Correlate a thread to its comment data
 
@@ -272,8 +284,11 @@ error condition.
 
 ### No open comments at all
 
-`lrh github threads --state unresolved` returning no threads and
-`lrh request review_response` reporting `Nothing to resolve:` are
-guaranteed to agree (same underlying data — see the Thread listing section
-above). Skip straight to the CI-only verdict path (Step 8) — there is
-nothing to verify or resolve.
+Treat `lrh github threads --mode raw --state all`, filtered to
+`isResolved == false`, as authoritative — not `lrh request review_response`'s
+`Nothing to resolve:` report, which uses a narrower filter that excludes
+outdated threads (see the Thread listing section above). Skip straight to
+the CI-only verdict path (Step 8) only when the `isResolved == false` list
+itself is empty. A `Nothing to resolve:` report with a non-empty
+`isResolved == false` list means outdated-but-unresolved threads exist —
+proceed to verify them normally; do not skip.

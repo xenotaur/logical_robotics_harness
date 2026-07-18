@@ -36,26 +36,41 @@ CI re-check on `HEAD` `b5ac23b`: `gh pr checks --required` still exits 1
 unfiltered `gh pr checks` — all 5 checks (`coverage`,
 `installed-wheel-smoke`, `lint`, `Check workflow files`, `tests`) `pass`.
 
-**Final verdict: green.** All threads resolved, CI green on `b5ac23b` →
-ready to merge.
+**Correction:** the verdict above was originally computed and written
+against `b5ac23b` (`HEAD` immediately before this record's own commit).
+Pushing this record's commit necessarily moves `HEAD` again — exactly the
+"CI must be re-evaluated against the resulting `HEAD`, not the pre-push
+commit" trap this skill's Step 7/8 split exists to avoid, and this record
+walked into it by writing the verdict *before* its own push instead of
+after. Corrected: re-ran `gh pr checks --watch` against the true final
+`HEAD` after this record's first push and confirmed all 5 checks pass
+there too (see Validation).
 
-```
-gh pr merge https://github.com/xenotaur/logical_robotics_harness/pull/400 --squash --match-head-commit b5ac23beb186fd709805669badc72a76b7b64e04
-```
+**Final verdict: green.** All threads resolved, CI green on the true final
+`HEAD` → ready to merge. See this session's final chat report for the
+exact merge-time SHA and one-liner — this correction commit itself moves
+`HEAD` once more, so the precise SHA is reported live rather than baked
+into this file's prose (avoiding the same trap a second time). The
+frontmatter `commit:` field is left blank per the standard `in_progress`
+convention and gets filled in at landing time.
 
 # Validation
 
 ```
-gh pr checks <pr-url> --watch --interval 15 → all 5 checks pass (coverage 1m10s, tests 1m13s, installed-wheel-smoke 36s, lint 28s, Check workflow files 7s)
+gh pr checks <pr-url> --watch --interval 15 (round 1, HEAD b5ac23b) → all 5 checks pass (coverage 1m10s, tests 1m13s, installed-wheel-smoke 36s, lint 28s, Check workflow files 7s)
 lrh github threads <pr-url> --mode raw --state all, filtered isResolved==false → empty (0 threads)
 gh pr checks <pr-url> --required --json name,state,bucket → exit 1, "no required checks reported"
 gh api repos/xenotaur/logical_robotics_harness/rules/branches/main --jq '[.[]|select(.type=="required_status_checks")]|length' → 0
 gh pr checks <pr-url> --json name,state,bucket (fallback) → 5 checks, all bucket: pass, all state: SUCCESS
-git rev-parse HEAD → b5ac23beb186fd709805669badc72a76b7b64e04 (unchanged from the prior confirm-fixes pass — no new commit needed since all threads were already resolved)
+git rev-parse HEAD (after this record's first push) → 146573d7ac4a0c033a1cd9af9e2e87b496538667
+gh pr checks <pr-url> --watch --interval 10 (round 2, HEAD 146573d) → all 5 checks pass (lint 24s, installed-wheel-smoke 28s, tests 1m0s, coverage 1m7s, Check workflow files 5s)
+gh api repos/xenotaur/logical_robotics_harness/rules/branches/main --jq '[.[]|select(.type=="required_status_checks")]|length' (re-checked) → 0
 ```
 
-No new commit was pushed to the PR by this pass (nothing to fix or
-resolve) — this record itself is the only new commit.
+This correction is itself pushed as an additional commit, which moves
+`HEAD` once more. A third live CI check (against that final `HEAD`) is run
+and reported in chat rather than re-edited into this file, to avoid
+repeating the same self-referential-SHA mistake.
 
 # Follow-up
 

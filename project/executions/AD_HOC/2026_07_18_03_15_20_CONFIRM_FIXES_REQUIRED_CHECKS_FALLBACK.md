@@ -2,14 +2,14 @@
 execution_id: 2026_07_18_03_15_20_CONFIRM_FIXES_REQUIRED_CHECKS_FALLBACK
 prompt_id: PROMPT(AD_HOC:CONFIRM_FIXES_REQUIRED_CHECKS_FALLBACK)[2026-07-18T03:12:31-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/400
-commit: 
+commit: a405f02bf79cecf159def4d1689294c0ece09bbf
 created_at: 2026-07-18T03:15:20-04:00
 agent: claude_app
 instruction_source: ad-hoc task description (gh pr checks --required false-negative fix for /lrh-confirm-fixes, discovered verifying PR #399)
-session_transcript: pending
+session_transcript: claude-app:e8331ce5-44b4-4ce4-bb6c-fa623700836f
 ---
 
 # Summary

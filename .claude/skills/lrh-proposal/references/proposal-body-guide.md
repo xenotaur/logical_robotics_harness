@@ -162,3 +162,33 @@ that was not provided in the interview:
 
 This mirrors the discipline in `lrh request ready-work-item`:
 "turn unresolved context into Open Questions, not invented scope."
+
+---
+
+## Orchestration: invoking this skill from other skills
+
+`/lrh-proposal` can be invoked by orchestrating skills (`/lrh-design`) when
+they need to create a companion proposal as part of a design-capture
+workflow. This is enabled by removing `disable-model-invocation: true`; the
+`when_to_use` field was added in its place to provide guidance that reduces
+accidental auto-invocations.
+
+### Why the confirm gate is sufficient write protection
+
+The former `disable-model-invocation: true` flag conflated two concerns:
+
+1. Preventing accidental keyword auto-triggering.
+2. Blocking explicit model invocation via the Skill tool.
+
+The first concern is desirable. The second prevents composition —
+orchestrating skills cannot call `/lrh-proposal` as a sub-task without
+requiring the user to manually type the slash command, defeating the purpose
+of skill composition.
+
+The Step 4 confirm gate shows the complete proposed design proposal —
+frontmatter and full body — and requires explicit user approval before any
+file is written. This satisfies OWASP LLM08 ("Require human approval for
+high-impact actions") without blocking programmatic invocation. The confirm
+gate fires in any invocation context — direct user call or orchestrated
+call — so write protection is preserved regardless of how the skill is
+triggered.

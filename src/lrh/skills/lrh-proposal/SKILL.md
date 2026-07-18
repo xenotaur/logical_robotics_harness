@@ -6,7 +6,12 @@ description: >
   as a formal proposal artifact. Interviews the user, researches existing proposals, proposes
   complete frontmatter and body sections, and writes the file only after explicit confirmation.
   Validates with lrh validate.
-disable-model-invocation: true
+when_to_use: >
+  Invoke only when explicitly creating a new LRH design proposal planning
+  artifact in project/design/proposals/proposed/. Do not invoke when the
+  user is discussing, reading, or querying proposals. Suitable for
+  orchestration from /lrh-design when it needs to create a companion
+  proposal as part of a design-capture workflow.
 argument-hint: [slug]
 ---
 

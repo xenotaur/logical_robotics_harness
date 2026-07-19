@@ -271,19 +271,40 @@ Branch the fallback on that count:
   **pending** and note in the report that required-check status could not
   be verified; do not assume either case.
 
-**Both branches verified against real repos, not just code-reading.** The
-`count is 0` case was confirmed on this repo (above). The `count is > 0`
-case — the harder one to verify, since it requires a repo that actually has
-a `required_status_checks` rule — was confirmed against `vercel/next.js`
-(default branch `canary`): `gh api repos/vercel/next.js/rules/branches/canary
---jq '[.[] | select(.type=="required_status_checks")]'` returns a non-empty
-array with 3 named contexts (`thank you, next`, `thank you, build`,
-`Potentially publish release`). Cross-checked with `gh pr checks --required`
-against a live open PR on that repo (#95928): it succeeded and returned the
-correctly filtered checks rather than erroring — confirming `--required`
-behaves normally once required checks exist and have posted status, and
-that the error this section handles is specifically the empty/not-yet-posted
-case, not a general property of `--required` on protected repos.
+**Partial live verification — read carefully before treating this as a full
+confirmation of the `count is > 0` branch.** The `count is 0` case was
+confirmed on this repo (above): no `required_status_checks` rule exists, and
+`--required` reliably errors. For `count is > 0`, two narrower things were
+confirmed against `vercel/next.js` (default branch `canary`), which does have
+an active `required_status_checks` rule with 3 named contexts (`thank you,
+next`, `thank you, build`, `Potentially publish release`):
+
+```bash
+gh api repos/vercel/next.js/rules/branches/canary \
+  --jq '[.[] | select(.type=="required_status_checks")]'
+```
+
+1. **The detection query itself works on a real rule** — the command above
+   returns the non-empty array, confirming the query correctly identifies a
+   `required_status_checks` rule when one genuinely exists (not just in a
+   hand-constructed example).
+2. **`--required` behaves normally in the steady state** — `gh pr checks
+   --required` against a live open PR on that repo (#95928) succeeded and
+   returned the correctly filtered checks, rather than erroring.
+
+**What remains unverified: the actual failure mode this branch exists to
+handle.** The `count is > 0` logic only matters when `--required` *still*
+reports the empty "no required checks reported" error on a repo that
+genuinely has required-check protection — the timing race described above,
+where a required check is configured but hasn't posted its first status yet
+(most likely to occur right after Step 7's `_CONFIRM` push, before Step 8's
+re-check). Neither test above reproduces that race; #95928 was a stable,
+already-checked PR, not one caught in the narrow post-push window. This case
+is still supported only by the `gh` source reading and the linked upstream
+issue (`cli/cli#8855`), not a live reproduction — reproducing it reliably
+would require write access to a repo with `required_status_checks`
+protection, timed immediately after a fresh push, which this verification
+pass did not attempt.
 
 This distinguishing check applies independently at both CI reads — Step 2's
 provisional read and Step 8's post-push re-check — since either may hit a

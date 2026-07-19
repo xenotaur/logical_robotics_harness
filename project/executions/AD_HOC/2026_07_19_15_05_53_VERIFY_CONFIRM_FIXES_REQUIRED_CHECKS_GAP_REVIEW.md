@@ -2,14 +2,14 @@
 execution_id: 2026_07_19_15_05_53_VERIFY_CONFIRM_FIXES_REQUIRED_CHECKS_GAP_REVIEW
 prompt_id: PROMPT(AD_HOC:VERIFY_CONFIRM_FIXES_REQUIRED_CHECKS_GAP_REVIEW)[2026-07-19T15:05:18-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_18_18_36_36_VERIFY_CONFIRM_FIXES_REQUIRED_CHECKS_GAP
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/401
-commit: 
+commit: 5d2f29c9ab9ae153a1effc9f784f42381366ff10
 created_at: 2026-07-19T15:05:53-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/401
-session_transcript: pending
+session_transcript: claude-app:49a80683-68ef-40ff-a81c-28253a11ca8e
 ---
 
 # Summary

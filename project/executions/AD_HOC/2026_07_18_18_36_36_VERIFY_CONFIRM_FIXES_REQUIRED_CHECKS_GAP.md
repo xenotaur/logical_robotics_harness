@@ -2,14 +2,14 @@
 execution_id: 2026_07_18_18_36_36_VERIFY_CONFIRM_FIXES_REQUIRED_CHECKS_GAP
 prompt_id: PROMPT(AD_HOC:VERIFY_CONFIRM_FIXES_REQUIRED_CHECKS_GAP)[2026-07-18T18:36:27-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_18_03_15_20_CONFIRM_FIXES_REQUIRED_CHECKS_FALLBACK
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/401
-commit: 
+commit: 5d2f29c9ab9ae153a1effc9f784f42381366ff10
 created_at: 2026-07-18T18:36:36-04:00
 agent: claude_app
 instruction_source: ad-hoc task — close the "count is > 0" verification gap flagged as follow-up in PR #400
-session_transcript: pending
+session_transcript: claude-app:49a80683-68ef-40ff-a81c-28253a11ca8e
 ---
 
 # Summary

@@ -30,8 +30,9 @@ acceptance:
   - lrh skills install --diff prints a unified diff for each user-modified skill's differing files
   - added/removed files (present in the package but not on disk, or vice versa) are reported distinctly from content diffs
   - files that fail UTF-8 decoding are reported as "binary files differ" instead of raising
+  - symlinked files in the installed skill directory are reported as "symlink — skipped" without dereferencing their target contents
   - --diff has no effect on skills with status installed, up_to_date, or forced
-  - new unit tests in tests/skills_installer_test.py cover a modified text file, an added file, a removed file, and a binary file
+  - new unit tests in tests/skills_installer_test.py cover a modified text file, an added file, a removed file, a binary file, and a symlinked file
   - scripts/test passes with 0 failures
   - lrh validate reports 0 errors
 required_evidence:
@@ -58,14 +59,14 @@ already computes a full-tree byte comparison (`src/lrh/skills/installer.py:66-70
 but discards which files or bytes differ, returning only a bool. Users have
 to reconstruct the diff by hand before deciding whether `--force` is safe.
 
-A prior design discussion (this session) compared four approaches: a
-`difflib`-based `--diff` flag (pure stdlib), shelling out to `diff`/`git diff
---no-index`, a separate `lrh skills diff <name>` subcommand, and always-on
-diff printing. The `difflib` flag was chosen because it avoids introducing an
-external-binary dependency — this project already has a documented PATH
-fragility issue with external binaries (bare `lrh` isn't on PATH in the dev
-environment) — and it fits the existing in-process `unittest` test style in
-`tests/skills_installer_test.py` without needing subprocess mocking.
+A prior design discussion compared four approaches: a `difflib`-based
+`--diff` flag (pure stdlib), shelling out to `diff`/`git diff --no-index`, a
+separate `lrh skills diff <name>` subcommand, and always-on diff printing.
+The `difflib` flag was chosen because it avoids introducing an
+external-binary dependency (`diff`/`git` are not guaranteed to be present in
+every environment this CLI runs in) and it fits the existing in-process
+`unittest` test style in `tests/skills_installer_test.py` without needing
+subprocess mocking.
 
 ### Duplication search
 - In-repo: No existing diff-rendering implementation found. Related file:
@@ -102,13 +103,22 @@ environment) — and it fits the existing in-process `unittest` test style in
      instead of raising.
    - For files present on only one side, report them as added/removed
      rather than attempting a content diff.
+   - Do not dereference symlinks when collecting installed-skill files for
+     diffing. `_collect_fs_files` currently follows symlinks via
+     `path.is_file()` / `read_bytes()` (`installer.py:60-62`); today that
+     only feeds a boolean comparison, but a diff-rendering path would print
+     the link target's contents. A symlinked path under the installed skill
+     directory must be detected (e.g. `path.is_symlink()`) and reported as
+     "symlink — skipped" rather than dereferenced and diffed.
 2. Add `--diff` to `skills_install_parser` in `src/lrh/cli/main.py`
    (alongside `--dry-run`, `--force`, `--local` at `main.py:142-156`), and
    wire it through to print the diff output for each `USER_MODIFIED` result
    after `format_report`'s existing warning line.
 3. Add tests to `tests/skills_installer_test.py` covering: a modified text
-   file, an added file, a removed file, and a binary-content file, following
-   the existing `unittest` + tmpdir style already in that file.
+   file, an added file, a removed file, a binary-content file, and a
+   symlinked file (asserting its target contents are never read into the
+   diff output), following the existing `unittest` + tmpdir style already
+   in that file.
 
 ## Non-Goals
 
@@ -127,10 +137,13 @@ environment) — and it fits the existing in-process `unittest` test style in
 - Added/removed files are reported distinctly from content diffs.
 - Files that fail UTF-8 decoding are reported as "binary files differ"
   instead of raising an exception.
+- Symlinked files in the installed skill directory are reported as
+  "symlink — skipped" and their target contents are never read into diff
+  output.
 - `--diff` has no visible effect on skills with status `installed`,
   `up_to_date`, or `forced`.
 - New unit tests cover a modified text file, an added file, a removed file,
-  and a binary file.
+  a binary file, and a symlinked file.
 - `scripts/test` passes with 0 failures.
 - `lrh validate` reports 0 errors.
 
@@ -151,3 +164,10 @@ environment) — and it fits the existing in-process `unittest` test style in
 - Large diffs on heavily modified skills could produce noisy terminal
   output — no truncation is planned in this item; a future item could add
   a `--diff-stat`-style summary if this becomes a problem.
+- Untrusted `--local` checkouts: `_collect_fs_files` follows symlinks
+  through `path.is_file()` / `read_bytes()` (`installer.py:60-62`). A
+  repository could place a skill file as a symlink to an arbitrary
+  readable path; without an explicit symlink check, the diff-rendering
+  path would print that target's contents rather than the skill file's
+  own. The implementation must detect and refuse to dereference symlinks
+  in this path (see Required Changes item 1).

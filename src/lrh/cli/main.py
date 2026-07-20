@@ -154,6 +154,11 @@ def main() -> None:
         action="store_true",
         help="install to ./.claude/skills/ instead of ~/.claude/skills/",
     )
+    skills_install_parser.add_argument(
+        "--diff",
+        action="store_true",
+        help="print a unified diff of local modifications for skipped skills",
+    )
 
     project_parser = subparsers.add_parser(
         "project",
@@ -1246,6 +1251,13 @@ def main() -> None:
             output = installer.format_report(report, dry_run=args.dry_run)
             if output:
                 print(output)
+            if args.diff:
+                for result in report.results:
+                    if result.status == installer.SkillStatus.USER_MODIFIED:
+                        diff_text = installer.diff_skill(result.name, report.skills_dir)
+                        if diff_text:
+                            print(f"\n--- diff: {result.name} ---")
+                            print(diff_text, end="")
             raise SystemExit(0)
         parser.error("skills requires a subcommand (try: lrh skills install)")
 

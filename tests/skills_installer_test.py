@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.resources
 import shutil
 import tempfile
 import unittest
@@ -64,6 +65,79 @@ class TestInstallSkills(unittest.TestCase):
         forced = next(r for r in report.results if r.name == skill_name)
         self.assertEqual(forced.status, installer.SkillStatus.FORCED)
         self.assertEqual(skill_md.read_text(), original)
+
+
+class TestDiffSkill(unittest.TestCase):
+    def _make_skills_dir(self) -> Path:
+        """Return a not-yet-existing path for use as a skills directory."""
+        parent = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, parent, True)
+        return parent / "skills"
+
+    def test_diff_no_changes(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        self.assertEqual(installer.diff_skill(skill_name, skills_dir), "")
+
+    def test_diff_modified_text_file(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        skill_md = skills_dir / skill_name / "SKILL.md"
+        skill_md.write_text(skill_md.read_text() + "\n# local modification\n")
+        diff_text = installer.diff_skill(skill_name, skills_dir)
+        self.assertIn("SKILL.md", diff_text)
+        self.assertIn("+# local modification", diff_text)
+
+    def test_diff_added_file(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        (skills_dir / skill_name / "extra.md").write_text("not in the package\n")
+        diff_text = installer.diff_skill(skill_name, skills_dir)
+        self.assertIn("extra.md: added", diff_text)
+
+    def test_diff_removed_file(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        skill_dir = skills_dir / skill_name
+        pkg_root = importlib.resources.files(installer._SKILLS_PACKAGE).joinpath(
+            skill_name
+        )
+        pkg_files = installer._collect_pkg_files(pkg_root)
+        other_file = next(rel for rel in pkg_files if rel != "SKILL.md")
+        (skill_dir / other_file).unlink()
+        diff_text = installer.diff_skill(skill_name, skills_dir)
+        self.assertIn(f"{other_file}: removed", diff_text)
+
+    def test_diff_binary_file(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        skill_md = skills_dir / skill_name / "SKILL.md"
+        skill_md.write_bytes(b"\xff\xfe\x00\x01not valid utf-8")
+        diff_text = installer.diff_skill(skill_name, skills_dir)
+        self.assertIn("SKILL.md: binary files differ", diff_text)
+
+    def test_diff_symlink_not_dereferenced(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        skill_dir = skills_dir / skill_name
+
+        secret_target = Path(tempfile.mkdtemp()) / "secret.txt"
+        self.addCleanup(shutil.rmtree, secret_target.parent, True)
+        secret_target.write_text("super-secret-target-contents\n")
+
+        skill_md = skill_dir / "SKILL.md"
+        skill_md.unlink()
+        skill_md.symlink_to(secret_target)
+
+        diff_text = installer.diff_skill(skill_name, skills_dir)
+        self.assertIn("SKILL.md: symlink — skipped", diff_text)
+        self.assertNotIn("super-secret-target-contents", diff_text)
 
 
 class TestFormatReport(unittest.TestCase):

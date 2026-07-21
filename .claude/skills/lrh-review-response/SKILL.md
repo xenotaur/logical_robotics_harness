@@ -57,24 +57,31 @@ Load these before running any step:
 
 Work through these steps in order. Do not skip Step 4 (confirm gate).
 
-### Step 1 — Detect PR and verify branch
+### Step 1 — Detect PR and verify identity
 
 **If `<pr-url>` was provided:**
 
 ```bash
-gh pr view <pr-url> --json headRefName,state --jq '{branch: .headRefName, state: .state}'
+gh pr view <pr-url> --json headRefName,headRefOid,state --jq '{branch: .headRefName, sha: .headRefOid, state: .state}'
 ```
-
-Verify the current branch matches `headRefName`. If it does not, **stop and
-report the mismatch** — do not make local-only fixes.
 
 **If no argument was provided:**
 
 ```bash
-gh pr view --json url,headRefName,state --jq '{url: .url, branch: .headRefName, state: .state}'
+gh pr view --json url,headRefName,headRefOid,state --jq '{url: .url, branch: .headRefName, sha: .headRefOid, state: .state}'
 ```
 
 Use the detected URL for all subsequent steps.
+
+Compare the reported `branch`/`sha` against the local checkout
+(`git rev-parse --abbrev-ref HEAD`, `git rev-parse HEAD`) — this is the same
+identity check the embedded protocol performs in Step 5, run early so a
+mismatch is caught before any file is touched. A local `HEAD` equal to, or a
+descendant of, the reported `sha` confirms identity even if the branch name
+differs (e.g. a detached or renamed local checkout). If the branch and SHA
+both point elsewhere, **stop and report the mismatch** — do not make
+local-only fixes. If `gh` cannot resolve the PR at all, treat identity as
+inconclusive and stop.
 
 In either case: if `state` is not `OPEN`, stop and report (merged or closed
 PRs cannot receive new commits through this skill).
@@ -172,7 +179,7 @@ lrh validate
 If format or lint fails, repair and re-run before continuing. Do not push
 with failing validation.
 
-### Step 6 — Commit and push
+### Step 6 — Commit and publish
 
 Stage and commit all changes. Include the prompt ID in the commit message:
 
@@ -180,7 +187,12 @@ Stage and commit all changes. Include the prompt ID in the commit message:
 Address review feedback (<prompt-id>)
 ```
 
-Push to the existing open PR branch — do not open a new PR.
+Publish following the same publication outcomes as the embedded protocol's
+Output section (Step 5): push directly to the existing open PR branch when
+a push-capable remote is available — do not open a new PR. If direct push
+is unavailable in this session, follow that section's platform-managed or
+local-only reporting rules instead of proceeding as if a push had
+succeeded.
 
 ### Step 7 — Create execution record and report
 
@@ -239,7 +251,8 @@ Report to the user:
 
 Before reporting completion, verify:
 
-- [ ] Branch verified to match the PR before any changes
+- [ ] Checkout identity verified against the PR (branch/SHA, or platform
+      metadata) before any changes
 - [ ] "Nothing to resolve" check performed; exited cleanly if applicable
 - [ ] Prompt ID minted before any file changes
 - [ ] Idempotence check passed (no prior landed/in_progress record)

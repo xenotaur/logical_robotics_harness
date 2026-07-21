@@ -7,15 +7,31 @@ task is to fix the reported issues and get those fixes onto the PR at
 {{REVIEW_URL}} in {{REPO_NAME}}.
 
 Before making any changes, establish identity: does this checkout actually
-correspond to that PR? Use the strongest evidence available to you — PR or
-platform metadata first (for example `gh pr view {{REVIEW_URL}} --json
-headRefName,headRefOid,state`, or your environment's own PR-tracking
-integration if it has one), falling back to local git state (`git remote
--v`, `git branch -vv`, commit history vs. the PR's known content) only when
-no such metadata is reachable. A checkout with no configured git remote, or
-a generic/synthetic branch name, is not by itself evidence of a mismatch —
-some environments materialize a PR's content without exposing git remotes
-directly.
+correspond to that PR? Compare PR/platform metadata against your local
+checkout — when both are available, treat them as complementary evidence to
+cross-check, not as alternatives where one substitutes for the other:
+
+```bash
+gh pr view {{REVIEW_URL}} --json headRefName,headRefOid,state
+git rev-parse HEAD
+git branch --show-current
+```
+
+(or use your environment's own PR-tracking integration in place of `gh` if
+it has one).
+
+- If PR/platform metadata is reachable, compare its reported `headRefOid`
+  against your local `HEAD` — not just the branch name. A local `HEAD`
+  equal to, or a descendant of, that SHA confirms identity even on a
+  generic/synthetic branch name or with no configured git remote; some
+  environments materialize a PR's content without exposing git remotes
+  directly, and that alone is not evidence of a mismatch.
+- Only when PR/platform metadata is entirely unreachable (no `gh`, no
+  integration, no network) may local git state stand on its own — compare
+  commit history and changed files against the PR's known content as
+  described in this prompt.
+- If neither source is available, or the two sources conflict, identity is
+  inconclusive, not confirmed.
 
 - If the evidence shows this checkout is for a **different PR or
   repository**, stop immediately, report the mismatch, and make no changes.
@@ -109,10 +125,22 @@ report exactly one of the following publication outcomes:
   leave the working tree clean, and use that mechanism.
 - **Local only** — neither of the above was possible. This is only a valid
   outcome if you attempted direct git publication — including adding a
-  remote derived from {{REPO_NAME}} if none was configured — and confirmed
-  no platform-managed publication mechanism exists in this environment.
-  Quote the exact command and error that blocked direct publication, and
-  state plainly that the fixes have not reached the PR.
+  remote if none was configured — and confirmed no platform-managed
+  publication mechanism exists in this environment. When adding a remote,
+  derive it from the PR's **head repository**, not {{REPO_NAME}}: for a
+  fork-based PR, {{REPO_NAME}} is only the base repository parsed from the
+  PR URL, and pushing there can fail to reach the PR or, if credentials and
+  a same-named branch happen to exist, push to the wrong place. Query the
+  head repository/owner from PR metadata first, for example:
+
+  ```bash
+  gh pr view {{REVIEW_URL}} --json headRepositoryOwner,headRepository,headRefName
+  ```
+
+  and derive the publication remote from that, falling back to {{REPO_NAME}}
+  only if the PR's head repository cannot be determined. Quote the exact
+  command and error that blocked direct publication, and state plainly that
+  the fixes have not reached the PR.
 
 Do not report success unless the fixes have actually reached
 {{REVIEW_URL}} by one of the first two paths.

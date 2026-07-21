@@ -139,6 +139,62 @@ class TestDiffSkill(unittest.TestCase):
         self.assertIn("SKILL.md: symlink — skipped", diff_text)
         self.assertNotIn("super-secret-target-contents", diff_text)
 
+    def test_diff_nested_added_symlink_counts_as_modified(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        skill_dir = skills_dir / skill_name
+
+        secret_target = Path(tempfile.mkdtemp()) / "secret.txt"
+        self.addCleanup(shutil.rmtree, secret_target.parent, True)
+        secret_target.write_text("nested-secret-contents\n")
+        (skill_dir / "sneaky.md").symlink_to(secret_target)
+
+        # No other file changed, so pkg_files == fs_files once symlinks are
+        # excluded from both sides — the symlink's mere presence must still
+        # be detected as a local modification, not silently ignored.
+        report = installer.install_skills(skills_dir=skills_dir)
+        result = next(r for r in report.results if r.name == skill_name)
+        self.assertEqual(result.status, installer.SkillStatus.USER_MODIFIED)
+
+        diff_text = installer.diff_skill(skill_name, skills_dir)
+        self.assertIn("sneaky.md: symlink — skipped", diff_text)
+        self.assertNotIn("nested-secret-contents", diff_text)
+
+    def test_symlinked_skill_root_detected_as_user_modified(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        skill_dir = skills_dir / skill_name
+
+        secret_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, secret_dir, True)
+        (secret_dir / "SKILL.md").write_text("secret-root-contents\n")
+
+        shutil.rmtree(skill_dir)
+        skill_dir.symlink_to(secret_dir)
+
+        report = installer.install_skills(skills_dir=skills_dir)
+        result = next(r for r in report.results if r.name == skill_name)
+        self.assertEqual(result.status, installer.SkillStatus.USER_MODIFIED)
+
+    def test_diff_symlinked_skill_root_not_dereferenced(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        skill_dir = skills_dir / skill_name
+
+        secret_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, secret_dir, True)
+        (secret_dir / "SKILL.md").write_text("secret-root-contents\n")
+
+        shutil.rmtree(skill_dir)
+        skill_dir.symlink_to(secret_dir)
+
+        diff_text = installer.diff_skill(skill_name, skills_dir)
+        self.assertIn("installed skill directory is a symlink", diff_text)
+        self.assertNotIn("secret-root-contents", diff_text)
+
 
 class TestFormatReport(unittest.TestCase):
     def _make_report(

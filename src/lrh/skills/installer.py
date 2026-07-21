@@ -57,6 +57,13 @@ def _collect_pkg_files(
 
 
 def _collect_fs_files(directory: Path) -> dict[str, bytes]:
+    if directory.is_symlink():
+        # Refuse to traverse a symlinked skill root: rglob() would follow it
+        # to an arbitrary target outside the skills directory and read its
+        # files. Reporting no files here makes the skill compare unequal to
+        # the package (see _skill_differs_from_package), which is the safe
+        # outcome — never dereference, never silently treat as up to date.
+        return {}
     result: dict[str, bytes] = {}
     for path in directory.rglob("*"):
         if path.is_symlink():
@@ -71,8 +78,12 @@ def _collect_fs_symlinks(directory: Path) -> set[str]:
 
     Symlinks are never dereferenced here — a skill file replaced by a
     symlink could point outside the installed skill directory, and reading
-    through it would expose the target's contents.
+    through it would expose the target's contents. If `directory` itself is
+    a symlink, it is not traversed (see `_collect_fs_files`) and this
+    returns an empty set — the root-symlink case is signaled separately.
     """
+    if directory.is_symlink():
+        return set()
     return {
         path.relative_to(directory).as_posix()
         for path in directory.rglob("*")
@@ -83,8 +94,15 @@ def _collect_fs_symlinks(directory: Path) -> set[str]:
 def _skill_differs_from_package(skill_name: str, skills_dir: Path) -> bool:
     src = importlib.resources.files(_SKILLS_PACKAGE).joinpath(skill_name)
     pkg_files = _collect_pkg_files(src)
-    fs_files = _collect_fs_files(skills_dir / skill_name)
-    return pkg_files != fs_files
+    skill_dir = skills_dir / skill_name
+    fs_files = _collect_fs_files(skill_dir)
+    if pkg_files != fs_files:
+        return True
+    # A nested symlink (e.g. an added file replaced by one) can leave the
+    # byte dicts equal, since symlinks are excluded from both — but its
+    # presence is itself a local modification that must not be masked as
+    # up to date.
+    return bool(_collect_fs_symlinks(skill_dir))
 
 
 def diff_skill(skill_name: str, skills_dir: Path) -> str:
@@ -93,9 +111,15 @@ def diff_skill(skill_name: str, skills_dir: Path) -> str:
     Symlinked entries under the installed skill directory are reported but
     never dereferenced — their target contents are never read or diffed.
     """
+    skill_dir = skills_dir / skill_name
+    if skill_dir.is_symlink():
+        return (
+            f"{skill_name}: installed skill directory is a symlink — skipped"
+            " (refusing to read through it)\n"
+        )
+
     src = importlib.resources.files(_SKILLS_PACKAGE).joinpath(skill_name)
     pkg_files = _collect_pkg_files(src)
-    skill_dir = skills_dir / skill_name
     fs_files = _collect_fs_files(skill_dir)
     fs_symlinks = _collect_fs_symlinks(skill_dir)
 

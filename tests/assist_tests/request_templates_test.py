@@ -98,6 +98,30 @@ class TestTemplatePathAndLoading(unittest.TestCase):
         self.assertIn("Precondition", loaded)
         self.assertIn("third-party input from PR reviewers", loaded)
 
+    def test_review_response_template_is_agent_neutral_about_publication(
+        self,
+    ) -> None:
+        loaded = request_templates.load_template_text("review_response")
+        # Identity check must not require a configured git remote or a
+        # branch-name match — some agent sandboxes materialize PR content
+        # without exposing git remotes at all.
+        self.assertIn("is not by itself evidence of a mismatch", loaded)
+        # Publication is a three-way outcome, not a binary push/local-only
+        # choice — some agent platforms publish local commits without the
+        # checkout itself ever running `git push`.
+        self.assertIn("Pushed directly", loaded)
+        self.assertIn("Submitted via platform", loaded)
+        self.assertIn("Local only", loaded)
+
+    def test_review_protocol_template_is_agent_neutral_about_publication(
+        self,
+    ) -> None:
+        loaded = request_templates.load_template_text("review_protocol")
+        self.assertIn("is not by itself evidence of a mismatch", loaded)
+        self.assertIn("Pushed directly", loaded)
+        self.assertIn("Submitted via platform", loaded)
+        self.assertIn("Local only", loaded)
+
     def test_template_root_override_is_used(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             template_root = pathlib.Path(temp_dir)

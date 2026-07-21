@@ -2,10 +2,10 @@
 execution_id: 2026_07_20_17_47_32_WI_SKILLS_INSTALL_DIFF
 prompt_id: PROMPT(WI-SKILLS-INSTALL-DIFF:WI_SKILLS_INSTALL_DIFF)[2026-07-20T17:37:22-04:00]
 work_item: WI-SKILLS-INSTALL-DIFF
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/404
-commit: 8d4c3c3
+commit: 599c26f1a6e17161b9daa3eb4436133e6bdc044a
 created_at: 2026-07-20T17:47:32-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-INSTALL-DIFF.md

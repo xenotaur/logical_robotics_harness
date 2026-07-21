@@ -2,10 +2,10 @@
 execution_id: 2026_07_20_21_11_27_WI_SKILLS_INSTALL_DIFF_IMPL_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_INSTALL_DIFF_IMPL_REVIEW)[2026-07-20T20:40:57-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_20_17_47_32_WI_SKILLS_INSTALL_DIFF
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/404
-commit: 0435c75
+commit: 599c26f1a6e17161b9daa3eb4436133e6bdc044a
 created_at: 2026-07-20T21:11:27-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/404

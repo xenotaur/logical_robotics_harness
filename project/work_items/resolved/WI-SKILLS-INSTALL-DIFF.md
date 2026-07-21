@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #404 (commit 599c26f1)
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-INSTALL-DIFF
 title: Add --diff flag to lrh skills install
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

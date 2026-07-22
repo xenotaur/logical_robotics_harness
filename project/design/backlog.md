@@ -16,23 +16,38 @@ consuming skill's copy of a shared reference doc against the `_shared/`
 master and fail on drift — replacing the comment-only sync convention
 currently used for `prior-art-check.md` copies.
 
-**Status:** Trigger fired — 2026-07-22 design review of the "Agent-specific
-publication guidance" entry below found that `review_response.md` and
-`review_protocol.md` (the other manually-synced copy pair in this repo,
-kept in sync via a "Sync note" convention rather than a shared `_shared/`
-master) had already drifted in section-header wording (`## 1) Triage` vs
-`## 1) Triage each reported comment/issue`, and similarly for sections 4
-and 5) within the same same-day PR (#405) that added both copies' content.
-Harmless so far, but it's a real instance of undetected sync drift, not a
-hypothetical — the revisit condition is met. Ready to generalize into a
-`lrh validate` rule covering both known copy pairs (`prior-art-check.md`
-copies; `review_response.md`/`review_protocol.md`) and graduate to a
-`/lrh-work-item`.
+**Status:** Deferred — not in scope for `WS-PRIOR-ART-CHECK`. The current
+approach is a header comment in each copy naming the master file. Revisit
+if copies are observed drifting in practice.
+
+Re-examined 2026-07-22 during a design review of the "Agent-specific
+publication guidance" entry below, which initially cited section-header
+wording differences between `review_response.md` and `review_protocol.md`
+(`## 1) Triage` vs `## 1) Triage each reported comment/issue`, and
+similarly for sections 4 and 5) as evidence this trigger had fired. A PR
+#406 reviewer correctly flagged that this was a false premise: `git show
+2300612:.../review_response.md` and `.../review_protocol.md` show those
+exact header differences already present when the two files were first
+introduced, well before PR #405 — and PR #405's diff (`9b3010b`) never
+touched the headings. That is a preexisting, apparently intentional
+stylistic difference, not post-sync drift; the trigger has not fired.
+
+What PR #405 *did* demonstrate is duplicate-edit toil: the same two
+generic-correctness fixes (`headRefOid` identity check; head-repo-derived
+remote) had to be applied by hand, identically, to both files — without
+producing drift. That is a real cost of the manual-sync convention, but it
+is a different problem than this entry addresses (this entry is about
+detecting divergence once introduced, not about eliminating the need to
+edit two files). It does not by itself satisfy "copies observed drifting
+in practice." Continue to defer until an actual post-sync divergence is
+observed, or revisit this entry's scope to also address duplicate-edit
+toil (e.g. via a de-duplication mechanism) rather than drift detection
+alone.
 
 **Related:** `project/workstreams/proposed/WS-PRIOR-ART-CHECK.md` Non-Goals;
 `src/lrh/assist/templates/request/review_response.md`;
-`src/lrh/assist/templates/request/review_protocol.md` (second observed
-copy pair, see entry below).
+`src/lrh/assist/templates/request/review_protocol.md` (candidate second
+copy pair, see entry below — not yet an observed-drift instance).
 
 ---
 
@@ -104,11 +119,12 @@ specific agent's publication idiom repeatedly needs spelling out beyond
 what the generic three-way vocabulary can convey" — has still not fired;
 generic-correctness churn on the shared prose does not count toward it and
 should not be mistaken for it in a future review. That churn is a
-different problem (duplicate-copy sync burden), now tracked separately via
-the "Validator drift-check for synced skill references" entry above, which
-found real (if so far harmless) drift between these same two files and is
-graduating to a work item. Continue to defer this entry until an agent's
-own idiom is what's driving a change.
+different problem (duplicate-edit toil from the manual-sync convention,
+distinct from drift detection); see the "Validator drift-check for synced
+skill references" entry above for the current state of that thread (its
+own trigger also has not fired — an initial claim of observed drift
+between these two files did not hold up to scrutiny). Continue to defer
+this entry until an agent's own idiom is what's driving a change.
 
 **Related:** `src/lrh/assist/templates/request/review_response.md`;
 `src/lrh/assist/templates/request/review_protocol.md`;

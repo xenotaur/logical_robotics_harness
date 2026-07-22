@@ -2,14 +2,14 @@
 execution_id: 2026_07_21_23_07_51_LRH_TEMPLATE_PRECONDITION_1AB326_CONFIRM
 prompt_id: PROMPT(AD_HOC:LRH_TEMPLATE_PRECONDITION_1AB326_CONFIRM)[2026-07-21T23:05:56-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/405
-commit: 
+commit: 4eef39da7d335aa3f9b6a301dc42ad0b57aaef94
 created_at: 2026-07-21T23:07:51-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/405
-session_transcript: pending
+session_transcript: claude-app:2e6b59df-9127-4c28-83c1-1693e022f190
 ---
 
 # Summary

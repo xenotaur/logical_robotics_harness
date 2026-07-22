@@ -16,11 +16,23 @@ consuming skill's copy of a shared reference doc against the `_shared/`
 master and fail on drift — replacing the comment-only sync convention
 currently used for `prior-art-check.md` copies.
 
-**Status:** Deferred — not in scope for `WS-PRIOR-ART-CHECK`. The current
-approach is a header comment in each copy naming the master file. Revisit
-if copies are observed drifting in practice.
+**Status:** Trigger fired — 2026-07-22 design review of the "Agent-specific
+publication guidance" entry below found that `review_response.md` and
+`review_protocol.md` (the other manually-synced copy pair in this repo,
+kept in sync via a "Sync note" convention rather than a shared `_shared/`
+master) had already drifted in section-header wording (`## 1) Triage` vs
+`## 1) Triage each reported comment/issue`, and similarly for sections 4
+and 5) within the same same-day PR (#405) that added both copies' content.
+Harmless so far, but it's a real instance of undetected sync drift, not a
+hypothetical — the revisit condition is met. Ready to generalize into a
+`lrh validate` rule covering both known copy pairs (`prior-art-check.md`
+copies; `review_response.md`/`review_protocol.md`) and graduate to a
+`/lrh-work-item`.
 
-**Related:** `project/workstreams/proposed/WS-PRIOR-ART-CHECK.md` Non-Goals.
+**Related:** `project/workstreams/proposed/WS-PRIOR-ART-CHECK.md` Non-Goals;
+`src/lrh/assist/templates/request/review_response.md`;
+`src/lrh/assist/templates/request/review_protocol.md` (second observed
+copy pair, see entry below).
 
 ---
 
@@ -81,13 +93,25 @@ prompt that has nothing to do with publication and re-create the
 maintenance burden the `review_response.md`/`review_protocol.md` manual
 sync note already causes with just two copies.
 
-**Status:** Deferred — the agent-neutral generic wording (Option 1 of the
-three considered) ships first and needs to prove insufficient in practice
-before the added complexity of agent-targeted guidance is justified.
-Revisit if a specific agent's publication idiom repeatedly needs
-spelling out beyond what the generic three-way vocabulary can convey.
+**Status:** Deferred — reviewed again 2026-07-22 after PR #405's own review
+round grew the precondition/output sections twice more (tightening
+`headRefOid` identity verification; deriving the "Local only" remote from
+the PR's head repository, not the base repository). Both changes were
+generic-correctness fixes applied identically to both `review_response.md`
+and `review_protocol.md` — not an instance of a specific agent's
+publication idiom needing to be spelled out. This entry's trigger — "a
+specific agent's publication idiom repeatedly needs spelling out beyond
+what the generic three-way vocabulary can convey" — has still not fired;
+generic-correctness churn on the shared prose does not count toward it and
+should not be mistaken for it in a future review. That churn is a
+different problem (duplicate-copy sync burden), now tracked separately via
+the "Validator drift-check for synced skill references" entry above, which
+found real (if so far harmless) drift between these same two files and is
+graduating to a work item. Continue to defer this entry until an agent's
+own idiom is what's driving a change.
 
 **Related:** `src/lrh/assist/templates/request/review_response.md`;
 `src/lrh/assist/templates/request/review_protocol.md`;
 `src/lrh/assist/request_cli.py` (`--target-agent`);
-`src/lrh/assist/request_service.py` (`REQUEST_TARGET_AGENT`).
+`src/lrh/assist/request_service.py` (`REQUEST_TARGET_AGENT`);
+"Validator drift-check for synced skill references" entry above.

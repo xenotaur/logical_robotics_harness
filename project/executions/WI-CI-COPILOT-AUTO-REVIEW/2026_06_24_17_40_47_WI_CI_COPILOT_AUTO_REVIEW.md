@@ -9,7 +9,7 @@ commit: 90d0a1b232d53e820baf8f37126ccaa04cae82d0
 created_at: 2026-06-24T17:40:47-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CI-COPILOT-AUTO-REVIEW.md
-session_transcript: claude-app:local_16783f02-bd57-4a5d-b624-ec1e7e05681b
+session_transcript: claude-app:16783f02-bd57-4a5d-b624-ec1e7e05681b
 ---
 
 # Summary

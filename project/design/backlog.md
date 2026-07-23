@@ -20,7 +20,34 @@ currently used for `prior-art-check.md` copies.
 approach is a header comment in each copy naming the master file. Revisit
 if copies are observed drifting in practice.
 
-**Related:** `project/workstreams/proposed/WS-PRIOR-ART-CHECK.md` Non-Goals.
+Re-examined 2026-07-22 during a design review of the "Agent-specific
+publication guidance" entry below, which initially cited section-header
+wording differences between `review_response.md` and `review_protocol.md`
+(`## 1) Triage` vs `## 1) Triage each reported comment/issue`, and
+similarly for sections 4 and 5) as evidence this trigger had fired. A PR
+#406 reviewer correctly flagged that this was a false premise: `git show
+2300612:.../review_response.md` and `.../review_protocol.md` show those
+exact header differences already present when the two files were first
+introduced, well before PR #405 — and PR #405's diff (`9b3010b`) never
+touched the headings. That is a preexisting, apparently intentional
+stylistic difference, not post-sync drift; the trigger has not fired.
+
+What PR #405 *did* demonstrate is duplicate-edit toil: the same two
+generic-correctness fixes (`headRefOid` identity check; head-repo-derived
+remote) had to be applied by hand, identically, to both files — without
+producing drift. That is a real cost of the manual-sync convention, but it
+is a different problem than this entry addresses (this entry is about
+detecting divergence once introduced, not about eliminating the need to
+edit two files). It does not by itself satisfy "copies observed drifting
+in practice." Continue to defer until an actual post-sync divergence is
+observed, or revisit this entry's scope to also address duplicate-edit
+toil (e.g. via a de-duplication mechanism) rather than drift detection
+alone.
+
+**Related:** `project/workstreams/proposed/WS-PRIOR-ART-CHECK.md` Non-Goals;
+`src/lrh/assist/templates/request/review_response.md`;
+`src/lrh/assist/templates/request/review_protocol.md` (candidate second
+copy pair, see entry below — not yet an observed-drift instance).
 
 ---
 
@@ -81,13 +108,26 @@ prompt that has nothing to do with publication and re-create the
 maintenance burden the `review_response.md`/`review_protocol.md` manual
 sync note already causes with just two copies.
 
-**Status:** Deferred — the agent-neutral generic wording (Option 1 of the
-three considered) ships first and needs to prove insufficient in practice
-before the added complexity of agent-targeted guidance is justified.
-Revisit if a specific agent's publication idiom repeatedly needs
-spelling out beyond what the generic three-way vocabulary can convey.
+**Status:** Deferred — reviewed again 2026-07-22 after PR #405's own review
+round grew the precondition/output sections twice more (tightening
+`headRefOid` identity verification; deriving the "Local only" remote from
+the PR's head repository, not the base repository). Both changes were
+generic-correctness fixes applied identically to both `review_response.md`
+and `review_protocol.md` — not an instance of a specific agent's
+publication idiom needing to be spelled out. This entry's trigger — "a
+specific agent's publication idiom repeatedly needs spelling out beyond
+what the generic three-way vocabulary can convey" — has still not fired;
+generic-correctness churn on the shared prose does not count toward it and
+should not be mistaken for it in a future review. That churn is a
+different problem (duplicate-edit toil from the manual-sync convention,
+distinct from drift detection); see the "Validator drift-check for synced
+skill references" entry above for the current state of that thread (its
+own trigger also has not fired — an initial claim of observed drift
+between these two files did not hold up to scrutiny). Continue to defer
+this entry until an agent's own idiom is what's driving a change.
 
 **Related:** `src/lrh/assist/templates/request/review_response.md`;
 `src/lrh/assist/templates/request/review_protocol.md`;
 `src/lrh/assist/request_cli.py` (`--target-agent`);
-`src/lrh/assist/request_service.py` (`REQUEST_TARGET_AGENT`).
+`src/lrh/assist/request_service.py` (`REQUEST_TARGET_AGENT`);
+"Validator drift-check for synced skill references" entry above.

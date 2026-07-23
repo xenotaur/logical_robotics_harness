@@ -1,5 +1,66 @@
 # Decision Log
 
+## 2026-07-23: Decision: Session Transcripts Are Never Committed to the Repository
+
+### Summary
+
+Session transcripts (Claude Code `/export` output, `~/.claude/projects/`
+JSONL files, and equivalent artifacts from other agent backends) are never
+committed to this repository. The repository stores only the pointer
+`session_transcript: claude-app:<host-uuid-stem>` in execution records.
+
+### Context
+
+- Execution records carry a `session_transcript` field (defined by
+  `PROP-LRH-EXECUTION-SESSIONS`) that references the agent session which
+  produced the work.
+- Raw session transcripts contain environment dumps, absolute local paths,
+  and potentially accidental PII; they are also large (multi-MB) and purely
+  historical.
+- The sensitivity scanner contract in `src/lrh/conversations/README.md`
+  already establishes that transcript-derived content is private by default
+  and that public export requires human review.
+- This practice predates the LRH control plane — it was already the norm in
+  the ChatGPT/Codex era — but had never been recorded as a standing
+  decision.
+- Desktop-app Claude Code sessions have two identifiers (a `local_`-prefixed
+  host session id and a child SDK session id that names the JSONL file);
+  documenting the pointer convention forced the question of what, if
+  anything, of the session itself belongs in the repo.
+
+### Decision
+
+- Never commit session transcripts, in any form, to this repository.
+- The repository stores only the pointer `session_transcript:
+  claude-app:<host-uuid-stem>` (host UUID stem, `local_` prefix stripped) in
+  execution records.
+- Users archive `/export` output and/or JSONL files to local disk. A
+  private, enhanced-security store for such archives is permitted; a plain
+  hosted repository of raw transcripts is not — cf. the sensitivity scanner
+  contract in `src/lrh/conversations/README.md`.
+
+### Rationale
+
+- Transcripts leak local workspace layout (absolute paths), environment
+  details, and possibly PII to everyone who clones the repository; a pointer
+  leaks nothing.
+- Multi-MB historical blobs bloat the repository without serving the control
+  plane's purpose — traceability needs the link, not the content.
+- Keeping archives local (or in a private, enhanced-security store) preserves
+  the ability to consult a transcript when provenance questions arise.
+
+### Alternatives considered
+
+1. Commit sanitized/redacted transcripts alongside execution records.
+   Pros: self-contained provenance in one repository.
+   Cons: sanitization is error-prone (the sensitivity scanner is explicitly
+   a safety rail, not a certifier); size and churn costs remain; a single
+   miss leaks permanently via git history.
+2. Host raw transcripts in a separate plain hosted repository.
+   Pros: keeps this repository lean while retaining shared access.
+   Cons: merely relocates the leak; a plain hosted repo offers no stronger
+   guarantees than committing here, so it is equally disallowed.
+
 ## 2026-07-09: Decision: PyPI Release Environment Protection Rules
 
 ### Summary

@@ -44,10 +44,20 @@ observed, or revisit this entry's scope to also address duplicate-edit
 toil (e.g. via a de-duplication mechanism) rather than drift detection
 alone.
 
+For the `review_response.md`/`review_protocol.md` pair specifically, the
+duplicate-edit-toil path (de-duplication / single-sourcing) is now captured
+as Option 4 in
+`project/design/proposals/proposed/agent-targeted-review-response-templates/00_proposal.md`;
+that proposal is the resolution path for this pair. This entry remains open
+only for the `prior-art-check.md` fan-out, where a `_shared/` master plus 5
+skill copies genuinely exists and drift detection would still apply if drift
+is observed there.
+
 **Related:** `project/workstreams/proposed/WS-PRIOR-ART-CHECK.md` Non-Goals;
 `src/lrh/assist/templates/request/review_response.md`;
 `src/lrh/assist/templates/request/review_protocol.md` (candidate second
-copy pair, see entry below — not yet an observed-drift instance).
+copy pair, see entry below — not yet an observed-drift instance);
+`project/design/proposals/proposed/agent-targeted-review-response-templates/00_proposal.md`.
 
 ---
 
@@ -126,7 +136,18 @@ own trigger also has not fired — an initial claim of observed drift
 between these two files did not hold up to scrutiny). Continue to defer
 this entry until an agent's own idiom is what's driving a change.
 
-**Related:** `src/lrh/assist/templates/request/review_response.md`;
+The full design space for this thread — general-only vs additive per-agent
+guidance vs subtractive targeted template vs de-duplication — is now
+captured in
+`project/design/proposals/proposed/agent-targeted-review-response-templates/00_proposal.md`
+(recommended direction: defer building; when triggered, prefer additive
+guidance validated by dogfooding). That proposal is the resolution path for
+this entry; this backlog line remains as the lightweight open-thread
+pointer and its revisit trigger.
+
+**Related:**
+`project/design/proposals/proposed/agent-targeted-review-response-templates/00_proposal.md`;
+`src/lrh/assist/templates/request/review_response.md`;
 `src/lrh/assist/templates/request/review_protocol.md`;
 `src/lrh/assist/request_cli.py` (`--target-agent`);
 `src/lrh/assist/request_service.py` (`REQUEST_TARGET_AGENT`);

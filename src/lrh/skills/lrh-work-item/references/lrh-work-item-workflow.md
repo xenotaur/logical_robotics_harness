@@ -96,6 +96,30 @@ After editing, run `lrh validate` to confirm the reference is valid.
 
 ## Suggested next steps after skill completes
 
+There are two independent next-step paths, on different axes. They are not
+alternatives — a work item usually needs both.
+
+### Path 1 — PR lifecycle (the branch Step 8 just pushed)
+
+Step 8 opens a PR containing the new work item file, so the PR needs review
+like any other:
+
+1. `/lrh-review-response <PR-URL>` — address reviewer comments. Repeat as
+   needed until no comments remain outstanding.
+2. `/lrh-confirm-fixes <PR-URL>` — verify the fixes against the current diff
+   and resolve the review threads before merge.
+3. Merge the PR.
+4. `/lrh-closeout <PR-URL>` — land the execution record and update the
+   control plane.
+
+Note that merging this PR does not resolve the work item. The PR lands the
+*planning artifact*; the item stays `proposed` until the work it describes is
+implemented.
+
+### Path 2 — item refinement (making the item prompt-ready)
+
+Independent of the PR. Use when the item is not yet ready to drive execution:
+
 ```bash
 # 1. Verify hygiene
 lrh work-items validate
@@ -115,17 +139,15 @@ lrh request prompt-from-work-item WI-<ID>
 
 ## Evidence and closeout
 
-Once implementation is complete:
+Once implementation is complete and its PR is merged, run
+`/lrh-closeout <PR-URL>`. It creates or lands the execution record under
+`project/executions/<WI-ID>/`, moves the file to
+`project/work_items/resolved/` with `status: resolved` and a non-null
+`resolution`, and re-validates.
 
-1. Create an execution record under `project/executions/<WI-ID>/`.
-2. Run `lrh validate` and `lrh work-items audit --format md` to confirm
-   traceability.
-3. Move the file to `project/work_items/resolved/` and set
-   `status: resolved` with a non-null `resolution` value.
-4. Run `lrh validate` after the move.
-
-The status change and file move must happen together — `lrh validate` fails
-if the file is in the wrong bucket.
+Do not hand-roll these steps. The status change and file move must happen
+together — `lrh validate` fails if the file is in the wrong bucket — and
+`/lrh-closeout` is the single place that sequencing is maintained.
 
 ---
 

@@ -258,6 +258,13 @@ session_transcript: pending
 Run `lrh validate`, commit the record as an additional commit to the open PR,
 and push.
 
+Then report the PR URL, the execution record path, and the next steps: run
+`/lrh-review-response <PR-URL>` to address reviewer comments (repeat as
+needed), then `/lrh-confirm-fixes <PR-URL>` to verify the fixes against the
+current diff and resolve the review threads before merge. After merging, run
+`/lrh-closeout <PR-URL>` to land the execution record and update the control
+plane.
+
 ---
 
 ## Quality Checklist

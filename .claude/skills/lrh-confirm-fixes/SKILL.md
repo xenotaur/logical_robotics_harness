@@ -314,6 +314,9 @@ Report to the user:
 - What was resolved (author, one-line description) and what was surfaced
   (bucket, rationale)
 - The `gh pr merge` one-liner, only if the verdict is green
+- Next step after merging, only if the verdict is green: run
+  `/lrh-closeout <pr-url>` to land the execution record, resolve the work
+  item, and update the control plane
 - Reminder that `session_transcript: pending` should be updated to
   `claude-app:<session-id>` after the session ends
 
@@ -351,8 +354,10 @@ Before reporting completion, verify:
 
 - Does not merge the PR — the readiness verdict and `gh pr merge` one-liner
   are the skill's output; merge is a human action.
-- Does not trigger `/lrh-closeout` — closeout runs post-merge; this skill
-  runs pre-merge.
+- Does not *invoke* `/lrh-closeout` — closeout runs post-merge, this skill
+  runs pre-merge, and the merge in between is a human action. Closeout is
+  still the user's next step: a green verdict reports `/lrh-closeout` for
+  them to run after merging.
 - Does not resolve any thread the current diff does not plainly satisfy —
   ambiguous, partial, and problematic threads are surfaced, never
   guess-resolved.

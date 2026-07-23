@@ -9,7 +9,7 @@ commit: c95b3cf51e9a3a3fb613d53498bb8046e7014b1a
 created_at: 2026-06-24T18:58:56-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/322
-session_transcript: claude-app:local_16783f02-bd57-4a5d-b624-ec1e7e05681b
+session_transcript: claude-app:16783f02-bd57-4a5d-b624-ec1e7e05681b
 ---
 
 # Summary

@@ -7,7 +7,7 @@
 Session transcripts (Claude Code `/export` output, `~/.claude/projects/`
 JSONL files, and equivalent artifacts from other agent backends) are never
 committed to this repository. The repository stores only the pointer
-`session_transcript: claude-app:<uuid>` in execution records.
+`session_transcript: claude-app:<host-uuid-stem>` in execution records.
 
 ### Context
 
@@ -32,8 +32,8 @@ committed to this repository. The repository stores only the pointer
 
 - Never commit session transcripts, in any form, to this repository.
 - The repository stores only the pointer `session_transcript:
-  claude-app:<uuid>` (host UUID stem, `local_` prefix stripped) in execution
-  records.
+  claude-app:<host-uuid-stem>` (host UUID stem, `local_` prefix stripped) in
+  execution records.
 - Users archive `/export` output and/or JSONL files to local disk. A
   private, enhanced-security store for such archives is permitted; a plain
   hosted repository of raw transcripts is not — cf. the sensitivity scanner

@@ -145,7 +145,7 @@ References the instruction-phase artifact:
 References the Claude.app session. Use the short form only:
 
 ```
-claude-app:<session-id>
+claude-app:<host-uuid-stem>
 ```
 
 Desktop-app Claude Code sessions have **two** identifiers:

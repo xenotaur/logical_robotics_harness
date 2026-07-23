@@ -148,10 +148,22 @@ References the Claude.app session. Use the short form only:
 claude-app:<session-id>
 ```
 
-The `<session-id>` is the UUID stem of the `.jsonl` file at:
-`~/.claude/projects/<project-slug>/<session-id>.jsonl`
+Desktop-app Claude Code sessions have **two** identifiers:
+
+- **Host session id** — `local_<uuid>`: the durable app-level key. This is
+  what View > Copy URL yields and what the session-management tools (e.g.
+  `list_sessions`) return.
+- **Child SDK session id** — the UUID stem of the transcript file at
+  `~/.claude/projects/<project-slug>/<child-uuid>.jsonl`. On resumed or
+  continued sessions this differs from the host id.
+
+The canonical stored value is the **host** UUID stem with the `local_`
+prefix stripped: `claude-app:<host-uuid-stem>`. In-session, both ids are
+available as environment variables: `CLAUDE_CODE_HOST_SESSION_ID` (host,
+`local_`-prefixed) and `CLAUDE_CODE_SESSION_ID` (child).
 
 **Use `pending` when the session ID is not yet known.** Update the field
 before or when the PR lands. Never commit an absolute path (`~/.claude/...`
 or `/Users/...`) — it leaks your local workspace layout to everyone who
-clones the repository.
+clones the repository. Never commit the transcript itself — see the
+2026-07-23 decision-log entry (`project/memory/decision_log.md`).

@@ -195,6 +195,14 @@ Report to the user:
 - The re-validated `prompt_ready` status and `lrh validate` result
 - PR URL (existing or newly opened)
 - Any remaining Open Questions or blocking items
+- Next steps for the PR. If Step 8 opened a new PR: run
+  `/lrh-review-response <PR-URL>` to address reviewer comments (repeat as
+  needed), then `/lrh-confirm-fixes <PR-URL>` to verify the fixes against the
+  current diff and resolve the review threads before merge; after merging,
+  run `/lrh-closeout <PR-URL>` to land the execution record and update the
+  control plane. If Step 8 pushed to an existing PR's branch, this commit
+  joins that PR's own lifecycle — name the same chain, but scoped to the
+  reused PR rather than a new one.
 
 ---
 

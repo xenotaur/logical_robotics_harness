@@ -223,6 +223,12 @@ already listed.
 - Which fields were inferred vs. directly from user answers.
 - Suggested next steps: design review → update `related_design`; define
   focus/roadmap references; populate `work_items:` as items are created.
+- Next steps for the PR itself: run `/lrh-review-response <PR-URL>` to
+  address reviewer comments (repeat as needed), then
+  `/lrh-confirm-fixes <PR-URL>` to verify the fixes against the current diff
+  and resolve the review threads before merge. After merging, run
+  `/lrh-closeout <PR-URL>` to land the execution record and update the
+  control plane.
 
 ---
 

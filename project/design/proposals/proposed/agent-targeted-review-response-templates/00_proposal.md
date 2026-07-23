@@ -48,17 +48,38 @@ Two distinct growth forces on these templates were identified during the
   vocabulary. **Not yet observed.**
 
 A third consideration surfaced separately: the agent-general publication
-taxonomy imposes a **standing cost on every invocation**. For any single
-known agent, roughly two-thirds of the publication branches — plus the
-~14-line "Local only" remote-repair recipe at `review_response.md:126-143` —
-are inapplicable (Codex Cloud can only use "Submitted via platform";
-Claude.app only "Pushed directly"). Roughly 15-20% of the 162 lines is
-procedural content a known agent will never use, present on every run.
+taxonomy imposes a **standing cost on every invocation** — though a
+narrower one than first estimated. "Local only" is the shared *failure
+fallback* ("neither of the above was possible",
+`review_response.md:126-143`), reachable by any agent when its normal
+publication path fails: Claude.app can land there after a push or
+authentication failure, and Codex Cloud when platform-managed publication
+is unavailable. So the fallback branch and its ~14-line remote-repair
+recipe are *not* dead weight for a known agent. What is necessarily
+irrelevant to a known agent is only the **other agent's
+successful-publication branch** — roughly one of the three outcomes
+(Codex Cloud never uses "Pushed directly"; Claude.app never uses
+"Submitted via platform") — a materially smaller standing cost than a
+two-thirds-of-the-taxonomy framing would suggest. This correction (raised
+in PR #408 review) weakens the motivation for agent targeting and, if
+anything, reinforces this proposal's deferral recommendation.
 
-Finally, the two files **duplicate each other**: `review_protocol.md` is
-mirrored inline into `review_response.md` via a manual "Sync note"
-(`review_protocol.md:5-7`); section bodies are word-for-word identical. Each
-PR #405 fix was applied by hand to both copies — real duplicate-edit toil.
+Finally, the two files **substantially duplicate each other** — but not
+completely. `review_protocol.md` is mirrored inline into
+`review_response.md` via a manual "Sync note" (`review_protocol.md:5-7`),
+and the shared protocol core is word-for-word identical (Canonical
+validation, Repair sequencing, and Evidence-requirements bodies match
+byte-for-byte). Each PR #405 fix was applied by hand to both copies — real
+duplicate-edit toil. However, `review_response.md` also carries
+**intentional response-context content that `review_protocol.md` does not
+contain** (raised in PR #408 review): a precondition written for the
+generated-prompt context (with substituted `{{REVIEW_URL}}` rather than
+generic `<pr-url>` placeholders), a `## Repository overrides` section
+(`review_response.md:42-46`), the trailing untrusted-reviewer-input
+security note plus `{{UNRESOLVED_THREADS}}` injection point
+(`review_response.md:152-162`), and differently-worded triage and section
+headings. Any single-sourcing effort must treat these as deliberate
+divergences to preserve, not sync drift to reconcile.
 
 ## Prior Art Check
 
@@ -101,17 +122,28 @@ PR #405 fix was applied by hand to both copies — real duplicate-edit toil.
    safely if the `--target-agent` guess is wrong. Low cost, reversible.
 3. **Subtractive targeted template.** A smaller template that *removes*
    inapplicable branches. Requires new conditional/block-selection machinery
-   the flat engine lacks; trims only ~15-20%; re-introduces the exact
-   per-agent-assumption brittleness that caused the LCATS#140 incident;
-   re-creates per-agent maintenance burden that goes stale as platforms
-   change.
+   the flat engine lacks; per the corrected standing-cost analysis above,
+   safely removable content is only the other agent's success branch (the
+   "Local only" fallback and its remote-repair recipe must stay, since any
+   agent can reach them on publication failure) — an even smaller trim than
+   first estimated; re-introduces the exact per-agent-assumption brittleness
+   that caused the LCATS#140 incident; re-creates per-agent maintenance
+   burden that goes stale as platforms change.
 4. **De-duplication / single-sourcing (orthogonal enabling seam).** Make
    `review_response.md` include/reference `review_protocol.md` rather than
-   inline a second copy — eliminating the hand-sync burden and shrinking the
-   template. No include mechanism exists today, and the two files
+   inline a second copy — eliminating the hand-sync burden for the shared
+   protocol core and shrinking the template. This is more than a
+   placeholder reconcile: no include mechanism exists today, the two files
    deliberately use different placeholder styles (`{{REVIEW_URL}}` vs
-   `<pr-url>`), so this is real work. If done, it becomes the clean seam
-   where per-agent guidance is injected.
+   `<pr-url>`), and `review_response.md` carries intentional
+   response-context content the protocol file lacks (response-context
+   precondition, `## Repository overrides`, the untrusted-reviewer-input
+   note and `{{UNRESOLVED_THREADS}}` injection point, differently-worded
+   triage — see Background). An implementation must first enumerate these
+   deliberate divergences and preserve them outside the single-sourced
+   core; only the byte-identical shared sections are candidates for
+   single-sourcing. If done, the seam it creates is also where per-agent
+   guidance would be injected.
 
 **Recommended direction (not a commitment to build now):**
 

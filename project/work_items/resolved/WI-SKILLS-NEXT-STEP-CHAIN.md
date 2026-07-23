@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: implemented
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-NEXT-STEP-CHAIN
 title: Repair the post-PR next-step chain across the LRH skills
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

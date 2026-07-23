@@ -1,5 +1,110 @@
 # Decision Log
 
+## 2026-07-23: Decision: Backend-Agnostic Session Pointer Grammar
+
+### Summary
+
+`session_transcript` accepts a scheme-prefixed scalar `<backend>:<id>` for
+any execution backend — not only Claude.app — plus the sentinels `pending`
+and `none`. The field is defined so that a future sequence-valued form is a
+compatible superset, and so that both forms converge on the
+`PROP-LRH-CONVERSATIONS-STORAGE-INTEROP` ledger when it exists.
+
+### Context
+
+- `PROP-LRH-EXECUTION-SESSIONS` defines `agent` as open-ended
+  (`claude_app | codex_cloud | manual | <other>`) but defines
+  `session_transcript` purely in Claude.app terms ("references the Claude.app
+  session by its session ID"). The field name is backend-agnostic; its
+  definition is not.
+- The corpus is entirely single-backend: of 324 execution records, 118 carry
+  `agent:` and **all 118 say `claude_app`**. `codex_cloud` has never been
+  written, because the Codex-era records predate the field.
+- Three May 2026 records (PRs #260, #264, #268) sat at
+  `session_transcript: pending` since creation. They were Codex Cloud
+  executions: the surviving prompt package
+  (`lrh_readiness_prompt_package.zip`) contains four files whose first lines
+  are those records' exact prompt IDs, each titled "Codex Cloud Prompt", and
+  every May-era merge branch is named `codex/…`. There is no Claude session
+  to point at, so `pending` was never going to resolve — it misrepresented a
+  complete record as unfinished work.
+- `PROP-LRH-CONVERSATIONS-STORAGE-INTEROP` already specifies the eventual
+  storage layer (an `lrh://` URI namespace, privacy/durability/retention/
+  authority classes, and a backend capability model stating that "Git is not
+  the default raw chat database"). Its `implementation_status` is
+  `not_started`; only `lrh conversation convert-pdf` ships today.
+- `project/executions/README.md` documented eight frontmatter fields and none
+  of `agent`, `instruction_source`, or `session_transcript`, despite 121
+  records carrying them.
+
+### Decision
+
+- `session_transcript` takes a **scheme-prefixed scalar** `<backend>:<id>`.
+  Known schemes: `claude-app:<host-uuid-stem>`, `codex-cloud:<task-id>`,
+  `chatgpt:<conversation-id>`. New backends add a scheme rather than a field.
+- Two sentinels, with distinct meanings that must not be conflated:
+  - `pending` — a retrievable session exists but its ID is not yet recorded.
+    This is a **to-do**.
+  - `none` — this backend produced no retrievable session transcript. This is
+    a **terminal state**, not a backlog item.
+- `instruction_source` uses the same scheme-prefixed style for artifacts
+  outside the repository: `promptspace:<relative-path>` resolved against the
+  user's configured prompt archive root. Absolute paths remain forbidden, for
+  the same workspace-layout-leak reason that already applies to JSONL paths.
+- The field is specified as **scalar or sequence of scalars**. Records stay
+  scalar until a genuinely multi-backend execution appears; a sequence form
+  can then be adopted without rewriting any existing record.
+- When the conversations ledger exists, `lrh://` becomes simply another
+  scheme. No migration of this field is required to get there.
+
+### Rationale
+
+- All 121 existing values already match `<backend>:<id>`. Adopting this
+  grammar is a documentation fix, not a migration — decisive against every
+  alternative, each of which pays migration cost across a corpus that is
+  ~100% one backend.
+- Keeping a scalar preserves substring greppability, which
+  `project/executions/README.md` explicitly relies on for
+  `lrh search executions`. A nested object would break that contract for
+  capability the scalar-or-sequence form already provides.
+- Separating `none` from `pending` is what actually retires the three May
+  records: without it, a complete record is indistinguishable from unfinished
+  work, which is why they read as a standing backlog item for two months.
+- Deferring to the ledger today is premature: a pointer into storage that
+  does not exist is a worse record than an honest `none`.
+
+### Alternatives considered
+
+1. Structured object (`session: {backend:, id:, recoverable:}`).
+   Pros: room for capture status and recoverability metadata.
+   Cons: breaks the substring-search contract; migrates 121 records for
+   capability the scalar-or-sequence union already supplies; still models
+   only one session.
+2. Sequence-only from the start (`sessions: [{role:, ref:}, …]`).
+   Pros: directly closes the multi-backend gap flagged as Risk 3 in
+   `PROP-LRH-EXECUTION-SESSIONS` — the ChatGPT-design-then-Codex-execution
+   case that produced these very records.
+   Cons: most invasive, and overkill while the corpus is single-backend.
+   Retained as the compatible future form rather than rejected.
+3. `lrh://` ledger URI now.
+   Pros: matches the already-designed storage model exactly; one pointer
+   regardless of backend count.
+   Cons: depends on unimplemented phases of a `not_started` proposal;
+   unusable today. This is the intended endpoint, not the current step.
+
+### Consequences
+
+- The scalar-or-sequence union complicates strict schema validation; union
+  types are a known cost in schema design. Accepted deliberately for a
+  hand-authored corpus read mostly by grep.
+- A future `lrh validate` rule should check the scheme grammar and still warn
+  on absolute paths, as `PROP-LRH-EXECUTION-SESSIONS` specifies for Stage 2
+  and as remains unimplemented today.
+
+### Status
+
+Accepted
+
 ## 2026-07-23: Decision: Session Transcripts Are Never Committed to the Repository
 
 ### Summary
@@ -60,6 +165,10 @@ committed to this repository. The repository stores only the pointer
    Pros: keeps this repository lean while retaining shared access.
    Cons: merely relocates the leak; a plain hosted repo offers no stronger
    guarantees than committing here, so it is equally disallowed.
+
+### Status
+
+Accepted
 
 ## 2026-07-09: Decision: PyPI Release Environment Protection Rules
 

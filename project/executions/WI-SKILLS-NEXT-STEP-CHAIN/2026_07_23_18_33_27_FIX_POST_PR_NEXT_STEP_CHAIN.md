@@ -4,8 +4,8 @@ prompt_id: PROMPT(WI-SKILLS-NEXT-STEP-CHAIN:FIX_POST_PR_NEXT_STEP_CHAIN)[2026-07
 work_item: WI-SKILLS-NEXT-STEP-CHAIN
 status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/412
+commit: b8e8e47
 created_at: 2026-07-23T18:33:27-04:00
 agent: claude_app
 instruction_source: WI-SKILLS-NEXT-STEP-CHAIN

@@ -2,10 +2,10 @@
 execution_id: 2026_07_23_03_01_03_SESSION_TRANSCRIPT_BACKFILL
 prompt_id: PROMPT(AD_HOC:SESSION_TRANSCRIPT_BACKFILL)[2026-07-23T02:43:23-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/410
-commit: ccd6020
+commit: 3d58813c4ec964ccef695f1e741881e2d57ad669
 created_at: 2026-07-23T03:01:03-04:00
 agent: claude_app
 instruction_source: ad_hoc conversation — session_transcript backfill (part 2 of 2; companion documentation PR #409)

@@ -2,10 +2,10 @@
 execution_id: 2026_07_23_15_59_42_SESSION_TRANSCRIPT_BACKFILL_REVIEW
 prompt_id: PROMPT(AD_HOC:SESSION_TRANSCRIPT_BACKFILL_REVIEW)[2026-07-23T13:36:52-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_23_03_01_03_SESSION_TRANSCRIPT_BACKFILL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/410
-commit: 931c2b6
+commit: 3d58813c4ec964ccef695f1e741881e2d57ad669
 created_at: 2026-07-23T15:59:42-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/410

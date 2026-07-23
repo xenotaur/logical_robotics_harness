@@ -2,14 +2,14 @@
 execution_id: 2026_07_23_01_39_50_AGENT_TARGETED_REVIEW_RESPONSE_TEMPLATES_CONFIRM
 prompt_id: PROMPT(AD_HOC:AGENT_TARGETED_REVIEW_RESPONSE_TEMPLATES_CONFIRM)[2026-07-22T22:20:57-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/408
-commit: a351231a19f5735186f8e8dcfd3c8e35a0e00d13
+commit: 32beca336f24f2049fc2df7752e92648b6c30425
 created_at: 2026-07-23T01:39:50-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/408
-session_transcript: pending
+session_transcript: claude-app:472ce87e-0a60-4579-8e51-2e3a765fe8a9
 ---
 
 # Summary

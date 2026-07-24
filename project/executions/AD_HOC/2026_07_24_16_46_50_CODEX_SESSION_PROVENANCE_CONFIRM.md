@@ -2,10 +2,10 @@
 execution_id: 2026_07_24_16_46_50_CODEX_SESSION_PROVENANCE_CONFIRM
 prompt_id: PROMPT(AD_HOC:CODEX_SESSION_PROVENANCE_CONFIRM)[2026-07-24T15:58:42-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_23_18_07_18_CODEX_SESSION_PROVENANCE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/411
-commit: 90a7963
+commit: eaea01065e75eff002944d50aa6ea3774d34a789
 created_at: 2026-07-24T16:46:50-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/411

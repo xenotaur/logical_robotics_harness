@@ -2,10 +2,10 @@
 execution_id: 2026_07_23_18_07_18_CODEX_SESSION_PROVENANCE
 prompt_id: PROMPT(AD_HOC:CODEX_SESSION_PROVENANCE)[2026-07-23T18:02:03-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/411
-commit: 4908ca5
+commit: eaea01065e75eff002944d50aa6ea3774d34a789
 created_at: 2026-07-23T18:07:18-04:00
 agent: claude_app
 instruction_source: ad_hoc conversation — multi-agent session provenance design discussion following PRs #409 and #410

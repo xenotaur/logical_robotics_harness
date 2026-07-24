@@ -2,10 +2,10 @@
 execution_id: 2026_07_24_16_52_36_LRH_ASSISTANTS_ADOPT_STAGE1_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_ASSISTANTS_ADOPT_STAGE1_REVIEW)[2026-07-24T16:49:32-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/418
-commit: 
+commit: 6e432f3
 created_at: 2026-07-24T16:52:36-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/418
@@ -55,7 +55,7 @@ Fixes pushed to the open PR branch: `ebf5336..8eeef72`.
 - `scripts/lint` — ruff + black all checks passed.
 - Change is markdown + `.gitkeep` only; no Python modified.
 
-CHAIN-NOTE: cycles=<pending>; stops=<pending>; gates=<pending>; friction=<pending>
+CHAIN-NOTE: cycles=1; stops=0; gates=[merge]; friction="review-response skill flipped to human-only mid-session, ran manually"
 
 # Follow-up
 

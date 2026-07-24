@@ -224,9 +224,11 @@ and the session is restarted.
 - Next steps: run `/lrh-review-response <pr-url>` to address reviewer
   comments (repeat as needed), then `/lrh-confirm-fixes <pr-url>` to verify
   the fixes against the current diff and resolve the review threads before
-  merge, then merge. This skill creates no execution record, so
-  `/lrh-closeout` does not apply — there is nothing to land. After merging,
-  run `lrh skills install` to copy the new skill into `~/.claude/skills/` —
+  merge. This skill creates no execution record itself, but
+  `/lrh-review-response` and `/lrh-confirm-fixes` do — so after merging, run
+  `/lrh-closeout <pr-url>` to land any records the review rounds created
+  (skip it only if the PR merged with no review activity). Then run
+  `lrh skills install` to copy the new skill into `~/.claude/skills/` —
   merging alone does not install it.
 
 ---

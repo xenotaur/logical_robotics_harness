@@ -198,13 +198,14 @@ Report to the user:
 - Next steps for the PR. If Step 8 opened a new PR: run
   `/lrh-review-response <pr-url>` to address reviewer comments (repeat as
   needed), then `/lrh-confirm-fixes <pr-url>` to verify the fixes against the
-  current diff and resolve the review threads before merge, then merge. A
-  refinement-only PR creates no execution record, so the chain ends at merge
-  — `/lrh-closeout` does not apply, because there is nothing to land. If
-  Step 8 instead pushed to an existing PR's branch, this commit joins that
-  PR's own lifecycle; follow that PR's chain — which, for an `/lrh-implement`
-  PR, does run through `/lrh-closeout` because it carries an execution
-  record.
+  current diff and resolve the review threads before merge. A refinement-only
+  PR creates no execution record itself, but `/lrh-review-response` and
+  `/lrh-confirm-fixes` do — so after merging, run `/lrh-closeout <pr-url>` to
+  land any records the review rounds created (skip it only if the PR merged
+  with no review activity). If Step 8 instead pushed to an existing PR's
+  branch, this commit joins that PR's own lifecycle; follow that PR's chain,
+  which for an `/lrh-implement` PR runs through `/lrh-closeout` because it
+  carries an execution record from the outset.
 
 ---
 

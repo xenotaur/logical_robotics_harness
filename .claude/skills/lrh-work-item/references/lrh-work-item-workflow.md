@@ -109,12 +109,15 @@ like any other:
 2. `/lrh-confirm-fixes <pr-url>` — verify the fixes against the current diff
    and resolve the review threads before merge.
 3. Merge the PR.
+4. `/lrh-closeout <pr-url>` — this skill files a *planning artifact* and
+   creates no execution record itself, but `/lrh-review-response` and
+   `/lrh-confirm-fixes` each create one when the PR gets review activity, so
+   closeout lands those records after merge. Only a PR merged with no review
+   activity has nothing to land and can skip this step.
 
-The chain ends at merge here. This PR files a *planning artifact* and creates
-no execution record, so `/lrh-closeout` does not apply to it — there is
-nothing to land, and the work item stays `proposed` until the work it
-describes is implemented. Closeout enters the picture later, for the
-*implementation* PR — see "Evidence and closeout" below.
+Merging does not resolve the work item — it stays `proposed` until the work
+it describes is implemented. Resolving the item is a *separate* closeout, run
+later against the *implementation* PR — see "Evidence and closeout" below.
 
 ### Path 2 — item refinement (making the item prompt-ready)
 

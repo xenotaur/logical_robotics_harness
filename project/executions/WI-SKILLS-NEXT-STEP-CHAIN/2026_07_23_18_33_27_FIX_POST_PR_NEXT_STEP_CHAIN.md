@@ -9,7 +9,7 @@ commit: 697518e
 created_at: 2026-07-23T18:33:27-04:00
 agent: claude_app
 instruction_source: WI-SKILLS-NEXT-STEP-CHAIN
-session_transcript: claude-app:local_b8ccff86-7173-4b64-858b-1dc6f386f062
+session_transcript: claude-app:b8ccff86-7173-4b64-858b-1dc6f386f062
 ---
 
 # Summary

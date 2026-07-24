@@ -26,21 +26,53 @@ skill should call another as a side effect of finishing.
 
 ## Canonical text
 
-For a skill that has just opened a PR:
+The tail of the chain depends on whether the PR carries an execution record.
+`/lrh-closeout` lands a record and resolves work items; a PR with no record
+has nothing for it to do, and closeout would fall back to listing every
+`in_progress` record (see `lrh-closeout/SKILL.md` Step "find records linked by
+`pr:`"). So there are two variants.
+
+**Variant A — record-producing PR** (`/lrh-implement`, `/lrh-doc-work`,
+`/lrh-doc-organize`: skills that run `lrh prompt record-execution`):
 
 ```text
-Next steps: run `/lrh-review-response <PR-URL>` to address reviewer comments
-(repeat as needed), then `/lrh-confirm-fixes <PR-URL>` to verify the fixes
+Next steps: run `/lrh-review-response <pr-url>` to address reviewer comments
+(repeat as needed), then `/lrh-confirm-fixes <pr-url>` to verify the fixes
 against the current diff and resolve the review threads before merge. After
-merging, run `/lrh-closeout <PR-URL>` to land the execution record and update
+merging, run `/lrh-closeout <pr-url>` to land the execution record and update
 the control plane.
 ```
+
+**Variant B — planning-artifact PR** (`/lrh-work-item`, `/lrh-proposal`,
+`/lrh-workstream`, `/lrh-create-skill`, `/lrh-doc-audit`: skills that create
+no execution record *of their own*). The originating skill lands no record,
+but the review skills do — `/lrh-review-response` and `/lrh-confirm-fixes`
+each create an AD_HOC record whenever the PR gets review activity — so those
+records still need landing after merge:
+
+```text
+Next steps: run `/lrh-review-response <pr-url>` to address reviewer comments
+(repeat as needed), then `/lrh-confirm-fixes <pr-url>` to verify the fixes
+against the current diff and resolve the review threads before merge. This
+skill creates no execution record itself, but `/lrh-review-response` and
+`/lrh-confirm-fixes` do — so after merging, run `/lrh-closeout <pr-url>` to
+land any records the review rounds created. Only a PR that merged with no
+review activity at all has nothing to land, making closeout unnecessary.
+```
+
+The rule for the whole chain: **run `/lrh-closeout` after merge iff the PR
+carries any `in_progress` execution record.** Variant A's originating skill
+guarantees one; Variant B's records come from review rounds, which is the
+common case in an auto-reviewed repo — do not tell a Variant B site that
+closeout never applies. `/lrh-readiness` is the hybrid: a refinement-only PR
+follows Variant B, but if it pushed to an existing `/lrh-implement` branch it
+inherits that PR's Variant A chain.
 
 For `/lrh-confirm-fixes`, which sits mid-chain and reports a merge-readiness
 verdict rather than opening a PR — green verdict only:
 
 ```text
-After merging, run `/lrh-closeout <PR-URL>` to land the execution record,
+After merging, run `/lrh-closeout <pr-url>` to land the execution record,
 resolve the work item, and update the control plane.
 ```
 
@@ -51,22 +83,25 @@ one site that was already correct before `WI-SKILLS-NEXT-STEP-CHAIN`.
 
 ## Consuming sites
 
-| Skill | Site | Variant |
-| --- | --- | --- |
-| `/lrh-work-item` | `references/lrh-work-item-workflow.md` — "Suggested next steps after skill completes" | Full chain, plus a pointer at `/lrh-closeout` in "Evidence and closeout" |
-| `/lrh-implement` | `SKILL.md` — Step 10 "Report and offer closeout" | Full chain |
-| `/lrh-review-response` | `SKILL.md` — "Report to the user" | `/lrh-confirm-fixes` before merge (model phrasing) |
-| `/lrh-confirm-fixes` | `SKILL.md` — Step 8 "Report to the user" | `/lrh-closeout` post-merge, green verdict only |
-| `/lrh-proposal` | `SKILL.md` — Step 9 "Offer follow-on and report" | Full chain |
-| `/lrh-workstream` | `SKILL.md` — Step 9 "Offer follow-on and report" | Full chain |
-| `/lrh-readiness` | `SKILL.md` — Step 9 "Report" | Full chain, conditional on Step 8 opening a new PR vs. pushing to an existing one |
-| `/lrh-doc-work` | `SKILL.md` — end of Step 12 "Create execution record" | Full chain |
-| `/lrh-doc-organize` | `SKILL.md` — end of Step 11 "Create execution record" | Full chain |
-| `/lrh-doc-audit` | `SKILL.md` — Step 10 "Offer commit" | Full chain on the "Open a PR" branch only |
-| `/lrh-create-skill` | `SKILL.md` — Step 10 "Report" | Full chain, plus `lrh skills install` after merge |
+| Skill | Site | Record? | Variant |
+| --- | --- | --- | --- |
+| `/lrh-work-item` | `references/lrh-work-item-workflow.md` — "Suggested next steps after skill completes" | None of its own | B for the planning PR (closeout lands records from review rounds); the "Evidence and closeout" section separately points the eventual *implementation* PR at `/lrh-closeout` |
+| `/lrh-implement` | `SKILL.md` — Step 10 "Report and offer closeout" | Yes | A |
+| `/lrh-review-response` | `SKILL.md` — "Report to the user" | Yes | `/lrh-confirm-fixes` before merge (model phrasing) |
+| `/lrh-confirm-fixes` | `SKILL.md` — Step 8 "Report to the user" | Yes | `/lrh-closeout` post-merge, green verdict only |
+| `/lrh-proposal` | `SKILL.md` — Step 9 "Offer follow-on and report" | None of its own | B — closeout after merge if the PR was reviewed |
+| `/lrh-workstream` | `SKILL.md` — Step 9 "Offer follow-on and report" | None of its own | B — closeout after merge if the PR was reviewed |
+| `/lrh-readiness` | `SKILL.md` — Step 9 "Report" | Conditional | B for a refinement-only PR; inherits A when it pushes to an existing `/lrh-implement` branch |
+| `/lrh-doc-work` | `SKILL.md` — end of Step 12 "Create execution record" | Yes | A |
+| `/lrh-doc-organize` | `SKILL.md` — end of Step 11 "Create execution record" | Yes | A |
+| `/lrh-doc-audit` | `SKILL.md` — Step 10 "Offer commit" | None of its own | B on the "Open a PR" branch only (closeout after merge if reviewed); the commit-to-main branch has no PR and no chain |
+| `/lrh-create-skill` | `SKILL.md` — Step 10 "Report" | None of its own | B, plus `lrh skills install` after merge |
 
-Every site above also exists as a byte-identical mirror under
-`.claude/skills/`. Edit both.
+Each **consuming-site file listed in the table above** also exists as a
+byte-identical mirror under `.claude/skills/`; edit both copies. This
+`_shared/lifecycle-chain.md` is the exception — the installer skips
+`_`-prefixed directories, so it is intentionally not mirrored and has no
+`.claude/` counterpart.
 
 ## Skills deliberately absent from the table
 

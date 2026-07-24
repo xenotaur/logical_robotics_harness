@@ -23,7 +23,7 @@ lrh request ready-work-item <ID>    ← refine if thin
 project/executions/<WI-ID>/         ← execution record (in_progress)
     │
     ▼
-/lrh-review-response <PR-URL>       ← address reviewer comments (repeat as needed)
+/lrh-review-response <pr-url>       ← address reviewer comments (repeat as needed)
     │
     ▼
 Merge PR + closeout (human)         ← update record to landed, resolve WI
@@ -62,7 +62,7 @@ directly — a rendered prompt file adds a step with no benefit.
 `/lrh-implement` available in any project on the machine. Use `--local` to install
 to `./.claude/skills/` for a project-scoped installation instead.
 
-### `/lrh-review-response <PR-URL>`
+### `/lrh-review-response <pr-url>`
 
 Run after `/lrh-implement` opens a PR, once reviewer comments arrive — not
 called by this skill directly, but it is the expected next step before
@@ -78,7 +78,7 @@ of comments; only proceed to "After the PR lands" once the PR is clean.
 1. **Update the execution record** — edit the file under
    `project/executions/<WI-ID>/` to set:
    - `status: landed`
-   - `pr: <PR-URL>`
+   - `pr: <pr-url>`
    - `commit: <merge-SHA>`
    - `session_transcript: claude-app:<session-id>` (if still `pending`)
 

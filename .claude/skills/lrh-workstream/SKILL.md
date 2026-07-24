@@ -223,12 +223,14 @@ already listed.
 - Which fields were inferred vs. directly from user answers.
 - Suggested next steps: design review → update `related_design`; define
   focus/roadmap references; populate `work_items:` as items are created.
-- Next steps for the PR itself: run `/lrh-review-response <PR-URL>` to
+- Next steps for the PR itself: run `/lrh-review-response <pr-url>` to
   address reviewer comments (repeat as needed), then
-  `/lrh-confirm-fixes <PR-URL>` to verify the fixes against the current diff
-  and resolve the review threads before merge. After merging, run
-  `/lrh-closeout <PR-URL>` to land the execution record and update the
-  control plane.
+  `/lrh-confirm-fixes <pr-url>` to verify the fixes against the current diff
+  and resolve the review threads before merge. This skill creates no
+  execution record itself, but `/lrh-review-response` and
+  `/lrh-confirm-fixes` do — so after merging, run `/lrh-closeout <pr-url>` to
+  land any records the review rounds created. Only a PR merged with no review
+  activity has nothing to land and can skip closeout.
 
 ---
 

@@ -2,10 +2,10 @@
 execution_id: 2026_07_24_17_23_56_WI_DOC_SKILLS_RELATED_DESIGN_REPOINT_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_DOC_SKILLS_RELATED_DESIGN_REPOINT_CONFIRM)[2026-07-24T17:23:34-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_24_17_21_20_LAND_WI_DOC_SKILLS_RELATED_DESIGN_REPOINT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/415
-commit: 
+commit: 46737a6
 created_at: 2026-07-24T17:23:56-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/415

@@ -34,6 +34,7 @@ acceptance:
 required_evidence:
   - manual_review
   - lrh_validate
+  - validation_output
 artifacts_expected:
   - project/work_items/resolved/WI-SKILLS-LRH-DOC-AUDIT.md
   - project/work_items/resolved/WI-SKILLS-LRH-DOC-ORGANIZE.md
@@ -105,5 +106,6 @@ For each of the three files under `project/work_items/resolved/`
 
 ## Validation
 
+- `scripts/version tools`
 - `lrh validate`
 - `lrh work-items validate`

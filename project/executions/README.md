@@ -133,3 +133,12 @@ If a prior exact record exists:
 For example, a cleanup prompt that was removing a variable or folder from the documentation
 should NOT remove references to the directory in previous completed execution records.
 This applies to all updates to execution records and especially to cleanup work items.
+
+The exception is **limited frontmatter backfills and corrections** to a
+record's own provenance metadata — for example a closeout populating
+`status`, `pr`, `commit`, or `session_transcript`, or a schema-alignment pass
+adding `agent`/`instruction_source` to historical records. These are allowed
+(and are normal closeout workflow) because they record what actually
+happened. The narrative body (`# Summary`, `# Result`, `# Validation`,
+`# Follow-up`) and any unrelated context must remain immutable, even where it
+has since gone stale — annotate in a later record rather than rewriting it.

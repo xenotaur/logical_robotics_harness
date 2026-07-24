@@ -20,9 +20,21 @@ here is loaded at runtime or installed to `~/.claude/skills/`.
 open PR -> /lrh-review-response -> /lrh-confirm-fixes -> merge -> /lrh-closeout
 ```
 
-Each link is a **suggestion to the user**, never an automatic invocation. The
-planning skills carry `disable-model-invocation: true` deliberately, and no
-skill should call another as a side effect of finishing.
+Each link is a **suggestion to the user**: no chain starts *itself*. A skill
+never fires another skill as an implicit side effect of finishing, and the
+planning skills carry `disable-model-invocation: true` so the *model* cannot
+auto-trigger them.
+
+What that invariant does **not** forbid is **deliberate chain initiation**: a
+human may authorize an entire chain in one explicit act — for example by pasting
+a run prompt or invoking a chain-running skill — provided that act carries both
+a **completion condition** (what "done" means for this run) and a **stop-work
+condition** (what forces a halt-and-report). The rule that survives is "no chain
+starts itself"; what a human deliberately starts, with those two conditions, may
+run the links end to end without per-link re-authorization.
+`disable-model-invocation` is orthogonal to this — it governs model
+auto-triggering, not human-initiated chains. See `project/memory/decision_log.md`
+(2026-07-24: Deliberate Chain Initiation).
 
 ## Canonical text
 

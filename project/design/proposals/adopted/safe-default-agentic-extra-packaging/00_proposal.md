@@ -4,7 +4,7 @@ type: design_proposal
 title: Safe-default LRH install with explicit opt-in agentic capability
 status: adopted
 created_on: 2026-05-05
-updated_on: 2026-05-10
+updated_on: 2026-07-24
 implementation_status: partial
 evidence:
   - EV-0008
@@ -106,6 +106,22 @@ Default `lrh` should include `lrh-core` + `lrh-assist`, and exclude
 This boundary should be communicated as an install/capability boundary
 for governance and user intent, not as a formal runtime confinement
 boundary.
+
+### 5.1) Refinement (2026-07-24): the boundary is "does LRH run the loop"
+
+The assist/agentic split is about **who runs the execution loop**, not about
+whether an agent is involved. An agent — Claude or any other — that runs LRH
+skills or `lrh request` templates is **assist**: skills (which an agent walks)
+and `lrh request` templates (which any agent or human walks) ship at parity in
+base `lrh`. Code is **agentic** (and belongs in `lrh[agentic]`) only when **LRH
+itself** programmatically drives an execution loop — e.g. the Claude or OpenAI
+SDK driving a worktree. A human-initiated skill chain (see "deliberate chain
+initiation", `project/memory/decision_log.md`, 2026-07-24) is therefore assist,
+not agentic: it does not require or imply `lrh[agentic]`. This sharpens the
+`lrh-assist` role above ("human-triggered assist workflows") and is consistent
+with §3 principle 1 ("explicit capability state over implicit behavior") and the
+statement in §2 that the boundary "does not imply that LRH artifacts could never
+be used in any agentic workflow outside this package boundary."
 
 ## 6) CLI design and command behavior
 

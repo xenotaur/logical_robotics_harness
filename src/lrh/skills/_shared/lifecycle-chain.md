@@ -20,9 +20,21 @@ here is loaded at runtime or installed to `~/.claude/skills/`.
 open PR -> /lrh-review-response -> /lrh-confirm-fixes -> merge -> /lrh-closeout
 ```
 
-Each link is a **suggestion to the user**, never an automatic invocation. The
-planning skills carry `disable-model-invocation: true` deliberately, and no
-skill should call another as a side effect of finishing.
+Each link is a **suggestion to the user**: no chain starts *itself*. A skill
+never fires another skill as an implicit side effect of finishing, and the
+planning skills carry `disable-model-invocation: true` so the *model* cannot
+auto-trigger them.
+
+What that invariant does **not** forbid is **deliberate chain initiation**: a
+human may authorize an entire chain in one explicit act — for example by pasting
+a run prompt or invoking a chain-running skill — provided that act carries both
+a **completion condition** (what "done" means for this run) and a **stop-work
+condition** (what forces a halt-and-report). The rule that survives is "no chain
+starts itself"; what a human deliberately starts, with those two conditions, may
+run the links end to end without per-link re-authorization.
+`disable-model-invocation` is orthogonal to this — it governs model
+auto-triggering, not human-initiated chains. See `project/memory/decision_log.md`
+(2026-07-24: Deliberate Chain Initiation).
 
 ## Canonical text
 
@@ -67,6 +79,18 @@ common case in an auto-reviewed repo — do not tell a Variant B site that
 closeout never applies. `/lrh-readiness` is the hybrid: a refinement-only PR
 follows Variant B, but if it pushed to an existing `/lrh-implement` branch it
 inherits that PR's Variant A chain.
+
+**Record-less PRs and chain runners.** A PR authored outside the skill chain
+(e.g. directly in a session) can reach merge with no originating record, and if
+it drew no review activity, no review-round record either. A chain-running
+prompt or skill that lands such a PR (`:land`, future `/lrh-land` /
+`/lrh-execute`) should **find-or-backfill**: first look for a record the review
+steps created, and only if none exists create an honest **backfill** `AD_HOC`
+record from available PR data — explicitly marked as reconstructed post-hoc, not
+a fabricated instruction-phase record, and surfaced to the human at the report
+gate. Under a chain runner this tightens the "no review activity -> nothing to
+land" note above: a *landed* PR should carry a record. See
+`project/memory/decision_log.md` (2026-07-24, Consequences).
 
 For `/lrh-confirm-fixes`, which sits mid-chain and reports a merge-readiness
 verdict rather than opening a PR — green verdict only:

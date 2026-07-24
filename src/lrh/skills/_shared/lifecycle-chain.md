@@ -80,6 +80,18 @@ closeout never applies. `/lrh-readiness` is the hybrid: a refinement-only PR
 follows Variant B, but if it pushed to an existing `/lrh-implement` branch it
 inherits that PR's Variant A chain.
 
+**Record-less PRs and chain runners.** A PR authored outside the skill chain
+(e.g. directly in a session) can reach merge with no originating record, and if
+it drew no review activity, no review-round record either. A chain-running
+prompt or skill that lands such a PR (`:land`, future `/lrh-land` /
+`/lrh-execute`) should **find-or-backfill**: first look for a record the review
+steps created, and only if none exists create an honest **backfill** `AD_HOC`
+record from available PR data — explicitly marked as reconstructed post-hoc, not
+a fabricated instruction-phase record, and surfaced to the human at the report
+gate. Under a chain runner this tightens the "no review activity -> nothing to
+land" note above: a *landed* PR should carry a record. See
+`project/memory/decision_log.md` (2026-07-24, Consequences).
+
 For `/lrh-confirm-fixes`, which sits mid-chain and reports a merge-readiness
 verdict rather than opening a PR — green verdict only:
 

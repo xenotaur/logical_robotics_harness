@@ -121,6 +121,16 @@ or templates is assist, not agentic.
   promoted as the reference implementation of deliberate chain initiation —
   after this decision and the guidance cascade land, and after initial
   `CHAIN-NOTE` evidence.
+- Finding (surfaced while dogfooding #417): a PR authored outside the skill
+  chain can reach merge with no originating execution record. Chain-running
+  prompts/skills (`:land`, future `/lrh-land` / `/lrh-execute`) should
+  **find-or-backfill** — prefer the record the review steps create, and only
+  when none exists create an honest, explicitly post-hoc **backfill** `AD_HOC`
+  record from available PR data (`pr`, `commit`, `status`, `agent`,
+  `instruction_source`), surfaced at the human gate rather than written
+  silently. This tightens the `lifecycle-chain.md` "a no-activity PR needs no
+  record" stance toward "a landed PR should carry a record." #417's own record
+  is the first application of this backfill.
 
 ### Revisit conditions
 

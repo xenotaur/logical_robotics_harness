@@ -83,10 +83,13 @@ Best-practice grounding (verified this session):
 
 ### Duplication search
 - In-repo: No existing implementation of an assistant *role* artifact class.
-  Grep hits for "assistant" resolve to `src/lrh/assist/` — the request /
-  run-packet **tooling** layer ("assist"), which is a different concern from
-  the `project/assistants/` **role artifacts** proposed here. The naming
-  proximity is noted as an Open Question.
+  A grep for "assistant" matches several unrelated locations — the
+  `src/lrh/assist/` request / run-packet **tooling** layer ("assist"), the
+  `lrh-readiness` skill docs, and incidental mentions in three other proposals
+  (`workstream-execution-framework`, `lrh-conversations-storage-interop`,
+  `activity-lanes-and-observational-dashboard`). None of these implement a
+  persistent assistant *role* artifact class; the `src/lrh/assist/` naming
+  proximity is the only notable overlap and is tracked as an Open Question.
 - Sibling repos: Taurcode has an LRH-like control plane but no known assistant
   role class; not inspected in depth for this proposal.
 - External libraries: None adopted — the design deliberately owns *semantic*
@@ -151,12 +154,33 @@ missing human gates default to `True` (verified:
 
 ### Decision 5: One assistant binds one root workstream via `managed_by` (MVP)
 **Chosen:** for the MVP, the binding lives on a single **root** workstream
-through `managed_by` plus contract fields (`assistant_contract`,
-`assistant_escalates_on`, `assistant_reports_on`, `assistant_cadence_mode`),
-compiled into a typed `AssistantBinding`. Child workstreams inherit the
-association for display/reporting but do not override it; `managed_by` is a
-*management* relationship, not a parent-child planning edge. A future
-first-class `project/engagements/` artifact is **deferred** until a
+through `managed_by` plus contract fields, compiled into a typed
+`AssistantBinding`. The binding's `assistant_contract` **is the active grant**:
+it enumerates the capability tokens delegated for this assignment and compiles
+to `AssistantBinding.granted_permissions` — the `binding grant` intersected in
+Decision 4. The grant must be a subset of the assistant's `permission_ceiling`;
+binding validation rejects any granted token outside the ceiling, and where no
+grant supplies a mutation-capable capability it resolves as **unavailable**
+rather than falling back to the ceiling (so a role that *could* be granted a
+capability is not silently over-authorized on an assignment that did not grant
+it). `assistant_escalates_on`, `assistant_reports_on`, and
+`assistant_cadence_mode` carry the escalation, reporting, and cadence contract
+terms respectively.
+
+`managed_by` is a *management* relationship, not a parent-child planning edge.
+Child workstreams inherit the association **for display and reporting only** —
+inheritance never contributes to the permission grant; a work item's authority
+is always resolved against the governing **root** binding of the subtree its
+run packet targets. Because the planning index permits a workstream to have
+multiple parents — it emits only a `PLANNING_MULTIPLE_PARENTS` warning, not an
+error (verified: `src/lrh/control/planning_tree.py`) — a child can be reachable
+from two roots managed by different assistants. Binding validation must
+therefore **reject** a workstream reachable from two differently-managed roots
+(conflicting bindings for one node), so no child ever carries two grants or two
+reporting contracts. `managed_by` remains singular and appears only on a
+management-root workstream; one root has at most one managing assistant.
+
+A future first-class `project/engagements/` artifact is **deferred** until a
 demonstrated need (multi-root delegation, reassignment, assistant teams,
 cross-repo). Both the current and future source forms compile into the same
 `AssistantBinding`, so downstream consumers depend on the binding, not on raw

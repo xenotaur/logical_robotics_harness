@@ -10,7 +10,10 @@ validating catalog that enforces it arrives in Stage 3.
 
 Tokens are flat `namespace:verb` (or `namespace:noun`) strings, chosen because
 the LRH frontmatter parser rejects nested mappings. A token that is not listed
-here is invalid.
+here is invalid — **except** for the explicitly soft, extensible preference
+lists called out under [Preference tokens](#preference-tokens)
+(`preferred_skills`, `preferred_execution`, `preferred_quality_tradeoffs`),
+which are ordered advisory guidance rather than a closed catalog.
 
 ## `capabilities` / `permission_ceiling` tokens
 
@@ -106,6 +109,30 @@ Used by `review-policy.md`:
 
 `fix_mechanical`, `fix_within_scope`, `surface_for_decision`,
 `reject_with_rationale`.
+
+## Preference tokens
+
+Used by `preferences.md`. The **namespaced** preference tokens below are part of
+the closed catalog. The other preference lists — `preferred_skills` (LRH skill
+IDs), `preferred_execution`, and `preferred_quality_tradeoffs` — are ordered
+**soft guidance**: advisory, intentionally extensible, and *not* governed as a
+closed token set.
+
+`preferred_context_modes`:
+
+| Token | Meaning |
+|---|---|
+| `verification:cold` | Verify in a cold, isolated context |
+| `implementation:continuity` | Implement with conversational continuity |
+| `broad_research:isolated` | Do broad research in an isolated context |
+
+`fallbacks` (`condition:action`):
+
+| Token | Meaning |
+|---|---|
+| `cold_verifier_unavailable:require_human_verification` | If no cold verifier is available, require human verification |
+| `preferred_skill_unavailable:render_manual_packet` | If the preferred skill is unavailable, render a manual packet |
+| `backend_policy_unsupported:stop_and_report` | If the backend cannot enforce a hard policy, stop and report |
 
 ## Adapter policy-report tokens
 

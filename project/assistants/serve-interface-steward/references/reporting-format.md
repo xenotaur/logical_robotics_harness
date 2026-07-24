@@ -17,7 +17,8 @@ Common assistant-to-human combinations:
 | Completion candidate | inform | completion |
 | Blocked and need help | request | blocker |
 | Decision request | request | decision |
-| Risk alert | inform/request | risk |
+| Risk alert (informational) | inform | risk |
+| Risk alert (needs response) | request | risk |
 | Handoff | inform | handoff |
 
 Default renderers for this role: status → `standard_markdown`; alerts →

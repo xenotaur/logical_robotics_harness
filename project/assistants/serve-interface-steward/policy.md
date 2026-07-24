@@ -7,6 +7,7 @@ capabilities:
   - planning:create_child_workstream
   - planning:create_work_item
   - execution:prepare_run_packet
+  - execution:launch_approved_run
   - execution:monitor
   - review:triage
   - review:fix_mechanical

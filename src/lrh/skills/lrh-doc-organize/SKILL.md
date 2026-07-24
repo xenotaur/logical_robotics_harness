@@ -236,10 +236,10 @@ Run `lrh validate`, commit the record as an additional commit to the open PR,
 and push.
 
 Then report the PR URL, the execution record path, and the next steps: run
-`/lrh-review-response <PR-URL>` to address reviewer comments (repeat as
-needed), then `/lrh-confirm-fixes <PR-URL>` to verify the fixes against the
+`/lrh-review-response <pr-url>` to address reviewer comments (repeat as
+needed), then `/lrh-confirm-fixes <pr-url>` to verify the fixes against the
 current diff and resolve the review threads before merge. After merging, run
-`/lrh-closeout <PR-URL>` to land the execution record and update the control
+`/lrh-closeout <pr-url>` to land the execution record and update the control
 plane. If more phases remain, `/lrh-doc-organize` runs again for the next one
 only after this phase's PR is merged and closed out.
 

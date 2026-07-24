@@ -104,17 +104,17 @@ alternatives — a work item usually needs both.
 Step 8 opens a PR containing the new work item file, so the PR needs review
 like any other:
 
-1. `/lrh-review-response <PR-URL>` — address reviewer comments. Repeat as
+1. `/lrh-review-response <pr-url>` — address reviewer comments. Repeat as
    needed until no comments remain outstanding.
-2. `/lrh-confirm-fixes <PR-URL>` — verify the fixes against the current diff
+2. `/lrh-confirm-fixes <pr-url>` — verify the fixes against the current diff
    and resolve the review threads before merge.
 3. Merge the PR.
-4. `/lrh-closeout <PR-URL>` — land the execution record and update the
-   control plane.
 
-Note that merging this PR does not resolve the work item. The PR lands the
-*planning artifact*; the item stays `proposed` until the work it describes is
-implemented.
+The chain ends at merge here. This PR files a *planning artifact* and creates
+no execution record, so `/lrh-closeout` does not apply to it — there is
+nothing to land, and the work item stays `proposed` until the work it
+describes is implemented. Closeout enters the picture later, for the
+*implementation* PR — see "Evidence and closeout" below.
 
 ### Path 2 — item refinement (making the item prompt-ready)
 
@@ -140,7 +140,7 @@ lrh request prompt-from-work-item WI-<ID>
 ## Evidence and closeout
 
 Once implementation is complete and its PR is merged, run
-`/lrh-closeout <PR-URL>`. It creates or lands the execution record under
+`/lrh-closeout <pr-url>`. It creates or lands the execution record under
 `project/executions/<WI-ID>/`, moves the file to
 `project/work_items/resolved/` with `status: resolved` and a non-null
 `resolution`, and re-validates.

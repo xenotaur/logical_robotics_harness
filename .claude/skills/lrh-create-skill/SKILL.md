@@ -221,12 +221,13 @@ and the session is restarted.
 - Any caveats or judgment calls made during generation.
 - Whether the user would like to invoke `anthropic-skills:skill-creator`
   to evaluate and iterate on the new skill.
-- Next steps: run `/lrh-review-response <PR-URL>` to address reviewer
-  comments (repeat as needed), then `/lrh-confirm-fixes <PR-URL>` to verify
+- Next steps: run `/lrh-review-response <pr-url>` to address reviewer
+  comments (repeat as needed), then `/lrh-confirm-fixes <pr-url>` to verify
   the fixes against the current diff and resolve the review threads before
-  merge. After merging, run `/lrh-closeout <PR-URL>` to land the execution
-  record and update the control plane, then `lrh skills install` to copy the
-  new skill into `~/.claude/skills/` — merging alone does not install it.
+  merge, then merge. This skill creates no execution record, so
+  `/lrh-closeout` does not apply — there is nothing to land. After merging,
+  run `lrh skills install` to copy the new skill into `~/.claude/skills/` —
+  merging alone does not install it.
 
 ---
 

@@ -174,12 +174,13 @@ risk. Offer:
 - **Commit directly to main** — appropriate for a planning artifact. Stage the
   file and commit with a short message: `Add docs audit artifact YYYY-MM-DD`.
 - **Open a PR** — if the user prefers review before merging. On this path,
-  report the next steps: run `/lrh-review-response <PR-URL>` to address
-  reviewer comments (repeat as needed), then `/lrh-confirm-fixes <PR-URL>` to
+  report the next steps: run `/lrh-review-response <pr-url>` to address
+  reviewer comments (repeat as needed), then `/lrh-confirm-fixes <pr-url>` to
   verify the fixes against the current diff and resolve the review threads
-  before merge. After merging, run `/lrh-closeout <PR-URL>` to land the
-  execution record and update the control plane. The commit-to-main path has
-  no PR, so none of these apply to it.
+  before merge, then merge. The chain ends at merge: this PR files a planning
+  artifact and creates no execution record, so `/lrh-closeout` does not apply
+  — there is nothing to land. The commit-to-main path has no PR at all, so
+  none of the chain applies to it.
 
 Do not commit without explicit direction.
 

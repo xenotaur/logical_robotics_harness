@@ -259,10 +259,10 @@ Offer (do not automatically do):
 - A reminder that `session_transcript: pending` should be updated to
   `claude-app:<session-id>` after the session ends
 - Next steps: wait for reviewer comments and run
-  `/lrh-review-response <PR-URL>` to address them (repeat as needed), then
-  `/lrh-confirm-fixes <PR-URL>` to verify the fixes against the current diff
+  `/lrh-review-response <pr-url>` to address them (repeat as needed), then
+  `/lrh-confirm-fixes <pr-url>` to verify the fixes against the current diff
   and resolve the review threads before merge. After merging, run
-  `/lrh-closeout <PR-URL>` to land the execution record and move the work
+  `/lrh-closeout <pr-url>` to land the execution record and move the work
   item to `resolved/` with a non-null `resolution` value
 
 ---

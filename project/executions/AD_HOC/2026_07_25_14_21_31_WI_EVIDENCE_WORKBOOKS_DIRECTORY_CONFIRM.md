@@ -49,6 +49,8 @@ No threads were Unaddressed, Partial, Ambiguous, or Problematic. No
 **Thread-resolution verdict (Step 6): green** — both threads resolved, no
 exceptions remain.
 
+CHAIN-NOTE: cycles=1; stops=1; gates=[merge]; friction="Step 6/land-PR template assumes primary-or-backfill; no case for a Variant B PR with review+confirm records but no primary"; note="appended to the _CONFIRM record — this PR has no primary record to prefer, per Step 6's own definition"
+
 # Validation
 
 - `lrh github threads --mode raw --state all`, filtered to `isResolved ==

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #421 (commit e7d7a0e): lrh validate emits advisory warnings for execution-record session_transcript (scheme/sentinel/sequence/absolute-path) and instruction_source (absolute-path) fields; agent left open-ended. Also fixed a pre-existing merge-conflict-corrupted record the new validation surfaced."
 blocked_reason: null
 blocked: false
 id: WI-EXEC-SESSIONS-SCHEMA
 title: Add lrh validate support for execution session optional fields
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

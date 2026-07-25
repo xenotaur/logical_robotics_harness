@@ -2,10 +2,10 @@
 execution_id: 2026_07_25_04_01_32_WI_EXEC_SESSIONS_SCHEMA
 prompt_id: PROMPT(WI-EXEC-SESSIONS-SCHEMA:WI_EXEC_SESSIONS_SCHEMA)[2026-07-25T02:19:37-04:00]
 work_item: WI-EXEC-SESSIONS-SCHEMA
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/421
-commit: 0e46ad1
+commit: e7d7a0eb1a74ab21e0245f58798e8afbe54b2424
 created_at: 2026-07-25T04:01:32-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-EXEC-SESSIONS-SCHEMA.md
@@ -50,6 +50,13 @@ explicit direction after a stop-and-report. Only file affected.
 Prior-art: prompt-ready WI; no duplicate. `depends_on WI-EXEC-SESSIONS-DOCS`
 judged non-blocking (README half shipped in #411; grammar documented;
 PROMPTS.md prose orthogonal).
+
+Landed via the execute-to-closeout chain: implement plan gate honored, one
+review round (4 codex/Copilot comments tightening the scheme check → 4
+fixes), human merge gate approved, PR #421 squash-merged as `e7d7a0e`.
+WI-EXEC-SESSIONS-SCHEMA resolved and moved to `resolved/`.
+
+CHAIN-NOTE: cycles=1; stops=1; gates=[plan,merge]; friction=pre-existing-merge-conflict-record-blocked-lrh-validate; note="feature caught 2026-05 corruption on first run; user OK'd fixing it in-PR"
 
 # Validation
 

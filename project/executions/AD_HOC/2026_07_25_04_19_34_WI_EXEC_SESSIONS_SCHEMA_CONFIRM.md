@@ -2,10 +2,10 @@
 execution_id: 2026_07_25_04_19_34_WI_EXEC_SESSIONS_SCHEMA_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_EXEC_SESSIONS_SCHEMA_CONFIRM)[2026-07-25T04:19:22-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_25_04_01_32_WI_EXEC_SESSIONS_SCHEMA
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/421
-commit: 9bb2f5b
+commit: e7d7a0eb1a74ab21e0245f58798e8afbe54b2424
 created_at: 2026-07-25T04:19:34-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/421

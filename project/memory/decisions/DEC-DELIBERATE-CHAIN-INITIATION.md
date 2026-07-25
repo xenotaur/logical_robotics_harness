@@ -14,9 +14,10 @@ than re-authorizing each link. Individual links remain independently available;
 an automatic chain over them may run only when a human has explicitly initiated
 it and has provided or signed off on both a completion condition and a
 stop-work condition. This does not weaken the rule that no chain starts itself;
-it does not pre-authorize the merge/publish/release links, which remain per-PR
-human gates; and it does not move any skill into the agentic package — an agent
-running skills or templates is assist, not agentic.
+it does not pre-authorize the human/policy gates — merge, publish, release, and
+closeout — nor any skill's internal confirmation gate; and it does not move any
+skill into the agentic package — an agent running skills or templates is assist,
+not agentic.
 
 ## Context
 

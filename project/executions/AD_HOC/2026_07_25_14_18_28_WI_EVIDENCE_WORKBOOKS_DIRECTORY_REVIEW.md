@@ -2,13 +2,13 @@
 execution_id: 2026_07_25_14_18_28_WI_EVIDENCE_WORKBOOKS_DIRECTORY_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_EVIDENCE_WORKBOOKS_DIRECTORY_REVIEW)[2026-07-25T14:11:45-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/416
-commit: 25c5e15a68ad035dbfdb9313c9e2560ce42568cf
+commit: b5ca51c0089fc52820c7dcbad372531cf6fa085f
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/416
-session_transcript: pending
+session_transcript: claude-app:a787b253-6f9b-4896-a9ec-383fb1c6b1ac
 created_at: 2026-07-25T14:18:28-04:00
 ---
 

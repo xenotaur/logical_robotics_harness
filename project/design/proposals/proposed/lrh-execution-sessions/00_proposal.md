@@ -508,8 +508,9 @@ skill mechanism is in place.
 - Do not automate the three-phase workflow *in this proposal*. Building the
   human-walkable links first was a sequencing choice, not a permanent
   prohibition: human-initiated automation of the links is permitted under
-  **deliberate chain initiation** (see `project/memory/decision_log.md`,
-  2026-07-24). Claude.app sessions remain human-driven; no chain starts itself.
+  **deliberate chain initiation** (see
+  `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`). Claude.app
+  sessions remain human-driven; no chain starts itself.
 - Do not import or ingest session JSONL content into the repository.
   The transcript path is a reference, not a copy.
 

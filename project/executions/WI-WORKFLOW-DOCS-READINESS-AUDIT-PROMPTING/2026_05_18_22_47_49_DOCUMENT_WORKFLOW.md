@@ -2,10 +2,13 @@
 execution_id: 2026_05_18_22_47_49_DOCUMENT_WORKFLOW
 prompt_id: PROMPT(WI-WORKFLOW-DOCS-READINESS-AUDIT-PROMPTING:DOCUMENT_WORKFLOW)[2026-05-17T02:07:00-04:00]
 work_item: WI-WORKFLOW-DOCS-READINESS-AUDIT-PROMPTING
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/275
+commit: 7ff7ee397406e7ccc0407a2d08cf755d753378a8
+agent: codex_cloud
+instruction_source: promptspace:Z. Completed Prompts/lrh_readiness_prompt_package.zip#lrh_readiness_prompts/03_workflow_docs_readiness_audit_prompting.md
+session_transcript: none
 created_at: 2026-05-18T22:47:49+00:00
 ---
 

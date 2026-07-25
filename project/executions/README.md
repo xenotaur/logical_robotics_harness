@@ -32,6 +32,37 @@ Execution records should include these front-matter fields:
 - `commit`: optional commit SHA
 - `created_at`: ISO8601 timestamp with timezone offset
 
+These optional fields come from `PROP-LRH-EXECUTION-SESSIONS`. They are
+backward-compatible; records without them remain valid:
+
+- `agent`: execution backend — `claude_app`, `codex_cloud`, `manual`, or
+  another named backend
+- `instruction_source`: the instruction-phase artifact (a repo-relative path,
+  a short description, or a scheme-prefixed reference such as
+  `promptspace:<relative-path>` for an archive outside the repository)
+- `session_transcript`: pointer to the agent session that produced the work
+
+### `session_transcript` values
+
+The value is a scheme-prefixed scalar `<backend>:<id>`, or one of two
+sentinels. See the 2026-07-23 "Backend-Agnostic Session Pointer Grammar"
+entry in `project/memory/decision_log.md`.
+
+| Value | Meaning |
+|---|---|
+| `claude-app:<host-uuid-stem>` | Claude.app session, host id, `local_` prefix stripped |
+| `codex-cloud:<task-id>` | Codex Cloud task |
+| `chatgpt:<conversation-id>` | ChatGPT conversation |
+| `pending` | A retrievable session exists; its ID is not yet recorded. **A to-do.** |
+| `none` | This backend produced no retrievable transcript. **Terminal, not a backlog item.** |
+
+Never write an absolute path (`~/.claude/...`, `/Users/...`) — it leaks local
+workspace layout to everyone who clones the repository. Session transcripts
+themselves are never committed; the repository stores only the pointer.
+
+A sequence of these scalars is reserved for executions that genuinely span
+multiple backends; single-backend records stay scalar.
+
 ## Status values
 
 Allowed status values:
@@ -102,3 +133,12 @@ If a prior exact record exists:
 For example, a cleanup prompt that was removing a variable or folder from the documentation
 should NOT remove references to the directory in previous completed execution records.
 This applies to all updates to execution records and especially to cleanup work items.
+
+The exception is **limited frontmatter backfills and corrections** to a
+record's own provenance metadata — for example a closeout populating
+`status`, `pr`, `commit`, or `session_transcript`, or a schema-alignment pass
+adding `agent`/`instruction_source` to historical records. These are allowed
+(and are normal closeout workflow) because they record what actually
+happened. The narrative body (`# Summary`, `# Result`, `# Validation`,
+`# Follow-up`) and any unrelated context must remain immutable, even where it
+has since gone stale — annotate in a later record rather than rewriting it.

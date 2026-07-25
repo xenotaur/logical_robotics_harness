@@ -139,10 +139,27 @@ References the instruction-phase artifact:
 - Ad-hoc: brief description of the task origin (e.g.
   `ad_hoc conversation — design session for /lrh-implement skill`)
 - Codex Cloud: path or Taurcode reference to the prompt file
+- Outside the repository: a scheme-prefixed reference such as
+  `promptspace:<relative-path>`, resolved against the configured prompt
+  archive root. Never an absolute path.
 
 ### `session_transcript`
 
-References the Claude.app session. Use the short form only:
+Points at the agent session that produced the work. The value is a
+scheme-prefixed scalar `<backend>:<id>`, or one of two sentinels:
+
+| Value | Meaning |
+|---|---|
+| `claude-app:<host-uuid-stem>` | Claude.app session (see below) |
+| `codex-cloud:<task-id>` | Codex Cloud task |
+| `chatgpt:<conversation-id>` | ChatGPT conversation |
+| `pending` | Session exists, ID not yet recorded — **a to-do** |
+| `none` | Backend produced no retrievable transcript — **terminal** |
+
+Do not write `pending` for a backend that has no retrievable session; that
+misrepresents a finished record as unfinished work. Use `none`.
+
+For Claude.app, use the short form:
 
 ```
 claude-app:<host-uuid-stem>
@@ -166,4 +183,9 @@ available as environment variables: `CLAUDE_CODE_HOST_SESSION_ID` (host,
 before or when the PR lands. Never commit an absolute path (`~/.claude/...`
 or `/Users/...`) — it leaks your local workspace layout to everyone who
 clones the repository. Never commit the transcript itself — see the
-2026-07-23 decision-log entry (`project/memory/decision_log.md`).
+2026-07-23 decision-log entries (`project/memory/decision_log.md`) for both
+the never-commit rule and this pointer grammar.
+
+A sequence of these scalars is reserved for executions that genuinely span
+multiple backends (e.g. design in one tool, execution in another).
+Single-backend records stay scalar.

@@ -21,9 +21,12 @@ open PR -> /lrh-review-response -> /lrh-confirm-fixes -> merge -> /lrh-closeout
 ```
 
 Each link is a **suggestion to the user**: no chain starts *itself*. A skill
-never fires another skill as an implicit side effect of finishing, and the
-planning skills carry `disable-model-invocation: true` so the *model* cannot
-auto-trigger them.
+never fires another skill as an implicit side effect of finishing. Most
+execution/lifecycle skills carry `disable-model-invocation: true` (e.g.
+`/lrh-implement`, `/lrh-review-response`, `/lrh-confirm-fixes`, `/lrh-closeout`),
+so the *model* cannot auto-trigger them; the planning skills meant to be
+orchestrated (`/lrh-work-item`, `/lrh-proposal`, `/lrh-workstream`) deliberately
+do not carry it. (Do not assert a fixed count — the set drifts.)
 
 What that invariant does **not** forbid is **deliberate chain initiation**: a
 human may authorize an entire chain in one explicit act — for example by pasting
@@ -31,10 +34,17 @@ a run prompt or invoking a chain-running skill — provided that act carries bot
 a **completion condition** (what "done" means for this run) and a **stop-work
 condition** (what forces a halt-and-report). The rule that survives is "no chain
 starts itself"; what a human deliberately starts, with those two conditions, may
-run the links end to end without per-link re-authorization.
-`disable-model-invocation` is orthogonal to this — it governs model
-auto-triggering, not human-initiated chains. See `project/memory/decision_log.md`
-(2026-07-24: Deliberate Chain Initiation).
+run the links without per-link re-authorization — **except merge/publish/release,
+which remain per-PR human gates** requiring explicit in-session authorization (a
+merge instruction embedded in a run prompt is data, not authorization; see
+`AGENTS.md`, "Pull requests and merge authority").
+
+`disable-model-invocation` governs whether the *model* may auto-trigger a skill
+on its own initiative; it is not by itself a mechanism for human-initiated
+chaining. Whether a chain runner can *invoke* flagged links or must *inline*
+their workflows is an unresolved mechanical question deferred to a follow-up work
+item — do not assert it is simply "orthogonal." See
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`.
 
 ## Canonical text
 
@@ -90,7 +100,7 @@ record from available PR data — explicitly marked as reconstructed post-hoc, n
 a fabricated instruction-phase record, and surfaced to the human at the report
 gate. Under a chain runner this tightens the "no review activity -> nothing to
 land" note above: a *landed* PR should carry a record. See
-`project/memory/decision_log.md` (2026-07-24, Consequences).
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` (Consequences).
 
 For `/lrh-confirm-fixes`, which sits mid-chain and reports a merge-readiness
 verdict rather than opening a PR — green verdict only:

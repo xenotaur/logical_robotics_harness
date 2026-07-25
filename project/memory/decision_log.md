@@ -1,151 +1,118 @@
 # Decision Log
 
-## 2026-07-24: Decision: Deliberate Chain Initiation (and the Assist vs. Agentic Boundary, Clarified)
+## 2026-07-24: Decision: Deliberate Chain Initiation — promoted to DEC-DELIBERATE-CHAIN-INITIATION
+
+Promoted out of the chronological log to
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` because it is a
+load-bearing invariant cited independently by `src/lrh/skills/_shared/lifecycle-chain.md`,
+`PROP-LRH-EXECUTION-SESSIONS`, and `PROP-SAFE-DEFAULT-AGENTIC-EXTRA-PACKAGING`
+(the `precedence_semantics.md` pattern). See that record for the full decision,
+rationale, consequences, and revisit conditions.
+
+## 2026-07-23: Decision: Backend-Agnostic Session Pointer Grammar
 
 ### Summary
 
-A human may authorize an entire lifecycle chain in one deliberate act, rather
-than re-authorizing each link. Individual links remain independently available;
-an automatic chain over them may run only when a human has explicitly initiated
-it and has provided or signed off on both a completion condition and a
-stop-work condition. This does not weaken the rule that no chain starts itself,
-and it does not move any skill into the agentic package: an agent running skills
-or templates is assist, not agentic.
+`session_transcript` accepts a scheme-prefixed scalar `<backend>:<id>` for
+any execution backend — not only Claude.app — plus the sentinels `pending`
+and `none`. The field is defined so that a future sequence-valued form is a
+compatible superset, and so that both forms converge on the
+`PROP-LRH-CONVERSATIONS-STORAGE-INTEROP` ledger when it exists.
 
 ### Context
 
-- The post-PR lifecycle chain is documented as suggestion-only in
-  `src/lrh/skills/_shared/lifecycle-chain.md` ("Each link is a suggestion to the
-  user, never an automatic invocation … no skill should call another as a side
-  effect of finishing"). All nine skills carry `disable-model-invocation: true`.
-- `PROP-LRH-EXECUTION-SESSIONS` lists as a non-goal: "Do not automate the
-  three-phase workflow. Claude.app sessions are human-driven; the skill guides
-  but does not automate."
-- Both statements were written before the shift to Claude Code Auto mode. In
-  practice the dominant friction is now the opposite of the one they guard
-  against: a human mechanically re-typing the same `/lrh-implement` →
-  `/lrh-review-response` → `/lrh-confirm-fixes` → merge → `/lrh-closeout`
-  sequence, and re-confirming a cold subagent for `/lrh-confirm-fixes` that was
-  meant to be the default. This adds no decision value and buries key findings
-  in boilerplate, which hides bugs rather than catching them.
-- `PROP-SAFE-DEFAULT-AGENTIC-EXTRA-PACKAGING` (adopted) already establishes the
-  packaging boundary and, as principle #1, "explicit capability state over
-  implicit behavior" — but scoped to install time. It also states the boundary
-  "does not imply that LRH artifacts could never be used in any agentic workflow
-  outside this package boundary."
-- Some collaborators cannot run agentic software at all — including Claude
-  itself, per their IT policy — so the assist/agentic boundary must be crisp and
-  must not depend on whether Claude is in the loop.
-- The Taurworks concept of "deliberate user permission" — an authorization a
-  machine cannot self-grant and that is recorded rather than stored in
-  machine-flippable config — is the model applied here to chain initiation.
+- `PROP-LRH-EXECUTION-SESSIONS` defines `agent` as open-ended
+  (`claude_app | codex_cloud | manual | <other>`) but defines
+  `session_transcript` purely in Claude.app terms ("references the Claude.app
+  session by its session ID"). The field name is backend-agnostic; its
+  definition is not.
+- The corpus is entirely single-backend: of 324 execution records, 118 carry
+  `agent:` and **all 118 say `claude_app`**. `codex_cloud` has never been
+  written, because the Codex-era records predate the field.
+- Three May 2026 records (PRs #260, #264, #268) sat at
+  `session_transcript: pending` since creation. They were Codex Cloud
+  executions: the surviving prompt package
+  (`lrh_readiness_prompt_package.zip`) contains four files whose first lines
+  are those records' exact prompt IDs, each titled "Codex Cloud Prompt", and
+  every May-era merge branch is named `codex/…`. There is no Claude session
+  to point at, so `pending` was never going to resolve — it misrepresented a
+  complete record as unfinished work.
+- `PROP-LRH-CONVERSATIONS-STORAGE-INTEROP` already specifies the eventual
+  storage layer (an `lrh://` URI namespace, privacy/durability/retention/
+  authority classes, and a backend capability model stating that "Git is not
+  the default raw chat database"). Its `implementation_status` is
+  `not_started`; only `lrh conversation convert-pdf` ships today.
+- `project/executions/README.md` documented eight frontmatter fields and none
+  of `agent`, `instruction_source`, or `session_transcript`, despite 121
+  records carrying them.
 
 ### Decision
 
-1. **Deliberate chain initiation.** Each lifecycle link (`/lrh-implement`,
-   `/lrh-review-response`, `/lrh-confirm-fixes`, `/lrh-closeout`, and peers)
-   remains independently invocable by a human at any time. An automatic chain
-   that follows those links may run, but only when a human has explicitly
-   initiated it and has provided or signed off on two conditions:
-   - a **completion condition** — what "done" means for this run; and
-   - a **stop-work condition** — what forces a halt-and-report.
-   Absent an explicit initiation carrying both conditions, no chain self-starts.
-   This extends the adopted "explicit capability state over implicit behavior"
-   principle from install time (is agentic capability installed?) to run time
-   (has this chain been authorized to run?).
-
-2. **`disable-model-invocation` is preserved and orthogonal.** The flag prevents
-   the *model* from auto-firing a skill as an implicit side effect; it does not
-   prevent a *human* from deliberately initiating a chain. The invariant that
-   survives is "no chain starts itself." What changes is that one deliberate
-   human act may authorize a whole chain instead of requiring per-link
-   re-authorization.
-
-3. **The execution-sessions non-automation was build-order, not a permanent
-   non-goal.** `PROP-LRH-EXECUTION-SESSIONS`'s "do not automate the three-phase
-   workflow" recorded a sequencing choice — build the human-walkable links
-   first — not a standing prohibition. With deliberate chain initiation defined,
-   human-initiated automation of those links is permitted.
-
-4. **The assist/agentic boundary is "does LRH itself run the loop," not "is the
-   workflow agentic."** An agent (Claude or any other) running skills or
-   `lrh request` templates is **assist**; skills and templates ship at parity in
-   base `lrh`. Only code in which **LRH itself** programmatically drives an
-   execution loop (e.g. the Claude or OpenAI SDK driving a worktree) is
-   **agentic** and belongs in `lrh[agentic]`. A deliberately-initiated skill
-   chain is assist — it does not require or imply `lrh[agentic]`.
+- `session_transcript` takes a **scheme-prefixed scalar** `<backend>:<id>`.
+  Known schemes: `claude-app:<host-uuid-stem>`, `codex-cloud:<task-id>`,
+  `chatgpt:<conversation-id>`. New backends add a scheme rather than a field.
+- Two sentinels, with distinct meanings that must not be conflated:
+  - `pending` — a retrievable session exists but its ID is not yet recorded.
+    This is a **to-do**.
+  - `none` — this backend produced no retrievable session transcript. This is
+    a **terminal state**, not a backlog item.
+- `instruction_source` uses the same scheme-prefixed style for artifacts
+  outside the repository: `promptspace:<relative-path>` resolved against the
+  user's configured prompt archive root. Absolute paths remain forbidden, for
+  the same workspace-layout-leak reason that already applies to JSONL paths.
+- The field is specified as **scalar or sequence of scalars**. Records stay
+  scalar until a genuinely multi-backend execution appears; a sequence form
+  can then be adopted without rewriting any existing record.
+- When the conversations ledger exists, `lrh://` becomes simply another
+  scheme. No migration of this field is required to get there.
 
 ### Rationale
 
-- The original caution targeted runaway *implicit* automation. That target is
-  preserved (principle 2). The friction actually being felt — mechanical
-  re-authorization that hides findings — is a different problem the original
-  wording did not distinguish.
-- Grounding the change as an extension of an already-adopted principle
-  (explicit capability state) keeps it continuous with existing governance
-  rather than a repudiation of it.
-- Separating "who runs the loop" from "is Claude involved" gives collaborators
-  under agentic-software restrictions a boundary they can rely on: base `lrh`
-  (skills + templates) stays assist regardless of which agent drives it.
+- All 121 existing values already match `<backend>:<id>`. Adopting this
+  grammar is a documentation fix, not a migration — decisive against every
+  alternative, each of which pays migration cost across a corpus that is
+  ~100% one backend.
+- Keeping a scalar preserves substring greppability, which
+  `project/executions/README.md` explicitly relies on for
+  `lrh search executions`. A nested object would break that contract for
+  capability the scalar-or-sequence form already provides.
+- Separating `none` from `pending` is what actually retires the three May
+  records: without it, a complete record is indistinguishable from unfinished
+  work, which is why they read as a standing backlog item for two months.
+- Deferring to the ledger today is premature: a pointer into storage that
+  does not exist is a worse record than an honest `none`.
 
 ### Alternatives considered
 
-1. Leave the suggestion-only invariant and the non-goal unchanged.
-   Pros: maximum caution; no cascade.
-   Cons: entrenches the re-typing friction and the finding-burying it causes;
-   leaves standing guidance that current practice already contradicts.
-2. Drop the invariant entirely and allow model-initiated chaining.
-   Pros: maximum autonomy.
-   Cons: removes the human control point the project depends on and the
-   compliance boundary; re-conflates assist and agentic.
-3. Fold this into `WS-EXECUTION-FRAMEWORK`.
-   Pros: single planning frame with the bounded stabilization loop.
-   Cons: that workstream is about LRH running the loop (`lrh[agentic]`); folding
-   re-conflates the two axes this decision exists to separate. Cross-link
-   instead.
+1. Structured object (`session: {backend:, id:, recoverable:}`).
+   Pros: room for capture status and recoverability metadata.
+   Cons: breaks the substring-search contract; migrates 121 records for
+   capability the scalar-or-sequence union already supplies; still models
+   only one session.
+2. Sequence-only from the start (`sessions: [{role:, ref:}, …]`).
+   Pros: directly closes the multi-backend gap flagged as Risk 3 in
+   `PROP-LRH-EXECUTION-SESSIONS` — the ChatGPT-design-then-Codex-execution
+   case that produced these very records.
+   Cons: most invasive, and overkill while the corpus is single-backend.
+   Retained as the compatible future form rather than rejected.
+3. `lrh://` ledger URI now.
+   Pros: matches the already-designed storage model exactly; one pointer
+   regardless of backend count.
+   Cons: depends on unimplemented phases of a `not_started` proposal;
+   unusable today. This is the intended endpoint, not the current step.
 
 ### Consequences
 
-- Guidance cascade (in this PR): revise
-  `src/lrh/skills/_shared/lifecycle-chain.md` to the deliberate-initiation
-  formulation and note the orthogonality of `disable-model-invocation`;
-  reclassify the `PROP-LRH-EXECUTION-SESSIONS` non-goal as build-order; add a
-  refinement note to `PROP-SAFE-DEFAULT-AGENTIC-EXTRA-PACKAGING` sharpening the
-  "does LRH run the loop" axis and skill/template parity.
-- Evidence: the Taurcode `:execute` / `:land` prompts are the human-initiated,
-  single-cycle expression of this policy (the "Cessna"). Each run emits one
-  `CHAIN-NOTE` line into its execution record; these aggregate into an `EV-*`
-  record feeding `WI-BOUNDED-STABILIZATION-LOOP-DESIGN`, the multi-cycle
-  bounded-stabilization loop (the "747") in `WS-EXECUTION-FRAMEWORK`.
-- Downstream (not in this PR): `/lrh-execute` and `/lrh-land` skills may be
-  promoted as the reference implementation of deliberate chain initiation —
-  after this decision and the guidance cascade land, and after initial
-  `CHAIN-NOTE` evidence.
-- Finding (surfaced while dogfooding #417): a PR authored outside the skill
-  chain can reach merge with no originating execution record. Chain-running
-  prompts/skills (`:land`, future `/lrh-land` / `/lrh-execute`) should
-  **find-or-backfill** — prefer the record the review steps create, and only
-  when none exists create an honest, explicitly post-hoc **backfill** `AD_HOC`
-  record from available PR data (`pr`, `commit`, `status`, `agent`,
-  `instruction_source`), surfaced at the human gate rather than written
-  silently. This tightens the `lifecycle-chain.md` "a no-activity PR needs no
-  record" stance toward "a landed PR should carry a record." #417's own record
-  is the first application of this backfill.
-
-### Revisit conditions
-
-Revisit when:
-
-- `CHAIN-NOTE` evidence shows single-cycle chains frequently need mid-run human
-  intervention, or shows the merge gate is never load-bearing (either would
-  change where the gates belong);
-- `WI-BOUNDED-STABILIZATION-LOOP-DESIGN` is designed (it inherits this policy);
-  or
-- a compliance collaborator raises the assist/agentic boundary wording.
+- The scalar-or-sequence union complicates strict schema validation; union
+  types are a known cost in schema design. Accepted deliberately for a
+  hand-authored corpus read mostly by grep.
+- A future `lrh validate` rule should check the scheme grammar and still warn
+  on absolute paths, as `PROP-LRH-EXECUTION-SESSIONS` specifies for Stage 2
+  and as remains unimplemented today.
 
 ### Status
 
-Accepted (guidance cascade pending)
+Accepted
 
 ## 2026-07-23: Decision: Session Transcripts Are Never Committed to the Repository
 
@@ -207,6 +174,10 @@ committed to this repository. The repository stores only the pointer
    Pros: keeps this repository lean while retaining shared access.
    Cons: merely relocates the leak; a plain hosted repo offers no stronger
    guarantees than committing here, so it is equally disallowed.
+
+### Status
+
+Accepted
 
 ## 2026-07-09: Decision: PyPI Release Environment Protection Rules
 

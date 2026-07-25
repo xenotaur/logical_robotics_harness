@@ -2,11 +2,12 @@
 id: PROP-LRH-ASSISTANTS
 type: design_proposal
 title: LRH Assistants — Unified Architecture for Backend-Neutral Assistant Roles
-status: proposed
+status: adopted
 created_on: 2026-07-24
 updated_on: 2026-07-24
-implementation_status: not_started
-implemented_by: []
+implementation_status: partial
+implemented_by:
+  - WI-LRH-ASSISTANTS-STAGE-1
 supersedes: []
 superseded_by: null
 related_design:
@@ -324,14 +325,29 @@ independent-lifecycle delegation; both source forms compile to the same
 
 ## Open Questions
 
-- **Module naming.** The existing `src/lrh/assist/` package (request /
-  run-packet tooling) is adjacent in name to the proposed `Assistant` role and
-  `lrh assistant` CLI. Decide whether the CLI/loaders live under
-  `src/lrh/assist/`, a new `src/lrh/assistants/` module, or elsewhere, to
-  avoid "assist" vs "assistant" confusion. (Deferred to Stage 2.)
-- **Execution-record linkage.** The design pairs `assistant_role: ASST-…`
-  with `agent:` on execution records. Confirm whether this is an execution
-  record schema addition in Stage 2 or a later increment.
-- **Binding cardinality beyond MVP.** `managed_by` is singular on one root
-  workstream. The trigger set for promoting to `project/engagements/` is
-  listed; confirm it before any multi-root work.
+All three open questions were resolved on 2026-07-24; recorded here for
+traceability.
+
+- **Module naming — RESOLVED.** The assistant subsystem follows the existing
+  LRH layering: the `Assistant` / `AssistantProfile` / `AssistantBinding`
+  dataclasses live in `src/lrh/control` (alongside `Workstream`, `WorkItem`,
+  `DesignProposal`), and assistant-specific behavior plus the `lrh assistant`
+  CLI live in a **new top-level `src/lrh/assistants/` package** (parallel to
+  the existing `src/lrh/work_items/` and `src/lrh/workstreams/` packages). It
+  is deliberately distinct from `src/lrh/assist/` (the unrelated request /
+  run-packet tooling). Applies from Stage 2.
+- **Execution-record linkage — RESOLVED.** The optional `assistant_role:`
+  execution-record field is added in **Stage 2**, alongside `AssistantBinding`,
+  as an optional nullable field with **no backfill** of existing records. It is
+  out of scope for the Stage 1 docs increment.
+- **Binding cardinality beyond MVP — RESOLVED (deferral ratified).**
+  `managed_by` stays singular on one root workstream for the MVP. A first-class
+  `project/engagements/` artifact is deferred until one of these promotion
+  triggers is demonstrated: (1) one delegation spanning multiple root
+  workstreams; (2) assistant reassignment; (3) multiple assistants supervising
+  one objective; (4) recurring assignments with repeatedly-replaced planning
+  trees; (5) cross-repository management; (6) engagement-wide budgets or
+  reporting; (7) pausing the delegation independently of planning state.
+  Because all consumers depend on the compiled `AssistantBinding` (not on raw
+  workstream fields), adding `managed_by` now does not become legacy debt when
+  engagements later arrives.

@@ -30,7 +30,7 @@ forbidden_actions:
   - modify_ci_pipeline
 acceptance:
   - workbooks/README.md exists and documents purpose, non-enforcement, and promotion path
-  - workbooks/loop_iteration_stats.py runs against project/executions/ and reports review/confirm round counts per PR plus an aggregate summary
+  - workbooks/loop_iteration_stats.py identifies review/confirm records by work_item=AD_HOC plus rerun_of, not by filename suffix alone, and reports pass counts per PR plus an aggregate summary without asserting an automated clean/dirty verdict
   - workbooks/ is not referenced by scripts/lint, scripts/test, or any .github/workflows/*.yml file
   - WI-EVIDENCE-WORKBOOKS-DIRECTORY appears in project/workstreams/proposed/WS-EXECUTION-FRAMEWORK.md's work_items list
   - lrh validate reports 0 errors
@@ -119,8 +119,21 @@ README convention neither of those directories has — was selected instead.
 3. Create `workbooks/loop_iteration_stats.py` — a plain-Python CLI script
    with no new dependencies that loads `project/executions/` records via
    `lrh.prompt_workflow_records.load_execution_records()` and reports, per
-   PR and in aggregate, how many `_REVIEW.md` and `_CONFIRM.md` rounds it
-   took to reach a clean confirm-fixes pass.
+   PR and in aggregate, how many review-response and confirm-fixes passes
+   occurred. A record counts as a review-response or confirm-fixes pass
+   only if `work_item == "AD_HOC"` **and** it carries a non-empty
+   `rerun_of` pointing back to a record for the same PR — matching the
+   convention in `references/review-response-workflow.md:38-43` (review
+   response and confirm-fixes executions always live under `AD_HOC`, with
+   `rerun_of` linking back to the primary). Filename suffix (`_REVIEW.md` /
+   `_CONFIRM.md`) alone is not a valid cohort predicate: a primary
+   work-item record's own slug can end in "review" or "confirm" and would
+   be miscounted (see Risk Notes). The script does not claim to determine
+   which pass was the first "clean" one — see Risk Notes for why that
+   verdict isn't machine-readable today — it reports pass counts and, for
+   each `_CONFIRM.md` pass, the record path plus a best-effort extracted
+   verdict line (if the body contains one) labeled as unverified prose,
+   not a computed classification.
 4. Add `WI-EVIDENCE-WORKBOOKS-DIRECTORY` to
    `project/workstreams/proposed/WS-EXECUTION-FRAMEWORK.md`'s
    `work_items:` list.
@@ -145,6 +158,10 @@ README convention neither of those directories has — was selected instead.
   warrants adopting that toolchain.
 - Do not register a `lrh workbooks` subcommand or otherwise wire this
   directory into the `lrh` CLI.
+- Do not add a structured `verdict:`/clean-pass frontmatter field to the
+  execution-record schema — the current gap (see Risk Notes) is real, but
+  fixing the schema is separate future work, not part of this directory's
+  first script.
 
 ## Acceptance Criteria
 
@@ -168,6 +185,28 @@ README convention neither of those directories has — was selected instead.
 
 ## Risk Notes
 
+- **No machine-readable clean-pass marker exists.** Verified against PR
+  #400: three `_CONFIRM.md` records
+  (`project/executions/AD_HOC/2026_07_18_04_07_14_..._CONFIRM.md`,
+  `..._04_34_27_..._CONFIRM.md`, `..._04_42_32_..._CONFIRM.md`) all carry
+  `status: landed`, but their actual verdicts ("not green" / "green" / a
+  correction of an earlier mis-ordered "green" claim) exist only as
+  unstructured body prose, not a queryable field. The script must not
+  assert which round was "the" clean pass — it can only report pass counts
+  and surface each pass's prose for a human to read. A future WI could add
+  a structured `verdict:` field to `_CONFIRM.md` records; out of scope here
+  (see Non-Goals).
+- **Filename suffix is not a valid review/confirm cohort predicate.**
+  Verified against PR #413:
+  `project/executions/WI-SKILLS-NEXT-STEP-CHAIN/2026_07_24_00_08_21_ADDRESS_412_REVIEW.md`
+  is the *primary* work-item execution record (its slug happens to end in
+  "review" because it addresses PR #412's review feedback), while the
+  actual `/lrh-review-response` side-record for PR #413 is
+  `project/executions/AD_HOC/2026_07_24_00_31_50_LRH_NEXT_STEP_CHAIN_FOLLOWUP_REVIEW.md`.
+  Counting by `_REVIEW.md`/`_CONFIRM.md` suffix alone would have counted
+  both — reporting 2 rounds instead of 1. The script must instead cohort by
+  `work_item == "AD_HOC"` plus a `rerun_of` back-link, per Required Change
+  3.
 - The script's iteration counts will undercount true escalation events:
   bot-vs-human thread tagging currently exists only transiently in the
   `/lrh-confirm-fixes` confirm-gate UI

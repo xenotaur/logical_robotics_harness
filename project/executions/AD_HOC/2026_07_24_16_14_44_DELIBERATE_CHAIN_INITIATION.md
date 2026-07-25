@@ -14,29 +14,22 @@ session_transcript: claude-app:0144f1d4-0a1a-4d6d-860b-df64ac8bc0d4
 
 # Summary
 
-Governance change (PR #417): establish the **deliberate chain initiation**
-decision — promoted to `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`
-with a pointer left in `decision_log.md` — and cascade the corrections it
-implies: reframe the `lifecycle-chain.md` suggestion-only invariant as deliberate
-chain initiation (preserving merge/publish/release/closeout as human gates, and
-correcting the `disable-model-invocation` description — its chain-runner
-invocation mechanics are deferred to a follow-up work item, not asserted
-"orthogonal"); reclassify the `PROP-LRH-EXECUTION-SESSIONS` "do not automate"
+Governance change (PR #417): record the **deliberate chain initiation** decision
+in `project/memory/decision_log.md` and cascade the three guidance corrections it
+implies — reframe the `lifecycle-chain.md` suggestion-only invariant as
+deliberate chain initiation (with `disable-model-invocation` noted as
+orthogonal); reclassify the `PROP-LRH-EXECUTION-SESSIONS` "do not automate"
 non-goal as a build-order sequencing choice; and add a dated §5.1 refinement to
 the adopted `PROP-SAFE-DEFAULT-AGENTIC-EXTRA-PACKAGING` sharpening the "does LRH
-run the loop" axis and skill/template parity.
+run the loop" axis and skill/template parity. A follow-up commit adds the
+find-or-backfill finding surfaced while preparing this PR for `:land`.
 
 # Result
 
-- Decision promoted to `DEC-DELIBERATE-CHAIN-INITIATION`; cascade edits + a log
-  pointer landed on branch `xenotaur/chore/deliberate-chain-initiation`, opened
-  as PR #417.
-- Find-or-backfill finding recorded in the DEC record's Consequences and at the
+- Decision entry + three cascade edits landed on branch
+  `xenotaur/chore/deliberate-chain-initiation`, opened as PR #417.
+- Find-or-backfill finding recorded in the decision Consequences and at the
   `lifecycle-chain.md` Variant B stance.
-- Addressed PR review over multiple cycles (Copilot + Codex): corrected the
-  skill-flag claim, carved merge/publish/release/closeout out as human gates,
-  replaced the "orthogonal" claim with a deferred follow-up, sharpened §5.1, and
-  promoted the decision to a `DEC-*` record.
 
 **Post-hoc backfill note.** This execution record was created at land-prep time,
 not at an instruction phase: PR #417 was authored directly in a Claude Code
@@ -47,11 +40,7 @@ of the find-or-backfill principle the same PR documents.
 
 # Validation
 
-- `lrh validate` against the tree with `main` merged -> 0 errors, 1 warning.
-  The single warning (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` for
-  `WS-LRH-ASSISTANTS`) is inherited from `main`, not introduced by this change —
-  this PR touches no workstream-leaf structure. The pre-merge run of this PR's
-  own changes was 0 errors, 0 warnings.
+- `lrh validate` -> 0 errors, 0 warnings.
 - Docs-only change; no Python, no test surface.
 
 # Follow-up

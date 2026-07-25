@@ -2,10 +2,10 @@
 execution_id: 2026_07_25_01_33_44_REFRESH_EXEC_SESSIONS_SCHEMA_GRAMMAR
 prompt_id: PROMPT(AD_HOC:REFRESH_EXEC_SESSIONS_SCHEMA_GRAMMAR)[2026-07-25T01:30:00-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/420
-commit: 5f0b74f
+commit: 7a78247a9891e046e9dfd42394556c67e77949d0
 created_at: 2026-07-25T01:33:44-04:00
 agent: claude_app
 instruction_source: ad_hoc conversation — refresh WI-EXEC-SESSIONS-SCHEMA acceptance criteria for the backend-agnostic session pointer grammar (follows PR #411)
@@ -37,6 +37,14 @@ artifact only; no validator code):
 - **Stats:** corrected the stale "163 records / 2026-06-28" figures to the
   fresh count — 138 records carry these fields (134 claude-app/claude_app,
   4 none/codex_cloud from the #411 backfill, 0 pending).
+
+Landed via the autonomous land-open-PR chain. Review landed with 3 comments
+(1 Copilot, 2 codex) → 3 fixes in one confirm-fixes pass: trailing-colon
+scheme examples, `session_transcript` sequence-form coverage, and an
+`instruction_source` absolute-path check. Human merge gate approved; PR #420
+squash-merged as `7a78247`.
+
+CHAIN-NOTE: cycles=1; stops=0; gates=[merge]; friction=guessed-prompt-id-timestamp-in-fixes-commit-msg-before-minting; note="records carry the correct minted ID (01:55:48); commit msg blemish left un-force-pushed"
 
 Opened as PR #420; WI stays `proposed`.
 

@@ -2,10 +2,10 @@
 execution_id: 2026_07_25_02_02_14_REFRESH_EXEC_SESSIONS_SCHEMA_GRAMMAR_CONFIRM
 prompt_id: PROMPT(AD_HOC:REFRESH_EXEC_SESSIONS_SCHEMA_GRAMMAR_CONFIRM)[2026-07-25T02:02:00-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_25_01_33_44_REFRESH_EXEC_SESSIONS_SCHEMA_GRAMMAR
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/420
-commit: 76629d5
+commit: 7a78247a9891e046e9dfd42394556c67e77949d0
 created_at: 2026-07-25T02:02:14-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/420

@@ -34,7 +34,7 @@ acceptance:
   - lrh-closeout Step 3 reads $CLAUDE_CODE_HOST_SESSION_ID first for same-session closeouts and stores the host UUID stem with the local_ prefix stripped
   - Step 3 falls back to list_sessions matched by PR number for cross-session closeouts before prompting for a browser URL
   - Step 3 offers `none` as a distinct terminal option (backend produced no retrievable transcript) separate from `pending`
-  - Both SKILL.md mirrors and both closeout-workflow.md reference mirrors are updated identically, verified by diff -r src/lrh/skills .claude/skills showing no new drift
+  - Both SKILL.md mirrors and both closeout-workflow.md reference mirrors are updated identically, verified by diff -r src/lrh/skills/lrh-closeout .claude/skills/lrh-closeout exiting 0 (no differences)
   - lrh validate passes with 0 errors
 required_evidence:
   - manual_review
@@ -110,8 +110,10 @@ teaches the closeout skill to *use* them.
 - No `lrh validate` grammar enforcement — that is `WI-EXEC-SESSIONS-SCHEMA`.
 - No new `lrh sessions` discovery command or Python session-discovery code.
 - No changes to record-creation skills (`/lrh-implement`,
-  `/lrh-review-response`, `/lrh-confirm-fixes`); they already populate the
-  field at record-creation from the env var.
+  `/lrh-review-response`, `/lrh-confirm-fixes`). Their templates write
+  `session_transcript: pending` and do not auto-populate it; teaching them to
+  source the host id from `$CLAUDE_CODE_HOST_SESSION_ID` at record-creation
+  time is a separate concern from this closeout-focused work item.
 
 ## Acceptance Criteria
 
@@ -121,14 +123,15 @@ teaches the closeout skill to *use* them.
   closeouts before prompting for a browser URL.
 - Step 3 offers `none` as a distinct terminal option, separate from `pending`.
 - Both SKILL.md mirrors and both closeout-workflow.md reference mirrors are
-  updated identically (`diff -r src/lrh/skills .claude/skills` shows no new
-  drift).
+  updated identically (`diff -r src/lrh/skills/lrh-closeout
+  .claude/skills/lrh-closeout` exits 0).
 - `lrh validate` passes with 0 errors.
 
 ## Validation
 
-- `diff -r src/lrh/skills .claude/skills` shows no new drift
-- `/Users/centaur/anaconda3/envs/LRH/bin/lrh validate` reports 0 errors
+- `diff -r src/lrh/skills/lrh-closeout .claude/skills/lrh-closeout` exits 0
+  (no differences between the two closeout-skill trees)
+- `lrh validate` reports 0 errors
 
 ## Risk Notes
 

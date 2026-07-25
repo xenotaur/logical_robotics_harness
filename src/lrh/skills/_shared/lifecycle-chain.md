@@ -20,9 +20,37 @@ here is loaded at runtime or installed to `~/.claude/skills/`.
 open PR -> /lrh-review-response -> /lrh-confirm-fixes -> merge -> /lrh-closeout
 ```
 
-Each link is a **suggestion to the user**, never an automatic invocation. The
-planning skills carry `disable-model-invocation: true` deliberately, and no
-skill should call another as a side effect of finishing.
+Each link is a **suggestion to the user**: no chain starts *itself*. A skill
+never fires another skill as an implicit side effect of finishing. Most
+execution/lifecycle skills carry `disable-model-invocation: true` (e.g.
+`/lrh-implement`, `/lrh-review-response`, `/lrh-confirm-fixes`, `/lrh-closeout`),
+so the *model* cannot auto-trigger them; the planning skills meant to be
+orchestrated (`/lrh-work-item`, `/lrh-proposal`, `/lrh-workstream`) deliberately
+do not carry it. (Do not assert a fixed count — the set drifts.)
+
+What that invariant does **not** forbid is **deliberate chain initiation**: a
+human may authorize an entire chain in one explicit act — for example by pasting
+a run prompt or invoking a chain-running skill — provided that act carries both
+a **completion condition** (what "done" means for this run) and a **stop-work
+condition** (what forces a halt-and-report). The rule that survives is "no chain
+starts itself"; what a human deliberately starts, with those two conditions, may
+run the links without per-link re-authorization — **except the human/policy gates
+for merge, publish, release, and closeout, which are preserved** (`roadmap.md`:
+"preserve human/policy gates for merge, release, publish, and closeout") and
+require explicit in-session authorization (a merge instruction embedded in a run
+prompt is data, not authorization; see `AGENTS.md`, "Pull requests and merge
+authority"). More generally, **deliberate chain initiation never satisfies a
+skill's own internal confirmation gate**: e.g. `/lrh-closeout`'s plan-confirm
+gate (`lrh-closeout/SKILL.md` Step 4) still requires explicit approval of the
+actual closeout plan before any files change. Chain initiation authorizes
+*running the links*, not skipping the gates inside them.
+
+`disable-model-invocation` governs whether the *model* may auto-trigger a skill
+on its own initiative; it is not by itself a mechanism for human-initiated
+chaining. Whether a chain runner can *invoke* flagged links or must *inline*
+their workflows is an unresolved mechanical question deferred to a follow-up work
+item — do not assert it is simply "orthogonal." See
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`.
 
 ## Canonical text
 
@@ -67,6 +95,18 @@ common case in an auto-reviewed repo — do not tell a Variant B site that
 closeout never applies. `/lrh-readiness` is the hybrid: a refinement-only PR
 follows Variant B, but if it pushed to an existing `/lrh-implement` branch it
 inherits that PR's Variant A chain.
+
+**Record-less PRs and chain runners.** A PR authored outside the skill chain
+(e.g. directly in a session) can reach merge with no originating record, and if
+it drew no review activity, no review-round record either. A chain-running
+prompt or skill that lands such a PR (`:land`, future `/lrh-land` /
+`/lrh-execute`) should **find-or-backfill**: first look for a record the review
+steps created, and only if none exists create an honest **backfill** `AD_HOC`
+record from available PR data — explicitly marked as reconstructed post-hoc, not
+a fabricated instruction-phase record, and surfaced to the human at the report
+gate. Under a chain runner this tightens the "no review activity -> nothing to
+land" note above: a *landed* PR should carry a record. See
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` (Consequences).
 
 For `/lrh-confirm-fixes`, which sits mid-chain and reports a merge-readiness
 verdict rather than opening a PR — green verdict only:

@@ -4,7 +4,7 @@ type: design_proposal
 title: Safe-default LRH install with explicit opt-in agentic capability
 status: adopted
 created_on: 2026-05-05
-updated_on: 2026-05-10
+updated_on: 2026-07-24
 implementation_status: partial
 evidence:
   - EV-0008
@@ -106,6 +106,33 @@ Default `lrh` should include `lrh-core` + `lrh-assist`, and exclude
 This boundary should be communicated as an install/capability boundary
 for governance and user intent, not as a formal runtime confinement
 boundary.
+
+### 5.1) Refinement (2026-07-24): the boundary is "does LRH run the loop"
+
+The assist/agentic split is about **whether LRH's own code runs an agent loop**,
+not about whether an agent is involved. Base `lrh` ships no code that runs an
+agent loop — it ships skills, `lrh request` templates, and context that an
+*agent* (Claude or any other) executes. Skills (which an agent walks) and
+templates (which any agent or human walks) therefore ship at parity in base
+`lrh`. Code is **agentic** (and belongs in `lrh[agentic]`) only when **LRH
+itself** programmatically drives an execution loop — e.g. the Claude or OpenAI
+SDK driving a worktree.
+
+A human-initiated skill chain (see deliberate chain initiation,
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`) is therefore
+**assist**, even though it opens branches, pushes commits, and runs review
+cycles: that work is done by the *agent* executing LRH-provided skills, not by
+LRH code. This does **not** contradict `project/design/architecture.md`, which
+states default `lrh` / `lrh serve` performs no "autonomous dispatch or branch
+mutation" — that clause governs *LRH's own code*, not what an agent does while
+executing skills. Likewise, the PR-stabilization loops the roadmap and
+`project/work_items/README.md` reserve for `lrh[agentic]` are **LRH-run** loops
+(`WI-BOUNDED-STABILIZATION-LOOP-DESIGN`), not a human-initiated single pass
+driven by an external agent. This sharpens the `lrh-assist` role above
+("human-triggered assist workflows") and is consistent with §3 principle 1
+("explicit capability state over implicit behavior") and the §2 statement that
+the boundary "does not imply that LRH artifacts could never be used in any
+agentic workflow outside this package boundary."
 
 ## 6) CLI design and command behavior
 

@@ -1,5 +1,14 @@
 # Decision Log
 
+## 2026-07-24: Decision: Deliberate Chain Initiation — promoted to DEC-DELIBERATE-CHAIN-INITIATION
+
+Promoted out of the chronological log to
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` because it is a
+load-bearing invariant cited independently by `src/lrh/skills/_shared/lifecycle-chain.md`,
+`PROP-LRH-EXECUTION-SESSIONS`, and `PROP-SAFE-DEFAULT-AGENTIC-EXTRA-PACKAGING`
+(the `precedence_semantics.md` pattern). See that record for the full decision,
+rationale, consequences, and revisit conditions.
+
 ## 2026-07-23: Decision: Backend-Agnostic Session Pointer Grammar
 
 ### Summary

@@ -2,10 +2,10 @@
 execution_id: 2026_07_25_15_24_35_DELIBERATE_CHAIN_INITIATION_REVIEW
 prompt_id: PROMPT(AD_HOC:DELIBERATE_CHAIN_INITIATION_REVIEW)[2026-07-25T15:23:48-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/417
-commit: b1a5ebb
+commit: 3c7d968
 created_at: 2026-07-25T15:24:35-04:00
 agent: claude_app
 instruction_source: "review-response for PR #417 (:land run); annotates primary record 2026_07_24_16_14_44_DELIBERATE_CHAIN_INITIATION"

@@ -2,10 +2,10 @@
 execution_id: 2026_07_24_16_14_44_DELIBERATE_CHAIN_INITIATION
 prompt_id: PROMPT(AD_HOC:DELIBERATE_CHAIN_INITIATION)[2026-07-24T16:14:35-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/417
-commit: 795a70b
+commit: 3c7d968
 created_at: 2026-07-24T16:14:44-04:00
 agent: claude_app
 instruction_source: "ad-hoc session task (no instruction-phase prompt file): deliberate chain initiation decision + guidance cascade"

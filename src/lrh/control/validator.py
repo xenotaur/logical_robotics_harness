@@ -155,6 +155,19 @@ def _is_absolute_pathish(value: str) -> bool:
     return False
 
 
+def _is_scheme_prefixed(value: str) -> bool:
+    """True for a genuine ``<scheme>:<id>`` pointer: a non-empty scheme with no
+    path separators or whitespace, a colon, and a non-empty identifier.
+
+    Rejects near-misses that merely contain a colon (``:id``, ``backend:``,
+    ``some/path:foo``, ``not a scheme: text``).
+    """
+    scheme, sep, identifier = value.partition(":")
+    if not sep or not scheme or not identifier:
+        return False
+    return not any(ch in scheme for ch in "/\\ \t")
+
+
 def _validate_execution_record(
     project_root: Path,
     artifact: _ParsedArtifact,
@@ -172,39 +185,56 @@ def _validate_execution_record(
     if transcript is not None:
         elements = transcript if isinstance(transcript, list) else [transcript]
         for element in elements:
+            # Non-string values (e.g. an unquoted YAML bool/number) match
+            # neither the grammar nor a sentinel.
             if not isinstance(element, str):
-                continue
-            if element in EXECUTION_TRANSCRIPT_SENTINELS:
-                continue
-            if _is_absolute_pathish(element):
-                issues.append(
-                    _issue(
-                        project_root,
-                        artifact.path,
-                        "warning",
-                        "EXECUTION_SESSION_TRANSCRIPT_ABSOLUTE_PATH",
-                        "session_transcript value "
-                        f"'{element}' is an absolute path (leaks local "
-                        "workspace layout); use the '<backend>:<id>' short "
-                        "form (e.g. claude-app:<host-uuid-stem>)",
-                    )
-                )
-            elif ":" not in element:
                 issues.append(
                     _issue(
                         project_root,
                         artifact.path,
                         "warning",
                         "EXECUTION_SESSION_TRANSCRIPT_MALFORMED",
-                        "session_transcript value "
-                        f"'{element}' lacks a '<scheme>:' prefix; use the "
-                        "'<backend>:<id>' short form or a 'pending'/'none' "
-                        "sentinel",
+                        f"session_transcript value '{element!r}' is not a "
+                        "string; use the '<backend>:<id>' short form or a "
+                        "'pending'/'none' sentinel",
+                    )
+                )
+                continue
+            # List elements keep any surrounding YAML quotes (the frontmatter
+            # parser only strips quotes from scalars); normalize before checks.
+            value = element.strip("'\"")
+            if value in EXECUTION_TRANSCRIPT_SENTINELS:
+                continue
+            if _is_absolute_pathish(value):
+                issues.append(
+                    _issue(
+                        project_root,
+                        artifact.path,
+                        "warning",
+                        "EXECUTION_SESSION_TRANSCRIPT_ABSOLUTE_PATH",
+                        f"session_transcript value '{value}' is an absolute "
+                        "path (leaks local workspace layout); use the "
+                        "'<backend>:<id>' short form (e.g. "
+                        "claude-app:<host-uuid-stem>)",
+                    )
+                )
+            elif not _is_scheme_prefixed(value):
+                issues.append(
+                    _issue(
+                        project_root,
+                        artifact.path,
+                        "warning",
+                        "EXECUTION_SESSION_TRANSCRIPT_MALFORMED",
+                        f"session_transcript value '{value}' is not a valid "
+                        "'<scheme>:<id>' pointer; use the '<backend>:<id>' "
+                        "short form or a 'pending'/'none' sentinel",
                     )
                 )
 
     instruction_source = data.get("instruction_source")
-    if isinstance(instruction_source, str) and _is_absolute_pathish(instruction_source):
+    if isinstance(instruction_source, str) and _is_absolute_pathish(
+        instruction_source.strip("'\"")
+    ):
         issues.append(
             _issue(
                 project_root,

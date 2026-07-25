@@ -488,6 +488,51 @@ class TestExecutionRecordValidation(unittest.TestCase):
         self.assertEqual(len(issues), 1)
         self.assertEqual(issues[0].code, "EXECUTION_SESSION_TRANSCRIPT_MALFORMED")
 
+    def test_colon_near_misses_warn_malformed(self) -> None:
+        root = self._make_project()
+        # Contain a colon but are not a genuine <scheme>:<id> pointer.
+        for name, value in [
+            ("rec_no_scheme", ":id"),
+            ("rec_no_id", "backend:"),
+            ("rec_path_scheme", "some/path:foo"),
+            ("rec_space_scheme", "not a scheme: text"),
+        ]:
+            self._write_record(root, name, f"session_transcript: {value}\n")
+
+        issues = self._issues_for(root, "EXECUTION_SESSION_TRANSCRIPT")
+
+        self.assertEqual(len(issues), 4)
+        self.assertEqual(
+            {issue.code for issue in issues},
+            {"EXECUTION_SESSION_TRANSCRIPT_MALFORMED"},
+        )
+
+    def test_non_string_transcript_warns_malformed(self) -> None:
+        root = self._make_project()
+        # An unquoted YAML boolean parses to a bool, matching neither the
+        # grammar nor a sentinel.
+        self._write_record(root, "rec_bool", "session_transcript: true\n")
+
+        issues = self._issues_for(root, "EXECUTION_SESSION_TRANSCRIPT")
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].code, "EXECUTION_SESSION_TRANSCRIPT_MALFORMED")
+
+    def test_quoted_absolute_path_in_sequence_warns(self) -> None:
+        root = self._make_project()
+        # A YAML-quoted Windows path in a sequence keeps its quotes after
+        # parsing; the check must strip them before detecting the drive letter.
+        self._write_record(
+            root,
+            "rec_seq_quoted_abs",
+            "session_transcript: ['C:\\Users\\me\\a.jsonl']\n",
+        )
+
+        issues = self._issues_for(root, "EXECUTION_SESSION_TRANSCRIPT")
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].code, "EXECUTION_SESSION_TRANSCRIPT_ABSOLUTE_PATH")
+
     def test_sequence_all_valid_does_not_warn(self) -> None:
         root = self._make_project()
         self._write_record(

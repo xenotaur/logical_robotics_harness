@@ -31,11 +31,13 @@ forbidden_actions:
   - implement_session_discovery
   - implement_lrh_sessions_command
 acceptance:
-  - lrh validate accepts session_transcript values of the form <backend>:<id> (any scheme, e.g. claude-app, codex-cloud, chatgpt) and the sentinels pending and none without warning
-  - lrh validate warns when session_transcript begins with /, ~, or a Windows drive letter and suggests the <backend>:<id> short form
-  - lrh validate warns when session_transcript is a non-sentinel value lacking a <scheme>: prefix (e.g. a bare id)
+  - lrh validate accepts scalar session_transcript values of the form `<backend>:<id>` (any scheme, e.g. `claude-app:`, `codex-cloud:`, `chatgpt:`) and the sentinels pending and none without warning
+  - lrh validate accepts a sequence of `<backend>:<id>` scalars (the multi-backend form permitted by the decision-log grammar) and validates each element by the same rules; a malformed element warns
+  - lrh validate warns when session_transcript (scalar or a sequence element) begins with /, ~, or a Windows drive letter and suggests the `<backend>:<id>` short form
+  - lrh validate warns when session_transcript (scalar or a sequence element) is a non-sentinel value lacking a `<scheme>:` prefix (e.g. a bare id)
+  - lrh validate warns when instruction_source is an absolute path (/, ~, or a Windows drive letter) and suggests the scheme-prefixed form (e.g. `promptspace:<relative-path>`)
   - lrh validate does not warn on any non-empty agent value, since the schema is open-ended (claude_app | codex_cloud | manual | <other>) per PROP-LRH-EXECUTION-SESSIONS
-  - Tests cover each known scheme, pending, none, absolute-path and bare-id session_transcript, and claude_app/codex_cloud/manual/<other> agent values
+  - Tests cover each known scheme, pending, none, absolute-path and bare-id session_transcript (scalar and sequence), absolute-path instruction_source, and claude_app/codex_cloud/manual/<other> agent values
   - lrh validate passes 0 errors on the full project after the change
 required_evidence:
   - test_output
@@ -109,6 +111,15 @@ errors) for execution records that contain:
    `<backend>:<id>` form. `pending` and `none` are sentinels and never
    warn; any `<scheme>:<id>` value (`claude-app:`, `codex-cloud:`,
    `chatgpt:`, or a future scheme) is accepted without warning.
+3. `session_transcript:` given as a **sequence** of scalars (the
+   multi-backend form the decision-log grammar permits) — accept the
+   sequence and apply checks 1–2 to **each element**; warn per malformed
+   element. Sentinels are scalar-only and are not expected inside a
+   sequence.
+4. `instruction_source:` with an absolute path (begins with `/`, `~`, or a
+   Windows drive letter) — warn (same privacy risk) and suggest the
+   scheme-prefixed form (e.g. `promptspace:<relative-path>`). Repo-relative
+   paths, short descriptions, and scheme-prefixed refs are accepted.
 
 `agent` is intentionally **not** enum-validated: the field is open-ended
 (`claude_app | codex_cloud | manual | <other>`), so any non-empty value
@@ -129,6 +140,14 @@ Add tests for:
 - `session_transcript: ~/.claude/...` → warning (absolute path).
 - `session_transcript: /absolute/path` → warning (absolute path).
 - `session_transcript: bareid` (no scheme, not a sentinel) → warning.
+- `session_transcript: [claude-app:<id>, codex-cloud:<id>]` (sequence, all
+  valid) → no warning.
+- `session_transcript: [claude-app:<id>, bareid]` (sequence, one malformed
+  element) → warning on that element.
+- `instruction_source: /Users/.../prompt.md` or `~/prompt.md` → warning
+  (absolute path).
+- `instruction_source: promptspace:Z. Completed Prompts/x.md` and a
+  repo-relative path → no warning.
 - `agent:` values `claude_app`, `codex_cloud`, `manual`, and an `<other>`
   value → no warning for any.
 
@@ -141,11 +160,15 @@ artifact dispatch) to:
 
 1. Read execution-record YAML frontmatter from files under
    `project/executions/`.
-2. If `session_transcript` is present and starts with `/`, `~`, or a
-   Windows drive letter, emit a privacy warning suggesting the
-   `<backend>:<id>` short form.
-3. If `session_transcript` is present, is not `pending` or `none`, and
-   contains no `<scheme>:` prefix, emit a grammar warning.
+2. For `session_transcript`, normalize to a list of elements (a scalar is a
+   one-element list; a YAML sequence is validated element-by-element). For
+   each element that is not `pending` or `none`:
+   - if it starts with `/`, `~`, or a Windows drive letter, emit a privacy
+     warning suggesting the `<backend>:<id>` short form;
+   - else if it contains no `<scheme>:` prefix, emit a grammar warning.
+3. If `instruction_source` is present and starts with `/`, `~`, or a Windows
+   drive letter, emit a privacy warning suggesting the scheme-prefixed form
+   (e.g. `promptspace:<relative-path>`).
 4. Do not enum-validate `agent`; accept any non-empty value.
 
 ### Tests
@@ -163,20 +186,29 @@ cases listed in Scope above.
 
 ## Acceptance Criteria
 
-- `lrh validate` accepts `session_transcript` values of the form
+- `lrh validate` accepts scalar `session_transcript` values of the form
   `<backend>:<id>` (any scheme, e.g. `claude-app:`, `codex-cloud:`,
   `chatgpt:`) and the sentinels `pending` and `none` without warning.
-- `lrh validate` warns when `session_transcript` begins with `/`, `~`, or
-  a Windows drive letter, and suggests the `<backend>:<id>` short form.
-- `lrh validate` warns when `session_transcript` is a non-sentinel value
-  lacking a `<scheme>:` prefix (e.g. a bare id).
+- `lrh validate` accepts a **sequence** of `<backend>:<id>` scalars (the
+  multi-backend form) and validates each element by the same rules; a
+  malformed element warns.
+- `lrh validate` warns when `session_transcript` (scalar or a sequence
+  element) begins with `/`, `~`, or a Windows drive letter, and suggests
+  the `<backend>:<id>` short form.
+- `lrh validate` warns when `session_transcript` (scalar or a sequence
+  element) is a non-sentinel value lacking a `<scheme>:` prefix (e.g. a
+  bare id).
+- `lrh validate` warns when `instruction_source` is an absolute path (`/`,
+  `~`, or a Windows drive letter) and suggests the scheme-prefixed form
+  (e.g. `promptspace:<relative-path>`).
 - `lrh validate` does not warn on any non-empty `agent` value (the schema
   is open-ended: `claude_app | codex_cloud | manual | <other>`).
 - `lrh validate` passes (no error) on records with valid or absent
   optional fields.
 - Tests cover each known scheme, `pending`, `none`, absolute-path and
-  bare-id `session_transcript`, and `claude_app`/`codex_cloud`/`manual`/
-  `<other>` `agent` values.
+  bare-id `session_transcript` (scalar and sequence), absolute-path
+  `instruction_source`, and `claude_app`/`codex_cloud`/`manual`/`<other>`
+  `agent` values.
 - `lrh validate` passes 0 errors on the full project after the change.
 
 ## Validation
@@ -185,9 +217,11 @@ cases listed in Scope above.
 - `lrh validate`
 - Manual: create a test execution record with
   `session_transcript: ~/.claude/projects/x/abc.jsonl` and confirm the
-  absolute-path warning appears; create one with
-  `session_transcript: bareid` and confirm the grammar warning appears;
-  create one with `session_transcript: none` and `agent: some_other`
+  absolute-path warning appears; one with `session_transcript: bareid` and
+  confirm the grammar warning appears; one with a sequence
+  `[claude-app:<id>, bareid]` and confirm the malformed element warns; one
+  with `instruction_source: ~/prompt.md` and confirm the path warning
+  appears; and one with `session_transcript: none` and `agent: some_other`
   and confirm neither warns.
 
 ## Risk Notes

@@ -411,5 +411,160 @@ blocked_by: []
         self.assertEqual(report.errors, [])
 
 
+class TestExecutionRecordValidation(unittest.TestCase):
+    """Stage 2 of PROP-LRH-EXECUTION-SESSIONS: advisory warnings for the
+    optional session fields on execution records."""
+
+    _INSTRUCTION_CODE = "EXECUTION_INSTRUCTION_SOURCE_ABSOLUTE_PATH"
+
+    def _make_project(self) -> Path:
+        root = Path(tempfile.mkdtemp())
+        (root / "focus").mkdir(parents=True)
+        (root / "focus" / "current_focus.md").write_text(
+            "---\nid: FOCUS-1\ntitle: Focus\nstatus: active\n---\n",
+            encoding="utf-8",
+        )
+        return root
+
+    def _write_record(self, root: Path, name: str, extra: str) -> None:
+        path = root / "executions" / "AD_HOC" / f"{name}.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "---\n"
+            f"execution_id: {name}\n"
+            f"prompt_id: PROMPT(AD_HOC:{name.upper()})[2026-07-25T00:00:00-04:00]\n"
+            "work_item: AD_HOC\n"
+            "status: landed\n"
+            f"{extra}"
+            "created_at: 2026-07-25T00:00:00-04:00\n"
+            "---\n\n# Summary\n\nTest record.\n",
+            encoding="utf-8",
+        )
+
+    def _issues_for(self, root: Path, code_prefix: str) -> list:
+        report = validate_project(root)
+        return [issue for issue in report.issues if issue.code.startswith(code_prefix)]
+
+    def test_valid_schemes_and_sentinels_do_not_warn(self) -> None:
+        root = self._make_project()
+        for name, value in [
+            ("rec_claude", "claude-app:4c3d03d6-abc"),
+            ("rec_codex", "codex-cloud:task-123"),
+            ("rec_chatgpt", "chatgpt:conv-456"),
+            ("rec_pending", "pending"),
+            ("rec_none", "none"),
+        ]:
+            self._write_record(root, name, f"session_transcript: {value}\n")
+
+        issues = self._issues_for(root, "EXECUTION_SESSION_TRANSCRIPT")
+
+        self.assertEqual(issues, [])
+
+    def test_absolute_path_transcript_warns(self) -> None:
+        root = self._make_project()
+        self._write_record(
+            root, "rec_home", "session_transcript: ~/.claude/projects/x/a.jsonl\n"
+        )
+        self._write_record(root, "rec_abs", "session_transcript: /var/tmp/a.jsonl\n")
+        self._write_record(
+            root, "rec_win", "session_transcript: C:\\Users\\x\\a.jsonl\n"
+        )
+
+        issues = self._issues_for(root, "EXECUTION_SESSION_TRANSCRIPT")
+
+        self.assertEqual(len(issues), 3)
+        self.assertEqual(
+            {issue.code for issue in issues},
+            {"EXECUTION_SESSION_TRANSCRIPT_ABSOLUTE_PATH"},
+        )
+        self.assertEqual({issue.severity for issue in issues}, {"warning"})
+
+    def test_bare_id_transcript_warns_malformed(self) -> None:
+        root = self._make_project()
+        self._write_record(root, "rec_bare", "session_transcript: bareid\n")
+
+        issues = self._issues_for(root, "EXECUTION_SESSION_TRANSCRIPT")
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].code, "EXECUTION_SESSION_TRANSCRIPT_MALFORMED")
+
+    def test_sequence_all_valid_does_not_warn(self) -> None:
+        root = self._make_project()
+        self._write_record(
+            root,
+            "rec_seq_ok",
+            "session_transcript: [claude-app:aaa, codex-cloud:bbb]\n",
+        )
+
+        issues = self._issues_for(root, "EXECUTION_SESSION_TRANSCRIPT")
+
+        self.assertEqual(issues, [])
+
+    def test_sequence_with_bad_element_warns(self) -> None:
+        root = self._make_project()
+        self._write_record(
+            root,
+            "rec_seq_bad",
+            "session_transcript: [claude-app:aaa, bareid]\n",
+        )
+
+        issues = self._issues_for(root, "EXECUTION_SESSION_TRANSCRIPT")
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].code, "EXECUTION_SESSION_TRANSCRIPT_MALFORMED")
+
+    def test_absolute_instruction_source_warns(self) -> None:
+        root = self._make_project()
+        self._write_record(root, "rec_isrc_abs", "instruction_source: ~/prompts/a.md\n")
+
+        issues = self._issues_for(root, self._INSTRUCTION_CODE)
+
+        self.assertEqual(len(issues), 1)
+        self.assertEqual(issues[0].code, self._INSTRUCTION_CODE)
+        self.assertEqual(issues[0].severity, "warning")
+
+    def test_scheme_and_relative_instruction_source_do_not_warn(self) -> None:
+        root = self._make_project()
+        self._write_record(
+            root,
+            "rec_isrc_promptspace",
+            "instruction_source: promptspace:Z. Completed Prompts/a.md\n",
+        )
+        self._write_record(
+            root,
+            "rec_isrc_relative",
+            "instruction_source: project/work_items/proposed/WI-X.md\n",
+        )
+
+        issues = self._issues_for(root, self._INSTRUCTION_CODE)
+
+        self.assertEqual(issues, [])
+
+    def test_agent_is_open_ended_no_warning(self) -> None:
+        root = self._make_project()
+        for name, agent in [
+            ("rec_agent_claude", "claude_app"),
+            ("rec_agent_codex", "codex_cloud"),
+            ("rec_agent_manual", "manual"),
+            ("rec_agent_other", "some_future_backend"),
+        ]:
+            self._write_record(root, name, f"agent: {agent}\n")
+
+        issues = self._issues_for(root, "EXECUTION_")
+
+        self.assertEqual(issues, [])
+
+    def test_readme_is_not_parsed_as_a_record(self) -> None:
+        root = self._make_project()
+        (root / "executions").mkdir(parents=True, exist_ok=True)
+        (root / "executions" / "README.md").write_text(
+            "# Execution Records\n\nNo frontmatter here.\n", encoding="utf-8"
+        )
+
+        report = validate_project(root)
+
+        self.assertEqual([i for i in report.issues if i.code == "YAML_PARSE_ERROR"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

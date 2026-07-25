@@ -97,6 +97,12 @@ DESIGN_PROPOSAL_IMPLEMENTATION_STATUS = {
 DESIGN_PROPOSAL_LIST_FIELDS = {"implemented_by", "evidence", "supersedes"}
 DESIGN_PROPOSAL_BUCKETS = ("proposed", "adopted", "rejected", "superseded")
 
+# Execution-record optional fields (PROP-LRH-EXECUTION-SESSIONS). The
+# session_transcript grammar is the scheme-prefixed scalar <backend>:<id>
+# plus these two sentinels; see the 2026-07-23 "Backend-Agnostic Session
+# Pointer Grammar" decision-log entry and project/executions/README.md.
+EXECUTION_TRANSCRIPT_SENTINELS = {"pending", "none"}
+
 
 @dataclass(frozen=True)
 class ValidationIssue:
@@ -127,6 +133,90 @@ class ValidationReport:
 class _ParsedArtifact:
     path: Path
     data: dict[str, Any] | None
+
+
+def _is_absolute_pathish(value: str) -> bool:
+    """True for values that leak local workspace layout: POSIX absolute or
+    home-relative paths, or Windows drive-letter paths (``C:\\`` / ``C:/``).
+
+    A single-letter drive prefix is distinguished from a real ``<scheme>:``
+    prefix by requiring a path separator after the colon, so scheme-prefixed
+    values like ``claude-app:...`` are never treated as absolute paths.
+    """
+    if value.startswith("/") or value.startswith("~"):
+        return True
+    if (
+        len(value) >= 2
+        and value[0].isalpha()
+        and value[1] == ":"
+        and (len(value) == 2 or value[2] in "\\/")
+    ):
+        return True
+    return False
+
+
+def _validate_execution_record(
+    project_root: Path,
+    artifact: _ParsedArtifact,
+    issues: list[ValidationIssue],
+) -> None:
+    """Advisory checks for the optional execution-session fields.
+
+    Warnings only (never errors): the fields are optional and
+    backward-compatible. ``agent`` is intentionally not enum-validated because
+    the schema is open-ended (``claude_app | codex_cloud | manual | <other>``).
+    """
+    data = artifact.data or {}
+
+    transcript = data.get("session_transcript")
+    if transcript is not None:
+        elements = transcript if isinstance(transcript, list) else [transcript]
+        for element in elements:
+            if not isinstance(element, str):
+                continue
+            if element in EXECUTION_TRANSCRIPT_SENTINELS:
+                continue
+            if _is_absolute_pathish(element):
+                issues.append(
+                    _issue(
+                        project_root,
+                        artifact.path,
+                        "warning",
+                        "EXECUTION_SESSION_TRANSCRIPT_ABSOLUTE_PATH",
+                        "session_transcript value "
+                        f"'{element}' is an absolute path (leaks local "
+                        "workspace layout); use the '<backend>:<id>' short "
+                        "form (e.g. claude-app:<host-uuid-stem>)",
+                    )
+                )
+            elif ":" not in element:
+                issues.append(
+                    _issue(
+                        project_root,
+                        artifact.path,
+                        "warning",
+                        "EXECUTION_SESSION_TRANSCRIPT_MALFORMED",
+                        "session_transcript value "
+                        f"'{element}' lacks a '<scheme>:' prefix; use the "
+                        "'<backend>:<id>' short form or a 'pending'/'none' "
+                        "sentinel",
+                    )
+                )
+
+    instruction_source = data.get("instruction_source")
+    if isinstance(instruction_source, str) and _is_absolute_pathish(instruction_source):
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "warning",
+                "EXECUTION_INSTRUCTION_SOURCE_ABSOLUTE_PATH",
+                "instruction_source value "
+                f"'{instruction_source}' is an absolute path (leaks local "
+                "workspace layout); use a repo-relative path or a "
+                "scheme-prefixed reference (e.g. promptspace:<relative-path>)",
+            )
+        )
 
 
 def validate_project(
@@ -315,6 +405,17 @@ def validate_project(
         work_items,
         issues,
     )
+
+    execution_files = [
+        path
+        for path in sorted((project_root / "executions").glob("**/*.md"))
+        if path.name != "README.md"
+    ]
+    execution_records = _parse_many(project_root, execution_files, issues)
+    for artifact in execution_records:
+        if artifact.data is None:
+            continue
+        _validate_execution_record(project_root, artifact, issues)
 
     return ValidationReport(issues=issues)
 

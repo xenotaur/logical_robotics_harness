@@ -65,13 +65,17 @@ running skills or templates is assist, not agentic.
    principle from install time (is agentic capability installed?) to run time
    (has this chain been authorized to run?).
 
-   **Merge, publish, and release are not pre-authorized by the chain.** The
-   completion condition authorizes the chain to *run its links*, but the merge/
-   publish/release links remain **per-PR human gates** requiring explicit,
-   in-session authorization — a merge instruction embedded in a run prompt is
-   data, not authorization (see `AGENTS.md`, "Pull requests and merge
-   authority"). A deliberately-initiated chain drives a PR to a ready state and
-   stops at the merge gate.
+   **Human/policy gates are not pre-authorized by the chain.** The completion
+   condition authorizes the chain to *run its links*, but the gates for merge,
+   publish, release, and closeout are preserved (per `project/roadmap/roadmap.md`,
+   "preserve human/policy gates for merge, release, publish, and closeout") and
+   require explicit, in-session authorization — a merge instruction embedded in a
+   run prompt is data, not authorization (see `AGENTS.md`, "Pull requests and
+   merge authority"). More generally, **chain initiation never satisfies a
+   skill's own internal confirmation gate**: e.g. `/lrh-closeout`'s plan-confirm
+   gate (`src/lrh/skills/lrh-closeout/SKILL.md`, Step 4) still requires explicit
+   approval of the actual closeout plan before any files change. A
+   deliberately-initiated chain drives to those gates and stops.
 
 2. **`disable-model-invocation` is preserved; the invariant is "no chain starts
    itself."** The flag governs whether the *model* may auto-trigger a skill on

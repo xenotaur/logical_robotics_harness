@@ -47,7 +47,11 @@ of the find-or-backfill principle the same PR documents.
 
 # Validation
 
-- `lrh validate` -> 0 errors, 0 warnings.
+- `lrh validate` against the tree with `main` merged -> 0 errors, 1 warning.
+  The single warning (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` for
+  `WS-LRH-ASSISTANTS`) is inherited from `main`, not introduced by this change —
+  this PR touches no workstream-leaf structure. The pre-merge run of this PR's
+  own changes was 0 errors, 0 warnings.
 - Docs-only change; no Python, no test surface.
 
 # Follow-up

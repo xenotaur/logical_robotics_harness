@@ -85,7 +85,17 @@ the decision tier.
 
 - Decide where "no chain starts itself" is enforced (flag vs. skill-body
   guidance + the deliberate-initiation contract) and do a per-skill
-  `disable-model-invocation` pass.
+  `disable-model-invocation` pass. **Likely target end-state:** the lifecycle
+  skills converge on the `lrh-proposal` pattern — drop the blunt
+  `disable-model-invocation: true` in favor of a policy-derived `when_to_use`
+  field (e.g. "invoke as a link in a human-initiated lifecycle chain, or on
+  explicit human request; do not fire as an implicit side effect of finishing
+  other work"), moving enforcement from the mechanical flag to `when_to_use`
+  guidance plus the deliberate-initiation contract. Decide this **per skill**,
+  not as a blanket flip: high-consequence links (e.g. `/lrh-closeout`, which
+  commits to `main`, resolves work items, and closes workstreams) may keep
+  stronger guardrails or a stricter `when_to_use`. Update both
+  `src/lrh/skills/` and the `.claude/skills/` mirror.
 - Decide whether a chain runner may invoke flagged links or must inline their
   workflows; document the invocation contract.
 - Resolve the `CHAIN-NOTE` home (a fresh closeout/review record's original body

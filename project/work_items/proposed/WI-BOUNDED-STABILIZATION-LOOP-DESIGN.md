@@ -22,6 +22,7 @@ related_design:
 depends_on:
   - WI-GITHUB-PR-CI-OBSERVATION
   - WI-AGENT-BRANCH-CONTAINMENT
+  - WI-DELIBERATE-MODEL-INVOCATION
 blocked_by: []
 expected_actions:
   - edit_file

@@ -92,10 +92,12 @@ Note: `depends_on` enforcement (confirming all declared dependencies are
 `resolved` before beginning implementation) is a Phase 2 concern handled by
 `/lrh-execute`, not `/lrh-land`.
 
-Related design (not resolvable via `related_design` frontmatter field):
-`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` governs the
-chain-initiation governance framework; `src/lrh/skills/_shared/lifecycle-chain.md`
-documents the canonical lifecycle chain.
+Related references (not resolvable via `related_design` frontmatter field):
+
+- `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` — governs
+  the chain-initiation governance framework
+- `src/lrh/skills/_shared/lifecycle-chain.md` — documents the canonical
+  lifecycle chain
 
 ### Prior Art Check
 

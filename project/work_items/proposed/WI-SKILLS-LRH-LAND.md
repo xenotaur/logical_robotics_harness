@@ -79,18 +79,20 @@ Five pieces of connecting glue logic are re-derived each run:
 1. **Primary record selection** — searching `project/executions/` by `pr:`
    field and excluding `_REVIEW`, `_CONFIRM`, `_CLOSEOUT_NOTE` filename
    suffixes to identify the primary implementation record.
-2. **Found-or-backfill and CHAIN-NOTE placement** — determining whether an
-   existing primary record was found (CHAIN-NOTE goes in a new
-   `_CLOSEOUT_NOTE` record) or must be backfilled (CHAIN-NOTE goes directly
-   in the record being authored).
-3. **Main-worktree-lock workaround** — landing commits to `main` when all
+2. **Found-or-backfill** — determining whether an existing primary record was
+   found (body is immutable; CHAIN-NOTE goes in a new `_CLOSEOUT_NOTE`
+   record) or must be backfilled (backfill record authored directly).
+3. **CHAIN-NOTE placement** — always written in the record being *authored*
+   in the current run; never appended to an already-merged record body.
+4. **Main-worktree-lock workaround** — landing commits to `main` when all
    worktrees have it checked out (`git fetch → checkout -b tmp → push
    tmp:main → delete tmp`).
-4. **Stale-branch safety** — verifying `git diff origin/main <branch> --stat`
+5. **Stale-branch safety** — verifying `git diff origin/main <branch> --stat`
    reports zero net lines before reusing a planning-PR branch.
-5. **`depends_on` enforcement** — confirming all declared dependencies are
-   `resolved` before beginning implementation (relevant at the
-   `/lrh-execute` level; checked here for completeness).
+
+Note: `depends_on` enforcement (confirming all declared dependencies are
+`resolved` before beginning implementation) is a Phase 2 concern handled by
+`/lrh-execute`, not `/lrh-land`.
 
 ### Prior Art Check
 

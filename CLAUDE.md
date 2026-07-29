@@ -3,6 +3,7 @@
 - `/lrh-create-skill` — Create a new project-local Claude Code skill following the LRH pattern
 - `/lrh-work-item` — Create a new LRH work item in project/work_items/proposed/
 - `/lrh-implement` — Implement an LRH work item or ad-hoc task using the three-phase execution session model
+- `/lrh-land` — Land an open PR end-to-end: chain auth gate, review, confirm, merge gate, closeout
 - `/lrh-review-response` — Address open PR review comments using lrh request review_response, with confirmation gate and execution record
 - `/lrh-confirm-fixes` — Pre-merge verification: fresh-eyes check pushed fixes against the current diff, resolve satisfied review threads, surface exceptions, and report a merge-readiness verdict without merging
 - `/lrh-design` — Generate a structured design for a feature, improvement, or system

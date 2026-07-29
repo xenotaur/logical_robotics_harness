@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #432 (commit eeaed4a): PROMPTS.md gained a Claude.app execution sessions section covering the three-phase model, instruction-phase CLI workflow, and the optional agent/instruction_source/session_transcript fields, pointing to project/executions/README.md as canonical for field grammar. The README half of this WI's acceptance criteria had already shipped in PR #411. This completes both stages of PROP-LRH-EXECUTION-SESSIONS documentation and validation (docs here; validator in PR #421)."
 blocked_reason: null
 blocked: false
 id: WI-EXEC-SESSIONS-DOCS
 title: Document execution session fields in README and PROMPTS
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -2,10 +2,10 @@
 execution_id: 2026_07_29_02_51_19_WI_EXEC_SESSIONS_DOCS
 prompt_id: PROMPT(WI-EXEC-SESSIONS-DOCS:WI_EXEC_SESSIONS_DOCS)[2026-07-29T02:46:14-04:00]
 work_item: WI-EXEC-SESSIONS-DOCS
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/432
-commit: c7f41e1
+commit: eeaed4a6e1bda3454b72801c1b63d02691ddfbb6
 created_at: 2026-07-29T02:51:19-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-EXEC-SESSIONS-DOCS.md

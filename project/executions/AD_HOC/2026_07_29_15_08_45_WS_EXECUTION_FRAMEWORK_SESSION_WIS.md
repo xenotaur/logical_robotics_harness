@@ -69,3 +69,10 @@ criteria.
 - The governing workstream for `PROP-LRH-SESSION-ARCHIVE-SYNC` is still to be
   created; it should file stage-aligned work items rather than reusing the
   closed `WI-EXEC-SESSIONS-DISCOVERY` id.
+- **`WI-EXEC-SESSIONS-DISCOVERY` is retired for good** (human decision,
+  2026-07-29). The id names a scope that no longer exists — `discover`/`link`
+  are now one leaf of Stage 2 in `PROP-LRH-SESSION-ARCHIVE-SYNC`, not a
+  standalone work item — and reusing a closed work item's id would make the
+  history ambiguous to read later. No work item file was ever merged under
+  that id; it exists only in closed PR #435 and in the amended Stage 3 note
+  in `PROP-LRH-EXECUTION-SESSIONS`, both of which remain accurate as history.

@@ -59,11 +59,16 @@ Load these before running any step:
    (research) and record both verdicts in the `## Prior Art Check` body
    section before drafting Design Decisions.
 
+4. **`references/execution-record.md`** — `lrh prompt label` and
+   `lrh prompt check-execution` command syntax, execution record field
+   descriptions (`agent`, `instruction_source`, `session_transcript`). Read
+   before Step 4 (instruction phase) and Step 10 (execution record).
+
 ---
 
 ## Execution Steps
 
-Work through these steps in order. Do not skip the confirmation gate (Step 4).
+Work through these steps in order. Do not skip the confirmation gate (Step 5).
 
 ### 1. Check for existing proposal
 
@@ -111,7 +116,7 @@ answers before proposing anything.
    - Multiple PRs, novel decisions, or uncertain scope → suggest
      `/lrh-workstream` ± `/lrh-work-item`
    - Complex multi-stage → suggest `/lrh-workstream` first, work items later
-   This informs the `## Implementation Plan` section and Step 9 follow-on offer.
+   This informs the `## Implementation Plan` section and Step 11 follow-on offer.
 
 6. **Related design docs:** Any existing workstream files, design docs, or
    prior proposals that this proposal relates to? Used for `related_design:`.
@@ -131,7 +136,24 @@ Before proposing, read:
 Then propose the complete proposal: frontmatter (all fields) and body
 (all required sections with content). Show it to the user before writing.
 
-### 4. User confirms
+### 4. Instruction phase (mint prompt ID + idempotence check)
+
+Run (see `references/execution-record.md` for full syntax):
+
+```bash
+lrh prompt label --slug <slug>
+lrh prompt check-execution --prompt-id "<id>" --project-root .
+```
+
+`<PROP-ID>` (the `id:` value decided in Step 2, `PROP-<SLUG-UPPER>`) is not
+passed to `--work-item` here — this record documents the proposal's
+*creation*, so it stays in the `AD_HOC` bucket (the `lrh prompt label`
+default). See `references/execution-record.md`.
+
+If `check-execution` reports a `landed` or `in_progress` record, **stop and
+report** — do not continue unless the user explicitly asks for a rerun.
+
+### 5. User confirms
 
 Show the user the complete proposed proposal — frontmatter and full body —
 in a readable block.
@@ -142,7 +164,7 @@ If the user redirects or declines, adjust the proposal and show it again.
 Do not skip this gate — it prevents incorrectly-scoped proposals from
 being committed to the control plane.
 
-### 5. Create branch from main
+### 6. Create branch from main
 
 ```bash
 git checkout main && git pull
@@ -161,7 +183,7 @@ Proposals are documentation artifacts; use `feat` as the branch type:
 xenotaur/feat/lrh-doc-skills
 ```
 
-### 6. Write files
+### 7. Write files
 
 Re-check that the proposal directory does not already exist on the freshly
 pulled main — the Step 1 check may be stale if main advanced since the
@@ -184,7 +206,7 @@ Set `status: proposed`, `implementation_status: not_started`.
 The `project/design/proposals/proposed/` directory already exists; do not
 recreate it. Create only the `<slug>/` subdirectory and `00_proposal.md`.
 
-### 7. Validate
+### 8. Validate
 
 Run:
 
@@ -196,7 +218,7 @@ Fix any errors before proceeding. Common failures: missing required field
 (`id`, `status`, `type`), `status` bucket mismatch (`status: proposed` file
 must be under `proposed/`), `type: design_proposal` missing or misspelled.
 
-### 8. Commit and open PR
+### 9. Commit and open PR
 
 ```bash
 git add project/design/proposals/proposed/<slug>/
@@ -205,9 +227,43 @@ git push -u origin <branch-name>
 gh pr create --title "Add design proposal <PROP-ID>: <title>" --body "..."
 ```
 
-Include in the PR body: the proposal summary, status, and `id`.
+Include in the PR body: the proposal summary, status, `id`, and the prompt
+ID minted in Step 4 — it is the traceability link between the PR and the
+execution record.
 
-### 9. Offer follow-on and report
+### 10. Create execution record
+
+```bash
+lrh prompt record-execution \
+  --prompt-id "<id>" \
+  --work-item AD_HOC \
+  --slug <slug> \
+  --status in_progress \
+  --project-root .
+```
+
+Use `AD_HOC`, not `<PROP-ID>` — see the note in Step 4. This creates the
+record under `project/executions/AD_HOC/`, not `project/executions/<PROP-ID>/`.
+
+Immediately edit the generated file to populate the three optional fields
+(see `references/execution-record.md`):
+
+```yaml
+agent: claude_app
+instruction_source: project/design/proposals/proposed/<slug>/00_proposal.md
+session_transcript: pending
+```
+
+Then replace the generated `TODO` placeholders in `# Summary`, `# Result`,
+`# Validation`, and `# Follow-up` with real content grounded in what this
+run actually did (per `AGENTS.md`'s evidence policy) — `/lrh-closeout` later
+only touches frontmatter, so an unedited TODO body would ship as `landed`
+with no narrative evidence.
+
+Commit the execution record and push it as an additional commit to the
+already-open PR.
+
+### 11. Offer follow-on and report
 
 **Follow-on artifacts (offer, not automatic):**
 
@@ -235,16 +291,18 @@ Do not automatically invoke any skill — offer and wait for the user to confirm
 - The file created and its path.
 - The `lrh validate` outcome.
 - The PR URL.
+- The minted prompt ID and execution record path.
 - Which fields were inferred vs. directly from user answers.
 - Suggested next steps per the scope assessment above.
+- A reminder that `session_transcript: pending` in the execution record
+  should be updated to `claude-app:<session-id>` after the session ends.
 - Next steps for the PR itself: run `/lrh-review-response <pr-url>` to
   address reviewer comments (repeat as needed), then
   `/lrh-confirm-fixes <pr-url>` to verify the fixes against the current diff
-  and resolve the review threads before merge. This skill creates no
-  execution record itself, but `/lrh-review-response` and
-  `/lrh-confirm-fixes` do — so after merging, run `/lrh-closeout <pr-url>` to
-  land any records the review rounds created. Only a PR merged with no review
-  activity has nothing to land and can skip closeout.
+  and resolve the review threads before merge. After merging, run
+  `/lrh-closeout <pr-url>` to land this skill's execution record — and any
+  additional `_REVIEW`/`_CONFIRM` records the review rounds created — and to
+  update the record's status to `landed`.
 
 ---
 
@@ -252,6 +310,8 @@ Do not automatically invoke any skill — offer and wait for the user to confirm
 
 Before reporting completion, verify:
 
+- [ ] Prompt ID minted (Step 4) before the confirm gate (Step 5)
+- [ ] Idempotence check passed (no prior landed/in_progress record)
 - [ ] Branch created from a fresh `git pull` of main
 - [ ] `project/design/proposals/proposed/<slug>/00_proposal.md` exists
 - [ ] `id`, `type: design_proposal`, `title`, `status`, `implementation_status`
@@ -261,8 +321,13 @@ Before reporting completion, verify:
 - [ ] Body contains all required sections: Summary, Background/Motivation,
       Design Decisions, Non-Goals, Implementation Plan
 - [ ] `lrh validate` reports 0 errors
-- [ ] The confirm-before-write gate (Step 4) was honoured
+- [ ] The confirm-before-write gate (Step 5) was honoured
 - [ ] PR opened and URL reported to the user
+- [ ] Execution record exists under `project/executions/AD_HOC/` (not
+      `<PROP-ID>/` — see Step 4) with `agent`, `instruction_source`,
+      `session_transcript` populated, and `# Summary`/`# Result`/
+      `# Validation`/`# Follow-up` filled in with real content, not TODOs
+- [ ] Execution record was pushed to the open PR
 
 ---
 
@@ -276,3 +341,5 @@ Before reporting completion, verify:
   `00_proposal.md` only; sub-proposals are added manually or in follow-on work.
 - Does not update `project/design/design.md` or `architecture.md` — those
   edits follow adoption and are separate tasks.
+- Does not land the execution record it creates for this PR, or mark it
+  `landed` — that happens at `/lrh-closeout` after the PR merges.

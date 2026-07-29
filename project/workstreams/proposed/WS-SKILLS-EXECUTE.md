@@ -14,7 +14,8 @@ related_design:
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - src/lrh/skills/_shared/lifecycle-chain.md
   - project/design/proposals/proposed/workstream-execution-framework/00_proposal.md
-work_items: []
+work_items:
+  - WI-SKILLS-LRH-LAND
 exit_criteria:
   - /lrh-land skill implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors
   - /lrh-execute skill implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors

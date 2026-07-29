@@ -123,9 +123,9 @@ accommodate all three, including honest records of what is already lost.
   `discover`/`link`); this proposal defines the umbrella that expands its scope,
   and #435 is to be reconciled against the adopted design once this proposal
   lands, rather than folded in pre-emptively. `WI-EXEC-SESSIONS-DOCS` and
-  `WI-EXEC-SESSIONS-SCHEMA` (both proposed) are adjacent — they document and
-  validate the fields this design populates — and are neither satisfied nor
-  blocked by this proposal.
+  `WI-EXEC-SESSIONS-SCHEMA` are adjacent and already **resolved** (they
+  documented and added `lrh validate` support for the fields this design
+  populates); this proposal neither reopens nor depends on them.
 - Proposals: Found `PROP-LRH-EXECUTION-SESSIONS`
   (`implementation_status: partial`) — its deferred Stage 3 is a strict subset
   of this design. Found `PROP-LRH-CONVERSATIONS-STORAGE-INTEROP` — its
@@ -149,8 +149,15 @@ in priority order:
 - **Forward capture (primary):** at execution-record creation and at closeout,
   read `CLAUDE_CODE_HOST_SESSION_ID` and `CLAUDE_CODE_SESSION_ID` and record
   both — the host stem as the canonical `session_transcript` pointer (already
-  the convention) and the child id as an alias (index input). This closes the
-  gap for every future record, needs no new infrastructure, and works today.
+  the convention) and the child id as an alias. The alias needs a durable home
+  the moment it is captured, and the execution-record schema deliberately does
+  not change (the `session_transcript` sequence grammar is reserved for genuine
+  multi-backend spans, not two ids of one backend). Its home is therefore the
+  `project/sessions/` index: Stage 1 lands a **minimal** index — host stem →
+  child id(s), title, PRs — alongside the capture, so no captured id is ever
+  held only in the live environment. Stage 3 enriches that same index (report,
+  era-generality, fork stitching) rather than introducing it. This closes the
+  gap for every future record, needs no schema change, and works today.
 - **Retroactive mapping:** `lrh sessions sync` harvests `/export` zip
   `metadata.json` — the only artifact that maps host↔child↔PR for pointers that
   already dangle.
@@ -200,15 +207,22 @@ layout separates the verbatim artifact from everything derived:
 
 ```text
 <archive-root>/
-  raw/<project-slug>/<child-uuid>.jsonl    # byte-for-byte copy, never rewritten
+  raw/<project-slug>/<child-uuid>.jsonl    # verbatim copy, atomically refreshed
   exports/<session-key>/metadata.json      # harvested identity map (no logs/bodies)
   sessions/<session-key>.json              # derived per-session metadata
   index.jsonl                              # derived roll-up across sessions
 ```
 
-Raw files are copied first and metadata derived second, so a parser defect can
-never cost data. Because every index is re-derivable from the archived inputs,
-the app's version-dependent transcript schema is not a durability risk.
+Transcript JSONLs are append-only and a session can remain active across
+several syncs (the multi-PR case), so `sync` **re-mirrors** a session's raw
+file while the session is still live — writing to a temp path and renaming, so
+each archived copy is atomically complete and never truncated mid-write. The
+copy is only treated as final once the session ends. What is immutable is the
+archived *content once the session is complete*, not the file across a session's
+life; a sync must never leave a shorter copy in place of a longer source. Raw
+files are copied before metadata is derived, so a parser defect can never cost
+data, and because every index is re-derivable from the archived inputs, the
+app's version-dependent transcript schema is not a durability risk.
 
 ### Decision 3: In-repo session index
 
@@ -293,8 +307,9 @@ exactly the class the manual workflow loses today. The scheduling mechanism
 - Does not build the encrypted off-machine tier now — permitted, not designed
   out; phase 1 delivers a local store only.
 - Does not change the execution-record schema or the `session_transcript`
-  pointer format (both landed in PR #409), beyond recording the child-id alias
-  as an index input.
+  pointer format (both landed in PR #409). The child-id alias is persisted in
+  the `project/sessions/` index (introduced minimally in Stage 1), not in a new
+  record field.
 - Does not supersede `PROP-LRH-CONVERSATIONS-STORAGE-INTEROP` or
   `PROP-LRH-EXECUTION-SESSIONS`; it fulfils the latter's deferred Stage 3 and
   stays consistent with the former's storage architecture.
@@ -315,11 +330,13 @@ proposed delivery order puts the cheap, infrastructure-free forward fix first:
 **Stage 1 — Both-identifier capture (the forward fix).** Extend
 execution-record creation (`/lrh-implement`) and `/lrh-closeout` to capture
 both `CLAUDE_CODE_HOST_SESSION_ID` and `CLAUDE_CODE_SESSION_ID`, recording the
-host stem as the pointer and the child id as an alias/index input. Retain the
-closeout confirm gate (a fork can present a different host id; the browser URL
-wins on disagreement) and the existing `agent` branching (PR #431). No new
-infrastructure; closes the gap for all future records; lands standalone and
-first.
+host stem as the `session_transcript` pointer and persisting the child id as an
+alias in a **minimal `project/sessions/` index** (host stem → child id(s),
+title, PRs) introduced in this stage — so no captured id lives only in the
+live environment. Retain the closeout confirm gate (a fork can present a
+different host id; the browser URL wins on disagreement) and the existing
+`agent` branching (PR #431). No schema change; closes the gap for all future
+records; lands standalone and first.
 
 **Stage 2 — Archive and reconciler.** Archive layout and configurable archive
 root; `lrh sessions sync` (raw JSONL mirror + `/export` `metadata.json`
@@ -328,16 +345,19 @@ harvest, raw-first ordering, defensive parsing); `lrh sessions discover` and
 against this design after this proposal lands (see Prior Art Check). Unit tests
 over parsing, change detection, and idempotency.
 
-**Stage 3 — Index and report.** Generate the non-authoritative
-`project/sessions/` index (era-general keys, child-id aliases, fork stitching
-via branch/PR, dedup latest-wins) from Stage 1 records and Stage 2 harvest;
+**Stage 3 — Index enrichment and report.** Enrich the `project/sessions/`
+index introduced in Stage 1 (era-general keys, fork stitching via branch/PR,
+dedup latest-wins) from Stage 1 records and Stage 2 harvest;
 `lrh sessions report` for dangling pointers, unarchived sessions, and `pending`
 records; bootstrap the index and attempt one-time recovery of the current
 dangling pointers from local exports and JSONLs.
 
-**Stage 4 — Scheduling and hook accelerant (phase 2).** Weekly scheduled
-`lrh sessions sync`; optional `SessionEnd` hook to reduce capture latency.
-Neither is required for the invariant once Stages 1–3 and the weekly run exist.
+**Stage 4 — Scheduling and hook accelerant.** The weekly scheduled
+`lrh sessions sync` is **required** — it is the guarantee for sessions that
+never reach closeout (Decision 6), so an implementation that omitted it would
+violate the retention invariant. The `SessionEnd` hook is the only optional
+piece: it reduces capture latency but adds no guarantee the weekly run does not
+already provide.
 
 A companion documentation change amends `PROP-LRH-EXECUTION-SESSIONS` Stage 3
 to record that it is fulfilled through this proposal.

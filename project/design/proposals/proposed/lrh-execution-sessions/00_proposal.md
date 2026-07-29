@@ -476,7 +476,7 @@ sentinels, and the multi-backend sequence form — and on absolute-path
 (no enum warning), matching its definition above
 (`claude_app | codex_cloud | manual | <other>`).
 
-### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`, not yet filed) — deferred
+### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`, PR #435) — scope expanded under `PROP-LRH-SESSION-ARCHIVE-SYNC`
 
 - `lrh sessions discover [--project-root .]` — scan
   `~/.claude/projects/<project-slug>/` for JSONL files and list

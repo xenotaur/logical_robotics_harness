@@ -129,7 +129,8 @@ Read the `related_workstreams:` field of the WI. For each workstream:
   WIs already marked `resolve and move` in the current plan as resolved —
   assess WS readiness from the **post-plan state**, not the current on-disk
   state. Check disk only for WIs not mentioned in the current plan.
-- If all WIs resolve (on disk or planned) AND WS is in `workstreams/proposed/`:
+- If all WIs resolve (on disk or planned) AND WS is in `workstreams/proposed/`
+  or `workstreams/active/`:
   - Also read `exit_criteria:` from the WS file
   - Include the criteria list in the plan output as a sub-list below the WS
     row — the user must see the criteria at assessment time
@@ -150,6 +151,7 @@ Present the full plan as a table:
 | Execution record `<id>` | `in_progress` | update to `landed` |
 | WI `<WI-ID>` | in `proposed/` | resolve and move |
 | WS `<WS-ID>` | in `proposed/`, 1/2 WIs resolved | skip — not all WIs resolved |
+| WS `<WS-ID>` | in `active/`, all WIs resolved | offer closeout — exit criteria confirmation required |
 | PROP-`<slug>` | in `proposed/` | skip — governing WS not closing |
 
 ### Step 3 — Resolve session transcript
@@ -251,9 +253,10 @@ Edit the frontmatter in-place:
 - `stage:` → `stage: closed`
 - `status:` → `status: resolved`
 
-Then move:
+Then move from whichever bucket the WS was found in at Step 2 (`proposed/` or
+`active/`):
 ```bash
-mv project/workstreams/proposed/<WS-ID>.md project/workstreams/resolved/<WS-ID>.md
+mv project/workstreams/<current-bucket>/<WS-ID>.md project/workstreams/resolved/<WS-ID>.md
 ```
 
 **Proposal** (if offered adoption and user confirmed):

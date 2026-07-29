@@ -22,7 +22,7 @@ before touching any files.
 | WI | Found in `proposed/` | Resolve: set `status: resolved`, write `resolution:`, `mv` to `resolved/` |
 | WI | Found in `resolved/` | Skip — already resolved |
 | WI | Not found anywhere | Warn user; ask how to proceed |
-| WS | All listed WIs resolved (on disk or planned in this closeout) AND WS in `workstreams/proposed/` | Offer closeout |
+| WS | All listed WIs resolved (on disk or planned in this closeout) AND WS in `workstreams/proposed/` or `workstreams/active/` | Offer closeout |
 | WS | Any listed WI would remain unresolved after this closeout | Skip — not all WIs resolved |
 | WS | Already in `workstreams/resolved/` | Skip |
 | Proposal | WS would close AND proposal in `proposals/proposed/` | Offer adoption |
@@ -151,8 +151,11 @@ status: resolved
 
 ### File move
 
+Move from whichever bucket the WS was actually found in at Step 2 —
+`proposed/` or `active/`:
+
 ```bash
-mv project/workstreams/proposed/<WS-ID>.md project/workstreams/resolved/<WS-ID>.md
+mv project/workstreams/<current-bucket>/<WS-ID>.md project/workstreams/resolved/<WS-ID>.md
 ```
 
 ---

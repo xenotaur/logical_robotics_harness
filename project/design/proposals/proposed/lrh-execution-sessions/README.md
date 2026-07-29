@@ -2,7 +2,9 @@
 
 ## Status summary
 
-- `00_proposal.md` — umbrella proposal. Status: `proposed` / `not_started`
+- `00_proposal.md` — umbrella proposal. Status: `proposed` / `partial`
+  (Stages 1 and 2 done — docs and schema validation; Stage 3, session
+  discovery, remains deferred and unfiled)
 
 ## What this proposal set covers
 

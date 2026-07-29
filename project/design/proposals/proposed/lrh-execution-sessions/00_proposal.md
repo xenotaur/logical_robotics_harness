@@ -454,27 +454,29 @@ the optional fields; the skill-internal
 `.claude/skills/lrh-implement/references/execution-session-reference.md`
 remains a secondary, skill-specific reference.
 
-### Stage 2 — Schema validation (`WI-EXEC-SESSIONS-SCHEMA`) — done
+### Stage 2 — Schema validation (`WI-EXEC-SESSIONS-SCHEMA`) — done for the work item's scope; one original bullet deferred
 
 - Update `lrh validate` to recognize and validate the optional new
   fields: `agent` value set, `session_transcript` path or short-form,
-  `instruction_source` format.
-- Add tests for valid and invalid values.
+  `instruction_source` format. **Done, PR #421.**
+- Add tests for valid and invalid values. **Done, PR #421.**
 - Add `lrh snapshot project` reporting: counts by `agent` value if
   the field is present; flag records with `session_transcript` that
-  reference missing local files (advisory, not error).
+  reference missing local files (advisory, not error). **Not built.**
+  `WI-EXEC-SESSIONS-SCHEMA` explicitly moved this to its own Non-Goals
+  when it was implemented, so the work item itself has no remaining
+  criteria — but this original Stage 2 bullet is still undelivered.
+  It remains open if a concrete consumer emerges.
 
 Landed in PR #421 (2026-07-25): `lrh validate` now warns (never
 errors) on malformed or absolute-path `session_transcript` values —
 covering the scheme-prefixed scalar grammar, the `pending`/`none`
 sentinels, and the multi-backend sequence form — and on absolute-path
-`instruction_source` values. `agent` is deliberately left
-open-ended (no enum warning), matching its `claude_app | codex_cloud |
-manual | <other>` definition above. The `lrh snapshot project`
-agent-count reporting bullet was not built; it remains open if a
-concrete consumer emerges.
+`instruction_source` values. `agent` is deliberately left open-ended
+(no enum warning), matching its definition above
+(`claude_app | codex_cloud | manual | <other>`).
 
-### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`) — deferred
+### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`, not yet filed) — deferred
 
 - `lrh sessions discover [--project-root .]` — scan
   `~/.claude/projects/<project-slug>/` for JSONL files and list
@@ -594,8 +596,9 @@ Status as of 2026-07-29:
   new fields — **resolved** (README: PR #411; PROMPTS.md: PR #432)
 - `WI-EXEC-SESSIONS-SCHEMA` — update `lrh validate` for the new
   optional fields; add tests — **resolved** (PR #421)
-- `WI-EXEC-SESSIONS-DISCOVERY` — implement `lrh sessions discover`
-  and `lrh sessions link` commands — **deferred**; no work item filed
+- `WI-EXEC-SESSIONS-DISCOVERY` (a placeholder id; no work item file
+  exists) — implement `lrh sessions discover` and `lrh sessions link`
+  commands — **deferred**
 - `WI-EXEC-SESSIONS-SKILL` — **superseded** by `/lrh-implement`
   (WS-SKILLS); no separate skill needed
 

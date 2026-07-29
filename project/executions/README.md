@@ -63,6 +63,26 @@ themselves are never committed; the repository stores only the pointer.
 A sequence of these scalars is reserved for executions that genuinely span
 multiple backends; single-backend records stay scalar.
 
+### Complete example
+
+A landed execution record with all three optional fields populated:
+
+```yaml
+---
+execution_id: 2026_07_25_04_01_32_WI_EXEC_SESSIONS_SCHEMA
+prompt_id: PROMPT(WI-EXEC-SESSIONS-SCHEMA:WI_EXEC_SESSIONS_SCHEMA)[2026-07-25T02:19:37-04:00]
+work_item: WI-EXEC-SESSIONS-SCHEMA
+status: landed
+rerun_of:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/421
+commit: e7d7a0eb1a74ab21e0245f58798e8afbe54b2424
+created_at: 2026-07-25T04:01:32-04:00
+agent: claude_app
+instruction_source: project/work_items/proposed/WI-EXEC-SESSIONS-SCHEMA.md
+session_transcript: claude-app:4c3d03d6-6ebd-418a-86b2-6f4041feb9db
+---
+```
+
 ## Status values
 
 Allowed status values:

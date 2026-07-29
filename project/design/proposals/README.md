@@ -64,7 +64,9 @@ Claude.app and Codex Cloud workflows; proposes optional `agent`, `instruction_so
 source session JSONL; integrates execution sessions into the existing workstream → work-item →
 execution-record hierarchy; and notes where Taurcode meta-prompts belong in LRH's distribution
 model (`src/lrh/skills/` per the now-adopted `PROP-LRH-PROJECT-LOCAL-SKILLS`). Status: `proposed` /
-`not_started` (documentation-only proposal; no CLI, schema, or runtime changes in this PR).
+`partial` (the proposal PR itself was documentation-only; the docs and `lrh validate` schema
+changes it called for have since landed via `WI-EXEC-SESSIONS-DOCS` and `WI-EXEC-SESSIONS-SCHEMA`;
+session-discovery CLI commands remain deferred).
 
 [`proposed/activity-lanes-and-observational-dashboard.md`](proposed/activity-lanes-and-observational-dashboard.md)
 — Proposes a lightweight, tool-agnostic activity-lane model (`project/activity/ACT-*.md`) plus

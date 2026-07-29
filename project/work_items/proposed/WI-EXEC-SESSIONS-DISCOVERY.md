@@ -29,7 +29,6 @@ expected_actions:
 forbidden_actions:
   - force_push
   - delete_branch
-  - modify_lrh_closeout_skill
   - write_session_transcript_without_confirmation
 acceptance:
   - lrh sessions discover [--project-root .] scans ~/.claude/projects/<project-slug>/ and lists local session JSONL files with their child SDK id, approximate size, and mtime, plus any execution record whose session_transcript already references that id
@@ -112,8 +111,11 @@ automated resolver — that limitation is accepted here rather than solved.
   alongside the existing `"prompt"` case.
 - `discover` is read-only and advisory. `link` writes `session_transcript`
   on a named execution record, gated by grammar validation.
-- No changes to `/lrh-closeout` — its Step 3 (host-id-first resolution) is
-  already backend-aware per PR #431 and is out of scope here.
+- `/lrh-closeout` is out of scope by default — its Step 3 (host-id-first
+  resolution) is already backend-aware per PR #431. If implementation
+  reveals that this design genuinely cannot work without a change there,
+  **stop and get explicit human approval before touching it**; do not
+  silently expand scope into the closeout skill.
 - No network or session-management MCP tool calls — this is a local
   filesystem utility, complementary to closeout's live `list_sessions`
   path, not a replacement for it.
@@ -158,7 +160,12 @@ automated resolver — that limitation is accepted here rather than solved.
 
 ## Non-Goals
 
-- No changes to `/lrh-closeout` Step 3 — already backend-aware (PR #431).
+- No changes to `/lrh-closeout` Step 3 by default — already backend-aware
+  (PR #431). This is a soft constraint, not a hard prohibition: if the
+  `discover`/`link` design turns out to genuinely require a closeout-skill
+  change, stop and request explicit human approval before making it,
+  rather than treating this as an automatic block or silently expanding
+  scope.
 - No network or session-management MCP tool integration.
 - No automatic child-id-to-host-id resolution — no reliable local method
   exists; `link` requires the caller to supply an already-valid pointer.

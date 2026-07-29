@@ -42,7 +42,7 @@ four frontmatter fields:
 status: landed
 pr: https://github.com/<owner>/<repo>/pull/<N>
 commit: <merge-commit-sha>
-session_transcript: claude-app:<uuid>   # or: pending
+session_transcript: claude-app:<host-uuid-stem>   # or: pending / none
 ```
 
 **Valid status transition:** `in_progress → landed` is the only forward
@@ -194,56 +194,76 @@ mv project/design/proposals/proposed/<slug>/ project/design/proposals/adopted/<s
 
 ---
 
-## Session Transcript Auto-Detection
+## Session Transcript Resolution
 
-### What to detect
+### Branch on the backend first
 
-The `session_transcript:` field stores the Claude.app session reference in
-the form:
+The pointer scheme is backend-specific. Check the execution record's `agent`
+before resolving:
+
+- **Non-Claude backend** (`agent: codex_cloud`, `manual`, or other): the
+  Claude env var and Claude session URL are the wrong session. Resolve the
+  backend's own scheme-prefixed id if retrievable (e.g. `codex-cloud:<task-id>`),
+  else use `none`. Do not construct a `claude-app:` pointer for non-Claude
+  work.
+- **Claude.app** (`agent: claude_app`, or absent/assumed Claude): resolve the
+  host id as below.
+
+### What to detect (Claude.app)
+
+The `session_transcript:` field stores the **host** session reference in the
+form:
 
 ```
-claude-app:<uuid>
+claude-app:<host-uuid-stem>
 ```
 
-where `<uuid>` is the UUID stem from the JSONL session file or browser URL.
-Example: `claude-app:6f9b846e-c6f9-45aa-9cf9-8c744ec57026`
+where `<host-uuid-stem>` is the host session id (`local_<uuid>`) with the
+`local_` prefix stripped. Example:
+`claude-app:6f9b846e-c6f9-45aa-9cf9-8c744ec57026`.
 
-Never store an absolute path (`~/.claude/...` or `/Users/...`) — it leaks
-the local workspace layout to everyone who clones the repository.
+Do **not** use the child SDK id that names the `~/.claude/projects/.../<child-uuid>.jsonl`
+file: on Claude.app sessions it differs from the host id after resume/continue,
+producing a pointer that session-management tools cannot resolve. Never store
+an absolute path (`~/.claude/...` or `/Users/...`) — it leaks the local
+workspace layout to everyone who clones the repository.
 
-### JSONL auto-detection
+### Resolution order
 
-Derive the project slug dynamically — Claude Code normalizes both `/` and
-`_` to `-` when creating the project directory:
+Resolve in this order; stop at the first that yields a confident value:
 
-```bash
-project_slug=$(git rev-parse --show-toplevel | sed 's|[/_]|-|g')
-ls ~/.claude/projects/${project_slug}/*.jsonl 2>/dev/null
-```
+1. **Same session — `$CLAUDE_CODE_HOST_SESSION_ID`.** Read the host id from
+   the env var, strip `local_`, propose `claude-app:<host-uuid-stem>`.
+   **Confirm before storing:** the env var reflects the *current* session
+   window, and the host id **rotates on resume/continue**, so on a long or
+   resumed session it can differ from the session that authored the work. If
+   the user's View > Copy URL disagrees, the browser URL wins (case 3).
+2. **Cross-session — `list_sessions` by PR number.** When closing out on
+   `main` from a different session than did the work, the env var is the wrong
+   session. Match the target session by `prNumber` via the session-management
+   `list_sessions` tool (returns `sessionId`, `prNumber`, `branch`); take its
+   `sessionId`, strip `local_`. Confirm if more than one session references
+   the PR.
+3. **Manual — View > Copy URL.** Ask the user to paste the browser URL
+   (`local_<uuid>` from `claude.ai/.../local_<uuid>`); strip `local_`. The
+   browser URL is authoritative over the env var when they differ.
 
-### Reliable failure for web-backed sessions
+### `none` vs `pending` sentinels
 
-In Claude.app web sessions, the JSONL filename does not match the UUID in the
-browser URL — the auto-detection reliably returns no match. This is expected,
-not an error. Fall through to case 2 (ask user) without alarming the user.
+Both are explicit first-class values and must never block closeout; they are
+**not** interchangeable (see the 2026-07-23 "Backend-Agnostic Session Pointer
+Grammar" decision-log entry):
 
-### 3-way resolution
+| Value | Meaning | Step 8 reminder? |
+|---|---|---|
+| `pending` | Transcript exists; id not yet known — a **to-do** | Yes — remind to update before archiving |
+| `none` | Backend produced no retrievable transcript (e.g. `codex_cloud`, `manual`) — **terminal** | No |
 
-| Case | What to do |
-|---|---|
-| One JSONL found | "Detected session `<uuid>`. Is this correct?" — confirm before using |
-| Not found or ambiguous | "Could not auto-detect. Provide the UUID from your browser URL, or confirm `pending`." |
-| User confirms `pending` | Set `session_transcript: pending`; add reminder to Step 8 report |
+Use `none`, not `pending`, whenever a backend simply has no session URL to
+resolve, so a finished record never looks like unfinished work.
 
-### `pending` sentinel
-
-`pending` is an explicit first-class value. It is used when the session ID
-is not yet known or cannot be auto-detected. A `pending` value must never
-block the closeout workflow. Include a reminder in the Step 8 report to
-update it before archiving the session.
-
-When the user later provides the session ID (from the browser URL), update
-with:
+When the user later provides a `pending` session id (env var or View > Copy
+URL), update with:
 
 ```bash
 lrh prompt update-execution \

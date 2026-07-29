@@ -194,9 +194,22 @@ mv project/design/proposals/proposed/<slug>/ project/design/proposals/adopted/<s
 
 ---
 
-## Session Transcript Auto-Detection
+## Session Transcript Resolution
 
-### What to detect
+### Branch on the backend first
+
+The pointer scheme is backend-specific. Check the execution record's `agent`
+before resolving:
+
+- **Non-Claude backend** (`agent: codex_cloud`, `manual`, or other): the
+  Claude env var and Claude session URL are the wrong session. Resolve the
+  backend's own scheme-prefixed id if retrievable (e.g. `codex-cloud:<task-id>`),
+  else use `none`. Do not construct a `claude-app:` pointer for non-Claude
+  work.
+- **Claude.app** (`agent: claude_app`, or absent/assumed Claude): resolve the
+  host id as below.
+
+### What to detect (Claude.app)
 
 The `session_transcript:` field stores the **host** session reference in the
 form:
@@ -211,9 +224,9 @@ where `<host-uuid-stem>` is the host session id (`local_<uuid>`) with the
 
 Do **not** use the child SDK id that names the `~/.claude/projects/.../<child-uuid>.jsonl`
 file: on Claude.app sessions it differs from the host id after resume/continue,
-producing a pointer session-management tools cannot resolve. Never store an
-absolute path (`~/.claude/...` or `/Users/...`) — it leaks the local workspace
-layout to everyone who clones the repository.
+producing a pointer that session-management tools cannot resolve. Never store
+an absolute path (`~/.claude/...` or `/Users/...`) — it leaks the local
+workspace layout to everyone who clones the repository.
 
 ### Resolution order
 

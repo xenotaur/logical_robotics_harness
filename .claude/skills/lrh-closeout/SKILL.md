@@ -156,13 +156,26 @@ Present the full plan as a table:
 
 ### Step 3 — Resolve session transcript
 
-The canonical stored value is `claude-app:<host-uuid-stem>` — the **host**
-session id (`local_<uuid>`, `local_` stripped), not the child SDK id that
-names the JSONL file. Do **not** use JSONL-filename auto-detection: on
-Claude.app sessions it returns the child id, which differs from the host id
-on resumed/continued sessions and produces a pointer session-management tools
-cannot resolve. Resolve in this order, stopping at the first that yields a
-confident value:
+**First, branch on the execution record's `agent`** — the pointer scheme is
+backend-specific, and running closeout from Claude must not associate the
+current Claude window with work another backend produced:
+
+- **Non-Claude backend** (`agent: codex_cloud`, `manual`, or any other
+  value): the Claude env var and Claude session URL are the *wrong* session —
+  do **not** use them. Resolve the backend's own scheme-prefixed id if one is
+  retrievable (e.g. `codex-cloud:<task-id>` from the Codex run, per
+  `project/executions/README.md`); otherwise use `none`. Skip the
+  Claude-specific steps below.
+- **Claude.app** (`agent: claude_app`, or absent/assumed Claude): resolve the
+  host id with the steps below.
+
+For a Claude.app session the canonical stored value is
+`claude-app:<host-uuid-stem>` — the **host** session id (`local_<uuid>`,
+`local_` stripped), not the child SDK id that names the JSONL file. Do **not**
+use JSONL-filename auto-detection: on Claude.app sessions it returns the child
+id, which differs from the host id on resumed/continued sessions and produces
+a pointer that session-management tools cannot resolve. Resolve in this order,
+stopping at the first that yields a confident value:
 
 1. **Same session — env var (preferred).** Read the host id directly:
 

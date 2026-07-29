@@ -4,9 +4,11 @@ type: design_proposal
 title: LRH Execution Sessions — Three-Phase Model and Claude.app Session Traceability
 status: proposed
 created_on: 2026-06-23
-updated_on: 2026-07-24
+updated_on: 2026-07-29
 implementation_status: partial
-implemented_by: []
+implemented_by:
+  - WI-EXEC-SESSIONS-DOCS
+  - WI-EXEC-SESSIONS-SCHEMA
 supersedes: []
 superseded_by: null
 related_design:
@@ -434,7 +436,7 @@ stages, each backed by a separate work item.
 Deliverable: a written design with a specific vocabulary for future
 implementation work.
 
-### Stage 1 — Documentation additions (`WI-EXEC-SESSIONS-DOCS`) — not_started
+### Stage 1 — Documentation additions (`WI-EXEC-SESSIONS-DOCS`) — done
 
 - Update `project/executions/README.md` to document the new optional
   fields: `agent`, `instruction_source`, `session_transcript`.
@@ -444,14 +446,15 @@ implementation work.
   unknown frontmatter fields without error. If they do not, a
   targeted fix belongs here.
 
-Stage 1 is documentation-only and can land quickly. As of 2026-06-28,
-163 execution records already use the new fields organically (populated
-by `/lrh-implement`), but neither README.md nor PROMPTS.md documents
-them. The fields are documented in `.claude/skills/lrh-implement/
-references/execution-session-reference.md`, but that is skill-internal,
-not the canonical location.
+Landed in two parts: `project/executions/README.md` was updated by
+PR #411 (as part of the 2026-07-23 backend-agnostic session pointer
+grammar work), and `PROMPTS.md` gained its three-phase-model section
+in PR #432 (2026-07-29). Both are now the canonical documentation for
+the optional fields; the skill-internal
+`.claude/skills/lrh-implement/references/execution-session-reference.md`
+remains a secondary, skill-specific reference.
 
-### Stage 2 — Schema validation (`WI-EXEC-SESSIONS-SCHEMA`) — not_started
+### Stage 2 — Schema validation (`WI-EXEC-SESSIONS-SCHEMA`) — done
 
 - Update `lrh validate` to recognize and validate the optional new
   fields: `agent` value set, `session_transcript` path or short-form,
@@ -461,9 +464,15 @@ not the canonical location.
   the field is present; flag records with `session_transcript` that
   reference missing local files (advisory, not error).
 
-As of 2026-06-28, `lrh validate` has no execution-record validation
-logic; the new fields pass through silently without enum checking or
-path-format warnings.
+Landed in PR #421 (2026-07-25): `lrh validate` now warns (never
+errors) on malformed or absolute-path `session_transcript` values —
+covering the scheme-prefixed scalar grammar, the `pending`/`none`
+sentinels, and the multi-backend sequence form — and on absolute-path
+`instruction_source` values. `agent` is deliberately left
+open-ended (no enum warning), matching its `claude_app | codex_cloud |
+manual | <other>` definition above. The `lrh snapshot project`
+agent-count reporting bullet was not built; it remains open if a
+concrete consumer emerges.
 
 ### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`) — deferred
 
@@ -578,17 +587,23 @@ This proposal can be considered effectively implemented when:
 
 ## Work items
 
-Status as of 2026-06-28:
+Status as of 2026-07-29:
 
 - `WI-EXEC-SESSIONS-DOCS` — update `project/executions/README.md`
   and `PROMPTS.md` to document the three-phase model and optional
-  new fields — **not started**
+  new fields — **resolved** (README: PR #411; PROMPTS.md: PR #432)
 - `WI-EXEC-SESSIONS-SCHEMA` — update `lrh validate` for the new
-  optional fields; add tests — **not started**
+  optional fields; add tests — **resolved** (PR #421)
 - `WI-EXEC-SESSIONS-DISCOVERY` — implement `lrh sessions discover`
-  and `lrh sessions link` commands — **deferred**
+  and `lrh sessions link` commands — **deferred**; no work item filed
 - `WI-EXEC-SESSIONS-SKILL` — **superseded** by `/lrh-implement`
   (WS-SKILLS); no separate skill needed
+
+Related but not part of this proposal's staged plan:
+`WI-CLOSEOUT-SESSION-SOURCING` (resolved, PR #431) made `/lrh-closeout`
+source `session_transcript` from `$CLAUDE_CODE_HOST_SESSION_ID` and
+`list_sessions` instead of JSONL auto-detection, consuming the grammar
+this proposal and the 2026-07-23 decision-log entry define.
 
 ## References
 

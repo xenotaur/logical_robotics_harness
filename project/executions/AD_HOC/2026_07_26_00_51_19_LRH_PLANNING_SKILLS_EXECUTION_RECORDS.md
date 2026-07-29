@@ -2,10 +2,10 @@
 execution_id: 2026_07_26_00_51_19_LRH_PLANNING_SKILLS_EXECUTION_RECORDS
 prompt_id: PROMPT(AD_HOC:LRH_PLANNING_SKILLS_EXECUTION_RECORDS)[2026-07-26T00:49:58-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/424
-commit: 
+commit: 1d686797cb5b87c58056b496f4b98a847347f860
 created_at: 2026-07-26T00:51:19-04:00
 agent: claude_app
 instruction_source: ad_hoc conversation — add execution-record creation to lrh-workstream, lrh-work-item, lrh-proposal

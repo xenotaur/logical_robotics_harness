@@ -2,10 +2,10 @@
 execution_id: 2026_07_29_01_38_46_LRH_EXECUTION_RECORD_CREATION_B69A83_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_EXECUTION_RECORD_CREATION_B69A83_REVIEW)[2026-07-29T01:32:26-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_26_00_51_19_LRH_PLANNING_SKILLS_EXECUTION_RECORDS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/424
-commit: 
+commit: 1d686797cb5b87c58056b496f4b98a847347f860
 created_at: 2026-07-29T01:38:46-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/424

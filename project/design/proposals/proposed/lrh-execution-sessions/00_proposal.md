@@ -488,6 +488,19 @@ sentinels, and the multi-backend sequence form — and on absolute-path
 This stage requires local filesystem access to `~/.claude/projects/`
 and is a new CLI command surface.
 
+**Update (2026-07-29): scope expanded under
+`PROP-LRH-SESSION-ARCHIVE-SYNC`.** `WI-EXEC-SESSIONS-DISCOVERY` is now
+filed as open PR #435 (`discover`/`link`). Session discovery has since
+been folded into a larger design —
+`project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md`
+— which adds a durable local transcript archive, an `lrh sessions sync`
+reconciler (raw-JSONL mirror plus `/export` `metadata.json` harvest for
+the host↔child identity map), a non-authoritative `project/sessions/`
+index, and both-identifier capture at record creation and closeout. That
+proposal treats `discover`/`link` as one leaf of a four-stage plan; PR
+#435 is to be reconciled against the adopted design once that proposal
+lands. This bullet is retained for history.
+
 ### Stage 4 — Skill — done (subsumed by /lrh-implement)
 
 The proposed `lrh-execution-session` skill's 7 steps are fully
@@ -596,9 +609,10 @@ Status as of 2026-07-29:
   new fields — **resolved** (README: PR #411; PROMPTS.md: PR #432)
 - `WI-EXEC-SESSIONS-SCHEMA` — update `lrh validate` for the new
   optional fields; add tests — **resolved** (PR #421)
-- `WI-EXEC-SESSIONS-DISCOVERY` (a placeholder id; no work item file
-  exists) — implement `lrh sessions discover` and `lrh sessions link`
-  commands — **deferred**
+- `WI-EXEC-SESSIONS-DISCOVERY` — implement `lrh sessions discover` and
+  `lrh sessions link` commands — filed as open PR #435; **scope expanded
+  under `PROP-LRH-SESSION-ARCHIVE-SYNC`** (see Stage 3 update above),
+  which folds discovery into a durable-archive-and-sync design
 - `WI-EXEC-SESSIONS-SKILL` — **superseded** by `/lrh-implement`
   (WS-SKILLS); no separate skill needed
 

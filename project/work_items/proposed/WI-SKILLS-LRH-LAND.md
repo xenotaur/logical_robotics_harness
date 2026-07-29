@@ -16,8 +16,6 @@ related_workstreams:
   - WS-SKILLS-EXECUTE
 related_design:
   - project/design/proposals/proposed/lrh-land-execute/00_proposal.md
-  - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
-  - src/lrh/skills/_shared/lifecycle-chain.md
 depends_on: []
 blocked_by: []
 expected_actions:
@@ -93,6 +91,11 @@ Five pieces of connecting glue logic are re-derived each run:
 Note: `depends_on` enforcement (confirming all declared dependencies are
 `resolved` before beginning implementation) is a Phase 2 concern handled by
 `/lrh-execute`, not `/lrh-land`.
+
+Related design (not resolvable via `related_design` frontmatter field):
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` governs the
+chain-initiation governance framework; `src/lrh/skills/_shared/lifecycle-chain.md`
+documents the canonical lifecycle chain.
 
 ### Prior Art Check
 

@@ -2,10 +2,10 @@
 execution_id: 2026_07_29_03_14_12_UPDATE_EXEC_SESSIONS_PROPOSAL_STATUS
 prompt_id: PROMPT(AD_HOC:UPDATE_EXEC_SESSIONS_PROPOSAL_STATUS)[2026-07-29T03:13:10-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/433
-commit: ef8c685
+commit: 2f8655393cfc75980e0c4144e5afcbd8904793a2
 created_at: 2026-07-29T03:14:12-04:00
 agent: claude_app
 instruction_source: ad_hoc conversation — update PROP-LRH-EXECUTION-SESSIONS implementation status now that its Stage 1 and Stage 2 work items are resolved

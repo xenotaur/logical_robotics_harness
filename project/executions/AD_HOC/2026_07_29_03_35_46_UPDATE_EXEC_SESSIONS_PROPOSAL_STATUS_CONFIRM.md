@@ -2,10 +2,10 @@
 execution_id: 2026_07_29_03_35_46_UPDATE_EXEC_SESSIONS_PROPOSAL_STATUS_CONFIRM
 prompt_id: PROMPT(AD_HOC:UPDATE_EXEC_SESSIONS_PROPOSAL_STATUS_CONFIRM)[2026-07-29T03:35:36-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_29_03_14_12_UPDATE_EXEC_SESSIONS_PROPOSAL_STATUS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/433
-commit: a82ff5f
+commit: 2f8655393cfc75980e0c4144e5afcbd8904793a2
 created_at: 2026-07-29T03:35:46-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/433

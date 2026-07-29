@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #434 (commit 5f5d2bcb)
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-LAND
 title: Implement /lrh-land Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

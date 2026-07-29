@@ -2,10 +2,10 @@
 execution_id: 2026_07_29_14_30_59_WI_SKILLS_LRH_LAND_IMPL_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_LRH_LAND_IMPL_REVIEW)[2026-07-29T14:14:27-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_29_03_21_42_WI_SKILLS_LRH_LAND_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/434
-commit: 738cfdf
+commit: 5f5d2bcb06bc4793b03d14936809e407e642db96
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/434
 session_transcript: claude-app:ad0eb54f-df82-4b10-9450-9cb763e47b7f

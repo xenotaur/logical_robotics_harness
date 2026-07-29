@@ -2,10 +2,10 @@
 execution_id: 2026_07_29_03_21_42_WI_SKILLS_LRH_LAND_IMPL
 prompt_id: PROMPT(WI-SKILLS-LRH-LAND:WI_SKILLS_LRH_LAND_IMPL)[2026-07-29T03:10:17-04:00]
 work_item: WI-SKILLS-LRH-LAND
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/434
-commit: 6a339ee
+commit: 5f5d2bcb06bc4793b03d14936809e407e642db96
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-LRH-LAND.md
 session_transcript: claude-app:ad0eb54f-df82-4b10-9450-9cb763e47b7f

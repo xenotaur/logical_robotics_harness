@@ -92,16 +92,18 @@ Delivery is phased per `PROP-LRH-LAND-EXECUTE` § Implementation Plan:
 - **WI-SKILLS-LRH-EXECUTE** (Phase 2) — Implement the `/lrh-execute` skill.
   Accepts `WI-ID` or `WS-ID`; enforces `depends_on`; invokes `/lrh-implement`
   workflow; hands off to `/lrh-land`. Requires `WI-SKILLS-LRH-LAND` resolved.
-  `WI-DELIBERATE-MODEL-INVOCATION` enables direct sub-skill Skill calls but
-  is not a hard gate — Phase 1's inline pattern can carry Phase 2 if needed.
+  `WI-DELIBERATE-MODEL-INVOCATION` enables direct invocation of lifecycle
+  sub-skills via the Skill tool, but is not a hard gate — Phase 1's inline
+  pattern can carry Phase 2 if needed.
 
 - **WI-SKILLS-LRH-NEXT** (Phase 3, deferred) — Implement the `/lrh-next`
   navigator skill. Full planning-tree traversal; machine-readable YAML output
   for `/lrh-run-tree` consumption. Design after Phase 2 is stable.
 
 - **WI-SKILLS-LRH-RUN-TREE** (Phase 4, deferred) — Implement the
-  `/lrh-run-tree` orchestrator skill. Bounded `/lrh-next → /lrh-execute|
-  /lrh-land` loop; requires completion condition and stop-work condition.
+  `/lrh-run-tree` orchestrator skill. Bounded
+  `/lrh-next → /lrh-execute|/lrh-land` loop; requires completion condition
+  and stop-work condition.
   Design after Phase 3 is stable.
 
 The prerequisite `WI-DELIBERATE-MODEL-INVOCATION` is owned by

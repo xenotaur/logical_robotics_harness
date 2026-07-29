@@ -136,6 +136,7 @@ one site that was already correct before `WI-SKILLS-NEXT-STEP-CHAIN`.
 | `/lrh-doc-organize` | `SKILL.md` — end of Step 11 "Create execution record" | Yes | A |
 | `/lrh-doc-audit` | `SKILL.md` — Step 10 "Offer commit" | None of its own | B on the "Open a PR" branch only (closeout after merge if reviewed); the commit-to-main branch has no PR and no chain |
 | `/lrh-create-skill` | `SKILL.md` — Step 10 "Report" | None of its own | B, plus `lrh skills install` after merge |
+| `/lrh-land` | `SKILL.md` — Step 8 "Run journal" end report | Yes (via inlined `/lrh-closeout` sub-step) | Terminal chain runner; runs Steps 4–7 (review→confirm→merge→closeout) internally; end report does not suggest a successor — the chain is complete |
 
 Each **consuming-site file listed in the table above** also exists as a
 byte-identical mirror under `.claude/skills/`; edit both copies. This

@@ -2,7 +2,7 @@
 execution_id: 2026_07_28_20_02_07_LRH_LAND_EXECUTE_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_LAND_EXECUTE_REVIEW)[2026-07-28T20:00:58-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/427
 commit: d77e8c1

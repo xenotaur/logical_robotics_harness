@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #431 (commit b3d8934): lrh-closeout Step 3 now branches on the record's agent, sources the Claude host id from $CLAUDE_CODE_HOST_SESSION_ID first (with a confirm step for env-var drift on resumed sessions), falls back to list_sessions by PR number then View > Copy URL, and offers the terminal none sentinel distinct from pending. Non-Claude backends resolve codex-cloud:<task-id>/none. The rewritten Step 3 was dogfooded live at this PR's own closeout."
 blocked_reason: null
 blocked: false
 id: WI-CLOSEOUT-SESSION-SOURCING
 title: Make lrh-closeout session-transcript resolution backend-aware
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

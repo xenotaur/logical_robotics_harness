@@ -2,10 +2,10 @@
 execution_id: 2026_07_29_02_16_14_WI_CLOSEOUT_SESSION_SOURCING
 prompt_id: PROMPT(WI-CLOSEOUT-SESSION-SOURCING:WI_CLOSEOUT_SESSION_SOURCING)[2026-07-29T02:09:21-04:00]
 work_item: WI-CLOSEOUT-SESSION-SOURCING
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/431
-commit: dd7777f
+commit: b3d89347666b41afafafd887ee3a698131aba6ec
 created_at: 2026-07-29T02:16:14-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CLOSEOUT-SESSION-SOURCING.md

@@ -2,10 +2,10 @@
 execution_id: 2026_07_29_02_25_34_WI_CLOSEOUT_SESSION_SOURCING_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_CLOSEOUT_SESSION_SOURCING_REVIEW)[2026-07-29T02:25:01-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_29_02_16_14_WI_CLOSEOUT_SESSION_SOURCING
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/431
-commit: d0fb3ab
+commit: b3d89347666b41afafafd887ee3a698131aba6ec
 created_at: 2026-07-29T02:25:34-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/431

@@ -2,7 +2,7 @@
 execution_id: 2026_07_29_00_23_11_WI_SKILLS_LRH_LAND_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_LRH_LAND_CONFIRM)[2026-07-29T00:22:44-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/429
 commit: fe0e724

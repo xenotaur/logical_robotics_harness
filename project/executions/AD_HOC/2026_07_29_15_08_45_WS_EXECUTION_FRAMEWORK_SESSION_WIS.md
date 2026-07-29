@@ -2,10 +2,10 @@
 execution_id: 2026_07_29_15_08_45_WS_EXECUTION_FRAMEWORK_SESSION_WIS
 prompt_id: PROMPT(AD_HOC:WS_EXECUTION_FRAMEWORK_SESSION_WIS)[2026-07-29T15:07:15-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/437
-commit: 6d73670
+commit: 1ef90a2205ad2375178e6366dd73a5d1046ed013
 created_at: 2026-07-29T15:08:45-04:00
 agent: claude_app
 instruction_source: ad_hoc conversation — reconcile PR #435 against the landed PROP-LRH-SESSION-ARCHIVE-SYNC; salvage the workstream hygiene half

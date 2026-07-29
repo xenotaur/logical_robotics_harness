@@ -10,21 +10,31 @@ an execution record for the PR that files the workstream, later
 `/lrh-confirm-fixes` against that PR have no primary record to set
 `rerun_of` against, and `/lrh-closeout` has to reconstruct one by hand.
 
+**Bucket this record under `AD_HOC`, not the new workstream's own ID.**
+`/lrh-closeout`'s Step 2.3 looks up a work item by the execution record's
+`work_item:` bucket (`find project/work_items/ -name "<work_item>.md"`). A
+`WS-*` bucket won't match any work item file, so closeout would surface a
+spurious "not found — how do you want to proceed?" prompt on every closeout
+of this PR. `AD_HOC` is the bucket the decision matrix explicitly recognizes
+as "no WI to resolve" — see `project/executions/README.md` and
+`.claude/skills/lrh-closeout/references/closeout-workflow.md`.
+
 ---
 
 ## Mint a prompt ID
 
 ```bash
-lrh prompt label --slug <slug> --work-item <WS-ID>
+lrh prompt label --slug <slug>
 ```
 
 `<slug>` is lower-kebab, derived from the workstream ID:
-`WS-DOC-SKILLS` → `ws-doc-skills`.
+`WS-DOC-SKILLS` → `ws-doc-skills`. Omit `--work-item` — it defaults to
+`AD_HOC`.
 
 The command outputs a `prompt_id` in the form:
 
 ```
-PROMPT(<WS-ID>:<SLUG_UPPER_UNDERSCORE>)[<ISO8601-TIMESTAMP>]
+PROMPT(AD_HOC:<SLUG_UPPER_UNDERSCORE>)[<ISO8601-TIMESTAMP>]
 ```
 
 ## Check for prior execution
@@ -41,16 +51,20 @@ user — do not proceed without explicit instruction to rerun.
 ```bash
 lrh prompt record-execution \
   --prompt-id "<id>" \
-  --work-item <WS-ID> \
+  --work-item AD_HOC \
   --slug <slug> \
   --status in_progress \
   --project-root .
 ```
 
 This creates a new file at:
-`project/executions/<WS-ID>/<timestamp>_<SLUG_UPPER_UNDERSCORE>.md`
+`project/executions/AD_HOC/<timestamp>_<SLUG_UPPER_UNDERSCORE>.md`
 
-Immediately edit the generated file to add the three optional fields:
+Immediately edit the generated file to add the three optional fields, then
+replace the generated `# Summary`/`# Result`/`# Validation`/`# Follow-up`
+TODO placeholders with real content — `/lrh-closeout` only edits frontmatter
+when landing, so an un-narrated record ships as `landed` with no evidence
+(see `AGENTS.md`'s evidence policy):
 
 ```yaml
 agent: claude_app

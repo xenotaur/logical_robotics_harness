@@ -12,24 +12,36 @@ against that PR have no primary record to set `rerun_of` against, and
 
 This record is distinct from the *implementation's* execution record —
 the one `/lrh-implement` creates later when the work item itself is
-executed. Both live under `project/executions/<ID>/`, disambiguated by
-their slugs and timestamps.
+executed. **Bucket this record under `AD_HOC`, not the new work item's own
+ID.** `/lrh-implement`'s implementation record uses `--work-item <ID>`
+deliberately, because by the time that record lands, the work item really
+has been resolved. This skill's record documents only the item's
+*creation* — the item is still `proposed` and unimplemented when this PR
+merges. If this record were bucketed under the WI's own ID,
+`/lrh-closeout`'s decision matrix (`project/work_items/<ID>.md` found in
+`proposed/` → resolve) would move the freshly created, unimplemented item
+to `resolved/` the moment this planning PR merges. `AD_HOC` is also what
+keeps this record from colliding with the future implementation record on
+slug: both would otherwise derive the same lower-kebab slug from the same
+WI ID, and only their `AD_HOC` vs. `<ID>` bucket (plus timestamp) tells
+them apart.
 
 ---
 
 ## Mint a prompt ID
 
 ```bash
-lrh prompt label --slug <slug> --work-item <ID>
+lrh prompt label --slug <slug>
 ```
 
 `<slug>` is lower-kebab, derived from the work item ID:
-`WI-SKILLS-LRH-SETUP` → `wi-skills-lrh-setup`.
+`WI-SKILLS-LRH-SETUP` → `wi-skills-lrh-setup`. Omit `--work-item` — it
+defaults to `AD_HOC`.
 
 The command outputs a `prompt_id` in the form:
 
 ```
-PROMPT(<ID>:<SLUG_UPPER_UNDERSCORE>)[<ISO8601-TIMESTAMP>]
+PROMPT(AD_HOC:<SLUG_UPPER_UNDERSCORE>)[<ISO8601-TIMESTAMP>]
 ```
 
 ## Check for prior execution
@@ -46,16 +58,20 @@ user — do not proceed without explicit instruction to rerun.
 ```bash
 lrh prompt record-execution \
   --prompt-id "<id>" \
-  --work-item <ID> \
+  --work-item AD_HOC \
   --slug <slug> \
   --status in_progress \
   --project-root .
 ```
 
 This creates a new file at:
-`project/executions/<ID>/<timestamp>_<SLUG_UPPER_UNDERSCORE>.md`
+`project/executions/AD_HOC/<timestamp>_<SLUG_UPPER_UNDERSCORE>.md`
 
-Immediately edit the generated file to add the three optional fields:
+Immediately edit the generated file to add the three optional fields, then
+replace the generated `# Summary`/`# Result`/`# Validation`/`# Follow-up`
+TODO placeholders with real content — `/lrh-closeout` only edits frontmatter
+when landing, so an un-narrated record ships as `landed` with no evidence
+(see `AGENTS.md`'s evidence policy):
 
 ```yaml
 agent: claude_app

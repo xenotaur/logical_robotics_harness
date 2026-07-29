@@ -155,12 +155,19 @@ Then propose the complete work item: frontmatter (all fields) and body
 Run (see `references/execution-record.md` for full syntax):
 
 ```bash
-lrh prompt label --slug <slug> --work-item <ID>
+lrh prompt label --slug <slug>
 lrh prompt check-execution --prompt-id "<id>" --project-root .
 ```
 
 Derive `<slug>` from the work item ID (lower-kebab): `WI-SKILLS-LRH-SETUP` →
 `wi-skills-lrh-setup`.
+
+Do not pass `--work-item <ID>` here. This record documents the *creation* of
+the work item, not its implementation, so it stays in the `AD_HOC` bucket
+(the `lrh prompt label` default). Bucketing it under the new WI's own ID
+would make `/lrh-closeout`'s decision matrix treat the freshly created,
+not-yet-implemented item as resolved the moment this planning PR merges —
+see `references/execution-record.md`.
 
 If `check-execution` reports a `landed` or `in_progress` record, **stop and
 report** — do not continue unless the user explicitly asks for a rerun.
@@ -259,11 +266,14 @@ traceability link between the PR and the execution record.
 ```bash
 lrh prompt record-execution \
   --prompt-id "<id>" \
-  --work-item <ID> \
+  --work-item AD_HOC \
   --slug <slug> \
   --status in_progress \
   --project-root .
 ```
+
+Use `AD_HOC`, not `<ID>` — see the note in Step 4. This creates the record
+under `project/executions/AD_HOC/`, not `project/executions/<ID>/`.
 
 Immediately edit the generated file to populate the three optional fields
 (see `references/execution-record.md`):
@@ -273,6 +283,14 @@ agent: claude_app
 instruction_source: project/work_items/proposed/<ID>.md
 session_transcript: pending
 ```
+
+Then replace the generated `TODO` placeholders in `# Summary`, `# Result`,
+`# Validation`, and `# Follow-up` with real content grounded in what this
+run actually did (per `AGENTS.md`'s evidence policy) — e.g. Summary states
+the work item created, Result names the file and PR, Validation reports the
+Step 8 `lrh validate` outcome, Follow-up notes any offers from Step 11 that
+are still open. `/lrh-closeout` later only touches frontmatter, so an
+unedited TODO body would ship as `landed` with no narrative evidence.
 
 Commit the execution record and push it as an additional commit to the
 already-open PR.
@@ -328,9 +346,11 @@ Before reporting completion, verify:
 - [ ] `lrh validate` reports 0 errors
 - [ ] The confirm-before-write gate (Step 5) was honoured
 - [ ] PR opened and URL reported to the user
-- [ ] Execution record exists under `project/executions/<ID>/` with `agent`,
-      `instruction_source`, `session_transcript` populated, and was pushed
-      to the open PR
+- [ ] Execution record exists under `project/executions/AD_HOC/` (not
+      `<ID>/` — see Step 4) with `agent`, `instruction_source`,
+      `session_transcript` populated, and `# Summary`/`# Result`/
+      `# Validation`/`# Follow-up` filled in with real content, not TODOs
+- [ ] Execution record was pushed to the open PR
 
 ---
 

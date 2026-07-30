@@ -113,7 +113,7 @@ When a task is driven by a generated prompt, follow `PROMPTS.md` for prompt IDs,
 Merging a PR always requires explicit, in-session human authorization — that never changes. What changed (`DEC-AGENT-EXECUTED-MERGE-GATE`) is who presses the button: an agent opens the PR, drives it to a ready state, and presents a SHA-locked `gh pr merge` one-liner at the merge gate, then classifies the human's live reply to that specific command:
 
 - **Agent executes** — any live, in-session reply that is affirmative toward proceeding and does not claim the action for the human: "approve merge," "approved," "go ahead," "yes," "merge it," "do it," "run it." The agent runs the presented command itself.
-- **Agent waits** — any reply using first-person self-action language ("I'll merge it," "let me merge," "I'll do it"). The human is claiming the action; the agent waits and confirms merged state from the human's own report.
+- **Agent waits** — any reply using first-person self-action language ("I'll merge it," "let me merge," "I'll do it"). The human is claiming the action; the agent waits for the human's report, then verifies actual state via `gh pr view <pr-url> --json state,mergeCommit` (confirm `state == MERGED`) before proceeding — a report that the command succeeded is not itself confirmation on a repository using a merge queue, where the command can succeed by only queuing the PR.
 - **Not yet authorized** — approval of something upstream of the merge gate (e.g. a chain-level completion condition, a confirm-fixes verdict) is not itself merge authorization; the agent must present the command and get a fresh reply.
 - **Ambiguous** — if the reply could plausibly be about something else, ask a direct disambiguating question rather than guess either direction.
 

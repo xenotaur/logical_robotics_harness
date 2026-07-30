@@ -375,17 +375,31 @@ time out into Green on a partial response.
 commit — whether as a formal inline thread, or as a defect described in a
 plain review body or issue comment with no separate thread — that is not
 "pending," it is a new finding.** Waiting longer cannot resolve real
-content the way it resolves silence. Route it back through the Step 3
-taxonomy (classify Clear-satisfied / Unaddressed / Partial / Ambiguous /
-Problematic) and Steps 4–5 (confirm gate, resolve) — the same way any other
-review round is handled — rather than looping Step 8's wait, and regardless
-of which surface the finding arrived on. If remediation needs a code
-change, it produces another pushed commit, and Step 8's CI and
-REVIEW-LANDED checks apply again to that new `HEAD`. Only an explicit clean
-pass (no findings, on any surface) satisfies REVIEW-LANDED for that
-reviewer; a finding that only needed a reply-and-resolve (no code change)
-still requires a fresh retrigger-and-wait pass before Green, since the
-retriggered review was of the pre-resolution `HEAD`.
+content the way it resolves silence. Classify it via the Step 3 taxonomy
+(Clear-satisfied / Unaddressed / Partial / Ambiguous / Problematic) and
+handle it via Steps 4–5 the same way any other review round is handled —
+but Steps 3–5's mechanics are built around `reviewThreads`, which a plain
+review body or issue comment is not (`resolveReviewThread` needs a thread
+ID that a top-level comment does not have). For a **non-thread** finding:
+
+- Classification and the confirm gate (Steps 3–4) work unchanged — read the
+  finding's content against the diff, present it at the batch gate like any
+  other exception.
+- **Remediation replaces `resolveReviewThread`** with a direct reply to the
+  review or issue comment (`gh pr comment` or the review-reply equivalent)
+  describing what was fixed and citing the commit, since there is no thread
+  to flip `isResolved` on. This is acknowledgment, not resolution in the
+  GraphQL sense — it does not clear anything from the `isResolved` count in
+  Step 2/Step 6.
+- A non-thread finding therefore **always** requires a fresh
+  retrigger-and-wait pass to confirm the fix, even for changes that would
+  otherwise only need a reply-and-resolve on a real thread — there is no
+  resolved-state signal to trust instead.
+
+If remediation needs a code change, it produces another pushed commit, and
+Step 8's CI and REVIEW-LANDED checks apply again to that new `HEAD`. Only
+an explicit clean pass (no findings, on any surface) satisfies
+REVIEW-LANDED for that reviewer.
 
 Aggregate per `references/confirm-fixes-workflow.md`. The **final verdict**
 is the Step 6 thread-resolution verdict AND the re-checked CI state AND

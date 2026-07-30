@@ -7,6 +7,93 @@ re-deriving context.
 
 ---
 
+## Idempotence cross-PR discovery doesn't fail closed on fetch errors
+
+**Noted:** 2026-07-30, during PR #441 review (round 6), while hardening
+the idempotence-check's cross-PR discovery logic in `lrh-proposal`,
+`lrh-work-item`, and `lrh-workstream`.
+
+**Idea:** The cross-PR search's `gh pr list` and `git fetch` calls all
+suppress stderr (`2>/dev/null`) and never check exit status. This is
+deliberate for the common case — a nonzero exit with no output legitimately
+means "no prior record" — but it can't currently distinguish that from a
+genuine failure: an auth problem, a network blip, or a missing/unreachable
+ref. If `gh pr list` fails outright, the loop silently processes zero PRs
+(as if none were open) rather than reporting the failure. If a `git fetch`
+into `refs/remotes/pr/<N>` fails (e.g. transient network issue) after a
+previous successful fetch already populated that ref, the subsequent
+`ls-tree` silently scans the **stale** cached ref instead of the current
+PR state — the same kind of staleness the round-2 fix already addressed
+for force-pushes, but from a different cause (fetch failure vs. rejected
+non-fast-forward). Either failure mode can make the skill wrongly report
+"no prior record" (creating a duplicate) or act on outdated information.
+
+**Status:** Deferred — properly fixing this means adding explicit exit-status
+checks and distinct error handling to `gh pr list` and each `git fetch` in
+the pipeline, then deciding what "abort and report" looks like inside a
+pipeline that's currently written as a single composed shell block (not
+just one command) — a real design question, not a one-line patch, and this
+PR (round 6) already fixed a correctness bug (PR-inheritance false-tagging),
+a staleness bug (force-push), and a chronology bug (local-time filenames)
+in the same pipeline. Revisit alongside, or as part of, item 4 already
+covering incomplete failure semantics in this same discovery logic (see
+"Idempotence-check refinements deferred from PR #438" below).
+
+**Related:** harness PR #441 (round 6, Codex);
+`src/lrh/skills/lrh-proposal/SKILL.md`,
+`src/lrh/skills/lrh-work-item/SKILL.md`,
+`src/lrh/skills/lrh-workstream/SKILL.md` (Step 4, cross-PR discovery) and
+their `references/execution-record.md` mirrors.
+
+---
+
+## Execution-record filename timestamps use local time, not UTC
+
+**Noted:** 2026-07-30, during PR #441 review (round 5), while fixing the
+idempotence-check's cross-PR/rerun-detection logic in `lrh-proposal`,
+`lrh-work-item`, and `lrh-workstream`.
+
+**Idea:** `src/lrh/prompt_workflow.py:299` generates the timestamp prefix
+used in execution-record filenames (and in minted `PROMPT(...)[<timestamp>]`
+IDs) via `datetime.datetime.now(datetime.timezone.utc).astimezone()` —
+this converts to the **local system timezone** before formatting with
+`strftime`. Two machines (or one machine across a DST change) in
+different UTC offsets can therefore produce filenames whose lexicographic
+order does not match true chronological order: a record created at local
+`09:00-04:00` (`13:00 UTC`) sorts *before* one created at local
+`12:00+00:00` (`12:00 UTC`), even though the first is chronologically
+later. Every place in this codebase that relies on "sort filenames, take
+the last line, that's the most recent record" (PR #438's and PR #441's
+idempotence checks in `lrh-proposal`/`lrh-work-item`/`lrh-workstream`/
+`lrh-review-response`, at minimum) inherits this gap.
+
+PR #441 worked around this locally by reading each surviving match's
+`created_at:` frontmatter field and comparing actual timestamps instead
+of trusting filename order, rather than fixing the root cause. The root
+fix is in `src/lrh/prompt_workflow.py`: generate the timestamp prefix from
+UTC (`datetime.datetime.now(datetime.timezone.utc)`, no `.astimezone()`)
+instead of local time, so filenames — and therefore simple lexicographic
+sort — are chronologically correct again everywhere they're relied on.
+
+**Status:** Deferred — this is real Python source code in the CLI
+(`lrh prompt label` / `record-execution`), not skill documentation, with
+its own test suite and behavior-change implications (existing execution
+records already carry local-time-based filenames and IDs; a UTC change
+would only affect newly-created ones, but worth confirming no code
+assumes the two are always in the same timezone). Out of scope for a
+skills-only follow-up PR. Revisit as its own work item.
+
+**Related:** `src/lrh/prompt_workflow.py:299` (and `:64`, the
+`timestamp_for_file` sibling); harness PR #441 (round 5, Codex);
+`src/lrh/skills/lrh-proposal/SKILL.md`,
+`src/lrh/skills/lrh-work-item/SKILL.md`,
+`src/lrh/skills/lrh-workstream/SKILL.md`,
+`src/lrh/skills/lrh-review-response/SKILL.md` (all rely on filename order
+for "most recent match" selection; PR #441 patched the `created_at`
+comparison locally in the first three but the root cause remains).
+
+---
+
 ## Idempotence-check refinements deferred from PR #438 (follow-up PR)
 
 **Noted:** 2026-07-30, during PR #438's 6th automated review round, after
@@ -79,16 +166,32 @@ rather than fixed inline to avoid further scope creep on PR #438:**
    deliberately different warning-only behavior); and (once item 1 is
    resolved) the same `rerun_of` precedence logic where applicable.
 
-**Status:** Deferred — PR #438's original purpose (fixing 8 bugs in
-`lrh-closeout`/`lrh-proposal`/`lrh-work-item`/`lrh-workstream`/`lrh-land`
-that blocked Taurcode's downstream skill resync) was already done and
-validated after 5 review rounds. Continuing to harden this idempotence
-check's edge-case precedence is lower value while the check's more
-fundamental design question — whether filename-slug search should drive
-blocking at all — was open at the time (see "Filename-slug idempotence
-search drives blocking, contrary to `PROMPTS.md`" below, now resolved);
-a full fix here could still be partly reshaped by that resolution. Merged
-as-is; address all five items in a follow-up PR.
+**Status:** Resolved — 2026-07-30, all five items fixed in the follow-up
+PR this entry called for. Items 1–4 resolved together in `lrh-proposal`,
+`lrh-work-item`, and `lrh-workstream`: replaced the two-bucket
+blocking-vs-non-blocking logic with a single most-recent-by-timestamp
+match selection (resolves item 1's precedence question and removes the
+need to ask the user to disambiguate multiple matches); added `| sort` to
+every glob plus an explicit note that a nonzero exit with no output means
+no prior record (item 2); added a branch-existence check + reuse at
+branch-creation time for explicit reruns (item 3); added a second search
+over open PRs' remote branches alongside the current-checkout `find`
+(item 4). Item 5: anchored the glob in both `lrh-review-response` and
+`lrh-confirm-fixes`; added the missing per-match status-handling branch to
+`lrh-review-response` (it previously blocked on any match
+unconditionally); left `lrh-confirm-fixes`'s status-handling untouched
+(Decision 12 — correct and deliberate, only its glob needed anchoring).
+Neither skill needed items 3/4's branch-reuse or cross-PR search — both
+operate on an already-checked-out PR branch rather than creating a new
+one.
+
+**Noticed but not fixed:** `lrh-review-response/SKILL.md` Step 7 has a
+separate unanchored substring `find` used for `rerun_of` *attribution*
+(finding the primary record to link back to) — a different search than
+the Step 3 idempotence check this entry covers, lower risk
+(misattribution, not a false block), and not part of this entry's
+original five items. Flagged in the resolving PR's execution record
+rather than fixed inline.
 
 **Related:** harness PR #438 (rounds 4, 6, and 7); harness PR #440 (item 5);
 `src/lrh/skills/lrh-proposal/SKILL.md`,
@@ -258,19 +361,25 @@ decision that's already effectively made, promoted out of
 `project/memory/decision_log.md` because other documents need to cite it
 independently and repeatedly.
 
-**Status:** Deferred, revisit now overdue — this entry's own trigger has
-already fired without anyone circling back. Written 2026-07-05 when only
-one promoted decision file existed
-(`project/memory/decisions/precedence_semantics.md`); since then, two more
-were promoted without this entry being updated:
+**Status:** Trigger fired, user wants to build it — not yet scoped. This
+entry's own revisit trigger fired without anyone circling back: written
+2026-07-05 when only one promoted decision file existed
+(`project/memory/decisions/precedence_semantics.md`); two more were
+promoted since without this entry being updated —
 `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` (2026-07-24)
 and `project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`
 (2026-07-30, this entry's own author noticing the staleness while
 cross-linking). That's three real, hand-written instances of the
 promotion pattern now — the "single instance proves nothing" objection no
-longer holds. Actually revisiting whether `/lrh-decision` is worth
-building is a separate piece of work from noting that the deferral
-condition is met; flagged here rather than acted on inline.
+longer holds. 2026-07-30: confirmed with the user that `/lrh-decision` is
+wanted; not yet scoped or built. Next step when picked up: derive the
+interview questions and body-section shape from the three existing
+promoted files' actual structure (they don't all use identical section
+names — compare `Context`/`Options considered`/`Decision`/`Rationale`/
+`Alternatives considered`/`Consequences`/`Revisit conditions` across all
+three before finalizing a template), following the same pattern
+`/lrh-work-item` and `/lrh-proposal` already establish for interview-driven
+planning-artifact skills.
 
 **Related:** `project/work_items/resolved/WI-DECISION-RECORD-CONVENTIONS.md`
 Non-Goals; `project/design/design.md` §14 "Decision-record tiers";

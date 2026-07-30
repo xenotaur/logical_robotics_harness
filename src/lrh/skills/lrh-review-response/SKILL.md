@@ -121,14 +121,37 @@ wi-skills-lrh-review-response-review → WI_SKILLS_LRH_REVIEW_RESPONSE_REVIEW
 
 Before minting, check for an existing review-response execution record on
 this branch. `lrh prompt check-execution` cannot catch duplicates here because
-each invocation mints a new timestamped ID:
+each invocation mints a new timestamped ID. Match the complete trailing
+filename segment, not a bare substring — a longer, unrelated slug that
+happens to contain this one must not count as a match:
 
 ```bash
-find project/executions/AD_HOC/ -name "*<UPPER_SLUG>*.md"
+find project/executions/AD_HOC/ -name "*_<UPPER_SLUG>.md" 2>/dev/null | sort
 ```
 
-If any file is found, **stop and report** — do not continue unless the user
-explicitly asks for a rerun.
+A nonzero exit with no output means no prior record, not a failure. If
+there is more than one match, do not assume the filename that sorts last
+is the most recent — timestamps embed the creating machine's *local*
+time, not UTC (see `project/design/backlog.md`'s "Execution-record
+filename timestamps use local time, not UTC"), so filename order can be
+wrong across timezones. Read every surviving match's `created_at:`
+frontmatter field instead, normalize each to an absolute instant before
+comparing (e.g.
+`python3 -c "import datetime,sys; print(datetime.datetime.fromisoformat(sys.argv[1]).timestamp())" "$created_at"`
+— portable across GNU/BSD, unlike GNU-only `date -d` — since raw ISO8601
+strings with differing UTC offsets don't sort correctly as text either), and
+decide based only on the one with the truly latest timestamp.
+
+Read that match's `status:` frontmatter field before deciding — per
+`PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
+a matched filename is discovery, not by itself a block:
+- `in_progress` or `landed`: **stop and report** — do not continue unless
+  the user explicitly asks for a rerun. If they do, keep the match's
+  `execution_id` to pass as `rerun_of` in Step 7.
+- `failed`, `reverted`, or `superseded`: not a blocking prior run —
+  summarize it and continue, keeping its `execution_id` for `rerun_of` in
+  Step 7.
+- unknown or ambiguous status: **stop and report** the ambiguity.
 
 Then mint and run the secondary idempotence check:
 
@@ -215,17 +238,28 @@ instruction_source: <pr-url>
 session_transcript: pending
 ```
 
-Find the original execution ID to populate `rerun_of`. Convert the branch
-slug to upper-underscore form before searching, and exclude files whose names
-end with `_REVIEW.md` or `_CONFIRM.md` (those are review-response and
-confirm-fixes side records, not primary ones):
+Populate `rerun_of` — it is a single scalar, so there are two candidate
+targets and a fixed precedence between them:
 
-```bash
-UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
-```
+1. **A prior review-response record found at Step 3.** If Step 3 matched
+   an existing `_REVIEW` record for this branch (blocking or summarized),
+   that match already identifies the specific prior attempt this run is a
+   rerun *of* — use its `execution_id` here. This takes precedence: it's
+   the more specific, immediate lineage (this exact invocation's own prior
+   attempt), not just a relation to the primary implementation.
+2. **The primary implementation record, only if Step 3 found nothing.**
+   Convert the branch slug to upper-underscore form before searching, and
+   exclude files whose names end with `_REVIEW.md` or `_CONFIRM.md` (those
+   are review-response and confirm-fixes side records, not primary ones):
 
-If found, add `rerun_of: <original-execution-id>` to the frontmatter.
+   ```bash
+   UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+   find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
+   ```
+
+   If found, add `rerun_of: <original-execution-id>` to the frontmatter.
+
+If neither yields a match, leave `rerun_of` empty.
 
 Run `lrh validate` to confirm the execution record is valid before committing:
 

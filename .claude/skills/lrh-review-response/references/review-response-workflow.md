@@ -41,33 +41,45 @@ Merge PR (human, or agent given         ← update records to landed, resolve WI
 Review response executions use `AD_HOC` as the work item bucket (not the
 original `WI-*` ID). This keeps the work item's execution directory clean —
 one primary execution entry — while the `rerun_of` field links the review
-response back to the original.
+response record to a prior one.
 
-**`rerun_of` population:**
+**`rerun_of` population — two candidate targets, in precedence order:**
 
-Search for the original execution ID. Convert the branch slug (without the
-`-review` suffix) to upper-underscore form before searching:
+1. **A prior review-response record found at Step 3.** Step 3's own
+   idempotence search (trailing-segment match against `-review`-suffixed
+   slugs in `project/executions/AD_HOC/`) already looks for an existing
+   review-response record on this branch before minting. If it found one
+   — blocking (`in_progress`/`landed`, with an explicit user-confirmed
+   rerun) or summarized (`failed`/`reverted`/`superseded`) — use its
+   `execution_id` here. This takes precedence: it's the more specific,
+   immediate lineage (this exact invocation's own prior attempt).
+2. **The primary implementation record, only if Step 3 found nothing.**
+   Convert the branch slug (without the `-review` suffix) to
+   upper-underscore form and match the complete trailing filename
+   segment — not a bare substring, which would also match an unrelated
+   longer slug that happens to contain this one:
 
-```bash
-UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
-```
+   ```bash
+   UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+   find project/executions/ -name "*_${UPPER_SLUG}.md" 2>/dev/null | grep -vE "_(REVIEW|CONFIRM)\.md$"
+   ```
 
-Example: branch `xenotaur/feat/wi-skills-lrh-review-response` →
-slug `wi-skills-lrh-review-response` → `UPPER_SLUG=WI_SKILLS_LRH_REVIEW_RESPONSE` →
-search for `*WI_SKILLS_LRH_REVIEW_RESPONSE*.md`, exclude files whose names end
-with `_REVIEW.md` or `_CONFIRM.md` (review-response and `/lrh-confirm-fixes`
-side records end with those suffixes; primary records do not).
+   Example: branch `xenotaur/feat/wi-skills-lrh-review-response` →
+   slug `wi-skills-lrh-review-response` → `UPPER_SLUG=WI_SKILLS_LRH_REVIEW_RESPONSE` →
+   search for `*_WI_SKILLS_LRH_REVIEW_RESPONSE.md`, exclude files whose names
+   end with `_REVIEW.md` or `_CONFIRM.md` (review-response and
+   `/lrh-confirm-fixes` side records end with those suffixes; primary
+   records do not).
 
-If the original record is found, set:
+   If found, set:
 
-```yaml
-rerun_of: <execution_id-from-the-original-record>
-```
+   ```yaml
+   rerun_of: <execution_id-from-the-original-record>
+   ```
 
-If not found (PR was created outside `/lrh-implement`, or the record is in a
-non-standard location), leave `rerun_of:` empty and note this in the
-execution record body.
+If neither yields a match (PR created outside `/lrh-implement`, or the
+record is in a non-standard location), leave `rerun_of:` empty and note
+this in the execution record body.
 
 **Slug derivation for the review response prompt ID:**
 
@@ -79,10 +91,14 @@ xenotaur/feat/wi-skills-lrh-setup → wi-skills-lrh-setup-review
 xenotaur/chore/update-readme       → update-readme-review
 ```
 
-For a second review round on the same branch, the idempotence check
-(`lrh prompt check-execution`) will surface the first review response record.
-Stop and report; the user can request a rerun explicitly, which will create a
-new slug (e.g., `wi-skills-lrh-setup-review-r2` if supplied manually).
+**The slug is always this one form — do not mint a variant like
+`-review-r2` for a second round.** For a second review round on the same
+branch, Step 3's own idempotence search surfaces the first review-response
+record by this same slug. If its status blocks (`in_progress`/`landed`),
+stop and report unless the user explicitly asks for a rerun; if they do,
+continue with the *same* slug and link `rerun_of` to that matched record
+(precedence 1 above) — do not mint a differently-named slug to route
+around the block.
 
 ---
 

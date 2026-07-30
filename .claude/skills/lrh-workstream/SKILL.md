@@ -138,42 +138,109 @@ Then propose the complete workstream: frontmatter (all fields) and body
 Derive `<slug>` from the workstream ID (lower-kebab): `WS-DOC-SKILLS` →
 `ws-doc-skills`.
 
-**Before minting, search for an existing record on this branch by stable
-slug.** `lrh prompt label` always mints a fresh timestamped prompt ID, so
-`check-execution` alone cannot detect a rerun — the ID it receives is brand
-new every time it's called. Derive `<SLUG_UPPER_UNDERSCORE>` from `<slug>`
-by replacing `-` with `_` and uppercasing (e.g. `ws-doc-skills` →
-`WS_DOC_SKILLS`), then match the complete trailing filename segment — not
-a bare substring, which would also match an unrelated longer slug that
-happens to contain this one (e.g. `..._WS_DOC_SKILLS_REVIEW.md`):
+**Before minting, search for an existing record by stable slug — the
+current checkout and any open PRs.** `lrh prompt label` always mints a
+fresh timestamped prompt ID, so `check-execution` alone cannot detect a
+rerun — the ID it receives is brand new every time it's called. Derive
+`<SLUG_UPPER_UNDERSCORE>` from `<slug>` by replacing `-` with `_` and
+uppercasing (e.g. `ws-doc-skills` → `WS_DOC_SKILLS`), then match the
+complete trailing filename segment — not a bare substring, which would
+also match an unrelated longer slug that happens to contain this one
+(e.g. `..._WS_DOC_SKILLS_REVIEW.md`):
 
 ```bash
-find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
+find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null | sort
 ```
 
-`AD_HOC/` may not exist yet in a freshly bootstrapped project — no record has
-been written there yet — so suppress the not-found error rather than
-treating it as a failure.
+`AD_HOC/` may not exist yet in a freshly bootstrapped project — no record
+has been written there yet — so a nonzero exit with no output here means
+no prior record, not a failure; do not treat it as one. `sort` here is for
+deterministic *ordering*, not chronological correctness — see below for
+why filename order alone can't be trusted to mean "most recent."
 
-The glob can return more than one match — a prior rerun mints a new
-timestamped file with the same trailing slug. Read the `status:`
-frontmatter field of **every** match before deciding — per `PROMPTS.md`'s
-status-handling rule, a matched filename is discovery, not by itself a
-block:
-- Any match is `in_progress` or `landed`: **stop and report** — do not
-  continue unless the user explicitly asks for a rerun. If more than one
-  match is `in_progress`/`landed`, name all of them and ask the user which
-  one this is a rerun of — do not guess. Once the user does confirm a
-  rerun, **keep the confirmed match's `execution_id`** (the most recent
-  one, if the user doesn't distinguish) to pass as `--rerun-of` in Step 10
-  — a rerun links to the prior attempt regardless of which status
-  triggered it (`PROMPTS.md:136`).
-- All matches are `failed`, `reverted`, or `superseded`: not a blocking
-  prior run — summarize the most recent one and continue, but **keep its
-  `execution_id`** to pass as `--rerun-of` in Step 10 (per `PROMPTS.md:136`,
-  a rerun must link back to the prior attempt it supersedes).
-- Matches disagree (e.g. one `failed`, one unknown) or any status is
-  unrecognized: **stop and report** the ambiguity.
+This only searches the current checkout. A prior record can exist on a
+branch not fetched locally yet — e.g. an earlier attempt still open as its
+own PR, possibly from a fork. Fetch and check open PRs by number using
+GitHub's `refs/pull/<N>/head` — a ref the base repository always exposes
+for every open PR regardless of whether the head branch lives in this
+repo or a fork, so this works even when `origin/<branch>` would not exist
+or would silently resolve to the wrong commit. Force the fetch (`+refs/...`)
+so a previously-scanned PR that was later force-pushed still updates the
+local ref instead of silently keeping the stale one. Request every open
+PR, not just the CLI's default first page (`--limit`), so an older PR
+isn't silently omitted in a repo with many open PRs.
+
+Exclude any remote match that this PR didn't actually introduce — a
+bare-path match in the current checkout, or a file already present at
+this PR's own merge-base with its declared base ref, is inherited, not
+new. The merge-base check specifically covers stacked PRs (PR B branched
+from still-open PR A): without it, both A's and B's pull refs contain the
+same file, and picking the "most recent" match by sort order could pick
+B — which only inherited the record — over A, which actually introduced
+it:
+
+```bash
+LOCAL_MATCHES=$(find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null)
+{
+  echo "$LOCAL_MATCHES"
+  gh pr list --state open --limit 1000 --json number,baseRefName \
+    --jq '.[] | "\(.number)\t\(.baseRefName)"' | while IFS=$'\t' read -r pr base; do
+    git fetch origin "+refs/pull/$pr/head:refs/remotes/pr/$pr" --quiet 2>/dev/null
+    git fetch origin "$base" --quiet 2>/dev/null
+    merge_base=$(git merge-base "refs/remotes/pr/$pr" "origin/$base" 2>/dev/null)
+    git ls-tree -r "refs/remotes/pr/$pr" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
+      | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$" \
+      | grep -vxFf <(echo "$LOCAL_MATCHES") \
+      | while read -r path; do
+          if [ -n "$merge_base" ] && git cat-file -e "$merge_base:$path" 2>/dev/null; then
+            continue
+          fi
+          printf '%s\tPR#%s\n' "$path" "$pr"
+        done
+  done
+} | sort
+```
+
+If the base-ref fetch or merge-base lookup fails (e.g. a fork base this
+session can't reach), the match is kept rather than silently dropped —
+failing to *prove* a match is inherited is not the same as proving it
+isn't.
+
+Each line is either a bare path (a match already in the current checkout)
+or `<path><TAB>PR#<N>` (a match found only on an open PR, fetched above
+into the local `refs/remotes/pr/<N>` ref). If there is more than one
+match, **do not** assume the filename that sorts last is the most
+recent — execution-record timestamps embed the creating machine's *local*
+time, not UTC (see `project/design/backlog.md`'s "Execution-record
+filename timestamps use local time, not UTC"), so filename order can be
+wrong across machines in different timezones. Instead, read every
+surviving match's `created_at:` frontmatter field (for a bare path, read
+the file directly; for a `<path><TAB>PR#<N>` match, read it without
+checking out via `git show "refs/remotes/pr/$N:$path"`), normalize each to
+an absolute instant before comparing — e.g.
+`python3 -c "import datetime,sys; print(datetime.datetime.fromisoformat(sys.argv[1]).timestamp())" "$created_at"`
+for a comparable epoch value (portable across GNU/BSD; `date -d` is
+GNU-only and fails on macOS) — since the raw ISO8601 strings carry their
+own UTC offsets and don't sort correctly as plain text either — and base
+the decision below only on the one with the truly latest timestamp; older
+matches are historical context, not separately actionable. (Recency, not
+asking the user to disambiguate, resolves multiple matches
+deterministically.)
+
+Having identified that match, read its `status:` frontmatter field
+(already fetched above) before deciding. Per
+`PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
+a matched filename is discovery, not by itself a block:
+- `in_progress` or `landed`: **stop and report** — do not continue unless
+  the user explicitly asks for a rerun. If they do, see Step 6 for how to
+  resume the match's branch (`<username>/<type>/<slug>`) whether it's
+  local, remote-only, or gone. Either way, keep the match's
+  `execution_id` to pass as `--rerun-of` in Step 10.
+- `failed`, `reverted`, or `superseded`: not a blocking prior run —
+  summarize it and continue, but keep its `execution_id` to pass as
+  `--rerun-of` in Step 10 (per `PROMPTS.md:136`, a rerun must link back to
+  the prior attempt it supersedes).
+- unknown or ambiguous status: **stop and report** the ambiguity.
 
 Then mint the prompt ID and run the secondary check (see
 `references/execution-record.md` for full syntax):
@@ -203,9 +270,34 @@ being committed to the control plane.
 
 ### 6. Create branch from main
 
+If Step 4 found a blocked match and the user asked for a rerun, resume its
+branch rather than creating a duplicate. Check local first, then the
+remote — the common case is that the branch only exists as
+`origin/<branch-name>` (the match came from the cross-PR search, not the
+current checkout), not locally yet. This same check covers the
+no-prior-match case too — if the branch exists nowhere, the `else` clause
+creates it fresh from `main`, same as always.
+
+If the match came from the cross-PR search (tagged `PR#<N>` in Step 4),
+check whether it's a fork PR before assuming reuse is possible:
+`gh pr view <N> --json isCrossRepository`. A fork PR's branch lives in a
+repository you don't have push access to — stop and ask the user how to
+proceed (e.g. they push further commits themselves, or this becomes a
+fresh attempt) rather than silently trying to continue it. Otherwise (the
+normal same-repo case), get the branch name (`gh pr view <N> --json
+headRefName`) and reuse it as below:
+
 ```bash
-git checkout main && git pull
-git checkout -b <branch-name>
+if git rev-parse --verify <branch-name> >/dev/null 2>&1; then
+  git checkout <branch-name>
+  git pull
+elif git ls-remote --exit-code --heads origin <branch-name> >/dev/null 2>&1; then
+  git fetch origin <branch-name>
+  git checkout -b <branch-name> --track "origin/<branch-name>"
+else
+  git checkout main && git pull
+  git checkout -b <branch-name>
+fi
 ```
 
 Branch naming: `<username>/<type>/<slug>`. Get the username:

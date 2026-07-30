@@ -24,7 +24,9 @@ of stale `claude-app:<session-id>` placeholder wording, and a missing
 
 # Result
 
-Landed all 8 fixes in commit `125ee23` (PR #438): per-record session-transcript
+Pushed all 8 fixes in commit `125ee23` (PR #438, still open at time of
+writing — this record's `status:` and `commit:` will be finalized by
+`/lrh-closeout` after merge, not here): per-record session-transcript
 resolution in `lrh-closeout`, disk-search-by-slug-before-minting in
 `lrh-proposal`/`lrh-work-item`/`lrh-workstream`, `claude-app:<host-uuid-stem>`
 placeholder wording in 4 files, and `disable-model-invocation: true` on
@@ -37,7 +39,15 @@ slug, e.g. a `_REVIEW.md` record). Addressed in commit `95ee0a1`: added a
 one-line derivation note before each `find` command, and anchored the glob
 to the trailing filename segment (`*_<SLUG_UPPER_UNDERSCORE>.md`) in all 6
 locations (SKILL.md + references/execution-record.md across the 3 planning
-skills).
+skills). A second review round (triggered explicitly, since neither bot
+auto-re-reviews on push) surfaced 2 more Codex comments on commit `9d42fa6`:
+the `find` errors on a freshly bootstrapped project where `AD_HOC/` doesn't
+exist yet, and a matched file was being treated as an unconditional block
+without reading its `status:` — fixed by suppressing the not-found error
+and applying `PROMPTS.md`'s status-handling rule (block on
+`in_progress`/`landed`, summarize-and-continue on
+`failed`/`reverted`/`superseded`, stop on unknown/ambiguous) before
+blocking, across all 6 locations.
 
 # Validation
 

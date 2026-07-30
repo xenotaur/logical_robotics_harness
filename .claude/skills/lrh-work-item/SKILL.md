@@ -165,11 +165,21 @@ not a bare substring, which would also match an unrelated longer slug that
 happens to contain this one (e.g. `..._WI_SKILLS_LRH_SETUP_REVIEW.md`):
 
 ```bash
-find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md"
+find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
 ```
 
-If any file is found, **stop and report** — do not continue unless the user
-explicitly asks for a rerun.
+`AD_HOC/` may not exist yet in a freshly bootstrapped project — no record has
+been written there yet — so suppress the not-found error rather than
+treating it as a failure.
+
+If a file is found, read its `status:` frontmatter field before deciding —
+per `PROMPTS.md`'s status-handling rule, a matched filename is discovery,
+not by itself a block:
+- `in_progress` or `landed`: **stop and report** — do not continue unless
+  the user explicitly asks for a rerun.
+- `failed`, `reverted`, or `superseded`: not a blocking prior run —
+  summarize it and continue.
+- unknown or ambiguous status: **stop and report** the ambiguity.
 
 Then mint the prompt ID and run the secondary check (see
 `references/execution-record.md` for full syntax):

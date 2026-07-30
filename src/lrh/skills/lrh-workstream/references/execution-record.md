@@ -47,12 +47,18 @@ substring, which would also match an unrelated longer slug that happens to
 contain this one:
 
 ```bash
-find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md"
+find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
 ```
 
-If any file is found, stop and report — do not continue unless the user
-explicitly asks for a rerun. Only after that search comes up empty, mint the
-ID and run the secondary check:
+`AD_HOC/` may not exist yet in a freshly bootstrapped project — suppress the
+not-found error rather than treating it as a failure.
+
+If a file is found, read its `status:` frontmatter field before deciding —
+per `PROMPTS.md`'s status-handling rule, a matched filename is discovery,
+not by itself a block: `in_progress`/`landed` stop and report;
+`failed`/`reverted`/`superseded` summarize and continue; unknown/ambiguous
+stop and report the ambiguity. Only after that search comes up empty or
+clears, mint the ID and run the secondary check:
 
 ```bash
 lrh prompt check-execution --prompt-id "<id>" --project-root .

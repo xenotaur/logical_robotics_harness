@@ -160,25 +160,28 @@ sort chronologically and the last line is the most recent.
 
 This only searches the current checkout. A prior record can exist on a
 branch not fetched locally yet — e.g. an earlier attempt still open as its
-own PR. Fetch and check open PRs too, tagging each match with its source
-branch so it stays actionable (which ref to read or resume later):
+own PR, possibly from a fork. Fetch and check open PRs by number using
+GitHub's `refs/pull/<N>/head` — a ref the base repository always exposes
+for every open PR regardless of whether the head branch lives in this
+repo or a fork, so this works even when `origin/<branch>` would not exist
+or would silently resolve to the wrong commit:
 
 ```bash
 {
   find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
-  gh pr list --state open --json headRefName --jq '.[].headRefName' | while read -r branch; do
-    git fetch origin "$branch" --quiet 2>/dev/null
-    git ls-tree -r "origin/$branch" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
+  gh pr list --state open --json number --jq '.[].number' | while read -r pr; do
+    git fetch origin "refs/pull/$pr/head:refs/remotes/pr/$pr" --quiet 2>/dev/null
+    git ls-tree -r "refs/remotes/pr/$pr" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
       | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$" \
-      | sed "s|\$|\t$branch|"
+      | sed "s|\$|\tPR#$pr|"
   done
 } | sort
 ```
 
 Each line is either a bare path (a match already in the current checkout)
-or `<path><TAB><branch>` (a match found only on an open PR's branch,
-fetched above so `origin/<branch>` is guaranteed to resolve). `sort` still
-orders the combined list correctly, since every line starts with the same
+or `<path><TAB>PR#<N>` (a match found only on an open PR, fetched above
+into the local `refs/remotes/pr/<N>` ref). `sort` still orders the
+combined list correctly, since every line starts with the same
 timestamp-prefixed path. If there is more than one match, take the last
 line — the single most recent — and base the decision below only on that
 one; older matches are historical context, not separately actionable.
@@ -186,8 +189,8 @@ one; older matches are historical context, not separately actionable.
 deterministically.)
 
 Read that match's `status:` frontmatter field before deciding: for a bare
-path, read the file directly; for a `<path><TAB><branch>` match, read it
-without checking out via `git show "origin/$branch:$path"`. Per
+path, read the file directly; for a `<path><TAB>PR#<N>` match, read it
+without checking out via `git show "refs/remotes/pr/$N:$path"`. Per
 `PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
 a matched filename is discovery, not by itself a block:
 - `in_progress` or `landed`: **stop and report** — do not continue unless
@@ -235,7 +238,16 @@ remote — the common case is that the branch only exists as
 `origin/<branch-name>` (the match came from the cross-PR search, not the
 current checkout), not locally yet. This same check covers the
 no-prior-match case too — if the branch exists nowhere, the `else` clause
-creates it fresh from `main`, same as always:
+creates it fresh from `main`, same as always.
+
+If the match came from the cross-PR search (tagged `PR#<N>` in Step 4),
+check whether it's a fork PR before assuming reuse is possible:
+`gh pr view <N> --json isCrossRepository`. A fork PR's branch lives in a
+repository you don't have push access to — stop and ask the user how to
+proceed (e.g. they push further commits themselves, or this becomes a
+fresh attempt) rather than silently trying to continue it. Otherwise (the
+normal same-repo case), get the branch name (`gh pr view <N> --json
+headRefName`) and reuse it as below:
 
 ```bash
 if git rev-parse --verify <branch-name> >/dev/null 2>&1; then

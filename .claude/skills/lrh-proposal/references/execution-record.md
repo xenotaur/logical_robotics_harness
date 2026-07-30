@@ -47,17 +47,19 @@ open PRs — `lrh prompt label` always mints a fresh timestamped ID, so
 `<SLUG_UPPER_UNDERSCORE>` from `<slug>` by replacing `-` with `_` and
 uppercasing, then match the complete trailing filename segment — not a bare
 substring, which would also match an unrelated longer slug that happens to
-contain this one. Fetch and check open PRs too, tagging each remote match
-with its branch so it stays actionable:
+contain this one. Fetch and check open PRs by number using GitHub's
+`refs/pull/<N>/head` — a ref the base repository always exposes for every
+open PR regardless of whether the head branch lives in this repo or a
+fork:
 
 ```bash
 {
   find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
-  gh pr list --state open --json headRefName --jq '.[].headRefName' | while read -r branch; do
-    git fetch origin "$branch" --quiet 2>/dev/null
-    git ls-tree -r "origin/$branch" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
+  gh pr list --state open --json number --jq '.[].number' | while read -r pr; do
+    git fetch origin "refs/pull/$pr/head:refs/remotes/pr/$pr" --quiet 2>/dev/null
+    git ls-tree -r "refs/remotes/pr/$pr" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
       | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$" \
-      | sed "s|\$|\t$branch|"
+      | sed "s|\$|\tPR#$pr|"
   done
 } | sort
 ```
@@ -65,17 +67,18 @@ with its branch so it stays actionable:
 `AD_HOC/` may not exist yet in a freshly bootstrapped project — a nonzero
 exit with no output here means no prior record, not a failure. Each line
 is either a bare path (already in the current checkout) or
-`<path><TAB><branch>` (found only on an open PR's branch, fetched above).
-`sort` still orders the combined list correctly, since every line starts
-with the same timestamp-prefixed path — take the last line if there's more
-than one, and decide based only on that one. Read a bare-path match
-directly; read a `<path><TAB><branch>` match via
-`git show "origin/$branch:$path"` without checking out. Per `PROMPTS.md`'s
-status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`), a matched
-filename is discovery, not by itself a block: `in_progress`/`landed` stop
-and report (unless the user explicitly asks for a rerun, in which case see
-SKILL.md Step 6 for resuming the match's branch whether local, remote-only,
-or gone — and keep the match's `execution_id` for `--rerun-of` below);
+`<path><TAB>PR#<N>` (found only on an open PR, fetched into the local
+`refs/remotes/pr/<N>` ref above). `sort` still orders the combined list
+correctly, since every line starts with the same timestamp-prefixed path —
+take the last line if there's more than one, and decide based only on that
+one. Read a bare-path match directly; read a `<path><TAB>PR#<N>` match via
+`git show "refs/remotes/pr/$N:$path"` without checking out. Per
+`PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
+a matched filename is discovery, not by itself a block: `in_progress`/
+`landed` stop and report (unless the user explicitly asks for a rerun, in
+which case see SKILL.md Step 6 for resuming the match's branch whether
+local, remote-only, or gone — and keep the match's `execution_id` for
+`--rerun-of` below);
 `failed`/`reverted`/`superseded` summarize and continue (keeping its
 `execution_id` for `--rerun-of` below); unknown or ambiguous status stops
 and reports the ambiguity. Only after that search comes up empty or clears,

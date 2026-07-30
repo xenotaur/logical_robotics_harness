@@ -230,17 +230,28 @@ instruction_source: <pr-url>
 session_transcript: pending
 ```
 
-Find the original execution ID to populate `rerun_of`. Convert the branch
-slug to upper-underscore form before searching, and exclude files whose names
-end with `_REVIEW.md` or `_CONFIRM.md` (those are review-response and
-confirm-fixes side records, not primary ones):
+Populate `rerun_of` — it is a single scalar, so there are two candidate
+targets and a fixed precedence between them:
 
-```bash
-UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
-```
+1. **A prior review-response record found at Step 3.** If Step 3 matched
+   an existing `_REVIEW` record for this branch (blocking or summarized),
+   that match already identifies the specific prior attempt this run is a
+   rerun *of* — use its `execution_id` here. This takes precedence: it's
+   the more specific, immediate lineage (this exact invocation's own prior
+   attempt), not just a relation to the primary implementation.
+2. **The primary implementation record, only if Step 3 found nothing.**
+   Convert the branch slug to upper-underscore form before searching, and
+   exclude files whose names end with `_REVIEW.md` or `_CONFIRM.md` (those
+   are review-response and confirm-fixes side records, not primary ones):
 
-If found, add `rerun_of: <original-execution-id>` to the frontmatter.
+   ```bash
+   UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
+   find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
+   ```
+
+   If found, add `rerun_of: <original-execution-id>` to the frontmatter.
+
+If neither yields a match, leave `rerun_of` empty.
 
 Run `lrh validate` to confirm the execution record is valid before committing:
 

@@ -101,6 +101,28 @@ origin <branch>` for the remote, tracking it explicitly
 (`git checkout -b <branch> --track origin/<branch>`) if only the remote
 exists, falling through to fresh-from-`main` only if neither does.
 
+A second review round on commit `d0140f6` surfaced 2 more findings, both
+Codex, both real: (1) the fetch-by-branch-name approach still assumed the
+PR's head branch lived in `origin` — for a fork-based PR it lives in the
+fork, so `origin/$branch` would never resolve regardless of fetching, and
+the check would silently conclude no prior record exists. Fixed by
+switching to GitHub's `refs/pull/<N>/head` — a ref the base repository
+exposes for every open PR unconditionally, fork or not — fetched into a
+local `refs/remotes/pr/<N>` ref and tagged in output as `PR#<N>` instead
+of a branch name. Step 6's branch-reuse now checks whether a `PR#<N>`
+match is cross-repository (`gh pr view <N> --json isCrossRepository`)
+before assuming reuse is possible — a fork PR's branch isn't something
+this session has push access to, so that case stops and asks the user
+rather than silently attempting to continue it. (2) `lrh-review-response`
+had a `rerun_of` precedence conflict I introduced: Step 3's new match
+wanted to set `rerun_of` to a prior review-response attempt, while Step
+7's pre-existing (untouched) primary-record search also wants to set the
+same single scalar field to the implementation record. Fixed by defining
+explicit precedence in Step 7: a Step-3-matched prior review-response
+record wins (it's the more specific "rerun of X" relationship); the
+primary-record search is now a fallback used only when Step 3 found
+nothing.
+
 # Validation
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning

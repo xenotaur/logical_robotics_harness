@@ -96,8 +96,14 @@ gate, the human's reply is classified as follows:
    language: "I'll merge it," "let me merge," "I'll do it," "I've got it,"
    "I will merge." This is the human explicitly claiming the action; reading
    it as authorization to execute would be wrong in the opposite direction
-   from the incident. The agent waits and confirms merged state from the
-   human's own report before proceeding to closeout.
+   from the incident. The agent waits for the human's report, then
+   **verifies actual merge state before proceeding to closeout in either
+   case (1 or 2) — a human's or an agent's belief that the merge succeeded
+   is not itself confirmation.** On a repository using a merge queue, `gh pr
+   merge` succeeding (or a human reporting they ran it) only means the PR
+   was accepted into the queue, not that it merged — query
+   `gh pr view <pr-url> --json state,mergeCommit` and confirm `state ==
+   MERGED` before any closeout action touches `main`.
 3. **Not yet at the gate — no authorization has been sought.** Approval of
    something upstream of the merge gate (e.g. the chain-level completion
    condition at Step 2, or the confirm-fixes verdict) is not itself Step-6
@@ -121,6 +127,14 @@ ratified incident.
 **Scope.** This decision governs the merge gate only — wherever it occurs:
 `/lrh-land` Step 6, a standalone `/lrh-confirm-fixes` green verdict followed
 by an in-session go-ahead, or an ad-hoc landing flow. It does not touch:
+- an active `project/assistants/<role>/policy.md` binding's `prohibitions`
+  or `obligations` — a role-level `repo:merge` prohibition or `merge:human`
+  obligation is a hard ceiling this decision's general default cannot
+  override, since obligations and prohibitions "accumulate and are never
+  removed by a narrower layer" (`project/assistants/token-vocabulary.md`).
+  This decision sets the default for an ordinary human-driven session with
+  no such binding; it does not loosen a role's own stricter ceiling in any
+  invocation context, ad hoc included;
 - the publish, release, or closeout gates, which are unaffected and keep
   requiring the human's own action or a skill-specific confirm-then-execute
   gate as already documented;

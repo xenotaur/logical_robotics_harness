@@ -7,6 +7,54 @@ re-deriving context.
 
 ---
 
+## Filename-slug idempotence search drives blocking, contrary to `PROMPTS.md`
+
+**Noted:** 2026-07-29, during PR #438 review (fixing bugs in `lrh-closeout`,
+`lrh-proposal`, `lrh-work-item`, `lrh-workstream` surfaced by Taurcode's
+downstream resync of these skills).
+
+**Idea:** `PROMPTS.md`'s "Soft idempotence before execution" section is
+explicit: "Exploratory search results can provide useful context for
+discovery, auditing, and debugging, but they should not by themselves drive
+blocking or rerun decisions" — only an exact structured `prompt_id` lookup
+(`lrh prompt check-execution`) is authoritative for blocking. But
+`lrh-proposal`, `lrh-work-item`, and `lrh-workstream` (added in PR #438,
+addressing a Codex finding that `lrh prompt label` always mints a fresh
+timestamped ID so `check-execution` alone can't catch a rerun) search
+`project/executions/AD_HOC/` by filename-slug match *before* minting, and
+that filename match itself drives a stop-and-report block on
+`in_progress`/`landed` records. This is not a new pattern invented for PR
+#438 — it was copied from the pre-existing, already-merged
+`lrh-review-response/SKILL.md:122-131`, which does the identical
+"find by filename slug → stop and report" thing and was cited as the
+precedent to follow. So either that existing skill already violates the
+`PROMPTS.md` rule and it's gone unnoticed, or there's an implicit accepted
+exception for this specific pre-mint case that the general rule doesn't
+anticipate.
+
+Resolving this properly means deciding, then applying consistently across
+all four skills (`lrh-review-response` included): should filename-slug
+discovery ever be blocking, or should it always be presented as
+context/confirmation-request only (per the literal `PROMPTS.md` rule)? That
+is a design decision bigger than a single-PR bug fix, and touching
+`lrh-review-response` was out of scope for PR #438.
+
+**Status:** Deferred — PR #438 left the existing blocking behavior as-is,
+matching the `lrh-review-response` precedent, rather than redesigning
+unilaterally under review pressure. Revisit when either (a) the tension is
+worth resolving as its own proposal, or (b) a real incident (a legitimate
+rerun blocked by a stale/irrelevant filename match) demonstrates the cost
+of the current behavior concretely.
+
+**Related:** `PROMPTS.md` "Soft idempotence before execution" section;
+`src/lrh/skills/lrh-review-response/SKILL.md` Step 3;
+`src/lrh/skills/lrh-proposal/SKILL.md`,
+`src/lrh/skills/lrh-work-item/SKILL.md`,
+`src/lrh/skills/lrh-workstream/SKILL.md` (Step 4, idempotence check);
+harness PR #438.
+
+---
+
 ## Validator drift-check for synced skill references
 
 **Noted:** 2026-06-30, during `WS-PRIOR-ART-CHECK` design session.

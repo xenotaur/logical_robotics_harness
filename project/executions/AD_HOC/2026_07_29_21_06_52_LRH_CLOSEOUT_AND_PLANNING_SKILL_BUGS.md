@@ -58,7 +58,26 @@ file could ever match. Fixed both: added `--rerun-of <execution_id>`
 guidance to all 6 `record-execution` call sites, and reworded the
 status-check to explicitly cover multiple matches (any `in_progress`/
 `landed` blocks; all `failed`/`reverted`/`superseded` summarizes the most
-recent and continues; disagreeing statuses are ambiguous and block).
+recent and continues; disagreeing statuses are ambiguous and block). A
+fourth review round on commit `5f865b5` surfaced 3 more items: (1) Codex —
+`--rerun-of` was still only wired for the summarize-and-continue path, not
+for the explicit-user-override-of-an-`in_progress`/`landed`-block path;
+fixed across all 6 locations so any user-confirmed rerun carries
+`--rerun-of` regardless of which status triggered the block. (2) Copilot
+(low-confidence, correctly self-suppressed) — `lrh-proposal` never restates
+how `<slug>` is derived in Step 4; judged not worth fixing, since `<slug>`
+is already defined in the skill's Inputs section as the user-supplied
+argument, and work-item/workstream restate it locally only because *their*
+slug is derived from an ID, not given directly. (3) Codex — the
+filename-slug `find` match itself drives a stop-and-report block, which
+`PROMPTS.md`'s "Soft idempotence" section says exploratory search results
+should never do by themselves; true, but this is the same pattern already
+used unmodified in the pre-existing `lrh-review-response/SKILL.md:122-131`
+(the precedent an earlier review round told me to follow), so fixing it
+here would mean redesigning `lrh-review-response` too — out of scope for
+this PR. Left as-is per user direction; filed as a design-backlog entry
+(`project/design/backlog.md` "Filename-slug idempotence search drives
+blocking, contrary to `PROMPTS.md`") rather than silently deferred.
 
 # Validation
 

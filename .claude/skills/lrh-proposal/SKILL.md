@@ -161,7 +161,10 @@ frontmatter field of **every** match before deciding — per `PROMPTS.md`'s
 status-handling rule, a matched filename is discovery, not by itself a
 block:
 - Any match is `in_progress` or `landed`: **stop and report** — do not
-  continue unless the user explicitly asks for a rerun.
+  continue unless the user explicitly asks for a rerun. If the user does
+  ask for a rerun, **keep that match's `execution_id`** to pass as
+  `--rerun-of` in Step 10 — a rerun links to the prior attempt regardless
+  of which status triggered it (`PROMPTS.md:136`).
 - All matches are `failed`, `reverted`, or `superseded`: not a blocking
   prior run — summarize the most recent one and continue, but **keep its
   `execution_id`** to pass as `--rerun-of` in Step 10 (per `PROMPTS.md:136`,
@@ -274,9 +277,10 @@ lrh prompt record-execution \
   --project-root .
 ```
 
-If Step 4 found and summarized a `failed`/`reverted`/`superseded` prior
-record, add `--rerun-of <its-execution_id>` to the command above so the new
-record links back to it, per `PROMPTS.md:136`.
+If Step 4 found a prior matching record — whether summarized
+(`failed`/`reverted`/`superseded`) or explicitly overridden by the user
+(`in_progress`/`landed`) — add `--rerun-of <its-execution_id>` to the
+command above so the new record links back to it, per `PROMPTS.md:136`.
 
 Use `AD_HOC`, not `<PROP-ID>` — see the note in Step 4. This creates the
 record under `project/executions/AD_HOC/`, not `project/executions/<PROP-ID>/`.

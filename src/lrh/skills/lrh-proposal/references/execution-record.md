@@ -59,7 +59,9 @@ The glob can return more than one match — a prior rerun mints a new
 timestamped file with the same trailing slug. Read the `status:`
 frontmatter field of every match before deciding — per `PROMPTS.md`'s
 status-handling rule, a matched filename is discovery, not by itself a
-block: any match `in_progress`/`landed` stop and report; all matches
+block: any match `in_progress`/`landed` stop and report (unless the user
+explicitly asks for a rerun, in which case keep that match's
+`execution_id` for `--rerun-of` below); all matches
 `failed`/`reverted`/`superseded` summarize the most recent and continue
 (keeping its `execution_id` for `--rerun-of` below); disagreeing or
 unrecognized statuses stop and report the ambiguity. Only after that
@@ -83,9 +85,10 @@ lrh prompt record-execution \
   --project-root .
 ```
 
-If the prior-execution check above found and summarized a
-`failed`/`reverted`/`superseded` record, add `--rerun-of <its-execution_id>`
-so the new record links back to it, per `PROMPTS.md:136`.
+If the prior-execution check above found a matching record — whether
+summarized (`failed`/`reverted`/`superseded`) or explicitly overridden by
+the user (`in_progress`/`landed`) — add `--rerun-of <its-execution_id>` so
+the new record links back to it, per `PROMPTS.md:136`.
 
 This creates a new file at:
 `project/executions/AD_HOC/<timestamp>_<SLUG_UPPER_UNDERSCORE>.md`

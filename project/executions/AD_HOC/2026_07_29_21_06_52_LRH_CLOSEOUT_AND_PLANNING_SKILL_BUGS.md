@@ -77,7 +77,17 @@ used unmodified in the pre-existing `lrh-review-response/SKILL.md:122-131`
 here would mean redesigning `lrh-review-response` too — out of scope for
 this PR. Left as-is per user direction; filed as a design-backlog entry
 (`project/design/backlog.md` "Filename-slug idempotence search drives
-blocking, contrary to `PROMPTS.md`") rather than silently deferred.
+blocking, contrary to `PROMPTS.md`") rather than silently deferred. A fifth
+review round on commit `3572fcf` surfaced 1 more Codex finding: when
+multiple `in_progress`/`landed` records match the same slug (e.g. an older
+`landed` record from an unrelated past run plus a newer `in_progress`
+one), the wording said to "keep that match's `execution_id`" as if there
+were only one — Step 10 accepts a single `--rerun-of`, so an ambiguous
+pick could link the new record to the wrong prior attempt. Fixed across
+all 6 locations: when multiple matches are `in_progress`/`landed`, name
+them all and ask the user which one is being rerun rather than guessing;
+once confirmed, use the confirmed match's `execution_id` (falling back to
+the most recent if the user doesn't distinguish).
 
 # Validation
 

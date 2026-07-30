@@ -59,9 +59,11 @@ The glob can return more than one match — a prior rerun mints a new
 timestamped file with the same trailing slug. Read the `status:`
 frontmatter field of every match before deciding — per `PROMPTS.md`'s
 status-handling rule, a matched filename is discovery, not by itself a
-block: any match `in_progress`/`landed` stop and report (unless the user
-explicitly asks for a rerun, in which case keep that match's
-`execution_id` for `--rerun-of` below); all matches
+block: any match `in_progress`/`landed` stop and report (if more than one,
+name them all and ask the user which is being rerun — do not guess; unless
+the user explicitly asks for a rerun, in which case keep the confirmed
+match's `execution_id`, the most recent if undistinguished, for
+`--rerun-of` below); all matches
 `failed`/`reverted`/`superseded` summarize the most recent and continue
 (keeping its `execution_id` for `--rerun-of` below); disagreeing or
 unrecognized statuses stop and report the ambiguity. Only after that

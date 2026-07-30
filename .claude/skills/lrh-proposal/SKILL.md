@@ -161,10 +161,13 @@ frontmatter field of **every** match before deciding — per `PROMPTS.md`'s
 status-handling rule, a matched filename is discovery, not by itself a
 block:
 - Any match is `in_progress` or `landed`: **stop and report** — do not
-  continue unless the user explicitly asks for a rerun. If the user does
-  ask for a rerun, **keep that match's `execution_id`** to pass as
-  `--rerun-of` in Step 10 — a rerun links to the prior attempt regardless
-  of which status triggered it (`PROMPTS.md:136`).
+  continue unless the user explicitly asks for a rerun. If more than one
+  match is `in_progress`/`landed`, name all of them and ask the user which
+  one this is a rerun of — do not guess. Once the user does confirm a
+  rerun, **keep the confirmed match's `execution_id`** (the most recent
+  one, if the user doesn't distinguish) to pass as `--rerun-of` in Step 10
+  — a rerun links to the prior attempt regardless of which status
+  triggered it (`PROMPTS.md:136`).
 - All matches are `failed`, `reverted`, or `superseded`: not a blocking
   prior run — summarize the most recent one and continue, but **keep its
   `execution_id`** to pass as `--rerun-of` in Step 10 (per `PROMPTS.md:136`,

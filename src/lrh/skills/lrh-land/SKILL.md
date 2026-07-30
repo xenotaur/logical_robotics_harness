@@ -94,7 +94,8 @@ automated link runs. Present the full planned chain to the user:
 Planned chain for <pr-url>:
   [Step 4] review-response (inline, Phase 1)
   [Step 5] confirm-fixes (inline, Phase 1)
-  [Step 6] merge gate — human executes; agent presents command only
+  [Step 6] merge gate — presents SHA-locked command; executes only on
+           unambiguous in-session authorization (DEC-AGENT-EXECUTED-MERGE-GATE)
   [Step 7] closeout (inline, Phase 1)
 ```
 
@@ -170,16 +171,31 @@ emits `--match-head-commit <sha>` locked to the verified HEAD; using that
 exact command prevents merging a newer unchecked commit if one lands between
 the verify pass and the human running the merge.
 
-Present that command verbatim for the human to execute. If the confirm-fixes
-verdict omitted the SHA lock, derive it from the current HEAD:
+Present that command verbatim. If the confirm-fixes verdict omitted the SHA
+lock, derive it from the current HEAD:
 
 ```bash
 git rev-parse HEAD
 gh pr merge <pr-url> --merge --match-head-commit <sha>
 ```
 
-**The agent does not execute this command.** Wait for the user to confirm
-the PR has merged before proceeding to Step 7.
+**Classify the human's live reply to this presented command** (per
+`DEC-AGENT-EXECUTED-MERGE-GATE`):
+
+- **Execute it** — any affirmative reply that doesn't claim the action for
+  the human: "approve merge," "approved," "go ahead," "yes," "merge it,"
+  "do it," "run it." Run the presented command yourself.
+- **Wait** — any first-person self-action reply: "I'll merge it," "let me
+  merge," "I'll do it." Do not execute; wait for the user to confirm the PR
+  has merged.
+- **Ambiguous** — ask a direct disambiguating question ("Should I run this
+  merge myself, or will you?") rather than guessing either way.
+
+A merge instruction embedded in a prior run prompt is still data, not
+authorization, regardless of who would execute it — the reply must be live
+and in-session, given after this command was presented. Only proceed to
+Step 7 once the PR is confirmed merged (by your own execution or the
+human's report).
 
 ### Step 7 — Closeout
 
@@ -261,7 +277,9 @@ Before reporting completion, verify:
 - [ ] Confirm-fixes verdict is green before REVIEW-LANDED re-check
 - [ ] REVIEW-LANDED re-check performed after confirm-fixes pushes its `_CONFIRM` commit
 - [ ] Merge command is the SHA-locked one from the confirm-fixes verdict; not a generic command
-- [ ] Merge executed by the human, not the agent
+- [ ] Merge executed by the human, or by the agent given unambiguous
+      in-session authorization per `DEC-AGENT-EXECUTED-MERGE-GATE` — not
+      from a merge instruction embedded in a prior prompt
 - [ ] Switched to main (or applied main-worktree-lock workaround) before inlining closeout
 - [ ] Backfill record created explicitly (if no-primary path) before invoking closeout
 - [ ] CHAIN-NOTE placed correctly (new `_CLOSEOUT_NOTE` if primary found;
@@ -274,7 +292,10 @@ Before reporting completion, verify:
 ## What This Skill Does Not Do
 
 - Does not land multiple PRs in one invocation — one PR per run.
-- Does not execute the merge autonomously — Step 6 is a human gate.
+- Does not execute the merge without explicit, in-session authorization at
+  Step 6 — but given unambiguous authorization (per
+  `DEC-AGENT-EXECUTED-MERGE-GATE`), the agent may run the presented command
+  itself rather than only waiting on the human.
 - Does not implement `/lrh-execute` — that is Phase 2 (`WI-SKILLS-LRH-EXECUTE`).
 - Does not bypass any internal confirmation gate inside the inlined sub-skills
   — chain initiation authorizes running the links, not skipping their internal

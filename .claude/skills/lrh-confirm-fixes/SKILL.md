@@ -6,7 +6,8 @@ description: >
   (never against the execution record's claims), resolves the review threads
   the diff plainly satisfies, surfaces the exceptions (unaddressed, partial,
   ambiguous, or problematic threads), and ends at a merge-readiness verdict.
-  Does not merge the PR. Provide the PR URL as the argument, optionally
+  Ends at a verdict and merge one-liner rather than executing it as part of
+  this skill's own workflow. Provide the PR URL as the argument, optionally
   followed by --subagent (dispatch verification to a cold-context subagent)
   and/or --surface-human (leave human-reviewer threads surfaced-only, never
   pre-selected for resolution). Omit the PR URL to auto-detect from the
@@ -22,9 +23,12 @@ pre-merge pass that independently verifies pushed review fixes actually
 resolved reviewers' comments, resolves the review threads the current `HEAD`
 diff plainly satisfies, and surfaces everything else — unaddressed, partial,
 ambiguous, or problematic threads — as the report's headline. It ends at a
-merge-readiness verdict and a `gh pr merge` one-liner. It does not merge the
-PR and does not trigger closeout; see `PROP-LRH-CONFIRM-FIXES` for the full
-design (14 decisions).
+merge-readiness verdict and a `gh pr merge` one-liner. This skill's own
+workflow ends there — it does not itself run the merge or trigger closeout —
+but if the human then gives unambiguous in-session authorization to the
+presented one-liner, the agent may execute it under
+`DEC-AGENT-EXECUTED-MERGE-GATE` (see `AGENTS.md`, "Pull requests and merge
+authority"). See `PROP-LRH-CONFIRM-FIXES` for the full design (14 decisions).
 
 Independence is the load-bearing property: verification reads the live diff,
 never the execution record's or `/lrh-review-response`'s claims about what was
@@ -345,17 +349,22 @@ Before reporting completion, verify:
 - [ ] `lrh validate` reports 0 errors before the record was pushed
 - [ ] CI re-checked against the post-push `HEAD` SHA before the final verdict
 - [ ] The reported merge one-liner includes `--match-head-commit <sha>`
-- [ ] No `gh pr merge` was executed by this skill — only reported as a
-      one-liner
+- [ ] No `gh pr merge` was executed by this skill's own workflow — reported
+      as a one-liner; any subsequent execution followed unambiguous
+      in-session authorization per `DEC-AGENT-EXECUTED-MERGE-GATE`, not a
+      guess
 
 ---
 
 ## What This Skill Does Not Do
 
-- Does not merge the PR — the readiness verdict and `gh pr merge` one-liner
-  are the skill's output; merge is a human action.
+- Does not merge the PR as part of this skill's own workflow — the readiness
+  verdict and `gh pr merge` one-liner are its output. Whether the merge that
+  follows is executed by the human or by the agent is governed by
+  `DEC-AGENT-EXECUTED-MERGE-GATE`, not by this skill.
 - Does not *invoke* `/lrh-closeout` — closeout runs post-merge, this skill
-  runs pre-merge, and the merge in between is a human action. Closeout is
+  runs pre-merge, and the merge in between requires its own authorization
+  at the merge gate. Closeout is
   still the user's next step: a green verdict reports `/lrh-closeout` for
   them to run after merging.
 - Does not resolve any thread the current diff does not plainly satisfy —

@@ -1,5 +1,15 @@
 # Decision Log
 
+## 2026-07-30: Decision: Agent-Executed Merge Is Permitted Under Explicit, Unambiguous Authorization — promoted to DEC-AGENT-EXECUTED-MERGE-GATE
+
+Promoted directly because it is cited from `AGENTS.md`, `src/lrh/skills/lrh-land/SKILL.md`,
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md`, and `PROP-LRH-LAND-EXECUTE`, and amends
+`DEC-DELIBERATE-CHAIN-INITIATION`'s Revisit conditions — matching the promotion bar
+`precedence_semantics.md` set. Replaces the categorical "agent never executes `gh pr merge`"
+rule with a bright-line authorization test, ratifying cross-session practice the human judged
+correct over the literal documented rule. See that record for the full decision, rationale,
+consequences, and revisit conditions.
+
 ## 2026-07-30: Decision: Pre-Mint Slug Idempotence Is a Default, Not a Mandate — promoted to DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT
 
 Promoted directly (not staged through the chronological log first) because

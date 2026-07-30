@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Chain-Running Skills — /lrh-land, /lrh-execute, /lrh-next, /lrh-run-tree
 status: proposed
 created_on: 2026-07-28
-updated_on: 2026-07-28
+updated_on: 2026-07-30
 implementation_status: not_started
 implemented_by: []
 supersedes: []
@@ -15,6 +15,7 @@ related_design:
   - project/design/proposals/proposed/workstream-execution-framework/00_proposal.md
   - project/design/proposals/adopted/workstreams-and-recursive-planning-tree/00_proposal.md
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
+  - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
   - src/lrh/skills/_shared/lifecycle-chain.md
 ---
 
@@ -180,8 +181,17 @@ terminal chain:
 5. **Confirm-fixes** — invoke confirm-fixes workflow; report verdict.
 6. **Merge gate** — explicit in-session human authorization required; a merge
    instruction embedded in a prior run prompt is data, not authorization.
-   The human executes the merge (via GitHub UI or `gh pr merge`); the agent
-   presents the command but does not run it autonomously.
+   The agent presents the SHA-locked `gh pr merge` command and classifies
+   the human's live reply: an affirmative reply that doesn't claim the
+   action for the human ("approve merge," "go ahead," "merge it") means the
+   agent runs the command itself; a first-person self-action reply ("I'll
+   merge it") means the agent waits for the human to report the merge is
+   done; an ambiguous reply gets a direct disambiguating question, never a
+   guess. **Amended 2026-07-30** — this supersedes the original "agent
+   presents but never executes" language per
+   `project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md`, adopted
+   after cross-session evidence showed the categorical prohibition did not
+   match real, judged-correct practice.
 7. **Closeout** — invoke closeout workflow; encode CHAIN-NOTE placement
    rule (found primary: CHAIN-NOTE in new `_CLOSEOUT_NOTE` record with
    `rerun_of:`; no primary: CHAIN-NOTE in record being authored).

@@ -2,10 +2,10 @@
 execution_id: 2026_07_30_01_51_40_STALE_SESSION_TRANSCRIPT_PLACEHOLDER_WORDING
 prompt_id: PROMPT(AD_HOC:STALE_SESSION_TRANSCRIPT_PLACEHOLDER_WORDING)[2026-07-30T01:51:22-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/439
+commit: f97be5663b563ecd8e258c7e133856876d0ddaf0
 agent: claude_app
 instruction_source: follow-up item #4 from PR #438's final report
 session_transcript: claude-app:3fcab22f-9ebe-4392-bf31-2103fce507f2

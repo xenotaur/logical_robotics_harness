@@ -299,37 +299,41 @@ on the fresh `HEAD` are more likely than usual to not have started
 reporting yet — falling back to the unfiltered aggregate in that window
 could report a false green built only from optional checks.
 
+**Also re-run a REVIEW-LANDED check against the `_CONFIRM` commit itself —
+this gates the verdict, not just who may act on it.** Step 7's commit is
+new content on the PR; automated reviewers (Codex, Copilot) post *after* a
+push, not simultaneously, and can still find something in the `_CONFIRM`
+commit (not hypothetical — this exact skill's own worked example got two
+genuine findings on its own `_CONFIRM` commit, discovered only after it was
+already pushed). A verdict that reports Green before that review has landed
+is unsafe regardless of who acts on it next: a human who replies "I'll
+merge it" right after the push races the same delayed finding an agent
+would. Do not scope this check to "before agent execution" — gate the
+verdict itself:
+
+```bash
+gh pr view <pr-url> --json headRefOid,commits --jq '{head: .headRefOid, lastPush: (.commits | last | .committedDate)}'
+lrh github threads <pr-url> --mode raw --state all
+```
+
+If meaningful time hasn't passed since the push, or new unresolved threads
+appear on the `_CONFIRM` commit, the verdict is **not** Green yet —
+regardless of CI or thread-resolution state — report it as **Review
+pending** (see below) and re-check later, exactly as CI-pending already
+works. Only once review has had time to land on the `_CONFIRM` commit (or
+comes back clean) can the verdict be Green.
+
 Aggregate per `references/confirm-fixes-workflow.md`. The **final verdict**
-is the Step 6 thread-resolution verdict AND this re-checked CI state:
+is the Step 6 thread-resolution verdict AND the re-checked CI state AND
+this REVIEW-LANDED state on the `_CONFIRM` commit:
 
-- **Green** — "All threads resolved, CI green on `<sha>` → ready to merge."
-  Include the one-liner, locked to the exact commit just checked:
-  `gh pr merge <pr-url> --match-head-commit <sha>` plus whichever merge-mode
-  flag (`--merge`, `--squash`, `--rebase`) this project treats as standard.
-  `--match-head-commit` makes the merge fail rather than silently merge a
-  newer, unchecked commit if one lands between this report and whoever ends
-  up running it.
-
-  **Before permitting agent execution of that command, re-run a
-  REVIEW-LANDED check against the `_CONFIRM` commit Step 7 just pushed —
-  CI alone is not enough.** Step 7's commit is new content on the PR;
-  automated reviewers (Codex, Copilot) post *after* a push, not
-  simultaneously, and can still find something in the `_CONFIRM` commit
-  itself (this is not hypothetical — the record-authoring pass in this
-  skill's own worked example found a stale pointer value only after that
-  commit was already pushed). Compare the push time against now:
-
-  ```bash
-  gh pr view <pr-url> --json headRefOid,commits --jq '{head: .headRefOid, lastPush: (.commits | last | .committedDate)}'
-  lrh github threads <pr-url> --mode raw --state all
-  ```
-
-  If meaningful time hasn't passed since the push, or new unresolved
-  threads appear on the `_CONFIRM` commit, **do not permit agent execution
-  yet** — report the pending risk to the human explicitly and either wait
-  or ask them to confirm they want to proceed before that review lands.
-  Only once review has had time to land (or came back clean) does the
-  reply-classification below apply.
+- **Green** — "All threads resolved, CI green, review landed clean on
+  `<sha>` → ready to merge." Include the one-liner, locked to the exact
+  commit just checked: `gh pr merge <pr-url> --match-head-commit <sha>`
+  plus whichever merge-mode flag (`--merge`, `--squash`, `--rebase`) this
+  project treats as standard. `--match-head-commit` makes the merge fail
+  rather than silently merge a newer, unchecked commit if one lands between
+  this report and whoever ends up running it.
 
   **If the human then gives a live, in-session reply to this presented
   command, classify it before acting:**
@@ -350,6 +354,9 @@ is the Step 6 thread-resolution verdict AND this re-checked CI state:
   merged. Query `gh pr view <pr-url> --json state,mergeCommit` and confirm
   `state == MERGED` before proceeding, whether you ran the merge yourself or
   the human reports having done so.
+- **Review pending** — "Threads resolved, CI green, review not yet landed
+  on `<sha>` — not yet ready." Do not present the merge command as ready;
+  re-check after more time has passed.
 - **CI pending** — "Threads resolved, CI pending on `<sha>` — not yet ready."
 - **CI failing** — "Threads resolved, CI failing on `<sha>` — not ready."
 - **Threads outstanding** — "Not ready — `<N>` threads need attention:
@@ -394,10 +401,10 @@ Before reporting completion, verify:
       and `_CONFIRM.md`
 - [ ] `lrh validate` reports 0 errors before the record was pushed
 - [ ] CI re-checked against the post-push `HEAD` SHA before the final verdict
-- [ ] Before permitting agent execution of the merge one-liner, a
-      REVIEW-LANDED check was re-run against the `_CONFIRM` commit — not
-      just CI — since automated reviewers post after a push, not
-      simultaneously
+- [ ] REVIEW-LANDED re-checked against the `_CONFIRM` commit and required
+      for the **Green** verdict itself (not scoped to "before agent
+      execution only") — a human executing immediately races the same
+      delayed finding an agent would
 - [ ] The reported merge one-liner includes `--match-head-commit <sha>`
 - [ ] No `gh pr merge` was executed by this skill's own workflow — reported
       as a one-liner; any subsequent execution followed unambiguous

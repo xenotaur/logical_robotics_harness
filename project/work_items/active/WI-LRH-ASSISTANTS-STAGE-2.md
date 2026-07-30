@@ -1,11 +1,19 @@
 ---
 resolution: null
-blocked_reason: null
-blocked: false
+blocked_reason: >
+  Sequenced behind PROP-LRH-SESSION-ARCHIVE-SYNC (session-ID mapping and
+  durable transcript archive/reconciler) and the broader execution-tree /
+  session-tracking work landing first. WS-LRH-ASSISTANTS' gate now covers
+  Stages 2-8, not only 9-10. Cannot express this as depends_on: the governing
+  work items for PROP-LRH-SESSION-ARCHIVE-SYNC do not exist yet (its
+  workstream is still to be created); lrh validate resolves depends_on only
+  against work items that exist on main. Re-express as depends_on once those
+  work items land.
+blocked: true
 id: WI-LRH-ASSISTANTS-STAGE-2
 title: Stage 2 — Assistant typed models and loaders
 type: deliverable
-status: proposed
+status: active
 owner: anthony
 contributors:
   - anthony
@@ -32,7 +40,8 @@ acceptance:
   - typed dataclasses Assistant, AssistantProfile, AssistantBinding and the modular profile objects (scope, policy, preferences, communication, context, review) exist in src/lrh/control
   - a loader discovers exactly project/assistants/*/assistant.md and assembles an AssistantProfile from its companion files
   - Workstream gains managed_by and the assistant contract fields, and AssistantBinding is compiled from them
-  - the execution-record model gains an optional, nullable assistant_role field with no backfill of existing records
+  - the execution-record model gains an optional, nullable assistant_role field with no backfill of existing records, left un-enum-validated like agent
+  - project/executions/README.md documents assistant_role as the canonical source; no duplicate field documentation is created elsewhere
   - an assistants_by_id index is available on the loaded project state
   - the serve-interface-steward package loads cleanly through the new loader
   - all new Python has unit tests and lrh validate stays green
@@ -54,6 +63,14 @@ for the assistant artifact class introduced (docs-only) in Stage 1. This is the
 first Python increment. It adds no validation rules (Stage 3), no core-state
 context projection (Stage 4), and no CLI (Stage 5).
 
+**Status: blocked.** See `blocked_reason` in the frontmatter. This work item is
+filed now (rather than left unfiled) so the design decisions below are recorded
+before the blocker lifts, and so `WS-LRH-ASSISTANTS` has a visible, honest leaf
+instead of an implicit gap. Nothing in this work item's own scope technically
+requires session tracking — the block reflects a deliberate sequencing decision
+to let `PROP-LRH-SESSION-ARCHIVE-SYNC` and the execution-tree work stabilize
+first, not a hard code dependency.
+
 ## Problem / Context
 
 Stage 1 established the `project/assistants/` package convention, the token
@@ -73,6 +90,24 @@ proposal:
 - **Execution-record linkage (Q2):** the optional `assistant_role:` field is
   added now, alongside `AssistantBinding`, as an optional nullable field with no
   backfill.
+
+Two further decisions, resolved 2026-07-25 following review from the session
+that reworked the execution-record schema (`PROP-LRH-EXECUTION-SESSIONS`,
+landed via PR #421):
+
+- **`assistant_role:` is open-ended, not enum-validated** — follows the
+  `agent:` precedent in `src/lrh/control/validator.py`
+  (`_validate_execution_record`), which is deliberately left un-enum-validated
+  because the schema is open-ended. Assistant IDs are an extensible namespaced
+  set (`ASST-*`), not a fixed catalog, so the same reasoning applies. If any
+  validation is added, remember `_parse_simple_yaml` strips quotes from scalars
+  but not list elements (`element.strip("'\"")` needed) and to guard non-`str`
+  values before pattern checks.
+- **Documentation location: `project/executions/README.md` is canonical** for
+  execution-record optional fields. Add `assistant_role:` there (grammar +
+  worked example, alongside `agent`/`instruction_source`/`session_transcript`);
+  do not create a fourth copy of the field documentation. `PROMPTS.md` and the
+  `lrh-implement` skill reference should point at the README, not restate it.
 
 Prior-art check: no assistant models exist in `src/lrh/control/models.py` today;
 the similarly named `src/lrh/assist/` package is the unrelated request /

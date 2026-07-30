@@ -41,6 +41,8 @@ TERMINAL_STATUSES = {"failed", "reverted", "superseded"}
 GitRunner = typing.Callable[[list[str]], "subprocess.CompletedProcess[str]"]
 GhRunner = typing.Callable[[list[str]], object]
 
+_CAT_FILE_MISSING_PATTERN = re.compile(r"does not exist in", re.IGNORECASE)
+
 
 class SlugCheckError(RuntimeError):
     """A gh/git call failed while searching for a prior slug match.
@@ -71,6 +73,14 @@ class SlugMatch:
     source: str
 
     @property
+    def has_known_created_at(self) -> bool:
+        try:
+            datetime.datetime.fromisoformat(self.created_at)
+            return True
+        except ValueError:
+            return False
+
+    @property
     def sort_key(self) -> datetime.datetime:
         try:
             return datetime.datetime.fromisoformat(self.created_at)
@@ -93,6 +103,22 @@ class SlugCheckResult:
         return max(self.matches, key=lambda match: match.sort_key)
 
     @property
+    def has_unresolved_recency(self) -> bool:
+        """True if any match's recency cannot be established.
+
+        A match with a missing/malformed ``created_at`` sorts as the
+        oldest possible instant (see ``SlugMatch.sort_key``), which is
+        merely a tiebreak for comparison -- it must never let such a match
+        lose to an older-but-parseable terminal-status match and thereby
+        vanish from the blocking decision. If recency can't be
+        established for *any* match, we cannot trust that "most recent by
+        timestamp" is genuinely the most recent attempt, so the whole
+        result is unresolved and must block.
+        """
+
+        return any(not match.has_known_created_at for match in self.matches)
+
+    @property
     def blocking(self) -> bool:
         """Default policy: block on anything but an explicit terminal status.
 
@@ -106,8 +132,14 @@ class SlugCheckResult:
         -- an unresolved outcome is not license to proceed, it means stop
         and report the ambiguity (matching the shell-based idempotence
         check this module replaces, which treated any unknown status as a
-        stop condition rather than a green light)."""
+        stop condition rather than a green light). A match whose recency
+        cannot be established also blocks, regardless of what a naive
+        "most recent by timestamp" comparison would otherwise pick."""
 
+        if not self.matches:
+            return False
+        if self.has_unresolved_recency:
+            return True
         recent = self.most_recent
         return recent is not None and recent.status not in TERMINAL_STATUSES
 
@@ -118,7 +150,10 @@ class SlugCheckResult:
         Distinguishes an ordinary blocking match (``landed``/
         ``in_progress``) from one that blocks only because its status
         could not be classified at all -- useful for giving the human a
-        more specific reason than a bare "blocking."
+        more specific reason than a bare "blocking." Does not by itself
+        cover the ``has_unresolved_recency`` case -- check that
+        separately for the "we can't even tell which match is most
+        recent" reason.
         """
 
         recent = self.most_recent
@@ -326,6 +361,17 @@ def find_remote_matches(
                 # declared base ref: inherited from a stacked branch, not
                 # newly introduced by this PR.
                 continue
+            if not _CAT_FILE_MISSING_PATTERN.search(inherited.stderr or ""):
+                # A nonzero exit here is normally git's ordinary "path
+                # doesn't exist at this tree-ish" outcome (expected -- it
+                # means the PR did introduce the file). Anything else
+                # (corrupted repo, bad object database, etc.) is a real
+                # git failure and must not be silently treated the same
+                # way -- fail loudly instead of guessing "not inherited."
+                raise SlugCheckError(
+                    f"git cat-file -e {merge_base}:{rel_path} failed unexpectedly: "
+                    f"{(inherited.stderr or '').strip()}"
+                )
 
             show_output = _run_git_or_raise(
                 git_runner,
@@ -400,7 +446,14 @@ def format_text_result(result: SlugCheckResult) -> str:
 
     recent = result.most_recent
     assert recent is not None
-    if result.unresolved_status:
+    if result.has_unresolved_recency:
+        lines.append(
+            "BLOCKING (unresolved recency): at least one match has a "
+            "missing or malformed created_at, so which match is truly "
+            "most recent cannot be established -- stop and report rather "
+            "than trusting a naive timestamp comparison."
+        )
+    elif result.unresolved_status:
         lines.append(
             "BLOCKING (unresolved status): most recent match "
             f"({recent.execution_id or recent.path!r}, status={recent.status!r}) "

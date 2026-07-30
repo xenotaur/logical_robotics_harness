@@ -100,6 +100,33 @@ class SlugMatchSortAndPolicyTest(unittest.TestCase):
         self.assertEqual(result.most_recent, newer_failed)
         self.assertFalse(result.blocking)
 
+    def test_unresolved_recency_blocks_even_if_naive_pick_is_terminal(self) -> None:
+        # A match with unknown recency sorts as the oldest possible instant
+        # (a tiebreak, not a real timestamp). If an older-but-parseable
+        # terminal match were allowed to "win" the most-recent comparison
+        # against it, the truly-latest (recency-unknown) attempt would be
+        # silently ignored and could itself be in_progress/landed.
+        unknown_recency = self._match("UNKNOWN", "in_progress", "")
+        older_but_parseable_failed = self._match(
+            "OLDER", "failed", "2020-01-01T00:00:00+00:00"
+        )
+        result = prompt_workflow_slug.SlugCheckResult(
+            slug="my-slug",
+            work_item="AD_HOC",
+            matches=[unknown_recency, older_but_parseable_failed],
+        )
+        self.assertTrue(result.has_unresolved_recency)
+        self.assertTrue(result.blocking)
+        self.assertEqual(result.exit_code, 1)
+
+    def test_all_matches_have_known_recency_is_not_flagged_unresolved(self) -> None:
+        result = prompt_workflow_slug.SlugCheckResult(
+            slug="my-slug",
+            work_item="AD_HOC",
+            matches=[self._match("A", "failed", "2026-01-01T00:00:00+00:00")],
+        )
+        self.assertFalse(result.has_unresolved_recency)
+
 
 class FindLocalMatchesTest(unittest.TestCase):
     def _write_record(
@@ -311,6 +338,92 @@ class CrossPrDiscoveryGitSimulationTest(unittest.TestCase):
 
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_MY_SLUG")
+
+    def test_force_pushed_pr_head_is_picked_up_not_left_stale(self) -> None:
+        # Regression test for the force-refspec fetch
+        # (`+refs/pull/<N>/head:...`): a previously-fetched PR ref must be
+        # updated to a force-pushed non-fast-forward rewrite, not silently
+        # left pointing at the stale commit.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            origin_dir = root / "origin"
+            consumer_dir = root / "consumer"
+            origin_dir.mkdir()
+            consumer_dir.mkdir()
+            self._build_origin(origin_dir)
+            self._build_consumer(consumer_dir, origin_dir)
+
+            gh_runner = _FakeGh([{"number": 1, "baseRefName": "main"}])
+            git_runner = self._git_runner(consumer_dir)
+
+            first_pass = prompt_workflow_slug.find_remote_matches(
+                slug="my-slug", gh_runner=gh_runner, git_runner=git_runner
+            )
+            self.assertEqual(len(first_pass), 1)
+            self.assertEqual(first_pass[0].status, "in_progress")
+
+            # Force-push: rewrite pr1's tip with an amended commit changing
+            # the record's status, then force-move refs/pull/1/head to it
+            # (a non-fast-forward rewrite from the consumer's perspective).
+            _run_git(origin_dir, "checkout", "-q", "pr1")
+            record_path = (
+                origin_dir / "project/executions/AD_HOC/2026_01_01_00_00_00_MY_SLUG.md"
+            )
+            record_path.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_MY_SLUG\n"
+                "status: landed\n"
+                "created_at: 2026-01-02T00:00:00+00:00\n"
+                'pr: ""\n'
+                "---\nbody (force-pushed)\n",
+                encoding="utf-8",
+            )
+            _run_git(origin_dir, "add", "project/executions/AD_HOC")
+            _run_git(origin_dir, "commit", "--amend", "-q", "-m", "pr1 force-pushed")
+            _run_git(origin_dir, "update-ref", "refs/pull/1/head", "refs/heads/pr1")
+            _run_git(origin_dir, "checkout", "-q", "main")
+
+            second_pass = prompt_workflow_slug.find_remote_matches(
+                slug="my-slug", gh_runner=gh_runner, git_runner=git_runner
+            )
+
+        self.assertEqual(len(second_pass), 1)
+        self.assertEqual(second_pass[0].status, "landed")
+        self.assertEqual(second_pass[0].created_at, "2026-01-02T00:00:00+00:00")
+
+    def test_cat_file_unexpected_failure_raises_not_treated_as_not_inherited(
+        self,
+    ) -> None:
+        # A `git cat-file -e` failure whose stderr does NOT match git's
+        # ordinary "path does not exist" message (e.g. a corrupted repo or
+        # bad object database) must fail loudly, not be silently treated
+        # as "not inherited, proceed as a genuine new match."
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            origin_dir = root / "origin"
+            consumer_dir = root / "consumer"
+            origin_dir.mkdir()
+            consumer_dir.mkdir()
+            self._build_origin(origin_dir)
+            self._build_consumer(consumer_dir, origin_dir)
+
+            gh_runner = _FakeGh([{"number": 1, "baseRefName": "main"}])
+            real_runner = self._git_runner(consumer_dir)
+
+            def flaky_git_runner(args: list[str]):
+                if args[:2] == ["cat-file", "-e"]:
+                    return subprocess.CompletedProcess(
+                        args=["git", *args],
+                        returncode=128,
+                        stdout="",
+                        stderr="fatal: unable to read sha1 file (odb corrupt)",
+                    )
+                return real_runner(args)
+
+            with self.assertRaises(prompt_workflow_slug.SlugCheckError):
+                prompt_workflow_slug.find_remote_matches(
+                    slug="my-slug", gh_runner=gh_runner, git_runner=flaky_git_runner
+                )
 
     def test_local_match_excluded_from_remote_results(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

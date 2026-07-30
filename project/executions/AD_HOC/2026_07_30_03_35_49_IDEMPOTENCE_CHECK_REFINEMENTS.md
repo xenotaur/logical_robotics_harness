@@ -74,6 +74,33 @@ lower risk (misattribution, not a false block) but the same underlying
 substring-match issue. Not covered by backlog item 5's wording; flagging
 here rather than silently expanding scope.
 
+A first review round on commit `9c54c3f` surfaced 4 real findings (9
+comments, same root causes), all in the items 1/3/4 cross-PR/branch-reuse
+logic added to `lrh-proposal`/`lrh-work-item`/`lrh-workstream` — none in
+`lrh-review-response`/`lrh-confirm-fixes`, which didn't get that logic.
+Codex (2): the cross-PR search assumed `origin/$branch` was already
+fetched locally (it isn't, for a PR created after the last fetch or from
+a fork — `2>/dev/null` hid the resulting failure, so the check would
+incorrectly conclude no prior record existed); and the branch-reuse check
+(`git rev-parse --verify <branch>`) only tested local branches, but the
+typical rerun scenario is a branch that only exists as `origin/<branch>`
+— the reuse path would silently fall through to creating a duplicate that
+later collides on push. Copilot (7, same underlying gap): the cross-PR
+search printed only matched file paths with no branch context, so "read
+that match's status" couldn't actually be executed for a remote-only
+match — no ref to read it from.
+
+Fixed by combining both searches into one pipeline: fetch each open PR's
+branch before `ls-tree` (so `origin/$branch` is guaranteed to resolve),
+tag each remote match with `<TAB><branch>` so it stays actionable (read
+via `git show origin/$branch:$path` without checking out), and pipe the
+combined current-checkout + tagged-remote lines through `sort` (still
+correct, since every line starts with the same timestamp-prefixed path).
+Branch-reuse now checks local, then `git ls-remote --exit-code --heads
+origin <branch>` for the remote, tracking it explicitly
+(`git checkout -b <branch> --track origin/<branch>`) if only the remote
+exists, falling through to fresh-from-`main` only if neither does.
+
 # Validation
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning

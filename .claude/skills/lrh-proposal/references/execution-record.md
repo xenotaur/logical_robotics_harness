@@ -47,38 +47,39 @@ open PRs — `lrh prompt label` always mints a fresh timestamped ID, so
 `<SLUG_UPPER_UNDERSCORE>` from `<slug>` by replacing `-` with `_` and
 uppercasing, then match the complete trailing filename segment — not a bare
 substring, which would also match an unrelated longer slug that happens to
-contain this one:
+contain this one. Fetch and check open PRs too, tagging each remote match
+with its branch so it stays actionable:
 
 ```bash
-find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null | sort
+{
+  find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
+  gh pr list --state open --json headRefName --jq '.[].headRefName' | while read -r branch; do
+    git fetch origin "$branch" --quiet 2>/dev/null
+    git ls-tree -r "origin/$branch" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
+      | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$" \
+      | sed "s|\$|\t$branch|"
+  done
+} | sort
 ```
 
 `AD_HOC/` may not exist yet in a freshly bootstrapped project — a nonzero
-exit with no output here means no prior record, not a failure. `sort`
-makes multiple matches deterministic (timestamp-prefixed filenames sort
-chronologically). This only searches the current checkout — also check
-open PRs:
-
-```bash
-gh pr list --state open --json headRefName --jq '.[].headRefName' | while read -r branch; do
-  git ls-tree -r "origin/$branch" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
-    | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md$"
-done
-```
-
-Combine matches from both searches; if more than one, take the single most
-recent by filename timestamp and decide based only on that one — older
-matches are historical context, not separately actionable. Read that
-match's `status:` frontmatter field before deciding — per `PROMPTS.md`'s
+exit with no output here means no prior record, not a failure. Each line
+is either a bare path (already in the current checkout) or
+`<path><TAB><branch>` (found only on an open PR's branch, fetched above).
+`sort` still orders the combined list correctly, since every line starts
+with the same timestamp-prefixed path — take the last line if there's more
+than one, and decide based only on that one. Read a bare-path match
+directly; read a `<path><TAB><branch>` match via
+`git show "origin/$branch:$path"` without checking out. Per `PROMPTS.md`'s
 status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`), a matched
 filename is discovery, not by itself a block: `in_progress`/`landed` stop
-and report (unless the user explicitly asks for a rerun, in which case
-check whether the match's branch still exists and reuse it if so — see
-SKILL.md Step 6 — and keep the match's `execution_id` for `--rerun-of`
-below); `failed`/`reverted`/`superseded` summarize and continue (keeping
-its `execution_id` for `--rerun-of` below); unknown or ambiguous status
-stops and reports the ambiguity. Only after that search comes up empty or
-clears, mint the ID and run the secondary check:
+and report (unless the user explicitly asks for a rerun, in which case see
+SKILL.md Step 6 for resuming the match's branch whether local, remote-only,
+or gone — and keep the match's `execution_id` for `--rerun-of` below);
+`failed`/`reverted`/`superseded` summarize and continue (keeping its
+`execution_id` for `--rerun-of` below); unknown or ambiguous status stops
+and reports the ambiguity. Only after that search comes up empty or clears,
+mint the ID and run the secondary check:
 
 ```bash
 lrh prompt check-execution --prompt-id "<id>" --project-root .

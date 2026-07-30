@@ -177,30 +177,40 @@ sort chronologically and the last line is the most recent.
 
 This only searches the current checkout. A prior record can exist on a
 branch not fetched locally yet — e.g. an earlier attempt still open as its
-own PR. Also check open PRs:
+own PR. Fetch and check open PRs too, tagging each match with its source
+branch so it stays actionable (which ref to read or resume later):
 
 ```bash
-gh pr list --state open --json headRefName --jq '.[].headRefName' | while read -r branch; do
-  git ls-tree -r "origin/$branch" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
-    | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md$"
-done
+{
+  find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
+  gh pr list --state open --json headRefName --jq '.[].headRefName' | while read -r branch; do
+    git fetch origin "$branch" --quiet 2>/dev/null
+    git ls-tree -r "origin/$branch" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
+      | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$" \
+      | sed "s|\$|\t$branch|"
+  done
+} | sort
 ```
 
-Combine matches from both searches. If there is more than one, take the
-single most recent by filename timestamp and base the decision below only
-on that one — older matches are historical context, not separately
-actionable. (Recency, not asking the user to disambiguate, resolves
-multiple matches deterministically.)
+Each line is either a bare path (a match already in the current checkout)
+or `<path><TAB><branch>` (a match found only on an open PR's branch,
+fetched above so `origin/<branch>` is guaranteed to resolve). `sort` still
+orders the combined list correctly, since every line starts with the same
+timestamp-prefixed path. If there is more than one match, take the last
+line — the single most recent — and base the decision below only on that
+one; older matches are historical context, not separately actionable.
+(Recency, not asking the user to disambiguate, resolves multiple matches
+deterministically.)
 
-Read that match's `status:` frontmatter field before deciding — per
+Read that match's `status:` frontmatter field before deciding: for a bare
+path, read the file directly; for a `<path><TAB><branch>` match, read it
+without checking out via `git show "origin/$branch:$path"`. Per
 `PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
 a matched filename is discovery, not by itself a block:
 - `in_progress` or `landed`: **stop and report** — do not continue unless
-  the user explicitly asks for a rerun. If they do, check whether the
-  match's branch (`<username>/<type>/<slug>`) still exists
-  (`git rev-parse --verify <branch> 2>/dev/null`); if it does, reuse it at
-  Step 6 instead of creating a new one — this is the same work continuing,
-  not a fresh attempt (see Step 6). Either way, keep the match's
+  the user explicitly asks for a rerun. If they do, see Step 6 for how to
+  resume the match's branch (`<username>/<type>/<slug>`) whether it's
+  local, remote-only, or gone. Either way, keep the match's
   `execution_id` to pass as `--rerun-of` in Step 10.
 - `failed`, `reverted`, or `superseded`: not a blocking prior run —
   summarize it and continue, but keep its `execution_id` to pass as
@@ -239,20 +249,25 @@ being committed to the control plane.
 
 ### 6. Create branch from main
 
-If Step 4 found a blocked match, the user asked for a rerun, and that
-match's branch still exists, reuse it instead of creating a new one — this
-is the same work continuing, not a fresh attempt:
+If Step 4 found a blocked match and the user asked for a rerun, resume its
+branch rather than creating a duplicate. Check local first, then the
+remote — the common case is that the branch only exists as
+`origin/<branch-name>` (the match came from the cross-PR search, not the
+current checkout), not locally yet. This same check covers the
+no-prior-match case too — if the branch exists nowhere, the `else` clause
+creates it fresh from `main`, same as always:
 
 ```bash
-git checkout <branch-name>
-git pull
-```
-
-Otherwise, create it fresh from `main`:
-
-```bash
-git checkout main && git pull
-git checkout -b <branch-name>
+if git rev-parse --verify <branch-name> >/dev/null 2>&1; then
+  git checkout <branch-name>
+  git pull
+elif git ls-remote --exit-code --heads origin <branch-name> >/dev/null 2>&1; then
+  git fetch origin <branch-name>
+  git checkout -b <branch-name> --track "origin/<branch-name>"
+else
+  git checkout main && git pull
+  git checkout -b <branch-name>
+fi
 ```
 
 Branch naming: `<username>/<type>/<slug>`. Get the username:

@@ -100,9 +100,17 @@ this idempotence check's precedence logic is lower-value while its more
 fundamental design (should filename-slug search block at all?) remains an
 open question in the same backlog file. Filed as
 `project/design/backlog.md` "Idempotence-check refinements deferred from
-PR #438 (follow-up PR)".
-
-# Validation
+PR #438 (follow-up PR)". Re-triggering review on the resulting docs-only
+commit (`872eb0b`) re-scanned the full cumulative PR diff and surfaced one
+more real finding, this time in the *original* round-1 fix: Step 4's
+confirm gate still described a singular "Resolved session transcript
+value," even though Step 3 (fixed in round 1) resolves one value per
+matched execution record. A user could confirm the closeout plan having
+seen only one record's value while Step 5 silently wrote different values
+to the others — reintroducing the exact provenance risk the round-1 fix
+was meant to close. Fixed in `lrh-closeout/SKILL.md` Step 4: now requires
+enumerating every matched execution record's resolved transcript value by
+execution ID at the confirm gate, not a single summary value.
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning
   (`WS-LRH-ASSISTANTS` no actionable leaf) after both commits

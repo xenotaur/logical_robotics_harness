@@ -237,7 +237,11 @@ Before touching any files, show the user:
 
 - PR URL, state (`MERGED`), and commit SHA
 - The full closeout plan table (from Step 2)
-- Resolved session transcript value (from Step 3)
+- Resolved session transcript value for **every** matched execution record
+  from Step 3, enumerated by execution ID — not a single summary value.
+  Step 3 resolves a value per record (Step 5 writes each to its own
+  record), so showing only one here would let the user confirm without
+  ever seeing what gets written to the others.
 - For any WI being resolved: the `resolution:` text to be written. If the
   user has not already stated it, ask: "What should the `resolution:` note
   say for `<WI-ID>`?" (one-line summary; e.g., `"Implemented and merged in PR #342 (commit abc1234)"`)

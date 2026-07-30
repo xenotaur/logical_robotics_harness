@@ -15,6 +15,7 @@ related_design:
   - project/design/proposals/proposed/constitutional-sandbox-envelope/00_proposal.md
 work_items:
   - WI-LRH-ASSISTANTS-STAGE-1
+  - WI-LRH-ASSISTANTS-STAGE-2
 exit_criteria:
   - PROP-LRH-ASSISTANTS is adopted with its open questions resolved
   - the assistant artifact-class convention is documented (README, token vocabulary, one worked package)
@@ -80,9 +81,13 @@ The proposal defines Stages 0–10. This workstream tracks them as leaves:
 
 ## Work-item leaves
 
-- `WI-LRH-ASSISTANTS-STAGE-1` — Stage 1 docs-only package convention (this
-  PR). Later stages are filed as their own work items as they become ready;
-  Stages 9–10 remain gated behind durable run state.
+- `WI-LRH-ASSISTANTS-STAGE-1` — Stage 1 docs-only package convention
+  (resolved, PR #418).
+- `WI-LRH-ASSISTANTS-STAGE-2` — Stage 2 typed models and loaders (proposed;
+  first Python increment).
+
+Later stages are filed as their own work items as they become ready;
+Stages 9–10 remain gated behind durable run state.
 
 ## Non-goals
 

@@ -51,6 +51,16 @@ rather than fixed inline to avoid further scope creep on PR #438:**
    on whether reruns reuse the existing branch or create a suffixed one
    that still carries the prior record forward for `rerun_of`.
 
+4. **`find` only searches the current working tree (Codex, round 8).** If
+   a prior `in_progress` record exists only on its own open PR branch and
+   a new invocation starts from `main` or a fresh checkout, the `find`
+   search reports no match — it never looks at other local or remote
+   branches. The workflow then mints an unlinked duplicate record, which
+   can later collide with the same deterministic branch name (item 3) or
+   push conflict. Needs a decision on whether to query relevant PR/remote
+   branches, or require checking out the active branch first, before
+   concluding no prior run exists.
+
 **Status:** Deferred — PR #438's original purpose (fixing 8 bugs in
 `lrh-closeout`/`lrh-proposal`/`lrh-work-item`/`lrh-workstream`/`lrh-land`
 that blocked Taurcode's downstream skill resync) was already done and
@@ -60,7 +70,7 @@ fundamental design question — whether filename-slug search should drive
 blocking at all — remains open (see "Filename-slug idempotence search
 drives blocking, contrary to `PROMPTS.md`" below); a full fix here could
 be partly obsoleted by resolving that question differently. Merged as-is;
-address all three items in a follow-up PR.
+address all four items in a follow-up PR.
 
 **Related:** harness PR #438 (rounds 4, 6, and 7);
 `src/lrh/skills/lrh-proposal/SKILL.md`,

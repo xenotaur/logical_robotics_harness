@@ -119,7 +119,14 @@ already-existing branch), blocking the rerun before it reaches Step 10.
 By user decision, folded into the same deferred-to-follow-up backlog entry
 rather than fixed inline, since it's a third instance of the same
 rerun-mechanism edge-case space already deferred in rounds 5–6, not part
-of the original 8-bug PR purpose.
+of the original 8-bug PR purpose. An eighth review round on commit
+`981b401` surfaced one more Codex finding, a fourth instance of the same
+space: the `find` search only checks the current working tree, so a prior
+`in_progress` record that exists only on its own open PR branch goes
+undetected when a new invocation starts from `main` or a fresh checkout —
+minting an unlinked duplicate that can later collide with the branch-name
+issue above. Folded into the same backlog entry rather than fixed inline,
+by the same reasoning.
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning
   (`WS-LRH-ASSISTANTS` no actionable leaf) after both commits
@@ -136,11 +143,12 @@ of the original 8-bug PR purpose.
   5 more files not touched here (`lrh-confirm-fixes`, `lrh-doc-organize`,
   `lrh-implement` x2, `lrh-review-response`) — out of scope for this PR
   since review didn't flag them, but worth a follow-up sweep.
-- Open a follow-up PR addressing the three items filed in
+- Open a follow-up PR addressing the four items filed in
   `project/design/backlog.md` ("Idempotence-check refinements deferred
   from PR #438"): cross-status `rerun_of` precedence, `find`
-  exit-status/sorting on the `AD_HOC/` search, and the explicit-rerun
-  branch-name collision.
+  exit-status/sorting on the `AD_HOC/` search, the explicit-rerun
+  branch-name collision, and `find` only searching the current working
+  tree (missing prior records on other branches).
 - Revisit the bigger deferred design question in the same backlog file
   ("Filename-slug idempotence search drives blocking, contrary to
   `PROMPTS.md`") — the follow-up PR above may be partly moot depending on

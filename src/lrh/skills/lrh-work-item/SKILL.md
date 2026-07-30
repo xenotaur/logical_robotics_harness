@@ -158,10 +158,14 @@ Derive `<slug>` from the work item ID (lower-kebab): `WI-SKILLS-LRH-SETUP` →
 **Before minting, search for an existing record on this branch by stable
 slug.** `lrh prompt label` always mints a fresh timestamped prompt ID, so
 `check-execution` alone cannot detect a rerun — the ID it receives is brand
-new every time it's called:
+new every time it's called. Derive `<SLUG_UPPER_UNDERSCORE>` from `<slug>`
+by replacing `-` with `_` and uppercasing (e.g. `wi-skills-lrh-setup` →
+`WI_SKILLS_LRH_SETUP`), then match the complete trailing filename segment —
+not a bare substring, which would also match an unrelated longer slug that
+happens to contain this one (e.g. `..._WI_SKILLS_LRH_SETUP_REVIEW.md`):
 
 ```bash
-find project/executions/AD_HOC/ -name "*<SLUG_UPPER_UNDERSCORE>*.md"
+find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md"
 ```
 
 If any file is found, **stop and report** — do not continue unless the user

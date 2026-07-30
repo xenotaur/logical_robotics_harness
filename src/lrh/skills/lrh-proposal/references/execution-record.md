@@ -42,10 +42,14 @@ PROMPT(AD_HOC:<SLUG_UPPER_UNDERSCORE>)[<ISO8601-TIMESTAMP>]
 ## Check for prior execution
 
 Search by stable slug *before* minting — `lrh prompt label` always mints a
-fresh timestamped ID, so `check-execution` alone cannot catch a rerun:
+fresh timestamped ID, so `check-execution` alone cannot catch a rerun.
+Derive `<SLUG_UPPER_UNDERSCORE>` from `<slug>` by replacing `-` with `_` and
+uppercasing, then match the complete trailing filename segment — not a bare
+substring, which would also match an unrelated longer slug that happens to
+contain this one:
 
 ```bash
-find project/executions/AD_HOC/ -name "*<SLUG_UPPER_UNDERSCORE>*.md"
+find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md"
 ```
 
 If any file is found, stop and report — do not continue unless the user

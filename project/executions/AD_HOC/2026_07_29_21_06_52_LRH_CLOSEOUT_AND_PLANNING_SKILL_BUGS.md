@@ -47,7 +47,18 @@ without reading its `status:` — fixed by suppressing the not-found error
 and applying `PROMPTS.md`'s status-handling rule (block on
 `in_progress`/`landed`, summarize-and-continue on
 `failed`/`reverted`/`superseded`, stop on unknown/ambiguous) before
-blocking, across all 6 locations.
+blocking, across all 6 locations. A third review round (re-triggered again)
+on commit `fd9d69a` surfaced 2 more findings: Codex noted the
+summarize-and-continue path never carried the matched record's
+`execution_id` forward into `--rerun-of` on the later `record-execution`
+call, contrary to `PROMPTS.md:136`; Copilot (low-confidence) noted the
+`find` can return multiple matches (reruns create multiple timestamped
+files with the same trailing slug) and the wording read as if only one
+file could ever match. Fixed both: added `--rerun-of <execution_id>`
+guidance to all 6 `record-execution` call sites, and reworded the
+status-check to explicitly cover multiple matches (any `in_progress`/
+`landed` blocks; all `failed`/`reverted`/`superseded` summarizes the most
+recent and continues; disagreeing statuses are ambiguous and block).
 
 # Validation
 

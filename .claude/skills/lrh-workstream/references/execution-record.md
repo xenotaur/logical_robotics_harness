@@ -53,12 +53,15 @@ find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
 `AD_HOC/` may not exist yet in a freshly bootstrapped project — suppress the
 not-found error rather than treating it as a failure.
 
-If a file is found, read its `status:` frontmatter field before deciding —
-per `PROMPTS.md`'s status-handling rule, a matched filename is discovery,
-not by itself a block: `in_progress`/`landed` stop and report;
-`failed`/`reverted`/`superseded` summarize and continue; unknown/ambiguous
-stop and report the ambiguity. Only after that search comes up empty or
-clears, mint the ID and run the secondary check:
+The glob can return more than one match — a prior rerun mints a new
+timestamped file with the same trailing slug. Read the `status:`
+frontmatter field of every match before deciding — per `PROMPTS.md`'s
+status-handling rule, a matched filename is discovery, not by itself a
+block: any match `in_progress`/`landed` stop and report; all matches
+`failed`/`reverted`/`superseded` summarize the most recent and continue
+(keeping its `execution_id` for `--rerun-of` below); disagreeing or
+unrecognized statuses stop and report the ambiguity. Only after that
+search comes up empty or clears, mint the ID and run the secondary check:
 
 ```bash
 lrh prompt check-execution --prompt-id "<id>" --project-root .
@@ -77,6 +80,10 @@ lrh prompt record-execution \
   --status in_progress \
   --project-root .
 ```
+
+If the prior-execution check above found and summarized a
+`failed`/`reverted`/`superseded` record, add `--rerun-of <its-execution_id>`
+so the new record links back to it, per `PROMPTS.md:136`.
 
 This creates a new file at:
 `project/executions/AD_HOC/<timestamp>_<SLUG_UPPER_UNDERSCORE>.md`

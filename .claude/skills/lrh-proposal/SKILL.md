@@ -155,14 +155,19 @@ find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
 been written there yet — so suppress the not-found error rather than
 treating it as a failure.
 
-If a file is found, read its `status:` frontmatter field before deciding —
-per `PROMPTS.md`'s status-handling rule, a matched filename is discovery,
-not by itself a block:
-- `in_progress` or `landed`: **stop and report** — do not continue unless
-  the user explicitly asks for a rerun.
-- `failed`, `reverted`, or `superseded`: not a blocking prior run —
-  summarize it and continue.
-- unknown or ambiguous status: **stop and report** the ambiguity.
+The glob can return more than one match — a prior rerun mints a new
+timestamped file with the same trailing slug. Read the `status:`
+frontmatter field of **every** match before deciding — per `PROMPTS.md`'s
+status-handling rule, a matched filename is discovery, not by itself a
+block:
+- Any match is `in_progress` or `landed`: **stop and report** — do not
+  continue unless the user explicitly asks for a rerun.
+- All matches are `failed`, `reverted`, or `superseded`: not a blocking
+  prior run — summarize the most recent one and continue, but **keep its
+  `execution_id`** to pass as `--rerun-of` in Step 10 (per `PROMPTS.md:136`,
+  a rerun must link back to the prior attempt it supersedes).
+- Matches disagree (e.g. one `failed`, one unknown) or any status is
+  unrecognized: **stop and report** the ambiguity.
 
 Then mint the prompt ID and run the secondary check (see
 `references/execution-record.md` for full syntax):
@@ -268,6 +273,10 @@ lrh prompt record-execution \
   --status in_progress \
   --project-root .
 ```
+
+If Step 4 found and summarized a `failed`/`reverted`/`superseded` prior
+record, add `--rerun-of <its-execution_id>` to the command above so the new
+record links back to it, per `PROMPTS.md:136`.
 
 Use `AD_HOC`, not `<PROP-ID>` — see the note in Step 4. This creates the
 record under `project/executions/AD_HOC/`, not `project/executions/<PROP-ID>/`.

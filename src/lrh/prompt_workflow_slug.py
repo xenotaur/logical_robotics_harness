@@ -382,6 +382,7 @@ def find_remote_matches(
     matches: list[SlugMatch] = []
     for pr in _list_open_prs(gh_runner):
         pr_ref = f"refs/remotes/pr/{pr.number}"
+        base_ref = f"refs/remotes/pr-base/{pr.number}"
         _run_git_or_raise(
             git_runner,
             ["fetch", "origin", f"+refs/pull/{pr.number}/head:{pr_ref}", "--quiet"],
@@ -389,12 +390,17 @@ def find_remote_matches(
         )
         _run_git_or_raise(
             git_runner,
-            ["fetch", "origin", pr.base_ref, "--quiet"],
+            [
+                "fetch",
+                "origin",
+                f"+refs/heads/{pr.base_ref}:{base_ref}",
+                "--quiet",
+            ],
             context=f"fetching base ref '{pr.base_ref}' for PR #{pr.number}",
         )
         merge_base = _run_git_or_raise(
             git_runner,
-            ["merge-base", pr_ref, f"origin/{pr.base_ref}"],
+            ["merge-base", pr_ref, base_ref],
             context=f"computing merge-base for PR #{pr.number}",
         ).strip()
 

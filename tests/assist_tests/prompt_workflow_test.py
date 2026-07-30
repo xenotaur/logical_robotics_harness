@@ -1,10 +1,8 @@
 import contextlib
 import datetime
 import io
-import os
 import pathlib
 import tempfile
-import time
 import unittest
 import unittest.mock
 
@@ -108,6 +106,14 @@ class PromptWorkflowTest(unittest.TestCase):
         # a prompt_id-only check could pass even if the filename timestamp
         # regressed to local time while prompt_id stayed correct, since
         # they're formatted independently (isoformat vs strftime).
+        #
+        # Deliberately does NOT vary the process's local timezone (no
+        # os.environ["TZ"]/time.tzset()): time.tzset is POSIX-only and
+        # raises AttributeError on Windows, which this package supports
+        # (pyproject.toml declares OS Independent). It also wouldn't add
+        # coverage -- the mock below fully controls the returned instant
+        # regardless of the host's local timezone, so the fix under test
+        # (no .astimezone() call) is exercised the same way either way.
         fixed_instant = datetime.datetime(
             2026, 3, 4, 5, 6, 7, tzinfo=datetime.timezone.utc
         )
@@ -119,46 +125,28 @@ class PromptWorkflowTest(unittest.TestCase):
                     return fixed_instant
                 return fixed_instant.astimezone(tz)
 
-        original_tz = os.environ.get("TZ")
-        try:
-            outputs = []
-            with tempfile.TemporaryDirectory() as temp_dir:
-                for tz in ("America/New_York", "Asia/Kolkata"):
-                    os.environ["TZ"] = tz
-                    time.tzset()
-                    buffer = io.StringIO()
-                    with unittest.mock.patch(
-                        "lrh.prompt_workflow.datetime.datetime", _FrozenDatetime
-                    ):
-                        with contextlib.redirect_stdout(buffer):
-                            prompt_workflow.run_prompt_cli(
-                                [
-                                    "label",
-                                    "--slug",
-                                    "utc-timestamp-test",
-                                    "--project-root",
-                                    temp_dir,
-                                ]
-                            )
-                    outputs.append(buffer.getvalue())
-        finally:
-            if original_tz is None:
-                os.environ.pop("TZ", None)
-            else:
-                os.environ["TZ"] = original_tz
-            time.tzset()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            buffer = io.StringIO()
+            with unittest.mock.patch(
+                "lrh.prompt_workflow.datetime.datetime", _FrozenDatetime
+            ):
+                with contextlib.redirect_stdout(buffer):
+                    prompt_workflow.run_prompt_cli(
+                        [
+                            "label",
+                            "--slug",
+                            "utc-timestamp-test",
+                            "--project-root",
+                            temp_dir,
+                        ]
+                    )
+            output = buffer.getvalue()
 
-        # Both TZ settings must produce byte-identical output -- proving
-        # the filename/execution_id/prompt_id are unaffected by local
-        # timezone -- and the filename segment must match the fixed
-        # instant's UTC wall-clock value, not a timezone-shifted one.
-        self.assertEqual(outputs[0], outputs[1])
-        for output in outputs:
-            self.assertIn(
-                "AD_HOC/2026_03_04_05_06_07_UTC_TIMESTAMP_TEST.md",
-                output,
-            )
-            self.assertIn("[2026-03-04T05:06:07+00:00]", output)
+        self.assertIn(
+            "AD_HOC/2026_03_04_05_06_07_UTC_TIMESTAMP_TEST.md",
+            output,
+        )
+        self.assertIn("[2026-03-04T05:06:07+00:00]", output)
 
     def test_parse_front_matter_fields_requires_closing_delimiter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

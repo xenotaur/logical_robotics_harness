@@ -87,7 +87,20 @@ pick could link the new record to the wrong prior attempt. Fixed across
 all 6 locations: when multiple matches are `in_progress`/`landed`, name
 them all and ask the user which one is being rerun rather than guessing;
 once confirmed, use the confirmed match's `execution_id` (falling back to
-the most recent if the user doesn't distinguish).
+the most recent if the user doesn't distinguish). A sixth review round on
+commit `f6a9dbd` surfaced one more Codex finding — mixed-status matches
+(an older `landed` record plus a newer `failed` rerun) retain the blocking
+match's `execution_id` for `--rerun-of` rather than the most recent
+attempt overall, which can misdirect the rerun chain — plus Copilot
+repeating its low-confidence `find`-exit-status/sorting suggestion from
+round 4. By user decision, both were deferred to a follow-up PR rather
+than fixed inline: PR #438's original purpose (the 8 bugs blocking
+Taurcode's resync) was already done and validated, and further hardening
+this idempotence check's precedence logic is lower-value while its more
+fundamental design (should filename-slug search block at all?) remains an
+open question in the same backlog file. Filed as
+`project/design/backlog.md` "Idempotence-check refinements deferred from
+PR #438 (follow-up PR)".
 
 # Validation
 
@@ -106,3 +119,11 @@ the most recent if the user doesn't distinguish).
   5 more files not touched here (`lrh-confirm-fixes`, `lrh-doc-organize`,
   `lrh-implement` x2, `lrh-review-response`) — out of scope for this PR
   since review didn't flag them, but worth a follow-up sweep.
+- Open a follow-up PR addressing the two items filed in
+  `project/design/backlog.md` ("Idempotence-check refinements deferred
+  from PR #438"): cross-status `rerun_of` precedence, and `find`
+  exit-status/sorting on the `AD_HOC/` search.
+- Revisit the bigger deferred design question in the same backlog file
+  ("Filename-slug idempotence search drives blocking, contrary to
+  `PROMPTS.md`") — the follow-up PR above may be partly moot depending on
+  how that question resolves.

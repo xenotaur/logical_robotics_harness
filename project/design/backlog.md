@@ -7,6 +7,61 @@ re-deriving context.
 
 ---
 
+## Idempotence-check refinements deferred from PR #438 (follow-up PR)
+
+**Noted:** 2026-07-30, during PR #438's 6th automated review round, after
+5 prior rounds had already narrowed the same `find`-by-slug idempotence
+check in `lrh-proposal`/`lrh-work-item`/`lrh-workstream` (Step 4 +
+`references/execution-record.md`, 6 locations) through several genuine
+edge-case fixes (undefined placeholder, substring-match false positive,
+missing-directory error, status-blind blocking, missing `--rerun-of`
+propagation, ambiguous match selection).
+
+**Idea — two remaining known gaps, deferred by explicit user decision
+rather than fixed inline to avoid further scope creep on PR #438:**
+
+1. **Cross-status `rerun_of` precedence (Codex, round 6).** When matches
+   span mixed statuses — e.g. an older `landed` record plus a newer
+   `failed` rerun of the same slug — the current logic blocks correctly
+   (any `landed`/`in_progress` match blocks) but then retains *that*
+   blocking match's `execution_id` for `--rerun-of`, not necessarily the
+   most recent attempt overall. The new record's `rerun_of` can end up
+   pointing at an older run instead of the immediately preceding one.
+   Properly fixing this means restructuring the two-bucket
+   (blocking-status vs. non-blocking-status) logic into a single
+   most-recent-by-timestamp selection that then determines block/no-block
+   from that record's status — a real redesign, not a one-line patch,
+   replicated across 6 locations.
+
+2. **`find` exit status on a missing `AD_HOC/` directory (Copilot,
+   recurring low-confidence, rounds 4 and 6).** `2>/dev/null` suppresses
+   the error message but not `find`'s non-zero exit status when
+   `project/executions/AD_HOC/` doesn't exist yet; an error-stopping
+   runner could treat that as a failure. Copilot also suggested sorting
+   the `find` output so "most recent match" selection (used throughout
+   this idempotence check) is deterministic rather than relying on
+   filesystem iteration order.
+
+**Status:** Deferred — PR #438's original purpose (fixing 8 bugs in
+`lrh-closeout`/`lrh-proposal`/`lrh-work-item`/`lrh-workstream`/`lrh-land`
+that blocked Taurcode's downstream skill resync) was already done and
+validated after 5 review rounds. Continuing to harden this idempotence
+check's edge-case precedence is lower value while the check's more
+fundamental design question — whether filename-slug search should drive
+blocking at all — remains open (see "Filename-slug idempotence search
+drives blocking, contrary to `PROMPTS.md`" below); a full fix here could
+be partly obsoleted by resolving that question differently. Merged as-is;
+address both items in a follow-up PR.
+
+**Related:** harness PR #438 (rounds 4 and 6);
+`src/lrh/skills/lrh-proposal/SKILL.md`,
+`src/lrh/skills/lrh-work-item/SKILL.md`,
+`src/lrh/skills/lrh-workstream/SKILL.md` (Step 4, idempotence check) and
+their `references/execution-record.md` mirrors; "Filename-slug idempotence
+search drives blocking, contrary to `PROMPTS.md`" entry below.
+
+---
+
 ## Filename-slug idempotence search drives blocking, contrary to `PROMPTS.md`
 
 **Noted:** 2026-07-29, during PR #438 review (fixing bugs in `lrh-closeout`,

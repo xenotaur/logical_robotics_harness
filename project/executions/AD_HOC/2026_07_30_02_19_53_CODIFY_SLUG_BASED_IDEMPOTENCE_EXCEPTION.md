@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:CODIFY_SLUG_BASED_IDEMPOTENCE_EXCEPTION)[2026-07-30T02:
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/440
 commit: 
 agent: claude_app
 instruction_source: follow-up item #3 from harness PR #438's final report (project/design/backlog.md "Filename-slug idempotence search drives blocking, contrary to PROMPTS.md")

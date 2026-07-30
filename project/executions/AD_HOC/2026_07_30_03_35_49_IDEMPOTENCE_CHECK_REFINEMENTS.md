@@ -145,6 +145,35 @@ issues in the same cross-PR/fork-branch discovery logic, flagged
 explicitly per the established pattern rather than fixed silently — user
 confirmed: fix both and continue.
 
+A fourth review round on commit `cef6972` surfaced 2 more findings, both
+Codex. Given this was now a 4th straight round on the same logic, both
+were reported to the user with explicit severity framing before touching
+anything, rather than fixed silently: (1) P2 — `gh pr list` defaults to
+`--limit 30`; in a repo with more than 30 open PRs, older ones would be
+silently omitted from the scan. Trivial one-line fix, applied regardless
+of the decision on (2). (2) P1 — the round-3 local-match dedup only
+excluded matches already in the *current checkout*, not matches
+duplicated *across* multiple open PRs. If PR B is branched from
+still-open PR A, both pull refs contain the same inherited file; both
+survive the filter, get tagged (`PR#A`, `PR#B`), and `sort` picks one
+arbitrarily by PR number — potentially B (the descendant that only
+inherited the record) over A (the true introducer), again risking a
+push to the wrong branch on rerun. User chose to fix this properly rather
+than defer it.
+
+Fixed by determining, for each open PR, whether it actually *introduced*
+the file: fetch the PR's declared base ref (`baseRefName`) alongside its
+head, compute `git merge-base` between them, and check whether the file
+already existed at that merge-base (`git cat-file -e "$merge_base:$path"`)
+— if so, this PR only inherited it and the match is skipped; if the
+merge-base lookup itself fails (e.g. an unreachable fork base), the match
+is kept rather than silently dropped, since failing to prove inheritance
+isn't the same as proving originality. Verified with a local git
+simulation before applying: a two-PR stack (PR 1 introduces the file from
+`main`; PR 2 branches from PR 1 and only adds an unrelated file) correctly
+kept PR 1's match and skipped PR 2's. Bumped `gh pr list --limit` to 1000
+in the same change.
+
 # Validation
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning

@@ -183,25 +183,45 @@ for every open PR regardless of whether the head branch lives in this
 repo or a fork, so this works even when `origin/<branch>` would not exist
 or would silently resolve to the wrong commit. Force the fetch (`+refs/...`)
 so a previously-scanned PR that was later force-pushed still updates the
-local ref instead of silently keeping the stale one. Exclude any remote
-match whose path already appears in the current checkout — every PR
-descended from a commit that already has the file will otherwise re-emit
-that same path tagged with an unrelated PR number, since the PR merely
-inherited it rather than introduced it:
+local ref instead of silently keeping the stale one. Request every open
+PR, not just the CLI's default first page (`--limit`), so an older PR
+isn't silently omitted in a repo with many open PRs.
+
+Exclude any remote match that this PR didn't actually introduce — a
+bare-path match in the current checkout, or a file already present at
+this PR's own merge-base with its declared base ref, is inherited, not
+new. The merge-base check specifically covers stacked PRs (PR B branched
+from still-open PR A): without it, both A's and B's pull refs contain the
+same file, and picking the "most recent" match by sort order could pick
+B — which only inherited the record — over A, which actually introduced
+it:
 
 ```bash
 LOCAL_MATCHES=$(find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null)
 {
   echo "$LOCAL_MATCHES"
-  gh pr list --state open --json number --jq '.[].number' | while read -r pr; do
+  gh pr list --state open --limit 1000 --json number,baseRefName \
+    --jq '.[] | "\(.number)\t\(.baseRefName)"' | while IFS=$'\t' read -r pr base; do
     git fetch origin "+refs/pull/$pr/head:refs/remotes/pr/$pr" --quiet 2>/dev/null
+    git fetch origin "$base" --quiet 2>/dev/null
+    merge_base=$(git merge-base "refs/remotes/pr/$pr" "origin/$base" 2>/dev/null)
     git ls-tree -r "refs/remotes/pr/$pr" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
       | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$" \
       | grep -vxFf <(echo "$LOCAL_MATCHES") \
-      | sed "s|\$|\tPR#$pr|"
+      | while read -r path; do
+          if [ -n "$merge_base" ] && git cat-file -e "$merge_base:$path" 2>/dev/null; then
+            continue
+          fi
+          printf '%s\tPR#%s\n' "$path" "$pr"
+        done
   done
 } | sort
 ```
+
+If the base-ref fetch or merge-base lookup fails (e.g. a fork base this
+session can't reach), the match is kept rather than silently dropped —
+failing to *prove* a match is inherited is not the same as proving it
+isn't.
 
 Each line is either a bare path (a match already in the current checkout)
 or `<path><TAB>PR#<N>` (a match found only on an open PR, fetched above

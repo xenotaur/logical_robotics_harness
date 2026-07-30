@@ -49,24 +49,38 @@ contain this one. Fetch and check open PRs by number using GitHub's
 `refs/pull/<N>/head` — a ref the base repository always exposes for every
 open PR regardless of whether the head branch lives in this repo or a
 fork. Force the fetch (`+refs/...`) so a force-pushed PR still updates the
-local ref rather than leaving a stale one. Exclude any remote match whose
-path already appears in the current checkout — every PR descended from a
-commit that already has the file would otherwise re-emit that path tagged
-with an unrelated PR number:
+local ref rather than leaving a stale one. Request every open PR
+(`--limit`), not just the CLI's default first page. Exclude any remote
+match this PR didn't actually introduce — a bare-path match in the
+current checkout, or a file already present at this PR's own merge-base
+with its declared base ref, is inherited, not new (the merge-base check
+covers stacked PRs: PR B branched from still-open PR A would otherwise
+also surface A's record, tagged with B's unrelated number):
 
 ```bash
 LOCAL_MATCHES=$(find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null)
 {
   echo "$LOCAL_MATCHES"
-  gh pr list --state open --json number --jq '.[].number' | while read -r pr; do
+  gh pr list --state open --limit 1000 --json number,baseRefName \
+    --jq '.[] | "\(.number)\t\(.baseRefName)"' | while IFS=$'\t' read -r pr base; do
     git fetch origin "+refs/pull/$pr/head:refs/remotes/pr/$pr" --quiet 2>/dev/null
+    git fetch origin "$base" --quiet 2>/dev/null
+    merge_base=$(git merge-base "refs/remotes/pr/$pr" "origin/$base" 2>/dev/null)
     git ls-tree -r "refs/remotes/pr/$pr" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
       | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$" \
       | grep -vxFf <(echo "$LOCAL_MATCHES") \
-      | sed "s|\$|\tPR#$pr|"
+      | while read -r path; do
+          if [ -n "$merge_base" ] && git cat-file -e "$merge_base:$path" 2>/dev/null; then
+            continue
+          fi
+          printf '%s\tPR#%s\n' "$path" "$pr"
+        done
   done
 } | sort
 ```
+
+If the base-ref fetch or merge-base lookup fails, the match is kept
+rather than silently dropped.
 
 `AD_HOC/` may not exist yet in a freshly bootstrapped project — a nonzero
 exit with no output here means no prior record, not a failure. Each line

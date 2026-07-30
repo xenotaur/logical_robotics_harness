@@ -138,42 +138,58 @@ Then propose the complete workstream: frontmatter (all fields) and body
 Derive `<slug>` from the workstream ID (lower-kebab): `WS-DOC-SKILLS` →
 `ws-doc-skills`.
 
-**Before minting, search for an existing record on this branch by stable
-slug.** `lrh prompt label` always mints a fresh timestamped prompt ID, so
-`check-execution` alone cannot detect a rerun — the ID it receives is brand
-new every time it's called. Derive `<SLUG_UPPER_UNDERSCORE>` from `<slug>`
-by replacing `-` with `_` and uppercasing (e.g. `ws-doc-skills` →
-`WS_DOC_SKILLS`), then match the complete trailing filename segment — not
-a bare substring, which would also match an unrelated longer slug that
-happens to contain this one (e.g. `..._WS_DOC_SKILLS_REVIEW.md`):
+**Before minting, search for an existing record by stable slug — the
+current checkout and any open PRs.** `lrh prompt label` always mints a
+fresh timestamped prompt ID, so `check-execution` alone cannot detect a
+rerun — the ID it receives is brand new every time it's called. Derive
+`<SLUG_UPPER_UNDERSCORE>` from `<slug>` by replacing `-` with `_` and
+uppercasing (e.g. `ws-doc-skills` → `WS_DOC_SKILLS`), then match the
+complete trailing filename segment — not a bare substring, which would
+also match an unrelated longer slug that happens to contain this one
+(e.g. `..._WS_DOC_SKILLS_REVIEW.md`):
 
 ```bash
-find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
+find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null | sort
 ```
 
-`AD_HOC/` may not exist yet in a freshly bootstrapped project — no record has
-been written there yet — so suppress the not-found error rather than
-treating it as a failure.
+`AD_HOC/` may not exist yet in a freshly bootstrapped project — no record
+has been written there yet — so a nonzero exit with no output here means
+no prior record, not a failure; do not treat it as one. `sort` makes
+multiple matches deterministic: filenames are timestamp-prefixed, so they
+sort chronologically and the last line is the most recent.
 
-The glob can return more than one match — a prior rerun mints a new
-timestamped file with the same trailing slug. Read the `status:`
-frontmatter field of **every** match before deciding — per `PROMPTS.md`'s
-status-handling rule, a matched filename is discovery, not by itself a
-block:
-- Any match is `in_progress` or `landed`: **stop and report** — do not
-  continue unless the user explicitly asks for a rerun. If more than one
-  match is `in_progress`/`landed`, name all of them and ask the user which
-  one this is a rerun of — do not guess. Once the user does confirm a
-  rerun, **keep the confirmed match's `execution_id`** (the most recent
-  one, if the user doesn't distinguish) to pass as `--rerun-of` in Step 10
-  — a rerun links to the prior attempt regardless of which status
-  triggered it (`PROMPTS.md:136`).
-- All matches are `failed`, `reverted`, or `superseded`: not a blocking
-  prior run — summarize the most recent one and continue, but **keep its
-  `execution_id`** to pass as `--rerun-of` in Step 10 (per `PROMPTS.md:136`,
-  a rerun must link back to the prior attempt it supersedes).
-- Matches disagree (e.g. one `failed`, one unknown) or any status is
-  unrecognized: **stop and report** the ambiguity.
+This only searches the current checkout. A prior record can exist on a
+branch not fetched locally yet — e.g. an earlier attempt still open as its
+own PR. Also check open PRs:
+
+```bash
+gh pr list --state open --json headRefName --jq '.[].headRefName' | while read -r branch; do
+  git ls-tree -r "origin/$branch" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
+    | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md$"
+done
+```
+
+Combine matches from both searches. If there is more than one, take the
+single most recent by filename timestamp and base the decision below only
+on that one — older matches are historical context, not separately
+actionable. (Recency, not asking the user to disambiguate, resolves
+multiple matches deterministically.)
+
+Read that match's `status:` frontmatter field before deciding — per
+`PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
+a matched filename is discovery, not by itself a block:
+- `in_progress` or `landed`: **stop and report** — do not continue unless
+  the user explicitly asks for a rerun. If they do, check whether the
+  match's branch (`<username>/<type>/<slug>`) still exists
+  (`git rev-parse --verify <branch> 2>/dev/null`); if it does, reuse it at
+  Step 6 instead of creating a new one — this is the same work continuing,
+  not a fresh attempt (see Step 6). Either way, keep the match's
+  `execution_id` to pass as `--rerun-of` in Step 10.
+- `failed`, `reverted`, or `superseded`: not a blocking prior run —
+  summarize it and continue, but keep its `execution_id` to pass as
+  `--rerun-of` in Step 10 (per `PROMPTS.md:136`, a rerun must link back to
+  the prior attempt it supersedes).
+- unknown or ambiguous status: **stop and report** the ambiguity.
 
 Then mint the prompt ID and run the secondary check (see
 `references/execution-record.md` for full syntax):
@@ -202,6 +218,17 @@ Do not skip this gate — it prevents incorrectly-scoped workstreams from
 being committed to the control plane.
 
 ### 6. Create branch from main
+
+If Step 4 found a blocked match, the user asked for a rerun, and that
+match's branch still exists, reuse it instead of creating a new one — this
+is the same work continuing, not a fresh attempt:
+
+```bash
+git checkout <branch-name>
+git pull
+```
+
+Otherwise, create it fresh from `main`:
 
 ```bash
 git checkout main && git pull

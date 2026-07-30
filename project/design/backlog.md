@@ -79,16 +79,32 @@ rather than fixed inline to avoid further scope creep on PR #438:**
    deliberately different warning-only behavior); and (once item 1 is
    resolved) the same `rerun_of` precedence logic where applicable.
 
-**Status:** Deferred — PR #438's original purpose (fixing 8 bugs in
-`lrh-closeout`/`lrh-proposal`/`lrh-work-item`/`lrh-workstream`/`lrh-land`
-that blocked Taurcode's downstream skill resync) was already done and
-validated after 5 review rounds. Continuing to harden this idempotence
-check's edge-case precedence is lower value while the check's more
-fundamental design question — whether filename-slug search should drive
-blocking at all — was open at the time (see "Filename-slug idempotence
-search drives blocking, contrary to `PROMPTS.md`" below, now resolved);
-a full fix here could still be partly reshaped by that resolution. Merged
-as-is; address all five items in a follow-up PR.
+**Status:** Resolved — 2026-07-30, all five items fixed in the follow-up
+PR this entry called for. Items 1–4 resolved together in `lrh-proposal`,
+`lrh-work-item`, and `lrh-workstream`: replaced the two-bucket
+blocking-vs-non-blocking logic with a single most-recent-by-timestamp
+match selection (resolves item 1's precedence question and removes the
+need to ask the user to disambiguate multiple matches); added `| sort` to
+every glob plus an explicit note that a nonzero exit with no output means
+no prior record (item 2); added a branch-existence check + reuse at
+branch-creation time for explicit reruns (item 3); added a second search
+over open PRs' remote branches alongside the current-checkout `find`
+(item 4). Item 5: anchored the glob in both `lrh-review-response` and
+`lrh-confirm-fixes`; added the missing per-match status-handling branch to
+`lrh-review-response` (it previously blocked on any match
+unconditionally); left `lrh-confirm-fixes`'s status-handling untouched
+(Decision 12 — correct and deliberate, only its glob needed anchoring).
+Neither skill needed items 3/4's branch-reuse or cross-PR search — both
+operate on an already-checked-out PR branch rather than creating a new
+one.
+
+**Noticed but not fixed:** `lrh-review-response/SKILL.md` Step 7 has a
+separate unanchored substring `find` used for `rerun_of` *attribution*
+(finding the primary record to link back to) — a different search than
+the Step 3 idempotence check this entry covers, lower risk
+(misattribution, not a false block), and not part of this entry's
+original five items. Flagged in the resolving PR's execution record
+rather than fixed inline.
 
 **Related:** harness PR #438 (rounds 4, 6, and 7); harness PR #440 (item 5);
 `src/lrh/skills/lrh-proposal/SKILL.md`,
@@ -258,19 +274,25 @@ decision that's already effectively made, promoted out of
 `project/memory/decision_log.md` because other documents need to cite it
 independently and repeatedly.
 
-**Status:** Deferred, revisit now overdue — this entry's own trigger has
-already fired without anyone circling back. Written 2026-07-05 when only
-one promoted decision file existed
-(`project/memory/decisions/precedence_semantics.md`); since then, two more
-were promoted without this entry being updated:
+**Status:** Trigger fired, user wants to build it — not yet scoped. This
+entry's own revisit trigger fired without anyone circling back: written
+2026-07-05 when only one promoted decision file existed
+(`project/memory/decisions/precedence_semantics.md`); two more were
+promoted since without this entry being updated —
 `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` (2026-07-24)
 and `project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`
 (2026-07-30, this entry's own author noticing the staleness while
 cross-linking). That's three real, hand-written instances of the
 promotion pattern now — the "single instance proves nothing" objection no
-longer holds. Actually revisiting whether `/lrh-decision` is worth
-building is a separate piece of work from noting that the deferral
-condition is met; flagged here rather than acted on inline.
+longer holds. 2026-07-30: confirmed with the user that `/lrh-decision` is
+wanted; not yet scoped or built. Next step when picked up: derive the
+interview questions and body-section shape from the three existing
+promoted files' actual structure (they don't all use identical section
+names — compare `Context`/`Options considered`/`Decision`/`Rationale`/
+`Alternatives considered`/`Consequences`/`Revisit conditions` across all
+three before finalizing a template), following the same pattern
+`/lrh-work-item` and `/lrh-proposal` already establish for interview-driven
+planning-artifact skills.
 
 **Related:** `project/work_items/resolved/WI-DECISION-RECORD-CONVENTIONS.md`
 Non-Goals; `project/design/design.md` §14 "Decision-record tiers";

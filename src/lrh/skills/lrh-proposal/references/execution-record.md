@@ -41,33 +41,44 @@ PROMPT(AD_HOC:<SLUG_UPPER_UNDERSCORE>)[<ISO8601-TIMESTAMP>]
 
 ## Check for prior execution
 
-Search by stable slug *before* minting — `lrh prompt label` always mints a
-fresh timestamped ID, so `check-execution` alone cannot catch a rerun.
-Derive `<SLUG_UPPER_UNDERSCORE>` from `<slug>` by replacing `-` with `_` and
+Search by stable slug *before* minting, across the current checkout and
+open PRs — `lrh prompt label` always mints a fresh timestamped ID, so
+`check-execution` alone cannot catch a rerun. Derive
+`<SLUG_UPPER_UNDERSCORE>` from `<slug>` by replacing `-` with `_` and
 uppercasing, then match the complete trailing filename segment — not a bare
 substring, which would also match an unrelated longer slug that happens to
 contain this one:
 
 ```bash
-find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
+find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null | sort
 ```
 
-`AD_HOC/` may not exist yet in a freshly bootstrapped project — suppress the
-not-found error rather than treating it as a failure.
+`AD_HOC/` may not exist yet in a freshly bootstrapped project — a nonzero
+exit with no output here means no prior record, not a failure. `sort`
+makes multiple matches deterministic (timestamp-prefixed filenames sort
+chronologically). This only searches the current checkout — also check
+open PRs:
 
-The glob can return more than one match — a prior rerun mints a new
-timestamped file with the same trailing slug. Read the `status:`
-frontmatter field of every match before deciding — per `PROMPTS.md`'s
-status-handling rule, a matched filename is discovery, not by itself a
-block: any match `in_progress`/`landed` stop and report (if more than one,
-name them all and ask the user which is being rerun — do not guess; unless
-the user explicitly asks for a rerun, in which case keep the confirmed
-match's `execution_id`, the most recent if undistinguished, for
-`--rerun-of` below); all matches
-`failed`/`reverted`/`superseded` summarize the most recent and continue
-(keeping its `execution_id` for `--rerun-of` below); disagreeing or
-unrecognized statuses stop and report the ambiguity. Only after that
-search comes up empty or clears, mint the ID and run the secondary check:
+```bash
+gh pr list --state open --json headRefName --jq '.[].headRefName' | while read -r branch; do
+  git ls-tree -r "origin/$branch" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
+    | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md$"
+done
+```
+
+Combine matches from both searches; if more than one, take the single most
+recent by filename timestamp and decide based only on that one — older
+matches are historical context, not separately actionable. Read that
+match's `status:` frontmatter field before deciding — per `PROMPTS.md`'s
+status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`), a matched
+filename is discovery, not by itself a block: `in_progress`/`landed` stop
+and report (unless the user explicitly asks for a rerun, in which case
+check whether the match's branch still exists and reuse it if so — see
+SKILL.md Step 6 — and keep the match's `execution_id` for `--rerun-of`
+below); `failed`/`reverted`/`superseded` summarize and continue (keeping
+its `execution_id` for `--rerun-of` below); unknown or ambiguous status
+stops and reports the ambiguity. Only after that search comes up empty or
+clears, mint the ID and run the secondary check:
 
 ```bash
 lrh prompt check-execution --prompt-id "<id>" --project-root .

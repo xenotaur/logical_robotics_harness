@@ -174,11 +174,13 @@ append `-confirm` (parallel to `/lrh-review-response`'s `-review` suffix):
 xenotaur/feat/wi-skills-lrh-confirm-fixes → wi-skills-lrh-confirm-fixes-confirm
 ```
 
-Check for a prior `_CONFIRM` record on this branch:
+Check for a prior `_CONFIRM` record on this branch, matched to the
+complete trailing filename segment — not a bare substring, which would
+also match an unrelated longer slug that happens to contain this one:
 
 ```bash
 UPPER_SLUG=$(echo "<slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/AD_HOC/ -name "*${UPPER_SLUG}*.md"
+find project/executions/AD_HOC/ -name "*_${UPPER_SLUG}.md" 2>/dev/null
 ```
 
 Unlike `/lrh-review-response`'s hard stop on a prior record, a prior

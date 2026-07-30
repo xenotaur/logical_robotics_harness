@@ -121,14 +121,29 @@ wi-skills-lrh-review-response-review → WI_SKILLS_LRH_REVIEW_RESPONSE_REVIEW
 
 Before minting, check for an existing review-response execution record on
 this branch. `lrh prompt check-execution` cannot catch duplicates here because
-each invocation mints a new timestamped ID:
+each invocation mints a new timestamped ID. Match the complete trailing
+filename segment, not a bare substring — a longer, unrelated slug that
+happens to contain this one must not count as a match:
 
 ```bash
-find project/executions/AD_HOC/ -name "*<UPPER_SLUG>*.md"
+find project/executions/AD_HOC/ -name "*_<UPPER_SLUG>.md" 2>/dev/null | sort
 ```
 
-If any file is found, **stop and report** — do not continue unless the user
-explicitly asks for a rerun.
+A nonzero exit with no output means no prior record, not a failure.
+`sort` makes multiple matches deterministic (timestamp-prefixed filenames
+sort chronologically); if there is more than one, take the single most
+recent and decide based only on that one.
+
+Read that match's `status:` frontmatter field before deciding — per
+`PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
+a matched filename is discovery, not by itself a block:
+- `in_progress` or `landed`: **stop and report** — do not continue unless
+  the user explicitly asks for a rerun. If they do, keep the match's
+  `execution_id` to pass as `rerun_of` in Step 7.
+- `failed`, `reverted`, or `superseded`: not a blocking prior run —
+  summarize it and continue, keeping its `execution_id` for `rerun_of` in
+  Step 7.
+- unknown or ambiguous status: **stop and report** the ambiguity.
 
 Then mint and run the secondary idempotence check:
 

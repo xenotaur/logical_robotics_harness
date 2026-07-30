@@ -311,42 +311,45 @@ a human who replies "I'll merge it" right after the push races the same
 delayed finding an agent would.
 
 **Elapsed time alone does not prove review ran — require an affirmative
-signal for this exact HEAD, from whichever reviewers this repository
-actually has.** Do not infer "review landed" from a timeout; an absence of
-new comments could mean the reviewers ran clean, or could mean they simply
-haven't run yet — those are indistinguishable from silence alone. Do not
-hardcode Codex/Copilot as mandatory: this skill ships standalone into
-client repositories that may configure different automated reviewers, only
-one of them, or none at all (human-only review). Determine what applies to
-*this* repository first:
+signal for this exact HEAD.** Do not infer "review landed" from a timeout;
+an absence of new comments could mean the reviewers ran clean, or could
+mean they simply haven't run yet — those are indistinguishable from
+silence alone.
 
-- **Known automated reviewers configured** (detected from Step 2's author
-  list, or documented in a `REVIEWS.md` override — see Step 0's
-  precondition) — retrigger each explicitly, the same way Step 2/Step 4's
-  REVIEW-LANDED check does when review hasn't run yet, e.g.:
+**Do not infer "no automated reviewer is configured" from silence either —
+that is the same fallacy in the other direction.** An earlier version of
+this step tried to detect "human-only repository" from the absence of an
+observed bot author in prior rounds; that is unsound — a real integration
+that simply hasn't posted yet (first PR, delayed response, this exact
+scenario) would be misclassified as human-only, letting a human clean-pass
+statement produce Green without ever giving the configured reviewer a
+chance to weigh in. Do not attempt to infer configuration state at all:
 
-  ```bash
-  gh pr comment <pr-url> --body "@codex review"
-  gh pr comment <pr-url> --body "@copilot review"
-  ```
+1. **Always attempt the retrigger, unconditionally** — it is a harmless
+   no-op if nothing listens for the mention:
 
-  Then poll for a response that references *this* commit — a new review, a
-  new issue comment from that reviewer, or a new inline thread whose body
-  cites the current SHA. Do not accept a stale comment from before this
-  push as evidence.
-- **No automated reviewer is configured for this repository** (none
-  observed reviewing earlier rounds, and no `REVIEWS.md` override names
-  one) — an automated retrigger has nothing to wait for and would deadlock
-  the verdict indefinitely. Instead, treat an explicit human statement that
-  they reviewed the `_CONFIRM` commit (e.g. "reviewed, looks good") as the
-  REVIEW-LANDED signal for this HEAD, same in kind as an automated clean
-  pass — report the commit and ask for it rather than presenting Green
-  unasked.
+   ```bash
+   gh pr comment <pr-url> --body "@codex review"
+   gh pr comment <pr-url> --body "@copilot review"
+   ```
 
-If no matching response has arrived after a reasonable wait (automated
-case) or hasn't been given yet (human-only case), the verdict is **Review
-pending** — report it explicitly and re-check later; do not time out into
-Green either way.
+   (Substitute or add other reviewer mentions this repository's
+   `REVIEWS.md`, if present, documents.)
+2. Poll for a response that references *this* commit — a new review, a new
+   issue comment from a reviewer, or a new inline thread whose body cites
+   the current SHA. Do not accept a stale comment from before this push as
+   evidence.
+3. If no matching response arrives after a reasonable wait, **do not
+   silently conclude "no reviewer configured" and fall back to a human
+   statement.** Ask the human directly: "No automated review response yet
+   on `<sha>` — is an automated reviewer configured for this repo (worth
+   waiting longer), or should I treat your own confirmation as the review
+   signal?" Only an explicit answer resolves this, not an inferred default
+   in either direction.
+
+The verdict is **Review pending** — report it explicitly and re-check
+later — for as long as neither a matching bot response nor an explicit
+human answer to the question above has arrived. Do not time out into Green.
 
 **If the retrigger surfaces a genuine new unresolved thread on the
 `_CONFIRM` commit, that is not "pending" — it is a new finding.** Waiting
@@ -445,9 +448,9 @@ Before reporting completion, verify:
       execution only") — a human executing immediately races the same
       delayed finding an agent would
 - [ ] REVIEW-LANDED evidence is an affirmative, SHA-matched response after
-      an explicit retrigger of whichever reviewers this repository
-      actually has — not inferred from elapsed time alone, and not
-      hardcoded to Codex/Copilot in a repo that configures neither
+      an unconditional retrigger attempt — not inferred from elapsed time
+      alone, and "no reviewer configured" is never inferred from silence;
+      an unanswered retrigger is asked about, not assumed either way
 - [ ] A genuine new thread surfaced by the retrigger was routed through
       Step 3's taxonomy and Steps 4-5, not left as an indefinite "recheck
       later"

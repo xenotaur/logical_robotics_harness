@@ -241,7 +241,7 @@ Report to the user:
 - What was skipped and why (presence / validity / feasibility / user directive)
 - Validation evidence (tool versions, test count, result)
 - Reminder that `session_transcript: pending` should be updated to
-  `claude-app:<session-id>` after the session ends
+  `claude-app:<host-uuid-stem>` after the session ends
 - Suggest running `/lrh-confirm-fixes <pr-url>` before merge to verify the
   fixes against the current diff and resolve the review threads
 

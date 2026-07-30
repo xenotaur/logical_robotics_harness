@@ -80,7 +80,7 @@ of comments; only proceed to "After the PR lands" once the PR is clean.
    - `status: landed`
    - `pr: <pr-url>`
    - `commit: <merge-SHA>`
-   - `session_transcript: claude-app:<session-id>` (if still `pending`)
+   - `session_transcript: claude-app:<host-uuid-stem>` (if still `pending`)
 
 2. **Resolve the work item** — move the file from
    `project/work_items/proposed/` to `project/work_items/resolved/` and set:

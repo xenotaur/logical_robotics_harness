@@ -318,7 +318,7 @@ Report to the user:
   `/lrh-closeout <pr-url>` to land the execution record, resolve the work
   item, and update the control plane
 - Reminder that `session_transcript: pending` should be updated to
-  `claude-app:<session-id>` after the session ends
+  `claude-app:<host-uuid-stem>` after the session ends
 
 ---
 

@@ -257,7 +257,7 @@ Offer (do not automatically do):
 - Adding the work item ID to the parent workstream's `work_items:` list if not
   already present
 - A reminder that `session_transcript: pending` should be updated to
-  `claude-app:<session-id>` after the session ends
+  `claude-app:<host-uuid-stem>` after the session ends
 - Next steps: wait for reviewer comments and run
   `/lrh-review-response <pr-url>` to address them (repeat as needed), then
   `/lrh-confirm-fixes <pr-url>` to verify the fixes against the current diff

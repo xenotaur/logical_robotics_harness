@@ -310,6 +310,27 @@ is the Step 6 thread-resolution verdict AND this re-checked CI state:
   newer, unchecked commit if one lands between this report and whoever ends
   up running it.
 
+  **Before permitting agent execution of that command, re-run a
+  REVIEW-LANDED check against the `_CONFIRM` commit Step 7 just pushed —
+  CI alone is not enough.** Step 7's commit is new content on the PR;
+  automated reviewers (Codex, Copilot) post *after* a push, not
+  simultaneously, and can still find something in the `_CONFIRM` commit
+  itself (this is not hypothetical — the record-authoring pass in this
+  skill's own worked example found a stale pointer value only after that
+  commit was already pushed). Compare the push time against now:
+
+  ```bash
+  gh pr view <pr-url> --json headRefOid,commits --jq '{head: .headRefOid, lastPush: (.commits | last | .committedDate)}'
+  lrh github threads <pr-url> --mode raw --state all
+  ```
+
+  If meaningful time hasn't passed since the push, or new unresolved
+  threads appear on the `_CONFIRM` commit, **do not permit agent execution
+  yet** — report the pending risk to the human explicitly and either wait
+  or ask them to confirm they want to proceed before that review lands.
+  Only once review has had time to land (or came back clean) does the
+  reply-classification below apply.
+
   **If the human then gives a live, in-session reply to this presented
   command, classify it before acting:**
   - *Affirmative, not claiming the action for the human* ("approve merge,"
@@ -373,6 +394,10 @@ Before reporting completion, verify:
       and `_CONFIRM.md`
 - [ ] `lrh validate` reports 0 errors before the record was pushed
 - [ ] CI re-checked against the post-push `HEAD` SHA before the final verdict
+- [ ] Before permitting agent execution of the merge one-liner, a
+      REVIEW-LANDED check was re-run against the `_CONFIRM` commit — not
+      just CI — since automated reviewers post after a push, not
+      simultaneously
 - [ ] The reported merge one-liner includes `--match-head-commit <sha>`
 - [ ] No `gh pr merge` was executed by this skill's own workflow — reported
       as a one-liner; any subsequent execution followed unambiguous

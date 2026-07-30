@@ -152,15 +152,28 @@ Then propose the complete work item: frontmatter (all fields) and body
 
 ### 4. Instruction phase (mint prompt ID + idempotence check)
 
-Run (see `references/execution-record.md` for full syntax):
+Derive `<slug>` from the work item ID (lower-kebab): `WI-SKILLS-LRH-SETUP` →
+`wi-skills-lrh-setup`.
+
+**Before minting, search for an existing record on this branch by stable
+slug.** `lrh prompt label` always mints a fresh timestamped prompt ID, so
+`check-execution` alone cannot detect a rerun — the ID it receives is brand
+new every time it's called:
+
+```bash
+find project/executions/AD_HOC/ -name "*<SLUG_UPPER_UNDERSCORE>*.md"
+```
+
+If any file is found, **stop and report** — do not continue unless the user
+explicitly asks for a rerun.
+
+Then mint the prompt ID and run the secondary check (see
+`references/execution-record.md` for full syntax):
 
 ```bash
 lrh prompt label --slug <slug>
 lrh prompt check-execution --prompt-id "<id>" --project-root .
 ```
-
-Derive `<slug>` from the work item ID (lower-kebab): `WI-SKILLS-LRH-SETUP` →
-`wi-skills-lrh-setup`.
 
 Do not pass `--work-item <ID>` here. This record documents the *creation* of
 the work item, not its implementation, so it stays in the `AD_HOC` bucket
@@ -323,7 +336,7 @@ git push
 - Which fields were inferred vs. directly from user answers — be explicit
   so the user can correct mismatches.
 - A reminder that `session_transcript: pending` in the execution record
-  should be updated to `claude-app:<session-id>` after the session ends.
+  should be updated to `claude-app:<host-uuid-stem>` after the session ends.
 - Suggested next steps per `references/lrh-work-item-workflow.md`.
 
 ---

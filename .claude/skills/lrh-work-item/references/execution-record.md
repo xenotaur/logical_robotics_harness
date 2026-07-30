@@ -46,6 +46,17 @@ PROMPT(AD_HOC:<SLUG_UPPER_UNDERSCORE>)[<ISO8601-TIMESTAMP>]
 
 ## Check for prior execution
 
+Search by stable slug *before* minting — `lrh prompt label` always mints a
+fresh timestamped ID, so `check-execution` alone cannot catch a rerun:
+
+```bash
+find project/executions/AD_HOC/ -name "*<SLUG_UPPER_UNDERSCORE>*.md"
+```
+
+If any file is found, stop and report — do not continue unless the user
+explicitly asks for a rerun. Only after that search comes up empty, mint the
+ID and run the secondary check:
+
 ```bash
 lrh prompt check-execution --prompt-id "<id>" --project-root .
 ```

@@ -196,6 +196,14 @@ mv project/design/proposals/proposed/<slug>/ project/design/proposals/adopted/<s
 
 ## Session Transcript Resolution
 
+### Resolve per execution record, not once per PR
+
+A single PR can carry execution records from different backends (e.g. a
+`codex_cloud` implementation record plus Claude-authored review-response or
+confirm-fixes records against the same PR). Resolve a transcript value
+separately for each matched record and apply each record's own resolved
+value when landing it — never reuse one record's resolved value for another.
+
 ### Branch on the backend first
 
 The pointer scheme is backend-specific. Check the execution record's `agent`

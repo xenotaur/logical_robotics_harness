@@ -156,6 +156,15 @@ Present the full plan as a table:
 
 ### Step 3 — Resolve session transcript
 
+**Resolve a transcript value separately for each execution record matched in
+Step 2** — a single PR can carry records from different backends (e.g. a
+`codex_cloud` implementation record plus Claude-authored review-response/
+confirm-fixes records), and stamping one resolved value onto every record
+would misattribute provenance on whichever records don't share that backend.
+Repeat the branch-and-resolve procedure below once per matched record, keyed
+off that record's own `agent` field, and keep each record's resolved value
+separate for Step 5.
+
 **First, branch on the execution record's `agent`** — the pointer scheme is
 backend-specific, and running closeout from Claude must not associate the
 current Claude window with work another backend produced:
@@ -255,7 +264,9 @@ Execute all confirmed actions. Abort on any error rather than partially completi
 
 **Execution records** (for each record marked `update to landed`):
 
-Call the CLI to update all four fields atomically:
+Call the CLI to update all four fields atomically, using **that record's own**
+resolved transcript value from Step 3 — not a value resolved for a different
+record on the same PR:
 
 ```bash
 lrh prompt update-execution \
@@ -263,7 +274,7 @@ lrh prompt update-execution \
   --status landed \
   --pr <pr-url> \
   --commit <merge-commit-sha> \
-  --session-transcript <resolved-value-from-step-3> \
+  --session-transcript <this-record's-resolved-value-from-step-3> \
   --project-root .
 ```
 

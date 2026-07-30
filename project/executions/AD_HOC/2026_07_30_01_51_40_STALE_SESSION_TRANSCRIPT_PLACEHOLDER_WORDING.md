@@ -15,11 +15,15 @@ created_at: 2026-07-30T01:51:40-04:00
 # Summary
 
 Fix the last 5 remaining instances of the stale `claude-app:<session-id>`
-session-transcript placeholder wording, left out of scope in PR #438 since
-review there didn't flag them (only files PR #438 actually touched got
-fixed): `lrh-confirm-fixes/SKILL.md`, `lrh-doc-organize/references/organize-workflow.md`,
+session-transcript placeholder wording under `src/lrh/skills/` (the active
+skill sources and their `.claude/skills/` mirrors), left out of scope in
+PR #438 since review there didn't flag them (only files PR #438 actually
+touched got fixed): `lrh-confirm-fixes/SKILL.md`,
+`lrh-doc-organize/references/organize-workflow.md`,
 `lrh-implement/references/lrh-implement-workflow.md`, `lrh-implement/SKILL.md`,
-`lrh-review-response/SKILL.md`.
+`lrh-review-response/SKILL.md`. Historical execution records and design
+proposals elsewhere in the repo still contain the old string as immutable
+narrative prose — out of scope here, not touched.
 
 # Result
 

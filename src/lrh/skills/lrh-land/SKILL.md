@@ -6,6 +6,7 @@ description: >
   from PROP-LRH-LAND-EXECUTE Decision 3 encoded as explicit algorithmic
   steps. Use when the user wants to drive an open PR through the complete
   terminal lifecycle chain in a single traceable session.
+disable-model-invocation: true
 argument-hint: "[pr-url]"
 ---
 
@@ -112,7 +113,7 @@ Attempt in order:
 
 1. `echo $CLAUDE_CODE_HOST_SESSION_ID`
 2. `lrh sessions list` filtered by PR number (if available)
-3. Browser URL from the user's active session (`claude-app:<session-id>`)
+3. Browser URL from the user's active session (`claude-app:<host-uuid-stem>`)
 
 Record the resolved session ID for use in the execution record. If
 unavailable, mark as `pending` and note in the record.

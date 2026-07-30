@@ -138,7 +138,45 @@ Then propose the complete proposal: frontmatter (all fields) and body
 
 ### 4. Instruction phase (mint prompt ID + idempotence check)
 
-Run (see `references/execution-record.md` for full syntax):
+**Before minting, search for an existing record on this branch by stable
+slug.** `lrh prompt label` always mints a fresh timestamped prompt ID, so
+`check-execution` alone cannot detect a rerun — the ID it receives is brand
+new every time it's called. Derive `<SLUG_UPPER_UNDERSCORE>` from `<slug>`
+by replacing `-` with `_` and uppercasing (e.g. `lrh-doc-skills` →
+`LRH_DOC_SKILLS`), then match the complete trailing filename segment — not
+a bare substring, which would also match an unrelated longer slug that
+happens to contain this one (e.g. `..._LRH_DOC_SKILLS_REVIEW.md`):
+
+```bash
+find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
+```
+
+`AD_HOC/` may not exist yet in a freshly bootstrapped project — no record has
+been written there yet — so suppress the not-found error rather than
+treating it as a failure.
+
+The glob can return more than one match — a prior rerun mints a new
+timestamped file with the same trailing slug. Read the `status:`
+frontmatter field of **every** match before deciding — per `PROMPTS.md`'s
+status-handling rule, a matched filename is discovery, not by itself a
+block:
+- Any match is `in_progress` or `landed`: **stop and report** — do not
+  continue unless the user explicitly asks for a rerun. If more than one
+  match is `in_progress`/`landed`, name all of them and ask the user which
+  one this is a rerun of — do not guess. Once the user does confirm a
+  rerun, **keep the confirmed match's `execution_id`** (the most recent
+  one, if the user doesn't distinguish) to pass as `--rerun-of` in Step 10
+  — a rerun links to the prior attempt regardless of which status
+  triggered it (`PROMPTS.md:136`).
+- All matches are `failed`, `reverted`, or `superseded`: not a blocking
+  prior run — summarize the most recent one and continue, but **keep its
+  `execution_id`** to pass as `--rerun-of` in Step 10 (per `PROMPTS.md:136`,
+  a rerun must link back to the prior attempt it supersedes).
+- Matches disagree (e.g. one `failed`, one unknown) or any status is
+  unrecognized: **stop and report** the ambiguity.
+
+Then mint the prompt ID and run the secondary check (see
+`references/execution-record.md` for full syntax):
 
 ```bash
 lrh prompt label --slug <slug>
@@ -242,6 +280,11 @@ lrh prompt record-execution \
   --project-root .
 ```
 
+If Step 4 found a prior matching record — whether summarized
+(`failed`/`reverted`/`superseded`) or explicitly overridden by the user
+(`in_progress`/`landed`) — add `--rerun-of <its-execution_id>` to the
+command above so the new record links back to it, per `PROMPTS.md:136`.
+
 Use `AD_HOC`, not `<PROP-ID>` — see the note in Step 4. This creates the
 record under `project/executions/AD_HOC/`, not `project/executions/<PROP-ID>/`.
 
@@ -295,7 +338,7 @@ Do not automatically invoke any skill — offer and wait for the user to confirm
 - Which fields were inferred vs. directly from user answers.
 - Suggested next steps per the scope assessment above.
 - A reminder that `session_transcript: pending` in the execution record
-  should be updated to `claude-app:<session-id>` after the session ends.
+  should be updated to `claude-app:<host-uuid-stem>` after the session ends.
 - Next steps for the PR itself: run `/lrh-review-response <pr-url>` to
   address reviewer comments (repeat as needed), then
   `/lrh-confirm-fixes <pr-url>` to verify the fixes against the current diff

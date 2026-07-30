@@ -41,6 +41,34 @@ PROMPT(AD_HOC:<SLUG_UPPER_UNDERSCORE>)[<ISO8601-TIMESTAMP>]
 
 ## Check for prior execution
 
+Search by stable slug *before* minting — `lrh prompt label` always mints a
+fresh timestamped ID, so `check-execution` alone cannot catch a rerun.
+Derive `<SLUG_UPPER_UNDERSCORE>` from `<slug>` by replacing `-` with `_` and
+uppercasing, then match the complete trailing filename segment — not a bare
+substring, which would also match an unrelated longer slug that happens to
+contain this one:
+
+```bash
+find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
+```
+
+`AD_HOC/` may not exist yet in a freshly bootstrapped project — suppress the
+not-found error rather than treating it as a failure.
+
+The glob can return more than one match — a prior rerun mints a new
+timestamped file with the same trailing slug. Read the `status:`
+frontmatter field of every match before deciding — per `PROMPTS.md`'s
+status-handling rule, a matched filename is discovery, not by itself a
+block: any match `in_progress`/`landed` stop and report (if more than one,
+name them all and ask the user which is being rerun — do not guess; unless
+the user explicitly asks for a rerun, in which case keep the confirmed
+match's `execution_id`, the most recent if undistinguished, for
+`--rerun-of` below); all matches
+`failed`/`reverted`/`superseded` summarize the most recent and continue
+(keeping its `execution_id` for `--rerun-of` below); disagreeing or
+unrecognized statuses stop and report the ambiguity. Only after that
+search comes up empty or clears, mint the ID and run the secondary check:
+
 ```bash
 lrh prompt check-execution --prompt-id "<id>" --project-root .
 ```
@@ -58,6 +86,11 @@ lrh prompt record-execution \
   --status in_progress \
   --project-root .
 ```
+
+If the prior-execution check above found a matching record — whether
+summarized (`failed`/`reverted`/`superseded`) or explicitly overridden by
+the user (`in_progress`/`landed`) — add `--rerun-of <its-execution_id>` so
+the new record links back to it, per `PROMPTS.md:136`.
 
 This creates a new file at:
 `project/executions/AD_HOC/<timestamp>_<SLUG_UPPER_UNDERSCORE>.md`

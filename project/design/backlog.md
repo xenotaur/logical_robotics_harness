@@ -7,6 +7,128 @@ re-deriving context.
 
 ---
 
+## Idempotence-check refinements deferred from PR #438 (follow-up PR)
+
+**Noted:** 2026-07-30, during PR #438's 6th automated review round, after
+5 prior rounds had already narrowed the same `find`-by-slug idempotence
+check in `lrh-proposal`/`lrh-work-item`/`lrh-workstream` (Step 4 +
+`references/execution-record.md`, 6 locations) through several genuine
+edge-case fixes (undefined placeholder, substring-match false positive,
+missing-directory error, status-blind blocking, missing `--rerun-of`
+propagation, ambiguous match selection).
+
+**Idea — two remaining known gaps, deferred by explicit user decision
+rather than fixed inline to avoid further scope creep on PR #438:**
+
+1. **Cross-status `rerun_of` precedence (Codex, round 6).** When matches
+   span mixed statuses — e.g. an older `landed` record plus a newer
+   `failed` rerun of the same slug — the current logic blocks correctly
+   (any `landed`/`in_progress` match blocks) but then retains *that*
+   blocking match's `execution_id` for `--rerun-of`, not necessarily the
+   most recent attempt overall. The new record's `rerun_of` can end up
+   pointing at an older run instead of the immediately preceding one.
+   Properly fixing this means restructuring the two-bucket
+   (blocking-status vs. non-blocking-status) logic into a single
+   most-recent-by-timestamp selection that then determines block/no-block
+   from that record's status — a real redesign, not a one-line patch,
+   replicated across 6 locations.
+
+2. **`find` exit status on a missing `AD_HOC/` directory (Copilot,
+   recurring low-confidence, rounds 4, 6, and 7).** `2>/dev/null`
+   suppresses the error message but not `find`'s non-zero exit status when
+   `project/executions/AD_HOC/` doesn't exist yet; an error-stopping
+   runner could treat that as a failure. Copilot also suggested sorting
+   the `find` output so "most recent match" selection (used throughout
+   this idempotence check) is deterministic rather than relying on
+   filesystem iteration order.
+
+3. **Explicit-rerun branch-name collision (Codex, round 7).** When a user
+   explicitly reruns a matched `in_progress` record that's still on its
+   original feature branch, Step 6's `git checkout -b
+   <username>/<type>/<slug>` uses the same deterministic branch name as
+   the original attempt and fails with `fatal: a branch named ... already
+   exists`, blocking the rerun before it reaches Step 10. Needs a decision
+   on whether reruns reuse the existing branch or create a suffixed one
+   that still carries the prior record forward for `rerun_of`.
+
+4. **`find` only searches the current working tree (Codex, round 8).** If
+   a prior `in_progress` record exists only on its own open PR branch and
+   a new invocation starts from `main` or a fresh checkout, the `find`
+   search reports no match — it never looks at other local or remote
+   branches. The workflow then mints an unlinked duplicate record, which
+   can later collide with the same deterministic branch name (item 3) or
+   push conflict. Needs a decision on whether to query relevant PR/remote
+   branches, or require checking out the active branch first, before
+   concluding no prior run exists.
+
+**Status:** Deferred — PR #438's original purpose (fixing 8 bugs in
+`lrh-closeout`/`lrh-proposal`/`lrh-work-item`/`lrh-workstream`/`lrh-land`
+that blocked Taurcode's downstream skill resync) was already done and
+validated after 5 review rounds. Continuing to harden this idempotence
+check's edge-case precedence is lower value while the check's more
+fundamental design question — whether filename-slug search should drive
+blocking at all — remains open (see "Filename-slug idempotence search
+drives blocking, contrary to `PROMPTS.md`" below); a full fix here could
+be partly obsoleted by resolving that question differently. Merged as-is;
+address all four items in a follow-up PR.
+
+**Related:** harness PR #438 (rounds 4, 6, and 7);
+`src/lrh/skills/lrh-proposal/SKILL.md`,
+`src/lrh/skills/lrh-work-item/SKILL.md`,
+`src/lrh/skills/lrh-workstream/SKILL.md` (Step 4, idempotence check) and
+their `references/execution-record.md` mirrors; "Filename-slug idempotence
+search drives blocking, contrary to `PROMPTS.md`" entry below.
+
+---
+
+## Filename-slug idempotence search drives blocking, contrary to `PROMPTS.md`
+
+**Noted:** 2026-07-29, during PR #438 review (fixing bugs in `lrh-closeout`,
+`lrh-proposal`, `lrh-work-item`, `lrh-workstream` surfaced by Taurcode's
+downstream resync of these skills).
+
+**Idea:** `PROMPTS.md`'s "Soft idempotence before execution" section is
+explicit: "Exploratory search results can provide useful context for
+discovery, auditing, and debugging, but they should not by themselves drive
+blocking or rerun decisions" — only an exact structured `prompt_id` lookup
+(`lrh prompt check-execution`) is authoritative for blocking. But
+`lrh-proposal`, `lrh-work-item`, and `lrh-workstream` (added in PR #438,
+addressing a Codex finding that `lrh prompt label` always mints a fresh
+timestamped ID so `check-execution` alone can't catch a rerun) search
+`project/executions/AD_HOC/` by filename-slug match *before* minting, and
+that filename match itself drives a stop-and-report block on
+`in_progress`/`landed` records. This is not a new pattern invented for PR
+#438 — it was copied from the pre-existing, already-merged
+`lrh-review-response/SKILL.md:122-131`, which does the identical
+"find by filename slug → stop and report" thing and was cited as the
+precedent to follow. So either that existing skill already violates the
+`PROMPTS.md` rule and it's gone unnoticed, or there's an implicit accepted
+exception for this specific pre-mint case that the general rule doesn't
+anticipate.
+
+Resolving this properly means deciding, then applying consistently across
+all four skills (`lrh-review-response` included): should filename-slug
+discovery ever be blocking, or should it always be presented as
+context/confirmation-request only (per the literal `PROMPTS.md` rule)? That
+is a design decision bigger than a single-PR bug fix, and touching
+`lrh-review-response` was out of scope for PR #438.
+
+**Status:** Deferred — PR #438 left the existing blocking behavior as-is,
+matching the `lrh-review-response` precedent, rather than redesigning
+unilaterally under review pressure. Revisit when either (a) the tension is
+worth resolving as its own proposal, or (b) a real incident (a legitimate
+rerun blocked by a stale/irrelevant filename match) demonstrates the cost
+of the current behavior concretely.
+
+**Related:** `PROMPTS.md` "Soft idempotence before execution" section;
+`src/lrh/skills/lrh-review-response/SKILL.md` Step 3;
+`src/lrh/skills/lrh-proposal/SKILL.md`,
+`src/lrh/skills/lrh-work-item/SKILL.md`,
+`src/lrh/skills/lrh-workstream/SKILL.md` (Step 4, idempotence check);
+harness PR #438.
+
+---
+
 ## Validator drift-check for synced skill references
 
 **Noted:** 2026-06-30, during `WS-PRIOR-ART-CHECK` design session.

@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:IDEMPOTENCE_CHECK_REFINEMENTS)[2026-07-30T03:35:36-04:0
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/441
 commit: 
 agent: claude_app
 instruction_source: project/design/backlog.md "Idempotence-check refinements deferred from PR #438"

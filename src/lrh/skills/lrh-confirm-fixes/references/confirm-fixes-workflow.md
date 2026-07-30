@@ -32,7 +32,8 @@ PR review (Codex, Copilot, human)   ← reviewers post comments
     │  Creates AD_HOC _CONFIRM execution record with rerun_of link
     │
     ▼
-Merge PR (human) + closeout          ← update records to landed, resolve WI
+Merge PR (human, or agent given         ← update records to landed, resolve WI
+  unambiguous authorization) + closeout
 ```
 
 `/lrh-confirm-fixes` is the pre-merge complement `/lrh-review-response` cannot

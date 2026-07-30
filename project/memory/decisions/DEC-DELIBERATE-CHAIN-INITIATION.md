@@ -177,7 +177,11 @@ Revisit when:
 
 - `CHAIN-NOTE` evidence shows single-cycle chains frequently need mid-run human
   intervention, or shows the merge gate is never load-bearing (either would
-  change where the gates belong);
+  change where the gates belong) — **met 2026-07-30**: cross-session evidence
+  showed the merge gate's categorical "human always executes" constraint was
+  not load-bearing, only its authorization requirement was; see
+  `DEC-AGENT-EXECUTED-MERGE-GATE.md`, which narrows principle 1 accordingly
+  (the authorization requirement itself is unchanged);
 - the deliberate-model-invocation follow-up resolves the flag-vs-guidance
   question (this record's principle 2 should then be updated);
 - `WI-BOUNDED-STABILIZATION-LOOP-DESIGN` is designed (it inherits this policy);

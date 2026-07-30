@@ -178,14 +178,15 @@ timestamps are not reliably chronological across machines — see
 local time, not UTC").
 
 Interpret the exit code:
-- **`1` — blocking match** (`landed`/`in_progress`, the default per
-  `DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`): **stop and report** — do not
-  continue unless the user explicitly asks for a rerun. If they do, see
-  Step 6 for how to resume the match's branch (`<username>/<type>/<slug>`)
+- **`1` — blocking match:** either a `landed`/`in_progress` match (the
+  default per `DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`), or a match whose
+  status is `planned` or otherwise unrecognized — an unresolved outcome
+  blocks too, since it is not license to proceed. **Stop and report** — do
+  not continue unless the user explicitly asks for a rerun. If they do,
+  see Step 6 for how to resume the match's branch (`<username>/<type>/<slug>`)
   whether it's local, remote-only, or gone. Either way, keep the printed
   `execution_id` to pass as `--rerun-of` in Step 10.
-- **`0` with a match printed** (`failed`/`reverted`/`superseded`, or an
-  unrecognized status such as `planned` — non-blocking by default):
+- **`0` with a match printed** (`failed`/`reverted`/`superseded` only):
   summarize it and continue, but keep its `execution_id` to pass as
   `--rerun-of` in Step 10 (per `PROMPTS.md:136`, a rerun must link back to
   the prior attempt it supersedes).

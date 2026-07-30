@@ -54,15 +54,38 @@ class SlugMatchSortAndPolicyTest(unittest.TestCase):
                 self.assertFalse(result.blocking)
                 self.assertEqual(result.exit_code, 0)
 
-    def test_unrecognized_planned_status_does_not_block(self) -> None:
+    def test_unrecognized_planned_status_blocks_as_unresolved(self) -> None:
         # DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT leaves `planned` unresolved
-        # centrally; this module's default leans non-blocking.
+        # centrally, but an unresolved outcome is not license to proceed --
+        # only explicit terminal statuses are non-blocking.
         result = prompt_workflow_slug.SlugCheckResult(
             slug="my-slug",
             work_item="AD_HOC",
             matches=[self._match("A", "planned", "2026-01-01T00:00:00+00:00")],
         )
-        self.assertFalse(result.blocking)
+        self.assertTrue(result.blocking)
+        self.assertTrue(result.unresolved_status)
+        self.assertEqual(result.exit_code, 1)
+
+    def test_missing_or_garbage_status_blocks_as_unresolved(self) -> None:
+        for status in ("", "not-a-real-status"):
+            with self.subTest(status=status):
+                result = prompt_workflow_slug.SlugCheckResult(
+                    slug="my-slug",
+                    work_item="AD_HOC",
+                    matches=[self._match("A", status, "2026-01-01T00:00:00+00:00")],
+                )
+                self.assertTrue(result.blocking)
+                self.assertTrue(result.unresolved_status)
+
+    def test_known_blocking_status_is_not_flagged_unresolved(self) -> None:
+        result = prompt_workflow_slug.SlugCheckResult(
+            slug="my-slug",
+            work_item="AD_HOC",
+            matches=[self._match("A", "landed", "2026-01-01T00:00:00+00:00")],
+        )
+        self.assertTrue(result.blocking)
+        self.assertFalse(result.unresolved_status)
 
     def test_most_recent_selected_by_created_at_not_list_order(self) -> None:
         older_landed = self._match("OLDER", "landed", "2026-01-01T00:00:00+00:00")
@@ -106,6 +129,31 @@ class FindLocalMatchesTest(unittest.TestCase):
                 project_root=temp_dir, slug="my-slug"
             )
         self.assertEqual(matches, [])
+
+    def test_unparseable_matching_file_is_preserved_not_dropped(self) -> None:
+        # A trailing-segment filename match with malformed frontmatter must
+        # not be silently discarded -- that would let a genuine prior
+        # record be missed entirely and permit minting a duplicate.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            path = (
+                project_root
+                / "project/executions/AD_HOC/2026_01_01_00_00_00_MY_SLUG.md"
+            )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("not valid frontmatter at all\n", encoding="utf-8")
+
+            matches = prompt_workflow_slug.find_local_matches(
+                project_root=project_root, slug="my-slug"
+            )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].status, "unparseable")
+        result = prompt_workflow_slug.SlugCheckResult(
+            slug="my-slug", work_item="AD_HOC", matches=matches
+        )
+        self.assertTrue(result.blocking)
+        self.assertTrue(result.unresolved_status)
 
     def test_matches_trailing_segment_only_not_bare_substring(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -234,6 +282,35 @@ class CrossPrDiscoveryGitSimulationTest(unittest.TestCase):
         self.assertEqual(matches[0].source, "PR#1")
         self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_MY_SLUG")
         self.assertEqual(matches[0].status, "in_progress")
+
+    def test_default_git_runner_binds_to_project_root_not_process_cwd(self) -> None:
+        # Regression test: the default git/gh runners must run in
+        # `project_root`, not the process's own current directory --
+        # otherwise a caller targeting a different project root would
+        # silently query (and mutate refs in) the wrong repository.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            origin_dir = root / "origin"
+            consumer_dir = root / "consumer"
+            origin_dir.mkdir()
+            consumer_dir.mkdir()
+            self._build_origin(origin_dir)
+            self._build_consumer(consumer_dir, origin_dir)
+
+            gh_runner = _FakeGh([{"number": 1, "baseRefName": "main"}])
+
+            # Deliberately omit git_runner: rely on the default, which must
+            # bind to `project_root` via cwd rather than this test
+            # process's actual working directory (which is not a git repo
+            # tracking an "origin" remote with a "pr1" branch at all).
+            matches = prompt_workflow_slug.find_remote_matches(
+                slug="my-slug",
+                project_root=consumer_dir,
+                gh_runner=gh_runner,
+            )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_MY_SLUG")
 
     def test_local_match_excluded_from_remote_results(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

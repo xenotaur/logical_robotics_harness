@@ -94,20 +94,37 @@ class SlugCheckResult:
 
     @property
     def blocking(self) -> bool:
-        """Default policy: block on landed/in_progress, else continue.
+        """Default policy: block on anything but an explicit terminal status.
 
         This is the labeled *default* from ``DEC-PRE-MINT-SLUG-IDEMPOTENCE-
         DEFAULT``, not a mandate -- a skill may deviate (e.g.
         ``lrh-confirm-fixes``'s Decision 12 warning-only behavior) by
         interpreting this result differently rather than by changing this
-        function. A ``planned`` (or otherwise unrecognized) status is
-        deliberately left non-blocking here: the decision record leaves
-        that gap unresolved centrally, and defaulting to "continue" is the
-        safer of the two guesses.
+        function. Only ``failed``/``reverted``/``superseded`` are
+        non-blocking; ``landed``/``in_progress`` block as usual, and a
+        ``planned`` or otherwise unrecognized/missing status also blocks
+        -- an unresolved outcome is not license to proceed, it means stop
+        and report the ambiguity (matching the shell-based idempotence
+        check this module replaces, which treated any unknown status as a
+        stop condition rather than a green light)."""
+
+        recent = self.most_recent
+        return recent is not None and recent.status not in TERMINAL_STATUSES
+
+    @property
+    def unresolved_status(self) -> bool:
+        """True if the most recent match's status is neither known bucket.
+
+        Distinguishes an ordinary blocking match (``landed``/
+        ``in_progress``) from one that blocks only because its status
+        could not be classified at all -- useful for giving the human a
+        more specific reason than a bare "blocking."
         """
 
         recent = self.most_recent
-        return recent is not None and recent.status in BLOCKING_STATUSES
+        return recent is not None and recent.status not in (
+            BLOCKING_STATUSES | TERMINAL_STATUSES
+        )
 
     @property
     def exit_code(self) -> int:
@@ -133,12 +150,28 @@ def find_local_matches(
     for path in sorted(bucket.glob("*.md")):
         if not pattern.search(path.name):
             continue
+        rel_path = (rel_prefix / path.name).as_posix()
         record = prompt_workflow_records.parse_execution_record(path)
         if record is None:
+            # The filename is an authoritative trailing-segment match, but
+            # its frontmatter is malformed or unreadable. Preserve it as an
+            # unresolved-status match rather than silently discarding it --
+            # dropping it here would let a genuinely prior (if malformed)
+            # record be missed entirely, permitting a duplicate mint.
+            matches.append(
+                SlugMatch(
+                    path=rel_path,
+                    execution_id="",
+                    status="unparseable",
+                    pr="",
+                    created_at="",
+                    source="local",
+                )
+            )
             continue
         matches.append(
             SlugMatch(
-                path=(rel_prefix / path.name).as_posix(),
+                path=rel_path,
                 execution_id=record.execution_id,
                 status=record.status,
                 pr=record.pr,
@@ -183,8 +216,34 @@ def _list_open_prs(gh_runner: GhRunner) -> list[_OpenPr]:
     return prs
 
 
-def _default_git_runner(args: list[str]) -> "subprocess.CompletedProcess[str]":
-    return subprocess.run(["git", *args], check=False, capture_output=True, text=True)
+def _make_default_git_runner(project_root: str | pathlib.Path) -> GitRunner:
+    """Bind a git runner to ``project_root`` rather than the process cwd.
+
+    Without this, a caller invoking ``check_slug``/``find_remote_matches``
+    with ``--project-root`` pointing somewhere other than the process's
+    own working directory would have every ``git`` call silently operate
+    on the wrong repository -- querying (and mutating refs in) whatever
+    repo the process happens to be running from instead of the requested
+    target.
+    """
+
+    def runner(args: list[str]) -> "subprocess.CompletedProcess[str]":
+        return subprocess.run(
+            ["git", *args],
+            cwd=project_root,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+
+    return runner
+
+
+def _make_default_gh_runner(project_root: str | pathlib.Path) -> GhRunner:
+    def runner(argv: list[str]) -> object:
+        return gh_client.run_gh_json(argv, cwd=project_root)
+
+    return runner
 
 
 def _run_git_or_raise(git_runner: GitRunner, args: list[str], *, context: str) -> str:
@@ -201,9 +260,10 @@ def find_remote_matches(
     work_item: str = "AD_HOC",
     output_root: str | pathlib.Path = "project/executions",
     *,
+    project_root: str | pathlib.Path = ".",
     local_paths: typing.Iterable[str] = (),
-    gh_runner: GhRunner = gh_client.run_gh_json,
-    git_runner: GitRunner = _default_git_runner,
+    gh_runner: GhRunner | None = None,
+    git_runner: GitRunner | None = None,
 ) -> list[SlugMatch]:
     """Cross-PR (including fork) trailing-segment filename search.
 
@@ -211,7 +271,18 @@ def find_remote_matches(
     of silently reporting no match, closing the
     "Idempotence cross-PR discovery doesn't fail closed on fetch errors"
     gap tracked in ``project/design/backlog.md``.
+
+    ``gh``/``git`` calls are bound to ``project_root`` by default (via
+    ``cwd``) rather than the process's own working directory, so a caller
+    targeting a project root other than its cwd doesn't silently query a
+    different repository. Pass explicit ``gh_runner``/``git_runner``
+    callables to override (e.g. for tests).
     """
+
+    if git_runner is None:
+        git_runner = _make_default_git_runner(project_root)
+    if gh_runner is None:
+        gh_runner = _make_default_gh_runner(project_root)
 
     slug_upper = _slug_upper_underscore(slug)
     pattern = _trailing_segment_pattern(slug_upper)
@@ -284,8 +355,8 @@ def check_slug(
     output_root: str | pathlib.Path = "project/executions",
     *,
     include_remote: bool = True,
-    gh_runner: GhRunner = gh_client.run_gh_json,
-    git_runner: GitRunner = _default_git_runner,
+    gh_runner: GhRunner | None = None,
+    git_runner: GitRunner | None = None,
 ) -> SlugCheckResult:
     """Combined local + cross-PR slug idempotence check."""
 
@@ -301,6 +372,7 @@ def check_slug(
             slug=slug,
             work_item=work_item,
             output_root=output_root,
+            project_root=project_root,
             local_paths=[match.path for match in local_matches],
             gh_runner=gh_runner,
             git_runner=git_runner,
@@ -328,7 +400,14 @@ def format_text_result(result: SlugCheckResult) -> str:
 
     recent = result.most_recent
     assert recent is not None
-    if result.blocking:
+    if result.unresolved_status:
+        lines.append(
+            "BLOCKING (unresolved status): most recent match "
+            f"({recent.execution_id or recent.path!r}, status={recent.status!r}) "
+            "has no recognized terminal or in-progress status -- stop and "
+            "report the ambiguity rather than treating it as safe to continue."
+        )
+    elif result.blocking:
         lines.append(
             "BLOCKING: most recent match "
             f"({recent.execution_id}, status={recent.status}) "
@@ -338,6 +417,6 @@ def format_text_result(result: SlugCheckResult) -> str:
         lines.append(
             "Non-blocking: most recent match "
             f"({recent.execution_id}, status={recent.status}) "
-            "is terminal or unrecognized -- continue and link rerun_of."
+            "is terminal -- continue and link rerun_of."
         )
     return "\n".join(lines) + "\n"

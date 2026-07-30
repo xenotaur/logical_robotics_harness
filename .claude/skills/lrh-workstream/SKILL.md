@@ -154,9 +154,9 @@ find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
 
 `AD_HOC/` may not exist yet in a freshly bootstrapped project — no record
 has been written there yet — so a nonzero exit with no output here means
-no prior record, not a failure; do not treat it as one. `sort` makes
-multiple matches deterministic: filenames are timestamp-prefixed, so they
-sort chronologically and the last line is the most recent.
+no prior record, not a failure; do not treat it as one. `sort` here is for
+deterministic *ordering*, not chronological correctness — see below for
+why filename order alone can't be trusted to mean "most recent."
 
 This only searches the current checkout. A prior record can exist on a
 branch not fetched locally yet — e.g. an earlier attempt still open as its
@@ -208,17 +208,27 @@ isn't.
 
 Each line is either a bare path (a match already in the current checkout)
 or `<path><TAB>PR#<N>` (a match found only on an open PR, fetched above
-into the local `refs/remotes/pr/<N>` ref). `sort` still orders the
-combined list correctly, since every line starts with the same
-timestamp-prefixed path. If there is more than one match, take the last
-line — the single most recent — and base the decision below only on that
-one; older matches are historical context, not separately actionable.
-(Recency, not asking the user to disambiguate, resolves multiple matches
+into the local `refs/remotes/pr/<N>` ref). If there is more than one
+match, **do not** assume the filename that sorts last is the most
+recent — execution-record timestamps embed the creating machine's *local*
+time, not UTC (see `project/design/backlog.md`'s "Execution-record
+filename timestamps use local time, not UTC"), so filename order can be
+wrong across machines in different timezones. Instead, read every
+surviving match's `created_at:` frontmatter field (for a bare path, read
+the file directly; for a `<path><TAB>PR#<N>` match, read it without
+checking out via `git show "refs/remotes/pr/$N:$path"`), normalize each to
+an absolute instant before comparing — e.g.
+`python3 -c "import datetime,sys; print(datetime.datetime.fromisoformat(sys.argv[1]).timestamp())" "$created_at"`
+for a comparable epoch value (portable across GNU/BSD; `date -d` is
+GNU-only and fails on macOS) — since the raw ISO8601 strings carry their
+own UTC offsets and don't sort correctly as plain text either — and base
+the decision below only on the one with the truly latest timestamp; older
+matches are historical context, not separately actionable. (Recency, not
+asking the user to disambiguate, resolves multiple matches
 deterministically.)
 
-Read that match's `status:` frontmatter field before deciding: for a bare
-path, read the file directly; for a `<path><TAB>PR#<N>` match, read it
-without checking out via `git show "refs/remotes/pr/$N:$path"`. Per
+Having identified that match, read its `status:` frontmatter field
+(already fetched above) before deciding. Per
 `PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
 a matched filename is discovery, not by itself a block:
 - `in_progress` or `landed`: **stop and report** — do not continue unless

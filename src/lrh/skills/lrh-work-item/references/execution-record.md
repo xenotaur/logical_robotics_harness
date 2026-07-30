@@ -93,11 +93,19 @@ rather than silently dropped.
 exit with no output here means no prior record, not a failure. Each line
 is either a bare path (already in the current checkout) or
 `<path><TAB>PR#<N>` (found only on an open PR, fetched into the local
-`refs/remotes/pr/<N>` ref above). `sort` still orders the combined list
-correctly, since every line starts with the same timestamp-prefixed path —
-take the last line if there's more than one, and decide based only on that
-one. Read a bare-path match directly; read a `<path><TAB>PR#<N>` match via
-`git show "refs/remotes/pr/$N:$path"` without checking out. Per
+`refs/remotes/pr/<N>` ref above). If there's more than one match, do not
+assume the filename that sorts last is the most recent — timestamps embed
+the creating machine's *local* time, not UTC (see `project/design/backlog.md`'s
+"Execution-record filename timestamps use local time, not UTC"), so
+filename order can be wrong across timezones. Read every surviving
+match's `created_at:` frontmatter field instead (bare path: read
+directly; `<path><TAB>PR#<N>`: `git show "refs/remotes/pr/$N:$path"`
+without checking out), normalize each to an absolute instant before
+comparing (e.g.
+`python3 -c "import datetime,sys; print(datetime.datetime.fromisoformat(sys.argv[1]).timestamp())" "$created_at"`
+— portable across GNU/BSD, unlike GNU-only `date -d` — since raw ISO8601
+strings with differing UTC offsets don't sort correctly as text either), and
+decide based only on the one with the truly latest timestamp. Per
 `PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
 a matched filename is discovery, not by itself a block: `in_progress`/
 `landed` stop and report (unless the user explicitly asks for a rerun, in

@@ -129,10 +129,18 @@ happens to contain this one must not count as a match:
 find project/executions/AD_HOC/ -name "*_<UPPER_SLUG>.md" 2>/dev/null | sort
 ```
 
-A nonzero exit with no output means no prior record, not a failure.
-`sort` makes multiple matches deterministic (timestamp-prefixed filenames
-sort chronologically); if there is more than one, take the single most
-recent and decide based only on that one.
+A nonzero exit with no output means no prior record, not a failure. If
+there is more than one match, do not assume the filename that sorts last
+is the most recent — timestamps embed the creating machine's *local*
+time, not UTC (see `project/design/backlog.md`'s "Execution-record
+filename timestamps use local time, not UTC"), so filename order can be
+wrong across timezones. Read every surviving match's `created_at:`
+frontmatter field instead, normalize each to an absolute instant before
+comparing (e.g.
+`python3 -c "import datetime,sys; print(datetime.datetime.fromisoformat(sys.argv[1]).timestamp())" "$created_at"`
+— portable across GNU/BSD, unlike GNU-only `date -d` — since raw ISO8601
+strings with differing UTC offsets don't sort correctly as text either), and
+decide based only on the one with the truly latest timestamp.
 
 Read that match's `status:` frontmatter field before deciding — per
 `PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),

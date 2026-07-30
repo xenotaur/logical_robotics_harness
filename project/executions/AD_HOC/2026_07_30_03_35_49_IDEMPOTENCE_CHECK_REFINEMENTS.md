@@ -174,6 +174,40 @@ simulation before applying: a two-PR stack (PR 1 introduces the file from
 kept PR 1's match and skipped PR 2's. Bumped `gh pr list --limit` to 1000
 in the same change.
 
+A fifth review round on commit `95feb1a` surfaced a finding of a different
+character than the previous four: Codex found that
+`src/lrh/prompt_workflow.py:299` generates execution-record filename
+timestamps via `datetime.now(utc).astimezone()` — converting to the
+**local** system timezone before formatting — so filename lexicographic
+order is not reliably chronological across machines in different
+timezones (a record made at local `09:00-04:00` = `13:00 UTC` sorts
+*before* one made at local `12:00+00:00` = `12:00 UTC`, though the first
+is chronologically later). This called into question every "sort
+filenames, take the last line" recency decision made across this entire
+PR (and arguably PR #438's original design too). Verified the claim
+directly against the CLI source before reacting. Reported to the user as
+a 5th straight round and a deeper, more foundational finding than the
+prior four, distinguishing two possible scopes: (a) within this PR's
+scope, stop trusting filename order and compare `created_at:` values
+instead; (b) the actual root fix, in `prompt_workflow.py` itself — real
+Python source with its own test suite, well beyond a skills/docs PR. User
+chose: file (b) as its own backlog item, fix (a) now, and continue.
+
+Filed `project/design/backlog.md` "Execution-record filename timestamps
+use local time, not UTC" for (b). Fixed (a) across all 7 locations that
+relied on filename-sort recency (`lrh-proposal`/`lrh-work-item`/
+`lrh-workstream` SKILL.md + references/execution-record.md, and
+`lrh-review-response/SKILL.md` Step 3): replaced "take the last line" with
+reading every surviving match's `created_at:` frontmatter field and
+comparing normalized absolute instants — not raw ISO8601 strings either,
+which carry their own UTC offsets and don't sort correctly as text.
+Initially suggested GNU `date -d "$created_at" +%s` for normalization;
+caught during self-review (verified locally on this macOS sandbox, where
+BSD `date` lacks `-d` and the command fails) that this isn't portable, and
+replaced it everywhere with a `python3 -c "...fromisoformat(...).timestamp()"`
+one-liner, verified to produce the mathematically correct ordering for
+the exact 09:00-04:00-vs-12:00+00:00 example Codex cited.
+
 # Validation
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning

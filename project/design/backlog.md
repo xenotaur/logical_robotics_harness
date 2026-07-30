@@ -7,6 +7,53 @@ re-deriving context.
 
 ---
 
+## Execution-record filename timestamps use local time, not UTC
+
+**Noted:** 2026-07-30, during PR #441 review (round 5), while fixing the
+idempotence-check's cross-PR/rerun-detection logic in `lrh-proposal`,
+`lrh-work-item`, and `lrh-workstream`.
+
+**Idea:** `src/lrh/prompt_workflow.py:299` generates the timestamp prefix
+used in execution-record filenames (and in minted `PROMPT(...)[<timestamp>]`
+IDs) via `datetime.datetime.now(datetime.timezone.utc).astimezone()` —
+this converts to the **local system timezone** before formatting with
+`strftime`. Two machines (or one machine across a DST change) in
+different UTC offsets can therefore produce filenames whose lexicographic
+order does not match true chronological order: a record created at local
+`09:00-04:00` (`13:00 UTC`) sorts *before* one created at local
+`12:00+00:00` (`12:00 UTC`), even though the first is chronologically
+later. Every place in this codebase that relies on "sort filenames, take
+the last line, that's the most recent record" (PR #438's and PR #441's
+idempotence checks in `lrh-proposal`/`lrh-work-item`/`lrh-workstream`/
+`lrh-review-response`, at minimum) inherits this gap.
+
+PR #441 worked around this locally by reading each surviving match's
+`created_at:` frontmatter field and comparing actual timestamps instead
+of trusting filename order, rather than fixing the root cause. The root
+fix is in `src/lrh/prompt_workflow.py`: generate the timestamp prefix from
+UTC (`datetime.datetime.now(datetime.timezone.utc)`, no `.astimezone()`)
+instead of local time, so filenames — and therefore simple lexicographic
+sort — are chronologically correct again everywhere they're relied on.
+
+**Status:** Deferred — this is real Python source code in the CLI
+(`lrh prompt label` / `record-execution`), not skill documentation, with
+its own test suite and behavior-change implications (existing execution
+records already carry local-time-based filenames and IDs; a UTC change
+would only affect newly-created ones, but worth confirming no code
+assumes the two are always in the same timezone). Out of scope for a
+skills-only follow-up PR. Revisit as its own work item.
+
+**Related:** `src/lrh/prompt_workflow.py:299` (and `:64`, the
+`timestamp_for_file` sibling); harness PR #441 (round 5, Codex);
+`src/lrh/skills/lrh-proposal/SKILL.md`,
+`src/lrh/skills/lrh-work-item/SKILL.md`,
+`src/lrh/skills/lrh-workstream/SKILL.md`,
+`src/lrh/skills/lrh-review-response/SKILL.md` (all rely on filename order
+for "most recent match" selection; PR #441 patched the `created_at`
+comparison locally in the first three but the root cause remains).
+
+---
+
 ## Idempotence-check refinements deferred from PR #438 (follow-up PR)
 
 **Noted:** 2026-07-30, during PR #438's 6th automated review round, after

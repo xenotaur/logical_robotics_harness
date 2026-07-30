@@ -2,10 +2,10 @@
 execution_id: 2026_07_30_05_33_51_LRH_MERGE_GATE_POLICY_391AEF_CONFIRM
 prompt_id: PROMPT(AD_HOC:LRH_MERGE_GATE_POLICY_391AEF_CONFIRM)[2026-07-30T05:33:32-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/442
-commit: 
+commit: df0291f8014255174b89c283138d77745765cfb8
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/442
 session_transcript: claude-app:c6ad8d21-8267-46d7-9a85-b3566740026f
@@ -98,6 +98,8 @@ proceed and **explicitly authorized proceeding to the merge gate**,
 treating Copilot's prolonged silence as a platform stall rather than a
 pending finding. This is the human override this Step-8 logic itself
 prescribes for exactly this situation, not a bypass of it.
+
+CHAIN-NOTE: cycles=1; stops=1; gates=[merge]; friction="Step-8's own REVIEW-LANDED check applied recursively to the commits authoring it found 13 real gaps across 14 review rounds; Copilot integration stalled ~3h despite 6 explicit retriggers while Codex kept responding"; note="First /lrh-land run to hit the new DEC-AGENT-EXECUTED-MERGE-GATE merge gate live end-to-end — human replied 'Approve merge', correctly classified per the new policy as agent-executes, and the agent ran gh pr merge itself. Backfill path (no primary record, this record authored the CHAIN-NOTE directly). One stop: paused via AskUserQuestion when Codex lagged one commit and Copilot went silent; human explicitly authorized proceeding given 0 unresolved threads and green CI, which is the human-override fallback this same run's own Step-8 design added for exactly this situation."
 
 # Validation
 

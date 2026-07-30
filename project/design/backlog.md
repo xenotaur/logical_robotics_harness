@@ -7,6 +7,46 @@ re-deriving context.
 
 ---
 
+## Idempotence cross-PR discovery doesn't fail closed on fetch errors
+
+**Noted:** 2026-07-30, during PR #441 review (round 6), while hardening
+the idempotence-check's cross-PR discovery logic in `lrh-proposal`,
+`lrh-work-item`, and `lrh-workstream`.
+
+**Idea:** The cross-PR search's `gh pr list` and `git fetch` calls all
+suppress stderr (`2>/dev/null`) and never check exit status. This is
+deliberate for the common case — a nonzero exit with no output legitimately
+means "no prior record" — but it can't currently distinguish that from a
+genuine failure: an auth problem, a network blip, or a missing/unreachable
+ref. If `gh pr list` fails outright, the loop silently processes zero PRs
+(as if none were open) rather than reporting the failure. If a `git fetch`
+into `refs/remotes/pr/<N>` fails (e.g. transient network issue) after a
+previous successful fetch already populated that ref, the subsequent
+`ls-tree` silently scans the **stale** cached ref instead of the current
+PR state — the same kind of staleness the round-2 fix already addressed
+for force-pushes, but from a different cause (fetch failure vs. rejected
+non-fast-forward). Either failure mode can make the skill wrongly report
+"no prior record" (creating a duplicate) or act on outdated information.
+
+**Status:** Deferred — properly fixing this means adding explicit exit-status
+checks and distinct error handling to `gh pr list` and each `git fetch` in
+the pipeline, then deciding what "abort and report" looks like inside a
+pipeline that's currently written as a single composed shell block (not
+just one command) — a real design question, not a one-line patch, and this
+PR (round 6) already fixed a correctness bug (PR-inheritance false-tagging),
+a staleness bug (force-push), and a chronology bug (local-time filenames)
+in the same pipeline. Revisit alongside, or as part of, item 4 already
+covering incomplete failure semantics in this same discovery logic (see
+"Idempotence-check refinements deferred from PR #438" below).
+
+**Related:** harness PR #441 (round 6, Codex);
+`src/lrh/skills/lrh-proposal/SKILL.md`,
+`src/lrh/skills/lrh-work-item/SKILL.md`,
+`src/lrh/skills/lrh-workstream/SKILL.md` (Step 4, cross-PR discovery) and
+their `references/execution-record.md` mirrors.
+
+---
+
 ## Execution-record filename timestamps use local time, not UTC
 
 **Noted:** 2026-07-30, during PR #441 review (round 5), while fixing the

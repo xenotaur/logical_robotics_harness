@@ -208,6 +208,37 @@ replaced it everywhere with a `python3 -c "...fromisoformat(...).timestamp()"`
 one-liner, verified to produce the mathematically correct ordering for
 the exact 09:00-04:00-vs-12:00+00:00 example Codex cited.
 
+A sixth review round on commit `f1f7aaa` surfaced 2 more Codex findings.
+Copilot did **not** review this commit — its last review stayed on
+`95feb1a` despite an explicit retrigger, a known pattern (a previously
+responsive bot going silent for hours with no error) — reported to the
+user explicitly rather than assumed either "still pending" or "clean."
+User directed: fix the doc-consistency finding, file the fetch-robustness
+one to the backlog, and proceed to the merge gate (not wait further on
+Copilot).
+
+(1) Filed to `project/design/backlog.md` ("Idempotence cross-PR discovery
+doesn't fail closed on fetch errors"): `gh pr list`/`git fetch` calls in
+the cross-PR search all suppress stderr and never check exit status, so a
+genuine failure (auth, network, missing ref) is indistinguishable from
+"legitimately nothing found" — could report a false "no prior record" or
+scan a stale cached ref from an earlier successful fetch. Deferred as a
+real design question (what does "abort" mean inside an already-composed
+shell pipeline), not a one-line patch, and this PR already fixed 3
+separate bugs in the same pipeline.
+
+(2) Fixed: `lrh-review-response/references/review-response-workflow.md`
+(a file untouched until now) documented a conflicting, older rerun
+convention — `rerun_of` linking only to the primary implementation
+record, the same unanchored substring `find` the earlier rounds fixed in
+`SKILL.md` itself, and an explicit rerun minting an entirely new
+`-review-r2` slug rather than reusing the original. All three contradicted
+the precedence logic added to `SKILL.md` in round 2. Rewrote the
+reference to describe the two-tier precedence (a Step-3-matched prior
+review-response record wins; the primary-record search — now with the
+same trailing-segment anchor — is the fallback) and to state explicitly
+that reruns reuse the same slug, no `-r2` variant.
+
 # Validation
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning

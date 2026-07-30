@@ -33,8 +33,8 @@ search (matched to the complete trailing filename segment, not a
 substring) as authoritative for this specific pre-mint case — distinct
 from the still-non-authoritative general exploratory/fuzzy search the
 original rule was warning about. No code changes to any skill or the CLI:
-this documents behavior that was already correct and already applied
-consistently across all 4 skills, closing the gap between documented
+this documents behavior that was already correct in `lrh-proposal`,
+`lrh-work-item`, and `lrh-workstream`, closing the gap between documented
 policy and actual practice rather than changing practice. Updated
 `project/design/backlog.md`'s "Filename-slug idempotence search drives
 blocking, contrary to `PROMPTS.md`" entry to record the resolution, the
@@ -42,14 +42,44 @@ two options not taken, and a concrete revisit trigger for the
 more-complete CLI-tooling option (a real incident, or a 5th skill needing
 the same pattern).
 
+Review on this PR surfaced 5 findings, all addressed:
+- Codex/Copilot: the new subsection cited `lrh-review-response` as
+  applying the same pattern, but that skill actually uses an earlier,
+  less complete version (broader substring glob, no per-match status
+  inspection) — reworded to describe the divergence honestly instead of
+  claiming equivalence, and added item 5 to the "Idempotence-check
+  refinements deferred from PR #438" backlog entry to bring it up to the
+  same standard.
+- Codex: the packaged client bootstrap template
+  (`src/lrh/templates/project_bootstrap/prompt_workflow/PROMPTS.md`) still
+  presented only the old exact-ID-only rule with no pre-mint exception —
+  added a condensed, self-contained version of the same exception there
+  too, so newly bootstrapped client repos get current policy.
+- Codex: the new subsection claimed identical status handling to the
+  exact-ID rule, but silently dropped the "continue only if the prompt
+  indicates rerun or follow-up" condition for `failed`/`reverted`/
+  `superseded` matches (present in the exact-ID rule and
+  `project/executions/README.md:139`) — reworded to explicitly name this
+  as a deliberate divergence with its own rationale (no pre-existing
+  "rerun of X" declaration mechanism exists before a slug's history is
+  even known), rather than misrepresenting it as the same rule.
+- Copilot: this record's own Validation section claimed the change was
+  limited to `PROMPTS.md` and `backlog.md`, omitting the execution record
+  itself and (once found) the bootstrap template — corrected below.
+
 # Validation
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning
   (`WS-LRH-ASSISTANTS` no actionable leaf)
-- Docs-only change (`PROMPTS.md`, `project/design/backlog.md`) — no skill
-  or CLI code touched, so no skill-behavior or CLI test suite affected
+- No skill or CLI *code* touched (only documentation:
+  `PROMPTS.md`, the bootstrap template `PROMPTS.md`, `project/design/backlog.md`,
+  and this execution record) — no skill-behavior or CLI test suite
+  affected
 
 # Follow-up
 
 - Revisit the CLI-tooling option (option 3) per the backlog entry's
   revisit trigger, not on a schedule.
+- Bring `lrh-review-response`'s idempotence check up to the same standard
+  as the other 3 skills — tracked as item 5 in the "Idempotence-check
+  refinements deferred from PR #438" backlog entry.

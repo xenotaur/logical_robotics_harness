@@ -61,23 +61,37 @@ rather than fixed inline to avoid further scope creep on PR #438:**
    branches, or require checking out the active branch first, before
    concluding no prior run exists.
 
+5. **`lrh-review-response` predates this pattern and doesn't match it
+   (Codex, PR #440 review).** `lrh-review-response/SKILL.md:122-131` uses
+   the same idea (filename-slug search before minting, to catch a rerun
+   `check-execution` alone can't) but with an earlier, less complete
+   version: a broader substring glob (`find ... -name "*<UPPER_SLUG>*.md"`)
+   instead of the trailing-segment anchor items 1–4's skills use, and no
+   per-match `status:` inspection before blocking — it stops on *any*
+   match unconditionally, including `failed`/`reverted`/`superseded` ones
+   that shouldn't block. Bring it up to the same standard as
+   `lrh-proposal`/`lrh-work-item`/`lrh-workstream`: anchor the glob, add
+   the status-handling branch, and (once item 1 is resolved) the same
+   `rerun_of` precedence logic.
+
 **Status:** Deferred — PR #438's original purpose (fixing 8 bugs in
 `lrh-closeout`/`lrh-proposal`/`lrh-work-item`/`lrh-workstream`/`lrh-land`
 that blocked Taurcode's downstream skill resync) was already done and
 validated after 5 review rounds. Continuing to harden this idempotence
 check's edge-case precedence is lower value while the check's more
 fundamental design question — whether filename-slug search should drive
-blocking at all — remains open (see "Filename-slug idempotence search
-drives blocking, contrary to `PROMPTS.md`" below); a full fix here could
-be partly obsoleted by resolving that question differently. Merged as-is;
-address all four items in a follow-up PR.
+blocking at all — was open at the time (see "Filename-slug idempotence
+search drives blocking, contrary to `PROMPTS.md`" below, now resolved);
+a full fix here could still be partly reshaped by that resolution. Merged
+as-is; address all five items in a follow-up PR.
 
-**Related:** harness PR #438 (rounds 4, 6, and 7);
+**Related:** harness PR #438 (rounds 4, 6, and 7); harness PR #440 (item 5);
 `src/lrh/skills/lrh-proposal/SKILL.md`,
 `src/lrh/skills/lrh-work-item/SKILL.md`,
 `src/lrh/skills/lrh-workstream/SKILL.md` (Step 4, idempotence check) and
-their `references/execution-record.md` mirrors; "Filename-slug idempotence
-search drives blocking, contrary to `PROMPTS.md`" entry below.
+their `references/execution-record.md` mirrors; `src/lrh/skills/lrh-review-response/SKILL.md`
+Step 3 (item 5's target); "Filename-slug idempotence search drives
+blocking, contrary to `PROMPTS.md`" entry below.
 
 ---
 

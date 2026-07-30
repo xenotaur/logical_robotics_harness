@@ -172,14 +172,29 @@ exploratory/fuzzy search described below.
 
 Match the complete trailing filename segment, not a bare substring — a
 longer, unrelated slug that happens to contain this one as a substring must
-not count as a match. Apply the same status handling as exact-ID lookup to
-every match found: `landed`/`in_progress` blocks (unless the user
-explicitly asks for a rerun, which then requires linking `rerun_of` to the
-matched record); `failed`/`reverted`/`superseded` is non-blocking —
-summarize and continue, also linking `rerun_of`; unknown/ambiguous status,
-or matches that disagree with each other, stop and report. See the
-`lrh-review-response`, `lrh-proposal`, `lrh-work-item`, and `lrh-workstream`
-skills for the applied pattern.
+not count as a match. Status handling on a match found this way is
+similar to exact-ID lookup, with one deliberate difference: `landed`/
+`in_progress` blocks (unless the user explicitly asks for a rerun, which
+then requires linking `rerun_of` to the matched record); `failed`/
+`reverted`/`superseded` is non-blocking and continues unconditionally
+(also linking `rerun_of`) — it does **not** require the prompt to
+independently declare itself a rerun or follow-up, the way the exact-ID
+rule above does. That's intentional, not an oversight: the exact-ID case
+has a natural way for a prompt to declare "this is a rerun of
+`PROMPT(X)`" using the known ID; the pre-mint case has no equivalent
+declaration mechanism before a slug's own history is consulted, so finding
+only failed/reverted/superseded prior attempts under this slug *is* the
+operative signal, not a precondition to be independently confirmed.
+Unknown/ambiguous status, or matches that disagree with each other, stop
+and report either way.
+
+`lrh-proposal`, `lrh-work-item`, and `lrh-workstream` apply this pattern in
+full, including the trailing-segment anchoring above.
+`lrh-review-response` uses an earlier, less complete version of the same
+idea (a broader substring match, and no per-match status inspection before
+blocking) that predates this rule being written down — see
+`project/design/backlog.md` for the tracked follow-up to bring it up to
+the same standard.
 
 Exploratory search results — fuzzy or heuristic matching across arbitrary
 content, not the deterministic slug-bucket case above — can provide useful

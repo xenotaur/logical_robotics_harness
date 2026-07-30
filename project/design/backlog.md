@@ -127,38 +127,53 @@ context/confirmation-request only (per the literal `PROMPTS.md` rule)? That
 is a design decision bigger than a single-PR bug fix, and touching
 `lrh-review-response` was out of scope for PR #438.
 
-**Status:** Resolved (lightweight) — 2026-07-30. Revisited three options:
-(1) codify the exception in `PROMPTS.md` — the exact-ID lookup mechanism
-genuinely cannot answer "has this slug run before" since no ID exists yet
-to look up, so filename-slug search isn't the same kind of thing as the
-fuzzy/heuristic discovery the original rule was warning about; (2) make
-slug discovery non-blocking everywhere, literally complying with the old
-wording, at the cost of turning every rerun path interactive; (3) build a
-real CLI mechanism (e.g. `check-execution --slug`) so slug-based duplicate
-detection becomes genuinely authoritative tooling, not a hand-rolled `find`
-in prose — touches the CLI, its tests, `PROMPTS.md`, and all 4 skills.
+**Status:** Resolved — 2026-07-30, promoted to
+`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`
+(`project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`).
+Revisited three options: (1) codify the exception in `PROMPTS.md` — the
+exact-ID lookup mechanism genuinely cannot answer "has this slug run
+before" since no ID exists yet to look up, so filename-slug search isn't
+the same kind of thing as the fuzzy/heuristic discovery the original rule
+was warning about; (2) make slug discovery non-blocking everywhere,
+literally complying with the old wording, at the cost of turning every
+rerun path interactive; (3) build a real CLI mechanism (e.g.
+`check-execution --slug`) so slug-based duplicate detection becomes
+genuinely authoritative tooling, not a hand-rolled `find` in prose —
+touches the CLI, its tests, `PROMPTS.md`, and all 4 skills.
 
-Went with **option 1**: `PROMPTS.md`'s "Soft idempotence before execution"
-section now has a "Pre-mint duplicate detection by slug" subsection
-explicitly naming filename-slug-by-bucket search (matched to the complete
-trailing filename segment, not a substring) as authoritative for this
-specific pre-mint case, distinct from the still-non-authoritative general
-exploratory/fuzzy search. No code changes — `lrh-review-response`,
-`lrh-proposal`, `lrh-work-item`, and `lrh-workstream`'s existing behavior
-is now correctly documented rather than an undocumented exception. Chosen
-over options 2 and 3 as proportionate to the actual (narrow) risk without
-touching working code across 4 skills again.
+Went with **option 1**, but not as a single pass: an initial attempt to
+write one universal status-handling matrix into `PROMPTS.md` was refined
+across several PR #440 review rounds (undefined placeholder, substring
+false positive, missing-directory error, status-blind blocking, missing
+`rerun_of` propagation, ambiguous-match handling, a missed third copy of
+the rule in `project/executions/README.md`) until review surfaced two
+*structural* gaps rather than typos: `lrh-confirm-fixes` already
+documents a deliberate deviation from this exact pattern (Decision 12 —
+prior `_CONFIRM` records are warning-only, never blocking, since live
+review-thread state changes between rounds), which the universal matrix
+contradicted; and the `planned` status exists but fits none of the
+matrix's buckets. Rather than keep expanding the matrix, `PROMPTS.md` now
+states only an **invariant** (filename-slug-by-bucket search, matched to
+the complete trailing segment, is authoritative for this narrow question)
+and a **default** (explicitly labeled as such, not a mandate) — a skill
+that deviates, or hits a status the default doesn't cover, documents its
+own reason locally, the way `lrh-confirm-fixes` already does. Full
+rationale, alternatives, and consequences are in the promoted decision
+record, not restated here or in `PROMPTS.md` itself. No skill code
+changed — `lrh-proposal`/`lrh-work-item`/`lrh-workstream` follow the
+default, `lrh-confirm-fixes` deviates deliberately and needs no change,
+`lrh-review-response` predates the default and is tracked as item 5 in
+the "Idempotence-check refinements deferred from PR #438" entry above.
 
 **Not done — revisit if this resurfaces:** option 3 (real CLI tooling for
 slug-based duplicate detection) remains the more complete long-term fix.
-Revisit if the current `find`-based approach causes a real incident (a
-legitimate rerun blocked by a stale/irrelevant filename match), or if a
-5th skill needs the same pattern and hand-copying the `find` command again
-starts to feel like the wrong layer for this logic.
+See the decision record's "Revisit conditions" for the specific triggers.
 
 **Related:** `PROMPTS.md` "Soft idempotence before execution" section
 (now includes the "Pre-mint duplicate detection by slug" subsection);
+`project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`;
 `src/lrh/skills/lrh-review-response/SKILL.md` Step 3;
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 3 (Decision 12);
 `src/lrh/skills/lrh-proposal/SKILL.md`,
 `src/lrh/skills/lrh-work-item/SKILL.md`,
 `src/lrh/skills/lrh-workstream/SKILL.md` (Step 4, idempotence check);
@@ -236,16 +251,25 @@ decision that's already effectively made, promoted out of
 `project/memory/decision_log.md` because other documents need to cite it
 independently and repeatedly.
 
-**Status:** Deferred — only one promoted decision file exists in this repo
-(`project/memory/decisions/precedence_semantics.md`). The interview
-questions and body-section shape can't be specified with confidence from a
-single instance; a synthetic second file would prove nothing. Revisit once a
-second `project/memory/decisions/*.md` file is created by hand and the
-promotion pattern (see `design.md` §14 "Decision-record tiers") has a real
-second data point.
+**Status:** Deferred, revisit now overdue — this entry's own trigger has
+already fired without anyone circling back. Written 2026-07-05 when only
+one promoted decision file existed
+(`project/memory/decisions/precedence_semantics.md`); since then, two more
+were promoted without this entry being updated:
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` (2026-07-24)
+and `project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`
+(2026-07-30, this entry's own author noticing the staleness while
+cross-linking). That's three real, hand-written instances of the
+promotion pattern now — the "single instance proves nothing" objection no
+longer holds. Actually revisiting whether `/lrh-decision` is worth
+building is a separate piece of work from noting that the deferral
+condition is met; flagged here rather than acted on inline.
 
 **Related:** `project/work_items/resolved/WI-DECISION-RECORD-CONVENTIONS.md`
-Non-Goals; `project/design/design.md` §14 "Decision-record tiers"; `project/memory/decisions/precedence_semantics.md`.
+Non-Goals; `project/design/design.md` §14 "Decision-record tiers";
+`project/memory/decisions/precedence_semantics.md`,
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`,
+`project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`.
 
 ---
 

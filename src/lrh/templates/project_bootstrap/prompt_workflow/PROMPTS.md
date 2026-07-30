@@ -18,10 +18,15 @@ timestamped ID, so `check-execution` can't catch a rerun of the same slug
 yet), a filename search against the relevant execution bucket for the
 exact trailing slug segment (not a bare substring) is authoritative for
 that narrower question — not the same thing as the general exploratory
-search above. On a match: `landed`/`in_progress` blocks unless the prompt
-explicitly asks for a rerun; `failed`/`reverted`/`superseded` is
-non-blocking and continues; ambiguous or disagreeing statuses stop and
-report. Whenever a new record is actually created after a match (an
-explicit rerun of a blocked match, or continuing past a
-`failed`/`reverted`/`superseded` one), link it to the matched record via
-`rerun_of` — a blocked match with no rerun produces no new record to link.
+search above.
+
+What to do with a match beyond "block or don't" is a **default, not a
+requirement**: absent a documented reason to differ, `landed`/
+`in_progress` blocks unless the prompt explicitly asks for a rerun;
+`failed`/`reverted`/`superseded` is non-blocking and continues past;
+ambiguous or disagreeing statuses stop and report. Whenever a new record
+is actually created after a match (an explicit rerun of a blocked match,
+or continuing past a non-blocking one), link it to the matched record via
+`rerun_of` — a blocked match with no rerun produces no new record to
+link. A skill may deviate from this default for its own documented
+reasons; this stub states the starting point, not a mandate.

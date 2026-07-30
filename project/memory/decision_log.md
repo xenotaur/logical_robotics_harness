@@ -1,5 +1,13 @@
 # Decision Log
 
+## 2026-07-30: Decision: Pre-Mint Slug Idempotence Is a Default, Not a Mandate — promoted to DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT
+
+Promoted directly (not staged through the chronological log first) because
+`PROMPTS.md`, `project/executions/README.md`, and both `project_bootstrap`
+template stubs all need to cite it independently, matching the promotion
+bar `precedence_semantics.md` set. See that record for the full decision,
+rationale, consequences, and revisit conditions.
+
 ## 2026-07-24: Decision: Deliberate Chain Initiation — promoted to DEC-DELIBERATE-CHAIN-INITIATION
 
 Promoted out of the chronological log to

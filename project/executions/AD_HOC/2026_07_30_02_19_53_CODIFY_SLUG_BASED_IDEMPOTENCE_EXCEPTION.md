@@ -81,20 +81,68 @@ produces no new record to link at all; reworded to only link `rerun_of`
 when a new record is actually created (an explicit rerun of a block, or
 continuing past a non-blocking match).
 
+A third review round on the fix commit surfaced 2 more findings, both
+Codex, and both structural rather than typos: (1) the universal
+status-handling matrix contradicted `lrh-confirm-fixes/SKILL.md:177-187`'s
+already-documented **deliberate** deviation — prior `_CONFIRM` records are
+warning-only, never blocking, because live review-thread state changes
+between rounds (Decision 12), which the matrix's "landed/in_progress
+blocks" language overrode without acknowledging; (2) the `planned` status
+exists in the vocabulary but fit none of the matrix's three buckets
+(blocking / non-blocking / ambiguous). Per user direction, ran `/lrh-design`
+on this rather than patching the matrix a 4th time: the design concluded
+the matrix itself was the wrong shape — trying to centrally enumerate
+every skill's behavior for every status is what kept finding gaps, when
+`lrh-confirm-fixes` already demonstrates the working alternative (state a
+default, let a skill deviate and cite why locally).
+
+Restructured `PROMPTS.md`'s subsection (and its `project/executions/README.md`
+mirror and both bootstrap stubs) into an **invariant** (filename-slug
+search matched to the complete trailing segment is authoritative for this
+narrow question) plus a **default** (explicitly labeled as a default, not
+a mandate — the same landed/in_progress-blocks,
+failed/reverted/superseded-continues shape as before, but no longer
+claimed as binding on every skill). Per user direction, the rationale is
+captured in the control plane, not just in the doc prose: promoted
+`project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md` (with
+a `decision_log.md` stub entry), following this repo's own
+decision-record-tier convention (`design.md` §14) and citing it from
+`PROMPTS.md`/`README.md` rather than re-deriving the reasoning in each
+copy. Updated both backlog entries to reflect the final state:
+`lrh-review-response` is item 5 in "Idempotence-check refinements
+deferred from PR #438" (predates the default, tracked as a follow-up, not
+touched here); `lrh-confirm-fixes` needs no change (its existing
+deviation is now correctly acknowledged rather than contradicted); the
+`planned`-status gap is explicitly not resolved centrally — deferred to
+whichever skill first needs a concrete answer.
+
+While cross-linking, noticed the `/lrh-decision` skill backlog entry
+(unrelated to this PR) was stale — written when only one promoted decision
+file existed, never updated after `DEC-DELIBERATE-CHAIN-INITIATION.md` was
+promoted 2026-07-24. This record is a third data point. Corrected that
+entry's status to note its own revisit trigger already fired, since
+noticing it in passing was cheap and leaving it silently stale would have
+been worse than fixing an unrelated small thing while already in the file.
+
 # Validation
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning
   (`WS-LRH-ASSISTANTS` no actionable leaf)
 - No skill or CLI *code* touched (only documentation: `PROMPTS.md`,
-  `project/executions/README.md`, `project/design/backlog.md`, the
+  `project/executions/README.md`, `project/design/backlog.md`,
+  `project/memory/decision_log.md`,
+  `project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`, the
   bootstrap template's `PROMPTS.md` and `project/executions/README.md`
   stubs, and this execution record) — no skill-behavior or CLI test suite
   affected
 
 # Follow-up
 
-- Revisit the CLI-tooling option (option 3) per the backlog entry's
-  revisit trigger, not on a schedule.
-- Bring `lrh-review-response`'s idempotence check up to the same standard
-  as the other 3 skills — tracked as item 5 in the "Idempotence-check
-  refinements deferred from PR #438" backlog entry.
+- Revisit the CLI-tooling option (option 3) per the decision record's
+  revisit conditions, not on a schedule.
+- Bring `lrh-review-response`'s idempotence check up to the default (or
+  document its own deviation) — tracked as item 5 in the
+  "Idempotence-check refinements deferred from PR #438" backlog entry.
+- The `/lrh-decision` skill backlog entry now has 3 real data points and
+  its deferral trigger has fired — actually revisiting whether to build it
+  is separate, unstarted work.

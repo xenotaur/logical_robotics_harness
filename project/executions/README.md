@@ -146,27 +146,24 @@ there is no existing ID to check with `check-execution` before a skill's
 own instruction phase has run once already — the exact-lookup mechanism
 above cannot answer "has this same logical slug already produced a
 record?" because no ID for it exists yet to look up. When a skill needs to
-detect that before minting (e.g. a review-response run keyed to the
-current branch, or a proposal/work-item/workstream keyed to its own
-stable slug), a filename search against the relevant bucket (typically
-`project/executions/AD_HOC/`) for the exact trailing slug segment is
-authoritative for this narrower question — it is not the same thing as
-the exploratory/fuzzy search above.
+detect that before minting, a filename search against the relevant bucket
+(typically `project/executions/AD_HOC/`) matched to the **complete
+trailing segment** of the slug (not a bare substring) is authoritative for
+this narrower question — it is not the same thing as the exploratory/fuzzy
+search above.
 
-Match the complete trailing filename segment, not a bare substring — a
-longer, unrelated slug that happens to contain this one as a substring
-must not count as a match. Status handling on a match found this way is
-similar to exact-ID lookup, with one deliberate difference: `landed`/
-`in_progress` blocks (unless the prompt explicitly asks for a rerun, which
-then requires linking `rerun_of` to the matched record); `failed`/
-`reverted`/`superseded` is non-blocking and continues unconditionally
-(also linking `rerun_of`) — it does not require the prompt to
-independently declare itself a rerun or follow-up, the way the exact-ID
-rule above does, since no such declaration mechanism exists before a
-slug's own history is even known. Unknown/ambiguous status, or matches
-that disagree with each other, stop and report either way. See
-`PROMPTS.md` "Pre-mint duplicate detection by slug" for the canonical
-statement of this rule.
+What a skill does with a match beyond "block or don't" is a **default
+starting point, not a rule enforced here**: absent a documented reason to
+differ, a match with a blocking-shaped status (`landed`/`in_progress`)
+stops and reports unless the prompt explicitly asks for a rerun; a match
+with a terminal-shaped status (`failed`/`reverted`/`superseded`) is
+summarized and continued past, linking `rerun_of` to the matched record. A
+skill may deviate from this default, or handle a status/scenario it
+doesn't cover — it documents that locally with a short rationale rather
+than requiring this document to enumerate every case in advance. See
+`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`
+(`project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`) for
+the full rationale.
 
 ## Notes
 

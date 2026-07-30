@@ -156,10 +156,37 @@ If a prior exact record exists:
 - `failed`, `reverted`, or `superseded`: summarize prior run and continue only if prompt is a rerun or follow-up.
 - unknown or ambiguous status: stop and report ambiguity.
 
-Exploratory search results can provide useful context for discovery, auditing,
-and debugging, but they should not by themselves drive blocking or rerun
-decisions. If future heuristic or fuzzy matching is added, it must be clearly
-labeled non-authoritative unless later design work explicitly changes this rule.
+### Pre-mint duplicate detection by slug (a second authoritative case)
+
+`lrh prompt label` mints a fresh, timestamped prompt ID on every call, so
+there is no existing ID to check with `check-execution` before a skill's own
+instruction phase has run once already — the exact-lookup mechanism above
+cannot answer "has this same logical slug already produced a record?"
+because no ID for it exists yet to look up. When a skill needs to detect
+that before minting (e.g. a review-response run keyed to the current
+branch, or a proposal/work-item/workstream keyed to its own stable slug), a
+filename search against the relevant bucket (typically
+`project/executions/AD_HOC/`) for the exact trailing slug segment is
+authoritative for this narrower question — it is not the same thing as the
+exploratory/fuzzy search described below.
+
+Match the complete trailing filename segment, not a bare substring — a
+longer, unrelated slug that happens to contain this one as a substring must
+not count as a match. Apply the same status handling as exact-ID lookup to
+every match found: `landed`/`in_progress` blocks (unless the user
+explicitly asks for a rerun, which then requires linking `rerun_of` to the
+matched record); `failed`/`reverted`/`superseded` is non-blocking —
+summarize and continue, also linking `rerun_of`; unknown/ambiguous status,
+or matches that disagree with each other, stop and report. See the
+`lrh-review-response`, `lrh-proposal`, `lrh-work-item`, and `lrh-workstream`
+skills for the applied pattern.
+
+Exploratory search results — fuzzy or heuristic matching across arbitrary
+content, not the deterministic slug-bucket case above — can provide useful
+context for discovery, auditing, and debugging, but they should not by
+themselves drive blocking or rerun decisions. If future heuristic or fuzzy
+matching is added, it must be clearly labeled non-authoritative unless later
+design work explicitly changes this rule.
 
 ## Codex Cloud prompt requirements
 

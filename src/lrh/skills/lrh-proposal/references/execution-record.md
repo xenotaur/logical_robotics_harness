@@ -50,15 +50,21 @@ substring, which would also match an unrelated longer slug that happens to
 contain this one. Fetch and check open PRs by number using GitHub's
 `refs/pull/<N>/head` — a ref the base repository always exposes for every
 open PR regardless of whether the head branch lives in this repo or a
-fork:
+fork. Force the fetch (`+refs/...`) so a force-pushed PR still updates the
+local ref rather than leaving a stale one. Exclude any remote match whose
+path already appears in the current checkout — every PR descended from a
+commit that already has the file would otherwise re-emit that path tagged
+with an unrelated PR number:
 
 ```bash
+LOCAL_MATCHES=$(find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null)
 {
-  find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
+  echo "$LOCAL_MATCHES"
   gh pr list --state open --json number --jq '.[].number' | while read -r pr; do
-    git fetch origin "refs/pull/$pr/head:refs/remotes/pr/$pr" --quiet 2>/dev/null
+    git fetch origin "+refs/pull/$pr/head:refs/remotes/pr/$pr" --quiet 2>/dev/null
     git ls-tree -r "refs/remotes/pr/$pr" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
       | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$" \
+      | grep -vxFf <(echo "$LOCAL_MATCHES") \
       | sed "s|\$|\tPR#$pr|"
   done
 } | sort

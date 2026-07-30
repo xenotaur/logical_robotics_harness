@@ -164,15 +164,23 @@ own PR, possibly from a fork. Fetch and check open PRs by number using
 GitHub's `refs/pull/<N>/head` — a ref the base repository always exposes
 for every open PR regardless of whether the head branch lives in this
 repo or a fork, so this works even when `origin/<branch>` would not exist
-or would silently resolve to the wrong commit:
+or would silently resolve to the wrong commit. Force the fetch (`+refs/...`)
+so a previously-scanned PR that was later force-pushed still updates the
+local ref instead of silently keeping the stale one. Exclude any remote
+match whose path already appears in the current checkout — every PR
+descended from a commit that already has the file will otherwise re-emit
+that same path tagged with an unrelated PR number, since the PR merely
+inherited it rather than introduced it:
 
 ```bash
+LOCAL_MATCHES=$(find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null)
 {
-  find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null
+  echo "$LOCAL_MATCHES"
   gh pr list --state open --json number --jq '.[].number' | while read -r pr; do
-    git fetch origin "refs/pull/$pr/head:refs/remotes/pr/$pr" --quiet 2>/dev/null
+    git fetch origin "+refs/pull/$pr/head:refs/remotes/pr/$pr" --quiet 2>/dev/null
     git ls-tree -r "refs/remotes/pr/$pr" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
       | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$" \
+      | grep -vxFf <(echo "$LOCAL_MATCHES") \
       | sed "s|\$|\tPR#$pr|"
   done
 } | sort

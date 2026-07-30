@@ -123,6 +123,28 @@ record wins (it's the more specific "rerun of X" relationship); the
 primary-record search is now a fallback used only when Step 3 found
 nothing.
 
+A third review round on commit `43c2d9d` surfaced 2 more findings, both
+Codex: (1) P1 — any PR descended from a commit that already has the
+matched file would re-emit that same path via `ls-tree`, tagged with that
+PR's (unrelated) number, since the PR merely inherited the file rather
+than introduced it. Because a bare path sorts before its own tagged
+duplicate, "take the last line" would pick the spurious `PR#<N>` entry as
+the most recent match, and a rerun could check out and push to a
+completely wrong branch — a real correctness bug, not a nitpick. Fixed by
+capturing local matches first (`LOCAL_MATCHES=$(find ...)`) and excluding
+any remote match whose path already appears there
+(`grep -vxFf <(echo "$LOCAL_MATCHES")`) before tagging. (2) P2 — the fetch
+into `refs/remotes/pr/<N>` was a plain (non-forcing) refspec; if a
+previously-scanned PR was later force-pushed, the update would be
+rejected as non-fast-forward, `2>/dev/null` would hide the rejection, and
+the stale cached ref would keep getting scanned indefinitely. Fixed by
+forcing the refspec (`+refs/pull/$pr/head:...`).
+
+This was reported to the user as a 3rd straight round finding deeper
+issues in the same cross-PR/fork-branch discovery logic, flagged
+explicitly per the established pattern rather than fixed silently — user
+confirmed: fix both and continue.
+
 # Validation
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning

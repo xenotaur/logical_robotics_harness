@@ -89,8 +89,8 @@ instruction_source: <path-to-audit-artifact or "discovery mode — no audit avai
 session_transcript: pending
 ```
 
-Update `session_transcript` from `pending` to `claude-app:<session-id>` after
-the session ends.
+Update `session_transcript` from `pending` to `claude-app:<host-uuid-stem>`
+after the session ends.
 
 ### rerun_of
 

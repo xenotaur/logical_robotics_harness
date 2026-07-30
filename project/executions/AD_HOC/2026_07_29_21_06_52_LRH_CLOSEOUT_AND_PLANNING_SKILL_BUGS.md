@@ -2,10 +2,10 @@
 execution_id: 2026_07_29_21_06_52_LRH_CLOSEOUT_AND_PLANNING_SKILL_BUGS
 prompt_id: PROMPT(AD_HOC:LRH_CLOSEOUT_AND_PLANNING_SKILL_BUGS)[2026-07-29T21:06:44-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/438
-commit: 
+commit: 0e794c810e49d2e7287f0a443e1d0e3d0c43083d
 agent: claude_app
 instruction_source: https://github.com/xenotaur/Taurcode/pull/70 (review comments on the resynced skill copies)
 session_transcript: claude-app:3fcab22f-9ebe-4392-bf31-2103fce507f2

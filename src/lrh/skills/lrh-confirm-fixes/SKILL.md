@@ -345,6 +345,18 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    reviewer, or a new inline thread whose body cites the current SHA. Do
    not accept a stale comment from before this push as evidence for any
    reviewer.
+
+   **A response's mere existence is not enough — read its content.** A
+   reviewer can report a real defect in a plain review body or issue
+   comment, with no separate inline thread at all (this happened during
+   this skill's own worked example: Codex's clean passes and its findings
+   both arrived as ordinary review/comment text, not always as a distinct
+   `reviewThreads` entry). Do not count a response toward REVIEW-LANDED
+   just because it exists and cites the right SHA — read it. Only an
+   explicit clean pass (no findings reported) counts. A response that
+   reports any finding, in a review body, an issue comment, *or* a formal
+   inline thread, is a new finding — handle it per the paragraph below,
+   whichever surface it arrived on.
 3. If one or more mentioned reviewers haven't responded after a reasonable
    wait, **do not silently conclude "no reviewer configured" and fall back
    to a human statement, and do not report Green on a partial set.** Ask
@@ -359,18 +371,21 @@ later — for as long as any mentioned reviewer's matching response, or an
 explicit human answer standing in for it, is still outstanding. Do not
 time out into Green on a partial response.
 
-**If the retrigger surfaces a genuine new unresolved thread on the
-`_CONFIRM` commit, that is not "pending" — it is a new finding.** Waiting
-longer cannot resolve real content the way it resolves silence. Route it
-back through the Step 3 taxonomy (classify Clear-satisfied / Unaddressed /
-Partial / Ambiguous / Problematic) and Steps 4–5 (confirm gate, resolve) —
-the same way any other review round is handled — rather than looping Step
-8's wait. If remediation needs a code change, it produces another pushed
-commit, and Step 8's CI and REVIEW-LANDED checks apply again to that new
-`HEAD`. Only a thread-free response (or an explicit clean pass) satisfies
-REVIEW-LANDED; a thread that only needed a reply-and-resolve (no code
-change) still requires a fresh retrigger-and-wait pass before Green, since
-the retriggered review was of the pre-resolution `HEAD`.
+**If the retrigger surfaces a genuine new finding on the `_CONFIRM`
+commit — whether as a formal inline thread, or as a defect described in a
+plain review body or issue comment with no separate thread — that is not
+"pending," it is a new finding.** Waiting longer cannot resolve real
+content the way it resolves silence. Route it back through the Step 3
+taxonomy (classify Clear-satisfied / Unaddressed / Partial / Ambiguous /
+Problematic) and Steps 4–5 (confirm gate, resolve) — the same way any other
+review round is handled — rather than looping Step 8's wait, and regardless
+of which surface the finding arrived on. If remediation needs a code
+change, it produces another pushed commit, and Step 8's CI and
+REVIEW-LANDED checks apply again to that new `HEAD`. Only an explicit clean
+pass (no findings, on any surface) satisfies REVIEW-LANDED for that
+reviewer; a finding that only needed a reply-and-resolve (no code change)
+still requires a fresh retrigger-and-wait pass before Green, since the
+retriggered review was of the pre-resolution `HEAD`.
 
 Aggregate per `references/confirm-fixes-workflow.md`. The **final verdict**
 is the Step 6 thread-resolution verdict AND the re-checked CI state AND
@@ -473,9 +488,11 @@ Before reporting completion, verify:
       an unconditional retrigger attempt — not inferred from elapsed time
       alone, and "no reviewer configured" is never inferred from silence;
       an unanswered retrigger is asked about, not assumed either way
-- [ ] A genuine new thread surfaced by the retrigger was routed through
-      Step 3's taxonomy and Steps 4-5, not left as an indefinite "recheck
-      later"
+- [ ] A genuine new finding surfaced by the retrigger — whether a formal
+      thread or a defect described in plain review/comment text — was
+      routed through Step 3's taxonomy and Steps 4-5, not left as an
+      indefinite "recheck later," and not silently counted as a clean
+      response just because it referenced the right SHA
 - [ ] Green required a response from *every* reviewer actually retriggered,
       not just the first one back — a fast clean pass from one does not
       clear a slower reviewer still pending

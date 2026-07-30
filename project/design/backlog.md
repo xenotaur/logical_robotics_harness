@@ -34,13 +34,22 @@ rather than fixed inline to avoid further scope creep on PR #438:**
    replicated across 6 locations.
 
 2. **`find` exit status on a missing `AD_HOC/` directory (Copilot,
-   recurring low-confidence, rounds 4 and 6).** `2>/dev/null` suppresses
-   the error message but not `find`'s non-zero exit status when
+   recurring low-confidence, rounds 4, 6, and 7).** `2>/dev/null`
+   suppresses the error message but not `find`'s non-zero exit status when
    `project/executions/AD_HOC/` doesn't exist yet; an error-stopping
    runner could treat that as a failure. Copilot also suggested sorting
    the `find` output so "most recent match" selection (used throughout
    this idempotence check) is deterministic rather than relying on
    filesystem iteration order.
+
+3. **Explicit-rerun branch-name collision (Codex, round 7).** When a user
+   explicitly reruns a matched `in_progress` record that's still on its
+   original feature branch, Step 6's `git checkout -b
+   <username>/<type>/<slug>` uses the same deterministic branch name as
+   the original attempt and fails with `fatal: a branch named ... already
+   exists`, blocking the rerun before it reaches Step 10. Needs a decision
+   on whether reruns reuse the existing branch or create a suffixed one
+   that still carries the prior record forward for `rerun_of`.
 
 **Status:** Deferred — PR #438's original purpose (fixing 8 bugs in
 `lrh-closeout`/`lrh-proposal`/`lrh-work-item`/`lrh-workstream`/`lrh-land`
@@ -51,9 +60,9 @@ fundamental design question — whether filename-slug search should drive
 blocking at all — remains open (see "Filename-slug idempotence search
 drives blocking, contrary to `PROMPTS.md`" below); a full fix here could
 be partly obsoleted by resolving that question differently. Merged as-is;
-address both items in a follow-up PR.
+address all three items in a follow-up PR.
 
-**Related:** harness PR #438 (rounds 4 and 6);
+**Related:** harness PR #438 (rounds 4, 6, and 7);
 `src/lrh/skills/lrh-proposal/SKILL.md`,
 `src/lrh/skills/lrh-work-item/SKILL.md`,
 `src/lrh/skills/lrh-workstream/SKILL.md` (Step 4, idempotence check) and

@@ -110,7 +110,16 @@ seen only one record's value while Step 5 silently wrote different values
 to the others — reintroducing the exact provenance risk the round-1 fix
 was meant to close. Fixed in `lrh-closeout/SKILL.md` Step 4: now requires
 enumerating every matched execution record's resolved transcript value by
-execution ID at the confirm gate, not a single summary value.
+execution ID at the confirm gate, not a single summary value. A seventh
+review round on commit `9c714bc` surfaced one more Codex finding, back in
+the same rerun-handling territory as rounds 5–6: an explicit rerun of an
+`in_progress` record still on its original feature branch would fail at
+Step 6 (`git checkout -b <username>/<type>/<slug>` collides with the
+already-existing branch), blocking the rerun before it reaches Step 10.
+By user decision, folded into the same deferred-to-follow-up backlog entry
+rather than fixed inline, since it's a third instance of the same
+rerun-mechanism edge-case space already deferred in rounds 5–6, not part
+of the original 8-bug PR purpose.
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning
   (`WS-LRH-ASSISTANTS` no actionable leaf) after both commits
@@ -127,10 +136,11 @@ execution ID at the confirm gate, not a single summary value.
   5 more files not touched here (`lrh-confirm-fixes`, `lrh-doc-organize`,
   `lrh-implement` x2, `lrh-review-response`) — out of scope for this PR
   since review didn't flag them, but worth a follow-up sweep.
-- Open a follow-up PR addressing the two items filed in
+- Open a follow-up PR addressing the three items filed in
   `project/design/backlog.md` ("Idempotence-check refinements deferred
-  from PR #438"): cross-status `rerun_of` precedence, and `find`
-  exit-status/sorting on the `AD_HOC/` search.
+  from PR #438"): cross-status `rerun_of` precedence, `find`
+  exit-status/sorting on the `AD_HOC/` search, and the explicit-rerun
+  branch-name collision.
 - Revisit the bigger deferred design question in the same backlog file
   ("Filename-slug idempotence search drives blocking, contrary to
   `PROMPTS.md`") — the follow-up PR above may be partly moot depending on

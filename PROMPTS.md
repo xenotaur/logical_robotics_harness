@@ -178,8 +178,8 @@ summarized and continued past, linking `rerun_of` to the matched record. A
 skill may deviate from this default, or handle a status/scenario it
 doesn't cover — it documents that locally with a short rationale rather
 than requiring this document to enumerate every case in advance;
-`lrh-confirm-fixes/SKILL.md` already does exactly this for its own
-repeatable-verification behavior. See `DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md` already does exactly this for
+its own repeatable-verification behavior. See `DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`
 (`project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`) for
 the full rationale and the skills that currently apply, deviate from, or
 haven't yet aligned with this default.

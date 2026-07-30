@@ -109,12 +109,31 @@ a `decision_log.md` stub entry), following this repo's own
 decision-record-tier convention (`design.md` §14) and citing it from
 `PROMPTS.md`/`README.md` rather than re-deriving the reasoning in each
 copy. Updated both backlog entries to reflect the final state:
-`lrh-review-response` is item 5 in "Idempotence-check refinements
-deferred from PR #438" (predates the default, tracked as a follow-up, not
-touched here); `lrh-confirm-fixes` needs no change (its existing
-deviation is now correctly acknowledged rather than contradicted); the
-`planned`-status gap is explicitly not resolved centrally — deferred to
-whichever skill first needs a concrete answer.
+`lrh-review-response` and `lrh-confirm-fixes` are both item 5 in
+"Idempotence-check refinements deferred from PR #438" (predate the
+invariant, tracked as a follow-up, not touched here); the `planned`-status
+gap is explicitly not resolved centrally — deferred to whichever skill
+first needs a concrete answer.
+
+A fourth review round on this commit found 2 more real issues in the
+decision record itself and 5 low-confidence-but-correct Copilot nitpicks,
+all addressed: Codex — the decision record's Consequences claimed
+`lrh-confirm-fixes` "needs no change," but that conflated its (correct,
+deliberate) status-handling deviation with its glob, which still uses the
+same unanchored substring match as `lrh-review-response` and doesn't meet
+the new trailing-segment invariant either — corrected the claim and
+retitled backlog item 5 to cover both skills' glob-anchoring, not just
+`lrh-review-response`'s. Codex — the decision record's own Consequences
+said this was "the second promoted decision file," contradicting the
+already-corrected backlog count of three — fixed to match. Copilot (5x,
+low-confidence, all correct) — three ambiguous `lrh-*/SKILL.md` path
+references missing the `src/lrh/skills/` prefix (this repo has both
+canonical and `.claude/skills/` mirror trees); a subject/verb mismatch in
+the bootstrap stub ("`landed`/`in_progress` blocks" read as the status
+values being the subject, not a match with that status); and the PR
+description being stale (still listed only the original 2 files while the
+diff had grown to 8) — fixed the first four inline, and updated the PR
+description separately.
 
 While cross-linking, noticed the `/lrh-decision` skill backlog entry
 (unrelated to this PR) was stale — written when only one promoted decision

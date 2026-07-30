@@ -39,7 +39,7 @@ already does.
   propagation, ambiguous-match handling, a missed third copy of the rule
   (`project/executions/README.md`), and finally — the one that prompted
   this decision — two structural gaps rather than typos: (a)
-  `lrh-confirm-fixes/SKILL.md:177-187` already documents a **deliberate**
+  `src/lrh/skills/lrh-confirm-fixes/SKILL.md:177-187` already documents a **deliberate**
   deviation ("Unlike `/lrh-review-response`'s hard stop on a prior record,
   a prior `_CONFIRM` record here is **not** a blocker — re-verification is
   cheap and safe, since live thread state may have legitimately changed
@@ -132,19 +132,26 @@ this shared document first.
   "applies the pattern" in full — `lrh-proposal`/`lrh-work-item`/
   `lrh-workstream` follow the default; `lrh-review-response` predates it
   and is tracked as a follow-up to align (`project/design/backlog.md`
-  "Idempotence-check refinements deferred from PR #438", item 5);
-  `lrh-confirm-fixes` deviates from it deliberately (Decision 12) and
-  needs no change.
+  "Idempotence-check refinements deferred from PR #438", item 5).
+  `lrh-confirm-fixes`'s status-handling deviation (Decision 12) remains
+  correct and needs no change, but its own `find` at
+  `src/lrh/skills/lrh-confirm-fixes/SKILL.md:180-181` uses the same
+  unanchored substring glob as `lrh-review-response` — it does **not**
+  yet meet this record's trailing-segment invariant either, and is
+  tracked alongside `lrh-review-response` in the same backlog item
+  (item 5, retitled to cover both).
 - The `planned`-status gap is **not** resolved centrally here — no skill
   has yet needed a concrete answer for it. Deferred to whichever skill
   first needs it, at which point it gets a real, use-case-grounded answer
   instead of a guessed one bolted onto this decision.
-- This is the second promoted `project/memory/decisions/*.md` file
-  (`precedence_semantics.md` was the first) — the `/lrh-decision` skill
-  idea in `project/design/backlog.md` was deferred specifically pending "a
-  second `project/memory/decisions/*.md` file... created by hand," so
-  this record also supplies that second data point, worth noting when
-  that backlog entry is next revisited.
+- This is the **third** promoted `project/memory/decisions/*.md` file —
+  `precedence_semantics.md` was first, `DEC-DELIBERATE-CHAIN-INITIATION.md`
+  second (2026-07-24), this one third. The `/lrh-decision` skill idea in
+  `project/design/backlog.md` was deferred pending "a second
+  `project/memory/decisions/*.md` file... created by hand"; that
+  condition was already met by the second file without the backlog entry
+  being updated, and this third one makes it unambiguous — noted there
+  directly rather than left to be rediscovered again.
 
 ## Revisit conditions
 

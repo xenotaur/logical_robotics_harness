@@ -21,10 +21,11 @@ that narrower question — not the same thing as the general exploratory
 search above.
 
 What to do with a match beyond "block or don't" is a **default, not a
-requirement**: absent a documented reason to differ, `landed`/
-`in_progress` blocks unless the prompt explicitly asks for a rerun;
-`failed`/`reverted`/`superseded` is non-blocking and continues past;
-ambiguous or disagreeing statuses stop and report. Whenever a new record
+requirement**: absent a documented reason to differ, a match with
+`landed`/`in_progress` status blocks unless the prompt explicitly asks for
+a rerun; a match with `failed`/`reverted`/`superseded` status is
+non-blocking and continues past; a match with an ambiguous or disagreeing
+status stops and reports. Whenever a new record
 is actually created after a match (an explicit rerun of a blocked match,
 or continuing past a non-blocking one), link it to the matched record via
 `rerun_of` — a blocked match with no rerun produces no new record to

@@ -61,18 +61,23 @@ rather than fixed inline to avoid further scope creep on PR #438:**
    branches, or require checking out the active branch first, before
    concluding no prior run exists.
 
-5. **`lrh-review-response` predates this pattern and doesn't match it
-   (Codex, PR #440 review).** `lrh-review-response/SKILL.md:122-131` uses
-   the same idea (filename-slug search before minting, to catch a rerun
-   `check-execution` alone can't) but with an earlier, less complete
-   version: a broader substring glob (`find ... -name "*<UPPER_SLUG>*.md"`)
-   instead of the trailing-segment anchor items 1–4's skills use, and no
-   per-match `status:` inspection before blocking — it stops on *any*
+5. **`lrh-review-response` and `lrh-confirm-fixes` predate the invariant
+   and don't meet it (Codex, PR #440 review).** Both use the same idea
+   (filename-slug search before minting, to catch a rerun `check-execution`
+   alone can't) with the same earlier, less complete glob: a broader
+   substring match (`find ... -name "*<UPPER_SLUG>*.md"`) instead of the
+   trailing-segment anchor `DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT` makes
+   authoritative. `src/lrh/skills/lrh-review-response/SKILL.md:122-131` additionally has
+   no per-match `status:` inspection before blocking — it stops on *any*
    match unconditionally, including `failed`/`reverted`/`superseded` ones
-   that shouldn't block. Bring it up to the same standard as
-   `lrh-proposal`/`lrh-work-item`/`lrh-workstream`: anchor the glob, add
-   the status-handling branch, and (once item 1 is resolved) the same
-   `rerun_of` precedence logic.
+   that shouldn't block; `lrh-confirm-fixes/SKILL.md:180-181`'s
+   status-handling deviation itself is fine and deliberate (Decision 12 —
+   see the decision record), only its glob needs anchoring. Bring both up
+   to the invariant: anchor the glob in each; add the status-handling
+   branch to `lrh-review-response` (matching
+   `lrh-proposal`/`lrh-work-item`/`lrh-workstream`, not `lrh-confirm-fixes`'s
+   deliberately different warning-only behavior); and (once item 1 is
+   resolved) the same `rerun_of` precedence logic where applicable.
 
 **Status:** Deferred — PR #438's original purpose (fixing 8 bugs in
 `lrh-closeout`/`lrh-proposal`/`lrh-work-item`/`lrh-workstream`/`lrh-land`
@@ -89,9 +94,11 @@ as-is; address all five items in a follow-up PR.
 `src/lrh/skills/lrh-proposal/SKILL.md`,
 `src/lrh/skills/lrh-work-item/SKILL.md`,
 `src/lrh/skills/lrh-workstream/SKILL.md` (Step 4, idempotence check) and
-their `references/execution-record.md` mirrors; `src/lrh/skills/lrh-review-response/SKILL.md`
-Step 3 (item 5's target); "Filename-slug idempotence search drives
-blocking, contrary to `PROMPTS.md`" entry below.
+their `references/execution-record.md` mirrors;
+`src/lrh/skills/lrh-review-response/SKILL.md` Step 3 and
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 3 (item 5's targets);
+"Filename-slug idempotence search drives blocking, contrary to
+`PROMPTS.md`" entry below.
 
 ---
 

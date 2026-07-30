@@ -414,11 +414,26 @@ Step 7 — Create execution record and validate
 
 Step 8 — Readiness report
          Re-fetch CI (gh pr checks, aggregated) against the post-push HEAD SHA.
-         Final verdict = Step 6 thread-resolution verdict AND this re-checked
-         CI state. Report the verdict, the exact HEAD SHA it was checked
-         against, surfaced exceptions, and the gh pr merge one-liner (human
-         clicks). If CI is still pending at the post-push SHA, report
-         "not yet ready — CI pending on <sha>" rather than a false green.
+         **Amended 2026-07-30, superseding this step's original text below:**
+         final verdict = Step 6 thread-resolution verdict AND re-checked CI
+         state AND a REVIEW-LANDED re-check against the `_CONFIRM` commit
+         itself (an affirmative, SHA-matched signal from whichever reviewers
+         this repository has — automated retrigger or explicit human
+         statement — not inferred from elapsed time). A `_CONFIRM` commit can
+         itself draw findings after the fact, so CI alone does not prove the
+         PR is ready; see `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8
+         and `DEC-AGENT-EXECUTED-MERGE-GATE` for the full current logic,
+         including the new `Review pending` verdict state and the routing of
+         a genuine new thread back through Steps 3–5 rather than a bare
+         recheck. Report the verdict, the exact HEAD SHA it was checked
+         against, surfaced exceptions, and the gh pr merge one-liner — which
+         the human or the agent may run, per the authorization test in
+         `DEC-AGENT-EXECUTED-MERGE-GATE` (superseding "human clicks" below).
+         *Original text, preserved for history:* "Report the verdict, the
+         exact HEAD SHA it was checked against, surfaced exceptions, and the
+         gh pr merge one-liner (human clicks). If CI is still pending at the
+         post-push SHA, report 'not yet ready — CI pending on <sha>' rather
+         than a false green."
 ```
 
 ### Decision 14: Reference file structure

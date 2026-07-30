@@ -156,10 +156,40 @@ If a prior exact record exists:
 - `failed`, `reverted`, or `superseded`: summarize prior run and continue only if prompt is a rerun or follow-up.
 - unknown or ambiguous status: stop and report ambiguity.
 
-Exploratory search results can provide useful context for discovery, auditing,
-and debugging, but they should not by themselves drive blocking or rerun
-decisions. If future heuristic or fuzzy matching is added, it must be clearly
-labeled non-authoritative unless later design work explicitly changes this rule.
+### Pre-mint duplicate detection by slug (a second authoritative case)
+
+`lrh prompt label` mints a fresh, timestamped prompt ID on every call, so
+there is no existing ID to check with `check-execution` before a skill's own
+instruction phase has run once already — the exact-lookup mechanism above
+cannot answer "has this same logical slug already produced a record?"
+because no ID for it exists yet to look up. When a skill needs to detect
+that before minting, a filename search against the relevant bucket
+(typically `project/executions/AD_HOC/`) matched to the **complete
+trailing segment** of the slug (not a bare substring) is authoritative for
+this narrower question — it is not the same thing as the exploratory/fuzzy
+search described below.
+
+What a skill does with a match beyond "block or don't" is a **default
+starting point, not a rule enforced here**: absent a documented reason to
+differ, a match with a blocking-shaped status (`landed`/`in_progress`)
+stops and reports unless the prompt explicitly asks for a rerun; a match
+with a terminal-shaped status (`failed`/`reverted`/`superseded`) is
+summarized and continued past, linking `rerun_of` to the matched record. A
+skill may deviate from this default, or handle a status/scenario it
+doesn't cover — it documents that locally with a short rationale rather
+than requiring this document to enumerate every case in advance;
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md` already does exactly this for
+its own repeatable-verification behavior. See `DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`
+(`project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`) for
+the full rationale and the skills that currently apply, deviate from, or
+haven't yet aligned with this default.
+
+Exploratory search results — fuzzy or heuristic matching across arbitrary
+content, not the deterministic slug-bucket case above — can provide useful
+context for discovery, auditing, and debugging, but they should not by
+themselves drive blocking or rerun decisions. If future heuristic or fuzzy
+matching is added, it must be clearly labeled non-authoritative unless later
+design work explicitly changes this rule.
 
 ## Codex Cloud prompt requirements
 

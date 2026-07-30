@@ -139,6 +139,32 @@ If a prior exact record exists:
 - `failed`, `reverted`, or `superseded`: summarize the prior run and continue only if the prompt indicates rerun or follow-up.
 - unknown or ambiguous status: stop and report ambiguity.
 
+### Pre-mint duplicate detection by slug (a second authoritative case)
+
+`lrh prompt label` mints a fresh, timestamped prompt ID on every call, so
+there is no existing ID to check with `check-execution` before a skill's
+own instruction phase has run once already — the exact-lookup mechanism
+above cannot answer "has this same logical slug already produced a
+record?" because no ID for it exists yet to look up. When a skill needs to
+detect that before minting, a filename search against the relevant bucket
+(typically `project/executions/AD_HOC/`) matched to the **complete
+trailing segment** of the slug (not a bare substring) is authoritative for
+this narrower question — it is not the same thing as the exploratory/fuzzy
+search above.
+
+What a skill does with a match beyond "block or don't" is a **default
+starting point, not a rule enforced here**: absent a documented reason to
+differ, a match with a blocking-shaped status (`landed`/`in_progress`)
+stops and reports unless the prompt explicitly asks for a rerun; a match
+with a terminal-shaped status (`failed`/`reverted`/`superseded`) is
+summarized and continued past, linking `rerun_of` to the matched record. A
+skill may deviate from this default, or handle a status/scenario it
+doesn't cover — it documents that locally with a short rationale rather
+than requiring this document to enumerate every case in advance. See
+`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`
+(`project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`) for
+the full rationale.
+
 ## Notes
 
 - Work-item linkage is optional.

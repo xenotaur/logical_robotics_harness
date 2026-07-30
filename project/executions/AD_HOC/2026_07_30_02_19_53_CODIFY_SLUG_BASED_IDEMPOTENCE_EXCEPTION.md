@@ -67,13 +67,28 @@ Review on this PR surfaced 5 findings, all addressed:
   limited to `PROMPTS.md` and `backlog.md`, omitting the execution record
   itself and (once found) the bootstrap template — corrected below.
 
+A second review round on the fix commit surfaced 2 more findings, both
+addressed: Codex found a third copy of this same rule —
+`project/executions/README.md`'s own "Soft idempotence guidance" section,
+which the earlier fix missed entirely — added the equivalent "Pre-mint
+duplicate detection by slug" subsection there too, matching that file's
+existing depth, and added a short exception note to the bootstrap
+template's own terser `project/executions/README.md` stub for the same
+reason. Copilot (low-confidence, correct) found the bootstrap template's
+condensed wording said `rerun_of` links "either way" on any match, which
+is wrong — a blocked `landed`/`in_progress` match with no explicit rerun
+produces no new record to link at all; reworded to only link `rerun_of`
+when a new record is actually created (an explicit rerun of a block, or
+continuing past a non-blocking match).
+
 # Validation
 
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning
   (`WS-LRH-ASSISTANTS` no actionable leaf)
-- No skill or CLI *code* touched (only documentation:
-  `PROMPTS.md`, the bootstrap template `PROMPTS.md`, `project/design/backlog.md`,
-  and this execution record) — no skill-behavior or CLI test suite
+- No skill or CLI *code* touched (only documentation: `PROMPTS.md`,
+  `project/executions/README.md`, `project/design/backlog.md`, the
+  bootstrap template's `PROMPTS.md` and `project/executions/README.md`
+  stubs, and this execution record) — no skill-behavior or CLI test suite
   affected
 
 # Follow-up

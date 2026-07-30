@@ -20,5 +20,8 @@ exact trailing slug segment (not a bare substring) is authoritative for
 that narrower question — not the same thing as the general exploratory
 search above. On a match: `landed`/`in_progress` blocks unless the prompt
 explicitly asks for a rerun; `failed`/`reverted`/`superseded` is
-non-blocking and continues (linking `rerun_of` to the matched record
-either way); ambiguous or disagreeing statuses stop and report.
+non-blocking and continues; ambiguous or disagreeing statuses stop and
+report. Whenever a new record is actually created after a match (an
+explicit rerun of a blocked match, or continuing past a
+`failed`/`reverted`/`superseded` one), link it to the matched record via
+`rerun_of` — a blocked match with no rerun produces no new record to link.

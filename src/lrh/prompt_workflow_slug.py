@@ -73,19 +73,38 @@ class SlugMatch:
     source: str
 
     @property
-    def has_known_created_at(self) -> bool:
+    def _parsed_created_at(self) -> datetime.datetime | None:
+        """The parsed ``created_at``, or ``None`` if unusable.
+
+        Requires a timezone-aware result, not just a successful parse.
+        ``datetime.fromisoformat`` also happily accepts offset-naive
+        strings (e.g. a date with no time-of-day, or a timestamp missing
+        its UTC offset) -- the execution-record contract requires an
+        offset, so an offset-naive parse is exactly as unusable as one
+        that fails outright. Treating it as "known" here would let a
+        naive datetime reach ``sort_key`` and get compared against an
+        offset-aware one, which raises ``TypeError`` rather than
+        producing any answer at all.
+        """
+
         try:
-            datetime.datetime.fromisoformat(self.created_at)
-            return True
+            parsed = datetime.datetime.fromisoformat(self.created_at)
         except ValueError:
-            return False
+            return None
+        if parsed.tzinfo is None:
+            return None
+        return parsed
+
+    @property
+    def has_known_created_at(self) -> bool:
+        return self._parsed_created_at is not None
 
     @property
     def sort_key(self) -> datetime.datetime:
-        try:
-            return datetime.datetime.fromisoformat(self.created_at)
-        except ValueError:
-            return datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+        parsed = self._parsed_created_at
+        if parsed is not None:
+            return parsed
+        return datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
 
 
 @dataclasses.dataclass(frozen=True)

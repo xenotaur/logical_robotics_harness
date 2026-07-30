@@ -161,6 +161,36 @@ class SlugMatchSortAndPolicyTest(unittest.TestCase):
         self.assertFalse(result.blocking)
         self.assertEqual(result.exit_code, 0)
 
+    def test_offset_naive_created_at_is_not_treated_as_known_recency(self) -> None:
+        # datetime.fromisoformat() happily accepts offset-naive strings
+        # (a bare date, or a timestamp missing its UTC offset), but the
+        # execution-record contract requires an offset. An offset-naive
+        # parse must be treated exactly like an unparseable one -- both
+        # unresolved recency -- and, critically, must never reach
+        # sort_key as a genuine timestamp: comparing a naive datetime
+        # against an offset-aware one raises TypeError, not a wrong
+        # answer, so the ONLY safe outcome is to filter it out upstream.
+        for naive_value in ("2026-01-01", "2026-01-01T00:00:00"):
+            with self.subTest(created_at=naive_value):
+                match = self._match("A", "failed", naive_value)
+                self.assertFalse(match.has_known_created_at)
+
+    def test_offset_naive_created_at_blocks_without_crashing_next_to_aware_match(
+        self,
+    ) -> None:
+        naive_terminal = self._match("NAIVE", "failed", "2026-01-01T00:00:00")
+        aware_terminal = self._match("AWARE", "reverted", "2020-01-01T00:00:00+00:00")
+        result = prompt_workflow_slug.SlugCheckResult(
+            slug="my-slug",
+            work_item="AD_HOC",
+            matches=[naive_terminal, aware_terminal],
+        )
+        # Must not raise TypeError (naive vs. aware datetime comparison)
+        # and must block: recency can't be established for the naive one.
+        self.assertTrue(result.has_unresolved_recency)
+        self.assertTrue(result.blocking)
+        self.assertEqual(result.exit_code, 1)
+
 
 class FindLocalMatchesTest(unittest.TestCase):
     def _write_record(

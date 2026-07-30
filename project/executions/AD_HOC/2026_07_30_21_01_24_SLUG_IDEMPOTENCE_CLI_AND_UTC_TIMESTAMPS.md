@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:SLUG_IDEMPOTENCE_CLI_AND_UTC_TIMESTAMPS)[2026-07-30T21:
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/443
 commit: 
 agent: claude_app
 instruction_source: user request in this session (implementing WI-SLUG-IDEMPOTENCE-CLI-TOOLING and WI-PROMPT-WORKFLOW-UTC-TIMESTAMPS in one PR, per user direction)

@@ -180,6 +180,13 @@ git rev-parse HEAD
 gh pr merge <pr-url> --merge --match-head-commit <sha>
 ```
 
+**If this invocation is governed by an `project/assistants/<role>/policy.md`
+binding, check it first.** A role-level `prohibitions: repo:merge` or
+`obligations: merge:human` is a hard ceiling — "obligations accumulate and
+are never removed by a narrower layer" (`project/assistants/token-vocabulary.md`)
+— that overrides the general default below regardless of the reply.
+Ordinary human-driven sessions with no active role binding are unaffected.
+
 **Classify the human's live reply to this presented command** (per
 `DEC-AGENT-EXECUTED-MERGE-GATE`):
 

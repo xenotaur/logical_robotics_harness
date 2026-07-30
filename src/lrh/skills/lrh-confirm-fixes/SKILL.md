@@ -335,21 +335,29 @@ chance to weigh in. Do not attempt to infer configuration state at all:
 
    (Substitute or add other reviewer mentions this repository's
    `REVIEWS.md`, if present, documents.)
-2. Poll for a response that references *this* commit — a new review, a new
-   issue comment from a reviewer, or a new inline thread whose body cites
-   the current SHA. Do not accept a stale comment from before this push as
-   evidence.
-3. If no matching response arrives after a reasonable wait, **do not
-   silently conclude "no reviewer configured" and fall back to a human
-   statement.** Ask the human directly: "No automated review response yet
-   on `<sha>` — is an automated reviewer configured for this repo (worth
-   waiting longer), or should I treat your own confirmation as the review
-   signal?" Only an explicit answer resolves this, not an inferred default
-   in either direction.
+2. **Track every reviewer actually mentioned in step 1, and wait for each
+   one to respond — not just the first.** A fast clean response from one
+   reviewer does not clear the ones still pending; if both Codex and
+   Copilot were retriggered, both must post before REVIEW-LANDED is
+   satisfied, the same way Step 6's thread-resolution verdict requires
+   *every* thread resolved, not just some. Poll for responses that
+   reference *this* commit — a new review, a new issue comment from a
+   reviewer, or a new inline thread whose body cites the current SHA. Do
+   not accept a stale comment from before this push as evidence for any
+   reviewer.
+3. If one or more mentioned reviewers haven't responded after a reasonable
+   wait, **do not silently conclude "no reviewer configured" and fall back
+   to a human statement, and do not report Green on a partial set.** Ask
+   the human directly: "No response yet from `<reviewer>` on `<sha>` — is
+   it configured for this repo (worth waiting longer), or should I treat
+   your own confirmation as the review signal for it?" Only an explicit
+   answer resolves this per missing reviewer, not an inferred default in
+   either direction.
 
 The verdict is **Review pending** — report it explicitly and re-check
-later — for as long as neither a matching bot response nor an explicit
-human answer to the question above has arrived. Do not time out into Green.
+later — for as long as any mentioned reviewer's matching response, or an
+explicit human answer standing in for it, is still outstanding. Do not
+time out into Green on a partial response.
 
 **If the retrigger surfaces a genuine new unresolved thread on the
 `_CONFIRM` commit, that is not "pending" — it is a new finding.** Waiting
@@ -375,6 +383,20 @@ this REVIEW-LANDED state on the `_CONFIRM` commit:
   project treats as standard. `--match-head-commit` makes the merge fail
   rather than silently merge a newer, unchecked commit if one lands between
   this report and whoever ends up running it.
+
+  **Before applying the classification below, check whether an assistant
+  role governs this invocation and defers to a stricter ceiling.** If this
+  session is running under an `project/assistants/<role>/policy.md`
+  binding (e.g. invoked as part of an assistant's granted capabilities
+  rather than a direct human-driven session), a role-level `prohibitions:
+  repo:merge` or `obligations: merge:human` is a hard ceiling this skill's
+  general default cannot override — "obligations accumulate and are never
+  removed by a narrower layer" (`project/assistants/token-vocabulary.md`).
+  In that case, always hand the command to the human and never execute it
+  yourself, regardless of how the reply below would otherwise classify.
+  This check does not apply to an ordinary human-driven session with no
+  active role binding — the general authorization test is the default
+  there.
 
   **If the human then gives a live, in-session reply to this presented
   command, classify it before acting:**
@@ -454,6 +476,13 @@ Before reporting completion, verify:
 - [ ] A genuine new thread surfaced by the retrigger was routed through
       Step 3's taxonomy and Steps 4-5, not left as an indefinite "recheck
       later"
+- [ ] Green required a response from *every* reviewer actually retriggered,
+      not just the first one back — a fast clean pass from one does not
+      clear a slower reviewer still pending
+- [ ] Before permitting agent execution, checked whether an
+      `project/assistants/*/policy.md` role binding governs this
+      invocation and imposes a stricter `repo:merge` prohibition or
+      `merge:human` obligation that overrides this skill's general default
 - [ ] The reported merge one-liner includes `--match-head-commit <sha>`
 - [ ] No `gh pr merge` was executed by this skill's own workflow — reported
       as a one-liner; any subsequent execution followed unambiguous

@@ -41,73 +41,35 @@ PROMPT(AD_HOC:<SLUG_UPPER_UNDERSCORE>)[<ISO8601-TIMESTAMP>]
 
 Search by stable slug *before* minting, across the current checkout and
 open PRs — `lrh prompt label` always mints a fresh timestamped ID, so
-`check-execution` alone cannot catch a rerun. Derive
-`<SLUG_UPPER_UNDERSCORE>` from `<slug>` by replacing `-` with `_` and
-uppercasing, then match the complete trailing filename segment — not a bare
-substring, which would also match an unrelated longer slug that happens to
-contain this one. Fetch and check open PRs by number using GitHub's
-`refs/pull/<N>/head` — a ref the base repository always exposes for every
-open PR regardless of whether the head branch lives in this repo or a
-fork. Force the fetch (`+refs/...`) so a force-pushed PR still updates the
-local ref rather than leaving a stale one. Request every open PR
-(`--limit`), not just the CLI's default first page. Exclude any remote
-match this PR didn't actually introduce — a bare-path match in the
-current checkout, or a file already present at this PR's own merge-base
-with its declared base ref, is inherited, not new (the merge-base check
-covers stacked PRs: PR B branched from still-open PR A would otherwise
-also surface A's record, tagged with B's unrelated number):
+`check-execution --prompt-id` alone cannot catch a rerun. Use the
+slug-based mode, the mechanism `DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`
+describes and `WI-SLUG-IDEMPOTENCE-CLI-TOOLING` implements:
 
 ```bash
-LOCAL_MATCHES=$(find project/executions/AD_HOC/ -name "*_<SLUG_UPPER_UNDERSCORE>.md" 2>/dev/null)
-{
-  echo "$LOCAL_MATCHES"
-  gh pr list --state open --limit 1000 --json number,baseRefName \
-    --jq '.[] | "\(.number)\t\(.baseRefName)"' | while IFS=$'\t' read -r pr base; do
-    git fetch origin "+refs/pull/$pr/head:refs/remotes/pr/$pr" --quiet 2>/dev/null
-    git fetch origin "$base" --quiet 2>/dev/null
-    merge_base=$(git merge-base "refs/remotes/pr/$pr" "origin/$base" 2>/dev/null)
-    git ls-tree -r "refs/remotes/pr/$pr" --name-only -- project/executions/AD_HOC/ 2>/dev/null \
-      | grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$" \
-      | grep -vxFf <(echo "$LOCAL_MATCHES") \
-      | while read -r path; do
-          if [ -n "$merge_base" ] && git cat-file -e "$merge_base:$path" 2>/dev/null; then
-            continue
-          fi
-          printf '%s\tPR#%s\n' "$path" "$pr"
-        done
-  done
-} | sort
+lrh prompt check-execution --slug <slug> --work-item AD_HOC --project-root .
 ```
 
-If the base-ref fetch or merge-base lookup fails, the match is kept
-rather than silently dropped.
+This matches the complete trailing filename segment (not a bare
+substring), searches the local checkout and every open PR (including
+forks) via `refs/pull/<N>/head`, excludes matches a PR only *inherited*
+via `git merge-base` against its declared base ref (so a stacked PR never
+shadows the PR that actually introduced the record), and selects the
+truly most recent match by parsed `created_at:` rather than filename
+order (execution-record filename timestamps are not reliably
+chronological across machines — see `project/design/backlog.md`'s
+"Execution-record filename timestamps use local time, not UTC").
 
-`AD_HOC/` may not exist yet in a freshly bootstrapped project — a nonzero
-exit with no output here means no prior record, not a failure. Each line
-is either a bare path (already in the current checkout) or
-`<path><TAB>PR#<N>` (found only on an open PR, fetched into the local
-`refs/remotes/pr/<N>` ref above). If there's more than one match, do not
-assume the filename that sorts last is the most recent — timestamps embed
-the creating machine's *local* time, not UTC (see `project/design/backlog.md`'s
-"Execution-record filename timestamps use local time, not UTC"), so
-filename order can be wrong across timezones. Read every surviving
-match's `created_at:` frontmatter field instead (bare path: read
-directly; `<path><TAB>PR#<N>`: `git show "refs/remotes/pr/$N:$path"`
-without checking out), normalize each to an absolute instant before
-comparing (e.g.
-`python3 -c "import datetime,sys; print(datetime.datetime.fromisoformat(sys.argv[1]).timestamp())" "$created_at"`
-— portable across GNU/BSD, unlike GNU-only `date -d` — since raw ISO8601
-strings with differing UTC offsets don't sort correctly as text either), and
-decide based only on the one with the truly latest timestamp. Per
-`PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
-a matched filename is discovery, not by itself a block: `in_progress`/
-`landed` stop and report (unless the user explicitly asks for a rerun, in
-which case see SKILL.md Step 6 for resuming the match's branch whether
-local, remote-only, or gone — and keep the match's `execution_id` for
-`--rerun-of` below); `failed`/`reverted`/`superseded` summarize and continue (keeping
-its `execution_id` for `--rerun-of` below); unknown or ambiguous status
-stops and reports the ambiguity. Only after that search comes up empty or
-clears, mint the ID and run the secondary check:
+Interpret the exit code: `1` is a blocking match (`landed`/`in_progress`,
+the default) — stop and report unless the user explicitly asks for a
+rerun (see SKILL.md Step 6 for resuming the match's branch whether local,
+remote-only, or gone; keep the printed `execution_id` for `--rerun-of`
+below). `0` with a match printed is non-blocking by default
+(`failed`/`reverted`/`superseded`, or an unrecognized status such as
+`planned`) — summarize and continue, keeping its `execution_id` for
+`--rerun-of` below. `0` with no match printed means no prior record.
+`3` means the check itself failed (a `gh`/`git` error) — stop and report
+the error; this is not the same as "no prior record." Only after that
+search comes up empty or clears, mint the ID and run the secondary check:
 
 ```bash
 lrh prompt check-execution --prompt-id "<id>" --project-root .

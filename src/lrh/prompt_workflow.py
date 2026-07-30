@@ -8,7 +8,7 @@ import pathlib
 import re
 import sys
 
-from lrh import prompt_workflow_queries, prompt_workflow_records
+from lrh import prompt_workflow_queries, prompt_workflow_records, prompt_workflow_slug
 
 VALID_STATUSES = {
     "planned",
@@ -194,14 +194,29 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
 
     check_parser = subparsers.add_parser(
         "check-execution",
-        help="Check whether execution records already exist for a prompt ID.",
+        help="Check whether execution records already exist for a prompt ID or slug.",
         description=(
-            "Authoritative exact structured lookup for prompt soft idempotence. "
-            "Use exploratory search only as context, not as the basis for "
-            "blocking or rerun decisions."
+            "Two authoritative lookup modes: --prompt-id is the exact "
+            "structured lookup for prompt soft idempotence; --slug is the "
+            "pre-mint trailing-segment filename search authorized by "
+            "DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT for the case where no "
+            "prompt ID exists yet to look up exactly. Exactly one of the "
+            "two must be given. Exploratory (non-slug, non-exact) search "
+            "must never drive blocking or rerun decisions."
         ),
     )
-    check_parser.add_argument("--prompt-id", required=True)
+    check_parser.add_argument("--prompt-id", default=None)
+    check_parser.add_argument(
+        "--slug",
+        default=None,
+        help="Pre-mint slug idempotence check (mutually exclusive with --prompt-id).",
+    )
+    check_parser.add_argument("--work-item", default="AD_HOC")
+    check_parser.add_argument(
+        "--no-remote",
+        action="store_true",
+        help="With --slug, skip cross-PR/fork discovery; local checkout only.",
+    )
     check_parser.add_argument("--project-root", default=".")
     check_parser.add_argument("--output-root", default="project/executions")
 
@@ -227,6 +242,31 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
         parser.error("prompt requires a subcommand (try: lrh prompt label)")
 
     if args.prompt_command == "check-execution":
+        if bool(args.prompt_id) == bool(args.slug):
+            parser.error(
+                "check-execution requires exactly one of --prompt-id or --slug"
+            )
+
+        if args.slug is not None:
+            try:
+                slug = normalize_slug(args.slug)
+                work_item = normalize_work_item(args.work_item)
+            except ValueError as error:
+                parser.error(str(error))
+            try:
+                slug_result = prompt_workflow_slug.check_slug(
+                    project_root=args.project_root,
+                    slug=slug,
+                    work_item=work_item,
+                    output_root=args.output_root,
+                    include_remote=not args.no_remote,
+                )
+            except prompt_workflow_slug.SlugCheckError as error:
+                print(f"error: {error}", file=sys.stderr)
+                return 3
+            print(prompt_workflow_slug.format_text_result(slug_result), end="")
+            return slug_result.exit_code
+
         result = prompt_workflow_queries.check_execution(
             project_root=args.project_root,
             prompt_id=args.prompt_id,
@@ -296,7 +336,11 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     except ValueError as error:
         parser.error(str(error))
 
-    now = datetime.datetime.now(datetime.timezone.utc).astimezone()
+    # UTC, not local time: filenames (timestamp_for_file/timestamp_for_id
+    # below) are offset-free, so lexicographic sort order only matches true
+    # chronological order if this instant is never converted to the host's
+    # local timezone first.
+    now = datetime.datetime.now(datetime.timezone.utc)
     output_root = resolve_output_root(args.project_root, args.output_root)
 
     if args.prompt_command == "label":

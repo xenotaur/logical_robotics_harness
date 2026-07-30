@@ -32,6 +32,8 @@ work_items:
   - WI-EXEC-SESSIONS-DOCS
   - WI-EXEC-SESSIONS-SCHEMA
   - WI-CLOSEOUT-SESSION-SOURCING
+  - WI-SLUG-IDEMPOTENCE-CLI-TOOLING
+  - WI-PROMPT-WORKFLOW-UTC-TIMESTAMPS
 exit_criteria:
   - execution-framework design is updated and reconciled with the workstream/planning-tree model
   - roadmap, current focus, and work items identify the first execution-framework implementation phase

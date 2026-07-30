@@ -1,6 +1,10 @@
+import contextlib
 import datetime
+import io
+import os
 import pathlib
 import tempfile
+import time
 import unittest
 
 from lrh import prompt_workflow
@@ -91,6 +95,43 @@ class PromptWorkflowTest(unittest.TestCase):
                 "project/executions",
             )
         self.assertEqual(matches, [])
+
+    def test_label_timestamp_is_utc_regardless_of_local_timezone(self) -> None:
+        # Regression test for prompt_workflow.py:299: `now` must be a UTC
+        # instant with no local-timezone conversion, or filename/prompt-ID
+        # timestamps stop sorting chronologically across machines/DST.
+        original_tz = os.environ.get("TZ")
+        try:
+            offsets = []
+            with tempfile.TemporaryDirectory() as temp_dir:
+                for tz in ("America/New_York", "Asia/Kolkata"):
+                    os.environ["TZ"] = tz
+                    time.tzset()
+                    buffer = io.StringIO()
+                    with contextlib.redirect_stdout(buffer):
+                        prompt_workflow.run_prompt_cli(
+                            [
+                                "label",
+                                "--slug",
+                                "utc-timestamp-test",
+                                "--project-root",
+                                temp_dir,
+                            ]
+                        )
+                    prompt_id_line = next(
+                        line
+                        for line in buffer.getvalue().splitlines()
+                        if line.startswith("prompt_id:")
+                    )
+                    offsets.append(prompt_id_line.rsplit("]", 1)[0][-6:])
+        finally:
+            if original_tz is None:
+                os.environ.pop("TZ", None)
+            else:
+                os.environ["TZ"] = original_tz
+            time.tzset()
+
+        self.assertEqual(offsets, ["+00:00", "+00:00"])
 
     def test_parse_front_matter_fields_requires_closing_delimiter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

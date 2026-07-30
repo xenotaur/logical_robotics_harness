@@ -183,18 +183,28 @@ xenotaur/feat/wi-skills-lrh-confirm-fixes → wi-skills-lrh-confirm-fixes-confir
 ```
 
 Check for a prior `_CONFIRM` record on this branch, matched to the
-complete trailing filename segment — not a bare substring, which would
-also match an unrelated longer slug that happens to contain this one:
+complete trailing filename segment (not a bare substring), using the same
+slug-based mechanism `/lrh-review-response` uses
+(`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT` /
+`WI-SLUG-IDEMPOTENCE-CLI-TOOLING`). `--no-remote` is correct here for the
+same reason as `/lrh-review-response`: this skill already operates on an
+already-checked-out PR branch:
 
 ```bash
-UPPER_SLUG=$(echo "<slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/AD_HOC/ -name "*_${UPPER_SLUG}.md" 2>/dev/null
+lrh prompt check-execution --slug <slug> --work-item AD_HOC --no-remote --project-root .
 ```
 
 Unlike `/lrh-review-response`'s hard stop on a prior record, a prior
 `_CONFIRM` record here is **not** a blocker — re-verification is cheap and
 safe, since live thread state may have legitimately changed between rounds
-(Decision 12). If found, **warn** the user and proceed.
+(Decision 12). This is a deliberate deviation from the command's own
+default policy (which would treat a `landed`/`in_progress` match as
+blocking, exit code `1`): **ignore the exit code here** and instead check
+whether any match line was printed at all (i.e. the output is not "No
+prior execution record found for this slug."). If a match was printed —
+regardless of its status or the command's exit code — **warn** the user
+and proceed. A `3` exit (the check itself failed, a `git` error) is still
+a real failure and should be reported, not treated as "no prior record."
 
 Then mint:
 

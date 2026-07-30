@@ -120,38 +120,35 @@ wi-skills-lrh-review-response-review → WI_SKILLS_LRH_REVIEW_RESPONSE_REVIEW
 ```
 
 Before minting, check for an existing review-response execution record on
-this branch. `lrh prompt check-execution` cannot catch duplicates here because
-each invocation mints a new timestamped ID. Match the complete trailing
-filename segment, not a bare substring — a longer, unrelated slug that
-happens to contain this one must not count as a match:
+this branch. `lrh prompt check-execution --prompt-id` cannot catch
+duplicates here because each invocation mints a new timestamped ID. Use
+the slug-based mode instead — the mechanism
+`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT` describes and
+`WI-SLUG-IDEMPOTENCE-CLI-TOOLING` implements. `--no-remote` is correct
+here: this skill already operates on an already-checked-out PR branch
+rather than creating a new one, so the current checkout is the only
+scope that matters:
 
 ```bash
-find project/executions/AD_HOC/ -name "*_<UPPER_SLUG>.md" 2>/dev/null | sort
+lrh prompt check-execution --slug <slug> --work-item AD_HOC --no-remote --project-root .
 ```
 
-A nonzero exit with no output means no prior record, not a failure. If
-there is more than one match, do not assume the filename that sorts last
-is the most recent — timestamps embed the creating machine's *local*
-time, not UTC (see `project/design/backlog.md`'s "Execution-record
-filename timestamps use local time, not UTC"), so filename order can be
-wrong across timezones. Read every surviving match's `created_at:`
-frontmatter field instead, normalize each to an absolute instant before
-comparing (e.g.
-`python3 -c "import datetime,sys; print(datetime.datetime.fromisoformat(sys.argv[1]).timestamp())" "$created_at"`
-— portable across GNU/BSD, unlike GNU-only `date -d` — since raw ISO8601
-strings with differing UTC offsets don't sort correctly as text either), and
-decide based only on the one with the truly latest timestamp.
+This matches the complete trailing filename segment (not a bare
+substring) and selects the truly most recent match by parsed
+`created_at:` rather than filename order (execution-record filename
+timestamps are not reliably chronological across machines — see
+`project/design/backlog.md`'s "Execution-record filename timestamps use
+local time, not UTC").
 
-Read that match's `status:` frontmatter field before deciding — per
-`PROMPTS.md`'s status-handling rule (`DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`),
-a matched filename is discovery, not by itself a block:
-- `in_progress` or `landed`: **stop and report** — do not continue unless
-  the user explicitly asks for a rerun. If they do, keep the match's
-  `execution_id` to pass as `rerun_of` in Step 7.
-- `failed`, `reverted`, or `superseded`: not a blocking prior run —
-  summarize it and continue, keeping its `execution_id` for `rerun_of` in
-  Step 7.
-- unknown or ambiguous status: **stop and report** the ambiguity.
+Interpret the exit code: `1` is a blocking match (`landed`/`in_progress`,
+the default) — **stop and report** unless the user explicitly asks for a
+rerun; if they do, keep the printed `execution_id` to pass as `rerun_of`
+in Step 7. `0` with a match printed is non-blocking by default
+(`failed`/`reverted`/`superseded`, or an unrecognized status such as
+`planned`) — summarize it and continue, keeping its `execution_id` for
+`rerun_of` in Step 7. `0` with no match printed means no prior record.
+`3` means the check itself failed (a `git` error) — **stop and report**
+the error; this is not the same as "no prior record."
 
 Then mint and run the secondary idempotence check:
 

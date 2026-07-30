@@ -37,8 +37,28 @@ def parse_front_matter_fields(path: pathlib.Path) -> dict[str, str]:
     if parsed is None:
         return {}
 
+    return _string_frontmatter_fields(parsed.frontmatter)
+
+
+def parse_front_matter_fields_from_text(text: str) -> dict[str, str]:
+    """Return string frontmatter fields from Markdown text already in memory.
+
+    Used for execution-record content read from a non-filesystem source
+    (for example ``git show <ref>:<path>``) where there is no local path
+    to hand to :func:`parse_front_matter_fields`. Invalid Markdown returns
+    an empty mapping, matching :func:`parse_front_matter_fields`.
+    """
+
+    try:
+        parsed = control_parser.parse_markdown_text(text)
+    except ValueError:
+        return {}
+    return _string_frontmatter_fields(parsed.frontmatter)
+
+
+def _string_frontmatter_fields(frontmatter: dict[str, typing.Any]) -> dict[str, str]:
     fields: dict[str, str] = {}
-    for key, value in parsed.frontmatter.items():
+    for key, value in frontmatter.items():
         if isinstance(value, str):
             fields[key] = value
     return fields

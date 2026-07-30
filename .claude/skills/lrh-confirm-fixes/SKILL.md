@@ -311,24 +311,42 @@ a human who replies "I'll merge it" right after the push races the same
 delayed finding an agent would.
 
 **Elapsed time alone does not prove review ran — require an affirmative
-signal for this exact HEAD.** Do not infer "review landed" from a timeout;
-an absence of new comments could mean the bots ran clean, or could mean
-they simply haven't run yet — those are indistinguishable from silence
-alone. Explicitly retrigger both, the same way Step 2/Step 4's
-REVIEW-LANDED check does when review hasn't run yet:
+signal for this exact HEAD, from whichever reviewers this repository
+actually has.** Do not infer "review landed" from a timeout; an absence of
+new comments could mean the reviewers ran clean, or could mean they simply
+haven't run yet — those are indistinguishable from silence alone. Do not
+hardcode Codex/Copilot as mandatory: this skill ships standalone into
+client repositories that may configure different automated reviewers, only
+one of them, or none at all (human-only review). Determine what applies to
+*this* repository first:
 
-```bash
-gh pr comment <pr-url> --body "@codex review"
-gh pr comment <pr-url> --body "@copilot review"
-```
+- **Known automated reviewers configured** (detected from Step 2's author
+  list, or documented in a `REVIEWS.md` override — see Step 0's
+  precondition) — retrigger each explicitly, the same way Step 2/Step 4's
+  REVIEW-LANDED check does when review hasn't run yet, e.g.:
 
-Then poll for a response that references *this* commit — a new review, a
-new issue comment from either bot, or a new inline thread whose
-`reviewedCommit`/body cites the current SHA (bots often report the exact
-SHA they reviewed in their comment text). Do not accept a stale comment
-from before this push as evidence. If no matching response has arrived
-after a reasonable wait, the verdict is **Review pending** — report it
-explicitly and re-check later; do not time out into Green.
+  ```bash
+  gh pr comment <pr-url> --body "@codex review"
+  gh pr comment <pr-url> --body "@copilot review"
+  ```
+
+  Then poll for a response that references *this* commit — a new review, a
+  new issue comment from that reviewer, or a new inline thread whose body
+  cites the current SHA. Do not accept a stale comment from before this
+  push as evidence.
+- **No automated reviewer is configured for this repository** (none
+  observed reviewing earlier rounds, and no `REVIEWS.md` override names
+  one) — an automated retrigger has nothing to wait for and would deadlock
+  the verdict indefinitely. Instead, treat an explicit human statement that
+  they reviewed the `_CONFIRM` commit (e.g. "reviewed, looks good") as the
+  REVIEW-LANDED signal for this HEAD, same in kind as an automated clean
+  pass — report the commit and ask for it rather than presenting Green
+  unasked.
+
+If no matching response has arrived after a reasonable wait (automated
+case) or hasn't been given yet (human-only case), the verdict is **Review
+pending** — report it explicitly and re-check later; do not time out into
+Green either way.
 
 **If the retrigger surfaces a genuine new unresolved thread on the
 `_CONFIRM` commit, that is not "pending" — it is a new finding.** Waiting
@@ -426,8 +444,10 @@ Before reporting completion, verify:
       for the **Green** verdict itself (not scoped to "before agent
       execution only") — a human executing immediately races the same
       delayed finding an agent would
-- [ ] REVIEW-LANDED evidence is an affirmative, SHA-matched bot response
-      after an explicit retrigger — not inferred from elapsed time alone
+- [ ] REVIEW-LANDED evidence is an affirmative, SHA-matched response after
+      an explicit retrigger of whichever reviewers this repository
+      actually has — not inferred from elapsed time alone, and not
+      hardcoded to Codex/Copilot in a repo that configures neither
 - [ ] A genuine new thread surfaced by the retrigger was routed through
       Step 3's taxonomy and Steps 4-5, not left as an indefinite "recheck
       later"

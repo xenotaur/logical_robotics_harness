@@ -303,25 +303,45 @@ could report a false green built only from optional checks.
 this gates the verdict, not just who may act on it.** Step 7's commit is
 new content on the PR; automated reviewers (Codex, Copilot) post *after* a
 push, not simultaneously, and can still find something in the `_CONFIRM`
-commit (not hypothetical — this exact skill's own worked example got two
-genuine findings on its own `_CONFIRM` commit, discovered only after it was
-already pushed). A verdict that reports Green before that review has landed
-is unsafe regardless of who acts on it next: a human who replies "I'll
-merge it" right after the push races the same delayed finding an agent
-would. Do not scope this check to "before agent execution" — gate the
-verdict itself:
+commit (not hypothetical — this exact skill's own worked example got real
+findings on its own `_CONFIRM` commit across several rounds, discovered
+only after each commit was already pushed). A verdict that reports Green
+before that review has landed is unsafe regardless of who acts on it next:
+a human who replies "I'll merge it" right after the push races the same
+delayed finding an agent would.
+
+**Elapsed time alone does not prove review ran — require an affirmative
+signal for this exact HEAD.** Do not infer "review landed" from a timeout;
+an absence of new comments could mean the bots ran clean, or could mean
+they simply haven't run yet — those are indistinguishable from silence
+alone. Explicitly retrigger both, the same way Step 2/Step 4's
+REVIEW-LANDED check does when review hasn't run yet:
 
 ```bash
-gh pr view <pr-url> --json headRefOid,commits --jq '{head: .headRefOid, lastPush: (.commits | last | .committedDate)}'
-lrh github threads <pr-url> --mode raw --state all
+gh pr comment <pr-url> --body "@codex review"
+gh pr comment <pr-url> --body "@copilot review"
 ```
 
-If meaningful time hasn't passed since the push, or new unresolved threads
-appear on the `_CONFIRM` commit, the verdict is **not** Green yet —
-regardless of CI or thread-resolution state — report it as **Review
-pending** (see below) and re-check later, exactly as CI-pending already
-works. Only once review has had time to land on the `_CONFIRM` commit (or
-comes back clean) can the verdict be Green.
+Then poll for a response that references *this* commit — a new review, a
+new issue comment from either bot, or a new inline thread whose
+`reviewedCommit`/body cites the current SHA (bots often report the exact
+SHA they reviewed in their comment text). Do not accept a stale comment
+from before this push as evidence. If no matching response has arrived
+after a reasonable wait, the verdict is **Review pending** — report it
+explicitly and re-check later; do not time out into Green.
+
+**If the retrigger surfaces a genuine new unresolved thread on the
+`_CONFIRM` commit, that is not "pending" — it is a new finding.** Waiting
+longer cannot resolve real content the way it resolves silence. Route it
+back through the Step 3 taxonomy (classify Clear-satisfied / Unaddressed /
+Partial / Ambiguous / Problematic) and Steps 4–5 (confirm gate, resolve) —
+the same way any other review round is handled — rather than looping Step
+8's wait. If remediation needs a code change, it produces another pushed
+commit, and Step 8's CI and REVIEW-LANDED checks apply again to that new
+`HEAD`. Only a thread-free response (or an explicit clean pass) satisfies
+REVIEW-LANDED; a thread that only needed a reply-and-resolve (no code
+change) still requires a fresh retrigger-and-wait pass before Green, since
+the retriggered review was of the pre-resolution `HEAD`.
 
 Aggregate per `references/confirm-fixes-workflow.md`. The **final verdict**
 is the Step 6 thread-resolution verdict AND the re-checked CI state AND
@@ -355,12 +375,13 @@ this REVIEW-LANDED state on the `_CONFIRM` commit:
   `state == MERGED` before proceeding, whether you ran the merge yourself or
   the human reports having done so.
 - **Review pending** — "Threads resolved, CI green, review not yet landed
-  on `<sha>` — not yet ready." Do not present the merge command as ready;
-  re-check after more time has passed.
+  on `<sha>` — not yet ready." No matching bot response yet after retrigger;
+  re-check later. Do not present the merge command as ready.
 - **CI pending** — "Threads resolved, CI pending on `<sha>` — not yet ready."
 - **CI failing** — "Threads resolved, CI failing on `<sha>` — not ready."
 - **Threads outstanding** — "Not ready — `<N>` threads need attention:
-  `<list by bucket>`."
+  `<list by bucket>`." Includes both Step 2's original threads and any new
+  ones a retriggered review surfaced on the `_CONFIRM` commit.
 
 If CI is still pending at the post-push SHA, report that explicitly rather
 than a false green from the Step 2 provisional read.
@@ -405,6 +426,11 @@ Before reporting completion, verify:
       for the **Green** verdict itself (not scoped to "before agent
       execution only") — a human executing immediately races the same
       delayed finding an agent would
+- [ ] REVIEW-LANDED evidence is an affirmative, SHA-matched bot response
+      after an explicit retrigger — not inferred from elapsed time alone
+- [ ] A genuine new thread surfaced by the retrigger was routed through
+      Step 3's taxonomy and Steps 4-5, not left as an indefinite "recheck
+      later"
 - [ ] The reported merge one-liner includes `--match-head-commit <sha>`
 - [ ] No `gh pr merge` was executed by this skill's own workflow — reported
       as a one-liner; any subsequent execution followed unambiguous

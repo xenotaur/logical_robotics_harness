@@ -97,10 +97,41 @@ class SlugCheckResult:
     matches: list[SlugMatch]
 
     @property
-    def most_recent(self) -> SlugMatch | None:
+    def _matches_at_latest_instant(self) -> list[SlugMatch]:
+        """All matches tied for the latest ``sort_key``, not just one.
+
+        ``created_at`` is truncated to whole seconds, so two independent
+        records (e.g. two PRs) can legitimately share the exact same
+        instant. Picking a single "winner" via ``max()`` breaks ties by
+        incidental iteration/list order, which can silently make a
+        `failed` match "beat" an equally-recent `in_progress` match
+        purely because of ordering -- discarding real status evidence.
+        Every match tied for the latest instant must be considered, not
+        just an arbitrary one of them.
+        """
+
         if not self.matches:
+            return []
+        latest = max(match.sort_key for match in self.matches)
+        return [match for match in self.matches if match.sort_key == latest]
+
+    @property
+    def most_recent(self) -> SlugMatch | None:
+        """A representative match for display/`--rerun-of` purposes.
+
+        When multiple matches tie for the latest instant, prefers one
+        that isn't terminal (the more actionable one to surface) --
+        purely cosmetic when ``blocking``/``exit_code`` already account
+        for every tied match, not just this single representative.
+        """
+
+        candidates = self._matches_at_latest_instant
+        if not candidates:
             return None
-        return max(self.matches, key=lambda match: match.sort_key)
+        for candidate in candidates:
+            if candidate.status not in TERMINAL_STATUSES:
+                return candidate
+        return candidates[0]
 
     @property
     def has_unresolved_recency(self) -> bool:
@@ -134,18 +165,23 @@ class SlugCheckResult:
         check this module replaces, which treated any unknown status as a
         stop condition rather than a green light). A match whose recency
         cannot be established also blocks, regardless of what a naive
-        "most recent by timestamp" comparison would otherwise pick."""
+        "most recent by timestamp" comparison would otherwise pick. When
+        multiple matches tie for the latest instant, blocks if *any* of
+        them is non-terminal -- a single terminal match must not hide an
+        equally-recent blocking one."""
 
         if not self.matches:
             return False
         if self.has_unresolved_recency:
             return True
-        recent = self.most_recent
-        return recent is not None and recent.status not in TERMINAL_STATUSES
+        return any(
+            match.status not in TERMINAL_STATUSES
+            for match in self._matches_at_latest_instant
+        )
 
     @property
     def unresolved_status(self) -> bool:
-        """True if the most recent match's status is neither known bucket.
+        """True if any match tied for latest has an unclassifiable status.
 
         Distinguishes an ordinary blocking match (``landed``/
         ``in_progress``) from one that blocks only because its status
@@ -156,9 +192,9 @@ class SlugCheckResult:
         recent" reason.
         """
 
-        recent = self.most_recent
-        return recent is not None and recent.status not in (
-            BLOCKING_STATUSES | TERMINAL_STATUSES
+        return any(
+            match.status not in (BLOCKING_STATUSES | TERMINAL_STATUSES)
+            for match in self._matches_at_latest_instant
         )
 
     @property

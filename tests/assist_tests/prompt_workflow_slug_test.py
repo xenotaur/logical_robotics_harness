@@ -127,6 +127,40 @@ class SlugMatchSortAndPolicyTest(unittest.TestCase):
         )
         self.assertFalse(result.has_unresolved_recency)
 
+    def test_exact_timestamp_tie_blocks_regardless_of_list_order(self) -> None:
+        # created_at is truncated to whole seconds, so two independent
+        # records (e.g. two PRs minting the same slug within one second)
+        # can share the exact same instant. A single max()-by-timestamp
+        # pick breaks that tie by incidental list order, which could let
+        # a `failed` match "beat" an equally-recent `in_progress` match
+        # just because of ordering. Every match tied for the latest
+        # instant must be considered, regardless of order.
+        tied_failed = self._match("FAILED", "failed", "2026-01-01T00:00:00+00:00")
+        tied_in_progress = self._match(
+            "IN_PROGRESS", "in_progress", "2026-01-01T00:00:00+00:00"
+        )
+        for matches in (
+            [tied_failed, tied_in_progress],
+            [tied_in_progress, tied_failed],
+        ):
+            with self.subTest(order=[m.execution_id for m in matches]):
+                result = prompt_workflow_slug.SlugCheckResult(
+                    slug="my-slug", work_item="AD_HOC", matches=matches
+                )
+                self.assertTrue(result.blocking)
+                self.assertEqual(result.exit_code, 1)
+
+    def test_exact_timestamp_tie_both_terminal_does_not_block(self) -> None:
+        tied_failed = self._match("A", "failed", "2026-01-01T00:00:00+00:00")
+        tied_reverted = self._match("B", "reverted", "2026-01-01T00:00:00+00:00")
+        result = prompt_workflow_slug.SlugCheckResult(
+            slug="my-slug",
+            work_item="AD_HOC",
+            matches=[tied_failed, tied_reverted],
+        )
+        self.assertFalse(result.blocking)
+        self.assertEqual(result.exit_code, 0)
+
 
 class FindLocalMatchesTest(unittest.TestCase):
     def _write_record(

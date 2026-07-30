@@ -180,23 +180,44 @@ by an in-session go-ahead, or an ad-hoc landing flow. It does not touch:
 ## Consequences
 
 - Guidance cascade (with this decision): `src/lrh/skills/lrh-land/SKILL.md`
-  Step 6 (and its `.claude/skills/` and global `~/.claude/skills/` mirrors),
-  `src/lrh/skills/lrh-confirm-fixes/SKILL.md`'s merge-related language (same
-  three mirrors), `AGENTS.md` "Pull requests and merge authority," and
-  `PROP-LRH-LAND-EXECUTE` Decision 3 point 6 (still `status: proposed`,
-  updated directly).
+  Step 6, `src/lrh/skills/lrh-confirm-fixes/SKILL.md`'s merge-related
+  language, and the packaged reference diagrams in
+  `src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md`,
+  `src/lrh/skills/lrh-implement/references/lrh-implement-workflow.md`, and
+  `src/lrh/skills/lrh-review-response/references/review-response-workflow.md`
+  (all mirrored to `.claude/skills/` and, where applicable, the global
+  `~/.claude/skills/` install — every packaged reference a skill loads
+  needed the same fix as its `SKILL.md`, not just the top-level file);
+  `AGENTS.md` "Pull requests and merge authority"; `PROP-LRH-LAND-EXECUTE`
+  Decision 3 point 6 (still `status: proposed`, updated directly); and two
+  `status: adopted` design proposals whose governing text stated the old
+  rule — `project/design/proposals/adopted/lrh-confirm-fixes/00_proposal.md`
+  Decision 5 and `project/design/proposals/adopted/lrh-project-local-skills/01_lrh_implement_skill.md`.
 - `DEC-DELIBERATE-CHAIN-INITIATION`'s Revisit conditions bullet "shows the
   merge gate is never load-bearing" is met by this evidence; noted directly
   in that file rather than left to be rediscovered, per the precedent set
   in `DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`'s Consequences section.
-- Historical documents that stated the old absolute rule as of their
-  original writing — `project/design/proposals/adopted/lrh-confirm-fixes/00_proposal.md`
-  Decision 5, `project/work_items/resolved/WI-SKILLS-LRH-LAND.md` — are left
-  as-is. They are accurate records of the decision in force when they were
-  written and adopted/resolved; rewriting them would misrepresent history
-  the same way editing a merged execution record's narrative would
-  (`project/executions/README.md`, "Important rules"). This decision is the
-  authoritative current statement going forward.
+- **Adopted design proposals are updated in place, not frozen — corrected
+  from an earlier draft of this record.** An earlier version of this
+  section treated the adopted `lrh-confirm-fixes` proposal like an
+  execution record's immutable narrative and left it stating the
+  superseded rule. That was wrong: this repository's own proposal lifecycle
+  contract (`project/design/proposals/README.md`, `status: adopted` —
+  "[s]ubsequent changes go through new proposals or directly through edits
+  to the canonical documents, with the proposal updated to reflect them")
+  requires an adopted proposal to track canonical-document changes, unlike
+  an execution record, which narrates a specific already-completed run and
+  is immutable once merged for a different reason (it is a historical
+  account, not a standing governance document). The two are not the same
+  category; the earlier version of this decision conflated them. Both
+  affected adopted proposals now carry a dated amendment
+  (`project/design/proposals/README.md`'s convention: "the proposal updated
+  to reflect them") rather than being left stating a rule this decision
+  supersedes. `project/work_items/resolved/WI-SKILLS-LRH-LAND.md` is a
+  different case and is correctly left as-is: a resolved work item
+  describes acceptance criteria for a completed, scoped unit of delivery —
+  it does not govern ongoing behavior the way an adopted design proposal
+  does, and nothing cites it as current design documentation.
 - Downstream memory correction (outside this repo, flagged not fixed here):
   the LCATS repo's session memory
   (`~/.claude/projects/-Users-centaur-Workspace-LCATS-LCATS/memory/`)

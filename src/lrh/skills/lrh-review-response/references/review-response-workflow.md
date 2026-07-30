@@ -30,7 +30,8 @@ PR review (Codex, Copilot, human)   ← reviewers post comments
     │  merge-readiness verdict + gh pr merge one-liner
     │
     ▼
-Merge PR + closeout (human)         ← update records to landed, resolve WI
+Merge PR (human, or agent given         ← update records to landed, resolve WI
+  unambiguous authorization) + closeout
 ```
 
 ---

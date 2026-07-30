@@ -26,7 +26,8 @@ project/executions/<WI-ID>/         ← execution record (in_progress)
 /lrh-review-response <pr-url>       ← address reviewer comments (repeat as needed)
     │
     ▼
-Merge PR + closeout (human)         ← update record to landed, resolve WI
+Merge PR (human, or agent given         ← update record to landed, resolve WI
+  unambiguous authorization) + closeout
 ```
 
 The PR is rarely mergeable the moment it opens — expect at least one round of

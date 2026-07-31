@@ -338,6 +338,13 @@ one after a new-finding fix — check the round cap.** See
 closes the exact gap that let PR #442's incident run 14 rounds while its
 own CHAIN-NOTE reported `cycles=1`). In order:
 
+**Treat the round-state file as live durable state, not scratch output.**
+Every write that a later `/lrh-confirm-fixes` invocation may depend on —
+initializing the file, creating/updating `pending_attempt`, promoting
+`completed_count`, clearing `pending_attempt`, or changing `ceiling` —
+must be committed and pushed immediately after it is written. A local-only
+edit is not durable across fresh sessions and cannot enforce the cap.
+
 1. **Load state, keyed by immutable PR identity.** Read (or initialize)
    `project/executions/round_state/<owner>-<repo>-pr<N>.json`, where
    `<owner>`, `<repo>`, and `<N>` come from the PR URL itself — never
@@ -351,20 +358,27 @@ own CHAIN-NOTE reported `cycles=1`). In order:
    data-integrity anomaly, not a case to guess through.
 2. **Settle any in-flight batch before checking the ceiling.** If
    `pending_attempt` is non-null, a prior invocation started a batch that
-   has not fully settled. For every reviewer still `"pending"` in it:
-   **treat that status as ambiguous immediately** — a crash cannot
+   has not fully settled. For every reviewer still non-terminal in it:
+   if the status is `"pending"`, **treat that status as ambiguous
+   immediately** — a crash cannot
    distinguish "the `gh pr comment` call never ran" from "it ran and
    produced a real side effect, but the status write never persisted," so
    a `"pending"` status surviving to a new invocation must be assumed to
    possibly have happened. Apply the same rule as a live ambiguous result
-   (see step 4): mark it `"submitted"` and, if this is the batch's first
-   submitted reviewer, promote (`completed_count += 1`,
-   `pending_attempt.promoted: true`) before retrying anything. Then still
-   re-issue that reviewer's mention as normal — retriggering is a
-   harmless no-op whether or not it already ran, and this keeps the
-   reviewer actually informed if the crash genuinely happened before any
-   side effect occurred. Settling an in-flight batch is never blocked by
-   the ceiling check below; only *starting a new* batch is.
+   (see step 4): if this is the batch's first submitted reviewer, promote
+   (`completed_count += 1`, `pending_attempt.promoted: true`) immediately,
+   but do **not** mark the reviewer terminal yet. Instead rewrite that
+   reviewer from `"pending"` to `"reconciling"` and persist it before
+   retrying anything; when the retry returns, settle `"reconciling"` to
+   `"submitted"` or `"failed"` exactly like an ordinary call result. This
+   keeps the batch resumable if a second interruption hits during the
+   recovery retry. If the status is already `"reconciling"`, do not
+   promote again; just resume that same retry attempt. Then re-issue that
+   reviewer's mention as normal — retriggering is a harmless no-op
+   whether or not it already ran, and this keeps the reviewer actually
+   informed if the crash genuinely happened before any side effect
+   occurred. Settling an in-flight batch is never blocked by the ceiling
+   check below; only *starting a new* batch is.
 3. **Check the ceiling.** Once `pending_attempt` is null (no batch in
    flight), if `completed_count >= ceiling`, **stop here — do not start a
    new batch.** Present the three-way gate below instead.
@@ -375,16 +389,19 @@ own CHAIN-NOTE reported `cycles=1`). In order:
    the retrigger commands (below), updating each reviewer's status to
    `"submitted"` or `"failed"` as its call returns (an ambiguous result,
    e.g. a timeout with no confirmed outcome, counts as `"submitted"` —
-   conservative). The **first** time any reviewer's status becomes
-   `"submitted"`: increment `completed_count` by exactly one and set
+   conservative). A recovery retry carried in from step 2 uses
+   `"reconciling"` as its in-flight status until that call settles. The
+   **first** time any reviewer's status becomes effectively submitted
+   (ordinary `"submitted"` or a step-2 promotion of an ambiguous prior
+   `"pending"`): increment `completed_count` by exactly one and set
    `pending_attempt.promoted: true` — do not increment again for the
    same batch even as later reviewers in it also settle. Once **every**
    reviewer in `pending_attempt.reviewers` has a terminal status
    (`"submitted"` or `"failed"`), clear `pending_attempt` to `null` — the
-   batch is fully settled. If a reviewer is still `"pending"` when this
-   invocation ends (interrupted mid-batch), the next invocation's step 2
-   resumes by retrying *only that reviewer's* mention — not the whole
-   batch, and not as a new one.
+   batch is fully settled. If a reviewer is still `"pending"` or
+   `"reconciling"` when this invocation ends (interrupted mid-batch), the
+   next invocation's step 2 resumes by retrying *only that reviewer's*
+   mention — not the whole batch, and not as a new one.
 
 **The three-way gate** (fires only when step 3 blocks a new batch): show
 the human the current `completed_count`, the `ceiling`, and a one-line

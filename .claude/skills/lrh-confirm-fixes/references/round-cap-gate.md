@@ -63,7 +63,11 @@ letting one PR inherit another's ceiling, count, or in-flight batch.
 Deliberately **not** a `.md` file: `lrh validate`'s execution-record scan
 globs `project/executions/**/*.md` (`src/lrh/control/validator.py`), so a
 non-`.md` extension keeps this file outside that validation surface
-without needing a schema exemption.
+without needing a schema exemption. Because this file is the
+cross-invocation source of truth, **every write that later invocations
+must see has to be committed and pushed immediately**; leaving a
+round-state edit only in the local worktree is not durable and defeats
+the cap on the next fresh session.
 
 ```json
 {
@@ -103,26 +107,35 @@ with a batch in flight:
   in flight: `promoted` tracks whether `completed_count` has already been
   incremented for this batch (so a later reviewer settling in the same
   batch never double-counts it), and `reviewers` tracks each mentioned
-  reviewer's status individually (`"pending"`, `"submitted"`, or
-  `"failed"`) — not a single flat marker cleared on the first success.
-  This is what lets an interrupted multi-reviewer batch resume correctly:
-  if Codex submitted but Copilot's call never completed, the state still
-  records that Copilot's mention is outstanding, so a later invocation
-  retries only Copilot, as a continuation of the same batch — not a new
-  one, and not silently dropped. `pending_attempt` clears to `null` only
-  once every reviewer in it has a terminal status.
+  reviewer's status individually (`"pending"`, `"reconciling"`,
+  `"submitted"`, or `"failed"`) — not a single flat marker cleared on the
+  first success. `"reconciling"` means a prior `"pending"` status was
+  conservatively counted as ambiguous during crash recovery and its retry
+  is now in flight; it is non-terminal specifically so a second
+  interruption still has an in-flight marker to resume. This is what lets
+  an interrupted multi-reviewer batch resume correctly: if Codex
+  submitted but Copilot's call never completed, the state still records
+  that Copilot's mention is outstanding, so a later invocation retries
+  only Copilot, as a continuation of the same batch — not a new one, and
+  not silently dropped. `pending_attempt` clears to `null` only once
+  every reviewer in it has a terminal status.
 
 ## Check-then-attempt ordering
 
-Settling an in-flight batch (any reviewer still `"pending"` in
-`pending_attempt`) always happens first and is **never** blocked by the
+Settling an in-flight batch (any reviewer still non-terminal in
+`pending_attempt`, i.e. `"pending"` or `"reconciling"`) always happens
+first and is **never** blocked by the
 ceiling — the batch was already authorized when it started. Only once
 `pending_attempt` is `null` does starting a *new* batch check
 `completed_count >= ceiling`. If true, stop — present the three-way gate,
 do not start the batch. If false, persist a fresh `pending_attempt` (all
 reviewers `"pending"`, `promoted: false`) and start the batch, promoting
 (`completed_count += 1`, `promoted: true`) as soon as the first reviewer
-in it is confirmed submitted.
+in it is confirmed submitted. **Every one of those writes — initialize,
+new `pending_attempt`, per-reviewer status update, promotion, ceiling
+change, and final clear — must be committed and pushed immediately after
+it is written** so the next invocation sees the same state even if this
+session disappears.
 
 Worked example, ceiling 3: batches 1, 2, and 3 each pass the check
 (`0 >= 3`, `1 >= 3`, `2 >= 3` are all false) and raise the count to 3; a
@@ -141,10 +154,11 @@ real, credit-consuming external side effect, without the counted round
 ever reaching the ceiling. An ambiguous submission result (a network
 timeout with no confirmed server-side outcome) is treated as
 `"submitted"`, not `"pending"`/`"failed"` — conservative toward counting
-more, never fewer, side-effect-bearing attempts. A still-`"pending"`
-reviewer from a partially-settled batch is retried without incrementing
-`completed_count` again — that batch is already counted; only the
-remaining reviewer mentions are outstanding.
+more, never fewer, side-effect-bearing attempts. A still-non-terminal
+reviewer from a partially-settled batch (`"pending"` on first recovery or
+`"reconciling"` on a resumed recovery retry) is retried without
+incrementing `completed_count` again — that batch is already counted;
+only the remaining reviewer mentions are outstanding.
 
 ## Crash-recovery reconciliation
 
@@ -164,15 +178,18 @@ A crash cannot distinguish "the `gh pr comment` call never ran" from "it
 ran, posting a real comment and consuming a real credit, but the status
 write back to the state file never persisted" — both leave the same
 on-disk `"pending"` value. Per the same conservative rule as a live
-ambiguous result (see "Any-side-effect-counts promotion" above), treat it
-as `"submitted"` immediately — promoting the batch if it's the first
-submitted reviewer — *and* still re-issue that reviewer's mention: doing
-so is a harmless no-op whether or not the original call already
-succeeded, and it's the only way to actually reach that reviewer if the
-crash genuinely happened before any side effect occurred. This is
-different from a batch member that's already `"failed"` (a confirmed,
-decidable outcome) — only genuinely undecidable `"pending"` status gets
-the conservative treatment.
+ambiguous result (see "Any-side-effect-counts promotion" above), if the
+batch is not yet promoted then promote it immediately, **but do not mark
+that reviewer terminal yet**. Instead, rewrite `"pending"` to
+`"reconciling"` and persist that before re-issuing the mention. When the
+retry returns, settle `"reconciling"` to `"submitted"` or `"failed"` and
+only then clear `pending_attempt` if every reviewer is terminal. This
+keeps the in-flight marker alive if a second crash happens during the
+recovery retry. This is different from a batch member that's already
+`"failed"` (a confirmed, decidable outcome) — only genuinely undecidable
+`"pending"` status gets the conservative treatment. A reviewer already in
+`"reconciling"` on restart is simpler: it has already been conservatively
+counted, so resume the retry without promoting again.
 
 ## The three-way gate
 

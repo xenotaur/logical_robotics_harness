@@ -106,8 +106,10 @@ and are explicitly out of scope.
 - Add a round-count check before every bot-retrigger action in
   `/lrh-confirm-fixes` Step 8 (the iterative retrigger loop — this is where
   the PR #442 incident actually occurred).
-- Define "round" as one bot-retrigger batch (a single `@codex review` /
-  `@copilot review` retrigger-and-wait pass), matching the unit
+- Define "round" as one bot-retrigger batch (a single retrigger-and-wait
+  pass across all configured reviewers — a `@codex review` comment
+  mention and a `gh pr edit --add-reviewer @copilot` reviewer-request,
+  per PR #446's fix), matching the unit
   `lrh-confirm-fixes/SKILL.md` Step 8 actually repeats — not the coarser
   `cycles` field, which PR #442 shows can read `1` across a 14-retrigger
   incident.

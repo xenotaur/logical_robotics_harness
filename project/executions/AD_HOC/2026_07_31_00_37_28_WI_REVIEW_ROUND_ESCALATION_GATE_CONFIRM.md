@@ -25,18 +25,37 @@ persistence). Fresh-eyes verification against current diff (`a33d48b`)
 confirmed both Clear-satisfied. Resolved via `resolveReviewThread`.
 Thread-resolution verdict (Step 6): **green**, 0 exceptions.
 
-Not proceeding to a Step 8 retrigger/verdict yet — checking in with the
-human first, given this is the sixth consecutive round on a PR whose
-purpose is capping unattended review rounds.
+Checked in with the human before a further retrigger, given this was the
+sixth consecutive round on a PR whose purpose is capping unattended review
+rounds. Human explicitly chose: "Stop here — treat current state as
+merge-ready now," accepting the small residual chance a further Codex
+pass on this exact commit would find something else, in exchange for not
+extending the loop further.
+
+**Final verdict: Green.** All threads resolved (0 outstanding), CI green
+on `50de3a4` (lint, installed-wheel-smoke, Check workflow files, coverage,
+tests all SUCCESS), and REVIEW-LANDED treated as satisfied by explicit
+human override for this exact commit — covering both Copilot's
+never-resolved silence (3+ retriggers, 40+ minutes, per the earlier
+authorization) and the decision not to send one further Codex retrigger.
+This is the same human-override fallback pattern used in PR #442's
+14-round saga (0 unresolved threads + green CI + explicit human decision
+substituting for a still-pending automated signal).
+
+Merge one-liner (SHA-locked, `--merge` per this repo's convention —
+verified: recent merges e.g. `df0291f` are 2-parent merge commits, not
+squash):
+`gh pr merge https://github.com/xenotaur/logical_robotics_harness/pull/444 --match-head-commit 50de3a433c0ab735a696fc18b4cf7bacb1aa972b --merge`
 
 # Validation
 
-- `lrh github threads --mode raw --state all`: 2 threads, resolved.
+- `lrh github threads --mode raw --state all`: 0 threads outstanding.
+- `gh pr checks 444`: lint, installed-wheel-smoke, Check workflow files,
+  coverage, tests — all SUCCESS on `50de3a4`.
 
 # Follow-up
 
-- Awaiting human decision on how to proceed (continue rounds vs. treat
-  current CI-green + 0-unresolved-threads state as sufficient, per the
-  same kind of override PR #442 used).
+- Awaiting explicit in-session merge authorization from the human before
+  running the one-liner above (not pre-authorized by this record).
 - `commit:` stays empty until `/lrh-closeout` sets it post-merge.
 - `session_transcript: pending` should be updated once resolvable.

@@ -5,10 +5,13 @@ blocked_reason: >
   durable transcript archive/reconciler) and the broader execution-tree /
   session-tracking work landing first. WS-LRH-ASSISTANTS' gate now covers
   Stages 2-8, not only 9-10. Cannot express this as depends_on: the governing
-  work items for PROP-LRH-SESSION-ARCHIVE-SYNC do not exist yet (its
-  workstream is still to be created); lrh validate resolves depends_on only
-  against work items that exist on main. Re-express as depends_on once those
-  work items land.
+  work items for PROP-LRH-SESSION-ARCHIVE-SYNC do not exist anywhere in the
+  repository yet (its workstream is still to be created). lrh validate
+  resolves depends_on against whatever work items are present in the project
+  tree being validated (so a WI added in the same branch/PR resolves fine);
+  since the dependency's WIs do not exist on any branch, not just main, this
+  is moot regardless of checkout. Re-express as depends_on once those work
+  items are filed anywhere.
 blocked: true
 id: WI-LRH-ASSISTANTS-STAGE-2
 title: Stage 2 — Assistant typed models and loaders
@@ -40,7 +43,7 @@ acceptance:
   - typed dataclasses Assistant, AssistantProfile, AssistantBinding and the modular profile objects (scope, policy, preferences, communication, context, review) exist in src/lrh/control
   - a loader discovers exactly project/assistants/*/assistant.md and assembles an AssistantProfile from its companion files
   - Workstream gains managed_by and the assistant contract fields, and AssistantBinding is compiled from them
-  - the execution-record model gains an optional, nullable assistant_role field with no backfill of existing records, left un-enum-validated like agent
+  - assistant_role is readable via ExecutionRecord.frontmatter (src/lrh/prompt_workflow_records.py), matching how agent/instruction_source/session_transcript are handled today, with no backfill of existing records and left un-enum-validated like agent
   - project/executions/README.md documents assistant_role as the canonical source; no duplicate field documentation is created elsewhere
   - an assistants_by_id index is available on the loaded project state
   - the serve-interface-steward package loads cleanly through the new loader
@@ -65,11 +68,28 @@ context projection (Stage 4), and no CLI (Stage 5).
 
 **Status: blocked.** See `blocked_reason` in the frontmatter. This work item is
 filed now (rather than left unfiled) so the design decisions below are recorded
-before the blocker lifts, and so `WS-LRH-ASSISTANTS` has a visible, honest leaf
-instead of an implicit gap. Nothing in this work item's own scope technically
-requires session tracking — the block reflects a deliberate sequencing decision
-to let `PROP-LRH-SESSION-ARCHIVE-SYNC` and the execution-tree work stabilize
-first, not a hard code dependency.
+before the blocker lifts, and so `lrh validate`'s planning-tree check sees a
+visible, honest work-item leaf on `WS-LRH-ASSISTANTS` instead of an implicit
+gap (verified: `_has_actionable_leaf` in `src/lrh/control/planning_tree.py`
+counts any `status: active`/`proposed` leaf regardless of `blocked`). Nothing
+in this work item's own scope technically requires session tracking — the
+block reflects a deliberate sequencing decision to let
+`PROP-LRH-SESSION-ARCHIVE-SYNC` and the execution-tree work stabilize first,
+not a hard code dependency.
+
+**Known gap — `blocked`/`blocked_reason` are not yet surfaced in `lrh serve`.**
+This is the first work item in the repository filed with `blocked: true`, and
+it exposed a real gap: `src/lrh/core_state.py`'s `_work_item_states()` builds
+`WorkItemState` from `blocked_by` only and drops `blocked`/`blocked_reason`
+entirely, and `src/lrh/serve.py`'s `_blocked_work_item_count()` counts an item
+as blocked only when `blocked_by` is non-empty or `status` is `blocked`/
+`stalled` — never when `blocked: true` with `status: active` and an empty
+`blocked_by`, which is exactly this work item's shape. So while this leaf is
+correctly visible to `lrh validate`, it will read as an ordinary active,
+unblocked item in the `lrh serve` operational dashboard. Fixing that (project
+`blocked`/`blocked_reason` through `WorkItemState` and the dashboard payload)
+is out of scope for this planning-only work item and is tracked as a
+follow-up rather than folded in here.
 
 ## Problem / Context
 
@@ -108,6 +128,19 @@ landed via PR #421):
   worked example, alongside `agent`/`instruction_source`/`session_transcript`);
   do not create a fourth copy of the field documentation. `PROMPTS.md` and the
   `lrh-implement` skill reference should point at the README, not restate it.
+- **Runtime target for `assistant_role:` (resolved 2026-07-31)** — a typed
+  execution-record model and loader already exist:
+  `ExecutionRecord` / `parse_execution_record()` in
+  `src/lrh/prompt_workflow_records.py`. That dataclass has named fields for
+  `execution_id`, `prompt_id`, `work_item`, `status`, `rerun_of`, `pr`,
+  `commit`, `created_at`, plus a catch-all `frontmatter: dict[str, Any]` and
+  `body: str` — notably, none of the three already-documented optional fields
+  (`agent`, `instruction_source`, `session_transcript`) have named attributes
+  either; they are read via `.frontmatter`. `assistant_role` follows the same,
+  already-established pattern: **no new named field on `ExecutionRecord`**;
+  it is accessed via `record.frontmatter.get("assistant_role")`, exactly like
+  the other three optional fields today. This is the concrete Stage 2 target
+  and requires no dataclass change.
 
 Prior-art check: no assistant models exist in `src/lrh/control/models.py` today;
 the similarly named `src/lrh/assist/` package is the unrelated request /
@@ -127,8 +160,10 @@ In scope:
   (`assistant_contract`, `assistant_escalates_on`, `assistant_reports_on`,
   `assistant_cadence_mode`); `AssistantBinding` is compiled from them, so
   downstream consumers depend on the binding rather than raw workstream fields.
-- The execution-record model gains an optional, nullable `assistant_role`
-  field; existing records without it remain valid (no backfill).
+- `assistant_role` becomes a documented, readable optional field on execution
+  records via `ExecutionRecord.frontmatter` (no new dataclass field, matching
+  `agent`/`instruction_source`/`session_transcript`); existing records without
+  it remain valid (no backfill).
 - Unit tests for every new model, loader path, and the binding compilation,
   including loading the `serve-interface-steward` package.
 

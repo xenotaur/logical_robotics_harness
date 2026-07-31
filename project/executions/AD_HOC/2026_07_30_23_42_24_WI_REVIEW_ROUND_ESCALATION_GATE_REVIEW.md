@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_07_30_23_27_15_REVIEW_ROUND_ESCALATION_GATE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/444
-commit: b9a0190
+commit: 
 created_at: 2026-07-30T23:42:24-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/444

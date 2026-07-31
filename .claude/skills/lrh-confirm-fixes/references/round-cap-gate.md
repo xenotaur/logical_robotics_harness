@@ -55,19 +55,35 @@ bot-retrigger action. It does **not**:
 
 One JSON file per PR, at
 `project/executions/round_state/<owner>-<repo>-pr<N>.json`, keyed by the
-PR's **immutable identity** — owner, repo, and PR number parsed directly
-from the PR URL, never from the branch name. A branch-name-derived key is
-unsafe: branch names can be reused after merge, or collide across two
-fork PRs, silently mapping unrelated PRs onto the same state file and
-letting one PR inherit another's ceiling, count, or in-flight batch.
+PR's **immutable identity** — owner, repo, and PR number parsed from the
+PR's **canonical** URL (`gh pr view --json url --jq .url`), never from
+the branch name or from whatever string form of the URL was passed in or
+auto-detected. Three requirements this schema depends on:
+
+- **Canonical identity, not string equality.** A branch-name-derived key
+  is unsafe: branch names can be reused after merge, or collide across
+  two fork PRs, silently mapping unrelated PRs onto the same state file.
+  A raw string comparison of URLs is *also* unsafe on its own — a
+  trailing slash or an explicit-argument-vs-auto-detected form can be the
+  same PR written two different ways, and comparing them naively would
+  read as a false data-integrity mismatch. Resolve to the canonical form
+  first, on both sides, before keying or comparing.
+- **Every write is atomic.** Write to a temp file in the same directory,
+  flush it, then rename it over the target — a plain in-place rewrite
+  interrupted mid-write can leave a truncated or partially-updated file
+  that the crash-recovery path (below) then cannot even parse, defeating
+  the mechanism's own core invariant.
+- **Every write is committed and pushed immediately.** Atomicity protects
+  against a corrupted file; it does not make a purely local edit visible
+  to a different invocation or a fresh session. Since this file is the
+  cross-invocation source of truth for the cap, a write that stays local
+  is functionally equivalent to no write at all from the next
+  invocation's point of view.
+
 Deliberately **not** a `.md` file: `lrh validate`'s execution-record scan
 globs `project/executions/**/*.md` (`src/lrh/control/validator.py`), so a
 non-`.md` extension keeps this file outside that validation surface
-without needing a schema exemption. Because this file is the
-cross-invocation source of truth, **every write that later invocations
-must see has to be committed and pushed immediately**; leaving a
-round-state edit only in the local worktree is not durable and defeats
-the cap on the next fresh session.
+without needing a schema exemption.
 
 ```json
 {
@@ -92,8 +108,9 @@ with a batch in flight:
 }
 ```
 
-- `pr` — the full PR URL this file belongs to. Checked, not just stored:
-  every read verifies this matches the target PR exactly; a mismatch is a
+- `pr` — the canonical PR URL this file belongs to (see "Canonical
+  identity" above). Checked, not just stored: every read verifies this
+  matches the target PR's canonical URL exactly; a mismatch is a
   data-integrity anomaly, surfaced to the human, not guessed through.
 - `ceiling` — the currently authorized round limit. Starts at 3 (the
   default first suggestion); updated synchronously whenever the human
@@ -107,35 +124,28 @@ with a batch in flight:
   in flight: `promoted` tracks whether `completed_count` has already been
   incremented for this batch (so a later reviewer settling in the same
   batch never double-counts it), and `reviewers` tracks each mentioned
-  reviewer's status individually (`"pending"`, `"reconciling"`,
-  `"submitted"`, or `"failed"`) — not a single flat marker cleared on the
-  first success. `"reconciling"` means a prior `"pending"` status was
-  conservatively counted as ambiguous during crash recovery and its retry
-  is now in flight; it is non-terminal specifically so a second
-  interruption still has an in-flight marker to resume. This is what lets
-  an interrupted multi-reviewer batch resume correctly: if Codex
-  submitted but Copilot's call never completed, the state still records
-  that Copilot's mention is outstanding, so a later invocation retries
-  only Copilot, as a continuation of the same batch — not a new one, and
-  not silently dropped. `pending_attempt` clears to `null` only once
+  reviewer's status individually (`"pending"`, `"submitted"`, or
+  `"failed"`) — not a single flat marker cleared on the first success.
+  This is what lets an interrupted multi-reviewer batch be resolved
+  correctly on the next invocation: if Codex submitted but Copilot's call
+  never completed, the state still records Copilot's status precisely
+  (`"pending"`, not silently dropped or folded into "the batch is done"),
+  so the next invocation can resolve it conservatively — see
+  "Crash-recovery reconciliation" below for why that resolution does not
+  re-mention the reviewer. `pending_attempt` clears to `null` only once
   every reviewer in it has a terminal status.
 
 ## Check-then-attempt ordering
 
-Settling an in-flight batch (any reviewer still non-terminal in
-`pending_attempt`, i.e. `"pending"` or `"reconciling"`) always happens
-first and is **never** blocked by the
+Settling an in-flight batch (any reviewer still `"pending"` in
+`pending_attempt`) always happens first and is **never** blocked by the
 ceiling — the batch was already authorized when it started. Only once
 `pending_attempt` is `null` does starting a *new* batch check
 `completed_count >= ceiling`. If true, stop — present the three-way gate,
 do not start the batch. If false, persist a fresh `pending_attempt` (all
 reviewers `"pending"`, `promoted: false`) and start the batch, promoting
 (`completed_count += 1`, `promoted: true`) as soon as the first reviewer
-in it is confirmed submitted. **Every one of those writes — initialize,
-new `pending_attempt`, per-reviewer status update, promotion, ceiling
-change, and final clear — must be committed and pushed immediately after
-it is written** so the next invocation sees the same state even if this
-session disappears.
+in it is confirmed submitted.
 
 Worked example, ceiling 3: batches 1, 2, and 3 each pass the check
 (`0 >= 3`, `1 >= 3`, `2 >= 3` are all false) and raise the count to 3; a
@@ -154,22 +164,24 @@ real, credit-consuming external side effect, without the counted round
 ever reaching the ceiling. An ambiguous submission result (a network
 timeout with no confirmed server-side outcome) is treated as
 `"submitted"`, not `"pending"`/`"failed"` — conservative toward counting
-more, never fewer, side-effect-bearing attempts. A still-non-terminal
-reviewer from a partially-settled batch (`"pending"` on first recovery or
-`"reconciling"` on a resumed recovery retry) is retried without
-incrementing `completed_count` again — that batch is already counted;
-only the remaining reviewer mentions are outstanding.
+more, never fewer, side-effect-bearing attempts. A still-`"pending"`
+reviewer left over from an earlier, already-promoted batch never
+increments `completed_count` again when it's later resolved — that batch
+is already counted; resolving the remaining reviewer only updates its
+status (see "Crash-recovery reconciliation" for why that resolution does
+not re-mention them).
 
 ## Crash-recovery reconciliation
 
 Every invocation settles any in-flight `pending_attempt` before running
 the ceiling check for a new batch. If a process died mid-batch (one
-reviewer submitted, another still `"pending"`), a restart must resume
-exactly that reviewer's mention as a continuation of the same batch, not
-start counting a new one and not silently drop the outstanding mention.
-Treating the whole marker as resolved-or-discard-only (rather than
-per-reviewer) would either let an outstanding mention go untracked
-forever, or force a retry that miscounts as a second batch — both defeat
+reviewer submitted, another still `"pending"`), a restart must resolve
+that reviewer's status as a continuation of the same batch — not start
+counting a new one, and not silently drop the outstanding record —
+without necessarily reaching that reviewer again (see below). Treating
+the whole marker as resolved-or-discard-only (rather than per-reviewer)
+would let an outstanding mention's status go untracked entirely; treating
+it as "safe to retry" would risk a real duplicate side effect. Both defeat
 the cap this mechanism exists to enforce.
 
 **A `"pending"` status found at reconciliation time is itself
@@ -178,18 +190,24 @@ A crash cannot distinguish "the `gh pr comment` call never ran" from "it
 ran, posting a real comment and consuming a real credit, but the status
 write back to the state file never persisted" — both leave the same
 on-disk `"pending"` value. Per the same conservative rule as a live
-ambiguous result (see "Any-side-effect-counts promotion" above), if the
-batch is not yet promoted then promote it immediately, **but do not mark
-that reviewer terminal yet**. Instead, rewrite `"pending"` to
-`"reconciling"` and persist that before re-issuing the mention. When the
-retry returns, settle `"reconciling"` to `"submitted"` or `"failed"` and
-only then clear `pending_attempt` if every reviewer is terminal. This
-keeps the in-flight marker alive if a second crash happens during the
-recovery retry. This is different from a batch member that's already
-`"failed"` (a confirmed, decidable outcome) — only genuinely undecidable
-`"pending"` status gets the conservative treatment. A reviewer already in
-`"reconciling"` on restart is simpler: it has already been conservatively
-counted, so resume the retry without promoting again.
+ambiguous result (see "Any-side-effect-counts promotion" above), treat it
+as `"submitted"` immediately, promoting the batch if it's the first
+submitted reviewer. **Do not re-issue that reviewer's mention as a
+recovery action.** Retrying is not the harmless case described under
+"Once the round-cap check above has cleared" in `SKILL.md` — that
+harmlessness is about a reviewer that genuinely isn't configured for this
+repo, not about a reviewer that may have already been reached for real; a
+returned comment URL is by this same document's own definition a
+confirmed, credit-consuming submission, so retrying one that may have
+already succeeded risks two real review requests counted as one round.
+If the crash genuinely happened before any side effect occurred, that
+reviewer simply gets no mention for this batch — no worse than a
+reviewer that's silently unconfigured, which Step 8's existing "no
+response after a reasonable wait" path already asks the human about
+rather than inferring either way. This is different from a batch member
+that's already `"failed"` (a confirmed, decidable outcome) — only
+genuinely undecidable `"pending"` status gets the conservative
+promote-without-retry treatment.
 
 ## The three-way gate
 

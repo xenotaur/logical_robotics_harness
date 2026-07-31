@@ -336,49 +336,51 @@ chance to weigh in. Do not attempt to infer configuration state at all:
 one after a new-finding fix — check the round cap.** See
 `references/round-cap-gate.md` for the full mechanism and rationale (this
 closes the exact gap that let PR #442's incident run 14 rounds while its
-own CHAIN-NOTE reported `cycles=1`). In order:
+own CHAIN-NOTE reported `cycles=1`). Every write to the state file below
+must satisfy two independent durability requirements: it must be
+**atomic** (write a temp file in the same directory, flush it, then
+rename it over the target — an interruption mid-write must never leave a
+truncated or unparseable file), and it must be **committed and pushed
+immediately** (a local-only edit is invisible to a fresh session or a
+different invocation and cannot enforce the cap). In order:
 
-**Treat the round-state file as live durable state, not scratch output.**
-Every write that a later `/lrh-confirm-fixes` invocation may depend on —
-initializing the file, creating/updating `pending_attempt`, promoting
-`completed_count`, clearing `pending_attempt`, or changing `ceiling` —
-must be committed and pushed immediately after it is written. A local-only
-edit is not durable across fresh sessions and cannot enforce the cap.
-
-1. **Load state, keyed by immutable PR identity.** Read (or initialize)
+1. **Load state, keyed by immutable PR identity.** Resolve the PR's
+   canonical URL via `gh pr view --json url --jq .url` — never compare
+   against whatever string form was passed in or auto-detected, since a
+   trailing slash or scheme difference would otherwise read as a false
+   mismatch below. Read (or initialize)
    `project/executions/round_state/<owner>-<repo>-pr<N>.json`, where
-   `<owner>`, `<repo>`, and `<N>` come from the PR URL itself — never
+   `<owner>`, `<repo>`, and `<N>` come from that canonical URL — never
    from the branch name (a branch name can be reused after merge, or
    collide across two fork PRs, silently mapping unrelated PRs onto the
-   same file). Initialize to `{"pr": "<pr-url>", "ceiling": 3,
+   same file). Initialize to `{"pr": "<canonical-pr-url>", "ceiling": 3,
    "completed_count": 0, "pending_attempt": null}` if the file doesn't
-   exist. If it exists, verify its `pr` field equals the target PR's URL
+   exist. If it exists, verify its `pr` field equals the canonical URL
    exactly; **if it does not match, stop and report the mismatch to the
    human rather than using or resetting the file** — this is a
    data-integrity anomaly, not a case to guess through.
 2. **Settle any in-flight batch before checking the ceiling.** If
    `pending_attempt` is non-null, a prior invocation started a batch that
-   has not fully settled. For every reviewer still non-terminal in it:
-   if the status is `"pending"`, **treat that status as ambiguous
-   immediately** — a crash cannot
+   has not fully settled. For every reviewer still `"pending"` in it:
+   **treat that status as ambiguous immediately** — a crash cannot
    distinguish "the `gh pr comment` call never ran" from "it ran and
    produced a real side effect, but the status write never persisted," so
    a `"pending"` status surviving to a new invocation must be assumed to
    possibly have happened. Apply the same rule as a live ambiguous result
-   (see step 4): if this is the batch's first submitted reviewer, promote
-   (`completed_count += 1`, `pending_attempt.promoted: true`) immediately,
-   but do **not** mark the reviewer terminal yet. Instead rewrite that
-   reviewer from `"pending"` to `"reconciling"` and persist it before
-   retrying anything; when the retry returns, settle `"reconciling"` to
-   `"submitted"` or `"failed"` exactly like an ordinary call result. This
-   keeps the batch resumable if a second interruption hits during the
-   recovery retry. If the status is already `"reconciling"`, do not
-   promote again; just resume that same retry attempt. Then re-issue that
-   reviewer's mention as normal — retriggering is a harmless no-op
-   whether or not it already ran, and this keeps the reviewer actually
-   informed if the crash genuinely happened before any side effect
-   occurred. Settling an in-flight batch is never blocked by the ceiling
-   check below; only *starting a new* batch is.
+   (see step 4): mark it `"submitted"` and, if this is the batch's first
+   submitted reviewer, promote (`completed_count += 1`,
+   `pending_attempt.promoted: true`). **Do not re-issue that reviewer's
+   mention** — a returned comment URL is a confirmed, real, credit-
+   consuming submission (see step 4), so retrying a reviewer that may
+   have already been reached for real is not the harmless case; it can
+   produce two review requests counted as one round. If the crash
+   actually happened before any side effect occurred, that reviewer
+   simply never gets a mention for this batch — no different from a
+   reviewer that's silently never configured, which the existing "no
+   response after a reasonable wait" path (below) already asks the human
+   about rather than assuming either way. Settling an in-flight batch is
+   never blocked by the ceiling check below; only *starting a new* batch
+   is.
 3. **Check the ceiling.** Once `pending_attempt` is null (no batch in
    flight), if `completed_count >= ceiling`, **stop here — do not start a
    new batch.** Present the three-way gate below instead.
@@ -389,19 +391,17 @@ edit is not durable across fresh sessions and cannot enforce the cap.
    the retrigger commands (below), updating each reviewer's status to
    `"submitted"` or `"failed"` as its call returns (an ambiguous result,
    e.g. a timeout with no confirmed outcome, counts as `"submitted"` —
-   conservative). A recovery retry carried in from step 2 uses
-   `"reconciling"` as its in-flight status until that call settles. The
-   **first** time any reviewer's status becomes effectively submitted
-   (ordinary `"submitted"` or a step-2 promotion of an ambiguous prior
-   `"pending"`): increment `completed_count` by exactly one and set
+   conservative). The **first** time any reviewer's status becomes
+   `"submitted"`: increment `completed_count` by exactly one and set
    `pending_attempt.promoted: true` — do not increment again for the
    same batch even as later reviewers in it also settle. Once **every**
    reviewer in `pending_attempt.reviewers` has a terminal status
    (`"submitted"` or `"failed"`), clear `pending_attempt` to `null` — the
-   batch is fully settled. If a reviewer is still `"pending"` or
-   `"reconciling"` when this invocation ends (interrupted mid-batch), the
-   next invocation's step 2 resumes by retrying *only that reviewer's*
-   mention — not the whole batch, and not as a new one.
+   batch is fully settled. If a reviewer is still `"pending"` when this
+   invocation ends (interrupted mid-batch), the next invocation's step 2
+   resolves that reviewer's status conservatively (promoting the batch if
+   needed) *without* re-mentioning them — it does not retry the mention,
+   for the reason given in step 2.
 
 **The three-way gate** (fires only when step 3 blocks a new batch): show
 the human the current `completed_count`, the `ceiling`, and a one-line
@@ -420,13 +420,15 @@ bot-driven signal.
 into Jules-originated PR activity, human-driven review requests, or
 aggregate GitHub Copilot spend — see `references/round-cap-gate.md`.
 
-1. **Once the round-cap check above has cleared a batch to start (or
-   resumed settling an in-flight one), always attempt the mention(s),
-   unconditionally** — "unconditionally" here means: do not skip a
-   mention based on an inference about whether that reviewer is
-   configured for this repo (see below); it does not override the
-   round-cap gate, which can still block a *new* batch independently. It
-   is a harmless no-op if nothing listens for the mention:
+1. **Once the round-cap check above has cleared a new batch to start,
+   always attempt its mention(s), unconditionally** — "unconditionally"
+   here means: do not skip a mention based on an inference about whether
+   that reviewer is configured for this repo (see below); it does not
+   override the round-cap gate, which can still block a *new* batch
+   independently. (This does not apply to a reviewer reconciled from a
+   `"pending"` orphaned attempt — step 2 above explicitly does not
+   re-mention those.) It is a harmless no-op if nothing listens for the
+   mention:
 
    ```bash
    gh pr comment <pr-url> --body "@codex review"

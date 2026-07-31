@@ -37,7 +37,7 @@ acceptance:
   - "reaching the current ceiling stops the skill and presents the three-way gate (authorize/deny/pause) before further retrigger"
   - "default ceiling-suggestion sequence (3 -> 10 -> 20 -> ...) documented; actual next ceiling is human-supplied, not auto-applied"
   - "CHAIN-NOTE stops/note field docs updated to cover gate crossings and distinguish the round-cap counter from cycles"
-  - "mechanism's scope (lrh-review-response + lrh-confirm-fixes bot-retriggers only, not aggregate Copilot spend or Jules/manual activity) is explicitly documented"
+  - "mechanism's scope (lrh-confirm-fixes Step 8 bot-retriggers only, not aggregate Copilot spend, not Jules/manual activity, and explicitly not /lrh-review-response, which has no retrigger action today) is explicitly documented"
   - "src/ and .claude/ skill mirrors match for all three touched skills (diff -r reports no differences)"
   - "lrh validate reports 0 errors"
 required_evidence:
@@ -85,8 +85,8 @@ unattended, automatic round escalation. The current retrigger surface is
 `/lrh-confirm-fixes` Step 8; `/lrh-review-response` is the human-gated entry
 point that suggests running `/lrh-confirm-fixes`, not a bot-retrigger hook.
 Jules and human-driven PR activity are structurally outside
-`/lrh-confirm-fixes`'s reach, per
-`WI-TEMPLATE-AUDIT-WORK-ITEMS.md:47-53`, and are explicitly out of scope).
+`/lrh-confirm-fixes`'s reach, per `WI-TEMPLATE-AUDIT-WORK-ITEMS.md:47-53`,
+and are explicitly out of scope.
 
 ### Duplication search
 - In-repo: Related: `project/work_items/proposed/WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md` — broader planning item covering review + CI iteration limits, escalation, and manual/assisted/bounded-auto mode distinctions; blocked on `WI-GITHUB-PR-CI-OBSERVATION`, `WI-AGENT-BRANCH-CONTAINMENT`, `WI-DELIBERATE-MODEL-INVOCATION`. This item implements only the assisted-mode slice, standalone and unblocked, cross-linked rather than folded in.
@@ -115,7 +115,20 @@ Jules and human-driven PR activity are structurally outside
   the full reviewer-mention batch succeeds (or define rollback/recovery
   semantics for partial failure), so the count survives a session restart
   mid-loop without overcounting failed attempts.
-- Present a three-way human gate (authorize to a new ceiling / deny-stop / pause) when the round count reaches the current ceiling; default next-ceiling suggestion 3 → 10 → 20, but the human states the actual next ceiling.
+- Specify the check-vs-attempt ordering exactly, to remove the off-by-one
+  ambiguity at each ceiling: before starting a retrigger batch, check
+  `completed_count >= ceiling`; if blocked, stop and present the gate
+  instead of starting the batch; if not blocked, persist the attempt
+  marker and start the batch, promoting it to `completed_count + 1` only
+  on full success. (E.g. with ceiling 3: the 1st and 2nd batches complete
+  and raise the count to 2; a 3rd batch is blocked by the gate before it
+  starts — never started "for free.")
+- Present a three-way human gate (authorize to a new ceiling / deny-stop /
+  pause) when the round count reaches the current ceiling. The default
+  ceiling-suggestion sequence is 3 → 10 → 20 and is defined *only* through
+  20 — beyond that, the skill asks for the next ceiling with no computed
+  default rather than assuming a further formula; the human always states
+  the actual next ceiling regardless.
 - Document the mechanism's scope explicitly: bounds only the
   `/lrh-confirm-fixes` bot-retrigger actions, and does not add a new
   bot-retrigger responsibility to `/lrh-review-response`.
@@ -125,9 +138,9 @@ Jules and human-driven PR activity are structurally outside
 
 ## Required Changes
 
-1. Edit `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8 (the retrigger commands at lines 330-335 and the repeat-on-new-finding logic at line 376) to add the round-count-check before each retrigger — this is the loop the PR #442 incident actually ran in.
-2. Define, in that edit, a durable per-PR round-tracking mechanism that writes retrigger-attempt state synchronously immediately before the reviewer-mention batch, then marks a completed round only after the full batch succeeds (e.g. a field updated on the in-progress execution record for the target PR, or a small per-PR round-state artifact under `project/executions/`). Do not rely on a value reconstructed from `project/executions/` after the fact, since today's records (including CHAIN-NOTE `cycles`) are only written at the end of a run and would undercount or reset after a restart.
-3. Create `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md` documenting: the bot-retrigger-batch round definition, the durable persistence mechanism, the attempt-vs-completed-round semantics for failed/partial retrigger submissions, the default ceiling-suggestion sequence (3 → 10 → 20 → ...), the three-way gate options, and the explicit scope statement. Reference it from `lrh-confirm-fixes`.
+1. Edit `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8 (the retrigger commands at lines 330-335 and the repeat-on-new-finding logic at line 376) to add the round-count check before each retrigger, using the exact check-then-attempt ordering specified in Scope — this is the loop the PR #442 incident actually ran in.
+2. Define, in that edit, a durable per-PR round-tracking mechanism that writes retrigger-attempt state synchronously immediately before the reviewer-mention batch starts, then marks a completed round only after the full batch succeeds (e.g. a field updated on the in-progress execution record for the target PR, or a small per-PR round-state artifact under `project/executions/`). Do not rely on a value reconstructed from `project/executions/` after the fact, since today's records (including CHAIN-NOTE `cycles`) are only written at the end of a run and would undercount or reset after a restart.
+3. Create `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md` documenting: the bot-retrigger-batch round definition, the check-then-attempt ordering, the durable persistence mechanism, the attempt-vs-completed-round semantics for failed/partial retrigger submissions, the default ceiling-suggestion sequence (3 → 10 → 20, undefined beyond that by design), the three-way gate options, and the explicit scope statement. Reference it from `lrh-confirm-fixes`.
 4. Edit `src/lrh/skills/lrh-land/references/land-workflow.md` to extend the CHAIN-NOTE `stops` and `note` field descriptions to cover round-cap gate crossings and the ceiling authorized at each crossing, and to note that the round-cap counter is a separate, finer-grained metric than `cycles`.
 5. Mirror all changed/new files to `.claude/skills/lrh-confirm-fixes/` and `.claude/skills/lrh-land/` respectively.
 
@@ -145,9 +158,10 @@ Jules and human-driven PR activity are structurally outside
 
 - `/lrh-confirm-fixes` Step 8 computes a round count for the target PR before allowing another bot-retrigger batch, counting completed bot-retrigger batches (not `cycles`).
 - The design writes durable retrigger-attempt state immediately before each retrigger batch, then records a completed round only after the full reviewer-mention batch succeeds (or defines rollback/recovery semantics for partial failure) — verifiable by confirming it does not rely solely on a post-hoc/end-of-run record (e.g. CHAIN-NOTE) to reconstruct the in-progress count.
+- The check-vs-attempt ordering is exact and documented: `completed_count >= ceiling` is checked before a retrigger batch starts; the attempt marker is persisted, and the batch started, only if not blocked — not in a way that allows an off-by-one extra or missing batch at the boundary.
 - Applying this definition retroactively to PR #442's own record would have produced a round count of 14, not the `cycles=1` its CHAIN-NOTE currently reports — documented explicitly as the worked check that the unit is correct.
 - When the round count reaches the current ceiling, the skill stops and presents the three-way gate (authorize to new ceiling / deny-stop / pause) before any further bot-retrigger action.
-- The default ceiling-suggestion sequence (3 → 10 → 20 → ...) is documented, and the skill instructions make clear the actual next ceiling is human-supplied, not auto-applied.
+- The default ceiling-suggestion sequence (3 → 10 → 20) is documented as ending there; beyond the 20 ceiling the skill asks for the next ceiling with no computed default, and the skill instructions make clear the actual next ceiling is always human-supplied, never auto-applied.
 - CHAIN-NOTE `stops`/`note` field documentation in `land-workflow.md` covers round-cap gate crossings and distinguishes the round-cap counter from `cycles`.
 - The skill/reference docs explicitly state the mechanism bounds only `/lrh-confirm-fixes` bot-retrigger actions, does not add retrigger behavior to `/lrh-review-response`, and does not attempt to bound aggregate Copilot spend or Jules/manual PR activity.
 - `diff -r src/lrh/skills/lrh-confirm-fixes/ .claude/skills/lrh-confirm-fixes/` and `diff -r src/lrh/skills/lrh-land/ .claude/skills/lrh-land/` report no differences.
@@ -163,4 +177,5 @@ Jules and human-driven PR activity are structurally outside
 
 - A round-cap gate that fires too often could become a rubber-stamp click rather than a substantive decision point — mitigate by ensuring the gate surfaces round-specific context (findings so far, if derivable) rather than a bare "continue?" prompt.
 - Documentation alone cannot prevent a human from reflexively authorizing every gate; this item builds the checkpoint, not a guarantee of disciplined use.
-- Gating two skills (`lrh-review-response` and `lrh-confirm-fixes`) instead of one roughly doubles the surface implementation touches; the durable per-retrigger persistence mechanism (Required Change 3) is the least-specified piece of this item and may need a follow-up design pass if a simple execution-record field update proves insufficient under concurrent/interleaved runs.
+- The durable per-retrigger persistence mechanism (Required Change 2), including its attempt-vs-completed and partial-failure semantics, is the least-specified piece of this item and may need a follow-up design pass if a simple execution-record field update proves insufficient under concurrent/interleaved runs.
+- If a future item gives `/lrh-review-response` its own retrigger action, this item's scope boundary (Step 8 only) will need revisiting — noted here so that addition doesn't silently bypass the cap.

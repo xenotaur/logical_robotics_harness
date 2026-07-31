@@ -436,16 +436,27 @@ aggregate GitHub Copilot spend — see `references/round-cap-gate.md`.
    independently. (This does not apply to a reviewer reconciled from a
    `"pending"` orphaned attempt — step 2 above explicitly does not
    re-mention those.) It is a harmless no-op if nothing listens for the
-   mention:
+   mention. **Never mention Copilot via `gh pr comment`** — a bare
+   `@copilot` anywhere in a comment body invokes GitHub's Copilot
+   *coding agent* (`copilot-swe-agent[bot]`), not the review-only bot;
+   "review" is not a reserved keyword to it, it's free text the agent
+   interprets as a task, and since GitHub's 2026-03-24 default change it
+   pushes commits directly to the PR branch in response (see GitHub Docs,
+   "Asking GitHub Copilot to make changes to an existing pull request").
+   Request Copilot's review-only product instead:
 
    ```bash
    gh pr comment <pr-url> --body "@codex review"
-   gh pr comment <pr-url> --body "@copilot review"
+   gh pr edit <pr-url> --add-reviewer @copilot
    ```
 
-   (Substitute or add other reviewer mentions this repository's
-   `REVIEWS.md`, if present, documents.) A returned comment URL is a
-   confirmed submission for that reviewer; a command error is not. Apply
+   (Substitute or add other reviewer mentions/review-requests this
+   repository's `REVIEWS.md`, if present, documents — checking for each
+   one whether it is a comment-mention or an explicit reviewer request,
+   since only Codex in this repo is confirmed safe as a plain mention.)
+   A returned comment URL (Codex) or a successful review-request response
+   (Copilot) is a confirmed submission for that reviewer; a command error
+   is not. Apply
    step 4's per-reviewer status update and promote-on-first-confirmed-
    submission rule as each `gh pr comment` call returns.
 2. **Track every reviewer actually mentioned in step 1, and wait for each

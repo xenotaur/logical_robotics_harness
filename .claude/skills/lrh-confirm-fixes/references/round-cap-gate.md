@@ -25,10 +25,15 @@ recurring, numeric checkpoint instead of prose re-elicited each run.
 ## What "round" means
 
 One **bot-retrigger batch**: a single pass of Step 8's `gh pr comment
-"@codex review"` / `gh pr comment "@copilot review"` mentions (or whichever
-reviewers `REVIEWS.md` documents), issued together. This is the unit PR
-#442's incident actually repeated 14 times — not `cycles`, which stayed at
-`1` throughout that incident and would never have triggered a
+"@codex review"` mention and `gh pr edit --add-reviewer @copilot`
+review-request (or whichever reviewers `REVIEWS.md` documents), issued
+together. Note the asymmetry: Codex is retriggered by a plain comment
+mention, while Copilot must be retriggered via an explicit reviewer
+request — a bare `@copilot` comment mention hits GitHub's Copilot coding
+agent instead and can push commits directly to the PR branch (see
+`SKILL.md`'s retrigger step for the full explanation). This is the unit
+PR #442's incident actually repeated 14 times — not `cycles`, which
+stayed at `1` throughout that incident and would never have triggered a
 cycles-based cap.
 
 ## What this bounds — and what it does not
@@ -151,27 +156,58 @@ Instead, all round-state files across all PRs live on one dedicated,
 long-lived `round-state` branch — content-only, never merged into `main`
 or any PR branch, analogous to the main-worktree-lock pattern
 `/lrh-land` uses to push housekeeping commits without disturbing a
-checked-out branch (`src/lrh/skills/lrh-land/references/land-workflow.md`):
+checked-out branch (`src/lrh/skills/lrh-land/references/land-workflow.md`).
+**Every operation — including bootstrap — happens in a throwaway
+worktree, never in the main checkout**, so a failure at any step leaves
+the PR branch's own working tree untouched; and **every worktree
+operation cleans up stale state from a prior interrupted invocation
+first**, so a crash never blocks the next invocation's own recovery path
+(the exact scenario this whole mechanism exists to handle):
 
 ```bash
-# Bootstrap the branch once, if it doesn't exist yet:
-git ls-remote --exit-code --heads origin round-state \
-  || (git checkout --orphan round-state && git rm -rf . \
-      && git commit --allow-empty -m "Initialize round-state branch" \
-      && git push origin round-state && git checkout -)
+WT=/tmp/round-state-<key>-$$   # unique per invocation (PID-suffixed)
+
+# Always clear stale registrations first — a prior invocation that died
+# between `worktree add` and `worktree remove` leaves the branch
+# registered as checked out, which blocks every subsequent `worktree add`
+# for that branch, including the one this recovery needs to run.
+git worktree prune
+git worktree list --porcelain | grep -q 'branch refs/heads/round-state' \
+  && git worktree remove --force "$(git worktree list --porcelain \
+       | awk '/branch refs\/heads\/round-state/{print prev} {prev=$2}')" \
+     2>/dev/null
+git worktree prune
+
+# Bootstrap the branch once, if it doesn't exist yet — in a throwaway
+# worktree, so a failed push can never strand the main checkout:
+if ! git ls-remote --exit-code --heads origin round-state >/dev/null; then
+  git worktree add --detach "$WT-bootstrap" main
+  git -C "$WT-bootstrap" checkout --orphan round-state
+  git -C "$WT-bootstrap" rm -rf . >/dev/null
+  git -C "$WT-bootstrap" commit --allow-empty -m "Initialize round-state branch"
+  git -C "$WT-bootstrap" push origin round-state
+  git worktree remove --force "$WT-bootstrap"
+fi
 
 # Read (without disturbing the current checkout):
 git fetch origin round-state --quiet
 git show origin/round-state:project/executions/round_state/<key>.json 2>/dev/null
 
 # Write, via a throwaway worktree (keeps the PR branch's checkout untouched):
-git worktree add /tmp/round-state-<key> round-state
-# ... write the file atomically inside /tmp/round-state-<key>/project/executions/round_state/<key>.json ...
-git -C /tmp/round-state-<key> add project/executions/round_state/<key>.json
-git -C /tmp/round-state-<key> commit -m "round-state: <one-line change summary>"
-git -C /tmp/round-state-<key> push origin round-state
-git worktree remove /tmp/round-state-<key>
+git worktree add "$WT" round-state
+# ... write the file atomically inside "$WT/project/executions/round_state/<key>.json" ...
+git -C "$WT" add project/executions/round_state/<key>.json
+git -C "$WT" commit -m "round-state: <one-line change summary>"
+git -C "$WT" push origin round-state
+git worktree remove "$WT"
 ```
+
+If `git worktree add "$WT" round-state` still fails after pruning (a
+genuinely concurrent invocation holding the checkout right now, not a
+stale leftover), retry with a short backoff a few times rather than
+forcing — forcing could corrupt a live concurrent writer's in-progress
+commit. If it keeps failing, surface that to the human rather than
+guessing; do not silently drop the state update.
 
 `round-state` is deliberately not merged anywhere and carries no PR of
 its own — it is pure bookkeeping data, git-tracked for durability and

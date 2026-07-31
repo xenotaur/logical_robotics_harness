@@ -41,8 +41,6 @@ TERMINAL_STATUSES = {"failed", "reverted", "superseded"}
 GitRunner = typing.Callable[[list[str]], "subprocess.CompletedProcess[str]"]
 GhRunner = typing.Callable[[list[str]], object]
 
-_CAT_FILE_MISSING_PATTERN = re.compile(r"does not exist in", re.IGNORECASE)
-
 
 class SlugCheckError(RuntimeError):
     """A gh/git call failed while searching for a prior slug match.
@@ -59,6 +57,25 @@ def _slug_upper_underscore(slug: str) -> str:
 
 def _trailing_segment_pattern(slug_upper: str) -> re.Pattern[str]:
     return re.compile(rf"_{re.escape(slug_upper)}\.md$")
+
+
+def _execution_id_or_fallback(rel_path: str, execution_id: str) -> str:
+    """Fall back to the filename stem when ``execution_id`` is blank.
+
+    A trailing-segment filename match is authoritative evidence
+    regardless of whether its own ``execution_id`` frontmatter field is
+    present or valid -- if it's missing, blank, or non-string, silently
+    handing back an empty string would let a rerun lose its `rerun_of`
+    lineage even though the match is genuinely a prior execution. The
+    filename stem is always present and is exactly what `execution_id` is
+    supposed to equal by convention, so it's a safe, always-available
+    fallback rather than an unresolved/rejected match.
+    """
+
+    stripped = execution_id.strip() if isinstance(execution_id, str) else ""
+    if stripped:
+        return stripped
+    return pathlib.PurePosixPath(rel_path).stem
 
 
 @dataclasses.dataclass(frozen=True)
@@ -251,7 +268,7 @@ def find_local_matches(
             matches.append(
                 SlugMatch(
                     path=rel_path,
-                    execution_id="",
+                    execution_id=_execution_id_or_fallback(rel_path, ""),
                     status="unparseable",
                     pr="",
                     created_at="",
@@ -262,7 +279,7 @@ def find_local_matches(
         matches.append(
             SlugMatch(
                 path=rel_path,
-                execution_id=record.execution_id,
+                execution_id=_execution_id_or_fallback(rel_path, record.execution_id),
                 status=record.status,
                 pr=record.pr,
                 created_at=record.created_at,
@@ -416,23 +433,28 @@ def find_remote_matches(
             if rel_path in local_path_set:
                 continue
 
-            inherited = git_runner(["cat-file", "-e", f"{merge_base}:{rel_path}"])
-            if inherited.returncode == 0:
-                # Already present at this PR's own merge-base with its
-                # declared base ref: inherited from a stacked branch, not
-                # newly introduced by this PR.
+            # Structural tree-membership check, not stderr-text matching:
+            # `git ls-tree` either succeeds (0) and lists the path if
+            # present at that tree-ish, or fails (nonzero) only if
+            # `merge_base` itself is unusable -- a genuine failure worth
+            # raising on. Unlike `git cat-file -e`, its "not present"
+            # signal (empty stdout on success) carries no free-text
+            # message at all, so there is no locale/git-version-dependent
+            # wording to misclassify (a real gap found in round 6 review:
+            # `cat-file -e`'s error text differs between "does not exist
+            # in <tree>" and "exists on disk, but not in <tree>" depending
+            # on exactly how the path is absent, and matching only one of
+            # those wrongly treated the other as a fatal git error).
+            tree_listing = _run_git_or_raise(
+                git_runner,
+                ["ls-tree", "--name-only", merge_base, "--", rel_path],
+                context=f"checking tree membership of {rel_path} at merge-base",
+            )
+            if tree_listing.strip():
+                # Present at this PR's own merge-base with its declared
+                # base ref: inherited from a stacked branch, not newly
+                # introduced by this PR.
                 continue
-            if not _CAT_FILE_MISSING_PATTERN.search(inherited.stderr or ""):
-                # A nonzero exit here is normally git's ordinary "path
-                # doesn't exist at this tree-ish" outcome (expected -- it
-                # means the PR did introduce the file). Anything else
-                # (corrupted repo, bad object database, etc.) is a real
-                # git failure and must not be silently treated the same
-                # way -- fail loudly instead of guessing "not inherited."
-                raise SlugCheckError(
-                    f"git cat-file -e {merge_base}:{rel_path} failed unexpectedly: "
-                    f"{(inherited.stderr or '').strip()}"
-                )
 
             show_output = _run_git_or_raise(
                 git_runner,
@@ -445,7 +467,9 @@ def find_remote_matches(
             matches.append(
                 SlugMatch(
                     path=rel_path,
-                    execution_id=fields.get("execution_id", ""),
+                    execution_id=_execution_id_or_fallback(
+                        rel_path, fields.get("execution_id", "")
+                    ),
                     status=fields.get("status", ""),
                     pr=fields.get("pr", ""),
                     created_at=fields.get("created_at", ""),

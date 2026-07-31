@@ -272,6 +272,35 @@ class FindLocalMatchesTest(unittest.TestCase):
         )
         self.assertEqual(matches[0].source, "local")
 
+    def test_missing_execution_id_falls_back_to_filename_stem(self) -> None:
+        # A match with a valid terminal status/created_at but a blank or
+        # missing execution_id must not silently hand back an empty ID --
+        # that would let a rerun lose its rerun_of lineage even though
+        # the match is otherwise perfectly resolvable. The filename stem
+        # (always present) is a safe fallback.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            path = (
+                project_root
+                / "project/executions/AD_HOC/2026_01_01_00_00_00_MY_SLUG.md"
+            )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "---\n"
+                "status: failed\n"
+                "created_at: 2026-01-01T00:00:00+00:00\n"
+                'pr: ""\n'
+                "---\nbody\n",
+                encoding="utf-8",
+            )
+
+            matches = prompt_workflow_slug.find_local_matches(
+                project_root=project_root, slug="my-slug"
+            )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_MY_SLUG")
+
 
 class _FakeGh:
     def __init__(self, payload: object) -> None:
@@ -455,13 +484,21 @@ class CrossPrDiscoveryGitSimulationTest(unittest.TestCase):
         self.assertEqual(second_pass[0].status, "landed")
         self.assertEqual(second_pass[0].created_at, "2026-01-02T00:00:00+00:00")
 
-    def test_cat_file_unexpected_failure_raises_not_treated_as_not_inherited(
+    def test_merge_base_tree_check_failure_raises_not_treated_as_not_inherited(
         self,
     ) -> None:
-        # A `git cat-file -e` failure whose stderr does NOT match git's
-        # ordinary "path does not exist" message (e.g. a corrupted repo or
-        # bad object database) must fail loudly, not be silently treated
-        # as "not inherited, proceed as a genuine new match."
+        # A `git ls-tree` failure against the merge-base tree-ish (e.g. a
+        # corrupted repo or bad object database making `merge_base`
+        # itself unusable) must fail loudly, not be silently treated as
+        # "not inherited, proceed as a genuine new match." This structural
+        # check replaced an earlier `git cat-file -e` + stderr-text-match
+        # approach: a subsequent review round found that git's "path
+        # absent" message differs ("does not exist in" vs. "exists on
+        # disk, but not in") depending on exactly how the path is absent,
+        # and matching only one wording misclassified the other as a
+        # fatal error. `ls-tree`'s success/failure split carries no such
+        # free-text ambiguity: failure means the tree-ish itself is
+        # unusable, full stop.
         with tempfile.TemporaryDirectory() as temp_dir:
             root = pathlib.Path(temp_dir)
             origin_dir = root / "origin"
@@ -475,7 +512,7 @@ class CrossPrDiscoveryGitSimulationTest(unittest.TestCase):
             real_runner = self._git_runner(consumer_dir)
 
             def flaky_git_runner(args: list[str]):
-                if args[:2] == ["cat-file", "-e"]:
+                if args[0] == "ls-tree" and "-r" not in args:
                     return subprocess.CompletedProcess(
                         args=["git", *args],
                         returncode=128,
@@ -488,6 +525,35 @@ class CrossPrDiscoveryGitSimulationTest(unittest.TestCase):
                 prompt_workflow_slug.find_remote_matches(
                     slug="my-slug", gh_runner=gh_runner, git_runner=flaky_git_runner
                 )
+
+    def test_path_present_on_disk_but_absent_from_merge_base_tree_is_new_match(
+        self,
+    ) -> None:
+        # Regression test for the exact case round 6 review found: a path
+        # that exists in the worktree/current tip but is absent from the
+        # merge-base tree specifically must still be recognized as a
+        # genuine new match (not misclassified as inherited, and not
+        # raised as an unexpected failure) -- this is precisely PR#1's
+        # own scenario in `_build_origin` (the slug file exists at pr1's
+        # tip but not at main's tip, its merge-base with pr1).
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            origin_dir = root / "origin"
+            consumer_dir = root / "consumer"
+            origin_dir.mkdir()
+            consumer_dir.mkdir()
+            self._build_origin(origin_dir)
+            self._build_consumer(consumer_dir, origin_dir)
+
+            gh_runner = _FakeGh([{"number": 1, "baseRefName": "main"}])
+            matches = prompt_workflow_slug.find_remote_matches(
+                slug="my-slug",
+                gh_runner=gh_runner,
+                git_runner=self._git_runner(consumer_dir),
+            )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].source, "PR#1")
 
     def test_local_match_excluded_from_remote_results(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -26,7 +26,7 @@ forbidden_actions:
   - implement_self_review_agent
   - merge_pr
 acceptance:
-  - "Each of /lrh-land, /lrh-review-response, /lrh-confirm-fixes SKILL.md states, in its review-landed/review-fetch step, that coverage is determined only via three sources -- isResolved state (from lrh github threads --mode raw --state all, filtered to isResolved == false; never lrh request review_response, which also excludes outdated threads), commit_id vs. current head (from the REST reviews call), and SHA-matched issue/review-body text for the no-thread case -- and never via a freehand since <timestamp> filter over comments/reviews/threads"
+  - "Each of /lrh-land, /lrh-review-response, /lrh-confirm-fixes SKILL.md states, in its review-landed/review-fetch step, that coverage is determined only via three sources -- isResolved state (from lrh github threads --mode raw --state all, filtered to isResolved == false; never lrh request review_response, which also excludes outdated threads), commit_id vs. current head (from the paginated REST reviews call, which correlates formal review bodies too), and SHA-matched text for the genuine no-thread issue-comment case only -- and never via a freehand since <timestamp> filter over comments/reviews/threads"
   - "/lrh-land Step 4's lastPush comparison is reworded so it cannot be read as authorizing a time-based exclusion filter on comment content"
   - "The motivating incident (a missed Copilot review on an earlier commit, due to a since-scoped check anchored to a later commit's push time) is cited in at least one edited skill as the concrete failure this prohibition prevents"
   - "src/ and .claude/ mirrors match for all three touched skills (diff -r reports no differences)"
@@ -111,6 +111,20 @@ therefore rests on **three** sources, not two: `isResolved` (via the
 raw-threads command), `commit_id` vs. head (via the REST reviews call),
 and SHA-matched issue/review-body text for the no-thread case.
 
+**Third correction, surfaced by this PR's own review, round 3 (Codex, P1
+x2):** round 2's REST reviews snippet omitted `--paginate`; the endpoint
+defaults to `per_page=30`, so a PR with more than 30 formal reviews could
+silently truncate before a later finding is read — the prescribed command
+must always paginate. Separately, round 2's "SHA-matched issue/review-body
+text" bucket conflated two different things: a formal review body (which
+the REST reviews endpoint returns with a real `commit_id`, same as any
+other review) does not need SHA-text-matching at all — it's correlated by
+`commit_id` like normal. Only a genuine issue comment (`gh pr comment`,
+with no entry in the reviews endpoint and therefore no `commit_id`) needs
+the SHA-text-matching fallback. Requiring text-matching for both risked
+leaving an ordinary review pending indefinitely if its body just didn't
+happen to quote the SHA.
+
 ### Duplication search
 
 - In-repo: `WI-REVIEW-ROUND-ESCALATION-GATE` (proposed) touches the same
@@ -147,16 +161,32 @@ and SHA-matched issue/review-body text for the no-thread case.
        filter (`formatters.py:31-40`) requires both `not isResolved`
        and `not isOutdated`, silently hiding genuinely
        unresolved-but-outdated threads.
-     - `commit_id`-vs-head coverage — via the existing REST reviews
-       call already used by `/lrh-confirm-fixes`:
+     - `commit_id`-vs-head coverage — via the REST reviews endpoint,
+       always with `--paginate` (the endpoint defaults to `per_page=30`;
+       without pagination, a PR with more than 30 formal reviews can
+       silently truncate before a later finding is read). **This is new
+       for all three skills, not existing practice to cite**:
+       `lrh-confirm-fixes/SKILL.md` does not call this endpoint or check
+       `commit_id` today — its current mechanism (lines 363-364, 389)
+       matches by SHA-text-citation uniformly, for reviews and issue
+       comments alike. This item changes that for the formal-review case:
        ```bash
-       gh api repos/<owner>/<repo>/pulls/<N>/reviews \
+       gh api --paginate repos/<owner>/<repo>/pulls/<N>/reviews \
          --jq '.[] | "\(.submitted_at) \(.user.login) \(.state) commit=\(.commit_id[0:7])"'
        ```
-     - SHA-matched issue/review-body text, for a reviewer response with
-       no distinct thread and therefore no `commit_id` — already
-       recognized by `lrh-confirm-fixes/SKILL.md:367-376`; must be read
-       and credited the same way there.
+       This call also covers a **formal review body with no separate
+       inline thread** (e.g. a bot's plain "COMMENTED" review) — those
+       still have a `commit_id` via this same endpoint and are
+       correlated by `commit_id`, not by text-matching.
+     - SHA-matched **issue comment** text, for the narrower case of a
+       response with no formal review record at all (a `gh pr comment`
+       reply has no entry in the reviews endpoint and therefore no
+       `commit_id`) — already recognized by
+       `lrh-confirm-fixes/SKILL.md:367-376`; must be read and credited
+       the same way there. Do not require SHA-text-matching for a
+       formal review body that already carries a `commit_id` — that
+       would make a real review pend indefinitely if its text simply
+       doesn't happen to echo the SHA.
      Do not describe any pair of these as a single command or collapse
      them to two sources — each covers a case the others miss.
   2. State explicitly: never construct or apply a `since <timestamp>`
@@ -175,18 +205,23 @@ and SHA-matched issue/review-body text for the no-thread case.
    comment content by time; make explicit that `lastPush` is only used to
    judge "have bots had time to run," never to exclude older-but-still-
    unresolved content. Replace its `lrh request review_response`-only
-   check with the three-source model (raw-threads `isResolved`, REST
-   `commit_id`, SHA-matched issue/review text).
+   check with the three-source model (raw-threads `isResolved`; paginated
+   REST `commit_id`, which also covers formal review bodies; SHA-matched
+   text for genuine issue comments only).
 2. `src/lrh/skills/lrh-review-response/SKILL.md` — add the same
    bright-line prohibition to its review-fetch step, naming all three
-   sources explicitly.
+   sources explicitly, with the same review-body-vs-issue-comment
+   distinction.
 3. `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8 — extend the
    existing `isResolved`-filter language (line 119) and the REVIEW-LANDED
    re-check (lines 304-374) with the explicit "never a since-filter"
-   prohibition, citing this item's motivating incident. This skill
-   already performs the `commit_id` REST check and already recognizes
-   SHA-matched issue/review text (lines 367-376); cite both as the
-   pattern `/lrh-land` and `/lrh-review-response` should follow.
+   prohibition, citing this item's motivating incident. This skill's
+   current mechanism (lines 363-364, 389) matches *every* response —
+   formal reviews and issue comments alike — by SHA-text-citation only;
+   it has no `commit_id` check today. Add the paginated REST `commit_id`
+   check as the correlation method for formal review bodies specifically,
+   keeping SHA-text-matching (already correctly described at lines
+   367-376) for the genuine no-thread issue-comment case.
 4. Mirror all edits to `.claude/skills/lrh-land/`,
    `.claude/skills/lrh-review-response/`, `.claude/skills/lrh-confirm-fixes/`.
 
@@ -210,8 +245,9 @@ and SHA-matched issue/review-body text for the no-thread case.
   is determined only via three sources — `isResolved` state (from `lrh
   github threads --mode raw --state all`, filtered to `isResolved ==
   false`; never `lrh request review_response`, which also excludes
-  outdated threads), `commit_id` vs. current head (from the REST reviews
-  call), and SHA-matched issue/review-body text for the no-thread case —
+  outdated threads), `commit_id` vs. current head (from the paginated
+  REST reviews call, which correlates formal review bodies too), and
+  SHA-matched text for the genuine no-thread issue-comment case only —
   and never via a freehand `since <timestamp>` filter.
 - `/lrh-land` Step 4's `lastPush` comparison is reworded so it cannot be
   read as authorizing a time-based exclusion filter on comment content.

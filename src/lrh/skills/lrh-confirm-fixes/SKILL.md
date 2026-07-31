@@ -373,7 +373,7 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    reports any finding, in a review body, an issue comment, *or* a formal
    inline thread, is a new finding — handle it per the paragraph below,
    whichever surface it arrived on.
-3. If one or more mentioned reviewers haven't responded after a reasonable
+3. If one or more retriggered reviewers haven't responded after a reasonable
    wait, **do not silently conclude "no reviewer configured" and fall back
    to a human statement, and do not report Green on a partial set.** Ask
    the human directly: "No response yet from `<reviewer>` on `<sha>` — is
@@ -383,7 +383,7 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    either direction.
 
 The verdict is **Review pending** — report it explicitly and re-check
-later — for as long as any mentioned reviewer's matching response, or an
+later — for as long as any retriggered reviewer's matching response, or an
 explicit human answer standing in for it, is still outstanding. Do not
 time out into Green on a partial response.
 

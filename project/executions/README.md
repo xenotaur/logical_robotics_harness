@@ -19,8 +19,9 @@ project/executions/
 
 This directory is intentionally lightweight. It is not a workflow engine and does not introduce formal workstreams.
 
-A `round_state/` subdirectory at this same path, but on a dedicated
-`round-state` branch (never `main`, never any PR branch), holds
+A `round_state/` subdirectory at this same path, but on a dedicated,
+LRH-namespaced `lrh-round-state` branch (never the default branch, never
+any PR branch), holds
 non-execution-record JSON state files (`<owner>-<repo>-pr<N>.json`, keyed
 by canonical PR identity, not branch name) used by `/lrh-confirm-fixes`'s
 Step 8 round-cap gate to track bot-retrigger counts per PR — see

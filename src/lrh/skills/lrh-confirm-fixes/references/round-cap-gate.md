@@ -78,8 +78,9 @@ auto-detected. Three requirements this schema depends on:
   interrupted mid-write can leave a truncated or partially-updated file
   that the crash-recovery path (below) then cannot even parse, defeating
   the mechanism's own core invariant.
-- **Every write is committed and pushed immediately, to the dedicated
-  `round-state` branch — never to the PR branch under review.**
+- **Every write is committed and pushed immediately, to the dedicated,
+  LRH-namespaced `lrh-round-state` branch — never to the PR branch under
+  review.**
   Atomicity protects against a corrupted file; committing protects
   against a purely local edit that's invisible to a different invocation
   or a fresh session; and keeping it off the reviewed PR's own branch
@@ -153,33 +154,56 @@ evidence Step 8 already collected and forcing either a stale verdict or
 an unbounded re-check loop chasing its own bookkeeping commits.
 
 Instead, all round-state files across all PRs live on one dedicated,
-long-lived `round-state` branch — content-only, never merged into `main`
-or any PR branch, analogous to the main-worktree-lock pattern
-`/lrh-land` uses to push housekeeping commits without disturbing a
-checked-out branch (`src/lrh/skills/lrh-land/references/land-workflow.md`).
-**Every operation — including bootstrap — happens in a throwaway
-worktree, never in the main checkout**, so a failure at any step leaves
-the PR branch's own working tree untouched; and **every worktree
-operation cleans up stale state from a prior interrupted invocation
-first**, so a crash never blocks the next invocation's own recovery path
-(the exact scenario this whole mechanism exists to handle):
+long-lived, **namespaced** `lrh-round-state` branch — content-only,
+never merged into any default branch or PR branch, analogous to the
+main-worktree-lock pattern `/lrh-land` uses to push housekeeping commits
+without disturbing a checked-out branch
+(`src/lrh/skills/lrh-land/references/land-workflow.md`). Since LRH is a
+reusable harness installed into independent client repositories
+(`AGENTS.md:5`), an `lrh-`-prefixed name (not a generic `round-state`)
+and an explicit ownership check are both required — a client repository
+could otherwise already have an unrelated branch that happens to share
+the name, and this mechanism must never silently adopt, write to, or
+clean up a branch it doesn't own. **Every operation — including
+bootstrap — happens in a throwaway worktree, never in the main
+checkout**, so a failure at any step leaves the PR branch's own working
+tree untouched; **every worktree operation cleans up stale state from a
+prior interrupted invocation first**, but only when it's actually stale
+(age-checked, never force-removed on sight — a live concurrent
+invocation's worktree must not be destroyed out from under it); and
+**every commit follows this repository's Conventional Commits
+requirement** (`STYLE.md`, `chore` type — "Maintenance work... planning
+artifacts"):
 
 ```bash
-WT=/tmp/round-state-<key>-$$   # unique per invocation (PID-suffixed)
+WT=/tmp/lrh-round-state-<key>-$$   # unique per invocation (PID-suffixed)
+BOOTSTRAP_MARKER="chore(round-state): initialize LRH round-state branch"
+STALE_AGE_SECONDS=900   # 15 minutes — matches this skill's other "reasonable wait" thresholds
 
-# Always clear stale registrations first — a prior invocation that died
+# Clear only genuinely stale registrations — a prior invocation that died
 # between `worktree add` and `worktree remove` leaves the branch
 # registered as checked out, which blocks every subsequent `worktree add`
-# for that branch, including the one this recovery needs to run. Parse
-# the porcelain output's own `worktree <path>` field for the record that
-# matches — not an adjacent line's second field, which can be the wrong
-# field (e.g. `HEAD <sha>`) depending on record shape.
+# for that branch, including the one this recovery needs to run. But a
+# registration less than $STALE_AGE_SECONDS old may belong to a live,
+# concurrently-running invocation — force-removing it unconditionally
+# could destroy another process's in-progress work. Parse the porcelain
+# output's own `worktree <path>` field for the matching record (not an
+# adjacent line's field, which can be the wrong one depending on record
+# shape), and gate removal on the worktree directory's own mtime:
 git worktree prune
 STALE_WT=$(git worktree list --porcelain | awk '
   /^worktree /{path=$2}
-  /^branch refs\/heads\/round-state$/{print path}
+  /^branch refs\/heads\/lrh-round-state$/{print path}
 ')
-[ -n "$STALE_WT" ] && git worktree remove --force "$STALE_WT" 2>/dev/null
+if [ -n "$STALE_WT" ]; then
+  AGE=$(( $(date +%s) - $(stat -f %m "$STALE_WT" 2>/dev/null || stat -c %Y "$STALE_WT") ))
+  if [ "$AGE" -ge "$STALE_AGE_SECONDS" ]; then
+    git worktree remove --force "$STALE_WT" 2>/dev/null
+  else
+    echo "lrh-round-state worktree at $STALE_WT is only ${AGE}s old — may be a live concurrent invocation, not stale. Stopping rather than force-removing." >&2
+    exit 1   # surface to the human; do not guess
+  fi
+fi
 git worktree prune
 
 # Resolve this repository's actual default branch — never hard-code
@@ -190,44 +214,54 @@ DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
        --jq .defaultBranchRef.name)
 
 # Bootstrap the branch once, if it doesn't exist yet — in a throwaway
-# worktree, so a failed push can never strand the main checkout:
-if ! git ls-remote --exit-code --heads origin round-state >/dev/null; then
+# worktree, so a failed push can never strand the main checkout. If the
+# branch *does* already exist, verify LRH actually created it before
+# treating it as this mechanism's own — never adopt a pre-existing,
+# unrelated branch that happens to share the name:
+if git ls-remote --exit-code --heads origin lrh-round-state >/dev/null; then
+  git fetch origin lrh-round-state --quiet
+  ROOT_MSG=$(git log --format=%s --reverse origin/lrh-round-state | head -1)
+  if [ "$ROOT_MSG" != "$BOOTSTRAP_MARKER" ]; then
+    echo "origin/lrh-round-state exists but its root commit doesn't match this mechanism's bootstrap marker — likely an unrelated pre-existing branch. Stopping rather than adopting it." >&2
+    exit 1   # surface to the human; never silently write to an unowned branch
+  fi
+else
   git worktree add --detach "$WT-bootstrap" "origin/$DEFAULT_BRANCH"
-  git -C "$WT-bootstrap" checkout --orphan round-state
+  git -C "$WT-bootstrap" checkout --orphan lrh-round-state
   git -C "$WT-bootstrap" rm -rf . >/dev/null
-  git -C "$WT-bootstrap" commit --allow-empty -m "Initialize round-state branch"
-  git -C "$WT-bootstrap" push origin round-state
+  git -C "$WT-bootstrap" commit --allow-empty -m "$BOOTSTRAP_MARKER"
+  git -C "$WT-bootstrap" push origin lrh-round-state
   git worktree remove --force "$WT-bootstrap"
 fi
 
-# Fetch and fast-forward the *local* round-state branch to match the
-# remote tip before using it — `git fetch` alone only updates
-# `origin/round-state`; a stale local `round-state` branch would base a
-# new commit on an old tip and get rejected as non-fast-forward on push,
-# defeating this mechanism in the exact concurrent-session case it exists
-# to support:
-git fetch origin round-state --quiet
-git show origin/round-state:project/executions/round_state/<key>.json 2>/dev/null   # read, without disturbing the current checkout
-git branch -f round-state origin/round-state 2>/dev/null \
-  || git branch round-state origin/round-state
+# Fetch and fast-forward the *local* branch to match the remote tip
+# before using it — `git fetch` alone only updates
+# `origin/lrh-round-state`; a stale local branch would base a new commit
+# on an old tip and get rejected as non-fast-forward on push, defeating
+# this mechanism in the exact concurrent-session case it exists to
+# support:
+git fetch origin lrh-round-state --quiet
+git show origin/lrh-round-state:project/executions/round_state/<key>.json 2>/dev/null   # read, without disturbing the current checkout
+git branch -f lrh-round-state origin/lrh-round-state 2>/dev/null \
+  || git branch lrh-round-state origin/lrh-round-state
 
 # Write, via a throwaway worktree (keeps the PR branch's checkout untouched):
-git worktree add "$WT" round-state
+git worktree add "$WT" lrh-round-state
 # ... write the file atomically inside "$WT/project/executions/round_state/<key>.json" ...
 git -C "$WT" add project/executions/round_state/<key>.json
-git -C "$WT" commit -m "round-state: <one-line change summary>"
-git -C "$WT" push origin round-state
+git -C "$WT" commit -m "chore(round-state): <one-line change summary>"
+git -C "$WT" push origin lrh-round-state
 git worktree remove "$WT"
 ```
 
-If `git worktree add "$WT" round-state` still fails after pruning (a
+If `git worktree add "$WT" lrh-round-state` still fails after pruning (a
 genuinely concurrent invocation holding the checkout right now, not a
 stale leftover), retry with a short backoff a few times rather than
 forcing — forcing could corrupt a live concurrent writer's in-progress
 commit. If it keeps failing, surface that to the human rather than
 guessing; do not silently drop the state update.
 
-`round-state` is deliberately not merged anywhere and carries no PR of
+`lrh-round-state` is deliberately not merged anywhere and carries no PR of
 its own — it is pure bookkeeping data, git-tracked for durability and
 history the same way any other committed file is, but fully decoupled
 from every PR's own review lifecycle. `lrh validate` never sees it: the

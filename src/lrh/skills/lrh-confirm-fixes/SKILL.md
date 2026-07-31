@@ -343,8 +343,9 @@ rename it over the target — an interruption mid-write must never leave a
 truncated or unparseable file); it must be **committed and pushed
 immediately** (a local-only edit is invisible to a fresh session or a
 different invocation and cannot enforce the cap); and it must be pushed
-to the **dedicated `round-state` branch, never to the PR branch under
-review** — pushing state to the reviewed PR's own branch would move its
+to the **dedicated, LRH-namespaced `lrh-round-state` branch, never to
+the PR branch under review** — pushing state to the reviewed PR's own
+branch would move its
 `HEAD` mid-check, invalidating the CI/REVIEW-LANDED evidence Step 8
 already gathered for the prior commit and potentially requiring an
 unbounded re-check loop. See `references/round-cap-gate.md` §
@@ -356,9 +357,9 @@ unbounded re-check loop. See `references/round-cap-gate.md` §
    trailing slash or scheme difference would otherwise read as a false
    mismatch below. Read (or initialize) the file at
    `project/executions/round_state/<owner>-<repo>-pr<N>.json` **on the
-   dedicated `round-state` branch** (see "Round-state branch mechanics"
-   in `references/round-cap-gate.md` — never the PR branch under
-   review), where `<owner>`, `<repo>`, and `<N>` come from that canonical
+   dedicated `lrh-round-state` branch** (see "Round-state branch
+   mechanics" in `references/round-cap-gate.md` — never the PR branch
+   under review), where `<owner>`, `<repo>`, and `<N>` come from that canonical
    URL — never from the branch name (a branch name can be reused after
    merge, or collide across two fork PRs, silently mapping unrelated PRs
    onto the same file). Initialize to `{"pr": "<canonical-pr-url>", "ceiling": 3,

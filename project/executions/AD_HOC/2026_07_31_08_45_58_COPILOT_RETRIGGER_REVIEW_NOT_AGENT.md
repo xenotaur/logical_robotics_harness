@@ -9,7 +9,7 @@ commit:
 created_at: 2026-07-31T08:45:58+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — user reported Copilot pushing unwanted commits to PRs and asked why, how to debug it, and how to fix it
-session_transcript: pending
+session_transcript: claude-app:9e68ac13-8d87-42d3-bbd2-3997bd762717
 ---
 
 # Summary
@@ -77,8 +77,6 @@ diff -r src/lrh/skills/lrh-confirm-fixes/ .claude/skills/lrh-confirm-fixes/ — 
 
 # Follow-up
 
-- `session_transcript` is `pending` — update to `claude-app:<host-uuid-stem>`
-  before/at merge.
 - Land via `/lrh-land https://github.com/xenotaur/logical_robotics_harness/pull/446`.
 - Optional, not actioned here: refresh `WI-REVIEW-ROUND-ESCALATION-GATE.md`'s
   `@copilot review` example text to match the new `gh pr edit --add-reviewer`

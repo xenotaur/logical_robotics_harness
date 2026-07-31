@@ -327,18 +327,35 @@ scenario) would be misclassified as human-only, letting a human clean-pass
 statement produce Green without ever giving the configured reviewer a
 chance to weigh in. Do not attempt to infer configuration state at all:
 
-1. **Always attempt the retrigger, unconditionally** — it is a harmless
-   no-op if nothing listens for the mention:
+1. **Always attempt the retrigger, unconditionally** — neither command
+   changes any PR code. The comment mention is a harmless no-op if nothing
+   listens for it; the reviewer-request may likewise no-op (already
+   requested) or fail harmlessly (no permission, Copilot review not
+   enabled for this repo) without touching a file either way:
 
    ```bash
    gh pr comment <pr-url> --body "@codex review"
-   gh pr comment <pr-url> --body "@copilot review"
+   gh pr edit <pr-url> --add-reviewer @copilot
    ```
 
+   **Do not retrigger Copilot with a plain `@copilot` PR comment.** Any
+   `@copilot` mention in a comment body invokes Copilot's *coding agent* —
+   a different product from Copilot code review — and as of GitHub's
+   2026-03-24 default change it pushes commits straight onto the PR's
+   branch instead of opening a separate PR (GitHub Changelog, "Ask
+   @copilot to make changes to any pull request"). Re-requesting Copilot
+   as a reviewer (`gh pr edit <pr-url> --add-reviewer @copilot`, the REST
+   API, or the PR sidebar) hits the review-only bot instead, which "always leaves
+   a 'Comment' review" and never commits (GitHub Docs, "Using GitHub
+   Copilot code review").
+
    (Substitute or add other reviewer mentions this repository's
-   `REVIEWS.md`, if present, documents.)
-2. **Track every reviewer actually mentioned in step 1, and wait for each
-   one to respond — not just the first.** A fast clean response from one
+   `REVIEWS.md`, if present, documents — the same caveat applies to any
+   reviewer whose plain-comment mention doubles as an agent-invocation
+   trigger.)
+2. **Track every reviewer retriggered in step 1 (whether via comment
+   mention or reviewer request), and wait for each one to respond — not
+   just the first.** A fast clean response from one
    reviewer does not clear the ones still pending; if both Codex and
    Copilot were retriggered, both must post before REVIEW-LANDED is
    satisfied, the same way Step 6's thread-resolution verdict requires
@@ -359,7 +376,7 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    reports any finding, in a review body, an issue comment, *or* a formal
    inline thread, is a new finding — handle it per the paragraph below,
    whichever surface it arrived on.
-3. If one or more mentioned reviewers haven't responded after a reasonable
+3. If one or more retriggered reviewers haven't responded after a reasonable
    wait, **do not silently conclude "no reviewer configured" and fall back
    to a human statement, and do not report Green on a partial set.** Ask
    the human directly: "No response yet from `<reviewer>` on `<sha>` — is
@@ -369,7 +386,7 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    either direction.
 
 The verdict is **Review pending** — report it explicitly and re-check
-later — for as long as any mentioned reviewer's matching response, or an
+later — for as long as any retriggered reviewer's matching response, or an
 explicit human answer standing in for it, is still outstanding. Do not
 time out into Green on a partial response.
 

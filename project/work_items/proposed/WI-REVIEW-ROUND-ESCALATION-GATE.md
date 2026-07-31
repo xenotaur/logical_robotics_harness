@@ -32,13 +32,13 @@ forbidden_actions:
   - merge_pr
 acceptance:
   - "/lrh-confirm-fixes Step 8 computes a durable round count (completed bot-retrigger batches, not cycles) before allowing another bot-retrigger"
-  - "the design writes durable attempt state before starting a retrigger batch, then records a completed round only after the full reviewer-mention batch succeeds; it is not reconstructed post-hoc from a finished record"
+  - "the design writes durable attempt state before starting a retrigger batch, then records a completed round as soon as any mention in the batch is confirmed submitted (ambiguous results counted as submitted) -- not gated on full-batch success; it is not reconstructed post-hoc from a finished record"
   - "applying the definition to PR #442 would yield 14, not the cycles=1 its CHAIN-NOTE reports today"
   - "reaching the current ceiling stops the skill and presents the three-way gate (authorize/deny/pause) before further retrigger"
   - "default ceiling-suggestion sequence (3 -> 10 -> 20) documented as ending there; beyond 20 the skill asks for the next ceiling with no computed default; actual next ceiling is always human-supplied, never auto-applied"
   - "CHAIN-NOTE stops/note field docs updated to cover gate crossings and distinguish the round-cap counter from cycles"
   - "mechanism's scope (lrh-confirm-fixes Step 8 bot-retriggers only, not aggregate Copilot spend, not Jules/manual activity, and explicitly not /lrh-review-response, which has no retrigger action today) is explicitly documented"
-  - "src/ and .claude/ skill mirrors match for all three touched skills (diff -r reports no differences)"
+  - "src/ and .claude/ skill mirrors match for both touched skills, lrh-confirm-fixes and lrh-land (diff -r reports no differences)"
   - "lrh validate reports 0 errors"
 required_evidence:
   - manual_review

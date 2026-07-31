@@ -2,10 +2,10 @@
 execution_id: 2026_07_31_16_31_46_COPILOT_RETRIGGER_REVIEW_NOT_AGENT_CONFIRM
 prompt_id: PROMPT(AD_HOC:COPILOT_RETRIGGER_REVIEW_NOT_AGENT_CONFIRM)[2026-07-31T09:34:40+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_31_08_45_58_COPILOT_RETRIGGER_REVIEW_NOT_AGENT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/446
-commit: 
+commit: d0378e7d4070367c81b5784572ab2eaeab0cbf2d
 created_at: 2026-07-31T16:31:46+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/446

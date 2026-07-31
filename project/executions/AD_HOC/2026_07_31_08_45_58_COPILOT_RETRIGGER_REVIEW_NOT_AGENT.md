@@ -2,10 +2,10 @@
 execution_id: 2026_07_31_08_45_58_COPILOT_RETRIGGER_REVIEW_NOT_AGENT
 prompt_id: PROMPT(AD_HOC:COPILOT_RETRIGGER_REVIEW_NOT_AGENT)[2026-07-31T08:41:39+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/446
-commit: 
+commit: d0378e7d4070367c81b5784572ab2eaeab0cbf2d
 created_at: 2026-07-31T08:45:58+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — user reported Copilot pushing unwanted commits to PRs and asked why, how to debug it, and how to fix it

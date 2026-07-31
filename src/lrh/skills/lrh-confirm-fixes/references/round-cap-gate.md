@@ -410,3 +410,40 @@ metric from CHAIN-NOTE's `cycles` field — see
 field docs for how a round-cap gate crossing should be recorded there.
 `cycles` and `completed_count` measure different things and are not
 interchangeable.
+
+## Risk Notes — deferred hardening
+
+The round-state mechanism grew substantially beyond its originating
+work item's description ("a field on the execution record, or a small
+per-PR state artifact") over eight review rounds on its implementation
+PR, each of which found a real, distinct correctness bug: worktree-path
+parsing, branch fast-forwarding, default-branch hard-coding, concurrent
+force-removal safety, cross-tenant branch-name collisions, Conventional
+Commits compliance, `stat` portability, `pipefail` semantics, and
+concurrent-push races. All were fixed. The following residual risks are
+**deliberately deferred** rather than chased further, consistent with
+this project's practice of fixing what's core to a PR's purpose and
+deferring narrow, increasingly-rare edge cases to follow-up work:
+
+- **Untested in practice.** Every fix above was verified by careful
+  manual reasoning and cross-referencing against `stat`/`git`
+  documentation, not by actually exercising a crash, a concurrent
+  writer, or a non-GNU/non-BSD `stat` in a real environment. The first
+  live use of this mechanism is its actual test.
+- **Retry bound is a guess.** The 5-attempt push retry and the
+  15-minute staleness threshold are reasonable defaults, not measured
+  against real contention patterns — they may need tuning once this
+  mechanism sees real concurrent traffic.
+- **No automated test coverage.** This mechanism is pure `SKILL.md`
+  prose and bash, like every other LRH skill step, so it has no unit
+  tests exercising the worktree/branch logic directly (consistent with
+  how the rest of `lrh-confirm-fixes` is verified — via review and
+  manual reasoning, not `scripts/test`).
+- **Further portability gaps may exist.** The `stat` fix addresses the
+  one confirmed GNU/BSD divergence found; other shell/OS differences in
+  this bash-heavy mechanism are plausible and not exhaustively audited.
+
+If any of these residual gaps cause a real incident once this mechanism
+is in use, treat that as evidence to promote — file a follow-up work
+item rather than relying on further speculative review rounds to find
+it first.

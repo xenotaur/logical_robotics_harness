@@ -111,19 +111,29 @@ and are explicitly out of scope.
   `cycles` field, which PR #442 shows can read `1` across a 14-retrigger
   incident.
 - Persist a retrigger-attempt marker **durably and synchronously before
-  each retrigger batch**, then promote it to a completed round only after
-  the full reviewer-mention batch succeeds (or define rollback/recovery
-  semantics for partial failure), so the count survives a session restart
-  mid-loop without overcounting failed attempts.
+  each retrigger batch**, then promote it to a completed round **as soon
+  as any reviewer-mention in the batch produces a confirmed external side
+  effect** (a submitted `gh pr comment`) — not only after the *full*
+  batch succeeds. This closes a real cost-cap loophole: if promotion
+  required full-batch success, a batch where one mention posts and
+  another fails could be retried indefinitely, each retry consuming real
+  reviewer credits without ever incrementing the counted round toward the
+  ceiling. Any unsubmitted mentions from a partially-successful batch may
+  be retried without incrementing the counter again (the round is already
+  counted), but an ambiguous submission result (e.g. a timeout with
+  unknown server-side outcome) must be treated as submitted, not
+  unsubmitted, for counting purposes — conservative toward counting more,
+  never fewer, side-effect-bearing attempts.
 - Specify the check-vs-attempt ordering exactly, to remove the off-by-one
   ambiguity at each ceiling: before starting a retrigger batch, check
   `completed_count >= ceiling`; if blocked, stop and present the gate
   instead of starting the batch; if not blocked, persist the attempt
-  marker and start the batch, promoting it to `completed_count + 1` only
-  on full success. (E.g. with ceiling 3: the 1st, 2nd, and 3rd batches
-  each pass the check — `0 >= 3`, `1 >= 3`, `2 >= 3` are all false — and
-  raise the count to 3; a 4th batch is blocked by the gate, since
-  `3 >= 3` is true, before it starts.)
+  marker and start the batch, promoting it to `completed_count + 1` as
+  soon as the first confirmed-submitted mention lands. (E.g. with ceiling
+  3: the 1st, 2nd, and 3rd batches each pass the check — `0 >= 3`,
+  `1 >= 3`, `2 >= 3` are all false — and raise the count to 3; a 4th
+  batch is blocked by the gate, since `3 >= 3` is true, before it
+  starts.)
 - Present a three-way human gate (authorize to a new ceiling / deny-stop /
   pause) when the round count reaches the current ceiling. The default
   ceiling-suggestion sequence is 3 → 10 → 20 and is defined *only* through
@@ -140,8 +150,8 @@ and are explicitly out of scope.
 ## Required Changes
 
 1. Edit `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8 (the retrigger commands at lines 330-335 and the repeat-on-new-finding logic at line 376) to add the round-count check before each retrigger, using the exact check-then-attempt ordering specified in Scope — this is the loop the PR #442 incident actually ran in.
-2. Define, in that edit, a durable per-PR round-tracking mechanism that writes retrigger-attempt state synchronously immediately before the reviewer-mention batch starts, then marks a completed round only after the full batch succeeds (e.g. a field updated on the in-progress execution record for the target PR, or a small per-PR round-state artifact under `project/executions/`). Do not rely on a value reconstructed from `project/executions/` after the fact, since today's records (including CHAIN-NOTE `cycles`) are only written at the end of a run and would undercount or reset after a restart.
-3. Create `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md` documenting: the bot-retrigger-batch round definition, the check-then-attempt ordering, the durable persistence mechanism, the attempt-vs-completed-round semantics for failed/partial retrigger submissions, the default ceiling-suggestion sequence (3 → 10 → 20, undefined beyond that by design), the three-way gate options, and the explicit scope statement. Reference it from `lrh-confirm-fixes`.
+2. Define, in that edit, a durable per-PR round-tracking mechanism that writes retrigger-attempt state synchronously immediately before the reviewer-mention batch starts, then marks a completed round as soon as any mention in the batch is confirmed submitted — not only after the full batch succeeds — with ambiguous submission results treated as submitted (e.g. a field updated on the in-progress execution record for the target PR, or a small per-PR round-state artifact under `project/executions/`). Do not rely on a value reconstructed from `project/executions/` after the fact, since today's records (including CHAIN-NOTE `cycles`) are only written at the end of a run and would undercount or reset after a restart.
+3. Create `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md` documenting: the bot-retrigger-batch round definition, the check-then-attempt ordering, the durable persistence mechanism, the any-side-effect-counts promotion rule (including the conservative treatment of ambiguous submissions), the default ceiling-suggestion sequence (3 → 10 → 20, undefined beyond that by design), the three-way gate options, and the explicit scope statement. Reference it from `lrh-confirm-fixes`.
 4. Edit `src/lrh/skills/lrh-land/references/land-workflow.md` to extend the CHAIN-NOTE `stops` and `note` field descriptions to cover round-cap gate crossings and the ceiling authorized at each crossing, and to note that the round-cap counter is a separate, finer-grained metric than `cycles`.
 5. Mirror all changed/new files to `.claude/skills/lrh-confirm-fixes/` and `.claude/skills/lrh-land/` respectively.
 
@@ -158,7 +168,7 @@ and are explicitly out of scope.
 ## Acceptance Criteria
 
 - `/lrh-confirm-fixes` Step 8 computes a round count for the target PR before allowing another bot-retrigger batch, counting completed bot-retrigger batches (not `cycles`).
-- The design writes durable retrigger-attempt state immediately before each retrigger batch, then records a completed round only after the full reviewer-mention batch succeeds (or defines rollback/recovery semantics for partial failure) — verifiable by confirming it does not rely solely on a post-hoc/end-of-run record (e.g. CHAIN-NOTE) to reconstruct the in-progress count.
+- The design writes durable retrigger-attempt state immediately before each retrigger batch, then records a completed round as soon as any mention in the batch is confirmed submitted (ambiguous results counted as submitted) — not gated on full-batch success, which would let repeated partial-failure retries consume real reviewer credits without ever reaching the ceiling — and verifiably does not rely solely on a post-hoc/end-of-run record (e.g. CHAIN-NOTE) to reconstruct the in-progress count.
 - The check-vs-attempt ordering is exact and documented: `completed_count >= ceiling` is checked before a retrigger batch starts; the attempt marker is persisted, and the batch started, only if not blocked — not in a way that allows an off-by-one extra or missing batch at the boundary.
 - Applying this definition retroactively to PR #442's own record would have produced a round count of 14, not the `cycles=1` its CHAIN-NOTE currently reports — documented explicitly as the worked check that the unit is correct.
 - When the round count reaches the current ceiling, the skill stops and presents the three-way gate (authorize to new ceiling / deny-stop / pause) before any further bot-retrigger action.
@@ -178,5 +188,5 @@ and are explicitly out of scope.
 
 - A round-cap gate that fires too often could become a rubber-stamp click rather than a substantive decision point — mitigate by ensuring the gate surfaces round-specific context (findings so far, if derivable) rather than a bare "continue?" prompt.
 - Documentation alone cannot prevent a human from reflexively authorizing every gate; this item builds the checkpoint, not a guarantee of disciplined use.
-- The durable per-retrigger persistence mechanism (Required Change 2), including its attempt-vs-completed and partial-failure semantics, is the least-specified piece of this item and may need a follow-up design pass if a simple execution-record field update proves insufficient under concurrent/interleaved runs.
+- The durable per-retrigger persistence mechanism (Required Change 2) is still the least-specified piece: the counting rule itself (any confirmed side effect promotes the round) is now fixed, but reliably distinguishing "confirmed submitted," "confirmed unsubmitted," and "ambiguous" outcomes from a real `gh pr comment` call is an implementation-time detail this planning item does not resolve.
 - If a future item gives `/lrh-review-response` its own retrigger action, this item's scope boundary (Step 8 only) will need revisiting — noted here so that addition doesn't silently bypass the cap.

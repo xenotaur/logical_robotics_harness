@@ -73,12 +73,14 @@ auto-detected. Three requirements this schema depends on:
   interrupted mid-write can leave a truncated or partially-updated file
   that the crash-recovery path (below) then cannot even parse, defeating
   the mechanism's own core invariant.
-- **Every write is committed and pushed immediately.** Atomicity protects
-  against a corrupted file; it does not make a purely local edit visible
-  to a different invocation or a fresh session. Since this file is the
-  cross-invocation source of truth for the cap, a write that stays local
-  is functionally equivalent to no write at all from the next
-  invocation's point of view.
+- **Every write is committed and pushed immediately, to the dedicated
+  `round-state` branch — never to the PR branch under review.**
+  Atomicity protects against a corrupted file; committing protects
+  against a purely local edit that's invisible to a different invocation
+  or a fresh session; and keeping it off the reviewed PR's own branch
+  protects the CI/REVIEW-LANDED evidence Step 8 already gathered from
+  being invalidated by state-only commits moving that PR's `HEAD`. See
+  "Round-state branch mechanics" below for the exact mechanism.
 
 Deliberately **not** a `.md` file: `lrh validate`'s execution-record scan
 globs `project/executions/**/*.md` (`src/lrh/control/validator.py`), so a
@@ -134,6 +136,49 @@ with a batch in flight:
   "Crash-recovery reconciliation" below for why that resolution does not
   re-mention the reviewer. `pending_attempt` clears to `null` only once
   every reviewer in it has a terminal status.
+
+## Round-state branch mechanics
+
+**Round-state files are never committed to the PR branch under review.**
+Every state-file write in this skill's own Step 8 happens *during* the
+same run that gathers CI and REVIEW-LANDED evidence for that PR's
+current `HEAD` — pushing a state update to that same branch would move
+`HEAD` to a new, unreviewed commit mid-check, silently invalidating the
+evidence Step 8 already collected and forcing either a stale verdict or
+an unbounded re-check loop chasing its own bookkeeping commits.
+
+Instead, all round-state files across all PRs live on one dedicated,
+long-lived `round-state` branch — content-only, never merged into `main`
+or any PR branch, analogous to the main-worktree-lock pattern
+`/lrh-land` uses to push housekeeping commits without disturbing a
+checked-out branch (`src/lrh/skills/lrh-land/references/land-workflow.md`):
+
+```bash
+# Bootstrap the branch once, if it doesn't exist yet:
+git ls-remote --exit-code --heads origin round-state \
+  || (git checkout --orphan round-state && git rm -rf . \
+      && git commit --allow-empty -m "Initialize round-state branch" \
+      && git push origin round-state && git checkout -)
+
+# Read (without disturbing the current checkout):
+git fetch origin round-state --quiet
+git show origin/round-state:project/executions/round_state/<key>.json 2>/dev/null
+
+# Write, via a throwaway worktree (keeps the PR branch's checkout untouched):
+git worktree add /tmp/round-state-<key> round-state
+# ... write the file atomically inside /tmp/round-state-<key>/project/executions/round_state/<key>.json ...
+git -C /tmp/round-state-<key> add project/executions/round_state/<key>.json
+git -C /tmp/round-state-<key> commit -m "round-state: <one-line change summary>"
+git -C /tmp/round-state-<key> push origin round-state
+git worktree remove /tmp/round-state-<key>
+```
+
+`round-state` is deliberately not merged anywhere and carries no PR of
+its own — it is pure bookkeeping data, git-tracked for durability and
+history the same way any other committed file is, but fully decoupled
+from every PR's own review lifecycle. `lrh validate` never sees it: the
+branch isn't checked out during normal work, and the `.json` extension
+(not `.md`) keeps it outside the execution-record scan even where it is.
 
 ## Check-then-attempt ordering
 

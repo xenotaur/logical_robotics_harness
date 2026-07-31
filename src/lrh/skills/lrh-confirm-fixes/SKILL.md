@@ -337,23 +337,31 @@ one after a new-finding fix — check the round cap.** See
 `references/round-cap-gate.md` for the full mechanism and rationale (this
 closes the exact gap that let PR #442's incident run 14 rounds while its
 own CHAIN-NOTE reported `cycles=1`). Every write to the state file below
-must satisfy two independent durability requirements: it must be
+must satisfy three independent durability requirements: it must be
 **atomic** (write a temp file in the same directory, flush it, then
 rename it over the target — an interruption mid-write must never leave a
-truncated or unparseable file), and it must be **committed and pushed
+truncated or unparseable file); it must be **committed and pushed
 immediately** (a local-only edit is invisible to a fresh session or a
-different invocation and cannot enforce the cap). In order:
+different invocation and cannot enforce the cap); and it must be pushed
+to the **dedicated `round-state` branch, never to the PR branch under
+review** — pushing state to the reviewed PR's own branch would move its
+`HEAD` mid-check, invalidating the CI/REVIEW-LANDED evidence Step 8
+already gathered for the prior commit and potentially requiring an
+unbounded re-check loop. See `references/round-cap-gate.md` §
+"Round-state branch mechanics" for the exact git sequence. In order:
 
 1. **Load state, keyed by immutable PR identity.** Resolve the PR's
    canonical URL via `gh pr view --json url --jq .url` — never compare
    against whatever string form was passed in or auto-detected, since a
    trailing slash or scheme difference would otherwise read as a false
-   mismatch below. Read (or initialize)
-   `project/executions/round_state/<owner>-<repo>-pr<N>.json`, where
-   `<owner>`, `<repo>`, and `<N>` come from that canonical URL — never
-   from the branch name (a branch name can be reused after merge, or
-   collide across two fork PRs, silently mapping unrelated PRs onto the
-   same file). Initialize to `{"pr": "<canonical-pr-url>", "ceiling": 3,
+   mismatch below. Read (or initialize) the file at
+   `project/executions/round_state/<owner>-<repo>-pr<N>.json` **on the
+   dedicated `round-state` branch** (see "Round-state branch mechanics"
+   in `references/round-cap-gate.md` — never the PR branch under
+   review), where `<owner>`, `<repo>`, and `<N>` come from that canonical
+   URL — never from the branch name (a branch name can be reused after
+   merge, or collide across two fork PRs, silently mapping unrelated PRs
+   onto the same file). Initialize to `{"pr": "<canonical-pr-url>", "ceiling": 3,
    "completed_count": 0, "pending_attempt": null}` if the file doesn't
    exist. If it exists, verify its `pr` field equals the canonical URL
    exactly; **if it does not match, stop and report the mismatch to the

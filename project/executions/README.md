@@ -19,13 +19,16 @@ project/executions/
 
 This directory is intentionally lightweight. It is not a workflow engine and does not introduce formal workstreams.
 
-A `round_state/` subdirectory may also appear here, holding non-execution-record
-JSON state files (`<owner>-<repo>-pr<N>.json`, keyed by PR identity, not
-branch name) used by `/lrh-confirm-fixes`'s Step 8
-round-cap gate to track bot-retrigger counts per PR — see
-`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`. These are
-deliberately not `.md` files, so `lrh validate`'s execution-record scan
-(which globs `**/*.md`) ignores them.
+A `round_state/` subdirectory at this same path, but on a dedicated
+`round-state` branch (never `main`, never any PR branch), holds
+non-execution-record JSON state files (`<owner>-<repo>-pr<N>.json`, keyed
+by canonical PR identity, not branch name) used by `/lrh-confirm-fixes`'s
+Step 8 round-cap gate to track bot-retrigger counts per PR — see
+`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`. It lives
+off-branch specifically so that updating it never moves a reviewed PR's
+own `HEAD`. These are deliberately not `.md` files, so `lrh validate`'s
+execution-record scan (which globs `**/*.md`) ignores them even on the
+rare occasion that branch is checked out.
 
 ## Front matter schema
 

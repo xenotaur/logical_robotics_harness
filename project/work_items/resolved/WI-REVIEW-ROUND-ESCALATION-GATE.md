@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #445 (commit eac6284)"
 blocked_reason: null
 blocked: false
 id: WI-REVIEW-ROUND-ESCALATION-GATE
 title: Escalating human-gated round cap for assist-model review/fix loops
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

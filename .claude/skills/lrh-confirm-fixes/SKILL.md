@@ -327,8 +327,11 @@ scenario) would be misclassified as human-only, letting a human clean-pass
 statement produce Green without ever giving the configured reviewer a
 chance to weigh in. Do not attempt to infer configuration state at all:
 
-1. **Always attempt the retrigger, unconditionally** — it is a harmless
-   no-op if nothing listens for the mention:
+1. **Always attempt the retrigger, unconditionally** — neither command
+   changes any PR code. The comment mention is a harmless no-op if nothing
+   listens for it; the reviewer-request may likewise no-op (already
+   requested) or fail harmlessly (no permission, Copilot review not
+   enabled for this repo) without touching a file either way:
 
    ```bash
    gh pr comment <pr-url> --body "@codex review"

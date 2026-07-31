@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 2026_07_31_00_09_48_SLUG_IDEMPOTENCE_CLI_AND_UTC_TIMESTAMPS_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/443
-commit: 
+commit: 89e093049c0ee5295d6e13410add8a0b636212e9
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/443
 session_transcript: claude-app:3fcab22f-9ebe-4392-bf31-2103fce507f2

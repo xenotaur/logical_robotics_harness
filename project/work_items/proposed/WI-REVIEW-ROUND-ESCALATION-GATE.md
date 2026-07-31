@@ -35,7 +35,7 @@ acceptance:
   - "the design writes durable attempt state before starting a retrigger batch, then records a completed round only after the full reviewer-mention batch succeeds; it is not reconstructed post-hoc from a finished record"
   - "applying the definition to PR #442 would yield 14, not the cycles=1 its CHAIN-NOTE reports today"
   - "reaching the current ceiling stops the skill and presents the three-way gate (authorize/deny/pause) before further retrigger"
-  - "default ceiling-suggestion sequence (3 -> 10 -> 20 -> ...) documented; actual next ceiling is human-supplied, not auto-applied"
+  - "default ceiling-suggestion sequence (3 -> 10 -> 20) documented as ending there; beyond 20 the skill asks for the next ceiling with no computed default; actual next ceiling is always human-supplied, never auto-applied"
   - "CHAIN-NOTE stops/note field docs updated to cover gate crossings and distinguish the round-cap counter from cycles"
   - "mechanism's scope (lrh-confirm-fixes Step 8 bot-retriggers only, not aggregate Copilot spend, not Jules/manual activity, and explicitly not /lrh-review-response, which has no retrigger action today) is explicitly documented"
   - "src/ and .claude/ skill mirrors match for all three touched skills (diff -r reports no differences)"
@@ -120,9 +120,10 @@ and are explicitly out of scope.
   `completed_count >= ceiling`; if blocked, stop and present the gate
   instead of starting the batch; if not blocked, persist the attempt
   marker and start the batch, promoting it to `completed_count + 1` only
-  on full success. (E.g. with ceiling 3: the 1st and 2nd batches complete
-  and raise the count to 2; a 3rd batch is blocked by the gate before it
-  starts — never started "for free.")
+  on full success. (E.g. with ceiling 3: the 1st, 2nd, and 3rd batches
+  each pass the check — `0 >= 3`, `1 >= 3`, `2 >= 3` are all false — and
+  raise the count to 3; a 4th batch is blocked by the gate, since
+  `3 >= 3` is true, before it starts.)
 - Present a three-way human gate (authorize to a new ceiling / deny-stop /
   pause) when the round count reaches the current ceiling. The default
   ceiling-suggestion sequence is 3 → 10 → 20 and is defined *only* through

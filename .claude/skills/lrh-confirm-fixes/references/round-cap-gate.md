@@ -196,7 +196,16 @@ STALE_WT=$(git worktree list --porcelain | awk '
   /^branch refs\/heads\/lrh-round-state$/{print path}
 ')
 if [ -n "$STALE_WT" ]; then
-  AGE=$(( $(date +%s) - $(stat -f %m "$STALE_WT" 2>/dev/null || stat -c %Y "$STALE_WT") ))
+  # GNU stat's `-f` means "filesystem status", not "use this format" (that's
+  # BSD/macOS stat) — on GNU it exits 0 with the wrong multiline output
+  # instead of failing, so a `||`-based fallback never triggers. Detect the
+  # working flavor explicitly instead of relying on exit-status fallback:
+  if MTIME=$(stat -c %Y "$STALE_WT" 2>/dev/null); then
+    : # GNU stat succeeded
+  else
+    MTIME=$(stat -f %m "$STALE_WT")   # BSD/macOS stat
+  fi
+  AGE=$(( $(date +%s) - MTIME ))
   if [ "$AGE" -ge "$STALE_AGE_SECONDS" ]; then
     git worktree remove --force "$STALE_WT" 2>/dev/null
   else
@@ -207,11 +216,17 @@ fi
 git worktree prune
 
 # Resolve this repository's actual default branch — never hard-code
-# `main`; a client repository may use `master`, `trunk`, or anything else:
+# `main`; a client repository may use `master`, `trunk`, or anything else.
+# Check emptiness explicitly rather than relying on the pipeline's exit
+# status: without `pipefail`, `git symbolic-ref ... | sed ...` reports
+# success (sed's own exit code) even when symbolic-ref itself failed and
+# produced no output, so a `||`-based fallback would never fire and
+# DEFAULT_BRANCH would silently stay empty:
 DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
-  | sed 's@^refs/remotes/origin/@@') \
-  || DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef \
-       --jq .defaultBranchRef.name)
+  | sed 's@^refs/remotes/origin/@@')
+if [ -z "$DEFAULT_BRANCH" ]; then
+  DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq .defaultBranchRef.name)
+fi
 
 # Bootstrap the branch once, if it doesn't exist yet — in a throwaway
 # worktree, so a failed push can never strand the main checkout. If the
@@ -245,21 +260,45 @@ git show origin/lrh-round-state:project/executions/round_state/<key>.json 2>/dev
 git branch -f lrh-round-state origin/lrh-round-state 2>/dev/null \
   || git branch lrh-round-state origin/lrh-round-state
 
-# Write, via a throwaway worktree (keeps the PR branch's checkout untouched):
-git worktree add "$WT" lrh-round-state
-# ... write the file atomically inside "$WT/project/executions/round_state/<key>.json" ...
-git -C "$WT" add project/executions/round_state/<key>.json
-git -C "$WT" commit -m "chore(round-state): <one-line change summary>"
-git -C "$WT" push origin lrh-round-state
-git worktree remove "$WT"
+# Write, via a throwaway worktree (keeps the PR branch's checkout untouched).
+# Wrap the whole read-modify-write in a bounded retry loop: two clones can
+# each fetch the same tip, commit independently, and race to push — the
+# second push is then rejected as non-fast-forward even though nothing
+# was checked out concurrently (git's worktree-checkout exclusivity only
+# prevents *simultaneous* checkouts, not this fetch-then-push race). On
+# rejection, re-fetch, re-fast-forward, and reapply the *same logical*
+# modification (e.g. "increment completed_count by 1 from its current
+# value", not "set it to a hard-coded number") against the new tip —
+# never just re-push the same stale commit:
+ATTEMPTS=0
+until [ "$ATTEMPTS" -ge 5 ]; do
+  git worktree add "$WT" lrh-round-state
+  # ... write the file atomically inside "$WT/project/executions/round_state/<key>.json",
+  #     recomputing the change against this worktree's *current* content
+  #     (not a value captured before this retry loop started) ...
+  git -C "$WT" add project/executions/round_state/<key>.json
+  git -C "$WT" commit -m "chore(round-state): <one-line change summary>"
+  if git -C "$WT" push origin lrh-round-state; then
+    git worktree remove "$WT"
+    break
+  fi
+  git worktree remove --force "$WT"
+  ATTEMPTS=$((ATTEMPTS + 1))
+  git fetch origin lrh-round-state --quiet
+  git branch -f lrh-round-state origin/lrh-round-state
+done
+if [ "$ATTEMPTS" -ge 5 ]; then
+  echo "lrh-round-state push kept losing the race after 5 retries — surfacing rather than guessing." >&2
+  exit 1
+fi
 ```
 
-If `git worktree add "$WT" lrh-round-state` still fails after pruning (a
-genuinely concurrent invocation holding the checkout right now, not a
-stale leftover), retry with a short backoff a few times rather than
-forcing — forcing could corrupt a live concurrent writer's in-progress
-commit. If it keeps failing, surface that to the human rather than
-guessing; do not silently drop the state update.
+If `git worktree add "$WT" lrh-round-state` fails at the very first
+attempt after pruning (a genuinely concurrent invocation holding the
+checkout right now, not a stale leftover), retry with a short backoff a
+few times rather than forcing — forcing could corrupt a live concurrent
+writer's in-progress commit. If it keeps failing, surface that to the
+human rather than guessing; do not silently drop the state update.
 
 `lrh-round-state` is deliberately not merged anywhere and carries no PR of
 its own — it is pure bookkeeping data, git-tracked for durability and

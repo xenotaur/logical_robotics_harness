@@ -148,16 +148,31 @@ remaining reviewer mentions are outstanding.
 
 ## Crash-recovery reconciliation
 
-Every invocation settles any in-flight `pending_attempt` — retrying only
-the reviewers still `"pending"` in it — before running the ceiling check
-for a new batch. If a process died mid-batch (one reviewer submitted,
-another never attempted or never confirmed), a restart must resume
+Every invocation settles any in-flight `pending_attempt` before running
+the ceiling check for a new batch. If a process died mid-batch (one
+reviewer submitted, another still `"pending"`), a restart must resume
 exactly that reviewer's mention as a continuation of the same batch, not
 start counting a new one and not silently drop the outstanding mention.
 Treating the whole marker as resolved-or-discard-only (rather than
 per-reviewer) would either let an outstanding mention go untracked
 forever, or force a retry that miscounts as a second batch — both defeat
 the cap this mechanism exists to enforce.
+
+**A `"pending"` status found at reconciliation time is itself
+undecidable and must be treated as ambiguous, not as "never attempted."**
+A crash cannot distinguish "the `gh pr comment` call never ran" from "it
+ran, posting a real comment and consuming a real credit, but the status
+write back to the state file never persisted" — both leave the same
+on-disk `"pending"` value. Per the same conservative rule as a live
+ambiguous result (see "Any-side-effect-counts promotion" above), treat it
+as `"submitted"` immediately — promoting the batch if it's the first
+submitted reviewer — *and* still re-issue that reviewer's mention: doing
+so is a harmless no-op whether or not the original call already
+succeeded, and it's the only way to actually reach that reviewer if the
+crash genuinely happened before any side effect occurred. This is
+different from a batch member that's already `"failed"` (a confirmed,
+decidable outcome) — only genuinely undecidable `"pending"` status gets
+the conservative treatment.
 
 ## The three-way gate
 

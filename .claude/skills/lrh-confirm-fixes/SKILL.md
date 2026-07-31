@@ -351,9 +351,20 @@ own CHAIN-NOTE reported `cycles=1`). In order:
    data-integrity anomaly, not a case to guess through.
 2. **Settle any in-flight batch before checking the ceiling.** If
    `pending_attempt` is non-null, a prior invocation started a batch that
-   has not fully settled — resume it (see step 4's per-reviewer tracking)
-   before doing anything else. Settling an in-flight batch is never
-   blocked by the ceiling check below; only *starting a new* batch is.
+   has not fully settled. For every reviewer still `"pending"` in it:
+   **treat that status as ambiguous immediately** — a crash cannot
+   distinguish "the `gh pr comment` call never ran" from "it ran and
+   produced a real side effect, but the status write never persisted," so
+   a `"pending"` status surviving to a new invocation must be assumed to
+   possibly have happened. Apply the same rule as a live ambiguous result
+   (see step 4): mark it `"submitted"` and, if this is the batch's first
+   submitted reviewer, promote (`completed_count += 1`,
+   `pending_attempt.promoted: true`) before retrying anything. Then still
+   re-issue that reviewer's mention as normal — retriggering is a
+   harmless no-op whether or not it already ran, and this keeps the
+   reviewer actually informed if the crash genuinely happened before any
+   side effect occurred. Settling an in-flight batch is never blocked by
+   the ceiling check below; only *starting a new* batch is.
 3. **Check the ceiling.** Once `pending_attempt` is null (no batch in
    flight), if `completed_count >= ceiling`, **stop here — do not start a
    new batch.** Present the three-way gate below instead.

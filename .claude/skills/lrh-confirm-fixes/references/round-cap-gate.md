@@ -53,12 +53,17 @@ bot-retrigger action. It does **not**:
 
 ## State schema
 
-One JSON file per PR, at `project/executions/round_state/<pr-slug>.json`
-(`<pr-slug>` derived the same way branch slugs are elsewhere — lower-kebab
-from the PR's branch name). Deliberately **not** a `.md` file:
-`lrh validate`'s execution-record scan globs `project/executions/**/*.md`
-(`src/lrh/control/validator.py`), so a non-`.md` extension keeps this file
-outside that validation surface without needing a schema exemption.
+One JSON file per PR, at
+`project/executions/round_state/<owner>-<repo>-pr<N>.json`, keyed by the
+PR's **immutable identity** — owner, repo, and PR number parsed directly
+from the PR URL, never from the branch name. A branch-name-derived key is
+unsafe: branch names can be reused after merge, or collide across two
+fork PRs, silently mapping unrelated PRs onto the same state file and
+letting one PR inherit another's ceiling, count, or in-flight batch.
+Deliberately **not** a `.md` file: `lrh validate`'s execution-record scan
+globs `project/executions/**/*.md` (`src/lrh/control/validator.py`), so a
+non-`.md` extension keeps this file outside that validation surface
+without needing a schema exemption.
 
 ```json
 {
@@ -69,29 +74,55 @@ outside that validation surface without needing a schema exemption.
 }
 ```
 
+with a batch in flight:
+
+```json
+{
+  "pr": "<pr-url>",
+  "ceiling": 3,
+  "completed_count": 1,
+  "pending_attempt": {
+    "promoted": true,
+    "reviewers": {"codex": "submitted", "copilot": "pending"}
+  }
+}
+```
+
+- `pr` — the full PR URL this file belongs to. Checked, not just stored:
+  every read verifies this matches the target PR exactly; a mismatch is a
+  data-integrity anomaly, surfaced to the human, not guessed through.
 - `ceiling` — the currently authorized round limit. Starts at 3 (the
   default first suggestion); updated synchronously whenever the human
   authorizes a new value at the three-way gate. Never reset or
   reconstructed from CHAIN-NOTE — CHAIN-NOTE is written post-hoc, only at
   closeout, and would be stale or absent for an in-progress PR.
 - `completed_count` — number of retrigger batches promoted to completed.
-  Incremented as soon as any mention in a batch is confirmed submitted
-  (see "Any-side-effect-counts promotion" below) — not gated on the whole
-  batch succeeding.
-- `pending_attempt` — `null` when no batch is in flight. Set, synchronously,
-  to the list of reviewers about to be mentioned *before* the `gh pr
-  comment` calls for a batch are issued; cleared when that batch is
-  promoted or discarded. A non-null value found at the start of a new
-  invocation means a prior run died mid-batch and must be reconciled
-  before anything else happens.
+  Incremented exactly once per batch, the first time any reviewer in it
+  is confirmed submitted (see "Any-side-effect-counts promotion" below).
+- `pending_attempt` — `null` when no batch is in flight. While a batch is
+  in flight: `promoted` tracks whether `completed_count` has already been
+  incremented for this batch (so a later reviewer settling in the same
+  batch never double-counts it), and `reviewers` tracks each mentioned
+  reviewer's status individually (`"pending"`, `"submitted"`, or
+  `"failed"`) — not a single flat marker cleared on the first success.
+  This is what lets an interrupted multi-reviewer batch resume correctly:
+  if Codex submitted but Copilot's call never completed, the state still
+  records that Copilot's mention is outstanding, so a later invocation
+  retries only Copilot, as a continuation of the same batch — not a new
+  one, and not silently dropped. `pending_attempt` clears to `null` only
+  once every reviewer in it has a terminal status.
 
 ## Check-then-attempt ordering
 
-Before starting a batch: check `completed_count >= ceiling`. If true, stop
-— present the three-way gate, do not start the batch. If false, persist
-`pending_attempt` and start the batch, promoting to
-`completed_count + 1` as soon as the first mention in it is confirmed
-submitted.
+Settling an in-flight batch (any reviewer still `"pending"` in
+`pending_attempt`) always happens first and is **never** blocked by the
+ceiling — the batch was already authorized when it started. Only once
+`pending_attempt` is `null` does starting a *new* batch check
+`completed_count >= ceiling`. If true, stop — present the three-way gate,
+do not start the batch. If false, persist a fresh `pending_attempt` (all
+reviewers `"pending"`, `promoted: false`) and start the batch, promoting
+(`completed_count += 1`, `promoted: true`) as soon as the first reviewer
+in it is confirmed submitted.
 
 Worked example, ceiling 3: batches 1, 2, and 3 each pass the check
 (`0 >= 3`, `1 >= 3`, `2 >= 3` are all false) and raise the count to 3; a
@@ -101,28 +132,32 @@ Worked example, ceiling 3: batches 1, 2, and 3 each pass the check
 
 ## Any-side-effect-counts promotion
 
-A batch is promoted to completed the moment **any** mention in it is
-confirmed submitted — not only after every mention in the batch succeeds.
-Requiring full-batch success before counting creates a real cost-cap
-loophole: a batch where one mention posts and another fails could be
-retried indefinitely, each retry a real, credit-consuming external side
-effect, without the counted round ever reaching the ceiling. An ambiguous
-submission result (a network timeout with no confirmed server-side
-outcome) is treated as submitted, not unsubmitted — conservative toward
-counting more, never fewer, side-effect-bearing attempts. Unsubmitted
-mentions from a partially-successful batch may be retried without
-incrementing the counter again, since the round is already counted.
+A batch is promoted to completed (`completed_count += 1`, exactly once)
+the moment **any** reviewer in it is confirmed submitted — not only after
+every reviewer in the batch succeeds. Requiring full-batch success before
+counting creates a real cost-cap loophole: a batch where one mention
+posts and another fails could be retried indefinitely, each retry a
+real, credit-consuming external side effect, without the counted round
+ever reaching the ceiling. An ambiguous submission result (a network
+timeout with no confirmed server-side outcome) is treated as
+`"submitted"`, not `"pending"`/`"failed"` — conservative toward counting
+more, never fewer, side-effect-bearing attempts. A still-`"pending"`
+reviewer from a partially-settled batch is retried without incrementing
+`completed_count` again — that batch is already counted; only the
+remaining reviewer mentions are outstanding.
 
 ## Crash-recovery reconciliation
 
-Every invocation of the round-cap check reconciles `pending_attempt`
-*before* running the ceiling check for a new batch. If a process died
-between persisting an attempt and promoting it, a restart would otherwise
-see the stale, lower `completed_count`, pass the ceiling check, and start
-another full batch — exceeding the cap the attempt marker exists to
-prevent. Reconciliation treats an orphaned attempt as completed if it may
-have produced any submission (conservative, same rule as promotion);
-otherwise it is discarded without incrementing.
+Every invocation settles any in-flight `pending_attempt` — retrying only
+the reviewers still `"pending"` in it — before running the ceiling check
+for a new batch. If a process died mid-batch (one reviewer submitted,
+another never attempted or never confirmed), a restart must resume
+exactly that reviewer's mention as a continuation of the same batch, not
+start counting a new one and not silently drop the outstanding mention.
+Treating the whole marker as resolved-or-discard-only (rather than
+per-reviewer) would either let an outstanding mention go untracked
+forever, or force a retry that miscounts as a second batch — both defeat
+the cap this mechanism exists to enforce.
 
 ## The three-way gate
 

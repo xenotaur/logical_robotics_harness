@@ -338,37 +338,50 @@ one after a new-finding fix — check the round cap.** See
 closes the exact gap that let PR #442's incident run 14 rounds while its
 own CHAIN-NOTE reported `cycles=1`). In order:
 
-1. **Reconcile first.** Read (or initialize)
-   `project/executions/round_state/<pr-slug>.json` for this PR
-   (`{"pr": "<url>", "ceiling": 3, "completed_count": 0,
-   "pending_attempt": null}` if none exists yet). If `pending_attempt` is
-   non-null — a prior invocation persisted an attempt but never resolved
-   it (e.g. a crash mid-batch) — resolve it now before doing anything
-   else: treat it as completed (increment `completed_count`, clear
-   `pending_attempt`) if it recorded any confirmed-or-ambiguous
-   submission; if it recorded none, discard it without incrementing. Only
-   after reconciling, proceed to the ceiling check.
-2. **Check the ceiling.** If `completed_count >= ceiling`, **stop here —
-   do not retrigger.** Present the three-way gate below instead.
-3. **Persist the attempt, retrigger, then promote.** Write
-   `pending_attempt` (naming the reviewers about to be mentioned) to the
-   state file synchronously, *before* issuing any `gh pr comment` call —
-   this is what lets step 1's reconciliation recover correctly if this
-   exact batch never finishes. Then issue the retrigger commands (below).
-   As soon as any mention in the batch is confirmed submitted — the same
-   promotion criterion step 1 applies to orphaned attempts — increment
-   `completed_count` and clear `pending_attempt`; do not wait for every
-   mention in the batch to resolve first. An ambiguous result (e.g. a
-   timeout with no confirmed outcome) counts as submitted, not
-   unsubmitted.
+1. **Load state, keyed by immutable PR identity.** Read (or initialize)
+   `project/executions/round_state/<owner>-<repo>-pr<N>.json`, where
+   `<owner>`, `<repo>`, and `<N>` come from the PR URL itself — never
+   from the branch name (a branch name can be reused after merge, or
+   collide across two fork PRs, silently mapping unrelated PRs onto the
+   same file). Initialize to `{"pr": "<pr-url>", "ceiling": 3,
+   "completed_count": 0, "pending_attempt": null}` if the file doesn't
+   exist. If it exists, verify its `pr` field equals the target PR's URL
+   exactly; **if it does not match, stop and report the mismatch to the
+   human rather than using or resetting the file** — this is a
+   data-integrity anomaly, not a case to guess through.
+2. **Settle any in-flight batch before checking the ceiling.** If
+   `pending_attempt` is non-null, a prior invocation started a batch that
+   has not fully settled — resume it (see step 4's per-reviewer tracking)
+   before doing anything else. Settling an in-flight batch is never
+   blocked by the ceiling check below; only *starting a new* batch is.
+3. **Check the ceiling.** Once `pending_attempt` is null (no batch in
+   flight), if `completed_count >= ceiling`, **stop here — do not start a
+   new batch.** Present the three-way gate below instead.
+4. **Start the batch, tracking each reviewer individually.** Set
+   `pending_attempt` to `{"promoted": false, "reviewers": {"<name>":
+   "pending", ...}}` for every reviewer about to be mentioned, written
+   synchronously *before* issuing any `gh pr comment` call. Then issue
+   the retrigger commands (below), updating each reviewer's status to
+   `"submitted"` or `"failed"` as its call returns (an ambiguous result,
+   e.g. a timeout with no confirmed outcome, counts as `"submitted"` —
+   conservative). The **first** time any reviewer's status becomes
+   `"submitted"`: increment `completed_count` by exactly one and set
+   `pending_attempt.promoted: true` — do not increment again for the
+   same batch even as later reviewers in it also settle. Once **every**
+   reviewer in `pending_attempt.reviewers` has a terminal status
+   (`"submitted"` or `"failed"`), clear `pending_attempt` to `null` — the
+   batch is fully settled. If a reviewer is still `"pending"` when this
+   invocation ends (interrupted mid-batch), the next invocation's step 2
+   resumes by retrying *only that reviewer's* mention — not the whole
+   batch, and not as a new one.
 
-**The three-way gate** (fires only when step 2 blocks): show the human
-the current `completed_count`, the `ceiling`, and a one-line summary of
-findings from prior rounds if derivable. Ask them to authorize a new
-ceiling, deny and stop, or pause — default next-ceiling suggestion
+**The three-way gate** (fires only when step 3 blocks a new batch): show
+the human the current `completed_count`, the `ceiling`, and a one-line
+summary of findings from prior rounds if derivable. Ask them to authorize
+a new ceiling, deny and stop, or pause — default next-ceiling suggestion
 3 → 10 → 20; beyond 20, ask for the value directly rather than computing
 a further default. On authorization, write the new `ceiling` to the state
-file synchronously before resuming step 3. This is the one point in Step
+file synchronously before resuming step 4. This is the one point in Step
 8 that always requires an explicit human answer, not an inferred or
 bot-driven signal.
 
@@ -379,12 +392,13 @@ bot-driven signal.
 into Jules-originated PR activity, human-driven review requests, or
 aggregate GitHub Copilot spend — see `references/round-cap-gate.md`.
 
-1. **Once the round-cap check above has cleared, always attempt the
-   retrigger, unconditionally** — "unconditionally" here means: do not
-   skip it based on an inference about whether a reviewer is configured
-   for this repo (see below); it does not override the round-cap gate,
-   which can still block independently. It is a harmless no-op if nothing
-   listens for the mention:
+1. **Once the round-cap check above has cleared a batch to start (or
+   resumed settling an in-flight one), always attempt the mention(s),
+   unconditionally** — "unconditionally" here means: do not skip a
+   mention based on an inference about whether that reviewer is
+   configured for this repo (see below); it does not override the
+   round-cap gate, which can still block a *new* batch independently. It
+   is a harmless no-op if nothing listens for the mention:
 
    ```bash
    gh pr comment <pr-url> --body "@codex review"
@@ -394,8 +408,8 @@ aggregate GitHub Copilot spend — see `references/round-cap-gate.md`.
    (Substitute or add other reviewer mentions this repository's
    `REVIEWS.md`, if present, documents.) A returned comment URL is a
    confirmed submission for that reviewer; a command error is not. Apply
-   step 3's promote-on-first-confirmed-submission rule as each `gh pr
-   comment` call returns.
+   step 4's per-reviewer status update and promote-on-first-confirmed-
+   submission rule as each `gh pr comment` call returns.
 2. **Track every reviewer actually mentioned in step 1, and wait for each
    one to respond — not just the first.** A fast clean response from one
    reviewer does not clear the ones still pending; if both Codex and

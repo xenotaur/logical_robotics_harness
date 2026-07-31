@@ -20,7 +20,8 @@ project/executions/
 This directory is intentionally lightweight. It is not a workflow engine and does not introduce formal workstreams.
 
 A `round_state/` subdirectory may also appear here, holding non-execution-record
-JSON state files (`<pr-slug>.json`) used by `/lrh-confirm-fixes`'s Step 8
+JSON state files (`<owner>-<repo>-pr<N>.json`, keyed by PR identity, not
+branch name) used by `/lrh-confirm-fixes`'s Step 8
 round-cap gate to track bot-retrigger counts per PR — see
 `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`. These are
 deliberately not `.md` files, so `lrh validate`'s execution-record scan

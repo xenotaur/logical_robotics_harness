@@ -341,8 +341,8 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    2026-03-24 default change it pushes commits straight onto the PR's
    branch instead of opening a separate PR (GitHub Changelog, "Ask
    @copilot to make changes to any pull request"). Re-requesting Copilot
-   as a reviewer (`gh pr edit --add-reviewer @copilot`, the REST API, or
-   the PR sidebar) hits the review-only bot instead, which "always leaves
+   as a reviewer (`gh pr edit <pr-url> --add-reviewer @copilot`, the REST
+   API, or the PR sidebar) hits the review-only bot instead, which "always leaves
    a 'Comment' review" and never commits (GitHub Docs, "Using GitHub
    Copilot code review").
 
@@ -350,8 +350,9 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    `REVIEWS.md`, if present, documents — the same caveat applies to any
    reviewer whose plain-comment mention doubles as an agent-invocation
    trigger.)
-2. **Track every reviewer actually mentioned in step 1, and wait for each
-   one to respond — not just the first.** A fast clean response from one
+2. **Track every reviewer retriggered in step 1 (whether via comment
+   mention or reviewer request), and wait for each one to respond — not
+   just the first.** A fast clean response from one
    reviewer does not clear the ones still pending; if both Codex and
    Copilot were retriggered, both must post before REVIEW-LANDED is
    satisfied, the same way Step 6's thread-resolution verdict requires

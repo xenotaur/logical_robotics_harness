@@ -170,18 +170,29 @@ WT=/tmp/round-state-<key>-$$   # unique per invocation (PID-suffixed)
 # Always clear stale registrations first — a prior invocation that died
 # between `worktree add` and `worktree remove` leaves the branch
 # registered as checked out, which blocks every subsequent `worktree add`
-# for that branch, including the one this recovery needs to run.
+# for that branch, including the one this recovery needs to run. Parse
+# the porcelain output's own `worktree <path>` field for the record that
+# matches — not an adjacent line's second field, which can be the wrong
+# field (e.g. `HEAD <sha>`) depending on record shape.
 git worktree prune
-git worktree list --porcelain | grep -q 'branch refs/heads/round-state' \
-  && git worktree remove --force "$(git worktree list --porcelain \
-       | awk '/branch refs\/heads\/round-state/{print prev} {prev=$2}')" \
-     2>/dev/null
+STALE_WT=$(git worktree list --porcelain | awk '
+  /^worktree /{path=$2}
+  /^branch refs\/heads\/round-state$/{print path}
+')
+[ -n "$STALE_WT" ] && git worktree remove --force "$STALE_WT" 2>/dev/null
 git worktree prune
+
+# Resolve this repository's actual default branch — never hard-code
+# `main`; a client repository may use `master`, `trunk`, or anything else:
+DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null \
+  | sed 's@^refs/remotes/origin/@@') \
+  || DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef \
+       --jq .defaultBranchRef.name)
 
 # Bootstrap the branch once, if it doesn't exist yet — in a throwaway
 # worktree, so a failed push can never strand the main checkout:
 if ! git ls-remote --exit-code --heads origin round-state >/dev/null; then
-  git worktree add --detach "$WT-bootstrap" main
+  git worktree add --detach "$WT-bootstrap" "origin/$DEFAULT_BRANCH"
   git -C "$WT-bootstrap" checkout --orphan round-state
   git -C "$WT-bootstrap" rm -rf . >/dev/null
   git -C "$WT-bootstrap" commit --allow-empty -m "Initialize round-state branch"
@@ -189,9 +200,16 @@ if ! git ls-remote --exit-code --heads origin round-state >/dev/null; then
   git worktree remove --force "$WT-bootstrap"
 fi
 
-# Read (without disturbing the current checkout):
+# Fetch and fast-forward the *local* round-state branch to match the
+# remote tip before using it — `git fetch` alone only updates
+# `origin/round-state`; a stale local `round-state` branch would base a
+# new commit on an old tip and get rejected as non-fast-forward on push,
+# defeating this mechanism in the exact concurrent-session case it exists
+# to support:
 git fetch origin round-state --quiet
-git show origin/round-state:project/executions/round_state/<key>.json 2>/dev/null
+git show origin/round-state:project/executions/round_state/<key>.json 2>/dev/null   # read, without disturbing the current checkout
+git branch -f round-state origin/round-state 2>/dev/null \
+  || git branch round-state origin/round-state
 
 # Write, via a throwaway worktree (keeps the PR branch's checkout untouched):
 git worktree add "$WT" round-state

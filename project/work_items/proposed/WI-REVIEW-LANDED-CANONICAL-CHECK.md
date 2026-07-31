@@ -26,7 +26,7 @@ forbidden_actions:
   - implement_self_review_agent
   - merge_pr
 acceptance:
-  - "Each of /lrh-land, /lrh-review-response, /lrh-confirm-fixes SKILL.md states, in its review-landed/review-fetch step, that coverage is determined only via isResolved state (from lrh request review_response) and commit_id vs. current head (from the REST reviews call) -- two distinct sources, not implied to be one command -- and never via a freehand since <timestamp> filter over comments/reviews/threads"
+  - "Each of /lrh-land, /lrh-review-response, /lrh-confirm-fixes SKILL.md states, in its review-landed/review-fetch step, that coverage is determined only via three sources -- isResolved state (from lrh github threads --mode raw --state all, filtered to isResolved == false; never lrh request review_response, which also excludes outdated threads), commit_id vs. current head (from the REST reviews call), and SHA-matched issue/review-body text for the no-thread case -- and never via a freehand since <timestamp> filter over comments/reviews/threads"
   - "/lrh-land Step 4's lastPush comparison is reworded so it cannot be read as authorizing a time-based exclusion filter on comment content"
   - "The motivating incident (a missed Copilot review on an earlier commit, due to a since-scoped check anchored to a later commit's push time) is cited in at least one edited skill as the concrete failure this prohibition prevents"
   - "src/ and .claude/ mirrors match for all three touched skills (diff -r reports no differences)"
@@ -80,15 +80,36 @@ check for the documented mechanism. Nothing in the current skill text
 explicitly forbids that substitution across all three call sites, so
 nothing stops it recurring.
 
-**Correction surfaced by this PR's own review (Codex, P1):** an earlier
-draft of this item described a single canonical command as the source for
-both checks. That's wrong. `lrh request review_response`
+**Correction surfaced by this PR's own review, round 1 (Codex, P1):** an
+earlier draft of this item described a single canonical command as the
+source for both checks. That's wrong. `lrh request review_response`
 (`request_service.py:122-144`) calls only `get_pull_review_threads()` —
 whose GraphQL selection has `isResolved` but no `commit_id` — and never
 calls `get_pull_comments()`. `isResolved` coverage and `commit_id`
 coverage come from two different existing sources today, not one; the
 skill wording this item specifies must name both explicitly rather than
 implying a single command returns both.
+
+**Second correction, surfaced by this PR's own review, round 2 (Codex, P1
+x2):** round 1's correction above still named `lrh request
+review_response` as the `isResolved` source — also wrong. That command's
+own `formatters.has_threads_for_state(..., state="unresolved")`
+(`formatters.py:31-40`) requires *both* `not isResolved` and `not
+isOutdated`, so it silently hides genuinely unresolved-but-outdated
+threads — the exact split this PR's own `_CONFIRM` execution record
+observed directly (`lrh request review_response` reported "Nothing to
+resolve" while `lrh github threads --mode raw --state all` filtered to
+`isResolved == false` found the same 2 threads still open). The correct
+`isResolved` source is `lrh github threads --mode raw --state all`,
+filtered client-side to `isResolved == false` only — never `lrh request
+review_response` for this purpose. Separately, a reviewer's response can
+also arrive as a plain issue comment or review body with no distinct
+thread at all (no `commit_id`, since it has no entry in
+`/pulls/<N>/reviews`) — `lrh-confirm-fixes/SKILL.md:367-376` already
+treats a SHA-matched instance of this as valid evidence. Coverage
+therefore rests on **three** sources, not two: `isResolved` (via the
+raw-threads command), `commit_id` vs. head (via the REST reviews call),
+and SHA-matched issue/review-body text for the no-thread case.
 
 ### Duplication search
 
@@ -117,21 +138,31 @@ implying a single command returns both.
 ## Scope
 
 - Edit the review-landed / review-fetch language in the three skills to:
-  1. Name the two canonical data sources for "has review landed and what
-     does it cover" — `lrh request review_response` (backed by
-     `get_pull_review_threads()`) for unresolved-thread coverage via
-     `isResolved`, and the existing REST reviews call already used by
-     `/lrh-confirm-fixes` (`gh api repos/<owner>/<repo>/pulls/<N>/reviews
-     --jq '.[] | "\(.submitted_at) \(.user.login) \(.state)
-     commit=\(.commit_id[0:7])"'`) for `commit_id`-vs-head coverage. Do
-     not describe these as a single command — `lrh request
-     review_response` does not expose `commit_id`.
+  1. Name the three canonical data sources for "has review landed and
+     what does it cover":
+     - `isResolved` coverage of unresolved findings — via `lrh github
+       threads --mode raw --state all`, filtered client-side to
+       `isResolved == false` only. Do not use `lrh request
+       review_response` for this purpose: its own `state="unresolved"`
+       filter (`formatters.py:31-40`) requires both `not isResolved`
+       and `not isOutdated`, silently hiding genuinely
+       unresolved-but-outdated threads.
+     - `commit_id`-vs-head coverage — via the existing REST reviews
+       call already used by `/lrh-confirm-fixes`:
+       ```bash
+       gh api repos/<owner>/<repo>/pulls/<N>/reviews \
+         --jq '.[] | "\(.submitted_at) \(.user.login) \(.state) commit=\(.commit_id[0:7])"'
+       ```
+     - SHA-matched issue/review-body text, for a reviewer response with
+       no distinct thread and therefore no `commit_id` — already
+       recognized by `lrh-confirm-fixes/SKILL.md:367-376`; must be read
+       and credited the same way there.
+     Do not describe any pair of these as a single command or collapse
+     them to two sources — each covers a case the others miss.
   2. State explicitly: never construct or apply a `since <timestamp>`
      filter over review comments, threads, or reviews when deciding
-     whether review has landed or what it covers; only `isResolved`
-     (coverage of unresolved findings, via `lrh request review_response`)
-     and `commit_id` vs. current head (coverage of the current commit,
-     via the REST reviews call) determine that.
+     whether review has landed or what it covers; only the three sources
+     above determine that.
 - Apply to all three call sites: `/lrh-land` Step 4
   (`lrh-land/SKILL.md:122-145`), `/lrh-review-response`'s review-fetch
   entry point, and `/lrh-confirm-fixes` Step 8's REVIEW-LANDED re-check
@@ -143,20 +174,19 @@ implying a single command returns both.
    comparison (lines ~132-140) so it cannot be read as license to filter
    comment content by time; make explicit that `lastPush` is only used to
    judge "have bots had time to run," never to exclude older-but-still-
-   unresolved content. Add the `commit_id`-vs-head REST check (the same
-   call already used in `/lrh-confirm-fixes`) as the named source for
-   commit coverage, since `lrh request review_response` does not provide
-   it.
+   unresolved content. Replace its `lrh request review_response`-only
+   check with the three-source model (raw-threads `isResolved`, REST
+   `commit_id`, SHA-matched issue/review text).
 2. `src/lrh/skills/lrh-review-response/SKILL.md` — add the same
-   bright-line prohibition to its review-fetch step, naming both sources
-   explicitly (`isResolved` via `lrh request review_response`; `commit_id`
-   via the REST reviews call).
+   bright-line prohibition to its review-fetch step, naming all three
+   sources explicitly.
 3. `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8 — extend the
    existing `isResolved`-filter language (line 119) and the REVIEW-LANDED
    re-check (lines 304-374) with the explicit "never a since-filter"
    prohibition, citing this item's motivating incident. This skill
-   already performs the `commit_id` REST check; cite it as the pattern
-   `/lrh-land` and `/lrh-review-response` should follow.
+   already performs the `commit_id` REST check and already recognizes
+   SHA-matched issue/review text (lines 367-376); cite both as the
+   pattern `/lrh-land` and `/lrh-review-response` should follow.
 4. Mirror all edits to `.claude/skills/lrh-land/`,
    `.claude/skills/lrh-review-response/`, `.claude/skills/lrh-confirm-fixes/`.
 
@@ -177,9 +207,11 @@ implying a single command returns both.
 
 - Each of `/lrh-land`, `/lrh-review-response`, `/lrh-confirm-fixes`
   SKILL.md states, in its review-landed/review-fetch step, that coverage
-  is determined only via `isResolved` state (from `lrh request
-  review_response`) and `commit_id` vs. current head (from the REST
-  reviews call) — two distinct sources, not implied to be one command —
+  is determined only via three sources — `isResolved` state (from `lrh
+  github threads --mode raw --state all`, filtered to `isResolved ==
+  false`; never `lrh request review_response`, which also excludes
+  outdated threads), `commit_id` vs. current head (from the REST reviews
+  call), and SHA-matched issue/review-body text for the no-thread case —
   and never via a freehand `since <timestamp>` filter.
 - `/lrh-land` Step 4's `lastPush` comparison is reworded so it cannot be
   read as authorizing a time-based exclusion filter on comment content.

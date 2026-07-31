@@ -161,6 +161,32 @@ class SlugMatchSortAndPolicyTest(unittest.TestCase):
         self.assertFalse(result.blocking)
         self.assertEqual(result.exit_code, 0)
 
+    def test_tied_unresolved_status_message_names_the_offending_match(self) -> None:
+        # Regression test: when matches tie at the latest instant and one
+        # has a recognized blocking status (in_progress) while another
+        # has an unrecognized one (planned), the report must name the
+        # actually-unresolved match, not `most_recent`'s representative
+        # pick -- `most_recent` prefers any non-terminal candidate, so it
+        # could return the in_progress one even though that match isn't
+        # the source of the ambiguity.
+        tied_in_progress = self._match(
+            "LOCAL", "in_progress", "2026-01-01T00:00:00+00:00"
+        )
+        tied_planned = self._match("REMOTE", "planned", "2026-01-01T00:00:00+00:00")
+        result = prompt_workflow_slug.SlugCheckResult(
+            slug="my-slug",
+            work_item="AD_HOC",
+            matches=[tied_in_progress, tied_planned],
+        )
+
+        self.assertTrue(result.unresolved_status)
+        self.assertEqual(result._unresolved_status_match, tied_planned)
+
+        text = prompt_workflow_slug.format_text_result(result)
+        self.assertIn("REMOTE", text)
+        self.assertIn("status='planned'", text)
+        self.assertNotIn("status='in_progress'", text)
+
     def test_offset_naive_created_at_is_not_treated_as_known_recency(self) -> None:
         # datetime.fromisoformat() happily accepts offset-naive strings
         # (a bare date, or a timestamp missing its UTC offset), but the

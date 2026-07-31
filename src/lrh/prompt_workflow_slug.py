@@ -216,6 +216,25 @@ class SlugCheckResult:
         )
 
     @property
+    def _unresolved_status_match(self) -> SlugMatch | None:
+        """The specific tied match whose status is actually unclassifiable.
+
+        ``most_recent`` is a display/`--rerun-of` representative, not
+        necessarily this one -- when matches tie at the latest instant,
+        ``most_recent`` prefers *any* non-terminal candidate (it doesn't
+        distinguish `in_progress` from `planned`), so it can point at a
+        recognized blocking match even when a *different* tied match is
+        the one making the result unresolved. Reporting relies on this
+        property specifically so the message never names the wrong match
+        as the source of the ambiguity.
+        """
+
+        for match in self._matches_at_latest_instant:
+            if match.status not in (BLOCKING_STATUSES | TERMINAL_STATUSES):
+                return match
+        return None
+
+    @property
     def unresolved_status(self) -> bool:
         """True if any match tied for latest has an unclassifiable status.
 
@@ -228,10 +247,7 @@ class SlugCheckResult:
         recent" reason.
         """
 
-        return any(
-            match.status not in (BLOCKING_STATUSES | TERMINAL_STATUSES)
-            for match in self._matches_at_latest_instant
-        )
+        return self._unresolved_status_match is not None
 
     @property
     def exit_code(self) -> int:
@@ -539,9 +555,12 @@ def format_text_result(result: SlugCheckResult) -> str:
             "than trusting a naive timestamp comparison."
         )
     elif result.unresolved_status:
+        offender = result._unresolved_status_match
+        assert offender is not None
         lines.append(
-            "BLOCKING (unresolved status): most recent match "
-            f"({recent.execution_id or recent.path!r}, status={recent.status!r}) "
+            "BLOCKING (unresolved status): tied-for-latest match "
+            f"({offender.execution_id or offender.path!r}, "
+            f"status={offender.status!r}) "
             "has no recognized terminal or in-progress status -- stop and "
             "report the ambiguity rather than treating it as safe to continue."
         )

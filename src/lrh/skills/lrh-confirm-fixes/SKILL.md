@@ -76,6 +76,11 @@ Load this before running any step:
    population, and idempotency / re-run edge cases. Read before Step 2,
    Step 5, Step 7, and Step 8.
 
+2. **`references/round-cap-gate.md`** — The Step 8 round-cap check: state
+   schema, check-then-attempt ordering, any-side-effect-counts promotion,
+   crash-recovery reconciliation, the three-way human gate, and explicit
+   scope boundaries. Read before Step 8.
+
 ---
 
 ## Execution Steps
@@ -327,11 +332,16 @@ scenario) would be misclassified as human-only, letting a human clean-pass
 statement produce Green without ever giving the configured reviewer a
 chance to weigh in. Do not attempt to infer configuration state at all:
 
-1. **Always attempt the retrigger, unconditionally** — neither command
-   changes any PR code. The comment mention is a harmless no-op if nothing
-   listens for it; the reviewer-request may likewise no-op (already
-   requested) or fail harmlessly (no permission, Copilot review not
-   enabled for this repo) without touching a file either way:
+1. **Once the round-cap check above has cleared a new batch to start,
+   always attempt its retrigger(s), unconditionally** — neither command
+   changes any PR code. The comment mention is a harmless no-op if
+   nothing listens for it; the reviewer-request may likewise no-op
+   (already requested) or fail harmlessly (no permission, Copilot review
+   not enabled for this repo) without touching a file either way. (This
+   does not apply to a reviewer reconciled from a `"pending"` orphaned
+   attempt — step 2 above explicitly does not re-mention those; and it
+   does not override the round-cap gate itself, which can still block a
+   *new* batch independently.)
 
    ```bash
    gh pr comment <pr-url> --body "@codex review"
@@ -349,10 +359,15 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    a 'Comment' review" and never commits (GitHub Docs, "Using GitHub
    Copilot code review").
 
-   (Substitute or add other reviewer mentions this repository's
-   `REVIEWS.md`, if present, documents — the same caveat applies to any
-   reviewer whose plain-comment mention doubles as an agent-invocation
-   trigger.)
+   (Substitute or add other reviewer mentions/review-requests this
+   repository's `REVIEWS.md`, if present, documents — the same caveat
+   applies to any reviewer whose plain-comment mention doubles as an
+   agent-invocation trigger, and only Codex in this repo is confirmed
+   safe as a plain mention.) A returned comment URL (Codex) or a
+   successful review-request response (Copilot) is a confirmed
+   submission for that reviewer; a command error is not. Apply step 4's
+   per-reviewer status update and promote-on-first-confirmed-submission
+   rule as each command returns.
 2. **Track every reviewer retriggered in step 1 (whether via comment
    mention or reviewer request), and wait for each one to respond — not
    just the first.** A fast clean response from one

@@ -32,15 +32,35 @@ Field definitions:
 | Field | Description |
 |---|---|
 | `cycles` | Number of review-response → confirm-fixes iterations in this run |
-| `stops` | Number of times the chain halted before reaching completion |
+| `stops` | Number of times the chain halted before reaching completion, **including round-cap gate crossings** (see below) |
 | `gates` | Human gates encountered, e.g. `[merge]` or `[merge, confirm]` |
 | `friction` | Brief phrase describing the primary friction source, or `none` |
-| `note` | Free text; record design findings, backfill path, or noteworthy deviations |
+| `note` | Free text; record design findings, backfill path, noteworthy deviations, or **round-cap ceilings authorized this run** (see below) |
+
+**Round-cap counter vs. `cycles`.** `/lrh-confirm-fixes` Step 8's round-cap
+gate (`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`)
+counts bot-retrigger batches — a finer-grained, separate metric from
+`cycles`, which counts whole review-response ↔ confirm-fixes iterations.
+A single `cycles` count can span many round-cap batches (this is exactly
+what happened on PR #442: `cycles=1` while the round-cap-relevant count
+would have been 14). Do not conflate the two, and do not derive one from
+the other.
+
+Each time the round-cap gate blocks and the human is asked to authorize a
+new ceiling, deny, or pause: count it toward `stops`, and record the
+ceiling the human authorized (or "denied"/"paused") in `note`, e.g.
+`note="round-cap: authorized ceiling 3->10"`.
 
 Example:
 
 ```text
 cycles=2; stops=0; gates=[merge]; friction=stale-review; note="Codex reviewed first commit only; second review pass required after rebase."
+```
+
+Example with a round-cap crossing:
+
+```text
+cycles=1; stops=1; gates=[merge]; friction=none; note="round-cap: authorized ceiling 3->10 after 3 real findings"
 ```
 
 ---

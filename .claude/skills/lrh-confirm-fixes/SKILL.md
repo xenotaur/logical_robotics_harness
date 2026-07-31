@@ -76,6 +76,11 @@ Load this before running any step:
    population, and idempotency / re-run edge cases. Read before Step 2,
    Step 5, Step 7, and Step 8.
 
+2. **`references/round-cap-gate.md`** — The Step 8 round-cap check: state
+   schema, check-then-attempt ordering, any-side-effect-counts promotion,
+   crash-recovery reconciliation, the three-way human gate, and explicit
+   scope boundaries. Read before Step 8.
+
 ---
 
 ## Execution Steps
@@ -327,8 +332,59 @@ scenario) would be misclassified as human-only, letting a human clean-pass
 statement produce Green without ever giving the configured reviewer a
 chance to weigh in. Do not attempt to infer configuration state at all:
 
-1. **Always attempt the retrigger, unconditionally** — it is a harmless
-   no-op if nothing listens for the mention:
+**Before every retrigger batch — including the very first one and every
+one after a new-finding fix — check the round cap.** See
+`references/round-cap-gate.md` for the full mechanism and rationale (this
+closes the exact gap that let PR #442's incident run 14 rounds while its
+own CHAIN-NOTE reported `cycles=1`). In order:
+
+1. **Reconcile first.** Read (or initialize)
+   `project/executions/round_state/<pr-slug>.json` for this PR
+   (`{"pr": "<url>", "ceiling": 3, "completed_count": 0,
+   "pending_attempt": null}` if none exists yet). If `pending_attempt` is
+   non-null — a prior invocation persisted an attempt but never resolved
+   it (e.g. a crash mid-batch) — resolve it now before doing anything
+   else: treat it as completed (increment `completed_count`, clear
+   `pending_attempt`) if it recorded any confirmed-or-ambiguous
+   submission; if it recorded none, discard it without incrementing. Only
+   after reconciling, proceed to the ceiling check.
+2. **Check the ceiling.** If `completed_count >= ceiling`, **stop here —
+   do not retrigger.** Present the three-way gate below instead.
+3. **Persist the attempt, retrigger, then promote.** Write
+   `pending_attempt` (naming the reviewers about to be mentioned) to the
+   state file synchronously, *before* issuing any `gh pr comment` call —
+   this is what lets step 1's reconciliation recover correctly if this
+   exact batch never finishes. Then issue the retrigger commands (below).
+   As soon as any mention in the batch is confirmed submitted — the same
+   promotion criterion step 1 applies to orphaned attempts — increment
+   `completed_count` and clear `pending_attempt`; do not wait for every
+   mention in the batch to resolve first. An ambiguous result (e.g. a
+   timeout with no confirmed outcome) counts as submitted, not
+   unsubmitted.
+
+**The three-way gate** (fires only when step 2 blocks): show the human
+the current `completed_count`, the `ceiling`, and a one-line summary of
+findings from prior rounds if derivable. Ask them to authorize a new
+ceiling, deny and stop, or pause — default next-ceiling suggestion
+3 → 10 → 20; beyond 20, ask for the value directly rather than computing
+a further default. On authorization, write the new `ceiling` to the state
+file synchronously before resuming step 3. This is the one point in Step
+8 that always requires an explicit human answer, not an inferred or
+bot-driven signal.
+
+**Scope:** this check governs only this skill's own bot-retrigger action.
+`/lrh-review-response` has no retrigger action to gate (verified: no
+`@codex review`/`@copilot review` call exists anywhere in
+`lrh-review-response/SKILL.md`), and this mechanism has no visibility
+into Jules-originated PR activity, human-driven review requests, or
+aggregate GitHub Copilot spend — see `references/round-cap-gate.md`.
+
+1. **Once the round-cap check above has cleared, always attempt the
+   retrigger, unconditionally** — "unconditionally" here means: do not
+   skip it based on an inference about whether a reviewer is configured
+   for this repo (see below); it does not override the round-cap gate,
+   which can still block independently. It is a harmless no-op if nothing
+   listens for the mention:
 
    ```bash
    gh pr comment <pr-url> --body "@codex review"
@@ -336,7 +392,10 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    ```
 
    (Substitute or add other reviewer mentions this repository's
-   `REVIEWS.md`, if present, documents.)
+   `REVIEWS.md`, if present, documents.) A returned comment URL is a
+   confirmed submission for that reviewer; a command error is not. Apply
+   step 3's promote-on-first-confirmed-submission rule as each `gh pr
+   comment` call returns.
 2. **Track every reviewer actually mentioned in step 1, and wait for each
    one to respond — not just the first.** A fast clean response from one
    reviewer does not clear the ones still pending; if both Codex and

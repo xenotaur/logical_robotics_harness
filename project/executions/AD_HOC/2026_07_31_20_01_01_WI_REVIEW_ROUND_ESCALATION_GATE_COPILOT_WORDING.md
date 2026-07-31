@@ -2,10 +2,10 @@
 execution_id: 2026_07_31_20_01_01_WI_REVIEW_ROUND_ESCALATION_GATE_COPILOT_WORDING
 prompt_id: PROMPT(AD_HOC:WI_REVIEW_ROUND_ESCALATION_GATE_COPILOT_WORDING)[2026-07-31T19:59:36+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/450
-commit: 
+commit: 9d42c5013aa5d829352d3f1c5e852bcdb71e467f
 created_at: 2026-07-31T20:01:01+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — user asked to fix the stale @copilot review example in WI-REVIEW-ROUND-ESCALATION-GATE.md, flagged but not fixed at the end of the PR #446 land

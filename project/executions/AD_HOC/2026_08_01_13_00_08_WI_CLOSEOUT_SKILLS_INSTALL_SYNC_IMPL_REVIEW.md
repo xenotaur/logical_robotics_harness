@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: adf9e7e
+commit: e2bda3b
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -121,7 +121,61 @@ files), both underlying issues confirmed valid:
   current, else skip).
 - Pushed as commit `7f9326c`.
 
+**Round 6** — retriggered against `f97130a`; both reviewers fully clean
+(Copilot 0 comments, Codex "Didn't find any major issues"). Treated as
+review-response complete and moved to `/lrh-confirm-fixes`.
+
+**Confirm-fixes finding: 4 real threads missed during review-response.**
+Confirm-fixes's cold-subagent verification (this session authored every
+prior fix, so independence was required) found that 4 Codex threads
+(P1/P2, all `outdated: false`) had accumulated across rounds 3–5 that
+were never actually read or addressed — this session was checking
+unresolved-thread *counts* each round but trusting the review-body
+summary text ("Codex: clean") without re-reading the full thread list's
+*content* each time, missing threads that arrived without a corresponding
+summary-body mention. Verified each against the actual diff/repo before
+accepting:
+- P2 "Scope refreshes to checkouts containing the LRH package" —
+  **confirmed valid**: `/lrh-closeout` is a reusable skill installed into
+  independent client repos, which can have their own project-local
+  `.claude/skills/<name>/` unrelated to LRH's own `src/lrh/skills/`
+  package. Added an explicit precondition to Step 2: skip the entire
+  skill-refresh item (not an anomaly, genuinely not-applicable) if
+  `src/lrh/skills/` doesn't exist in the invoking checkout.
+- P2 "Verify the checkout is actually on main" — **confirmed valid**: the
+  prior check only compared commit SHAs (`HEAD` vs `origin/main`), which
+  a detached HEAD or same-commit feature branch would pass without
+  actually being on `main`. Added an explicit `git branch --show-current`
+  check (must print exactly `main`) alongside the SHA comparison — smoke
+  tested live: this session's own checkout shows `HEAD` can equal a
+  fetched ref while `git branch --show-current` correctly reports the
+  actual (non-`main`) branch name, confirming the gap was real.
+- P2 "Defer checkout mutations until after confirmation" — **confirmed
+  valid, and the most structural of the four**: Step 2's prior text ran
+  `git checkout main && git pull` during the read-only assessment phase,
+  before the Step 4 confirm gate that promises no files are touched
+  beforehand. Redesigned so Step 2 computes *both* base-revision and
+  current-`main` membership via pure `git ls-tree <rev>:src/lrh/skills`
+  reads (smoke tested: `git ls-tree -d --name-only origin/main:src/lrh/skills`
+  correctly lists all 14 current skills with zero working-tree mutation),
+  eliminating the need for any checkout/Python-import in Step 2 at all.
+  The actual `git checkout main && git pull` + branch-identity
+  verification now happens only in Step 5, after the gate, immediately
+  before invoking `install_named_skills`.
+- P2 "Fetch the base SHA from PR metadata" — **confirmed valid**: the
+  REST PR Files endpoint's response has no PR-level base-SHA field, so
+  "the same PR API call above" was never a real way to obtain
+  `<baseRefOid>` — only `gh pr view --json baseRefOid` (or the REST
+  pull-request object's own `.base.sha`) works. Removed the false option;
+  the base SHA is now sourced explicitly and only from PR metadata.
+- Also updated the Quality Checklist and "What This Skill Does Not Do"
+  to reflect the restructured (read-only Step 2 / mutating Step 5)
+  design and the client-repo scoping decision.
+- Pushed as commit `e2bda3b`.
+
 # Follow-up
 
-- Next: retrigger both reviewers against `7f9326c`; if clean, proceed to
-  `/lrh-confirm-fixes`.
+- Next: retrigger both reviewers against `e2bda3b` and, this time,
+  explicitly re-read the full unresolved-thread list's content each
+  round (not just the review-body summary or the count) before
+  concluding a round is clean.

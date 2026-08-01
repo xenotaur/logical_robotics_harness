@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: ae1d3f5
+commit: 7f9326c
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -102,7 +102,26 @@ all confirmed valid:
   `__getitem__`/`__len__`), it's merely an `Iterable`. Reworded.
 - Pushed as commit `1dbb9fe`.
 
+**Round 5** — retriggered both reviewers against `80641dc`. Codex clean.
+Copilot raised 5 findings (3 duplicates of one issue, across 3 lines
+plus 2 duplicate copies of a second issue across both mirrored SKILL.md
+files), both underlying issues confirmed valid:
+- Round 3's materialize-once fix changed the function's actual accepted
+  input to any one-shot-safe iterable (tested with a generator), but the
+  type hint stayed `Sequence[str]` — inaccurate for callers and static
+  type checkers. Changed the import and signature to `Iterable[str]`,
+  and reworded the `TypeError` message/comment to match (no longer
+  claiming the Sequence protocol).
+- Step 2's checkout-freshness verification only branched on "`HEAD` and
+  `origin/main` don't match" — it never explicitly said what to do if
+  `git fetch origin main` itself fails (offline/auth/rate-limit), only
+  implying it via a vague "if neither is possible" clause. Split into two
+  explicit cases: fetch failure (skip this item immediately, same as the
+  other anomaly cases) vs. fetch-succeeded-but-mismatched (attempt to get
+  current, else skip).
+- Pushed as commit `7f9326c`.
+
 # Follow-up
 
-- Next: retrigger both reviewers against `1dbb9fe`; if clean, proceed to
+- Next: retrigger both reviewers against `7f9326c`; if clean, proceed to
   `/lrh-confirm-fixes`.

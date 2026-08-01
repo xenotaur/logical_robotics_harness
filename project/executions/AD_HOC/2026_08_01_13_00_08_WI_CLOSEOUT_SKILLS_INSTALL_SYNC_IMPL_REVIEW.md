@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 06bbe29
+commit: fe469b3
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -425,6 +425,18 @@ byte-identical with `origin/main` (verified: `git diff origin/main --
 is empty). `WI-CLOSEOUT-SKILLS-INSTALL-SYNC`'s acceptance criteria are
 not met by this PR; its resolution is a separate decision. PR #456's
 title/body updated to describe the actual final, reduced scope.
+
+**Post-revert round** — retriggered both reviewers against the reverted,
+scope-reduced diff (commit `4e9263e`). Codex fully clean ("Didn't find
+any major issues"). Copilot: 1 minor docstring wording nit, confirmed
+valid — the docstring said names are validated "before any filesystem
+mutation," but `install_named_skills` can still create `skills_dir` via
+`mkdir` before the per-name loop; only the *destructive* per-name copy is
+actually gated by validation. Tightened the wording to say so precisely.
+Pushed as commit `fe469b3`. With the design now reduced to just the
+tested `installer.py` capability, review converged in a single round —
+consistent with the self-review's read that this part was sound all
+along.
 
 # Follow-up
 

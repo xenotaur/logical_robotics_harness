@@ -124,11 +124,25 @@ mechanism — a single-PR case doesn't warrant standing up that
 infrastructure; the round count is tracked here for the CHAIN-NOTE's
 `cycles` accounting instead.
 
-**Round 4 (final):** pushed the 2 round-3 fixes alongside this record
-update, retriggered both reviewers, and waited for a fresh clean pass on
-the new `HEAD` before computing any verdict this time — see the final
-verdict below, computed only after that response landed and with no
-further commit pushed afterward.
+**Round 4 retrigger result, on `cc76f67`** (the round-3 fixes + this
+record update, pushed together in one commit this time): CI green (5/5).
+Codex: clean pass, reviewed `cc76f6745b`. Copilot: "generated no new
+comments" but surfaced 2 more suppressed non-thread findings, both about
+missing `--paginate` on the `gh api` calls in "Detecting a stalled
+reviewer session" — the check-runs call could miss the reviewer's own
+check-run on a CI-heavy commit, and the timeline call could miss the
+corroborating `copilot_work_*` event on a PR with a long history. Both
+real; verified `gh api ... --paginate --jq '...'` (no `--slurp` — that
+flag is incompatible with `--jq` in the installed `gh` version, confirmed
+by testing both invocations live against this PR before writing them into
+the doc) returns the correctly merged, multi-page result. Fixed in both
+mirrors, replied to on the PR.
+
+Round 4 completed_count is now 4 (still under the authorized ceiling of
+10) — no further gate needed for round 5.
+
+**Round 5 retrigger result, on the pagination-fix commit:** [pending —
+see next update once retrigger responses land]
 
 # Follow-up
 

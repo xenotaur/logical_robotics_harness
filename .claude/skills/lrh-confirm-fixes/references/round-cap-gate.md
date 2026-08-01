@@ -81,11 +81,15 @@ What *is* available is a stall heuristic, built from two REST calls:
 1. **Check-runs on the reviewer's own commit:**
 
    ```bash
-   gh api repos/<owner>/<repo>/commits/<sha>/check-runs \
+   gh api repos/<owner>/<repo>/commits/<sha>/check-runs --paginate \
      --jq '.check_runs | map(select(.name=="copilot-pull-request-reviewer")) | sort_by(.started_at) | last | {status, conclusion, started_at, completed_at}'
    ```
 
-   Select the **most recent** matching check-run, not just any — a
+   `--paginate` matters here: this endpoint's default page size can be
+   smaller than a commit's total check-run count on a CI-heavy PR, and an
+   unpaginated call can silently miss the reviewer's own check-run,
+   misreading a real in-progress session as "no check-run" (never
+   invoked). Select the **most recent** matching check-run, not just any — a
    reviewer retriggered or rerun on this commit can leave multiple
    check-runs of the same name, and comparing the wrong one's
    `started_at` against the 15-minute threshold below would misjudge the
@@ -108,9 +112,14 @@ What *is* available is a stall heuristic, built from two REST calls:
 2. **Issue timeline, for corroboration:**
 
    ```bash
-   gh api repos/<owner>/<repo>/issues/<pr-number>/timeline \
+   gh api repos/<owner>/<repo>/issues/<pr-number>/timeline --paginate \
      --jq '.[] | select(.event | startswith("copilot_work"))'
    ```
+
+   `--paginate` matters here too: an active PR's timeline can exceed one
+   page, and an unpaginated call can miss the corroborating
+   `copilot_work_*` event on a PR with a long history, producing a false
+   negative for this signal.
 
    `copilot_work_started`/`copilot_work_finished`/
    `copilot_work_finished_failure` are emitted for **both** Copilot

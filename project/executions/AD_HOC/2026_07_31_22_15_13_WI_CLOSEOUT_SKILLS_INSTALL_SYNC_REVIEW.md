@@ -9,7 +9,7 @@ commit: ce5558a
 created_at: 2026-07-31T22:15:13-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/454
-session_transcript: pending
+session_transcript: claude-app:local_20d16dd9-a465-4d31-b39f-280db14488ef
 ---
 
 # Summary
@@ -18,7 +18,10 @@ Addressed 2 open review comments on PR #454
 (`WI-CLOSEOUT-SKILLS-INSTALL-SYNC`): a grammar nit from
 `copilot-pull-request-reviewer` and a P1 substantive finding from
 `chatgpt-codex-connector` that the work item's proposed non-force
-`lrh skills install` step cannot actually refresh a stale skill.
+`lrh skills install` step cannot actually refresh a stale skill. A
+follow-up Copilot review of the fix commit raised 3 more findings (as a
+summary body, 0 new inline comments); 1 was valid and fixed, 2 were
+checked against this skill's own documented conventions and found false.
 
 # Result
 
@@ -46,6 +49,36 @@ Addressed 2 open review comments on PR #454
   creates the work item, not its implementation).
 - Pushed as commit `ce5558a`.
 
+**Follow-up round** — a second Copilot review (bound to commit
+`3443565`, triggered by re-requesting Copilot review) raised 3 findings
+as suppressed/summary comments (0 new inline threads):
+- "`status: in_progress` is an outlier vs. other `_REVIEW` records" —
+  **checked and found false**: all 98 other `_REVIEW` records under
+  `project/executions/AD_HOC/` show `status: landed` only because
+  `/lrh-closeout` has already landed them; a freshly created,
+  not-yet-closed-out record is supposed to be `in_progress` per this
+  skill's own Step 7 (`--status in_progress`). Not changed.
+- "`session_transcript: pending` should be a concrete value like other
+  records" — the literal value this skill's Step 7 instructs
+  (`session_transcript: pending`), so the finding's stated premise is
+  wrong, but the underlying suggestion is a genuine improvement:
+  `$CLAUDE_CODE_HOST_SESSION_ID` is available and stable for this session
+  (already used to populate the sibling creation record), so filled in
+  `session_transcript: claude-app:local_20d16dd9-a465-4d31-b39f-280db14488ef`
+  here too for consistency, and dropped the now-stale "update later"
+  follow-up note.
+- "`lrh-create-skill` is not the only skill documenting `lrh skills
+  install`" — **confirmed valid**: `lrh-implement`'s reference doc
+  (`references/lrh-implement-workflow.md`) has its own `### lrh skills
+  install` section, and `_shared/lifecycle-chain.md`'s table also
+  mentions it (in `lrh-create-skill`'s own row). Reworded the WI's
+  `## Problem / Context` claim from "the only skill that documents..." to
+  precisely state that `lrh-create-skill` is the only skill whose *own
+  execution steps* direct the agent to run it, and dropped the brittle
+  line-number citations per the review's secondary point.
+- Pushed as commit (this record's `commit:` field, populated at push
+  time).
+
 # Validation
 
 - `scripts/version tools`: ruff 0.15.12, black 26.3.1, pylint 2.16.2,
@@ -59,7 +92,5 @@ Addressed 2 open review comments on PR #454
 
 # Follow-up
 
-- `session_transcript: pending` above should be updated to
-  `claude-app:<host-uuid-stem>` after the session ends.
 - Next: `/lrh-confirm-fixes` against PR #454 to verify these fixes and
   resolve the review threads before merge.

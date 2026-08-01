@@ -72,12 +72,16 @@ not have fixed any of these 6 — see Scope below for why.
 Root cause: `.claude/skills/lrh-closeout/SKILL.md`'s 8 execution steps
 (Parse input, Assess state, Resolve session transcript, Confirm gate,
 Execute confirmed actions, Validate, Session reflection, Report and
-commit) never call `lrh skills install`. The only skill that documents
-running `lrh skills install` is `lrh-create-skill/SKILL.md` (line 231),
-which explicitly scopes itself to newly-created skills only ("Does not
-modify existing skills — only creates new ones", line 261). A PR that
-*edits* an existing skill has no workflow step anywhere that reinstalls
-it globally.
+commit) never call `lrh skills install`. `lrh-create-skill/SKILL.md` is
+the only skill whose own execution steps direct the agent to run
+`lrh skills install`, and it explicitly scopes that to newly-created
+skills only ("Does not modify existing skills — only creates new ones").
+`lrh skills install` is also described informationally elsewhere —
+`lrh-implement`'s reference doc explains it as a one-time global-install
+step (not part of `/lrh-implement`'s own workflow), and
+`_shared/lifecycle-chain.md`'s table references it only in
+`lrh-create-skill`'s own row. None of these amount to a workflow step
+that reinstalls an *existing, edited* skill.
 
 `lrh skills install` (`src/lrh/skills/installer.py`) resolves its
 "package" source via `importlib.resources.files("lrh.skills")`, which for

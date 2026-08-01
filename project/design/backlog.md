@@ -7,6 +7,97 @@ re-deriving context.
 
 ---
 
+## `lrh request review_response` cannot surface a specific outdated-but-unresolved thread
+
+**Noted:** 2026-08-01, during PR #453's confirm-fixes round (fixing
+`/lrh-land` Step 4's loop-exit condition). Codex flagged (P2, thread
+`PRRT_kwDOR7l1D86VlgLc`) that the PR's own fix — "loop back to Step 4 for
+that thread" when `/lrh-confirm-fixes` surfaces a not-Clear-satisfied
+outdated thread — doesn't actually work mechanically: Step 4 drives
+through `lrh request review_response`, whose unresolved filter excludes
+outdated threads (`src/lrh/integrations/github/formatters.py:31-40`,
+`_matches_state`'s default branch requires `not is_resolved and not
+is_outdated`). Re-invoking that command returns the same incomplete list
+and cannot progress — the operator has to manually carry the thread's
+content from Step 5's classification into the review-response triage
+protocol by hand instead of relying on Step 4's automated fetch.
+
+**Idea:** Give `lrh request review_response` a way to include one or more
+specific outdated-but-unresolved threads explicitly — e.g. a
+`--include-thread <thread-id>` flag, or a mode that accepts the
+authoritative thread list — `lrh github threads --state all`, filtered
+client-side to `isResolved == false` per `/lrh-confirm-fixes/SKILL.md`
+Step 2 (the command itself does not filter) — as input instead of
+re-deriving its own narrower list — so `/lrh-land` Step 4 can handle this
+case mechanically instead of requiring a documented manual workaround.
+
+**Status:** Tracked, not yet implemented. `/lrh-land` Step 4's `SKILL.md`
+text documents that a not-green Step 5 verdict caused by this case is a
+plain hard stop (no special-cased recovery path), the same as any other
+not-green verdict — the human decides how to proceed, until the
+implementation below lands. Designed via `/lrh-design` on 2026-08-01 and
+filed as `PROP-OUTDATED-THREAD-RECOVERY`
+(`project/design/proposals/proposed/outdated-thread-recovery/00_proposal.md`),
+with two work items: `WI-REVIEW-RESPONSE-INCLUDE-THREAD` (the mechanical
+`lrh request review_response` fix) and
+`WI-LRH-LAND-OUTDATED-THREAD-RECOVERY` (the governed `/lrh-land` Step 4/5
+recovery flow, depends on the former). This entry stays open until both
+work items are implemented and resolved; do not delete it on proposal
+adoption alone.
+
+An earlier revision of this PR tried to solve the recovery path in prose
+instead — a `/lrh-land` Step 5 exception letting the operator fix the
+diff by hand and loop back without a hard stop. Seven Codex/Copilot
+review rounds against that exception (2026-08-01) each found a genuine,
+distinct problem with it, none of them noise:
+
+- It could silently override the human's own Step-2-approved stop-work
+  condition for the run (e.g. "any reviewer finding") — a P1 finding,
+  since the exception declared itself "not a hard stop" without checking
+  what the human had already asked to halt on.
+- It lumped Ambiguous and Problematic-comment buckets in with the
+  actionable ones, when `/lrh-confirm-fixes` Step 3's own taxonomy
+  treats those two as non-actionable and reviewer-comment-may-be-wrong,
+  respectively — auto-driving a code change to satisfy either risked an
+  unnecessary or harmful edit.
+- It didn't allow `/lrh-review-response`'s own feasibility check to
+  reject the fix as inappropriate for the change.
+- It told the operator to run `/lrh-review-response`'s "full protocol"
+  for safeguards (confirm gate, validation, execution record), but that
+  protocol's own Step 2 exits immediately on `Nothing to resolve:` for
+  exactly this thread class — so following it literally would stop
+  before ever reaching the safeguards the exception said to preserve.
+- It required carrying `rerun_of` and treating a same-run invocation as
+  implicitly pre-authorized against `/lrh-review-response` Step 3's own
+  idempotence gate, which the exception's first draft didn't address.
+
+Each fix was individually correct and narrowly scoped, but the pattern —
+a mechanism needing a sixth and seventh patch, each surfacing a new edge
+case — is itself the signal: this needs a proper design pass (explicit
+governance-check ordering, taxonomy scoping, protocol integration) rather
+than incremental prose patches under review pressure. The exception was
+reverted rather than patched an eighth time; a future implementation of
+this idea should design the full recovery path (not just the
+`lrh request review_response` fetch gap above) before it reaches
+`/lrh-land`'s `SKILL.md` again — ideally via `/lrh-design` given the
+number of interacting constraints (stop-work-condition governance,
+confirm-fixes' taxonomy, review-response's own gates) a purely prose fix
+kept failing to get right in one pass.
+
+**Related:**
+`src/lrh/skills/lrh-land/SKILL.md` (Step 4/Step 5);
+`src/lrh/skills/lrh-review-response/SKILL.md`;
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md` (Step 3 taxonomy, Step 5's
+"offer `/lrh-review-response`" note);
+`src/lrh/integrations/github/formatters.py` (`_matches_state`);
+`src/lrh/assist/request_service.py` (`review_response` template branch);
+PR #453 review threads `PRRT_kwDOR7l1D86Vl6Hq` (P1, stop-work condition),
+`PRRT_kwDOR7l1D86Vl6Hs` (feasibility rejection), and the suppressed
+Copilot comment on `src/lrh/skills/lrh-land/SKILL.md:188` (Step 2
+short-circuit).
+
+---
+
 ## Idempotence cross-PR discovery doesn't fail closed on fetch errors
 
 **Noted:** 2026-07-30, during PR #441 review (round 6), while hardening
@@ -489,3 +580,130 @@ output rather than through `PlanningArtifact`.
 `src/lrh/control/validator.py` (`_work_item_model_from_artifact`);
 `src/lrh/assist/snapshot_cli.py` (`_load_snapshot_work_items`);
 `src/lrh/control/planning_tree.py` (`build_planning_tree_from_artifacts`).
+
+---
+
+## Promote stalled-reviewer-session detection from skill prose to a tested LRH primitive
+
+**Noted:** 2026-07-31, while adding stalled-reviewer-session detection
+(check-run + issue-timeline heuristic, for distinguishing "reviewer never
+invoked" from "reviewer's own session started and stalled," e.g. GitHub
+Copilot code review running out of included credits) to
+`lrh-confirm-fixes/SKILL.md` Step 8.3 and
+`references/round-cap-gate.md`.
+
+**Idea:** The detection landed as skill-embedded bash/`gh api` prose,
+callable only from inside an already-running `/lrh-confirm-fixes`
+invocation that is actively waiting on a reviewer — it cannot fire
+proactively (e.g. overnight, with no session open). `round-cap-gate.md`'s
+own "Risk Notes — deferred hardening" section already documents that this
+skill-prose approach is expensive to get right and hard to verify: the
+round-cap mechanism it lives alongside took 8 review rounds to reach its
+current state, each round finding a genuinely different category of
+correctness bug, and remains untested in practice.
+`WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md`'s Risk Notes independently
+recommend promoting this class of logic to "a shared, unit-tested LRH
+primitive (real code, not skill prose)" that both an assisted mode (a
+human-driven skill invocation) and a future bounded-auto mode (e.g. a
+scheduled poller) could call, rather than duplicating hand-rolled
+`gh api`/`jq` logic at each call site. A real primitive (e.g. `lrh
+pr-health check`) would also get `scripts/test` unit coverage, unlike the
+current prose, which is verified only by manual reasoning.
+
+**Status:** Deferred — `WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md` is a
+planning item whose own `depends_on` (`WI-GITHUB-PR-CI-OBSERVATION`,
+`WI-AGENT-BRANCH-CONTAINMENT`, `WI-DELIBERATE-MODEL-INVOCATION`) and
+acceptance criteria ("no mutation-capable automation or backend
+implementation is added") explicitly gate real implementation behind
+further design work. Not a same-day follow-up to the Step 8.3 change.
+Revisit once `WI-BOUNDED-STABILIZATION-LOOP-DESIGN` is implemented, or
+sooner if the current skill-prose detection is observed producing a real
+false positive/negative in practice — per this project's practice of
+promoting on observed incident rather than speculative hardening.
+
+**Cross-reference (2026-08-01):** This entry's own landing PR (#452) is
+now cited as supporting evidence for a separate, not-yet-filed proposal
+on reducing GitHub bot-review credit consumption via a self-review-first
+tier (raised in another session, same date — motivated primarily by PR
+#453's 9 retrigger batches). PR #452 is a sharper example of the same
+problem: 12 pushed retrigger batches in one landing session, each
+individually legitimate (not unattended runaway spend — the round-cap
+gate fired correctly and required live reauthorization each time, which
+is exactly the failure mode that proposal describes as unsolved). Two
+data points from PR #452 specifically relevant there: (1) after
+exhausting an authorized ceiling, that session substituted 3 independent
+cold-subagent review passes for further bot retriggers — each pass found
+a real bug bot review had missed across all 12 rounds, including the
+single most severe bug in the PR (a harness-level discovery that shell
+variables don't survive across separate tool calls); (2) several
+bot-found issues across those 12 rounds were self-inflicted regressions
+from that same session's own prior-round fixes — the exact class of
+issue a pre-push self-review pass is proposed to catch for free. See
+`project/executions/AD_HOC/2026_08_01_*COPILOT_STALLED_SESSION_DETECTION*.md`
+for the full round-by-round account. Not itself a reason to revisit this
+entry's own status above — orthogonal concern (this entry is about
+promoting *this* heuristic to tested code; the cross-referenced proposal
+is about the review-credit model generally).
+
+**Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8.3;
+`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`
+"Detecting a stalled reviewer session" and "Risk Notes — deferred
+hardening"; `project/work_items/proposed/WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md`;
+harness PR #452 (execution records) and PR #453 (the proposal's original
+motivating example).
+
+---
+
+## Stalled-reviewer-session detection is Copilot-specific but reads as reviewer-generic
+
+**Noted:** 2026-08-01, during PR #452 review round 7 (Copilot,
+`copilot-pull-request-reviewer`), landing the stalled-reviewer-session
+detection heuristic in `lrh-confirm-fixes/SKILL.md` Step 8.3 and
+`references/round-cap-gate.md`.
+
+**Idea — two remaining items, deferred by explicit decision rather than
+fixed inline to stop an 8-round retrigger loop (rounds 1–7 each found a
+real, distinct, low-risk issue: a cross-product timeline-correlation bug,
+three wording/grammar fixes, a stale cross-reference direction, an
+unpaginated `gh api` call, a `gh --jq`-runs-per-page-not-merged
+correctness bug, and a misleading null-object edge case — see this PR's
+`_CONFIRM` execution record for the full round-by-round account):**
+
+1. **Reviewer-generic framing, Copilot-specific signals.** `SKILL.md`
+   Step 8.3 says "first check whether that reviewer's own session
+   actually started and stalled" for *any* retriggered reviewer that
+   hasn't responded, but the only heuristic this cross-references
+   (`round-cap-gate.md`'s "Detecting a stalled reviewer session") is
+   built entirely from Copilot-specific signals: the
+   `copilot-pull-request-reviewer` check-run name and `copilot_work_*`
+   timeline events. Codex (comment-driven, no equivalent check-run or
+   timeline signal) would just get an empty result and correctly fall
+   through to the "No stall detected" question — not a correctness bug,
+   since the fallback is safe, but the prose doesn't make that scope
+   explicit, and a future reviewer added to `REVIEWS.md` might wrongly
+   assume this heuristic applies to them too.
+2. **`backlog.md`'s own entry above quotes stale wording.** The
+   "Promote stalled-reviewer-session detection..." entry's **Noted**
+   section quotes "reviewer never invoked" — the phrasing this same PR's
+   round 3 replaced with "no evidence the reviewer was invoked this
+   round" specifically to avoid implying the heuristic can determine
+   configuration state. Purely a documentation-consistency echo, not a
+   behavioral issue.
+
+**Status:** Deferred — round 7 was this PR's explicit, pre-committed
+stopping point for chasing further review rounds (recorded in the
+`_CONFIRM` execution record before this round's response was even read),
+consistent with this project's "defer narrow edge cases, fix core-scope
+findings" practice and with `round-cap-gate.md`'s own precedent (that
+mechanism's implementation, PR #445, stopped chasing after 8 rounds for
+the same reason — see its "Risk Notes — deferred hardening" section).
+Neither item is core to this PR's stated purpose (detecting a
+Copilot-credit-exhaustion-shaped stall) or a correctness bug. Revisit
+alongside a future change to `SKILL.md` Step 8.3 or `round-cap-gate.md`,
+or sooner if a non-Copilot reviewer is added to `REVIEWS.md` and the
+generic framing causes real confusion in practice.
+
+**Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8.3;
+`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`
+"Detecting a stalled reviewer session"; harness PR #452 (rounds 1–7);
+"Promote stalled-reviewer-session detection..." entry above.

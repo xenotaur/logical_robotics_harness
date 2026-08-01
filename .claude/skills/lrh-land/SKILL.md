@@ -134,15 +134,50 @@ lrh request review_response <pr-url> 2>&1 | head -3
 ```
 
 If `lrh request review_response` output starts with `Nothing to resolve:`,
-there are no unresolved inline threads. Compare `lastPush` against the
-current time — if the last commit is only seconds old, bots have not had
-time to run; wait and re-check. If enough time has passed with no threads,
-review is complete with no findings → proceed to Step 5.
+there are no threads matching *this check's* definition of unresolved —
+which excludes outdated threads (a thread whose commented line moved can
+stay `isResolved: false` while `isOutdated: true`; see `/lrh-confirm-fixes`'s
+Step 2 note on the narrower definition). It is not a full authoritative "zero
+unresolved threads anywhere" guarantee — Step 5's `isResolved`-only check
+is what provides that. Compare `lastPush` against the current time — if the
+last commit is only seconds old, bots have not had time to run; wait and
+re-check. If enough time has passed with no threads, review is complete
+with no findings under this check → proceed to Step 5.
 
 If the output contains thread data → open threads present; execute the
 review-response workflow inline (Phase 1: read `/lrh-review-response/SKILL.md`
-steps and execute them in the current session). Repeat until
-`lrh request review_response` starts with `Nothing to resolve:`.
+steps and execute them in the current session).
+
+**Loop-exit condition:** do not loop on `Nothing to resolve:` here.
+`/lrh-review-response` does not itself resolve GitHub review threads — its
+own "What This Skill Does Not Do" states this is a human decision, and
+thread resolution (`resolveReviewThread`) is Step 5's job. Because of this,
+a thread that was already fixed in the diff still shows up as unresolved
+when `lrh request review_response` is re-run, until Step 5 resolves it —
+looping until the list itself goes empty would never terminate here. The
+correct exit condition: repeat Step 4 only while a fresh
+`lrh request review_response` call surfaces a comment that has not yet been
+triaged in the current diff (fixed, or explicitly dismissed with rationale,
+per `/lrh-review-response`'s presence/validity/feasibility checks). Once
+every comment currently returned has been triaged — even though the thread
+list is not yet empty — proceed to Step 5, whose confirm-fixes pass is what
+actually resolves the threads and makes `Nothing to resolve:` true
+afterward.
+
+**Step 4 completing is provisional, not authoritative.** Because
+`lrh request review_response`'s notion of unresolved excludes outdated
+threads, an untriaged thread can exist that Step 4 never saw at all — not
+just one it triaged and is waiting on Step 5 to resolve. Step 5's
+authoritative `isResolved`-only check can surface it for the first time.
+If it does and the diff doesn't plainly satisfy it, that is expected —
+`/lrh-confirm-fixes` classifies it (Unaddressed/Partial/Ambiguous/etc.)
+per its own Step 3 taxonomy. A not-green Step 5 verdict caused by a
+newly-surfaced outdated thread is not a sign Step 4 was skipped or
+malformed — it is handled the same way as any other not-green verdict:
+Step 5's hard stop, with the human deciding next steps. A mechanical way
+for Step 4 to pick up this specific class of thread automatically is
+tracked as a backlog item rather than solved here — see
+`project/design/backlog.md`.
 
 ### Step 5 — Confirm-fixes
 
@@ -151,7 +186,11 @@ Execute the confirm-fixes workflow inline (Phase 1: read
 Report the merge-readiness verdict.
 
 If the verdict is **not green**, stop and report — do not proceed to the merge
-gate with a failing confirm-fixes pass.
+gate with a failing confirm-fixes pass. This includes a not-green verdict
+caused by a newly-surfaced outdated thread Step 4 couldn't see (per the
+note above) — it is not a special case; the human decides how to resolve
+it, including whether to address it manually outside this automated loop
+before re-running from Step 4.
 
 **Re-run REVIEW-LANDED after confirm-fixes completes.** The inline
 confirm-fixes workflow creates and pushes a `_CONFIRM` execution record commit
@@ -295,7 +334,10 @@ Before reporting completion, verify:
 - [ ] Chain authorization gate (Step 2) completed before Steps 4–5; both
       completion condition and stop-work condition stated and confirmed
 - [ ] REVIEW-LANDED check performed using `reviewThreads` (via `lrh request review_response`); empty output not treated as clean
-- [ ] Review-response completed with no open threads before confirm-fixes
+- [ ] Review-response completed once every comment returned by
+      `lrh request review_response` has been triaged in the current diff
+      (fixed, or dismissed with rationale) — not once the thread list itself
+      is empty, which requires confirm-fixes (Step 5) to run first
 - [ ] Confirm-fixes verdict is green before REVIEW-LANDED re-check
 - [ ] REVIEW-LANDED re-check performed after confirm-fixes pushes its `_CONFIRM` commit
 - [ ] Merge command is the SHA-locked one from the confirm-fixes verdict; not a generic command

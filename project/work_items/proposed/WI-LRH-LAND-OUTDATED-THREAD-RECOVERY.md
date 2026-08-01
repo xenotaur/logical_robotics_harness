@@ -27,10 +27,12 @@ forbidden_actions:
   - delete_branch
   - implement_automatic_exception
 acceptance:
-  - A newly-surfaced Unaddressed/Partial/Problematic-resolution outdated thread always presents a live three-way gate (fix now / defer / stop) before any recovery action -- never a silent "not a hard stop" path
-  - Ambiguous and Problematic-comment buckets are excluded from the gate entirely -- hard rule, not a per-occurrence question
+  - A newly-surfaced Unaddressed/Partial/Problematic resolution outdated thread always presents a live three-way gate (fix now / defer / stop) before any recovery action -- never a silent "not a hard stop" path
+  - "fix now" loops back through /lrh-confirm-fixes for a fresh verdict against the new HEAD before Step 6 is reachable -- pushing the fix alone is never sufficient
+  - "defer" is an explicit, in-session, named-thread override of Step 6's green-verdict invariant, recorded in Step 6's summary -- not a silent bypass
+  - Ambiguous and Problematic comment buckets are excluded from the gate entirely -- hard rule, not a per-occurrence question
   - "The recovery path routes through /lrh-review-response's full protocol via --include-thread, not just its triage checks -- confirm gate, validation, and execution record all run"
-  - /lrh-review-response's own feasibility check can reject the fix; a rejection is treated the same as Problematic-comment (surface, stop)
+  - /lrh-review-response's own feasibility check can reject the fix; a rejection is treated the same as Problematic comment (surface, stop)
   - A same-land-run re-invocation of /lrh-review-response is a recognized non-blocking condition in its own Step 3, not a caller-side workaround
   - lrh validate reports 0 errors
   - diff -r src/lrh/skills/lrh-land/ .claude/skills/lrh-land/ and the lrh-review-response equivalent report no differences
@@ -86,7 +88,7 @@ in the same PR.
 
 - `/lrh-land` Step 5: replace the plain "not green = stop" rule's blind
   spot with an explicit, narrowly-scoped, always-live-gated exception for
-  Unaddressed/Partial/Problematic-resolution outdated threads only.
+  Unaddressed/Partial/Problematic resolution outdated threads only.
 - `/lrh-land` Step 4: note the new recovery path exists, pointing to
   Step 5.
 - `/lrh-review-response` Step 3: recognize an in-session `/lrh-land`
@@ -97,17 +99,24 @@ in the same PR.
 
 1. `src/lrh/skills/lrh-land/SKILL.md` Step 5 — add the three-way gate
    (reusing `round-cap-gate.md`'s pattern), scoped to
-   Unaddressed/Partial/Problematic-resolution; route the fix through
+   Unaddressed/Partial/Problematic resolution; route the fix through
    `/lrh-review-response`'s full protocol via `--include-thread`;
-   explicitly exclude Ambiguous/Problematic-comment.
+   explicitly exclude Ambiguous/Problematic comment; on "fix now," loop
+   back to the top of `/lrh-confirm-fixes` for a fresh verdict against
+   the new `HEAD` before Step 6 is reachable; on "defer," require an
+   explicit, named-thread override recorded in Step 6's summary.
 2. `src/lrh/skills/lrh-land/SKILL.md` Step 4 — cross-reference the new
    Step 5 path.
 3. `src/lrh/skills/lrh-review-response/SKILL.md` Step 3 — add the
    same-run-continuation non-blocking condition.
 4. Mirror 1-3 to `.claude/skills/lrh-land/SKILL.md` and
    `.claude/skills/lrh-review-response/SKILL.md`.
-5. Update `project/design/backlog.md` to mark the entry closed/linked to
-   this item and `WI-REVIEW-RESPONSE-INCLUDE-THREAD`.
+5. Update `project/design/backlog.md`: the entry is already linked to
+   this item and `WI-REVIEW-RESPONSE-INCLUDE-THREAD` (done when both
+   were filed); mark it **closed** now, since this item's completion —
+   together with `WI-REVIEW-RESPONSE-INCLUDE-THREAD`'s — is what the
+   entry's own "stays open until both work items are implemented and
+   resolved" condition was waiting on.
 
 ## Non-Goals
 
@@ -119,16 +128,22 @@ in the same PR.
 
 ## Acceptance Criteria
 
-- A newly-surfaced Unaddressed/Partial/Problematic-resolution outdated
+- A newly-surfaced Unaddressed/Partial/Problematic resolution outdated
   thread always presents a live three-way gate before any recovery
   action — never a silent "not a hard stop" path.
-- Ambiguous and Problematic-comment buckets are excluded from the gate
+- "fix now" loops back through `/lrh-confirm-fixes` for a fresh verdict
+  against the new `HEAD` before Step 6 is reachable — pushing the fix
+  alone is never sufficient.
+- "defer" is an explicit, in-session, named-thread override of Step 6's
+  green-verdict invariant, recorded in Step 6's summary — not a silent
+  bypass.
+- Ambiguous and Problematic comment buckets are excluded from the gate
   entirely — hard rule, not a per-occurrence question.
 - The recovery path routes through `/lrh-review-response`'s full
   protocol via `--include-thread`, not just its triage checks — confirm
   gate, validation, and execution record all run.
 - `/lrh-review-response`'s own feasibility check can reject the fix; a
-  rejection is treated the same as Problematic-comment.
+  rejection is treated the same as Problematic comment.
 - A same-land-run re-invocation of `/lrh-review-response` is a
   recognized non-blocking condition in its own Step 3.
 - `lrh validate` reports 0 errors.

@@ -90,9 +90,10 @@ This proposal is that deferred work, designed properly — through
 - Backlog: Found — `project/design/backlog.md`, "`lrh request
   review_response` cannot surface a specific outdated-but-unresolved
   thread" (noted 2026-08-01, during PR #453's confirm-fixes round). This
-  proposal supersedes/closes that entry.
-- **Recommendation: Close/link the backlog entry once WI-A/WI-B (see
-  Implementation Plan) are filed.**
+  proposal is the design for that entry; the entry stays open (linked,
+  not closed) until WI-A and WI-B are actually implemented and resolved.
+- **Recommendation: Link the backlog entry to this proposal and both
+  work items now; close it only once both are implemented.**
 
 ## Design Decisions
 
@@ -123,23 +124,42 @@ Options considered:
 - **Always-live-gated** — present the specific finding, wait for an
   explicit human answer, every occurrence, no default.
 
-**Chosen: always-live-gated**, presenting the human three options —
-**fix now** (route through Decision 4's recovery flow), **defer**
-(leave the thread open, proceed toward merge without it), or **stop**
-(halt the run). The automatic path is the proven failure mode: a P1
-finding showed it could silently override a stop-work condition the
-human explicitly set at the run's own chain-authorization gate. This
-case is rare in practice — in PR #453's own worked example, every
-outdated thread encountered was Clear-satisfied, not needing a new fix —
-so the added friction of a live gate per genuine occurrence is low, and
-the safety property (no silent governance bypass, ever) is worth it.
-This reuses the same three-way-human-gate *structure* `references/
-round-cap-gate.md` already established for a different decision (there:
-authorize a new ceiling / deny and stop / pause, gating whether to keep
-retriggering bot reviewers) rather than inventing new UI vocabulary for
-a structurally similar problem — the option labels differ because the
-decisions differ, but both are a mandatory three-way human answer with
-no inferred-from-silence default.
+**Chosen: always-live-gated**, presenting the human three options, each
+with an explicit disposition against `/lrh-land` Step 6's existing
+invariant (a green confirm-fixes verdict, checked against the exact
+current `HEAD`, is required before the SHA-locked merge command is
+presented):
+
+- **fix now** — route through Decision 4's recovery flow, then loop back
+  to the top of `/lrh-confirm-fixes` for a fresh verdict against the new
+  `HEAD` the fix produced. Step 6 is reached only once that fresh pass is
+  green — pushing the fix is not itself sufficient, since
+  `/lrh-review-response`'s protocol neither resolves the thread nor
+  re-runs confirm-fixes on its own.
+- **defer** — the human explicitly authorizes proceeding toward Step 6
+  with this one specific, already-surfaced, already-reviewed thread left
+  open. This is a live, in-session, scoped override of Step 6's
+  green-verdict invariant — not a new bypass mechanism, but the same
+  category of explicit human authorization `DEC-AGENT-EXECUTED-MERGE-GATE`
+  already requires for the merge action itself, narrowed to one named
+  finding. Step 6's summary must name the deferred thread explicitly, so
+  the override is part of the audit trail, not a silent gap.
+- **stop** — halt the run entirely; no path to Step 6 this run.
+
+The automatic path (an unconditional "not a hard stop") is the proven
+failure mode: a P1 finding showed it could silently override a stop-work
+condition the human explicitly set at the run's own chain-authorization
+gate. This case is rare in practice — in PR #453's own worked example,
+every outdated thread encountered was Clear-satisfied, not needing a new
+fix — so the added friction of a live gate per genuine occurrence is
+low, and the safety property (no silent governance bypass, ever) is
+worth it. This reuses the same three-way-human-gate *structure*
+`references/round-cap-gate.md` already established for a different
+decision (there: authorize a new ceiling / deny and stop / pause, gating
+whether to keep retriggering bot reviewers) rather than inventing new UI
+vocabulary for a structurally similar problem — the option labels differ
+because the decisions differ, but both are a mandatory three-way human
+answer with no inferred-from-silence default.
 
 ### Decision 3: Which confirm-fixes taxonomy buckets are ever eligible?
 
@@ -165,7 +185,7 @@ for exactly this thread class, so a caller following the "full protocol"
 instruction literally would stop before ever reaching those safeguards.
 The full protocol also means `/lrh-review-response`'s own Step 5
 feasibility check can reject the fix as inappropriate for the change; a
-rejection is treated the same as Problematic-comment — surfaced to the
+rejection is treated the same as Problematic comment — surfaced to the
 human, hard stop — not forced through.
 
 ### Decision 5: Same-run idempotence
@@ -204,8 +224,8 @@ a check's exceptions to live next to the check itself.
 Two work items, filed together, delivered as **a single implementation
 PR** covering both — not sequential PRs — since WI-B's `SKILL.md` changes
 are meaningless without WI-A's flag existing, and splitting them would
-leave an intermediate state where the backlog entry this proposal closes
-isn't actually resolved:
+leave an intermediate state where the backlog entry this design targets
+still isn't actually resolved:
 
 - **WI-A (mechanical):** `--include-thread <thread-id>` flag on
   `lrh request review_response`, `extra_ids` plumbing through
@@ -225,4 +245,5 @@ isn't actually resolved:
 - `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md` — the
   three-way-human-gate *structure* this proposal reuses for Decision 2
   (different decision, different option labels — see Decision 2).
-- `project/design/backlog.md` — entry closed by this proposal.
+- `project/design/backlog.md` — entry this proposal is the design for;
+  linked now, closed only once WI-A and WI-B are implemented.

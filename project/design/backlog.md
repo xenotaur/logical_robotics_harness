@@ -7,6 +7,49 @@ re-deriving context.
 
 ---
 
+## `lrh request review_response` cannot surface a specific outdated-but-unresolved thread
+
+**Noted:** 2026-08-01, during PR #453's confirm-fixes round (fixing
+`/lrh-land` Step 4's loop-exit condition). Codex flagged (P2, thread
+`PRRT_kwDOR7l1D86VlgLc`) that the PR's own fix — "loop back to Step 4 for
+that thread" when `/lrh-confirm-fixes` surfaces a not-Clear-satisfied
+outdated thread — doesn't actually work mechanically: Step 4 drives
+through `lrh request review_response`, whose unresolved filter excludes
+outdated threads (`src/lrh/integrations/github/formatters.py:31-40`,
+`_matches_state`'s default branch requires `not is_resolved and not
+is_outdated`). Re-invoking that command returns the same incomplete list
+and cannot progress — the operator has to manually carry the thread's
+content from Step 5's classification into the review-response triage
+protocol by hand instead of relying on Step 4's automated fetch.
+
+**Idea:** Give `lrh request review_response` a way to include one or more
+specific outdated-but-unresolved threads explicitly — e.g. a
+`--include-thread <thread-id>` flag, or a mode that accepts the
+authoritative `lrh github threads --state all` output (already
+`isResolved`-filtered) as input instead of re-deriving its own narrower
+list — so `/lrh-land` Step 4 can handle this case mechanically instead of
+requiring a documented manual workaround.
+
+**Status:** Deferred. `/lrh-land` Step 4's `SKILL.md` text now documents
+the manual workaround and cites this entry rather than claiming automatic
+looping works. This is a real gap in `lrh request review_response`'s own
+filtering, not just prose — fixing it means touching
+`src/lrh/integrations/github/formatters.py` and
+`src/lrh/assist/request_service.py` plus new test coverage, out of scope
+for the docs-only PR that surfaced it. Revisit if this case is hit again
+in practice (an outdated thread that needs a real fix, not just
+resolution) and the manual workaround proves too easy to skip.
+
+**Related:**
+`src/lrh/skills/lrh-land/SKILL.md` (Step 4);
+`src/lrh/skills/lrh-review-response/SKILL.md`;
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md` (Step 5's "offer
+`/lrh-review-response`" note);
+`src/lrh/integrations/github/formatters.py` (`_matches_state`);
+`src/lrh/assist/request_service.py` (`review_response` template branch).
+
+---
+
 ## Idempotence cross-PR discovery doesn't fail closed on fetch errors
 
 **Noted:** 2026-07-30, during PR #441 review (round 6), while hardening

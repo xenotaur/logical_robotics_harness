@@ -57,6 +57,26 @@ formal thread) on both this record and the `_REVIEW` record: `session_transcript
 kept the `local_` prefix; `project/executions/README.md:65` documents the
 convention as stripped (`claude-app:<host-uuid-stem>`). Fixed both.
 
+**REVIEW-LANDED retrigger, batch 2 (Step 8):** Pushed `e343a15`; CI settled
+green (all 5 checks SUCCESS). Retriggered both reviewers again
+(round-cap `completed_count` 1→2 of ceiling 3). Copilot came back clean a
+second time. Codex found a second genuine issue (thread
+`PRRT_kwDOR7l1D86VlgLc`, P2): the "loop back to Step 4 for that thread"
+guidance added to address the first finding doesn't actually work — Step 4
+drives through `lrh request review_response`, whose unresolved filter
+excludes outdated threads for the same reason it missed this thread in
+the first place, so re-invoking it returns the same incomplete list and
+cannot progress. Classified as valid and in-scope (it directly undermines
+this PR's own added text, not a tangential concern): rewrote the Step 4
+guidance to say plainly that re-invoking the automated command will not
+pick up an outdated thread, and that the operator must instead carry the
+thread's content from Step 5's classification into the review-response
+triage protocol by hand. Filed the deeper mechanical fix (giving
+`lrh request review_response` a way to accept a specific outdated thread)
+as a backlog entry — `project/design/backlog.md` — rather than expanding
+this PR's scope to touch `formatters.py`/`request_service.py` plus new
+test coverage.
+
 # Validation
 
 lrh github threads --mode raw --state all — 2 threads found, both
@@ -71,9 +91,9 @@ is_outdated`, verifying Codex's P2 finding before triaging it as valid
 
 # Follow-up
 
-- After pushing the Step 4 clarification + session_transcript fixes,
-  resolve thread `PRRT_kwDOR7l1D86VlcTi` once the new commit's diff is
-  verified to satisfy it, and re-run REVIEW-LANDED against that new HEAD
-  before the final verdict.
+- After pushing the Step 4 rewrite that fixes the "loop back to Step 4"
+  claim, verify both `PRRT_kwDOR7l1D86VlcTi` and `PRRT_kwDOR7l1D86VlgLc`
+  against the diff and resolve, then re-run REVIEW-LANDED once more
+  before the final verdict (batch 3).
 - No primary implementation record exists for this PR (backfill path);
   `/lrh-land` Step 7 will author the backfill record.

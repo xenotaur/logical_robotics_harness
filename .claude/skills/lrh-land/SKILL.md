@@ -169,12 +169,23 @@ afterward.
 threads, an untriaged thread can exist that Step 4 never saw at all — not
 just one it triaged and is waiting on Step 5 to resolve. Step 5's
 authoritative `isResolved`-only check can surface it for the first time.
-If it does and the diff doesn't plainly satisfy it, that is expected
-behavior, not a broken loop: Step 5 classifies it (Unaddressed/Partial/
-Ambiguous/etc.) and offers another `/lrh-review-response` round for it,
-per its own Step 5. Do not treat a not-green Step 5 verdict caused by a
-newly-surfaced outdated thread as a sign Step 4 was skipped or malformed —
-loop back to Step 4 for that thread and continue.
+If it does and the diff doesn't plainly satisfy it, that is expected —
+Step 5 classifies it (Unaddressed/Partial/Ambiguous/etc.) per its own
+Step 5. A not-green Step 5 verdict caused by a newly-surfaced outdated
+thread is not a sign Step 4 was skipped or malformed.
+
+**But do not re-invoke Step 4's automated `lrh request review_response`
+call expecting it to pick that thread up** — its unresolved filter
+excludes outdated threads for exactly the same reason it missed the
+thread the first time; calling it again returns the same incomplete
+list and cannot progress. Instead, carry the thread's content directly
+from Step 5's classification into the review-response triage protocol
+(presence/validity/feasibility checks from `/lrh-review-response/SKILL.md`
+Step 5) by hand, fix it, push, and return to Step 5 to re-verify and
+resolve the thread. Giving `lrh request review_response` a way to include
+specific outdated-but-unresolved threads so Step 4 can handle this
+mechanically is tracked as a backlog item rather than solved here — see
+`project/design/backlog.md`.
 
 ### Step 5 — Confirm-fixes
 

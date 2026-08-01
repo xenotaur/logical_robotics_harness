@@ -547,16 +547,26 @@ untracked file under `src/lrh/skills/<name>/` would leave both
 Python import picks up the dirty bytes anyway — `install_named_skills`
 would then copy content that was never on `origin/main` at all, still
 reporting `refreshed`. Also require a clean working tree for this path
-before proceeding:
+before proceeding — **including `--ignored`**, since plain
+`git status --porcelain` does not report gitignored entries by default,
+but `_copy_resource_tree` (inside `install_named_skills`) enumerates
+every real filesystem entry under a skill directory regardless of
+`.gitignore` — a stray `.DS_Store` or a `__pycache__` sitting inside a
+confirmed skill directory would be silently swept into the install
+otherwise (confirmed live in this session's own checkout: a
+`.DS_Store` placed inside `src/lrh/skills/lrh-closeout/` was invisible
+to plain `git status --porcelain` but reported as `!!` with
+`--ignored`):
 
 ```bash
-git status --porcelain -- src/lrh/skills
+git status --porcelain --ignored -- src/lrh/skills
 ```
 
-Must produce **no output**. Any output (modified, staged, or untracked
-files under `src/lrh/skills/`) means the working tree can't be trusted
-to match the verified commit — report an explicit anomaly and skip *this*
-item rather than installing from unknown dirty state.
+Must produce **no output**. Any output — modified, staged, untracked, or
+ignored entries under `src/lrh/skills/` — means the working tree can't be
+trusted to match the verified commit, or contains extraneous files that
+were never part of the actual package: report an explicit anomaly and
+skip *this* item rather than installing from unknown or polluted state.
 
 If the checkout-to-main step, the tree-hash verification, or the
 clean-working-tree check fails — or the main-worktree-lock workaround
@@ -700,9 +710,10 @@ Before reporting completion, verify:
       descendant commit) and not a branch-name or bare commit-SHA check
       (either of which would reject the legitimate `tmp-<slug>`
       main-worktree-lock workaround) — **and** confirms
-      `git status --porcelain -- src/lrh/skills` is empty, since the
-      tree-hash comparison only covers committed state and the live
-      Python import reads whatever is actually on disk — before invoking
+      `git status --porcelain --ignored -- src/lrh/skills` is empty
+      (`--ignored` included, since a gitignored stray file inside a
+      skill directory is still copied by the live filesystem enumeration
+      even though plain `git status` wouldn't report it) — before invoking
       `install_named_skills` with `PYTHONPATH` explicitly pointed at that
       checkout, not an
       ambient/frozen `lrh` install

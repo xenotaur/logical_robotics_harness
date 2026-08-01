@@ -89,7 +89,22 @@ gh pr checks (unfiltered, required-check-protection confirmed absent) —
 resolveReviewThread × 6 — all returned isResolved: true
 ```
 
+**Round 2 retrigger result, on `70d8f98` (post-remediation commit):** CI
+green (5/5). Codex: "Didn't find any major issues" (clean, reviewed
+`70d8f98da3`). Copilot: "generated no new comments" (clean, no suppressed
+findings this round, reviewed `70d8f98da325b0a5b85595530524d41849bf40f9`).
+REVIEW-LANDED satisfied on this commit — both retriggered reviewers gave
+an explicit clean pass referencing the exact `HEAD` SHA.
+
+**Final verdict: Green.** All threads resolved (Step 6), CI green,
+review landed clean on `70d8f98da325b0a5b85595530524d41849bf40f9` → ready
+to merge:
+
+```bash
+gh pr merge https://github.com/xenotaur/logical_robotics_harness/pull/452 --squash --match-head-commit 70d8f98da325b0a5b85595530524d41849bf40f9
+```
+
 # Follow-up
 
-- Continue `/lrh-land`'s chain: retrigger Codex/Copilot on the round-2
-  commit, wait for REVIEW-LANDED, then the merge gate.
+- Merge gate: present the above command for explicit in-session
+  authorization per `DEC-AGENT-EXECUTED-MERGE-GATE`, then `/lrh-closeout`.

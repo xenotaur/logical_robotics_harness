@@ -538,11 +538,32 @@ content diverges from `origin/main` for *any* reason, including a
 descendant commit that further edited a skill after this checkout's
 `origin/main` fetch.
 
-If either the checkout-to-main step or this verification fails, or the
-two tree hashes don't match, or the main-worktree-lock workaround isn't
-applicable or also fails: report an explicit anomaly and skip *this*
-item — do not fall back to whatever branch happened to be checked out,
-and do not invoke `install_named_skills` against unverified state.
+**This tree-hash comparison only covers *committed* state — it says
+nothing about the working tree.** `install_named_skills` doesn't read
+git objects; it imports live via `PYTHONPATH="$(pwd)/src"`, which reads
+whatever bytes are actually on disk right now. An uncommitted edit or an
+untracked file under `src/lrh/skills/<name>/` would leave both
+`rev-parse` hashes above equal (they only see committed trees) while the
+Python import picks up the dirty bytes anyway — `install_named_skills`
+would then copy content that was never on `origin/main` at all, still
+reporting `refreshed`. Also require a clean working tree for this path
+before proceeding:
+
+```bash
+git status --porcelain -- src/lrh/skills
+```
+
+Must produce **no output**. Any output (modified, staged, or untracked
+files under `src/lrh/skills/`) means the working tree can't be trusted
+to match the verified commit — report an explicit anomaly and skip *this*
+item rather than installing from unknown dirty state.
+
+If the checkout-to-main step, the tree-hash verification, or the
+clean-working-tree check fails — or the main-worktree-lock workaround
+isn't applicable or also fails: report an explicit anomaly and skip
+*this* item — do not fall back to whatever branch or working-tree state
+happened to be present, and do not invoke `install_named_skills` against
+unverified state.
 
 Only once verified on `main`, load `install_named_skills` from *this*
 checkout, never an ambient, possibly-unrelated installed `lrh`
@@ -678,7 +699,10 @@ Before reporting completion, verify:
       (`git merge-base --is-ancestor`, which wrongly accepts an unmerged
       descendant commit) and not a branch-name or bare commit-SHA check
       (either of which would reject the legitimate `tmp-<slug>`
-      main-worktree-lock workaround) — before invoking
+      main-worktree-lock workaround) — **and** confirms
+      `git status --porcelain -- src/lrh/skills` is empty, since the
+      tree-hash comparison only covers committed state and the live
+      Python import reads whatever is actually on disk — before invoking
       `install_named_skills` with `PYTHONPATH` explicitly pointed at that
       checkout, not an
       ambient/frozen `lrh` install

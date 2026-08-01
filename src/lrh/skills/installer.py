@@ -257,6 +257,12 @@ def install_named_skills(
     # (e.g. a generator) that would otherwise be silently consumed by the
     # first pass.
     names = list(skill_names)
+    for name in names:
+        if not isinstance(name, str):
+            raise TypeError(
+                f"skill_names must contain only strings, got {name!r}"
+                f" ({type(name).__name__})"
+            )
     target = skills_dir if skills_dir is not None else _DEFAULT_SKILLS_DIR
     valid_names = set(_skill_names())
     results: list[TargetedRefreshResult] = []

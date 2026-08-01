@@ -147,6 +147,11 @@ class TestInstallNamedSkills(unittest.TestCase):
         with self.assertRaises(TypeError):
             installer.install_named_skills("lrh-closeout", skills_dir=skills_dir)
 
+    def test_non_string_element_raises_type_error(self) -> None:
+        skills_dir = self._make_skills_dir()
+        with self.assertRaises(TypeError):
+            installer.install_named_skills([123], skills_dir=skills_dir)
+
     def test_one_shot_iterable_is_not_silently_consumed(self) -> None:
         skills_dir = self._make_skills_dir()
         skill_name = installer._skill_names()[0]

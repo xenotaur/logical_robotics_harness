@@ -173,37 +173,11 @@ If it does and the diff doesn't plainly satisfy it, that is expected —
 `/lrh-confirm-fixes` classifies it (Unaddressed/Partial/Ambiguous/etc.)
 per its own Step 3 taxonomy. A not-green Step 5 verdict caused by a
 newly-surfaced outdated thread is not a sign Step 4 was skipped or
-malformed — see Step 5's exception below for how to proceed instead of
-treating it as a hard stop.
-
-**But do not re-invoke Step 4's automated `lrh request review_response`
-call expecting it to pick that thread up** — its unresolved filter
-excludes outdated threads for exactly the same reason it missed the
-thread the first time; calling it again returns the same incomplete
-list and cannot progress. Instead, carry the thread's content directly
-into `/lrh-review-response/SKILL.md`'s full protocol by hand — not just
-its triage checks (presence/validity/feasibility) — since skipping the
-rest of that protocol drops its safeguards: run its Step 4 confirm gate,
-its Step 5 canonical validation before pushing, and its Step 7 execution
-record for traceability, the same as any other review-response round.
-Then return to the top of this Step 5 to re-verify and resolve the
-thread. Giving `lrh request review_response` a way to include specific
-outdated-but-unresolved threads so Step 4 can handle this mechanically is
+malformed — it is handled the same way as any other not-green verdict:
+Step 5's hard stop, with the human deciding next steps. A mechanical way
+for Step 4 to pick up this specific class of thread automatically is
 tracked as a backlog item rather than solved here — see
 `project/design/backlog.md`.
-
-**This is a same-land-run rerun of review-response, which its own Step 3
-idempotence check would otherwise stop on.** An earlier round in this
-same `/lrh-land` run already created an `in_progress` record with the
-same slug (Step 4's normal loop, or an earlier manual-carry pass), and
-`/lrh-review-response/SKILL.md` Step 3 treats a matched `in_progress`
-record as a hard stop unless the user explicitly requests a rerun. Do not
-re-elicit that from the user here — Step 2's chain authorization already
-covers the whole `review-response ↔ confirm-fixes` loop for this run, so
-treat this invocation as the explicit rerun that check requires, and set
-`rerun_of` to the earlier round's `execution_id` per Step 3's own
-matched-record precedence, the same as `/lrh-land`'s own Step 1
-found/backfill classification already does at the top level.
 
 ### Step 5 — Confirm-fixes
 
@@ -212,38 +186,11 @@ Execute the confirm-fixes workflow inline (Phase 1: read
 Report the merge-readiness verdict.
 
 If the verdict is **not green**, stop and report — do not proceed to the merge
-gate with a failing confirm-fixes pass, **except for the one narrow case
-below.**
-
-**Exception — a newly-surfaced outdated thread needing a real fix, not
-just resolution.** If, and only if, the not-green verdict is specifically
-because `/lrh-confirm-fixes` classified a thread that Step 4's note above
-flagged as invisible to it (a thread that was `isResolved: false` but
-`isOutdated: true`, so `lrh request review_response` never returned it)
-into **Unaddressed, Partial, or Problematic resolution** — the buckets
-`/lrh-confirm-fixes` Step 3 already treats as actionable — this is not a
-hard stop. Follow Step 4's manual-carry procedure for that specific
-thread — fix it in the diff by hand, push, then return to the top of
-Step 5 and re-run confirm-fixes against the new `HEAD`.
-
-**This exception does not apply to Ambiguous or Problematic comment.**
-Those two buckets are, by `/lrh-confirm-fixes` Step 3's own taxonomy, not
-actionable — Ambiguous means the diff can't decide the question either
-way, and Problematic comment means the reviewer's concern is itself
-wrong or conflicts with a documented decision. Auto-driving either into a
-code change just to reach green risks an unnecessary or actively harmful
-edit made to satisfy an invalid or undecidable comment. A thread in
-either bucket, even if outdated and Step-4-invisible, keeps the normal
-hard stop — surface it to the human at the next confirm gate exactly as
-`/lrh-confirm-fixes` already does for these buckets, and let them decide
-the dismissal/resolution rationale explicitly.
-
-Every other not-green reason (CI failing, review still pending, or any
-thread Step 4's normal loop already had a chance to catch and either
-missed or only partially fixed) is also still a hard stop-and-report —
-this exception exists only because Step 4's own tooling structurally
-cannot see this specific class of thread, not as a general license to
-keep iterating past a not-green verdict.
+gate with a failing confirm-fixes pass. This includes a not-green verdict
+caused by a newly-surfaced outdated thread Step 4 couldn't see (per the
+note above) — it is not a special case; the human decides how to resolve
+it, including whether to address it manually outside this automated loop
+before re-running from Step 4.
 
 **Re-run REVIEW-LANDED after confirm-fixes completes.** The inline
 confirm-fixes workflow creates and pushes a `_CONFIRM` execution record commit

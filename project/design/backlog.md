@@ -32,22 +32,64 @@ re-deriving its own narrower list — so `/lrh-land` Step 4 can handle this
 case mechanically instead of requiring a documented manual workaround.
 
 **Status:** Deferred. `/lrh-land` Step 4's `SKILL.md` text now documents
-the manual workaround and cites this entry rather than claiming automatic
-looping works. This is a real gap in `lrh request review_response`'s own
-filtering, not just prose — fixing it means touching
-`src/lrh/integrations/github/formatters.py` and
+that a not-green Step 5 verdict caused by this case is a plain hard stop
+(no special-cased recovery path), the same as any other not-green
+verdict — the human decides how to proceed. This is a real gap in
+`lrh request review_response`'s own filtering, not just prose — fixing it
+means touching `src/lrh/integrations/github/formatters.py` and
 `src/lrh/assist/request_service.py` plus new test coverage, out of scope
-for the docs-only PR that surfaced it. Revisit if this case is hit again
-in practice (an outdated thread that needs a real fix, not just
-resolution) and the manual workaround proves too easy to skip.
+for the docs-only PR that surfaced it.
+
+An earlier revision of this PR tried to solve the recovery path in prose
+instead — a `/lrh-land` Step 5 exception letting the operator fix the
+diff by hand and loop back without a hard stop. Seven Codex/Copilot
+review rounds against that exception (2026-08-01) each found a genuine,
+distinct problem with it, none of them noise:
+
+- It could silently override the human's own Step-2-approved stop-work
+  condition for the run (e.g. "any reviewer finding") — a P1 finding,
+  since the exception declared itself "not a hard stop" without checking
+  what the human had already asked to halt on.
+- It lumped Ambiguous and Problematic-comment buckets in with the
+  actionable ones, when `/lrh-confirm-fixes` Step 3's own taxonomy
+  treats those two as non-actionable and reviewer-comment-may-be-wrong,
+  respectively — auto-driving a code change to satisfy either risked an
+  unnecessary or harmful edit.
+- It didn't allow `/lrh-review-response`'s own feasibility check to
+  reject the fix as inappropriate for the change.
+- It told the operator to run `/lrh-review-response`'s "full protocol"
+  for safeguards (confirm gate, validation, execution record), but that
+  protocol's own Step 2 exits immediately on `Nothing to resolve:` for
+  exactly this thread class — so following it literally would stop
+  before ever reaching the safeguards the exception said to preserve.
+- It required carrying `rerun_of` and treating a same-run invocation as
+  implicitly pre-authorized against `/lrh-review-response` Step 3's own
+  idempotence gate, which the exception's first draft didn't address.
+
+Each fix was individually correct and narrowly scoped, but the pattern —
+a mechanism needing a sixth and seventh patch, each surfacing a new edge
+case — is itself the signal: this needs a proper design pass (explicit
+governance-check ordering, taxonomy scoping, protocol integration) rather
+than incremental prose patches under review pressure. The exception was
+reverted rather than patched an eighth time; a future implementation of
+this idea should design the full recovery path (not just the
+`lrh request review_response` fetch gap above) before it reaches
+`/lrh-land`'s `SKILL.md` again — ideally via `/lrh-design` given the
+number of interacting constraints (stop-work-condition governance,
+confirm-fixes' taxonomy, review-response's own gates) a purely prose fix
+kept failing to get right in one pass.
 
 **Related:**
-`src/lrh/skills/lrh-land/SKILL.md` (Step 4);
+`src/lrh/skills/lrh-land/SKILL.md` (Step 4/Step 5);
 `src/lrh/skills/lrh-review-response/SKILL.md`;
-`src/lrh/skills/lrh-confirm-fixes/SKILL.md` (Step 5's "offer
-`/lrh-review-response`" note);
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md` (Step 3 taxonomy, Step 5's
+"offer `/lrh-review-response`" note);
 `src/lrh/integrations/github/formatters.py` (`_matches_state`);
-`src/lrh/assist/request_service.py` (`review_response` template branch).
+`src/lrh/assist/request_service.py` (`review_response` template branch);
+PR #453 review threads `PRRT_kwDOR7l1D86Vl6Hq` (P1, stop-work condition),
+`PRRT_kwDOR7l1D86Vl6Hs` (feasibility rejection), and the suppressed
+Copilot comment on `src/lrh/skills/lrh-land/SKILL.md:188` (Step 2
+short-circuit).
 
 ---
 

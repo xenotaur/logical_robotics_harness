@@ -193,10 +193,48 @@ this counts as the explicit rerun `/lrh-review-response` Step 3 requires
 (covered by this run's own Step 2 chain authorization) and to carry
 `rerun_of` forward per Step 3's matched-record precedence.
 
+**REVIEW-LANDED retrigger, batch 7 (Step 8):** Pushed `e4d02e8`; CI
+settled green (round-cap `completed_count` 6→7 of ceiling 10). Codex
+came back with boilerplate only (no formal comment this round) but
+Copilot's suppressed comments included another valid finding: the
+"route through the full protocol" instruction doesn't account for
+`/lrh-review-response` Step 2 exiting immediately on `Nothing to
+resolve:` for exactly this thread class, so following the instruction
+literally would stop before reaching any of the safeguards it named.
+Two more formal threads appeared, one **P1**: `PRRT_kwDOR7l1D86Vl6Hq`
+— the exception declared itself "not a hard stop" without checking
+whether the finding itself matched the human's own Step-2-approved
+stop-work condition for this run (this run's condition was "any failing
+check or reviewer finding," which a reviewer finding satisfies by
+definition) — and `PRRT_kwDOR7l1D86Vl6Hs` (P2) — the exception didn't
+allow `/lrh-review-response`'s own feasibility check to reject an
+infeasible fix.
+
+**Stopped and asked the human rather than patching an eighth time.**
+Nine findings across seven rounds had all centered on one exception
+clause, with each fix revealing a new edge case rather than converging —
+exactly the pattern where the mechanism's shape is wrong, not where one
+more patch finishes it. Presented the choice explicitly; the human chose
+to **remove the exception and defer to backlog** rather than a further
+consolidated fix. Reverted `/lrh-land` Step 5 to its original plain
+rule (any not-green verdict is a hard stop, no special case) and
+simplified Step 4's note accordingly. Expanded the existing
+`project/design/backlog.md` entry with the full list of problems this
+attempt surfaced, so a future implementation designs the whole recovery
+path (not just the underlying `lrh request review_response` fetch gap)
+before it reaches `SKILL.md` again — recommended via `/lrh-design` given
+how many interacting constraints (stop-work governance, taxonomy
+scoping, protocol integration) a prose-only pass kept getting wrong one
+piece at a time.
+
+Resolved both formal threads (`PRRT_kwDOR7l1D86Vl6Hq`,
+`PRRT_kwDOR7l1D86Vl6Hs`) as satisfied-by-removal: the text they flagged
+no longer exists.
+
 # Validation
 
 lrh github threads --mode raw --state all — verified before/after each
-resolveReviewThread call across all 6 batches
+resolveReviewThread call across all 7 batches
 gh pr checks --required — "no required checks reported" at every check;
 confirmed via `gh api repos/.../branches/main/protection` (404 Branch not
 protected) this is a real repo-config fact; fell back to unfiltered
@@ -207,9 +245,14 @@ is_outdated`, verifying Codex's first P2 finding before triaging it
 
 # Follow-up
 
-- Retrigger both reviewers on the batch-7 fix (same-run-rerun
-  authorization paragraph + backlog wording correction) once pushed,
-  resolve `PRRT_kwDOR7l1D86Vl4MF` after verifying the diff satisfies it,
-  and re-run REVIEW-LANDED once more before the final verdict.
+- Retrigger both reviewers on the batch-8 fix (Step 5 exception
+  reverted, Step 4 simplified, backlog entry expanded) once pushed,
+  resolve `PRRT_kwDOR7l1D86Vl6Hq` and `PRRT_kwDOR7l1D86Vl6Hs` once
+  removal is confirmed, and re-run REVIEW-LANDED once more before the
+  final verdict.
+- A future implementation of the outdated-thread recovery path should
+  go through `/lrh-design` rather than more inline `SKILL.md` prose —
+  see the expanded `project/design/backlog.md` entry for the full list
+  of constraints a prose-only pass kept getting wrong one at a time.
 - No primary implementation record exists for this PR (backfill path);
   `/lrh-land` Step 7 will author the backfill record.

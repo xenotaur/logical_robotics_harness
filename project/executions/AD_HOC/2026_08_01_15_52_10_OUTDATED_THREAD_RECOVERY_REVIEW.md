@@ -2,7 +2,7 @@
 execution_id: 2026_08_01_15_52_10_OUTDATED_THREAD_RECOVERY_REVIEW
 prompt_id: PROMPT(AD_HOC:OUTDATED_THREAD_RECOVERY_REVIEW)[2026-08-01T15:51:23-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_01_12_28_08_OUTDATED_THREAD_RECOVERY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/457
 commit: 50ab976ca66e1d773a8de4f6d318301d7da7b8b8

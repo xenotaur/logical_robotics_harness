@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 87b30ca
+commit: 906613a
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -201,7 +201,34 @@ significant:
   detects genuine staleness, not just branch-naming mismatches).
 - Pushed as commit `48d7893`.
 
+**Round 8** — retriggered against `60901f4`, again reading full thread
+content. 2 new threads, both confirmed valid, both P1/P2 refinements of
+round 7's own fixes:
+- P1 "Pin refreshes to the merged main tree" — **confirmed valid, a real
+  gap in round 7's own ancestry check**: `git merge-base --is-ancestor
+  origin/main HEAD` accepts *every* descendant of `origin/main`,
+  including one with an additional never-merged commit that further
+  edits a touched skill — `install_named_skills` would then install
+  those unmerged bytes while reporting `refreshed`. Replaced with a
+  direct tree-hash comparison, `git rev-parse HEAD:src/lrh/skills` ==
+  `git rev-parse origin/main:src/lrh/skills` (smoke tested live: this
+  session's own checkout, which has committed changes to
+  `src/lrh/skills` not yet on `origin/main`, correctly produces two
+  *different* hashes) — precise in both directions, still accepts the
+  `tmp-<slug>` workaround since closeout's own commits never touch
+  `src/lrh/skills/` itself.
+- P2 "Fetch the recorded base object before reading its tree" —
+  **confirmed valid**: having `<baseRefOid>` as a string from PR
+  metadata doesn't guarantee that commit object is present locally,
+  particularly in a shallow clone where `git fetch origin main` only
+  fetches `main`'s shallow tip. Added an explicit
+  `git cat-file -e <baseRefOid> || git fetch origin <baseRefOid>` guard
+  (with an `--unshallow`/`--deepen` fallback) before the `git ls-tree
+  <baseRefOid>:...` read, treated as the same anomaly-and-skip pattern
+  as other fetch failures if the object still can't be made available.
+- Pushed as commit `906613a`.
+
 # Follow-up
 
-- Next: retrigger both reviewers against `48d7893`, again re-reading
+- Next: retrigger both reviewers against `906613a`, again re-reading
   full thread content, not just review-body summaries or counts.

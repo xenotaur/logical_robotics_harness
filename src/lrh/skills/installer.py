@@ -6,7 +6,7 @@ import difflib
 import importlib.resources
 import importlib.resources.abc
 import shutil
-from collections.abc import Sequence
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -229,7 +229,7 @@ def install_skills(
 
 
 def install_named_skills(
-    skill_names: Sequence[str], skills_dir: Path | None = None
+    skill_names: Iterable[str], skills_dir: Path | None = None
 ) -> list[TargetedRefreshResult]:
     """Force-install exactly the given skill names, bypassing `USER_MODIFIED`.
 
@@ -242,18 +242,20 @@ def install_named_skills(
     installed directory for that name, since `_copy_skill` would otherwise
     `rmtree` the destination before discovering there is no package source
     to copy from.
+
+    `skill_names` accepts any iterable, including a one-shot one (e.g. a
+    generator) — it is consumed exactly once, immediately, into a list.
     """
     if isinstance(skill_names, str):
         raise TypeError(
-            "skill_names must be a sequence of skill name strings, not a"
-            " single string (a bare string is itself a Sequence[str] and"
+            "skill_names must be an iterable of skill name strings, not a"
+            " single string (a bare string is itself Iterable[str] and"
             " would otherwise be iterated character by character)"
         )
-    # Materialize once: skill_names is iterated twice below (the
-    # intersection check, then the main loop), and a caller passing a
-    # one-shot iterable (e.g. a generator) that satisfies the type hint's
-    # spirit but not the actual Sequence protocol would otherwise have it
-    # silently consumed by the first pass.
+    # Materialize once: this is used twice below (the intersection check,
+    # then the main loop), and skill_names may be a one-shot iterable
+    # (e.g. a generator) that would otherwise be silently consumed by the
+    # first pass.
     names = list(skill_names)
     target = skills_dir if skills_dir is not None else _DEFAULT_SKILLS_DIR
     valid_names = set(_skill_names())

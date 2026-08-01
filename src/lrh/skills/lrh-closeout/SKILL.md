@@ -189,14 +189,20 @@ git rev-parse HEAD
 git rev-parse origin/main
 ```
 
-If they don't match, get current first (`git checkout main && git pull`,
-or the `/lrh-land` main-worktree-lock workaround if `main` is locked in
-another worktree) before proceeding. If neither is possible in this
-session, treat the skill-refresh assessment as unable to proceed — report
-that explicitly and skip *this* item, the same as the fetch-failure case
-below, rather than silently computing "current" membership against a
-stale checkout and risking `install_named_skills` reporting `refreshed`
-while actually writing pre-merge bytes.
+**If `git fetch` itself fails** (offline, auth, rate-limit, or any other
+error) — do not proceed as if it had succeeded, and do not fall back to
+comparing against a possibly-stale local `origin/main` ref. Treat this
+exactly like the file-list-fetch-failure case below: report an explicit
+anomaly and skip *this* item.
+
+**If the fetch succeeds but `HEAD` and `origin/main` don't match**, get
+current first (`git checkout main && git pull`, or the `/lrh-land`
+main-worktree-lock workaround if `main` is locked in another worktree)
+before proceeding. If neither is possible in this session, treat the
+skill-refresh assessment as unable to proceed — report that explicitly
+and skip *this* item, rather than silently computing "current"
+membership against a stale checkout and risking `install_named_skills`
+reporting `refreshed` while actually writing pre-merge bytes.
 
 Partition the candidate names by membership in `_skill_names()` at
 **both** the PR's base revision and current `main` — not current alone:

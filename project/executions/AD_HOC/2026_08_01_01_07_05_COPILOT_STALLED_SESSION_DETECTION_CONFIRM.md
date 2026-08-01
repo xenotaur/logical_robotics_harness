@@ -9,7 +9,7 @@ commit:
 created_at: 2026-08-01T01:07:05+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/452
-session_transcript: claude-app:local_23a15fdd-6d6c-4d84-a7be-960a54769157
+session_transcript: claude-app:23a15fdd-6d6c-4d84-a7be-960a54769157
 ---
 
 # Summary
@@ -74,9 +74,12 @@ non-thread findings.
 
 This is retrigger round 2 for this PR (round 1: the initial `_REVIEW`
 push). Both rounds are within the round-cap gate's default ceiling of 3 —
-not tracked via the full `lrh-round-state` branch mechanism (a single-PR,
-two-round case doesn't warrant standing up that infrastructure; noted
-here for the CHAIN-NOTE's `cycles` accounting instead).
+not yet tracked via the full `lrh-round-state` branch mechanism at this
+point in the run (see the later correction below — round 8's Codex review
+found actual inline threads this record's own monitoring missed, and
+that same pass discovered a live concurrent session already using
+`lrh-round-state` for real on two other open PRs, at which point this PR
+was backfilled onto it too).
 
 # Validation
 
@@ -119,10 +122,19 @@ wording — updated to match. Both fixed, replied to on the PR
 at the default ceiling of 3 — pushing the round-3 fixes would start a
 4th batch. Presented the three-way gate to the human (`completed_count=3,
 ceiling=3`, one-line findings summary above); **authorized new
-ceiling → 10.** Not tracked via the full `lrh-round-state` branch
-mechanism — a single-PR case doesn't warrant standing up that
-infrastructure; the round count is tracked here for the CHAIN-NOTE's
-`cycles` accounting instead.
+ceiling → 10.** At this point in the run, not yet tracked via the full
+`lrh-round-state` branch mechanism — mistakenly reasoned as unnecessary
+for a single-PR case; the round count was instead tracked only in this
+markdown record. **This reasoning was wrong** — an automated reviewer
+(Codex, round 8, thread `PRRT_kwDOR7l1D86VlgVj`, P1) correctly flagged
+that a fresh session resuming this chain would re-initialize at
+`completed_count=0, ceiling=3` from this file alone, since
+`round-cap-gate.md` itself forbids reconstructing round state from a
+post-hoc record. Backfilled onto `lrh-round-state` for real once found
+(see the round 8 entry below) — discovering, in the process, that the
+branch already had live entries for two other open PRs from a concurrent
+session, confirming the mechanism genuinely works under real concurrent
+use, not just in the worked-through design in `round-cap-gate.md`.
 
 **Round 4 retrigger result, on `cc76f67`** (the round-3 fixes + this
 record update, pushed together in one commit this time): CI green (5/5).
@@ -220,6 +232,79 @@ top of `33e66ca`** — pushed together as one commit, this record's true
 final round (round 8): retrigger, wait for a clean pass on that exact new
 `HEAD`, and present the merge command only then, with no further edits
 after that push. See the final verdict below.
+
+**Round 8 retrigger result, on `0c58868`: a real process error, caught by
+Codex, not by this record's own monitoring.** CI green (5/5), Codex clean
+pass (review body), Copilot clean pass (review body, re-surfacing only
+the 2 already-deferred items from round 7 — expected, since Copilot
+re-scans the cumulative diff each round and these were deliberately left
+unfixed). But a post-round check of `lrh github threads` — run only
+because the human asked for round 9+ before merging, not as a standing
+practice this record had been following — found **7 unresolved inline
+review threads from Codex**, accumulated silently across rounds 4–8. This
+record's own round-by-round monitoring (rounds 4–8) only polled `.reviews[]`
+and `.comments[]` for each round's *response*, never re-polled
+`lrh github threads` for new *inline* threads distinct from those
+response bodies — a real gap against `SKILL.md` Step 8.2's own
+instruction to poll for "a new inline thread whose body cites the current
+SHA," not just reviews and comments. All 7 read and triaged:
+
+1. **P1 (`PRRT_...VlgVj`) — persist the authorized round count.** Real
+   and correctly caught: `completed_count`/`ceiling` had only ever been
+   tracked in this markdown record, contradicting `round-cap-gate.md`'s
+   own explicit rule that a fresh session must not reconstruct round
+   state from a post-hoc record. **Fixed for real**, not just
+   documented: backfilled `project/executions/round_state/xenotaur-logical_robotics_harness-pr452.json`
+   (`ceiling: 10, completed_count: 8, pending_attempt: null`) onto the
+   live `lrh-round-state` branch via the documented worktree procedure
+   — discovering in the process that the branch already carries live
+   state for two other open PRs (`#453`, `#454`) from a concurrent
+   session, confirming the mechanism works under genuine concurrent use.
+2. **P2 (`PRRT_...Vkede`) — product-mismatch dispute, reopened.**
+   Investigated rigorously, not dismissed: re-fetched `xenotaur/LCATS#202`'s
+   full timeline directly (not from memory) and confirmed, with exact
+   timestamps, that both Copilot products emit `copilot_work_*` events —
+   comment-triggered coding-agent instances at `19:57:47`, `20:09:15`,
+   `20:41:21`, `23:14:24`, `23:50:48`; and **two** review-request-triggered
+   code-review instances, `19:06:30` (25s after its `review_requested`)
+   and `22:29:57` (34s after its `review_requested` — the actual stalled
+   incident this whole feature is about). Also found and fixed a real
+   bug Codex's finding pointed at: the section previously *required*
+   both the check-run and a correlated timeline event (an AND) before
+   calling anything "stalled" — backwards for a fail-safe design, since
+   the timeline correlation is the fragile signal. Redesigned: check-run
+   alone is now the sufficient, primary signal; the timeline event is
+   optional corroboration only, never a gate on the verdict.
+3. **P2 (`PRRT_...Vkoef`) and P2 (`PRRT_...VlcVw`) — pagination,
+   re-flagged with more specificity.** Cited this repo's own established
+   `--paginate --slurp` pattern (`src/lrh/integrations/github/pull_reviews.py:164-173`)
+   as precedent I should have followed instead of the ad hoc two-jq-pass
+   workaround from round 5. Switched both queries to that pattern.
+4. **P2 (`PRRT_...Vld0U`) — same pagination bug, independently
+   confirmed.** Directly cites this repo's own `--paginate --slurp`
+   convention as the fix — same as items 3, folded into the same change.
+5. **P2 (`PRRT_...VlhdI`) — strip `local_` prefix from `session_transcript`.**
+   Real: `project/executions/README.md:65` states the canonical form is
+   `claude-app:<host-uuid-stem>`, "`local_` prefix stripped." All 3
+   execution records this PR created had the un-stripped form. Fixed in
+   all 3.
+6. **P2 (`PRRT_...Vljbj`) — capture the reviewer-request timestamp
+   explicitly.** Real: the prose said "correlate to the nearest event
+   after the retrigger call" but never showed capturing that boundary.
+   Fixed: the timeline query now captures `RETRIGGER_AT` via `date -u`
+   immediately before issuing the reviewer-request, and filters/sorts
+   against it directly in the `jq` pipeline. (Now optional corroboration
+   per item 2's redesign, not load-bearing, but still specified
+   precisely per this finding.)
+
+Also fixed while re-verifying item 2: this record's own `instruction_source`
+and Result text had mislabeled the LCATS#202 incident as a "coding-agent
+session" — it was actually the **code-review** product (the one Step 8
+retriggers); the coding-agent evidence in that same PR is real but from
+different, earlier timeline entries. Corrected.
+
+Round 8 completed_count is now 8 — round-state now real, on
+`lrh-round-state`, not just this record's own prose.
 
 # Follow-up
 

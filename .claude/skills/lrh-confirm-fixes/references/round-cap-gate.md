@@ -76,93 +76,121 @@ a live incident (`xenotaur/LCATS#202`, 2026-07-31): grepping every PR
 comment, issue comment, and timeline event body for "credit" returned
 nothing.
 
-What *is* available is a stall heuristic, built from two REST calls:
+**The check-run alone is sufficient evidence of a stall — it is not one
+half of a required pair.** An earlier version of this section required
+both the check-run *and* a correlated timeline event before calling
+anything "stalled," on the theory that the timeline event corroborates
+the check-run. That is backwards for a decision that must fail safe: the
+timeline correlation below is the fragile signal (shared event vocabulary
+across two products, multi-page, dependent on capturing the right
+timestamp), so *requiring* it as an AND condition means a genuinely
+stalled review check with no correlatable timeline event — a real,
+expected case, not a corner case — gets reported as "no stall detected."
+Use the check-run as the primary, sufficient signal; treat the timeline
+event as optional corroboration that raises confidence when it correlates
+cleanly, never as a gate the check-run's own verdict depends on.
 
-1. **Check-runs on the reviewer's own commit:**
+1. **Check-runs on the reviewer's own commit — primary signal:**
 
    ```bash
-   gh api repos/<owner>/<repo>/commits/<sha>/check-runs --paginate \
-     --jq '.check_runs[] | select(.name=="copilot-pull-request-reviewer")' \
-     | jq -s 'sort_by(.started_at) | last | select(. != null) | {status, conclusion, started_at, completed_at}'
+   gh api repos/<owner>/<repo>/commits/<sha>/check-runs --paginate --slurp \
+     | jq '[.[].check_runs[]] | map(select(.name=="copilot-pull-request-reviewer")) | sort_by(.started_at) | last | select(. != null) | {status, conclusion, started_at, completed_at}'
    ```
 
-   Two `jq` passes, deliberately — `gh api --paginate` runs `--jq` **once
-   per page**, each page a separate JSON object (`gh help api`: "Each page
-   is a separate JSON array or object"), not once against a merged
-   cross-page result. A single-pass `.check_runs | map(...) | sort_by(...)
-   | last` looked correct against this repo's own (single-page, 5-6
-   check-run) commits, but silently breaks on any commit whose check-runs
-   span more than one page: each page would independently compute its own
-   "last," including a spurious `{"status":null,...}` from any page with
-   zero matches, and the true most-recent match could be discarded if it
-   isn't on the last page processed. Streaming `.check_runs[] |
-   select(...)` per page instead (no `map`/`sort_by`/`last` inside
-   `--jq`) emits zero or more matching objects per page, safe under
-   per-page evaluation; the outer `jq -s` (slurp) then collects the full
-   cross-page stream into one array before sorting and selecting the true
-   most recent. `--paginate` matters here: this endpoint's default page
-   size can be smaller than a commit's total check-run count on a
+   `--paginate --slurp` (no `--jq` on the `gh api` call itself), the same
+   pattern this codebase already uses for paginated GitHub reads
+   (`src/lrh/integrations/github/pull_reviews.py:164-173`) — `gh api
+   --paginate` runs a combined `--jq` **once per page**, each page a
+   separate JSON object (`gh help api`: "Each page is a separate JSON
+   array or object"), not once against a merged cross-page result; a
+   single-pass `.check_runs | map(...) | sort_by(...) | last` inside
+   `--jq` looked correct against this repo's own (single-page, 5-6
+   check-run) commits but silently breaks on any commit whose check-runs
+   span more than one page — each page would independently compute its
+   own "last," and the true most-recent match could be discarded if it
+   isn't on the last page processed. `--slurp` instead collects every
+   page into one outer array (`[{...page 1...}, {...page 2...}, ...]`);
+   the downstream `jq` flattens `.[].check_runs[]` across all of them
+   before sorting, so "most recent" is computed over the genuinely
+   complete set. `select(. != null)` after `last` keeps the zero-match
+   case truly empty output, not a misleading `{"status":null,...}`
+   object. `--paginate` matters on its own too: this endpoint's default
+   page size can be smaller than a commit's total check-run count on a
    CI-heavy PR, and an unpaginated call can silently miss the reviewer's
-   own check-run, misreading a real in-progress session as "no check-run"
-   (never invoked). Select the **most recent** matching check-run, not
-   just any — a reviewer retriggered or rerun on this commit can leave
-   multiple check-runs of the same name, and comparing the wrong one's
-   `started_at` against the 15-minute threshold below would misjudge the
-   heuristic. A hosted reviewer session that's actually running shows up
-   here — this only tells you whether a session started this round, not
-   whether the reviewer is configured for this repo at all (that remains
-   unknowable from this signal alone; see the caveat at the end of this
-   section). `status: "in_progress"`,
+   own check-run, misreading a real in-progress session as "no
+   check-run" (never invoked). Select the **most recent** matching
+   check-run, not just any — a reviewer retriggered or rerun on this
+   commit can leave multiple check-runs of the same name, and comparing
+   the wrong one's `started_at` against the 15-minute threshold below
+   would misjudge the heuristic. A hosted reviewer session that's
+   actually running shows up here — this only tells you whether a
+   session started this round, not whether the reviewer is configured
+   for this repo at all (that remains unknowable from this signal alone;
+   see the caveat at the end of this section). `status: "in_progress"`,
    `conclusion: null`, `completed_at: null` held past a reasonable wait —
    reuse `STALE_AGE_SECONDS` (15 minutes, "Round-state branch mechanics"
    below) as the threshold, since that is this skill's own existing
    "reasonable wait" constant — means the session started and never
-   reached a terminal state. (Substitute the check-run `name` this
-   repository's reviewer actually reports if not GitHub Copilot code
-   review's default; per GitHub's webhook documentation, `check_run`
-   events fire only on `created`/`rerequested`/`completed`/
-   `requested_action` — there is no periodic "still in progress" event, so
-   this must be polled, not subscribed to.)
+   reached a terminal state. This alone is enough to report "stalled."
+   (Substitute the check-run `name` this repository's reviewer actually
+   reports if not GitHub Copilot code review's default; per GitHub's
+   webhook documentation, `check_run` events fire only on
+   `created`/`rerequested`/`completed`/`requested_action` — there is no
+   periodic "still in progress" event, so this must be polled, not
+   subscribed to.)
 
-2. **Issue timeline, for corroboration:**
+2. **Issue timeline, for optional corroboration — capture the retrigger
+   timestamp first:**
 
    ```bash
-   gh api repos/<owner>/<repo>/issues/<pr-number>/timeline --paginate \
-     --jq '.[] | select(.event | startswith("copilot_work"))'
+   RETRIGGER_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+   gh pr edit <pr-url> --add-reviewer @copilot
+   gh api repos/<owner>/<repo>/issues/<pr-number>/timeline --paginate --slurp \
+     | jq --arg since "$RETRIGGER_AT" \
+       '[.[][] | select(.event | startswith("copilot_work")) | select(.created_at >= $since)] | sort_by(.created_at) | first'
    ```
 
-   `--paginate` matters here too: an active PR's timeline can exceed one
-   page, and an unpaginated call can miss the corroborating
-   `copilot_work_*` event on a PR with a long history, producing a false
-   negative for this signal.
+   Capture `RETRIGGER_AT` **immediately before** issuing the reviewer
+   request — without a recorded boundary, "the nearest event after the
+   retrigger" has nothing to be nearest *to*, and an agent following this
+   section could correlate an unrelated, earlier `copilot_work_*` event
+   instead (a real gap in an earlier revision of this section, caught in
+   review). `--paginate --slurp` here too: an active PR's timeline can
+   exceed one page, and an unpaginated call can miss the corroborating
+   event on a PR with a long history; each page is itself a bare JSON
+   array for this endpoint (not object-wrapped like check-runs), so
+   `.[][]` flattens the slurped array-of-pages directly.
 
    `copilot_work_started`/`copilot_work_finished`/
    `copilot_work_finished_failure` are emitted for **both** Copilot
-   products — the code-review bot this step retriggers via
-   `gh pr edit --add-reviewer @copilot`, and the separate coding agent
-   invoked by a bare `@copilot` comment mention elsewhere on the same PR
-   (`SKILL.md` Step 8, "Do not retrigger Copilot with a plain `@copilot`
-   PR comment"). Event *type* alone cannot tell these apart — matching any
-   `copilot_work_started` event on the PR can false-corroborate an
-   unrelated coding-agent invocation, or miss a genuinely stalled
-   code-review request that has no coding-agent event at all. Only trust
-   the `copilot_work_started` event that is the nearest one **after** this
-   step's own `gh pr edit --add-reviewer @copilot` call by timestamp — not
-   any such event found anywhere in the timeline. The check-run (1, above)
-   remains the primary signal; this timeline event corroborates it only
-   when correctly correlated this way.
+   products — verified from two distinct sources within the same
+   incident (`xenotaur/LCATS#202`, 2026-07-31), not inferred: the
+   **coding agent**, invoked earlier in that PR's timeline by bare
+   `@copilot` comment mentions (`SKILL.md` Step 8, "Do not retrigger
+   Copilot with a plain `@copilot` PR comment" — the root-caused trigger
+   for unwanted commits, a prior incident in this project), fired
+   `copilot_work_started` at each such mention; and the **code-review**
+   bot this step actually retriggers (`gh pr edit --add-reviewer
+   @copilot`) fired its own `copilot_work_started` ~34 seconds after a
+   `review_requested` timeline event from the same retrigger action.
+   Event *type* alone cannot tell the two products apart — matching any
+   `copilot_work_started` event on the PR, rather than the one filtered
+   to after `RETRIGGER_AT` above, can false-corroborate an unrelated
+   coding-agent invocation elsewhere on the same PR. Because this signal
+   is corroboration only (per the opening of this section, not a gate on
+   the check-run's own verdict), a missed or misattributed timeline event
+   downgrades confidence, never flips a real stall to "not stalled."
 
-Both signals together (started, no terminal event, past the threshold)
-indicate a **stalled** session — distinct from **never invoked**, which
-shows no check-run for that reviewer at all and no correlated
-`copilot_work_started` event since the retrigger. Neither signal, alone or
-combined, identifies *why* the session stalled — credit exhaustion is the
-observed cause in the verified incident above, but a platform outage or an
-unrelated internal error would
-look identical from the API side. Surface it to the human as "stalled,
-cause unknown, credit exhaustion is one known cause," never as a confirmed
-diagnosis: this is a heuristic, not a diagnostic. Symmetrically, do not
-treat the *absence* of a stall signal as proof the reviewer is simply
+**Never invoked** (as distinct from stalled) is the check-run's own
+zero-match case: no check-run for that reviewer at all since the
+retrigger. Neither the check-run nor the timeline event identifies *why*
+a stall happened — credit exhaustion is the observed cause in the
+verified incident above, but a platform outage or an unrelated internal
+error would look identical from the API side. Surface it to the human as
+"stalled, cause unknown, credit exhaustion is one known cause," never as
+a confirmed diagnosis: this is a heuristic, not a diagnostic.
+Symmetrically, do not treat the *absence* of a stall signal as proof the
+reviewer is simply
 unconfigured — Step 8's existing rule against inferring configuration
 state from silence (`SKILL.md`, Step 8, "Do not infer 'no automated
 reviewer is configured' from silence either") still applies unchanged.

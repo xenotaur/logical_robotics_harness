@@ -8,8 +8,8 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/452
 commit: 
 created_at: 2026-08-01T00:13:37+00:00
 agent: claude_app
-instruction_source: ad_hoc conversation — user reported a GitHub Copilot coding-agent session on an external PR (xenotaur/LCATS#202) stopping with "you've run out of your included AI credits for the month," asked whether this is API-detectable, then asked for options to signal the condition to a human or agent so a fallback (top up credits, or a self-review fallback under separate development) can be chosen
-session_transcript: claude-app:local_23a15fdd-6d6c-4d84-a7be-960a54769157
+instruction_source: ad_hoc conversation — user reported a GitHub Copilot code-review session on an external PR (xenotaur/LCATS#202) stopping with "you've run out of your included AI credits for the month," asked whether this is API-detectable, then asked for options to signal the condition to a human or agent so a fallback (top up credits, or a self-review fallback under separate development) can be chosen
+session_transcript: claude-app:23a15fdd-6d6c-4d84-a7be-960a54769157
 ---
 
 # Summary
@@ -30,10 +30,18 @@ grepped every PR comment, issue comment, and timeline event body for
 exposed on any REST-accessible surface; it renders only in the GitHub web
 UI's Copilot session panel. What *is* detectable: the issue Timeline API
 (`copilot_work_started` with no later `copilot_work_finished`/
-`_finished_failure`) and the `copilot-pull-request-reviewer` check-run on
-the head commit, stuck `status: in_progress`, `conclusion: null`,
-`completed_at: null`. Confirmed via `gh api .../check-runs` and
-`gh api .../timeline` directly against the PR. Also confirmed against
+`copilot_work_finished_failure`) and the `copilot-pull-request-reviewer`
+check-run on the head commit, stuck `status: in_progress`,
+`conclusion: null`, `completed_at: null`. Confirmed via
+`gh api .../check-runs` and `gh api .../timeline` directly against the
+PR — the `review_requested` timeline event (from `xenotaur`'s reviewer
+request) preceded this incident's `copilot_work_started` by ~34 seconds,
+confirming this was a **code-review** session (the product this repo's
+`SKILL.md` Step 8 retriggers via `gh pr edit --add-reviewer @copilot`),
+not the separate coding agent (triggered by a bare `@copilot` comment
+mention — that PR's own earlier timeline entries, from before this
+incident, show that pattern too, giving direct evidence for both
+products emitting this same event vocabulary). Also confirmed against
 GitHub's own webhook docs that `check_run` only fires
 `created`/`rerequested`/`completed`/`requested_action` — no periodic
 "still in progress" event — so this condition can only be polled, never

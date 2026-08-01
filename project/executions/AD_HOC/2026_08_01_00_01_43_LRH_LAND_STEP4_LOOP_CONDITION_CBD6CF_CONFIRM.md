@@ -145,10 +145,37 @@ Partial, and Problematic resolution only; Ambiguous and Problematic
 comment keep the normal hard stop and get surfaced to the human at the
 next confirm gate, same as `/lrh-confirm-fixes` already does for them.
 
+**REVIEW-LANDED retrigger, batch 5 (Step 8):** Pushed `dca2b20`; CI
+settled green. Retriggered both reviewers (round-cap `completed_count`
+4→5 of ceiling 10). Codex found a fifth genuine issue (thread
+`PRRT_kwDOR7l1D86VlzDt`, P2): the manual-carry procedure only imported
+`/lrh-review-response`'s triage checks (presence/validity/feasibility),
+silently dropping its Step 4 confirm gate, Step 5 canonical validation,
+and Step 7 execution record — a meaningful diff fix could reach the PR
+without any of the normal safeguards or traceability. Classified as
+valid and in-scope (a real safety/traceability gap in this PR's own
+manual-carry text, citing `AGENTS.md:L107-L109`): rewrote the procedure
+to route through review-response's full protocol, not just its triage
+checks. Also applied Copilot's suppressed clarity comment on the same
+commit: pointed Step 5's unconditional "stop and report" sentence at the
+exception immediately below it.
+
+**Five review rounds have now progressively hardened one sub-mechanism
+(the outdated-thread manual-carry path) that this PR did not set out to
+build** — it emerged from Codex's first finding on this PR's own Step 4
+rewrite and has grown through rounds 2-5 into its own recovery procedure
+with taxonomy scoping and safeguard preservation. Each finding so far has
+been genuinely valid, not noise, so each was fixed rather than deferred.
+Flagging this pattern explicitly for the human at the next report rather
+than silently continuing to iterate — per this project's own
+"defer narrow, tangential-mechanism refinements after diminishing
+returns" practice — in case a 6th round should be deferred to
+`project/design/backlog.md` instead of fixed inline.
+
 # Validation
 
 lrh github threads --mode raw --state all — verified before/after each
-resolveReviewThread call across all 3 batches
+resolveReviewThread call across all 5 batches
 gh pr checks --required — "no required checks reported" at every check;
 confirmed via `gh api repos/.../branches/main/protection` (404 Branch not
 protected) this is a real repo-config fact; fell back to unfiltered
@@ -159,9 +186,13 @@ is_outdated`, verifying Codex's first P2 finding before triaging it
 
 # Follow-up
 
-- Retrigger both reviewers on the batch-5 fix (Step 5 exception scope
-  narrowing + filename-collision wording) once pushed, resolve
-  `PRRT_kwDOR7l1D86VlwUS` after verifying the diff satisfies it, and
+- Retrigger both reviewers on the batch-6 fix (manual-carry protocol
+  fix + Step 5 clarity wording) once pushed, resolve
+  `PRRT_kwDOR7l1D86VlzDt` after verifying the diff satisfies it, and
   re-run REVIEW-LANDED once more before the final verdict.
+- Ask the human whether to keep iterating on the outdated-thread
+  manual-carry mechanism if a 6th genuine finding appears, or defer
+  further refinement of that sub-mechanism to
+  `project/design/backlog.md`.
 - No primary implementation record exists for this PR (backfill path);
   `/lrh-land` Step 7 will author the backfill record.

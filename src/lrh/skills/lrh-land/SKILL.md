@@ -181,12 +181,15 @@ call expecting it to pick that thread up** — its unresolved filter
 excludes outdated threads for exactly the same reason it missed the
 thread the first time; calling it again returns the same incomplete
 list and cannot progress. Instead, carry the thread's content directly
-from Step 5's classification into the review-response triage protocol
-(presence/validity/feasibility checks from `/lrh-review-response/SKILL.md`
-Step 5) by hand, fix it, push, and return to Step 5 to re-verify and
-resolve the thread. Giving `lrh request review_response` a way to include
-specific outdated-but-unresolved threads so Step 4 can handle this
-mechanically is tracked as a backlog item rather than solved here — see
+into `/lrh-review-response/SKILL.md`'s full protocol by hand — not just
+its triage checks (presence/validity/feasibility) — since skipping the
+rest of that protocol drops its safeguards: run its Step 4 confirm gate,
+its Step 5 canonical validation before pushing, and its Step 7 execution
+record for traceability, the same as any other review-response round.
+Then return to the top of this Step 5 to re-verify and resolve the
+thread. Giving `lrh request review_response` a way to include specific
+outdated-but-unresolved threads so Step 4 can handle this mechanically is
+tracked as a backlog item rather than solved here — see
 `project/design/backlog.md`.
 
 ### Step 5 — Confirm-fixes
@@ -196,7 +199,8 @@ Execute the confirm-fixes workflow inline (Phase 1: read
 Report the merge-readiness verdict.
 
 If the verdict is **not green**, stop and report — do not proceed to the merge
-gate with a failing confirm-fixes pass.
+gate with a failing confirm-fixes pass, **except for the one narrow case
+below.**
 
 **Exception — a newly-surfaced outdated thread needing a real fix, not
 just resolution.** If, and only if, the not-green verdict is specifically

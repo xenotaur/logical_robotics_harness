@@ -147,6 +147,18 @@ class TestInstallNamedSkills(unittest.TestCase):
         with self.assertRaises(TypeError):
             installer.install_named_skills("lrh-closeout", skills_dir=skills_dir)
 
+    def test_one_shot_iterable_is_not_silently_consumed(self) -> None:
+        skills_dir = self._make_skills_dir()
+        skill_name = installer._skill_names()[0]
+
+        results = installer.install_named_skills(
+            (name for name in [skill_name]), skills_dir=skills_dir
+        )
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].status, installer.RefreshStatus.REFRESHED)
+        self.assertTrue((skills_dir / skill_name / "SKILL.md").exists())
+
 
 class TestDiffSkill(unittest.TestCase):
     def _make_skills_dir(self) -> Path:

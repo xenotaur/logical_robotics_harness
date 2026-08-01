@@ -249,12 +249,17 @@ def install_named_skills(
             " single string (a bare string is itself a Sequence[str] and"
             " would otherwise be iterated character by character)"
         )
+    # Materialize once: skill_names is iterated twice below (the
+    # intersection check, then the main loop), and a caller passing a
+    # one-shot iterable that merely duck-types as Sequence[str] would
+    # otherwise have it silently consumed by the first pass.
+    names = list(skill_names)
     target = skills_dir if skills_dir is not None else _DEFAULT_SKILLS_DIR
     valid_names = set(_skill_names())
     results: list[TargetedRefreshResult] = []
-    if valid_names.intersection(skill_names):
+    if valid_names.intersection(names):
         target.mkdir(parents=True, exist_ok=True)
-    for name in skill_names:
+    for name in names:
         if name not in valid_names:
             results.append(
                 TargetedRefreshResult(name=name, status=RefreshStatus.ABSENT)

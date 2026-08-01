@@ -6,8 +6,9 @@ description: >
   skill assesses all artifact states, resolves the session transcript, presents
   a full closeout plan at a human gate, executes confirmed actions (landing
   execution records via lrh prompt update-execution, resolving work items,
-  closing workstreams, adopting proposals), validates, prompts for session
-  reflection, and reports.
+  closing workstreams, adopting proposals, refreshing any global skill
+  install the PR touched), validates, prompts for session reflection, and
+  reports.
 disable-model-invocation: true
 argument-hint: "[pr-url | WI-ID | WS-ID]"
 ---
@@ -143,6 +144,67 @@ Read `related_design:` from the WS file; identify any proposals in
 `project/design/proposals/proposed/`. If the WS would close AND the proposal
 is still in `proposed/` → offer adoption.
 
+**6. Skill refresh (if the PR touched `.claude/skills/` or `src/lrh/skills/`):**
+
+Get the PR's full changed-file list from the **REST** PR Files endpoint —
+`gh api repos/<owner>/<repo>/pulls/<N>/files --paginate` — never
+`gh pr view --json files` (that form resolves through GitHub's GraphQL
+`PullRequestChangedFile` type, which has no `previous_filename` field at
+all, so a renamed file's old path is unrecoverable through it) and never a
+post-merge `git diff` against an inferred parent commit (unreliable across
+squash/rebase merges, which can collapse or rewrite a multi-commit PR's
+history). `--paginate` is required — the endpoint defaults to 30 files per
+page (100 max) and does not return the full list in one call for a larger
+PR.
+
+If the paginated result reaches the endpoint's documented 3,000-file
+ceiling, or the fetch itself fails (auth, rate-limit, network, or any
+non-2xx response): report an explicit anomaly in the plan and skip *this
+assessment item only* — do not silently proceed as if the PR touched no
+skills, and do not fail the rest of closeout over it.
+
+Filter the file list to entries whose `filename` or (when present)
+`previous_filename` starts with `.claude/skills/` or `src/lrh/skills/`.
+For each matching path (old or new), derive a **candidate** skill name
+using a purely structural rule: the immediate subdirectory component
+after the prefix. A path with no subdirectory component (a file directly
+under the prefix, e.g. `src/lrh/skills/installer.py`) yields no
+candidate — this is a path-shape distinction, not a package-membership
+one, so it excludes non-skill files without also excluding a genuinely
+removed or renamed skill directory.
+
+Partition the candidate names by membership in `_skill_names()` at
+**both** the PR's base revision and current `main` — not current alone:
+
+```bash
+PYTHONPATH="$(pwd)/src" python3 -c "from lrh.skills.installer import _skill_names; print('\n'.join(_skill_names()))"
+git ls-tree -d --name-only <baseRefOid>:src/lrh/skills | grep -v '^_'
+```
+
+(`<baseRefOid>` is the PR's base commit before its changes, from the same
+PR API call above or `gh pr view --json baseRefOid`. Use the **colon path
+form** — `<baseRefOid>:src/lrh/skills` — never the space-separated
+pathspec form (`<baseRefOid> -- src/lrh/skills`), which does not list a
+directory's children: it prints only the `src/lrh/skills` tree entry
+itself. The `grep -v '^_'` mirrors `_skill_names()`'s own exclusion of
+underscore-prefixed directories, since the base revision's own code can't
+be imported directly.)
+
+- Present in current → **added/modified**.
+- Present at the base revision, absent from current → **removed/renamed**
+  (an anomaly — no current package source to refresh from).
+- Absent from **both** → not a skill at all (e.g. `_shared`); ignore.
+
+Run the structural filter before this partition, and check both
+revisions, not current alone — reversing either order would misclassify
+a removed skill as never-existed, or an excluded directory like `_shared`
+as removed.
+
+Include the resulting plan — which names, and whether each is
+added/modified (to be refreshed) or removed/renamed (to be reported as an
+anomaly, never auto-uninstalled) — as its own row(s) in the Step 2 plan
+table, surfaced at the Step 4 confirm gate like every other artifact.
+
 Present the full plan as a table:
 
 | Artifact | Current state | Intended action |
@@ -153,6 +215,8 @@ Present the full plan as a table:
 | WS `<WS-ID>` | in `proposed/`, 1/2 WIs resolved | skip — not all WIs resolved |
 | WS `<WS-ID>` | in `active/`, all WIs resolved | offer closeout — exit criteria confirmation required |
 | PROP-`<slug>` | in `proposed/` | skip — governing WS not closing |
+| Skill `<name>` | added/modified per PR diff | refresh via targeted install |
+| Skill `<name>` | removed/renamed per PR diff | report anomaly — no auto-uninstall |
 
 ### Step 3 — Resolve session transcript
 
@@ -246,6 +310,14 @@ Before touching any files, show the user:
   user has not already stated it, ask: "What should the `resolution:` note
   say for `<WI-ID>`?" (one-line summary; e.g., `"Implemented and merged in PR #342 (commit abc1234)"`)
 
+**Skill refresh confirmation:** if Step 2 found any skill refresh rows,
+call them out explicitly — this bypasses the ordinary `USER_MODIFIED`
+safety check for the named skills, so it must be disclosed and approved
+*before* any file under `~/.claude/skills/` is written, not only reported
+afterward. List each name and whether it will be refreshed
+(added/modified) or reported as an anomaly (removed/renamed, never
+auto-uninstalled).
+
 **WS exit criteria confirmation:** for any WS where closeout is being offered,
 display the full `exit_criteria:` list (already shown at Step 2, repeated here
 for the gate) and ask:
@@ -328,6 +400,41 @@ Then move the entire proposal directory:
 mv project/design/proposals/proposed/<slug>/ project/design/proposals/adopted/<slug>/
 ```
 
+**Skill refresh** (if Step 2 found any skill refresh rows and the user
+confirmed them at Step 4):
+
+This step, on every run — not only a one-time bootstrap — must load
+`_skill_names()` and `install_named_skills` from the merged checkout,
+never an ambient, possibly-unrelated installed `lrh` distribution. Prefix
+every invocation with an explicit `PYTHONPATH` pointed at *this*
+checkout's `src/` — do not rely on whatever `lrh` happens to already be
+on the invoking environment's path, since a `pipx`/`pip`-installed
+(non-editable) `lrh` is a frozen snapshot unaffected by this repo's
+`main` moving, and silently reading it here would refresh
+`~/.claude/skills/<name>` from stale, pre-merge package data with no
+error:
+
+```bash
+PYTHONPATH="$(pwd)/src" python3 -c "
+from lrh.skills.installer import install_named_skills
+results = install_named_skills([<confirmed added/modified names>])
+for r in results:
+    print(f'{r.name}: {r.status.value}')
+"
+```
+
+For the confirmed **removed/renamed** set, do not attempt to refresh —
+there is no current package source to copy from. Report each as an
+anomaly in the Step 8 report; do not delete
+`~/.claude/skills/<old-name>` (Non-Goal — out of scope for this skill).
+
+Report the outcome explicitly: which names were refreshed, any
+removed/renamed anomalies, and any name that came back `absent` from
+`install_named_skills` despite being in the confirmed added/modified set
+— that specific combination indicates a bug in this step's own
+base/current partition, not an expected outcome, and should be surfaced
+as a finding, not silently absorbed.
+
 ### Step 6 — Validate
 
 ```bash
@@ -379,6 +486,10 @@ git commit -m "chore(closeout): <summary of actions> (PR #N)"
 Report to the user:
 
 - Each action taken (file edited, file moved, validation result)
+- If a skill refresh was planned: the outcome (which skills were
+  refreshed, any removed/renamed anomalies) — never silently absorbed
+  into the generic "each action taken" line, since this is a
+  `USER_MODIFIED`-bypassing mutation of the user's own machine
 - Commit SHA on `main`
 - If `session_transcript` is still `pending`: remind to update it before
   archiving the session (the host id is `$CLAUDE_CODE_HOST_SESSION_ID` or the
@@ -413,6 +524,12 @@ Before reporting completion, verify:
 - [ ] User confirmed at Step 4 before any files were touched
 - [ ] Each file read before editing; no partial edits
 - [ ] `mv` used for WI/WS/proposal moves (not `cp`)
+- [ ] If the PR touched `.claude/skills/` or `src/lrh/skills/`: skill
+      refresh planned via the REST PR Files endpoint (paginated, ceiling
+      and fetch-failure handled), disclosed at the Step 4 confirm gate
+      before any file under `~/.claude/skills/` was written
+- [ ] Skill refresh, if any, invoked with `PYTHONPATH` explicitly pointed
+      at the merged checkout — not an ambient/frozen `lrh` install
 - [ ] `lrh validate` reports 0 errors before commit
 - [ ] Committed to `main` (not a feature branch)
 - [ ] `session_transcript: pending` reminder included in report if applicable
@@ -436,3 +553,16 @@ Before reporting completion, verify:
 - Does not handle abandoned WIs (WI with no PR ever opened) — warns and
   leaves for human resolution.
 - Does not open a new branch or PR — closeout commits go directly to `main`.
+- Does not change `lrh skills install`'s own CLI-level
+  `--force`/`--diff`/target-directory semantics — the targeted refresh
+  used here is a separate, narrowly-scoped capability.
+- Does not run a blanket `--force` across all installed skills — only the
+  specific names the merged PR's diff identifies are refreshed; every
+  other skill is left untouched by this step.
+- Does not retroactively fix any other stale global skill install beyond
+  what this PR's own diff identifies.
+- Does not automatically uninstall `~/.claude/skills/<name>` for a skill
+  the merge removed or renamed — reports it as an anomaly for the human
+  to act on instead.
+- Does not add this skill-refresh mechanism to any skill other than
+  `/lrh-closeout`.

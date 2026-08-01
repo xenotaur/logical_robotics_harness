@@ -578,10 +578,36 @@ sooner if the current skill-prose detection is observed producing a real
 false positive/negative in practice — per this project's practice of
 promoting on observed incident rather than speculative hardening.
 
+**Cross-reference (2026-08-01):** This entry's own landing PR (#452) is
+now cited as supporting evidence for a separate, not-yet-filed proposal
+on reducing GitHub bot-review credit consumption via a self-review-first
+tier (raised in another session, same date — motivated primarily by PR
+#453's 9 retrigger batches). PR #452 is a sharper example of the same
+problem: 12 pushed retrigger batches in one landing session, each
+individually legitimate (not unattended runaway spend — the round-cap
+gate fired correctly and required live reauthorization each time, which
+is exactly the failure mode that proposal describes as unsolved). Two
+data points from PR #452 specifically relevant there: (1) after
+exhausting an authorized ceiling, that session substituted 3 independent
+cold-subagent review passes for further bot retriggers — each pass found
+a real bug bot review had missed across all 12 rounds, including the
+single most severe bug in the PR (a harness-level discovery that shell
+variables don't survive across separate tool calls); (2) several
+bot-found issues across those 12 rounds were self-inflicted regressions
+from that same session's own prior-round fixes — the exact class of
+issue a pre-push self-review pass is proposed to catch for free. See
+`project/executions/AD_HOC/2026_08_01_*COPILOT_STALLED_SESSION_DETECTION*.md`
+for the full round-by-round account. Not itself a reason to revisit this
+entry's own status above — orthogonal concern (this entry is about
+promoting *this* heuristic to tested code; the cross-referenced proposal
+is about the review-credit model generally).
+
 **Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8.3;
 `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`
 "Detecting a stalled reviewer session" and "Risk Notes — deferred
-hardening"; `project/work_items/proposed/WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md`.
+hardening"; `project/work_items/proposed/WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md`;
+harness PR #452 (execution records) and PR #453 (the proposal's original
+motivating example).
 
 ---
 

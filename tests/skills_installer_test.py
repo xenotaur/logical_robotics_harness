@@ -93,6 +93,9 @@ class TestInstallNamedSkills(unittest.TestCase):
         skills_dir = self._make_skills_dir()
         installer.install_skills(skills_dir=skills_dir)
         names = installer._skill_names()
+        self.assertGreaterEqual(
+            len(names), 2, "test requires at least 2 packaged skills"
+        )
         target_name, other_name = names[0], names[1]
         other_md = skills_dir / other_name / "SKILL.md"
         other_md.write_text(other_md.read_text() + "\n# local modification\n")
@@ -125,14 +128,24 @@ class TestInstallNamedSkills(unittest.TestCase):
         )
 
     def test_absent_name_with_no_existing_dir_creates_nothing(self) -> None:
+        # Deliberately does not call install_skills() first, unlike the other
+        # tests in this class — skills_dir itself must not exist yet, so this
+        # actually exercises the mkdir-skip behavior for an all-absent call,
+        # not just the absent name's own subdirectory.
         skills_dir = self._make_skills_dir()
-        installer.install_skills(skills_dir=skills_dir)
+        self.assertFalse(skills_dir.exists())
         absent_name = "not-a-real-skill"
 
         results = installer.install_named_skills([absent_name], skills_dir=skills_dir)
 
         self.assertEqual(results[0].status, installer.RefreshStatus.ABSENT)
+        self.assertFalse(skills_dir.exists())
         self.assertFalse((skills_dir / absent_name).exists())
+
+    def test_bare_string_raises_instead_of_iterating_characters(self) -> None:
+        skills_dir = self._make_skills_dir()
+        with self.assertRaises(TypeError):
+            installer.install_named_skills("lrh-closeout", skills_dir=skills_dir)
 
 
 class TestDiffSkill(unittest.TestCase):

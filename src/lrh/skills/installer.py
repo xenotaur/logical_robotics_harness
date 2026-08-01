@@ -243,6 +243,12 @@ def install_named_skills(
     `rmtree` the destination before discovering there is no package source
     to copy from.
     """
+    if isinstance(skill_names, str):
+        raise TypeError(
+            "skill_names must be a sequence of skill name strings, not a"
+            " single string (a bare string is itself a Sequence[str] and"
+            " would otherwise be iterated character by character)"
+        )
     target = skills_dir if skills_dir is not None else _DEFAULT_SKILLS_DIR
     valid_names = set(_skill_names())
     results: list[TargetedRefreshResult] = []

@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 2072b8e
+commit: a6708c3
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -305,6 +305,40 @@ surfaces only a further narrow refinement of this same check (not a new
 independent category of gap), switch to a final self-review pass and
 close out review-response rather than continuing indefinitely.
 
+**Round 12** — retriggered against `39eb0ad`. 2 findings, both confirmed
+valid but narrower/more nuanced than prior rounds:
+- Codex P2 "Move repository fetches behind the confirmation gate" —
+  **partially valid, applied a precise fix rather than the literal
+  ask**: the routine `git fetch origin main` is harmless git housekeeping
+  (updates remote-tracking refs only, never touches tracked files or
+  branches) and moving it behind the gate would be over-broad — but the
+  shallow-clone fallback's `git fetch --unshallow` is a materially
+  heavier, one-way operation (full-history download, permanent
+  shallow→full conversion) that should not happen silently pre-gate.
+  Removed the auto-unshallow escalation entirely — an unreachable base
+  object now reports an anomaly and skips the item, same as any other
+  fetch failure, rather than performing an undisclosed heavy mutation.
+  Also corrected the imprecise "no command... writes to disk" claim to
+  state precisely what the read-only guarantee actually covers (tracked
+  files/branches/`~/.claude/skills/`, not git's own ref bookkeeping).
+- Copilot: the implementation record's "Added 6 new tests" line was
+  stale again (7 now, after round 10's addition). **Confirmed valid.**
+  Fixed, and reworded to point to the `_REVIEW` record as the
+  authoritative round-by-round count going forward, rather than trying
+  to keep re-syncing a number in an increasingly-edited narrative section.
+- Pushed as commit `a6708c3`.
+
+**Strategy shift, per the plan noted after round 11.** This round's
+findings were narrower/more nuanced than rounds 1–10 (a precision
+refinement of an already-comprehensive design, plus a recurring
+self-consistency nit) rather than a new fundamental correctness gap.
+Doing one more retrigger to confirm this round lands clean; if so,
+switching to a final self-review pass (the approach that worked well to
+close out the WI-creation PR, #454) rather than continuing the bot
+retrigger loop indefinitely.
+
 # Follow-up
 
-- Next: retrigger both reviewers against `2072b8e`.
+- Next: retrigger both reviewers against `a6708c3`. If clean or only
+  minor, move to a fresh-context self-review pass and a merge-readiness
+  decision.

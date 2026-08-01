@@ -343,6 +343,24 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    does not override the round-cap gate itself, which can still block a
    *new* batch independently.)
 
+   **Persist the timestamp of this retrigger into the round-state file's
+   `pending_attempt.retriggered_at`, as part of the same write that
+   starts this batch** (`references/round-cap-gate.md`'s "State schema"
+   and "Check-then-attempt ordering") — do not just capture it into a
+   shell variable and expect it to still be set when Step 8.3 reads it.
+   Step 8.2's wait is inherently one or more separate tool calls (it can
+   also span a session interruption), and shell variable state does not
+   survive across separate invocations in this harness; a bash-variable-only
+   version of this capture looked correct but was silently broken in the
+   normal case, not an edge case, since Step 8.1 and Step 8.3 are never
+   the same invocation. `references/round-cap-gate.md`'s "Detecting a
+   stalled reviewer session" reads this value back from the round-state
+   file in Step 8.3 below; it must never re-issue this retrigger itself
+   to get a fresh one either, since the no-op case just above means a
+   second call at Step 8.3's later checking time would produce a
+   timestamp *after* the real check-run this batch already started,
+   filtering out the very evidence it exists to find:
+
    ```bash
    gh pr comment <pr-url> --body "@codex review"
    gh pr edit <pr-url> --add-reviewer @copilot
@@ -392,13 +410,35 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    inline thread, is a new finding — handle it per the paragraph below,
    whichever surface it arrived on.
 3. If one or more retriggered reviewers haven't responded after a reasonable
-   wait, **do not silently conclude "no reviewer configured" and fall back
-   to a human statement, and do not report Green on a partial set.** Ask
-   the human directly: "No response yet from `<reviewer>` on `<sha>` — is
-   it configured for this repo (worth waiting longer), or should I treat
-   your own confirmation as the review signal for it?" Only an explicit
-   answer resolves this per missing reviewer, not an inferred default in
-   either direction.
+   wait, **first check whether that reviewer's own session actually
+   started and stalled, rather than never having been invoked at all** —
+   see `references/round-cap-gate.md`'s "Detecting a stalled reviewer
+   session" for the exact check-run and timeline queries and the
+   15-minute threshold. These are materially different situations
+   requiring different human responses (wait longer vs. treat your own
+   confirmation as the signal vs. top up the reviewer's usage/credits and
+   retry vs. authorize a different remediation for this repo, such as a
+   documented self-review fallback, if one exists) — collapsing them into
+   one generic question would hide that choice from the human.
+
+   **Do not silently conclude "no reviewer configured" and fall back to a
+   human statement, and do not report Green on a partial set.** Ask the
+   human directly, naming which case applies:
+   - **No stall detected:** "No response yet from `<reviewer>` on `<sha>`
+     — is it configured for this repo (worth waiting longer), or should I
+     treat your own confirmation as the review signal for it?"
+   - **Stall detected:** "`<reviewer>`'s session on `<sha>` started at
+     `<started_at>` and check run `<name>` is still `in_progress` after
+     over 15 minutes — this matches this project's stalled-session
+     heuristic. One known cause is the reviewer's own automation running
+     out of included usage/credits, though the API can't confirm the
+     cause — it could also be lag. Wait longer, treat your own
+     confirmation as the review signal, or handle it another way (e.g.
+     top up the reviewer's usage and retrigger, or authorize a
+     self-review fallback if this repo has one)?"
+
+   Only an explicit answer resolves this per missing reviewer, not an
+   inferred default in either direction.
 
 The verdict is **Review pending** — report it explicitly and re-check
 later — for as long as any retriggered reviewer's matching response, or an

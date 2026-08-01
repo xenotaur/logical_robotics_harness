@@ -326,6 +326,24 @@ Round-state updated to `completed_count: 9` on `lrh-round-state` (batch
 promoted on confirmed submission, per "Any-side-effect-counts
 promotion" — before waiting for the response above).
 
+**Round 10 retrigger result, on `951359c` — at the authorized ceiling of
+10.** CI green (5/5). Codex: fully clean, no findings at all. Copilot:
+"generated no new comments," 2 suppressed — one a repeat of the
+already-deferred reviewer-generic-framing item (expected, re-scans the
+cumulative diff each round), one new and real: the check-run `--jq`
+output omitted `name`, but `SKILL.md`'s "Stall detected" prompt template
+has a `<name>` placeholder with nothing to fill it. Zero unresolved
+formal threads. Round-state updated to `completed_count: 10` on
+`lrh-round-state`.
+
+Per the round-cap gate firing again at this ceiling, presented the
+options to the human; **chose neither authorize-a-new-ceiling nor
+merge-as-is** — fixed the `name` omission (one-line addition:
+`{name, status, conclusion, started_at, completed_at}`, verified live)
+and requested an independent subagent review pass instead of an 11th
+bot-retrigger batch, avoiding further Copilot/Codex spend after 10
+rounds. See the subagent's findings and the final verdict below.
+
 # Follow-up
 
 - Merge gate: present the final verdict's merge command for explicit

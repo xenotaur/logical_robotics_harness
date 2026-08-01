@@ -114,7 +114,7 @@ gh pr edit <pr-url> --add-reviewer @copilot
    ```bash
    gh api repos/<owner>/<repo>/commits/<sha>/check-runs --paginate --slurp \
      | jq --arg since "$RETRIGGER_AT" \
-       '[.[].check_runs[]] | map(select(.name=="copilot-pull-request-reviewer" and .started_at >= $since)) | sort_by(.started_at) | last | select(. != null) | {status, conclusion, started_at, completed_at}'
+       '[.[].check_runs[]] | map(select(.name=="copilot-pull-request-reviewer" and .started_at >= $since)) | sort_by(.started_at) | last | select(. != null) | {name, status, conclusion, started_at, completed_at}'
    ```
 
    `and .started_at >= $since` is what makes this safe on a same-`HEAD`

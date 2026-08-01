@@ -61,9 +61,9 @@ bot-retrigger action. It does **not**:
 
 ## Detecting a stalled reviewer session
 
-Step 8.3 in `SKILL.md` needs to tell "reviewer never invoked / not
-configured for this repo" apart from "reviewer's own session started and
-stalled" before asking the human — those need different answers (wait
+Step 8.3 in `SKILL.md` needs to tell "no evidence the reviewer was invoked
+this round" apart from "the reviewer's own session started and stalled"
+before asking the human — those need different answers (wait
 longer vs. top up usage/credits and retry vs. authorize a different
 remediation), and conflating them into one generic question hides that
 choice. GitHub does not expose a billing/credit-usage API (see "What this
@@ -82,11 +82,18 @@ What *is* available is a stall heuristic, built from two REST calls:
 
    ```bash
    gh api repos/<owner>/<repo>/commits/<sha>/check-runs \
-     --jq '.check_runs[] | select(.name=="copilot-pull-request-reviewer") | {status, conclusion, started_at, completed_at}'
+     --jq '.check_runs | map(select(.name=="copilot-pull-request-reviewer")) | sort_by(.started_at) | last | {status, conclusion, started_at, completed_at}'
    ```
 
-   A hosted reviewer session that's actually running (rather than simply
-   not configured) shows up here. `status: "in_progress"`,
+   Select the **most recent** matching check-run, not just any — a
+   reviewer retriggered or rerun on this commit can leave multiple
+   check-runs of the same name, and comparing the wrong one's
+   `started_at` against the 15-minute threshold below would misjudge the
+   heuristic. A hosted reviewer session that's actually running shows up
+   here — this only tells you whether a session started this round, not
+   whether the reviewer is configured for this repo at all (that remains
+   unknowable from this signal alone; see the caveat at the end of this
+   section). `status: "in_progress"`,
    `conclusion: null`, `completed_at: null` held past a reasonable wait —
    reuse `STALE_AGE_SECONDS` (15 minutes, "Round-state branch mechanics"
    above) as the threshold, since that is this skill's own existing

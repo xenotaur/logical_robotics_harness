@@ -236,12 +236,14 @@ def install_named_skills(
     Unlike `install_skills(force=True)`, this does not touch any skill
     outside `skill_names` — every other installed skill's status is left
     completely uncomputed and unmodified. Each name is validated against
-    the current package's `_skill_names()` *before* any filesystem
-    mutation: a name absent from the package returns `RefreshStatus.ABSENT`
-    without touching (in particular, without deleting) any existing
-    installed directory for that name, since `_copy_skill` would otherwise
-    `rmtree` the destination before discovering there is no package source
-    to copy from.
+    the current package's `_skill_names()` *before* any destructive
+    filesystem operation: a name absent from the package returns
+    `RefreshStatus.ABSENT` without touching (in particular, without
+    deleting) any existing installed directory for that name, since
+    `_copy_skill` would otherwise `rmtree` the destination before
+    discovering there is no package source to copy from. (`skills_dir`
+    itself may still be created via `mkdir` if at least one name is
+    valid — that's not destructive, so it isn't gated per-name.)
 
     `skill_names` accepts any iterable, including a one-shot one (e.g. a
     generator) — it is consumed exactly once, immediately, into a list.

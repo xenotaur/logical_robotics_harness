@@ -123,6 +123,36 @@ none previously seen):
   `project/work_items/proposed/WI-CLOSEOUT-SKILLS-INSTALL-SYNC.md`
   (Required Changes, Non-Goals, Acceptance Criteria, Validation, Risk
   Notes, and frontmatter `acceptance`).
+- Pushed as commit `551c36c`.
+
+**Fourth round** — retriggered both reviewers against `551c36c`; Copilot
+`APPROVED` again (1 minor wording nit), Codex posted a clean summary
+review plus 2 new inline threads (both P1, both self-consistent with
+round 3's own just-written text):
+- "Add a bootstrap install for the new closeout step" — **confirmed
+  valid, and important**: the globally installed `lrh-closeout` skill is
+  what actually runs in a session; it only gains the new step once
+  refreshed, but refreshing it is exactly what the new step does — so it
+  cannot bootstrap its own first activation on this WI's own
+  implementation PR. Added Required Changes item 5, a matching Acceptance
+  Criterion, a Validation entry, and a Risk Note requiring the
+  implementation PR's own closeout to include an explicit manual refresh
+  of `lrh-closeout` itself.
+- "Preserve removed names before package filtering" — **confirmed valid,
+  a real bug in round 3's own text**: round 3 filtered the touched-name
+  set against `_skill_names()` (package membership) *before* the
+  added/modified-vs-removed split, which discards a removed skill's name
+  before it can ever be classified removed — making the removed-skill
+  handling round 3 just added unreachable. Rewrote Required Changes item
+  2 to sequence this correctly: derive candidates by *structural* path
+  shape first (excludes non-skill files like `installer.py` without
+  relying on package membership), then partition by package membership
+  second (added/modified vs. removed/renamed).
+- Copilot's 1 suppressed comment ("`~force` reads like a pseudo-flag that
+  doesn't exist") was resolved as a side effect of the item-2 rewrite
+  above, which dropped that phrasing entirely.
+- All fixes applied to the same WI file (Required Changes, Acceptance
+  Criteria, Validation, Risk Notes, frontmatter `acceptance`).
 
 # Validation
 

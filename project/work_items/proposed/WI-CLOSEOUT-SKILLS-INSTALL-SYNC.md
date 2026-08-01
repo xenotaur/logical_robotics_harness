@@ -26,14 +26,15 @@ forbidden_actions:
   - modify_unrelated_skills
   - auto_merge_pr
 acceptance:
-  - "/lrh-closeout detects when the PR's merged diff touches .claude/skills/ or src/lrh/skills/, and identifies which skill names, filtered to actual packaged skill directories"
-  - A skill named in that touched, filtered set is refreshed even when its previously installed bytes differ from a stale prior package revision, not blocked by the coarse-grained USER_MODIFIED check
+  - "/lrh-closeout derives candidate skill names from the PR's merged diff by path shape, then partitions by current package membership into added/modified vs. removed/renamed, in that order"
+  - A skill in the added/modified set is refreshed even when its previously installed bytes differ from a stale prior package revision, not blocked by the coarse-grained USER_MODIFIED check
   - A skill not in that touched set, but with genuine local modifications, still reports user_modified and is left untouched
-  - A skill the merge removed or renamed is reported as an explicit anomaly, not silently left stale or auto-uninstalled
+  - A skill in the removed/renamed set is reported as an explicit anomaly, not silently left stale or auto-uninstalled
   - The planned refresh is disclosed and approved at the confirm gate before any file under ~/.claude/skills/ is written
   - The outcome is shown in the closeout report
-  - New unit tests in tests/skills_installer_test.py cover the targeted refresh, including a diff containing src/lrh/skills/installer.py itself
+  - New unit tests cover the targeted refresh, candidate derivation excluding non-skill files like installer.py, and removed-skill partition ordering
   - SKILL.md is updated to document the new step
+  - This WI's own implementation PR's closeout includes an explicit manual refresh of the globally installed lrh-closeout skill itself
   - lrh validate reports 0 errors; scripts/test passes
   - Manual smoke test against a skill-touching PR shows the step firing
 required_evidence:
@@ -145,40 +146,49 @@ step must be careful to run against the checkout it just landed onto
    `skill_names` filter parameter, or a small new function built on the
    existing `_copy_skill`) that overwrites only the given skill names
    regardless of their `USER_MODIFIED` classification, leaving all other
-   skills' status computation untouched. **Filter the derived name set
-   against the actual packaged skill directories (`_skill_names()`)
-   before passing it to this function** — a changed-path prefix match on
-   `src/lrh/skills/` also matches non-skill files directly under that
-   directory (e.g. `installer.py` itself, a module rather than a skill
-   tree); passing such a name to `_copy_skill` raises
-   `NotADirectoryError`. Cover it with unit tests in
-   `tests/skills_installer_test.py` (a targeted refresh overwrites a named
-   skill even when its installed bytes differ from the package; an
-   unnamed skill with differing bytes is left alone and still reports
-   `USER_MODIFIED`; a diff that includes `src/lrh/skills/installer.py`
-   itself does not attempt to treat `installer.py` as a skill name).
+   skills' status computation untouched. This function takes names already
+   known to exist in the current package — deriving and classifying that
+   name set is item 2's job, not this one's; **do not** filter the input
+   here by package membership, since a caller needs to be able to detect
+   an *absent* name too (item 2's removed-skill case).
+   Cover it with unit tests in `tests/skills_installer_test.py` (a
+   targeted refresh overwrites a named skill even when its installed
+   bytes differ from the package; an unnamed skill with differing bytes
+   is left alone and still reports `USER_MODIFIED`).
 2. Extend `.claude/skills/lrh-closeout/SKILL.md` (and its
    `src/lrh/skills/lrh-closeout/SKILL.md` mirror) with a new step, placed
    after the PR's changes are known to be merged, that:
    - Diffs the closed-out PR's changed files against `.claude/skills/` and
-     `src/lrh/skills/` path prefixes to derive the set of touched skill
-     names, filtered to actual packaged skill directories (item 1).
-   - Splits that set into **added/modified** (present in the current
-     package) and **removed** (a skill deleted or renamed by the merge,
-     so the old name no longer exists in the package and cannot be
-     refreshed by copying). For added/modified names, this step performs
-     the targeted refresh. For removed names, it does not attempt to
-     "refresh" a nonexistent source — it reports the stale
-     `~/.claude/skills/<old-name>` as an explicit anomaly needing human
-     attention (uninstalling it automatically is out of scope here; see
-     Non-Goals) rather than silently leaving it installed with no signal.
+     `src/lrh/skills/` path prefixes and derives **candidate** skill names
+     using a purely *structural* filter: the immediate subdirectory
+     component of each changed path under either prefix. A changed path
+     with no subdirectory component (a file directly under the prefix,
+     e.g. `src/lrh/skills/installer.py`) yields no candidate at all — this
+     distinction is about path shape, not package membership, so it
+     excludes `installer.py`-like non-skill files without also excluding
+     a genuinely removed or renamed skill directory (whose name, by
+     definition, no longer appears in the package).
+   - **Only then**, partitions the candidate names by membership in the
+     current package's `_skill_names()`: present → **added/modified**
+     (refresh via item 1); absent → **removed/renamed** (the skill
+     existed in the old package revision — evidenced by the diff — but
+     not the new one, so there is no source to refresh from). Applying
+     the package-membership filter *before* this split would discard
+     removed names before they can ever be classified, defeating the
+     removed-skill handling below — the structural filter above must run
+     first, package-membership second.
+   - For removed/renamed names, does not attempt to "refresh" a
+     nonexistent source — reports the stale `~/.claude/skills/<old-name>`
+     as an explicit anomaly needing human attention (uninstalling it
+     automatically is out of scope here; see Non-Goals) rather than
+     silently leaving it installed with no signal.
    - **Includes this planned mutation, and which skill names it would
      touch, in the closeout confirm gate (mirroring `/lrh-closeout`'s
      existing Step 2 plan / Step 4 confirm-gate structure) before any
-     file under `~/.claude/skills/` is written** — this is a
-     `~force`-bypassing overwrite of a user-machine directory, not an
-     ordinary control-plane commit, so it must be disclosed and approved
-     pre-action, not only reported after the fact.
+     file under `~/.claude/skills/` is written** — this bypasses the
+     default non-force `USER_MODIFIED` safety check for the named subset,
+     so it must be disclosed and approved pre-action, not only reported
+     after the fact.
    - If the (approved) added/modified set is non-empty, invokes the
      targeted refresh from item 1 (from a checkout known to be on `main`
      post-merge) for exactly those names, and reports the outcome —
@@ -186,10 +196,27 @@ step must be careful to run against the checkout it just landed onto
      whether any refreshed skill is still not up to date afterward
      (which would indicate a bug in the targeted refresh itself, since a
      name in the approved set should always succeed).
+   Cover the candidate-derivation/partition logic in
+   `tests/skills_installer_test.py` or an adjacent test module: a diff
+   containing `src/lrh/skills/installer.py` yields no candidate for it; a
+   diff containing a path under a skill directory no longer present in
+   `_skill_names()` is classified removed, not silently dropped.
 3. Update the Quality Checklist and "What This Skill Does Not Do" sections
    of `/lrh-closeout` to reflect the new step's scope and limits.
 4. Keep both `.claude/skills/lrh-closeout/` and `src/lrh/skills/lrh-closeout/`
    trees byte-identical per the existing skill-mirror convention.
+5. **Bootstrap the fix's own rollout.** The globally installed
+   `/lrh-closeout` skill that drives a `/lrh-land` or `/lrh-closeout`
+   session only picks up this new step once `~/.claude/skills/lrh-closeout`
+   itself has been refreshed — but refreshing it is exactly what the new
+   step exists to do, so it cannot bootstrap its own first activation.
+   When *this work item's own implementation PR* is closed out, that
+   closeout must include a manual, one-time `lrh skills install` (or
+   equivalent targeted refresh) for `lrh-closeout` itself, called out
+   explicitly rather than assumed — otherwise a session closing out that
+   very PR (even via `/lrh-land`, in the same or a later session) keeps
+   running the pre-fix closeout workflow indefinitely and the fix never
+   activates.
 
 ## Non-Goals
 
@@ -215,28 +242,36 @@ step must be careful to run against the checkout it just landed onto
 ## Acceptance Criteria
 
 - `/lrh-closeout` detects when the PR's merged diff touches
-  `.claude/skills/` or `src/lrh/skills/`, and identifies which skill
-  names — filtered to actual packaged skill directories, so a non-skill
-  file directly under `src/lrh/skills/` (e.g. `installer.py`) is never
-  treated as a skill name.
-- A skill named in that touched, filtered set is refreshed even when its
-  previously installed bytes differ from a stale prior package revision —
-  not blocked by the coarse-grained `USER_MODIFIED` check.
+  `.claude/skills/` or `src/lrh/skills/`, derives candidate skill names by
+  path shape (a non-skill file directly under the prefix, e.g.
+  `installer.py`, yields no candidate), then partitions candidates by
+  current package membership into added/modified vs. removed/renamed —
+  in that order, so a removed name is never discarded before it can be
+  classified.
+- A skill in the added/modified set is refreshed even when its previously
+  installed bytes differ from a stale prior package revision — not
+  blocked by the coarse-grained `USER_MODIFIED` check.
 - A skill *not* in that touched set, but with genuine local modifications,
   still reports `user_modified` and is left untouched.
-- A skill the merge removed or renamed is reported as an explicit
-  anomaly, not silently left stale with no signal and not auto-uninstalled.
+- A skill in the removed/renamed set is reported as an explicit anomaly,
+  not silently left stale with no signal and not auto-uninstalled.
 - The planned refresh (which skill names, added/modified vs. removed) is
   disclosed in the closeout plan and explicitly approved at the confirm
   gate *before* any file under `~/.claude/skills/` is written — not only
   reported after the fact.
 - The outcome (which skills were refreshed, any anomalies) is shown in the
   closeout report.
-- New unit tests in `tests/skills_installer_test.py` cover the targeted
-  refresh (named skill with differing bytes is overwritten; unnamed skill
-  with differing bytes is left alone; a diff containing
-  `src/lrh/skills/installer.py` does not attempt to treat it as a skill).
+- New unit tests cover: the targeted refresh (named skill with differing
+  bytes is overwritten; unnamed skill with differing bytes is left
+  alone); candidate derivation (a diff containing
+  `src/lrh/skills/installer.py` yields no candidate for it); and
+  partition ordering (a removed skill directory is classified
+  removed/renamed, not silently dropped by the package-membership check).
 - SKILL.md (both trees) is updated to document the new step.
+- This work item's own implementation PR's closeout includes an explicit,
+  called-out manual refresh of the globally installed `lrh-closeout`
+  skill itself, since the new step cannot bootstrap its own first
+  activation.
 - `lrh validate` reports 0 errors; `scripts/test` passes.
 - Manual smoke test against a skill-touching PR shows the step firing.
 
@@ -249,10 +284,15 @@ step must be careful to run against the checkout it just landed onto
   refresh at the confirm gate, refreshes exactly the touched skills, and
   leaves an unrelated locally-modified skill alone
 - Manual smoke test: run against a PR whose diff includes
-  `src/lrh/skills/installer.py` and confirm it is not treated as a skill
-  name
+  `src/lrh/skills/installer.py` and confirm it yields no candidate
+- Manual smoke test: run against a PR whose diff removes or renames a
+  skill directory and confirm it is reported as an anomaly, not silently
+  dropped or refreshed
 - `diff -r .claude/skills/lrh-closeout src/lrh/skills/lrh-closeout` (mirror
   parity)
+- After this WI's own implementation PR closes out: confirm
+  `~/.claude/skills/lrh-closeout` was manually refreshed as part of that
+  closeout (Required Changes item 5)
 
 ## Risk Notes
 
@@ -276,3 +316,11 @@ step must be careful to run against the checkout it just landed onto
   install the wrong content; the implementation must establish it is
   running against a checkout that matches the merged `main`, not assume
   the invoking directory is correct.
+- Self-bootstrap: the globally installed `lrh-closeout` skill is what a
+  session actually executes, and it only gains the new step once
+  refreshed — but refreshing it is the new step's own job. Without the
+  explicit manual refresh in Required Changes item 5 when this WI's own
+  implementation PR is closed out, the very first opportunity to activate
+  the fix silently doesn't, and every session continues running the
+  pre-fix workflow until someone happens to run `lrh skills install` by
+  hand — the same failure mode this WI exists to close.

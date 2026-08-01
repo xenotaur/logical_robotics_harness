@@ -82,16 +82,31 @@ What *is* available is a stall heuristic, built from two REST calls:
 
    ```bash
    gh api repos/<owner>/<repo>/commits/<sha>/check-runs --paginate \
-     --jq '.check_runs | map(select(.name=="copilot-pull-request-reviewer")) | sort_by(.started_at) | last | {status, conclusion, started_at, completed_at}'
+     --jq '.check_runs[] | select(.name=="copilot-pull-request-reviewer")' \
+     | jq -s 'sort_by(.started_at) | last | {status, conclusion, started_at, completed_at}'
    ```
 
-   `--paginate` matters here: this endpoint's default page size can be
-   smaller than a commit's total check-run count on a CI-heavy PR, and an
-   unpaginated call can silently miss the reviewer's own check-run,
-   misreading a real in-progress session as "no check-run" (never
-   invoked). Select the **most recent** matching check-run, not just any — a
-   reviewer retriggered or rerun on this commit can leave multiple
-   check-runs of the same name, and comparing the wrong one's
+   Two `jq` passes, deliberately — `gh api --paginate` runs `--jq` **once
+   per page**, each page a separate JSON object (`gh help api`: "Each page
+   is a separate JSON array or object"), not once against a merged
+   cross-page result. A single-pass `.check_runs | map(...) | sort_by(...)
+   | last` looked correct against this repo's own (single-page, 5-6
+   check-run) commits, but silently breaks on any commit whose check-runs
+   span more than one page: each page would independently compute its own
+   "last," including a spurious `{"status":null,...}` from any page with
+   zero matches, and the true most-recent match could be discarded if it
+   isn't on the last page processed. Streaming `.check_runs[] |
+   select(...)` per page instead (no `map`/`sort_by`/`last` inside
+   `--jq`) emits zero or more matching objects per page, safe under
+   per-page evaluation; the outer `jq -s` (slurp) then collects the full
+   cross-page stream into one array before sorting and selecting the true
+   most recent. `--paginate` matters here: this endpoint's default page
+   size can be smaller than a commit's total check-run count on a
+   CI-heavy PR, and an unpaginated call can silently miss the reviewer's
+   own check-run, misreading a real in-progress session as "no check-run"
+   (never invoked). Select the **most recent** matching check-run, not
+   just any — a reviewer retriggered or rerun on this commit can leave
+   multiple check-runs of the same name, and comparing the wrong one's
    `started_at` against the 15-minute threshold below would misjudge the
    heuristic. A hosted reviewer session that's actually running shows up
    here — this only tells you whether a session started this round, not

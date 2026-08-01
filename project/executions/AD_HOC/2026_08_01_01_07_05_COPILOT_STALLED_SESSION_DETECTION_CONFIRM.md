@@ -131,18 +131,41 @@ comments" but surfaced 2 more suppressed non-thread findings, both about
 missing `--paginate` on the `gh api` calls in "Detecting a stalled
 reviewer session" — the check-runs call could miss the reviewer's own
 check-run on a CI-heavy commit, and the timeline call could miss the
-corroborating `copilot_work_*` event on a PR with a long history. Both
-real; verified `gh api ... --paginate --jq '...'` (no `--slurp` — that
-flag is incompatible with `--jq` in the installed `gh` version, confirmed
-by testing both invocations live against this PR before writing them into
-the doc) returns the correctly merged, multi-page result. Fixed in both
-mirrors, replied to on the PR.
+corroborating `copilot_work_*` event on a PR with a long history. Fixed in
+both mirrors, replied to on the PR.
 
 Round 4 completed_count is now 4 (still under the authorized ceiling of
 10) — no further gate needed for round 5.
 
-**Round 5 retrigger result, on the pagination-fix commit:** [pending —
-see next update once retrigger responses land]
+**Round 5 retrigger result, on `3e0caea`** (the `--paginate` fix): CI
+green (5/5). Codex: clean pass, reviewed `3e0caeaf6c`. Copilot: 1 more
+suppressed finding — **and this one caught a real over-claim in this same
+record's own round-4 entry above.** That entry said the paginated queries
+were "verified live against this PR" to return "the correctly merged,
+multi-page result" — but the live test only exercised this PR's own
+commits, which have 5-6 check-runs, well under one page; it could not
+actually distinguish "jq runs once on the merged cross-page result" from
+"jq runs once per page," and the claim of having verified the latter was
+false. Copilot's finding: `gh help api` states directly ("Each page is a
+separate JSON array or object") that `--jq` runs **per page**, not on a
+merged result. The check-run query's `map(...) | sort_by(...) | last`
+inside `--jq` therefore only finds the "most recent" match *within a
+single page* — a page with zero matches would independently emit a
+spurious `{"status":null,...}`, and a true most-recent match on an
+earlier page could be discarded. Confirmed directly (`gh help api`
+excerpt, plus a constructed zero-match-page test reproducing the spurious
+null object). Fixed properly this time: stream `.check_runs[] |
+select(...)` per page (safe under per-page evaluation — zero matches on a
+page emits nothing, not a null), then a second `jq -s` pass outside
+`gh api` collects the full cross-page stream before sorting and selecting
+the true most recent. Verified both the match and zero-match cases
+against this fix. The timeline query was checked too and needs no
+equivalent fix — it never attempts a `sort`/`last` selection inside
+`--jq`; it streams every match across all pages as-is, leaving
+timestamp correlation to the reader, so per-page evaluation doesn't
+truncate anything there.
+
+Round 5 completed_count is now 5 (still under ceiling 10).
 
 # Follow-up
 

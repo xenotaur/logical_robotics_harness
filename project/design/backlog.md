@@ -537,3 +537,130 @@ pointer and its revisit trigger.
 `src/lrh/assist/request_cli.py` (`--target-agent`);
 `src/lrh/assist/request_service.py` (`REQUEST_TARGET_AGENT`);
 "Validator drift-check for synced skill references" entry above.
+
+---
+
+## Promote stalled-reviewer-session detection from skill prose to a tested LRH primitive
+
+**Noted:** 2026-07-31, while adding stalled-reviewer-session detection
+(check-run + issue-timeline heuristic, for distinguishing "reviewer never
+invoked" from "reviewer's own session started and stalled," e.g. GitHub
+Copilot code review running out of included credits) to
+`lrh-confirm-fixes/SKILL.md` Step 8.3 and
+`references/round-cap-gate.md`.
+
+**Idea:** The detection landed as skill-embedded bash/`gh api` prose,
+callable only from inside an already-running `/lrh-confirm-fixes`
+invocation that is actively waiting on a reviewer — it cannot fire
+proactively (e.g. overnight, with no session open). `round-cap-gate.md`'s
+own "Risk Notes — deferred hardening" section already documents that this
+skill-prose approach is expensive to get right and hard to verify: the
+round-cap mechanism it lives alongside took 8 review rounds to reach its
+current state, each round finding a genuinely different category of
+correctness bug, and remains untested in practice.
+`WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md`'s Risk Notes independently
+recommend promoting this class of logic to "a shared, unit-tested LRH
+primitive (real code, not skill prose)" that both an assisted mode (a
+human-driven skill invocation) and a future bounded-auto mode (e.g. a
+scheduled poller) could call, rather than duplicating hand-rolled
+`gh api`/`jq` logic at each call site. A real primitive (e.g. `lrh
+pr-health check`) would also get `scripts/test` unit coverage, unlike the
+current prose, which is verified only by manual reasoning.
+
+**Status:** Deferred — `WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md` is a
+planning item whose own `depends_on` (`WI-GITHUB-PR-CI-OBSERVATION`,
+`WI-AGENT-BRANCH-CONTAINMENT`, `WI-DELIBERATE-MODEL-INVOCATION`) and
+acceptance criteria ("no mutation-capable automation or backend
+implementation is added") explicitly gate real implementation behind
+further design work. Not a same-day follow-up to the Step 8.3 change.
+Revisit once `WI-BOUNDED-STABILIZATION-LOOP-DESIGN` is implemented, or
+sooner if the current skill-prose detection is observed producing a real
+false positive/negative in practice — per this project's practice of
+promoting on observed incident rather than speculative hardening.
+
+**Cross-reference (2026-08-01):** This entry's own landing PR (#452) is
+now cited as supporting evidence for a separate, not-yet-filed proposal
+on reducing GitHub bot-review credit consumption via a self-review-first
+tier (raised in another session, same date — motivated primarily by PR
+#453's 9 retrigger batches). PR #452 is a sharper example of the same
+problem: 12 pushed retrigger batches in one landing session, each
+individually legitimate (not unattended runaway spend — the round-cap
+gate fired correctly and required live reauthorization each time, which
+is exactly the failure mode that proposal describes as unsolved). Two
+data points from PR #452 specifically relevant there: (1) after
+exhausting an authorized ceiling, that session substituted 3 independent
+cold-subagent review passes for further bot retriggers — each pass found
+a real bug bot review had missed across all 12 rounds, including the
+single most severe bug in the PR (a harness-level discovery that shell
+variables don't survive across separate tool calls); (2) several
+bot-found issues across those 12 rounds were self-inflicted regressions
+from that same session's own prior-round fixes — the exact class of
+issue a pre-push self-review pass is proposed to catch for free. See
+`project/executions/AD_HOC/2026_08_01_*COPILOT_STALLED_SESSION_DETECTION*.md`
+for the full round-by-round account. Not itself a reason to revisit this
+entry's own status above — orthogonal concern (this entry is about
+promoting *this* heuristic to tested code; the cross-referenced proposal
+is about the review-credit model generally).
+
+**Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8.3;
+`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`
+"Detecting a stalled reviewer session" and "Risk Notes — deferred
+hardening"; `project/work_items/proposed/WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md`;
+harness PR #452 (execution records) and PR #453 (the proposal's original
+motivating example).
+
+---
+
+## Stalled-reviewer-session detection is Copilot-specific but reads as reviewer-generic
+
+**Noted:** 2026-08-01, during PR #452 review round 7 (Copilot,
+`copilot-pull-request-reviewer`), landing the stalled-reviewer-session
+detection heuristic in `lrh-confirm-fixes/SKILL.md` Step 8.3 and
+`references/round-cap-gate.md`.
+
+**Idea — two remaining items, deferred by explicit decision rather than
+fixed inline to stop an 8-round retrigger loop (rounds 1–7 each found a
+real, distinct, low-risk issue: a cross-product timeline-correlation bug,
+three wording/grammar fixes, a stale cross-reference direction, an
+unpaginated `gh api` call, a `gh --jq`-runs-per-page-not-merged
+correctness bug, and a misleading null-object edge case — see this PR's
+`_CONFIRM` execution record for the full round-by-round account):**
+
+1. **Reviewer-generic framing, Copilot-specific signals.** `SKILL.md`
+   Step 8.3 says "first check whether that reviewer's own session
+   actually started and stalled" for *any* retriggered reviewer that
+   hasn't responded, but the only heuristic this cross-references
+   (`round-cap-gate.md`'s "Detecting a stalled reviewer session") is
+   built entirely from Copilot-specific signals: the
+   `copilot-pull-request-reviewer` check-run name and `copilot_work_*`
+   timeline events. Codex (comment-driven, no equivalent check-run or
+   timeline signal) would just get an empty result and correctly fall
+   through to the "No stall detected" question — not a correctness bug,
+   since the fallback is safe, but the prose doesn't make that scope
+   explicit, and a future reviewer added to `REVIEWS.md` might wrongly
+   assume this heuristic applies to them too.
+2. **`backlog.md`'s own entry above quotes stale wording.** The
+   "Promote stalled-reviewer-session detection..." entry's **Noted**
+   section quotes "reviewer never invoked" — the phrasing this same PR's
+   round 3 replaced with "no evidence the reviewer was invoked this
+   round" specifically to avoid implying the heuristic can determine
+   configuration state. Purely a documentation-consistency echo, not a
+   behavioral issue.
+
+**Status:** Deferred — round 7 was this PR's explicit, pre-committed
+stopping point for chasing further review rounds (recorded in the
+`_CONFIRM` execution record before this round's response was even read),
+consistent with this project's "defer narrow edge cases, fix core-scope
+findings" practice and with `round-cap-gate.md`'s own precedent (that
+mechanism's implementation, PR #445, stopped chasing after 8 rounds for
+the same reason — see its "Risk Notes — deferred hardening" section).
+Neither item is core to this PR's stated purpose (detecting a
+Copilot-credit-exhaustion-shaped stall) or a correctness bug. Revisit
+alongside a future change to `SKILL.md` Step 8.3 or `round-cap-gate.md`,
+or sooner if a non-Copilot reviewer is added to `REVIEWS.md` and the
+generic framing causes real confusion in practice.
+
+**Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8.3;
+`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`
+"Detecting a stalled reviewer session"; harness PR #452 (rounds 1–7);
+"Promote stalled-reviewer-session detection..." entry above.

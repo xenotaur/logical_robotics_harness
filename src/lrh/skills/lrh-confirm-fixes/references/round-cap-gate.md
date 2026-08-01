@@ -54,7 +54,254 @@ bot-retrigger action. It does **not**:
   (unattended, automatic retrigger escalation), not total platform usage.
   No GitHub billing/usage API is queried; the human supplies portfolio
   context (what else is running, what's urgent) at the gate, since no
-  automated source for that currently exists in this project.
+  automated source for that currently exists in this project. See
+  "Detecting a stalled reviewer session" below for a heuristic that
+  identifies *a* stalled session without querying billing data — it still
+  does not measure or bound aggregate spend.
+
+## Detecting a stalled reviewer session
+
+Step 8.3 in `SKILL.md` needs to tell "no evidence the reviewer was invoked
+this round" apart from "the reviewer's own session started and stalled"
+before asking the human — those need different answers (wait
+longer vs. top up usage/credits and retry vs. authorize a different
+remediation), and conflating them into one generic question hides that
+choice. GitHub does not expose a billing/credit-usage API (see "What this
+bounds" above), and a stalled Copilot coding-agent or code-review session
+does not post any comment, review, or check-run output naming the cause —
+the exhaustion message ("...you've run out of your included AI credits
+for the month...") renders only in the GitHub web UI's session panel and
+does not appear on any REST-accessible surface. Verified directly against
+a live incident (`xenotaur/LCATS#202`, 2026-07-31): grepping every PR
+comment, issue comment, and timeline event body for "credit" returned
+nothing.
+
+**The check-run alone is sufficient evidence of a stall — it is not one
+half of a required pair.** An earlier version of this section required
+both the check-run *and* a correlated timeline event before calling
+anything "stalled," on the theory that the timeline event corroborates
+the check-run. That is backwards for a decision that must fail safe: the
+timeline correlation below is the fragile signal (shared event vocabulary
+across two products, multi-page, dependent on capturing the right
+timestamp), so *requiring* it as an AND condition means a genuinely
+stalled review check with no correlatable timeline event — a real,
+expected case, not a corner case — gets reported as "no stall detected."
+Use the check-run as the primary, sufficient signal; treat the timeline
+event as optional corroboration that raises confidence when it correlates
+cleanly, never as a gate the check-run's own verdict depends on.
+
+**Read `retriggered_at` from this batch's own round-state file — never
+mint a fresh timestamp here, never re-issue the retrigger, and never
+rely on a shell variable surviving from `SKILL.md` Step 8.1.** Both
+signals below need to know "since *this batch's* retrigger," not just
+"recently," to stay safe against a stale prior-round check-run still
+sitting on the same commit.
+
+Two ways to get that boundary wrong, both real bugs caught in review,
+not hypothetical: (1) capture a new timestamp and re-run `gh pr edit
+--add-reviewer @copilot` right here, at the moment this diagnostic is
+actually consulted (Step 8.3, after the "reasonable wait" already
+elapsed) — wrong in precisely the primary case this whole heuristic
+exists for, since `SKILL.md` Step 8.1 already documents that call "may
+... no-op (already requested)" when Copilot is already a pending
+reviewer, which it always is by the time Step 8.3 runs; re-issuing it
+would either no-op silently or, if it somehow did start a second
+check-run, would still leave `$since` set to a timestamp *after* the
+real, already-stalled check-run from Step 8.1. (2) Capture the
+timestamp correctly into a plain bash variable in Step 8.1, then expect
+it to still be set when Step 8.3 reads it — also wrong, and not an edge
+case: Step 8.1 and Step 8.3 are never the same tool invocation (Step
+8.2's wait is inherently one or more separate calls, and can span a
+session interruption), and shell variable state does not survive across
+separate invocations in this harness (confirmed empirically — see the
+`retriggered_at` field's own entry in "State schema" above). With
+`$since` silently empty, the filter below becomes a no-op (`>=` against
+an empty string is true for every timestamp), reintroducing exactly the
+stale-check-run misattribution this whole mechanism exists to prevent,
+with no error to signal it happened.
+
+The fix for both: `retriggered_at` is written into `pending_attempt` at
+batch start (`SKILL.md` Step 8.1, via the "Check-then-attempt ordering"
+write above) and read back here, from the same durable, git-committed
+round-state file every other piece of this mechanism already depends
+on — not captured or re-derived in this section at all. This section is
+a **read-only diagnostic** over the batch Step 8.1 already started and
+persisted, not a second retrigger action:
+
+```bash
+KEY=<owner>-<repo>-pr<N>   # this PR's round-state filename, per "State schema" above
+git fetch origin lrh-round-state --quiet
+SINCE=$(git show origin/lrh-round-state:project/executions/round_state/$KEY.json \
+  | jq -r '.pending_attempt.retriggered_at')
+if [ -z "$SINCE" ] || [ "$SINCE" = "null" ]; then
+  echo "pending_attempt.retriggered_at is missing or null for this PR's round-state file — a data-integrity anomaly (this diagnostic should only run while Step 8.1's own batch is genuinely still pending). Surfacing to the human rather than guessing." >&2
+  exit 1
+fi
+```
+
+**Check `$SINCE` before using it in either filter below, not after.** `jq
+-r` on a `null` value (whether `pending_attempt` itself is `null`, or
+`retriggered_at` is simply absent from an older or non-compliant
+`pending_attempt`) prints the four-character string `"null"`, not an
+empty string — verified directly (`jq -r '.pending_attempt.retriggered_at'`
+on `{"pending_attempt":null}` → `null`). Every real ISO-8601 timestamp
+starts with a digit, and `'2' < 'n'` lexicographically, so
+`.started_at >= "null"` is **false for every real check-run** — the
+opposite-direction mirror of the empty-string bug fixed above (empty
+string made the comparison true for everything; the literal string
+`"null"` makes it false for everything), reaching the same fail-unsafe
+outcome from the other side: nothing matches, and a genuinely stalled
+reviewer gets reported as "no evidence invoked." The guard above turns
+that into an explicit, surfaced anomaly instead of a silently wrong
+answer.
+
+1. **Check-runs on the reviewer's own commit — primary signal, filtered
+   to this batch's retrigger:**
+
+   ```bash
+   CHECK_RUN=$(gh api repos/<owner>/<repo>/commits/<sha>/check-runs --paginate --slurp \
+     | jq --arg since "$SINCE" \
+       '[.[].check_runs[]] | map(select(.name=="copilot-pull-request-reviewer" and .started_at >= $since)) | sort_by(.started_at) | last | select(. != null) | {name, status, conclusion, started_at, completed_at}')
+   echo "$CHECK_RUN"
+   ```
+
+   `and .started_at >= $since` is what makes this safe on a same-`HEAD`
+   retry: a check-run that started *before* this round's retrigger is
+   evidence of a *previous* round, not this one, and must not be
+   selected even if it's still the most recent check-run on the commit.
+   No match under this filter means "no evidence the reviewer was
+   invoked this round" — not "stalled" — even if an older, already-known
+   stalled run is still sitting there `in_progress`; that older run
+   already got its own answer in an earlier round. `--paginate --slurp`
+   (no `--jq` on the `gh api` call itself), the same pattern this
+   codebase already uses for paginated GitHub reads
+   (`src/lrh/integrations/github/pull_reviews.py:164-173`) — `gh api
+   --paginate` runs a combined `--jq` **once per page**, each page a
+   separate JSON object (`gh help api`: "Each page is a separate JSON
+   array or object"), not once against a merged cross-page result; a
+   single-pass `--jq` filter looked correct against this repo's own
+   (single-page, 5-6 check-run) commits but silently breaks on any
+   commit whose check-runs span more than one page — each page would
+   independently compute its own "last," and the true most-recent match
+   could be discarded if it isn't on the last page processed. `--slurp`
+   instead collects every page into one outer array
+   (`[{...page 1...}, {...page 2...}, ...]`); the downstream `jq`
+   flattens `.[].check_runs[]` across all of them before sorting, so
+   "most recent" is computed over the genuinely complete set.
+   `select(. != null)` after `last` keeps the zero-match case truly
+   empty output, not a misleading `{"status":null,...}` object.
+   `--paginate` matters on its own too: this endpoint's default page
+   size can be smaller than a commit's total check-run count on a
+   CI-heavy PR, and an unpaginated call can silently miss the reviewer's
+   own check-run. A hosted reviewer session that's actually running
+   shows up here — this only tells you whether a session started this
+   round, not whether the reviewer is configured for this repo at all
+   (that remains unknowable from this signal alone; see the caveat at
+   the end of this section). `status: "in_progress"`, `conclusion: null`,
+   `completed_at: null` held past a reasonable wait means the session
+   started and never reached a terminal state — compute the age from
+   the matched object's own `started_at` (reuse `STALE_AGE_SECONDS`,
+   900 — 15 minutes, "Round-state branch mechanics" below — as the
+   threshold value, since that is this skill's own existing "reasonable
+   wait" constant, though it is scoped to that section's own worktree
+   staleness check, not a shared in-scope variable here). Guard on
+   `$CHECK_RUN` before computing an age at all — empty means no match
+   (never invoked this round), and any status other than `in_progress`
+   means it already reached a terminal state, neither of which has a
+   meaningful "age since started" to measure:
+
+   ```bash
+   if [ -z "$CHECK_RUN" ]; then
+     echo "no evidence the reviewer was invoked this round"
+   elif [ "$(echo "$CHECK_RUN" | jq -r .status)" != "in_progress" ]; then
+     echo "check-run reached a terminal status — not stalled"
+   else
+     STARTED_AT=$(echo "$CHECK_RUN" | jq -r .started_at)
+     AGE=$(( $(date -u +%s) - $(date -u -d "$STARTED_AT" +%s 2>/dev/null || date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$STARTED_AT" +%s) ))
+     [ "$AGE" -ge 900 ] && echo "stalled: ${AGE}s since started_at" || echo "in_progress, not yet past threshold: ${AGE}s"
+   fi
+   ```
+
+   (GNU `date -d` vs. BSD/macOS `date -j -f` — the same portability split
+   `STALE_AGE_SECONDS`'s own worktree-staleness check documents, but
+   unlike that check's `stat -f`/`-c` ambiguity — where GNU's `-f` means
+   something *else* and exits 0 with the wrong output instead of failing
+   — GNU `date -d` fails hard and cleanly on BSD/macOS date, so the `||`
+   fallback here is safe as written; no explicit flavor detection
+   needed.) This alone is enough to report "stalled."
+   (Substitute the check-run `name` this repository's reviewer actually
+   reports if not GitHub Copilot code review's default; per GitHub's
+   webhook documentation, `check_run` events fire only on
+   `created`/`rerequested`/`completed`/`requested_action` — there is no
+   periodic "still in progress" event, so this must be polled, not
+   subscribed to.)
+
+2. **Issue timeline, for optional corroboration — reuses `$SINCE` from
+   the same round-state read above, and filters by the emitting app's
+   `slug`, not event type:**
+
+   ```bash
+   gh api repos/<owner>/<repo>/issues/<pr-number>/timeline --paginate --slurp \
+     | jq --arg since "$SINCE" \
+       '[.[][] | select(.event | startswith("copilot_work"))
+              | select(.performed_via_github_app.slug == "copilot-pull-request-reviewer")
+              | select(.created_at >= $since)] | sort_by(.created_at) | first'
+   ```
+
+   `--paginate --slurp` here too: an active PR's timeline can exceed one
+   page, and an unpaginated call can miss the corroborating event on a
+   PR with a long history; each page is itself a bare JSON array for
+   this endpoint (not object-wrapped like check-runs), so `.[][]`
+   flattens the slurped array-of-pages directly.
+
+   `copilot_work_started`/`copilot_work_finished`/
+   `copilot_work_finished_failure` are emitted for **both** Copilot
+   products — verified from two distinct sources within the same
+   incident (`xenotaur/LCATS#202`, 2026-07-31), not inferred: the
+   **coding agent**, invoked earlier in that PR's timeline by bare
+   `@copilot` comment mentions (`SKILL.md` Step 8, "Do not retrigger
+   Copilot with a plain `@copilot` PR comment" — the root-caused trigger
+   for unwanted commits, a prior incident in this project), fired
+   `copilot_work_started` at each such mention; and the **code-review**
+   bot this step actually retriggers (`gh pr edit --add-reviewer
+   @copilot`) fired its own `copilot_work_started` ~34 seconds after a
+   `review_requested` timeline event from the same retrigger action.
+   Event *type* alone cannot tell the two products apart, but every such
+   event carries `.performed_via_github_app.slug` — verified directly
+   against both PRs above: `copilot-pull-request-reviewer` on every
+   code-review event, `copilot-swe-agent` on every coding-agent event, no
+   exceptions in either PR's real timeline. Filtering on that field
+   instead of (not just alongside) timestamp proximity is what actually
+   makes this corroboration signal trustworthy — an earlier revision of
+   this section relied on `$since` alone to rule out an unrelated
+   coding-agent invocation elsewhere on the same PR, which is weaker:
+   nothing stops a coding-agent event from landing inside the same
+   narrow time window this batch's retrigger falls in. Because this
+   signal is corroboration only (per the opening of this section, not a
+   gate on the check-run's own verdict), a missed or misattributed
+   timeline event downgrades confidence, never flips a real stall to
+   "not stalled."
+
+**Never invoked** (as distinct from stalled) is the check-run's own
+zero-match case: no check-run for that reviewer at all since `$SINCE`.
+This reading depends entirely on `$SINCE` being read from this batch's
+own persisted `retriggered_at`, not a freshly re-minted or stale value —
+see the caveat at the top of this section. Given that, a zero match means
+what it says: nothing observable happened in response to this batch's
+retrigger, not "the reviewer is stalled but the evidence got filtered
+out."
+
+Neither the check-run nor the timeline event identifies *why*
+a stall happened — credit exhaustion is the observed cause in the
+verified incident above, but a platform outage or an unrelated internal
+error would look identical from the API side. Surface it to the human as
+"stalled, cause unknown, credit exhaustion is one known cause," never as
+a confirmed diagnosis: this is a heuristic, not a diagnostic.
+Symmetrically, do not treat the *absence* of a stall signal as proof the
+reviewer is simply unconfigured — Step 8's existing rule against
+inferring configuration state from silence (`SKILL.md`, Step 8, "Do not
+infer 'no automated reviewer is configured' from silence either") still
+applies unchanged.
 
 ## State schema
 
@@ -111,7 +358,8 @@ with a batch in flight:
   "completed_count": 1,
   "pending_attempt": {
     "promoted": true,
-    "reviewers": {"codex": "submitted", "copilot": "pending"}
+    "reviewers": {"codex": "submitted", "copilot": "pending"},
+    "retriggered_at": "2026-08-01T05:33:53Z"
   }
 }
 ```
@@ -142,6 +390,25 @@ with a batch in flight:
   "Crash-recovery reconciliation" below for why that resolution does not
   re-mention the reviewer. `pending_attempt` clears to `null` only once
   every reviewer in it has a terminal status.
+- `retriggered_at` — the UTC timestamp of this batch's own retrigger
+  call (`SKILL.md` Step 8.1's `gh pr comment`/`gh pr edit
+  --add-reviewer` pair), written into this same state-file update at
+  batch start, never as a separate write. Exists because "Detecting a
+  stalled reviewer session" (below) needs this exact value, and a plain
+  shell variable cannot carry it there: Step 8.1 and Step 8.3 are never
+  the same tool invocation (Step 8.2's wait is inherently one or more
+  separate calls, and can span a session interruption), and shell state
+  — variables, not just working directory — does not survive across
+  separate invocations in this harness (confirmed empirically: a
+  variable set and `export`ed in one call reads back empty in the next).
+  A design that captured this timestamp into a bash variable and relied
+  on it surviving to Step 8.3 looked correct but was silently broken in
+  the normal case, not an edge case — an earlier revision of this
+  section had exactly that bug, caught by an independent review that
+  tested cross-call variable survival directly rather than assuming it.
+  Persisting the value here, in the same durable, git-committed store
+  this mechanism already uses for everything else, fixes it for real
+  instead of hardening the broken mechanism further.
 
 ## Round-state branch mechanics
 
@@ -315,7 +582,10 @@ ceiling — the batch was already authorized when it started. Only once
 `pending_attempt` is `null` does starting a *new* batch check
 `completed_count >= ceiling`. If true, stop — present the three-way gate,
 do not start the batch. If false, persist a fresh `pending_attempt` (all
-reviewers `"pending"`, `promoted: false`) and start the batch, promoting
+reviewers `"pending"`, `promoted: false`, `retriggered_at` set to this
+batch's own retrigger timestamp — see the field's own entry above for
+why this must be written here, not captured only in a shell variable)
+and start the batch, promoting
 (`completed_count += 1`, `promoted: true`) as soon as the first reviewer
 in it is confirmed submitted.
 

@@ -251,8 +251,9 @@ def install_named_skills(
         )
     # Materialize once: skill_names is iterated twice below (the
     # intersection check, then the main loop), and a caller passing a
-    # one-shot iterable that merely duck-types as Sequence[str] would
-    # otherwise have it silently consumed by the first pass.
+    # one-shot iterable (e.g. a generator) that satisfies the type hint's
+    # spirit but not the actual Sequence protocol would otherwise have it
+    # silently consumed by the first pass.
     names = list(skill_names)
     target = skills_dir if skills_dir is not None else _DEFAULT_SKILLS_DIR
     valid_names = set(_skill_names())

@@ -29,10 +29,14 @@ targeted install capability, bypassing the coarse-grained
   result rather than `rmtree`-then-fail (the existing `_copy_skill`
   deletes the destination before reading the package source). Every
   other installed skill is left completely untouched.
-- Added 4 new tests to `tests/skills_installer_test.py`: refresh of a
-  differing-bytes skill, an unnamed sibling left alone, an absent name
-  with a pre-existing stale directory (untouched, not deleted), and an
-  absent name with no existing directory (creates nothing).
+- Added 6 new tests to `tests/skills_installer_test.py` (in
+  `TestInstallNamedSkills`, updated across this PR's review rounds):
+  refresh of a differing-bytes skill, an unnamed sibling left alone, an
+  absent name with a pre-existing stale directory (untouched, not
+  deleted), an absent name with no existing directory (creates nothing),
+  a bare string raising `TypeError` instead of being iterated
+  character-by-character, and a one-shot iterable (generator) not being
+  silently consumed by double iteration.
 - Extended `.claude/skills/lrh-closeout/SKILL.md` (and its
   `src/lrh/skills/lrh-closeout/SKILL.md` mirror, kept byte-identical)
   with a 6th Step 2 assessment item ("Skill refresh"): REST PR Files
@@ -51,7 +55,9 @@ targeted install capability, bypassing the coarse-grained
 
 # Validation
 
-- `python3 -m pytest tests/skills_installer_test.py`: 26/26 pass
+- `python3 -m pytest tests/skills_installer_test.py`: 28/28 pass (final
+  count after review-round fixes; see the `_REVIEW` execution record for
+  the incremental counts as tests were added)
 - `scripts/format --check --diff`, `scripts/lint`: clean
 - `lrh validate`: 0 errors, 1 pre-existing unrelated warning
   (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` on `WS-LRH-ASSISTANTS`)

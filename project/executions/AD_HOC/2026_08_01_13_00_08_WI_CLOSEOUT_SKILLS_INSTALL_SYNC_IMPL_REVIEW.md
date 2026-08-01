@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 9b5fc2d
+commit: edd9e6e
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -43,9 +43,31 @@ Addressed review feedback on PR #456 from Codex (bound to commit
   `src/lrh/skills/lrh-closeout/SKILL.md`).
 - Pushed as commit `ec39369`.
 
+**Round 2** — retriggered both reviewers against `95f7a2a` (Copilot
+landed there directly; Codex's clean pass on the same commit arrived as
+an issue comment, not a formal review — matches the known pattern).
+Copilot's fresh pass on the test file raised 3 new suppressed comments,
+all confirmed valid:
+- `tests/skills_installer_test.py:97` — `names[1]` assumes ≥2 packaged
+  skills exist with no explicit assertion; an IndexError on failure would
+  be unclear. Added `assertGreaterEqual(len(names), 2, ...)`.
+- `tests/skills_installer_test.py:135` — the "absent name with no
+  existing dir creates nothing" test called `install_skills()` first,
+  which itself creates `skills_dir` — so the test never actually
+  exercised the mkdir-skip behavior the round-1 fix introduced. Removed
+  that call so `skills_dir` genuinely doesn't exist beforehand, and added
+  an assertion that it still doesn't exist afterward.
+- `src/lrh/skills/installer.py:248` — `Sequence[str]` also accepts a bare
+  `str` at runtime, which would iterate character-by-character (e.g.
+  `"lrh-closeout"` → refresh attempts for `"l"`, `"r"`, ...). Added an
+  explicit `isinstance(skill_names, str)` guard raising `TypeError`, plus
+  a new test asserting it.
+- Pushed as commit `edd9e6e`.
+
 # Validation
 
-- `python3 -m pytest tests/skills_installer_test.py`: 26/26 pass
+- `python3 -m pytest tests/skills_installer_test.py`: 27/27 pass (26 →
+  27 after the new bare-string-guard test)
 - `scripts/format --check --diff`, `scripts/lint`: clean (after
   `scripts/lint --fix` reformatted the mkdir-hoist change)
 - `lrh validate`: 0 errors, 1 pre-existing unrelated warning
@@ -57,5 +79,5 @@ Addressed review feedback on PR #456 from Codex (bound to commit
 
 # Follow-up
 
-- Next: retrigger both reviewers against `ec39369` and wait for
-  REVIEW-LANDED before confirm-fixes.
+- Next: retrigger both reviewers against `edd9e6e`; if clean, proceed to
+  `/lrh-confirm-fixes`.

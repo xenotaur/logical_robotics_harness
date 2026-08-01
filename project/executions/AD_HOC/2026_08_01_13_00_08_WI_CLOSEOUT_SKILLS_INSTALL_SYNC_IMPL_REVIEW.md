@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 3ca1c5c
+commit: 16277f2
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -228,7 +228,34 @@ round 7's own fixes:
   as other fetch failures if the object still can't be made available.
 - Pushed as commit `906613a`.
 
+**Round 9** — retriggered against `05cdc23`. 2 new threads, both
+confirmed valid:
+- P1 "Bind the refresh checkout to the PR repository" — **confirmed
+  valid**: the `src/lrh/skills/` presence precondition rules out an
+  unrelated client repo, but not a *different* LRH checkout (a fork or
+  second clone) whose `origin/main` has genuinely diverged from the PR's
+  own repository — the REST PR Files listing is always fetched from the
+  PR's own `<owner>/<repo>`, but every git-level read used whatever
+  `origin` locally pointed to. Added a third precondition: `git remote
+  get-url origin` must resolve to the same `<owner>/<repo>` as the PR
+  being closed out (smoke tested live: this checkout's origin correctly
+  resolves to `xenotaur/logical_robotics_harness.git`).
+- P1 "Replace the stale ancestry check in the checklist" — **confirmed
+  valid, a self-inflicted consistency bug**: round 8 replaced the main
+  narrative's ancestry check with an exact tree-hash comparison, but the
+  Quality Checklist item still described the old (now-known-unsafe)
+  ancestry check. Fixed the checklist to match.
+- Pushed as commit `16277f2`.
+
+Noting a pattern shift: this round's second finding was a propagation
+slip in this session's own prior fix, not a new independent design gap
+— a signal that the feature's documentation has grown complex enough to
+create its own consistency surface area. Plan: one more retrigger; if it
+surfaces only textual/consistency nits or false positives (not a new
+substantive design gap), treat that as the natural stopping point and
+move to a final self-review pass before merge, per the pattern that
+worked well on the WI-creation PR (#454).
+
 # Follow-up
 
-- Next: retrigger both reviewers against `906613a`, again re-reading
-  full thread content, not just review-body summaries or counts.
+- Next: retrigger both reviewers against `16277f2`.

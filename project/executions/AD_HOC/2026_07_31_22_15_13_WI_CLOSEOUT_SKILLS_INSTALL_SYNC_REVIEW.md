@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_07_31_21_38_13_WI_CLOSEOUT_SKILLS_INSTALL_SYNC
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/454
-commit: ce5558a
+commit: 2a56851
 created_at: 2026-07-31T22:15:13-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/454
@@ -76,8 +76,7 @@ as suppressed/summary comments (0 new inline threads):
   precisely state that `lrh-create-skill` is the only skill whose *own
   execution steps* direct the agent to run it, and dropped the brittle
   line-number citations per the review's secondary point.
-- Pushed as commit (this record's `commit:` field, populated at push
-  time).
+- Pushed as commit `2a56851`.
 
 # Validation
 

@@ -33,7 +33,10 @@ forbidden_actions:
 acceptance:
   - src/lrh/skills/lrh-execute/SKILL.md exists with valid frontmatter
   - .claude/skills/lrh-execute/ is a byte-identical copy of src/lrh/skills/lrh-execute/
-  - /lrh-execute accepts a WI-ID or WS-ID, enforces depends_on before starting, invokes the /lrh-implement workflow, and hands off to /lrh-land for landing
+  - /lrh-execute's chain authorization gate (completion + stop-work conditions, DEC-DELIBERATE-CHAIN-INITIATION) runs before /lrh-implement starts, not deferred to /lrh-land's later gate
+  - Given WI-ID, /lrh-execute enforces depends_on (all entries resolved) before starting; given WS-ID, it finds the next ready WI per PROP-LRH-LAND-EXECUTE's exact selection rule (proposed, depends_on satisfied, prompt_ready: yes in lrh work-items readiness structured output, no in_progress/landed execution record) and stops without proposing creation if none exists
+  - /lrh-execute invokes the /lrh-implement workflow and hands off to /lrh-land for landing
+  - /lrh-execute writes the Decision 8 scratchpad run journal (execute_wi action, distinct from /lrh-land's own land_pr action)
   - /lrh-execute retriggers bot review only through /lrh-land's existing round-cap-gate.md guardrail, never an independent unguarded retrigger path
   - lrh validate passes with 0 errors
   - CLAUDE.md's ## Skills index has an entry for /lrh-execute
@@ -91,9 +94,18 @@ inline sub-skill pattern can carry Phase 2 if needed.
 
 ## Scope
 
-- Implement `/lrh-execute`: accepts a `WI-ID` or `WS-ID`, enforces
-  `depends_on` before starting, invokes the `/lrh-implement` workflow,
-  hands off to `/lrh-land` for landing.
+- Implement `/lrh-execute`: given `WI-ID`, enforce `depends_on`, invoke
+  `/lrh-implement`, hand off to `/lrh-land`; given `WS-ID`, resolve to a
+  ready WI first (see Required Changes #3), then proceed identically.
+- Run `/lrh-execute`'s own chain authorization gate — completion condition
+  and stop-work condition per `DEC-DELIBERATE-CHAIN-INITIATION` — *before*
+  `/lrh-implement` starts, mirroring `/lrh-land`'s own Decision 2 Step 2
+  ("This gate precedes Steps 3–4 so that no automated work begins without
+  a prior chain-level authorization"). Do not rely on `/lrh-land`'s later
+  gate — by the time `/lrh-land` runs, implementation and PR creation have
+  already happened.
+- Write the Decision 8 scratchpad run journal (see Required Changes #5) —
+  distinct from `/lrh-land`'s own `land_pr` journal action.
 - Reuse `/lrh-land`'s existing inline chain (review-response →
   confirm-fixes → merge gate → closeout) and `round-cap-gate.md`'s
   bot-retrigger guardrail — do not build a second, parallel retrigger
@@ -105,16 +117,29 @@ inline sub-skill pattern can carry Phase 2 if needed.
 
 1. Create `src/lrh/skills/lrh-execute/SKILL.md` following the established
    LRH skill pattern (see `src/lrh/skills/lrh-land/SKILL.md` for the
-   sibling chain-running skill's structure).
+   sibling chain-running skill's structure), opening with its own chain
+   authorization gate before any automated step, per Scope above.
 2. Wire `/lrh-execute` to invoke `/lrh-implement`'s three-phase workflow
    for the target `WI-ID`, then hand off to `/lrh-land` for the resulting
    PR — inline sub-skill execution (matching `/lrh-land`'s own current
    pattern), not direct Skill-tool invocation, since
    `WI-DELIBERATE-MODEL-INVOCATION` remains unresolved.
-3. Enforce the target work item's `depends_on` list before starting.
-4. Mirror `src/lrh/skills/lrh-execute/SKILL.md` byte-for-byte to
+3. For a `WI-ID` target: enforce `depends_on` (all entries `resolved`;
+   stop and report if not). For a `WS-ID` target: find the next ready WI
+   per `PROP-LRH-LAND-EXECUTE`'s exact rule (`00_proposal.md:221-225`) —
+   status `proposed`, `depends_on` satisfied, `prompt_ready: yes` in
+   `lrh work-items readiness` structured output (not merely a zero exit
+   code), and no `in_progress` or `landed` execution record — then proceed
+   as the `WI-ID` case. Stop and report if no ready WI exists; do not
+   propose creating one (that is `/lrh-next`'s scope).
+4. Write the scratchpad run journal per Decision 8
+   (`00_proposal.md:294-315`): an `execute_wi` action entry (`wi`,
+   `prompt_id`, `pr`, `result`, `chain_note`) distinct from `/lrh-land`'s
+   own `land_pr` action, so handing off to `/lrh-land` doesn't silently
+   drop the original WI/WS node this run started from.
+5. Mirror `src/lrh/skills/lrh-execute/SKILL.md` byte-for-byte to
    `.claude/skills/lrh-execute/SKILL.md`.
-5. Add a `/lrh-execute` entry to `CLAUDE.md`'s `## Skills` index.
+6. Add a `/lrh-execute` entry to `CLAUDE.md`'s `## Skills` index.
 
 ## Non-Goals
 
@@ -136,8 +161,15 @@ inline sub-skill pattern can carry Phase 2 if needed.
 - `src/lrh/skills/lrh-execute/SKILL.md` exists with valid frontmatter.
 - `.claude/skills/lrh-execute/` is byte-identical to
   `src/lrh/skills/lrh-execute/`.
-- `/lrh-execute` accepts a `WI-ID` or `WS-ID`, enforces `depends_on`,
-  invokes `/lrh-implement`, and hands off to `/lrh-land`.
+- `/lrh-execute`'s chain authorization gate runs before `/lrh-implement`
+  starts, not deferred to `/lrh-land`'s later gate.
+- Given `WI-ID`, `/lrh-execute` enforces `depends_on` before starting;
+  given `WS-ID`, it finds the next ready WI per `PROP-LRH-LAND-EXECUTE`'s
+  exact selection rule and stops without proposing creation if none exists.
+- `/lrh-execute` invokes the `/lrh-implement` workflow and hands off to
+  `/lrh-land` for landing.
+- `/lrh-execute` writes the Decision 8 scratchpad run journal (`execute_wi`
+  action, distinct from `/lrh-land`'s own `land_pr` action).
 - `/lrh-execute` retriggers bot review only through `/lrh-land`'s existing
   `round-cap-gate.md` guardrail.
 - `lrh validate` reports 0 errors.

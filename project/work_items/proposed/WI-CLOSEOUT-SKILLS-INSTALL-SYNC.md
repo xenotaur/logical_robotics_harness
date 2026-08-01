@@ -26,16 +26,21 @@ forbidden_actions:
   - modify_unrelated_skills
   - auto_merge_pr
 acceptance:
-  - "/lrh-closeout detects when the PR's merged diff touches .claude/skills/ or src/lrh/skills/"
-  - On detection, it runs lrh skills install (non-force) or explicitly prompts the human to, with output/reminder shown in the report
-  - A skill with genuine local modifications still reports user_modified rather than being silently overwritten
+  - "/lrh-closeout detects when the PR's merged diff touches .claude/skills/ or src/lrh/skills/, and identifies which skill names"
+  - A skill named in that touched set is refreshed even when its previously installed bytes differ from a stale prior package revision, not blocked by the coarse-grained USER_MODIFIED check
+  - A skill not in that touched set, but with genuine local modifications, still reports user_modified and is left untouched
+  - The outcome is shown in the closeout report
+  - New unit tests in tests/skills_installer_test.py cover the targeted refresh
   - SKILL.md is updated to document the new step
-  - lrh validate reports 0 errors
+  - lrh validate reports 0 errors; scripts/test passes
   - Manual smoke test against a skill-touching PR shows the step firing
 required_evidence:
   - manual_review
   - lrh_validate
+  - test_output
 artifacts_expected:
+  - src/lrh/skills/installer.py (edited — targeted, named-subset force-install capability)
+  - tests/skills_installer_test.py (edited — targeted refresh coverage)
   - .claude/skills/lrh-closeout/SKILL.md (edited — new step)
   - src/lrh/skills/lrh-closeout/SKILL.md (edited — mirror of the above)
 ---
@@ -56,10 +61,13 @@ round-cap-gate mechanism added by PR #445 (`references/round-cap-gate.md`
 citation, the round-cap retrigger gating, the anchored `find` pattern for
 prior `_CONFIRM` records) plus the `@copilot` bare-comment coding-agent
 fix. A repo-wide diff of all 13 skills under `src/lrh/skills/` against
-`~/.claude/skills/` in that session found 6 diverged: `lrh-confirm-fixes`,
+`~/.claude/skills/` in that session found 6 that had diverged: `lrh-confirm-fixes`,
 `lrh-land`, `lrh-proposal`, `lrh-review-response`, `lrh-work-item`,
 `lrh-workstream` — all manually reinstalled as a stopgap by direct file
 copy, not through this WI's fix.
+
+Note: a plain non-force `lrh skills install` run after such a merge would
+not have fixed any of these 6 — see Scope below for why.
 
 Root cause: `.claude/skills/lrh-closeout/SKILL.md`'s 8 execution steps
 (Parse input, Assess state, Resolve session transcript, Confirm gate,
@@ -102,57 +110,100 @@ step must be careful to run against the checkout it just landed onto
 - Add a step to `/lrh-closeout` (the shared terminal phase whether
   invoked standalone or via `/lrh-land`) that detects whether the
   closed-out PR's merged diff touched `.claude/skills/` or
-  `src/lrh/skills/`.
-- On detection, either run `lrh skills install` (no `--force`, so genuine
-  local modifications elsewhere still surface a `user_modified` warning
-  instead of being silently overwritten) or explicitly surface a reminder
-  to the human, and report the outcome in the closeout report.
+  `src/lrh/skills/`, and if so, which skill names.
+- On detection, refresh **only those named skills**, overwriting the
+  installed copy from the current package regardless of whether its
+  installed bytes differ (a targeted, PR-scoped overwrite) — and leave
+  every other skill subject to the ordinary non-force check, so a
+  genuine local edit in an unrelated skill still surfaces as
+  `user_modified` rather than being silently overwritten.
+
+  A **blanket non-force `lrh skills install` cannot do this**:
+  `_skill_differs_from_package` (`installer.py`) classifies any installed
+  skill whose bytes differ from the current package as `USER_MODIFIED`
+  and skips it — including a stale, unmodified copy of the *previous*
+  package revision, which is exactly the state every just-changed skill
+  is in immediately after this kind of merge. A plain non-force run would
+  skip precisely the skills it needs to fix (confirmed retroactively: none
+  of the 6 skills found stale this session would have been refreshed by
+  it). A blanket `--force` is also wrong, since it would overwrite
+  unrelated skills that happen to carry real local edits. The fix must be
+  scoped to "skills this specific merge touched," not "all skills" in
+  either direction.
 
 ## Required Changes
 
-1. Extend `.claude/skills/lrh-closeout/SKILL.md` (and its
+1. Add a way to force-install a *named subset* of skills — `installer.py`
+   currently only exposes all-or-nothing `force` across every installed
+   skill (`install_skills(force=True)`). Add a targeted variant (e.g. a
+   `skill_names` filter parameter, or a small new function built on the
+   existing `_copy_skill`) that overwrites only the given skill names
+   regardless of their `USER_MODIFIED` classification, leaving all other
+   skills' status computation untouched. Cover it with unit tests in
+   `tests/skills_installer_test.py` (a targeted refresh overwrites a named
+   skill even when its installed bytes differ from the package; an
+   unnamed skill with differing bytes is left alone and still reports
+   `USER_MODIFIED`).
+2. Extend `.claude/skills/lrh-closeout/SKILL.md` (and its
    `src/lrh/skills/lrh-closeout/SKILL.md` mirror) with a new step, placed
    after the PR's changes are known to be merged, that:
    - Diffs the closed-out PR's changed files against `.claude/skills/` and
-     `src/lrh/skills/` path prefixes.
-   - If either prefix was touched, runs `lrh skills install` (non-force)
-     from a checkout known to be on `main` post-merge, and reports its
-     per-skill status lines in the closeout report.
-   - If a skill reports `user_modified`, surfaces that explicitly rather
-     than silently skipping it.
-2. Update the Quality Checklist and "What This Skill Does Not Do" sections
+     `src/lrh/skills/` path prefixes to derive the set of touched skill
+     names.
+   - If the set is non-empty, invokes the targeted refresh from item 1
+     (from a checkout known to be on `main` post-merge) for exactly those
+     names, and reports the outcome in the closeout report.
+   - Surfaces the outcome explicitly in every case — which skills were
+     refreshed, and whether any of them are still not up to date
+     afterward (which would indicate a bug in the targeted refresh itself,
+     since a name in the touched set should always succeed).
+3. Update the Quality Checklist and "What This Skill Does Not Do" sections
    of `/lrh-closeout` to reflect the new step's scope and limits.
-3. Keep both `.claude/skills/lrh-closeout/` and `src/lrh/skills/lrh-closeout/`
+4. Keep both `.claude/skills/lrh-closeout/` and `src/lrh/skills/lrh-closeout/`
    trees byte-identical per the existing skill-mirror convention.
 
 ## Non-Goals
 
-- Does not change `lrh skills install`'s own diffing/force/target-directory
-  semantics — that is `WI-SKILLS-INSTALL-DIFF` and
-  `PROP-LRH-SKILLS-TARGET-AWARE-INSTALL` territory.
+- Does not change `lrh skills install`'s existing CLI-level
+  `--force`/`--diff`/target-directory semantics — that is
+  `WI-SKILLS-INSTALL-DIFF` and `PROP-LRH-SKILLS-TARGET-AWARE-INSTALL`
+  territory. The targeted-refresh capability added here (Required Changes
+  item 1) is a new, narrowly-scoped addition alongside those, not a
+  replacement.
+- Does not run a **blanket** `--force` across all installed skills — only
+  the specific skill names the merged PR's diff identifies are refreshed;
+  every other skill still goes through the ordinary non-force check, and a
+  genuinely locally modified skill outside that set must still warn, not
+  be silently overwritten.
 - Does not retroactively fix any other stale global skill install beyond
   what was already manually patched in the session that filed this WI.
-- Does not run `lrh skills install --force` automatically — a genuinely
-  locally modified skill must still warn, not be silently overwritten.
 - Does not add this step to any skill other than `/lrh-closeout`.
 
 ## Acceptance Criteria
 
 - `/lrh-closeout` detects when the PR's merged diff touches
-  `.claude/skills/` or `src/lrh/skills/`.
-- On detection, it runs `lrh skills install` (non-force) or explicitly
-  prompts the human to, with the outcome shown in the closeout report.
-- A skill with genuine local modifications still reports `user_modified`
-  rather than being silently overwritten.
+  `.claude/skills/` or `src/lrh/skills/`, and identifies which skill names.
+- A skill named in that touched set is refreshed even when its previously
+  installed bytes differ from a stale prior package revision — not
+  blocked by the coarse-grained `USER_MODIFIED` check.
+- A skill *not* in that touched set, but with genuine local modifications,
+  still reports `user_modified` and is left untouched.
+- The outcome (which skills were refreshed, any anomalies) is shown in the
+  closeout report.
+- New unit tests in `tests/skills_installer_test.py` cover the targeted
+  refresh (named skill with differing bytes is overwritten; unnamed skill
+  with differing bytes is left alone).
 - SKILL.md (both trees) is updated to document the new step.
-- `lrh validate` reports 0 errors.
+- `lrh validate` reports 0 errors; `scripts/test` passes.
 - Manual smoke test against a skill-touching PR shows the step firing.
 
 ## Validation
 
+- `scripts/test`
 - `lrh validate`
 - Manual smoke test: run `/lrh-closeout` against a PR that edits an
-  existing skill and confirm the new step fires and reports correctly
+  existing skill and confirm the new step fires, refreshes exactly the
+  touched skills, and leaves an unrelated locally-modified skill alone
 - `diff -r .claude/skills/lrh-closeout src/lrh/skills/lrh-closeout` (mirror
   parity)
 

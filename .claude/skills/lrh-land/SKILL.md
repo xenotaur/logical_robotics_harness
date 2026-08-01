@@ -134,10 +134,15 @@ lrh request review_response <pr-url> 2>&1 | head -3
 ```
 
 If `lrh request review_response` output starts with `Nothing to resolve:`,
-there are no unresolved inline threads. Compare `lastPush` against the
-current time — if the last commit is only seconds old, bots have not had
-time to run; wait and re-check. If enough time has passed with no threads,
-review is complete with no findings → proceed to Step 5.
+there are no threads matching *this check's* definition of unresolved —
+which excludes outdated threads (a thread whose commented line moved can
+stay `isResolved: false` while `isOutdated: true`; see Step 5's Step 2 note
+on the narrower definition). It is not a full authoritative "zero
+unresolved threads anywhere" guarantee — Step 5's `isResolved`-only check
+is what provides that. Compare `lastPush` against the current time — if the
+last commit is only seconds old, bots have not had time to run; wait and
+re-check. If enough time has passed with no threads, review is complete
+with no findings under this check → proceed to Step 5.
 
 If the output contains thread data → open threads present; execute the
 review-response workflow inline (Phase 1: read `/lrh-review-response/SKILL.md`
@@ -158,6 +163,18 @@ every comment currently returned has been triaged — even though the thread
 list is not yet empty — proceed to Step 5, whose confirm-fixes pass is what
 actually resolves the threads and makes `Nothing to resolve:` true
 afterward.
+
+**Step 4 completing is provisional, not authoritative.** Because
+`lrh request review_response`'s notion of unresolved excludes outdated
+threads, an untriaged thread can exist that Step 4 never saw at all — not
+just one it triaged and is waiting on Step 5 to resolve. Step 5's
+authoritative `isResolved`-only check can surface it for the first time.
+If it does and the diff doesn't plainly satisfy it, that is expected
+behavior, not a broken loop: Step 5 classifies it (Unaddressed/Partial/
+Ambiguous/etc.) and offers another `/lrh-review-response` round for it,
+per its own Step 5. Do not treat a not-green Step 5 verdict caused by a
+newly-surfaced outdated thread as a sign Step 4 was skipped or malformed —
+loop back to Step 4 for that thread and continue.
 
 ### Step 5 — Confirm-fixes
 

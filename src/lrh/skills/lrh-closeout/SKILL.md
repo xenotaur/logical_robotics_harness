@@ -6,8 +6,7 @@ description: >
   skill assesses all artifact states, resolves the session transcript, presents
   a full closeout plan at a human gate, executes confirmed actions (landing
   execution records via lrh prompt update-execution, resolving work items,
-  closing workstreams, adopting proposals, refreshing the global skill
-  install for any skill the PR modified), validates, prompts for session
+  closing workstreams, adopting proposals), validates, prompts for session
   reflection, and reports.
 disable-model-invocation: true
 argument-hint: "[pr-url | WI-ID | WS-ID]"
@@ -144,171 +143,6 @@ Read `related_design:` from the WS file; identify any proposals in
 `project/design/proposals/proposed/`. If the WS would close AND the proposal
 is still in `proposed/` → offer adoption.
 
-**6. Skill refresh (if the PR touched `.claude/skills/` or `src/lrh/skills/`):**
-
-**This entire assessment item does not mutate tracked files, branches, or
-`~/.claude/skills/`** — it never switches branches, writes to the working
-tree, or installs anything. It must stay that way: Step 4's confirm gate
-promises "before touching any files," meaning the user's own work and the
-target install directory, not git's own remote-tracking bookkeeping.
-Routine `git fetch origin main` (updating `refs/remotes/origin/main` and
-`FETCH_HEAD`) is expected, harmless git housekeeping inherent to reading
-"what's actually on `origin/main`" correctly, not something this gate is
-meant to guard — but a **heavier** git operation, specifically converting
-a shallow clone to a full one, is a different matter (see the
-shallow-clone handling below): that must not happen silently pre-gate.
-
-**Precondition — this checkout must actually be the LRH source repo.**
-`/lrh-closeout` is a reusable skill installed into independent client
-repositories; a client repo can have its own project-local
-`.claude/skills/<name>/` with no relationship to LRH's own
-`src/lrh/skills/` package at all. If the invoking checkout has no
-`src/lrh/skills/` directory, this item does not apply — report "not
-applicable: this checkout has no src/lrh/skills/, skipping skill
-refresh" and move on to the next assessment item. Only proceed past this
-point when `src/lrh/skills/` exists locally.
-
-**Precondition — the PR must have been merged into `main`.** Step 2 item
-1 already fetches PR state, but only checks `state`/`mergeCommit`, not
-which branch the PR actually merged into — a PR can be `MERGED` into a
-release branch or any other long-lived branch instead. This assessment
-item specifically reads `origin/main` as "current" and Step 5 installs
-from that checkout; if the PR's actual base branch wasn't `main`, that
-assumption is simply wrong — an existing skill could be classified
-added/modified and overwritten with `main`'s *unrelated, older* bytes
-while being reported `refreshed`, or a genuinely new skill could be
-misclassified as absent from both revisions. Fetch and check
-`baseRefName` with its own call — `gh pr view --json baseRefName` (Step 2
-item 1's own `gh pr view` call only requests `state,mergeCommit`, not
-`baseRefName`, so it cannot be reused as-is for this): if it is not
-`main`, this item does not apply — report "not applicable: PR's base
-branch is `<baseRefName>`, not `main`, skipping skill refresh" and move
-on.
-
-**Precondition — the local `origin` remote must actually be the PR's own
-repository.** The `src/lrh/skills/` presence check above rules out an
-unrelated client repo, but not a *different* LRH checkout — a personal
-fork, or a second clone with its own `origin` — whose `main` has
-genuinely diverged from the PR repository's `main`. The REST PR Files
-listing and `baseRefOid` are always fetched from the PR's own
-`<owner>/<repo>` (parsed from the PR URL/argument), but every git-level
-read above (`git fetch origin main`, `git ls-tree origin/main:...`)
-operates on whatever `origin` locally points to — silently a different
-repository's `main` if this checkout isn't actually a clone of the PR's
-own repository. Confirm they match before proceeding:
-
-```bash
-git remote get-url origin
-# must resolve to the same <owner>/<repo> as the PR URL/argument being closed out
-```
-
-If they don't match — this checkout is a fork or an unrelated clone —
-this item does not apply — report "not applicable: local origin remote
-is `<owner/repo>`, not the PR's own `<owner/repo>`, skipping skill
-refresh" and move on. Do not attempt to fetch from or install using a
-different repository's remote than the one this checkout's `origin`
-already points to.
-
-Get the PR's full changed-file list from the **REST** PR Files endpoint —
-`gh api repos/<owner>/<repo>/pulls/<N>/files --paginate` — never
-`gh pr view --json files` (that form resolves through GitHub's GraphQL
-`PullRequestChangedFile` type, which has no `previous_filename` field at
-all, so a renamed file's old path is unrecoverable through it) and never a
-post-merge `git diff` against an inferred parent commit (unreliable across
-squash/rebase merges, which can collapse or rewrite a multi-commit PR's
-history). `--paginate` is required — the endpoint defaults to 30 files per
-page (100 max) and does not return the full list in one call for a larger
-PR. This endpoint's response does **not** include the PR's base commit —
-fetch that separately, from PR metadata: `gh pr view --json baseRefOid`
-(or the REST pull-request object's own `.base.sha`), never assumed to be
-recoverable from the files listing itself.
-
-If the paginated result reaches the endpoint's documented 3,000-file
-ceiling, or the fetch itself fails (auth, rate-limit, network, or any
-non-2xx response): report an explicit anomaly in the plan and skip *this
-assessment item only* — do not silently proceed as if the PR touched no
-skills, and do not fail the rest of closeout over it.
-
-Filter the file list to entries whose `filename` or (when present)
-`previous_filename` starts with `.claude/skills/` or `src/lrh/skills/`.
-For each matching path (old or new), derive a **candidate** skill name
-using a purely structural rule: the immediate subdirectory component
-after the prefix. A path with no subdirectory component (a file directly
-under the prefix, e.g. `src/lrh/skills/installer.py`) yields no
-candidate — this is a path-shape distinction, not a package-membership
-one, so it excludes non-skill files without also excluding a genuinely
-removed or renamed skill directory.
-
-**Partition the candidate names by membership in `_skill_names()`-eligible
-directories at both the PR's base revision and current `main` — using
-`git ls-tree` reads against both revisions, not a live Python import of
-either.** A live `_skill_names()` import via `PYTHONPATH="$(pwd)/src"`
-would read whatever the *invoking checkout* currently has on disk, which
-this assessment item must not depend on or attempt to change — that
-checkout could be on a stale `main`, a feature branch, or anything else,
-and switching it here would violate the read-only/pre-gate constraint
-above. Instead, read both revisions straight from git history, which
-requires no working-tree state at all beyond having them fetched:
-
-```bash
-git fetch origin main --quiet   # anomaly + skip this item on failure, per the fetch-failure handling above
-git ls-tree -d --name-only origin/main:src/lrh/skills | grep -v '^_'
-```
-
-**Before reading the base revision, confirm its commit object is actually
-present locally — having the `<baseRefOid>` string from PR metadata does
-not guarantee this.** In a shallow clone (a common CI/sandbox setup),
-`git fetch origin main` only fetches `main`'s shallow tip, not
-necessarily enough history to reach an arbitrary older or
-differently-branched base commit; `git ls-tree <baseRefOid>:...` then
-fails with a bad-object error before the base-revision list can even be
-produced:
-
-```bash
-git cat-file -e "<baseRefOid>" 2>/dev/null || git fetch origin "<baseRefOid>" --quiet
-```
-
-If the object still isn't present after that targeted fetch (some hosts
-restrict fetching arbitrary SHAs), **do not escalate to
-`git fetch --unshallow`** — that converts a shallow clone to a full one,
-a much larger download and a permanent, one-way change to the local
-repository's state, which must not happen silently pre-gate. Treat an
-unreachable base object the same as any other fetch failure — report an
-explicit anomaly (naming that a full/deeper fetch might resolve it) and
-skip *this* item, rather than either letting `git ls-tree` fail uncaught
-or performing a heavy, undisclosed mutation to work around it. (A human
-who wants this resolved can run `git fetch --unshallow` themselves, or
-re-run closeout from a non-shallow checkout — this skill does not do it
-on their behalf without being asked.) Only once the object is confirmed
-present via the lightweight path above:
-
-```bash
-git ls-tree -d --name-only <baseRefOid>:src/lrh/skills | grep -v '^_'
-```
-
-Use the **colon path form** in both cases — `<rev>:src/lrh/skills` —
-never the space-separated pathspec form (`<rev> -- src/lrh/skills`),
-which does not list a directory's children: it prints only the
-`src/lrh/skills` tree entry itself. The `grep -v '^_'` mirrors
-`_skill_names()`'s own exclusion of underscore-prefixed directories,
-since neither revision's code is being imported here.
-
-- Present at `origin/main` → **added/modified**.
-- Present at the base revision, absent from `origin/main` →
-  **removed/renamed** (an anomaly — no current package source to refresh
-  from).
-- Absent from **both** → not a skill at all (e.g. `_shared`); ignore.
-
-Run the structural filter before this partition, and check both
-revisions, not current alone — reversing either order would misclassify
-a removed skill as never-existed, or an excluded directory like `_shared`
-as removed.
-
-Include the resulting plan — which names, and whether each is
-added/modified (to be refreshed) or removed/renamed (to be reported as an
-anomaly, never auto-uninstalled) — as its own row(s) in the Step 2 plan
-table, surfaced at the Step 4 confirm gate like every other artifact.
-
 Present the full plan as a table:
 
 | Artifact | Current state | Intended action |
@@ -319,8 +153,6 @@ Present the full plan as a table:
 | WS `<WS-ID>` | in `proposed/`, 1/2 WIs resolved | skip — not all WIs resolved |
 | WS `<WS-ID>` | in `active/`, all WIs resolved | offer closeout — exit criteria confirmation required |
 | PROP-`<slug>` | in `proposed/` | skip — governing WS not closing |
-| Skill `<name>` | added/modified per PR diff | refresh via targeted install |
-| Skill `<name>` | removed/renamed per PR diff | report anomaly — no auto-uninstall |
 
 ### Step 3 — Resolve session transcript
 
@@ -414,14 +246,6 @@ Before touching any files, show the user:
   user has not already stated it, ask: "What should the `resolution:` note
   say for `<WI-ID>`?" (one-line summary; e.g., `"Implemented and merged in PR #342 (commit abc1234)"`)
 
-**Skill refresh confirmation:** if Step 2 found any skill refresh rows,
-call them out explicitly — this bypasses the ordinary `USER_MODIFIED`
-safety check for the named skills, so it must be disclosed and approved
-*before* any file under `~/.claude/skills/` is written, not only reported
-afterward. List each name and whether it will be refreshed
-(added/modified) or reported as an anomaly (removed/renamed, never
-auto-uninstalled).
-
 **WS exit criteria confirmation:** for any WS where closeout is being offered,
 display the full `exit_criteria:` list (already shown at Step 2, repeated here
 for the gate) and ask:
@@ -441,37 +265,6 @@ plan and show it again.
 ### Step 5 — Execute confirmed actions
 
 Execute all confirmed actions. Abort on any error rather than partially completing.
-
-**If a skill refresh is among the confirmed actions, establish the `main`
-checkout first — before any other action below.** The execution
-record/work item/workstream/proposal actions that follow edit and move
-files on whatever branch this session is currently on; if those run
-first, `git checkout main` (needed for the skill refresh) can then fail
-outright (git refuses to switch branches over uncommitted changes it
-would have to overwrite) partway through Step 5, or — worse — silently
-"succeed" by leaving the *rest* of Step 5's edits committed on the wrong
-branch while only the skill-refresh sub-item reports a skipped anomaly.
-Do this once, up front, if applicable:
-
-```bash
-git fetch origin main --quiet
-git checkout main
-git pull --ff-only
-# or, if main is locked in another worktree: the /lrh-land main-worktree-lock
-# workaround (checkout -b tmp-<slug> origin/main, apply changes, push
-# tmp-<slug>:main, delete tmp-<slug>)
-```
-
-`--ff-only` on the pull is deliberate: a plain `git pull` can create an
-unexpected merge commit if local `main` has diverged from `origin/main`
-for any reason, which is itself a signal something is wrong, not a
-condition to silently resolve with a merge. If any of this fails, or the
-main-worktree-lock workaround isn't applicable or also fails: report an
-explicit anomaly, skip the skill-refresh action specifically (its
-per-name checks below can't run without a valid checkout), and continue
-with the *other* confirmed Step 5 actions normally — a failed skill
-refresh should not block the WI/WS/execution-record work the rest of
-this step does independently of it.
 
 **Execution records** (for each record marked `update to landed`):
 
@@ -535,148 +328,6 @@ Then move the entire proposal directory:
 mv project/design/proposals/proposed/<slug>/ project/design/proposals/adopted/<slug>/
 ```
 
-**Skill refresh** (if Step 2 found any skill refresh rows and the user
-confirmed them at Step 4):
-
-Step 2's assessment was entirely read-only (`git ls-tree` reads against
-`origin/main` and the base revision — see above); it never established
-that the invoking checkout itself is actually on `main`. That was
-established once, up front, at the top of this step (before the
-execution record/WI/WS/proposal actions above) — if that establishment
-failed, this action was already skipped as an anomaly and none of the
-following applies.
-
-**Verify each *confirmed* skill's own subdirectory — not the whole
-`src/lrh/skills` root — matches `origin/main` exactly, both committed
-and on disk.** Checking the package root is both too broad and too
-easy to false-positive: an unrelated sibling skill that happens to
-differ (someone else's uncommitted edit to a *different* skill, or this
-very checkout's own `src/lrh/skills/__pycache__/` — a normal byproduct
-of Python importing `lrh.skills.installer`, which Step 2 and this step
-both do, so it's expected on any checkout that has ever run these very
-instructions) would block refreshing skills that are actually fine, and
-`install_named_skills`/`_copy_skill` only ever reads one named skill
-subdirectory at a time regardless — package-root `__pycache__` is never
-in the copy path at all. Verify per confirmed name instead:
-
-For each confirmed added/modified `<name>`:
-
-```bash
-git rev-parse "HEAD:src/lrh/skills/<name>"
-git rev-parse "origin/main:src/lrh/skills/<name>"
-```
-
-These must be **equal** (comparing that one skill's own tree object
-hash, not the whole-repo `HEAD` commit hash or the package root) before
-proceeding for this name. An earlier version of this check used
-`git merge-base --is-ancestor origin/main HEAD`, reasoning that this
-accepts both plain `main` and the `tmp-<slug>` workaround — but
-`--is-ancestor` accepts *every* descendant, including one with an
-additional, never-merged commit on top that itself further edits this
-skill, which would then be installed while reporting `refreshed`,
-silently including content never part of the actual PR merge. Requiring
-the branch name to be exactly `main` (an even earlier version) avoids
-that but incorrectly rejects the legitimate `tmp-<slug>` workaround. The
-per-name hash comparison passes for plain `main` (trivially equal) and
-for `tmp-<slug>` (closeout's own commits touch WI/WS/execution-record
-files, never a skill subdirectory, so its hash is unchanged from
-`origin/main`) — and correctly fails the instant *that specific skill's*
-content diverges from `origin/main` for any reason.
-
-**This tree-hash comparison only covers *committed* state — it says
-nothing about the working tree.** `install_named_skills` doesn't read
-git objects; it imports live via `PYTHONPATH="$(pwd)/src"`, which reads
-whatever bytes are actually on disk right now. An uncommitted edit or an
-untracked file under this specific `src/lrh/skills/<name>/` would leave
-both `rev-parse` hashes above equal (they only see committed trees)
-while the Python import picks up the dirty bytes anyway. Also require a
-clean working tree for *that same specific skill directory* — not the
-package root, for the same false-positive reason as above — including
-`--ignored`, since plain `git status --porcelain` does not report
-gitignored entries by default, but `_copy_resource_tree` enumerates
-every real filesystem entry under the directory it's given regardless of
-`.gitignore` (confirmed live in this session's own checkout: a
-`.DS_Store` placed inside `src/lrh/skills/lrh-closeout/` was invisible
-to plain `git status --porcelain` but reported as `!!` with
-`--ignored`; separately, the checkout's own `src/lrh/skills/__pycache__/`
-— from this very skill's own Python imports — also only showed with
-`--ignored`, confirming it would otherwise go undetected):
-
-```bash
-git status --porcelain --ignored -- "src/lrh/skills/<name>"
-```
-
-Must produce **no output** for that name. Any output — modified, staged,
-untracked, or ignored entries under *that skill's own directory* — means
-this specific name can't be trusted to match the verified commit, or
-contains extraneous files never part of the actual package: report an
-explicit anomaly for *that name* and exclude it from the refresh, rather
-than installing from unknown or polluted state. A dirty or divergent
-*unrelated* skill's directory (not in the confirmed set, or a sibling
-whose own check didn't run) must not block the names that do pass.
-
-(The checkout-to-main establishment itself was already handled, with its
-own anomaly-and-skip behavior, at the top of this step.) If a specific
-confirmed name fails its own tree-hash or clean-working-tree check here:
-report an anomaly for *that name* only and exclude just it from the
-refresh — the other confirmed names whose checks passed still proceed.
-Do not fall back to whatever working-tree state happened to be present,
-and do not invoke `install_named_skills` for a name that failed its own
-verification.
-
-**Also verify `src/lrh/skills/installer.py` itself — the module doing
-the copying — the same way, once, before invoking it for any name.**
-Every per-name check above verifies the *data* being copied; none of
-them verify the *code* that performs the copy. If `installer.py` (or
-`lrh/skills/__init__.py`) has an unmerged descendant commit or a dirty
-working-tree edit, every per-name check can still pass while
-`install_named_skills` itself executes different logic than what's
-actually on `origin/main` — bypassing `USER_MODIFIED` under code that
-was never part of the merged PR, regardless of how carefully the target
-skill directories were verified:
-
-```bash
-git rev-parse HEAD:src/lrh/skills/installer.py
-git rev-parse origin/main:src/lrh/skills/installer.py
-git status --porcelain --ignored -- src/lrh/skills/installer.py
-```
-
-The two `rev-parse` outputs must be equal, and the `status` output must
-be empty — the same equal-hash-plus-clean-tree pattern as each named
-skill, applied once to the installer module itself. If this fails,
-report an explicit anomaly and skip the **entire** skill-refresh action
-for **every** confirmed name — a compromised installer invalidates every
-per-name result, not just one.
-
-Only once a name is verified (and the installer module itself is
-verified), load `install_named_skills` from *this*
-checkout, never an ambient, possibly-unrelated installed `lrh`
-distribution — prefix the invocation with an explicit `PYTHONPATH`
-pointed at this checkout's `src/`, since a `pipx`/`pip`-installed
-(non-editable) `lrh` is a frozen snapshot that wouldn't reflect this
-merge regardless of which branch is checked out:
-
-```bash
-PYTHONPATH="$(pwd)/src" python3 -c "
-from lrh.skills.installer import install_named_skills
-results = install_named_skills([<confirmed added/modified names>])
-for r in results:
-    print(f'{r.name}: {r.status.value}')
-"
-```
-
-For the confirmed **removed/renamed** set, do not attempt to refresh —
-there is no current package source to copy from. Report each as an
-anomaly in the Step 8 report; do not delete
-`~/.claude/skills/<old-name>` (Non-Goal — out of scope for this skill).
-
-Report the outcome explicitly: which names were refreshed, any
-removed/renamed anomalies, and any name that came back `absent` from
-`install_named_skills` despite being in the confirmed added/modified set
-— that specific combination indicates a bug in this step's own
-base/current partition, not an expected outcome, and should be surfaced
-as a finding, not silently absorbed.
-
 ### Step 6 — Validate
 
 ```bash
@@ -728,10 +379,6 @@ git commit -m "chore(closeout): <summary of actions> (PR #N)"
 Report to the user:
 
 - Each action taken (file edited, file moved, validation result)
-- If a skill refresh was planned: the outcome (which skills were
-  refreshed, any removed/renamed anomalies) — never silently absorbed
-  into the generic "each action taken" line, since this is a
-  `USER_MODIFIED`-bypassing mutation of the user's own machine
 - Commit SHA on `main`
 - If `session_transcript` is still `pending`: remind to update it before
   archiving the session (the host id is `$CLAUDE_CODE_HOST_SESSION_ID` or the
@@ -766,45 +413,6 @@ Before reporting completion, verify:
 - [ ] User confirmed at Step 4 before any files were touched
 - [ ] Each file read before editing; no partial edits
 - [ ] `mv` used for WI/WS/proposal moves (not `cp`)
-- [ ] If the PR touched `.claude/skills/` or `src/lrh/skills/`, this
-      checkout has `src/lrh/skills/` (is the LRH source repo), the PR's
-      `baseRefName` is `main`, and `origin` resolves to the PR's own
-      `<owner>/<repo>` (all three preconditions in Step 2, not a fork or
-      unrelated clone): skill refresh planned entirely read-only (REST
-      PR Files endpoint,
-      paginated, ceiling and fetch-failure handled; `git ls-tree` reads
-      against both `origin/main` and the base revision, no live checkout
-      mutation), disclosed at the Step 4 confirm gate before any file
-      under `~/.claude/skills/` was written
-- [ ] If a skill refresh is confirmed, `main` is checked out (`--ff-only`
-      pull) **first, before any other Step 5 action** — not interleaved
-      after execution-record/WI/WS/proposal edits, which could leave the
-      tree unable to switch branches cleanly or (worse) get committed to
-      the wrong branch
-- [ ] Skill refresh verifies **per confirmed skill name** (not the whole
-      `src/lrh/skills` package root, which would false-positive on an
-      unrelated sibling's divergence or this checkout's own `__pycache__`
-      from running these very instructions) via an **exact subtree-hash
-      comparison** (`git rev-parse HEAD:src/lrh/skills/<name>` ==
-      `git rev-parse origin/main:src/lrh/skills/<name>`) — not ancestry
-      alone (`git merge-base --is-ancestor`, which wrongly accepts an
-      unmerged descendant commit) and not a branch-name or bare
-      commit-SHA check (either of which would reject the legitimate
-      `tmp-<slug>` main-worktree-lock workaround) — **and** confirms
-      `git status --porcelain --ignored -- src/lrh/skills/<name>` is
-      empty for that same name (`--ignored` included, since a gitignored
-      stray file inside a skill directory is still copied by the live
-      filesystem enumeration even though plain `git status` wouldn't
-      report it); a name that fails its own check is excluded from the
-      refresh without blocking other confirmed names
-- [ ] `src/lrh/skills/installer.py` itself (the module performing the
-      copy, not just the skill data being copied) is verified with the
-      same equal-hash-plus-clean-tree check, once, before invoking
-      `install_named_skills` for *any* name — a compromised installer
-      module invalidates every per-name result, so this failing skips the
-      entire skill-refresh action, not just one name
-- [ ] `install_named_skills` invoked with `PYTHONPATH` explicitly pointed
-      at that checkout, not an ambient/frozen `lrh` install
 - [ ] `lrh validate` reports 0 errors before commit
 - [ ] Committed to `main` (not a feature branch)
 - [ ] `session_transcript: pending` reminder included in report if applicable
@@ -828,25 +436,3 @@ Before reporting completion, verify:
 - Does not handle abandoned WIs (WI with no PR ever opened) — warns and
   leaves for human resolution.
 - Does not open a new branch or PR — closeout commits go directly to `main`.
-- Does not change `lrh skills install`'s own CLI-level
-  `--force`/`--diff`/target-directory semantics — the targeted refresh
-  used here is a separate, narrowly-scoped capability.
-- Does not run a blanket `--force` across all installed skills — only the
-  specific names the merged PR's diff identifies are refreshed; every
-  other skill is left untouched by this step.
-- Does not retroactively fix any other stale global skill install beyond
-  what this PR's own diff identifies.
-- Does not automatically uninstall `~/.claude/skills/<name>` for a skill
-  the merge removed or renamed — reports it as an anomaly for the human
-  to act on instead.
-- Does not add this skill-refresh mechanism to any skill other than
-  `/lrh-closeout`.
-- Does not attempt a skill refresh in a checkout that isn't the LRH
-  source repo itself (no `src/lrh/skills/` present) — a client repo's own
-  project-local `.claude/skills/<name>/` is out of scope for this
-  mechanism entirely, not just skipped-with-a-warning.
-- Does not attempt a skill refresh when the PR's base branch isn't
-  `main`, or when the local `origin` remote isn't the PR's own
-  `<owner>/<repo>` (a fork or unrelated second clone) — both report
-  not-applicable and skip rather than reading or installing from the
-  wrong repository or branch.

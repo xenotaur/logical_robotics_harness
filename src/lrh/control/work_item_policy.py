@@ -154,6 +154,15 @@ def validate_work_item_policy(
                     "blocked_reason is required when blocked is true",
                 )
             )
+    elif blocked_reason is not None:
+        issues.append(
+            _issue(
+                path_context.file,
+                "error",
+                "WORK_ITEM_BLOCKED_REASON_NOT_NULL",
+                "blocked_reason must be null unless blocked is true",
+            )
+        )
 
     if status in TERMINAL_WORK_ITEM_STATUSES:
         resolution = metadata.get("resolution")

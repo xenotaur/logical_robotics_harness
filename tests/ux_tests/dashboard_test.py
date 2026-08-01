@@ -361,6 +361,25 @@ class CoreStateAdapterTest(unittest.TestCase):
         self.assertEqual(summary.status, dashboard.OperationalStatus.BLOCKED)
         self.assertEqual(summary.active_work_count, 1)
 
+    def test_project_summary_counts_blocked_flag_with_no_blocked_by(self) -> None:
+        blocked_item = _work_item(
+            work_item_id="WI-BLOCKED-FLAG",
+            status="active",
+            blocked_by=(),
+            blocked=True,
+            blocked_reason="waiting on upstream decision",
+            is_active_leaf=True,
+        )
+        state = _core_state(
+            current_focus=_focus(),
+            work_items=(blocked_item,),
+            active_leaf_work_items=(blocked_item,),
+        )
+
+        summary = dashboard.project_summary_from_core_state(state)
+
+        self.assertEqual(summary.status, dashboard.OperationalStatus.BLOCKED)
+
 
 def _record(name: str) -> meta_workspace.MetaProjectRecord:
     return meta_workspace.MetaProjectRecord(
@@ -483,6 +502,8 @@ def _work_item(
     work_item_id: str = "WI-1",
     status: str = "active",
     blocked_by: tuple[str, ...] = (),
+    blocked: bool = False,
+    blocked_reason: str | None = None,
     is_active_leaf: bool = False,
 ) -> core_state.WorkItemState:
     return core_state.WorkItemState(
@@ -501,6 +522,8 @@ def _work_item(
         related_design=(),
         depends_on=(),
         blocked_by=blocked_by,
+        blocked=blocked,
+        blocked_reason=blocked_reason,
         required_evidence=(),
         artifacts_expected=(),
         execution_readiness=None,

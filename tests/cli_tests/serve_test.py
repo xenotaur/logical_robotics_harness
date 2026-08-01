@@ -105,6 +105,38 @@ class TestLrhServeCli(unittest.TestCase):
         self.assertNotIn("project_root", payload)
 
 
+class TestBlockedWorkItemCount(unittest.TestCase):
+    def test_counts_blocked_true_with_empty_blocked_by_and_active_status(
+        self,
+    ) -> None:
+        work_items = {
+            "items": [
+                {
+                    "id": "WI-BLOCKED-FLAG",
+                    "status": "active",
+                    "blocked": True,
+                    "blocked_by": [],
+                }
+            ]
+        }
+
+        self.assertEqual(serve._blocked_work_item_count(work_items), 1)
+
+    def test_does_not_count_unblocked_active_item(self) -> None:
+        work_items = {
+            "items": [
+                {
+                    "id": "WI-ACTIVE",
+                    "status": "active",
+                    "blocked": False,
+                    "blocked_by": [],
+                }
+            ]
+        }
+
+        self.assertEqual(serve._blocked_work_item_count(work_items), 0)
+
+
 class TestLrhServeRoutes(unittest.TestCase):
     def _start_server(
         self, project_root: pathlib.Path | None = None

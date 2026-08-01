@@ -133,15 +133,36 @@ KEY=<owner>-<repo>-pr<N>   # this PR's round-state filename, per "State schema" 
 git fetch origin lrh-round-state --quiet
 SINCE=$(git show origin/lrh-round-state:project/executions/round_state/$KEY.json \
   | jq -r '.pending_attempt.retriggered_at')
+if [ -z "$SINCE" ] || [ "$SINCE" = "null" ]; then
+  echo "pending_attempt.retriggered_at is missing or null for this PR's round-state file — a data-integrity anomaly (this diagnostic should only run while Step 8.1's own batch is genuinely still pending). Surfacing to the human rather than guessing." >&2
+  exit 1
+fi
 ```
+
+**Check `$SINCE` before using it in either filter below, not after.** `jq
+-r` on a `null` value (whether `pending_attempt` itself is `null`, or
+`retriggered_at` is simply absent from an older or non-compliant
+`pending_attempt`) prints the four-character string `"null"`, not an
+empty string — verified directly (`jq -r '.pending_attempt.retriggered_at'`
+on `{"pending_attempt":null}` → `null`). Every real ISO-8601 timestamp
+starts with a digit, and `'2' < 'n'` lexicographically, so
+`.started_at >= "null"` is **false for every real check-run** — the
+opposite-direction mirror of the empty-string bug fixed above (empty
+string made the comparison true for everything; the literal string
+`"null"` makes it false for everything), reaching the same fail-unsafe
+outcome from the other side: nothing matches, and a genuinely stalled
+reviewer gets reported as "no evidence invoked." The guard above turns
+that into an explicit, surfaced anomaly instead of a silently wrong
+answer.
 
 1. **Check-runs on the reviewer's own commit — primary signal, filtered
    to this batch's retrigger:**
 
    ```bash
-   gh api repos/<owner>/<repo>/commits/<sha>/check-runs --paginate --slurp \
+   CHECK_RUN=$(gh api repos/<owner>/<repo>/commits/<sha>/check-runs --paginate --slurp \
      | jq --arg since "$SINCE" \
-       '[.[].check_runs[]] | map(select(.name=="copilot-pull-request-reviewer" and .started_at >= $since)) | sort_by(.started_at) | last | select(. != null) | {name, status, conclusion, started_at, completed_at}'
+       '[.[].check_runs[]] | map(select(.name=="copilot-pull-request-reviewer" and .started_at >= $since)) | sort_by(.started_at) | last | select(. != null) | {name, status, conclusion, started_at, completed_at}')
+   echo "$CHECK_RUN"
    ```
 
    `and .started_at >= $since` is what makes this safe on a same-`HEAD`
@@ -183,17 +204,31 @@ SINCE=$(git show origin/lrh-round-state:project/executions/round_state/$KEY.json
    900 — 15 minutes, "Round-state branch mechanics" below — as the
    threshold value, since that is this skill's own existing "reasonable
    wait" constant, though it is scoped to that section's own worktree
-   staleness check, not a shared in-scope variable here):
+   staleness check, not a shared in-scope variable here). Guard on
+   `$CHECK_RUN` before computing an age at all — empty means no match
+   (never invoked this round), and any status other than `in_progress`
+   means it already reached a terminal state, neither of which has a
+   meaningful "age since started" to measure:
 
    ```bash
-   AGE=$(( $(date -u +%s) - $(date -u -d "$STARTED_AT" +%s 2>/dev/null || date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$STARTED_AT" +%s) ))
-   [ "$AGE" -ge 900 ] && echo "stalled: ${AGE}s since started_at"
+   if [ -z "$CHECK_RUN" ]; then
+     echo "no evidence the reviewer was invoked this round"
+   elif [ "$(echo "$CHECK_RUN" | jq -r .status)" != "in_progress" ]; then
+     echo "check-run reached a terminal status — not stalled"
+   else
+     STARTED_AT=$(echo "$CHECK_RUN" | jq -r .started_at)
+     AGE=$(( $(date -u +%s) - $(date -u -d "$STARTED_AT" +%s 2>/dev/null || date -u -j -f "%Y-%m-%dT%H:%M:%SZ" "$STARTED_AT" +%s) ))
+     [ "$AGE" -ge 900 ] && echo "stalled: ${AGE}s since started_at" || echo "in_progress, not yet past threshold: ${AGE}s"
+   fi
    ```
 
    (GNU `date -d` vs. BSD/macOS `date -j -f` — the same portability split
-   `STALE_AGE_SECONDS`'s own worktree-staleness check documents; detect
-   explicitly rather than relying on `||` masking which one actually
-   ran.) This alone is enough to report "stalled."
+   `STALE_AGE_SECONDS`'s own worktree-staleness check documents, but
+   unlike that check's `stat -f`/`-c` ambiguity — where GNU's `-f` means
+   something *else* and exits 0 with the wrong output instead of failing
+   — GNU `date -d` fails hard and cleanly on BSD/macOS date, so the `||`
+   fallback here is safe as written; no explicit flavor detection
+   needed.) This alone is enough to report "stalled."
    (Substitute the check-run `name` this repository's reviewer actually
    reports if not GitHub Copilot code review's default; per GitHub's
    webhook documentation, `check_run` events fire only on

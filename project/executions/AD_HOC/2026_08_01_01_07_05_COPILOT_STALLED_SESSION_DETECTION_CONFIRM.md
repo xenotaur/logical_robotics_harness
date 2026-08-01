@@ -444,9 +444,55 @@ shown. Added a concrete `AGE=$(( $(date +%s) - ... ))` snippet (GNU/BSD
 `date` portability handled the same way "Round-state branch mechanics"
 already does), verified live on this machine's own `date`.
 
-Fixed and pushed as (see commit below). No further rounds requested —
-this record now documents the fix rather than deferring to "the next
-round."
+Fixed and pushed as `662d6fb`.
+
+**Third independent subagent review, dispatched cold** (told two prior
+passes each found and fixed a real bug, instructed to find what they
+missed rather than re-litigate). Found one more real, opposite-direction
+mirror of the bug the second pass had just fixed, plus two minor
+polish items.
+
+**Real, confirmed:** `jq -r '.pending_attempt.retriggered_at'` on a
+`null` `pending_attempt` (or one missing the field, e.g. written by an
+older, pre-this-PR revision of the skill) prints the literal string
+`"null"`, not empty — verified directly. Every real ISO-8601 timestamp
+starts with a digit, and `'2' < 'n'` lexicographically, so
+`.started_at >= "null"` is **false for every real check-run** —
+verified directly (`jq -n --arg since "null" '"2026-08-01T10:00:00Z" >=
+$since'` → `false`). This is the mirror image of the second pass's bug
+from the *other* direction: an empty `$since` made the comparison true
+for everything (over-matching, found a stale check-run); a literal
+`"null"` `$since` makes it false for everything (under-matching, finds
+nothing at all) — both reach the same fail-unsafe outcome, a genuinely
+stalled reviewer reported as "no evidence invoked," just via opposite
+mechanisms. Fixed: explicit guard right after reading `$SINCE` —
+`if [ -z "$SINCE" ] || [ "$SINCE" = "null" ]; then` surface as a
+data-integrity anomaly and `exit 1`, consistent with this document's
+existing pattern for other anomalies (the PR-identity mismatch check in
+"State schema"), rather than silently running a broken filter.
+
+**Minor (2):** the AGE-computation snippet's own commentary claimed to
+avoid "`||` masking which one actually ran" while the code directly
+below it used exactly that `||` pattern — a real inconsistency, though
+not a live bug: tested directly that BSD/macOS `date -d` fails hard
+(non-zero exit), unlike the `stat -f`/`-c` ambiguity elsewhere in this
+doc where GNU's `-f` silently produces wrong output instead of failing.
+Fixed the prose to say why `||` is actually safe here, rather than
+adding unneeded explicit detection to code that wasn't broken.
+
+**Minor (3):** `$STARTED_AT` was referenced with no preceding
+assignment. Fixed: the check-run query now captures its result into
+`$CHECK_RUN`, and a guard (empty → never invoked; non-`in_progress` →
+not stalled; else compute age from `$CHECK_RUN`'s own `.started_at`)
+runs before the age computation — closes a real crash I hit myself while
+testing the fix live: running the age snippet against a `completed`
+check-run with no guard produced empty `$STARTED_AT` and a `date`
+parse error.
+
+All fixes verified live (match, zero-match, and terminal-status cases
+for the check-run guard; both `$SINCE` anomaly cases for the new guard).
+Mirrors identical, `lrh validate` clean, `scripts/format`/`lint`/`test`
+all clean (808 tests).
 
 # Follow-up
 

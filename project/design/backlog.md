@@ -451,3 +451,41 @@ pointer and its revisit trigger.
 `src/lrh/assist/request_cli.py` (`--target-agent`);
 `src/lrh/assist/request_service.py` (`REQUEST_TARGET_AGENT`);
 "Validator drift-check for synced skill references" entry above.
+
+---
+
+## `WorkItem.blocked`/`blocked_reason` not populated by every builder
+
+**Noted:** 2026-08-01, Copilot review (suppressed comment) on PR #455,
+which added typed `blocked: bool` / `blocked_reason: str | None` fields to
+`control_models.WorkItem` and wired them through `control/loader.py`'s
+`_load_work_items()` so `core_state.py`'s `WorkItemState` and `serve.py`'s
+blocked-count logic stop dropping the frontmatter fields.
+
+**Idea:** Two other `WorkItem` builders were not updated to set these
+fields, so instances they construct keep the `blocked: bool = False` /
+`blocked_reason: str | None = None` defaults regardless of the source
+frontmatter: `src/lrh/control/validator.py`'s
+`_work_item_model_from_artifact()` and `src/lrh/assist/snapshot_cli.py`'s
+`_load_snapshot_work_items()`. This is a real typed-model consistency gap
+— a future reader could reasonably assume every `WorkItem` instance
+reflects its frontmatter's `blocked` state.
+
+**Status:** Deferred — traced both current consumers and neither is
+actually broken by the gap. `validator.py`'s typed `WorkItem` here only
+feeds `build_planning_tree_from_artifacts()` for parent/child/cycle
+diagnostics; that function recomputes `blocked`/`blocked_reason` on its
+own `PlanningArtifact` output directly from `artifact.frontmatter`
+(`src/lrh/control/planning_tree.py:256-257`), not from `WorkItem.blocked`.
+`snapshot_cli.py`'s readiness-hint feature (`_active_leaf_readiness_hint`,
+line 329) reads `PlanningArtifact.blocked`, the same frontmatter-derived
+value — also unaffected. Revisit if a future consumer starts reading
+`.blocked`/`.blocked_reason` directly off either builder's `WorkItem`
+output rather than through `PlanningArtifact`.
+
+**Related:** harness PR #455 (Copilot review, suppressed comment);
+`src/lrh/control/models.py` (`WorkItem.blocked`/`blocked_reason`);
+`src/lrh/control/loader.py` (`_load_work_items`);
+`src/lrh/control/validator.py` (`_work_item_model_from_artifact`);
+`src/lrh/assist/snapshot_cli.py` (`_load_snapshot_work_items`);
+`src/lrh/control/planning_tree.py` (`build_planning_tree_from_artifacts`).

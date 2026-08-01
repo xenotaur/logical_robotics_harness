@@ -60,11 +60,9 @@ coverage fails in both directions:
 
 - PR #437 (documented in the acting agent's own cross-session memory as
   `feedback_review_coverage_check_commit_id` — an external record, not a
-  path under this repo's `project/memory/` — and reflected in
-  `lrh-confirm-fixes/SKILL.md:119`'s `isResolved`-filter language): a
-  review looked "landed" by timestamp ordering, but its `commit_id`
-  covered only the first of three commits — an old review over-credited
-  as covering new work.
+  path under this repo's `project/memory/`): a review looked "landed" by
+  timestamp ordering, but its `commit_id` covered only the first of three
+  commits — an old review over-credited as covering new work.
 - This item's motivating incident: a live session scoped its review-landed
   check to "only since" a later commit's push time and missed a real,
   unresolved Copilot review with 5 inline findings that had landed
@@ -227,8 +225,10 @@ happen to quote the SHA.
 
 ## Non-Goals
 
-- Does not implement the self-review/assess-agent fallback discussed as
-  "Phase 1" — separate future work item.
+- Does not implement the self-review/assess-agent fallback (a separate,
+  not-yet-filed future work item) — not to be confused with `/lrh-land`'s
+  own "Phase 1" (inline sub-skill invocation, see
+  `lrh-land/SKILL.md:95-99`), an unrelated use of the same term.
 - Does not implement `WI-REVIEW-ROUND-ESCALATION-GATE`'s round-cap/ceiling
   mechanism — different problem (cost bounding vs. detection correctness),
   cross-linked only.

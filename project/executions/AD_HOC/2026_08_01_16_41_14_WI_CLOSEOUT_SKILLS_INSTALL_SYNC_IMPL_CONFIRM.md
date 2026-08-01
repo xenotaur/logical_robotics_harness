@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 9c4ea01
+commit: 8d38c5f
 created_at: 2026-08-01T16:41:14-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -45,8 +45,17 @@ the fresh-context go/no-go self-review's NO-GO verdict: the
 - Structural revert-cleanliness check (independent, via subagent): 0
   diff hunks for either SKILL.md file
 
+**Step 8 retrigger (batch 1 of round-cap ceiling 3)** against `75819c6`:
+CI green (5/5), Codex clean, Copilot raised 1 new suppressed comment
+(no formal thread — 0 unresolved threads remained after the batch
+confirm): `tests/skills_installer_test.py` indexed `results[0]` without
+first asserting the list length, which would surface a regression as an
+uninformative `IndexError`. **Confirmed valid, minor.** Added
+`assertEqual(len(results), 1)` before the index. Pushed as commit
+`8d38c5f`.
+
 # Follow-up
 
-- Step 8 (readiness report) still to run: re-fetch CI against the
-  post-push `HEAD`, retrigger both reviewers, and wait for
-  REVIEW-LANDED confirmation before reporting the final verdict.
+- Retrigger once more against `8d38c5f` (round-cap batch 2 of 3) and
+  wait for CI green + both reviewers clean before reporting the final
+  merge-readiness verdict.

@@ -4,8 +4,8 @@ prompt_id: PROMPT(AD_HOC:OUTDATED_THREAD_RECOVERY)[2026-08-01T12:20:46-04:00]
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/457
+commit: 041f0897cc14fd4b2df11b6c876f15dec2fb1261
 created_at: 2026-08-01T12:28:08-04:00
 agent: claude_app
 instruction_source: project/design/proposals/proposed/outdated-thread-recovery/00_proposal.md

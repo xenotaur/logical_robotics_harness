@@ -4,8 +4,8 @@ prompt_id: PROMPT(AD_HOC:WI_LRH_LAND_OUTDATED_THREAD_RECOVERY)[2026-08-01T12:34:
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/457
+commit: 96da0ef2ae8840f47db55081d89bfbf6b932c9b1
 created_at: 2026-08-01T12:38:28-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-LAND-OUTDATED-THREAD-RECOVERY.md

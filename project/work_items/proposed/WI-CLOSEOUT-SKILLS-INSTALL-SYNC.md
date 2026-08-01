@@ -26,14 +26,15 @@ forbidden_actions:
   - modify_unrelated_skills
   - auto_merge_pr
 acceptance:
-  - "/lrh-closeout uses a rename-aware diff to derive candidate skill names by path shape, then partitions by _skill_names() membership at both old and current revisions into added/modified vs. removed/renamed vs. not-a-skill, in that order"
+  - "/lrh-closeout gets the PR's changed-file list from the PR Files API (not a post-merge git diff), derives candidate skill names by path shape, then partitions by _skill_names() membership at both base and current revisions into added/modified vs. removed/renamed vs. not-a-skill, in that order"
+  - The targeted-refresh function validates each name against the current package before any destructive filesystem operation and returns an explicit absent-name result rather than deleting an existing installed directory first
   - A skill in the added/modified set is refreshed even when its previously installed bytes differ from a stale prior package revision, not blocked by the coarse-grained USER_MODIFIED check
   - A skill not in that touched set, but with genuine local modifications, still reports user_modified and is left untouched
-  - A skill in the removed/renamed set is reported as an explicit anomaly, not silently left stale or auto-uninstalled, including a rename's old name
+  - A skill in the removed/renamed set is reported as an explicit anomaly, not silently left stale, auto-uninstalled, or destroyed by an invalid targeted-refresh call, including a rename's old name via previous_filename
   - A changed path under an excluded directory like _shared produces no candidate and no anomaly
   - The planned refresh is disclosed and approved at the confirm gate before any file under ~/.claude/skills/ is written
   - The outcome is shown in the closeout report
-  - New unit tests cover the targeted refresh, candidate derivation excluding non-skill files like installer.py, both-revisions partitioning (removed vs. excluded-directory), and an actual rename
+  - New unit tests cover the targeted refresh (including the absent-name safety case), candidate derivation excluding non-skill files like installer.py, both-revisions partitioning (removed vs. excluded-directory), and an actual rename via previous_filename
   - SKILL.md is updated to document the new step
   - This WI's own implementation PR's closeout invokes the targeted refresh capability scoped to lrh-closeout alone, loaded from the merged checkout, not a plain non-force lrh skills install or an unrelated installed distribution
   - lrh validate reports 0 errors; scripts/test passes
@@ -147,25 +148,49 @@ step must be careful to run against the checkout it just landed onto
    `skill_names` filter parameter, or a small new function built on the
    existing `_copy_skill`) that overwrites only the given skill names
    regardless of their `USER_MODIFIED` classification, leaving all other
-   skills' status computation untouched. This function takes names already
-   known to exist in the current package — deriving and classifying that
-   name set is item 2's job, not this one's; **do not** filter the input
-   here by package membership, since a caller needs to be able to detect
-   an *absent* name too (item 2's removed-skill case).
+   skills' status computation untouched.
+
+   **Validate each name against the current package before performing
+   any destructive filesystem operation.** `_copy_skill` currently
+   `rmtree`s the destination *before* attempting to read the package
+   source — for a name absent from the current package (a removed or
+   renamed skill, or any other caller error), that sequencing would
+   delete the existing `~/.claude/skills/<name>` and then raise trying
+   to traverse a nonexistent package resource, destroying exactly the
+   stale directory the removed-skill policy (item 2) says to preserve
+   and report, not delete. The targeted function must check
+   `_skill_names()` membership for each name *first* and return an
+   explicit absent-name result (not raise mid-copy, not silently skip)
+   before touching the filesystem for that name — classification of
+   *why* a name is absent (removed vs. renamed vs. never valid) remains
+   item 2's job; this function's job is only to refuse to delete-then-fail
+   on a name it can't actually refresh.
    Cover it with unit tests in `tests/skills_installer_test.py` (a
    targeted refresh overwrites a named skill even when its installed
    bytes differ from the package; an unnamed skill with differing bytes
-   is left alone and still reports `USER_MODIFIED`).
+   is left alone and still reports `USER_MODIFIED`; calling the targeted
+   function with a name absent from the current package returns the
+   explicit absent-name result and leaves any existing installed
+   directory for that name untouched — not deleted, not raised through).
 2. Extend `.claude/skills/lrh-closeout/SKILL.md` (and its
    `src/lrh/skills/lrh-closeout/SKILL.md` mirror) with a new step, placed
    after the PR's changes are known to be merged, that:
-   - Diffs the closed-out PR's changed files against `.claude/skills/` and
-     `src/lrh/skills/` path prefixes using a **rename-aware** listing
-     (e.g. `git diff --name-status -M` or the platform API's
-     `previous_filename`/equivalent, not a name-only listing) — a
-     name-only diff commonly exposes only a rename's *destination* path,
-     which would make a renamed skill look purely "added" and never
-     surface its now-orphaned old name in `~/.claude/skills/<old-name>`.
+   - Gets the closed-out PR's full changed-file list from the **PR Files
+     API** (e.g. `gh pr view --json files` / `gh api
+     repos/<owner>/<repo>/pulls/<N>/files`, which exposes `filename` and
+     `previous_filename` for renames), not a post-merge `git diff` against
+     some inferred parent commit. A squash or rebase merge collapses the
+     PR's commits into one (or rewrites them), so diffing the merge
+     result against its immediate parent can miss changes from earlier
+     commits in a multi-commit PR or misidentify the comparison range
+     entirely; the PR API always reflects the PR's full, correct
+     cumulative diff regardless of merge strategy, and separately gives
+     rename pairs directly via `previous_filename` rather than requiring
+     `-M` detection on a raw diff.
+   - Filters that file list to `.claude/skills/` and `src/lrh/skills/`
+     path prefixes (checking both `filename` and, when present,
+     `previous_filename`, so a rename's old path is captured even if only
+     the new path matches a prefix on its own).
    - Derives **candidate** skill names using a purely *structural*
      filter: the immediate subdirectory component of each changed
      old-or-new path under either prefix. A changed path with no
@@ -176,22 +201,28 @@ step must be careful to run against the checkout it just landed onto
      a genuinely removed or renamed skill directory (whose name, by
      definition, no longer appears in the current package).
    - **Only then**, partitions the candidate names by membership in
-     `_skill_names()` **at both the old (pre-merge) and current
-     revisions** — not current alone: present in current →
-     **added/modified** (refresh via item 1); present in the old
-     revision but absent from current → **removed/renamed** (the skill
-     existed before, evidenced by the diff, but not now, so there is no
-     source to refresh from); absent from **both** revisions → not a
-     skill at all, ignored. This last case specifically covers a changed
-     path under an excluded directory like `src/lrh/skills/_shared/`
-     (`_skill_names()` deliberately excludes underscore-prefixed
-     directories) — without the both-revisions check, `_shared` would
-     wrongly be classified removed/renamed on every PR that touches it,
-     since it was never in `_skill_names()` at either revision. Applying
-     the package-membership filter *before* the structural filter, or
-     checking only the current revision, would both defeat the
-     removed-skill handling below — the structural filter must run
-     first, and both-revisions membership second.
+     `_skill_names()` **at both the PR's base revision and the current
+     (post-merge `main`) revision** — not current alone. "Base revision"
+     is the PR's `baseRefOid` as recorded by the PR API (the same API
+     call as above, or `gh pr view --json baseRefOid`) — i.e. `main` as
+     it stood before this PR's changes, obtainable via
+     `git show <baseRefOid>:src/lrh/skills` (or a checkout of that SHA),
+     not something to be inferred from post-merge commit parentage.
+     Present in current → **added/modified** (refresh via item 1);
+     present at the base revision but absent from current →
+     **removed/renamed** (the skill existed before, evidenced by the
+     diff, but not now, so there is no source to refresh from); absent
+     from **both** revisions → not a skill at all, ignored. This last
+     case specifically covers a changed path under an excluded directory
+     like `src/lrh/skills/_shared/` (`_skill_names()` deliberately
+     excludes underscore-prefixed directories) — without the
+     both-revisions check, `_shared` would wrongly be classified
+     removed/renamed on every PR that touches it, since it was never in
+     `_skill_names()` at either revision. Applying the package-membership
+     filter *before* the structural filter, or checking only the current
+     revision, would both defeat the removed-skill handling below — the
+     structural filter must run first, and both-revisions membership
+     second.
    - For removed/renamed names, does not attempt to "refresh" a
      nonexistent source — reports the stale `~/.claude/skills/<old-name>`
      as an explicit anomaly needing human attention (uninstalling it
@@ -280,24 +311,29 @@ step must be careful to run against the checkout it just landed onto
 
 ## Acceptance Criteria
 
-- `/lrh-closeout` detects when the PR's merged diff touches
-  `.claude/skills/` or `src/lrh/skills/` using a rename-aware listing,
-  derives candidate skill names by path shape (a non-skill file directly
-  under the prefix, e.g. `installer.py`, yields no candidate), then
-  partitions candidates by membership in `_skill_names()` at *both* the
-  old and current revisions into added/modified vs. removed/renamed vs.
+- `/lrh-closeout` gets the PR's changed-file list from the PR Files API
+  (not a post-merge `git diff`, which is unreliable across squash/rebase
+  merges and multi-commit PRs), derives candidate skill names by path
+  shape (a non-skill file directly under the prefix, e.g. `installer.py`,
+  yields no candidate), then partitions candidates by membership in
+  `_skill_names()` at *both* the PR's base revision (`baseRefOid`) and
+  current (`main`) into added/modified vs. removed/renamed vs.
   not-a-skill — in that order, so a removed name is never discarded
   before it can be classified, and a name excluded from `_skill_names()`
   at both revisions (e.g. `_shared`) is never misreported as removed.
+- The targeted-refresh function (item 1) validates each name against the
+  current package *before* any destructive filesystem operation, and
+  returns an explicit absent-name result rather than deleting an existing
+  installed directory and then failing to find its package source.
 - A skill in the added/modified set is refreshed even when its previously
   installed bytes differ from a stale prior package revision — not
   blocked by the coarse-grained `USER_MODIFIED` check.
 - A skill *not* in that touched set, but with genuine local modifications,
   still reports `user_modified` and is left untouched.
 - A skill in the removed/renamed set is reported as an explicit anomaly,
-  not silently left stale with no signal and not auto-uninstalled; a
-  rename's old name is detected even when the diff listing would
-  otherwise expose only the new path.
+  not silently left stale with no signal, not auto-uninstalled, and not
+  destroyed by an invalid targeted-refresh call; a rename's old name is
+  detected via the PR API's `previous_filename`, not a raw name-only diff.
 - A changed path under an excluded directory (e.g. `_shared`) produces no
   candidate and no anomaly.
 - The planned refresh (which skill names, added/modified vs. removed) is
@@ -308,11 +344,13 @@ step must be careful to run against the checkout it just landed onto
   closeout report.
 - New unit tests cover: the targeted refresh (named skill with differing
   bytes is overwritten; unnamed skill with differing bytes is left
-  alone); candidate derivation (`installer.py` yields no candidate);
+  alone; a name absent from the current package returns an explicit
+  absent-name result and does not delete an existing installed
+  directory); candidate derivation (`installer.py` yields no candidate);
   both-revisions partitioning (a removed skill is classified removed, an
   excluded directory like `_shared` is classified as not-a-skill, not
-  removed); and an actual rename (old name reported removed, new name
-  added/modified).
+  removed); and an actual rename via `previous_filename` (old name
+  reported removed, new name added/modified).
 - SKILL.md (both trees) is updated to document the new step.
 - This work item's own implementation PR's closeout invokes the targeted
   refresh capability (item 1), scoped to `lrh-closeout` alone, loaded
@@ -336,7 +374,10 @@ step must be careful to run against the checkout it just landed onto
 - Manual smoke test: run against a PR whose diff removes or renames a
   skill directory and confirm it is reported as an anomaly (both the
   removed old name and the added new name, for a rename), not silently
-  dropped or refreshed
+  dropped, refreshed, or destroyed by a mishandled targeted-refresh call
+- Manual smoke test: run against a multi-commit, squash- or rebase-merged
+  PR touching a skill and confirm the PR Files API still surfaces the
+  full changed-skill set (not just the final rebased commit's diff)
 - Manual smoke test: run against a PR whose diff touches
   `src/lrh/skills/_shared/` and confirm no candidate/anomaly is produced
 - `diff -r .claude/skills/lrh-closeout src/lrh/skills/lrh-closeout` (mirror
@@ -355,6 +396,17 @@ step must be careful to run against the checkout it just landed onto
   cleanup with no PR reference), the detection has nothing to check
   against; the implementation should degrade to a no-op in that case, not
   fail the whole closeout.
+- A post-merge `git diff` against an inferred parent commit is not a
+  reliable source for "this PR's changed files" — squash and rebase
+  merges can collapse or rewrite the commit history such that diffing
+  the merge result against its immediate parent misses changes from
+  earlier commits in a multi-commit PR. The PR Files API must be the
+  source of truth, not derived git history.
+- A caller bug that passes a name absent from the current package to the
+  targeted-refresh function could, without item 1's validation
+  requirement, delete an existing installed skill directory before
+  failing to find its package source — turning a removed-skill anomaly
+  (meant to be reported, not touched) into actual data loss.
 - The targeted refresh mutates the invoking user's `~/.claude/skills/`
   directory, bypassing the ordinary `USER_MODIFIED` check for the named
   skills — if a touched skill also happens to carry genuine local edits

@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_07_31_21_38_13_WI_CLOSEOUT_SKILLS_INSTALL_SYNC
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/454
-commit: affb7ca
+commit: fcbb32b
 created_at: 2026-07-31T22:15:13-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/454
@@ -211,6 +211,37 @@ round 2). Codex's summary review was clean; 3 new inline threads:
 - All fixes applied to the WI file (Required Changes items 2 and 5,
   Non-Goals unchanged, Acceptance Criteria, Validation, Risk Notes, and
   frontmatter `acceptance`).
+- Pushed as commit `fcbb32b`.
+
+**Seventh round** — checked in with the user again per their round-6
+direction; user chose to keep iterating. Retriggered both reviewers
+against `fcbb32b`; Copilot `APPROVED` fully clean (0 comments — first
+fully clean Copilot pass this PR). Codex's summary review was clean; 2
+new inline threads:
+- P1 "Validate skill names before the targeted overwrite" — **confirmed
+  valid, a real data-loss bug**: `_copy_skill` (existing code)
+  `rmtree`s the destination *before* reading the package source: calling
+  the new targeted-refresh function with a name absent from the current
+  package (a removed/renamed skill, or any caller bug) would delete the
+  existing `~/.claude/skills/<name>` and then raise trying to traverse a
+  nonexistent resource — destroying exactly the directory the
+  removed-skill policy says to preserve and report, not touch. Rewrote
+  Required Changes item 1 to require the function validate each name
+  against the current package *before* any destructive operation and
+  return an explicit absent-name result instead.
+- P2 "Define the base revision for the PR-wide diff" — **confirmed
+  valid**: the WI never specified how to obtain the "old (pre-merge)"
+  revision or the changed-file list operationally; a post-merge
+  `git diff` against an inferred parent is unreliable across squash/rebase
+  merges (can miss earlier commits in a multi-commit PR). Rewrote
+  Required Changes item 2 to use the PR Files API
+  (`gh pr view --json files` / `previous_filename` for renames) as the
+  file-list source, and the PR's `baseRefOid` as the well-defined "base
+  revision" for the `_skill_names()` comparison — both obtainable
+  directly from PR metadata rather than inferred from post-merge git
+  history.
+- All fixes applied to the WI file (Required Changes items 1 and 2,
+  Acceptance Criteria, Validation, Risk Notes, frontmatter `acceptance`).
 
 # Validation
 

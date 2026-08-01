@@ -154,13 +154,13 @@ def validate_work_item_policy(
                     "blocked_reason is required when blocked is true",
                 )
             )
-    elif blocked_reason is not None and not isinstance(blocked_reason, str):
+    elif blocked_reason is not None:
         issues.append(
             _issue(
                 path_context.file,
                 "error",
-                "WORK_ITEM_BLOCKED_REASON_NOT_STRING",
-                "blocked_reason must be a string when provided",
+                "WORK_ITEM_BLOCKED_REASON_NOT_NULL",
+                "blocked_reason must be null unless blocked is true",
             )
         )
 

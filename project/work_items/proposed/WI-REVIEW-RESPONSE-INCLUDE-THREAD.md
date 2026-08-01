@@ -29,6 +29,7 @@ acceptance:
   - "lrh request review_response <pr> --include-thread <id> includes that thread's content even when isOutdated=true and no other unresolved threads exist"
   - Supplying --include-thread implies --force (no separate --force needed)
   - An --include-thread ID not present in the fetched thread list produces a clear error, not a silent no-op
+  - An --include-thread ID that is already resolved (isResolved=true) by fetch time is not force-included -- a clear, distinct result, not a silent no-op or a stale re-surfacing
   - Existing default (no-flag) behavior is unchanged -- state="unresolved" still excludes outdated threads
   - New unit tests cover _matches_state/format_threads_review with extra_ids, the review_response branch with --include-thread and zero normal-unresolved threads, and CLI argument parsing
   - lrh validate reports 0 errors
@@ -108,12 +109,20 @@ of `PROP-OUTDATED-THREAD-RECOVERY` — the mechanical prerequisite Layer 2
    (`action="append"`, default `[]`), documented alongside `--force`.
 2. `src/lrh/integrations/github/formatters.py` — extend
    `_matches_state(thread, state, extra_ids=None)` to also return `True`
-   when `thread.get("id") in extra_ids`; thread `extra_ids` through
-   `format_threads_review`.
-3. `src/lrh/assist/request_service.py` — in the `review_response` branch:
-   validate each `args.include_thread` ID exists in
-   `_collect_threads(threads_data)` (clear error if not); treat a
-   non-empty list the same as `--force` for the early-exit check; pass
+   when `thread.get("id") in extra_ids` **and the thread is not already
+   resolved** (`not thread.get("isResolved", False)`) — a thread named
+   via `--include-thread` that was resolved between confirm-fixes'
+   classification and this command's fetch must not be force-included;
+   thread `extra_ids` through `format_threads_review`. Add a small
+   public helper (e.g. `collect_thread_ids(data) -> set[str]`, built on
+   the existing private `_collect_threads`) instead of exposing
+   `_collect_threads` itself across the module boundary.
+3. `src/lrh/assist/request_service.py` — in the `review_response`
+   branch: validate each `args.include_thread` ID exists in the fetched
+   thread data via the new public helper (clear error if not found; a
+   separate clear result — not a silent no-op or a forced re-fetch — if
+   found but already resolved); treat a non-empty list the same as
+   `--force` for the early-exit check; pass
    `extra_ids=set(args.include_thread)` into `format_threads_review`.
 4. Unit tests in `tests/integrations_tests/github_integration_test.py`
    (formatters), `tests/assist_tests/request_service_test.py`
@@ -134,6 +143,8 @@ of `PROP-OUTDATED-THREAD-RECOVERY` — the mechanical prerequisite Layer 2
   thread's content even when it's the only thread and it's outdated.
 - `--include-thread` implies `--force`.
 - An unknown `--include-thread` ID errors clearly.
+- An already-resolved `--include-thread` ID is not force-included; a
+  clear, distinct result is returned instead.
 - Default no-flag behavior is unchanged (regression-tested).
 - New unit tests pass for all three touched modules.
 

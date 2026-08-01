@@ -62,8 +62,10 @@ recovery path drew a P1 governance finding (could silently override the
 human's stop-work condition) plus 8 more findings across 7 rounds, and
 was reverted. `PROP-OUTDATED-THREAD-RECOVERY` designs the fix properly;
 this item implements its Layer 2 (Decisions 2-5), depending on
-`WI-REVIEW-RESPONSE-INCLUDE-THREAD` (Decision 1/Layer 1) landing first or
-in the same PR.
+`WI-REVIEW-RESPONSE-INCLUDE-THREAD` (Decision 1/Layer 1) resolving
+first — `/lrh-execute`'s dependency gate requires it, and a single
+combined PR isn't deliverable through the governed execution path (see
+the proposal's Implementation Plan).
 
 ### Duplication search
 - In-repo: No existing implementation — the prior prose attempt was

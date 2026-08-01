@@ -221,22 +221,30 @@ a check's exceptions to live next to the check itself.
 
 ## Implementation Plan
 
-Two work items, filed together, delivered as **a single implementation
-PR** covering both — not sequential PRs — since WI-B's `SKILL.md` changes
-are meaningless without WI-A's flag existing, and splitting them would
-leave an intermediate state where the backlog entry this design targets
-still isn't actually resolved:
+Two work items, filed together, delivered as **two sequential PRs** —
+not one combined PR. `/lrh-execute`'s own dependency gate (`PROP-LRH-LAND-EXECUTE`
+Decision 4: "enforce `depends_on` — all entries must be `resolved`;
+stop and report if not") requires WI-A to already be `resolved` before
+WI-B, which declares `depends_on: [WI-REVIEW-RESPONSE-INCLUDE-THREAD]`,
+can be selected through the governed execution path — so a single
+combined PR isn't actually deliverable through `/lrh-execute` as
+designed, regardless of how meaningful WI-B's diff is without WI-A's
+flag. This is the normal, already-well-supported `depends_on` pattern
+used everywhere else in this project, not a special case:
 
-- **WI-A (mechanical):** `--include-thread <thread-id>` flag on
+- **WI-A (mechanical), first:** `--include-thread <thread-id>` flag on
   `lrh request review_response`, `extra_ids` plumbing through
   `formatters._matches_state`/`format_threads_review`, and unit test
   coverage, in `src/lrh/assist/request_cli.py`,
   `src/lrh/assist/request_service.py`, and
   `src/lrh/integrations/github/formatters.py`.
-- **WI-B (skill-flow):** the governance-gated recovery path in
-  `/lrh-land` Step 4/5 (Decisions 2–4) and the same-run idempotence
-  recognition in `/lrh-review-response` Step 3 (Decision 5), built on
-  WI-A.
+- **WI-B (skill-flow), after WI-A resolves:** the governance-gated
+  recovery path in `/lrh-land` Step 4/5 (Decisions 2–4) and the
+  same-run idempotence recognition in `/lrh-review-response` Step 3
+  (Decision 5). The backlog entry this design targets stays open across
+  both PRs, exactly as it already stays open until both items are
+  implemented — an intermediate state where WI-A is done and WI-B is
+  not is expected, not a problem.
 
 ## Cross-References
 

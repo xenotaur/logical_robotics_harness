@@ -26,7 +26,7 @@ forbidden_actions:
   - modify_unrelated_skills
   - auto_merge_pr
 acceptance:
-  - "/lrh-closeout gets the PR's changed-file list from the PR Files API (not a post-merge git diff), derives candidate skill names by path shape, then partitions by _skill_names() membership at both base and current revisions into added/modified vs. removed/renamed vs. not-a-skill, in that order"
+  - "/lrh-closeout gets the PR's changed-file list from the REST PR Files endpoint specifically, fully paginated (not gh pr view --json files, not a post-merge git diff), derives candidate skill names by path shape, then partitions by _skill_names() membership at both base and current revisions into added/modified vs. removed/renamed vs. not-a-skill, in that order"
   - The targeted-refresh function validates each name against the current package before any destructive filesystem operation and returns an explicit absent-name result rather than deleting an existing installed directory first
   - A skill in the added/modified set is refreshed even when its previously installed bytes differ from a stale prior package revision, not blocked by the coarse-grained USER_MODIFIED check
   - A skill not in that touched set, but with genuine local modifications, still reports user_modified and is left untouched
@@ -175,18 +175,29 @@ step must be careful to run against the checkout it just landed onto
 2. Extend `.claude/skills/lrh-closeout/SKILL.md` (and its
    `src/lrh/skills/lrh-closeout/SKILL.md` mirror) with a new step, placed
    after the PR's changes are known to be merged, that:
-   - Gets the closed-out PR's full changed-file list from the **PR Files
-     API** (e.g. `gh pr view --json files` / `gh api
-     repos/<owner>/<repo>/pulls/<N>/files`, which exposes `filename` and
-     `previous_filename` for renames), not a post-merge `git diff` against
-     some inferred parent commit. A squash or rebase merge collapses the
+   - Gets the closed-out PR's full changed-file list from the **REST PR
+     Files endpoint specifically** —
+     `gh api repos/<owner>/<repo>/pulls/<N>/files --paginate`, or the
+     equivalent direct REST call — not a post-merge `git diff` against
+     some inferred parent commit, and **not** `gh pr view --json files`.
+     That form of `gh pr view` resolves through GitHub's GraphQL
+     `PullRequestChangedFile` type, which exposes `path`, additions, and
+     deletions but has **no previous-path field at all** — only the REST
+     endpoint's file schema includes `previous_filename` for a renamed
+     file, so a rename's old path is unrecoverable from the GraphQL form
+     regardless of pagination. A squash or rebase merge collapses the
      PR's commits into one (or rewrites them), so diffing the merge
      result against its immediate parent can miss changes from earlier
      commits in a multi-commit PR or misidentify the comparison range
-     entirely; the PR API always reflects the PR's full, correct
-     cumulative diff regardless of merge strategy, and separately gives
-     rename pairs directly via `previous_filename` rather than requiring
-     `-M` detection on a raw diff.
+     entirely; the REST PR Files endpoint always reflects the PR's full,
+     correct cumulative diff regardless of merge strategy.
+   - **Paginates the REST response fully** — GitHub's PR Files endpoint
+     defaults to 30 files per page (100 max) and does not return the
+     complete list in one call for a PR with more files than that; use
+     `gh api --paginate` (or manually follow `Link` headers /
+     `page`/`per_page`) rather than assuming a single page is complete,
+     which would silently truncate the changed-file list on a
+     large-enough PR.
    - Filters that file list to `.claude/skills/` and `src/lrh/skills/`
      path prefixes (checking both `filename` and, when present,
      `previous_filename`, so a rename's old path is captured even if only
@@ -311,10 +322,13 @@ step must be careful to run against the checkout it just landed onto
 
 ## Acceptance Criteria
 
-- `/lrh-closeout` gets the PR's changed-file list from the PR Files API
-  (not a post-merge `git diff`, which is unreliable across squash/rebase
-  merges and multi-commit PRs), derives candidate skill names by path
-  shape (a non-skill file directly under the prefix, e.g. `installer.py`,
+- `/lrh-closeout` gets the PR's changed-file list from the **REST** PR
+  Files endpoint specifically, fully paginated (not `gh pr view --json
+  files`, whose GraphQL schema has no previous-path field at all; not a
+  post-merge `git diff`, which is unreliable across squash/rebase merges
+  and multi-commit PRs; and not a single unpaginated page, which silently
+  truncates on a large PR), derives candidate skill names by path shape
+  (a non-skill file directly under the prefix, e.g. `installer.py`,
   yields no candidate), then partitions candidates by membership in
   `_skill_names()` at *both* the PR's base revision (`baseRefOid`) and
   current (`main`) into added/modified vs. removed/renamed vs.
@@ -376,8 +390,12 @@ step must be careful to run against the checkout it just landed onto
   removed old name and the added new name, for a rename), not silently
   dropped, refreshed, or destroyed by a mishandled targeted-refresh call
 - Manual smoke test: run against a multi-commit, squash- or rebase-merged
-  PR touching a skill and confirm the PR Files API still surfaces the
-  full changed-skill set (not just the final rebased commit's diff)
+  PR touching a skill and confirm the REST PR Files endpoint still
+  surfaces the full changed-skill set (not just the final rebased
+  commit's diff)
+- Manual smoke test: run against a PR with more changed files than one
+  page of the REST PR Files endpoint returns (30 default / 100 max) and
+  confirm the full list is retrieved, not truncated to the first page
 - Manual smoke test: run against a PR whose diff touches
   `src/lrh/skills/_shared/` and confirm no candidate/anomaly is produced
 - `diff -r .claude/skills/lrh-closeout src/lrh/skills/lrh-closeout` (mirror
@@ -400,8 +418,16 @@ step must be careful to run against the checkout it just landed onto
   reliable source for "this PR's changed files" — squash and rebase
   merges can collapse or rewrite the commit history such that diffing
   the merge result against its immediate parent misses changes from
-  earlier commits in a multi-commit PR. The PR Files API must be the
-  source of truth, not derived git history.
+  earlier commits in a multi-commit PR. The REST PR Files endpoint must
+  be the source of truth, not derived git history, and specifically not
+  `gh pr view --json files` — that form resolves through GraphQL's
+  `PullRequestChangedFile` type, which has no previous-path field, so
+  rename detection (item 2's structural filter needs both old and new
+  paths) is silently impossible through it regardless of pagination.
+- The REST PR Files endpoint paginates (30/page default, 100 max) — an
+  implementation that reads only the first page silently truncates the
+  changed-file list on any PR larger than that, potentially missing
+  skill-touching files entirely with no error or signal.
 - A caller bug that passes a name absent from the current package to the
   targeted-refresh function could, without item 1's validation
   requirement, delete an existing installed skill directory before

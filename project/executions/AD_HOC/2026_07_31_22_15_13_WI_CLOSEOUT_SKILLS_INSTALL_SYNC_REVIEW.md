@@ -254,7 +254,31 @@ new inline threads:
 - `lrh validate`: 0 errors, 1 pre-existing unrelated warning
   (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` on `WS-LRH-ASSISTANTS`)
 
+**Eighth round** — ran `/lrh-confirm-fixes` (rounds 1–7 above), which
+resolved all 14 threads as Clear-satisfied (independent subagent
+verification) and pushed a `_CONFIRM` execution record. Its Step 8
+retrigger against that `_CONFIRM` commit surfaced 2 genuinely new
+threads on the fresh commit itself (not "pending" — real findings per
+that skill's own Step 8 handling):
+- P2 "Paginate the PR Files API response" — **confirmed valid**:
+  GitHub's PR Files endpoint returns 30 files/page by default (100 max);
+  neither command form in round-7's fix specified pagination, so a
+  large-enough PR would silently truncate.
+- P2 "Use the REST file schema for rename sources" — **confirmed valid,
+  and more significant**: `gh pr view --json files` resolves through
+  GraphQL's `PullRequestChangedFile` type, which has **no
+  previous-path field at all** — round 7's fix listed it as an
+  acceptable alternative to the REST endpoint, but it cannot supply
+  `previous_filename` under any circumstance, defeating the very rename
+  detection that fix was meant to satisfy.
+- Rewrote Required Changes item 2's file-list-source paragraph to
+  require the REST PR Files endpoint specifically (not the GraphQL-backed
+  `gh pr view --json files` form), with explicit pagination
+  (`--paginate`), and propagated the correction to Acceptance Criteria,
+  Validation (2 new smoke tests), Risk Notes, and frontmatter
+  `acceptance`.
+
 # Follow-up
 
-- Next: `/lrh-confirm-fixes` against PR #454 to verify these fixes and
-  resolve the review threads before merge.
+- Next: re-run `/lrh-confirm-fixes` against PR #454 to verify these
+  2 fixes and get a final merge-readiness verdict.

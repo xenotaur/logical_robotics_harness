@@ -9,7 +9,7 @@ commit:
 created_at: 2026-07-31T21:38:13-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CLOSEOUT-SKILLS-INSTALL-SYNC.md
-session_transcript: claude-app:local_20d16dd9-a465-4d31-b39f-280db14488ef
+session_transcript: claude-app:20d16dd9-a465-4d31-b39f-280db14488ef
 ---
 
 # Summary

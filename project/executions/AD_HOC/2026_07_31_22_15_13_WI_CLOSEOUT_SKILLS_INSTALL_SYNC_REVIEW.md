@@ -9,7 +9,7 @@ commit: 2a56851
 created_at: 2026-07-31T22:15:13-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/454
-session_transcript: claude-app:local_20d16dd9-a465-4d31-b39f-280db14488ef
+session_transcript: claude-app:20d16dd9-a465-4d31-b39f-280db14488ef
 ---
 
 # Summary
@@ -64,7 +64,7 @@ as suppressed/summary comments (0 new inline threads):
   wrong, but the underlying suggestion is a genuine improvement:
   `$CLAUDE_CODE_HOST_SESSION_ID` is available and stable for this session
   (already used to populate the sibling creation record), so filled in
-  `session_transcript: claude-app:local_20d16dd9-a465-4d31-b39f-280db14488ef`
+  `session_transcript: claude-app:20d16dd9-a465-4d31-b39f-280db14488ef`
   here too for consistency, and dropped the now-stale "update later"
   follow-up note.
 - "`lrh-create-skill` is not the only skill documenting `lrh skills
@@ -77,6 +77,52 @@ as suppressed/summary comments (0 new inline threads):
   execution steps* direct the agent to run it, and dropped the brittle
   line-number citations per the review's secondary point.
 - Pushed as commit `2a56851`.
+- Fixed the `commit:` frontmatter field itself (was one commit stale) —
+  pushed as commit `e8c49ea`.
+
+**Third round** — retriggered both reviewers against `e8c49ea`; Copilot
+`APPROVED` (🟢 ready to approve, 2 more suppressed comments), Codex
+posted a clean summary review plus 4 new inline threads (all substantive,
+none previously seen):
+- P2 "Filter changed paths to actual skill directories" — **confirmed
+  valid**: a changed-path prefix match on `src/lrh/skills/` also matches
+  non-skill files directly under it (e.g. `installer.py`, a module, not a
+  skill tree); passing that name to `_copy_skill` raises
+  `NotADirectoryError`. Added an explicit filter-against-`_skill_names()`
+  requirement to Required Changes item 1, with new test coverage
+  specified for a diff containing `src/lrh/skills/installer.py` itself.
+- P2 "Strip the `local_` prefix from the transcript pointer" — **confirmed
+  valid against `project/executions/README.md:65`** (the review's own
+  cited `AGENTS.md:L107-L109` did not actually contain this rule — checked
+  and it doesn't; the real source is the README's `session_transcript`
+  values table, which does). Both this record's and the creation record's
+  `session_transcript` had the un-stripped `local_` prefix
+  (`claude-app:local_20d16dd9-...`); fixed both to
+  `claude-app:20d16dd9-a465-4d31-b39f-280db14488ef`.
+- P1 "Require confirmation before destructive skill refresh" —
+  **confirmed valid**: the WI's Risk Notes only required an after-the-fact
+  report of the targeted-refresh mutation, not pre-action disclosure —
+  meaning a skill touched by the merge that also happened to carry
+  genuine local edits could be silently, irreversibly overwritten.
+  Rewrote Required Changes item 2 and Risk Notes to require the planned
+  refresh (which names, added/modified vs. removed) be included in
+  `/lrh-closeout`'s own Step 2 plan and approved at its Step 4 confirm
+  gate *before* any file under `~/.claude/skills/` is written.
+- P2 "Handle removed and renamed skills explicitly" — **confirmed
+  valid**: the original scope only discussed "touched" skills generically;
+  a skill the merge deleted or renamed has no current package source to
+  refresh from, so path-prefix detection alone would leave the obsolete
+  `~/.claude/skills/<old-name>` stale with no signal. Added an explicit
+  added/modified-vs-removed split to Required Changes item 2, a
+  corresponding Non-Goal (no automatic uninstall — report as an anomaly
+  instead), and matching Acceptance Criteria.
+- Copilot's 2 suppressed comments on this round were metadata-consistency
+  notes already superseded by the fixes above (transcript field, commit
+  field) — no separate action needed.
+- All 4 fixes applied to
+  `project/work_items/proposed/WI-CLOSEOUT-SKILLS-INSTALL-SYNC.md`
+  (Required Changes, Non-Goals, Acceptance Criteria, Validation, Risk
+  Notes, and frontmatter `acceptance`).
 
 # Validation
 

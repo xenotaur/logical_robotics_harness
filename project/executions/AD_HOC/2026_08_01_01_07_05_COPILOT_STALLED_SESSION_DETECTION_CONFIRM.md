@@ -167,6 +167,23 @@ truncate anything there.
 
 Round 5 completed_count is now 5 (still under ceiling 10).
 
+**Round 6 retrigger result, on `7ef28f6`:** CI green (5/5). Codex: clean
+pass, reviewed `7ef28f687e`. Copilot: 1 more suppressed finding — the
+zero-match case still emitted a misleading `{"status":null,...}` object
+(empty slurped array → `last` → `null` → projected fields), undermining
+the "no check-run" vs. "in_progress" distinction. Fixed:
+`select(. != null)` after `last`, before projecting — verified both the
+match and zero-match cases produce truly empty output on no match.
+
+Round 6 completed_count is now 6 (still under ceiling 10). Given six
+consecutive rounds have each found one real, legitimate, low-risk issue
+in this same detection heuristic — a pattern this repo's own
+`round-cap-gate.md` "Risk Notes" section already documents happening on
+its *own* mechanism (8 rounds on PR #445) — round 7 is treated as the
+last one chased before deferring any further micro-refinement to the
+design backlog per this project's standing "defer narrow edge cases"
+convention, rather than continuing indefinitely.
+
 # Follow-up
 
 - Merge gate: present the final verdict's merge command for explicit

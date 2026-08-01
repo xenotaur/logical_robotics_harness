@@ -83,7 +83,7 @@ What *is* available is a stall heuristic, built from two REST calls:
    ```bash
    gh api repos/<owner>/<repo>/commits/<sha>/check-runs --paginate \
      --jq '.check_runs[] | select(.name=="copilot-pull-request-reviewer")' \
-     | jq -s 'sort_by(.started_at) | last | {status, conclusion, started_at, completed_at}'
+     | jq -s 'sort_by(.started_at) | last | select(. != null) | {status, conclusion, started_at, completed_at}'
    ```
 
    Two `jq` passes, deliberately — `gh api --paginate` runs `--jq` **once

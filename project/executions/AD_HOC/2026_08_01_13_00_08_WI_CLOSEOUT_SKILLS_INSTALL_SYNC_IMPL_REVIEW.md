@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: a6708c3
+commit: 5d789e8
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -337,8 +337,41 @@ switching to a final self-review pass (the approach that worked well to
 close out the WI-creation PR, #454) rather than continuing the bot
 retrigger loop indefinitely.
 
+**Round 13** — retriggered against `28d7b66`. Copilot clean. 1 new Codex
+finding, confirmed valid and actually significant (reopening the
+"narrowing" read from round 12): "Limit the cleanliness check to
+refreshed skill directories" (P2) — the round-10/11 working-tree checks
+scanned the whole `src/lrh/skills` package root, which self-sabotages:
+any checkout that has ever run this skill's own Python imports (Step 2's
+`_skill_names()` call, Step 5's `install_named_skills` call) leaves
+`src/lrh/skills/__pycache__/` behind as a normal, expected Python
+byproduct — the check would then block *every* refresh on *any* normal
+dev checkout, permanently. Confirmed live in this session's own checkout
+(exactly this `__pycache__` was already present from earlier smoke
+tests). This also symmetrically affected the tree-hash check: an
+unrelated sibling skill's divergence would block refreshing skills that
+were actually fine. Rescoped **both** checks (tree-hash and
+working-tree) to each confirmed skill's own subdirectory
+(`src/lrh/skills/<name>/`) rather than the package root — smoke tested
+live: the per-name working-tree check for `lrh-closeout` correctly
+came back clean (excluding the package-root `__pycache__`), while the
+per-name tree-hash check still correctly detected this branch's own
+real divergence for that specific skill. A name that fails its own
+check is now excluded individually rather than blocking the whole batch.
+Pushed as commit `5d789e8`.
+
+13 rounds on this PR (24 total across this WI's full lifecycle,
+including the WI-creation PR #454). This round's finding was genuinely
+significant — not a narrowing signal after all. Doing one final
+retrigger to confirm this fix lands without immediate regression; after
+that, moving to a fresh-context self-review pass and a merge-readiness
+decision regardless of further findings' severity, given the volume of
+iteration already invested and the current design's now-substantial
+verification depth (4 independent layers: repo scope, base branch,
+repo identity, per-skill exact state).
+
 # Follow-up
 
-- Next: retrigger both reviewers against `a6708c3`. If clean or only
-  minor, move to a fresh-context self-review pass and a merge-readiness
-  decision.
+- Next: retrigger both reviewers against `5d789e8`. After that, switch
+  to a fresh-context self-review pass rather than continuing the bot
+  retrigger loop.

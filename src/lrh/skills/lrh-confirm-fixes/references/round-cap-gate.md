@@ -96,7 +96,7 @@ What *is* available is a stall heuristic, built from two REST calls:
    section). `status: "in_progress"`,
    `conclusion: null`, `completed_at: null` held past a reasonable wait —
    reuse `STALE_AGE_SECONDS` (15 minutes, "Round-state branch mechanics"
-   above) as the threshold, since that is this skill's own existing
+   below) as the threshold, since that is this skill's own existing
    "reasonable wait" constant — means the session started and never
    reached a terminal state. (Substitute the check-run `name` this
    repository's reviewer actually reports if not GitHub Copilot code

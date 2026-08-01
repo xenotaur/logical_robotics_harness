@@ -64,8 +64,9 @@ mechanism, `round-cap-gate.md`, and `WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md`):
 - `.claude/skills/lrh-confirm-fixes/SKILL.md` Step 8.3 (+ `src/lrh/...`
   mirror) — before asking the generic "no response yet" question, checks
   whether the reviewer's own session started and stalled, and asks a
-  distinguishing question naming the specific case (not-configured vs.
-  stalled, with credit exhaustion named as one known cause and the
+  distinguishing question naming the specific case ("no evidence the
+  reviewer was invoked this round" vs. stalled, with credit exhaustion
+  named as one known cause and the
   self-review-fallback option offered generically, without assuming it
   exists in this repo).
 - `.claude/skills/lrh-confirm-fixes/references/round-cap-gate.md` (+

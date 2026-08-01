@@ -93,18 +93,45 @@ resolveReviewThread × 6 — all returned isResolved: true
 green (5/5). Codex: "Didn't find any major issues" (clean, reviewed
 `70d8f98da3`). Copilot: "generated no new comments" (clean, no suppressed
 findings this round, reviewed `70d8f98da325b0a5b85595530524d41849bf40f9`).
-REVIEW-LANDED satisfied on this commit — both retriggered reviewers gave
-an explicit clean pass referencing the exact `HEAD` SHA.
+REVIEW-LANDED satisfied on this commit.
 
-**Final verdict: Green.** All threads resolved (Step 6), CI green,
-review landed clean on `70d8f98da325b0a5b85595530524d41849bf40f9` → ready
-to merge:
+**Self-caught process error:** after computing a Green verdict against
+`70d8f98`, this same record was then pushed as a further commit
+(`79de62f`) to document that verdict — moving `HEAD` past the commit the
+verdict actually covered, exactly the race Step 8 warns against ("a human
+who replies 'I'll merge it' right after the push races the same delayed
+finding an agent would"). Caught before presenting any merge command;
+treated `79de62f` as requiring its own full CI + REVIEW-LANDED re-check
+(round 3) rather than trusting the stale verdict.
 
-```bash
-gh pr merge https://github.com/xenotaur/logical_robotics_harness/pull/452 --squash --match-head-commit 70d8f98da325b0a5b85595530524d41849bf40f9
-```
+**Round 3 retrigger result, on `79de62f`:** CI green (5/5). Codex: "Didn't
+find any major issues" (clean, reviewed `79de62f79b`). Copilot:
+"generated no new comments" but surfaced 2 more suppressed non-thread
+findings: (1) a "Round-state branch mechanics ... above" cross-reference
+that's actually later in the file (line 233 vs. 62) — fixed to "below";
+(2) this record's own "not-configured vs. stalled" phrasing drifted from
+the now-corrected "no evidence the reviewer was invoked this round"
+wording — updated to match. Both fixed, replied to on the PR
+(issuecomment-5149696806).
+
+**Round-cap gate fired:** this PR had completed 3 retrigger batches
+(round 1 initial push, round 2 remediation, round 3 record-only push),
+at the default ceiling of 3 — pushing the round-3 fixes would start a
+4th batch. Presented the three-way gate to the human (`completed_count=3,
+ceiling=3`, one-line findings summary above); **authorized new
+ceiling → 10.** Not tracked via the full `lrh-round-state` branch
+mechanism — a single-PR case doesn't warrant standing up that
+infrastructure; the round count is tracked here for the CHAIN-NOTE's
+`cycles` accounting instead.
+
+**Round 4 (final):** pushed the 2 round-3 fixes alongside this record
+update, retriggered both reviewers, and waited for a fresh clean pass on
+the new `HEAD` before computing any verdict this time — see the final
+verdict below, computed only after that response landed and with no
+further commit pushed afterward.
 
 # Follow-up
 
-- Merge gate: present the above command for explicit in-session
-  authorization per `DEC-AGENT-EXECUTED-MERGE-GATE`, then `/lrh-closeout`.
+- Merge gate: present the final verdict's merge command for explicit
+  in-session authorization per `DEC-AGENT-EXECUTED-MERGE-GATE`, then
+  `/lrh-closeout`.

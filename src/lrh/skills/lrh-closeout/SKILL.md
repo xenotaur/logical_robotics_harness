@@ -176,6 +176,30 @@ PR-metadata call to fetch it in the same request): if it is not `main`,
 this item does not apply — report "not applicable: PR's base branch is
 `<baseRefName>`, not `main`, skipping skill refresh" and move on.
 
+**Precondition — the local `origin` remote must actually be the PR's own
+repository.** The `src/lrh/skills/` presence check above rules out an
+unrelated client repo, but not a *different* LRH checkout — a personal
+fork, or a second clone with its own `origin` — whose `main` has
+genuinely diverged from the PR repository's `main`. The REST PR Files
+listing and `baseRefOid` are always fetched from the PR's own
+`<owner>/<repo>` (parsed from the PR URL/argument), but every git-level
+read above (`git fetch origin main`, `git ls-tree origin/main:...`)
+operates on whatever `origin` locally points to — silently a different
+repository's `main` if this checkout isn't actually a clone of the PR's
+own repository. Confirm they match before proceeding:
+
+```bash
+git remote get-url origin
+# must resolve to the same <owner>/<repo> as the PR URL/argument being closed out
+```
+
+If they don't match — this checkout is a fork or an unrelated clone —
+this item does not apply — report "not applicable: local origin remote
+is `<owner/repo>`, not the PR's own `<owner/repo>`, skipping skill
+refresh" and move on. Do not attempt to fetch from or install using a
+different repository's remote than the one this checkout's `origin`
+already points to.
+
 Get the PR's full changed-file list from the **REST** PR Files endpoint —
 `gh api repos/<owner>/<repo>/pulls/<N>/files --paginate` — never
 `gh pr view --json files` (that form resolves through GitHub's GraphQL
@@ -638,19 +662,25 @@ Before reporting completion, verify:
 - [ ] Each file read before editing; no partial edits
 - [ ] `mv` used for WI/WS/proposal moves (not `cp`)
 - [ ] If the PR touched `.claude/skills/` or `src/lrh/skills/`, this
-      checkout has `src/lrh/skills/` (is the LRH source repo), and the
-      PR's `baseRefName` is `main` (all three preconditions in Step 2):
-      skill refresh planned entirely read-only (REST PR Files endpoint,
+      checkout has `src/lrh/skills/` (is the LRH source repo), the PR's
+      `baseRefName` is `main`, and `origin` resolves to the PR's own
+      `<owner>/<repo>` (all three preconditions in Step 2, not a fork or
+      unrelated clone): skill refresh planned entirely read-only (REST
+      PR Files endpoint,
       paginated, ceiling and fetch-failure handled; `git ls-tree` reads
       against both `origin/main` and the base revision, no live checkout
       mutation), disclosed at the Step 4 confirm gate before any file
       under `~/.claude/skills/` was written
 - [ ] Skill refresh, if confirmed, only then checks out `main` and
-      verifies via **ancestry** (`git merge-base --is-ancestor origin/main
-      HEAD`) — not a branch-name or bare commit-SHA check, either of which
-      would reject the legitimate `tmp-<slug>` main-worktree-lock
-      workaround — before invoking `install_named_skills` with
-      `PYTHONPATH` explicitly pointed at that checkout, not an
+      verifies via an **exact subtree-hash comparison**
+      (`git rev-parse HEAD:src/lrh/skills` ==
+      `git rev-parse origin/main:src/lrh/skills`) — not ancestry alone
+      (`git merge-base --is-ancestor`, which wrongly accepts an unmerged
+      descendant commit) and not a branch-name or bare commit-SHA check
+      (either of which would reject the legitimate `tmp-<slug>`
+      main-worktree-lock workaround) — before invoking
+      `install_named_skills` with `PYTHONPATH` explicitly pointed at that
+      checkout, not an
       ambient/frozen `lrh` install
 - [ ] `lrh validate` reports 0 errors before commit
 - [ ] Committed to `main` (not a feature branch)
@@ -692,3 +722,8 @@ Before reporting completion, verify:
   source repo itself (no `src/lrh/skills/` present) — a client repo's own
   project-local `.claude/skills/<name>/` is out of scope for this
   mechanism entirely, not just skipped-with-a-warning.
+- Does not attempt a skill refresh when the PR's base branch isn't
+  `main`, or when the local `origin` remote isn't the PR's own
+  `<owner>/<repo>` (a fork or unrelated second clone) — both report
+  not-applicable and skip rather than reading or installing from the
+  wrong repository or branch.

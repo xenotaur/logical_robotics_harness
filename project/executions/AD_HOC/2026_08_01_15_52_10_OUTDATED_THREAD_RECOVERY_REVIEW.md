@@ -118,6 +118,32 @@ commit" while the record already documented Rounds 2-3 — an internal
 inconsistency in the record's own framing, not the design. Rewrote the
 Summary to describe the multi-round structure accurately.
 
+**Round-cap gate fired after round 3 (completed_count=3=ceiling=3).**
+Presented to the human; rather than authorizing a higher bot-retrigger
+ceiling, the human chose to switch to self-review via a fresh,
+independent subagent for up to 3 rounds instead — directly applying the
+credit-reduction recommendation this session drafted earlier for a
+separate thread, as its first real dogfood.
+
+**Self-review round 1 (cold-context subagent, no session memory):**
+dispatched a general-purpose subagent with the PR URL and design context
+but none of this record's own findings, instructed to review the full
+diff and surrounding file text rigorously and skeptically, verifying
+every checkable technical citation against actual repo content rather
+than trusting it. It independently re-verified every citation this
+record's own rounds 1-4 had already checked (`formatters.py`,
+`request_service.py`, `planning_tree.py:315`, the confirm-fixes taxonomy
+table, `round-cap-gate.md`, `lrh-land-execute`'s Decision 4,
+`DEC-AGENT-EXECUTED-MERGE-GATE`), ran `lrh validate` and the mirror
+`diff -r` checks itself, and reported **no defects** after considering
+and explicitly ruling out two candidate issues with stated reasoning
+(premature `/lrh-execute` dependency-gate citation; unspecified same-run
+detection mechanism — both judged not actual gaps). Given a clean pass
+converged on round 1, presented the choice to the human — one more live
+bot pass before merge, or proceed on the self-review result — rather
+than mechanically running 2 more self-review rounds or defaulting
+either way. Human chose to proceed straight to the merge gate.
+
 # Validation
 
 scripts/version tools -- Black 26.3.1, Ruff 0.15.12 confirmed
@@ -129,10 +155,11 @@ grep -n "work_items\|parent_id" src/lrh/control/planning_tree.py -- confirmed Co
 
 # Follow-up
 
-- Round-cap ceiling (3) reached for PR #457 after round 3's retrigger;
-  present the three-way round-cap gate to the human before retriggering
-  a 4th batch for round 4's fixes.
-- Retrigger both reviewers on the round-4 commit once authorized, and
-  verify all remaining threads resolve against the pushed diff.
+- Proceed to the merge gate; human authorized proceeding on the clean
+  self-review result without a final live bot pass.
 - Update `session_transcript` to the final host session id if it differs
   after the session ends.
+- Consider whether "switch to self-review via cold subagent" is worth
+  formalizing as a first-class round-cap-gate option (alongside
+  authorize/deny/pause) rather than an ad-hoc deviation this run — it
+  worked cleanly here and directly reduces bot-credit consumption.

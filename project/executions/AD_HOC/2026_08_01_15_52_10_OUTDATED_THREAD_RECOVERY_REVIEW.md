@@ -63,6 +63,29 @@ the identical bug ("Close the backlog entry once this item ... are
 filed" — filed, not implemented). Fixed to match the same
 link-now/close-on-implementation language used everywhere else.
 
+**Round 3 (commit `60ddfaf`): three findings.** Issue H — Codex P1,
+"Reconcile the dependency gate with single-PR delivery": the
+Implementation Plan's "single implementation PR" claim structurally
+conflicts with `/lrh-execute`'s own `depends_on` gate (verified against
+`PROP-LRH-LAND-EXECUTE` Decision 4: "enforce `depends_on` — all entries
+must be `resolved`; stop and report if not," in
+`project/design/proposals/proposed/lrh-land-execute/00_proposal.md:218`)
+— WI-B's `depends_on: [WI-REVIEW-RESPONSE-INCLUDE-THREAD]` means WI-A
+must already be resolved before WI-B is selectable through the governed
+path, making single-PR delivery structurally undeliverable regardless of
+diff-meaningfulness reasoning. Switched the Implementation Plan (and the
+matching prose in WI-B) to standard sequential two-PR delivery — the
+already-well-supported `depends_on` pattern, not a special case. Issue I
+— Codex P2, a race condition where a named thread could be resolved
+between confirm-fixes' classification and `review_response`'s fetch:
+added an explicit `isResolved` check to WI-A's design before
+force-including a thread, with a distinct clear result instead of a
+silent no-op. Issue J — Copilot (suppressed): WI-A's plan called the
+private `_collect_threads` helper across a module boundary; changed to
+introduce a small public helper instead. Verified against
+`src/lrh/integrations/github/formatters.py:18` (`_collect_threads` has
+no public export) before applying the fix.
+
 # Validation
 
 scripts/version tools -- Black 26.3.1, Ruff 0.15.12 confirmed

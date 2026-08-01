@@ -110,6 +110,41 @@ two reference corrections) is pushed as commit — pending — but not yet
 retriggered for review; presenting the gate to the user before any
 further automated retrigger, per this PR's own subject matter.
 
+**Round-cap gate answered: authorize 3→10.** Recorded on the
+`lrh-round-state` branch; started batch 4.
+
+**REVIEW-LANDED retrigger, batch 4 (Step 8):** Pushed `d84cc17`; CI
+settled green. Retriggered both reviewers (round-cap `completed_count`
+3→4 of ceiling 10). Codex came back clean this time. Copilot came back
+clean (plus a suppressed, valid comment on
+`src/lrh/skills/lrh-review-response/SKILL.md:162`: the "already
+guarantees a unique filename per round" claim overstates it — the
+timestamp prefix is second-resolution and `lrh prompt record-execution`
+errors rather than silently overwriting on an exact collision; verified
+against `suggested_execution_path`/the `output_file.exists()` check in
+`src/lrh/prompt_workflow.py:64,340-341`. Softened the claim in both
+`lrh-review-response/SKILL.md` and `land-workflow.md`).
+
+Also caught a process gap on my own part: `PRRT_kwDOR7l1D86Vljli` (the
+batch-3 finding) had been fixed in `d84cc17` but never actually resolved
+via `resolveReviewThread` before moving on to the round-cap gate —
+resolved it now after re-verifying the diff still satisfies it.
+
+Codex additionally found a fourth genuine issue (thread
+`PRRT_kwDOR7l1D86VlwUS`, P2): the batch-3 Step 5 exception's bucket list
+("Unaddressed/Partial/Ambiguous/Problematic") wrongly included Ambiguous
+and Problematic comment as eligible for the auto-fix-and-loop-back path.
+Per `/lrh-confirm-fixes` Step 3's own taxonomy, those two buckets are
+specifically *not* actionable (Ambiguous: diff can't decide either way;
+Problematic comment: the reviewer's concern is itself wrong or conflicts
+with a documented decision) — auto-driving a code change to satisfy an
+invalid or undecidable comment could produce an unnecessary or harmful
+edit. Classified as valid and in-scope (a real taxonomy violation in this
+PR's own new exception clause): narrowed the exception to Unaddressed,
+Partial, and Problematic resolution only; Ambiguous and Problematic
+comment keep the normal hard stop and get surfaced to the human at the
+next confirm gate, same as `/lrh-confirm-fixes` already does for them.
+
 # Validation
 
 lrh github threads --mode raw --state all — verified before/after each
@@ -124,10 +159,9 @@ is_outdated`, verifying Codex's first P2 finding before triaging it
 
 # Follow-up
 
-- Present the round-cap three-way gate to the user before any further
-  automated `@codex review` / `--add-reviewer @copilot` retrigger.
-- If authorized, retrigger both reviewers on the latest pushed commit,
-  resolve `PRRT_kwDOR7l1D86Vljli` once the diff is verified to satisfy
-  it, and re-run REVIEW-LANDED once more before the final verdict.
+- Retrigger both reviewers on the batch-5 fix (Step 5 exception scope
+  narrowing + filename-collision wording) once pushed, resolve
+  `PRRT_kwDOR7l1D86VlwUS` after verifying the diff satisfies it, and
+  re-run REVIEW-LANDED once more before the final verdict.
 - No primary implementation record exists for this PR (backfill path);
   `/lrh-land` Step 7 will author the backfill record.

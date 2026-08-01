@@ -156,14 +156,18 @@ a matched filename is discovery, not by itself a block:
 **Rerunning for a second (or later) round on the same branch:** reuse the
 exact same slug from above — do not append a round-number suffix (e.g.
 `-review-round2`) to disambiguate from the prior record. The timestamp
-prefix that `lrh prompt record-execution` (Step 7) adds already guarantees a
-unique filename per round, and keeping the literal `-review` slug ending
-keeps every round's filename ending in `_REVIEW.md`, which the
+prefix that `lrh prompt record-execution` (Step 7) adds gives each round a
+distinct filename in the normal case, and keeping the literal `-review`
+slug ending keeps every round's filename ending in `_REVIEW.md`, which the
 primary-record-selection exclusion in `/lrh-land` and the `rerun_of` lookups
 in this skill and `/lrh-confirm-fixes` all depend on
 (`grep -v "_REVIEW\.md$"` / `grep -vE "_(REVIEW|CONFIRM)\.md$"` match only
-that literal suffix). If the round number is worth recording, put it in the
-record body or a CHAIN-NOTE, not the filename.
+that literal suffix). The timestamp is second-resolution
+(`%Y_%m_%d_%H_%M_%S`); two rounds recorded within the same second would
+collide — `lrh prompt record-execution` errors on an existing output path
+rather than overwriting it, so this surfaces as a clear failure to retry,
+not silent data loss. If the round number is worth recording, put it in
+the record body or a CHAIN-NOTE, not the filename.
 
 Then mint and run the secondary idempotence check:
 

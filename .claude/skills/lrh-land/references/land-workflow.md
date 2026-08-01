@@ -22,9 +22,11 @@ prose each run. Source: `PROP-LRH-LAND-EXECUTE` Decision 3.
 **Multi-round review-response naming.** A single `/lrh-land` run can invoke
 `/lrh-review-response` more than once (Step 4's loop). Each round reuses the
 *same* slug — do not append a round-number suffix (e.g. `-round2`) to
-disambiguate. `lrh prompt record-execution`'s timestamp prefix already
-guarantees a unique filename per round, and every round's file still ends in
-the literal `_REVIEW.md`. A round-numbered suffix like `_REVIEW_ROUND2.md`
+disambiguate. `lrh prompt record-execution`'s timestamp prefix gives each
+round a distinct filename in the normal case (it's second-resolution and
+errors rather than overwrites on an exact collision), and every round's
+file still ends in the literal `_REVIEW.md`. A round-numbered suffix like
+`_REVIEW_ROUND2.md`
 breaks the primary-record-selection exclusion above (`grep -v "_REVIEW\.md$"`
 only matches the literal suffix) — a later `/lrh-land` re-run could pick up
 that file as the primary record instead of excluding it. If the round number

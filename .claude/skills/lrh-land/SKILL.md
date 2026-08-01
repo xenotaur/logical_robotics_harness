@@ -203,16 +203,30 @@ just resolution.** If, and only if, the not-green verdict is specifically
 because `/lrh-confirm-fixes` classified a thread that Step 4's note above
 flagged as invisible to it (a thread that was `isResolved: false` but
 `isOutdated: true`, so `lrh request review_response` never returned it)
-into a bucket other than Clear-satisfied (Unaddressed/Partial/Ambiguous/
-Problematic), this is not a hard stop. Follow Step 4's manual-carry
-procedure for that specific thread — fix it in the diff by hand, push,
-then return to the top of Step 5 and re-run confirm-fixes against the new
-`HEAD`. Every other not-green reason (CI failing, review still pending, or
-any thread Step 4's normal loop already had a chance to catch and either
-missed or only partially fixed) is still a hard stop-and-report — this
-exception exists only because Step 4's own tooling structurally cannot see
-this specific class of thread, not as a general license to keep iterating
-past a not-green verdict.
+into **Unaddressed, Partial, or Problematic resolution** — the buckets
+`/lrh-confirm-fixes` Step 3 already treats as actionable — this is not a
+hard stop. Follow Step 4's manual-carry procedure for that specific
+thread — fix it in the diff by hand, push, then return to the top of
+Step 5 and re-run confirm-fixes against the new `HEAD`.
+
+**This exception does not apply to Ambiguous or Problematic comment.**
+Those two buckets are, by `/lrh-confirm-fixes` Step 3's own taxonomy, not
+actionable — Ambiguous means the diff can't decide the question either
+way, and Problematic comment means the reviewer's concern is itself
+wrong or conflicts with a documented decision. Auto-driving either into a
+code change just to reach green risks an unnecessary or actively harmful
+edit made to satisfy an invalid or undecidable comment. A thread in
+either bucket, even if outdated and Step-4-invisible, keeps the normal
+hard stop — surface it to the human at the next confirm gate exactly as
+`/lrh-confirm-fixes` already does for these buckets, and let them decide
+the dismissal/resolution rationale explicitly.
+
+Every other not-green reason (CI failing, review still pending, or any
+thread Step 4's normal loop already had a chance to catch and either
+missed or only partially fixed) is also still a hard stop-and-report —
+this exception exists only because Step 4's own tooling structurally
+cannot see this specific class of thread, not as a general license to
+keep iterating past a not-green verdict.
 
 **Re-run REVIEW-LANDED after confirm-fixes completes.** The inline
 confirm-fixes workflow creates and pushes a `_CONFIRM` execution record commit

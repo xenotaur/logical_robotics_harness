@@ -67,6 +67,105 @@ class TestInstallSkills(unittest.TestCase):
         self.assertEqual(skill_md.read_text(), original)
 
 
+class TestInstallNamedSkills(unittest.TestCase):
+    def _make_skills_dir(self) -> Path:
+        """Return a not-yet-existing path for use as a skills directory."""
+        parent = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, parent, True)
+        return parent / "skills"
+
+    def test_refreshes_named_skill_with_differing_bytes(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        skill_name = installer._skill_names()[0]
+        skill_md = skills_dir / skill_name / "SKILL.md"
+        original = skill_md.read_text()
+        skill_md.write_text(original + "\n# local modification\n")
+
+        results = installer.install_named_skills([skill_name], skills_dir=skills_dir)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].name, skill_name)
+        self.assertEqual(results[0].status, installer.RefreshStatus.REFRESHED)
+        self.assertEqual(skill_md.read_text(), original)
+
+    def test_unnamed_skill_with_differing_bytes_is_left_alone(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        names = installer._skill_names()
+        self.assertGreaterEqual(
+            len(names), 2, "test requires at least 2 packaged skills"
+        )
+        target_name, other_name = names[0], names[1]
+        other_md = skills_dir / other_name / "SKILL.md"
+        other_md.write_text(other_md.read_text() + "\n# local modification\n")
+
+        installer.install_named_skills([target_name], skills_dir=skills_dir)
+
+        self.assertIn("local modification", other_md.read_text())
+        report = installer.install_skills(skills_dir=skills_dir)
+        other_result = next(r for r in report.results if r.name == other_name)
+        self.assertEqual(other_result.status, installer.SkillStatus.USER_MODIFIED)
+
+    def test_absent_name_returns_absent_and_leaves_existing_dir_untouched(
+        self,
+    ) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir)
+        absent_name = "not-a-real-skill"
+        stale_dir = skills_dir / absent_name
+        stale_dir.mkdir(parents=True)
+        (stale_dir / "SKILL.md").write_text("stale content that must survive\n")
+
+        results = installer.install_named_skills([absent_name], skills_dir=skills_dir)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].name, absent_name)
+        self.assertEqual(results[0].status, installer.RefreshStatus.ABSENT)
+        self.assertTrue(stale_dir.exists())
+        self.assertEqual(
+            (stale_dir / "SKILL.md").read_text(), "stale content that must survive\n"
+        )
+
+    def test_absent_name_with_no_existing_dir_creates_nothing(self) -> None:
+        # Deliberately does not call install_skills() first, unlike the other
+        # tests in this class — skills_dir itself must not exist yet, so this
+        # actually exercises the mkdir-skip behavior for an all-absent call,
+        # not just the absent name's own subdirectory.
+        skills_dir = self._make_skills_dir()
+        self.assertFalse(skills_dir.exists())
+        absent_name = "not-a-real-skill"
+
+        results = installer.install_named_skills([absent_name], skills_dir=skills_dir)
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].status, installer.RefreshStatus.ABSENT)
+        self.assertFalse(skills_dir.exists())
+        self.assertFalse((skills_dir / absent_name).exists())
+
+    def test_bare_string_raises_instead_of_iterating_characters(self) -> None:
+        skills_dir = self._make_skills_dir()
+        with self.assertRaises(TypeError):
+            installer.install_named_skills("lrh-closeout", skills_dir=skills_dir)
+
+    def test_non_string_element_raises_type_error(self) -> None:
+        skills_dir = self._make_skills_dir()
+        with self.assertRaises(TypeError):
+            installer.install_named_skills([123], skills_dir=skills_dir)
+
+    def test_one_shot_iterable_is_not_silently_consumed(self) -> None:
+        skills_dir = self._make_skills_dir()
+        skill_name = installer._skill_names()[0]
+
+        results = installer.install_named_skills(
+            (name for name in [skill_name]), skills_dir=skills_dir
+        )
+
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0].status, installer.RefreshStatus.REFRESHED)
+        self.assertTrue((skills_dir / skill_name / "SKILL.md").exists())
+
+
 class TestDiffSkill(unittest.TestCase):
     def _make_skills_dir(self) -> Path:
         """Return a not-yet-existing path for use as a skills directory."""

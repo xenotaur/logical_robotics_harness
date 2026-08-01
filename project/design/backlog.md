@@ -31,14 +31,19 @@ Step 2 (the command itself does not filter) — as input instead of
 re-deriving its own narrower list — so `/lrh-land` Step 4 can handle this
 case mechanically instead of requiring a documented manual workaround.
 
-**Status:** Deferred. `/lrh-land` Step 4's `SKILL.md` text now documents
-that a not-green Step 5 verdict caused by this case is a plain hard stop
-(no special-cased recovery path), the same as any other not-green
-verdict — the human decides how to proceed. This is a real gap in
-`lrh request review_response`'s own filtering, not just prose — fixing it
-means touching `src/lrh/integrations/github/formatters.py` and
-`src/lrh/assist/request_service.py` plus new test coverage, out of scope
-for the docs-only PR that surfaced it.
+**Status:** Tracked, not yet implemented. `/lrh-land` Step 4's `SKILL.md`
+text documents that a not-green Step 5 verdict caused by this case is a
+plain hard stop (no special-cased recovery path), the same as any other
+not-green verdict — the human decides how to proceed, until the
+implementation below lands. Designed via `/lrh-design` on 2026-08-01 and
+filed as `PROP-OUTDATED-THREAD-RECOVERY`
+(`project/design/proposals/proposed/outdated-thread-recovery/00_proposal.md`),
+with two work items: `WI-REVIEW-RESPONSE-INCLUDE-THREAD` (the mechanical
+`lrh request review_response` fix) and
+`WI-LRH-LAND-OUTDATED-THREAD-RECOVERY` (the governed `/lrh-land` Step 4/5
+recovery flow, depends on the former). This entry stays open until both
+work items are implemented and resolved; do not delete it on proposal
+adoption alone.
 
 An earlier revision of this PR tried to solve the recovery path in prose
 instead — a `/lrh-land` Step 5 exception letting the operator fix the

@@ -6,6 +6,7 @@ import difflib
 import importlib.resources
 import importlib.resources.abc
 import shutil
+from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -25,6 +26,17 @@ class SkillStatus(str, Enum):
 class SkillResult:
     name: str
     status: SkillStatus
+
+
+class RefreshStatus(str, Enum):
+    REFRESHED = "refreshed"
+    ABSENT = "absent"
+
+
+@dataclass(frozen=True)
+class TargetedRefreshResult:
+    name: str
+    status: RefreshStatus
 
 
 @dataclass(frozen=True)
@@ -214,6 +226,59 @@ def install_skills(
     return InstallReport(
         results=results, newly_created_skills_dir=newly_created, skills_dir=target
     )
+
+
+def install_named_skills(
+    skill_names: Iterable[str], skills_dir: Path | None = None
+) -> list[TargetedRefreshResult]:
+    """Force-install exactly the given skill names, bypassing `USER_MODIFIED`.
+
+    Unlike `install_skills(force=True)`, this does not touch any skill
+    outside `skill_names` — every other installed skill's status is left
+    completely uncomputed and unmodified. Each name is validated against
+    the current package's `_skill_names()` *before* any destructive
+    filesystem operation: a name absent from the package returns
+    `RefreshStatus.ABSENT` without touching (in particular, without
+    deleting) any existing installed directory for that name, since
+    `_copy_skill` would otherwise `rmtree` the destination before
+    discovering there is no package source to copy from. (`skills_dir`
+    itself may still be created via `mkdir` if at least one name is
+    valid — that's not destructive, so it isn't gated per-name.)
+
+    `skill_names` accepts any iterable, including a one-shot one (e.g. a
+    generator) — it is consumed exactly once, immediately, into a list.
+    """
+    if isinstance(skill_names, str):
+        raise TypeError(
+            "skill_names must be an iterable of skill name strings, not a"
+            " single string (a bare string is itself Iterable[str] and"
+            " would otherwise be iterated character by character)"
+        )
+    # Materialize once: this is used twice below (the intersection check,
+    # then the main loop), and skill_names may be a one-shot iterable
+    # (e.g. a generator) that would otherwise be silently consumed by the
+    # first pass.
+    names = list(skill_names)
+    for name in names:
+        if not isinstance(name, str):
+            raise TypeError(
+                f"skill_names must contain only strings, got {name!r}"
+                f" ({type(name).__name__})"
+            )
+    target = skills_dir if skills_dir is not None else _DEFAULT_SKILLS_DIR
+    valid_names = set(_skill_names())
+    results: list[TargetedRefreshResult] = []
+    if valid_names.intersection(names):
+        target.mkdir(parents=True, exist_ok=True)
+    for name in names:
+        if name not in valid_names:
+            results.append(
+                TargetedRefreshResult(name=name, status=RefreshStatus.ABSENT)
+            )
+            continue
+        _copy_skill(name, target)
+        results.append(TargetedRefreshResult(name=name, status=RefreshStatus.REFRESHED))
+    return results
 
 
 def format_report(report: InstallReport, dry_run: bool = False) -> str:

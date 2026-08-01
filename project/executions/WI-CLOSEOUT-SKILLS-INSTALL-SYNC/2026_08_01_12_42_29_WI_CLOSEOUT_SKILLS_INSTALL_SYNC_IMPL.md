@@ -14,11 +14,17 @@ session_transcript: claude-app:20d16dd9-a465-4d31-b39f-280db14488ef
 
 # Summary
 
-Implemented `WI-CLOSEOUT-SKILLS-INSTALL-SYNC`: `/lrh-closeout` now
-detects when a closed-out PR's diff touches `.claude/skills/` or
-`src/lrh/skills/`, and refreshes exactly those skill names via a new
-targeted install capability, bypassing the coarse-grained
-`USER_MODIFIED` check for those names only.
+Attempted a full implementation of `WI-CLOSEOUT-SKILLS-INSTALL-SYNC`
+(`/lrh-closeout` auto-refreshing a skill-touching PR's global install).
+The `/lrh-closeout` wiring went through 14 rounds of review, each
+surfacing a further real gap in its checkout-verification logic; a
+fresh-context go/no-go self-review then returned **NO-GO** on that part
+of the design (disproportionate complexity, wrong foundational
+approach — see the `_REVIEW` execution record and PR #456's body for the
+full reasoning) and it was reverted. What ships from this PR is only the
+standalone, independently-useful capability the reverted design was
+built on: `install_named_skills()`. `/lrh-closeout` is unchanged; the
+WI's stated acceptance criteria are **not** met by this PR.
 
 # Result
 
@@ -28,58 +34,45 @@ targeted install capability, bypassing the coarse-grained
   destructive filesystem operation, returning an explicit `absent`
   result rather than `rmtree`-then-fail (the existing `_copy_skill`
   deletes the destination before reading the package source). Every
-  other installed skill is left completely untouched.
-- Added 7 new tests to `tests/skills_installer_test.py` (in
-  `TestInstallNamedSkills`; this count grew across the PR's review
-  rounds — see the `_REVIEW` execution record for the round-by-round
-  additions, since this narrative section is not re-edited after each
-  one): refresh of a differing-bytes skill, an unnamed sibling left
-  alone, an absent name with a pre-existing stale directory (untouched,
-  not deleted), an absent name with no existing directory (creates
-  nothing), a bare string raising `TypeError` instead of being iterated
-  character-by-character, a one-shot iterable (generator) not being
-  silently consumed by double iteration, and a non-`str` element raising
-  `TypeError`.
-- Extended `.claude/skills/lrh-closeout/SKILL.md` (and its
-  `src/lrh/skills/lrh-closeout/SKILL.md` mirror, kept byte-identical)
-  with a 6th Step 2 assessment item ("Skill refresh"): REST PR Files
-  endpoint fetch (paginated, 3,000-file ceiling and fetch-failure
-  handling), structural candidate-name filtering, both-revision
-  `_skill_names()` partitioning (base revision via the `git ls-tree`
-  colon form, not the pathspec form, which doesn't list a directory's
-  children), Step 4 confirm-gate disclosure before any file is written,
-  Step 5 execution with `PYTHONPATH` explicitly pinned to the merged
-  checkout, and a Step 8 report line. Updated the Quality Checklist and
-  "What This Skill Does Not Do" to match.
-- Documented the bootstrap requirement (WI item 5 — this PR's own
-  closeout cannot auto-trigger the new step, since the closing session
-  runs the pre-fix `lrh-closeout`) explicitly in the PR body's "Bootstrap
-  note" section, with the exact command to run by hand.
+  other installed skill is left completely untouched. Guards against a
+  bare `str` (would otherwise iterate character-by-character) and a
+  one-shot iterable (would otherwise be silently consumed by double
+  iteration inside the function).
+- Added 7 tests to `tests/skills_installer_test.py` (`TestInstallNamedSkills`;
+  see the `_REVIEW` execution record for the round-by-round additions):
+  refresh of a differing-bytes skill, an unnamed sibling left alone, an
+  absent name with a pre-existing stale directory (untouched, not
+  deleted), an absent name with no existing directory (creates nothing),
+  a bare string raising `TypeError`, a one-shot iterable not being
+  silently consumed, and a non-`str` element raising `TypeError`.
+- Initially extended `/lrh-closeout` (both SKILL.md trees) with a
+  "skill refresh" step wiring `install_named_skills()` into closeout —
+  **reverted** after the self-review's NO-GO verdict. Both trees are back
+  to byte-identical with `origin/main` (verified: 0 diff).
+- The originally-planned bootstrap step (WI item 5) is moot — there is
+  no `/lrh-closeout` wiring left to bootstrap.
 
 # Validation
 
-- `python3 -m pytest tests/skills_installer_test.py`: 29/29 pass at time
-  of this fix (count as of the round-12 confirm-fixes pass; still
-  subject to change if later rounds add more — see the `_REVIEW`
-  execution record for the authoritative, round-by-round count)
+- `python3 -m pytest tests/skills_installer_test.py`: 29/29 pass (final,
+  post-revert)
 - `scripts/format --check --diff`, `scripts/lint`: clean
 - `lrh validate`: 0 errors, 1 pre-existing unrelated warning
   (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` on `WS-LRH-ASSISTANTS`)
-- `scripts/test`: OK
-- Manual smoke test of the exact `install_named_skills` invocation
-  documented in the SKILL.md (refreshed a real skill name, returned
-  `absent` for a fake one, created no directory for the fake one)
-- `diff -r .claude/skills/lrh-closeout src/lrh/skills/lrh-closeout`:
-  identical
+- `git diff origin/main -- .claude/skills/lrh-closeout/SKILL.md src/lrh/skills/lrh-closeout/SKILL.md`:
+  empty — confirms the revert is clean, not a near-revert
+- Manual smoke tests of `install_named_skills` (refresh, absent-name
+  safety with and without a pre-existing directory, bare-string guard,
+  one-shot-iterable guard) — all as documented in the tests above
 
 # Follow-up
 
-- The WI's manual smoke-test items (full end-to-end `/lrh-closeout` run
-  against a real skill-touching PR, multi-commit/rebase-merge file-list
-  completeness, 3,000-file ceiling, fetch-failure simulation) are not
-  exercised in this session — they require a future skill-touching PR to
-  close out through this path, or a dedicated test harness this WI's
-  scope didn't include.
-- Bootstrap: this PR's own closeout must manually refresh
-  `~/.claude/skills/lrh-closeout` per the PR body's bootstrap note —
-  flagged for the closing session, not yet executed.
+- `WI-CLOSEOUT-SKILLS-INSTALL-SYNC` itself needs a human decision on how
+  to resolve: its acceptance criteria weren't met, but the underlying
+  problem (global skill installs going stale) is still open. Handling
+  that decision is out of scope for this execution record.
+- If the underlying problem is picked up again later, the self-review's
+  suggested alternative (a small tested CLI command reading from git's
+  object database at a SHA pinned at confirm-gate time, rather than a
+  live filesystem read) is recorded in PR #456's body and the `_REVIEW`
+  execution record.

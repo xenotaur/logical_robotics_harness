@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 5d789e8
+commit: 9a8fe26
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -370,8 +370,72 @@ iteration already invested and the current design's now-substantial
 verification depth (4 independent layers: repo scope, base branch,
 repo identity, per-skill exact state).
 
+**Round 14** — retriggered against `28d7b66`'s successor. 4 findings, all
+confirmed valid: established the checkout-to-`main` step before other
+Step 5 actions run (ordering — a prior action could otherwise commit
+against the wrong branch), switched the `main` pull to `--ff-only`
+(refuses to silently merge/rebase over local divergence), extended
+verification to `installer.py` itself (not just the skill data it
+copies — the code performing the copy had never been checked), and fixed
+a stale claim about reusing `baseRefName` from an earlier step. Pushed
+as commit `ed39153`.
+
+**Stop.** At this point the user interrupted mid-retrigger-poll and
+asked directly: what kind of issues are these, and is this diminishing
+returns? Reviewing the actual pattern across all 14 rounds honestly:
+roughly the first ~9 rounds found genuinely distinct, structural
+correctness gaps; rounds 10–14 were increasingly narrow refinements of
+the *same* underlying mechanism (working-tree cleanliness → ignored
+files → per-skill scoping → the installer module's own state) plus
+self-inflicted consistency debt (stale counts, stale checklist text)
+from patching the design forward incrementally under review pressure
+rather than designing it once, coherently. The user characterized 14
+rounds of review as itself a code smell indicating a design problem, not
+just a long tail of edge cases, and asked for a fresh-context,
+independent **go/no-go** review of the whole design — not further
+incremental fixes.
+
+**Fresh-context self-review verdict: NO-GO.** A cold subagent (PR URL,
+full diff, governing WI — no session context) was asked to evaluate the
+architecture itself, not re-verify individual fixes. Verdict:
+`install_named_skills()` in `installer.py` is sound — small, fully
+tested, converged in one round. The `/lrh-closeout` "skill refresh" step
+is the problem: every one of rounds 6–14 was another angle on the same
+root issue — trying to prove a live, mutable working tree matches a
+specific verified commit before trusting a live filesystem read
+(`PYTHONPATH` + `importlib.resources`) — rather than reading directly
+from git's object database (`git show`/`git archive`/a detached
+worktree at a verified SHA), which would eliminate that entire class of
+finding by construction. The self-review also found a **new, still-open
+bug** the 14 rounds never caught: a TOCTOU gap between Step 2's plan
+(computed against `origin/main` at assessment time) and Step 5's
+execution (re-fetches `origin/main` again before installing) — if
+`origin/main` moves in between, Step 5 could install content the user
+never actually saw approved at the Step 4 gate. It recommended reverting
+the `/lrh-closeout` changes and, if the underlying goal is pursued again,
+a small dedicated CLI command (`lrh skills refresh-from-commit <sha>`)
+reading from a SHA pinned once at the confirm gate, instead of agent-
+followed prose re-establishing trust from scratch on every invocation.
+
+**Decision: revert the `/lrh-closeout` SKILL.md changes; keep
+`install_named_skills()`; do not pursue the CLI-command redesign** (the
+user judged it overkill for this case). Both SKILL.md trees restored to
+byte-identical with `origin/main` (verified: `git diff origin/main --
+.claude/skills/lrh-closeout/SKILL.md src/lrh/skills/lrh-closeout/SKILL.md`
+is empty). `WI-CLOSEOUT-SKILLS-INSTALL-SYNC`'s acceptance criteria are
+not met by this PR; its resolution is a separate decision. PR #456's
+title/body updated to describe the actual final, reduced scope.
+
 # Follow-up
 
-- Next: retrigger both reviewers against `5d789e8`. After that, switch
-  to a fresh-context self-review pass rather than continuing the bot
-  retrigger loop.
+- `WI-CLOSEOUT-SKILLS-INSTALL-SYNC` needs a human decision: resolve with
+  a scope note, leave `proposed`, or amend — out of scope for this
+  record.
+- If the underlying stale-global-skill problem is revisited, see the
+  self-review's suggested CLI-command design (recorded here and in PR
+  #456's body) rather than restarting from the reverted approach.
+- Retrospective note for future sessions running long bot-retrigger
+  loops: the signal that should have prompted a strategy check earlier
+  was rounds 10–13 narrowing into refinements of one mechanism plus
+  recurring self-inflicted consistency slips — that pattern, not just
+  elapsed round count, is what a fresh-context go/no-go review is for.

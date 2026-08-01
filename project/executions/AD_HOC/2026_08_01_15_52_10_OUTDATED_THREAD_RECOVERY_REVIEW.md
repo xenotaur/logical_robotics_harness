@@ -55,6 +55,14 @@ against `src/lrh/skills/lrh-confirm-fixes/SKILL.md:164-165`) across
 WI-B (9 occurrences); clarified WI-B's backlog-closure step timing
 (link now, close only once both items are implemented).
 
+**Round 2 (commit `3380a17`): Issue G — same closure-timing bug, missed
+in WI-A (Codex P2 + Copilot suppressed, same root cause independently
+caught by both):** The round-1 fix only corrected WI-B's and the
+proposal's closure-timing wording; WI-A's own Demand-search section had
+the identical bug ("Close the backlog entry once this item ... are
+filed" — filed, not implemented). Fixed to match the same
+link-now/close-on-implementation language used everywhere else.
+
 # Validation
 
 scripts/version tools -- Black 26.3.1, Ruff 0.15.12 confirmed

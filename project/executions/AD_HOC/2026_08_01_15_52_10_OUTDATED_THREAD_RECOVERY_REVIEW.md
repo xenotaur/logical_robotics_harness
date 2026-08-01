@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_28_08_OUTDATED_THREAD_RECOVERY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/457
-commit: 4c1b856ae19ff1f0b854321bfc9ce5cf46b25239
+commit: 50ab976ca66e1d773a8de4f6d318301d7da7b8b8
 created_at: 2026-08-01T15:52:10-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/457

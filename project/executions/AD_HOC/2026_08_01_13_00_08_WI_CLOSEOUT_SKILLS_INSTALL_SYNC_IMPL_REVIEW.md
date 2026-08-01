@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 64607d7
+commit: 5d3d14b
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -256,6 +256,33 @@ substantive design gap), treat that as the natural stopping point and
 move to a final self-review pass before merge, per the pattern that
 worked well on the WI-creation PR (#454).
 
+**Round 10** — retriggered against `ca55353`. 3 new findings, all
+confirmed valid:
+- Codex P1 "Check the working tree before installing" — **confirmed
+  valid, a distinct failure mode from the earlier descendant-commit
+  issue**: the tree-hash comparison only reads *committed* git objects;
+  `install_named_skills` imports live via `PYTHONPATH`, which reads
+  whatever bytes are actually on disk. An uncommitted or untracked
+  change under `src/lrh/skills/<name>/` would leave both `rev-parse`
+  hashes equal while the Python import picks up the dirty bytes anyway.
+  Added a `git status --porcelain -- src/lrh/skills` (must be empty)
+  requirement alongside the tree-hash check.
+- Copilot: `install_named_skills()` doesn't validate that each element of
+  `skill_names` is actually a `str` (a non-`str` element could produce
+  confusing behavior or an unclear low-level error). **Confirmed valid,
+  minor.** Added an explicit per-element `isinstance` check raising
+  `TypeError`.
+- Copilot: suggested test coverage for the above. Added
+  `test_non_string_element_raises_type_error`.
+- Pushed as commit `5d3d14b`.
+
+10 rounds in, still finding genuinely distinct, valid data-correctness
+gaps each time (not diminishing into nits) — this is a
+`USER_MODIFIED`-bypassing mutation of the user's own machine, so the
+scrutiny is proportionate to the stakes. Continuing the retrigger loop
+rather than switching strategy, since each round is still closing real
+gaps, not just consistency slips.
+
 # Follow-up
 
-- Next: retrigger both reviewers against `16277f2`.
+- Next: retrigger both reviewers against `5d3d14b`.

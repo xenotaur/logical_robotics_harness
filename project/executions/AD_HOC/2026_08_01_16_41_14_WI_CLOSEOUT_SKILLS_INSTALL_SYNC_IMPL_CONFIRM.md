@@ -2,10 +2,10 @@
 execution_id: 2026_08_01_16_41_14_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL_CONFIRM)[2026-08-01T16:31:23-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 979a40a
+commit: 63820e567304a13cd13d2324bf463da460944727
 created_at: 2026-08-01T16:41:14-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456

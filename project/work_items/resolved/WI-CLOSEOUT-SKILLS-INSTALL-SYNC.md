@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Partially implemented in PR #456 (commit 63820e5): install_named_skills() shipped in src/lrh/skills/installer.py, but the /lrh-closeout wiring was reverted after a go/no-go self-review found the live-filesystem-read + checkout-verification design architecturally unsound (14 review rounds, disproportionate complexity, an open TOCTOU gap). The underlying problem is still open — see the WI body's \"Outcome\" section before re-attempting, and use the alternative CLI-command design sketched there, not this WI's original approach."
 blocked_reason: null
 blocked: false
 id: WI-CLOSEOUT-SKILLS-INSTALL-SYNC
 title: Closeout/land never reinstalls a skill-touching PR's global skill copy
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony
@@ -54,13 +54,69 @@ artifacts_expected:
   - src/lrh/skills/lrh-closeout/SKILL.md (edited — mirror of the above)
 ---
 
+## Outcome (PR #456) — read this before re-attempting this WI
+
+**This WI is resolved as a partial, pivoted delivery, not a completed
+implementation of its own acceptance criteria.** The problem below is
+still open. Read this section before picking the WI back up.
+
+PR #456 originally implemented the full design below: a new
+`/lrh-closeout` step that detects a skill-touching merge and refreshes
+`~/.claude/skills/` accordingly. That design went through **14 rounds**
+of automated review, each round finding a further real, valid gap in the
+mechanism it required — verifying that a live, mutable local git
+checkout accurately represents a specific verified commit before
+trusting a live filesystem read (`PYTHONPATH` + `importlib.resources`).
+The gaps found, in order, included: repo/branch/identity scoping, base
+SHA sourcing, shallow-clone object availability, ancestry vs. exact
+tree-hash, working-tree dirtiness, `.gitignore`d files, per-skill vs.
+package-root check scoping, and verifying the installer code itself, not
+just the skill data it copies.
+
+A fresh-context, independent go/no-go self-review was then run against
+the accumulated design and returned **NO-GO**: the recurring pattern
+across rounds was symptomatic of a wrong foundational choice (reading
+live from a mutable filesystem), not a series of unrelated edge cases;
+the verification prose (~300 lines, untested) was disproportionate to
+the actual problem (~50 lines of tested Python); and the review found a
+**still-open TOCTOU gap** the 14 rounds never caught — the confirm gate
+shows a plan computed against `origin/main` at assessment time, but
+execution re-fetches `origin/main` again before installing, so a
+concurrent merge in between could install content the user never
+actually approved.
+
+**Decision: reverted the `/lrh-closeout` wiring; kept only the
+underlying capability.** `install_named_skills()` in
+`src/lrh/skills/installer.py` — a tested, targeted, named-subset
+force-install function — shipped and is available for reuse. Both
+`.claude/skills/lrh-closeout/SKILL.md` and
+`src/lrh/skills/lrh-closeout/SKILL.md` are unchanged from before this WI
+(verified byte-identical to `origin/main`). The acceptance criteria and
+Required Changes below (items 2–5, and the frontmatter `acceptance` list)
+describe the **reverted** design — they are a historical record of what
+was attempted, not a remaining to-do list.
+
+**If this problem is picked up again:** do not restart from the
+live-filesystem-read design above. The self-review sketched a lower-
+complexity alternative — a small, tested CLI command
+(e.g. `lrh skills refresh-from-commit <sha> --names a,b,c`) that reads
+skill content directly from git's object database (`git archive <sha>`
+or a detached worktree) for a SHA pinned once at the confirm gate, rather
+than agent-followed prose re-establishing trust from scratch on every
+invocation. Full reasoning and the alternative design sketch are in PR
+#456's description and in
+`project/executions/AD_HOC/2026_08_01_13_00_08_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL_REVIEW.md`
+(the round-by-round history) and
+`project/executions/AD_HOC/2026_08_01_16_41_14_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL_CONFIRM.md`.
+
 ## Summary
 
 After a PR that edits an existing skill under `.claude/skills/` or
 `src/lrh/skills/` merges, nothing in the LRH workflow ever runs
 `lrh skills install` to refresh `~/.claude/skills/`. The global copy
 silently drifts from the canonical `src/lrh/skills/` source until someone
-happens to run the command by hand.
+happens to run the command by hand. **This problem is still open as of
+PR #456 — see "Outcome" above.**
 
 ## Problem / Context
 

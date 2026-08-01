@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_07_31_21_38_13_WI_CLOSEOUT_SKILLS_INSTALL_SYNC
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/454
-commit: 2a56851
+commit: affb7ca
 created_at: 2026-07-31T22:15:13-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/454
@@ -175,6 +175,42 @@ addressed) plus 1 genuinely new P1 thread:
   install-order problem for the code itself, only for the rendered
   `~/.claude/skills/*.md` content). Matching Acceptance Criterion,
   Validation entry, and Risk Note updated to match.
+- Pushed as commit `affb7ca`.
+
+**Sixth round** — checked in with the user given the mounting round count
+(6 rounds on a planning-only PR); user directed: fix this round's
+findings, then check in again before deciding whether to continue.
+Retriggered both reviewers against `affb7ca`; Copilot `APPROVED` (1 minor
+metadata nit — the `commit:` frontmatter field lagging the body by one
+commit, a known structural self-reference the field has carried since
+round 2). Codex's summary review was clean; 3 new inline threads:
+- P1 "Load targeted refresh from the merged checkout" — **confirmed
+  valid**: the "importable immediately post-merge" claim only holds for
+  an editable `lrh` install pointing at the merged checkout (this
+  session's environment); the documented `pipx`/`pip install lrh` paths
+  are frozen distributions unaffected by the merge. Rewrote Required
+  Changes item 5 to require either pointing the bootstrap's Python path
+  at the merged checkout explicitly, or detecting and refusing a
+  mismatched loaded package.
+- P2 "Distinguish excluded directories from removed skills" —
+  **confirmed valid**: `_skill_names()` deliberately excludes
+  underscore-prefixed directories like `_shared`; a PR touching
+  `src/lrh/skills/_shared/` would have been misclassified as a removed
+  skill. Changed the partition step to check `_skill_names()` membership
+  at *both* the old and current revisions — present at neither means
+  "not a skill," not "removed."
+- P2 "Preserve the old path when detecting renames" — **confirmed
+  valid**: a name-only diff listing commonly exposes only a rename's
+  destination path (confirmed against this repo's own history:
+  `git diff-tree --name-only -M 4a0b44f` vs. `--name-status`). Required
+  Changes item 2 now specifies a rename-aware listing
+  (`--name-status -M` or `previous_filename`) so a renamed skill's old
+  name is still detected as orphaned.
+- Fixed the stale `commit:` field (Copilot's nit) as part of this round's
+  push, closing out the metadata-lag pattern flagged since round 2.
+- All fixes applied to the WI file (Required Changes items 2 and 5,
+  Non-Goals unchanged, Acceptance Criteria, Validation, Risk Notes, and
+  frontmatter `acceptance`).
 
 # Validation
 

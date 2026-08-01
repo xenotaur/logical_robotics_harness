@@ -231,25 +231,48 @@ Resolved both formal threads (`PRRT_kwDOR7l1D86Vl6Hq`,
 `PRRT_kwDOR7l1D86Vl6Hs`) as satisfied-by-removal: the text they flagged
 no longer exists.
 
+**REVIEW-LANDED retrigger, batch 8 (Step 8) — final:** Retriggered both
+reviewers against `f157bfb` (round-cap `completed_count` 7→8 of ceiling
+10). Codex came back clean via an issue comment ("Codex Review: Didn't
+find any major issues. Hooray", 2026-08-01T06:08:22Z) rather than a
+formal review — note for future polling: Codex does not always leave a
+`reviews[]` entry on a clean pass, only a plain issue comment; check
+`comments` too, not just `reviews`. Copilot came back clean ("reviewed
+9 out of 9 changed files ... generated no new comments") with 2
+suppressed comments, both non-actionable: one repeats the earlier
+Step-2-short-circuit finding against now-removed text (moot post-revert,
+still visible only in this record's own historical narrative, which is
+accurate as written), and one flags this record's own prose as
+"internally contradictory" between "Problematic resolution" and
+"Problematic comment" — these are two distinct `/lrh-confirm-fixes`
+Step 3 taxonomy buckets, not a contradiction; no change needed.
+
+**Final verdict: GREEN.** All 10 threads resolved (`isResolved: true`),
+CI green (5/5 checks SUCCESS) at `f157bfb`, review landed clean from
+both Codex and Copilot on this exact commit. Ready to merge:
+
+```
+gh pr merge https://github.com/xenotaur/logical_robotics_harness/pull/453 --merge --match-head-commit f157bfb3aeace7333cf193c1b0e3f8dabc3b2071
+```
+
 # Validation
 
 lrh github threads --mode raw --state all — verified before/after each
-resolveReviewThread call across all 7 batches
+resolveReviewThread call across all 8 batches; final state: 10/10
+threads isResolved: true
 gh pr checks --required — "no required checks reported" at every check;
 confirmed via `gh api repos/.../branches/main/protection` (404 Branch not
 protected) this is a real repo-config fact; fell back to unfiltered
-`gh pr checks` each time — all 5 checks SUCCESS at every settled commit
+`gh pr checks` each time — final state: 5/5 checks SUCCESS at `f157bfb`
 grep -n "_matches_state" src/lrh/integrations/github/formatters.py —
 confirmed the "unresolved" branch requires `not is_resolved and not
 is_outdated`, verifying Codex's first P2 finding before triaging it
+gh pr view --json comments — confirmed Codex's clean pass at
+2026-08-01T06:08:22Z is a genuine issue comment on `f157bfb`, not a
+stale comment from an earlier round
 
 # Follow-up
 
-- Retrigger both reviewers on the batch-8 fix (Step 5 exception
-  reverted, Step 4 simplified, backlog entry expanded) once pushed,
-  resolve `PRRT_kwDOR7l1D86Vl6Hq` and `PRRT_kwDOR7l1D86Vl6Hs` once
-  removal is confirmed, and re-run REVIEW-LANDED once more before the
-  final verdict.
 - A future implementation of the outdated-thread recovery path should
   go through `/lrh-design` rather than more inline `SKILL.md` prose —
   see the expanded `project/design/backlog.md` entry for the full list

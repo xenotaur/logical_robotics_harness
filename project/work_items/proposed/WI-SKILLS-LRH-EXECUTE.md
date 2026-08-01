@@ -99,11 +99,12 @@ inline sub-skill pattern can carry Phase 2 if needed.
   ready WI first (see Required Changes #3), then proceed identically.
 - Run `/lrh-execute`'s own chain authorization gate — completion condition
   and stop-work condition per `DEC-DELIBERATE-CHAIN-INITIATION` — *before*
-  `/lrh-implement` starts, mirroring `/lrh-land`'s own Decision 2 Step 2
-  ("This gate precedes Steps 3–4 so that no automated work begins without
-  a prior chain-level authorization"). Do not rely on `/lrh-land`'s later
-  gate — by the time `/lrh-land` runs, implementation and PR creation have
-  already happened.
+  `/lrh-implement` starts, mirroring `/lrh-land`'s own Step 2
+  (`src/lrh/skills/lrh-land/SKILL.md:88-109`): "this gate must be reached
+  before any automated link runs," and its own Quality Checklist requires
+  it "completed before Steps 4–5" (`SKILL.md:334`). Do not rely on
+  `/lrh-land`'s later gate — by the time `/lrh-land` runs, implementation
+  and PR creation have already happened.
 - Write the Decision 8 scratchpad run journal (see Required Changes #5) —
   distinct from `/lrh-land`'s own `land_pr` journal action.
 - Reuse `/lrh-land`'s existing inline chain (review-response →
@@ -140,6 +141,11 @@ inline sub-skill pattern can carry Phase 2 if needed.
 5. Mirror `src/lrh/skills/lrh-execute/SKILL.md` byte-for-byte to
    `.claude/skills/lrh-execute/SKILL.md`.
 6. Add a `/lrh-execute` entry to `CLAUDE.md`'s `## Skills` index.
+7. Add a `/lrh-execute` row to `src/lrh/skills/_shared/lifecycle-chain.md`'s
+   "Consuming sites" table (`:124-139`) — every other terminal/chain-running
+   skill has one, and that file's own maintainer note requires updating
+   "every site in the table" when the lifecycle changes; `/lrh-execute` is
+   currently only mentioned in that file's prose (`:103`), not the table.
 
 ## Non-Goals
 
@@ -205,3 +211,5 @@ is picked up.
 - Workstream: `project/workstreams/proposed/WS-SKILLS-EXECUTE.md`
 - Design: `project/design/proposals/proposed/lrh-land-execute/00_proposal.md`
 - Governance: `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`
+- Canonical chain: `src/lrh/skills/_shared/lifecycle-chain.md` (Required
+  Changes #7 above registers `/lrh-execute` in its "Consuming sites" table)

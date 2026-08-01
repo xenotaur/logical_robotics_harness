@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 06e095e
+commit: 1dbb9fe
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -87,7 +87,22 @@ Fixed by materializing `skill_names` into a `list` once at the top of
 the function, used for both passes. Added a test with a generator
 input to cover it. Pushed as commit `0489550`.
 
+**Round 4** — retriggered both reviewers against `09511c6`. Codex clean.
+Copilot raised 3 findings (2 duplicates of the same underlying issue),
+all confirmed valid:
+- The implementation record's `## Validation`/`## Result` sections
+  reported stale test counts ("26/26", "4 new tests") that hadn't kept
+  up with tests added in rounds 2–3. Fixed to the final accurate count
+  (28/28, 6 new tests, named individually) — editing that record's body
+  is normal authoring since PR #456 hasn't merged yet, not a rewrite of
+  an already-landed record.
+- The `installer.py` comment describing the double-iteration fix said a
+  generator would "duck-type as `Sequence[str]`" — imprecise; a
+  generator doesn't satisfy the `Sequence` protocol at all (no
+  `__getitem__`/`__len__`), it's merely an `Iterable`. Reworded.
+- Pushed as commit `1dbb9fe`.
+
 # Follow-up
 
-- Next: retrigger both reviewers against `0489550`; if clean, proceed to
+- Next: retrigger both reviewers against `1dbb9fe`; if clean, proceed to
   `/lrh-confirm-fixes`.

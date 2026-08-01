@@ -2,10 +2,10 @@
 execution_id: 2026_08_01_20_43_53_WI_SKILLS_LRH_EXECUTE
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_LRH_EXECUTE)[2026-08-01T20:42:19+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/458
-commit: 
+commit: f42d69c0cbd43328cab1190a023d98e742c99f0c
 created_at: 2026-08-01T20:43:53+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — following a design discussion on GitHub review-credit consumption, the user asked which session was building /lrh-execute; none was found (checked active/archived sessions, transcripts, open PRs, remote branches), confirming a real coverage gap, then asked to create the work item to close it
@@ -79,7 +79,26 @@ subagent review over bot retrigger where possible):**
   fixes byte-accurate against source, independently spot-checked 6 more
   citations/status claims in the WI (all held up), and confirmed
   `lrh validate` clean. No further findings.
-- Final state: CI green (5/5), 0 unresolved threads, mergeable.
+- Final state: CI green (5/5), 0 unresolved threads, mergeable. Merged as
+  `f42d69c0cbd43328cab1190a023d98e742c99f0c` at 2026-08-01T21:20:56Z.
+
+CHAIN-NOTE: cycles=1; stops=2; gates=[merge]; friction="A merge conflict
+against a concurrently-merged sibling PR (#457) on the same
+work_items: list, resolved as a trivial union. Codex's automatic
+on-PR-open review (not a retrigger) found 5 real issues on the first
+commit, 2 already overtaken by subsequent commits. Per instruction,
+further verification used independent cold-subagent review instead of
+retriggering bots: round 1 found a genuine self-inflicted fabrication — a
+quotation invented and attributed to a nonexistent /lrh-land section,
+including a wrong step-number claim — caught and corrected against the
+real source; round 2 verified both fixes and 6 additional citations
+byte-accurate, no further findings."; note="No bot review was retriggered
+at any point during landing — Codex's one review was GitHub's own
+automatic on-open trigger, not an explicit retrigger call. Two subagent
+rounds substituted for what would otherwise have been further bot
+rounds; the fabricated-citation catch is itself a concrete data point
+for the review-credit-consumption discussion this whole WI was created
+to close a gap for."
 
 # Validation
 
@@ -94,8 +113,8 @@ file); no source code touched, so `scripts/test` does not apply.
 
 # Follow-up
 
-- Merge gate: present the final verdict's merge command for explicit
-  in-session authorization per `DEC-AGENT-EXECUTED-MERGE-GATE`, then
-  closeout.
+- Done: merged as `f42d69c0cbd43328cab1190a023d98e742c99f0c`.
 - `WI-SKILLS-LRH-EXECUTE` itself remains `proposed` — this record covers
-  its creation and landing, not its implementation.
+  its creation and landing, not its implementation. Pick up per its own
+  Acceptance Criteria and Required Changes when `/lrh-execute` is
+  actually built.

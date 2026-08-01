@@ -1130,10 +1130,11 @@ def _blocked_work_item_count(work_items: dict[str, object]) -> int | None:
             continue
         blocked_by = item.get("blocked_by")
         status = str(item.get("status", "")).lower()
-        if (isinstance(blocked_by, list) and blocked_by) or status in {
-            "blocked",
-            "stalled",
-        }:
+        if (
+            item.get("blocked") is True
+            or (isinstance(blocked_by, list) and blocked_by)
+            or status in {"blocked", "stalled"}
+        ):
             count += 1
     return count
 
@@ -2041,6 +2042,8 @@ def _work_item_dict(
         "related_workstreams": list(item.related_workstreams),
         "depends_on": list(item.depends_on),
         "blocked_by": list(item.blocked_by),
+        "blocked": item.blocked,
+        "blocked_reason": item.blocked_reason,
         "required_evidence": list(item.required_evidence),
         "artifacts_expected": list(item.artifacts_expected),
         "is_current_focus_related": item.is_current_focus_related,

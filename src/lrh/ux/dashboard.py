@@ -555,7 +555,9 @@ def _blocked_work_item_count(state: core_state.CoreProjectState) -> int:
     return sum(
         1
         for item in state.work_items
-        if item.blocked_by or item.status.lower() in _BLOCKED_STATUS_VALUES
+        if item.blocked
+        or item.blocked_by
+        or item.status.lower() in _BLOCKED_STATUS_VALUES
     )
 
 

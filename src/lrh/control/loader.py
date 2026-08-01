@@ -140,6 +140,8 @@ def _load_work_items(directory: Path) -> tuple[WorkItem, ...]:
                 related_design=_list_of_strings(fm, "related_design"),
                 depends_on=_list_of_strings(fm, "depends_on"),
                 blocked_by=_list_of_strings(fm, "blocked_by"),
+                blocked=_optional_bool(fm, "blocked") or False,
+                blocked_reason=_optional_str(fm, "blocked_reason"),
                 expected_actions=_list_of_strings(fm, "expected_actions"),
                 forbidden_actions=_list_of_strings(fm, "forbidden_actions"),
                 acceptance=_list_of_strings(fm, "acceptance"),
@@ -369,6 +371,15 @@ def _optional_str(frontmatter: dict[str, Any], field: str) -> str | None:
         return None
     if not isinstance(value, str):
         raise ValueError(f"invalid field '{field}': expected string or null")
+    return value
+
+
+def _optional_bool(frontmatter: dict[str, Any], field: str) -> bool | None:
+    value = frontmatter.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, bool):
+        raise ValueError(f"invalid field '{field}': expected bool or null")
     return value
 
 

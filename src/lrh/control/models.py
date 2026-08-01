@@ -43,6 +43,8 @@ class WorkItem:
     related_design: tuple[str, ...] = ()
     depends_on: tuple[str, ...] = ()
     blocked_by: tuple[str, ...] = ()
+    blocked: bool = False
+    blocked_reason: str | None = None
     expected_actions: tuple[str, ...] = ()
     forbidden_actions: tuple[str, ...] = ()
     acceptance: tuple[str, ...] = ()

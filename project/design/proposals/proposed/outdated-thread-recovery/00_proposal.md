@@ -72,7 +72,7 @@ This proposal is that deferred work, designed properly — through
   exist: `--force` on `lrh request review_response`
   (`src/lrh/assist/request_cli.py`) bypasses the "Nothing to resolve"
   early exit but does not widen the thread filter itself
-  (`src/lrh/assist/request_service.py:137-144` still hardcodes
+  (`src/lrh/assist/request_service.py:122-142` still hardcodes
   `state="unresolved"`); `formatters._matches_state` already supports
   `state="all"`/`"outdated"`; `lrh github threads --state all` already
   exposes them via `src/lrh/cli/github.py` — none of this is wired into
@@ -123,16 +123,23 @@ Options considered:
 - **Always-live-gated** — present the specific finding, wait for an
   explicit human answer, every occurrence, no default.
 
-**Chosen: always-live-gated.** The automatic path is the proven failure
-mode: a P1 finding showed it could silently override a stop-work
-condition the human explicitly set at the run's own chain-authorization
-gate. This case is rare in practice — in PR #453's own worked example,
-every outdated thread encountered was Clear-satisfied, not needing a new
-fix — so the added friction of a live gate per genuine occurrence is
-low, and the safety property (no silent governance bypass, ever) is
-worth it. The gate reuses the same three-way pattern already established
-by `references/round-cap-gate.md` (fix now / defer / stop) rather than
-inventing new UI vocabulary for a structurally similar problem.
+**Chosen: always-live-gated**, presenting the human three options —
+**fix now** (route through Decision 4's recovery flow), **defer**
+(leave the thread open, proceed toward merge without it), or **stop**
+(halt the run). The automatic path is the proven failure mode: a P1
+finding showed it could silently override a stop-work condition the
+human explicitly set at the run's own chain-authorization gate. This
+case is rare in practice — in PR #453's own worked example, every
+outdated thread encountered was Clear-satisfied, not needing a new fix —
+so the added friction of a live gate per genuine occurrence is low, and
+the safety property (no silent governance bypass, ever) is worth it.
+This reuses the same three-way-human-gate *structure* `references/
+round-cap-gate.md` already established for a different decision (there:
+authorize a new ceiling / deny and stop / pause, gating whether to keep
+retriggering bot reviewers) rather than inventing new UI vocabulary for
+a structurally similar problem — the option labels differ because the
+decisions differ, but both are a mandatory three-way human answer with
+no inferred-from-silence default.
 
 ### Decision 3: Which confirm-fixes taxonomy buckets are ever eligible?
 
@@ -216,5 +223,6 @@ isn't actually resolved:
 - `project/design/proposals/proposed/lrh-land-execute/00_proposal.md` —
   governs `/lrh-land` itself; this proposal extends its Step 4/5 design.
 - `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md` — the
-  three-way human-gate pattern this proposal reuses for Decision 2.
+  three-way-human-gate *structure* this proposal reuses for Decision 2
+  (different decision, different option labels — see Decision 2).
 - `project/design/backlog.md` — entry closed by this proposal.

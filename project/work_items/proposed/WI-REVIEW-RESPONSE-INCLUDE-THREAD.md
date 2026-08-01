@@ -69,7 +69,7 @@ of `PROP-OUTDATED-THREAD-RECOVERY` — the mechanical prerequisite Layer 2
 - In-repo: No existing implementation. `--force` already exists
   (`src/lrh/assist/request_cli.py`) but only bypasses the early exit, not
   the `state="unresolved"` filter itself
-  (`src/lrh/assist/request_service.py:137-144`).
+  (`src/lrh/assist/request_service.py:122-142`).
   `formatters._matches_state` already supports `state="all"`/`"outdated"`
   but isn't wired into the `review_response` template path.
 - Sibling repos: None identified (Taurcode checked; no matching mechanism).

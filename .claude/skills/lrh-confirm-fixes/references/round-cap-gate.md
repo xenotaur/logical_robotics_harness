@@ -54,7 +54,75 @@ bot-retrigger action. It does **not**:
   (unattended, automatic retrigger escalation), not total platform usage.
   No GitHub billing/usage API is queried; the human supplies portfolio
   context (what else is running, what's urgent) at the gate, since no
-  automated source for that currently exists in this project.
+  automated source for that currently exists in this project. See
+  "Detecting a stalled reviewer session" below for a heuristic that
+  identifies *a* stalled session without querying billing data — it still
+  does not measure or bound aggregate spend.
+
+## Detecting a stalled reviewer session
+
+Step 8.3 in `SKILL.md` needs to tell "reviewer never invoked / not
+configured for this repo" apart from "reviewer's own session started and
+stalled" before asking the human — those need different answers (wait
+longer vs. top up usage/credits and retry vs. authorize a different
+remediation), and conflating them into one generic question hides that
+choice. GitHub does not expose a billing/credit-usage API (see "What this
+bounds" above), and a stalled Copilot coding-agent or code-review session
+does not post any comment, review, or check-run output naming the cause —
+the exhaustion message ("...you've run out of your included AI credits
+for the month...") renders only in the GitHub web UI's session panel and
+does not appear on any REST-accessible surface. Verified directly against
+a live incident (`xenotaur/LCATS#202`, 2026-07-31): grepping every PR
+comment, issue comment, and timeline event body for "credit" returned
+nothing.
+
+What *is* available is a stall heuristic, built from two REST calls:
+
+1. **Check-runs on the reviewer's own commit:**
+
+   ```bash
+   gh api repos/<owner>/<repo>/commits/<sha>/check-runs \
+     --jq '.check_runs[] | select(.name=="copilot-pull-request-reviewer") | {status, conclusion, started_at, completed_at}'
+   ```
+
+   A hosted reviewer session that's actually running (rather than simply
+   not configured) shows up here. `status: "in_progress"`,
+   `conclusion: null`, `completed_at: null` held past a reasonable wait —
+   reuse `STALE_AGE_SECONDS` (15 minutes, "Round-state branch mechanics"
+   above) as the threshold, since that is this skill's own existing
+   "reasonable wait" constant — means the session started and never
+   reached a terminal state. (Substitute the check-run `name` this
+   repository's reviewer actually reports if not GitHub Copilot code
+   review's default; per GitHub's webhook documentation, `check_run`
+   events fire only on `created`/`rerequested`/`completed`/
+   `requested_action` — there is no periodic "still in progress" event, so
+   this must be polled, not subscribed to.)
+
+2. **Issue timeline, for corroboration:**
+
+   ```bash
+   gh api repos/<owner>/<repo>/issues/<pr-number>/timeline \
+     --jq '.[] | select(.event | startswith("copilot_work"))'
+   ```
+
+   A `copilot_work_started` event with no later `copilot_work_finished` or
+   `copilot_work_finished_failure` event for the same attempt corroborates
+   the check-run reading — the session was invoked and is the thing that
+   didn't finish, not a configuration gap.
+
+Both signals together (started, no terminal event, past the threshold) is
+**stalled** — distinct from **never invoked**, which shows no check-run
+for that reviewer at all and no `copilot_work_started` event since the
+retrigger. Neither signal, alone or combined, identifies *why* the
+session stalled — credit exhaustion is the observed cause in the verified
+incident above, but a platform outage or an unrelated internal error would
+look identical from the API side. Surface it to the human as "stalled,
+cause unknown, credit exhaustion is one known cause," never as a confirmed
+diagnosis: this is a heuristic, not a diagnostic. Symmetrically, do not
+treat the *absence* of a stall signal as proof the reviewer is simply
+unconfigured — Step 8's existing rule against inferring configuration
+state from silence (`SKILL.md`, Step 8, "Do not infer 'no automated
+reviewer is configured' from silence either") still applies unchanged.
 
 ## State schema
 

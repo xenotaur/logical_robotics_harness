@@ -451,3 +451,48 @@ pointer and its revisit trigger.
 `src/lrh/assist/request_cli.py` (`--target-agent`);
 `src/lrh/assist/request_service.py` (`REQUEST_TARGET_AGENT`);
 "Validator drift-check for synced skill references" entry above.
+
+---
+
+## Promote stalled-reviewer-session detection from skill prose to a tested LRH primitive
+
+**Noted:** 2026-07-31, while adding stalled-reviewer-session detection
+(check-run + issue-timeline heuristic, for distinguishing "reviewer never
+invoked" from "reviewer's own session started and stalled," e.g. GitHub
+Copilot code review running out of included credits) to
+`lrh-confirm-fixes/SKILL.md` Step 8.3 and
+`references/round-cap-gate.md`.
+
+**Idea:** The detection landed as skill-embedded bash/`gh api` prose,
+callable only from inside an already-running `/lrh-confirm-fixes`
+invocation that is actively waiting on a reviewer — it cannot fire
+proactively (e.g. overnight, with no session open). `round-cap-gate.md`'s
+own "Risk Notes — deferred hardening" section already documents that this
+skill-prose approach is expensive to get right and hard to verify: the
+round-cap mechanism it lives alongside took 8 review rounds to reach its
+current state, each round finding a genuinely different category of
+correctness bug, and remains untested in practice.
+`WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md`'s Risk Notes independently
+recommend promoting this class of logic to "a shared, unit-tested LRH
+primitive (real code, not skill prose)" that both an assisted mode (a
+human-driven skill invocation) and a future bounded-auto mode (e.g. a
+scheduled poller) could call, rather than duplicating hand-rolled
+`gh api`/`jq` logic at each call site. A real primitive (e.g. `lrh
+pr-health check`) would also get `scripts/test` unit coverage, unlike the
+current prose, which is verified only by manual reasoning.
+
+**Status:** Deferred — `WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md` is a
+planning item whose own `depends_on` (`WI-GITHUB-PR-CI-OBSERVATION`,
+`WI-AGENT-BRANCH-CONTAINMENT`, `WI-DELIBERATE-MODEL-INVOCATION`) and
+acceptance criteria ("no mutation-capable automation or backend
+implementation is added") explicitly gate real implementation behind
+further design work. Not a same-day follow-up to the Step 8.3 change.
+Revisit once `WI-BOUNDED-STABILIZATION-LOOP-DESIGN` is implemented, or
+sooner if the current skill-prose detection is observed producing a real
+false positive/negative in practice — per this project's practice of
+promoting on observed incident rather than speculative hardening.
+
+**Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8.3;
+`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`
+"Detecting a stalled reviewer session" and "Risk Notes — deferred
+hardening"; `project/work_items/proposed/WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md`.

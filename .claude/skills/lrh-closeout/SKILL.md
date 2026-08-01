@@ -146,10 +146,17 @@ is still in `proposed/` → offer adoption.
 
 **6. Skill refresh (if the PR touched `.claude/skills/` or `src/lrh/skills/`):**
 
-**This entire assessment item is read-only** — no command in it writes to
-disk, switches branches, or mutates the invoking checkout. It must stay
-that way: Step 4's confirm gate promises "before touching any files," and
-this item runs before that gate.
+**This entire assessment item does not mutate tracked files, branches, or
+`~/.claude/skills/`** — it never switches branches, writes to the working
+tree, or installs anything. It must stay that way: Step 4's confirm gate
+promises "before touching any files," meaning the user's own work and the
+target install directory, not git's own remote-tracking bookkeeping.
+Routine `git fetch origin main` (updating `refs/remotes/origin/main` and
+`FETCH_HEAD`) is expected, harmless git housekeeping inherent to reading
+"what's actually on `origin/main`" correctly, not something this gate is
+meant to guard — but a **heavier** git operation, specifically converting
+a shallow clone to a full one, is a different matter (see the
+shallow-clone handling below): that must not happen silently pre-gate.
 
 **Precondition — this checkout must actually be the LRH source repo.**
 `/lrh-closeout` is a reusable skill installed into independent client
@@ -259,13 +266,19 @@ produced:
 git cat-file -e "<baseRefOid>" 2>/dev/null || git fetch origin "<baseRefOid>" --quiet
 ```
 
-If neither the object is already present nor fetchable this way (some
-hosts restrict fetching arbitrary SHAs), fall back to
-`git fetch --unshallow` (or `--deepen=<N>` for a bounded expansion) before
-retrying. If the object still can't be made available, treat this the
-same as any other fetch failure — report an explicit anomaly and skip
-*this* item, rather than letting `git ls-tree` fail uncaught partway
-through the assessment. Only once the object is confirmed present:
+If the object still isn't present after that targeted fetch (some hosts
+restrict fetching arbitrary SHAs), **do not escalate to
+`git fetch --unshallow`** — that converts a shallow clone to a full one,
+a much larger download and a permanent, one-way change to the local
+repository's state, which must not happen silently pre-gate. Treat an
+unreachable base object the same as any other fetch failure — report an
+explicit anomaly (naming that a full/deeper fetch might resolve it) and
+skip *this* item, rather than either letting `git ls-tree` fail uncaught
+or performing a heavy, undisclosed mutation to work around it. (A human
+who wants this resolved can run `git fetch --unshallow` themselves, or
+re-run closeout from a non-shallow checkout — this skill does not do it
+on their behalf without being asked.) Only once the object is confirmed
+present via the lightweight path above:
 
 ```bash
 git ls-tree -d --name-only <baseRefOid>:src/lrh/skills | grep -v '^_'

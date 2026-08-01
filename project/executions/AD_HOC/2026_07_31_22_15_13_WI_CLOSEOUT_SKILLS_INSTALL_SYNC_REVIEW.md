@@ -1,0 +1,366 @@
+---
+execution_id: 2026_07_31_22_15_13_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_REVIEW
+prompt_id: PROMPT(AD_HOC:WI_CLOSEOUT_SKILLS_INSTALL_SYNC_REVIEW)[2026-07-31T21:56:12-04:00]
+work_item: AD_HOC
+status: in_progress
+rerun_of: 2026_07_31_21_38_13_WI_CLOSEOUT_SKILLS_INSTALL_SYNC
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/454
+commit: fcbb32b
+created_at: 2026-07-31T22:15:13-04:00
+agent: claude_app
+instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/454
+session_transcript: claude-app:20d16dd9-a465-4d31-b39f-280db14488ef
+---
+
+# Summary
+
+Addressed 2 open review comments on PR #454
+(`WI-CLOSEOUT-SKILLS-INSTALL-SYNC`): a grammar nit from
+`copilot-pull-request-reviewer` and a P1 substantive finding from
+`chatgpt-codex-connector` that the work item's proposed non-force
+`lrh skills install` step cannot actually refresh a stale skill. A
+follow-up Copilot review of the fix commit raised 3 more findings (as a
+summary body, 0 new inline comments); 1 was valid and fixed, 2 were
+checked against this skill's own documented conventions and found false.
+
+# Result
+
+- Comment 1 (copilot-pull-request-reviewer, grammar): "found 6 diverged"
+  read as ungrammatical. Fixed to "found 6 that had diverged" in
+  `## Problem / Context`.
+- Comment 2 (chatgpt-codex-connector, P1): confirmed valid —
+  `_skill_differs_from_package` in `src/lrh/skills/installer.py`
+  classifies any installed skill whose bytes differ from the current
+  package as `USER_MODIFIED` and skips it, including a stale unmodified
+  copy of the previous package revision. A plain non-force
+  `lrh skills install` run after a skill-touching merge would therefore
+  skip exactly the skills it's meant to fix — confirmed retroactively
+  against the 6 skills found stale in the creation record's session, none
+  of which would have been refreshed by a non-force run. Rescoped the
+  work item's Scope, Required Changes, Non-Goals, Acceptance Criteria,
+  Validation, and frontmatter `acceptance`/`artifacts_expected` from
+  "blanket non-force install" to "targeted refresh of exactly the skill
+  names the merged PR's diff touched," adding a Required Changes item for
+  a new `installer.py` capability (force-install a named subset) with
+  accompanying unit test coverage.
+- Both fixes applied directly to
+  `project/work_items/proposed/WI-CLOSEOUT-SKILLS-INSTALL-SYNC.md`
+  (planning-artifact text only — no code changed, since this PR only
+  creates the work item, not its implementation).
+- Pushed as commit `ce5558a`.
+
+**Follow-up round** — a second Copilot review (bound to commit
+`3443565`, triggered by re-requesting Copilot review) raised 3 findings
+as suppressed/summary comments (0 new inline threads):
+- "`status: in_progress` is an outlier vs. other `_REVIEW` records" —
+  **checked and found false**: all 98 other `_REVIEW` records under
+  `project/executions/AD_HOC/` show `status: landed` only because
+  `/lrh-closeout` has already landed them; a freshly created,
+  not-yet-closed-out record is supposed to be `in_progress` per this
+  skill's own Step 7 (`--status in_progress`). Not changed.
+- "`session_transcript: pending` should be a concrete value like other
+  records" — the literal value this skill's Step 7 instructs
+  (`session_transcript: pending`), so the finding's stated premise is
+  wrong, but the underlying suggestion is a genuine improvement:
+  `$CLAUDE_CODE_HOST_SESSION_ID` is available and stable for this session
+  (already used to populate the sibling creation record), so filled in
+  `session_transcript: claude-app:20d16dd9-a465-4d31-b39f-280db14488ef`
+  here too for consistency, and dropped the now-stale "update later"
+  follow-up note.
+- "`lrh-create-skill` is not the only skill documenting `lrh skills
+  install`" — **confirmed valid**: `lrh-implement`'s reference doc
+  (`references/lrh-implement-workflow.md`) has its own `### lrh skills
+  install` section, and `_shared/lifecycle-chain.md`'s table also
+  mentions it (in `lrh-create-skill`'s own row). Reworded the WI's
+  `## Problem / Context` claim from "the only skill that documents..." to
+  precisely state that `lrh-create-skill` is the only skill whose *own
+  execution steps* direct the agent to run it, and dropped the brittle
+  line-number citations per the review's secondary point.
+- Pushed as commit `2a56851`.
+- Fixed the `commit:` frontmatter field itself (was one commit stale) —
+  pushed as commit `e8c49ea`.
+
+**Third round** — retriggered both reviewers against `e8c49ea`; Copilot
+`APPROVED` (🟢 ready to approve, 2 more suppressed comments), Codex
+posted a clean summary review plus 4 new inline threads (all substantive,
+none previously seen):
+- P2 "Filter changed paths to actual skill directories" — **confirmed
+  valid**: a changed-path prefix match on `src/lrh/skills/` also matches
+  non-skill files directly under it (e.g. `installer.py`, a module, not a
+  skill tree); passing that name to `_copy_skill` raises
+  `NotADirectoryError`. Added an explicit filter-against-`_skill_names()`
+  requirement to Required Changes item 1, with new test coverage
+  specified for a diff containing `src/lrh/skills/installer.py` itself.
+- P2 "Strip the `local_` prefix from the transcript pointer" — **confirmed
+  valid against `project/executions/README.md:65`** (the review's own
+  cited `AGENTS.md:L107-L109` did not actually contain this rule — checked
+  and it doesn't; the real source is the README's `session_transcript`
+  values table, which does). Both this record's and the creation record's
+  `session_transcript` had the un-stripped `local_` prefix
+  (`claude-app:local_20d16dd9-...`); fixed both to
+  `claude-app:20d16dd9-a465-4d31-b39f-280db14488ef`.
+- P1 "Require confirmation before destructive skill refresh" —
+  **confirmed valid**: the WI's Risk Notes only required an after-the-fact
+  report of the targeted-refresh mutation, not pre-action disclosure —
+  meaning a skill touched by the merge that also happened to carry
+  genuine local edits could be silently, irreversibly overwritten.
+  Rewrote Required Changes item 2 and Risk Notes to require the planned
+  refresh (which names, added/modified vs. removed) be included in
+  `/lrh-closeout`'s own Step 2 plan and approved at its Step 4 confirm
+  gate *before* any file under `~/.claude/skills/` is written.
+- P2 "Handle removed and renamed skills explicitly" — **confirmed
+  valid**: the original scope only discussed "touched" skills generically;
+  a skill the merge deleted or renamed has no current package source to
+  refresh from, so path-prefix detection alone would leave the obsolete
+  `~/.claude/skills/<old-name>` stale with no signal. Added an explicit
+  added/modified-vs-removed split to Required Changes item 2, a
+  corresponding Non-Goal (no automatic uninstall — report as an anomaly
+  instead), and matching Acceptance Criteria.
+- Copilot's 2 suppressed comments on this round were metadata-consistency
+  notes already superseded by the fixes above (transcript field, commit
+  field) — no separate action needed.
+- All 4 fixes applied to
+  `project/work_items/proposed/WI-CLOSEOUT-SKILLS-INSTALL-SYNC.md`
+  (Required Changes, Non-Goals, Acceptance Criteria, Validation, Risk
+  Notes, and frontmatter `acceptance`).
+- Pushed as commit `551c36c`.
+
+**Fourth round** — retriggered both reviewers against `551c36c`; Copilot
+`APPROVED` again (1 minor wording nit), Codex posted a clean summary
+review plus 2 new inline threads (both P1, both self-consistent with
+round 3's own just-written text):
+- "Add a bootstrap install for the new closeout step" — **confirmed
+  valid, and important**: the globally installed `lrh-closeout` skill is
+  what actually runs in a session; it only gains the new step once
+  refreshed, but refreshing it is exactly what the new step does — so it
+  cannot bootstrap its own first activation on this WI's own
+  implementation PR. Added Required Changes item 5, a matching Acceptance
+  Criterion, a Validation entry, and a Risk Note requiring the
+  implementation PR's own closeout to include an explicit manual refresh
+  of `lrh-closeout` itself.
+- "Preserve removed names before package filtering" — **confirmed valid,
+  a real bug in round 3's own text**: round 3 filtered the touched-name
+  set against `_skill_names()` (package membership) *before* the
+  added/modified-vs-removed split, which discards a removed skill's name
+  before it can ever be classified removed — making the removed-skill
+  handling round 3 just added unreachable. Rewrote Required Changes item
+  2 to sequence this correctly: derive candidates by *structural* path
+  shape first (excludes non-skill files like `installer.py` without
+  relying on package membership), then partition by package membership
+  second (added/modified vs. removed/renamed).
+- Copilot's 1 suppressed comment ("`~force` reads like a pseudo-flag that
+  doesn't exist") was resolved as a side effect of the item-2 rewrite
+  above, which dropped that phrasing entirely.
+- All fixes applied to the same WI file (Required Changes, Acceptance
+  Criteria, Validation, Risk Notes, frontmatter `acceptance`).
+- Pushed as commit `cabe863`.
+
+**Fifth round** — retriggered both reviewers against `cabe863`; Copilot
+`APPROVED` cleanly (0 comments). Codex's summary review was clean, but 1
+new inline thread remained (the round-4 bootstrap thread persisted
+non-outdated, since it isn't line-anchored — not a new finding, already
+addressed) plus 1 genuinely new P1 thread:
+- "Use a force-capable targeted command for bootstrap" — **confirmed
+  valid, a bug in round 4's own fix**: round 4's Required Changes item 5
+  told the bootstrap step to run "a manual, one-time `lrh skills install`
+  (or equivalent targeted refresh)" — but plain non-force
+  `lrh skills install` is exactly the command whose `USER_MODIFIED`
+  misclassification this entire WI exists to fix, and the installed
+  `lrh-closeout` copy at bootstrap time necessarily differs from the
+  just-merged package (that's the premise of needing a bootstrap at
+  all). Reworded item 5 to require the targeted-refresh capability
+  itself, scoped to `lrh-closeout` alone, and explicitly rule out both
+  the plain command and a blanket `--force`. Also clarified that the
+  Python-level function is importable immediately post-merge (no
+  install-order problem for the code itself, only for the rendered
+  `~/.claude/skills/*.md` content). Matching Acceptance Criterion,
+  Validation entry, and Risk Note updated to match.
+- Pushed as commit `affb7ca`.
+
+**Sixth round** — checked in with the user given the mounting round count
+(6 rounds on a planning-only PR); user directed: fix this round's
+findings, then check in again before deciding whether to continue.
+Retriggered both reviewers against `affb7ca`; Copilot `APPROVED` (1 minor
+metadata nit — the `commit:` frontmatter field lagging the body by one
+commit, a known structural self-reference the field has carried since
+round 2). Codex's summary review was clean; 3 new inline threads:
+- P1 "Load targeted refresh from the merged checkout" — **confirmed
+  valid**: the "importable immediately post-merge" claim only holds for
+  an editable `lrh` install pointing at the merged checkout (this
+  session's environment); the documented `pipx`/`pip install lrh` paths
+  are frozen distributions unaffected by the merge. Rewrote Required
+  Changes item 5 to require either pointing the bootstrap's Python path
+  at the merged checkout explicitly, or detecting and refusing a
+  mismatched loaded package.
+- P2 "Distinguish excluded directories from removed skills" —
+  **confirmed valid**: `_skill_names()` deliberately excludes
+  underscore-prefixed directories like `_shared`; a PR touching
+  `src/lrh/skills/_shared/` would have been misclassified as a removed
+  skill. Changed the partition step to check `_skill_names()` membership
+  at *both* the old and current revisions — present at neither means
+  "not a skill," not "removed."
+- P2 "Preserve the old path when detecting renames" — **confirmed
+  valid**: a name-only diff listing commonly exposes only a rename's
+  destination path (confirmed against this repo's own history:
+  `git diff-tree --name-only -M 4a0b44f` vs. `--name-status`). Required
+  Changes item 2 now specifies a rename-aware listing
+  (`--name-status -M` or `previous_filename`) so a renamed skill's old
+  name is still detected as orphaned.
+- Fixed the stale `commit:` field (Copilot's nit) as part of this round's
+  push, closing out the metadata-lag pattern flagged since round 2.
+- All fixes applied to the WI file (Required Changes items 2 and 5,
+  Non-Goals unchanged, Acceptance Criteria, Validation, Risk Notes, and
+  frontmatter `acceptance`).
+- Pushed as commit `fcbb32b`.
+
+**Seventh round** — checked in with the user again per their round-6
+direction; user chose to keep iterating. Retriggered both reviewers
+against `fcbb32b`; Copilot `APPROVED` fully clean (0 comments — first
+fully clean Copilot pass this PR). Codex's summary review was clean; 2
+new inline threads:
+- P1 "Validate skill names before the targeted overwrite" — **confirmed
+  valid, a real data-loss bug**: `_copy_skill` (existing code)
+  `rmtree`s the destination *before* reading the package source: calling
+  the new targeted-refresh function with a name absent from the current
+  package (a removed/renamed skill, or any caller bug) would delete the
+  existing `~/.claude/skills/<name>` and then raise trying to traverse a
+  nonexistent resource — destroying exactly the directory the
+  removed-skill policy says to preserve and report, not touch. Rewrote
+  Required Changes item 1 to require the function validate each name
+  against the current package *before* any destructive operation and
+  return an explicit absent-name result instead.
+- P2 "Define the base revision for the PR-wide diff" — **confirmed
+  valid**: the WI never specified how to obtain the "old (pre-merge)"
+  revision or the changed-file list operationally; a post-merge
+  `git diff` against an inferred parent is unreliable across squash/rebase
+  merges (can miss earlier commits in a multi-commit PR). Rewrote
+  Required Changes item 2 to use the PR Files API
+  (`gh pr view --json files` / `previous_filename` for renames) as the
+  file-list source, and the PR's `baseRefOid` as the well-defined "base
+  revision" for the `_skill_names()` comparison — both obtainable
+  directly from PR metadata rather than inferred from post-merge git
+  history.
+- All fixes applied to the WI file (Required Changes items 1 and 2,
+  Acceptance Criteria, Validation, Risk Notes, frontmatter `acceptance`).
+
+# Validation
+
+- `scripts/version tools`: ruff 0.15.12, black 26.3.1, pylint 2.16.2,
+  pyright not installed (pre-existing environment gap, unrelated to this
+  change)
+- `scripts/format --check --diff`: all 179 files unchanged
+- `scripts/lint`: all checks passed
+- `scripts/test`: OK
+- `lrh validate`: 0 errors, 1 pre-existing unrelated warning
+  (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` on `WS-LRH-ASSISTANTS`)
+
+**Eighth round** — ran `/lrh-confirm-fixes` (rounds 1–7 above), which
+resolved all 14 threads as Clear-satisfied (independent subagent
+verification) and pushed a `_CONFIRM` execution record. Its Step 8
+retrigger against that `_CONFIRM` commit surfaced 2 genuinely new
+threads on the fresh commit itself (not "pending" — real findings per
+that skill's own Step 8 handling):
+- P2 "Paginate the PR Files API response" — **confirmed valid**:
+  GitHub's PR Files endpoint returns 30 files/page by default (100 max);
+  neither command form in round-7's fix specified pagination, so a
+  large-enough PR would silently truncate.
+- P2 "Use the REST file schema for rename sources" — **confirmed valid,
+  and more significant**: `gh pr view --json files` resolves through
+  GraphQL's `PullRequestChangedFile` type, which has **no
+  previous-path field at all** — round 7's fix listed it as an
+  acceptable alternative to the REST endpoint, but it cannot supply
+  `previous_filename` under any circumstance, defeating the very rename
+  detection that fix was meant to satisfy.
+- Rewrote Required Changes item 2's file-list-source paragraph to
+  require the REST PR Files endpoint specifically (not the GraphQL-backed
+  `gh pr view --json files` form), with explicit pagination
+  (`--paginate`), and propagated the correction to Acceptance Criteria,
+  Validation (2 new smoke tests), Risk Notes, and frontmatter
+  `acceptance`.
+
+**Ninth round** — the second `/lrh-confirm-fixes` pass (round 8's fixes)
+resolved both threads Clear-satisfied and pushed a second `_CONFIRM`
+record. Its Step 8 retrigger (round-cap batch 2/3 for this PR) surfaced,
+on the fresh commit: 1 new valid finding from Copilot, 2 new valid from
+Codex, and Copilot repeating the same `work_item: AD_HOC` claim already
+refuted in round 5 (4 comments, same false premise, not changed).
+- Copilot: `git show <baseRefOid>:src/lrh/skills` (Required Changes item
+  2) is wrong as written — `git show <rev>:<path>` requires a blob
+  (file) path, not a directory. **Confirmed valid.** Fixed to
+  `git ls-tree -d --name-only <baseRefOid> -- src/lrh/skills`.
+- Codex, P2: GitHub's PR Files REST endpoint has a documented hard
+  3,000-file ceiling that pagination cannot exceed. **Confirmed valid.**
+  Added explicit ceiling-detection to Required Changes item 2 (report an
+  anomaly and skip install rather than assume completeness) — noted as a
+  defensive check, not a scenario this repo's actual PR history has ever
+  approached.
+- Codex, P2: `related_workstreams: [WS-SKILLS-CLOSEOUT]` points at a
+  workstream that is already `status: resolved, stage: closed`.
+  **Confirmed valid.** Cleared `related_workstreams` to `[]` — no
+  currently active workstream fits, and most WIs in this repo carry no
+  workstream link at all.
+- Copilot's 4 `work_item: AD_HOC` comments (creation, `_REVIEW`, both
+  `_CONFIRM` records): **same claim as round 5, checked again, still
+  false** for the same documented reason — `/lrh-work-item`'s Step 4
+  explicitly keeps creation/review/confirm records in `AD_HOC` so
+  `/lrh-closeout` doesn't wrongly auto-resolve the not-yet-implemented WI
+  the moment this planning PR merges. Not changed.
+
+**Tenth round** — the third `/lrh-confirm-fixes` pass resolved both
+threads Clear-satisfied, pushed a third `_CONFIRM` record, and its Step 8
+retrigger (round-cap batch 3 of 3 — the ceiling for this PR) surfaced 2
+more P1 findings on the fresh commit. Both independently verified against
+this actual repository before being accepted:
+- "List the base tree's child skill directories" — **confirmed valid by
+  live verification**: round 9's own fix, `git ls-tree -d --name-only
+  <rev> -- src/lrh/skills` (pathspec form), was itself broken — run
+  directly against this repo, it emits exactly one line
+  (`src/lrh/skills`), not the 15 child skill directories. The colon form,
+  `git ls-tree -d --name-only <rev>:src/lrh/skills`, correctly returns
+  all 15 — verified by running both forms side by side. Fixed Required
+  Changes item 2 to specify the colon form explicitly and explain why the
+  pathspec form fails.
+- "Load routine refreshes from the merged source tree" — **confirmed
+  valid**: round 6 added the merged-checkout-loading requirement
+  (editable vs. frozen `pipx`/`pip` install) to item 5's bootstrap only;
+  item 2's *routine* `_skill_names()`/targeted-refresh calls, which run
+  on every later skill-touching PR (not just this WI's own bootstrap),
+  use the identical machinery and are subject to the identical bug.
+  Added the same requirement to item 2 as a standing precondition for the
+  step generally, not a bootstrap-only special case.
+- Given the round-cap ceiling (3/3) was reached on this retrigger and the
+  user's direction was to fix-and-self-review rather than authorize a
+  further ceiling, both fixes are applied here without a further bot
+  retrigger. Independent verification substitutes a fresh-context
+  self-review of the full changelist (see Follow-up).
+
+**Eleventh round** — ran the fresh-context self-review substituting for a
+further bot retrigger (round-cap ceiling reached). The subagent
+independently re-verified the `git ls-tree` behavior and GitHub's REST
+API facts (both confirmed correct) and found no internal contradictions,
+no incorrect technical claims, and no YAML frontmatter/body drift. It
+raised 2 P2 and 1 P3 finding:
+- P2 "REST API call failure path unspecified" — **confirmed valid**: the
+  WI detailed pagination and the 3,000-file ceiling but never said what
+  happens if the file-list fetch itself fails (auth/rate-limit/network).
+  A fail-open implementation would reproduce the exact silent-staleness
+  bug this WI exists to close. Added explicit fail-closed handling
+  (report anomaly, skip install for that run) to Required Changes item 2,
+  Acceptance Criteria, Validation, and Risk Notes.
+- P2 "Bootstrap invocation mechanism left unstated" — **confirmed
+  valid**: item 5 required the bootstrap happen at this WI's own
+  implementation PR's closeout, but never said who/what triggers it,
+  given the closing session is by definition running the pre-fix
+  `lrh-closeout`. Added explicit language: this is a structural one-time
+  exception the implementation PR itself must document (description or
+  execution record) for whoever closes it out — not something the
+  automated flow can trigger on its own PR.
+- P3 (the no-op-when-detached requirement living only in Risk Notes, not
+  Acceptance Criteria) was accepted as noted but not separately promoted
+  — user directed fixing the 2 P2s only.
+- Both P2 fixes applied to Required Changes, Acceptance Criteria,
+  Validation, and Risk Notes, plus frontmatter `acceptance`.
+
+# Follow-up
+
+- User has directed proceeding to merge after these fixes land.

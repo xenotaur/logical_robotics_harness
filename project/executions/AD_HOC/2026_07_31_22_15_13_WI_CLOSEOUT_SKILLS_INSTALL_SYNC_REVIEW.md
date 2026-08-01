@@ -153,6 +153,28 @@ round 3's own just-written text):
   above, which dropped that phrasing entirely.
 - All fixes applied to the same WI file (Required Changes, Acceptance
   Criteria, Validation, Risk Notes, frontmatter `acceptance`).
+- Pushed as commit `cabe863`.
+
+**Fifth round** — retriggered both reviewers against `cabe863`; Copilot
+`APPROVED` cleanly (0 comments). Codex's summary review was clean, but 1
+new inline thread remained (the round-4 bootstrap thread persisted
+non-outdated, since it isn't line-anchored — not a new finding, already
+addressed) plus 1 genuinely new P1 thread:
+- "Use a force-capable targeted command for bootstrap" — **confirmed
+  valid, a bug in round 4's own fix**: round 4's Required Changes item 5
+  told the bootstrap step to run "a manual, one-time `lrh skills install`
+  (or equivalent targeted refresh)" — but plain non-force
+  `lrh skills install` is exactly the command whose `USER_MODIFIED`
+  misclassification this entire WI exists to fix, and the installed
+  `lrh-closeout` copy at bootstrap time necessarily differs from the
+  just-merged package (that's the premise of needing a bootstrap at
+  all). Reworded item 5 to require the targeted-refresh capability
+  itself, scoped to `lrh-closeout` alone, and explicitly rule out both
+  the plain command and a blanket `--force`. Also clarified that the
+  Python-level function is importable immediately post-merge (no
+  install-order problem for the code itself, only for the rendered
+  `~/.claude/skills/*.md` content). Matching Acceptance Criterion,
+  Validation entry, and Risk Note updated to match.
 
 # Validation
 

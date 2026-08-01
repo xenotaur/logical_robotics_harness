@@ -34,7 +34,7 @@ acceptance:
   - The outcome is shown in the closeout report
   - New unit tests cover the targeted refresh, candidate derivation excluding non-skill files like installer.py, and removed-skill partition ordering
   - SKILL.md is updated to document the new step
-  - This WI's own implementation PR's closeout includes an explicit manual refresh of the globally installed lrh-closeout skill itself
+  - This WI's own implementation PR's closeout invokes the targeted refresh capability scoped to lrh-closeout alone, not a plain non-force lrh skills install
   - lrh validate reports 0 errors; scripts/test passes
   - Manual smoke test against a skill-touching PR shows the step firing
 required_evidence:
@@ -211,12 +211,21 @@ step must be careful to run against the checkout it just landed onto
    itself has been refreshed — but refreshing it is exactly what the new
    step exists to do, so it cannot bootstrap its own first activation.
    When *this work item's own implementation PR* is closed out, that
-   closeout must include a manual, one-time `lrh skills install` (or
-   equivalent targeted refresh) for `lrh-closeout` itself, called out
-   explicitly rather than assumed — otherwise a session closing out that
-   very PR (even via `/lrh-land`, in the same or a later session) keeps
-   running the pre-fix closeout workflow indefinitely and the fix never
-   activates.
+   closeout must explicitly invoke the **targeted refresh capability from
+   item 1, scoped to `lrh-closeout` alone**. It must **not** use a plain,
+   non-force `lrh skills install` — the installed `lrh-closeout` copy
+   necessarily differs from the just-merged package (that's the premise
+   of this bootstrap step), so a non-force run would classify it
+   `USER_MODIFIED` and skip it, the exact root-cause bug this WI exists
+   to fix. It must also not use a blanket `--force` (Non-Goals). The
+   Python-level targeted-refresh function is importable immediately once
+   this PR merges to `main` — no separate "install" step is needed for
+   the function itself, only for the rendered `~/.claude/skills/*.md`
+   content it copies — so this bootstrap call has no ordering problem
+   beyond calling the right function. Call this out explicitly in the
+   closeout report rather than assuming it happened silently, since a
+   missed bootstrap is invisible until the *next* skill-touching PR fails
+   to trigger the new step at all.
 
 ## Non-Goals
 
@@ -268,10 +277,11 @@ step must be careful to run against the checkout it just landed onto
   partition ordering (a removed skill directory is classified
   removed/renamed, not silently dropped by the package-membership check).
 - SKILL.md (both trees) is updated to document the new step.
-- This work item's own implementation PR's closeout includes an explicit,
-  called-out manual refresh of the globally installed `lrh-closeout`
-  skill itself, since the new step cannot bootstrap its own first
-  activation.
+- This work item's own implementation PR's closeout invokes the targeted
+  refresh capability (item 1), scoped to `lrh-closeout` alone — not a
+  plain non-force `lrh skills install`, which would itself misclassify
+  the stale installed copy as `USER_MODIFIED` and skip it — and calls
+  this out explicitly in the closeout report.
 - `lrh validate` reports 0 errors; `scripts/test` passes.
 - Manual smoke test against a skill-touching PR shows the step firing.
 
@@ -291,7 +301,8 @@ step must be careful to run against the checkout it just landed onto
 - `diff -r .claude/skills/lrh-closeout src/lrh/skills/lrh-closeout` (mirror
   parity)
 - After this WI's own implementation PR closes out: confirm
-  `~/.claude/skills/lrh-closeout` was manually refreshed as part of that
+  `~/.claude/skills/lrh-closeout` was refreshed via the targeted-refresh
+  capability (not a plain non-force `lrh skills install`) as part of that
   closeout (Required Changes item 5)
 
 ## Risk Notes
@@ -318,9 +329,13 @@ step must be careful to run against the checkout it just landed onto
   the invoking directory is correct.
 - Self-bootstrap: the globally installed `lrh-closeout` skill is what a
   session actually executes, and it only gains the new step once
-  refreshed — but refreshing it is the new step's own job. Without the
-  explicit manual refresh in Required Changes item 5 when this WI's own
-  implementation PR is closed out, the very first opportunity to activate
-  the fix silently doesn't, and every session continues running the
-  pre-fix workflow until someone happens to run `lrh skills install` by
-  hand — the same failure mode this WI exists to close.
+  refreshed — but refreshing it is the new step's own job. A plain,
+  non-force `lrh skills install` cannot do this bootstrap refresh either,
+  for the identical reason the rest of this WI exists: the installed copy
+  necessarily differs from the just-merged package and would be
+  classified `USER_MODIFIED` and skipped. Required Changes item 5
+  therefore requires the targeted-refresh capability itself, scoped to
+  `lrh-closeout`, not the plain command — without it, the very first
+  opportunity to activate the fix silently doesn't, and every session
+  keeps running the pre-fix workflow until someone happens to notice and
+  fix it by hand.

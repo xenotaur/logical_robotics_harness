@@ -27,6 +27,7 @@ forbidden_actions:
 acceptance:
   - "/lrh-closeout gets the PR's changed-file list from the REST PR Files endpoint specifically, fully paginated (not gh pr view --json files, not a post-merge git diff), derives candidate skill names by path shape, then partitions by _skill_names() membership at both base and current revisions into added/modified vs. removed/renamed vs. not-a-skill, in that order"
   - If the paginated file list reaches the REST endpoint's 3,000-file ceiling, the step reports an anomaly and skips install for that PR rather than assuming completeness
+  - If the file-list fetch itself fails, the step reports an anomaly and skips install for that run rather than failing open
   - The base-revision _skill_names() lookup uses the colon path form (<baseRefOid>:src/lrh/skills), not the pathspec form, which only returns the directory entry itself
   - The whole step, not only item 5's bootstrap, loads _skill_names() and the targeted-refresh function from the merged checkout on every run, not just the first bootstrap invocation
   - The targeted-refresh function validates each name against the current package before any destructive filesystem operation and returns an explicit absent-name result rather than deleting an existing installed directory first
@@ -39,6 +40,7 @@ acceptance:
   - New unit tests cover the targeted refresh (including the absent-name safety case), candidate derivation excluding non-skill files like installer.py, both-revisions partitioning (removed vs. excluded-directory), and an actual rename via previous_filename
   - SKILL.md is updated to document the new step
   - This WI's own implementation PR's closeout invokes the targeted refresh capability scoped to lrh-closeout alone, loaded from the merged checkout, not a plain non-force lrh skills install or an unrelated installed distribution
+  - The implementation PR itself documents that whoever closes it out must run this bootstrap step by hand, since no closeout automation can trigger it on its own PR
   - lrh validate reports 0 errors; scripts/test passes
   - Manual smoke test against a skill-touching PR shows the step firing
 required_evidence:
@@ -213,6 +215,15 @@ step must be careful to run against the checkout it just landed onto
      repository's history has come close to this size — this is a
      defensive ceiling check, not a scenario expected to occur in
      practice.)
+   - **Handles the file-list fetch itself failing** (authentication,
+     rate-limit, network error, or any non-2xx response from the REST
+     call) the same way as the ceiling case above: report an explicit
+     anomaly and skip the skill-install step for this run — never fail
+     open by silently skipping detection and proceeding as if the PR
+     touched no skills. A fail-open implementation here would reproduce
+     exactly the silent-staleness bug this WI exists to close, just
+     triggered by a transient API failure instead of a missing workflow
+     step.
    - Filters that file list to `.claude/skills/` and `src/lrh/skills/`
      path prefixes (checking both `filename` and, when present,
      `previous_filename`, so a rename's old path is captured even if only
@@ -345,6 +356,19 @@ step must be careful to run against the checkout it just landed onto
    since a missed or mismatched bootstrap is invisible until the *next*
    skill-touching PR fails to trigger the new step at all.
 
+   **Who actually performs this call, concretely: this is a manual,
+   one-time exception, not something the automated new step can trigger
+   on its own PR.** The session closing out this WI's own implementation
+   PR is, by definition, still running whatever `lrh-closeout` version
+   was installed *before* this PR merged — which does not contain the
+   new step being added, so there is no automated path that "notices"
+   the bootstrap is needed and runs it. The implementation PR itself
+   (its description, or its own execution record's Follow-up section)
+   must explicitly instruct whoever closes it out to run the targeted
+   refresh for `lrh-closeout` by hand as a documented, called-out
+   exception step — not leave it implicit or assume the ordinary closeout
+   flow will somehow cover it, since it structurally cannot.
+
 ## Non-Goals
 
 - Does not change `lrh skills install`'s existing CLI-level
@@ -385,6 +409,10 @@ step must be careful to run against the checkout it just landed onto
   3,000-file ceiling, the step reports an explicit anomaly and skips the
   install step for that PR, rather than silently proceeding as if the
   list were known-complete.
+- If the file-list fetch itself fails (auth, rate-limit, network, or any
+  non-2xx response), the step reports an explicit anomaly and skips
+  install for that run — it never fails open by proceeding as if the PR
+  touched no skills.
 - The base-revision `_skill_names()` lookup uses the colon path form
   (`git ls-tree -d --name-only <baseRefOid>:src/lrh/skills`), not the
   pathspec form, which returns only the `src/lrh/skills` entry itself
@@ -430,6 +458,11 @@ step must be careful to run against the checkout it just landed onto
   not a plain non-force `lrh skills install`, which would itself
   misclassify the stale installed copy as `USER_MODIFIED` and skip it —
   and calls this out explicitly in the closeout report.
+- The implementation PR itself explicitly documents (in its description
+  or execution record) that whoever closes it out must run this
+  bootstrap step by hand, since the closeout automation that would
+  otherwise trigger it does not yet exist in the pre-fix
+  `lrh-closeout` that session is running.
 - `lrh validate` reports 0 errors; `scripts/test` passes.
 - Manual smoke test against a skill-touching PR shows the step firing.
 
@@ -456,13 +489,18 @@ step must be careful to run against the checkout it just landed onto
   confirm the full list is retrieved, not truncated to the first page
 - Manual smoke test: run against a PR whose diff touches
   `src/lrh/skills/_shared/` and confirm no candidate/anomaly is produced
+- Manual smoke test: simulate the file-list fetch failing (auth error,
+  rate limit, or network failure) and confirm the step reports an
+  anomaly and skips install, rather than proceeding as if no skills were
+  touched
 - `diff -r .claude/skills/lrh-closeout src/lrh/skills/lrh-closeout` (mirror
   parity)
 - After this WI's own implementation PR closes out: confirm
   `~/.claude/skills/lrh-closeout` was refreshed via the targeted-refresh
   capability, loaded from the merged checkout, not a plain non-force
   `lrh skills install` or an unrelated installed distribution (Required
-  Changes item 5)
+  Changes item 5), and confirm the implementation PR's own description or
+  execution record documented this manual step for the closing session
 
 ## Risk Notes
 
@@ -471,7 +509,18 @@ step must be careful to run against the checkout it just landed onto
   detached from the original PR context (e.g. a bare execution-record
   cleanup with no PR reference), the detection has nothing to check
   against; the implementation should degrade to a no-op in that case, not
-  fail the whole closeout.
+  fail the whole closeout. The same "do not fail the whole closeout"
+  principle applies if PR context exists but the file-list fetch itself
+  fails (see Required Changes item 2's explicit fail-closed-on-detection,
+  fail-open-on-the-rest-of-closeout handling) — the distinction that
+  matters is skipping *this step*, not the entire closeout run.
+- Item 5's bootstrap step has no automated trigger by construction — the
+  closeout session that would need to invoke it is, by definition,
+  running a pre-fix `lrh-closeout` that doesn't know to. This is not an
+  implementation bug to fix later; it is a structural one-time exception
+  that must be handled by explicit human-readable documentation on the
+  implementation PR itself, not by any mechanism this WI's own scope can
+  automate.
 - A post-merge `git diff` against an inferred parent commit is not a
   reliable source for "this PR's changed files" — squash and rebase
   merges can collapse or rewrite the commit history such that diffing

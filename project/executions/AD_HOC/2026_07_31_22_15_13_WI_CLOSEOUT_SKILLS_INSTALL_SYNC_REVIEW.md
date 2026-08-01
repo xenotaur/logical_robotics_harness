@@ -334,9 +334,33 @@ this actual repository before being accepted:
   retrigger. Independent verification substitutes a fresh-context
   self-review of the full changelist (see Follow-up).
 
+**Eleventh round** — ran the fresh-context self-review substituting for a
+further bot retrigger (round-cap ceiling reached). The subagent
+independently re-verified the `git ls-tree` behavior and GitHub's REST
+API facts (both confirmed correct) and found no internal contradictions,
+no incorrect technical claims, and no YAML frontmatter/body drift. It
+raised 2 P2 and 1 P3 finding:
+- P2 "REST API call failure path unspecified" — **confirmed valid**: the
+  WI detailed pagination and the 3,000-file ceiling but never said what
+  happens if the file-list fetch itself fails (auth/rate-limit/network).
+  A fail-open implementation would reproduce the exact silent-staleness
+  bug this WI exists to close. Added explicit fail-closed handling
+  (report anomaly, skip install for that run) to Required Changes item 2,
+  Acceptance Criteria, Validation, and Risk Notes.
+- P2 "Bootstrap invocation mechanism left unstated" — **confirmed
+  valid**: item 5 required the bootstrap happen at this WI's own
+  implementation PR's closeout, but never said who/what triggers it,
+  given the closing session is by definition running the pre-fix
+  `lrh-closeout`. Added explicit language: this is a structural one-time
+  exception the implementation PR itself must document (description or
+  execution record) for whoever closes it out — not something the
+  automated flow can trigger on its own PR.
+- P3 (the no-op-when-detached requirement living only in Risk Notes, not
+  Acceptance Criteria) was accepted as noted but not separately promoted
+  — user directed fixing the 2 P2s only.
+- Both P2 fixes applied to Required Changes, Acceptance Criteria,
+  Validation, and Risk Notes, plus frontmatter `acceptance`.
+
 # Follow-up
 
-- A fresh-context self-review of the complete current diff is being run
-  now (per the user's direction) as the closing verification step,
-  substituting for a further bot retrigger since the round-cap ceiling
-  for this PR (3/3) has been reached.
+- User has directed proceeding to merge after these fixes land.

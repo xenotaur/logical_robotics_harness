@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: ca62eb2
+commit: 0489550
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -77,7 +77,17 @@ all confirmed valid:
   against an empty skills dir creates no directory (mkdir-hoist fix
   didn't change the all-absent behavior)
 
+**Round 3** — retriggered both reviewers against `3f1381f`. Codex clean.
+Copilot raised 1 new finding, confirmed valid: `install_named_skills()`
+now iterates `skill_names` twice (round-1's mkdir-hoist intersection
+check, then the main loop) — a caller passing a one-shot iterable (e.g.
+a generator) that merely duck-types as `Sequence[str]` would have it
+silently consumed by the first pass, refreshing nothing with no error.
+Fixed by materializing `skill_names` into a `list` once at the top of
+the function, used for both passes. Added a test with a generator
+input to cover it. Pushed as commit `0489550`.
+
 # Follow-up
 
-- Next: retrigger both reviewers against `edd9e6e`; if clean, proceed to
+- Next: retrigger both reviewers against `0489550`; if clean, proceed to
   `/lrh-confirm-fixes`.

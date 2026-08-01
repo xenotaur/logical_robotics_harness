@@ -6,9 +6,9 @@ description: >
   skill assesses all artifact states, resolves the session transcript, presents
   a full closeout plan at a human gate, executes confirmed actions (landing
   execution records via lrh prompt update-execution, resolving work items,
-  closing workstreams, adopting proposals, refreshing any global skill
-  install the PR touched), validates, prompts for session reflection, and
-  reports.
+  closing workstreams, adopting proposals, refreshing the global skill
+  install for any skill the PR modified), validates, prompts for session
+  reflection, and reports.
 disable-model-invocation: true
 argument-hint: "[pr-url | WI-ID | WS-ID]"
 ---
@@ -172,6 +172,31 @@ under the prefix, e.g. `src/lrh/skills/installer.py`) yields no
 candidate — this is a path-shape distinction, not a package-membership
 one, so it excludes non-skill files without also excluding a genuinely
 removed or renamed skill directory.
+
+**Before computing "current" membership, verify the invoking checkout
+actually matches merged `main`** — `PYTHONPATH="$(pwd)/src"` only pins
+*which* checkout's package is loaded; it does nothing to establish that
+`$(pwd)` itself is up to date. `/lrh-closeout` can be invoked standalone,
+from an already-checked-out branch or a `main` that hasn't been pulled
+recently — not only via `/lrh-land`'s own worktree handling — so this
+step cannot inherit that assumption from the caller. Confirm before
+trusting `$(pwd)/src` for either the partition below or the Step 5
+refresh:
+
+```bash
+git fetch origin main --quiet
+git rev-parse HEAD
+git rev-parse origin/main
+```
+
+If they don't match, get current first (`git checkout main && git pull`,
+or the `/lrh-land` main-worktree-lock workaround if `main` is locked in
+another worktree) before proceeding. If neither is possible in this
+session, treat the skill-refresh assessment as unable to proceed — report
+that explicitly and skip *this* item, the same as the fetch-failure case
+below, rather than silently computing "current" membership against a
+stale checkout and risking `install_named_skills` reporting `refreshed`
+while actually writing pre-merge bytes.
 
 Partition the candidate names by membership in `_skill_names()` at
 **both** the PR's base revision and current `main` — not current alone:
@@ -412,7 +437,9 @@ on the invoking environment's path, since a `pipx`/`pip`-installed
 (non-editable) `lrh` is a frozen snapshot unaffected by this repo's
 `main` moving, and silently reading it here would refresh
 `~/.claude/skills/<name>` from stale, pre-merge package data with no
-error:
+error. This assumes Step 2's checkout-matches-`origin/main` verification
+already passed — re-confirm it here if any time has elapsed or any other
+action in this closeout could have moved `HEAD`:
 
 ```bash
 PYTHONPATH="$(pwd)/src" python3 -c "

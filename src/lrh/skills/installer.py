@@ -246,13 +246,14 @@ def install_named_skills(
     target = skills_dir if skills_dir is not None else _DEFAULT_SKILLS_DIR
     valid_names = set(_skill_names())
     results: list[TargetedRefreshResult] = []
+    if valid_names.intersection(skill_names):
+        target.mkdir(parents=True, exist_ok=True)
     for name in skill_names:
         if name not in valid_names:
             results.append(
                 TargetedRefreshResult(name=name, status=RefreshStatus.ABSENT)
             )
             continue
-        target.mkdir(parents=True, exist_ok=True)
         _copy_skill(name, target)
         results.append(TargetedRefreshResult(name=name, status=RefreshStatus.REFRESHED))
     return results

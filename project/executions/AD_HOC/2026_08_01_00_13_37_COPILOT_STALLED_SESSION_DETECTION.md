@@ -2,10 +2,10 @@
 execution_id: 2026_08_01_00_13_37_COPILOT_STALLED_SESSION_DETECTION
 prompt_id: PROMPT(AD_HOC:COPILOT_STALLED_SESSION_DETECTION)[2026-08-01T00:13:37+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/452
-commit: 
+commit: 5211e4027c7cd749f9ef3b98560be14e0e6d7202
 created_at: 2026-08-01T00:13:37+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — user reported a GitHub Copilot code-review session on an external PR (xenotaur/LCATS#202) stopping with "you've run out of your included AI credits for the month," asked whether this is API-detectable, then asked for options to signal the condition to a human or agent so a fallback (top up credits, or a self-review fallback under separate development) can be chosen

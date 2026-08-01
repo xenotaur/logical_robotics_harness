@@ -2,10 +2,10 @@
 execution_id: 2026_08_01_01_07_05_COPILOT_STALLED_SESSION_DETECTION_CONFIRM
 prompt_id: PROMPT(AD_HOC:COPILOT_STALLED_SESSION_DETECTION_CONFIRM)[2026-08-01T01:06:16+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_01_00_13_37_COPILOT_STALLED_SESSION_DETECTION
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/452
-commit: 
+commit: 5211e4027c7cd749f9ef3b98560be14e0e6d7202
 created_at: 2026-08-01T01:07:05+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/452
@@ -494,8 +494,45 @@ for the check-run guard; both `$SINCE` anomaly cases for the new guard).
 Mirrors identical, `lrh validate` clean, `scripts/format`/`lint`/`test`
 all clean (808 tests).
 
+**Final verdict: Green**, on `013bdf37a1bbea4892a5bd30461d293446ef949d`
+— CI 5/5, 0 unresolved threads, mirrors identical, `lrh validate` clean.
+Merge authorized in-session ("stop here and merge once you confirm") per
+`DEC-AGENT-EXECUTED-MERGE-GATE`; executed
+`gh pr merge --squash --match-head-commit 013bdf3...`. Squash-merged as
+`5211e4027c7cd749f9ef3b98560be14e0e6d7202` at 2026-08-01T17:03:22Z.
+
+CHAIN-NOTE: cycles=1; stops=7; gates=[merge]; friction="12 pushed
+retrigger-batch rounds across confirm-fixes' Step 8 loop (ceiling
+authorized 3→10 at one round-cap gate), plus 3 independent cold-subagent
+review passes after the ceiling was reached instead of further bot
+rounds — each of the 3 passes found and fixed a real, distinct bug the
+prior state had missed, including two opposite-direction mirror-image
+bugs in the same retrigger-timestamp-filtering mechanism (empty-string
+`$since` matching every timestamp, then literal-string `\"null\"`
+`$since` matching none) and a harness-level discovery (shell variables do
+not survive across separate Bash tool calls) that no bot-review round
+had caught in 8 prior rounds. Also self-caught a HEAD-race process error
+mid-run (computed a Green verdict, then pushed a further commit
+documenting it, invalidating the verdict against its own new HEAD) and
+corrected course before presenting any merge command. Discovered a live
+concurrent session already using this same PR's shared `lrh-round-state`
+mechanism for two other open PRs (#453, #454) partway through, confirming
+it works under genuine concurrent use rather than only in the
+worked-through design."; note="Session hit a real interruption partway
+through (computer sleep / MCP reconnect) and resumed cleanly with no work
+lost, since all in-flight edits were already on disk, not just in
+context. `project/design/backlog.md` gained two entries from this PR:
+one on the round-cap-gate mechanism's own future architecture (promote
+skill-prose to a tested LRH primitive), one on a remaining
+Copilot-specific-vs-reviewer-generic framing gap deliberately deferred
+at round 7's stopping point (fixed find/reply-only follow-up, not a
+correctness bug)."
+
 # Follow-up
 
-- Merge gate: present the final verdict's merge command for explicit
-  in-session authorization per `DEC-AGENT-EXECUTED-MERGE-GATE`, then
-  `/lrh-closeout`.
+- Done: merged as `5211e4027c7cd749f9ef3b98560be14e0e6d7202`, all 3
+  execution records for this PR landed with the real commit SHA.
+- `project/design/backlog.md`'s two entries from this PR ("Promote
+  stalled-reviewer-session detection..." and "Stalled-reviewer-session
+  detection is Copilot-specific but reads as reviewer-generic") remain
+  open for future pickup — not resolved by this closeout.

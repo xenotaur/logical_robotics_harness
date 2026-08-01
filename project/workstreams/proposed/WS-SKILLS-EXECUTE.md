@@ -18,6 +18,7 @@ work_items:
   - WI-SKILLS-LRH-LAND
   - WI-REVIEW-RESPONSE-INCLUDE-THREAD
   - WI-LRH-LAND-OUTDATED-THREAD-RECOVERY
+  - WI-SKILLS-LRH-EXECUTE
 exit_criteria:
   - /lrh-land skill implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors
   - /lrh-execute skill implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors

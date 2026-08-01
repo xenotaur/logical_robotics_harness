@@ -388,7 +388,65 @@ landed is correct: `--paginate --slurp` pagination mechanics for both
 endpoint shapes, `$since` filtering behavior, zero-match empty output,
 the fixed per-page-`--jq` bug class from round 5, `SKILL.md`↔
 `round-cap-gate.md` consistency, and mirror byte-identity. No other
-findings.
+findings. Fixed and pushed as `9f66b83`.
+
+**Second independent subagent review, dispatched cold** (told explicitly
+not to trust the first pass's fix, verify it itself): found an even more
+severe, previously-undetected bug in that exact fix, by testing an
+assumption no one — not 10 bot-review rounds, not the first subagent —
+had actually tested empirically: whether a shell variable set in one
+Bash tool call survives to a *separate* Bash tool call in this harness.
+
+It ran the test directly (`export X=1` in one call, `echo $X` in the
+next → empty) and showed the consequence: `BATCH_RETRIGGERED_AT`,
+captured in `SKILL.md` Step 8.1, could never actually reach Step 8.3's
+queries in real execution — Step 8.2's wait is inherently one or more
+separate tool calls, sometimes spanning a session interruption (this
+session hit exactly that scenario earlier tonight). With `$since` empty,
+`jq`'s `>=` comparison is true for every timestamp (verified:
+`jq -n --arg since "" '"2024-01-01T00:00:00Z" >= $since'` → `true`),
+silently defeating the entire round-9 fix and reintroducing the
+stale-check-run misattribution it was built to prevent — with no error
+to signal it. **This was confirmed myself, independently, before
+accepting it**: reproduced the exact empty-variable-across-calls
+behavior directly in this session's own shell, then reproduced the `jq`
+empty-string comparison separately. Both true.
+
+**Root cause and proper fix, not a patch:** a plain shell variable was
+never the right mechanism to carry a value from Step 8.1 to Step 8.3 —
+this mechanism already has a durable, git-committed, cross-invocation
+store built for exactly this (`lrh-round-state`), and the fix uses it
+instead. Added `retriggered_at` to the `pending_attempt` object in
+`round-cap-gate.md`'s "State schema," written at batch start (Step 8.1,
+via "Check-then-attempt ordering") as part of the same write that already
+persists `pending_attempt`. "Detecting a stalled reviewer session" now
+reads it back with `git show origin/lrh-round-state:.../<key>.json | jq
+-r '.pending_attempt.retriggered_at'` at the top of Step 8.3 — verified
+live against this PR's actual round-state file. `SKILL.md` Step 8.1's
+prose updated to match: persist into the state file, not a bash
+variable.
+
+The same review separately found a real, if lower-severity, design
+weakness: the timeline corroboration signal relied on timestamp
+proximity alone to distinguish Copilot code-review events from
+coding-agent events, when every such event actually carries
+`.performed_via_github_app.slug` — verified live against both
+`xenotaur/LCATS#202` (mixed: `copilot-pull-request-reviewer` and
+`copilot-swe-agent` interleaved) and this PR (`copilot-pull-request-reviewer`
+throughout) that the slug is 100% reliable, no exceptions. Filtering the
+timeline query on slug (not just `$since`) closes a real gap: nothing
+previously stopped an unrelated coding-agent event from landing inside
+the same narrow time window as this batch's retrigger.
+
+Also closed a minor gap the same review flagged: the 15-minute stall
+threshold was asserted in prose only, with no actual age computation
+shown. Added a concrete `AGE=$(( $(date +%s) - ... ))` snippet (GNU/BSD
+`date` portability handled the same way "Round-state branch mechanics"
+already does), verified live on this machine's own `date`.
+
+Fixed and pushed as (see commit below). No further rounds requested —
+this record now documents the fix rather than deferring to "the next
+round."
 
 # Follow-up
 

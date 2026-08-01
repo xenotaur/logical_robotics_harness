@@ -90,30 +90,33 @@ Use the check-run as the primary, sufficient signal; treat the timeline
 event as optional corroboration that raises confidence when it correlates
 cleanly, never as a gate the check-run's own verdict depends on.
 
-**Capture the retrigger timestamp once, before either query, and reuse it
-for both.** Both signals below need to know "since this specific
-retrigger," not just "recently" — a same-`HEAD` retry (the human says
-"wait longer" and this step re-mentions the reviewer without a new push,
-Step 8.3's own first branch) leaves the *previous* attempt's check-run
-still sitting on the commit. Without a shared boundary, the check-run
-query's "most recent matching run" would find that stale run and
-misreport an already-superseded stall as evidence for *this* round — a
-real bug an earlier revision of this section had, caught in review — and
-the timeline query's "nearest event after the retrigger" would have
-nothing to be "after" *of this round specifically* either. Capture once,
-retrigger once, reuse the same value in both filters:
-
-```bash
-RETRIGGER_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-gh pr edit <pr-url> --add-reviewer @copilot
-```
+**Reuse `$BATCH_RETRIGGERED_AT` from `SKILL.md` Step 8.1 — never mint a
+fresh timestamp here, and never re-issue the retrigger.** Both signals
+below need to know "since *this batch's* retrigger," not just
+"recently," to stay safe against a stale prior-round check-run still
+sitting on the same commit. It is tempting to capture a new timestamp and
+re-run `gh pr edit --add-reviewer @copilot` right here, at the moment
+this diagnostic is actually consulted (Step 8.3, after the "reasonable
+wait" already elapsed) — an earlier revision of this section did exactly
+that, and it is wrong in precisely the primary case this whole heuristic
+exists for: `SKILL.md` Step 8.1 itself already documents that
+`gh pr edit --add-reviewer @copilot` "may... no-op (already requested)"
+when Copilot is already a pending reviewer — which it always is by the
+time Step 8.3 is reached, since Step 8.1's own retrigger already made it
+one. Re-issuing the command here would either no-op silently (the common
+case) or, if it somehow *did* start a second check-run, would still leave
+`$since` set to a timestamp *after* the real, already-stalled check-run
+from Step 8.1 — filtering out the exact evidence this section exists to
+find and reporting "no evidence invoked" for a reviewer that plainly was.
+This section is a **read-only diagnostic** over the batch Step 8.1
+already started, not a second retrigger action:
 
 1. **Check-runs on the reviewer's own commit — primary signal, filtered
-   to this retrigger:**
+   to this batch's retrigger:**
 
    ```bash
    gh api repos/<owner>/<repo>/commits/<sha>/check-runs --paginate --slurp \
-     | jq --arg since "$RETRIGGER_AT" \
+     | jq --arg since "$BATCH_RETRIGGERED_AT" \
        '[.[].check_runs[]] | map(select(.name=="copilot-pull-request-reviewer" and .started_at >= $since)) | sort_by(.started_at) | last | select(. != null) | {name, status, conclusion, started_at, completed_at}'
    ```
 
@@ -162,12 +165,13 @@ gh pr edit <pr-url> --add-reviewer @copilot
    periodic "still in progress" event, so this must be polled, not
    subscribed to.)
 
-2. **Issue timeline, for optional corroboration — reuses `$RETRIGGER_AT`
-   captured above:**
+2. **Issue timeline, for optional corroboration — reuses
+   `$BATCH_RETRIGGERED_AT` from `SKILL.md` Step 8.1, same as the
+   check-run query above:**
 
    ```bash
    gh api repos/<owner>/<repo>/issues/<pr-number>/timeline --paginate --slurp \
-     | jq --arg since "$RETRIGGER_AT" \
+     | jq --arg since "$BATCH_RETRIGGERED_AT" \
        '[.[][] | select(.event | startswith("copilot_work")) | select(.created_at >= $since)] | sort_by(.created_at) | first'
    ```
 
@@ -191,15 +195,22 @@ gh pr edit <pr-url> --add-reviewer @copilot
    `review_requested` timeline event from the same retrigger action.
    Event *type* alone cannot tell the two products apart — matching any
    `copilot_work_started` event on the PR, rather than the one filtered
-   to after `RETRIGGER_AT` above, can false-corroborate an unrelated
+   to after `$BATCH_RETRIGGERED_AT` above, can false-corroborate an unrelated
    coding-agent invocation elsewhere on the same PR. Because this signal
    is corroboration only (per the opening of this section, not a gate on
    the check-run's own verdict), a missed or misattributed timeline event
    downgrades confidence, never flips a real stall to "not stalled."
 
 **Never invoked** (as distinct from stalled) is the check-run's own
-zero-match case: no check-run for that reviewer at all since the
-retrigger. Neither the check-run nor the timeline event identifies *why*
+zero-match case: no check-run for that reviewer at all since
+`$BATCH_RETRIGGERED_AT`. This reading depends entirely on
+`$BATCH_RETRIGGERED_AT` being Step 8.1's own retrigger timestamp, not a
+freshly re-minted one — see the caveat at the top of this section. Given
+that, a zero match means what it says: nothing observable happened in
+response to this batch's retrigger, not "the reviewer is stalled but the
+evidence got filtered out."
+
+Neither the check-run nor the timeline event identifies *why*
 a stall happened — credit exhaustion is the observed cause in the
 verified incident above, but a platform outage or an unrelated internal
 error would look identical from the API side. Surface it to the human as

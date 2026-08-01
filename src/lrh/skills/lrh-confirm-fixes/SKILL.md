@@ -343,7 +343,19 @@ chance to weigh in. Do not attempt to infer configuration state at all:
    does not override the round-cap gate itself, which can still block a
    *new* batch independently.)
 
+   **Capture the timestamp of this retrigger** — `references/round-cap-gate.md`'s
+   "Detecting a stalled reviewer session" reuses it verbatim in Step 8.3
+   below; it must never re-issue this retrigger itself to get a fresh
+   one, since the no-op case just above means a second call at Step
+   8.3's later checking time would produce a timestamp *after* the real
+   check-run this batch already started, filtering out the very evidence
+   it exists to find. Step 8.2's wait can span minutes or, across a
+   session interruption, much longer — note the captured value somewhere
+   durable (the batch's own reasoning, a scratch note) rather than
+   relying only on shell state surviving until Step 8.3 runs:
+
    ```bash
+   BATCH_RETRIGGERED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
    gh pr comment <pr-url> --body "@codex review"
    gh pr edit <pr-url> --add-reviewer @copilot
    ```

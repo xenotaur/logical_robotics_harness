@@ -342,7 +342,53 @@ merge-as-is** — fixed the `name` omission (one-line addition:
 `{name, status, conclusion, started_at, completed_at}`, verified live)
 and requested an independent subagent review pass instead of an 11th
 bot-retrigger batch, avoiding further Copilot/Codex spend after 10
-rounds. See the subagent's findings and the final verdict below.
+rounds.
+
+**Independent subagent review, dispatched cold** (PR URL + orientation
+only, no session memory, instructed to verify every claim itself rather
+than trust the summary): found the **most severe issue of the entire
+PR** — more serious than anything Codex or Copilot caught in 10 rounds.
+
+The "capture `RETRIGGER_AT`, re-issue `gh pr edit --add-reviewer
+@copilot`" design from round 8 (still in place through round 10) is
+self-contradictory with `SKILL.md` Step 8.1's own pre-existing,
+not-written-by-this-PR text: "the reviewer-request may likewise no-op
+(already requested)... without touching a file either way." By the time
+Step 8.3's stall-check runs, Copilot is *always* already a requested
+reviewer (Step 8.1 just requested it) — so re-issuing the same command
+inside "Detecting a stalled reviewer session" would either no-op
+silently (the documented common case) or, even if it somehow did launch
+something, would still set `$since` to a timestamp *after* the real
+check-run Step 8.1's original retrigger started. Either way: the
+heuristic reports "no evidence invoked this round" for a reviewer that
+was invoked this round and is genuinely, actively stalled — the exact
+failure mode the whole design claims to prevent, in precisely the
+primary scenario the feature exists for (Step 8.1 retriggers, waits,
+gets nothing, Step 8.3 checks for a stall).
+
+Verified the root cause against `SKILL.md` Step 8.1's own text (not
+newly written — confirmed pre-existing, from PR #445) before accepting
+the finding. **Fixed properly, not patched around:** removed the
+redundant re-retrigger entirely from `round-cap-gate.md` — that section
+is now explicitly documented as a **read-only diagnostic**, never an
+action. `SKILL.md` Step 8.1 now captures `BATCH_RETRIGGERED_AT` at the
+point of its own (only) retrigger call, and `round-cap-gate.md`'s two
+queries (check-run and timeline) both reuse that single value — passed
+through, never re-minted. Added a note that Step 8.2's wait can span a
+session interruption (this session hit exactly that scenario earlier),
+so the captured value should be noted somewhere durable, not trusted to
+survive purely as shell state. Updated the "Never invoked" bucket's
+definition to state explicitly that its correctness depends on
+`$BATCH_RETRIGGERED_AT` being Step 8.1's real timestamp, not a
+freshly-issued one.
+
+The subagent separately verified, live against this PR's own commits and
+timeline (not just re-reading the prose), that everything else already
+landed is correct: `--paginate --slurp` pagination mechanics for both
+endpoint shapes, `$since` filtering behavior, zero-match empty output,
+the fixed per-page-`--jq` bug class from round 5, `SKILL.md`↔
+`round-cap-gate.md` consistency, and mirror byte-identity. No other
+findings.
 
 # Follow-up
 

@@ -19,6 +19,18 @@ prose each run. Source: `PROP-LRH-LAND-EXECUTE` Decision 3.
 | **Main-worktree-lock** | When all worktrees have `main` checked out: `git fetch → checkout -b tmp-<slug> origin/main → apply changes → push tmp-<slug>:main → delete tmp-<slug>` |
 | **Stale-branch safety** | Before reusing a planning-PR branch: `git diff origin/main <branch> --stat` must confirm zero net lines |
 
+**Multi-round review-response naming.** A single `/lrh-land` run can invoke
+`/lrh-review-response` more than once (Step 4's loop). Each round reuses the
+*same* slug — do not append a round-number suffix (e.g. `-round2`) to
+disambiguate. `lrh prompt record-execution`'s timestamp prefix already
+guarantees a unique filename per round, and every round's file still ends in
+the literal `_REVIEW.md`. A round-numbered suffix like `_REVIEW_ROUND2.md`
+breaks the primary-record-selection exclusion above (`grep -v "_REVIEW\.md$"`
+only matches the literal suffix) — a later `/lrh-land` re-run could pick up
+that file as the primary record instead of excluding it. If the round number
+needs to be recorded, put it in the record body or the CHAIN-NOTE's `cycles`
+field, not the filename.
+
 ---
 
 ## CHAIN-NOTE Format

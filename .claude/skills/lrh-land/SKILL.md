@@ -141,8 +141,23 @@ review is complete with no findings → proceed to Step 5.
 
 If the output contains thread data → open threads present; execute the
 review-response workflow inline (Phase 1: read `/lrh-review-response/SKILL.md`
-steps and execute them in the current session). Repeat until
-`lrh request review_response` starts with `Nothing to resolve:`.
+steps and execute them in the current session).
+
+**Loop-exit condition:** do not loop on `Nothing to resolve:` here.
+`/lrh-review-response` does not itself resolve GitHub review threads — its
+own "What This Skill Does Not Do" states this is a human decision, and
+thread resolution (`resolveReviewThread`) is Step 5's job. Because of this,
+a thread that was already fixed in the diff still shows up as unresolved
+when `lrh request review_response` is re-run, until Step 5 resolves it —
+looping until the list itself goes empty would never terminate here. The
+correct exit condition: repeat Step 4 only while a fresh
+`lrh request review_response` call surfaces a comment that has not yet been
+triaged in the current diff (fixed, or explicitly dismissed with rationale,
+per `/lrh-review-response`'s presence/validity/feasibility checks). Once
+every comment currently returned has been triaged — even though the thread
+list is not yet empty — proceed to Step 5, whose confirm-fixes pass is what
+actually resolves the threads and makes `Nothing to resolve:` true
+afterward.
 
 ### Step 5 — Confirm-fixes
 
@@ -295,7 +310,10 @@ Before reporting completion, verify:
 - [ ] Chain authorization gate (Step 2) completed before Steps 4–5; both
       completion condition and stop-work condition stated and confirmed
 - [ ] REVIEW-LANDED check performed using `reviewThreads` (via `lrh request review_response`); empty output not treated as clean
-- [ ] Review-response completed with no open threads before confirm-fixes
+- [ ] Review-response completed once every comment returned by
+      `lrh request review_response` has been triaged in the current diff
+      (fixed, or dismissed with rationale) — not once the thread list itself
+      is empty, which requires confirm-fixes (Step 5) to run first
 - [ ] Confirm-fixes verdict is green before REVIEW-LANDED re-check
 - [ ] REVIEW-LANDED re-check performed after confirm-fixes pushes its `_CONFIRM` commit
 - [ ] Merge command is the SHA-locked one from the confirm-fixes verdict; not a generic command

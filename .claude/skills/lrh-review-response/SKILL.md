@@ -153,6 +153,18 @@ a matched filename is discovery, not by itself a block:
   Step 7.
 - unknown or ambiguous status: **stop and report** the ambiguity.
 
+**Rerunning for a second (or later) round on the same branch:** reuse the
+exact same slug from above — do not append a round-number suffix (e.g.
+`-review-round2`) to disambiguate from the prior record. The timestamp
+prefix `lrh prompt record-execution` (Step 7) adds already guarantees a
+unique filename per round, and keeping the literal `-review` slug ending
+keeps every round's filename ending in `_REVIEW.md`, which the
+primary-record-selection exclusion in `/lrh-land` and the `rerun_of` lookups
+in this skill and `/lrh-confirm-fixes` all depend on
+(`grep -v "_REVIEW\.md$"` / `grep -vE "_(REVIEW|CONFIRM)\.md$"` match only
+that literal suffix). If the round number is worth recording, put it in the
+record body or a CHAIN-NOTE, not the filename.
+
 Then mint and run the secondary idempotence check:
 
 ```bash

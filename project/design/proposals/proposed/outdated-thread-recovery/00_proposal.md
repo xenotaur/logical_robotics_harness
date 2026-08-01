@@ -124,8 +124,27 @@ Options considered:
 - **Always-live-gated** — present the specific finding, wait for an
   explicit human answer, every occurrence, no default.
 
-**Chosen: always-live-gated**, presenting the human three options, each
-with an explicit disposition against `/lrh-land` Step 6's existing
+**Chosen: always-live-gated**, but only after a precondition check the
+gate itself does not skip: **before presenting fix now / defer / stop,
+check whether this newly-surfaced finding falls within the run's own
+Step-2-approved stop-work condition** (e.g. "any unexpected reviewer
+finding"). A qualifying outdated thread *is* a reviewer finding — if the
+stop-work condition already covers it, that condition already requires a
+halt-and-report; report the finding and stop, per the original Step 2
+agreement, rather than presenting the three-way gate as if it were a
+fresh, uncommitted choice. Continuing past an already-fired stop-work
+condition requires the human to explicitly amend it — a separate, named,
+live decision — not simply answer "fix now" to this gate. Only when the
+finding falls *outside* the run's stop-work condition (a narrower
+condition, e.g. "stop only on a failing test") does the three-way gate
+apply as designed. This check exists because a P1 finding on this exact
+proposal's own review showed the gate could otherwise silently let a run
+continue past what the human had already committed to halting on —
+precisely the failure mode PR #453's reverted automatic exception also
+produced, just reached through a different path.
+
+Once that precondition clears, the human answers one of three options,
+each with an explicit disposition against `/lrh-land` Step 6's existing
 invariant (a green confirm-fixes verdict, checked against the exact
 current `HEAD`, is required before the SHA-locked merge command is
 presented):
@@ -138,18 +157,25 @@ presented):
   re-runs confirm-fixes on its own.
 - **defer** — the human explicitly authorizes proceeding toward Step 6
   with this one specific, already-surfaced, already-reviewed thread left
-  open. This is a live, in-session, scoped override of Step 6's
-  green-verdict invariant — not a new bypass mechanism, but the same
-  category of explicit human authorization `DEC-AGENT-EXECUTED-MERGE-GATE`
-  already requires for the merge action itself, narrowed to one named
-  finding. Step 6's summary must name the deferred thread explicitly, so
-  the override is part of the audit trail, not a silent gap.
+  open — and *only* that thread. Every other component of the
+  green-verdict invariant (CI, REVIEW-LANDED, and any other exception
+  confirm-fixes surfaced) must still independently be green or cleared;
+  deferring this one named thread does not touch them. This is a live,
+  in-session, scoped override of Step 6's invariant for this thread
+  alone — not a new bypass mechanism, but the same category of explicit
+  human authorization `DEC-AGENT-EXECUTED-MERGE-GATE` already requires
+  for the merge action itself, narrowed further. Step 6's summary must
+  name the deferred thread explicitly, so the override is part of the
+  audit trail, not a silent gap.
 - **stop** — halt the run entirely; no path to Step 6 this run.
 
 The automatic path (an unconditional "not a hard stop") is the proven
-failure mode: a P1 finding showed it could silently override a stop-work
-condition the human explicitly set at the run's own chain-authorization
-gate. This case is rare in practice — in PR #453's own worked example,
+failure mode: PR #453's own reverted attempt drew a P1 finding showing it
+could silently override a stop-work condition the human explicitly set
+at the run's own chain-authorization gate — the original instance of the
+same failure category this proposal's own review round 4 (above) later
+found again, one layer down, in this design's first draft. This case is
+rare in practice — in PR #453's own worked example,
 every outdated thread encountered was Clear-satisfied, not needing a new
 fix — so the added friction of a live gate per genuine occurrence is
 low, and the safety property (no silent governance bypass, ever) is
@@ -179,14 +205,21 @@ stop.
 **Chosen:** route the recovery fix through `/lrh-review-response`'s full
 protocol — its Step 4 confirm gate, Step 5 canonical validation, and
 Step 7 execution record — not just its triage checks. Decision 1's
-`--include-thread` flag is what makes this possible: without it,
-`/lrh-review-response` Step 2 exits immediately on `Nothing to resolve:`
-for exactly this thread class, so a caller following the "full protocol"
-instruction literally would stop before ever reaching those safeguards.
-The full protocol also means `/lrh-review-response`'s own Step 5
-feasibility check can reject the fix as inappropriate for the change; a
-rejection is treated the same as Problematic comment — surfaced to the
-human, hard stop — not forced through.
+`--include-thread` flag is what makes this possible in principle, but
+only if it actually reaches review-response's own fetch: `--include-thread`
+is a flag on `/lrh-review-response` Step 2's inner `lrh request
+review_response <pr-url>` command, not something `/lrh-land` inlining
+that protocol gets for free. The recovery flow must explicitly carry the
+named thread ID from `/lrh-land`'s three-way gate into that specific Step
+2 invocation (`lrh request review_response <pr-url> --include-thread
+<id>`) when running the protocol inline — without that explicit
+propagation, Step 2 still runs its plain, unflagged form and exits
+immediately on `Nothing to resolve:` for exactly this thread class,
+reproducing PR #453's original bug one layer down. The full protocol
+also means `/lrh-review-response`'s own Step 5 feasibility check can
+reject the fix as inappropriate for the change; a rejection is treated
+the same as Problematic comment — surfaced to the human, hard stop —
+not forced through.
 
 ### Decision 5: Same-run idempotence
 

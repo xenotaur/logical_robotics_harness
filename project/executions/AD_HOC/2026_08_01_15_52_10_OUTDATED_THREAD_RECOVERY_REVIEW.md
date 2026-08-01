@@ -14,15 +14,18 @@ session_transcript: claude-app:61881211-bfd7-40cb-8080-33938a265398
 
 # Summary
 
-Addresses the first review round on PR #457 (planning artifacts:
-PROP-OUTDATED-THREAD-RECOVERY + 2 work items). Codex and Copilot together
-raised 6 findings; all fixed in one batch and pushed as a single commit
-to minimize retrigger rounds, per this session's own discussion about
-GitHub review credit consumption.
+Addresses review on PR #457 (planning artifacts: PROP-OUTDATED-THREAD-RECOVERY
++ 2 work items) across multiple rounds as Codex/Copilot progressively
+found deeper issues in the recovery-path design itself. Each round's
+findings were batched into a single push (not one push per finding), per
+this session's own discussion about GitHub review credit consumption —
+this record's per-round breakdown below documents each round's commit
+and findings individually; see the record's `commit:` frontmatter field
+for the latest.
 
 # Result
 
-One commit pushed to branch `xenotaur/feat/outdated-thread-recovery`:
+Round 1 — one commit pushed to branch `xenotaur/feat/outdated-thread-recovery`:
 
 - `4c1b856` — fixes all 6 findings plus the workstream fold.
 
@@ -86,6 +89,35 @@ introduce a small public helper instead. Verified against
 `src/lrh/integrations/github/formatters.py:18` (`_collect_threads` has
 no public export) before applying the fix.
 
+**Round 4: four findings, including a direct echo of PR #453's own
+governance failure.** Issue K — Codex **P1**, "Enforce the approved
+stop-work condition before recovery": the three-way gate was presented
+unconditionally, without first checking whether the newly-surfaced
+finding already fell within the run's own Step-2-approved stop-work
+condition — the exact class of failure (silently continuing past a
+human-set halt condition) that got PR #453's original automatic
+exception reverted, reached here through a different path (an
+unconditional gate rather than an unconditional non-stop). Added an
+explicit precondition check before the gate is presented: if the finding
+matches the stop-work condition, halt-and-report per that condition;
+continuing requires an explicit amendment, not just an answer to the
+gate. Issue L — Codex P1, "Preserve all non-thread readiness gates when
+deferring": "defer" was written broadly enough to read as overriding the
+*entire* green-verdict invariant rather than only the one named thread.
+Scoped it explicitly: CI, REVIEW-LANDED, and every other exception must
+still independently be green or cleared. Issue M — Codex P2, "Pass the
+included thread through review-response Step 2": Decision 4's "route
+through the full protocol" language didn't say the recovery flow must
+explicitly carry `--include-thread <id>` into review-response's own Step
+2 fetch command — without that explicit propagation, Step 2 still runs
+unflagged and exits on `Nothing to resolve:`, reproducing PR #453's
+original bug one layer down. Made the propagation explicit in Decision 4
+and WI-B's Required Changes/Acceptance Criteria. Issue N — Copilot
+(suppressed): this record's own Round 1 Summary claimed a "single
+commit" while the record already documented Rounds 2-3 — an internal
+inconsistency in the record's own framing, not the design. Rewrote the
+Summary to describe the multi-round structure accurately.
+
 # Validation
 
 scripts/version tools -- Black 26.3.1, Ruff 0.15.12 confirmed
@@ -97,7 +129,10 @@ grep -n "work_items\|parent_id" src/lrh/control/planning_tree.py -- confirmed Co
 
 # Follow-up
 
-- Retrigger both reviewers on this commit and verify all 6 threads
-  resolve against the pushed diff.
+- Round-cap ceiling (3) reached for PR #457 after round 3's retrigger;
+  present the three-way round-cap gate to the human before retriggering
+  a 4th batch for round 4's fixes.
+- Retrigger both reviewers on the round-4 commit once authorized, and
+  verify all remaining threads resolve against the pushed diff.
 - Update `session_transcript` to the final host session id if it differs
   after the session ends.

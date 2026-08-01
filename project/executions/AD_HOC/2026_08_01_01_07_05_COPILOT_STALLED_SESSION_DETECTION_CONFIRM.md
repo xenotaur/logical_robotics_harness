@@ -306,6 +306,26 @@ different, earlier timeline entries. Corrected.
 Round 8 completed_count is now 8 — round-state now real, on
 `lrh-round-state`, not just this record's own prose.
 
+**Round 9 retrigger result, on `f758176`:** CI green (5/5), Codex and
+Copilot both clean (review bodies). This round's monitoring explicitly
+re-checked `lrh github threads` (not just reviews/comments) — the exact
+gap that caused rounds 4-8 to miss the 7 threads above — and found **1**
+new formal thread (`PRRT_kwDOR7l1D86Vl3Au`, Codex, P2): a real,
+precisely-caught bug in the round-8 fix itself. The redesigned check-run
+query selected the globally most-recent matching check-run, but never
+required it to have started at or after *this round's* retrigger — on a
+same-`HEAD` retry (no new push), a stale `in_progress` run from an
+already-answered earlier round would still be the "most recent" one,
+misreporting an old, already-known stall as evidence for the current
+round. Fixed: capture `RETRIGGER_AT` once, before either query (not just
+before the timeline query, as the round-8 version did), and filter the
+check-run query itself to `started_at >= $since`. Verified live (match
+and zero-match cases). Thread resolved.
+
+Round-state updated to `completed_count: 9` on `lrh-round-state` (batch
+promoted on confirmed submission, per "Any-side-effect-counts
+promotion" — before waiting for the response above).
+
 # Follow-up
 
 - Merge gate: present the final verdict's merge command for explicit

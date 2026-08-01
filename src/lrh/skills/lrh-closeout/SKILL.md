@@ -522,73 +522,86 @@ git pull
 # tmp-<slug>:main, delete tmp-<slug>)
 ```
 
-**Verify the `src/lrh/skills` tree content itself matches `origin/main`
-exactly — ancestry alone is not enough.** An earlier version of this
-check used `git merge-base --is-ancestor origin/main HEAD`, reasoning
-that this accepts both plain `main` and the `tmp-<slug>` workaround. But
-`--is-ancestor` accepts *every* descendant, including one with an
-additional, never-merged commit on top that itself further edits a
-touched skill — `install_named_skills` would then read and install those
-unmerged bytes while reporting `refreshed`, silently installing content
-that was never part of the actual PR merge. Requiring the branch name to
-be exactly `main` (an even earlier version) avoids that but incorrectly
-rejects the legitimate `tmp-<slug>` workaround, which is never literally
-named `main` until its final push. Compare tree content directly instead
-— precise in both directions:
+**Verify each *confirmed* skill's own subdirectory — not the whole
+`src/lrh/skills` root — matches `origin/main` exactly, both committed
+and on disk.** Checking the package root is both too broad and too
+easy to false-positive: an unrelated sibling skill that happens to
+differ (someone else's uncommitted edit to a *different* skill, or this
+very checkout's own `src/lrh/skills/__pycache__/` — a normal byproduct
+of Python importing `lrh.skills.installer`, which Step 2 and this step
+both do, so it's expected on any checkout that has ever run these very
+instructions) would block refreshing skills that are actually fine, and
+`install_named_skills`/`_copy_skill` only ever reads one named skill
+subdirectory at a time regardless — package-root `__pycache__` is never
+in the copy path at all. Verify per confirmed name instead:
+
+For each confirmed added/modified `<name>`:
 
 ```bash
-git rev-parse HEAD:src/lrh/skills
-git rev-parse origin/main:src/lrh/skills
+git rev-parse "HEAD:src/lrh/skills/<name>"
+git rev-parse "origin/main:src/lrh/skills/<name>"
 ```
 
-These must be **equal** (comparing the tree object hash for that one
-path, not the whole-repo `HEAD` commit hash) before proceeding. This
-passes for plain `main` (trivially equal) and for the `tmp-<slug>`
-workaround (closeout's own commits touch WI/WS/execution-record files,
-never `src/lrh/skills/` itself, so that subtree's hash is unchanged from
-`origin/main`) — and correctly fails the instant `src/lrh/skills/`
-content diverges from `origin/main` for *any* reason, including a
-descendant commit that further edited a skill after this checkout's
-`origin/main` fetch.
+These must be **equal** (comparing that one skill's own tree object
+hash, not the whole-repo `HEAD` commit hash or the package root) before
+proceeding for this name. An earlier version of this check used
+`git merge-base --is-ancestor origin/main HEAD`, reasoning that this
+accepts both plain `main` and the `tmp-<slug>` workaround — but
+`--is-ancestor` accepts *every* descendant, including one with an
+additional, never-merged commit on top that itself further edits this
+skill, which would then be installed while reporting `refreshed`,
+silently including content never part of the actual PR merge. Requiring
+the branch name to be exactly `main` (an even earlier version) avoids
+that but incorrectly rejects the legitimate `tmp-<slug>` workaround. The
+per-name hash comparison passes for plain `main` (trivially equal) and
+for `tmp-<slug>` (closeout's own commits touch WI/WS/execution-record
+files, never a skill subdirectory, so its hash is unchanged from
+`origin/main`) — and correctly fails the instant *that specific skill's*
+content diverges from `origin/main` for any reason.
 
 **This tree-hash comparison only covers *committed* state — it says
 nothing about the working tree.** `install_named_skills` doesn't read
 git objects; it imports live via `PYTHONPATH="$(pwd)/src"`, which reads
 whatever bytes are actually on disk right now. An uncommitted edit or an
-untracked file under `src/lrh/skills/<name>/` would leave both
-`rev-parse` hashes above equal (they only see committed trees) while the
-Python import picks up the dirty bytes anyway — `install_named_skills`
-would then copy content that was never on `origin/main` at all, still
-reporting `refreshed`. Also require a clean working tree for this path
-before proceeding — **including `--ignored`**, since plain
-`git status --porcelain` does not report gitignored entries by default,
-but `_copy_resource_tree` (inside `install_named_skills`) enumerates
-every real filesystem entry under a skill directory regardless of
-`.gitignore` — a stray `.DS_Store` or a `__pycache__` sitting inside a
-confirmed skill directory would be silently swept into the install
-otherwise (confirmed live in this session's own checkout: a
+untracked file under this specific `src/lrh/skills/<name>/` would leave
+both `rev-parse` hashes above equal (they only see committed trees)
+while the Python import picks up the dirty bytes anyway. Also require a
+clean working tree for *that same specific skill directory* — not the
+package root, for the same false-positive reason as above — including
+`--ignored`, since plain `git status --porcelain` does not report
+gitignored entries by default, but `_copy_resource_tree` enumerates
+every real filesystem entry under the directory it's given regardless of
+`.gitignore` (confirmed live in this session's own checkout: a
 `.DS_Store` placed inside `src/lrh/skills/lrh-closeout/` was invisible
 to plain `git status --porcelain` but reported as `!!` with
-`--ignored`):
+`--ignored`; separately, the checkout's own `src/lrh/skills/__pycache__/`
+— from this very skill's own Python imports — also only showed with
+`--ignored`, confirming it would otherwise go undetected):
 
 ```bash
-git status --porcelain --ignored -- src/lrh/skills
+git status --porcelain --ignored -- "src/lrh/skills/<name>"
 ```
 
-Must produce **no output**. Any output — modified, staged, untracked, or
-ignored entries under `src/lrh/skills/` — means the working tree can't be
-trusted to match the verified commit, or contains extraneous files that
-were never part of the actual package: report an explicit anomaly and
-skip *this* item rather than installing from unknown or polluted state.
+Must produce **no output** for that name. Any output — modified, staged,
+untracked, or ignored entries under *that skill's own directory* — means
+this specific name can't be trusted to match the verified commit, or
+contains extraneous files never part of the actual package: report an
+explicit anomaly for *that name* and exclude it from the refresh, rather
+than installing from unknown or polluted state. A dirty or divergent
+*unrelated* skill's directory (not in the confirmed set, or a sibling
+whose own check didn't run) must not block the names that do pass.
 
-If the checkout-to-main step, the tree-hash verification, or the
-clean-working-tree check fails — or the main-worktree-lock workaround
-isn't applicable or also fails: report an explicit anomaly and skip
-*this* item — do not fall back to whatever branch or working-tree state
-happened to be present, and do not invoke `install_named_skills` against
-unverified state.
+If the checkout-to-main step fails, or the main-worktree-lock workaround
+isn't applicable or also fails: report an explicit anomaly and skip the
+*entire* skill-refresh item (no valid checkout to verify anything
+against). If it succeeds but a specific confirmed name fails its own
+tree-hash or clean-working-tree check: report an anomaly for *that name*
+only and exclude just it from the refresh — the other confirmed names
+whose checks passed still proceed. Do not fall back to whatever branch
+or working-tree state happened to be present, and do not invoke
+`install_named_skills` for a name that failed its own verification.
 
-Only once verified on `main`, load `install_named_skills` from *this*
+Only once a name is verified, load `install_named_skills` from *this*
 checkout, never an ambient, possibly-unrelated installed `lrh`
 distribution — prefix the invocation with an explicit `PYTHONPATH`
 pointed at this checkout's `src/`, since a `pipx`/`pip`-installed
@@ -716,20 +729,24 @@ Before reporting completion, verify:
       mutation), disclosed at the Step 4 confirm gate before any file
       under `~/.claude/skills/` was written
 - [ ] Skill refresh, if confirmed, only then checks out `main` and
-      verifies via an **exact subtree-hash comparison**
-      (`git rev-parse HEAD:src/lrh/skills` ==
-      `git rev-parse origin/main:src/lrh/skills`) — not ancestry alone
-      (`git merge-base --is-ancestor`, which wrongly accepts an unmerged
-      descendant commit) and not a branch-name or bare commit-SHA check
-      (either of which would reject the legitimate `tmp-<slug>`
-      main-worktree-lock workaround) — **and** confirms
-      `git status --porcelain --ignored -- src/lrh/skills` is empty
-      (`--ignored` included, since a gitignored stray file inside a
-      skill directory is still copied by the live filesystem enumeration
-      even though plain `git status` wouldn't report it) — before invoking
-      `install_named_skills` with `PYTHONPATH` explicitly pointed at that
-      checkout, not an
-      ambient/frozen `lrh` install
+      verifies **per confirmed skill name** (not the whole `src/lrh/skills`
+      package root, which would false-positive on an unrelated sibling's
+      divergence or this checkout's own `__pycache__` from running these
+      very instructions) via an **exact subtree-hash comparison**
+      (`git rev-parse HEAD:src/lrh/skills/<name>` ==
+      `git rev-parse origin/main:src/lrh/skills/<name>`) — not ancestry
+      alone (`git merge-base --is-ancestor`, which wrongly accepts an
+      unmerged descendant commit) and not a branch-name or bare
+      commit-SHA check (either of which would reject the legitimate
+      `tmp-<slug>` main-worktree-lock workaround) — **and** confirms
+      `git status --porcelain --ignored -- src/lrh/skills/<name>` is
+      empty for that same name (`--ignored` included, since a gitignored
+      stray file inside a skill directory is still copied by the live
+      filesystem enumeration even though plain `git status` wouldn't
+      report it) — before invoking `install_named_skills` for that name,
+      with `PYTHONPATH` explicitly pointed at that checkout, not an
+      ambient/frozen `lrh` install; a name that fails its own check is
+      excluded from the refresh without blocking other confirmed names
 - [ ] `lrh validate` reports 0 errors before commit
 - [ ] Committed to `main` (not a feature branch)
 - [ ] `session_transcript: pending` reminder included in report if applicable

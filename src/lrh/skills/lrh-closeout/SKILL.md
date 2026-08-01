@@ -161,6 +161,21 @@ applicable: this checkout has no src/lrh/skills/, skipping skill
 refresh" and move on to the next assessment item. Only proceed past this
 point when `src/lrh/skills/` exists locally.
 
+**Precondition — the PR must have been merged into `main`.** Step 2 item
+1 already fetches PR state, but only checks `state`/`mergeCommit`, not
+which branch the PR actually merged into — a PR can be `MERGED` into a
+release branch or any other long-lived branch instead. This assessment
+item specifically reads `origin/main` as "current" and Step 5 installs
+from that checkout; if the PR's actual base branch wasn't `main`, that
+assumption is simply wrong — an existing skill could be classified
+added/modified and overwritten with `main`'s *unrelated, older* bytes
+while being reported `refreshed`, or a genuinely new skill could be
+misclassified as absent from both revisions. Fetch and check
+`baseRefName` (`gh pr view --json baseRefName`, or reuse Step 2 item 1's
+PR-metadata call to fetch it in the same request): if it is not `main`,
+this item does not apply — report "not applicable: PR's base branch is
+`<baseRefName>`, not `main`, skipping skill refresh" and move on.
+
 Get the PR's full changed-file list from the **REST** PR Files endpoint —
 `gh api repos/<owner>/<repo>/pulls/<N>/files --paginate` — never
 `gh pr view --json files` (that form resolves through GitHub's GraphQL
@@ -446,17 +461,30 @@ git pull
 # tmp-<slug>:main, delete tmp-<slug>)
 ```
 
-**Verify branch identity, not just commit identity, after this.** A
-commit-SHA match alone (`git rev-parse HEAD` equal to
-`git rev-parse origin/main`) is not sufficient proof of being on `main`
-— a feature branch or a detached `HEAD` can happen to point at the exact
-same commit. Confirm the actual branch name too:
+**Verify ancestry, not just a commit-SHA match, after this.** What
+actually matters for `install_named_skills` to read correct bytes is
+that the invoking checkout's `src/lrh/skills` *contains* everything
+`origin/main` has — not that the current branch is literally named
+`main`. A bare `git rev-parse HEAD` == `git rev-parse origin/main`
+check is one way to prove that, but requiring the branch name to be
+exactly `main` is stricter than necessary and **breaks the
+main-worktree-lock workaround above on purpose**: that workaround
+runs from `tmp-<slug>`, built from `origin/main` with closeout's own
+commits stacked on top — never literally named `main` until it's pushed
+there. Use ancestry, which accepts both cases uniformly:
 
 ```bash
-git branch --show-current   # must print exactly "main"
-git rev-parse HEAD
-git rev-parse origin/main   # must match the line above
+git merge-base --is-ancestor origin/main HEAD && echo "origin/main is present in HEAD's history"
 ```
+
+This passes whether `HEAD` *is* `origin/main` (plain case), *is a
+descendant of* it (the `tmp-<slug>` workaround, or `main` with the
+Step 5 closeout commits from earlier sub-steps already applied), or
+happens to equal it on an unrelated branch (still byte-correct for this
+specific read, even though that scenario may warrant scrutiny for
+*other* Step 5 actions that do `git commit` — out of scope for this
+skill-refresh sub-step specifically). It fails, correctly, for a
+checkout that has diverged from or never incorporated `origin/main`.
 
 If either the checkout-to-main step or this verification fails or can't
 be completed in this session (and the main-worktree-lock workaround
@@ -581,17 +609,21 @@ Before reporting completion, verify:
 - [ ] User confirmed at Step 4 before any files were touched
 - [ ] Each file read before editing; no partial edits
 - [ ] `mv` used for WI/WS/proposal moves (not `cp`)
-- [ ] If the PR touched `.claude/skills/` or `src/lrh/skills/` and this
-      checkout has `src/lrh/skills/` (i.e. is the LRH source repo — see
-      Step 2's precondition): skill refresh planned entirely read-only
-      (REST PR Files endpoint, paginated, ceiling and fetch-failure
-      handled; `git ls-tree` reads against both `origin/main` and the
-      base revision, no live checkout mutation), disclosed at the Step 4
-      confirm gate before any file under `~/.claude/skills/` was written
-- [ ] Skill refresh, if confirmed, only then checks out and verifies
-      `main` by **branch name**, not commit SHA alone, before invoking
-      `install_named_skills` with `PYTHONPATH` explicitly pointed at that
-      checkout — not an ambient/frozen `lrh` install
+- [ ] If the PR touched `.claude/skills/` or `src/lrh/skills/`, this
+      checkout has `src/lrh/skills/` (is the LRH source repo), and the
+      PR's `baseRefName` is `main` (all three preconditions in Step 2):
+      skill refresh planned entirely read-only (REST PR Files endpoint,
+      paginated, ceiling and fetch-failure handled; `git ls-tree` reads
+      against both `origin/main` and the base revision, no live checkout
+      mutation), disclosed at the Step 4 confirm gate before any file
+      under `~/.claude/skills/` was written
+- [ ] Skill refresh, if confirmed, only then checks out `main` and
+      verifies via **ancestry** (`git merge-base --is-ancestor origin/main
+      HEAD`) — not a branch-name or bare commit-SHA check, either of which
+      would reject the legitimate `tmp-<slug>` main-worktree-lock
+      workaround — before invoking `install_named_skills` with
+      `PYTHONPATH` explicitly pointed at that checkout, not an
+      ambient/frozen `lrh` install
 - [ ] `lrh validate` reports 0 errors before commit
 - [ ] Committed to `main` (not a feature branch)
 - [ ] `session_transcript: pending` reminder included in report if applicable

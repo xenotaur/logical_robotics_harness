@@ -138,6 +138,7 @@ class TestInstallNamedSkills(unittest.TestCase):
 
         results = installer.install_named_skills([absent_name], skills_dir=skills_dir)
 
+        self.assertEqual(len(results), 1)
         self.assertEqual(results[0].status, installer.RefreshStatus.ABSENT)
         self.assertFalse(skills_dir.exists())
         self.assertFalse((skills_dir / absent_name).exists())

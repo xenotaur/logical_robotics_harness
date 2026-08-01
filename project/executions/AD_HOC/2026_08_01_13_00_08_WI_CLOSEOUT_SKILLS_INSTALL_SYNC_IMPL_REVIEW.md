@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: c77a13d
+commit: 48d7893
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -173,9 +173,35 @@ accepting:
   design and the client-repo scoping decision.
 - Pushed as commit `e2bda3b`.
 
+**Round 7** — retriggered against `c967ef5`, explicitly re-reading full
+thread content this time (not just review-body summaries). One thread
+from the earlier missed batch was already resolved by the round-6
+restructure (content-verified, though its `isOutdated` flag never
+flipped — its anchor apparently wasn't tied to a line that specific fix
+touched). 2 genuinely new threads, both confirmed valid, both fairly
+significant:
+- P1 "Reject PRs that were not merged into main" — **confirmed valid**:
+  Step 2 item 1 checks only `state`/`mergeCommit`, never `baseRefName` —
+  a PR merged into a release branch instead of `main` would still have
+  this assessment read `origin/main` as "current," silently misreading
+  which branch the merge actually landed on. Added a third precondition
+  to Step 2 requiring `baseRefName == main`; skip (not-applicable, not an
+  anomaly) otherwise.
+- P2 "Accept the locked-main temporary branch" — **confirmed valid, and
+  a real regression from round 6's own fix**: round 6 added a
+  `git branch --show-current` == `"main"` requirement, which would
+  reject `/lrh-land`'s own documented `tmp-<slug>` main-worktree-lock
+  workaround (used earlier in this very session, for this WI's own
+  creation-PR closeout) — that workaround never literally checks out a
+  branch named `main` until the final push. Replaced the branch-name
+  check with `git merge-base --is-ancestor origin/main HEAD`, which
+  accepts both plain `main` and the `tmp-<slug>` case uniformly (smoke
+  tested live: this session's own worktree, on a branch created before
+  a concurrent PR #452 merged, correctly failed the check — proving it
+  detects genuine staleness, not just branch-naming mismatches).
+- Pushed as commit `48d7893`.
+
 # Follow-up
 
-- Next: retrigger both reviewers against `e2bda3b` and, this time,
-  explicitly re-read the full unresolved-thread list's content each
-  round (not just the review-body summary or the count) before
-  concluding a round is clean.
+- Next: retrigger both reviewers against `48d7893`, again re-reading
+  full thread content, not just review-body summaries or counts.

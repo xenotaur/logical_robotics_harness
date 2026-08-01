@@ -278,7 +278,36 @@ that skill's own Step 8 handling):
   Validation (2 new smoke tests), Risk Notes, and frontmatter
   `acceptance`.
 
+**Ninth round** — the second `/lrh-confirm-fixes` pass (round 8's fixes)
+resolved both threads Clear-satisfied and pushed a second `_CONFIRM`
+record. Its Step 8 retrigger (round-cap batch 2/3 for this PR) surfaced,
+on the fresh commit: 1 new valid finding from Copilot, 2 new valid from
+Codex, and Copilot repeating the same `work_item: AD_HOC` claim already
+refuted in round 5 (4 comments, same false premise, not changed).
+- Copilot: `git show <baseRefOid>:src/lrh/skills` (Required Changes item
+  2) is wrong as written — `git show <rev>:<path>` requires a blob
+  (file) path, not a directory. **Confirmed valid.** Fixed to
+  `git ls-tree -d --name-only <baseRefOid> -- src/lrh/skills`.
+- Codex, P2: GitHub's PR Files REST endpoint has a documented hard
+  3,000-file ceiling that pagination cannot exceed. **Confirmed valid.**
+  Added explicit ceiling-detection to Required Changes item 2 (report an
+  anomaly and skip install rather than assume completeness) — noted as a
+  defensive check, not a scenario this repo's actual PR history has ever
+  approached.
+- Codex, P2: `related_workstreams: [WS-SKILLS-CLOSEOUT]` points at a
+  workstream that is already `status: resolved, stage: closed`.
+  **Confirmed valid.** Cleared `related_workstreams` to `[]` — no
+  currently active workstream fits, and most WIs in this repo carry no
+  workstream link at all.
+- Copilot's 4 `work_item: AD_HOC` comments (creation, `_REVIEW`, both
+  `_CONFIRM` records): **same claim as round 5, checked again, still
+  false** for the same documented reason — `/lrh-work-item`'s Step 4
+  explicitly keeps creation/review/confirm records in `AD_HOC` so
+  `/lrh-closeout` doesn't wrongly auto-resolve the not-yet-implemented WI
+  the moment this planning PR merges. Not changed.
+
 # Follow-up
 
-- Next: re-run `/lrh-confirm-fixes` against PR #454 to verify these
-  2 fixes and get a final merge-readiness verdict.
+- Next: re-run `/lrh-confirm-fixes` against PR #454 once more to verify
+  these 3 fixes; if that pass is clean, treat it as the stopping point
+  for iterative review rounds on this planning-only PR.

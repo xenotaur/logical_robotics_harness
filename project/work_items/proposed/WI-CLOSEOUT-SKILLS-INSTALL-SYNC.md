@@ -12,8 +12,7 @@ contributors:
 assigned_agents: []
 related_focus: []
 related_roadmap: []
-related_workstreams:
-  - WS-SKILLS-CLOSEOUT
+related_workstreams: []
 related_design: []
 depends_on: []
 blocked_by: []
@@ -27,6 +26,7 @@ forbidden_actions:
   - auto_merge_pr
 acceptance:
   - "/lrh-closeout gets the PR's changed-file list from the REST PR Files endpoint specifically, fully paginated (not gh pr view --json files, not a post-merge git diff), derives candidate skill names by path shape, then partitions by _skill_names() membership at both base and current revisions into added/modified vs. removed/renamed vs. not-a-skill, in that order"
+  - If the paginated file list reaches the REST endpoint's 3,000-file ceiling, the step reports an anomaly and skips install for that PR rather than assuming completeness
   - The targeted-refresh function validates each name against the current package before any destructive filesystem operation and returns an explicit absent-name result rather than deleting an existing installed directory first
   - A skill in the added/modified set is refreshed even when its previously installed bytes differ from a stale prior package revision, not blocked by the coarse-grained USER_MODIFIED check
   - A skill not in that touched set, but with genuine local modifications, still reports user_modified and is left untouched
@@ -198,6 +198,19 @@ step must be careful to run against the checkout it just landed onto
      `page`/`per_page`) rather than assuming a single page is complete,
      which would silently truncate the changed-file list on a
      large-enough PR.
+   - **Detects the endpoint's own hard ceiling.** GitHub's documented
+     behavior for this endpoint caps the response at 3,000 files total,
+     even with full pagination — a PR changing more files than that
+     cannot have its complete file list obtained through this endpoint at
+     all, regardless of how thoroughly pagination is implemented. If the
+     paginated result reaches this ceiling (a strong signal, though not a
+     guaranteed exact count, that more files exist beyond it), do not
+     silently proceed as if the list were complete: report an explicit
+     anomaly and skip the skill-install step for this PR rather than
+     risk missing a touched skill with no signal. (No PR in this
+     repository's history has come close to this size — this is a
+     defensive ceiling check, not a scenario expected to occur in
+     practice.)
    - Filters that file list to `.claude/skills/` and `src/lrh/skills/`
      path prefixes (checking both `filename` and, when present,
      `previous_filename`, so a rename's old path is captured even if only
@@ -216,9 +229,14 @@ step must be careful to run against the checkout it just landed onto
      (post-merge `main`) revision** — not current alone. "Base revision"
      is the PR's `baseRefOid` as recorded by the PR API (the same API
      call as above, or `gh pr view --json baseRefOid`) — i.e. `main` as
-     it stood before this PR's changes, obtainable via
-     `git show <baseRefOid>:src/lrh/skills` (or a checkout of that SHA),
-     not something to be inferred from post-merge commit parentage.
+     it stood before this PR's changes. To list `_skill_names()`-eligible
+     entries at that revision, use `git ls-tree -d --name-only
+     <baseRefOid> -- src/lrh/skills` (or a checkout of that SHA) — `git
+     show <rev>:<path>` requires `<path>` to name a single blob (file),
+     not a directory, so it is not the right form for listing a
+     directory's entries. Either way, this is a lookup against the
+     already-fetched base commit, not something to be inferred from
+     post-merge commit parentage.
      Present in current → **added/modified** (refresh via item 1);
      present at the base revision but absent from current →
      **removed/renamed** (the skill existed before, evidenced by the
@@ -335,6 +353,10 @@ step must be careful to run against the checkout it just landed onto
   not-a-skill — in that order, so a removed name is never discarded
   before it can be classified, and a name excluded from `_skill_names()`
   at both revisions (e.g. `_shared`) is never misreported as removed.
+- If the paginated file list reaches the REST endpoint's documented
+  3,000-file ceiling, the step reports an explicit anomaly and skips the
+  install step for that PR, rather than silently proceeding as if the
+  list were known-complete.
 - The targeted-refresh function (item 1) validates each name against the
   current package *before* any destructive filesystem operation, and
   returns an explicit absent-name result rather than deleting an existing
@@ -428,6 +450,13 @@ step must be careful to run against the checkout it just landed onto
   implementation that reads only the first page silently truncates the
   changed-file list on any PR larger than that, potentially missing
   skill-touching files entirely with no error or signal.
+- Pagination alone does not make the file list unbounded: GitHub
+  documents a hard 3,000-file ceiling on this endpoint's total response,
+  beyond which no amount of paginating recovers the rest. No PR in this
+  repository's actual history has approached that size, so this is a
+  defensive check, not an anticipated real occurrence — but silently
+  treating a list that happens to hit the ceiling as complete would be
+  the same kind of silent-staleness bug this WI exists to close.
 - A caller bug that passes a name absent from the current package to the
   targeted-refresh function could, without item 1's validation
   requirement, delete an existing installed skill directory before

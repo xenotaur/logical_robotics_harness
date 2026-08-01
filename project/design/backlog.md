@@ -496,3 +496,59 @@ promoting on observed incident rather than speculative hardening.
 `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`
 "Detecting a stalled reviewer session" and "Risk Notes — deferred
 hardening"; `project/work_items/proposed/WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md`.
+
+---
+
+## Stalled-reviewer-session detection is Copilot-specific but reads as reviewer-generic
+
+**Noted:** 2026-08-01, during PR #452 review round 7 (Copilot,
+`copilot-pull-request-reviewer`), landing the stalled-reviewer-session
+detection heuristic in `lrh-confirm-fixes/SKILL.md` Step 8.3 and
+`references/round-cap-gate.md`.
+
+**Idea — two remaining items, deferred by explicit decision rather than
+fixed inline to stop an 8-round retrigger loop (rounds 1–7 each found a
+real, distinct, low-risk issue: a cross-product timeline-correlation bug,
+three wording/grammar fixes, a stale cross-reference direction, an
+unpaginated `gh api` call, a `gh --jq`-runs-per-page-not-merged
+correctness bug, and a misleading null-object edge case — see this PR's
+`_CONFIRM` execution record for the full round-by-round account):**
+
+1. **Reviewer-generic framing, Copilot-specific signals.** `SKILL.md`
+   Step 8.3 says "first check whether that reviewer's own session
+   actually started and stalled" for *any* retriggered reviewer that
+   hasn't responded, but the only heuristic this cross-references
+   (`round-cap-gate.md`'s "Detecting a stalled reviewer session") is
+   built entirely from Copilot-specific signals: the
+   `copilot-pull-request-reviewer` check-run name and `copilot_work_*`
+   timeline events. Codex (comment-driven, no equivalent check-run or
+   timeline signal) would just get an empty result and correctly fall
+   through to the "No stall detected" question — not a correctness bug,
+   since the fallback is safe, but the prose doesn't make that scope
+   explicit, and a future reviewer added to `REVIEWS.md` might wrongly
+   assume this heuristic applies to them too.
+2. **`backlog.md`'s own entry above quotes stale wording.** The
+   "Promote stalled-reviewer-session detection..." entry's **Noted**
+   section quotes "reviewer never invoked" — the phrasing this same PR's
+   round 3 replaced with "no evidence the reviewer was invoked this
+   round" specifically to avoid implying the heuristic can determine
+   configuration state. Purely a documentation-consistency echo, not a
+   behavioral issue.
+
+**Status:** Deferred — round 7 was this PR's explicit, pre-committed
+stopping point for chasing further review rounds (recorded in the
+`_CONFIRM` execution record before this round's response was even read),
+consistent with this project's "defer narrow edge cases, fix core-scope
+findings" practice and with `round-cap-gate.md`'s own precedent (that
+mechanism's implementation, PR #445, stopped chasing after 8 rounds for
+the same reason — see its "Risk Notes — deferred hardening" section).
+Neither item is core to this PR's stated purpose (detecting a
+Copilot-credit-exhaustion-shaped stall) or a correctness bug. Revisit
+alongside a future change to `SKILL.md` Step 8.3 or `round-cap-gate.md`,
+or sooner if a non-Copilot reviewer is added to `REVIEWS.md` and the
+generic framing causes real confusion in practice.
+
+**Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8.3;
+`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`
+"Detecting a stalled reviewer session"; harness PR #452 (rounds 1–7);
+"Promote stalled-reviewer-session detection..." entry above.

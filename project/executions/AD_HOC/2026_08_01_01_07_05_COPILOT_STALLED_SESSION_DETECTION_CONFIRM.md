@@ -184,6 +184,43 @@ last one chased before deferring any further micro-refinement to the
 design backlog per this project's standing "defer narrow edge cases"
 convention, rather than continuing indefinitely.
 
+**Round 7 retrigger result, on `33e66ca`:** CI green (5/5). Codex: clean
+pass, reviewed `33e66ca3d3`. Copilot: "generated no new comments" but
+surfaced 3 more suppressed findings — (1) `backlog.md`'s own
+"Promote stalled-reviewer-session detection..." entry quotes stale
+"reviewer never invoked" wording, drifted from round 3's correction; (2)
+and (3) `SKILL.md` Step 8.3's "first check whether that reviewer's own
+session actually started and stalled" reads as reviewer-generic, but the
+heuristic it cross-references is built entirely from Copilot-specific
+signals (check-run name, `copilot_work_*` events) — not a correctness
+bug (a non-Copilot reviewer would just get an empty result and correctly
+fall through to "No stall detected"), but the scope isn't made explicit.
+
+**Classified per Step 3's taxonomy and Step 8's non-thread-finding rule
+(genuine findings, not silence — routed through triage, not silently
+dropped):** all three **Unaddressed — deferred**, per the round-7
+stopping-point decision recorded above (written *before* round 7's
+response was read, not retrofitted to justify skipping real findings).
+Rationale: neither is core to this PR's stated purpose (detecting a
+Copilot-credit-exhaustion-shaped stall), neither is a correctness bug,
+and this project's own `round-cap-gate.md` models the identical
+practice — its implementation (PR #445) stopped chasing after 8 rounds
+for the same reason. Captured in `project/design/backlog.md` ("Stalled-
+reviewer-session detection is Copilot-specific but reads as
+reviewer-generic") for follow-up. Replied to on the PR explaining the
+deferral.
+
+REVIEW-LANDED is satisfied on `33e66ca` — both reviewers gave their
+round-7 response with no formal thread and no blocking finding; the 3
+deferred items are explicitly triaged Unaddressed-and-deferred, not
+silently waved through.
+
+**This backlog entry plus this paragraph are themselves new content on
+top of `33e66ca`** — pushed together as one commit, this record's true
+final round (round 8): retrigger, wait for a clean pass on that exact new
+`HEAD`, and present the merge command only then, with no further edits
+after that push. See the final verdict below.
+
 # Follow-up
 
 - Merge gate: present the final verdict's merge command for explicit

@@ -178,10 +178,12 @@ assumption is simply wrong — an existing skill could be classified
 added/modified and overwritten with `main`'s *unrelated, older* bytes
 while being reported `refreshed`, or a genuinely new skill could be
 misclassified as absent from both revisions. Fetch and check
-`baseRefName` (`gh pr view --json baseRefName`, or reuse Step 2 item 1's
-PR-metadata call to fetch it in the same request): if it is not `main`,
-this item does not apply — report "not applicable: PR's base branch is
-`<baseRefName>`, not `main`, skipping skill refresh" and move on.
+`baseRefName` with its own call — `gh pr view --json baseRefName` (Step 2
+item 1's own `gh pr view` call only requests `state,mergeCommit`, not
+`baseRefName`, so it cannot be reused as-is for this): if it is not
+`main`, this item does not apply — report "not applicable: PR's base
+branch is `<baseRefName>`, not `main`, skipping skill refresh" and move
+on.
 
 **Precondition — the local `origin` remote must actually be the PR's own
 repository.** The `src/lrh/skills/` presence check above rules out an
@@ -440,6 +442,37 @@ plan and show it again.
 
 Execute all confirmed actions. Abort on any error rather than partially completing.
 
+**If a skill refresh is among the confirmed actions, establish the `main`
+checkout first — before any other action below.** The execution
+record/work item/workstream/proposal actions that follow edit and move
+files on whatever branch this session is currently on; if those run
+first, `git checkout main` (needed for the skill refresh) can then fail
+outright (git refuses to switch branches over uncommitted changes it
+would have to overwrite) partway through Step 5, or — worse — silently
+"succeed" by leaving the *rest* of Step 5's edits committed on the wrong
+branch while only the skill-refresh sub-item reports a skipped anomaly.
+Do this once, up front, if applicable:
+
+```bash
+git fetch origin main --quiet
+git checkout main
+git pull --ff-only
+# or, if main is locked in another worktree: the /lrh-land main-worktree-lock
+# workaround (checkout -b tmp-<slug> origin/main, apply changes, push
+# tmp-<slug>:main, delete tmp-<slug>)
+```
+
+`--ff-only` on the pull is deliberate: a plain `git pull` can create an
+unexpected merge commit if local `main` has diverged from `origin/main`
+for any reason, which is itself a signal something is wrong, not a
+condition to silently resolve with a merge. If any of this fails, or the
+main-worktree-lock workaround isn't applicable or also fails: report an
+explicit anomaly, skip the skill-refresh action specifically (its
+per-name checks below can't run without a valid checkout), and continue
+with the *other* confirmed Step 5 actions normally — a failed skill
+refresh should not block the WI/WS/execution-record work the rest of
+this step does independently of it.
+
 **Execution records** (for each record marked `update to landed`):
 
 Call the CLI to update all four fields atomically, using **that record's own**
@@ -507,20 +540,11 @@ confirmed them at Step 4):
 
 Step 2's assessment was entirely read-only (`git ls-tree` reads against
 `origin/main` and the base revision — see above); it never established
-that the invoking checkout itself is actually on `main`, on purpose, so
-as not to mutate anything before the confirm gate. **This is the one
-place in this whole skill-refresh feature that establishes and mutates
-that state — do it here, now that the gate has passed, before invoking
-`install_named_skills`:**
-
-```bash
-git fetch origin main --quiet
-git checkout main
-git pull
-# or, if main is locked in another worktree: the /lrh-land main-worktree-lock
-# workaround (checkout -b tmp-<slug> origin/main, apply changes, push
-# tmp-<slug>:main, delete tmp-<slug>)
-```
+that the invoking checkout itself is actually on `main`. That was
+established once, up front, at the top of this step (before the
+execution record/WI/WS/proposal actions above) — if that establishment
+failed, this action was already skipped as an anomaly and none of the
+following applies.
 
 **Verify each *confirmed* skill's own subdirectory — not the whole
 `src/lrh/skills` root — matches `origin/main` exactly, both committed
@@ -591,17 +615,41 @@ than installing from unknown or polluted state. A dirty or divergent
 *unrelated* skill's directory (not in the confirmed set, or a sibling
 whose own check didn't run) must not block the names that do pass.
 
-If the checkout-to-main step fails, or the main-worktree-lock workaround
-isn't applicable or also fails: report an explicit anomaly and skip the
-*entire* skill-refresh item (no valid checkout to verify anything
-against). If it succeeds but a specific confirmed name fails its own
-tree-hash or clean-working-tree check: report an anomaly for *that name*
-only and exclude just it from the refresh — the other confirmed names
-whose checks passed still proceed. Do not fall back to whatever branch
-or working-tree state happened to be present, and do not invoke
-`install_named_skills` for a name that failed its own verification.
+(The checkout-to-main establishment itself was already handled, with its
+own anomaly-and-skip behavior, at the top of this step.) If a specific
+confirmed name fails its own tree-hash or clean-working-tree check here:
+report an anomaly for *that name* only and exclude just it from the
+refresh — the other confirmed names whose checks passed still proceed.
+Do not fall back to whatever working-tree state happened to be present,
+and do not invoke `install_named_skills` for a name that failed its own
+verification.
 
-Only once a name is verified, load `install_named_skills` from *this*
+**Also verify `src/lrh/skills/installer.py` itself — the module doing
+the copying — the same way, once, before invoking it for any name.**
+Every per-name check above verifies the *data* being copied; none of
+them verify the *code* that performs the copy. If `installer.py` (or
+`lrh/skills/__init__.py`) has an unmerged descendant commit or a dirty
+working-tree edit, every per-name check can still pass while
+`install_named_skills` itself executes different logic than what's
+actually on `origin/main` — bypassing `USER_MODIFIED` under code that
+was never part of the merged PR, regardless of how carefully the target
+skill directories were verified:
+
+```bash
+git rev-parse HEAD:src/lrh/skills/installer.py
+git rev-parse origin/main:src/lrh/skills/installer.py
+git status --porcelain --ignored -- src/lrh/skills/installer.py
+```
+
+The two `rev-parse` outputs must be equal, and the `status` output must
+be empty — the same equal-hash-plus-clean-tree pattern as each named
+skill, applied once to the installer module itself. If this fails,
+report an explicit anomaly and skip the **entire** skill-refresh action
+for **every** confirmed name — a compromised installer invalidates every
+per-name result, not just one.
+
+Only once a name is verified (and the installer module itself is
+verified), load `install_named_skills` from *this*
 checkout, never an ambient, possibly-unrelated installed `lrh`
 distribution — prefix the invocation with an explicit `PYTHONPATH`
 pointed at this checkout's `src/`, since a `pipx`/`pip`-installed
@@ -728,12 +776,16 @@ Before reporting completion, verify:
       against both `origin/main` and the base revision, no live checkout
       mutation), disclosed at the Step 4 confirm gate before any file
       under `~/.claude/skills/` was written
-- [ ] Skill refresh, if confirmed, only then checks out `main` and
-      verifies **per confirmed skill name** (not the whole `src/lrh/skills`
-      package root, which would false-positive on an unrelated sibling's
-      divergence or this checkout's own `__pycache__` from running these
-      very instructions) via an **exact subtree-hash comparison**
-      (`git rev-parse HEAD:src/lrh/skills/<name>` ==
+- [ ] If a skill refresh is confirmed, `main` is checked out (`--ff-only`
+      pull) **first, before any other Step 5 action** — not interleaved
+      after execution-record/WI/WS/proposal edits, which could leave the
+      tree unable to switch branches cleanly or (worse) get committed to
+      the wrong branch
+- [ ] Skill refresh verifies **per confirmed skill name** (not the whole
+      `src/lrh/skills` package root, which would false-positive on an
+      unrelated sibling's divergence or this checkout's own `__pycache__`
+      from running these very instructions) via an **exact subtree-hash
+      comparison** (`git rev-parse HEAD:src/lrh/skills/<name>` ==
       `git rev-parse origin/main:src/lrh/skills/<name>`) — not ancestry
       alone (`git merge-base --is-ancestor`, which wrongly accepts an
       unmerged descendant commit) and not a branch-name or bare
@@ -743,10 +795,16 @@ Before reporting completion, verify:
       empty for that same name (`--ignored` included, since a gitignored
       stray file inside a skill directory is still copied by the live
       filesystem enumeration even though plain `git status` wouldn't
-      report it) — before invoking `install_named_skills` for that name,
-      with `PYTHONPATH` explicitly pointed at that checkout, not an
-      ambient/frozen `lrh` install; a name that fails its own check is
-      excluded from the refresh without blocking other confirmed names
+      report it); a name that fails its own check is excluded from the
+      refresh without blocking other confirmed names
+- [ ] `src/lrh/skills/installer.py` itself (the module performing the
+      copy, not just the skill data being copied) is verified with the
+      same equal-hash-plus-clean-tree check, once, before invoking
+      `install_named_skills` for *any* name — a compromised installer
+      module invalidates every per-name result, so this failing skips the
+      entire skill-refresh action, not just one name
+- [ ] `install_named_skills` invoked with `PYTHONPATH` explicitly pointed
+      at that checkout, not an ambient/frozen `lrh` install
 - [ ] `lrh validate` reports 0 errors before commit
 - [ ] Committed to `main` (not a feature branch)
 - [ ] `session_transcript: pending` reminder included in report if applicable

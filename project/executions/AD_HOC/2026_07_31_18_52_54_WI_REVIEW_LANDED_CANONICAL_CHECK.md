@@ -2,10 +2,10 @@
 execution_id: 2026_07_31_18_52_54_WI_REVIEW_LANDED_CANONICAL_CHECK
 prompt_id: PROMPT(AD_HOC:WI_REVIEW_LANDED_CANONICAL_CHECK)[2026-07-31T18:09:35+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/447
-commit: 8066a28
+commit: a923d26422bc60d27647b1571abb3a2bcb501d8a
 created_at: 2026-07-31T18:52:54+00:00
 agent: claude_app
 instruction_source: chat (user request following pros/cons analysis of a self-review-agent proposal)

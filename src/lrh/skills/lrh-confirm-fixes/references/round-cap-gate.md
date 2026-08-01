@@ -105,17 +105,29 @@ What *is* available is a stall heuristic, built from two REST calls:
      --jq '.[] | select(.event | startswith("copilot_work"))'
    ```
 
-   A `copilot_work_started` event with no later `copilot_work_finished` or
-   `copilot_work_finished_failure` event for the same attempt corroborates
-   the check-run reading — the session was invoked and is the thing that
-   didn't finish, not a configuration gap.
+   `copilot_work_started`/`copilot_work_finished`/
+   `copilot_work_finished_failure` are emitted for **both** Copilot
+   products — the code-review bot this step retriggers via
+   `gh pr edit --add-reviewer @copilot`, and the separate coding agent
+   invoked by a bare `@copilot` comment mention elsewhere on the same PR
+   (`SKILL.md` Step 8, "Do not retrigger Copilot with a plain `@copilot`
+   PR comment"). Event *type* alone cannot tell these apart — matching any
+   `copilot_work_started` event on the PR can false-corroborate an
+   unrelated coding-agent invocation, or miss a genuinely stalled
+   code-review request that has no coding-agent event at all. Only trust
+   the `copilot_work_started` event that is the nearest one **after** this
+   step's own `gh pr edit --add-reviewer @copilot` call by timestamp — not
+   any such event found anywhere in the timeline. The check-run (1, above)
+   remains the primary signal; this timeline event corroborates it only
+   when correctly correlated this way.
 
-Both signals together (started, no terminal event, past the threshold) is
-**stalled** — distinct from **never invoked**, which shows no check-run
-for that reviewer at all and no `copilot_work_started` event since the
-retrigger. Neither signal, alone or combined, identifies *why* the
-session stalled — credit exhaustion is the observed cause in the verified
-incident above, but a platform outage or an unrelated internal error would
+Both signals together (started, no terminal event, past the threshold)
+indicate a **stalled** session — distinct from **never invoked**, which
+shows no check-run for that reviewer at all and no correlated
+`copilot_work_started` event since the retrigger. Neither signal, alone or
+combined, identifies *why* the session stalled — credit exhaustion is the
+observed cause in the verified incident above, but a platform outage or an
+unrelated internal error would
 look identical from the API side. Surface it to the human as "stalled,
 cause unknown, credit exhaustion is one known cause," never as a confirmed
 diagnosis: this is a heuristic, not a diagnostic. Symmetrically, do not

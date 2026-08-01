@@ -410,12 +410,15 @@ chance to weigh in. Do not attempt to infer configuration state at all:
      — is it configured for this repo (worth waiting longer), or should I
      treat your own confirmation as the review signal for it?"
    - **Stall detected:** "`<reviewer>`'s session on `<sha>` started at
-     `<started_at>` and has not reported a terminal event in over 15
-     minutes (check run `<name>` still `in_progress`) — this matches a
-     known stalled-session pattern (e.g. the reviewer's own automation
-     running out of included usage/credits), not simple lag. Wait longer,
-     treat your own confirmation as the review signal, or handle it
-     another way (e.g. top up the reviewer's usage and retrigger, or
+     `<started_at>` and has not reported a `copilot_work_finished`/
+     `copilot_work_finished_failure` (or equivalent terminal) event in
+     over 15 minutes (check run `<name>` still `in_progress`) — this
+     matches this project's stalled-session heuristic (started, no
+     terminal event, past the wait threshold). One known cause is the
+     reviewer's own automation running out of included usage/credits,
+     though the API can't confirm the cause — it could also be lag. Wait
+     longer, treat your own confirmation as the review signal, or handle
+     it another way (e.g. top up the reviewer's usage and retrigger, or
      authorize a self-review fallback if this repo has one)?"
 
    Only an explicit answer resolves this per missing reviewer, not an

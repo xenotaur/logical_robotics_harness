@@ -172,10 +172,31 @@ than silently continuing to iterate — per this project's own
 returns" practice — in case a 6th round should be deferred to
 `project/design/backlog.md` instead of fixed inline.
 
+**Human answered: keep fixing inline.** Retriggered batch 6.
+
+**REVIEW-LANDED retrigger, batch 6 (Step 8):** Pushed `24a54d5`; CI
+settled green (round-cap `completed_count` 5→6 of ceiling 10). Codex
+came back clean. Copilot came back clean (plus a suppressed, valid
+comment on `project/design/backlog.md:31`: "already `isResolved`-filtered"
+overstated it — the authoritative thread list is filtered client-side,
+not by the `lrh github threads` command itself; corrected). Codex found
+a sixth genuine issue (thread `PRRT_kwDOR7l1D86Vl4MF`, P2, still on the
+same manual-carry mechanism): the batch-5 fix says to run
+review-response's full protocol including its Step 4 confirm gate, but
+doesn't address that `/lrh-review-response` Step 3's own idempotence
+check would find the round-1 `in_progress` record with the same slug and
+hard-stop pending explicit rerun authorization the manual-carry text
+never grants — so a real same-land-run manual-carry invocation would
+stall on an unaddressed gate. Classified as valid and in-scope (same
+mechanism, real correctness gap, not noise): added a paragraph stating
+this counts as the explicit rerun `/lrh-review-response` Step 3 requires
+(covered by this run's own Step 2 chain authorization) and to carry
+`rerun_of` forward per Step 3's matched-record precedence.
+
 # Validation
 
 lrh github threads --mode raw --state all — verified before/after each
-resolveReviewThread call across all 5 batches
+resolveReviewThread call across all 6 batches
 gh pr checks --required — "no required checks reported" at every check;
 confirmed via `gh api repos/.../branches/main/protection` (404 Branch not
 protected) this is a real repo-config fact; fell back to unfiltered
@@ -186,13 +207,9 @@ is_outdated`, verifying Codex's first P2 finding before triaging it
 
 # Follow-up
 
-- Retrigger both reviewers on the batch-6 fix (manual-carry protocol
-  fix + Step 5 clarity wording) once pushed, resolve
-  `PRRT_kwDOR7l1D86VlzDt` after verifying the diff satisfies it, and
-  re-run REVIEW-LANDED once more before the final verdict.
-- Ask the human whether to keep iterating on the outdated-thread
-  manual-carry mechanism if a 6th genuine finding appears, or defer
-  further refinement of that sub-mechanism to
-  `project/design/backlog.md`.
+- Retrigger both reviewers on the batch-7 fix (same-run-rerun
+  authorization paragraph + backlog wording correction) once pushed,
+  resolve `PRRT_kwDOR7l1D86Vl4MF` after verifying the diff satisfies it,
+  and re-run REVIEW-LANDED once more before the final verdict.
 - No primary implementation record exists for this PR (backfill path);
   `/lrh-land` Step 7 will author the backfill record.

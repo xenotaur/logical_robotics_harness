@@ -192,6 +192,19 @@ outdated-but-unresolved threads so Step 4 can handle this mechanically is
 tracked as a backlog item rather than solved here — see
 `project/design/backlog.md`.
 
+**This is a same-land-run rerun of review-response, which its own Step 3
+idempotence check would otherwise stop on.** An earlier round in this
+same `/lrh-land` run already created an `in_progress` record with the
+same slug (Step 4's normal loop, or an earlier manual-carry pass), and
+`/lrh-review-response/SKILL.md` Step 3 treats a matched `in_progress`
+record as a hard stop unless the user explicitly requests a rerun. Do not
+re-elicit that from the user here — Step 2's chain authorization already
+covers the whole `review-response ↔ confirm-fixes` loop for this run, so
+treat this invocation as the explicit rerun that check requires, and set
+`rerun_of` to the earlier round's `execution_id` per Step 3's own
+matched-record precedence, the same as `/lrh-land`'s own Step 1
+found/backfill classification already does at the top level.
+
 ### Step 5 — Confirm-fixes
 
 Execute the confirm-fixes workflow inline (Phase 1: read

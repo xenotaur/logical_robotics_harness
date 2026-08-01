@@ -25,10 +25,11 @@ protocol by hand instead of relying on Step 4's automated fetch.
 **Idea:** Give `lrh request review_response` a way to include one or more
 specific outdated-but-unresolved threads explicitly — e.g. a
 `--include-thread <thread-id>` flag, or a mode that accepts the
-authoritative `lrh github threads --state all` output (already
-`isResolved`-filtered) as input instead of re-deriving its own narrower
-list — so `/lrh-land` Step 4 can handle this case mechanically instead of
-requiring a documented manual workaround.
+authoritative thread list — `lrh github threads --state all`, filtered
+client-side to `isResolved == false` per `/lrh-confirm-fixes/SKILL.md`
+Step 2 (the command itself does not filter) — as input instead of
+re-deriving its own narrower list — so `/lrh-land` Step 4 can handle this
+case mechanically instead of requiring a documented manual workaround.
 
 **Status:** Deferred. `/lrh-land` Step 4's `SKILL.md` text now documents
 the manual workaround and cites this entry rather than claiming automatic

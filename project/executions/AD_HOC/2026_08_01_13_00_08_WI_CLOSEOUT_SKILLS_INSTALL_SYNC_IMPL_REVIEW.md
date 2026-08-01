@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_01_12_42_29_WI_CLOSEOUT_SKILLS_INSTALL_SYNC_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/456
-commit: 5d3d14b
+commit: 2072b8e
 created_at: 2026-08-01T13:00:08-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/456
@@ -283,6 +283,28 @@ scrutiny is proportionate to the stakes. Continuing the retrigger loop
 rather than switching strategy, since each round is still closing real
 gaps, not just consistency slips.
 
+**Round 11** — retriggered against `62737c7`. Copilot fully clean. 1 new
+Codex finding, confirmed valid: "Reject ignored files before refreshing
+skills" (P1) — `git status --porcelain` doesn't report gitignored
+entries by default, but `_copy_resource_tree` enumerates every real
+filesystem entry under a skill directory regardless of `.gitignore`, so
+a stray `.DS_Store` or similar sitting inside a confirmed skill directory
+would be silently copied. Confirmed live: placed a `.DS_Store` inside
+`src/lrh/skills/lrh-closeout/` — invisible to plain `git status
+--porcelain`, reported as `!!` with `--ignored` (which also surfaced a
+genuinely present `src/lrh/skills/__pycache__/` in this session's own
+checkout). Added `--ignored` to the working-tree cleanliness check.
+Pushed as commit `2072b8e`.
+
+11 rounds in, this finding is narrower than the last several (requires a
+stray file specifically inside a skill directory, a fairly contrived
+scenario) — a possible signal of the working-tree/checkout-verification
+vein running out of genuinely new gaps, though each round has still been
+valid rather than a false positive. Plan: one more retrigger; if it
+surfaces only a further narrow refinement of this same check (not a new
+independent category of gap), switch to a final self-review pass and
+close out review-response rather than continuing indefinitely.
+
 # Follow-up
 
-- Next: retrigger both reviewers against `5d3d14b`.
+- Next: retrigger both reviewers against `2072b8e`.

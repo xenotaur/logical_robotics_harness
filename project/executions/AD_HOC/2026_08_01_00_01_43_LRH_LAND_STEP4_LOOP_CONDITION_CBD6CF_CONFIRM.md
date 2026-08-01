@@ -77,23 +77,57 @@ as a backlog entry — `project/design/backlog.md` — rather than expanding
 this PR's scope to touch `formatters.py`/`request_service.py` plus new
 test coverage.
 
+Both `PRRT_kwDOR7l1D86VlcTi` and `PRRT_kwDOR7l1D86VlgLc` resolved after
+verifying `e343a15`'s successor commit satisfied both.
+
+**REVIEW-LANDED retrigger, batch 3 (Step 8):** Pushed `a4c2354`; CI
+settled green (all 5 checks SUCCESS). Retriggered both reviewers
+(round-cap `completed_count` 2→3 of ceiling 3 — batch 3 was the last
+authorized batch). Copilot came back clean a third time (plus a
+suppressed, valid comment: the Step 4 text's "see Step 5's Step 2 note"
+cross-reference is ambiguous since `/lrh-land`'s own Step 5 has no
+numbered substeps — fixed to point to `/lrh-confirm-fixes`'s Step 2
+explicitly). Codex found a third genuine issue (thread
+`PRRT_kwDOR7l1D86Vljli`, P2): the batch-2 fix told the operator to "fix
+it... and return to Step 5 to re-verify," but `/lrh-land`'s own Step 5
+text says "If the verdict is not green, stop and report" with no
+exception — so the documented recovery path could never actually run
+within a landing session; every not-green verdict, including this
+specific and expected one, would hard-stop the same as a real failure.
+Classified as valid and directly in-scope (a real internal contradiction
+in this PR's own two edited steps, not a tangential concern): added an
+explicit, narrowly-scoped exception to Step 5 — only a not-green verdict
+caused specifically by a Step-4-invisible outdated thread loops back
+through the manual-carry procedure; every other not-green reason (CI
+failing, review pending, or a thread Step 4's normal loop already had a
+chance at) is still a hard stop, unchanged.
+
+**Round-cap ceiling reached (completed_count = 3 = ceiling).** Per
+`references/round-cap-gate.md`'s check-then-attempt ordering, a 4th
+batch is blocked until the human answers the three-way gate (authorize a
+new ceiling / deny / pause). The batch-3 fix above (Step 5 exception +
+two reference corrections) is pushed as commit — pending — but not yet
+retriggered for review; presenting the gate to the user before any
+further automated retrigger, per this PR's own subject matter.
+
 # Validation
 
-lrh github threads --mode raw --state all — 2 threads found, both
-isResolved: false pre-resolution; both isResolved: true post-resolution
-gh pr checks --required — "no required checks reported"; confirmed via
-`gh api repos/.../branches/main/protection` (404 Branch not protected)
-that this is a real repo-config fact, not a `gh` false-negative; fell back
-to unfiltered `gh pr checks`: all 5 checks SUCCESS at commit `de65e5f`
+lrh github threads --mode raw --state all — verified before/after each
+resolveReviewThread call across all 3 batches
+gh pr checks --required — "no required checks reported" at every check;
+confirmed via `gh api repos/.../branches/main/protection` (404 Branch not
+protected) this is a real repo-config fact; fell back to unfiltered
+`gh pr checks` each time — all 5 checks SUCCESS at every settled commit
 grep -n "_matches_state" src/lrh/integrations/github/formatters.py —
 confirmed the "unresolved" branch requires `not is_resolved and not
-is_outdated`, verifying Codex's P2 finding before triaging it as valid
+is_outdated`, verifying Codex's first P2 finding before triaging it
 
 # Follow-up
 
-- After pushing the Step 4 rewrite that fixes the "loop back to Step 4"
-  claim, verify both `PRRT_kwDOR7l1D86VlcTi` and `PRRT_kwDOR7l1D86VlgLc`
-  against the diff and resolve, then re-run REVIEW-LANDED once more
-  before the final verdict (batch 3).
+- Present the round-cap three-way gate to the user before any further
+  automated `@codex review` / `--add-reviewer @copilot` retrigger.
+- If authorized, retrigger both reviewers on the latest pushed commit,
+  resolve `PRRT_kwDOR7l1D86Vljli` once the diff is verified to satisfy
+  it, and re-run REVIEW-LANDED once more before the final verdict.
 - No primary implementation record exists for this PR (backfill path);
   `/lrh-land` Step 7 will author the backfill record.

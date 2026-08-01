@@ -136,8 +136,8 @@ lrh request review_response <pr-url> 2>&1 | head -3
 If `lrh request review_response` output starts with `Nothing to resolve:`,
 there are no threads matching *this check's* definition of unresolved —
 which excludes outdated threads (a thread whose commented line moved can
-stay `isResolved: false` while `isOutdated: true`; see Step 5's Step 2 note
-on the narrower definition). It is not a full authoritative "zero
+stay `isResolved: false` while `isOutdated: true`; see `/lrh-confirm-fixes`'s
+Step 2 note on the narrower definition). It is not a full authoritative "zero
 unresolved threads anywhere" guarantee — Step 5's `isResolved`-only check
 is what provides that. Compare `lastPush` against the current time — if the
 last commit is only seconds old, bots have not had time to run; wait and
@@ -170,9 +170,11 @@ threads, an untriaged thread can exist that Step 4 never saw at all — not
 just one it triaged and is waiting on Step 5 to resolve. Step 5's
 authoritative `isResolved`-only check can surface it for the first time.
 If it does and the diff doesn't plainly satisfy it, that is expected —
-Step 5 classifies it (Unaddressed/Partial/Ambiguous/etc.) per its own
-Step 5. A not-green Step 5 verdict caused by a newly-surfaced outdated
-thread is not a sign Step 4 was skipped or malformed.
+`/lrh-confirm-fixes` classifies it (Unaddressed/Partial/Ambiguous/etc.)
+per its own Step 3 taxonomy. A not-green Step 5 verdict caused by a
+newly-surfaced outdated thread is not a sign Step 4 was skipped or
+malformed — see Step 5's exception below for how to proceed instead of
+treating it as a hard stop.
 
 **But do not re-invoke Step 4's automated `lrh request review_response`
 call expecting it to pick that thread up** — its unresolved filter
@@ -195,6 +197,22 @@ Report the merge-readiness verdict.
 
 If the verdict is **not green**, stop and report — do not proceed to the merge
 gate with a failing confirm-fixes pass.
+
+**Exception — a newly-surfaced outdated thread needing a real fix, not
+just resolution.** If, and only if, the not-green verdict is specifically
+because `/lrh-confirm-fixes` classified a thread that Step 4's note above
+flagged as invisible to it (a thread that was `isResolved: false` but
+`isOutdated: true`, so `lrh request review_response` never returned it)
+into a bucket other than Clear-satisfied (Unaddressed/Partial/Ambiguous/
+Problematic), this is not a hard stop. Follow Step 4's manual-carry
+procedure for that specific thread — fix it in the diff by hand, push,
+then return to the top of Step 5 and re-run confirm-fixes against the new
+`HEAD`. Every other not-green reason (CI failing, review still pending, or
+any thread Step 4's normal loop already had a chance to catch and either
+missed or only partially fixed) is still a hard stop-and-report — this
+exception exists only because Step 4's own tooling structurally cannot see
+this specific class of thread, not as a general license to keep iterating
+past a not-green verdict.
 
 **Re-run REVIEW-LANDED after confirm-fixes completes.** The inline
 confirm-fixes workflow creates and pushes a `_CONFIRM` execution record commit

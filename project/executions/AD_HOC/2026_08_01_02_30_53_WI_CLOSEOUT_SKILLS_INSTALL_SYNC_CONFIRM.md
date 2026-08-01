@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_07_31_21_38_13_WI_CLOSEOUT_SKILLS_INSTALL_SYNC
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/454
-commit: 73c3841
+commit: 66df048
 created_at: 2026-08-01T02:30:53-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/454

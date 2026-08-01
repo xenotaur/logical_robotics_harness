@@ -306,8 +306,37 @@ refuted in round 5 (4 comments, same false premise, not changed).
   `/lrh-closeout` doesn't wrongly auto-resolve the not-yet-implemented WI
   the moment this planning PR merges. Not changed.
 
+**Tenth round** — the third `/lrh-confirm-fixes` pass resolved both
+threads Clear-satisfied, pushed a third `_CONFIRM` record, and its Step 8
+retrigger (round-cap batch 3 of 3 — the ceiling for this PR) surfaced 2
+more P1 findings on the fresh commit. Both independently verified against
+this actual repository before being accepted:
+- "List the base tree's child skill directories" — **confirmed valid by
+  live verification**: round 9's own fix, `git ls-tree -d --name-only
+  <rev> -- src/lrh/skills` (pathspec form), was itself broken — run
+  directly against this repo, it emits exactly one line
+  (`src/lrh/skills`), not the 15 child skill directories. The colon form,
+  `git ls-tree -d --name-only <rev>:src/lrh/skills`, correctly returns
+  all 15 — verified by running both forms side by side. Fixed Required
+  Changes item 2 to specify the colon form explicitly and explain why the
+  pathspec form fails.
+- "Load routine refreshes from the merged source tree" — **confirmed
+  valid**: round 6 added the merged-checkout-loading requirement
+  (editable vs. frozen `pipx`/`pip` install) to item 5's bootstrap only;
+  item 2's *routine* `_skill_names()`/targeted-refresh calls, which run
+  on every later skill-touching PR (not just this WI's own bootstrap),
+  use the identical machinery and are subject to the identical bug.
+  Added the same requirement to item 2 as a standing precondition for the
+  step generally, not a bootstrap-only special case.
+- Given the round-cap ceiling (3/3) was reached on this retrigger and the
+  user's direction was to fix-and-self-review rather than authorize a
+  further ceiling, both fixes are applied here without a further bot
+  retrigger. Independent verification substitutes a fresh-context
+  self-review of the full changelist (see Follow-up).
+
 # Follow-up
 
-- Next: re-run `/lrh-confirm-fixes` against PR #454 once more to verify
-  these 3 fixes; if that pass is clean, treat it as the stopping point
-  for iterative review rounds on this planning-only PR.
+- A fresh-context self-review of the complete current diff is being run
+  now (per the user's direction) as the closing verification step,
+  substituting for a further bot retrigger since the round-cap ceiling
+  for this PR (3/3) has been reached.

@@ -27,6 +27,8 @@ forbidden_actions:
 acceptance:
   - "/lrh-closeout gets the PR's changed-file list from the REST PR Files endpoint specifically, fully paginated (not gh pr view --json files, not a post-merge git diff), derives candidate skill names by path shape, then partitions by _skill_names() membership at both base and current revisions into added/modified vs. removed/renamed vs. not-a-skill, in that order"
   - If the paginated file list reaches the REST endpoint's 3,000-file ceiling, the step reports an anomaly and skips install for that PR rather than assuming completeness
+  - The base-revision _skill_names() lookup uses the colon path form (<baseRefOid>:src/lrh/skills), not the pathspec form, which only returns the directory entry itself
+  - The whole step, not only item 5's bootstrap, loads _skill_names() and the targeted-refresh function from the merged checkout on every run, not just the first bootstrap invocation
   - The targeted-refresh function validates each name against the current package before any destructive filesystem operation and returns an explicit absent-name result rather than deleting an existing installed directory first
   - A skill in the added/modified set is refreshed even when its previously installed bytes differ from a stale prior package revision, not blocked by the coarse-grained USER_MODIFIED check
   - A skill not in that touched set, but with genuine local modifications, still reports user_modified and is left untouched
@@ -230,13 +232,26 @@ step must be careful to run against the checkout it just landed onto
      is the PR's `baseRefOid` as recorded by the PR API (the same API
      call as above, or `gh pr view --json baseRefOid`) — i.e. `main` as
      it stood before this PR's changes. To list `_skill_names()`-eligible
-     entries at that revision, use `git ls-tree -d --name-only
-     <baseRefOid> -- src/lrh/skills` (or a checkout of that SHA) — `git
-     show <rev>:<path>` requires `<path>` to name a single blob (file),
-     not a directory, so it is not the right form for listing a
-     directory's entries. Either way, this is a lookup against the
-     already-fetched base commit, not something to be inferred from
-     post-merge commit parentage.
+     entries at that revision, use the **colon path form**,
+     `git ls-tree -d --name-only <baseRefOid>:src/lrh/skills` (or a
+     checkout of that SHA) — this resets the tree root to
+     `src/lrh/skills` itself and lists *its* immediate children. The
+     space-separated pathspec form, `git ls-tree -d --name-only
+     <baseRefOid> -- src/lrh/skills`, does **not** do this: a pathspec
+     limits which entries of the *root* tree are shown, so a non-recursive
+     `ls-tree` given a nested-directory pathspec prints only that one
+     tree entry (`src/lrh/skills` itself), not its contents — verified
+     live against this repository's own tree (the pathspec form emits a
+     single line, `src/lrh/skills`; the colon form correctly emits all
+     15 child skill directory names). Getting this wrong silently empties
+     the base-revision membership set, which would misclassify every
+     genuinely removed or renamed skill as absent-from-both-revisions
+     (Non-Goal territory, not the removed/renamed anomaly it should be).
+     Also note: `git show <rev>:<path>` requires `<path>` to name a
+     single blob (file), not a directory, so it is not the right form for
+     this at all — use `ls-tree`, not `show`. Either way, this is a
+     lookup against the already-fetched base commit, not something to be
+     inferred from post-merge commit parentage.
      Present in current → **added/modified** (refresh via item 1);
      present at the base revision but absent from current →
      **removed/renamed** (the skill existed before, evidenced by the
@@ -271,6 +286,19 @@ step must be careful to run against the checkout it just landed onto
      whether any refreshed skill is still not up to date afterward
      (which would indicate a bug in the targeted refresh itself, since a
      name in the approved set should always succeed).
+   - **This whole step — not only item 5's one-time bootstrap — must load
+     `_skill_names()` (both revisions) and the targeted-refresh function
+     from the merged `main` checkout, subject to the identical
+     editable-vs-frozen-install caveat item 5 describes.** Item 5's
+     `PYTHONPATH`-or-detect-mismatch requirement was written for the
+     one-time bootstrap case, but every ordinary run of this step, on
+     every later skill-touching PR, calls the same
+     `_skill_names()`/`importlib.resources.files("lrh.skills")` machinery
+     and is subject to the exact same frozen-distribution problem for a
+     `pipx`/`pip`-installed (non-editable) `lrh` — not just the first,
+     bootstrap-only invocation. Apply the same requirement here as a
+     standing precondition for this step generally, not a special case
+     limited to item 5.
    Cover the candidate-derivation/partition logic in
    `tests/skills_installer_test.py` or an adjacent test module: a diff
    containing `src/lrh/skills/installer.py` yields no candidate for it; a
@@ -357,6 +385,14 @@ step must be careful to run against the checkout it just landed onto
   3,000-file ceiling, the step reports an explicit anomaly and skips the
   install step for that PR, rather than silently proceeding as if the
   list were known-complete.
+- The base-revision `_skill_names()` lookup uses the colon path form
+  (`git ls-tree -d --name-only <baseRefOid>:src/lrh/skills`), not the
+  pathspec form, which returns only the `src/lrh/skills` entry itself
+  and would silently empty the base-membership set.
+- This whole step (not only item 5's bootstrap) loads `_skill_names()`
+  and the targeted-refresh function from the merged checkout under the
+  same editable-vs-frozen-install requirement, on every run — not just
+  the first, bootstrap-only invocation.
 - The targeted-refresh function (item 1) validates each name against the
   current package *before* any destructive filesystem operation, and
   returns an explicit absent-name result rather than deleting an existing
@@ -496,6 +532,22 @@ step must be careful to run against the checkout it just landed onto
   detect and refuse a mismatched loaded package, or it will either fail
   outright or (worse) silently "succeed" while copying stale pre-fix
   package data.
+- **This is not unique to the bootstrap.** Every routine run of the new
+  step (item 2, on every later skill-touching PR) calls the same
+  `_skill_names()` and `importlib.resources.files("lrh.skills")`
+  machinery, and is subject to the identical frozen-vs-editable-install
+  problem — not only the one-time bootstrap invocation on this WI's own
+  implementation PR. An implementation that only applies the
+  merged-checkout-loading requirement to item 5 and not to item 2's
+  ordinary operation would leave every subsequent skill-touching PR
+  broken in a non-editable `lrh` environment, silently.
+- The base-revision `_skill_names()` lookup's exact `git` invocation
+  matters: a space-separated pathspec (`git ls-tree ... <rev> --
+  src/lrh/skills`) does not list a directory's children — only the
+  colon path form (`<rev>:src/lrh/skills`) resets the tree root and
+  lists them. Getting this wrong doesn't error; it silently returns an
+  empty or wrong membership set, which would misclassify every genuinely
+  removed or renamed skill.
 - The removed/renamed detection must check `_skill_names()` membership at
   *both* the old and current package revisions, not current alone —
   otherwise a directory that was always excluded from installable skills

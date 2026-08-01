@@ -82,9 +82,13 @@ of `PROP-OUTDATED-THREAD-RECOVERY` — the mechanical prerequisite Layer 2
   its Layer 1).
 - Backlog: Found — `project/design/backlog.md`, "`lrh request
   review_response` cannot surface a specific outdated-but-unresolved
-  thread." This work item closes that entry.
-- Recommendation: Close the backlog entry once this item and
-  `WI-LRH-LAND-OUTDATED-THREAD-RECOVERY` are filed.
+  thread." This work item, together with
+  `WI-LRH-LAND-OUTDATED-THREAD-RECOVERY`, is what that entry is waiting
+  on before it can close.
+- Recommendation: The backlog entry is already linked to this item (done
+  when both were filed); close it only once this item and
+  `WI-LRH-LAND-OUTDATED-THREAD-RECOVERY` are both implemented and
+  resolved — not merely filed.
 
 ## Scope
 

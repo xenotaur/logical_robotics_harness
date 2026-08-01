@@ -220,6 +220,30 @@ requires no working-tree state at all beyond having them fetched:
 ```bash
 git fetch origin main --quiet   # anomaly + skip this item on failure, per the fetch-failure handling above
 git ls-tree -d --name-only origin/main:src/lrh/skills | grep -v '^_'
+```
+
+**Before reading the base revision, confirm its commit object is actually
+present locally — having the `<baseRefOid>` string from PR metadata does
+not guarantee this.** In a shallow clone (a common CI/sandbox setup),
+`git fetch origin main` only fetches `main`'s shallow tip, not
+necessarily enough history to reach an arbitrary older or
+differently-branched base commit; `git ls-tree <baseRefOid>:...` then
+fails with a bad-object error before the base-revision list can even be
+produced:
+
+```bash
+git cat-file -e "<baseRefOid>" 2>/dev/null || git fetch origin "<baseRefOid>" --quiet
+```
+
+If neither the object is already present nor fetchable this way (some
+hosts restrict fetching arbitrary SHAs), fall back to
+`git fetch --unshallow` (or `--deepen=<N>` for a bounded expansion) before
+retrying. If the object still can't be made available, treat this the
+same as any other fetch failure — report an explicit anomaly and skip
+*this* item, rather than letting `git ls-tree` fail uncaught partway
+through the assessment. Only once the object is confirmed present:
+
+```bash
 git ls-tree -d --name-only <baseRefOid>:src/lrh/skills | grep -v '^_'
 ```
 
@@ -461,36 +485,40 @@ git pull
 # tmp-<slug>:main, delete tmp-<slug>)
 ```
 
-**Verify ancestry, not just a commit-SHA match, after this.** What
-actually matters for `install_named_skills` to read correct bytes is
-that the invoking checkout's `src/lrh/skills` *contains* everything
-`origin/main` has — not that the current branch is literally named
-`main`. A bare `git rev-parse HEAD` == `git rev-parse origin/main`
-check is one way to prove that, but requiring the branch name to be
-exactly `main` is stricter than necessary and **breaks the
-main-worktree-lock workaround above on purpose**: that workaround
-runs from `tmp-<slug>`, built from `origin/main` with closeout's own
-commits stacked on top — never literally named `main` until it's pushed
-there. Use ancestry, which accepts both cases uniformly:
+**Verify the `src/lrh/skills` tree content itself matches `origin/main`
+exactly — ancestry alone is not enough.** An earlier version of this
+check used `git merge-base --is-ancestor origin/main HEAD`, reasoning
+that this accepts both plain `main` and the `tmp-<slug>` workaround. But
+`--is-ancestor` accepts *every* descendant, including one with an
+additional, never-merged commit on top that itself further edits a
+touched skill — `install_named_skills` would then read and install those
+unmerged bytes while reporting `refreshed`, silently installing content
+that was never part of the actual PR merge. Requiring the branch name to
+be exactly `main` (an even earlier version) avoids that but incorrectly
+rejects the legitimate `tmp-<slug>` workaround, which is never literally
+named `main` until its final push. Compare tree content directly instead
+— precise in both directions:
 
 ```bash
-git merge-base --is-ancestor origin/main HEAD && echo "origin/main is present in HEAD's history"
+git rev-parse HEAD:src/lrh/skills
+git rev-parse origin/main:src/lrh/skills
 ```
 
-This passes whether `HEAD` *is* `origin/main` (plain case), *is a
-descendant of* it (the `tmp-<slug>` workaround, or `main` with the
-Step 5 closeout commits from earlier sub-steps already applied), or
-happens to equal it on an unrelated branch (still byte-correct for this
-specific read, even though that scenario may warrant scrutiny for
-*other* Step 5 actions that do `git commit` — out of scope for this
-skill-refresh sub-step specifically). It fails, correctly, for a
-checkout that has diverged from or never incorporated `origin/main`.
+These must be **equal** (comparing the tree object hash for that one
+path, not the whole-repo `HEAD` commit hash) before proceeding. This
+passes for plain `main` (trivially equal) and for the `tmp-<slug>`
+workaround (closeout's own commits touch WI/WS/execution-record files,
+never `src/lrh/skills/` itself, so that subtree's hash is unchanged from
+`origin/main`) — and correctly fails the instant `src/lrh/skills/`
+content diverges from `origin/main` for *any* reason, including a
+descendant commit that further edited a skill after this checkout's
+`origin/main` fetch.
 
-If either the checkout-to-main step or this verification fails or can't
-be completed in this session (and the main-worktree-lock workaround
-isn't applicable or also fails): report an explicit anomaly and skip
-*this* item — do not fall back to whatever branch happened to be checked
-out, and do not invoke `install_named_skills` against unverified state.
+If either the checkout-to-main step or this verification fails, or the
+two tree hashes don't match, or the main-worktree-lock workaround isn't
+applicable or also fails: report an explicit anomaly and skip *this*
+item — do not fall back to whatever branch happened to be checked out,
+and do not invoke `install_named_skills` against unverified state.
 
 Only once verified on `main`, load `install_named_skills` from *this*
 checkout, never an ambient, possibly-unrelated installed `lrh`

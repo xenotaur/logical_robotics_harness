@@ -2,10 +2,10 @@
 execution_id: 2026_08_02_11_19_11_WS_SESSION_ARCHIVE_SYNC_REVIEW
 prompt_id: PROMPT(AD_HOC:WS_SESSION_ARCHIVE_SYNC_REVIEW)[2026-08-02T11:16:33-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/463
-commit: 
+commit: 33768286920ee896c725380de8fee36e6a6283d2
 created_at: 2026-08-02T11:19:11-04:00
 agent: claude_app
 instruction_source: ad_hoc — lrh-land review-response step (inline) for PR #463

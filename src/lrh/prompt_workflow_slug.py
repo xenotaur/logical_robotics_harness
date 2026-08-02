@@ -56,7 +56,12 @@ def _slug_upper_underscore(slug: str) -> str:
 
 
 def _trailing_segment_pattern(slug_upper: str) -> re.Pattern[str]:
-    return re.compile(rf"_{re.escape(slug_upper)}\.md$")
+    # Case-insensitive to match the shell-based idempotence check this
+    # module replaces (`grep -i "_<SLUG_UPPER_UNDERSCORE>\.md\$"`) -- a
+    # record filename that entered the tree with non-canonical casing
+    # (hand-written, or migrated from an older convention) must still be
+    # found, not silently stop matching under a case-sensitive regex.
+    return re.compile(rf"_{re.escape(slug_upper)}\.md$", re.IGNORECASE)
 
 
 def _execution_id_or_fallback(rel_path: str, execution_id: str) -> str:
@@ -415,12 +420,40 @@ def find_remote_matches(
     matches: list[SlugMatch] = []
     for pr in _list_open_prs(gh_runner):
         pr_ref = f"refs/remotes/pr/{pr.number}"
-        base_ref = f"refs/remotes/pr-base/{pr.number}"
         _run_git_or_raise(
             git_runner,
             ["fetch", "origin", f"+refs/pull/{pr.number}/head:{pr_ref}", "--quiet"],
             context=f"fetching PR #{pr.number}",
         )
+
+        ls_tree_output = _run_git_or_raise(
+            git_runner,
+            ["ls-tree", "-r", pr_ref, "--name-only", "--", bucket_prefix],
+            context=f"listing execution bucket for PR #{pr.number}",
+        )
+        candidate_paths = [
+            candidate
+            for candidate in (line.strip() for line in ls_tree_output.splitlines())
+            if candidate
+            and pattern.search(candidate)
+            and candidate not in local_path_set
+        ]
+        if not candidate_paths:
+            # Nothing in this PR's own tree could possibly match this
+            # slug, so there is no need to resolve its base ref or compute
+            # a merge-base at all. This matters beyond efficiency: a PR
+            # whose base branch has since been deleted or is otherwise
+            # unfetchable (a real, if uncommon, occurrence for a long-open
+            # PR) would otherwise make *every* --slug check fail loudly
+            # for *every* PR and *every* slug, since the base-ref
+            # fetch/merge-base calls below always ran unconditionally --
+            # turning one broken, unrelated PR into a repo-wide single
+            # point of failure. Skipping straight past a PR with zero
+            # candidate matches keeps fail-loud behavior exactly where it
+            # is actually needed: a PR that might hide a real match.
+            continue
+
+        base_ref = f"refs/remotes/pr-base/{pr.number}"
         _run_git_or_raise(
             git_runner,
             [
@@ -437,18 +470,7 @@ def find_remote_matches(
             context=f"computing merge-base for PR #{pr.number}",
         ).strip()
 
-        ls_tree_output = _run_git_or_raise(
-            git_runner,
-            ["ls-tree", "-r", pr_ref, "--name-only", "--", bucket_prefix],
-            context=f"listing execution bucket for PR #{pr.number}",
-        )
-        for rel_path in ls_tree_output.splitlines():
-            rel_path = rel_path.strip()
-            if not rel_path or not pattern.search(rel_path):
-                continue
-            if rel_path in local_path_set:
-                continue
-
+        for rel_path in candidate_paths:
             # Structural tree-membership check, not stderr-text matching:
             # `git ls-tree` either succeeds (0) and lists the path if
             # present at that tree-ish, or fails (nonzero) only if

@@ -205,6 +205,8 @@ prior execution record found for this slug."). If a match was printed —
 regardless of its status or the command's exit code — **warn** the user
 and proceed. A `3` exit (the check itself failed, a `git` error) is still
 a real failure and should be reported, not treated as "no prior record."
+A `2` exit (malformed input — argparse rejected the derived `<slug>`) is
+likewise a usage error, not a slug-check result; report it.
 
 Then mint:
 

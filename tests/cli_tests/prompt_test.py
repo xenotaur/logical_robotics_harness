@@ -489,6 +489,140 @@ class PromptCliTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 1, msg=completed.stderr)
             self.assertIn("No execution record found", completed.stderr)
 
+    def test_lrh_prompt_check_execution_slug_requires_exactly_one_mode(self) -> None:
+        # Neither --prompt-id nor --slug given.
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "lrh.cli.main",
+                "prompt",
+                "check-execution",
+                "--project-root",
+                ".",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+            cwd=self._repo_root(),
+        )
+        self.assertEqual(completed.returncode, 2, msg=completed.stderr)
+        self.assertIn("requires exactly one of --prompt-id or --slug", completed.stderr)
+
+    def test_lrh_prompt_check_execution_slug_and_prompt_id_are_mutually_exclusive(
+        self,
+    ) -> None:
+        completed = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "lrh.cli.main",
+                "prompt",
+                "check-execution",
+                "--prompt-id",
+                "PROMPT(AD_HOC:X)[2026-05-01T17:40:00-04:00]",
+                "--slug",
+                "some-slug",
+                "--project-root",
+                ".",
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+            cwd=self._repo_root(),
+        )
+        self.assertEqual(completed.returncode, 2, msg=completed.stderr)
+        self.assertIn("requires exactly one of --prompt-id or --slug", completed.stderr)
+
+    def test_lrh_prompt_check_execution_slug_malformed_returns_2(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "check-execution",
+                    "--slug",
+                    "!!!",
+                    "--no-remote",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+        self.assertEqual(completed.returncode, 2, msg=completed.stderr)
+        self.assertIn("alphanumeric", completed.stderr)
+
+    def test_lrh_prompt_check_execution_slug_no_match_returns_0(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "check-execution",
+                    "--slug",
+                    "no-such-slug",
+                    "--no-remote",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("No prior execution record found for this slug", completed.stdout)
+
+    def test_lrh_prompt_check_execution_slug_blocking_match_returns_1(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            record = (
+                pathlib.Path(temp_dir)
+                / "project/executions/AD_HOC/2026_05_01_00_00_00_MY_CLI_SLUG.md"
+            )
+            record.parent.mkdir(parents=True, exist_ok=True)
+            record.write_text(
+                "---\n"
+                "execution_id: 2026_05_01_00_00_00_MY_CLI_SLUG\n"
+                "status: landed\n"
+                "created_at: 2026-05-01T00:00:00+00:00\n"
+                'pr: ""\n'
+                "---\nbody\n",
+                encoding="utf-8",
+            )
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "check-execution",
+                    "--slug",
+                    "my-cli-slug",
+                    "--no-remote",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+        self.assertEqual(completed.returncode, 1, msg=completed.stderr)
+        self.assertIn("status=landed", completed.stdout)
+        self.assertIn("BLOCKING", completed.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

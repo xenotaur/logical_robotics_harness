@@ -149,6 +149,9 @@ to pass as `rerun_of` in Step 7. `0` with a match printed means only
 `execution_id` for `rerun_of` in Step 7. `0` with no match printed means
 no prior record. `3` means the check itself failed (a `git` error) —
 **stop and report** the error; this is not the same as "no prior record."
+`2` means malformed input (argparse rejected the derived `<slug>`, or
+both/neither of `--slug`/`--prompt-id` were given) — a usage error, not a
+slug-check result; **stop and report**.
 
 Then mint and run the secondary idempotence check:
 

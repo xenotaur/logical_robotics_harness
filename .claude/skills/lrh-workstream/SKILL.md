@@ -178,6 +178,11 @@ Interpret the exit code:
   stderr): **stop and report** the error. This is not the same as "no
   prior record" — the command fails loudly rather than guessing, so
   treat it as a blocker, not a green light.
+- **`2` — malformed input** (argparse rejected `--slug`/`--work-item`, or
+  both/neither of `--slug`/`--prompt-id` were given): a usage error, not a
+  slug-check result. **Stop and report** — this indicates the derived
+  `<slug>`/work-item value itself is invalid, not a prior-execution
+  finding.
 
 Then mint the prompt ID and run the secondary check (see
 `references/execution-record.md` for full syntax):

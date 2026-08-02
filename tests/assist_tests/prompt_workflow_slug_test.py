@@ -327,6 +327,27 @@ class FindLocalMatchesTest(unittest.TestCase):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_MY_SLUG")
 
+    def test_matches_are_case_insensitive_like_the_shell_check_it_replaced(
+        self,
+    ) -> None:
+        # The shell-based idempotence check this module replaces used
+        # `grep -i`; a non-canonically-cased filename (hand-written, or
+        # migrated from an older convention) must still be found.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            self._write_record(
+                project_root,
+                "project/executions/AD_HOC/2026_01_01_00_00_00_my_slug.md",
+                execution_id="2026_01_01_00_00_00_my_slug",
+            )
+
+            matches = prompt_workflow_slug.find_local_matches(
+                project_root=project_root, slug="my-slug"
+            )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_my_slug")
+
 
 class _FakeGh:
     def __init__(self, payload: object) -> None:
@@ -400,6 +421,54 @@ class CrossPrDiscoveryGitSimulationTest(unittest.TestCase):
             )
 
         return runner
+
+    def test_unrelated_pr_with_broken_base_ref_does_not_abort_discovery(self) -> None:
+        # Regression test: a PR whose base branch has since been deleted
+        # (or is otherwise unfetchable) must not abort discovery for
+        # every other open PR. As long as that PR's own tree contains no
+        # file matching the slug being checked, its base ref never needs
+        # to be resolved at all -- so a genuinely matching PR elsewhere is
+        # still found, and the whole check doesn't fail loudly (exit 3)
+        # for a completely unrelated reason.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            origin_dir = root / "origin"
+            consumer_dir = root / "consumer"
+            origin_dir.mkdir()
+            consumer_dir.mkdir()
+            self._build_origin(origin_dir)
+
+            # PR#3: unrelated content, and a base ref that does not exist
+            # in origin at all -- fetching it would fail outright.
+            _run_git(origin_dir, "checkout", "-q", "main")
+            _run_git(origin_dir, "checkout", "-q", "-b", "pr3")
+            (origin_dir / "also-unrelated.txt").write_text(
+                "unrelated\n", encoding="utf-8"
+            )
+            _run_git(origin_dir, "add", "also-unrelated.txt")
+            _run_git(origin_dir, "commit", "-q", "-m", "pr3, unrelated, broken base")
+            _run_git(origin_dir, "update-ref", "refs/pull/3/head", "refs/heads/pr3")
+            _run_git(origin_dir, "checkout", "-q", "main")
+
+            self._build_consumer(consumer_dir, origin_dir)
+
+            gh_runner = _FakeGh(
+                [
+                    {"number": 1, "baseRefName": "main"},
+                    {"number": 3, "baseRefName": "this-branch-does-not-exist"},
+                ]
+            )
+
+            # Must not raise SlugCheckError despite PR#3's unfetchable
+            # base ref, and must still find PR#1's genuine match.
+            matches = prompt_workflow_slug.find_remote_matches(
+                slug="my-slug",
+                gh_runner=gh_runner,
+                git_runner=self._git_runner(consumer_dir),
+            )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].source, "PR#1")
 
     def test_stacked_pr_inheritance_is_excluded(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

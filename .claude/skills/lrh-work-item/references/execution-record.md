@@ -76,8 +76,11 @@ only `failed`/`reverted`/`superseded` — summarize and continue, keeping
 its `execution_id` for `--rerun-of` below. `0` with no match printed
 means no prior record. `3` means the check itself failed (a `gh`/`git`
 error) — stop and report the error; this is not the same as "no prior
-record." Only after that search comes up empty or clears, mint the ID and
-run the secondary check:
+record." `2` means malformed input (argparse rejected the derived
+`<slug>`/work-item value, or both/neither of `--slug`/`--prompt-id` were
+given) — a usage error, not a slug-check result; stop and report. Only
+after that search comes up empty or clears, mint the ID and run the
+secondary check:
 
 ```bash
 lrh prompt check-execution --prompt-id "<id>" --project-root .

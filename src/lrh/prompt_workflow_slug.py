@@ -83,6 +83,28 @@ def _execution_id_or_fallback(rel_path: str, execution_id: str) -> str:
     return pathlib.PurePosixPath(rel_path).stem
 
 
+def _raw_execution_id_or_blank(
+    frontmatter: dict[str, typing.Any],
+) -> str:
+    """The raw ``execution_id`` frontmatter value, or "" if not a string.
+
+    ``prompt_workflow_records.ExecutionRecord.execution_id`` (via
+    ``_frontmatter_string``) coerces a non-string YAML scalar (e.g.
+    ``execution_id: 123``) to ``"123"`` with ``str(value)`` -- by the
+    time that already-coerced value reaches
+    ``_execution_id_or_fallback``, its ``isinstance(..., str)`` check
+    can no longer tell it apart from a genuinely authored string ID, so
+    it would never trigger the filename-stem fallback for this case
+    (inconsistent with the remote path, whose
+    ``parse_front_matter_fields_from_text`` drops non-string fields
+    entirely and *does* fall back correctly). Reading the type out of
+    the raw, uncoerced frontmatter mapping instead closes that gap.
+    """
+
+    value = frontmatter.get("execution_id")
+    return value if isinstance(value, str) else ""
+
+
 @dataclasses.dataclass(frozen=True)
 class SlugMatch:
     """One execution record matched by trailing-segment slug search."""
@@ -300,7 +322,9 @@ def find_local_matches(
         matches.append(
             SlugMatch(
                 path=rel_path,
-                execution_id=_execution_id_or_fallback(rel_path, record.execution_id),
+                execution_id=_execution_id_or_fallback(
+                    rel_path, _raw_execution_id_or_blank(record.frontmatter)
+                ),
                 status=record.status,
                 pr=record.pr,
                 created_at=record.created_at,
@@ -347,11 +371,22 @@ def _list_open_prs(gh_runner: GhRunner) -> list[_OpenPr]:
         raise SlugCheckError("gh pr list returned an unexpected response shape")
     prs: list[_OpenPr] = []
     for entry in payload:
+        # This list is treated as authoritative for the blocking
+        # decision, so a malformed entry must fail loudly
+        # (SlugCheckError) rather than either being silently skipped
+        # (a false "no prior record" if that PR held a real match) or
+        # crashing with a raw KeyError/TypeError/ValueError if the gh
+        # payload shape ever changes.
         if not isinstance(entry, dict):
-            continue
-        prs.append(
-            _OpenPr(number=int(entry["number"]), base_ref=str(entry["baseRefName"]))
-        )
+            raise SlugCheckError(f"gh pr list returned a non-object entry: {entry!r}")
+        try:
+            number = int(entry["number"])
+            base_ref = str(entry["baseRefName"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise SlugCheckError(
+                f"gh pr list returned a malformed entry {entry!r}: {error}"
+            ) from error
+        prs.append(_OpenPr(number=number, base_ref=base_ref))
     return prs
 
 
@@ -386,7 +421,18 @@ def _make_default_gh_runner(project_root: str | pathlib.Path) -> GhRunner:
 
 
 def _run_git_or_raise(git_runner: GitRunner, args: list[str], *, context: str) -> str:
-    result = git_runner(args)
+    try:
+        result = git_runner(args)
+    except FileNotFoundError as error:
+        # subprocess.run raises this directly (rather than returning a
+        # CompletedProcess with a nonzero code) when the executable
+        # itself can't be launched at all -- e.g. `git` missing from
+        # PATH. Left uncaught, this surfaces as a raw traceback instead
+        # of the documented SlugCheckError/exit-3 contract every other
+        # git failure in this module goes through. Mirrors
+        # gh_client.run_gh_json's existing handling of the same failure
+        # mode for `gh`.
+        raise SlugCheckError(f"git not found ({context}): {error}") from error
     if result.returncode != 0:
         raise SlugCheckError(
             f"git {' '.join(args)} failed ({context}): {result.stderr.strip()}"

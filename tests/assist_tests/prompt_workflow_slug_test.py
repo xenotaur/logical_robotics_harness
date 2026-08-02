@@ -327,6 +327,40 @@ class FindLocalMatchesTest(unittest.TestCase):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_MY_SLUG")
 
+    def test_non_string_execution_id_falls_back_to_filename_stem(self) -> None:
+        # Regression test: a bare-digit YAML scalar (e.g. `execution_id:
+        # 123`) parses as an int, not a string. The record-loading layer
+        # (_frontmatter_string) coerces it to "123" via str(value) before
+        # this module ever sees it, so a naive isinstance(..., str) check
+        # on the already-coerced value can't tell it apart from a
+        # genuinely authored string ID -- it must instead be checked
+        # against the *raw* frontmatter mapping, where the type is still
+        # int, to correctly trigger the filename-stem fallback (matching
+        # the remote path, which drops non-string fields outright).
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            path = (
+                project_root
+                / "project/executions/AD_HOC/2026_01_01_00_00_00_MY_SLUG.md"
+            )
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "---\n"
+                "execution_id: 123\n"
+                "status: failed\n"
+                "created_at: 2026-01-01T00:00:00+00:00\n"
+                'pr: ""\n'
+                "---\nbody\n",
+                encoding="utf-8",
+            )
+
+            matches = prompt_workflow_slug.find_local_matches(
+                project_root=project_root, slug="my-slug"
+            )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_MY_SLUG")
+
     def test_matches_are_case_insensitive_like_the_shell_check_it_replaced(
         self,
     ) -> None:
@@ -514,6 +548,24 @@ class CrossPrDiscoveryGitSimulationTest(unittest.TestCase):
         argv = gh_runner.calls[0]
         limit_index = argv.index("--limit") + 1
         self.assertGreaterEqual(int(argv[limit_index]), 10_000)
+
+    def test_malformed_gh_pr_list_entry_raises_not_silently_dropped(self) -> None:
+        # Regression test: this list is authoritative for the blocking
+        # decision, so a malformed entry (missing/wrong-typed field, or a
+        # non-object entry) must raise SlugCheckError, not be silently
+        # skipped (a false "no prior record" if that PR held a real
+        # match) or crash with a raw KeyError/TypeError/ValueError.
+        for bad_payload in (
+            [{"baseRefName": "main"}],  # missing "number"
+            [{"number": "not-an-int", "baseRefName": "main"}],
+            ["not-a-dict-entry"],
+        ):
+            with self.subTest(bad_payload=bad_payload):
+                gh_runner = _FakeGh(bad_payload)
+                with self.assertRaises(prompt_workflow_slug.SlugCheckError):
+                    prompt_workflow_slug.find_remote_matches(
+                        slug="my-slug", gh_runner=gh_runner
+                    )
 
     def test_default_git_runner_binds_to_project_root_not_process_cwd(self) -> None:
         # Regression test: the default git/gh runners must run in
@@ -717,6 +769,26 @@ class CrossPrDiscoveryGitSimulationTest(unittest.TestCase):
                     gh_runner=gh_runner,
                     git_runner=self._git_runner(consumer_dir),
                 )
+
+    def test_missing_git_executable_raises_slug_check_error_not_traceback(
+        self,
+    ) -> None:
+        # Regression test: subprocess.run raises FileNotFoundError
+        # directly (not a CompletedProcess with a nonzero code) when the
+        # executable itself can't be launched -- e.g. `git` missing from
+        # PATH. This must surface as SlugCheckError/exit 3 like every
+        # other git failure in this module, not an unhandled traceback.
+        gh_runner = _FakeGh([{"number": 1, "baseRefName": "main"}])
+
+        def git_runner_without_git(args: list[str]):
+            raise FileNotFoundError("[Errno 2] No such file or directory: 'git'")
+
+        with self.assertRaises(prompt_workflow_slug.SlugCheckError):
+            prompt_workflow_slug.find_remote_matches(
+                slug="my-slug",
+                gh_runner=gh_runner,
+                git_runner=git_runner_without_git,
+            )
 
 
 class CheckSlugIntegrationTest(unittest.TestCase):

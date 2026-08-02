@@ -560,6 +560,35 @@ class PromptCliTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 2, msg=completed.stderr)
         self.assertIn("alphanumeric", completed.stderr)
 
+    def test_lrh_prompt_check_execution_empty_slug_hits_slug_validator(self) -> None:
+        # Regression test: `--slug ""` is "provided but invalid," not
+        # "not provided" -- presence must be checked via `is None`, not
+        # truthiness, so this falls through to normalize_slug's own
+        # error rather than the generic mutual-exclusivity message.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "check-execution",
+                    "--slug",
+                    "",
+                    "--no-remote",
+                    "--project-root",
+                    temp_dir,
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=self._repo_root(),
+            )
+        self.assertEqual(completed.returncode, 2, msg=completed.stderr)
+        self.assertIn("alphanumeric", completed.stderr)
+        self.assertNotIn("requires exactly one", completed.stderr)
+
     def test_lrh_prompt_check_execution_slug_no_match_returns_0(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             completed = subprocess.run(

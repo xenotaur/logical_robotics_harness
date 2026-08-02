@@ -242,7 +242,12 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
         parser.error("prompt requires a subcommand (try: lrh prompt label)")
 
     if args.prompt_command == "check-execution":
-        if bool(args.prompt_id) == bool(args.slug):
+        # Presence, not truthiness: `--slug ""` (or `--prompt-id ""`) is
+        # "provided but invalid," and must fall through to the specific
+        # validator below (normalize_slug's own error) rather than being
+        # treated the same as "not provided at all" purely because an
+        # empty string is falsy.
+        if (args.prompt_id is None) == (args.slug is None):
             parser.error(
                 "check-execution requires exactly one of --prompt-id or --slug"
             )

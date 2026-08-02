@@ -390,11 +390,12 @@ to record that it is fulfilled through this proposal.
   design assumes only that the root is configurable.
 - **Fork representation (resolved).** Each execution record's
   `session_transcript` stays single-id for its own thread; a fork-spanning
-  stretch of work is stitched in the `project/sessions/` index via branch/PR,
-  not represented as a multi-valued `session_transcript` (Decision 4). A
-  record is written from inside one thread and cannot itself observe a fork
-  that happens in a later, separate thread — only the index, which sees both
-  host ids and their shared branch/PR, can express that relationship. This
+  stretch of work is stitched in the `project/sessions/` index via `branch` /
+  `writtenBranches[]` / PR, not represented as a multi-valued
+  `session_transcript` (Decision 4). A record is written from inside one
+  thread and cannot itself observe a fork that happens in a later, separate
+  thread — only the index, which sees both host ids and their shared
+  `branch` / `writtenBranches[]` / PR, can express that relationship. This
   also keeps records immutable at write time: a fork discovered later never
   requires editing an already-landed record. The `session_transcript` sequence
   syntax is reserved for its original purpose — multiple distinct sessions

@@ -281,6 +281,48 @@ class SlugCheckResult:
         return 1 if self.blocking else 0
 
 
+def _relative_output_root(
+    project_root: str | pathlib.Path, output_root: str | pathlib.Path
+) -> pathlib.PurePosixPath:
+    """``output_root`` as a POSIX path, relative to ``project_root``.
+
+    Also normalizes through the platform-native ``PurePath`` first: on
+    Windows, ``output_root`` may be backslash-separated
+    (``project\\executions``), which ``PurePosixPath`` does not treat as
+    a separator at all -- ``.as_posix()`` on the native form converts it
+    correctly before the result is treated as POSIX-style.
+
+    An absolute ``output_root`` works fine for a local filesystem scan
+    (``pathlib``'s ``/`` operator with an absolute right-hand operand
+    simply replaces the left side), but the same absolute string is not
+    usable as a git pathspec -- ``git ls-tree``'s trailing ``<path>...``
+    operands are always relative to the tree being listed, never a
+    filesystem path, so passing an absolute path there silently matches
+    nothing (a false "no prior record" for every open PR). Relativizing
+    here, once, keeps the local match's ``path`` field and the remote
+    search's git pathspec expressed the same way -- both project-root-
+    relative POSIX strings -- so local/remote de-duplication
+    (``local_paths`` in ``find_remote_matches``) still works correctly
+    even when a caller passes an absolute ``--output-root``.
+    """
+
+    output_path = pathlib.PurePath(output_root)
+    if output_path.is_absolute():
+        project_path = pathlib.Path(project_root).resolve()
+        output_abs = pathlib.Path(output_root).resolve()
+        try:
+            output_path = output_abs.relative_to(project_path)
+        except ValueError as error:
+            raise SlugCheckError(
+                f"--output-root {str(output_root)!r} is an absolute path "
+                f"outside --project-root {str(project_root)!r}; it cannot "
+                "be expressed as a git pathspec for remote discovery. Use "
+                "a relative --output-root, or pass --no-remote to skip "
+                "cross-PR search."
+            ) from error
+    return pathlib.PurePosixPath(output_path.as_posix())
+
+
 def find_local_matches(
     project_root: str | pathlib.Path,
     slug: str,
@@ -292,20 +334,21 @@ def find_local_matches(
     slug_upper = _slug_upper_underscore(slug)
     pattern = _trailing_segment_pattern(slug_upper)
     bucket = pathlib.Path(project_root) / output_root / work_item
-    # Normalize through the platform-native PurePath first: on Windows,
-    # `output_root` may be backslash-separated (`project\executions`),
-    # which `PurePosixPath` does not treat as a separator at all --
-    # `.as_posix()` on the native form converts it correctly before the
-    # result is treated as POSIX-style for git pathspec comparisons.
-    rel_prefix = (
-        pathlib.PurePosixPath(pathlib.PurePath(output_root).as_posix()) / work_item
-    )
+    rel_prefix = _relative_output_root(project_root, output_root) / work_item
 
     matches: list[SlugMatch] = []
     if not bucket.is_dir():
         return matches
-    for path in sorted(bucket.glob("*.md")):
-        if not pattern.search(path.name):
+    for path in sorted(bucket.iterdir()):
+        # Enumerate every entry, not `bucket.glob("*.md")`: glob matching
+        # is case-sensitive regardless of the underlying filesystem's own
+        # case-sensitivity (confirmed empirically), so a hand-written or
+        # migrated record ending in `.MD` would be silently filtered out
+        # here before the trailing-segment regex (already
+        # case-insensitive, matching the shell logic this module
+        # replaced) ever got a chance to match it. The regex alone -- it
+        # requires `.md$` case-insensitively -- is sufficient filtering.
+        if not path.is_file() or not pattern.search(path.name):
             continue
         rel_path = (rel_prefix / path.name).as_posix()
         record = prompt_workflow_records.parse_execution_record(path)
@@ -497,11 +540,11 @@ def find_remote_matches(
 
     slug_upper = _slug_upper_underscore(slug)
     pattern = _trailing_segment_pattern(slug_upper)
-    # See find_local_matches' rel_prefix for why the native PurePath form
-    # is normalized to POSIX first (Windows backslash-separated
-    # output_root values, and git pathspecs always expect forward slashes).
+    # See _relative_output_root's docstring: an absolute output_root must
+    # be relativized against project_root here, or the git pathspec below
+    # never matches anything (a false "no prior record" for every PR).
     bucket_prefix = (
-        pathlib.PurePosixPath(pathlib.PurePath(output_root).as_posix()) / work_item
+        _relative_output_root(project_root, output_root) / work_item
     ).as_posix()
     local_path_set = set(local_paths)
 

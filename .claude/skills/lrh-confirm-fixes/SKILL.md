@@ -200,13 +200,19 @@ safe, since live thread state may have legitimately changed between rounds
 (Decision 12). This is a deliberate deviation from the command's own
 default policy (which would treat a `landed`/`in_progress` match as
 blocking, exit code `1`): **ignore the exit code here** and instead check
-whether any match line was printed at all (i.e. the output is not "No
-prior execution record found for this slug."). If a match was printed —
-regardless of its status or the command's exit code — **warn** the user
-and proceed. A `3` exit (the check itself failed, a `git` error) is still
-a real failure and should be reported, not treated as "no prior record."
-A `2` exit (malformed input — argparse rejected the derived `<slug>`) is
-likewise a usage error, not a slug-check result; report it.
+the output for a match line — one containing `\tstatus=` — rather than
+comparing the whole output against a fixed string. The command always
+prints `slug:`/`work_item:` header lines first, even when nothing
+matches, so a check like "the output is not `No prior execution record
+found for this slug.`" is ambiguous if read as a full-output equality
+test (that string is never the *entire* output, header lines included,
+so a literal equality check would always be false regardless of whether
+a match exists). If any `\tstatus=` line is present — regardless of its
+status or the command's exit code — **warn** the user and proceed. A `3`
+exit (the check itself failed, a `git` error) is still a real failure and
+should be reported, not treated as "no prior record." A `2` exit
+(malformed input — argparse rejected the derived `<slug>`) is likewise a
+usage error, not a slug-check result; report it.
 
 Then mint:
 

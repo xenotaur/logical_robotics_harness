@@ -374,6 +374,47 @@ class FindLocalMatchesTest(unittest.TestCase):
         self.assertEqual(len(matches), 1)
         self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_my_slug")
 
+    def test_uppercase_md_extension_is_still_matched(self) -> None:
+        # Regression test: `bucket.glob("*.md")` is case-sensitive
+        # regardless of the underlying filesystem's own case-sensitivity
+        # (confirmed empirically: it does not match a `.MD`-suffixed file
+        # even on a case-insensitive-by-default filesystem) -- so a
+        # hand-written or migrated record ending in `.MD` was silently
+        # filtered out before the already-case-insensitive trailing-
+        # segment regex ever got a chance to match it.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            self._write_record(
+                project_root,
+                "project/executions/AD_HOC/2026_01_01_00_00_00_MY_SLUG.MD",
+                execution_id="2026_01_01_00_00_00_MY_SLUG",
+            )
+
+            matches = prompt_workflow_slug.find_local_matches(
+                project_root=project_root, slug="my-slug"
+            )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_MY_SLUG")
+
+    def test_absolute_output_root_outside_project_root_raises(self) -> None:
+        # Regression test: an absolute --output-root cannot be expressed
+        # as a git pathspec for remote discovery. When it also isn't a
+        # subpath of project_root at all, there is no sensible
+        # relativization -- fail loudly rather than silently searching
+        # the wrong location or crashing with a raw ValueError.
+        with (
+            tempfile.TemporaryDirectory() as temp_dir,
+            tempfile.TemporaryDirectory() as unrelated_dir,
+        ):
+            with self.assertRaises(prompt_workflow_slug.SlugCheckError):
+                prompt_workflow_slug.find_remote_matches(
+                    slug="my-slug",
+                    project_root=temp_dir,
+                    output_root=pathlib.Path(unrelated_dir) / "executions",
+                    gh_runner=_FakeGh([]),
+                )
+
 
 class _FakeGh:
     def __init__(self, payload: object) -> None:

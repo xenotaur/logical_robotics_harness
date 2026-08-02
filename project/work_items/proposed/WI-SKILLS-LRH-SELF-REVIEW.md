@@ -34,9 +34,8 @@ acceptance:
   - CLAUDE.md lists /lrh-self-review in the Skills section
   - /lrh-implement gains a Step 7.5 (diff-mode dispatch) before Step 8's gh pr create, in both skill trees
   - round-cap-gate.md documents self-review substitution as the three-way gate's fourth answer, and the post-ceiling PR-mode call path, in both skill trees
-  - CHAIN-NOTE convention (wherever canonically defined) gains self_review_rounds= and bot_rounds= fields
+  - PROP-LRH-LAND-EXECUTE Decision 8's CHAIN-NOTE convention gains self_review_rounds= and bot_rounds= fields, with bot_rounds computed as completed_count minus self_review_rounds (not read directly from completed_count)
   - Primary-record/rerun_of exclusion globs in /lrh-review-response, /lrh-confirm-fixes, and /lrh-land also exclude _SELFREVIEW.md, in both skill trees
-  - WI-SKILLS-LRH-SELF-REVIEW present in WS-SKILLS-SELF-REVIEW.md work_items list (once that workstream exists)
   - lrh validate reports 0 errors
 required_evidence:
   - manual_review
@@ -64,7 +63,7 @@ credits without altering the ceiling mechanism's own semantics.
 ## Problem / Context
 
 Sessions landing PRs in this repo have been substituting ad hoc, hand-dispatched
-subagent reviews for GitHub bot retriggers all session, successfully — but
+subagent reviews for GitHub bot retriggers throughout the session, successfully — but
 purely as free-text instructions interpreted per-invocation, with no packaged
 skill, no execution-record trail distinguishing self-review from bot review,
 and no formal path into `round-cap-gate.md`'s three-way gate. `PROP-LRH-SELF-REVIEW`
@@ -130,7 +129,17 @@ not-yet-filed future work item" — this item is that deferral, now filed.
    (currently defined in `PROP-LRH-LAND-EXECUTE` Decision 8) — this WI
    decides the concrete edit: a new amendment paragraph in that proposal,
    not a canonical-doc rewrite, since the proposal is still `status: proposed`
-   itself.
+   itself. **`bot_rounds` must be computed as `completed_count -
+   self_review_rounds`, not read directly from `completed_count`** —
+   `PROP-LRH-SELF-REVIEW` Decision 2 has every PR-mode round (bot- or
+   self-review-triggered) increment the same source-agnostic
+   `completed_count`, so reading `bot_rounds` straight from that counter
+   double-counts self-review rounds as if they were bot rounds too (e.g.
+   1 bot round + 1 self-review round would report `bot_rounds=2`, not 1).
+   `PROP-LRH-SELF-REVIEW`'s own Decision 3 text has this same imprecision
+   and needs the matching correction — file it as a small amendment to
+   that proposal alongside this WI's implementation, don't silently diverge
+   from the governing design without updating it.
 8. Update the `rerun_of`/primary-record exclusion globs in
    `src/lrh/skills/lrh-review-response/SKILL.md`,
    `src/lrh/skills/lrh-confirm-fixes/SKILL.md`, and
@@ -198,7 +207,9 @@ not-yet-filed future work item" — this item is that deferral, now filed.
 - `/lrh-implement` has a Step 7.5 (both skill trees).
 - `round-cap-gate.md` documents the fourth gate answer and PR-mode call
   path (both skill trees).
-- CHAIN-NOTE convention gains `self_review_rounds=`/`bot_rounds=`.
+- `PROP-LRH-LAND-EXECUTE` Decision 8's CHAIN-NOTE convention gains
+  `self_review_rounds=`/`bot_rounds=`, with `bot_rounds` computed as
+  `completed_count - self_review_rounds`.
 - `/lrh-review-response`, `/lrh-confirm-fixes`, `/lrh-land` exclusion globs
   also exclude `_SELFREVIEW.md` (both skill trees, all three).
 - `lrh validate` reports 0 errors.
@@ -221,8 +232,17 @@ not-yet-filed future work item" — this item is that deferral, now filed.
 No hard `depends_on` — `PROP-LRH-SELF-REVIEW` is `status: proposed` (not
 formally adopted) at filing time, matching the precedent of
 `WI-SKILLS-LRH-CONFIRM-FIXES`, filed and implemented against a still-proposed
-governing proposal. Pick up once `round-cap-gate.md` and the three sibling
-skills it touches have no other WI actively editing them concurrently.
+governing proposal (verified: `PROP-LRH-CONFIRM-FIXES`'s own Implementation
+Plan used the identical "Depends on: This proposal adopted" phrasing, and
+that WI also shipped with no hard `depends_on`). **This is a real, unresolved
+tension, not a settled question** — the governing proposal's own
+Implementation Plan literally says "Depends on: This proposal adopted,"
+`lrh work-items readiness` does not check related-design adoption status at
+all, and nothing here formally enforces the proposal's own stated
+precondition. Treat proposal adoption as a strong recommendation before
+starting implementation even though the tooling won't stop you either way.
+Pick up once `round-cap-gate.md` and the three sibling skills it touches
+have no other WI actively editing them concurrently.
 
 ## Related Workstream and Designs
 

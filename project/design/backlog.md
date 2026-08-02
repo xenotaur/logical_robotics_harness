@@ -815,35 +815,49 @@ session compute/agent-turns but not the metered bot-credit resource, and
 **Evidence for the idea**, all real, in-repo, cited data points (not
 speculative):
 
-- **PR #452** (this session, `round-cap-gate.md` implementation): 12
-  pushed retrigger batches, ceiling escalated 3→10 via human
-  reauthorization. After exhausting the authorized ceiling, the session
-  substituted 3 independent cold-subagent review passes for further bot
-  retriggers instead of asking for a further escalation — each pass
-  found a real bug bot review had missed across all 12 prior rounds,
-  including the single most severe bug in the PR (a harness-level
-  discovery that shell variables don't survive across separate tool
-  calls). Separately, several bot-found issues across those 12 rounds
-  were self-inflicted regressions from that same session's own
-  prior-round fixes — the exact class of issue a *pre-push* self-review
-  pass (not just a post-ceiling substitute) could plausibly catch for
-  free, before it ever reaches a bot and costs a retrigger.
+- **PR #452** (this session, `round-cap-gate.md` implementation): the
+  round-cap-gate.md state ledger
+  (`project/executions/round_state/xenotaur-logical_robotics_harness-pr452.json`
+  on the `lrh-round-state` branch) shows `completed_count: 10, ceiling:
+  10` — 10 completed bot-retrigger batches, ceiling escalated 3→10 via
+  human reauthorization. After exhausting the authorized ceiling, the
+  session substituted 3 independent cold-subagent review passes for
+  further bot retriggers instead of asking for a further escalation. Only
+  the *first* pass found a bug bot review had genuinely missed across its
+  prior rounds — a harness-level discovery that shell variables don't
+  survive across separate tool calls, which "no bot-review round had
+  caught in 8 prior rounds" per the landed CHAIN-NOTE
+  (`project/executions/AD_HOC/2026_08_01_01_07_05_COPILOT_STALLED_SESSION_DETECTION_CONFIRM.md`).
+  The second and third passes instead found regressions introduced by
+  that first pass's own fix (two opposite-direction mirror-image bugs in
+  the same retrigger-timestamp-filtering mechanism) — not bugs bots had
+  independently missed, but exactly the class of self-inflicted-regression
+  issue a *pre-push* self-review pass (not just a post-ceiling substitute)
+  could plausibly catch for free, before it ever reaches a bot and costs
+  a retrigger.
 - **PR #447** (`WI-REVIEW-LANDED-CANONICAL-CHECK` creation, 2026-07-31 to
   08-01): the earliest live trial of the substitution pattern. Round 4 of
   a 4-cycle review-response/confirm-fixes loop swapped a fresh
   independent subagent for external bot retrigger (human-directed) and
   caught 2 more real issues, including one that 3 prior rounds of Codex
-  review had missed. See
+  review had missed. Unlike the other mechanism-trial cases below, this
+  substitution actually *replaced* the PR's eventual bot round rather
+  than merely preceding one — verified: every recorded bot review on this
+  PR predates the round-4 fix commit by nearly a day, and none reviewed
+  it or anything after it before merge. See
   `project/executions/AD_HOC/2026_08_02_00_00_29_WI_REVIEW_LANDED_CANONICAL_CHECK_CLOSEOUT_NOTE.md`
   for the full CHAIN-NOTE.
 - **PR #453**: 9 retrigger batches in one landing session — the original
   motivating example for this idea in the other session that raised it.
+  Cited as evidence of the *problem* (excessive bot-retrigger volume),
+  not as a mechanism trial — no subagent-substitution pass is recorded in
+  this PR's execution records.
 - **PR #459** (`WI-SKILLS-LRH-EXECUTE`, this session, 2026-08-02): given
   an explicit instruction to prefer independent subagent review over bot
-  retrigger throughout, 3 sequential cold-subagent review rounds each
-  found a new, distinct, real issue (path portability, a missing `pr:`
-  field propagation, an unreachable journal path, an unfiltered status
-  grep, an unresolved placeholder, a missing `depends_on` lookup
+  retrigger throughout, 3 sequential cold-subagent review rounds
+  surfaced 6 distinct real issues in total (path portability, a missing
+  `pr:` field propagation, an unreachable journal path, an unfiltered
+  status grep, an unresolved placeholder, a missing `depends_on` lookup
   mechanism) rather than narrowing into refinement noise on the same
   issue — the pattern this project already treats as the signal that
   continued review is finding real bugs, not diminishing returns (see
@@ -869,18 +883,23 @@ this remains a backlog entry and not a proposal:
    different resource. Any proposal should be explicit that this is a
    resource *substitution*, not a cost elimination, and should say
    whether the substitution is actually cheaper in the cases that matter.
-4. **Who decides "clean enough to skip a bot round."** Self-review found
-   real bugs in every cited case above, but none of those cases actually
-   *skipped* the eventual bot round — bot review still ran on later
-   pushes in all four PRs. Nobody has tried actually skipping a bot round
+4. **Who decides "clean enough to skip a bot round."** Of the three
+   mechanism-trial cases (PR #447, #452, #459 — PR #453 is problem
+   evidence only, not a mechanism trial, see above), self-review found
+   real bugs in all three. Bot review still ran on a later push in two of
+   them (PR #452, #459); PR #447 is the one case where the substitution
+   actually replaced the PR's eventual bot round rather than preceding a
+   later one — but that happened as a byproduct of timing (no bot
+   reviewed the final commits before merge), not a deliberate decision to
+   skip a round. Nobody has deliberately decided to skip a bot round
    because self-review came back clean; whether that's safe, and what
    evidence would justify it, is undesigned.
-5. **Scope of "self-review."** All four data points above used the same
-   mechanism — a fresh `Agent` tool call with `subagent_type:
-   general-purpose`, given the PR URL and told not to trust prior
-   summaries. Whether that ad hoc pattern should become the designed
-   mechanism, or whether a tighter-scoped review agent/prompt would do
-   better, is unexplored.
+5. **Scope of "self-review."** All three mechanism-trial data points
+   above (PR #447, #452, #459) used the same mechanism — a fresh `Agent`
+   tool call with `subagent_type: general-purpose`, given the PR URL and
+   told not to trust prior summaries. Whether that ad hoc pattern should
+   become the designed mechanism, or whether a tighter-scoped review
+   agent/prompt would do better, is unexplored.
 
 **Status:** Not started. This entry consolidates known evidence ahead of
 a `/lrh-proposal` or `/lrh-work-item` pass; no design work has happened

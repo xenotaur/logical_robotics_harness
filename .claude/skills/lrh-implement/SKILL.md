@@ -208,6 +208,23 @@ If format or lint fails, repair and re-run before continuing. If tests fail,
 fix the underlying issue. **Do not create a PR with failing validation.**
 Record tool versions and test results for the execution record.
 
+### Step 7.5 — Proactive self-review
+
+Invoke `/lrh-self-review` in diff-mode (no `--pr` argument — no PR exists
+yet) on the current branch diff. This is the one proactive trigger point
+`PROP-LRH-SELF-REVIEW` Decision 1 defines: a single independent-subagent
+pass before the diff is ever pushed, since opening a PR in this repo
+auto-triggers bot review within about a minute with no explicit
+retrigger — there is no "PR open, bot hasn't looked yet" window, so
+independent pre-push review is only possible here, before Step 8's
+`gh pr create` runs.
+
+Apply any fixes the pass surfaces directly to the working tree. **Proceed
+to Step 8 regardless of what this pass found** — a clean result and a
+result with fixes applied both continue identically; this step never
+skips or replaces the PR's first real bot round (Decision 4). If fixes
+were applied, re-run Step 7's validation sequence before continuing.
+
 ### Step 8 — Commit and PR
 
 Stage and commit the implementation changes. Include the prompt ID in the
@@ -275,6 +292,7 @@ Before reporting completion, verify:
 - [ ] Idempotence check passed (no prior landed/in_progress record)
 - [ ] User confirmed the plan at Step 4 before any files were touched
 - [ ] Branch created from a fresh `git pull` of `main`
+- [ ] Step 7.5 (`/lrh-self-review` diff-mode) ran before Step 8's `gh pr create` — not skipped, not deferred to after the push
 - [ ] All validation commands passed before PR was opened
 - [ ] Execution record exists with `agent`, `instruction_source`,
       `session_transcript` fields populated

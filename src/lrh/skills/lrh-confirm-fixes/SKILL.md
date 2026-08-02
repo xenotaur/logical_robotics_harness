@@ -286,13 +286,14 @@ and the body: which threads were resolved (author, bucket), which were
 surfaced (bucket, rationale), and the Step 6 thread-resolution verdict.
 
 Find the primary execution record for `rerun_of`. Convert the branch slug
-(without the `-confirm` suffix) to upper-underscore form, and exclude both
-`_REVIEW.md` and `_CONFIRM.md` suffixed files (review-response and prior
-confirm-fixes records are not primary records):
+(without the `-confirm` suffix) to upper-underscore form, and exclude
+`_REVIEW.md`, `_CONFIRM.md`, and `_SELFREVIEW.md` suffixed files
+(review-response, prior confirm-fixes, and self-review records are not
+primary records):
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
+find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"
 ```
 
 If found, set `rerun_of: <original-execution-id>`. If not found, leave empty
@@ -349,6 +350,19 @@ that simply hasn't posted yet (first PR, delayed response, this exact
 scenario) would be misclassified as human-only, letting a human clean-pass
 statement produce Green without ever giving the configured reviewer a
 chance to weigh in. Do not attempt to infer configuration state at all:
+
+**If the round-cap check above blocked and the human's answer at the
+three-way gate was "substitute self-review for this round"** (see
+`references/round-cap-gate.md`'s "The three-way gate", fourth answer):
+dispatch `/lrh-self-review` in PR-mode instead of items 1–3 below — this
+path is synchronous (dispatch, get the result, done), so there is no
+retrigger timestamp to persist, no async wait, and no "no response yet"
+ambiguity. On completion, increment `completed_count` by 1 directly (same
+as a bot batch's promotion) and route any genuine finding through Step
+3's taxonomy the same as a bot-sourced one; a clean pass satisfies
+REVIEW-LANDED for this round. Otherwise (the gate answer was "authorize a
+new ceiling," or no gate fired because the ceiling hasn't been reached
+yet), proceed with the unconditional bot retrigger below:
 
 1. **Once the round-cap check above has cleared a new batch to start,
    always attempt its retrigger(s), unconditionally** — neither command
@@ -582,8 +596,8 @@ Before reporting completion, verify:
 - [ ] User confirmed the single batch at Step 4 before any thread was resolved
 - [ ] `resolveReviewThread` skipped already-resolved threads
 - [ ] Unaddressed threads offered `/lrh-review-response`, not auto-invoked
-- [ ] Execution record created with `rerun_of` excluding both `_REVIEW.md`
-      and `_CONFIRM.md`
+- [ ] Execution record created with `rerun_of` excluding `_REVIEW.md`,
+      `_CONFIRM.md`, and `_SELFREVIEW.md`
 - [ ] `lrh validate` reports 0 errors before the record was pushed
 - [ ] CI re-checked against the post-push `HEAD` SHA before the final verdict
 - [ ] REVIEW-LANDED re-checked against the `_CONFIRM` commit and required

@@ -342,12 +342,12 @@ work item, with side records linked via `rerun_of`.
 xenotaur/feat/wi-skills-lrh-confirm-fixes → wi-skills-lrh-confirm-fixes-confirm
 ```
 
-**`rerun_of` population:** search for the primary record, excluding *both*
-review-response and confirm-fixes side records:
+**`rerun_of` population:** search for the primary record, excluding
+review-response, confirm-fixes, and self-review side records:
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
+find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"
 ```
 
 If found, set `rerun_of: <execution_id-from-the-primary-record>`. If not

@@ -13,7 +13,7 @@ prose each run. Source: `PROP-LRH-LAND-EXECUTE` Decision 3.
 
 | Logic | Rule |
 |---|---|
-| **Primary record selection** | `grep pr: <url>` across `project/executions/`; exclude `*_REVIEW.md`, `*_CONFIRM.md`, `*_CLOSEOUT_NOTE.md` from results |
+| **Primary record selection** | `grep pr: <url>` across `project/executions/`; exclude `*_REVIEW.md`, `*_CONFIRM.md`, `*_CLOSEOUT_NOTE.md`, `*_SELFREVIEW.md` from results |
 | **Found-or-backfill** | Found → body is immutable; CHAIN-NOTE goes in a new `_CLOSEOUT_NOTE` record with `rerun_of:`. Not found → backfill record authored directly; CHAIN-NOTE in that record |
 | **CHAIN-NOTE placement** | Always in the record being *authored* this run; never appended to an already-merged record body |
 | **Main-worktree-lock** | When all worktrees have `main` checked out: `git fetch → checkout -b tmp-<slug> origin/main → apply changes → push tmp-<slug>:main → delete tmp-<slug>` |
@@ -50,6 +50,8 @@ Field definitions:
 | `gates` | Human gates encountered, e.g. `[merge]` or `[merge, confirm]` |
 | `friction` | Brief phrase describing the primary friction source, or `none` |
 | `note` | Free text; record design findings, backfill path, noteworthy deviations, or **round-cap ceilings authorized this run** (see below) |
+| `self_review_rounds` | Optional. Number of `/lrh-self-review` PR-mode passes substituted for a bot round in this run (see `round-cap-gate.md`'s "The three-way gate", fourth answer). Omit the field entirely when zero — do not write `self_review_rounds=0` to every CHAIN-NOTE. |
+| `bot_rounds` | Optional, present only when `self_review_rounds` is also present. `completed_count - self_review_rounds` — **never** read directly from `round-cap-gate.md`'s `completed_count`, which is source-agnostic and counts both bot and self-review rounds identically; reading it straight would double-count self-review rounds as bot rounds. |
 
 **Round-cap counter vs. `cycles`.** `/lrh-confirm-fixes` Step 8's round-cap
 gate (`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`)
@@ -77,6 +79,12 @@ Example with a round-cap crossing:
 cycles=1; stops=1; gates=[merge]; friction=none; note="round-cap: authorized ceiling 3->10 after 3 real findings"
 ```
 
+Example with a self-review substitution:
+
+```text
+cycles=1; stops=0; gates=[merge]; friction=none; self_review_rounds=1; bot_rounds=0; note="round-cap: substituted self-review for the only round this PR needed"
+```
+
 ---
 
 ## Found-or-Backfill Matrix
@@ -87,8 +95,18 @@ cycles=1; stops=1; gates=[merge]; friction=none; note="round-cap: authorized cei
 | No primary record | Author a new backfill `AD_HOC` record in `project/executions/AD_HOC/` | Directly in the `# Result` section of the backfill record being authored |
 
 A **primary record** is one whose filename does NOT end with `_REVIEW.md`,
-`_CONFIRM.md`, or `_CLOSEOUT_NOTE.md`, and whose `pr:` field matches the
-PR URL.
+`_CONFIRM.md`, `_CLOSEOUT_NOTE.md`, or `_SELFREVIEW.md`, and whose `pr:`
+field matches the PR URL.
+
+**Known limitation, not fixed by this exclusion list:** these are bare
+filename-suffix matches, not a check for the actual slug-suffix
+convention that produces them. A primary record whose own topic slug
+happens to end in "review," "confirm," or "selfreview" self-excludes from
+this search — verified live during this project's own `PROP-LRH-SELF-REVIEW`
+and `WI-SKILLS-LRH-SELF-REVIEW` landings
+(`feedback_lrh_land_step1_primary_record_substring_exclusion` in agent
+memory). Cross-check with a plain `find` before trusting an empty result
+when the target topic's own name plausibly ends in one of these words.
 
 A `_CLOSEOUT_NOTE` record must be placed in the same execution directory
 bucket as the primary record (e.g., `project/executions/WI-FOO/` if the

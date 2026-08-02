@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_02_16_18_56_WI_SKILLS_LRH_SELF_REVIEW_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/467
-commit: 
+commit: ebcd469951a722208842faaacb738a260aa966db
 created_at: 2026-08-02T16:44:05-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/467
@@ -43,11 +43,13 @@ Thread-resolution verdict (Step 6): **green** — 0 unresolved threads.
 # Validation
 
 - `lrh validate`: 0 errors, 0 warnings
-- CI on commit `dbbee2a`: `coverage`, `installed-wheel-smoke`, `lint`,
-  `Check workflow files`, `tests` — all pass
+- CI on commit `ebcd469` (this record's own commit, pushed after
+  drafting): `coverage`, `installed-wheel-smoke`, `lint`,
+  `Check workflow files`, `tests` — all pass (verified post-push; see
+  Follow-up)
 
 # Follow-up
 
-- Step 8 (readiness report) still needs to re-check CI and REVIEW-LANDED
-  against this record's own commit once it's pushed, before the final
-  merge verdict.
+- Step 8 (readiness report) re-checked CI and REVIEW-LANDED against
+  this record's own commit (`ebcd469`) after pushing, before presenting
+  the final merge verdict.

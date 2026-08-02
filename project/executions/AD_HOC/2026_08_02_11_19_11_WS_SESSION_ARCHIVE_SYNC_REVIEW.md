@@ -35,13 +35,48 @@ protocol under `/lrh-land`.
   Criteria list to state both scheduling paths as mandatory; only the
   `SessionEnd` hook remains optional.
 
+**Round 2 — self-review (per user directive: GitHub bot review is a scarce
+resource currently; retriggers use a fresh independent sub-agent instead).**
+No new organic bot review appeared after the round-1 push. Spawned a
+cold-context sub-agent to independently verify the round-1 fixes and audit the
+whole file against the governing proposal. It confirmed both round-1 fixes
+were substantively correct, but found the Decision 6 fix (comment 2) was
+**incomplete**: the YAML `exit_criteria:` frontmatter list still said "Stage 4
+required weekly scheduled sync + optional SessionEnd hook" — the round-1 edit
+touched only the prose body, not the machine-readable frontmatter, so the file
+self-contradicted. It also found the workstream wrongly claimed a single
+remaining open question, when the proposal has three (archive-root location
+open; fork representation resolved; index-regeneration-frequency open but
+explicitly non-load-bearing) — the third was never carried over. Both
+independently verified against the current file and the proposal before
+fixing:
+- Updated `exit_criteria:` frontmatter to match the prose fix (both scheduling
+  paths mandatory) and to add the closeout-sync criterion explicitly.
+- Corrected all four "the remaining open question (singular)" references
+  (Scope, body Exit Criteria, Open Questions section) to acknowledge the
+  index-regeneration-frequency question, marked non-load-bearing per the
+  proposal's own framing, so it does not gate this workstream's exit.
+- The sub-agent's other two findings (PR #463's description text is stale on
+  the same two points fixed here; the *governing proposal itself* still
+  describes PR #435 as open, though it closed unmerged 2026-07-29) are
+  advisory / out of scope for this record — the PR description will be updated
+  before merge, and the proposal's own staleness is a separate, already-merged
+  artifact not touched by this PR.
+
 # Validation
 
-- `scripts/version tools`, `scripts/format --check --diff`, `scripts/lint`:
-  clean.
-- `scripts/test`: 821 tests passed.
-- `lrh validate`: 0 errors, 0 warnings.
+- Round 1: `scripts/version tools`, `scripts/format --check --diff`,
+  `scripts/lint`: clean. `scripts/test`: 821 tests passed. `lrh validate`:
+  0 errors, 0 warnings.
+- Round 2 (post self-review fixes): `lrh validate`: 0 errors, 0 warnings.
 
 # Follow-up
 
-None beyond the standing workstream open question (archive-root location).
+- PR #463's description text should be refreshed before merge to match the
+  final file content (stale on the two round-1-fixed points).
+- Not actioned here: the governing proposal
+  (`project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md`)
+  still describes PR #435 / `WI-EXEC-SESSIONS-DISCOVERY` as an open PR to
+  reconcile post-adoption, though it closed unmerged on 2026-07-29. Surfaced
+  by the round-2 self-review as advisory; belongs to a separate follow-up on
+  the already-merged proposal, not this workstream PR.

@@ -17,8 +17,9 @@ related_design:
   - project/workstreams/proposed/WS-EXECUTION-FRAMEWORK.md
 work_items: []
 exit_criteria:
-  - All four PROP-LRH-SESSION-ARCHIVE-SYNC stages are delivered as resolved work items (Stage 1 both-identifier capture + minimal project/sessions/ index; Stage 2 lrh sessions sync + discover/link; Stage 3 index enrichment + report; Stage 4 required weekly scheduled sync + optional SessionEnd hook)
-  - The remaining open question (archive-root location) is resolved and recorded
+  - All four PROP-LRH-SESSION-ARCHIVE-SYNC stages are delivered as resolved work items (Stage 1 both-identifier capture + minimal project/sessions/ index with branch/PR stitching support; Stage 2 lrh sessions sync + discover/link; Stage 3 index enrichment + report; Stage 4 both required weekly scheduled sync and closeout-triggered sync, plus optional SessionEnd hook)
+  - The archive-root-location open question is resolved and recorded (the index-regeneration-frequency open question is non-load-bearing and may be resolved informally during Stage 3 implementation)
+  - /lrh-closeout invokes lrh sessions sync and a weekly scheduled sync is configured (Stage 4; both mandatory per Decision 6)
   - lrh sessions report shows no dangling session_transcript pointers and no unarchived repo-changing sessions for work produced after Stage 1 lands
   - lrh validate passes with 0 errors after each leaf lands
   - PROP-LRH-SESSION-ARCHIVE-SYNC implementation_status is advanced (implemented, with implemented_by referencing the resolved leaves) and its adoption decision is recorded
@@ -44,8 +45,9 @@ staged, independently reviewable leaves.
 
 - Deliver the four PROP-LRH-SESSION-ARCHIVE-SYNC stages as work items through the
   standard LRH execution lifecycle.
-- Resolve and record the proposal's remaining open question (archive-root
-  location).
+- Resolve and record the proposal's open archive-root-location question. (The
+  proposal's index-regeneration-frequency question is explicitly non-load-bearing
+  and does not gate this workstream's exit.)
 - Advance the proposal's `implementation_status` and record its adoption decision
   as the leaves land.
 
@@ -113,7 +115,7 @@ readability; none reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
 ## Exit Criteria
 
 - All four stages above are delivered as resolved work items.
-- The remaining open question (archive-root location) is resolved and recorded.
+- The archive-root-location open question is resolved and recorded.
 - `/lrh-closeout` invokes `lrh sessions sync` and a weekly scheduled sync is
   configured (Stage 4; both mandatory per Decision 6).
 - `lrh sessions report` shows no dangling `session_transcript` pointers and no
@@ -151,6 +153,11 @@ readability; none reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
   setup (in vs. outside a synced folder, given past sync-conflict issues) and
   with the eventual encrypted off-machine tier. Design-discussion item; the
   design assumes only that the root is configurable.
+- **Index-regeneration frequency (non-load-bearing).** Whether
+  `project/sessions/` is regenerated on every closeout or only when its
+  content would change, to minimize repository churn. The proposal leans
+  toward the latter but marks this explicitly non-load-bearing; it does not
+  gate this workstream's exit and may be settled informally during Stage 3.
 
 Fork representation was resolved by PR #451 (merged `8fff522`, 2026-08-02):
 `session_transcript` stays single-id per thread; fork-spanning work is stitched

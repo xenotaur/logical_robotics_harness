@@ -15,7 +15,8 @@ related_design:
   - project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md
   - project/design/proposals/proposed/lrh-execution-sessions/00_proposal.md
   - project/workstreams/proposed/WS-EXECUTION-FRAMEWORK.md
-work_items: []
+work_items:
+  - WI-SESSION-ARCHIVE-SYNC-CAPTURE
 exit_criteria:
   - All four PROP-LRH-SESSION-ARCHIVE-SYNC stages are delivered as resolved work items (Stage 1 both-identifier capture + minimal project/sessions/ index with branch/PR stitching support; Stage 2 lrh sessions sync + discover/link; Stage 3 index enrichment + report; Stage 4 both required weekly scheduled sync and closeout-triggered sync, plus optional SessionEnd hook)
   - The archive-root-location open question is resolved and recorded (the index-regeneration-frequency open question is non-load-bearing and may be resolved informally during Stage 3 implementation)
@@ -78,12 +79,14 @@ staged, independently reviewable leaves.
 
 ## Work Items
 
-No work-item files exist yet; the four leaves below will be filed via
-`/lrh-work-item` as the workstream advances. **Provisional** names are given for
-readability; none reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
+Stage 1 is filed as `WI-SESSION-ARCHIVE-SYNC-CAPTURE`; the remaining three
+leaves below are **provisional** names, to be filed via `/lrh-work-item` as
+the workstream advances. None reuses the retired `WI-EXEC-SESSIONS-DISCOVERY`
+id.
 
-- **Stage 1 — both-identifier capture + minimal index** (forward fix; standalone,
-  first). Extend `/lrh-implement` record creation and `/lrh-closeout` to capture
+- **Stage 1 — `WI-SESSION-ARCHIVE-SYNC-CAPTURE`: both-identifier capture +
+  minimal index** (forward fix; standalone, first). Extend `/lrh-implement`
+  record creation and `/lrh-closeout` to capture
   `CLAUDE_CODE_HOST_SESSION_ID` and `CLAUDE_CODE_SESSION_ID`, recording the host
   stem as the `session_transcript` pointer and persisting the child id in a
   minimal `project/sessions/` index. Per the resolved fork-representation

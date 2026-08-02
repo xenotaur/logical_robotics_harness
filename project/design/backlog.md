@@ -710,6 +710,52 @@ generic framing causes real confusion in practice.
 
 ---
 
+## `/lrh-implement` Step 9 never populates the execution record's `pr:` field
+
+**Noted:** 2026-08-02, during PR #459's automatic on-open review (Codex,
+P1), while implementing `/lrh-execute` (`WI-SKILLS-LRH-EXECUTE`) by
+inlining `/lrh-implement`'s own procedure to bootstrap it.
+
+**Idea:** `src/lrh/skills/lrh-implement/SKILL.md` Step 9 creates the
+execution record via `lrh prompt record-execution` and its own
+"immediately edit" instruction populates `agent`, `instruction_source`,
+and `session_transcript` — but never `pr:`, even though Step 8 (which
+runs first) already opened the PR, so the URL is available. `lrh prompt
+record-execution` already supports `--pr <url>` (confirmed: `lrh prompt
+record-execution --help` lists it) — this is a missing instruction, not a
+missing CLI capability.
+
+The consequence is structural, not cosmetic: `/lrh-land`'s Step 1
+primary-record selection searches `project/executions/` for a record
+whose `pr:` field matches the target PR URL. A record created by
+`/lrh-implement` Step 9 with `pr:` blank is invisible to that search —
+`/lrh-land` falls back to an `AD_HOC` backfill record, and closeout's
+own found-or-backfill matrix does not resolve a WI for the `AD_HOC`
+bucket. Any chain that inlines `/lrh-implement` then `/lrh-land` in
+sequence (exactly what `/lrh-execute` does) can therefore merge the PR
+while leaving the target work item silently stuck `proposed` and its
+real execution record silently stuck `in_progress` — the opposite of
+what an "implement and land it end-to-end" skill advertises.
+
+**Status:** Worked around locally, not fixed at the root. `/lrh-execute`'s
+own Step 3 (`src/lrh/skills/lrh-execute/SKILL.md`) now explicitly
+instructs populating `pr:` via `--pr` before proceeding to Step 4 — a
+defensive fix scoped to `/lrh-execute`'s own correctness, since
+`WI-SKILLS-LRH-EXECUTE`'s Non-Goals don't cover modifying
+`/lrh-implement` itself. The root gap remains open for every *other*
+`/lrh-implement` caller (a human running `/lrh-implement` directly, then
+`/lrh-land` manually) — same failure mode, just with more time for a
+human to notice between the two steps rather than none. Fix: add `--pr
+<pr-url-from-step-8>` to Step 9's own `record-execution` call in
+`/lrh-implement/SKILL.md` (and its `.claude/` mirror) directly.
+
+**Related:** `src/lrh/skills/lrh-implement/SKILL.md` Step 8–9;
+`src/lrh/skills/lrh-land/SKILL.md` Step 1 (primary-record selection) and
+`references/land-workflow.md` (found-or-backfill matrix); `src/lrh/skills/lrh-execute/SKILL.md`
+Step 3 (the defensive workaround); harness PR #459.
+
+---
+
 ## `/lrh-closeout` never refreshes a skill-touching PR's global install — deferred pending more real-world usage
 
 **Noted:** 2026-08-01, closing out `WI-CLOSEOUT-SKILLS-INSTALL-SYNC`.

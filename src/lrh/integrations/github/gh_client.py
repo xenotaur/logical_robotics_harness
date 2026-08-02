@@ -3,14 +3,23 @@
 from __future__ import annotations
 
 import json
+import pathlib
 import subprocess
 
 
-def run_gh_json(argv: list[str]) -> object:
-    """Run gh and decode JSON, raising clean errors."""
+def run_gh_json(argv: list[str], *, cwd: str | pathlib.Path | None = None) -> object:
+    """Run gh and decode JSON, raising clean errors.
+
+    ``cwd`` binds the invocation to a specific working directory -- gh
+    infers the target repository from the current directory, so a caller
+    operating on a project root other than the process's own cwd must
+    pass it explicitly or risk querying (and mutating refs in) the wrong
+    repository.
+    """
     try:
         result = subprocess.run(
             ["gh", *argv],
+            cwd=cwd,
             check=False,
             capture_output=True,
             text=True,

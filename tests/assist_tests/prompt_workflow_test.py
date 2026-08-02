@@ -1,7 +1,10 @@
+import contextlib
 import datetime
+import io
 import pathlib
 import tempfile
 import unittest
+import unittest.mock
 
 from lrh import prompt_workflow
 
@@ -91,6 +94,88 @@ class PromptWorkflowTest(unittest.TestCase):
                 "project/executions",
             )
         self.assertEqual(matches, [])
+
+    def test_label_timestamp_is_utc_regardless_of_local_timezone(self) -> None:
+        # Regression test for prompt_workflow.py:299: `now` must be a UTC
+        # instant with no local-timezone conversion, or filename/prompt-ID
+        # timestamps stop sorting chronologically across machines/DST.
+        #
+        # Freezes the clock to a known instant so this asserts the actual
+        # offset-free filename/execution_id segment (the value the
+        # original bug corrupted), not just the prompt_id's ISO offset --
+        # a prompt_id-only check could pass even if the filename timestamp
+        # regressed to local time while prompt_id stayed correct, since
+        # they're formatted independently (isoformat vs strftime).
+        #
+        # Deliberately does NOT vary the process's local timezone (no
+        # os.environ["TZ"]/time.tzset()): time.tzset is POSIX-only and
+        # raises AttributeError on Windows, which this package supports
+        # (pyproject.toml declares OS Independent).
+        #
+        # The mock must distinguish "the fixed code's call shape"
+        # (`datetime.datetime.now(datetime.timezone.utc)`, no further
+        # conversion) from "the removed buggy code's call shape" (the
+        # same call, then a *separate* bare `.astimezone()` with no
+        # argument, which converts to the system's local timezone) --
+        # not just return the same fixed value regardless of which
+        # happens, which was this test's original mistake: `now()`
+        # forwarded its `tz` argument straight into
+        # `fixed_instant.astimezone(tz)`, so on a UTC-configured host
+        # (common in CI) the removed bug's trailing bare `.astimezone()`
+        # call would *also* have been a no-op, making the test pass
+        # against the exact behavior it was meant to catch. `astimezone`
+        # is overridden separately so a no-argument call -- the buggy
+        # code's exact shape -- returns a deliberately different,
+        # deterministic value regardless of the host's real system
+        # timezone, while `now()` itself always returns the correct
+        # fixed instant.
+        class _FrozenDatetime(datetime.datetime):
+            @classmethod
+            def now(cls, tz=None):
+                # Constructed via `cls(...)`, not the plain
+                # `datetime.datetime(...)` constructor -- the returned
+                # object must actually be a `_FrozenDatetime` instance for
+                # the `astimezone` override below to apply to it at all.
+                # (A first version of this fix built the fixed instant
+                # with the plain constructor before patching and returned
+                # that same object from every call; since it was never
+                # actually an instance of this subclass, calling
+                # `.astimezone()` on it silently fell through to the real
+                # unpatched method instead of the override below --
+                # verified directly: it returned a real, host-timezone-
+                # shifted value instead of the deliberately-wrong sentinel,
+                # meaning the trap would not have fired.)
+                return cls(2026, 3, 4, 5, 6, 7, tzinfo=datetime.timezone.utc)
+
+            def astimezone(self, tz=None):
+                if tz is None:
+                    return datetime.datetime(
+                        2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc
+                    )
+                return super().astimezone(tz)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            buffer = io.StringIO()
+            with unittest.mock.patch(
+                "lrh.prompt_workflow.datetime.datetime", _FrozenDatetime
+            ):
+                with contextlib.redirect_stdout(buffer):
+                    prompt_workflow.run_prompt_cli(
+                        [
+                            "label",
+                            "--slug",
+                            "utc-timestamp-test",
+                            "--project-root",
+                            temp_dir,
+                        ]
+                    )
+            output = buffer.getvalue()
+
+        self.assertIn(
+            "AD_HOC/2026_03_04_05_06_07_UTC_TIMESTAMP_TEST.md",
+            output,
+        )
+        self.assertIn("[2026-03-04T05:06:07+00:00]", output)
 
     def test_parse_front_matter_fields_requires_closing_delimiter(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

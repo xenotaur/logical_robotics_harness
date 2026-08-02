@@ -57,12 +57,29 @@ Local toolchain was also out of sync with pinned dev versions (black
 `scripts/develop` to resync before validation, per its own documented
 remediation.
 
+**Round 2 — self-review (per user directive: GitHub bot review is a scarce
+resource currently; retriggers use a fresh independent sub-agent instead).**
+No new organic bot review appeared after the round-1 push. Spawned a
+cold-context sub-agent to independently verify all four round-1 fixes against
+current HEAD, including reading `/lrh-closeout`'s actual Step 3 source itself
+(not trusting my summary) to confirm the host/child-pairing fix was both
+correct and unambiguous for a future implementor. It confirmed all four
+round-1 fixes correct and complete, with one additional low-severity finding:
+Codex's stale P2 comment had asked to update the workstream's frontmatter
+*and* its `## Work Items` prose section "in the same change" — the earlier
+commit (`fc6b0bb`, predating this PR's review) updated only the frontmatter,
+leaving the prose still saying "no work-item files exist yet" and describing
+Stage 1 as a provisional name, even though the file it names is filed in this
+same PR. Fixed: reworded `WS-SESSION-ARCHIVE-SYNC.md`'s Work Items section to
+state Stage 1 is filed as `WI-SESSION-ARCHIVE-SYNC-CAPTURE`, with the
+remaining three stages still provisional.
+
 # Validation
 
-- `scripts/version tools`, `scripts/format --check --diff`, `scripts/lint`:
-  clean (after `scripts/develop` resync).
-- `scripts/test`: 821 tests passed.
-- `lrh validate`: 0 errors, 0 warnings.
+- Round 1: `scripts/version tools`, `scripts/format --check --diff`,
+  `scripts/lint`: clean (after `scripts/develop` resync). `scripts/test`:
+  821 tests passed. `lrh validate`: 0 errors, 0 warnings.
+- Round 2 (post self-review fix): `lrh validate`: 0 errors, 0 warnings.
 
 # Follow-up
 

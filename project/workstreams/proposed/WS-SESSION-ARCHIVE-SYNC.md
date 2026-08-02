@@ -79,12 +79,14 @@ staged, independently reviewable leaves.
 
 ## Work Items
 
-No work-item files exist yet; the four leaves below will be filed via
-`/lrh-work-item` as the workstream advances. **Provisional** names are given for
-readability; none reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
+Stage 1 is filed as `WI-SESSION-ARCHIVE-SYNC-CAPTURE`; the remaining three
+leaves below are **provisional** names, to be filed via `/lrh-work-item` as
+the workstream advances. None reuses the retired `WI-EXEC-SESSIONS-DISCOVERY`
+id.
 
-- **Stage 1 — both-identifier capture + minimal index** (forward fix; standalone,
-  first). Extend `/lrh-implement` record creation and `/lrh-closeout` to capture
+- **Stage 1 — `WI-SESSION-ARCHIVE-SYNC-CAPTURE`: both-identifier capture +
+  minimal index** (forward fix; standalone, first). Extend `/lrh-implement`
+  record creation and `/lrh-closeout` to capture
   `CLAUDE_CODE_HOST_SESSION_ID` and `CLAUDE_CODE_SESSION_ID`, recording the host
   stem as the `session_transcript` pointer and persisting the child id in a
   minimal `project/sessions/` index. Per the resolved fork-representation

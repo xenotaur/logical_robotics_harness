@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #459 (commit f48f94e303af39cce32f9d3e42bf9bd57be5e5ef)
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-EXECUTE
 title: Implement /lrh-execute Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

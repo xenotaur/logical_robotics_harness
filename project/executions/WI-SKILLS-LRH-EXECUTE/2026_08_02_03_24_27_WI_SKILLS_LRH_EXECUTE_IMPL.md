@@ -2,10 +2,10 @@
 execution_id: 2026_08_02_03_24_27_WI_SKILLS_LRH_EXECUTE_IMPL
 prompt_id: PROMPT(WI-SKILLS-LRH-EXECUTE:WI_SKILLS_LRH_EXECUTE_IMPL)[2026-08-02T03:22:54+00:00]
 work_item: WI-SKILLS-LRH-EXECUTE
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/459
-commit: 
+commit: f48f94e303af39cce32f9d3e42bf9bd57be5e5ef
 created_at: 2026-08-02T03:24:27+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-LRH-EXECUTE.md — user asked to pick up the work item and implement /lrh-execute, using the exact procedure /lrh-execute itself embodies (inline /lrh-implement, matching this record's own bootstrap)

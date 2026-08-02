@@ -4,7 +4,7 @@ type: design_proposal
 title: Target-Aware `lrh skills install` — Codex as a First-Class Local Target
 status: proposed
 created_on: 2026-07-31
-updated_on: 2026-07-31
+updated_on: 2026-08-01
 implementation_status: not_started
 implemented_by: []
 supersedes: []

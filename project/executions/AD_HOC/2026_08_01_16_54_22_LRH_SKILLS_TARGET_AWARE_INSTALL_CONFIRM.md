@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_07_31_16_00_57_LRH_SKILLS_TARGET_AWARE_INSTALL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/449
-commit: 3cfab30169cc04973e565fa196ca0ba01e4a0c34
+commit: ee6e3ae0f9c19180f9ff77c9b430f7e65487a018
 created_at: 2026-08-01T16:54:22-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/449
@@ -53,6 +53,58 @@ confirmed by the user before any `resolveReviewThread` call.
 Thread-resolution verdict (Step 6): **Green** — all verifiable threads
 resolved, no exceptions remain open.
 
+## Round 2 — REVIEW-LANDED retrigger and a new non-thread finding
+
+Pushed this record as commit `19a4663`, registered the first bot-retrigger
+batch in the `lrh-round-state` branch's per-PR state file (ceiling 3,
+`completed_count` 0→1), retriggered both reviewers (`gh pr comment
+"@codex review"`; Copilot via `gh pr edit --add-reviewer` after the
+`[bot]`-suffixed login failed to resolve — the plain `@copilot` reviewer
+request succeeded, confirmed pending via `gh api .../requested_reviewers`),
+and polled until both posted against the new commit.
+
+- **Codex**: clean pass, no findings.
+- **Copilot**: not a clean pass — posted a review with 4 suppressed
+  (non-thread) comments, per Step 8's "read the content, don't just check
+  existence" requirement:
+  - 3 near-duplicate comments arguing `status: in_progress` records
+    should leave `pr:`/`commit:` empty until `landed`, citing one prior
+    WI's stated practice. Classified **Problematic comment** — checked
+    `project/executions/README.md` (no documented rule either way),
+    found genuinely mixed prior practice, and confirmed
+    `/lrh-land`'s primary-record-selection step and both
+    `/lrh-review-response`'s and `/lrh-confirm-fixes`'s own `rerun_of`
+    lookups depend on `grep`-ing `pr: <url>` across records that are
+    routinely still `in_progress` pre-merge — applying the suggestion
+    would break that load-bearing mechanism. Replied on the PR
+    (`#issuecomment-5154054500`) with this rationale rather than
+    resolving silently or applying the fix.
+  - 1 comment: `00_proposal.md`'s `updated_on: 2026-07-31` was stale
+    given the substantive 2026-08-01 review-response edits. Classified
+    **Clear-satisfied** (real, cheap, valid) — fixed, commit `70bb724`.
+
+Per the human's explicit direction this round, the second verification
+pass (after the `updated_on` fix) used a **fresh cold-context subagent**
+instead of retriggering Codex/Copilot again, to avoid spending shared
+review-bot budget on a targeted single-line fix. Subagent verdict:
+**CLEAN** on commit `70bb724` itself, but it surfaced one additional real
+finding neither bot round had caught: `project/design/proposals/README.md`'s
+"Current proposal sets" index was missing this proposal set entirely,
+unlike every sibling entry. Fixed — added the index entry matching the
+established per-entry format, link-target verified to exist, commit
+`ee6e3ae`.
+
+That fix was judged targeted enough (single mechanical list entry,
+exact format match, no code/schema surface, content already reviewed
+twice by bots plus once by the subagent) to self-verify in-session
+(format match, link resolution, `lrh validate`) rather than spinning up
+another review round, per the human's explicit discretion grant this
+round.
+
+No bot-retrigger batch was consumed for the second or third fix — only
+round 1's single batch (`completed_count: 1` of ceiling 3) was used
+across this entire confirm-fixes pass.
+
 # Validation
 
 - `lrh github threads https://github.com/xenotaur/logical_robotics_harness/pull/449 --mode raw --state all`
@@ -65,15 +117,33 @@ resolved, no exceptions remain open.
   race) — fell back to the unfiltered `gh pr checks --json name,state,bucket`:
   5/5 checks `pass` (`coverage`, `installed-wheel-smoke`, `lint`,
   `Check workflow files`, `tests`).
-- This CI read is provisional (Step 2/Step 8's pre-push read); it will be
-  re-checked against the post-push `HEAD` once this record's own commit
-  lands, per the workflow's two-read design.
-- `lrh validate` — pending, run before commit below.
+- Re-fetched CI against the post-push `HEAD` after each subsequent
+  commit; final read against `ee6e3ae`: 5/5 checks `pass` (`coverage`,
+  `Check workflow files`, `installed-wheel-smoke`, `lint`, `tests`).
+- REVIEW-LANDED: bot round (Codex clean, Copilot's 4 non-thread findings
+  triaged — see Round 2 above) ran against commit `19a4663`. The two
+  subsequent fix commits (`70bb724`, `ee6e3ae`) were verified via a fresh
+  subagent and in-session self-check respectively, per explicit human
+  authorization to substitute for further bot rounds — not an inferred
+  or assumed clean state.
+- `lrh validate` — 0 errors, 1 pre-existing unrelated warning
+  (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF`), confirmed after
+  every commit in this sequence.
+
+**Final verdict: Green** — all threads resolved, CI green on `ee6e3ae`,
+review landed clean (bot round on `19a4663`, human-authorized
+subagent/self-verification on the two follow-on fix commits). Merge
+command locked to this commit:
+
+```
+gh pr merge https://github.com/xenotaur/logical_robotics_harness/pull/449 --merge --match-head-commit ee6e3ae0f9c19180f9ff77c9b430f7e65487a018
+```
 
 # Follow-up
 
-- Re-fetch CI and run the REVIEW-LANDED retrigger-and-wait check against
-  this record's own commit (the actual `HEAD` the human will be asked to
-  merge) before emitting the final merge-readiness verdict.
-- `/lrh-land`'s round-cap gate governs the retrigger step next — first
-  batch on this PR, so no ceiling has been consumed yet.
+- After merge, run `/lrh-closeout https://github.com/xenotaur/logical_robotics_harness/pull/449`
+  to land this record (and the primary/`_REVIEW` records sharing this
+  PR) and update status to `landed`.
+- `lrh-round-state` for this PR sits at `completed_count: 1` of ceiling
+  3 — one bot-retrigger batch used, two full budget remaining if a
+  future round on this PR needs it.

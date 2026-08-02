@@ -35,27 +35,45 @@ without altering `round-cap-gate.md`'s existing ceiling semantics.
 
 GitHub bot-review retriggers draw on a metered, cross-project-shared credit
 pool — `round-cap-gate.md`'s own stated rationale
-(`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md:12-14`).
+(`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md:17-19`).
 `round-cap-gate.md` bounds *how many* retriggers happen once a PR exists and
 requires human reauthorization past a ceiling, but does nothing about the
 first review pass, and nothing about self-inflicted regressions introduced
 between review rounds.
 
-Four real, cited data points motivate this (fully accounted in
+The following real, cited data points motivate this (fully accounted in
 `project/design/backlog.md`'s "Self-review-first tier..." entry):
 
-- **PR #452**: 12 bot-retrigger batches, ceiling escalated 3→10. After
+- **PR #452**: the `round-cap-gate.md` state ledger
+  (`project/executions/round_state/xenotaur-logical_robotics_harness-pr452.json`
+  on the `lrh-round-state` branch) shows `completed_count: 10, ceiling: 10`
+  — 10 completed bot-retrigger batches, ceiling escalated 3→10. After
   exhausting the ceiling, 3 independent subagent passes substituted for
-  further bot retriggers — each found a real bug all 12 bot rounds had
-  missed, including the single most severe bug in the PR. Separately,
-  several bot-found issues across those 12 rounds were self-inflicted
-  regressions from the same session's own prior-round fixes.
-- **PR #447**: the first live trial. A subagent substituted for a bot
-  retrigger caught 2 real issues, one that 3 prior Codex rounds had missed.
-- **PR #453**: 9 retrigger batches in one session — the original incident
-  that raised this idea.
+  further bot retriggers. Only the *first* pass found a bug bot review had
+  genuinely missed across its prior rounds — a harness-level discovery
+  that shell variables don't survive across separate tool calls, uncaught
+  in 8 prior rounds. The second and third passes instead found regressions
+  introduced by that first pass's own fix — not bugs bots had
+  independently missed, but exactly the class of self-inflicted-regression
+  issue a *pre-push* self-review pass could plausibly catch for free.
+- **PR #447**: the earliest live trial. A subagent substituted for a bot
+  retrigger caught 2 real issues, one that 3 prior Codex rounds had
+  missed. This substitution replaced the PR's eventual bot round entirely
+  — every recorded bot review on this PR predates the fix commit by
+  nearly a day, and none reviewed it or anything after before merge.
+- **PR #457**: 4 bot rounds (13 findings, all legitimate, all fixed), then
+  1 self-review round after the ceiling (3) was reached. Unlike the other
+  mechanism-trial cases, this round converged **clean** — no defects
+  found, two candidate issues explicitly considered and ruled out. A
+  genuine "self-review trusted with a clean verdict" data point, not just
+  a "self-review catches bugs" one.
 - **PR #459**: 3 sequential subagent rounds, each finding a new, distinct
   real issue rather than narrowing into refinement noise.
+
+**PR #453** (9 retrigger batches in one session — the idea's original
+motivating incident) is cited as evidence of the *problem* only. No
+subagent-substitution pass is recorded in its execution records, so unlike
+the four cases above it is not a mechanism trial.
 
 A live-verified fact from this session closes off one design option outright:
 opening a PR in this repo triggers an automatic review from **both**
@@ -81,7 +99,7 @@ future work item's design.
 - In-repo: No existing implementation. Named without being built at
   `src/lrh/skills/lrh-confirm-fixes/SKILL.md:419-438` (hypothetical
   escalation option) and re-derived by hand each time in PRs #447, #452,
-  #459 (an `Agent`-tool dispatch pattern, not a skill).
+  #457, #459 (an `Agent`-tool dispatch pattern, not a skill).
 - Sibling repos: None identified.
 - External libraries: None identified — composes this project's own `Agent`
   subagent tool with existing LRH skill/execution-record conventions; no
@@ -131,20 +149,35 @@ ceiling fires.
 **Chosen:** The pre-push pass never counts — this falls out structurally,
 not as a special-cased exemption. `round-cap-gate.md`'s state file is keyed
 by canonical PR URL and only created once a PR exists
-(`round-cap-gate.md:308-313`); there is nothing to attach state to before
-that point. Every PR-mode round after the PR opens counts identically
-whether GitHub-triggered or self-review-substituted:
-`round-cap-gate.md`'s `completed_count` increments the same way either way.
+(`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md:308-313`);
+there is nothing to attach state to before that point. Every PR-mode round
+after the PR opens counts identically whether GitHub-triggered or
+self-review-substituted: `round-cap-gate.md`'s `completed_count` increments
+the same way either way.
+
+**Gate integration:** a self-review substitution never bypasses the
+ceiling check — it is a fourth answer at the existing three-way gate
+(`round-cap-gate.md`'s "The three-way gate" section), alongside
+authorize-a-new-ceiling / deny-and-stop / pause: **substitute self-review
+for this round**. The gate still fires whenever `completed_count >=
+ceiling`, before any new round (bot or self-review) starts; choosing the
+substitution answer dispatches the self-review pass instead of a bot
+retrigger, and its completion increments `completed_count` by 1 within the
+*existing* ceiling — it does not require or imply raising the ceiling.
+This matches the actual historical pattern: in both PR #452 and PR #457,
+the human's live response to the fired gate was to switch to self-review
+rather than authorize a higher ceiling.
 
 **Mechanism note:** a bot-triggered round's `pending_attempt` tracks
 asynchronous per-reviewer status (`reviewers: {"codex": "pending", ...}`)
 because the retrigger call and its result arrive in separate tool
 invocations, possibly across a session interruption
-(`round-cap-gate.md:365-372`). A self-review-substituted round is
-synchronous within one skill invocation — dispatch the subagent, get the
-result, done — so it does not need `pending_attempt`'s async bookkeeping;
-it increments `completed_count` directly on completion, no `pending_attempt`
-state required for that path.
+(`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md:379-391`,
+the `pending_attempt` field description). A self-review-substituted round
+is synchronous within one skill invocation — dispatch the subagent, get
+the result, done — so it does not need `pending_attempt`'s async
+bookkeeping; it increments `completed_count` directly on completion, no
+`pending_attempt` state required for that path.
 
 **Rejected alternative:** adding a `source: "bot" | "self_review"` field to
 `round_state`'s own schema, so the ceiling mechanism itself can report a
@@ -164,11 +197,26 @@ run creates its own execution record (`AD_HOC` bucket, suffix
 `_SELFREVIEW`, `rerun_of` linking to the primary record — the same
 convention `_REVIEW`/`_CONFIRM` already use), capturing mode (diff/PR),
 findings count and severity, whether fixes were applied, and — for PR-mode
-— which round it substituted for. CHAIN-NOTE gains a lightweight
-`self_review_rounds=<N>` field alongside its existing `cycles=`/`stops=`
-fields, so a PR's chain summary shows bot-round and self-review-round
-counts side by side, without claiming a $ or credit-unit comparison that
-isn't measurable.
+— which round it substituted for. CHAIN-NOTE gains two lightweight
+fields — `self_review_rounds=<N>` and `bot_rounds=<N>` (the latter read
+directly from `round-cap-gate.md`'s own `completed_count` at closeout, not
+separately tracked) — alongside its existing `cycles=`/`stops=` fields.
+Both are needed together: `cycles` alone cannot stand in for a bot-round
+count (`round-cap-gate.md`'s own documented history: PR #442 recorded
+`cycles=1` while 14 bot-retrigger batches actually ran inside it), so a
+CHAIN-NOTE reporting only `self_review_rounds=` would still leave the
+bot-side count unrecoverable from the note itself.
+
+**Diff-mode sequencing note:** diff-mode's `_SELFREVIEW` record is created
+before `/lrh-implement` Step 9 ever runs — Step 7.5 (Decision 1) precedes
+Step 8's PR-open and Step 9's primary-record creation — so there is no
+primary record to link via `rerun_of` at creation time. It is left empty,
+matching the existing convention for a record authored before its primary
+exists (this proposal's own creation record,
+`project/executions/AD_HOC/2026_08_02_02_16_47_LRH_SELF_REVIEW.md`, has no
+primary and states so directly). PR-mode's `_SELFREVIEW` record, by
+contrast, always has a primary to link to, since it only fires after
+`/lrh-implement` Step 9 has already run.
 
 ### Decision 4: Never skip a PR's first real bot round
 
@@ -176,16 +224,16 @@ isn't measurable.
 skipped entirely?
 
 **Chosen: no, never.** Push and get at least one round of real GitHub
-review regardless of what the pre-push pass found. This also matches
-established caution from this project's own experience
-(`feedback_round_cap_self_review_alternative` in agent memory): a
-same-vendor subagent pass is not a blind-spot-equivalent substitute for an
-independent platform reviewer, especially on governance-critical changes,
-and a clean self-review result should be treated as provisional, not
-automatically merge-ready. No skip policy exists at any point in this
-design — Decision 1 rules it out for the first round categorically; a
-broader design-space pass on later-round skip policy is explicitly future
-work (see Open Questions), not decided here.
+review regardless of what the pre-push pass found. A same-vendor subagent
+pass is not a blind-spot-equivalent substitute for an independent platform
+reviewer, especially on governance-critical changes — PR #457's clean
+self-review verdict (see above) is a real instance of self-review
+converging clean, but it is one data point, not proof that a clean
+same-vendor pass is safe to treat as merge-ready on its own. No skip
+policy exists at any point in this design — Decision 1 rules it out for
+the first round categorically; a broader design-space pass on later-round
+skip policy is explicitly future work (see Open Questions), not decided
+here.
 
 ### Decision 5: One skill, two invocation shapes
 
@@ -265,9 +313,19 @@ Produces:
 - `CLAUDE.md ## Skills` entry
 - New Step 7.5 in `/lrh-implement/SKILL.md` (+ mirror)
 - `round-cap-gate.md` addition documenting the post-ceiling substitution
-  path as a call to `/lrh-self-review` PR-mode
-- `self_review_rounds=` addition to the CHAIN-NOTE convention (wherever
-  canonically defined — `PROP-LRH-LAND-EXECUTE` Decision 8 currently)
+  path as a call to `/lrh-self-review` PR-mode, and the fourth three-way-gate
+  answer (Decision 2)
+- `self_review_rounds=`/`bot_rounds=` addition to the CHAIN-NOTE convention
+  (wherever canonically defined — `PROP-LRH-LAND-EXECUTE` Decision 8
+  currently)
+- Update the primary-record exclusion globs in `/lrh-review-response`,
+  `/lrh-confirm-fixes`, and `/lrh-land` (and their `references/`/`.claude/`
+  mirrors) to also exclude `_SELFREVIEW.md`, matching the exact precedent
+  set when `_CONFIRM.md` was introduced
+  (`PROP-LRH-CONFIRM-FIXES` Decision 9, "Cross-skill consequence") —
+  otherwise a `_SELFREVIEW` file containing the branch slug can be
+  returned as a primary candidate, producing incorrect `rerun_of` and
+  closeout attribution
 
 How the `PROP-LRH-LAND-EXECUTE` cross-reference edit gets made (a new
 amendment to that proposal vs. a direct canonical-doc update vs. deferred

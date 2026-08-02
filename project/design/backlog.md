@@ -969,6 +969,11 @@ session identifiers that do not map cleanly to Codex:
    state rather than a proposal design issue, but Codex-facing workflows should
    preserve the repo guidance that tool-version mismatches are setup issues to
    reconcile before validation-focused debugging.
+6. **Claude-specific closeout memory reflection.** `/lrh-closeout` still
+   frames optional durable session memory as a Claude-app memory write. Codex
+   sessions need an equivalent closeout path that can point at Codex transcript
+   exports or explicitly record `session_transcript: pending` until the Codex
+   exporter proposal defines the durable archive identifier.
 
 **Status:** Tracked, not yet implemented. Related design is
 `PROP-LRH-CODEX-CONVERSATION-EXPORTER` and the target-aware skill installation

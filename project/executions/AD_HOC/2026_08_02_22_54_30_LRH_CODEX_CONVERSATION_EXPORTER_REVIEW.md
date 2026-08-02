@@ -2,10 +2,10 @@
 execution_id: 2026_08_02_22_54_30_LRH_CODEX_CONVERSATION_EXPORTER_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_CODEX_CONVERSATION_EXPORTER_REVIEW)[2026-08-02T21:56:34+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_02_21_24_31_LRH_CODEX_CONVERSATION_EXPORTER
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/469
-commit: 
+commit: ad5931c48d2d62b3da653b9927e38e3a49c160a6
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/469
 session_transcript: pending

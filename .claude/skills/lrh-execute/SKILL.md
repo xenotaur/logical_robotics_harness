@@ -74,9 +74,18 @@ gate) — it must precede Step 3.
 
 ### Step 1 — Resolve the target work item
 
-**Given `WI-ID`:** enforce `depends_on` — read the work item's frontmatter;
-every entry must have `status: resolved`. If any entry is not resolved,
-stop and report which one, and do not proceed to Step 2.
+**Given `WI-ID`:** enforce `depends_on` — read the work item's
+frontmatter. Each entry is a bare `WI-*` ID with no embedded status;
+locate that WI's own file the same way the `WS-ID` case below locates a
+workstream file, since a dependency can live in any status bucket:
+
+```bash
+find project/work_items/ -name "<dependency-WI-ID>.md"
+```
+
+Every entry must have `status: resolved`. If any entry is not resolved
+(or its file can't be found at all — report that distinctly, not as
+"not resolved"), stop and report which one, and do not proceed to Step 2.
 
 **Given `WS-ID`:** find the next ready WI per `PROP-LRH-LAND-EXECUTE`'s
 exact rule ("Chosen scope", `00_proposal.md:221-225`): "find the next
@@ -102,7 +111,9 @@ lrh work-items readiness <candidate-WI-ID> --format md
 ```
 
 Check its `prompt_ready` field specifically (not the command's exit
-code), and check `status: proposed`, `depends_on` satisfied, and no
+code), and check `status: proposed`, `depends_on` satisfied (same
+lookup as the `WI-ID` case above — `find project/work_items/ -name
+"<dependency-WI-ID>.md"` per entry, every entry `resolved`), and no
 `in_progress`/`landed` execution record:
 
 ```bash

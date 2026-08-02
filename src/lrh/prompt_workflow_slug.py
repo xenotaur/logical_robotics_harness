@@ -282,7 +282,10 @@ class SlugCheckResult:
 
 
 def _relative_output_root(
-    project_root: str | pathlib.Path, output_root: str | pathlib.Path
+    project_root: str | pathlib.Path,
+    output_root: str | pathlib.Path,
+    *,
+    required_for_git_pathspec: bool,
 ) -> pathlib.PurePosixPath:
     """``output_root`` as a POSIX path, relative to ``project_root``.
 
@@ -304,6 +307,20 @@ def _relative_output_root(
     relative POSIX strings -- so local/remote de-duplication
     (``local_paths`` in ``find_remote_matches``) still works correctly
     even when a caller passes an absolute ``--output-root``.
+
+    ``required_for_git_pathspec`` distinguishes the two callers:
+    ``find_remote_matches`` genuinely needs a git-compatible pathspec, so
+    an unrelativizable absolute path must raise there. ``find_local_matches``
+    has no such requirement -- an absolute path outside ``project_root``
+    is still a perfectly usable local filesystem location and display/
+    dedup key, so it falls back to using the resolved absolute path as-is
+    rather than raising. Fixed after a regression: an earlier version of
+    this function always raised regardless of caller, which meant
+    ``--no-remote`` combined with an absolute, out-of-tree
+    ``--output-root`` still failed with an error whose own text ("pass
+    --no-remote to skip cross-PR search") was already true and had not
+    helped -- confirmed by reproducing it directly against the installed
+    CLI before fixing.
     """
 
     output_path = pathlib.PurePath(output_root)
@@ -313,13 +330,15 @@ def _relative_output_root(
         try:
             output_path = output_abs.relative_to(project_path)
         except ValueError as error:
-            raise SlugCheckError(
-                f"--output-root {str(output_root)!r} is an absolute path "
-                f"outside --project-root {str(project_root)!r}; it cannot "
-                "be expressed as a git pathspec for remote discovery. Use "
-                "a relative --output-root, or pass --no-remote to skip "
-                "cross-PR search."
-            ) from error
+            if required_for_git_pathspec:
+                raise SlugCheckError(
+                    f"--output-root {str(output_root)!r} is an absolute "
+                    f"path outside --project-root {str(project_root)!r}; "
+                    "it cannot be expressed as a git pathspec for remote "
+                    "discovery. Use a relative --output-root, or pass "
+                    "--no-remote to skip cross-PR search."
+                ) from error
+            return pathlib.PurePosixPath(output_abs.as_posix())
     return pathlib.PurePosixPath(output_path.as_posix())
 
 
@@ -334,7 +353,12 @@ def find_local_matches(
     slug_upper = _slug_upper_underscore(slug)
     pattern = _trailing_segment_pattern(slug_upper)
     bucket = pathlib.Path(project_root) / output_root / work_item
-    rel_prefix = _relative_output_root(project_root, output_root) / work_item
+    rel_prefix = (
+        _relative_output_root(
+            project_root, output_root, required_for_git_pathspec=False
+        )
+        / work_item
+    )
 
     matches: list[SlugMatch] = []
     if not bucket.is_dir():
@@ -544,7 +568,8 @@ def find_remote_matches(
     # be relativized against project_root here, or the git pathspec below
     # never matches anything (a false "no prior record" for every PR).
     bucket_prefix = (
-        _relative_output_root(project_root, output_root) / work_item
+        _relative_output_root(project_root, output_root, required_for_git_pathspec=True)
+        / work_item
     ).as_posix()
     local_path_set = set(local_paths)
 

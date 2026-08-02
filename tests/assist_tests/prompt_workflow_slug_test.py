@@ -415,6 +415,47 @@ class FindLocalMatchesTest(unittest.TestCase):
                     gh_runner=_FakeGh([]),
                 )
 
+    def test_absolute_output_root_outside_project_root_is_fine_for_local_only(
+        self,
+    ) -> None:
+        # Regression test: `--no-remote` (or the plain `find_local_matches`
+        # entry point, which never touches git pathspecs at all) must not
+        # be affected by the absolute-output-root restriction that exists
+        # solely for `find_remote_matches`'s git pathspec requirement. An
+        # earlier version of `_relative_output_root` raised unconditionally
+        # regardless of caller, so `--no-remote` combined with an
+        # absolute, out-of-tree `--output-root` still failed -- even
+        # though `--no-remote` was already given specifically to skip the
+        # thing the error message recommended passing it for. Confirmed
+        # by reproducing the bug directly against the installed CLI
+        # before fixing it.
+        with (
+            tempfile.TemporaryDirectory() as project_root,
+            tempfile.TemporaryDirectory() as unrelated_dir,
+        ):
+            unrelated_output_root = pathlib.Path(unrelated_dir) / "executions"
+            record_path = (
+                unrelated_output_root / "AD_HOC" / "2026_01_01_00_00_00_MY_SLUG.md"
+            )
+            record_path.parent.mkdir(parents=True, exist_ok=True)
+            record_path.write_text(
+                "---\n"
+                "execution_id: 2026_01_01_00_00_00_MY_SLUG\n"
+                "status: landed\n"
+                'pr: ""\n'
+                "---\nbody\n",
+                encoding="utf-8",
+            )
+
+            matches = prompt_workflow_slug.find_local_matches(
+                project_root=project_root,
+                slug="my-slug",
+                output_root=unrelated_output_root,
+            )
+
+        self.assertEqual(len(matches), 1)
+        self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_MY_SLUG")
+
 
 class _FakeGh:
     def __init__(self, payload: object) -> None:

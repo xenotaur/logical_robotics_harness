@@ -61,10 +61,12 @@ chronological across machines — see `project/design/backlog.md`'s
 
 Interpret the exit code: `1` is a blocking match — either
 `landed`/`in_progress` (the default) or a `planned`/unrecognized status
-(unresolved outcomes block too) — stop and report unless the user
-explicitly asks for a rerun (see SKILL.md Step 6 for resuming the match's
-branch whether local, remote-only, or gone; keep the printed
-`execution_id` for `--rerun-of` below). `0` with a match printed means
+(unresolved outcomes block too), or any match whose recency can't be
+established (a missing/malformed `created_at`) even if every status is
+otherwise terminal — stop and report unless the user explicitly asks for
+a rerun (see SKILL.md Step 6 for resuming the match's branch whether
+local, remote-only, or gone; keep the printed `execution_id` for
+`--rerun-of` below). `0` with a match printed means
 only `failed`/`reverted`/`superseded` — summarize and continue, keeping
 its `execution_id` for `--rerun-of` below. `0` with no match printed
 means no prior record. `3` means the check itself failed (a `gh`/`git`

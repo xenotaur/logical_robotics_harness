@@ -142,9 +142,11 @@ local time, not UTC").
 
 Interpret the exit code: `1` is a blocking match — either
 `landed`/`in_progress` (the default) or a `planned`/unrecognized status
-(unresolved outcomes block too) — **stop and report** unless the user
-explicitly asks for a rerun; if they do, keep the printed `execution_id`
-to pass as `rerun_of` in Step 7. `0` with a match printed means only
+(unresolved outcomes block too), or any match whose recency can't be
+established (a missing/malformed `created_at`) even if every status is
+otherwise terminal — **stop and report** unless the user explicitly asks
+for a rerun; if they do, keep the printed `execution_id` to pass as
+`rerun_of` in Step 7. `0` with a match printed means only
 `failed`/`reverted`/`superseded` — summarize it and continue, keeping its
 `execution_id` for `rerun_of` in Step 7. `0` with no match printed means
 no prior record. `3` means the check itself failed (a `git` error) —

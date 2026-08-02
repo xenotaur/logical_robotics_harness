@@ -164,11 +164,16 @@ Interpret the exit code:
 - **`1` — blocking match:** either a `landed`/`in_progress` match (the
   default per `DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`), or a match whose
   status is `planned` or otherwise unrecognized — an unresolved outcome
-  blocks too, since it is not license to proceed. **Stop and report** — do
-  not continue unless the user explicitly asks for a rerun. If they do,
-  see Step 6 for how to resume the match's branch (`<username>/<type>/<slug>`)
-  whether it's local, remote-only, or gone. Either way, keep the printed
-  `execution_id` to pass as `--rerun-of` in Step 10.
+  blocks too, since it is not license to proceed. This also fires when
+  any match's recency can't be established (a missing or malformed
+  `created_at`), even if every match's status is otherwise terminal — the
+  printed message distinguishes "BLOCKING (unresolved recency)" from an
+  ordinary blocking-status match, but both are exit `1`. **Stop and
+  report** — do not continue unless the user explicitly asks for a rerun.
+  If they do, see Step 6 for how to resume the match's branch
+  (`<username>/<type>/<slug>`) whether it's local, remote-only, or gone.
+  Either way, keep the printed `execution_id` to pass as `--rerun-of` in
+  Step 10.
 - **`0` with a match printed** (`failed`/`reverted`/`superseded` only):
   summarize it and continue, but keep its `execution_id` to pass as
   `--rerun-of` in Step 10 (per `PROMPTS.md:136`, a rerun must link back to

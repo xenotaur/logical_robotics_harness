@@ -211,7 +211,12 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
         default=None,
         help="Pre-mint slug idempotence check (mutually exclusive with --prompt-id).",
     )
-    check_parser.add_argument("--work-item", default="AD_HOC")
+    check_parser.add_argument(
+        "--work-item",
+        default="AD_HOC",
+        help="Execution bucket to search. Only applies with --slug; ignored "
+        "with --prompt-id, which searches every bucket.",
+    )
     check_parser.add_argument(
         "--no-remote",
         action="store_true",

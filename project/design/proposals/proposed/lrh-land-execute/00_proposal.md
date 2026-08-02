@@ -319,6 +319,18 @@ accumulation described in `PROP-WORKSTREAM-EXECUTION-FRAMEWORK` §5. After
 `/lrh-run-tree` ships and is used in practice, the findings section becomes
 the primary input to that proposal's run-report schema definition.
 
+**Amended (`PROP-LRH-SELF-REVIEW`):** the CHAIN-NOTE string's own field
+list — `cycles`/`stops`/`gates`/`friction`/`note`, plus the two optional
+fields `self_review_rounds`/`bot_rounds` this amendment adds — is defined
+in `src/lrh/skills/lrh-land/references/land-workflow.md`'s "CHAIN-NOTE
+Format" section, not duplicated here; this run journal's own
+`chain_note:` field is just a one-line copy of that string, per the shape
+above. Correcting an imprecise citation in `WI-SKILLS-LRH-SELF-REVIEW`'s
+own acceptance criteria, which named this Decision as the CHAIN-NOTE
+convention's canonical location — it is not; it only defines the run
+journal's shape, which references the actual string format without
+defining it.
+
 ## Non-Goals
 
 - Does not implement autonomous execution (`lrh[agentic]`); all four skills

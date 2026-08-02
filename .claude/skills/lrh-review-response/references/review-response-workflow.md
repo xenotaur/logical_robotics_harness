@@ -61,15 +61,15 @@ response record to a prior one.
 
    ```bash
    UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-   find project/executions/ -name "*_${UPPER_SLUG}.md" 2>/dev/null | grep -vE "_(REVIEW|CONFIRM)\.md$"
+   find project/executions/ -name "*_${UPPER_SLUG}.md" 2>/dev/null | grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"
    ```
 
    Example: branch `xenotaur/feat/wi-skills-lrh-review-response` →
    slug `wi-skills-lrh-review-response` → `UPPER_SLUG=WI_SKILLS_LRH_REVIEW_RESPONSE` →
    search for `*_WI_SKILLS_LRH_REVIEW_RESPONSE.md`, exclude files whose names
-   end with `_REVIEW.md` or `_CONFIRM.md` (review-response and
-   `/lrh-confirm-fixes` side records end with those suffixes; primary
-   records do not).
+   end with `_REVIEW.md`, `_CONFIRM.md`, or `_SELFREVIEW.md`
+   (review-response, `/lrh-confirm-fixes`, and `/lrh-self-review` side
+   records end with those suffixes; primary records do not).
 
    If found, set:
 

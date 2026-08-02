@@ -668,6 +668,25 @@ of:
   last completed batch stands.
 - **Pause** — defer the decision; no batch starts until the human
   responds.
+- **Substitute self-review for this round** — dispatch `/lrh-self-review`
+  in PR-mode (`--pr <this-pr-url>`) instead of a bot retrigger. This
+  never bypasses the ceiling check above it — it is a fourth *answer* at
+  the gate, reached only after the gate has already fired, not a way
+  around firing it. On completion, increment `completed_count` by 1
+  within the *existing* ceiling — exactly like a bot-triggered batch's
+  promotion (see "Any-side-effect-counts promotion" above) — it does not
+  require or imply raising the ceiling. Unlike a bot-triggered batch,
+  this path is synchronous within one skill invocation (dispatch, get the
+  result, done), so it needs none of `pending_attempt`'s async
+  bookkeeping — no `"pending"` reviewer status, no crash-recovery
+  reconciliation, no "no response yet" ambiguity. If the pass finds a
+  genuine issue, route it through `/lrh-confirm-fixes` Step 3's taxonomy
+  the same as any bot-sourced finding; a clean pass satisfies
+  REVIEW-LANDED for this round the same as an explicit bot clean pass
+  would. This matches the actual historical pattern this answer
+  formalizes: in this project's own PR #452 and PR #457, the human's live
+  response to this exact fired gate was to switch to self-review rather
+  than authorize a higher ceiling.
 
 This is the one point in Step 8 that always requires an explicit human
 answer — never an inferred signal, and never satisfied by a bot response.
@@ -680,6 +699,15 @@ metric from CHAIN-NOTE's `cycles` field — see
 field docs for how a round-cap gate crossing should be recorded there.
 `cycles` and `completed_count` measure different things and are not
 interchangeable.
+
+`completed_count` is also source-agnostic — it counts bot-triggered and
+self-review-substituted rounds identically (see "The three-way gate"'s
+fourth answer above), so it cannot be read directly as a bot-round count
+either. CHAIN-NOTE's `bot_rounds=<N>` field (alongside
+`self_review_rounds=<N>`, both defined in `PROP-LRH-LAND-EXECUTE`
+Decision 8) must be computed as `completed_count - self_review_rounds` at
+closeout, not read straight from `completed_count` — otherwise every
+self-review-substituted round gets double-counted as a bot round too.
 
 ## Risk Notes — deferred hardening
 

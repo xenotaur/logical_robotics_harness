@@ -163,8 +163,8 @@ distinct filename in the normal case, and keeping the literal `-review`
 slug ending keeps every round's filename ending in `_REVIEW.md`, which the
 primary-record-selection exclusion in `/lrh-land` and the `rerun_of` lookups
 in this skill and `/lrh-confirm-fixes` all depend on
-(`grep -v "_REVIEW\.md$"` / `grep -vE "_(REVIEW|CONFIRM)\.md$"` match only
-that literal suffix). The timestamp is second-resolution
+(`grep -v "_REVIEW\.md$"` / `grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"`
+match only that literal suffix). The timestamp is second-resolution
 (`%Y_%m_%d_%H_%M_%S`); two rounds recorded within the same second would
 collide — `lrh prompt record-execution` errors on an existing output path
 rather than overwriting it, so this surfaces as a clear failure to retry,
@@ -267,12 +267,13 @@ targets and a fixed precedence between them:
    attempt), not just a relation to the primary implementation.
 2. **The primary implementation record, only if Step 3 found nothing.**
    Convert the branch slug to upper-underscore form before searching, and
-   exclude files whose names end with `_REVIEW.md` or `_CONFIRM.md` (those
-   are review-response and confirm-fixes side records, not primary ones):
+   exclude files whose names end with `_REVIEW.md`, `_CONFIRM.md`, or
+   `_SELFREVIEW.md` (those are review-response, confirm-fixes, and
+   self-review side records, not primary ones):
 
    ```bash
    UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-   find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM)\.md$"
+   find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"
    ```
 
    If found, add `rerun_of: <original-execution-id>` to the frontmatter.

@@ -76,7 +76,7 @@ landed through this skill.
 Search `project/executions/` for records whose `pr:` field matches the PR URL:
 
 ```bash
-grep -rl "pr: <pr-url>" project/executions/ | grep -v "_REVIEW\.md$" | grep -v "_CONFIRM\.md$" | grep -v "_CLOSEOUT_NOTE\.md$"
+grep -rl "pr: <pr-url>" project/executions/ | grep -v "_REVIEW\.md$" | grep -v "_CONFIRM\.md$" | grep -v "_CLOSEOUT_NOTE\.md$" | grep -v "_SELFREVIEW\.md$"
 ```
 
 Classify the result:

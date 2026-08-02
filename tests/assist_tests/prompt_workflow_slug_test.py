@@ -498,6 +498,23 @@ class CrossPrDiscoveryGitSimulationTest(unittest.TestCase):
         self.assertEqual(matches[0].execution_id, "2026_01_01_00_00_00_MY_SLUG")
         self.assertEqual(matches[0].status, "in_progress")
 
+    def test_gh_pr_list_requests_far_beyond_a_realistic_open_pr_count(self) -> None:
+        # Regression test: `gh pr list --limit N` paginates internally to
+        # satisfy any requested N, so a too-small hardcoded cap silently
+        # omits PRs beyond it in a repo that legitimately has more open
+        # PRs than that -- and since this list is authoritative for the
+        # slug check, a blocking match hiding past the cutoff would
+        # produce a false "no prior record" (exit 0). Assert the limit
+        # requested is comfortably beyond any plausible real open-PR
+        # count, not a specific small number like the previous 1,000.
+        gh_runner = _FakeGh([])
+        prompt_workflow_slug.find_remote_matches(slug="my-slug", gh_runner=gh_runner)
+
+        self.assertEqual(len(gh_runner.calls), 1)
+        argv = gh_runner.calls[0]
+        limit_index = argv.index("--limit") + 1
+        self.assertGreaterEqual(int(argv[limit_index]), 10_000)
+
     def test_default_git_runner_binds_to_project_root_not_process_cwd(self) -> None:
         # Regression test: the default git/gh runners must run in
         # `project_root`, not the process's own current directory --

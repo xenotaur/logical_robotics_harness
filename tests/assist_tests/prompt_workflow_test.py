@@ -110,20 +110,49 @@ class PromptWorkflowTest(unittest.TestCase):
         # Deliberately does NOT vary the process's local timezone (no
         # os.environ["TZ"]/time.tzset()): time.tzset is POSIX-only and
         # raises AttributeError on Windows, which this package supports
-        # (pyproject.toml declares OS Independent). It also wouldn't add
-        # coverage -- the mock below fully controls the returned instant
-        # regardless of the host's local timezone, so the fix under test
-        # (no .astimezone() call) is exercised the same way either way.
-        fixed_instant = datetime.datetime(
-            2026, 3, 4, 5, 6, 7, tzinfo=datetime.timezone.utc
-        )
-
+        # (pyproject.toml declares OS Independent).
+        #
+        # The mock must distinguish "the fixed code's call shape"
+        # (`datetime.datetime.now(datetime.timezone.utc)`, no further
+        # conversion) from "the removed buggy code's call shape" (the
+        # same call, then a *separate* bare `.astimezone()` with no
+        # argument, which converts to the system's local timezone) --
+        # not just return the same fixed value regardless of which
+        # happens, which was this test's original mistake: `now()`
+        # forwarded its `tz` argument straight into
+        # `fixed_instant.astimezone(tz)`, so on a UTC-configured host
+        # (common in CI) the removed bug's trailing bare `.astimezone()`
+        # call would *also* have been a no-op, making the test pass
+        # against the exact behavior it was meant to catch. `astimezone`
+        # is overridden separately so a no-argument call -- the buggy
+        # code's exact shape -- returns a deliberately different,
+        # deterministic value regardless of the host's real system
+        # timezone, while `now()` itself always returns the correct
+        # fixed instant.
         class _FrozenDatetime(datetime.datetime):
             @classmethod
             def now(cls, tz=None):
+                # Constructed via `cls(...)`, not the plain
+                # `datetime.datetime(...)` constructor -- the returned
+                # object must actually be a `_FrozenDatetime` instance for
+                # the `astimezone` override below to apply to it at all.
+                # (A first version of this fix built the fixed instant
+                # with the plain constructor before patching and returned
+                # that same object from every call; since it was never
+                # actually an instance of this subclass, calling
+                # `.astimezone()` on it silently fell through to the real
+                # unpatched method instead of the override below --
+                # verified directly: it returned a real, host-timezone-
+                # shifted value instead of the deliberately-wrong sentinel,
+                # meaning the trap would not have fired.)
+                return cls(2026, 3, 4, 5, 6, 7, tzinfo=datetime.timezone.utc)
+
+            def astimezone(self, tz=None):
                 if tz is None:
-                    return fixed_instant
-                return fixed_instant.astimezone(tz)
+                    return datetime.datetime(
+                        2020, 1, 1, 0, 0, 0, tzinfo=datetime.timezone.utc
+                    )
+                return super().astimezone(tz)
 
         with tempfile.TemporaryDirectory() as temp_dir:
             buffer = io.StringIO()

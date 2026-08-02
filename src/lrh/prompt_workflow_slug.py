@@ -316,6 +316,17 @@ class _OpenPr:
     base_ref: str
 
 
+# `gh pr list --limit N` paginates internally (via GraphQL cursors) to
+# satisfy any requested N, not just the API's single-page size -- so a
+# large ceiling here is "effectively all open PRs" for any repo size that
+# could plausibly exist, not a real cap. A too-small hardcoded limit
+# (e.g. the previous 1,000) would silently omit PRs beyond it in a repo
+# that legitimately has more open PRs than that, and since this list is
+# treated as authoritative for the slug check, a blocking match hiding
+# past the cutoff would produce a false "no prior record" (exit 0).
+_MAX_OPEN_PRS_TO_SCAN = 100_000
+
+
 def _list_open_prs(gh_runner: GhRunner) -> list[_OpenPr]:
     try:
         payload = gh_runner(
@@ -325,7 +336,7 @@ def _list_open_prs(gh_runner: GhRunner) -> list[_OpenPr]:
                 "--state",
                 "open",
                 "--limit",
-                "1000",
+                str(_MAX_OPEN_PRS_TO_SCAN),
                 "--json",
                 "number,baseRefName",
             ]

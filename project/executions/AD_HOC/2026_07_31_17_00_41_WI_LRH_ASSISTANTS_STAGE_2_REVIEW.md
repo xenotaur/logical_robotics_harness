@@ -2,10 +2,10 @@
 execution_id: 2026_07_31_17_00_41_WI_LRH_ASSISTANTS_STAGE_2_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_ASSISTANTS_STAGE_2_REVIEW)[2026-07-31T16:59:35-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/448
-commit: 
+commit: c95e74c
 created_at: 2026-07-31T17:00:41-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/448

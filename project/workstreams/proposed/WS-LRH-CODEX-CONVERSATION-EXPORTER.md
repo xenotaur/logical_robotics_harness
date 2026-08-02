@@ -56,8 +56,8 @@ contract is stable.
   deterministic human and machine checks.
 - Update conversation and CLI documentation for export, inspection, privacy,
   authority, and promotion boundaries.
-- Decide whether `lrh serve` archive viewing belongs in the first
-  implementation sequence or should be deferred behind a follow-up work item.
+- Defer `lrh serve` archive viewing until after the export artifact contract
+  and inspection CLI are stable, then capture it as follow-up work.
 - Keep raw transcript exports private by default and non-authoritative unless a
   separate reviewed promotion step creates project-control artifacts.
 
@@ -75,8 +75,8 @@ contract is stable.
   and `src/lrh/conversations/` helpers. The new proposal
   `PROP-LRH-CODEX-CONVERSATION-EXPORTER` defines the focused Codex export and
   inspection slice.
-- **Sibling repos:** No sibling repository was identified in this session as
-  already implementing LRH-specific Codex transcript exports.
+- **Sibling repos:** None identified as already implementing LRH-specific
+  Codex transcript exports.
 - **External libraries:** No well-known external library or service was
   identified that provides LRH-specific Codex export manifests, authority
   labeling, sensitivity triage, provenance links, and promotion boundaries.
@@ -127,9 +127,9 @@ reviewable work items along these lines:
   `docs/conversations/conversation-capture-options.md`, and related guidance to
   explain export, inspection, privacy, authority, and reviewed promotion.
 
-- **Viewer decision or implementation** — either add safe-default `lrh serve`
-  viewing for explicitly configured archive roots or file a follow-up work item
-  once the artifact contract and inspector have landed.
+- **Viewer follow-up** — after the artifact contract and inspector have landed,
+  file a follow-up work item for safe-default `lrh serve` viewing of explicitly
+  configured archive roots.
 
 ## Exit Criteria
 
@@ -144,8 +144,8 @@ reviewable work items along these lines:
   sensitivity warning propagation, and JSON/text inspector behavior.
 - User-facing conversation docs explain export, inspection, privacy, authority,
   and promotion boundaries.
-- Viewer support is either implemented through safe-default `lrh serve` archive
-  viewing or explicitly deferred with a follow-up work item.
+- Viewer support is explicitly deferred with a follow-up work item after the
+  artifact contract and inspector are stable.
 - `PROP-LRH-CODEX-CONVERSATION-EXPORTER` is adopted, superseded, or updated to
   reflect the implemented state.
 

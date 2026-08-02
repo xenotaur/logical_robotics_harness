@@ -132,6 +132,13 @@ only policy-checked, sandboxed, logged, and interruptible capabilities may
 execute. Status: `proposed` / `not_started` (documentation-only design;
 no runtime behavior changes).
 
+[`proposed/lrh-skills-target-aware-install/`](proposed/lrh-skills-target-aware-install/)
+— Extends `lrh skills install` from a Claude-only installer into a target-aware Agent Skills
+installer, treating `.claude/skills/` and `.agents/skills/` (Codex) as parallel first-class local
+install targets rendered from a shared canonical skill source, with ChatGPT Skills deferred to a
+later, separately-researched export path. Status: `proposed` / `not_started` (documentation-only;
+no CLI, installer, or renderer code changes).
+
 [`adopted/dev-toolchain-env-resolution.md`](adopted/dev-toolchain-env-resolution.md)
 — Decides whether LRH-managed projects should rely on Taurworks
 (`.taurworks/config.toml [activation.environment]` + `tw activate`) to resolve

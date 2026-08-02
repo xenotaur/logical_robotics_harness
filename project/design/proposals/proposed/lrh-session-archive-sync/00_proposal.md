@@ -388,12 +388,19 @@ to record that it is fulfilled through this proposal.
   whether the archive sits inside or outside a synced folder, given past
   sync-conflict issues) and with the eventual encrypted off-machine tier. The
   design assumes only that the root is configurable.
-- **Fork representation.** When one stretch of work spans a fork boundary,
-  should `session_transcript` become a sequence of ids (the grammar already
-  permits it), or should each record carry only its own thread's id with the
-  `project/sessions/` index stitching threads via branch/PR? Leaning toward the
-  latter (keeps the pointer field simple; the index already makes the tree
-  visible), but stated here as a choice rather than fallout.
+- **Fork representation (resolved).** Each execution record's
+  `session_transcript` stays single-id for its own thread; a fork-spanning
+  stretch of work is stitched in the `project/sessions/` index via `branch` /
+  `writtenBranches[]` / PR, not represented as a multi-valued
+  `session_transcript` (Decision 4). A record is written from inside one
+  thread and cannot itself observe a fork that happens in a later, separate
+  thread — only the index, which sees both host ids and their shared
+  `branch` / `writtenBranches[]` / PR, can express that relationship. This
+  also keeps records immutable at write time: a fork discovered later never
+  requires editing an already-landed record. The `session_transcript` sequence
+  syntax is reserved for its original purpose — multiple distinct sessions
+  contributing to one record — not for fork continuity. Stage 1's index schema
+  should support stitching entries by shared branch/PR for this reason.
 - Whether the `project/sessions/` index should be regenerated on every closeout
   or only when its content would change, to minimize repository churn. (Leaning
   toward the latter; not load-bearing.)

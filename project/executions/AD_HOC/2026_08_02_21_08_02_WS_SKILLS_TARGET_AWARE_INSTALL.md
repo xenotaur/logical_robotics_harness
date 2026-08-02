@@ -2,10 +2,10 @@
 execution_id: 2026_08_02_21_08_02_WS_SKILLS_TARGET_AWARE_INSTALL
 prompt_id: PROMPT(AD_HOC:WS_SKILLS_TARGET_AWARE_INSTALL)[2026-08-02T20:57:48+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/468
-commit: 59af4a0
+commit: 9b7742b2ae7742f4f026d1db44b07beef57391d8
 agent: codex_app
 instruction_source: project/design/proposals/proposed/lrh-skills-target-aware-install/00_proposal.md
 session_transcript: codex-app:current-task

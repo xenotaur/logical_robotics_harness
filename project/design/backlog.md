@@ -753,3 +753,55 @@ human to notice between the two steps rather than none. Fix: add `--pr
 `src/lrh/skills/lrh-land/SKILL.md` Step 1 (primary-record selection) and
 `references/land-workflow.md` (found-or-backfill matrix); `src/lrh/skills/lrh-execute/SKILL.md`
 Step 3 (the defensive workaround); harness PR #459.
+
+---
+
+## `/lrh-closeout` never refreshes a skill-touching PR's global install — deferred pending more real-world usage
+
+**Noted:** 2026-08-01, closing out `WI-CLOSEOUT-SKILLS-INSTALL-SYNC`.
+`~/.claude/skills/<name>` silently drifts from the canonical
+`src/lrh/skills/<name>` source after a PR edits an existing skill,
+because nothing in the LRH workflow ever re-runs an install after merge
+(root-caused live during a `/lrh-land` run on PR #452, where
+`lrh-confirm-fixes`'s installed copy was missing an entire mechanism a
+prior PR had added).
+
+**Idea:** PR #454 filed the WI; PR #456 attempted a full implementation —
+a new `/lrh-closeout` step detecting a skill-touching merge and
+force-refreshing exactly the touched skill names, bypassing the ordinary
+`USER_MODIFIED` safety check for those names only. That design required
+proving a live, mutable local git checkout matches a specific verified
+commit before trusting a live filesystem read
+(`PYTHONPATH`/`importlib.resources`), and went through 14 review rounds,
+each finding a further real gap in that proof (repo/branch/identity
+scoping, base-SHA sourcing, shallow-clone object availability, ancestry
+vs. exact tree-hash, working-tree dirtiness, `.gitignore`d files,
+per-skill vs. package-root scoping, verifying the installer code's own
+state). A fresh-context go/no-go self-review concluded the mechanism was
+architecturally unsound — disproportionate complexity for the problem,
+symptomatic of the wrong foundational choice (live filesystem read
+instead of a git-object-database read pinned to a verified SHA), and
+still had an open TOCTOU gap between the confirm gate and execution. The
+`/lrh-closeout` wiring was reverted; only the underlying primitive,
+`install_named_skills()` in `src/lrh/skills/installer.py`, shipped (not
+wired into any CLI command or caller).
+
+**Status:** Deferred, not merely to a narrower follow-up PR. Explicit
+user judgment: this problem currently has one real user/repo, and a
+more robust design (e.g. a small tested CLI command reading from git's
+object database at a SHA pinned once at a confirm gate, rather than
+agent-followed prose re-establishing checkout trust from scratch every
+invocation — sketched in the self-review, recorded in PR #456's
+description and in `WI-CLOSEOUT-SKILLS-INSTALL-SYNC`'s "Outcome"
+section) would be overfitting to that single use case before there's
+enough real-world usage across more users/repos to inform the right
+trade-offs (how often skills actually change, how tolerant users are of
+a manual `lrh skills install`, whether the CLI-command shape holds up).
+Revisit once there's a broader user base to design against, not on a
+fixed timeline.
+
+**Related:** `WI-CLOSEOUT-SKILLS-INSTALL-SYNC` (resolved as
+partial/pivoted, in `project/work_items/resolved/`); PR #454 (WI
+creation); PR #456 (attempted implementation + revert); memory
+`project_live_checkout_verification_smell.md` and
+`feedback_review_pattern_over_round_count.md`.

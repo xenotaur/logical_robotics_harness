@@ -2,10 +2,10 @@
 execution_id: 2026_07_31_20_10_56_WI_REVIEW_LANDED_CANONICAL_CHECK_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_REVIEW_LANDED_CANONICAL_CHECK_REVIEW)[2026-07-31T20:05:30+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_31_19_23_55_WI_REVIEW_LANDED_CANONICAL_CHECK_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/447
-commit: 76599ca
+commit: a923d26422bc60d27647b1571abb3a2bcb501d8a
 created_at: 2026-07-31T20:10:56+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/447

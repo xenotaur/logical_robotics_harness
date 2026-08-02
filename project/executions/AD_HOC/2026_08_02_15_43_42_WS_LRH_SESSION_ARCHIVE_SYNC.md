@@ -2,7 +2,7 @@
 execution_id: 2026_08_02_15_43_42_WS_LRH_SESSION_ARCHIVE_SYNC
 prompt_id: PROMPT(AD_HOC:WS_LRH_SESSION_ARCHIVE_SYNC)[2026-08-02T15:41:25-04:00]
 work_item: AD_HOC
-status: in_progress
+status: superseded
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/466
 commit: 
@@ -72,3 +72,31 @@ PR: https://github.com/xenotaur/logical_robotics_harness/pull/466.
 - `session_transcript` populated directly (host id confirmed live via
   `$CLAUDE_CODE_HOST_SESSION_ID`, not carried over from earlier in a long
   conversation) — no `pending` placeholder needed.
+
+## Outcome: superseded, PR closed unmerged (2026-08-02)
+
+`/lrh-land` on PR #466 surfaced a genuine duplication during review-response:
+`project/workstreams/proposed/WS-SESSION-ARCHIVE-SYNC.md` (no `LRH-` prefix)
+already existed on `main`, created by a concurrent session, governing the
+identical proposal and four-stage plan. It was materially ahead of this
+attempt — `WI-SESSION-ARCHIVE-SYNC-CAPTURE` already filed, the
+fork-representation open question already resolved via merged PR #451, a
+review round already addressed via PR #463, and the same three PR #435
+carry-forward findings already present.
+
+Both Copilot and Codex flagged this independently and correctly; verified
+directly (`git show origin/main:...`) before acting. My Step 1 existing-check
+searched only the exact filename `WS-LRH-SESSION-ARCHIVE-SYNC.md`, and the
+Prior Art Check searched `src/`, `project/design/proposals/`,
+`.claude/skills/` per the workstream skill's own reference doc — neither
+step includes a broad term search across `project/workstreams/`, which is
+where the collision actually lived. That gap is worth fixing in the skill
+separately from this record.
+
+Per user decision: PR #466 closed unmerged; `WS-LRH-SESSION-ARCHIVE-SYNC.md`
+abandoned (never merged to `main`, so nothing to revert there). The existing
+`WS-SESSION-ARCHIVE-SYNC` is authoritative going forward. This record's
+status set to `superseded` — it never landed and is not a blocking prior
+attempt for any future rerun.
+
+CHAIN-NOTE: cycles=0; stops=1; gates=[]; friction="workstream prior-art check missed an existing planning node with a different ID prefix covering identical scope"; note="found via review-response (Copilot + Codex independently), not self-caught; PR closed unmerged rather than landed; superseded by pre-existing WS-SESSION-ARCHIVE-SYNC"

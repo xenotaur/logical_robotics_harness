@@ -38,7 +38,7 @@ This branch implements <WI-ID or task description>. Its stated
 requirements: <Required Changes / Acceptance Criteria from the WI, or the
 ad-hoc task description>.
 
-Diff to review (git diff main...HEAD):
+Diff to review (git diff main):
 <diff>
 
 Review this diff against its stated requirements. Verify any factual

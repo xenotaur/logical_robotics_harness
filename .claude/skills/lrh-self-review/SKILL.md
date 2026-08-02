@@ -56,9 +56,10 @@ found.
 /lrh-self-review --pr https://github.com/xenotaur/logical_robotics_harness/pull/419
 ```
 
-Omit `--pr` for diff-mode (default): reviews `git diff main...HEAD` on the
-current branch. Pass `--pr <url>` for PR-mode: reviews that PR's current
-`HEAD` diff and comment history.
+Omit `--pr` for diff-mode (default): reviews `git diff main` (working tree
+against `main`'s tip — see Step 1 for why not the three-dot `main...HEAD`
+form) on the current branch. Pass `--pr <url>` for PR-mode: reviews that
+PR's current `HEAD` diff and comment history.
 
 ---
 

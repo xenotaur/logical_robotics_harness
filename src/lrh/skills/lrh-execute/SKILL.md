@@ -48,13 +48,22 @@ identically.
 
 Load before running any step:
 
-1. **`src/lrh/skills/lrh-implement/SKILL.md`** — inlined at Step 3.
-2. **`src/lrh/skills/lrh-land/SKILL.md`** and its
-   `references/land-workflow.md` — inlined at Step 4.
-3. **`project/design/proposals/proposed/lrh-land-execute/00_proposal.md`**
-   — "Chosen scope" (WS-ID → ready-WI selection rule) and Decision 8 (run
-   journal shape), both quoted in full below so this skill does not need
-   its own duplicate reference file for a two-rule scope.
+1. **`/lrh-implement/SKILL.md`** — inlined at Step 3. Resolve this as an
+   installed sibling skill (the same `/skill-name/SKILL.md` reference
+   style `/lrh-land` itself uses for the sub-skills *it* inlines), not a
+   hardcoded `src/lrh/skills/...` path — `/lrh-execute` may be installed
+   into a client repository via `lrh skills install`, where no
+   `src/lrh/skills/` tree exists at all. The installed location is
+   whatever the Claude skills directory resolves it to.
+2. **`/lrh-land/SKILL.md`** and its `references/land-workflow.md` —
+   inlined at Step 4, resolved the same way.
+
+The WS-ID → ready-WI selection rule (Step 1) and the run journal shape
+(Step 5) are quoted in full inline below, not loaded from
+`PROP-LRH-LAND-EXECUTE`'s proposal file at runtime — that file lives only in
+the LRH harness repo itself and would not exist in a client repository
+this skill is installed into. `PROP-LRH-LAND-EXECUTE` is cited by name
+for provenance only, not as a required preload.
 
 ---
 
@@ -74,18 +83,31 @@ exact rule ("Chosen scope", `00_proposal.md:221-225`): "find the next
 **ready WI** (status `proposed`, `depends_on` satisfied, `prompt_ready:
 yes` in `lrh work-items readiness` structured output — not merely a zero
 exit code — and no `in_progress` or `landed` execution record), then
-proceed as WI-ID." Use:
+proceed as WI-ID." That rule presupposes an ordered candidate list, which
+comes from the workstream itself: read `project/workstreams/<bucket>/<WS-ID>.md`'s
+frontmatter `work_items:` list, and evaluate its entries **in list
+order** — do not evaluate WIs from any other workstream, and do not
+guess an ordering the workstream file doesn't state. For each candidate,
+in order:
 
 ```bash
 lrh work-items readiness <candidate-WI-ID> --format md
 ```
 
-and check its `prompt_ready` field specifically (not the command's exit
-code) before treating a candidate as ready. **Stop and report if no ready
-WI exists — do not propose creating one.** Creation actions ("create a
-work item," "create a workstream," "create a proposal") belong to
-`/lrh-next`, not this skill; proposing them here would blur the verb
-"execute" into something it isn't.
+Check its `prompt_ready` field specifically (not the command's exit
+code), and check `status: proposed`, `depends_on` satisfied, and no
+`in_progress`/`landed` execution record:
+
+```bash
+grep -rh "^status:" project/executions/<candidate-WI-ID>/ 2>/dev/null
+```
+
+(no output means no record exists yet for this WI — a candidate). Take
+the **first** candidate in `work_items:` order that satisfies all of the
+above. **Stop and report if no ready WI exists — do not propose creating
+one.** Creation actions ("create a work item," "create a workstream,"
+"create a proposal") belong to `/lrh-next`, not this skill; proposing
+them here would blur the verb "execute" into something it isn't.
 
 Once resolved to a `WI-ID` either way, this becomes the target for every
 step below.
@@ -128,26 +150,46 @@ re-eliciting them from scratch.
 
 ### Step 3 — Implement (inline `/lrh-implement`)
 
-Read `src/lrh/skills/lrh-implement/SKILL.md` and execute its Steps 1–10
-directly in this session, for the `WI-ID` resolved in Step 1. This mints
-a prompt ID, checks idempotence, confirms the implementation plan (its
-own Step 4 gate — see the note above), implements the change, validates,
-and opens a PR with a populated execution record.
+Read `/lrh-implement/SKILL.md` and execute **all** of its steps — 1, 1.5,
+2, 3, 4, 5, 6, 7, 8, 9, 10, including Step 1.5 (prior-art check), not just
+"1 through 10" read as excluding the decimal-numbered step — directly in
+this session, for the `WI-ID` resolved in Step 1. This mints a prompt ID,
+checks idempotence, confirms the implementation plan (its own Step 4 gate
+— see the note above), implements the change, validates, and opens a PR
+with a populated execution record.
 
-Stop and report if `/lrh-implement`'s own steps stop and report (e.g. an
-idempotence check finds a prior `landed`/`in_progress` record) — do not
-attempt to route around an inlined sub-skill's own stop condition.
+**Populate the execution record's `pr:` field before proceeding to Step
+4.** `/lrh-implement`'s own Step 9 does not do this — its
+`record-execution` call and its "immediately edit" instruction populate
+`agent`, `instruction_source`, and `session_transcript`, but not `pr:`,
+even though the PR already exists by then (Step 8 ran first). Pass it
+directly: `lrh prompt record-execution ... --pr <pr-url-from-step-8>`.
+Without this, `/lrh-land`'s Step 1 primary-record search (which matches
+on `pr: <pr-url>`) finds nothing, falls back to an `AD_HOC` backfill, and
+closeout's matrix does not resolve a WI for `AD_HOC` — the target `WI-ID`
+would stay `proposed` even after the PR merges, silently defeating this
+skill's own advertised end-to-end guarantee. (This is a gap in
+`/lrh-implement/SKILL.md` itself, not unique to inlining it here — see
+`project/design/backlog.md` for the broader fix.)
+
+**If `/lrh-implement`'s own steps stop and report** (e.g. an idempotence
+check finds a prior `landed`/`in_progress` record), do not attempt to
+route around it — but do not just return either: go to Step 5 first and
+record this as a `stopped` action, then report. Skipping straight to
+reporting on a stop makes the run journal's own `result: stopped` value
+unreachable.
 
 ### Step 4 — Land (inline `/lrh-land`)
 
-Read `src/lrh/skills/lrh-land/SKILL.md` and execute its Steps 1–8
-directly in this session, for the PR opened in Step 3. This runs
-review-response, confirm-fixes (including `round-cap-gate.md`'s
-bot-retrigger ceiling — reuse it as-is; do not build a second, parallel
-retrigger mechanism), the merge gate, and closeout.
+Read `/lrh-land/SKILL.md` and execute its Steps 1–8 directly in this
+session, for the PR opened in Step 3. This runs review-response,
+confirm-fixes (including `round-cap-gate.md`'s bot-retrigger ceiling —
+reuse it as-is; do not build a second, parallel retrigger mechanism), the
+merge gate, and closeout.
 
-Stop and report if `/lrh-land`'s own steps stop and report — same
-principle as Step 3.
+If `/lrh-land`'s own steps stop and report, same principle as Step 3: go
+to Step 5 first and record it as a `stopped` action, then report — do not
+skip straight to reporting.
 
 ### Step 5 — Run journal
 
@@ -194,20 +236,25 @@ Report to the user:
 
 Before reporting completion, verify:
 
-- [ ] For a `WS-ID` input: resolved to a ready WI using the structured
-      `prompt_ready` field, not a bare exit code; no creation action
-      proposed if none was ready
+- [ ] For a `WS-ID` input: candidates drawn only from that workstream's
+      own `work_items:` list, evaluated in list order; resolved to a
+      ready WI using the structured `prompt_ready` field, not a bare exit
+      code; no creation action proposed if none was ready
 - [ ] For a `WI-ID` input (direct or resolved): `depends_on` enforced
       before Step 2
 - [ ] Chain authorization gate (Step 2) completed before Step 3; both
       completion condition and stop-work condition stated and confirmed
 - [ ] `/lrh-implement`'s own Step 4 plan-confirm gate was not bypassed
       when Step 3 reached it
+- [ ] `/lrh-implement`'s own Step 1.5 (prior-art check) was not skipped
+- [ ] Step 3's execution record has `pr:` populated before Step 4 starts
 - [ ] `/lrh-land`'s own Step 2 chain-authorization gate was not bypassed
       when Step 4 reached it
 - [ ] `/lrh-land`'s own Quality Checklist satisfied for the Step 4 portion
       (REVIEW-LANDED check, SHA-locked merge command, closeout on `main`,
       CHAIN-NOTE placement)
+- [ ] If Step 3 or Step 4 stopped, a `stopped` action was recorded in the
+      run journal (Step 5) before reporting — not skipped past
 - [ ] Run journal entry appended to `<scratchpad>/lrh-execute-run-journal.yaml`
 - [ ] `lrh validate` reports 0 errors after Step 4's closeout
 

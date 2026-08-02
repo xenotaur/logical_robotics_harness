@@ -193,5 +193,5 @@ reviewable work items along these lines:
   places?
 - Where should private local Codex exports live by default once LRH has an
   archive-root convention?
-- Should safe-default viewer support land in this workstream's first sequence
-  or be deferred until after the inspector is dogfooded?
+- After the export contract and inspector are stable, what viewer scope is
+  appropriate for the deferred safe-default `lrh serve` follow-up?

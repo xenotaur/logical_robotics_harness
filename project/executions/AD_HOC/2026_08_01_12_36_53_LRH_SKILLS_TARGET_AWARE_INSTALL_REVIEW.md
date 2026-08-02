@@ -2,10 +2,10 @@
 execution_id: 2026_08_01_12_36_53_LRH_SKILLS_TARGET_AWARE_INSTALL_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_SKILLS_TARGET_AWARE_INSTALL_REVIEW)[2026-08-01T12:36:33-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_07_31_16_00_57_LRH_SKILLS_TARGET_AWARE_INSTALL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/449
-commit: 5670e69e9e011b16693da29f07f7abcb95963ee8
+commit: da69c926ed66e4406850249f6fae3e41380395c3
 created_at: 2026-08-01T12:36:53-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/449

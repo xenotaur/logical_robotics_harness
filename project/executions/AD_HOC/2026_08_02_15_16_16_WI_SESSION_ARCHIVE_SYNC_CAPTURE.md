@@ -2,10 +2,10 @@
 execution_id: 2026_08_02_15_16_16_WI_SESSION_ARCHIVE_SYNC_CAPTURE
 prompt_id: PROMPT(AD_HOC:WI_SESSION_ARCHIVE_SYNC_CAPTURE)[2026-08-02T15:13:52-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/465
-commit: 
+commit: 56c7118e7b86520a77ec8cda400520fc6a40f0f2
 created_at: 2026-08-02T15:16:16-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SESSION-ARCHIVE-SYNC-CAPTURE.md

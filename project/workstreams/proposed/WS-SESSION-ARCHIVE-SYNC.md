@@ -103,15 +103,19 @@ readability; none reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
 - **Stage 3 — index enrichment + `report`.** Enrich the Stage 1 index
   (era-general keys, branch/PR fork stitching per Decision 4, dedup
   latest-wins) and add `lrh sessions report`.
-- **Stage 4 — scheduling + hook.** The weekly scheduled `lrh sessions sync` is
-  **required** (the guarantee for sessions that never reach closeout); the
-  `SessionEnd` hook is the only optional piece. Any part touching `/lrh-closeout`
-  carries the same permissive-with-a-gate rule as Stage 1.
+- **Stage 4 — scheduling + hook.** Per Decision 6, **both** scheduling paths
+  are mandatory scope: the weekly scheduled `lrh sessions sync` (the guarantee
+  for sessions that never reach closeout) **and** wiring `/lrh-closeout` to
+  invoke `lrh sessions sync` (capture tied to the moment a PR lands). Only the
+  `SessionEnd` hook is optional. Any part touching `/lrh-closeout` carries the
+  same permissive-with-a-gate rule as Stage 1.
 
 ## Exit Criteria
 
 - All four stages above are delivered as resolved work items.
 - The remaining open question (archive-root location) is resolved and recorded.
+- `/lrh-closeout` invokes `lrh sessions sync` and a weekly scheduled sync is
+  configured (Stage 4; both mandatory per Decision 6).
 - `lrh sessions report` shows no dangling `session_transcript` pointers and no
   unarchived repo-changing sessions for work produced after Stage 1 lands.
 - `lrh validate` passes with 0 errors after each leaf lands.

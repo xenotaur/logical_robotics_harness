@@ -67,6 +67,47 @@ item without attempting full render-adapter or ChatGPT export support.
 - Keep Codex output as direct copies with a documented body-prose caveat.
 - Add focused installer and CLI tests.
 
+## Required Changes
+
+1. Update `src/lrh/skills/installer.py` so skill installation can plan and
+   apply installs for both Claude and Codex targets while preserving the
+   existing Claude default behavior when no target is specified.
+
+2. Add target resolution for:
+   - `claude` user scope: `~/.claude/skills/`
+   - `claude` project scope with `--local`: `./.claude/skills/`
+   - `codex` user scope: `~/.agents/skills/`
+   - `codex` project scope with `--local`: `./.agents/skills/`
+   - `all`: both Claude and Codex targets for the selected scope
+
+3. Update `src/lrh/cli/main.py` so `lrh skills install` accepts
+   `--target claude|codex|all`. The default must remain equivalent to the
+   current Claude-only behavior.
+
+4. Preserve existing install safety behavior for every target:
+   - `--dry-run` reports intended actions without writing files
+   - `--force` is required to overwrite user-modified target copies
+   - `--diff` reports target differences without applying changes
+   - symlinked skill roots are not dereferenced
+   - bundled scripts are not executed during install
+
+5. Keep Codex output as direct copies for this first slice. Do not implement
+   Codex render adapters or `agents/openai.yaml` generation in this work item;
+   document the known interim caveat that copied skill bodies may still contain
+   Claude-specific prose pending later neutralization work.
+
+6. Extend `tests/skills_installer_test.py` with temporary-directory coverage
+   for Claude and Codex user/project targets, `all` target behavior, dry-run,
+   force, diff, local-modification detection, and symlink safety.
+
+7. Extend `tests/cli_tests/skills_test.py` with CLI coverage for the new
+   `--target` option, including valid target values and invalid-target
+   rejection.
+
+8. Update `docs/how-to/keep-skills-up-to-date.md` to describe Claude and Codex
+   install targets, the default Claude-compatible behavior, project-local Codex
+   installs with `--local --target codex`, and the direct-copy caveat for Codex.
+
 ## Non-Goals
 
 - Does not implement source abstraction, repo config, render adapters, status

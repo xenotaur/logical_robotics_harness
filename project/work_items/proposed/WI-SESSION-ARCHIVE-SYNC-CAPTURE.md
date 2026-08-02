@@ -34,10 +34,11 @@ forbidden_actions:
   - implement_scheduled_or_hook_sync
   - modify_session_transcript_schema
 acceptance:
-  - /lrh-implement record-creation and /lrh-closeout both capture CLAUDE_CODE_HOST_SESSION_ID (host, session_transcript pointer) and CLAUDE_CODE_SESSION_ID (child, index alias) when available
+  - /lrh-implement record-creation and /lrh-closeout both capture CLAUDE_CODE_HOST_SESSION_ID (host, session_transcript pointer) and CLAUDE_CODE_SESSION_ID (child, index alias) when available; closeout records the child alias only when the host was resolved from the current window (same-session path), never when resolved cross-session via list_sessions or a pasted URL
   - A minimal project/sessions/ index exists recording, per session, the host id, child id(s), title, and PRs, with fields for branch/writtenBranches[]/PR to support later fork stitching
   - No changes to the session_transcript scalar/sequence grammar or its validator rules
   - Any edit to src/lrh/skills/lrh-closeout/ is mirrored identically in .claude/skills/lrh-closeout/, verified by diff -r exiting 0
+  - Any edit to src/lrh/skills/lrh-implement/ is mirrored identically in .claude/skills/lrh-implement/, verified by diff -r exiting 0
   - lrh validate passes with 0 errors
 required_evidence:
   - manual_review
@@ -46,9 +47,14 @@ required_evidence:
 artifacts_expected:
   - src/lrh/skills/lrh-implement/SKILL.md
   - .claude/skills/lrh-implement/SKILL.md
+  - src/lrh/skills/lrh-implement/references/execution-session-reference.md
+  - .claude/skills/lrh-implement/references/execution-session-reference.md
   - src/lrh/skills/lrh-closeout/SKILL.md
   - .claude/skills/lrh-closeout/SKILL.md
+  - src/lrh/skills/lrh-closeout/references/closeout-workflow.md
+  - .claude/skills/lrh-closeout/references/closeout-workflow.md
   - project/sessions/
+  - tests/
 ---
 
 # Both-identifier session capture and minimal project/sessions/ index
@@ -108,9 +114,19 @@ workstream: `WS-SESSION-ARCHIVE-SYNC`.
 1. Extend `/lrh-implement`'s execution-record creation step to also read
    `CLAUDE_CODE_SESSION_ID` and pass it through to the record/index step.
 2. Extend `/lrh-closeout` Step 3 (already backend-aware per PR #431) to
-   additionally capture the child id for the index, alongside its existing
-   host-id resolution. Per the design's permissive-with-a-gate note, ask for
-   explicit approval before any change to `/lrh-closeout` beyond this scope.
+   additionally capture the child id for the index — **only when the
+   resolved host is confirmed to be the current window** (Step 3's
+   resolution path 1, the same-session env-var case, after the user confirms
+   it). `CLAUDE_CODE_SESSION_ID` always names the *current* closeout window's
+   child id; when Step 3 resolves the host via path 2 (`list_sessions` by PR
+   number, cross-session) or path 3 (manual URL paste), that host belongs to
+   a *different* session than the one currently running, and pairing it with
+   the current window's child id would record a false alias. In those two
+   paths, leave the child alias unset for that record — Stage 2's
+   `/export`-metadata harvest is the intended reconciliation path for
+   already-dangling or cross-session pointers, per the proposal's Decision 1.
+   Per the design's permissive-with-a-gate note, ask for explicit approval
+   before any change to `/lrh-closeout` beyond this scope.
 3. Define and create the minimal `project/sessions/` index (format/location
    under `project/sessions/`) recording, per session: host id, child id(s),
    title, PRs, and branch/`writtenBranches[]` fields for later stitching.
@@ -136,6 +152,11 @@ workstream: `WS-SESSION-ARCHIVE-SYNC`.
 
 - `/lrh-implement` and `/lrh-closeout` both capture `CLAUDE_CODE_HOST_SESSION_ID`
   and `CLAUDE_CODE_SESSION_ID` when available.
+- `/lrh-closeout` records the child-id alias only when the host id was
+  resolved from the current window (Step 3 path 1); when resolved
+  cross-session (path 2, `list_sessions` by PR) or via a pasted URL (path 3),
+  the child alias is left unset rather than falsely paired with the current
+  window's child id.
 - A minimal `project/sessions/` index exists and is populated for sessions
   processed after this item lands, with branch/PR stitching fields present
   (even if unused until Stage 3).

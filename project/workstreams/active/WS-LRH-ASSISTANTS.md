@@ -15,6 +15,7 @@ related_design:
   - project/design/proposals/proposed/constitutional-sandbox-envelope/00_proposal.md
 work_items:
   - WI-LRH-ASSISTANTS-STAGE-1
+  - WI-LRH-ASSISTANTS-STAGE-2
 exit_criteria:
   - PROP-LRH-ASSISTANTS is adopted with its open questions resolved
   - the assistant artifact-class convention is documented (README, token vocabulary, one worked package)
@@ -40,7 +41,12 @@ is doing), the run tree (execution), and contributor records (who acted).
 This workstream owns the staged delivery. It keeps the aggressive parts —
 autonomous launching, monitoring, scheduling, and run mutation — sequenced
 behind LRH's durable run state and the constitutional sandbox envelope, exactly
-as the proposal requires.
+as the proposal requires. **Stages 2–8 are additionally sequenced behind
+`PROP-LRH-SESSION-ARCHIVE-SYNC` and the broader execution-tree /
+session-tracking work** (decided 2026-07-25): none of Stages 2–8 have a hard
+code dependency on that work, but delivery is deliberately held until it
+stabilizes rather than risk churn in adjacent schemas (execution records,
+`Workstream` fields) while both are moving at once.
 
 ## Rationale
 
@@ -63,7 +69,8 @@ The proposal defines Stages 0–10. This workstream tracks them as leaves:
 - **Stage 2 — Typed models and loaders.** `Assistant`, `AssistantProfile`,
   `AssistantBinding`, assistant fields on `Workstream`, and the optional
   `assistant_role:` execution-record field. Dataclasses in `src/lrh/control`;
-  behavior and CLI in a new `src/lrh/assistants` package. (Future WI.)
+  behavior and CLI in a new `src/lrh/assistants` package.
+  → `WI-LRH-ASSISTANTS-STAGE-2` (filed, **blocked** — see below).
 - **Stage 3 — Validation.** Package, cross-file, policy-token (against the
   Stage 1 vocabulary), binding, memory-state, and path-safety checks.
 - **Stage 4 — Core-state projection.** `AssistantState`,
@@ -80,9 +87,18 @@ The proposal defines Stages 0–10. This workstream tracks them as leaves:
 
 ## Work-item leaves
 
-- `WI-LRH-ASSISTANTS-STAGE-1` — Stage 1 docs-only package convention (this
-  PR). Later stages are filed as their own work items as they become ready;
-  Stages 9–10 remain gated behind durable run state.
+- `WI-LRH-ASSISTANTS-STAGE-1` — Stage 1 docs-only package convention
+  (resolved, PR #418).
+- `WI-LRH-ASSISTANTS-STAGE-2` — Stage 2 typed models and loaders. Filed and
+  **blocked** (`status: active`, `blocked: true`) pending
+  `PROP-LRH-SESSION-ARCHIVE-SYNC` and the execution-tree / session-tracking
+  work; see the work item's `blocked_reason` for detail. This is the
+  workstream's actionable leaf while blocked.
+
+Later stages are filed as their own work items as they become ready.
+Stages 2–8 are gated behind `PROP-LRH-SESSION-ARCHIVE-SYNC` and the
+execution-tree work (see Purpose); Stages 9–10 remain additionally gated
+behind durable run state.
 
 ## Non-goals
 

@@ -16,14 +16,14 @@ session_transcript: pending
 
 `/lrh-confirm-fixes` pre-merge verification pass for PR #462
 (PROP-LRH-SELF-REVIEW). `rerun_of` set manually to
-`2026_08_02_02_16_47_LRH_SELF_REVIEW` — `/lrh-land` Step 7's own
+`2026_08_02_02_16_47_LRH_SELF_REVIEW` — `/lrh-land` Step 1's own
 primary-record search (`grep -vE "_(REVIEW|CONFIRM)\.md$"`) is a
 substring match and wrongly self-excludes this primary record, since its
 own slug (`LRH_SELF_REVIEW`) happens to end in `_REVIEW.md`. Verified the
 correct primary directly via `find project/executions/ -name
 "*LRH_SELF_REVIEW*.md"` (no exclusion) plus reading its frontmatter
 (`status: in_progress`, `pr:` matching #462) before trusting it. Flagging
-this as a real gap in `/lrh-land`'s Step 7 instructions, not unique to
+this as a real gap in `/lrh-land`'s Step 1 instructions, not unique to
 this PR — any WI/topic slug ending in "review" or "confirm" would trip
 the same false exclusion.
 
@@ -66,7 +66,7 @@ no exceptions remain.
 
 # Follow-up
 
-- File a backlog entry for `/lrh-land` Step 7's primary-record search
+- File a backlog entry for `/lrh-land` Step 1's primary-record search
   substring-match bug (`_(REVIEW|CONFIRM)\.md$` self-excludes any
   primary record whose own slug happens to end in "review" or
   "confirm") — deferred past this PR's own landing, not blocking it.

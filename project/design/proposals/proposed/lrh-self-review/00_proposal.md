@@ -213,8 +213,9 @@ Step 8's PR-open and Step 9's primary-record creation — so there is no
 primary record to link via `rerun_of` at creation time. It is left empty,
 matching the existing convention for a record authored before its primary
 exists (this proposal's own creation record,
-`project/executions/AD_HOC/2026_08_02_02_16_47_LRH_SELF_REVIEW.md`, has no
-primary and states so directly). PR-mode's `_SELFREVIEW` record, by
+`project/executions/AD_HOC/2026_08_02_02_16_47_LRH_SELF_REVIEW.md`, has an
+empty `rerun_of` field for the same reason — no primary existed yet).
+PR-mode's `_SELFREVIEW` record, by
 contrast, always has a primary to link to, since it only fires after
 `/lrh-implement` Step 9 has already run.
 

@@ -840,11 +840,11 @@ speculative):
   a 4-cycle review-response/confirm-fixes loop swapped a fresh
   independent subagent for external bot retrigger (human-directed) and
   caught 2 more real issues, including one that 3 prior rounds of Codex
-  review had missed. Unlike the other mechanism-trial cases below, this
-  substitution actually *replaced* the PR's eventual bot round rather
-  than merely preceding one — verified: every recorded bot review on this
-  PR predates the round-4 fix commit by nearly a day, and none reviewed
-  it or anything after it before merge. See
+  review had missed. This substitution *replaced* the PR's eventual bot
+  round entirely — verified: every recorded bot review on this PR
+  predates the round-4 fix commit by nearly a day, and none reviewed it
+  or anything after it before merge. (The same pattern holds for PR #452
+  and #459 too, on independent verification — see Open Question 4.) See
   `project/executions/AD_HOC/2026_08_02_00_00_29_WI_REVIEW_LANDED_CANONICAL_CHECK_CLOSEOUT_NOTE.md`
   for the full CHAIN-NOTE.
 - **PR #453**: 9 retrigger batches in one landing session — the original
@@ -883,17 +883,23 @@ this remains a backlog entry and not a proposal:
    different resource. Any proposal should be explicit that this is a
    resource *substitution*, not a cost elimination, and should say
    whether the substitution is actually cheaper in the cases that matter.
-4. **Who decides "clean enough to skip a bot round."** Of the three
+4. **Who decides "clean enough to skip a bot round."** All three
    mechanism-trial cases (PR #447, #452, #459 — PR #453 is problem
-   evidence only, not a mechanism trial, see above), self-review found
-   real bugs in all three. Bot review still ran on a later push in two of
-   them (PR #452, #459); PR #447 is the one case where the substitution
-   actually replaced the PR's eventual bot round rather than preceding a
-   later one — but that happened as a byproduct of timing (no bot
-   reviewed the final commits before merge), not a deliberate decision to
-   skip a round. Nobody has deliberately decided to skip a bot round
-   because self-review came back clean; whether that's safe, and what
-   evidence would justify it, is undesigned.
+   evidence only, not a mechanism trial, see above) show the same
+   pattern on independent verification: once the session substituted
+   self-review for a bot round, no bot reviewed any of the PR's
+   subsequent commits, including the one that actually merged. PR #452's
+   own CHAIN-NOTE frames this as a deliberate choice ("...plus 3
+   independent cold-subagent review passes after the ceiling was reached
+   instead of further bot rounds"); PR #447 and #459 show the identical
+   outcome with no equivalent explicit up-front decision on record — it
+   emerged operationally, because nobody retriggered a bot after the
+   substitution. So in practice, self-review substitution has already
+   ended up skipping the PR's final bot round in all 3 real trials to
+   date — just not always as a named, deliberate policy decided in
+   advance. Whether that's safe as a *designed* behavior (rather than an
+   emergent side effect of nobody asking for one more bot round), and
+   what evidence would justify formalizing it, is undesigned.
 5. **Scope of "self-review."** All three mechanism-trial data points
    above (PR #447, #452, #459) used the same mechanism — a fresh `Agent`
    tool call with `subagent_type: general-purpose`, given the PR URL and

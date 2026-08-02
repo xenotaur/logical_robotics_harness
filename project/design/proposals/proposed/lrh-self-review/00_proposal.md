@@ -198,14 +198,23 @@ run creates its own execution record (`AD_HOC` bucket, suffix
 convention `_REVIEW`/`_CONFIRM` already use), capturing mode (diff/PR),
 findings count and severity, whether fixes were applied, and — for PR-mode
 — which round it substituted for. CHAIN-NOTE gains two lightweight
-fields — `self_review_rounds=<N>` and `bot_rounds=<N>` (the latter read
-directly from `round-cap-gate.md`'s own `completed_count` at closeout, not
-separately tracked) — alongside its existing `cycles=`/`stops=` fields.
-Both are needed together: `cycles` alone cannot stand in for a bot-round
-count (`round-cap-gate.md`'s own documented history: PR #442 recorded
-`cycles=1` while 14 bot-retrigger batches actually ran inside it), so a
-CHAIN-NOTE reporting only `self_review_rounds=` would still leave the
-bot-side count unrecoverable from the note itself.
+fields — `self_review_rounds=<N>` and `bot_rounds=<N>` — alongside its
+existing `cycles=`/`stops=` fields. **`bot_rounds` must be computed as
+`completed_count - self_review_rounds`, never read directly from
+`round-cap-gate.md`'s own `completed_count`** — `completed_count` is
+source-agnostic (Decision 2: bot-triggered and self-review-substituted
+rounds increment it identically), so reading `bot_rounds` straight from it
+would double-count every self-review-substituted round as a bot round too.
+Both fields are needed together regardless: `cycles` alone cannot stand in
+for a bot-round count (`round-cap-gate.md`'s own documented history: PR
+#442 recorded `cycles=1` while 14 bot-retrigger batches actually ran
+inside it), so a CHAIN-NOTE reporting only `self_review_rounds=` would
+still leave the bot-side count unrecoverable from the note itself. This
+paragraph corrects an earlier draft's imprecision, caught during
+`WI-SKILLS-LRH-SELF-REVIEW`'s own implementation review (harness PR #464,
+#467) — the two fields' canonical definition lives in
+`src/lrh/skills/lrh-land/references/land-workflow.md`'s "CHAIN-NOTE
+Format" section, not duplicated here.
 
 **Diff-mode sequencing note:** diff-mode's `_SELFREVIEW` record is created
 before `/lrh-implement` Step 9 ever runs — Step 7.5 (Decision 1) precedes

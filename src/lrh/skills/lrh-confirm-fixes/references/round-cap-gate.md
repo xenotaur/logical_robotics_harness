@@ -704,10 +704,12 @@ interchangeable.
 self-review-substituted rounds identically (see "The three-way gate"'s
 fourth answer above), so it cannot be read directly as a bot-round count
 either. CHAIN-NOTE's `bot_rounds=<N>` field (alongside
-`self_review_rounds=<N>`, both defined in `PROP-LRH-LAND-EXECUTE`
-Decision 8) must be computed as `completed_count - self_review_rounds` at
-closeout, not read straight from `completed_count` — otherwise every
-self-review-substituted round gets double-counted as a bot round too.
+`self_review_rounds=<N>`, both defined in
+`src/lrh/skills/lrh-land/references/land-workflow.md`'s own "CHAIN-NOTE
+Format" section) must be computed as `completed_count -
+self_review_rounds` at closeout, not read straight from `completed_count`
+— otherwise every self-review-substituted round gets double-counted as a
+bot round too.
 
 ## Risk Notes — deferred hardening
 

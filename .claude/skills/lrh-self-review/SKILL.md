@@ -83,8 +83,19 @@ Work through these steps in order.
 
 ```bash
 git rev-parse HEAD
-git diff main...HEAD
+git diff main
 ```
+
+**Not `git diff main...HEAD`.** At `/lrh-implement` Step 7.5's own call
+site, Step 6's implementation changes are still uncommitted working-tree
+edits — Step 8 (Commit and PR) is what commits them, and it runs *after*
+this step. `HEAD` is therefore still the branch's fork point from `main`,
+so a three-dot `git diff main...HEAD` (committed changes only) would be
+empty in the normal case, triggering a false "nothing to review" exit
+without ever reviewing what Step 6 actually did. `git diff main` compares
+`main`'s tip directly against the current working tree — staged and
+unstaged changes both included — which is what Step 7.5 actually needs to
+review.
 
 If the diff is empty, stop and report — nothing to review.
 
@@ -103,8 +114,14 @@ the current branch name, or ask if not derivable) and read its Required
 Changes / Acceptance Criteria for orientation — the subagent needs to know
 what the diff is *supposed* to do, not just what it does.
 
-**PR-mode:** gather the PR's title, body, and existing comment history
-(`gh pr view <pr-url> --json title,body,comments`) for the same purpose.
+**PR-mode:** gather the PR's title, body, issue-comment history, and prior
+*review* activity — `--json comments` alone misses inline review threads
+and review-body text, which is exactly where prior rounds' findings live:
+
+```bash
+gh pr view <pr-url> --json title,body,comments
+gh api graphql -f query='query { repository(owner: "<owner>", name: "<repo>") { pullRequest(number: <n>) { reviews(first: 50) { nodes { author { login } body } } reviewThreads(first: 50) { nodes { isResolved comments(first: 5) { nodes { body author { login } } } } } } } }'
+```
 
 ### Step 3 — Dispatch the subagent
 
@@ -158,6 +175,7 @@ each), whether fixes were applied (diff-mode) or the finding was routed to
 dispatch time).
 
 ```bash
+lrh prompt label --slug <slug>-selfreview
 lrh prompt record-execution \
   --prompt-id "<id>" \
   --work-item AD_HOC \

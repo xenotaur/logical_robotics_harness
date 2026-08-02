@@ -65,9 +65,26 @@ direction that they could land together (both touch
 - **Explicitly not touched** (per both WIs' Non-Goals): `PROMPTS.md`'s
   invariant/default text; the `lrh-review-response`/`lrh-confirm-fixes`
   `rerun_of`-attribution `find` (a different, lower-risk search, already
-  flagged separately in `project/design/backlog.md`); the `planned`-status
-  gap (left non-blocking by default, per code comment in
-  `prompt_workflow_slug.py`).
+  flagged separately in `project/design/backlog.md`).
+
+  **Correction (added during later review rounds on this same PR,
+  before merge — this record's body was still open for editing, not yet
+  merged/immutable):** this bullet originally said the `planned`-status
+  gap was "left non-blocking by default." That was accurate against this
+  record's *initial* implementation, but a later review round
+  (`SlugCheckResult.blocking`, addressed in this PR's review-response
+  history) changed the final shipped policy: `blocking` now returns true
+  for anything except the three explicit terminal statuses
+  (`failed`/`reverted`/`superseded`) -- `planned`, missing, and any other
+  unrecognized status all block, matching the original shell-based
+  check's "unknown or ambiguous status: stop and report" behavior. The
+  `planned`-status gap referenced in `DEC-PRE-MINT-SLUG-IDEMPOTENCE-
+  DEFAULT`'s revisit conditions (no skill has needed a *specific* answer
+  for `planned` beyond "it blocks like everything else non-terminal") is
+  still open in that narrower sense, but the "non-blocking by default"
+  characterization here was stale and contradicted the shipped code --
+  corrected so this record doesn't give future readers contradictory
+  evidence about the final behavior.
 
 # Validation
 

@@ -292,7 +292,14 @@ def find_local_matches(
     slug_upper = _slug_upper_underscore(slug)
     pattern = _trailing_segment_pattern(slug_upper)
     bucket = pathlib.Path(project_root) / output_root / work_item
-    rel_prefix = pathlib.PurePosixPath(str(output_root)) / work_item
+    # Normalize through the platform-native PurePath first: on Windows,
+    # `output_root` may be backslash-separated (`project\executions`),
+    # which `PurePosixPath` does not treat as a separator at all --
+    # `.as_posix()` on the native form converts it correctly before the
+    # result is treated as POSIX-style for git pathspec comparisons.
+    rel_prefix = (
+        pathlib.PurePosixPath(pathlib.PurePath(output_root).as_posix()) / work_item
+    )
 
     matches: list[SlugMatch] = []
     if not bucket.is_dir():
@@ -440,6 +447,25 @@ def _run_git_or_raise(git_runner: GitRunner, args: list[str], *, context: str) -
     return result.stdout
 
 
+def _delete_ref_best_effort(git_runner: GitRunner, ref: str) -> None:
+    """Delete a temporary harness ref, never letting cleanup itself fail.
+
+    Deliberately swallows every exception, including one raised by
+    ``git_runner`` itself (e.g. ``FileNotFoundError`` if ``git`` is
+    missing) -- not just a nonzero return code. This runs in a
+    ``finally`` block after the check's real work is done; a cleanup
+    failure must never replace or mask whatever exception (or lack of
+    one) is already propagating, and a ref that was never created (the
+    "no candidates" early-exit never fetches ``base_ref`` at all) is
+    expected to fail to delete.
+    """
+
+    try:
+        git_runner(["update-ref", "-d", ref])
+    except Exception:
+        pass
+
+
 def find_remote_matches(
     slug: str,
     work_item: str = "AD_HOC",
@@ -471,106 +497,130 @@ def find_remote_matches(
 
     slug_upper = _slug_upper_underscore(slug)
     pattern = _trailing_segment_pattern(slug_upper)
-    bucket_prefix = (pathlib.PurePosixPath(str(output_root)) / work_item).as_posix()
+    # See find_local_matches' rel_prefix for why the native PurePath form
+    # is normalized to POSIX first (Windows backslash-separated
+    # output_root values, and git pathspecs always expect forward slashes).
+    bucket_prefix = (
+        pathlib.PurePosixPath(pathlib.PurePath(output_root).as_posix()) / work_item
+    ).as_posix()
     local_path_set = set(local_paths)
 
     matches: list[SlugMatch] = []
     for pr in _list_open_prs(gh_runner):
-        pr_ref = f"refs/remotes/pr/{pr.number}"
-        _run_git_or_raise(
-            git_runner,
-            ["fetch", "origin", f"+refs/pull/{pr.number}/head:{pr_ref}", "--quiet"],
-            context=f"fetching PR #{pr.number}",
-        )
-
-        ls_tree_output = _run_git_or_raise(
-            git_runner,
-            ["ls-tree", "-r", pr_ref, "--name-only", "--", bucket_prefix],
-            context=f"listing execution bucket for PR #{pr.number}",
-        )
-        candidate_paths = [
-            candidate
-            for candidate in (line.strip() for line in ls_tree_output.splitlines())
-            if candidate
-            and pattern.search(candidate)
-            and candidate not in local_path_set
-        ]
-        if not candidate_paths:
-            # Nothing in this PR's own tree could possibly match this
-            # slug, so there is no need to resolve its base ref or compute
-            # a merge-base at all. This matters beyond efficiency: a PR
-            # whose base branch has since been deleted or is otherwise
-            # unfetchable (a real, if uncommon, occurrence for a long-open
-            # PR) would otherwise make *every* --slug check fail loudly
-            # for *every* PR and *every* slug, since the base-ref
-            # fetch/merge-base calls below always ran unconditionally --
-            # turning one broken, unrelated PR into a repo-wide single
-            # point of failure. Skipping straight past a PR with zero
-            # candidate matches keeps fail-loud behavior exactly where it
-            # is actually needed: a PR that might hide a real match.
-            continue
-
-        base_ref = f"refs/remotes/pr-base/{pr.number}"
-        _run_git_or_raise(
-            git_runner,
-            [
-                "fetch",
-                "origin",
-                f"+refs/heads/{pr.base_ref}:{base_ref}",
-                "--quiet",
-            ],
-            context=f"fetching base ref '{pr.base_ref}' for PR #{pr.number}",
-        )
-        merge_base = _run_git_or_raise(
-            git_runner,
-            ["merge-base", pr_ref, base_ref],
-            context=f"computing merge-base for PR #{pr.number}",
-        ).strip()
-
-        for rel_path in candidate_paths:
-            # Structural tree-membership check, not stderr-text matching:
-            # `git ls-tree` either succeeds (0) and lists the path if
-            # present at that tree-ish, or fails (nonzero) only if
-            # `merge_base` itself is unusable -- a genuine failure worth
-            # raising on. Unlike `git cat-file -e`, its "not present"
-            # signal (empty stdout on success) carries no free-text
-            # message at all, so there is no locale/git-version-dependent
-            # wording to misclassify (a real gap found in round 6 review:
-            # `cat-file -e`'s error text differs between "does not exist
-            # in <tree>" and "exists on disk, but not in <tree>" depending
-            # on exactly how the path is absent, and matching only one of
-            # those wrongly treated the other as a fatal git error).
-            tree_listing = _run_git_or_raise(
+        # A harness-owned namespace, not `refs/remotes/*` -- a client
+        # repository could have an actual remote named `pr` or `pr-base`
+        # (uncommon, but real), which `refs/remotes/pr/<N>` would silently
+        # overwrite. `refs/lrh/pulls/<N>/...` cannot collide with any
+        # configured remote's own tracking refs, and reads as clearly
+        # harness-managed rather than a real remote-tracking branch.
+        pr_ref = f"refs/lrh/pulls/{pr.number}/head"
+        base_ref = f"refs/lrh/pulls/{pr.number}/base"
+        try:
+            _run_git_or_raise(
                 git_runner,
-                ["ls-tree", "--name-only", merge_base, "--", rel_path],
-                context=f"checking tree membership of {rel_path} at merge-base",
+                [
+                    "fetch",
+                    "origin",
+                    f"+refs/pull/{pr.number}/head:{pr_ref}",
+                    "--quiet",
+                ],
+                context=f"fetching PR #{pr.number}",
             )
-            if tree_listing.strip():
-                # Present at this PR's own merge-base with its declared
-                # base ref: inherited from a stacked branch, not newly
-                # introduced by this PR.
+
+            ls_tree_output = _run_git_or_raise(
+                git_runner,
+                ["ls-tree", "-r", pr_ref, "--name-only", "--", bucket_prefix],
+                context=f"listing execution bucket for PR #{pr.number}",
+            )
+            candidate_paths = [
+                candidate
+                for candidate in (line.strip() for line in ls_tree_output.splitlines())
+                if candidate
+                and pattern.search(candidate)
+                and candidate not in local_path_set
+            ]
+            if not candidate_paths:
+                # Nothing in this PR's own tree could possibly match this
+                # slug, so there is no need to resolve its base ref or
+                # compute a merge-base at all. This matters beyond
+                # efficiency: a PR whose base branch has since been
+                # deleted or is otherwise unfetchable (a real, if
+                # uncommon, occurrence for a long-open PR) would
+                # otherwise make *every* --slug check fail loudly for
+                # *every* PR and *every* slug, since the base-ref
+                # fetch/merge-base calls below always ran unconditionally
+                # -- turning one broken, unrelated PR into a repo-wide
+                # single point of failure. Skipping straight past a PR
+                # with zero candidate matches keeps fail-loud behavior
+                # exactly where it is actually needed: a PR that might
+                # hide a real match.
                 continue
 
-            show_output = _run_git_or_raise(
+            _run_git_or_raise(
                 git_runner,
-                ["show", f"{pr_ref}:{rel_path}"],
-                context=f"reading {rel_path} from PR #{pr.number}",
+                [
+                    "fetch",
+                    "origin",
+                    f"+refs/heads/{pr.base_ref}:{base_ref}",
+                    "--quiet",
+                ],
+                context=f"fetching base ref '{pr.base_ref}' for PR #{pr.number}",
             )
-            fields = prompt_workflow_records.parse_front_matter_fields_from_text(
-                show_output
-            )
-            matches.append(
-                SlugMatch(
-                    path=rel_path,
-                    execution_id=_execution_id_or_fallback(
-                        rel_path, fields.get("execution_id", "")
-                    ),
-                    status=fields.get("status", ""),
-                    pr=fields.get("pr", ""),
-                    created_at=fields.get("created_at", ""),
-                    source=f"PR#{pr.number}",
+            merge_base = _run_git_or_raise(
+                git_runner,
+                ["merge-base", pr_ref, base_ref],
+                context=f"computing merge-base for PR #{pr.number}",
+            ).strip()
+
+            for rel_path in candidate_paths:
+                # Structural tree-membership check, not stderr-text
+                # matching: `git ls-tree` either succeeds (0) and lists
+                # the path if present at that tree-ish, or fails
+                # (nonzero) only if `merge_base` itself is unusable -- a
+                # genuine failure worth raising on. Unlike
+                # `git cat-file -e`, its "not present" signal (empty
+                # stdout on success) carries no free-text message at all,
+                # so there is no locale/git-version-dependent wording to
+                # misclassify (a real gap found in round 6 review:
+                # `cat-file -e`'s error text differs between "does not
+                # exist in <tree>" and "exists on disk, but not in <tree>"
+                # depending on exactly how the path is absent, and
+                # matching only one of those wrongly treated the other as
+                # a fatal git error).
+                tree_listing = _run_git_or_raise(
+                    git_runner,
+                    ["ls-tree", "--name-only", merge_base, "--", rel_path],
+                    context=f"checking tree membership of {rel_path} at merge-base",
                 )
-            )
+                if tree_listing.strip():
+                    # Present at this PR's own merge-base with its
+                    # declared base ref: inherited from a stacked branch,
+                    # not newly introduced by this PR.
+                    continue
+
+                show_output = _run_git_or_raise(
+                    git_runner,
+                    ["show", f"{pr_ref}:{rel_path}"],
+                    context=f"reading {rel_path} from PR #{pr.number}",
+                )
+                fields = prompt_workflow_records.parse_front_matter_fields_from_text(
+                    show_output
+                )
+                matches.append(
+                    SlugMatch(
+                        path=rel_path,
+                        execution_id=_execution_id_or_fallback(
+                            rel_path, fields.get("execution_id", "")
+                        ),
+                        status=fields.get("status", ""),
+                        pr=fields.get("pr", ""),
+                        created_at=fields.get("created_at", ""),
+                        source=f"PR#{pr.number}",
+                    )
+                )
+        finally:
+            _delete_ref_best_effort(git_runner, pr_ref)
+            _delete_ref_best_effort(git_runner, base_ref)
     return matches
 
 

@@ -622,28 +622,13 @@ false positive/negative in practice — per this project's practice of
 promoting on observed incident rather than speculative hardening.
 
 **Cross-reference (2026-08-01):** This entry's own landing PR (#452) is
-now cited as supporting evidence for a separate, not-yet-filed proposal
-on reducing GitHub bot-review credit consumption via a self-review-first
-tier (raised in another session, same date — motivated primarily by PR
-#453's 9 retrigger batches). PR #452 is a sharper example of the same
-problem: 12 pushed retrigger batches in one landing session, each
-individually legitimate (not unattended runaway spend — the round-cap
-gate fired correctly and required live reauthorization each time, which
-is exactly the failure mode that proposal describes as unsolved). Two
-data points from PR #452 specifically relevant there: (1) after
-exhausting an authorized ceiling, that session substituted 3 independent
-cold-subagent review passes for further bot retriggers — each pass found
-a real bug bot review had missed across all 12 rounds, including the
-single most severe bug in the PR (a harness-level discovery that shell
-variables don't survive across separate tool calls); (2) several
-bot-found issues across those 12 rounds were self-inflicted regressions
-from that same session's own prior-round fixes — the exact class of
-issue a pre-push self-review pass is proposed to catch for free. See
-`project/executions/AD_HOC/2026_08_01_*COPILOT_STALLED_SESSION_DETECTION*.md`
-for the full round-by-round account. Not itself a reason to revisit this
+cited as supporting evidence for the self-review-first tier problem —
+now promoted to its own dedicated entry, "Self-review-first tier for
+reducing GitHub bot-review credit consumption" below, since it outgrew a
+cross-reference paragraph here. Not itself a reason to revisit this
 entry's own status above — orthogonal concern (this entry is about
-promoting *this* heuristic to tested code; the cross-referenced proposal
-is about the review-credit model generally).
+promoting *this* heuristic to tested code; the cross-referenced entry is
+about the review-credit model generally).
 
 **Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8.3;
 `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`
@@ -805,3 +790,132 @@ partial/pivoted, in `project/work_items/resolved/`); PR #454 (WI
 creation); PR #456 (attempted implementation + revert); memory
 `project_live_checkout_verification_smell.md` and
 `feedback_review_pattern_over_round_count.md`.
+
+---
+
+## Self-review-first tier for reducing GitHub bot-review credit consumption
+
+**Noted:** 2026-08-01 (raised in another session, motivated by PR #453's
+9 retrigger batches); promoted from a cross-reference paragraph to its
+own entry 2026-08-02 while auditing outstanding review-credit work.
+Not yet filed as a proposal or work item — this entry is the first
+consolidation of what's actually known, ahead of that.
+
+**Idea:** Every external bot-review retrigger (GitHub Copilot, Codex)
+draws on a metered, billable AI-credit resource — not merely session
+time. The `round-cap-gate.md` mechanism (`WI-REVIEW-ROUND-ESCALATION-GATE`,
+PR #445/#452) bounds *how many* retriggers happen and requires live
+human reauthorization past a ceiling, but does not reduce *how often a
+retrigger is actually necessary* in the first place. A self-review-first
+tier would insert an independent, cold-context subagent review pass
+before some or all bot retriggers, on the theory that (a) it costs
+session compute/agent-turns but not the metered bot-credit resource, and
+(b) it can catch a category of bug bot review keeps missing.
+
+**Evidence for the idea**, all real, in-repo, cited data points (not
+speculative):
+
+- **PR #452** (this session, `round-cap-gate.md` implementation): the
+  round-cap-gate.md state ledger
+  (`project/executions/round_state/xenotaur-logical_robotics_harness-pr452.json`
+  on the `lrh-round-state` branch) shows `completed_count: 10, ceiling:
+  10` — 10 completed bot-retrigger batches, ceiling escalated 3→10 via
+  human reauthorization. After exhausting the authorized ceiling, the
+  session substituted 3 independent cold-subagent review passes for
+  further bot retriggers instead of asking for a further escalation. Only
+  the *first* pass found a bug bot review had genuinely missed across its
+  prior rounds — a harness-level discovery that shell variables don't
+  survive across separate tool calls, which "no bot-review round had
+  caught in 8 prior rounds" per the landed CHAIN-NOTE
+  (`project/executions/AD_HOC/2026_08_01_01_07_05_COPILOT_STALLED_SESSION_DETECTION_CONFIRM.md`).
+  The second and third passes instead found regressions introduced by
+  that first pass's own fix (two opposite-direction mirror-image bugs in
+  the same retrigger-timestamp-filtering mechanism) — not bugs bots had
+  independently missed, but exactly the class of self-inflicted-regression
+  issue a *pre-push* self-review pass (not just a post-ceiling substitute)
+  could plausibly catch for free, before it ever reaches a bot and costs
+  a retrigger.
+- **PR #447** (`WI-REVIEW-LANDED-CANONICAL-CHECK` creation, 2026-07-31 to
+  08-01): the earliest live trial of the substitution pattern. Round 4 of
+  a 4-cycle review-response/confirm-fixes loop swapped a fresh
+  independent subagent for external bot retrigger (human-directed) and
+  caught 2 more real issues, including one that 3 prior rounds of Codex
+  review had missed. This substitution *replaced* the PR's eventual bot
+  round entirely — verified: every recorded bot review on this PR
+  predates the round-4 fix commit by nearly a day, and none reviewed it
+  or anything after it before merge. (The same pattern holds for PR #452
+  and #459 too, on independent verification — see Open Question 4.) See
+  `project/executions/AD_HOC/2026_08_02_00_00_29_WI_REVIEW_LANDED_CANONICAL_CHECK_CLOSEOUT_NOTE.md`
+  for the full CHAIN-NOTE.
+- **PR #453**: 9 retrigger batches in one landing session — the original
+  motivating example for this idea in the other session that raised it.
+  Cited as evidence of the *problem* (excessive bot-retrigger volume),
+  not as a mechanism trial — no subagent-substitution pass is recorded in
+  this PR's execution records.
+- **PR #459** (`WI-SKILLS-LRH-EXECUTE`, this session, 2026-08-02): given
+  an explicit instruction to prefer independent subagent review over bot
+  retrigger throughout, 3 sequential cold-subagent review rounds
+  surfaced 6 distinct real issues in total (path portability, a missing
+  `pr:` field propagation, an unreachable journal path, an unfiltered
+  status grep, an unresolved placeholder, a missing `depends_on` lookup
+  mechanism) rather than narrowing into refinement noise on the same
+  issue — the pattern this project already treats as the signal that
+  continued review is finding real bugs, not diminishing returns (see
+  `feedback_review_pattern_over_round_count` in agent memory).
+
+**Open design questions** — none of these are decided yet, which is why
+this remains a backlog entry and not a proposal:
+
+1. **Trigger point.** Does self-review run only as a post-ceiling
+   substitute for a bot retrigger (the ad hoc pattern used in PR #452),
+   or proactively before every push (which is what would actually catch
+   the "self-inflicted regression from my own prior-round fix" class of
+   bug, per PR #452's second data point above)? These have different
+   costs and different mechanisms.
+2. **Interaction with `round-cap-gate.md`.** Does a self-review pass
+   count against the existing retrigger ceiling, run outside it
+   entirely, or replace a fixed fraction of ceiling slots? The gate's
+   state machine (`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`)
+   was not designed with a second review-source type in mind.
+3. **What resource is actually being conserved.** GitHub Copilot/Codex
+   AI-credits are a real, metered, billable resource; subagent review
+   passes cost session compute/agent-turns instead — not free, just a
+   different resource. Any proposal should be explicit that this is a
+   resource *substitution*, not a cost elimination, and should say
+   whether the substitution is actually cheaper in the cases that matter.
+4. **Who decides "clean enough to skip a bot round."** All three
+   mechanism-trial cases (PR #447, #452, #459 — PR #453 is problem
+   evidence only, not a mechanism trial, see above) show the same
+   pattern on independent verification: once the session substituted
+   self-review for a bot round, no bot reviewed any of the PR's
+   subsequent commits, including the one that actually merged. PR #452's
+   own CHAIN-NOTE frames this as a deliberate choice ("...plus 3
+   independent cold-subagent review passes after the ceiling was reached
+   instead of further bot rounds"); PR #447 and #459 show the identical
+   outcome with no equivalent explicit up-front decision on record — it
+   emerged operationally, because nobody retriggered a bot after the
+   substitution. So in practice, self-review substitution has already
+   ended up skipping the PR's final bot round in all 3 real trials to
+   date — just not always as a named, deliberate policy decided in
+   advance. Whether that's safe as a *designed* behavior (rather than an
+   emergent side effect of nobody asking for one more bot round), and
+   what evidence would justify formalizing it, is undesigned.
+5. **Scope of "self-review."** All three mechanism-trial data points
+   above (PR #447, #452, #459) used the same mechanism — a fresh `Agent`
+   tool call with `subagent_type: general-purpose`, given the PR URL and
+   told not to trust prior summaries. Whether that ad hoc pattern should
+   become the designed mechanism, or whether a tighter-scoped review
+   agent/prompt would do better, is unexplored.
+
+**Status:** Not started. This entry consolidates known evidence ahead of
+a `/lrh-proposal` or `/lrh-work-item` pass; no design work has happened
+yet beyond what's written here.
+
+**Related:** `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`;
+`project/work_items/resolved/WI-REVIEW-ROUND-ESCALATION-GATE.md`; harness
+PR #445, #447, #452, #453, #459; agent memory
+`feedback_round_cap_self_review_alternative.md`,
+`feedback_self_review_agent_first_trial.md`,
+`feedback_review_pattern_over_round_count.md`; the "Promote
+stalled-reviewer-session detection..." entry above (orthogonal —
+tested-primitive promotion vs. review-credit-model design).

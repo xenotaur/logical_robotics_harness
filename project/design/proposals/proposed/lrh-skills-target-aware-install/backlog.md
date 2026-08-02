@@ -124,3 +124,60 @@ show both Claude and Codex mirror state when relevant.
 `src/lrh/skills/lrh-workstream/SKILL.md`;
 `project/design/proposals/proposed/lrh-skills-target-aware-install/00_proposal.md`
 Decision 1, Decision 3, and Decision 4.
+
+---
+
+## `/lrh-land` assumes Claude session surfaces and installed slash skills
+
+**Noted:** 2026-08-02, while running the `/lrh-land` workflow from Codex on
+PR #468.
+
+**Issue:** The `/lrh-land` workflow was usable from the repository copy, but it
+was not installed as a Codex-discoverable skill in this session. Its transcript
+discovery step also starts with `CLAUDE_CODE_HOST_SESSION_ID` and
+`claude-app:<host-uuid-stem>`, which do not resolve in Codex. The inlined
+sub-skills carry the same Claude provenance examples in their execution-record
+templates.
+
+**Idea:** Add target-aware transcript discovery and execution-record
+provenance guidance for Codex. Codex-installed lifecycle skills should refer to
+Codex task/thread identifiers where available and should not require the user
+to know that the canonical source lives under `src/lrh/skills/`.
+
+**Status:** Tracked, not yet implemented.
+
+**Related:** `src/lrh/skills/lrh-land/SKILL.md`;
+`src/lrh/skills/lrh-land/references/land-workflow.md`;
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md`;
+`src/lrh/skills/lrh-review-response/SKILL.md`.
+
+---
+
+## Local sub-agent self-review is available in Codex but under-modeled in `/lrh-land`
+
+**Noted:** 2026-08-02, while landing PR #468 from Codex after the user noted
+that GitHub code reviews are an expensive resource and Claude sessions now
+prefer fresh independent sub-agent self-review when possible.
+
+**Issue:** Codex can emulate the desired fresh independent self-review pattern
+with a spawned sub-agent that does not post GitHub reviews, request reviewers,
+edit files, or push commits. `/lrh-confirm-fixes` already documents a
+`--subagent` verification mode, but `/lrh-land` still frames REVIEW-LANDED
+mostly around GitHub review-response and reviewer retrigger mechanics. That is
+appropriate when GitHub reviewers are the authoritative signal, but it does not
+clearly model the cheaper local self-review path as an intentional review
+signal for Codex dogfooding.
+
+**Idea:** Decide how LRH should represent local independent self-review in the
+land/confirm workflow: as a Codex target adaptation, a repo policy override, or
+an explicit workflow option. The guidance should distinguish local self-review
+from GitHub review objects so it does not accidentally imply branch-protection
+approval or consume reviewer resources.
+
+**Status:** Tracked, not yet implemented.
+
+**Related:** `src/lrh/skills/lrh-land/SKILL.md`;
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md`;
+`src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md`;
+`project/design/proposals/proposed/lrh-skills-target-aware-install/00_proposal.md`
+Decision 4.

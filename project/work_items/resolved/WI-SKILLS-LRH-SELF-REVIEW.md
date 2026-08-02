@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #467 (commit cdd1134)
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-SELF-REVIEW
 title: Implement /lrh-self-review Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -862,6 +862,15 @@ speculative):
   issue — the pattern this project already treats as the signal that
   continued review is finding real bugs, not diminishing returns (see
   `feedback_review_pattern_over_round_count` in agent memory).
+- **PR #469** (`PROP-LRH-CODEX-CONVERSATION-EXPORTER`, this session,
+  2026-08-02): the user explicitly clarified during `/lrh-land` that the
+  current standard is no manual paid GitHub reviewer retriggers beyond the
+  automatic review on initial PR push; post-fix confirmation should use
+  "self-review with a fresh independent sub-agent" instead. This exposed a
+  workflow mismatch in `/lrh-land` and `/lrh-confirm-fixes`, whose current
+  Step 8 prose still assumes external reviewer retrigger side effects,
+  round-cap state, and possible Copilot credit exhaustion after `_CONFIRM`
+  commits.
 
 **Open design questions** — none of these are decided yet, which is why
 this remains a backlog entry and not a proposal:
@@ -919,3 +928,51 @@ PR #445, #447, #452, #453, #459; agent memory
 `feedback_review_pattern_over_round_count.md`; the "Promote
 stalled-reviewer-session detection..." entry above (orthogonal —
 tested-primitive promotion vs. review-credit-model design).
+
+---
+
+## Codex skill adaptation gaps encountered while creating PROP-LRH-CODEX-CONVERSATION-EXPORTER
+
+**Noted:** 2026-08-02, while creating
+`project/design/proposals/proposed/lrh-codex-conversation-exporter/`
+from a Codex app session using the authoritative
+`src/lrh/skills/lrh-proposal/SKILL.md` source.
+
+The run confirmed several places where current LRH skills or skill-adjacent
+workflow prose still assume Claude.app capabilities, installation paths, or
+session identifiers that do not map cleanly to Codex:
+
+1. **Missing `.agents/skills` installation path.** Codex did not have an
+   `~/.agents/skills/` or project `.agents/skills/` directory available in this
+   worktree. The session used the authoritative repo copy at
+   `src/lrh/skills/lrh-proposal/SKILL.md` directly. Codex can follow the skill
+   manually, but slash-command discovery and installation are not yet
+   first-class.
+2. **Claude-specific execution-record defaults.** `lrh-proposal`'s
+   execution-record reference still shows `agent: claude_app` and final
+   reporting text assumes `session_transcript` will later become
+   `claude-app:<host-uuid-stem>`. Codex sessions need a Codex-specific
+   convention, likely `agent: codex_app` or another open-ended value, and a
+   `codex-app:<id>` / `pending` / `none` transcript resolution path.
+3. **Claude-specific skill availability checks.** `lrh-proposal` Step 11 checks
+   whether `/lrh-workstream` is listed in `CLAUDE.md ## Skills`. Codex needs an
+   equivalent target-aware skill availability check that can inspect
+   Codex-discoverable skills or fall back to authoritative repo skill sources.
+4. **Network assumptions in idempotence checks.** The proposal skill's cross-PR
+   idempotence check assumes GitHub network access is available. In Codex's
+   restricted sandbox, `gh pr list` failed until the session requested
+   escalation. Codex-friendly skills should explicitly describe
+   sandbox/network escalation behavior and graceful local-only fallback
+   semantics.
+5. **Environment preflight surfaced missing Pyright.** `scripts/version tools`
+   reported `Pyright not installed`. This is likely environment setup/cache
+   state rather than a proposal design issue, but Codex-facing workflows should
+   preserve the repo guidance that tool-version mismatches are setup issues to
+   reconcile before validation-focused debugging.
+
+**Status:** Tracked, not yet implemented. Related design is
+`PROP-LRH-CODEX-CONVERSATION-EXPORTER` and the target-aware skill installation
+workstream in PR #468. The proposal-local
+`project/design/proposals/proposed/lrh-codex-conversation-exporter/backlog.md`
+exists only as a pointer back to this canonical backlog entry so future
+proposal/work-item demand searches do not miss these follow-ups.

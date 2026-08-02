@@ -98,7 +98,19 @@ def load_execution_records(
 
     execution_root = pathlib.Path(project_root) / output_root
     records: list[ExecutionRecord] = []
-    for path in sorted(execution_root.glob("**/*.md")):
+    for path in sorted(execution_root.rglob("*")):
+        # `.glob("**/*.md")` is case-sensitive regardless of the
+        # underlying filesystem's own case-sensitivity -- the identical
+        # gap already fixed in
+        # ``prompt_workflow_slug.find_local_matches`` (confirmed
+        # empirically there: glob matching does not match a
+        # `.MD`-suffixed file even on a case-insensitive-by-default
+        # filesystem). A hand-written or migrated record ending in `.MD`
+        # would otherwise be silently invisible to `--prompt-id` lookup,
+        # `update-execution`, and exploratory search, even though the
+        # sibling `--slug` lookup already finds it correctly.
+        if not path.is_file() or path.suffix.lower() != ".md":
+            continue
         record = parse_execution_record(path)
         if record is not None:
             records.append(record)

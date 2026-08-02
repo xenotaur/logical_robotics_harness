@@ -65,6 +65,27 @@ class PromptWorkflowRecordsTest(unittest.TestCase):
 
         self.assertEqual([record.path for record in records], [first, second])
 
+    def test_load_execution_records_finds_uppercase_md_extension(self) -> None:
+        # Regression test: `.glob("**/*.md")` is case-sensitive regardless
+        # of the underlying filesystem's own case-sensitivity -- a
+        # hand-written or migrated record ending in `.MD` was silently
+        # invisible to --prompt-id lookup, update-execution, and
+        # exploratory search (the same bug already fixed for the --slug
+        # lookup path in prompt_workflow_slug.find_local_matches).
+        with tempfile.TemporaryDirectory() as temp_dir:
+            project_root = pathlib.Path(temp_dir)
+            uppercase = project_root / "project/executions/AD_HOC/record.MD"
+            uppercase.parent.mkdir(parents=True, exist_ok=True)
+            uppercase.write_text(
+                "---\nprompt_id: PROMPT(AD_HOC:UPPER)[2026-05-06T12:00:00-04:00]\n"
+                "status: landed\n---\n",
+                encoding="utf-8",
+            )
+
+            records = prompt_workflow_records.load_execution_records(project_root)
+
+        self.assertEqual([record.path for record in records], [uppercase])
+
     def test_check_execution_returns_exact_prompt_id_match_only(self) -> None:
         prompt_id = "PROMPT(AD_HOC:EXACT)[2026-05-06T12:00:00-04:00]"
         with tempfile.TemporaryDirectory() as temp_dir:

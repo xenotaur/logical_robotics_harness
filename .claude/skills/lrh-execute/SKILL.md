@@ -84,7 +84,14 @@ exact rule ("Chosen scope", `00_proposal.md:221-225`): "find the next
 yes` in `lrh work-items readiness` structured output — not merely a zero
 exit code — and no `in_progress` or `landed` execution record), then
 proceed as WI-ID." That rule presupposes an ordered candidate list, which
-comes from the workstream itself: read `project/workstreams/<bucket>/<WS-ID>.md`'s
+comes from the workstream itself:
+
+```bash
+find project/workstreams/ -name "<WS-ID>.md"
+```
+
+(workstreams live under `proposed/`, `active/`, `resolved/`, or
+`abandoned/` — locate the file rather than assuming a bucket). Read its
 frontmatter `work_items:` list, and evaluate its entries **in list
 order** — do not evaluate WIs from any other workstream, and do not
 guess an ordering the workstream file doesn't state. For each candidate,
@@ -99,10 +106,13 @@ code), and check `status: proposed`, `depends_on` satisfied, and no
 `in_progress`/`landed` execution record:
 
 ```bash
-grep -rh "^status:" project/executions/<candidate-WI-ID>/ 2>/dev/null
+grep -rh "^status: \(in_progress\|landed\)" project/executions/<candidate-WI-ID>/ 2>/dev/null
 ```
 
-(no output means no record exists yet for this WI — a candidate). Take
+(no output means no *blocking* record — `failed`/`reverted`/`superseded`
+records don't disqualify a candidate, only `in_progress`/`landed` do,
+matching the rule's own wording; an unfiltered `^status:` grep would
+wrongly disqualify on any prior record regardless of its value). Take
 the **first** candidate in `work_items:` order that satisfies all of the
 above. **Stop and report if no ready WI exists — do not propose creating
 one.** Creation actions ("create a work item," "create a workstream,"

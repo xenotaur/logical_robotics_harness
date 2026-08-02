@@ -18,7 +18,7 @@ related_design:
 work_items: []
 exit_criteria:
   - All four PROP-LRH-SESSION-ARCHIVE-SYNC stages are delivered as resolved work items (Stage 1 both-identifier capture + minimal project/sessions/ index; Stage 2 lrh sessions sync + discover/link; Stage 3 index enrichment + report; Stage 4 required weekly scheduled sync + optional SessionEnd hook)
-  - Both open questions (archive-root location; fork representation) are resolved and recorded, with fork representation settled before Stage 3 is scoped
+  - The remaining open question (archive-root location) is resolved and recorded
   - lrh sessions report shows no dangling session_transcript pointers and no unarchived repo-changing sessions for work produced after Stage 1 lands
   - lrh validate passes with 0 errors after each leaf lands
   - PROP-LRH-SESSION-ARCHIVE-SYNC implementation_status is advanced (implemented, with implemented_by referencing the resolved leaves) and its adoption decision is recorded
@@ -44,8 +44,8 @@ staged, independently reviewable leaves.
 
 - Deliver the four PROP-LRH-SESSION-ARCHIVE-SYNC stages as work items through the
   standard LRH execution lifecycle.
-- Resolve and record the proposal's two open questions (archive-root location;
-  fork representation) as they gate their dependent stages.
+- Resolve and record the proposal's remaining open question (archive-root
+  location).
 - Advance the proposal's `implementation_status` and record its adoption decision
   as the leaves land.
 
@@ -84,9 +84,13 @@ readability; none reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
   first). Extend `/lrh-implement` record creation and `/lrh-closeout` to capture
   `CLAUDE_CODE_HOST_SESSION_ID` and `CLAUDE_CODE_SESSION_ID`, recording the host
   stem as the `session_transcript` pointer and persisting the child id in a
-  minimal `project/sessions/` index. Because this modifies `/lrh-closeout`
-  **by design**, its `forbidden_actions` must be *permissive-with-a-gate*
-  ("ask for explicit approval before exceeding scope"), not a hard
+  minimal `project/sessions/` index. Per the resolved fork-representation
+  question (PR #451), the index schema must support stitching entries by
+  shared `branch` / `writtenBranches[]` / PR from the start — fork continuity
+  is expressed only in the index, never by editing an already-landed record's
+  single-id `session_transcript`. Because this modifies `/lrh-closeout` **by
+  design**, its `forbidden_actions` must be *permissive-with-a-gate* ("ask for
+  explicit approval before exceeding scope"), not a hard
   `modify_lrh_closeout_skill` prohibition.
 - **Stage 2 — `lrh sessions sync` + `discover`/`link`.** Raw-JSONL mirror plus
   `/export` `metadata.json` harvest for the host↔child mapping. Acceptance
@@ -97,9 +101,8 @@ readability; none reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
   line-level `sessionId` values inside each JSONL, not just filename stems, so
   forked lineages are not left with incomplete alias sets.
 - **Stage 3 — index enrichment + `report`.** Enrich the Stage 1 index
-  (era-general keys, fork stitching, dedup latest-wins) and add
-  `lrh sessions report`. **Blocked on the fork-representation open question**,
-  which shapes the index schema.
+  (era-general keys, branch/PR fork stitching per Decision 4, dedup
+  latest-wins) and add `lrh sessions report`.
 - **Stage 4 — scheduling + hook.** The weekly scheduled `lrh sessions sync` is
   **required** (the guarantee for sessions that never reach closeout); the
   `SessionEnd` hook is the only optional piece. Any part touching `/lrh-closeout`
@@ -108,8 +111,7 @@ readability; none reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
 ## Exit Criteria
 
 - All four stages above are delivered as resolved work items.
-- Both open questions (archive-root location; fork representation) are resolved
-  and recorded, with fork representation settled before Stage 3 is scoped.
+- The remaining open question (archive-root location) is resolved and recorded.
 - `lrh sessions report` shows no dangling `session_transcript` pointers and no
   unarchived repo-changing sessions for work produced after Stage 1 lands.
 - `lrh validate` passes with 0 errors after each leaf lands.
@@ -145,7 +147,9 @@ readability; none reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
   setup (in vs. outside a synced folder, given past sync-conflict issues) and
   with the eventual encrypted off-machine tier. Design-discussion item; the
   design assumes only that the root is configurable.
-- **Fork representation.** Whether one work stretch spanning a fork is recorded
-  as a sequence-valued `session_transcript` or as per-record ids stitched by the
-  `project/sessions/` index via branch/PR. This shapes the Stage 3 index schema
-  and must be resolved before Stage 3 is scoped.
+
+Fork representation was resolved by PR #451 (merged `8fff522`, 2026-08-02):
+`session_transcript` stays single-id per thread; fork-spanning work is stitched
+in the `project/sessions/` index via `branch` / `writtenBranches[]` / PR
+(Decision 4), not represented as a multi-valued pointer. Carried into Stage 1's
+index-schema requirement above rather than left as an open item.

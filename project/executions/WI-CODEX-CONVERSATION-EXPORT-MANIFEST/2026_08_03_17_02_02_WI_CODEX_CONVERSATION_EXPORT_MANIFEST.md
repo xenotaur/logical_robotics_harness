@@ -2,13 +2,13 @@
 execution_id: 2026_08_03_17_02_02_WI_CODEX_CONVERSATION_EXPORT_MANIFEST
 prompt_id: PROMPT(WI-CODEX-CONVERSATION-EXPORT-MANIFEST:WI_CODEX_CONVERSATION_EXPORT_MANIFEST)[2026-08-03T16:45:59+00:00]
 work_item: WI-CODEX-CONVERSATION-EXPORT-MANIFEST
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/476
-commit:
+commit: d4301e2bff808ea9c7464a756cc3f91be41677a2
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-CODEX-CONVERSATION-EXPORT-MANIFEST.md
-session_transcript: pending
+session_transcript: none
 created_at: 2026-08-03T17:02:02+00:00
 ---
 

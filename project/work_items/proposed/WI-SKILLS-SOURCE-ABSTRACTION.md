@@ -57,6 +57,27 @@ explicit-path sources while preserving existing behavior.
 - Keep `src/lrh/skills/` authoritative for LRH package skills.
 - Add tests for source enumeration and conflict behavior.
 
+## Required Changes
+
+- Add an internal canonical skill source abstraction that can represent the
+  bundled LRH package source, the current repository's canonical skill source,
+  and an explicit filesystem path source.
+
+- Refactor skill enumeration so install planning reads from a selected source
+  abstraction instead of assuming the bundled `src/lrh/skills/` package tree is
+  the only possible source.
+
+- Preserve existing package-source behavior as the default path used by current
+  `lrh skills install` commands.
+
+- Keep install target directories (`.claude/skills/`, `.agents/skills/`, and
+  user-scope equivalents) as generated destinations rather than authoritative
+  canonical sources.
+
+- Add focused regression tests for package-source enumeration and for at least
+  one non-package source path, including conflict or destination behavior that
+  proves source selection does not bypass existing install safety checks.
+
 ## Non-Goals
 
 - Does not add `project/agent_skills.yaml`.

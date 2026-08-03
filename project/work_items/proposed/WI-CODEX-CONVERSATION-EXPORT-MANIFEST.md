@@ -16,11 +16,9 @@ related_roadmap:
 related_workstreams:
   - WS-LRH-CODEX-CONVERSATION-EXPORTER
 related_design:
-  - project/workstreams/proposed/WS-LRH-CODEX-CONVERSATION-EXPORTER.md
   - project/design/proposals/proposed/lrh-codex-conversation-exporter/00_proposal.md
   - project/design/proposals/proposed/lrh-conversations-storage-interop/00_proposal.md
   - project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md
-  - docs/reference/cli/conversation.md
 depends_on: []
 blocked_by: []
 expected_actions:

@@ -2,14 +2,14 @@
 execution_id: 2026_08_03_19_56_11_WI_CODEX_CONVERSATION_EXPORT_ADAPTER_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_CODEX_CONVERSATION_EXPORT_ADAPTER_SELFREVIEW)[2026-08-03T19:56:06+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_03_19_34_35_WI_CODEX_CONVERSATION_EXPORT_ADAPTER
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/478
-commit:
+commit: 55d20458e1dc6a4b91dec6a2e12ba7b6f93e0374
 created_at: 2026-08-03T19:56:11+00:00
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/478
-session_transcript: pending
+session_transcript: none
 ---
 
 # Summary

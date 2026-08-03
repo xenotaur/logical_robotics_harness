@@ -2,10 +2,10 @@
 execution_id: 2026_08_02_23_42_45_WS_LRH_CODEX_CONVERSATION_EXPORTER
 prompt_id: PROMPT(AD_HOC:WS_LRH_CODEX_CONVERSATION_EXPORTER)[2026-08-02T23:39:29+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/471
-commit:
+commit: d56b1ff3e5215a1d5e8982a2cb372fe86f9f0af4
 agent: codex_app
 instruction_source: project/workstreams/proposed/WS-LRH-CODEX-CONVERSATION-EXPORTER.md
 session_transcript: pending

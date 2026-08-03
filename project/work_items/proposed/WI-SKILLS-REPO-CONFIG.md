@@ -62,6 +62,40 @@ the control-plane parser.
 - Apply CLI-over-config precedence.
 - Add parser regression coverage for list-valued config.
 
+## Required Changes
+
+- Define the optional `project/agent_skills.yaml` schema for repository-local
+  skill installation configuration, including `schema_version`, configured
+  canonical sources, selected targets, install scope, and non-destructive
+  install-policy fields.
+
+- Add loader support for `project/agent_skills.yaml` that is optional by
+  default: ordinary `lrh skills install` behavior must remain package-source,
+  Claude-target compatible when no repo config is present.
+
+- Integrate repo config into skill install planning so configured sources and
+  targets can influence the same source/target resolution path used by
+  `lrh skills install --source` and `--target`.
+
+- Implement CLI-over-config precedence for install options. Explicit command
+  flags must override repo config, and repo config must override conventional
+  defaults only where the config explicitly provides a value. Destructive
+  overwrite of locally modified skill targets must remain gated by the explicit
+  `--force` CLI flag; checked-in repo config must not enable force/overwrite
+  behavior on an ordinary `lrh skills install`.
+
+- Address the proposal's YAML parser constraint for list-valued fields: either
+  use a real YAML parser for `project/agent_skills.yaml`, or add regression
+  coverage proving quoted list-element values are parsed correctly if a simple
+  parser is reused.
+
+- Document the schema, precedence order, optional-config behavior, and at least
+  one example configuration in repository reference documentation.
+
+- Add focused tests for config loading, absent-config defaults, configured
+  source/target influence, CLI-over-config precedence, and quoted list-element
+  parsing behavior.
+
 ## Non-Goals
 
 - Does not implement target render adapters.

@@ -147,6 +147,13 @@ class TestConversationExportManifest(unittest.TestCase):
         ):
             ConversationExportManifest.from_mapping(mapping)
 
+    def test_rejects_null_warnings(self) -> None:
+        mapping = _valid_mapping()
+        mapping["warnings"] = None
+
+        with self.assertRaisesRegex(ConversationExportManifestError, "warnings"):
+            ConversationExportManifest.from_mapping(mapping)
+
     def test_rejects_string_warnings(self) -> None:
         with self.assertRaisesRegex(ConversationExportManifestError, "warnings"):
             build_codex_manifest(

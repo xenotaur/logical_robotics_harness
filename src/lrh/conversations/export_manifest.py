@@ -349,8 +349,6 @@ def _required_value(mapping: Mapping[str, object], field: str) -> object:
 
 
 def _string_tuple(value: object, field: str) -> tuple[str, ...]:
-    if value is None:
-        return ()
     if isinstance(value, str):
         raise ConversationExportManifestError(f"{field} must be a list of strings")
     if not isinstance(value, (list, tuple)):

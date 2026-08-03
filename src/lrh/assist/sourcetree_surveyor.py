@@ -10,10 +10,10 @@ from __future__ import annotations
 
 import argparse
 import ast
-import fnmatch
-import os
 import dataclasses
+import fnmatch
 import json
+import os
 import pathlib
 import sys
 import tomllib

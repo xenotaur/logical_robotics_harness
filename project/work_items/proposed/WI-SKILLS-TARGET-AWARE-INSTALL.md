@@ -67,6 +67,47 @@ item without attempting full render-adapter or ChatGPT export support.
 - Keep Codex output as direct copies with a documented body-prose caveat.
 - Add focused installer and CLI tests.
 
+## Required Changes
+
+- Update `src/lrh/skills/installer.py` so skill installation can plan and
+  apply installs for both Claude and Codex targets while preserving the
+  existing Claude default behavior when no target is specified.
+
+- Add target resolution for all selected scope/target combinations:
+  `claude` user scope maps to `~/.claude/skills/`; `claude` project scope with
+  `--local` maps to `./.claude/skills/`; `codex` user scope maps to
+  `~/.agents/skills/`; `codex` project scope with `--local` maps to
+  `./.agents/skills/`; `all` maps to both Claude and Codex targets for the
+  selected scope.
+
+- Update `src/lrh/cli/main.py` so `lrh skills install` accepts
+  `--target claude|codex|all`. The default must remain equivalent to the
+  current Claude-only behavior.
+
+- Preserve existing install safety behavior for every target: `--dry-run`
+  reports intended actions without writing files; `--force` is required to
+  overwrite user-modified target copies; `--diff` keeps the existing CLI
+  behavior of printing diffs after the normal install action, so users who want
+  no writes must combine `--dry-run --diff`; symlinked skill roots are not
+  dereferenced; bundled scripts are not executed during install.
+
+- Keep Codex output as direct copies for this first slice. Do not implement
+  Codex render adapters or `agents/openai.yaml` generation in this work item;
+  document the known interim caveat that copied skill bodies may still contain
+  Claude-specific prose pending later neutralization work.
+
+- Extend `tests/skills_installer_test.py` with temporary-directory coverage
+  for Claude and Codex user/project targets, `all` target behavior, dry-run,
+  force, diff, local-modification detection, and symlink safety.
+
+- Extend `tests/cli_tests/skills_test.py` with CLI coverage for the new
+  `--target` option, including valid target values and invalid-target
+  rejection.
+
+- Update `docs/how-to/keep-skills-up-to-date.md` to describe Claude and Codex
+  install targets, the default Claude-compatible behavior, project-local Codex
+  installs with `--local --target codex`, and the direct-copy caveat for Codex.
+
 ## Non-Goals
 
 - Does not implement source abstraction, repo config, render adapters, status

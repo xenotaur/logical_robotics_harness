@@ -1,4 +1,4 @@
-"""Install LRH skills from the package to agent skills directories."""
+"""Install LRH skills from canonical sources to agent skills directories."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
+from typing import Protocol
 
 _SKILLS_PACKAGE = "lrh.skills"
 
@@ -23,6 +24,12 @@ class TargetSelection(str, Enum):
     CLAUDE = "claude"
     CODEX = "codex"
     ALL = "all"
+
+
+class SkillSourceKind(str, Enum):
+    PACKAGE = "lrh-package"
+    CURRENT_REPO = "current-repo"
+    PATH = "path"
 
 
 class SkillStatus(str, Enum):
@@ -48,6 +55,44 @@ class InstallTarget:
         if self.target is SkillTarget.CLAUDE:
             return "Claude Code"
         return "Codex"
+
+
+class SkillSourceError(ValueError):
+    """Raised when a requested skill source cannot be resolved."""
+
+
+class SkillTreeNode(Protocol):
+    name: str
+
+    def iterdir(self) -> Iterable["SkillTreeNode"]: ...
+
+    def is_dir(self) -> bool: ...
+
+    def is_file(self) -> bool: ...
+
+    def read_bytes(self) -> bytes: ...
+
+
+@dataclass(frozen=True)
+class SkillSource:
+    kind: SkillSourceKind
+    root: SkillTreeNode
+    label: str
+
+    def skill_names(self) -> list[str]:
+        result: list[str] = []
+        for item in self.root.iterdir():
+            if _is_symlink_node(item):
+                raise SkillSourceError(f"skill source contains symlinked entry: {item}")
+            if item.is_dir() and not item.name.startswith("_"):
+                result.append(item.name)
+        return sorted(result)
+
+    def skill_root(self, skill_name: str) -> SkillTreeNode:
+        root = self.root
+        if hasattr(root, "joinpath"):
+            return root.joinpath(skill_name)  # type: ignore[attr-defined]
+        return Path(root) / skill_name
 
 
 class RefreshStatus(str, Enum):
@@ -89,6 +134,44 @@ def _default_skills_dir(target: SkillTarget) -> Path:
     return Path.home() / ".agents" / "skills"
 
 
+def resolve_skill_source(
+    source: str | Path | SkillSource = SkillSourceKind.PACKAGE.value,
+    *,
+    project_root: Path | None = None,
+) -> SkillSource:
+    if isinstance(source, SkillSource):
+        return source
+    if isinstance(source, Path):
+        root = source
+        label = str(source)
+        kind = SkillSourceKind.PATH
+    elif source == SkillSourceKind.PACKAGE.value:
+        return SkillSource(
+            kind=SkillSourceKind.PACKAGE,
+            root=importlib.resources.files(_SKILLS_PACKAGE),
+            label=SkillSourceKind.PACKAGE.value,
+        )
+    elif source == SkillSourceKind.CURRENT_REPO.value:
+        root = (
+            (project_root if project_root is not None else Path.cwd())
+            / "src"
+            / "lrh"
+            / "skills"
+        )
+        label = SkillSourceKind.CURRENT_REPO.value
+        kind = SkillSourceKind.CURRENT_REPO
+    else:
+        root = Path(source)
+        label = str(source)
+        kind = SkillSourceKind.PATH
+
+    if not root.exists():
+        raise SkillSourceError(f"skill source does not exist: {root}")
+    if root.is_symlink() or not root.is_dir():
+        raise SkillSourceError(f"skill source must be a real directory: {root}")
+    return SkillSource(kind=kind, root=root, label=label)
+
+
 def resolve_install_targets(
     target: str | SkillTarget | TargetSelection = TargetSelection.CLAUDE,
     *,
@@ -113,26 +196,41 @@ def resolve_install_targets(
     return result
 
 
-def _skill_names() -> list[str]:
-    root = importlib.resources.files(_SKILLS_PACKAGE)
-    return sorted(
-        item.name
-        for item in root.iterdir()
-        if item.is_dir() and not item.name.startswith("_")
-    )
+def _is_symlink_node(node: SkillTreeNode) -> bool:
+    return isinstance(node, Path) and node.is_symlink()
+
+
+def _skill_names(source: SkillSource | None = None) -> list[str]:
+    return (source or resolve_skill_source()).skill_names()
+
+
+def _collect_source_files(node: SkillTreeNode, prefix: str = "") -> dict[str, bytes]:
+    if _is_symlink_node(node):
+        raise SkillSourceError(f"skill source contains symlinked entry: {node}")
+    result: dict[str, bytes] = {}
+    for item in node.iterdir():
+        if _is_symlink_node(item):
+            raise SkillSourceError(f"skill source contains symlinked entry: {item}")
+        rel = f"{prefix}/{item.name}" if prefix else item.name
+        if item.is_file():
+            result[rel] = item.read_bytes()
+        elif item.is_dir():
+            result.update(_collect_source_files(item, rel))
+    return result
 
 
 def _collect_pkg_files(
     node: importlib.resources.abc.Traversable, prefix: str = ""
 ) -> dict[str, bytes]:
-    result: dict[str, bytes] = {}
-    for item in node.iterdir():
-        rel = f"{prefix}/{item.name}" if prefix else item.name
-        if item.is_file():
-            result[rel] = item.read_bytes()
-        elif item.is_dir():
-            result.update(_collect_pkg_files(item, rel))
-    return result
+    return _collect_source_files(node, prefix)
+
+
+def _write_collected_files(files: dict[str, bytes], dest_dir: Path) -> None:
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for rel_path, content in files.items():
+        target = dest_dir / rel_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
 
 
 def _collect_fs_files(directory: Path) -> dict[str, bytes]:
@@ -170,12 +268,14 @@ def _collect_fs_symlinks(directory: Path) -> set[str]:
     }
 
 
-def _skill_differs_from_package(skill_name: str, skills_dir: Path) -> bool:
-    src = importlib.resources.files(_SKILLS_PACKAGE).joinpath(skill_name)
-    pkg_files = _collect_pkg_files(src)
+def _skill_differs_from_source(
+    skill_name: str, skills_dir: Path, source: SkillSource
+) -> bool:
+    src = source.skill_root(skill_name)
+    source_files = _collect_source_files(src)
     skill_dir = skills_dir / skill_name
     fs_files = _collect_fs_files(skill_dir)
-    if pkg_files != fs_files:
+    if source_files != fs_files:
         return True
     # A nested symlink (e.g. an added file replaced by one) can leave the
     # byte dicts equal, since symlinks are excluded from both — but its
@@ -184,12 +284,23 @@ def _skill_differs_from_package(skill_name: str, skills_dir: Path) -> bool:
     return bool(_collect_fs_symlinks(skill_dir))
 
 
-def diff_skill(skill_name: str, skills_dir: Path) -> str:
-    """Return a unified-diff report of how an installed skill differs from the package.
+def _skill_differs_from_package(skill_name: str, skills_dir: Path) -> bool:
+    return _skill_differs_from_source(skill_name, skills_dir, resolve_skill_source())
+
+
+def diff_skill(
+    skill_name: str,
+    skills_dir: Path,
+    source: str | Path | SkillSource = SkillSourceKind.PACKAGE.value,
+    *,
+    project_root: Path | None = None,
+) -> str:
+    """Return a unified-diff report of how an installed skill differs from source.
 
     Symlinked entries under the installed skill directory are reported but
     never dereferenced — their target contents are never read or diffed.
     """
+    skill_source = resolve_skill_source(source, project_root=project_root)
     skill_dir = skills_dir / skill_name
     if skill_dir.is_symlink():
         return (
@@ -197,27 +308,27 @@ def diff_skill(skill_name: str, skills_dir: Path) -> str:
             " (refusing to read through it)\n"
         )
 
-    src = importlib.resources.files(_SKILLS_PACKAGE).joinpath(skill_name)
-    pkg_files = _collect_pkg_files(src)
+    src = skill_source.skill_root(skill_name)
+    source_files = _collect_source_files(src)
     fs_files = _collect_fs_files(skill_dir)
     fs_symlinks = _collect_fs_symlinks(skill_dir)
 
     segments: list[str] = []
-    for rel_path in sorted(set(pkg_files) | set(fs_files) | fs_symlinks):
+    for rel_path in sorted(set(source_files) | set(fs_files) | fs_symlinks):
         if rel_path in fs_symlinks:
             segments.append(f"{rel_path}: symlink — skipped\n")
             continue
-        in_pkg = rel_path in pkg_files
+        in_pkg = rel_path in source_files
         in_fs = rel_path in fs_files
         if in_pkg and not in_fs:
             segments.append(
-                f"{rel_path}: removed (present in package, missing on disk)\n"
+                f"{rel_path}: removed (present in source, missing on disk)\n"
             )
             continue
         if in_fs and not in_pkg:
-            segments.append(f"{rel_path}: added (present on disk, not in package)\n")
+            segments.append(f"{rel_path}: added (present on disk, not in source)\n")
             continue
-        pkg_bytes = pkg_files[rel_path]
+        pkg_bytes = source_files[rel_path]
         fs_bytes = fs_files[rel_path]
         if pkg_bytes == fs_bytes:
             continue
@@ -230,7 +341,7 @@ def diff_skill(skill_name: str, skills_dir: Path) -> str:
         diff_lines = difflib.unified_diff(
             pkg_lines,
             fs_lines,
-            fromfile=f"package/{rel_path}",
+            fromfile=f"source/{rel_path}",
             tofile=f"installed/{rel_path}",
         )
         segments.append("".join(diff_lines))
@@ -238,25 +349,25 @@ def diff_skill(skill_name: str, skills_dir: Path) -> str:
     return "".join(segments)
 
 
-def _copy_resource_tree(
-    node: importlib.resources.abc.Traversable, dest_dir: Path
+def _copy_resource_tree(node: SkillTreeNode, dest_dir: Path) -> None:
+    _write_collected_files(_collect_source_files(node), dest_dir)
+
+
+def _copy_skill_from_source(
+    skill_name: str, skills_dir: Path, source: SkillSource
 ) -> None:
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    for item in node.iterdir():
-        if item.is_file():
-            (dest_dir / item.name).write_bytes(item.read_bytes())
-        elif item.is_dir():
-            _copy_resource_tree(item, dest_dir / item.name)
-
-
-def _copy_skill(skill_name: str, skills_dir: Path) -> None:
     dest = skills_dir / skill_name
+    src = source.skill_root(skill_name)
+    source_files = _collect_source_files(src)
     if dest.is_symlink() or (dest.exists() and not dest.is_dir()):
         dest.unlink()
     elif dest.is_dir():
         shutil.rmtree(dest)
-    src = importlib.resources.files(_SKILLS_PACKAGE).joinpath(skill_name)
-    _copy_resource_tree(src, dest)
+    _write_collected_files(source_files, dest)
+
+
+def _copy_skill(skill_name: str, skills_dir: Path) -> None:
+    _copy_skill_from_source(skill_name, skills_dir, resolve_skill_source())
 
 
 def install_skills(
@@ -264,29 +375,32 @@ def install_skills(
     dry_run: bool = False,
     force: bool = False,
     target: str | SkillTarget = SkillTarget.CLAUDE,
+    source: str | Path | SkillSource = SkillSourceKind.PACKAGE.value,
+    project_root: Path | None = None,
 ) -> InstallReport:
-    """Copy LRH skills from the package to one agent skills directory.
+    """Copy LRH skills from one canonical source to one agent skills directory.
 
     Returns an InstallReport describing what was done (or would be done in dry-run).
     """
     skill_target = _coerce_target(target)
+    skill_source = resolve_skill_source(source, project_root=project_root)
     target_dir = (
         skills_dir if skills_dir is not None else _default_skills_dir(skill_target)
     )
     newly_created = not target_dir.exists()
     results: list[SkillResult] = []
 
-    for name in _skill_names():
+    for name in _skill_names(skill_source):
         dest = target_dir / name
         if not dest.exists():
             if not dry_run:
                 target_dir.mkdir(parents=True, exist_ok=True)
-                _copy_skill(name, target_dir)
+                _copy_skill_from_source(name, target_dir, skill_source)
             status = SkillStatus.INSTALLED
-        elif _skill_differs_from_package(name, target_dir):
+        elif _skill_differs_from_source(name, target_dir, skill_source):
             if force:
                 if not dry_run:
-                    _copy_skill(name, target_dir)
+                    _copy_skill_from_source(name, target_dir, skill_source)
                 status = SkillStatus.FORCED
             else:
                 status = SkillStatus.USER_MODIFIED
@@ -309,14 +423,17 @@ def install_skills_for_targets(
     project_root: Path | None = None,
     dry_run: bool = False,
     force: bool = False,
+    source: str | Path | SkillSource = SkillSourceKind.PACKAGE.value,
 ) -> list[InstallReport]:
     """Install skills for every selected target and scope."""
+    skill_source = resolve_skill_source(source, project_root=project_root)
     return [
         install_skills(
             skills_dir=install_target.skills_dir,
             dry_run=dry_run,
             force=force,
             target=install_target.target,
+            source=skill_source,
         )
         for install_target in resolve_install_targets(
             target, local=local, project_root=project_root

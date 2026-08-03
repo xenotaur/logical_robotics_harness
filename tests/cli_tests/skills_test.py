@@ -58,6 +58,7 @@ class SkillsInstallCliTest(unittest.TestCase):
         self.assertIn("--force", result.stdout)
         self.assertIn("--local", result.stdout)
         self.assertIn("--target", result.stdout)
+        self.assertIn("--source", result.stdout)
         self.assertNotIn("Install LRH skills to ~/.claude/skills/", result.stdout)
 
     def test_skills_help_is_target_neutral(self) -> None:
@@ -91,6 +92,73 @@ class SkillsInstallCliTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, msg=result.stderr)
         self.assertIn("would install", result.stdout)
+
+    def test_skills_install_current_repo_source_dry_run_exits_zero(self) -> None:
+        result = self._run_isolated(
+            "skills", "install", "--source", "current-repo", "--dry-run"
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("would install", result.stdout)
+
+    def test_skills_install_explicit_path_source_writes_selected_skill(self) -> None:
+        with tempfile.TemporaryDirectory() as source_dir:
+            source = pathlib.Path(source_dir)
+            (source / "sample-skill").mkdir()
+            (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
+            with tempfile.TemporaryDirectory() as fake_cwd:
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "lrh.cli.main",
+                        "skills",
+                        "install",
+                        "--local",
+                        "--source",
+                        str(source),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env=os.environ.copy(),
+                    cwd=fake_cwd,
+                )
+
+                self.assertEqual(result.returncode, 0, msg=result.stderr)
+                skill_md = (
+                    pathlib.Path(fake_cwd)
+                    / ".claude"
+                    / "skills"
+                    / "sample-skill"
+                    / "SKILL.md"
+                )
+                self.assertEqual(skill_md.read_text(), "sample skill\n")
+
+    def test_skills_install_invalid_source_rejected(self) -> None:
+        result = self._run(
+            "skills",
+            "install",
+            "--source",
+            "/not/a/real/skills/source",
+            "--dry-run",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("skill source does not exist", result.stderr)
+
+    def test_skills_install_diff_invalid_source_rejected_without_traceback(
+        self,
+    ) -> None:
+        result = self._run(
+            "skills",
+            "install",
+            "--source",
+            "/not/a/real/skills/source",
+            "--diff",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("skill source does not exist", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
     def test_skills_install_all_local_dry_run_reports_both_targets(self) -> None:
         result = self._run_local(

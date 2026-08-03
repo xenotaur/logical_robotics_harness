@@ -2,10 +2,10 @@
 execution_id: 2026_08_03_04_24_41_WI_CODEX_CONVERSATION_EXPORT_MANIFEST_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_CODEX_CONVERSATION_EXPORT_MANIFEST_SELFREVIEW)[2026-08-03T04:24:34+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_03_03_20_27_WI_CODEX_CONVERSATION_EXPORT_MANIFEST
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/472
-commit:
+commit: 242c83288e38f00fa2ee923b2f575ecd896e07b5
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/472
 session_transcript: pending

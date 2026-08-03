@@ -7,6 +7,8 @@ import re
 from datetime import datetime, timezone
 from typing import Mapping
 
+from lrh.conversations.frontmatter import yaml_mapping
+
 KIND = "lrh_codex_conversation_export"
 SCHEMA_VERSION = 1
 SOURCE_TOOL_CODEX = "codex"
@@ -14,6 +16,12 @@ DEFAULT_SOURCE_ADAPTER = "codex_manual_export"
 DEFAULT_PRIVACY = "private"
 DEFAULT_AUTHORITY = "non_authoritative_context"
 ADAPTER_VERSION = 1
+SENSITIVITY_UNSCANNED = "unscanned"
+SENSITIVITY_NONE_DETECTED = "none_detected"
+SENSITIVITY_POTENTIAL = "potential"
+SCAN_STATUS_NOT_SCANNED = "not_scanned"
+SCAN_STATUS_FAILED_OR_UNAVAILABLE = "failed_or_unavailable"
+SCAN_STATUS_SCANNED = "scanned"
 SENSITIVITY_SCAN_FIELD_ORDER = (
     "status",
     "scanner",
@@ -85,7 +93,7 @@ class ConversationExportManifest:
     source_adapter: str = DEFAULT_SOURCE_ADAPTER
     privacy: str = DEFAULT_PRIVACY
     authority: str = DEFAULT_AUTHORITY
-    sensitivity: str = "unscanned"
+    sensitivity: str = SENSITIVITY_UNSCANNED
     source_id: str | None = None
     adapter_version: int = ADAPTER_VERSION
     warnings: tuple[str, ...] = ()
@@ -98,6 +106,7 @@ class ConversationExportManifest:
         _require_exact(self.privacy, DEFAULT_PRIVACY, "privacy")
         _require_exact(self.authority, DEFAULT_AUTHORITY, "authority")
         _require_non_empty_string(self.sensitivity, "sensitivity")
+        _validate_sensitivity_scan(self.sensitivity_scan, self.sensitivity)
         _require_sha256(self.source_sha256, "source_sha256")
         _require_iso_datetime(self.exported_at, "exported_at")
         _require_non_negative_int(self.adapter_version, "adapter_version")
@@ -138,7 +147,7 @@ class ConversationExportManifest:
     def to_frontmatter(self) -> str:
         """Render the manifest as deterministic YAML frontmatter."""
 
-        return f"---\n{_yaml_mapping(self.to_mapping())}---\n"
+        return f"---\n{yaml_mapping(self.to_mapping())}---\n"
 
     @classmethod
     def from_mapping(
@@ -159,7 +168,7 @@ class ConversationExportManifest:
             source_sha256=_required_str(mapping, "source_sha256"),
             exported_at=_required_str(mapping, "exported_at"),
             adapter_version=_required_int(mapping, "adapter_version"),
-            warnings=_string_tuple(mapping.get("warnings", ()), "warnings"),
+            warnings=_string_tuple(_required_value(mapping, "warnings"), "warnings"),
             transcript_statistics=TranscriptStatistics.from_mapping(
                 _required_mapping(mapping, "transcript_statistics")
             ),
@@ -192,7 +201,7 @@ def build_codex_manifest(
     source_id: str | None = None,
     source_adapter: str = DEFAULT_SOURCE_ADAPTER,
     adapter_version: int = ADAPTER_VERSION,
-    sensitivity: str = "unscanned",
+    sensitivity: str = SENSITIVITY_UNSCANNED,
     sensitivity_scan: Mapping[str, object] | None = None,
     warnings: tuple[str, ...] | list[str] = (),
     turn_count: int | None = None,
@@ -208,11 +217,11 @@ def build_codex_manifest(
         adapter_version=adapter_version,
         sensitivity=sensitivity,
         sensitivity_scan=(
-            {"status": "not_scanned"}
+            {"status": SCAN_STATUS_NOT_SCANNED}
             if sensitivity_scan is None
             else dict(sensitivity_scan)
         ),
-        warnings=tuple(warnings),
+        warnings=_string_tuple(warnings, "warnings"),
         transcript_statistics=statistics_for_text(
             transcript_text,
             turn_count=turn_count,
@@ -277,6 +286,30 @@ def _required_mapping(
     return value
 
 
+def _validate_sensitivity_scan(
+    scan: Mapping[str, object],
+    sensitivity: str,
+) -> None:
+    if not isinstance(scan, Mapping):
+        raise ConversationExportManifestError("sensitivity_scan must be a mapping")
+    status = _required_str(scan, "status")
+    if status in (SCAN_STATUS_NOT_SCANNED, SCAN_STATUS_FAILED_OR_UNAVAILABLE):
+        if sensitivity != SENSITIVITY_UNSCANNED:
+            raise ConversationExportManifestError(
+                "sensitivity must be unscanned when sensitivity_scan is not scanned"
+            )
+        return
+    if status == SCAN_STATUS_SCANNED:
+        if sensitivity not in (SENSITIVITY_NONE_DETECTED, SENSITIVITY_POTENTIAL):
+            raise ConversationExportManifestError(
+                "sensitivity must be none_detected or potential when scanned"
+            )
+        return
+    raise ConversationExportManifestError(
+        "sensitivity_scan.status must be not_scanned, failed_or_unavailable, or scanned"
+    )
+
+
 def _deterministic_mapping(
     mapping: Mapping[str, object],
     *,
@@ -286,6 +319,11 @@ def _deterministic_mapping(
 
     ordered: dict[str, object] = {}
     seen: set[str] = set()
+    for key in mapping:
+        if not isinstance(key, str):
+            raise ConversationExportManifestError(
+                "manifest metadata keys must be strings"
+            )
     for key in preferred_order:
         if key in mapping:
             ordered[key] = _deterministic_value(mapping[key])
@@ -313,6 +351,8 @@ def _required_value(mapping: Mapping[str, object], field: str) -> object:
 def _string_tuple(value: object, field: str) -> tuple[str, ...]:
     if value is None:
         return ()
+    if isinstance(value, str):
+        raise ConversationExportManifestError(f"{field} must be a list of strings")
     if not isinstance(value, (list, tuple)):
         raise ConversationExportManifestError(f"{field} must be a list of strings")
     items: list[str] = []
@@ -362,40 +402,3 @@ def _require_iso_datetime(value: str, field: str) -> None:
         ) from err
     if parsed.tzinfo is None:
         raise ConversationExportManifestError(f"{field} must be timezone-aware")
-
-
-def _yaml_mapping(mapping: Mapping[str, object], *, indent: int = 0) -> str:
-    lines: list[str] = []
-    prefix = " " * indent
-    for key, value in mapping.items():
-        if isinstance(value, Mapping):
-            lines.append(f"{prefix}{key}:")
-            lines.append(_yaml_mapping(value, indent=indent + 2).rstrip("\n"))
-        elif isinstance(value, (list, tuple)):
-            lines.append(f"{prefix}{key}:")
-            if value:
-                for item in value:
-                    lines.append(f"{prefix}  - {_yaml_scalar(item)}")
-            else:
-                lines[-1] = f"{prefix}{key}: []"
-        else:
-            lines.append(f"{prefix}{key}: {_yaml_scalar(value)}")
-    return "\n".join(lines) + "\n"
-
-
-def _yaml_scalar(value: object) -> str:
-    if value is None:
-        return "null"
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, int):
-        return str(value)
-    text = str(value)
-    escaped = (
-        text.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t")
-    )
-    return f'"{escaped}"'

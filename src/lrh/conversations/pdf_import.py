@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from lrh.conversations import sensitivity
+from lrh.conversations import frontmatter, sensitivity
 
 ADAPTER_VERSION = 1
 
@@ -352,40 +352,11 @@ def _extract_page_count(pdf_bytes: bytes) -> int | None:
 
 
 def _yaml_mapping(mapping: dict[str, object], *, indent: int = 0) -> str:
-    lines: list[str] = []
-    prefix = " " * indent
-    for key, value in mapping.items():
-        if isinstance(value, dict):
-            lines.append(f"{prefix}{key}:")
-            lines.append(_yaml_mapping(value, indent=indent + 2).rstrip("\n"))
-        elif isinstance(value, list):
-            lines.append(f"{prefix}{key}:")
-            if value:
-                for item in value:
-                    lines.append(f"{prefix}  - {_yaml_scalar(item)}")
-            else:
-                lines[-1] = f"{prefix}{key}: []"
-        else:
-            lines.append(f"{prefix}{key}: {_yaml_scalar(value)}")
-    return "\n".join(lines) + "\n"
+    return frontmatter.yaml_mapping(mapping, indent=indent)
 
 
 def _yaml_scalar(value: object) -> str:
-    if value is None:
-        return "null"
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if isinstance(value, int):
-        return str(value)
-    text = str(value)
-    escaped = (
-        text.replace("\\", "\\\\")
-        .replace('"', '\\"')
-        .replace("\n", "\\n")
-        .replace("\r", "\\r")
-        .replace("\t", "\\t")
-    )
-    return f'"{escaped}"'
+    return frontmatter.yaml_scalar(value)
 
 
 def run_convert_pdf_cli(argv: Sequence[str] | None = None, *, prog: str) -> int:

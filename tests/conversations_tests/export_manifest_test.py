@@ -138,12 +138,61 @@ class TestConversationExportManifest(unittest.TestCase):
         with self.assertRaisesRegex(ConversationExportManifestError, "privacy"):
             ConversationExportManifest.from_mapping(mapping)
 
+    def test_rejects_missing_required_warnings(self) -> None:
+        mapping = _valid_mapping()
+        del mapping["warnings"]
+
+        with self.assertRaisesRegex(
+            ConversationExportManifestError, "missing required field: warnings"
+        ):
+            ConversationExportManifest.from_mapping(mapping)
+
+    def test_rejects_string_warnings(self) -> None:
+        with self.assertRaisesRegex(ConversationExportManifestError, "warnings"):
+            build_codex_manifest(
+                transcript_text="hello",
+                source_sha256=SOURCE_SHA256,
+                exported_at=EXPORTED_AT,
+                warnings="oops",  # type: ignore[arg-type]
+            )
+
     def test_rejects_non_codex_source_tool(self) -> None:
         mapping = _valid_mapping()
         mapping["source_tool"] = "chatgpt"
 
         with self.assertRaisesRegex(ConversationExportManifestError, "source_tool"):
             ConversationExportManifest.from_mapping(mapping)
+
+    def test_rejects_missing_sensitivity_scan_status(self) -> None:
+        mapping = _valid_mapping()
+        mapping["sensitivity_scan"] = {"scanner": "lrh_builtin_sensitive_scan"}
+
+        with self.assertRaisesRegex(
+            ConversationExportManifestError, "missing required field: status"
+        ):
+            ConversationExportManifest.from_mapping(mapping)
+
+    def test_rejects_non_mapping_sensitivity_scan(self) -> None:
+        with self.assertRaisesRegex(
+            ConversationExportManifestError, "sensitivity_scan"
+        ):
+            ConversationExportManifest(
+                source_sha256=SOURCE_SHA256,
+                exported_at=EXPORTED_AT,
+                sensitivity_scan="not_scanned",  # type: ignore[arg-type]
+                transcript_statistics=TranscriptStatistics(
+                    byte_count=5, character_count=5, line_count=1
+                ),
+            )
+
+    def test_rejects_contradictory_sensitivity_scan_state(self) -> None:
+        with self.assertRaisesRegex(ConversationExportManifestError, "sensitivity"):
+            build_codex_manifest(
+                transcript_text="hello",
+                source_sha256=SOURCE_SHA256,
+                exported_at=EXPORTED_AT,
+                sensitivity="none_detected",
+            )
 
     def test_serialized_frontmatter_is_stable(self) -> None:
         manifest = build_codex_manifest(
@@ -194,6 +243,28 @@ transcript_statistics:
   message_count: 2
 ---
 """,
+        )
+
+    def test_serializes_sequence_mapping_values_without_stringifying_them(self) -> None:
+        manifest = build_codex_manifest(
+            transcript_text="hello",
+            source_sha256=SOURCE_SHA256,
+            exported_at=EXPORTED_AT,
+            sensitivity="potential",
+            sensitivity_scan={
+                "status": "scanned",
+                "details": [{"category": "email", "line_number": 1}],
+            },
+            warnings=(),
+        )
+
+        self.assertIn(
+            """details:
+    -
+      category: "email"
+      line_number: 1
+""",
+            manifest.to_frontmatter(),
         )
 
 

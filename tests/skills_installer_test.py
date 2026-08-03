@@ -202,6 +202,140 @@ class TestResolveInstallTargets(unittest.TestCase):
         self.assertFalse((parent / ".agents").exists())
 
 
+class TestResolveSkillSource(unittest.TestCase):
+    def _make_source_dir(self) -> Path:
+        parent = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, parent, True)
+        source = parent / "skills"
+        (source / "sample-skill").mkdir(parents=True)
+        (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
+        (source / "_shared").mkdir()
+        (source / "_shared" / "ignored.md").write_text("ignored\n")
+        return source
+
+    def test_package_source_lists_packaged_skills(self) -> None:
+        source = installer.resolve_skill_source("lrh-package")
+
+        self.assertEqual(source.kind, installer.SkillSourceKind.PACKAGE)
+        self.assertIn("lrh-implement", source.skill_names())
+
+    def test_current_repo_source_uses_project_root(self) -> None:
+        repo_root = Path(__file__).resolve().parents[1]
+        source = installer.resolve_skill_source("current-repo", project_root=repo_root)
+
+        self.assertEqual(source.kind, installer.SkillSourceKind.CURRENT_REPO)
+        self.assertIn("lrh-implement", source.skill_names())
+
+    def test_explicit_path_source_lists_non_private_skill_dirs(self) -> None:
+        source_dir = self._make_source_dir()
+        source = installer.resolve_skill_source(source_dir)
+
+        self.assertEqual(source.kind, installer.SkillSourceKind.PATH)
+        self.assertEqual(source.skill_names(), ["sample-skill"])
+
+    def test_missing_source_raises_source_error(self) -> None:
+        with self.assertRaises(installer.SkillSourceError):
+            installer.resolve_skill_source(Path("/not/a/real/skills/source"))
+
+    def test_install_skills_from_explicit_path_source(self) -> None:
+        source_dir = self._make_source_dir()
+        skills_dir = Path(tempfile.mkdtemp()) / "target"
+        self.addCleanup(shutil.rmtree, skills_dir.parent, True)
+
+        report = installer.install_skills(skills_dir=skills_dir, source=source_dir)
+
+        self.assertEqual([result.name for result in report.results], ["sample-skill"])
+        self.assertEqual(report.results[0].status, installer.SkillStatus.INSTALLED)
+        self.assertEqual(
+            (skills_dir / "sample-skill" / "SKILL.md").read_text(), "sample skill\n"
+        )
+        self.assertFalse((skills_dir / "_shared").exists())
+
+    def test_explicit_path_source_preserves_user_modified_safety(self) -> None:
+        source_dir = self._make_source_dir()
+        skills_dir = Path(tempfile.mkdtemp()) / "target"
+        self.addCleanup(shutil.rmtree, skills_dir.parent, True)
+        installer.install_skills(skills_dir=skills_dir, source=source_dir)
+        skill_md = skills_dir / "sample-skill" / "SKILL.md"
+        skill_md.write_text("locally changed\n")
+
+        report = installer.install_skills(skills_dir=skills_dir, source=source_dir)
+
+        self.assertEqual(report.results[0].status, installer.SkillStatus.USER_MODIFIED)
+        self.assertEqual(skill_md.read_text(), "locally changed\n")
+
+    def test_explicit_path_source_rejects_nested_symlink_when_comparing_existing_skill(
+        self,
+    ) -> None:
+        source_dir = self._make_source_dir()
+        skills_dir = Path(tempfile.mkdtemp()) / "target"
+        self.addCleanup(shutil.rmtree, skills_dir.parent, True)
+        installer.install_skills(skills_dir=skills_dir, source=source_dir)
+        secret_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, secret_dir, True)
+        secret_file = secret_dir / "secret.txt"
+        secret_file.write_text("do not compare me\n")
+        link_path = source_dir / "sample-skill" / "secret-link.md"
+        try:
+            link_path.symlink_to(secret_file)
+        except OSError as err:
+            self.skipTest(f"symlink creation unsupported: {err}")
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.install_skills(skills_dir=skills_dir, source=source_dir)
+
+    def test_explicit_path_source_rejects_nested_symlink(self) -> None:
+        source_dir = self._make_source_dir()
+        secret_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, secret_dir, True)
+        secret_file = secret_dir / "secret.txt"
+        secret_file.write_text("do not copy me\n")
+        link_path = source_dir / "sample-skill" / "secret-link.md"
+        try:
+            link_path.symlink_to(secret_file)
+        except OSError as err:
+            self.skipTest(f"symlink creation unsupported: {err}")
+        skills_dir = Path(tempfile.mkdtemp()) / "target"
+        self.addCleanup(shutil.rmtree, skills_dir.parent, True)
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.install_skills(skills_dir=skills_dir, source=source_dir)
+
+        self.assertFalse((skills_dir / "sample-skill" / "secret-link.md").exists())
+
+    def test_diff_skill_uses_explicit_path_source(self) -> None:
+        source_dir = self._make_source_dir()
+        skills_dir = Path(tempfile.mkdtemp()) / "target"
+        self.addCleanup(shutil.rmtree, skills_dir.parent, True)
+        installer.install_skills(skills_dir=skills_dir, source=source_dir)
+        skill_md = skills_dir / "sample-skill" / "SKILL.md"
+        skill_md.write_text("locally changed\n")
+
+        diff_text = installer.diff_skill("sample-skill", skills_dir, source=source_dir)
+
+        self.assertIn("--- source/SKILL.md", diff_text)
+        self.assertIn("+++ installed/SKILL.md", diff_text)
+        self.assertIn("+locally changed", diff_text)
+
+    def test_diff_skill_rejects_nested_source_symlink(self) -> None:
+        source_dir = self._make_source_dir()
+        skills_dir = Path(tempfile.mkdtemp()) / "target"
+        self.addCleanup(shutil.rmtree, skills_dir.parent, True)
+        installer.install_skills(skills_dir=skills_dir, source=source_dir)
+        secret_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, secret_dir, True)
+        secret_file = secret_dir / "secret.txt"
+        secret_file.write_text("do not diff me\n")
+        link_path = source_dir / "sample-skill" / "secret-link.md"
+        try:
+            link_path.symlink_to(secret_file)
+        except OSError as err:
+            self.skipTest(f"symlink creation unsupported: {err}")
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.diff_skill("sample-skill", skills_dir, source=source_dir)
+
+
 class TestInstallNamedSkills(unittest.TestCase):
     def _make_skills_dir(self) -> Path:
         """Return a not-yet-existing path for use as a skills directory."""

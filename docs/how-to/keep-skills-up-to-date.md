@@ -31,11 +31,26 @@ compatibility. The explicit target options are:
 | `lrh skills install --target all` | both Claude and Codex user-scope directories |
 | `lrh skills install --local --target all` | both Claude and Codex project-scope directories |
 
+By default, skills are copied from the packaged LRH skill source. Use
+`--source` when you need to install from a different canonical source:
+
+| Command | Source |
+|---|---|
+| `lrh skills install` or `lrh skills install --source lrh-package` | packaged LRH skills |
+| `lrh skills install --source current-repo` | `./src/lrh/skills/` from the current repository |
+| `lrh skills install --source ./path/to/skills` | explicit filesystem skill source |
+
+The source directory is the canonical skill tree to copy from; target
+directories such as `.claude/skills/` and `.agents/skills/` remain generated
+install destinations. Existing safety behavior still applies for every source:
+locally modified target copies are skipped unless `--force` is passed, and
+`--diff` compares the installed copy against the selected source.
+
 Each skill is reported as one of:
 
-- `up to date` — the installed copy already matches the packaged skill; no action needed.
+- `up to date` — the installed copy already matches the selected source; no action needed.
 - `would install` — the skill is missing from the target directory entirely.
-- `warning: <name> has local modifications — skipped (use --force to overwrite)` — the installed copy exists but differs from the packaged skill (for example, an update to a skill you already have installed). A plain `lrh skills install` will **not** update this skill; see [Apply the update](#apply-the-update).
+- `warning: <name> has local modifications — skipped (use --force to overwrite)` — the installed copy exists but differs from the selected source (for example, an update to a skill you already have installed). A plain `lrh skills install` will **not** update this skill; see [Apply the update](#apply-the-update).
 
 Add `--local` to check the per-repository skills directory instead of the global one:
 
@@ -55,7 +70,7 @@ To preview what `--force` would change for a skill reported as locally modified,
 lrh skills install --dry-run --force
 ```
 
-This reports `would overwrite` for any skill that differs from the packaged version. `would overwrite` only ever appears when `--force` is passed — a plain dry run never shows it.
+This reports `would overwrite` for any skill that differs from the selected source. `would overwrite` only ever appears when `--force` is passed — a plain dry run never shows it.
 
 ## Apply the update
 
@@ -65,13 +80,13 @@ Install skills that are missing entirely (reported as `would install`):
 lrh skills install
 ```
 
-This does **not** touch skills reported as locally modified in the dry run — those are left untouched with the same warning. To pick up an updated skill whose installed copy already exists and differs from the packaged version (the common case after upgrading `lrh`), you must pass `--force`:
+This does **not** touch skills reported as locally modified in the dry run — those are left untouched with the same warning. To pick up an updated skill whose installed copy already exists and differs from the selected source (commonly the packaged version after upgrading `lrh`), you must pass `--force`:
 
 ```bash
 lrh skills install --force
 ```
 
-`--force` overwrites any skill that differs from the packaged version (reported as `overwritten`) in addition to installing missing skills as normal (reported as `installed`).
+`--force` overwrites any skill that differs from the selected source (reported as `overwritten`) in addition to installing missing skills as normal (reported as `installed`).
 
 Use `--local` if you are installing into a single repository rather than globally:
 
@@ -97,7 +112,7 @@ neutralization/render-adapter work produces Codex-specific skill bodies.
 ## Common troubleshooting notes
 
 - A newly created `/lrh-*` skill in the LRH source tree does not appear in Claude Code or Codex until `lrh skills install` (or `lrh skills install --local` with the relevant `--target`) has been run in the target environment. This is expected: skill installation is a deliberate, explicit step, not something that happens implicitly on every `lrh` invocation.
-- If a skill reports the `has local modifications` warning, LRH has detected that the installed copy differs from the packaged skill and will not silently overwrite it — whether that difference is your own edit or simply an unapplied upstream update. Review the installed copy before deciding whether to re-run with `--force`.
+- If a skill reports the `has local modifications` warning, LRH has detected that the installed copy differs from the selected source and will not silently overwrite it — whether that difference is your own edit or simply an unapplied upstream update. Review the installed copy before deciding whether to re-run with `--force`.
 - If you maintain multiple repositories, remember that global (`~/.claude/skills/` or `~/.agents/skills/`) and per-repository (`./.claude/skills/` or `./.agents/skills/` via `--local`) installs are independent. Updating one does not update the other.
 
 ## Related reference

@@ -161,6 +161,14 @@ def main() -> None:
         help="agent target to install for (default: claude)",
     )
     skills_install_parser.add_argument(
+        "--source",
+        default="lrh-package",
+        help=(
+            "canonical skill source: lrh-package, current-repo, or a filesystem"
+            " path (default: lrh-package)"
+        ),
+    )
+    skills_install_parser.add_argument(
         "--diff",
         action="store_true",
         help="print a unified diff of local modifications for skipped skills",
@@ -1250,13 +1258,17 @@ def main() -> None:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
             from lrh.skills import installer
 
-            reports = installer.install_skills_for_targets(
-                target=args.target,
-                local=args.local,
-                project_root=Path.cwd(),
-                dry_run=args.dry_run,
-                force=args.force,
-            )
+            try:
+                reports = installer.install_skills_for_targets(
+                    target=args.target,
+                    local=args.local,
+                    project_root=Path.cwd(),
+                    dry_run=args.dry_run,
+                    force=args.force,
+                    source=args.source,
+                )
+            except installer.SkillSourceError as err:
+                parser.error(str(err))
             for index, report in enumerate(reports):
                 if len(reports) > 1:
                     if index:
@@ -1269,7 +1281,10 @@ def main() -> None:
                     for result in report.results:
                         if result.status == installer.SkillStatus.USER_MODIFIED:
                             diff_text = installer.diff_skill(
-                                result.name, report.skills_dir
+                                result.name,
+                                report.skills_dir,
+                                source=args.source,
+                                project_root=Path.cwd(),
                             )
                             if diff_text:
                                 print(f"\n--- diff: {result.name} ---")

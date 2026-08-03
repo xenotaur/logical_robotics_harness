@@ -36,7 +36,7 @@ forbidden_actions:
   - depend_on_undocumented_codex_app_storage_internals
 acceptance:
   - A file-based Codex conversation export adapter exists under `src/lrh/conversations/` and writes Markdown transcript artifacts with `ConversationExportManifest` frontmatter
-  - The adapter accepts an explicit local source file path and output path without depending on undocumented Codex app storage internals
+  - The adapter accepts explicit local source and output paths, rejects source/output path collisions even when overwrite is enabled, and does not depend on undocumented Codex app storage internals
   - Output defaults remain private and non-authoritative and preserve source hash, export timestamp, adapter version, warning list, sensitivity metadata, and transcript statistics
   - Focused tests cover successful conversion, missing or existing file failures, hash/statistics behavior, sensitivity warning propagation, and stable frontmatter output
   - Documentation describes the file-based adapter workflow and keeps `inspect-export`, viewer support, and `session_transcript` grammar changes out of scope
@@ -85,8 +85,9 @@ storage internals.
 
 ### Demand search
 - Work items: `WI-CODEX-CONVERSATION-EXPORT-MANIFEST` is resolved and
-  intentionally deferred the adapter. No proposed
-  `WI-CODEX-CONVERSATION-EXPORT-ADAPTER` exists.
+  intentionally deferred the adapter. No prior proposed
+  `WI-CODEX-CONVERSATION-EXPORT-ADAPTER` existed before this item was created
+  to fill that gap.
 - Proposals: `PROP-LRH-CODEX-CONVERSATION-EXPORTER` asks for a file-based
   Codex export adapter as implementation step 2.
 - Backlog: The Codex skill-adaptation backlog notes transcript/export and
@@ -119,7 +120,9 @@ storage internals.
    scanner contract.
 3. Add overwrite/preflight behavior consistent with local CLI helpers: fail
    when the source is missing or unreadable, fail when output exists unless an
-   explicit force/overwrite option is provided, and keep all work local.
+   explicit force/overwrite option is provided, reject source/output paths that
+   resolve to the same file even when overwrite is enabled, and keep all work
+   local.
 4. Export public adapter helper(s) through `src/lrh/conversations/__init__.py`
    if that matches the package convention.
 5. Add focused tests in `tests/conversations_tests/codex_file_export_test.py`
@@ -144,14 +147,15 @@ storage internals.
 - A file-based Codex conversation export adapter exists under
   `src/lrh/conversations/` and writes Markdown transcript artifacts with
   `ConversationExportManifest` frontmatter.
-- The adapter accepts an explicit local source file path and output path without
-  depending on undocumented Codex app storage internals.
+- The adapter accepts explicit local source and output paths, rejects
+  source/output path collisions even when overwrite is enabled, and does not
+  depend on undocumented Codex app storage internals.
 - Output defaults remain private and non-authoritative and preserve source hash,
   export timestamp, adapter version, warning list, sensitivity metadata, and
   transcript statistics.
 - Focused tests cover successful conversion, missing or existing file failures,
-  hash/statistics behavior, sensitivity warning propagation, and stable
-  frontmatter output.
+  same-file source/output rejection, hash/statistics behavior, sensitivity
+  warning propagation, and stable frontmatter output.
 - Documentation describes the file-based adapter workflow and keeps
   `inspect-export`, viewer support, and `session_transcript` grammar changes out
   of scope.

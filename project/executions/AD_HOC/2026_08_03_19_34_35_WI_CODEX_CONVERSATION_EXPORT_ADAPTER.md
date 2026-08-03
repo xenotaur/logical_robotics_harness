@@ -42,5 +42,6 @@ prompt-ready with no blockers or warnings.
 # Follow-up
 
 Open and land the planning PR. After merge, keep the work item in `proposed`
-until its implementation PR lands. Update
-`WS-LRH-CODEX-CONVERSATION-EXPORTER` to include this work item if approved.
+until its implementation PR lands. The workstream already links this item; the
+next planning step is to create the inspection CLI work item after this
+planning PR lands.

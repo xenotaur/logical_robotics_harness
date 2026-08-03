@@ -104,17 +104,15 @@ contract is stable.
 
 ## Work Items
 
-Initial linked work item:
+Linked work items:
 
 - `WI-CODEX-CONVERSATION-EXPORT-MANIFEST` — define the manifest and artifact
   contract.
+- `WI-CODEX-CONVERSATION-EXPORT-ADAPTER` — implement the file-based Codex
+  adapter that writes Markdown transcript artifacts with the manifest.
 
 The remaining planning sequence should create small, reviewable work items
 along these lines:
-
-- **File-based Codex adapter** — accept a manually saved Codex transcript or
-  structured source export and write the Markdown transcript plus manifest
-  without depending on undocumented Codex app internals.
 
 - **Inspection CLI** — implement
   `lrh conversation inspect-export <path> --format text|json`, including

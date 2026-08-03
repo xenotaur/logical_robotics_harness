@@ -1280,12 +1280,15 @@ def main() -> None:
                 if args.diff:
                     for result in report.results:
                         if result.status == installer.SkillStatus.USER_MODIFIED:
-                            diff_text = installer.diff_skill(
-                                result.name,
-                                report.skills_dir,
-                                source=args.source,
-                                project_root=Path.cwd(),
-                            )
+                            try:
+                                diff_text = installer.diff_skill(
+                                    result.name,
+                                    report.skills_dir,
+                                    source=args.source,
+                                    project_root=Path.cwd(),
+                                )
+                            except installer.SkillSourceError as err:
+                                parser.error(str(err))
                             if diff_text:
                                 print(f"\n--- diff: {result.name} ---")
                                 print(diff_text, end="")

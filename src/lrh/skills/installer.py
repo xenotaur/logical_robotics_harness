@@ -80,13 +80,13 @@ class SkillSource:
     label: str
 
     def skill_names(self) -> list[str]:
-        return sorted(
-            item.name
-            for item in self.root.iterdir()
-            if not _is_symlink_node(item)
-            and item.is_dir()
-            and not item.name.startswith("_")
-        )
+        result: list[str] = []
+        for item in self.root.iterdir():
+            if _is_symlink_node(item):
+                raise SkillSourceError(f"skill source contains symlinked entry: {item}")
+            if item.is_dir() and not item.name.startswith("_"):
+                result.append(item.name)
+        return sorted(result)
 
     def skill_root(self, skill_name: str) -> SkillTreeNode:
         root = self.root
@@ -225,6 +225,14 @@ def _collect_pkg_files(
     return _collect_source_files(node, prefix)
 
 
+def _write_collected_files(files: dict[str, bytes], dest_dir: Path) -> None:
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    for rel_path, content in files.items():
+        target = dest_dir / rel_path
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+
+
 def _collect_fs_files(directory: Path) -> dict[str, bytes]:
     if directory.is_symlink():
         # Refuse to traverse a symlinked skill root: rglob() would follow it
@@ -342,28 +350,20 @@ def diff_skill(
 
 
 def _copy_resource_tree(node: SkillTreeNode, dest_dir: Path) -> None:
-    if _is_symlink_node(node):
-        raise SkillSourceError(f"skill source contains symlinked entry: {node}")
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    for item in node.iterdir():
-        if _is_symlink_node(item):
-            raise SkillSourceError(f"skill source contains symlinked entry: {item}")
-        if item.is_file():
-            (dest_dir / item.name).write_bytes(item.read_bytes())
-        elif item.is_dir():
-            _copy_resource_tree(item, dest_dir / item.name)
+    _write_collected_files(_collect_source_files(node), dest_dir)
 
 
 def _copy_skill_from_source(
     skill_name: str, skills_dir: Path, source: SkillSource
 ) -> None:
     dest = skills_dir / skill_name
+    src = source.skill_root(skill_name)
+    source_files = _collect_source_files(src)
     if dest.is_symlink() or (dest.exists() and not dest.is_dir()):
         dest.unlink()
     elif dest.is_dir():
         shutil.rmtree(dest)
-    src = source.skill_root(skill_name)
-    _copy_resource_tree(src, dest)
+    _write_collected_files(source_files, dest)
 
 
 def _copy_skill(skill_name: str, skills_dir: Path) -> None:

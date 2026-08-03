@@ -233,6 +233,21 @@ class TestResolveSkillSource(unittest.TestCase):
         self.assertEqual(source.kind, installer.SkillSourceKind.PATH)
         self.assertEqual(source.skill_names(), ["sample-skill"])
 
+    def test_explicit_path_source_rejects_top_level_symlink(self) -> None:
+        source_dir = self._make_source_dir()
+        real_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, real_dir, True)
+        (real_dir / "SKILL.md").write_text("linked skill\n")
+        link_path = source_dir / "linked-skill"
+        try:
+            link_path.symlink_to(real_dir, target_is_directory=True)
+        except OSError as err:
+            self.skipTest(f"symlink creation unsupported: {err}")
+        source = installer.resolve_skill_source(source_dir)
+
+        with self.assertRaises(installer.SkillSourceError):
+            source.skill_names()
+
     def test_missing_source_raises_source_error(self) -> None:
         with self.assertRaises(installer.SkillSourceError):
             installer.resolve_skill_source(Path("/not/a/real/skills/source"))
@@ -302,6 +317,7 @@ class TestResolveSkillSource(unittest.TestCase):
             installer.install_skills(skills_dir=skills_dir, source=source_dir)
 
         self.assertFalse((skills_dir / "sample-skill" / "secret-link.md").exists())
+        self.assertFalse((skills_dir / "sample-skill").exists())
 
     def test_diff_skill_uses_explicit_path_source(self) -> None:
         source_dir = self._make_source_dir()

@@ -145,6 +145,21 @@ class SkillsInstallCliTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("skill source does not exist", result.stderr)
 
+    def test_skills_install_diff_invalid_source_rejected_without_traceback(
+        self,
+    ) -> None:
+        result = self._run(
+            "skills",
+            "install",
+            "--source",
+            "/not/a/real/skills/source",
+            "--diff",
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("skill source does not exist", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_skills_install_all_local_dry_run_reports_both_targets(self) -> None:
         result = self._run_local(
             "skills", "install", "--local", "--target", "all", "--dry-run"

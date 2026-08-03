@@ -5,7 +5,7 @@ work_item: WI-SKILLS-TARGET-AWARE-INSTALL
 status: in_progress
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/473
-commit: 
+commit:
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SKILLS-TARGET-AWARE-INSTALL.md
 session_transcript: codex-app:current-task

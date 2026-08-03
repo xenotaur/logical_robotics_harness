@@ -2,10 +2,10 @@
 execution_id: 2026_08_03_19_24_24_WI_SKILLS_SOURCE_ABSTRACTION_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_SOURCE_ABSTRACTION_REVIEW)[2026-08-03T19:21:05+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_03_19_03_56_WI_SKILLS_SOURCE_ABSTRACTION
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/477
-commit: pending
+commit: d05b9ccc2593ac29ced343d559b25a2be2f21436
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/477
 session_transcript: codex-app:current-task

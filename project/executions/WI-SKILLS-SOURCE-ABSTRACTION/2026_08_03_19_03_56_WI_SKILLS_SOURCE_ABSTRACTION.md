@@ -2,10 +2,10 @@
 execution_id: 2026_08_03_19_03_56_WI_SKILLS_SOURCE_ABSTRACTION
 prompt_id: PROMPT(WI-SKILLS-SOURCE-ABSTRACTION:WI_SKILLS_SOURCE_ABSTRACTION)[2026-08-03T18:47:00+00:00]
 work_item: WI-SKILLS-SOURCE-ABSTRACTION
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/477
-commit: be41613
+commit: d05b9ccc2593ac29ced343d559b25a2be2f21436
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SKILLS-SOURCE-ABSTRACTION.md
 session_transcript: codex-app:current-task

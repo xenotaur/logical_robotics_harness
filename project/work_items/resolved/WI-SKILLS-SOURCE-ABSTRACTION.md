@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented canonical skill source abstraction and merged in PR #477 (commit d05b9ccc2593ac29ced343d559b25a2be2f21436)."
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-SOURCE-ABSTRACTION
 title: Add canonical skill source abstraction
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

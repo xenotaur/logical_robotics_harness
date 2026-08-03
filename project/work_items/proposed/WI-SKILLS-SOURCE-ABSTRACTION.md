@@ -67,6 +67,10 @@ explicit-path sources while preserving existing behavior.
   abstraction instead of assuming the bundled `src/lrh/skills/` package tree is
   the only possible source.
 
+- Add a `--source` CLI selection surface for `lrh skills install` that exposes
+  the bundled LRH package source, the current repository source, and an explicit
+  filesystem path source.
+
 - Preserve existing package-source behavior as the default path used by current
   `lrh skills install` commands.
 
@@ -77,6 +81,9 @@ explicit-path sources while preserving existing behavior.
 - Add focused regression tests for package-source enumeration and for at least
   one non-package source path, including conflict or destination behavior that
   proves source selection does not bypass existing install safety checks.
+
+- Add CLI tests showing that `--source` selects each supported source form and
+  that the default command path remains package-source compatible.
 
 ## Non-Goals
 

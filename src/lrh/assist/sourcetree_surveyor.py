@@ -101,14 +101,31 @@ def _has_main_guard(text: str) -> bool:
 
 def _should_skip_path(path: pathlib.Path) -> bool:
     return any(
-        part in (".venv", "venv", "__pycache__", ".git", ".mypy_cache", ".pytest_cache", "node_modules")
+        part
+        in (
+            ".venv",
+            "venv",
+            "__pycache__",
+            ".git",
+            ".mypy_cache",
+            ".pytest_cache",
+            "node_modules",
+        )
         for part in path.parts
     )
 
 
 def _find_files(root: pathlib.Path, pattern: str) -> typing.Iterator[pathlib.Path]:
     """Fast file traversal using os.walk with directory pruning, replacing rglob."""
-    skip_dirs = {".venv", "venv", "__pycache__", ".git", ".mypy_cache", ".pytest_cache", "node_modules"}
+    skip_dirs = {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
     for dirpath, dirnames, filenames in os.walk(root):
         dirnames[:] = [d for d in dirnames if d not in skip_dirs]
         for f in filenames:

@@ -103,13 +103,13 @@ contract is stable.
 
 ## Work Items
 
-No work items are linked yet. The initial planning sequence should create small,
-reviewable work items along these lines:
+Initial linked work item:
 
-- **Manifest and artifact contract** — define `ConversationExportManifest`,
-  schema versioning, authority/privacy defaults, transcript statistics, source
-  hashes, adapter metadata, warnings, and typed helpers under
-  `src/lrh/conversations/`.
+- `WI-CODEX-CONVERSATION-EXPORT-MANIFEST` — define the manifest and artifact
+  contract.
+
+The remaining planning sequence should create small, reviewable work items
+along these lines:
 
 - **File-based Codex adapter** — accept a manually saved Codex transcript or
   structured source export and write the Markdown transcript plus manifest

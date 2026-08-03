@@ -1,4 +1,4 @@
-"""Install LRH skills from the package to the global Claude Code skills directory."""
+"""Install LRH skills from the package to agent skills directories."""
 
 from __future__ import annotations
 
@@ -12,7 +12,17 @@ from enum import Enum
 from pathlib import Path
 
 _SKILLS_PACKAGE = "lrh.skills"
-_DEFAULT_SKILLS_DIR = Path.home() / ".claude" / "skills"
+
+
+class SkillTarget(str, Enum):
+    CLAUDE = "claude"
+    CODEX = "codex"
+
+
+class TargetSelection(str, Enum):
+    CLAUDE = "claude"
+    CODEX = "codex"
+    ALL = "all"
 
 
 class SkillStatus(str, Enum):
@@ -26,6 +36,18 @@ class SkillStatus(str, Enum):
 class SkillResult:
     name: str
     status: SkillStatus
+
+
+@dataclass(frozen=True)
+class InstallTarget:
+    target: SkillTarget
+    skills_dir: Path
+
+    @property
+    def restart_name(self) -> str:
+        if self.target is SkillTarget.CLAUDE:
+            return "Claude Code"
+        return "Codex"
 
 
 class RefreshStatus(str, Enum):
@@ -44,6 +66,51 @@ class InstallReport:
     results: list[SkillResult]
     newly_created_skills_dir: bool
     skills_dir: Path
+    target: SkillTarget = SkillTarget.CLAUDE
+
+
+def _coerce_target(value: str | SkillTarget) -> SkillTarget:
+    if isinstance(value, SkillTarget):
+        return value
+    return SkillTarget(value)
+
+
+def _coerce_selection(value: str | SkillTarget | TargetSelection) -> TargetSelection:
+    if isinstance(value, TargetSelection):
+        return value
+    if isinstance(value, SkillTarget):
+        return TargetSelection(value.value)
+    return TargetSelection(value)
+
+
+def _default_skills_dir(target: SkillTarget) -> Path:
+    if target is SkillTarget.CLAUDE:
+        return Path.home() / ".claude" / "skills"
+    return Path.home() / ".agents" / "skills"
+
+
+def resolve_install_targets(
+    target: str | SkillTarget | TargetSelection = TargetSelection.CLAUDE,
+    *,
+    local: bool = False,
+    project_root: Path | None = None,
+) -> list[InstallTarget]:
+    selection = _coerce_selection(target)
+    targets = (
+        [SkillTarget.CLAUDE, SkillTarget.CODEX]
+        if selection is TargetSelection.ALL
+        else [_coerce_target(selection.value)]
+    )
+    root = project_root if project_root is not None else Path.cwd()
+    result: list[InstallTarget] = []
+    for selected in targets:
+        if local:
+            dirname = ".claude" if selected is SkillTarget.CLAUDE else ".agents"
+            skills_dir = root / dirname / "skills"
+        else:
+            skills_dir = _default_skills_dir(selected)
+        result.append(InstallTarget(target=selected, skills_dir=skills_dir))
+    return result
 
 
 def _skill_names() -> list[str]:
@@ -196,26 +263,30 @@ def install_skills(
     skills_dir: Path | None = None,
     dry_run: bool = False,
     force: bool = False,
+    target: str | SkillTarget = SkillTarget.CLAUDE,
 ) -> InstallReport:
-    """Copy LRH skills from the package to the Claude Code skills directory.
+    """Copy LRH skills from the package to one agent skills directory.
 
     Returns an InstallReport describing what was done (or would be done in dry-run).
     """
-    target = skills_dir if skills_dir is not None else _DEFAULT_SKILLS_DIR
-    newly_created = not target.exists()
+    skill_target = _coerce_target(target)
+    target_dir = (
+        skills_dir if skills_dir is not None else _default_skills_dir(skill_target)
+    )
+    newly_created = not target_dir.exists()
     results: list[SkillResult] = []
 
     for name in _skill_names():
-        dest = target / name
+        dest = target_dir / name
         if not dest.exists():
             if not dry_run:
-                target.mkdir(parents=True, exist_ok=True)
-                _copy_skill(name, target)
+                target_dir.mkdir(parents=True, exist_ok=True)
+                _copy_skill(name, target_dir)
             status = SkillStatus.INSTALLED
-        elif _skill_differs_from_package(name, target):
+        elif _skill_differs_from_package(name, target_dir):
             if force:
                 if not dry_run:
-                    _copy_skill(name, target)
+                    _copy_skill(name, target_dir)
                 status = SkillStatus.FORCED
             else:
                 status = SkillStatus.USER_MODIFIED
@@ -224,8 +295,33 @@ def install_skills(
         results.append(SkillResult(name=name, status=status))
 
     return InstallReport(
-        results=results, newly_created_skills_dir=newly_created, skills_dir=target
+        results=results,
+        newly_created_skills_dir=newly_created,
+        skills_dir=target_dir,
+        target=skill_target,
     )
+
+
+def install_skills_for_targets(
+    target: str | SkillTarget | TargetSelection = TargetSelection.CLAUDE,
+    *,
+    local: bool = False,
+    project_root: Path | None = None,
+    dry_run: bool = False,
+    force: bool = False,
+) -> list[InstallReport]:
+    """Install skills for every selected target and scope."""
+    return [
+        install_skills(
+            skills_dir=install_target.skills_dir,
+            dry_run=dry_run,
+            force=force,
+            target=install_target.target,
+        )
+        for install_target in resolve_install_targets(
+            target, local=local, project_root=project_root
+        )
+    ]
 
 
 def install_named_skills(
@@ -265,7 +361,11 @@ def install_named_skills(
                 f"skill_names must contain only strings, got {name!r}"
                 f" ({type(name).__name__})"
             )
-    target = skills_dir if skills_dir is not None else _DEFAULT_SKILLS_DIR
+    target = (
+        skills_dir
+        if skills_dir is not None
+        else _default_skills_dir(SkillTarget.CLAUDE)
+    )
     valid_names = set(_skill_names())
     results: list[TargetedRefreshResult] = []
     if valid_names.intersection(names):
@@ -298,8 +398,11 @@ def format_report(report: InstallReport, dry_run: bool = False) -> str:
             verb = "would overwrite" if dry_run else "overwritten"
             lines.append(f"  {verb}: {result.name}")
     if report.newly_created_skills_dir and not dry_run:
+        restart_name = InstallTarget(
+            target=report.target, skills_dir=report.skills_dir
+        ).restart_name
         lines.append(
             f"\nnote: {report.skills_dir} was newly created."
-            " Restart Claude Code to discover the installed skills."
+            f" Restart {restart_name} to discover the installed skills."
         )
     return "\n".join(lines)

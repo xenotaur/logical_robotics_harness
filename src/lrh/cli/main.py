@@ -129,14 +129,14 @@ def main() -> None:
 
     skills_parser = subparsers.add_parser(
         "skills",
-        help="Manage LRH Claude Code skills.",
+        help="Manage LRH agent skills.",
     )
     skills_subparsers = skills_parser.add_subparsers(dest="skills_command")
     skills_install_parser = skills_subparsers.add_parser(
         "install",
         help=(
-            "Install LRH skills to ~/.claude/skills/"
-            " (or ./.claude/skills/ with --local)."
+            "Install LRH skills to agent skills directories."
+            " Use --target and --local to choose exact destinations."
         ),
     )
     skills_install_parser.add_argument(
@@ -152,7 +152,13 @@ def main() -> None:
     skills_install_parser.add_argument(
         "--local",
         action="store_true",
-        help="install to ./.claude/skills/ instead of ~/.claude/skills/",
+        help="install to project-local skills directory instead of user scope",
+    )
+    skills_install_parser.add_argument(
+        "--target",
+        choices=("claude", "codex", "all"),
+        default="claude",
+        help="agent target to install for (default: claude)",
     )
     skills_install_parser.add_argument(
         "--diff",
@@ -1244,20 +1250,30 @@ def main() -> None:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
             from lrh.skills import installer
 
-            skills_dir = Path.cwd() / ".claude" / "skills" if args.local else None
-            report = installer.install_skills(
-                skills_dir=skills_dir, dry_run=args.dry_run, force=args.force
+            reports = installer.install_skills_for_targets(
+                target=args.target,
+                local=args.local,
+                project_root=Path.cwd(),
+                dry_run=args.dry_run,
+                force=args.force,
             )
-            output = installer.format_report(report, dry_run=args.dry_run)
-            if output:
-                print(output)
-            if args.diff:
-                for result in report.results:
-                    if result.status == installer.SkillStatus.USER_MODIFIED:
-                        diff_text = installer.diff_skill(result.name, report.skills_dir)
-                        if diff_text:
-                            print(f"\n--- diff: {result.name} ---")
-                            print(diff_text, end="")
+            for index, report in enumerate(reports):
+                if len(reports) > 1:
+                    if index:
+                        print()
+                    print(f"{report.target.value}: {report.skills_dir}")
+                output = installer.format_report(report, dry_run=args.dry_run)
+                if output:
+                    print(output)
+                if args.diff:
+                    for result in report.results:
+                        if result.status == installer.SkillStatus.USER_MODIFIED:
+                            diff_text = installer.diff_skill(
+                                result.name, report.skills_dir
+                            )
+                            if diff_text:
+                                print(f"\n--- diff: {result.name} ---")
+                                print(diff_text, end="")
             raise SystemExit(0)
         parser.error("skills requires a subcommand (try: lrh skills install)")
 

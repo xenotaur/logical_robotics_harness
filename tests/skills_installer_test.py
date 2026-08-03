@@ -66,6 +66,141 @@ class TestInstallSkills(unittest.TestCase):
         self.assertEqual(forced.status, installer.SkillStatus.FORCED)
         self.assertEqual(skill_md.read_text(), original)
 
+    def test_codex_target_installs_to_codex_skills_dir(self) -> None:
+        skills_dir = self._make_skills_dir()
+        report = installer.install_skills(
+            skills_dir=skills_dir, target=installer.SkillTarget.CODEX
+        )
+        self.assertEqual(report.target, installer.SkillTarget.CODEX)
+        self.assertTrue((skills_dir / report.results[0].name / "SKILL.md").exists())
+
+    def test_codex_target_user_modified_skill_skipped(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(
+            skills_dir=skills_dir, target=installer.SkillTarget.CODEX
+        )
+        skill_name = installer._skill_names()[0]
+        skill_md = skills_dir / skill_name / "SKILL.md"
+        skill_md.write_text(skill_md.read_text() + "\n# codex local change\n")
+
+        report = installer.install_skills(
+            skills_dir=skills_dir, target=installer.SkillTarget.CODEX
+        )
+
+        modified = next(r for r in report.results if r.name == skill_name)
+        self.assertEqual(modified.status, installer.SkillStatus.USER_MODIFIED)
+        self.assertIn("codex local change", skill_md.read_text())
+
+    def test_codex_target_force_overwrites_user_modified(self) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(
+            skills_dir=skills_dir, target=installer.SkillTarget.CODEX
+        )
+        skill_name = installer._skill_names()[0]
+        skill_md = skills_dir / skill_name / "SKILL.md"
+        original = skill_md.read_text()
+        skill_md.write_text(original + "\n# codex local change\n")
+
+        report = installer.install_skills(
+            skills_dir=skills_dir, force=True, target=installer.SkillTarget.CODEX
+        )
+
+        forced = next(r for r in report.results if r.name == skill_name)
+        self.assertEqual(forced.status, installer.SkillStatus.FORCED)
+        self.assertEqual(skill_md.read_text(), original)
+
+    def test_codex_target_symlinked_skill_root_detected_as_user_modified(
+        self,
+    ) -> None:
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(
+            skills_dir=skills_dir, target=installer.SkillTarget.CODEX
+        )
+        skill_name = installer._skill_names()[0]
+        skill_dir = skills_dir / skill_name
+
+        secret_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, secret_dir, True)
+        (secret_dir / "SKILL.md").write_text("codex-secret-root-contents\n")
+
+        shutil.rmtree(skill_dir)
+        skill_dir.symlink_to(secret_dir)
+
+        report = installer.install_skills(
+            skills_dir=skills_dir, target=installer.SkillTarget.CODEX
+        )
+        result = next(r for r in report.results if r.name == skill_name)
+        self.assertEqual(result.status, installer.SkillStatus.USER_MODIFIED)
+
+        diff_text = installer.diff_skill(skill_name, skills_dir)
+        self.assertIn("installed skill directory is a symlink", diff_text)
+        self.assertNotIn("codex-secret-root-contents", diff_text)
+
+
+class TestResolveInstallTargets(unittest.TestCase):
+    def test_claude_user_target(self) -> None:
+        target = installer.resolve_install_targets("claude")[0]
+        self.assertEqual(target.target, installer.SkillTarget.CLAUDE)
+        self.assertEqual(target.skills_dir, Path.home() / ".claude" / "skills")
+
+    def test_codex_user_target(self) -> None:
+        target = installer.resolve_install_targets("codex")[0]
+        self.assertEqual(target.target, installer.SkillTarget.CODEX)
+        self.assertEqual(target.skills_dir, Path.home() / ".agents" / "skills")
+
+    def test_claude_project_target(self) -> None:
+        project_root = Path("/tmp/project")
+        target = installer.resolve_install_targets(
+            "claude", local=True, project_root=project_root
+        )[0]
+        self.assertEqual(target.skills_dir, project_root / ".claude" / "skills")
+
+    def test_codex_project_target(self) -> None:
+        project_root = Path("/tmp/project")
+        target = installer.resolve_install_targets(
+            "codex", local=True, project_root=project_root
+        )[0]
+        self.assertEqual(target.skills_dir, project_root / ".agents" / "skills")
+
+    def test_all_target_selects_claude_then_codex(self) -> None:
+        project_root = Path("/tmp/project")
+        targets = installer.resolve_install_targets(
+            "all", local=True, project_root=project_root
+        )
+        self.assertEqual(
+            [(target.target, target.skills_dir) for target in targets],
+            [
+                (installer.SkillTarget.CLAUDE, project_root / ".claude" / "skills"),
+                (installer.SkillTarget.CODEX, project_root / ".agents" / "skills"),
+            ],
+        )
+
+    def test_install_skills_for_all_targets(self) -> None:
+        parent = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, parent, True)
+
+        reports = installer.install_skills_for_targets(
+            "all", local=True, project_root=parent
+        )
+
+        self.assertEqual(
+            [report.target for report in reports], list(installer.SkillTarget)
+        )
+        self.assertTrue((parent / ".claude" / "skills").exists())
+        self.assertTrue((parent / ".agents" / "skills").exists())
+
+    def test_dry_run_all_targets_writes_nothing(self) -> None:
+        parent = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, parent, True)
+
+        reports = installer.install_skills_for_targets(
+            "all", local=True, project_root=parent, dry_run=True
+        )
+
+        self.assertEqual(len(reports), 2)
+        self.assertFalse((parent / ".claude").exists())
+        self.assertFalse((parent / ".agents").exists())
+
 
 class TestInstallNamedSkills(unittest.TestCase):
     def _make_skills_dir(self) -> Path:

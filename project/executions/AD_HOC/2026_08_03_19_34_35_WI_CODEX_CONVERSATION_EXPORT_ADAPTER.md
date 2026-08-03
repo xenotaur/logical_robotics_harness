@@ -3,9 +3,9 @@ execution_id: 2026_08_03_19_34_35_WI_CODEX_CONVERSATION_EXPORT_ADAPTER
 prompt_id: PROMPT(AD_HOC:WI_CODEX_CONVERSATION_EXPORT_ADAPTER)[2026-08-03T19:23:51+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
+rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/478
-commit: 
+commit:
 created_at: 2026-08-03T19:34:35+00:00
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-CODEX-CONVERSATION-EXPORT-ADAPTER.md

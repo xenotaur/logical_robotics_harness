@@ -38,7 +38,7 @@ acceptance:
   - A file-based Codex conversation export adapter exists under `src/lrh/conversations/` and writes Markdown transcript artifacts with `ConversationExportManifest` frontmatter
   - The adapter accepts explicit local source and output paths, rejects source/output path collisions even when overwrite is enabled, and does not depend on undocumented Codex app storage internals
   - Output defaults remain private and non-authoritative and preserve source hash, export timestamp, adapter version, warning list, sensitivity metadata, and transcript statistics
-  - Focused tests cover successful conversion, missing or existing file failures, hash/statistics behavior, sensitivity warning propagation, and stable frontmatter output
+  - Focused tests cover successful conversion, missing or existing file failures, same-file source/output rejection, hash/statistics behavior, sensitivity warning propagation, and stable frontmatter output
   - Documentation describes the file-based adapter workflow and keeps `inspect-export`, viewer support, and `session_transcript` grammar changes out of scope
   - `lrh validate` reports 0 errors
 required_evidence:

@@ -2,10 +2,10 @@
 execution_id: 2026_08_03_20_04_00_WI_SKILLS_REPO_CONFIG_READINESS_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_REPO_CONFIG_READINESS_REVIEW)[2026-08-03T20:03:53+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/479
-commit: pending
+commit: 34dbb71211a72ea4286bfffdc1315f517f82d47b
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/479
 session_transcript: codex-app:current-task

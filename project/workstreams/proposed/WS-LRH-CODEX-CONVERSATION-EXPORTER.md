@@ -21,7 +21,8 @@ related_design:
   - docs/conversations/promote-conversation-to-project-artifact.md
   - docs/reference/cli/conversation.md
   - docs/reference/cli/serve.md
-work_items: []
+work_items:
+  - WI-CODEX-CONVERSATION-EXPORT-MANIFEST
 exit_criteria:
   - Codex conversation export manifest and Markdown artifact contract are implemented with typed helpers and documented schema expectations
   - File-based Codex export adapter creates private, non-authoritative transcript artifacts without depending on undocumented Codex app storage internals
@@ -102,13 +103,13 @@ contract is stable.
 
 ## Work Items
 
-No work items are linked yet. The initial planning sequence should create small,
-reviewable work items along these lines:
+Initial linked work item:
 
-- **Manifest and artifact contract** — define `ConversationExportManifest`,
-  schema versioning, authority/privacy defaults, transcript statistics, source
-  hashes, adapter metadata, warnings, and typed helpers under
-  `src/lrh/conversations/`.
+- `WI-CODEX-CONVERSATION-EXPORT-MANIFEST` — define the manifest and artifact
+  contract.
+
+The remaining planning sequence should create small, reviewable work items
+along these lines:
 
 - **File-based Codex adapter** — accept a manually saved Codex transcript or
   structured source export and write the Markdown transcript plus manifest

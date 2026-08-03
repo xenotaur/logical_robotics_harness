@@ -2,10 +2,10 @@
 execution_id: 2026_08_03_03_31_49_WI_SKILLS_TARGET_AWARE_INSTALL
 prompt_id: PROMPT(WI-SKILLS-TARGET-AWARE-INSTALL:WI_SKILLS_TARGET_AWARE_INSTALL)[2026-08-03T03:19:03+00:00]
 work_item: WI-SKILLS-TARGET-AWARE-INSTALL
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/473
-commit:
+commit: cc54310bb099798804a78d14bc3ce37cebd031f2
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SKILLS-TARGET-AWARE-INSTALL.md
 session_transcript: codex-app:current-task

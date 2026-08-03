@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #473 (commit cc54310bb099798804a78d14bc3ce37cebd031f2)"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-TARGET-AWARE-INSTALL
 title: Add target-aware Claude and Codex installs to lrh skills install
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -129,14 +129,14 @@ def main() -> None:
 
     skills_parser = subparsers.add_parser(
         "skills",
-        help="Manage LRH Claude Code skills.",
+        help="Manage LRH agent skills.",
     )
     skills_subparsers = skills_parser.add_subparsers(dest="skills_command")
     skills_install_parser = skills_subparsers.add_parser(
         "install",
         help=(
-            "Install LRH skills to ~/.claude/skills/"
-            " (or ./.claude/skills/ with --local)."
+            "Install LRH skills to agent skills directories."
+            " Use --target and --local to choose exact destinations."
         ),
     )
     skills_install_parser.add_argument(

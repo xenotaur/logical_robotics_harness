@@ -58,6 +58,13 @@ class SkillsInstallCliTest(unittest.TestCase):
         self.assertIn("--force", result.stdout)
         self.assertIn("--local", result.stdout)
         self.assertIn("--target", result.stdout)
+        self.assertNotIn("Install LRH skills to ~/.claude/skills/", result.stdout)
+
+    def test_skills_help_is_target_neutral(self) -> None:
+        result = self._run("skills", "--help")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("agent skills directories", result.stdout)
+        self.assertNotIn("Claude Code skills", result.stdout)
 
     def test_skills_install_dry_run_exits_zero(self) -> None:
         result = self._run_isolated("skills", "install", "--dry-run")

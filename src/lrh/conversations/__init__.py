@@ -1,1 +1,31 @@
 """Conversation import and analysis helpers."""
+
+from lrh.conversations.export_manifest import (
+    ADAPTER_VERSION,
+    DEFAULT_AUTHORITY,
+    DEFAULT_PRIVACY,
+    DEFAULT_SOURCE_ADAPTER,
+    KIND,
+    SCHEMA_VERSION,
+    SOURCE_TOOL_CODEX,
+    ConversationExportManifest,
+    ConversationExportManifestError,
+    TranscriptStatistics,
+    build_codex_manifest,
+    statistics_for_text,
+)
+
+__all__ = [
+    "ADAPTER_VERSION",
+    "DEFAULT_AUTHORITY",
+    "DEFAULT_PRIVACY",
+    "DEFAULT_SOURCE_ADAPTER",
+    "KIND",
+    "SCHEMA_VERSION",
+    "SOURCE_TOOL_CODEX",
+    "ConversationExportManifest",
+    "ConversationExportManifestError",
+    "TranscriptStatistics",
+    "build_codex_manifest",
+    "statistics_for_text",
+]

@@ -3,6 +3,44 @@
 Conversation commands convert and inspect local conversation artifacts without
 importing them into LRH project state.
 
+## Codex Export Manifest Contract
+
+Codex conversation exports use a private, non-authoritative manifest contract
+before any file adapter, inspector command, or viewer is implemented. The typed
+helpers live in `lrh.conversations.export_manifest`.
+
+The manifest kind is `lrh_codex_conversation_export` with `schema_version: 1`.
+Default Codex manifests are private and contextual:
+
+- `source_tool: codex`
+- `source_adapter: codex_manual_export`
+- `privacy: private`
+- `authority: non_authoritative_context`
+- `sensitivity: unscanned`
+- `sensitivity_scan: {status: not_scanned}`
+
+Required provenance fields are:
+
+- `source_sha256` — lowercase SHA-256 hex digest for the source export.
+- `exported_at` — timezone-aware ISO-8601 export timestamp.
+- `adapter_version` — manifest adapter version.
+- `warnings` — deterministic warning list.
+- `transcript_statistics` — `byte_count`, `character_count`, `line_count`, and
+  optional `turn_count` / `message_count`.
+
+`source_id` is optional and should be present when the exporting adapter has a
+stable Codex session or thread identifier.
+
+Raw Codex exports remain private, non-authoritative context. They are not
+imported into the `project/` control plane and do not become evidence,
+decisions, work items, or status until a separate reviewed promotion step
+creates those artifacts. Sensitivity scanning is heuristic and does not certify
+that an export is safe to publish.
+
+This contract does not yet implement a file-based Codex adapter,
+`lrh conversation inspect-export`, `lrh serve` archive viewing, or any change to
+execution-record `session_transcript` pointer grammar.
+
 ## `lrh conversation convert-pdf`
 
 ```bash

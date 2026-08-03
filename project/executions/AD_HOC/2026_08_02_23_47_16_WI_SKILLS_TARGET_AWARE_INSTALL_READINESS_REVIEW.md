@@ -2,10 +2,10 @@
 execution_id: 2026_08_02_23_47_16_WI_SKILLS_TARGET_AWARE_INSTALL_READINESS_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_TARGET_AWARE_INSTALL_READINESS_REVIEW)[2026-08-02T23:43:01+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/470
-commit: bd4301f
+commit: 6e32df532895842752c7a68e36f9123d4c5ab2e5
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/470
 session_transcript: codex-app:current-task

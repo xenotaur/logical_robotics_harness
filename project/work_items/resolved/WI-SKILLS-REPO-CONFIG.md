@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #481 (commit 7271965)"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-REPO-CONFIG
 title: Add project agent skills configuration
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

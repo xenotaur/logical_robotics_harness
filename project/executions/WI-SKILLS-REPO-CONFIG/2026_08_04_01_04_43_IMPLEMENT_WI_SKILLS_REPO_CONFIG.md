@@ -2,10 +2,10 @@
 execution_id: 2026_08_04_01_04_43_IMPLEMENT_WI_SKILLS_REPO_CONFIG
 prompt_id: PROMPT(WI-SKILLS-REPO-CONFIG:IMPLEMENT_WI_SKILLS_REPO_CONFIG)[2026-08-04T01:04:31+00:00]
 work_item: WI-SKILLS-REPO-CONFIG
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/481
-commit:
+commit: 727196567ed4c773298fdd5d273813a7acbb35f5
 agent: codex_app
 instruction_source: src/lrh/skills/lrh-execute/SKILL.md
 session_transcript: codex-app:current-task

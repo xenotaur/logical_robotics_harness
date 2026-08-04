@@ -2,10 +2,10 @@
 execution_id: 2026_08_04_06_36_37_WI_SKILLS_REPO_CONFIG_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_REPO_CONFIG_CONFIRM)[2026-08-04T01:27:55+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_04_01_04_43_IMPLEMENT_WI_SKILLS_REPO_CONFIG
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/481
-commit:
+commit: 727196567ed4c773298fdd5d273813a7acbb35f5
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/481
 session_transcript: codex-app:current-task

@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:WI_CODEX_CONVERSATION_INSPECT_EXPORT)[2026-08-04T07:32:
 work_item: AD_HOC
 status: in_progress
 rerun_of:
-pr:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/483
 commit:
 created_at: 2026-08-04T07:58:01+00:00
 agent: codex_app

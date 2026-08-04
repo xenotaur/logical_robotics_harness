@@ -24,6 +24,7 @@ related_design:
 work_items:
   - WI-CODEX-CONVERSATION-EXPORT-MANIFEST
   - WI-CODEX-CONVERSATION-EXPORT-ADAPTER
+  - WI-CODEX-CONVERSATION-INSPECT-EXPORT
 exit_criteria:
   - Codex conversation export manifest and Markdown artifact contract are implemented with typed helpers and documented schema expectations
   - File-based Codex export adapter creates private, non-authoritative transcript artifacts without depending on undocumented Codex app storage internals
@@ -110,14 +111,11 @@ Linked work items:
   contract.
 - `WI-CODEX-CONVERSATION-EXPORT-ADAPTER` — implement the file-based Codex
   adapter that writes Markdown transcript artifacts with the manifest.
+- `WI-CODEX-CONVERSATION-INSPECT-EXPORT` — implement the deterministic
+  `lrh conversation inspect-export <path> --format text|json` CLI.
 
 The remaining planning sequence should create small, reviewable work items
 along these lines:
-
-- **Inspection CLI** — implement
-  `lrh conversation inspect-export <path> --format text|json`, including
-  manifest validation, source-hash checks where possible, sensitivity warning
-  reporting, and stable automation-friendly JSON output.
 
 - **Tests and fixtures** — add focused unit tests and representative fixtures
   for valid exports, malformed manifests, hash mismatches, sensitivity warning

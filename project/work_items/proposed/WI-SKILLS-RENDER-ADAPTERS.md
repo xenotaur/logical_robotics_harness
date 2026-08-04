@@ -70,15 +70,23 @@ Claude UI metadata require explicit Codex handling.
   installs through the new renderer path.
 
 - Add Codex rendering support that writes `SKILL.md` content appropriate for the
-  `.agents/skills/` target and emits or preserves a sibling
-  `agents/openai.yaml` file when Codex-specific metadata is needed.
+  `.agents/skills/` target and supports Codex metadata through a sibling
+  `agents/openai.yaml` file.
+
+- Define Codex metadata source precedence: canonical source trees may include
+  authored `agents/openai.yaml`; renderers may generate Codex metadata from
+  translatable `SKILL.md` frontmatter; when both are present, the authored
+  canonical `agents/openai.yaml` values are preserved and generated values fill
+  only missing/defaultable policy fields. Installed target-local
+  `agents/openai.yaml` edits are local modifications, not authoritative source.
 
 - Translate Claude `disable-model-invocation: true` metadata into Codex manual
   invocation policy, using `policy.allow_implicit_invocation: false` in
   `agents/openai.yaml`.
 
-- Strip, translate, or deliberately report Claude-only metadata with no Codex
-  equivalent, including `argument-hint`.
+- Strip `argument-hint` from rendered Codex `SKILL.md` output. For other
+  Claude-only metadata with no Codex equivalent, strip, translate, or
+  deliberately report the field.
 
 - Preserve canonical skill sources as authoritative and keep `.claude/skills/`
   and `.agents/skills/` as generated install targets.

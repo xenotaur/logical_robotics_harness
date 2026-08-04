@@ -143,6 +143,39 @@ class TestInstallSkills(unittest.TestCase):
             (installed / "agents" / "openai.yaml").read_text(),
         )
 
+    def test_codex_target_strips_multiline_claude_metadata(self) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    "name: sample-skill",
+                    "argument-hint: >",
+                    "  [one]",
+                    "  [two]",
+                    "---",
+                    "",
+                    "# Sample Skill",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.CODEX,
+        )
+
+        skill_md = (skills_dir / "sample-skill" / "SKILL.md").read_text()
+        self.assertNotIn("argument-hint", skill_md)
+        self.assertNotIn("[one]", skill_md)
+        self.assertNotIn("[two]", skill_md)
+        self.assertIn("name: sample-skill", skill_md)
+
     def test_codex_target_preserves_authored_openai_policy_value(self) -> None:
         source_dir = self._make_skills_dir()
         skill_dir = source_dir / "sample-skill"

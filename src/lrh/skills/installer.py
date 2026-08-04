@@ -204,14 +204,14 @@ class CodexSkillRenderer:
         if not isinstance(metadata, dict):
             return {}, content
 
-        rewritten_lines = [parts[0]]
-        for line in parts[1:closing_index]:
-            key = line.split(":", 1)[0].strip()
-            if key in self._CODEX_STRIPPED_FRONTMATTER_KEYS:
-                continue
-            rewritten_lines.append(line)
-        rewritten_lines.extend(parts[closing_index:])
-        return metadata, "".join(rewritten_lines).encode("utf-8")
+        codex_metadata = {
+            key: value
+            for key, value in metadata.items()
+            if key not in self._CODEX_STRIPPED_FRONTMATTER_KEYS
+        }
+        frontmatter = yaml.safe_dump(codex_metadata, sort_keys=False)
+        rewritten = f"---\n{frontmatter}---\n{''.join(parts[closing_index + 1:])}"
+        return metadata, rewritten.encode("utf-8")
 
     def _render_openai_yaml(self, source_content: bytes | None) -> bytes:
         metadata = self._load_openai_yaml(source_content)

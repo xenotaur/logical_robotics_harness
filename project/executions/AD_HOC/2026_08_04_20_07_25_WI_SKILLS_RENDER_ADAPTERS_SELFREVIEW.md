@@ -3,9 +3,9 @@ execution_id: 2026_08_04_20_07_25_WI_SKILLS_RENDER_ADAPTERS_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_RENDER_ADAPTERS_SELFREVIEW)[2026-08-04T20:07:19+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
+rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/485
-commit: 
+commit:
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SKILLS-RENDER-ADAPTERS.md
 session_transcript: codex-app:current-task

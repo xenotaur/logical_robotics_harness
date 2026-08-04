@@ -24,6 +24,7 @@ related_design:
 work_items:
   - WI-CODEX-CONVERSATION-EXPORT-MANIFEST
   - WI-CODEX-CONVERSATION-EXPORT-ADAPTER
+  - WI-CODEX-CONVERSATION-INSPECT-EXPORT
 exit_criteria:
   - Codex conversation export manifest and Markdown artifact contract are implemented with typed helpers and documented schema expectations
   - File-based Codex export adapter creates private, non-authoritative transcript artifacts without depending on undocumented Codex app storage internals
@@ -110,22 +111,16 @@ Linked work items:
   contract.
 - `WI-CODEX-CONVERSATION-EXPORT-ADAPTER` — implement the file-based Codex
   adapter that writes Markdown transcript artifacts with the manifest.
+- `WI-CODEX-CONVERSATION-INSPECT-EXPORT` — implement the deterministic
+  `lrh conversation inspect-export <path> --format text|json` CLI.
 
-The remaining planning sequence should create small, reviewable work items
-along these lines:
+The remaining planning sequence should create small, reviewable work items for
+follow-up behavior not covered by the linked inspector item:
 
-- **Inspection CLI** — implement
-  `lrh conversation inspect-export <path> --format text|json`, including
-  manifest validation, source-hash checks where possible, sensitivity warning
-  reporting, and stable automation-friendly JSON output.
-
-- **Tests and fixtures** — add focused unit tests and representative fixtures
-  for valid exports, malformed manifests, hash mismatches, sensitivity warning
-  propagation, and text/JSON output stability.
-
-- **Documentation** — update `docs/reference/cli/conversation.md`,
-  `docs/conversations/conversation-capture-options.md`, and related guidance to
-  explain export, inspection, privacy, authority, and reviewed promotion.
+- **Conversation guidance** — update broader guidance such as
+  `docs/conversations/conversation-capture-options.md` to explain export,
+  inspection, privacy, authority, and reviewed promotion after the inspector
+  behavior is stable.
 
 - **Viewer follow-up** — after the artifact contract and inspector have landed,
   file a follow-up work item for safe-default `lrh serve` viewing of explicitly

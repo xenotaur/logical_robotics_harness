@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented file-based Codex conversation export adapter in PR #480 (merge commit a195f8415a3b4d43033c4495743a616cc10f7768).
 blocked_reason: null
 blocked: false
 id: WI-CODEX-CONVERSATION-EXPORT-ADAPTER
 title: Implement file-based Codex conversation export adapter
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

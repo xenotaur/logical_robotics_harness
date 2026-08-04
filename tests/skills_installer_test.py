@@ -358,6 +358,38 @@ class TestAgentSkillsConfig(unittest.TestCase):
         with self.assertRaises(installer.SkillSourceError):
             installer.resolve_agent_skills_install_plan(project_root=project_root)
 
+    def test_repo_config_rejects_blank_source_values(self) -> None:
+        project_root = self._make_project_root()
+        (project_root / "project" / "agent_skills.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "sources:",
+                    '  - ""',
+                    "",
+                ]
+            )
+        )
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.resolve_agent_skills_install_plan(project_root=project_root)
+
+    def test_repo_config_rejects_blank_target_values(self) -> None:
+        project_root = self._make_project_root()
+        (project_root / "project" / "agent_skills.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "targets:",
+                    '  - ""',
+                    "",
+                ]
+            )
+        )
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.resolve_agent_skills_install_plan(project_root=project_root)
+
 
 class TestResolveSkillSource(unittest.TestCase):
     def _make_source_dir(self) -> Path:

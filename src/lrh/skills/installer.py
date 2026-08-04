@@ -193,6 +193,8 @@ def _config_string_list(data: dict[str, Any], key: str, path: Path) -> list[str]
         return None
     if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise SkillSourceError(f"{key} in {path} must be a list of strings")
+    if any(not item.strip() for item in value):
+        raise SkillSourceError(f"{key} in {path} must not contain blank values")
     return value
 
 

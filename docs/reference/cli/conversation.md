@@ -37,9 +37,54 @@ decisions, work items, or status until a separate reviewed promotion step
 creates those artifacts. Sensitivity scanning is heuristic and does not certify
 that an export is safe to publish.
 
-This contract does not yet implement a file-based Codex adapter,
-`lrh conversation inspect-export`, `lrh serve` archive viewing, or any change to
-execution-record `session_transcript` pointer grammar.
+This contract is used by the file-based Codex adapter below. It does not yet
+implement `lrh conversation inspect-export`, `lrh serve` archive viewing, or any
+change to execution-record `session_transcript` pointer grammar.
+
+## `lrh conversation convert-codex-file`
+
+```bash
+lrh conversation convert-codex-file INPUT.txt --out OUTPUT.md
+```
+
+Converts an explicit local Codex transcript or source text file into a UTF-8
+Markdown artifact with `ConversationExportManifest` frontmatter. The command is
+intentionally file-based: the caller supplies both the source path and output
+path, and LRH does not inspect undocumented Codex app storage internals.
+
+The command is local and private-by-default:
+
+- it writes one Markdown file at `--out`;
+- it rejects source/output path collisions even when `--force` is supplied;
+- it does not import the transcript into a ledger, database, project control
+  directory, or private state store;
+- generated frontmatter defaults to `privacy: private` and
+  `authority: non_authoritative_context`;
+- the source SHA-256, export timestamp, adapter version, warning list,
+  sensitivity metadata, and transcript statistics are preserved in the
+  frontmatter;
+- sensitivity scanning is heuristic and does not certify that output is safe to
+  publish.
+
+### Options
+
+- `--out OUTPUT.md` — required Markdown export output path.
+- `--force` — overwrite an existing output file. This never allows the source
+  and output to be the same file.
+- `--source-id ID` — optional stable Codex session or thread identifier to
+  record in `source_id`.
+- `--no-scan-sensitive` — skip the local heuristic sensitivity scanner and mark
+  transcript frontmatter as `sensitivity: unscanned`.
+
+### Exit behavior
+
+The command returns nonzero for missing, non-file, unreadable, or non-UTF-8
+inputs; existing outputs when `--force` is not supplied; source/output path
+collisions; and output write failures.
+
+On success it prints a concise deterministic summary with the output path,
+privacy, sensitivity status, and warning count. Potential sensitive findings are
+also reported as warnings on stderr.
 
 ## `lrh conversation convert-pdf`
 

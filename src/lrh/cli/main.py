@@ -15,7 +15,7 @@ from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
-from lrh.conversations import pdf_import
+from lrh.conversations import codex_file_export, pdf_import
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
@@ -96,6 +96,11 @@ def main() -> None:
         "convert-pdf",
         add_help=False,
         help="Convert a local ChatGPT PDF export to Markdown.",
+    )
+    conversation_subparsers.add_parser(
+        "convert-codex-file",
+        add_help=False,
+        help="Convert an explicit local Codex transcript/source file to Markdown.",
     )
 
     subparsers.add_parser(
@@ -686,6 +691,13 @@ def main() -> None:
         )
 
     if args.command == "conversation":
+        if args.conversation_command == "convert-codex-file":
+            raise SystemExit(
+                codex_file_export.run_convert_codex_file_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation convert-codex-file",
+                )
+            )
         if args.conversation_command == "convert-pdf":
             raise SystemExit(
                 pdf_import.run_convert_pdf_cli(
@@ -694,7 +706,8 @@ def main() -> None:
                 )
             )
         parser.error(
-            "conversation requires a subcommand (try: lrh conversation convert-pdf)"
+            "conversation requires a subcommand "
+            "(try: lrh conversation convert-codex-file)"
         )
 
     if args.command == "prompt":

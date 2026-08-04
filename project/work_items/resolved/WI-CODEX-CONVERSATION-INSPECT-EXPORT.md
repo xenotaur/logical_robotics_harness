@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #484 at commit da1cfadb51b966b668d3dc1c65af3f8a1f0921ef.
 blocked_reason: null
 blocked: false
 id: WI-CODEX-CONVERSATION-INSPECT-EXPORT
 title: Implement Codex conversation export inspector CLI
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

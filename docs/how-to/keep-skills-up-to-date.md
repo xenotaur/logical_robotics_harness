@@ -46,6 +46,13 @@ install destinations. Existing safety behavior still applies for every source:
 locally modified target copies are skipped unless `--force` is passed, and
 `--diff` compares the installed copy against the selected source.
 
+Repositories may also define optional defaults in `project/agent_skills.yaml`.
+When that file is present, `lrh skills install` uses its configured source,
+target, and scope unless the corresponding CLI flag is supplied. CLI flags take
+precedence over repo config, and repo config takes precedence over the
+conventional defaults. See the [agent skills config reference](../reference/schemas/agent-skills-config.md)
+for the full schema.
+
 Each skill is reported as one of:
 
 - `up to date` — the installed copy already matches the selected source; no action needed.
@@ -57,6 +64,10 @@ Add `--local` to check the per-repository skills directory instead of the global
 ```bash
 lrh skills install --dry-run --local
 ```
+
+`--local` is a shortcut for project scope. When a repository config sets a
+scope default, use `--scope user` or `--scope project` to override it for a
+single command.
 
 For a project-local Codex install, use:
 

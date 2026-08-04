@@ -57,6 +57,7 @@ class SkillsInstallCliTest(unittest.TestCase):
         self.assertIn("--dry-run", result.stdout)
         self.assertIn("--force", result.stdout)
         self.assertIn("--local", result.stdout)
+        self.assertIn("--scope", result.stdout)
         self.assertIn("--target", result.stdout)
         self.assertIn("--source", result.stdout)
         self.assertNotIn("Install LRH skills to ~/.claude/skills/", result.stdout)
@@ -192,6 +193,160 @@ class SkillsInstallCliTest(unittest.TestCase):
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             self.assertTrue((pathlib.Path(fake_cwd) / ".agents" / "skills").exists())
             self.assertFalse((pathlib.Path(fake_cwd) / ".claude" / "skills").exists())
+
+    def test_skills_install_uses_repo_config_when_flags_are_absent(self) -> None:
+        with tempfile.TemporaryDirectory() as source_dir:
+            source = pathlib.Path(source_dir)
+            (source / "sample-skill").mkdir()
+            (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
+            with tempfile.TemporaryDirectory() as fake_cwd:
+                project_dir = pathlib.Path(fake_cwd) / "project"
+                project_dir.mkdir()
+                (project_dir / "agent_skills.yaml").write_text(
+                    "\n".join(
+                        [
+                            "schema_version: 1",
+                            "sources:",
+                            f"  - {source}",
+                            "targets:",
+                            "  - codex",
+                            "scope: project",
+                            "",
+                        ]
+                    )
+                )
+
+                result = subprocess.run(
+                    [sys.executable, "-m", "lrh.cli.main", "skills", "install"],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env=os.environ.copy(),
+                    cwd=fake_cwd,
+                )
+
+                self.assertEqual(result.returncode, 0, msg=result.stderr)
+                skill_md = (
+                    pathlib.Path(fake_cwd)
+                    / ".agents"
+                    / "skills"
+                    / "sample-skill"
+                    / "SKILL.md"
+                )
+                self.assertEqual(skill_md.read_text(), "sample skill\n")
+                self.assertFalse((pathlib.Path(fake_cwd) / ".claude").exists())
+
+    def test_skills_install_cli_flags_override_repo_config(self) -> None:
+        with tempfile.TemporaryDirectory() as source_dir:
+            source = pathlib.Path(source_dir)
+            (source / "sample-skill").mkdir()
+            (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
+            with tempfile.TemporaryDirectory() as fake_cwd:
+                project_dir = pathlib.Path(fake_cwd) / "project"
+                project_dir.mkdir()
+                (project_dir / "agent_skills.yaml").write_text(
+                    "\n".join(
+                        [
+                            "schema_version: 1",
+                            "sources:",
+                            "  - /not/a/real/source",
+                            "targets:",
+                            "  - codex",
+                            "scope: project",
+                            "",
+                        ]
+                    )
+                )
+
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "lrh.cli.main",
+                        "skills",
+                        "install",
+                        "--source",
+                        str(source),
+                        "--target",
+                        "claude",
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env=os.environ.copy(),
+                    cwd=fake_cwd,
+                )
+
+                self.assertEqual(result.returncode, 0, msg=result.stderr)
+                skill_md = (
+                    pathlib.Path(fake_cwd)
+                    / ".claude"
+                    / "skills"
+                    / "sample-skill"
+                    / "SKILL.md"
+                )
+                self.assertEqual(skill_md.read_text(), "sample skill\n")
+                self.assertFalse((pathlib.Path(fake_cwd) / ".agents").exists())
+
+    def test_skills_install_scope_user_overrides_project_repo_config(self) -> None:
+        with tempfile.TemporaryDirectory() as source_dir:
+            source = pathlib.Path(source_dir)
+            (source / "sample-skill").mkdir()
+            (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
+            with tempfile.TemporaryDirectory() as fake_cwd:
+                with tempfile.TemporaryDirectory() as fake_home:
+                    project_dir = pathlib.Path(fake_cwd) / "project"
+                    project_dir.mkdir()
+                    (project_dir / "agent_skills.yaml").write_text(
+                        "\n".join(
+                            [
+                                "schema_version: 1",
+                                "sources:",
+                                f"  - {source}",
+                                "targets:",
+                                "  - claude",
+                                "scope: project",
+                                "",
+                            ]
+                        )
+                    )
+                    env = os.environ.copy()
+                    env["HOME"] = fake_home
+                    env["USERPROFILE"] = fake_home
+
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            "-m",
+                            "lrh.cli.main",
+                            "skills",
+                            "install",
+                            "--scope",
+                            "user",
+                        ],
+                        check=False,
+                        capture_output=True,
+                        text=True,
+                        env=env,
+                        cwd=fake_cwd,
+                    )
+
+                    self.assertEqual(result.returncode, 0, msg=result.stderr)
+                    skill_md = (
+                        pathlib.Path(fake_home)
+                        / ".claude"
+                        / "skills"
+                        / "sample-skill"
+                        / "SKILL.md"
+                    )
+                    self.assertEqual(skill_md.read_text(), "sample skill\n")
+                    self.assertFalse((pathlib.Path(fake_cwd) / ".claude").exists())
+
+    def test_skills_install_local_conflicts_with_scope_user(self) -> None:
+        result = self._run("skills", "install", "--local", "--scope", "user")
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--local cannot be combined with --scope user", result.stderr)
 
     def test_skills_install_local_codex_diff_reports_local_modification(
         self,

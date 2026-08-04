@@ -63,6 +63,7 @@ class ConversationCliTest(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
         self.assertIn("convert-pdf", completed.stdout)
+        self.assertIn("inspect-export", completed.stdout)
 
     def test_convert_pdf_writes_private_non_authoritative_markdown(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -219,6 +220,52 @@ class ConversationCliTest(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 1)
             self.assertIn("PDF input does not exist", completed.stderr)
+
+    def test_inspect_export_cli_reports_without_transcript_content(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = pathlib.Path(temp_dir)
+            input_path = temp_path / "codex.txt"
+            output_path = temp_path / "export.md"
+            input_path.write_text("User: private detail\n", encoding="utf-8")
+            convert_result = self._run_lrh(
+                "conversation",
+                "convert-codex-file",
+                str(input_path),
+                "--out",
+                str(output_path),
+                "--no-scan-sensitive",
+            )
+            self.assertEqual(convert_result.returncode, 0, msg=convert_result.stderr)
+
+            completed = self._run_lrh(
+                "conversation",
+                "inspect-export",
+                str(output_path),
+                "--source",
+                str(input_path),
+                "--format",
+                "json",
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn('"valid": true', completed.stdout)
+            self.assertIn('"status": "match"', completed.stdout)
+            self.assertNotIn("User: private detail", completed.stdout)
+
+    def test_inspect_export_invalid_artifact_returns_nonzero(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            export_path = pathlib.Path(temp_dir) / "broken.md"
+            export_path.write_text("no frontmatter\n", encoding="utf-8")
+
+            completed = self._run_lrh(
+                "conversation",
+                "inspect-export",
+                str(export_path),
+            )
+
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("Valid: no", completed.stdout)
+            self.assertIn("manifest:", completed.stdout)
 
 
 if __name__ == "__main__":

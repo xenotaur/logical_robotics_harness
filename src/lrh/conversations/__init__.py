@@ -7,6 +7,13 @@ from lrh.conversations.codex_file_export import (
     convert_codex_file,
     render_codex_markdown,
 )
+from lrh.conversations.export_inspector import (
+    ConversationExportInspection,
+    ConversationExportInspectionError,
+    SourceHashVerification,
+    StatisticComparison,
+    inspect_export,
+)
 from lrh.conversations.export_manifest import (
     ADAPTER_VERSION,
     DEFAULT_AUTHORITY,
@@ -34,10 +41,15 @@ __all__ = [
     "SOURCE_TOOL_CODEX",
     "ConversationExportManifest",
     "ConversationExportManifestError",
+    "ConversationExportInspection",
+    "ConversationExportInspectionError",
+    "SourceHashVerification",
+    "StatisticComparison",
     "TranscriptStatistics",
     "build_file_export_manifest",
     "build_codex_manifest",
     "convert_codex_file",
+    "inspect_export",
     "render_codex_markdown",
     "statistics_for_text",
 ]

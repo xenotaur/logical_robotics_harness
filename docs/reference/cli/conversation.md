@@ -37,9 +37,9 @@ decisions, work items, or status until a separate reviewed promotion step
 creates those artifacts. Sensitivity scanning is heuristic and does not certify
 that an export is safe to publish.
 
-This contract is used by the file-based Codex adapter below. It does not yet
-implement `lrh conversation inspect-export`, `lrh serve` archive viewing, or any
-change to execution-record `session_transcript` pointer grammar.
+This contract is used by the file-based Codex adapter and inspector below. It
+does not implement `lrh serve` archive viewing or any change to
+execution-record `session_transcript` pointer grammar.
 
 ## `lrh conversation convert-codex-file`
 
@@ -85,6 +85,56 @@ collisions; and output write failures.
 On success it prints a concise deterministic summary with the output path,
 privacy, sensitivity status, and warning count. Potential sensitive findings are
 also reported as warnings on stderr.
+
+## `lrh conversation inspect-export`
+
+```bash
+lrh conversation inspect-export EXPORT.md --format text
+lrh conversation inspect-export EXPORT.md --source INPUT.txt --format json
+```
+
+Inspects a local Codex Markdown export artifact with
+`ConversationExportManifest` frontmatter. The command validates manifest shape,
+reports privacy/authority/sensitivity metadata, recomputes transcript body
+statistics, and optionally verifies the recorded source SHA-256 against an
+explicit `--source` path.
+
+The inspector is metadata-only by default. Text and JSON output report counts,
+hashes, statuses, warnings, and diagnostics; they do not print raw transcript
+body, snippets, or message text. This keeps terminal scrollback and CI logs from
+accidentally echoing private conversation content.
+
+### Options
+
+- `--format text|json` — output format. `text` is concise and human-readable;
+  `json` is deterministic and automation-friendly.
+- `--source SOURCE` — optional original source file. When supplied, the
+  inspector compares its SHA-256 digest to manifest `source_sha256`.
+
+### Reported Signals
+
+- manifest validity and schema metadata;
+- privacy and authority boundaries;
+- sensitivity status, sensitivity-scan metadata, and warning count;
+- manifest transcript statistics and recomputed artifact body statistics;
+- source-hash status: `not_supplied`, `match`, `mismatch`, `source_missing`,
+  `source_not_file`, `source_unreadable`, or `not_available`.
+
+Valid file-export artifacts can contain one renderer-added trailing newline in
+the Markdown body; the inspector accounts for that when comparing byte and
+character counts. Additional body changes are reported as
+`transcript_statistics` mismatches.
+
+### Exit behavior
+
+The command returns:
+
+- `0` when the artifact is valid and any supplied source hash matches;
+- `1` when the artifact was read but validation fails, including malformed
+  manifests, body-statistic drift, hash mismatches, or missing/non-file supplied
+  sources;
+- `2` when the export artifact itself cannot be inspected, such as missing,
+  non-file, unreadable, or non-UTF-8 input.
 
 ## `lrh conversation convert-pdf`
 

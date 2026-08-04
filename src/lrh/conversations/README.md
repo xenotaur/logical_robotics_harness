@@ -31,3 +31,13 @@ with `ConversationExportManifest` frontmatter. It backs the
 adapter is intentionally file-based: callers provide the source and output
 paths, output is rejected if it collides with the source even under `--force`,
 and no undocumented Codex app storage internals are inspected.
+
+## Codex export inspection
+
+`lrh.conversations.export_inspector` inspects those Markdown export artifacts
+without promoting transcript text into LRH project state. It validates
+`ConversationExportManifest` frontmatter, recomputes artifact body statistics,
+optionally checks an explicit source file's SHA-256 digest, and formats
+metadata-only text or JSON reports. Default output is designed for terminal and
+CI use: it reports statuses, counts, hashes, warnings, and diagnostics without
+printing raw transcript body, snippets, or message text.

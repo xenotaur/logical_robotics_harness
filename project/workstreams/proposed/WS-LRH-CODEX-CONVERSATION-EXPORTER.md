@@ -114,16 +114,13 @@ Linked work items:
 - `WI-CODEX-CONVERSATION-INSPECT-EXPORT` — implement the deterministic
   `lrh conversation inspect-export <path> --format text|json` CLI.
 
-The remaining planning sequence should create small, reviewable work items
-along these lines:
+The remaining planning sequence should create small, reviewable work items for
+follow-up behavior not covered by the linked inspector item:
 
-- **Tests and fixtures** — add focused unit tests and representative fixtures
-  for valid exports, malformed manifests, hash mismatches, sensitivity warning
-  propagation, and text/JSON output stability.
-
-- **Documentation** — update `docs/reference/cli/conversation.md`,
-  `docs/conversations/conversation-capture-options.md`, and related guidance to
-  explain export, inspection, privacy, authority, and reviewed promotion.
+- **Conversation guidance** — update broader guidance such as
+  `docs/conversations/conversation-capture-options.md` to explain export,
+  inspection, privacy, authority, and reviewed promotion after the inspector
+  behavior is stable.
 
 - **Viewer follow-up** — after the artifact contract and inspector have landed,
   file a follow-up work item for safe-default `lrh serve` viewing of explicitly

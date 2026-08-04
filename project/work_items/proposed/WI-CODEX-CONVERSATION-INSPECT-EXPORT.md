@@ -37,11 +37,13 @@ forbidden_actions:
   - depend_on_undocumented_codex_app_storage_internals
   - commit_raw_transcript_exports
   - commit_private_transcript_fixtures
+  - echo_transcript_content_by_default
 acceptance:
   - `lrh conversation inspect-export <path> --format text|json` exists and validates Codex export Markdown artifacts with `ConversationExportManifest` frontmatter
+  - The inspector recomputes artifact body statistics and flags drift from manifest `transcript` byte, character, and line counts
   - The inspector reports manifest validity, privacy/authority metadata, sensitivity status and warnings, transcript statistics, and source-hash verification status when a source path is supplied
-  - JSON output is deterministic and automation-friendly; text output is concise and human-readable
-  - Focused tests cover valid exports, malformed or missing manifests, hash matches and mismatches, missing or unreadable source handling, sensitivity warning propagation, CLI command wiring, `--format` choices, invalid export exit behavior, and stable text/JSON output
+  - JSON output is deterministic and automation-friendly; text output is concise and human-readable; neither output mode includes raw transcript body, snippets, or message text by default
+  - Focused tests cover valid exports, malformed or missing manifests, body-statistic drift, hash matches and mismatches, missing or unreadable source handling, sensitivity warning propagation, transcript-content non-disclosure in text and JSON output, CLI command wiring, `--format` choices, invalid export exit behavior, and stable text/JSON output
   - Documentation describes the inspection workflow and keeps viewer support, promotion, and `session_transcript` grammar changes out of scope
   - `lrh validate` reports 0 errors
 required_evidence:
@@ -108,6 +110,9 @@ without treating raw transcripts as authoritative project state.
 - Verify source SHA-256 when the caller supplies an explicit source path.
 - Provide deterministic `text` and `json` output modes suitable for human
   review and automation.
+- Keep default inspection output metadata-only: report counts, hashes, privacy
+  flags, and warnings without echoing raw transcript body, snippets, or message
+  text to terminal output or CI logs.
 
 ## Required Changes
 
@@ -120,18 +125,24 @@ without treating raw transcripts as authoritative project state.
 3. Support an optional explicit source path for hash verification, such as
    `--source SOURCE`, while keeping inspection useful when the source is
    unavailable.
-4. Define clear exit/status behavior for invalid export artifacts, hash
+4. Recompute the Markdown artifact body statistics and compare them against the
+   manifest's recorded transcript byte, character, and line counts so tampered
+   bodies or stale manifests are surfaced as inspection findings.
+5. Define clear exit/status behavior for invalid export artifacts, body
+   statistic mismatches, hash
    mismatches, missing source paths, unreadable source paths, and successful
    inspections so CLI consumers can distinguish validation failures from tool
    failures.
-5. Reuse existing manifest/frontmatter helpers where practical instead of
+6. Reuse existing manifest/frontmatter helpers where practical instead of
    inventing a second manifest schema.
-6. Add focused tests in `tests/conversations_tests/export_inspector_test.py`
+7. Add focused tests in `tests/conversations_tests/export_inspector_test.py`
    for valid exports, malformed or missing frontmatter, invalid manifest
-   fields, hash matches and mismatches, missing or unreadable source handling,
-   sensitivity warning propagation, CLI command wiring, `--format` choices,
-   invalid export exit behavior, and stable text/JSON output.
-7. Update `docs/reference/cli/conversation.md` and, if appropriate,
+   fields, body-statistic drift, hash matches and mismatches, missing or
+   unreadable source handling, sensitivity warning propagation,
+   transcript-content non-disclosure in text and JSON output, CLI command
+   wiring, `--format` choices, invalid export exit behavior, and stable
+   text/JSON output.
+8. Update `docs/reference/cli/conversation.md` and, if appropriate,
    `src/lrh/conversations/README.md` to document supported inspection behavior
    and privacy/authority boundaries.
 
@@ -146,6 +157,8 @@ without treating raw transcripts as authoritative project state.
   content.
 - Use only synthetic fixture content for inspector tests.
 - Do not certify redaction or public-export safety.
+- Do not print raw transcript body, snippets, or message text in default text or
+  JSON inspection output.
 
 ## Acceptance Criteria
 
@@ -179,9 +192,13 @@ without treating raw transcripts as authoritative project state.
 - The inspector should treat raw transcripts as private, non-authoritative
   context and must not imply that inspection promotes them into LRH project
   truth.
+- Default output should be safe for terminal scrollback and CI logs by exposing
+  metadata and diagnostics only, not transcript content.
 - Hash verification should distinguish source unavailable, hash match, hash
   mismatch, and source read failure without pretending every export can be
   fully verified.
+- Body-statistic verification should catch manifest/body drift even when no
+  original source file is available for hash verification.
 - JSON output should be stable enough for later automation and viewer work to
   consume.
 - Avoid implementing viewer or promotion behavior in this slice; doing so would

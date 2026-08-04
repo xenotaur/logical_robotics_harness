@@ -10,9 +10,12 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
+
+import yaml
 
 _SKILLS_PACKAGE = "lrh.skills"
+_AGENT_SKILLS_CONFIG = Path("project") / "agent_skills.yaml"
 
 
 class SkillTarget(str, Enum):
@@ -55,6 +58,21 @@ class InstallTarget:
         if self.target is SkillTarget.CLAUDE:
             return "Claude Code"
         return "Codex"
+
+
+@dataclass(frozen=True)
+class AgentSkillsConfig:
+    config_path: Path
+    source: str | None = None
+    target: TargetSelection | None = None
+    local: bool | None = None
+
+
+@dataclass(frozen=True)
+class AgentSkillsInstallPlan:
+    source: str | Path | SkillSource
+    target: TargetSelection
+    local: bool
 
 
 class SkillSourceError(ValueError):
@@ -126,6 +144,168 @@ def _coerce_selection(value: str | SkillTarget | TargetSelection) -> TargetSelec
     if isinstance(value, SkillTarget):
         return TargetSelection(value.value)
     return TargetSelection(value)
+
+
+def _config_path(project_root: Path | None = None) -> Path:
+    root = project_root if project_root is not None else Path.cwd()
+    return root / _AGENT_SKILLS_CONFIG
+
+
+def load_agent_skills_config(
+    project_root: Path | None = None,
+) -> AgentSkillsConfig | None:
+    """Load optional repository-local agent skill install configuration."""
+    path = _config_path(project_root)
+    if not path.exists():
+        return None
+    if path.is_symlink() or not path.is_file():
+        raise SkillSourceError(f"agent skills config must be a real file: {path}")
+    try:
+        loaded = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as err:
+        raise SkillSourceError(f"invalid YAML in {path}: {err}") from err
+    if loaded is None:
+        return AgentSkillsConfig(config_path=path)
+    if not isinstance(loaded, dict):
+        raise SkillSourceError(f"agent skills config must be a mapping: {path}")
+
+    _validate_schema_version(loaded, path)
+    _validate_config_install_policy(loaded, path)
+    return AgentSkillsConfig(
+        config_path=path,
+        source=_config_source(loaded, path),
+        target=_config_target(loaded, path),
+        local=_config_scope(loaded, path),
+    )
+
+
+def _validate_schema_version(data: dict[str, Any], path: Path) -> None:
+    version = data.get("schema_version", 1)
+    if version != 1:
+        raise SkillSourceError(
+            f"unsupported agent skills config schema_version in {path}: {version!r}"
+        )
+
+
+def _config_string_list(data: dict[str, Any], key: str, path: Path) -> list[str] | None:
+    value = data.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise SkillSourceError(f"{key} in {path} must be a list of strings")
+    if any(not item.strip() for item in value):
+        raise SkillSourceError(f"{key} in {path} must not contain blank values")
+    return value
+
+
+def _config_source(data: dict[str, Any], path: Path) -> str | None:
+    sources = _config_string_list(data, "sources", path)
+    if sources is None:
+        return None
+    if len(sources) != 1:
+        raise SkillSourceError(
+            f"sources in {path} must contain exactly one source in this installer stage"
+        )
+    return sources[0]
+
+
+def _config_target(data: dict[str, Any], path: Path) -> TargetSelection | None:
+    targets = _config_string_list(data, "targets", path)
+    if targets is None:
+        return None
+    normalized = {target.lower() for target in targets}
+    if not normalized:
+        raise SkillSourceError(f"targets in {path} must not be empty")
+    if normalized == {"all"} or normalized == {"claude", "codex"}:
+        return TargetSelection.ALL
+    if normalized == {"claude"}:
+        return TargetSelection.CLAUDE
+    if normalized == {"codex"}:
+        return TargetSelection.CODEX
+    raise SkillSourceError(
+        f"targets in {path} must be claude, codex, all, or both claude and codex"
+    )
+
+
+def _config_scope(data: dict[str, Any], path: Path) -> bool | None:
+    scope = data.get("scope")
+    if scope is None:
+        return None
+    if scope == "project":
+        return True
+    if scope == "user":
+        return False
+    raise SkillSourceError(f"scope in {path} must be user or project")
+
+
+def _validate_config_install_policy(data: dict[str, Any], path: Path) -> None:
+    install = data.get("install")
+    if install is None:
+        return
+    if not isinstance(install, dict):
+        raise SkillSourceError(f"install in {path} must be a mapping")
+    overwrite = install.get("overwrite")
+    if overwrite in (None, False, "skip", "preserve"):
+        return
+    raise SkillSourceError(
+        f"install.overwrite in {path} cannot enable destructive overwrite;"
+        " use the --force CLI flag for that"
+    )
+
+
+def _resolve_config_source(config: AgentSkillsConfig) -> str:
+    if config.source is None:
+        return SkillSourceKind.PACKAGE.value
+    if config.source in {
+        SkillSourceKind.PACKAGE.value,
+        SkillSourceKind.CURRENT_REPO.value,
+    }:
+        return config.source
+    source_path = Path(config.source)
+    if source_path.is_absolute():
+        return str(source_path)
+    return str(config.config_path.parents[1] / source_path)
+
+
+def resolve_agent_skills_install_plan(
+    *,
+    target: str | SkillTarget | TargetSelection | None = None,
+    local: bool | None = None,
+    source: str | Path | SkillSource | None = None,
+    project_root: Path | None = None,
+) -> AgentSkillsInstallPlan:
+    """Resolve CLI-over-config-over-default install planning values."""
+    config = load_agent_skills_config(project_root)
+    resolved_source = (
+        source
+        if source is not None
+        else (
+            _resolve_config_source(config)
+            if config is not None and config.source is not None
+            else SkillSourceKind.PACKAGE.value
+        )
+    )
+    resolved_target = (
+        _coerce_selection(target)
+        if target is not None
+        else (
+            config.target
+            if config is not None and config.target is not None
+            else TargetSelection.CLAUDE
+        )
+    )
+    resolved_local = (
+        local
+        if local is not None
+        else (
+            config.local if config is not None and config.local is not None else False
+        )
+    )
+    return AgentSkillsInstallPlan(
+        source=resolved_source,
+        target=resolved_target,
+        local=resolved_local,
+    )
 
 
 def _default_skills_dir(target: SkillTarget) -> Path:
@@ -417,16 +597,22 @@ def install_skills(
 
 
 def install_skills_for_targets(
-    target: str | SkillTarget | TargetSelection = TargetSelection.CLAUDE,
+    target: str | SkillTarget | TargetSelection | None = None,
     *,
-    local: bool = False,
+    local: bool | None = None,
     project_root: Path | None = None,
     dry_run: bool = False,
     force: bool = False,
-    source: str | Path | SkillSource = SkillSourceKind.PACKAGE.value,
+    source: str | Path | SkillSource | None = None,
 ) -> list[InstallReport]:
     """Install skills for every selected target and scope."""
-    skill_source = resolve_skill_source(source, project_root=project_root)
+    plan = resolve_agent_skills_install_plan(
+        target=target,
+        local=local,
+        source=source,
+        project_root=project_root,
+    )
+    skill_source = resolve_skill_source(plan.source, project_root=project_root)
     return [
         install_skills(
             skills_dir=install_target.skills_dir,
@@ -436,7 +622,7 @@ def install_skills_for_targets(
             source=skill_source,
         )
         for install_target in resolve_install_targets(
-            target, local=local, project_root=project_root
+            plan.target, local=plan.local, project_root=project_root
         )
     ]
 

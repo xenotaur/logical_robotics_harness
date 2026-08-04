@@ -202,6 +202,195 @@ class TestResolveInstallTargets(unittest.TestCase):
         self.assertFalse((parent / ".agents").exists())
 
 
+class TestAgentSkillsConfig(unittest.TestCase):
+    def _make_project_root(self) -> Path:
+        parent = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, parent, True)
+        (parent / "project").mkdir()
+        return parent
+
+    def _make_source_dir(self) -> Path:
+        parent = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, parent, True)
+        source = parent / "skills"
+        (source / "sample-skill").mkdir(parents=True)
+        (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
+        return source
+
+    def test_absent_repo_config_preserves_existing_defaults(self) -> None:
+        project_root = self._make_project_root()
+
+        plan = installer.resolve_agent_skills_install_plan(project_root=project_root)
+
+        self.assertEqual(plan.source, installer.SkillSourceKind.PACKAGE.value)
+        self.assertEqual(plan.target, installer.TargetSelection.CLAUDE)
+        self.assertFalse(plan.local)
+
+    def test_quoted_list_elements_parse_without_embedded_quotes(self) -> None:
+        project_root = self._make_project_root()
+        config = project_root / "project" / "agent_skills.yaml"
+        config.write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "sources:",
+                    '  - "current-repo"',
+                    "targets:",
+                    '  - "codex"',
+                    "scope: project",
+                    "",
+                ]
+            )
+        )
+
+        loaded = installer.load_agent_skills_config(project_root)
+
+        self.assertIsNotNone(loaded)
+        assert loaded is not None
+        self.assertEqual(loaded.source, "current-repo")
+        self.assertEqual(loaded.target, installer.TargetSelection.CODEX)
+        self.assertTrue(loaded.local)
+
+    def test_configured_source_target_and_scope_influence_install_plan(self) -> None:
+        project_root = self._make_project_root()
+        source = self._make_source_dir()
+        (project_root / "project" / "agent_skills.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "sources:",
+                    f"  - {source}",
+                    "targets:",
+                    "  - codex",
+                    "scope: project",
+                    "",
+                ]
+            )
+        )
+
+        reports = installer.install_skills_for_targets(project_root=project_root)
+
+        self.assertEqual(
+            [report.target for report in reports], [installer.SkillTarget.CODEX]
+        )
+        skill_md = project_root / ".agents" / "skills" / "sample-skill" / "SKILL.md"
+        self.assertEqual(skill_md.read_text(), "sample skill\n")
+        self.assertFalse((project_root / ".claude").exists())
+
+    def test_relative_configured_source_resolves_from_project_root(self) -> None:
+        project_root = self._make_project_root()
+        source = project_root / "skills-source"
+        (source / "sample-skill").mkdir(parents=True)
+        (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
+        (project_root / "project" / "agent_skills.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "sources:",
+                    "  - skills-source",
+                    "",
+                ]
+            )
+        )
+
+        plan = installer.resolve_agent_skills_install_plan(project_root=project_root)
+
+        self.assertEqual(plan.source, str(source))
+
+    def test_both_configured_targets_resolve_to_all_targets(self) -> None:
+        project_root = self._make_project_root()
+        (project_root / "project" / "agent_skills.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "targets:",
+                    "  - claude",
+                    "  - codex",
+                    "",
+                ]
+            )
+        )
+
+        plan = installer.resolve_agent_skills_install_plan(project_root=project_root)
+
+        self.assertEqual(plan.target, installer.TargetSelection.ALL)
+
+    def test_cli_values_override_repo_config_values(self) -> None:
+        project_root = self._make_project_root()
+        (project_root / "project" / "agent_skills.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "sources:",
+                    "  - /not/a/real/source",
+                    "targets:",
+                    "  - codex",
+                    "scope: project",
+                    "",
+                ]
+            )
+        )
+
+        plan = installer.resolve_agent_skills_install_plan(
+            source="lrh-package",
+            target="claude",
+            local=False,
+            project_root=project_root,
+        )
+
+        self.assertEqual(plan.source, "lrh-package")
+        self.assertEqual(plan.target, installer.TargetSelection.CLAUDE)
+        self.assertFalse(plan.local)
+
+    def test_repo_config_cannot_enable_force_overwrite(self) -> None:
+        project_root = self._make_project_root()
+        (project_root / "project" / "agent_skills.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "install:",
+                    "  overwrite: force",
+                    "",
+                ]
+            )
+        )
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.resolve_agent_skills_install_plan(project_root=project_root)
+
+    def test_repo_config_rejects_blank_source_values(self) -> None:
+        project_root = self._make_project_root()
+        (project_root / "project" / "agent_skills.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "sources:",
+                    '  - ""',
+                    "",
+                ]
+            )
+        )
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.resolve_agent_skills_install_plan(project_root=project_root)
+
+    def test_repo_config_rejects_blank_target_values(self) -> None:
+        project_root = self._make_project_root()
+        (project_root / "project" / "agent_skills.yaml").write_text(
+            "\n".join(
+                [
+                    "schema_version: 1",
+                    "targets:",
+                    '  - ""',
+                    "",
+                ]
+            )
+        )
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.resolve_agent_skills_install_plan(project_root=project_root)
+
+
 class TestResolveSkillSource(unittest.TestCase):
     def _make_source_dir(self) -> Path:
         parent = Path(tempfile.mkdtemp())

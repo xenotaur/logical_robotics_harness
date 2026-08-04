@@ -155,17 +155,23 @@ def main() -> None:
         help="install to project-local skills directory instead of user scope",
     )
     skills_install_parser.add_argument(
+        "--scope",
+        choices=("user", "project"),
+        default=None,
+        help="install scope (default: repo config or user; --local is project)",
+    )
+    skills_install_parser.add_argument(
         "--target",
         choices=("claude", "codex", "all"),
-        default="claude",
-        help="agent target to install for (default: claude)",
+        default=None,
+        help="agent target to install for (default: repo config or claude)",
     )
     skills_install_parser.add_argument(
         "--source",
-        default="lrh-package",
+        default=None,
         help=(
             "canonical skill source: lrh-package, current-repo, or a filesystem"
-            " path (default: lrh-package)"
+            " path (default: repo config or lrh-package)"
         ),
     )
     skills_install_parser.add_argument(
@@ -1258,14 +1264,27 @@ def main() -> None:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
             from lrh.skills import installer
 
+            local_scope = None
+            if args.scope is not None:
+                local_scope = args.scope == "project"
+            if args.local:
+                if local_scope is False:
+                    parser.error("--local cannot be combined with --scope user")
+                local_scope = True
             try:
-                reports = installer.install_skills_for_targets(
+                install_plan = installer.resolve_agent_skills_install_plan(
                     target=args.target,
-                    local=args.local,
+                    local=local_scope,
+                    project_root=Path.cwd(),
+                    source=args.source,
+                )
+                reports = installer.install_skills_for_targets(
+                    target=install_plan.target,
+                    local=install_plan.local,
                     project_root=Path.cwd(),
                     dry_run=args.dry_run,
                     force=args.force,
-                    source=args.source,
+                    source=install_plan.source,
                 )
             except installer.SkillSourceError as err:
                 parser.error(str(err))
@@ -1284,7 +1303,7 @@ def main() -> None:
                                 diff_text = installer.diff_skill(
                                     result.name,
                                     report.skills_dir,
-                                    source=args.source,
+                                    source=install_plan.source,
                                     project_root=Path.cwd(),
                                 )
                             except installer.SkillSourceError as err:

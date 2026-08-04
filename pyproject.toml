@@ -24,7 +24,9 @@ classifiers = [
   "Programming Language :: Python :: 3.12",
   "Topic :: Software Development",
 ]
-dependencies = []
+dependencies = [
+  "PyYAML",
+]
 
 [project.urls]
 Repository = "https://github.com/xenotaur/logical_robotics_harness"
@@ -41,7 +43,6 @@ dev = [
   "coverage",
   "ruff",
   "twine",
-  "PyYAML",
 ]
 
 [project.scripts]

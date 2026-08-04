@@ -67,15 +67,14 @@ def convert_codex_file(
     manifest = build_file_export_manifest(
         transcript_text=transcript_text,
         source_sha256=hashlib.sha256(source_bytes).hexdigest(),
-        source_id=source_id,
+        source_id=_normalized_source_id(source_id),
         scan_result=scan_result,
-        scan_sensitive=scan_sensitive,
         exported_at=exported_at,
     )
     markdown = render_codex_markdown(transcript_text, manifest)
     try:
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(markdown, encoding="utf-8")
+        destination.write_bytes(markdown.encode("utf-8"))
     except OSError as err:
         raise CodexFileExportError(f"Could not write output: {destination}") from err
     return CodexFileExport(
@@ -91,7 +90,6 @@ def build_file_export_manifest(
     source_sha256: str,
     source_id: str | None = None,
     scan_result: sensitivity.SensitiveScanResult | None = None,
-    scan_sensitive: bool = True,
     exported_at: datetime | str | None = None,
 ) -> export_manifest.ConversationExportManifest:
     """Build manifest metadata for the file-based Codex adapter."""
@@ -116,14 +114,12 @@ def build_file_export_manifest(
         }
         if scan_result.findings:
             warnings.append(SENSITIVE_CONTENT_WARNING)
-    elif scan_sensitive:
-        scan_metadata = {"status": export_manifest.SCAN_STATUS_FAILED_OR_UNAVAILABLE}
 
     return export_manifest.build_codex_manifest(
         transcript_text=transcript_text,
         source_sha256=source_sha256,
         exported_at=exported_at,
-        source_id=source_id,
+        source_id=_normalized_source_id(source_id),
         source_adapter=SOURCE_ADAPTER,
         adapter_version=ADAPTER_VERSION,
         sensitivity=sensitivity_status,
@@ -200,6 +196,15 @@ def run_convert_codex_file_cli(
     print(f"Sensitivity: {result.manifest.sensitivity}")
     print(f"Warnings: {len(result.manifest.warnings)}")
     return 0
+
+
+def _normalized_source_id(source_id: str | None) -> str | None:
+    if source_id is None:
+        return None
+    normalized = source_id.strip()
+    if not normalized:
+        raise CodexFileExportError("source_id must be non-empty when provided")
+    return normalized
 
 
 def _reject_source_output_collision(source: Path, destination: Path) -> None:

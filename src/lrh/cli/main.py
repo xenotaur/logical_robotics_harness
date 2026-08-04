@@ -707,7 +707,8 @@ def main() -> None:
             )
         parser.error(
             "conversation requires a subcommand "
-            "(try: lrh conversation convert-codex-file)"
+            "(try: lrh conversation convert-codex-file or "
+            "lrh conversation convert-pdf)"
         )
 
     if args.command == "prompt":

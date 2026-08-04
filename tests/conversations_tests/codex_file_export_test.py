@@ -36,6 +36,22 @@ class TestCodexFileExport(unittest.TestCase):
             self.assertIn('source_id: "codex-session-123"', written)
             self.assertIn("\nUser: hello\nAssistant: hi\n", written)
 
+    def test_convert_codex_file_preserves_crlf_transcript_bytes(self) -> None:
+        transcript = "User: hello\r\nAssistant: hi\r\n"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "codex-session.txt"
+            output_path = Path(temp_dir) / "export.md"
+            source_path.write_bytes(transcript.encode("utf-8"))
+
+            result = codex_file_export.convert_codex_file(
+                source_path,
+                output_path=output_path,
+                exported_at=EXPORTED_AT,
+            )
+
+            self.assertIn(transcript.encode("utf-8"), output_path.read_bytes())
+            self.assertEqual(result.manifest.transcript_statistics.line_count, 2)
+
     def test_convert_codex_file_preserves_source_hash_and_statistics(self) -> None:
         transcript = "hello\nsnowman: \u2603"
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -93,6 +109,21 @@ class TestCodexFileExport(unittest.TestCase):
             self.assertEqual(
                 result.manifest.sensitivity_scan, {"status": "not_scanned"}
             )
+
+    def test_blank_source_id_raises_portable_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "codex.txt"
+            output_path = Path(temp_dir) / "export.md"
+            source_path.write_text("hello", encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                codex_file_export.CodexFileExportError, "source_id"
+            ):
+                codex_file_export.convert_codex_file(
+                    source_path,
+                    output_path=output_path,
+                    source_id="  ",
+                )
 
     def test_missing_input_raises_portable_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -171,7 +202,6 @@ class TestCodexFileExport(unittest.TestCase):
             exported_at=EXPORTED_AT,
             source_id="codex-session-123",
             scan_result=None,
-            scan_sensitive=False,
         )
 
         self.assertEqual(
@@ -218,6 +248,30 @@ world
 
             self.assertEqual(result, 1)
             self.assertIn("error: Codex source does not exist", mock_stderr.getvalue())
+
+    @patch("sys.stderr", new_callable=io.StringIO)
+    def test_run_convert_codex_file_cli_source_id_error_handling(
+        self,
+        mock_stderr: io.StringIO,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path = Path(temp_dir) / "codex.txt"
+            output_path = Path(temp_dir) / "export.md"
+            source_path.write_text("hello", encoding="utf-8")
+
+            result = codex_file_export.run_convert_codex_file_cli(
+                [
+                    str(source_path),
+                    "--out",
+                    str(output_path),
+                    "--source-id",
+                    "  ",
+                ],
+                prog="lrh conversation convert-codex-file",
+            )
+
+            self.assertEqual(result, 1)
+            self.assertIn("error: source_id must be non-empty", mock_stderr.getvalue())
 
 
 if __name__ == "__main__":

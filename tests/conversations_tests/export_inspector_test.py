@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from lrh.conversations import codex_file_export, export_inspector
+from lrh.conversations import codex_file_export, export_inspector, export_manifest
 
 EXPORTED_AT = "2026-08-04T19:44:28+00:00"
 
@@ -34,6 +34,33 @@ class TestConversationExportInspector(unittest.TestCase):
             rendered_json = export_inspector.format_json(inspection)
             self.assertNotIn("User: secret", rendered_text)
             self.assertNotIn("User: secret", rendered_json)
+
+    def test_output_does_not_echo_manifest_warning_strings(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            export_path = Path(temp_dir) / "export.md"
+            manifest = export_manifest.build_codex_manifest(
+                transcript_text="hello",
+                source_sha256="a" * 64,
+                exported_at=EXPORTED_AT,
+                warnings=("User: private detail",),
+            )
+            export_path.write_text(
+                f"{manifest.to_frontmatter()}\nhello\n",
+                encoding="utf-8",
+            )
+
+            inspection = export_inspector.inspect_export(export_path)
+
+            self.assertTrue(inspection.valid, inspection.errors)
+            self.assertEqual(inspection.to_mapping()["warning_count"], 1)
+            self.assertNotIn(
+                "User: private detail",
+                export_inspector.format_text(inspection),
+            )
+            self.assertNotIn(
+                "User: private detail",
+                export_inspector.format_json(inspection),
+            )
 
     def test_accepts_export_renderer_added_trailing_newline(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

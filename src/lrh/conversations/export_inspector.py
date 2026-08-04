@@ -69,7 +69,9 @@ class ConversationExportInspection:
     errors: tuple[str, ...] = ()
 
     def to_mapping(self) -> dict[str, object]:
-        manifest_mapping = None if self.manifest is None else self.manifest.to_mapping()
+        manifest_mapping = (
+            None if self.manifest is None else _manifest_summary(self.manifest)
+        )
         return {
             "path": self.path,
             "valid": self.valid,
@@ -79,7 +81,9 @@ class ConversationExportInspection:
             "privacy": None if self.manifest is None else self.manifest.privacy,
             "authority": None if self.manifest is None else self.manifest.authority,
             "sensitivity": None if self.manifest is None else self.manifest.sensitivity,
-            "warnings": [] if self.manifest is None else list(self.manifest.warnings),
+            "warning_count": (
+                0 if self.manifest is None else len(self.manifest.warnings)
+            ),
             "transcript_statistics": self.statistic_comparison.to_mapping(),
             "source_hash": self.source_hash.to_mapping(),
         }
@@ -183,8 +187,6 @@ def format_text(inspection: ConversationExportInspection) -> str:
                 f"Warnings: {len(manifest.warnings)}",
             ]
         )
-        for warning in manifest.warnings:
-            lines.append(f"  - {warning}")
     stats = inspection.statistic_comparison
     lines.append(f"Transcript statistics: {stats.status}")
     if stats.artifact is not None:
@@ -250,6 +252,36 @@ def run_inspect_export_cli(
     else:
         print(format_text(inspection), end="")
     return 0 if inspection.valid else 1
+
+
+def _manifest_summary(
+    manifest: export_manifest.ConversationExportManifest,
+) -> dict[str, object]:
+    return {
+        "kind": manifest.kind,
+        "schema_version": manifest.schema_version,
+        "source_tool": manifest.source_tool,
+        "source_adapter": manifest.source_adapter,
+        "source_id_present": manifest.source_id is not None,
+        "adapter_version": manifest.adapter_version,
+        "exported_at": manifest.exported_at,
+        "privacy": manifest.privacy,
+        "authority": manifest.authority,
+        "sensitivity": manifest.sensitivity,
+        "sensitivity_scan": _sensitivity_scan_summary(manifest.sensitivity_scan),
+        "warning_count": len(manifest.warnings),
+    }
+
+
+def _sensitivity_scan_summary(scan: Mapping[str, object]) -> dict[str, object]:
+    categories = scan.get("categories")
+    return {
+        "status": scan.get("status"),
+        "scanner": scan.get("scanner"),
+        "scanner_version": scan.get("scanner_version"),
+        "finding_count": scan.get("finding_count"),
+        "category_count": len(categories) if isinstance(categories, list) else None,
+    }
 
 
 def _split_frontmatter(text: str) -> tuple[str, str]:

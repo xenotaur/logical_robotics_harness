@@ -61,6 +61,47 @@ Claude UI metadata require explicit Codex handling.
 - Report or remove unsupported metadata intentionally.
 - Use the proposal-local backlog as test input for Codex compatibility cases.
 
+## Required Changes
+
+- Add explicit target render adapter structure for skill installation, including
+  Claude and Codex renderers or equivalent target-specific rendering functions.
+
+- Preserve current Claude install output behavior by default while routing Claude
+  installs through the new renderer path.
+
+- Add Codex rendering support that writes `SKILL.md` content appropriate for the
+  `.agents/skills/` target and supports Codex metadata through a sibling
+  `agents/openai.yaml` file.
+
+- Define Codex metadata source precedence: canonical source trees may include
+  authored `agents/openai.yaml`; renderers may generate Codex metadata from
+  translatable `SKILL.md` frontmatter; when both are present, the authored
+  canonical `agents/openai.yaml` values are preserved and generated values fill
+  only missing/defaultable policy fields. Installed target-local
+  `agents/openai.yaml` edits are local modifications, not authoritative source.
+
+- Translate Claude `disable-model-invocation: true` metadata into Codex manual
+  invocation policy, using `policy.allow_implicit_invocation: false` in
+  `agents/openai.yaml`.
+
+- Strip `argument-hint` from rendered Codex `SKILL.md` output. For other
+  Claude-only metadata with no Codex equivalent, strip, translate, or
+  deliberately report the field.
+
+- Preserve canonical skill sources as authoritative and keep `.claude/skills/`
+  and `.agents/skills/` as generated install targets.
+
+- Preserve existing install safety behavior across rendered outputs, including
+  dry-run, local-modification detection, `--force`, `--diff`, symlink refusal,
+  and no script execution during install.
+
+- Add focused tests proving Claude output remains compatible, Codex output gets
+  the expected policy metadata, unsupported metadata is handled deliberately, and
+  install planning still respects configured source/target/scope values.
+
+- Update documentation where needed to describe rendered target output and the
+  interim boundary between render adapters and later body-prose neutralization.
+
 ## Non-Goals
 
 - Does not perform all body-prose neutralization.

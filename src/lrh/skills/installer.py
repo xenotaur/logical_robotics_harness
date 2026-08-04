@@ -200,7 +200,12 @@ class CodexSkillRenderer:
             return {}, content
 
         frontmatter_text = "".join(parts[1:closing_index])
-        metadata = yaml.safe_load(frontmatter_text) or {}
+        try:
+            metadata = yaml.safe_load(frontmatter_text) or {}
+        except yaml.YAMLError as err:
+            raise SkillSourceError(
+                f"invalid YAML in SKILL.md frontmatter: {err}"
+            ) from err
         if not isinstance(metadata, dict):
             return {}, content
 

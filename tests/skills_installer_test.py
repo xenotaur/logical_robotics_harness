@@ -176,6 +176,31 @@ class TestInstallSkills(unittest.TestCase):
         self.assertNotIn("[two]", skill_md)
         self.assertIn("name: sample-skill", skill_md)
 
+    def test_codex_target_reports_invalid_skill_frontmatter_yaml(self) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    "name: [unclosed",
+                    "---",
+                    "",
+                    "# Sample Skill",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.install_skills(
+                skills_dir=skills_dir,
+                source=source_dir,
+                target=installer.SkillTarget.CODEX,
+            )
+
     def test_codex_target_preserves_authored_openai_policy_value(self) -> None:
         source_dir = self._make_skills_dir()
         skill_dir = source_dir / "sample-skill"

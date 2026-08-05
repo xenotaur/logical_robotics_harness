@@ -61,6 +61,48 @@ safe, reviewable way to inspect drift and unsupported metadata.
 - Report installed/missing/modified states per target.
 - Report unsupported or untranslated metadata.
 
+## Required Changes
+
+- Extend `src/lrh/cli/main.py` so `lrh skills` accepts read-only `status` and
+  `check` subcommands alongside the existing `install` subcommand.
+
+- Add installer-layer read-only inspection support in `src/lrh/skills/installer.py`
+  that reuses the existing target, source, repo-config, renderer, and diff
+  resolution paths instead of duplicating install planning logic.
+
+- Implement `lrh skills status` so it reports per-target skill state for the
+  resolved source/scope/target selection, including installed, missing,
+  up-to-date, locally modified, and target-specific rendered-output states.
+
+- Implement `lrh skills check` so it exits non-zero when unsupported metadata,
+  untranslated metadata, target drift, invalid Codex metadata, or locally
+  modified target copies are detected, while never writing to `.claude/skills/`,
+  `.agents/skills/`, user skill directories, or canonical source directories.
+
+- Preserve install safety expectations for read-only commands: do not execute
+  bundled skill scripts, do not dereference symlinked skill roots or symlinked
+  installed entries, and do not overwrite or repair target copies.
+
+- Ensure both commands support Claude and Codex targets, user and project
+  scopes, `all` target selection, package/current-repo/explicit-path sources,
+  and repo-config defaults from `project/agent_skills.yaml`.
+
+- Define human-readable output that distinguishes status-oriented information
+  from check failures, so maintainers can inspect drift before running
+  `lrh skills install --force`.
+
+- Extend `tests/skills_installer_test.py` with focused coverage for status/check
+  planning and detection behavior across missing, up-to-date, modified, drifted,
+  symlinked, Claude, Codex, and `all` target cases.
+
+- Extend `tests/cli_tests/skills_test.py` with CLI coverage for `lrh skills
+  status` and `lrh skills check`, including help text, valid/invalid target
+  handling, read-only behavior, human-readable output, and non-zero check
+  failures.
+
+- Keep ChatGPT export, body-prose neutralization, and any write/repair behavior
+  out of this work item.
+
 ## Non-Goals
 
 - Does not write skill files.

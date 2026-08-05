@@ -4,8 +4,8 @@ prompt_id: PROMPT(AD_HOC:VERSION_INTEGRATION_TEST_FLAKE)[2026-08-05T06:20:28+00:
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/489
+commit: 932f2f337b7540537d4cf245e6daadb18c24345a
 created_at: 2026-08-05T06:26:06+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-VERSION-INTEGRATION-TEST-FLAKE.md

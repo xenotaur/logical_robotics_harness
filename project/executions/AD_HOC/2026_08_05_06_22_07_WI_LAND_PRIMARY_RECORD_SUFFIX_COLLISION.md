@@ -2,14 +2,14 @@
 execution_id: 2026_08_05_06_22_07_WI_LAND_PRIMARY_RECORD_SUFFIX_COLLISION
 prompt_id: PROMPT(AD_HOC:WI_LAND_PRIMARY_RECORD_SUFFIX_COLLISION)[2026-08-05T06:20:38+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/488
-commit: 
+commit: 902a4e0dfcea5127d1236ccfc69421f63f093050
 created_at: 2026-08-05T06:22:07+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LAND-PRIMARY-RECORD-SUFFIX-COLLISION.md
-session_transcript: pending
+session_transcript: claude-app:23a15fdd-6d6c-4d84-a7be-960a54769157
 ---
 
 # Summary

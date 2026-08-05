@@ -113,6 +113,7 @@ def status_payload(
 
     project_root = config.resolved_project_root()
     host, port = _host_port_from_address(config, bound_address)
+    codex_archive_roots = _configured_codex_archive_roots(config)
     return {
         "service": "lrh serve",
         "status": "ok",
@@ -120,9 +121,9 @@ def status_payload(
         "host": host,
         "port": port,
         "project_root_name": project_root.name,
-        "codex_archive_root_count": len(config.codex_archive_roots),
+        "codex_archive_root_count": len(codex_archive_roots),
         "codex_archive_root_names": [
-            _codex_archive_root_label(root) for root in config.codex_archive_roots
+            _codex_archive_root_label(root) for root in codex_archive_roots
         ],
         "routes": list(_STATUS_ROUTES),
         "capabilities": _safe_capabilities(),
@@ -1865,14 +1866,16 @@ def codex_archive_detail_payload(
 ) -> dict[str, object] | None:
     """Return metadata for one configured Codex export ID."""
 
-    for entry in codex_archive_payload(config)["exports"]:
-        if isinstance(entry, dict) and entry.get("id") == export_id:
-            return {
-                "mode": "safe-default-codex-conversation-export-detail",
-                "export": entry,
-                "safety": _codex_archive_safety_notes(),
-                "transcript_body_available": bool(entry.get("valid")),
-            }
+    match = _codex_export_summary_for_id(config, export_id)
+    if match is None:
+        return None
+    _export_path, entry = match
+    return {
+        "mode": "safe-default-codex-conversation-export-detail",
+        "export": entry,
+        "safety": _codex_archive_safety_notes(),
+        "transcript_body_available": bool(entry.get("valid")),
+    }
     return None
 
 
@@ -1923,21 +1926,14 @@ def render_codex_archive_index(config: ServeConfig) -> str:
 def render_codex_archive_detail(config: ServeConfig, export_id: str) -> tuple[int, str]:
     """Render one configured Codex export as escaped, inert transcript text."""
 
-    export_path = _codex_export_path_for_id(config, export_id)
-    if export_path is None:
+    match = _codex_export_summary_for_id(config, export_id)
+    if match is None:
         body = json.dumps(
             {"error": "not_found", "message": "Codex export is not configured"},
             sort_keys=True,
         )
         return 404, body
-    detail = codex_archive_detail_payload(config, export_id)
-    if detail is None:
-        body = json.dumps(
-            {"error": "not_found", "message": "Codex export is not configured"},
-            sort_keys=True,
-        )
-        return 404, body
-    export = detail["export"]
+    export_path, export = match
     if not isinstance(export, dict) or not export.get("valid"):
         body = json.dumps(
             {"error": "not_found", "message": "Codex export is not valid"},
@@ -2026,7 +2022,7 @@ def _codex_export_summary(
         "valid": mapping["valid"],
         "manifest_valid": mapping["manifest_valid"],
         "inspection_status": "valid" if mapping["valid"] else "invalid",
-        "errors": mapping["errors"],
+        "errors": _codex_export_error_codes(mapping["errors"]),
         "manifest": mapping["manifest"],
         "privacy": mapping["privacy"],
         "authority": mapping["authority"],
@@ -2039,7 +2035,9 @@ def _codex_export_summary(
     }
 
 
-def _codex_export_path_for_id(config: ServeConfig, export_id: str) -> Path | None:
+def _codex_export_summary_for_id(
+    config: ServeConfig, export_id: str
+) -> tuple[Path, dict[str, object]] | None:
     for root_index, root in enumerate(_configured_codex_archive_roots(config)):
         if not root.exists() or not root.is_dir():
             continue
@@ -2051,7 +2049,7 @@ def _codex_export_path_for_id(config: ServeConfig, export_id: str) -> Path | Non
                 continue
             relative_path = resolved.relative_to(root).as_posix()
             if _codex_export_id(root_index, relative_path) == export_id:
-                return resolved
+                return resolved, _codex_export_summary(root_index, root, resolved)
     return None
 
 
@@ -2132,6 +2130,16 @@ def _codex_export_error_label(error: Exception) -> str:
     if ":" not in text:
         return text
     return text.split(":", maxsplit=1)[0]
+
+
+def _codex_export_error_codes(errors: object) -> list[str]:
+    if not isinstance(errors, list):
+        return []
+    codes: list[str] = []
+    for error in errors:
+        label = str(error).split(":", maxsplit=1)[0].strip()
+        codes.append(label or "inspection_error")
+    return codes
 
 
 def _codex_export_id(root_index: int, relative_path: str) -> str:
@@ -2848,7 +2856,14 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 export_id = urllib.parse.unquote(
                     route.removeprefix("/conversations/codex/")
                 )
-                status_code, _body = render_codex_archive_detail(config, export_id)
+                payload = codex_archive_detail_payload(config, export_id)
+                status_code = (
+                    200
+                    if payload is not None
+                    and isinstance(payload.get("export"), dict)
+                    and payload["export"].get("valid")
+                    else 404
+                )
                 content_type = (
                     "text/html; charset=utf-8"
                     if status_code == 200

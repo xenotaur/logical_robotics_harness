@@ -159,6 +159,28 @@ def inspect_export(
     )
 
 
+def read_export_transcript_body(export_path: Path) -> str:
+    """Return the transcript body from a Codex Markdown export artifact."""
+
+    path = export_path.expanduser()
+    if not path.exists():
+        raise ConversationExportInspectionError(f"export does not exist: {path}")
+    if not path.is_file():
+        raise ConversationExportInspectionError(f"export is not a file: {path}")
+    try:
+        text = path.read_text(encoding="utf-8")
+    except UnicodeDecodeError as err:
+        raise ConversationExportInspectionError(
+            f"export is not valid UTF-8: {path}"
+        ) from err
+    except OSError as err:
+        raise ConversationExportInspectionError(
+            f"could not read export: {path}"
+        ) from err
+    _manifest_text, body = _split_frontmatter(text)
+    return _artifact_transcript_body(body)
+
+
 def format_json(inspection: ConversationExportInspection) -> str:
     """Format inspection as deterministic JSON."""
 

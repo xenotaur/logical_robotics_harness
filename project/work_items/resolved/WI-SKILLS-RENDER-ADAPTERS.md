@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented Claude and Codex skill render adapters and merged in PR #485 (commit 3d7a38cf120998a1fbf870813700ab181095ffae)."
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-RENDER-ADAPTERS
 title: Add Claude and Codex skill render adapters
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

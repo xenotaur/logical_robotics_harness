@@ -2,10 +2,10 @@
 execution_id: 2026_08_04_20_08_35_WI_SKILLS_RENDER_ADAPTERS
 prompt_id: PROMPT(WI-SKILLS-RENDER-ADAPTERS:WI_SKILLS_RENDER_ADAPTERS)[2026-08-04T19:51:24+00:00]
 work_item: WI-SKILLS-RENDER-ADAPTERS
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/485
-commit:
+commit: 3d7a38cf120998a1fbf870813700ab181095ffae
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SKILLS-RENDER-ADAPTERS.md
 session_transcript: codex-app:current-task

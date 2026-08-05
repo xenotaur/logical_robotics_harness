@@ -8,3 +8,7 @@
   same issue that later appears as a GitHub review thread; fix it once, then
   still resolve the GitHub thread through normal confirm-fixes so PR archaeology
   stays complete.
+- In Codex LRH validation, prefer `conda run -n LRH ...` for repository scripts
+  so Black/Ruff versions match the project environment; format, lint, and tests
+  may still need unsandboxed execution when Black multiprocessing or serve tests
+  bind local sockets.

@@ -2,10 +2,10 @@
 execution_id: 2026_08_04_22_35_55_WI_SKILLS_RENDER_ADAPTERS_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_RENDER_ADAPTERS_CONFIRM)[2026-08-04T21:04:32+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_04_20_08_35_WI_SKILLS_RENDER_ADAPTERS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/485
-commit:
+commit: 3d7a38cf120998a1fbf870813700ab181095ffae
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/485
 session_transcript: codex-app:current-task

@@ -74,6 +74,202 @@ class TestInstallSkills(unittest.TestCase):
         self.assertEqual(report.target, installer.SkillTarget.CODEX)
         self.assertTrue((skills_dir / report.results[0].name / "SKILL.md").exists())
 
+    def test_claude_target_preserves_canonical_skill_bytes(self) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        source_text = "\n".join(
+            [
+                "---",
+                "name: sample-skill",
+                "description: Sample skill.",
+                "disable-model-invocation: true",
+                'argument-hint: "[thing]"',
+                "---",
+                "",
+                "# Sample Skill",
+                "",
+            ]
+        )
+        (skill_dir / "SKILL.md").write_text(source_text)
+        skills_dir = self._make_skills_dir()
+
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.CLAUDE,
+        )
+
+        installed = skills_dir / "sample-skill"
+        self.assertEqual((installed / "SKILL.md").read_text(), source_text)
+        self.assertFalse((installed / "agents" / "openai.yaml").exists())
+
+    def test_codex_target_strips_claude_metadata_and_emits_openai_policy(
+        self,
+    ) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    "name: sample-skill",
+                    "description: Sample skill.",
+                    "disable-model-invocation: true",
+                    'argument-hint: "[thing]"',
+                    "---",
+                    "",
+                    "# Sample Skill",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.CODEX,
+        )
+
+        installed = skills_dir / "sample-skill"
+        skill_md = (installed / "SKILL.md").read_text()
+        self.assertIn("name: sample-skill", skill_md)
+        self.assertNotIn("disable-model-invocation", skill_md)
+        self.assertNotIn("argument-hint", skill_md)
+        self.assertIn(
+            "policy:\n  allow_implicit_invocation: false",
+            (installed / "agents" / "openai.yaml").read_text(),
+        )
+
+    def test_codex_target_strips_multiline_claude_metadata(self) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    "name: sample-skill",
+                    "argument-hint: >",
+                    "  [one]",
+                    "  [two]",
+                    "---",
+                    "",
+                    "# Sample Skill",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.CODEX,
+        )
+
+        skill_md = (skills_dir / "sample-skill" / "SKILL.md").read_text()
+        self.assertNotIn("argument-hint", skill_md)
+        self.assertNotIn("[one]", skill_md)
+        self.assertNotIn("[two]", skill_md)
+        self.assertIn("name: sample-skill", skill_md)
+
+    def test_codex_target_reports_invalid_skill_frontmatter_yaml(self) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    "name: [unclosed",
+                    "---",
+                    "",
+                    "# Sample Skill",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.install_skills(
+                skills_dir=skills_dir,
+                source=source_dir,
+                target=installer.SkillTarget.CODEX,
+            )
+
+    def test_codex_target_preserves_authored_openai_policy_value(self) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        (skill_dir / "agents").mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    "name: sample-skill",
+                    "disable-model-invocation: true",
+                    "---",
+                    "",
+                    "# Sample Skill",
+                    "",
+                ]
+            )
+        )
+        (skill_dir / "agents" / "openai.yaml").write_text(
+            "\n".join(
+                [
+                    "policy:",
+                    "  allow_implicit_invocation: true",
+                    "ui:",
+                    "  invocation_label: Sample",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.CODEX,
+        )
+
+        openai_yaml = (
+            skills_dir / "sample-skill" / "agents" / "openai.yaml"
+        ).read_text()
+        self.assertIn("allow_implicit_invocation: true", openai_yaml)
+        self.assertIn("invocation_label: Sample", openai_yaml)
+
+    def test_codex_target_rejects_authored_non_mapping_policy(self) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        (skill_dir / "agents").mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    "name: sample-skill",
+                    "disable-model-invocation: true",
+                    "---",
+                    "",
+                    "# Sample Skill",
+                    "",
+                ]
+            )
+        )
+        (skill_dir / "agents" / "openai.yaml").write_text("policy: manual\n")
+        skills_dir = self._make_skills_dir()
+
+        with self.assertRaises(installer.SkillSourceError):
+            installer.install_skills(
+                skills_dir=skills_dir,
+                source=source_dir,
+                target=installer.SkillTarget.CODEX,
+            )
+
     def test_codex_target_user_modified_skill_skipped(self) -> None:
         skills_dir = self._make_skills_dir()
         installer.install_skills(

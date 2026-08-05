@@ -1331,6 +1331,7 @@ def main() -> None:
                                     report.skills_dir,
                                     source=install_plan.source,
                                     project_root=Path.cwd(),
+                                    target=report.target,
                                 )
                             except installer.SkillSourceError as err:
                                 parser.error(str(err))

@@ -112,13 +112,18 @@ lrh skills install --force --target codex
 lrh skills install --force --local --target codex
 ```
 
-## Codex direct-copy caveat
+## Codex render-adapter behavior
 
-This first target-aware installer slice copies the packaged LRH skill trees
-directly into `.agents/skills/`. Codex can discover the same `SKILL.md` shape,
-but some skill body prose still mentions Claude Code or slash-command
+Codex installs are rendered for `.agents/skills/` rather than copied byte for
+byte. The renderer strips Claude-only frontmatter such as `argument-hint` and
+translates `disable-model-invocation: true` into Codex invocation policy in a
+sibling `agents/openai.yaml` file. If a canonical skill already supplies
+`agents/openai.yaml`, authored values are preserved and generated policy values
+only fill missing defaults.
+
+Some skill body prose may still mention Claude Code or slash-command
 conventions. Treat those references as an interim wording caveat until later
-neutralization/render-adapter work produces Codex-specific skill bodies.
+body-prose neutralization work produces fully agent-neutral skill bodies.
 
 ## Common troubleshooting notes
 

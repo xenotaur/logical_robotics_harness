@@ -91,6 +91,15 @@ class SkillTreeNode(Protocol):
     def read_bytes(self) -> bytes: ...
 
 
+class SkillRenderer(Protocol):
+    """Render canonical skill files for a specific install target."""
+
+    def render(
+        self, skill_name: str, source_files: dict[str, bytes]
+    ) -> dict[str, bytes]:
+        """Return target-ready files for one skill."""
+
+
 @dataclass(frozen=True)
 class SkillSource:
     kind: SkillSourceKind
@@ -130,6 +139,110 @@ class InstallReport:
     newly_created_skills_dir: bool
     skills_dir: Path
     target: SkillTarget = SkillTarget.CLAUDE
+
+
+class ClaudeSkillRenderer:
+    """Preserve canonical skill bytes for Claude installs."""
+
+    def render(
+        self, skill_name: str, source_files: dict[str, bytes]
+    ) -> dict[str, bytes]:
+        return dict(source_files)
+
+
+class CodexSkillRenderer:
+    """Render canonical skill bytes for Codex installs."""
+
+    _SKILL_MD = "SKILL.md"
+    _OPENAI_YAML = "agents/openai.yaml"
+    _CODEX_STRIPPED_FRONTMATTER_KEYS = {
+        "argument-hint",
+        "disable-model-invocation",
+    }
+
+    def render(
+        self, skill_name: str, source_files: dict[str, bytes]
+    ) -> dict[str, bytes]:
+        rendered = dict(source_files)
+        skill_md = source_files.get(self._SKILL_MD)
+        if skill_md is None:
+            return rendered
+
+        metadata, rewritten_skill_md = self._render_skill_md(skill_md)
+        rendered[self._SKILL_MD] = rewritten_skill_md
+
+        if metadata.get("disable-model-invocation") is True:
+            rendered[self._OPENAI_YAML] = self._render_openai_yaml(
+                source_files.get(self._OPENAI_YAML)
+            )
+
+        return rendered
+
+    def _render_skill_md(self, content: bytes) -> tuple[dict[str, Any], bytes]:
+        try:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError:
+            return {}, content
+
+        parts = text.splitlines(keepends=True)
+        if len(parts) < 3 or parts[0].strip() != "---":
+            return {}, content
+
+        closing_index = next(
+            (
+                index
+                for index, line in enumerate(parts[1:], start=1)
+                if line.strip() == "---"
+            ),
+            None,
+        )
+        if closing_index is None:
+            return {}, content
+
+        frontmatter_text = "".join(parts[1:closing_index])
+        try:
+            metadata = yaml.safe_load(frontmatter_text) or {}
+        except yaml.YAMLError as err:
+            raise SkillSourceError(
+                f"invalid YAML in SKILL.md frontmatter: {err}"
+            ) from err
+        if not isinstance(metadata, dict):
+            return {}, content
+
+        codex_metadata = {
+            key: value
+            for key, value in metadata.items()
+            if key not in self._CODEX_STRIPPED_FRONTMATTER_KEYS
+        }
+        frontmatter = yaml.safe_dump(codex_metadata, sort_keys=False)
+        rewritten = f"---\n{frontmatter}---\n{''.join(parts[closing_index + 1:])}"
+        return metadata, rewritten.encode("utf-8")
+
+    def _render_openai_yaml(self, source_content: bytes | None) -> bytes:
+        metadata = self._load_openai_yaml(source_content)
+        policy = metadata.get("policy")
+        if not isinstance(policy, dict):
+            if policy is not None:
+                raise SkillSourceError("policy in agents/openai.yaml must be a mapping")
+            policy = {}
+            metadata["policy"] = policy
+        policy.setdefault("allow_implicit_invocation", False)
+        return yaml.safe_dump(metadata, sort_keys=False).encode("utf-8")
+
+    def _load_openai_yaml(self, source_content: bytes | None) -> dict[str, Any]:
+        if source_content is None:
+            return {}
+        try:
+            loaded = yaml.safe_load(source_content.decode("utf-8")) or {}
+        except (UnicodeDecodeError, yaml.YAMLError) as err:
+            raise SkillSourceError(
+                f"invalid Codex metadata in agents/openai.yaml: {err}"
+            ) from err
+        if not isinstance(loaded, dict):
+            raise SkillSourceError(
+                "Codex metadata in agents/openai.yaml must be a mapping"
+            )
+        return loaded
 
 
 def _coerce_target(value: str | SkillTarget) -> SkillTarget:
@@ -384,6 +497,19 @@ def _skill_names(source: SkillSource | None = None) -> list[str]:
     return (source or resolve_skill_source()).skill_names()
 
 
+def _renderer_for_target(target: SkillTarget) -> SkillRenderer:
+    if target is SkillTarget.CLAUDE:
+        return ClaudeSkillRenderer()
+    return CodexSkillRenderer()
+
+
+def _render_skill_files(
+    skill_name: str, source: SkillSource, target: SkillTarget
+) -> dict[str, bytes]:
+    source_files = _collect_source_files(source.skill_root(skill_name))
+    return _renderer_for_target(target).render(skill_name, source_files)
+
+
 def _collect_source_files(node: SkillTreeNode, prefix: str = "") -> dict[str, bytes]:
     if _is_symlink_node(node):
         raise SkillSourceError(f"skill source contains symlinked entry: {node}")
@@ -449,10 +575,9 @@ def _collect_fs_symlinks(directory: Path) -> set[str]:
 
 
 def _skill_differs_from_source(
-    skill_name: str, skills_dir: Path, source: SkillSource
+    skill_name: str, skills_dir: Path, source: SkillSource, target: SkillTarget
 ) -> bool:
-    src = source.skill_root(skill_name)
-    source_files = _collect_source_files(src)
+    source_files = _render_skill_files(skill_name, source, target)
     skill_dir = skills_dir / skill_name
     fs_files = _collect_fs_files(skill_dir)
     if source_files != fs_files:
@@ -465,7 +590,9 @@ def _skill_differs_from_source(
 
 
 def _skill_differs_from_package(skill_name: str, skills_dir: Path) -> bool:
-    return _skill_differs_from_source(skill_name, skills_dir, resolve_skill_source())
+    return _skill_differs_from_source(
+        skill_name, skills_dir, resolve_skill_source(), SkillTarget.CLAUDE
+    )
 
 
 def diff_skill(
@@ -474,6 +601,7 @@ def diff_skill(
     source: str | Path | SkillSource = SkillSourceKind.PACKAGE.value,
     *,
     project_root: Path | None = None,
+    target: str | SkillTarget = SkillTarget.CLAUDE,
 ) -> str:
     """Return a unified-diff report of how an installed skill differs from source.
 
@@ -488,8 +616,8 @@ def diff_skill(
             " (refusing to read through it)\n"
         )
 
-    src = skill_source.skill_root(skill_name)
-    source_files = _collect_source_files(src)
+    skill_target = _coerce_target(target)
+    source_files = _render_skill_files(skill_name, skill_source, skill_target)
     fs_files = _collect_fs_files(skill_dir)
     fs_symlinks = _collect_fs_symlinks(skill_dir)
 
@@ -534,11 +662,10 @@ def _copy_resource_tree(node: SkillTreeNode, dest_dir: Path) -> None:
 
 
 def _copy_skill_from_source(
-    skill_name: str, skills_dir: Path, source: SkillSource
+    skill_name: str, skills_dir: Path, source: SkillSource, target: SkillTarget
 ) -> None:
     dest = skills_dir / skill_name
-    src = source.skill_root(skill_name)
-    source_files = _collect_source_files(src)
+    source_files = _render_skill_files(skill_name, source, target)
     if dest.is_symlink() or (dest.exists() and not dest.is_dir()):
         dest.unlink()
     elif dest.is_dir():
@@ -547,7 +674,9 @@ def _copy_skill_from_source(
 
 
 def _copy_skill(skill_name: str, skills_dir: Path) -> None:
-    _copy_skill_from_source(skill_name, skills_dir, resolve_skill_source())
+    _copy_skill_from_source(
+        skill_name, skills_dir, resolve_skill_source(), SkillTarget.CLAUDE
+    )
 
 
 def install_skills(
@@ -575,12 +704,14 @@ def install_skills(
         if not dest.exists():
             if not dry_run:
                 target_dir.mkdir(parents=True, exist_ok=True)
-                _copy_skill_from_source(name, target_dir, skill_source)
+                _copy_skill_from_source(name, target_dir, skill_source, skill_target)
             status = SkillStatus.INSTALLED
-        elif _skill_differs_from_source(name, target_dir, skill_source):
+        elif _skill_differs_from_source(name, target_dir, skill_source, skill_target):
             if force:
                 if not dry_run:
-                    _copy_skill_from_source(name, target_dir, skill_source)
+                    _copy_skill_from_source(
+                        name, target_dir, skill_source, skill_target
+                    )
                 status = SkillStatus.FORCED
             else:
                 status = SkillStatus.USER_MODIFIED

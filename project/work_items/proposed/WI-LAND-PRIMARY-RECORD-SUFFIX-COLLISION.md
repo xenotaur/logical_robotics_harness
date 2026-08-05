@@ -123,11 +123,13 @@ enumerated above.
 1. Replace the bare filename-suffix `grep -v` exclusion in each of the
    three search sites with a check that distinguishes primary records from
    side records by actual provenance — for example, checking the
-   candidate record's own `execution_id` (or slug) against the specific
+   candidate record's own `execution_id` against the specific
    suffix-appending convention each side-record-producing skill uses
-   (`-review`, `-confirm`, `-closeout-note`, `-selfreview` appended to an
-   existing primary record's slug), rather than a bare "does the filename
-   end with this string" test.
+   (`_REVIEW`, `_CONFIRM`, `_CLOSEOUT_NOTE`, `_SELFREVIEW` appended to an
+   existing primary record's upper-snake-case `execution_id`, matching
+   this project's actual established naming convention — e.g.
+   `WI_SKILLS_LRH_SELF_REVIEW_IMPL_CONFIRM`), rather than a bare "does the
+   filename end with this string" test.
 2. Update `land-workflow.md`'s "Found-or-Backfill Matrix" section to
    remove or correct the "Known limitation, not fixed by this exclusion
    list" note once the fix lands.

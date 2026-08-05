@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #489 (commit cf6825b): deleted the flaky ambient-environment tests/cli_tests/version_integration_test.py; tests/smoke/version_install_smoke.py provides equivalent hermetic coverage."
 blocked_reason: null
 blocked: false
 id: WI-VERSION-INTEGRATION-TEST-FLAKE
 title: Remove ambient-environment-coupled version integration test
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

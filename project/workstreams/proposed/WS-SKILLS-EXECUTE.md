@@ -19,6 +19,7 @@ work_items:
   - WI-REVIEW-RESPONSE-INCLUDE-THREAD
   - WI-LRH-LAND-OUTDATED-THREAD-RECOVERY
   - WI-SKILLS-LRH-EXECUTE
+  - WI-LAND-PRIMARY-RECORD-SUFFIX-COLLISION
 exit_criteria:
   - /lrh-land skill implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors
   - /lrh-execute skill implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors

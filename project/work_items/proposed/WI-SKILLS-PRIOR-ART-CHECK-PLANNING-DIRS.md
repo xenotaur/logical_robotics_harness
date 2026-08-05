@@ -26,7 +26,7 @@ forbidden_actions:
   - merge_pr
 acceptance:
   - the canonical src/lrh/skills/_shared/prior-art-check.md duplication-search command includes project/workstreams/ and project/work_items/ alongside project/design/proposals/, src/, and .claude/skills/
-  - all 10 synced copies (5 skills x {src/lrh/skills, .claude/skills}) are updated identically to the canonical master
+  - all 10 synced copies (5 skills x {src/lrh/skills, .claude/skills}) carry the same duplication-search location list as the canonical master, differing only in each copy's pre-existing header-comment wording (CANONICAL SOURCE vs SYNCED COPY)
   - diff -r confirms each skill's src/lrh/skills/<skill>/references/prior-art-check.md matches its .claude/skills/<skill>/references/prior-art-check.md mirror byte-for-byte
   - lrh validate reports 0 errors
   - no other skill content is modified

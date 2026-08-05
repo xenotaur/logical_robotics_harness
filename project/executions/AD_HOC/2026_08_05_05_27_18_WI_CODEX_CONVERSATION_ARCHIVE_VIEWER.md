@@ -3,9 +3,9 @@ execution_id: 2026_08_05_05_27_18_WI_CODEX_CONVERSATION_ARCHIVE_VIEWER
 prompt_id: PROMPT(AD_HOC:WI_CODEX_CONVERSATION_ARCHIVE_VIEWER)[2026-08-04T22:41:10+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
+rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/486
-commit: 
+commit:
 created_at: 2026-08-05T05:27:18+00:00
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-CODEX-CONVERSATION-ARCHIVE-VIEWER.md

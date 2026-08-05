@@ -2,10 +2,10 @@
 execution_id: 2026_08_05_21_30_12_VERSION_INSTALL_SMOKE_YAML_DEPS
 prompt_id: PROMPT(WI-VERSION-INSTALL-SMOKE-YAML-DEPS:VERSION_INSTALL_SMOKE_YAML_DEPS)[2026-08-05T21:28:45+00:00]
 work_item: WI-VERSION-INSTALL-SMOKE-YAML-DEPS
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/494
-commit: 
+commit: 5897dca27f0c8a1bceed1f2e841905d279d1d7f4
 created_at: 2026-08-05T21:30:12+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-VERSION-INSTALL-SMOKE-YAML-DEPS.md

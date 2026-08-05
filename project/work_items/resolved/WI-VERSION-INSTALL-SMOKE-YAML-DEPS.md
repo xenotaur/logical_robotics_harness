@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #494 (commit 5897dca): removed --no-deps from the wheel-install pip install step in tests/smoke/version_install_smoke.py, which was skipping the PyYAML runtime dependency lrh.cli.main requires."
 blocked_reason: null
 blocked: false
 id: WI-VERSION-INSTALL-SMOKE-YAML-DEPS
 title: Fix wheel-install smoke test missing PyYAML runtime dependency
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

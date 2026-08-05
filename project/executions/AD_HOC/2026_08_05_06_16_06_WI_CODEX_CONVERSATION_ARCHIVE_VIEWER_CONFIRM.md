@@ -2,10 +2,10 @@
 execution_id: 2026_08_05_06_16_06_WI_CODEX_CONVERSATION_ARCHIVE_VIEWER_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_CODEX_CONVERSATION_ARCHIVE_VIEWER_CONFIRM)[2026-08-05T06:16:01+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_05_05_27_18_WI_CODEX_CONVERSATION_ARCHIVE_VIEWER
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/486
-commit: 7782900d4acf471c099985147e3e277b8f061393
+commit: 2cceb0e233fbbd545e976bbd7a205e2f933e4716
 created_at: 2026-08-05T06:16:06+00:00
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/486

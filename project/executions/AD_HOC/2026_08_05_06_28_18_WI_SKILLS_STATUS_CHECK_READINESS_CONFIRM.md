@@ -2,10 +2,10 @@
 execution_id: 2026_08_05_06_28_18_WI_SKILLS_STATUS_CHECK_READINESS_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_STATUS_CHECK_READINESS_CONFIRM)[2026-08-05T06:24:45+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/487
+commit: abc8c8a6c80f8b2f8a06d991ab7d9cec71b5f5be
 created_at: 2026-08-05T06:28:18+00:00
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/487

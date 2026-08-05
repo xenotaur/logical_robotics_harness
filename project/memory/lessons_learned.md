@@ -12,3 +12,11 @@
   so Black/Ruff versions match the project environment; format, lint, and tests
   may still need unsandboxed execution when Black multiprocessing or serve tests
   bind local sockets.
+- In Codex `/lrh-land`, `lrh prompt record-execution` can generate blank
+  frontmatter fields with trailing spaces; `lrh validate` accepts them, but
+  `git diff --check origin/main...HEAD` catches them and fresh self-review may
+  flag them before merge.
+- In execution records, do not start `instruction_source` with `/`; even a
+  slash-command phrase such as `/lrh-land PR 487` is treated by validation as
+  an absolute path leak. Use a scheme-style value such as
+  `lrh-skill:lrh-land PR 487`.

@@ -25,6 +25,7 @@ work_items:
   - WI-CODEX-CONVERSATION-EXPORT-MANIFEST
   - WI-CODEX-CONVERSATION-EXPORT-ADAPTER
   - WI-CODEX-CONVERSATION-INSPECT-EXPORT
+  - WI-CODEX-CONVERSATION-ARCHIVE-VIEWER
 exit_criteria:
   - Codex conversation export manifest and Markdown artifact contract are implemented with typed helpers and documented schema expectations
   - File-based Codex export adapter creates private, non-authoritative transcript artifacts without depending on undocumented Codex app storage internals

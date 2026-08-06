@@ -2,10 +2,10 @@
 execution_id: 2026_08_06_02_53_50_WI_SKILLS_PRIOR_ART_CHECK_PLANNING_DIRS_IMPL
 prompt_id: PROMPT(WI-SKILLS-PRIOR-ART-CHECK-PLANNING-DIRS:WI_SKILLS_PRIOR_ART_CHECK_PLANNING_DIRS_IMPL)[2026-08-06T02:41:38+00:00]
 work_item: WI-SKILLS-PRIOR-ART-CHECK-PLANNING-DIRS
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/496
-commit: 
+commit: e1c1848
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-PRIOR-ART-CHECK-PLANNING-DIRS.md
 session_transcript: claude-app:9925d25c-1dab-4b64-bfa1-b484c2fa75fe

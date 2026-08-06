@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #496 (commit e1c1848)."
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-PRIOR-ART-CHECK-PLANNING-DIRS
 title: Fix prior-art-check duplication search to cover planning-artifact directories
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

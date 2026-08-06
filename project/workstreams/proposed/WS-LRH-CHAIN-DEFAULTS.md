@@ -24,7 +24,7 @@ work_items: []
 exit_criteria:
   - A design-review session has produced concrete, steelmanned default values (completion condition, stop-work condition, self-review preference) with recorded rationale, before any Increment 1 code lands
   - Increment 1 (chain-level defaults: schema + propose-and-confirm flow wired into /lrh-land and /lrh-execute Step 2) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors
-  - Increment 2 (per-gate autopilot: confirm_fixes_batch and closeout_plan flags) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors, using Increment 1 session evidence to justify each gate's "unusual" predicate
+  - Increment 2 (per-gate autopilot: confirm_fixes_batch flag; closeout_plan is categorically excluded per DEC-DELIBERATE-CHAIN-INITIATION, see PROP-LRH-CHAIN-DEFAULTS Decision 3) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors, using Increment 1 session evidence to justify the gate's "unusual" predicate
   - PROP-LRH-CHAIN-DEFAULTS status updated to adopted
   - CLAUDE.md ## Skills index updated for any new or materially changed skill behavior
 ---
@@ -53,9 +53,12 @@ skipping.
 - Implement Increment 1: chain-defaults profile schema, propose-and-confirm
   flow wired into `/lrh-land` and `/lrh-execute` Step 2, persistence for
   completion/stop-condition text and self-review preference.
-- Implement Increment 2: per-gate autopilot flags (`confirm_fixes_batch`,
-  `closeout_plan`), each with a gate-owned "unusual" predicate, informed by
-  Increment 1 session evidence.
+- Implement Increment 2: per-gate autopilot flag (`confirm_fixes_batch`),
+  with a gate-owned "unusual" predicate, informed by Increment 1 session
+  evidence. `closeout_plan` is not an Increment 2 candidate —
+  `/lrh-closeout`'s plan-confirm gate is categorically excluded from any
+  autopilot tier per `DEC-DELIBERATE-CHAIN-INITIATION` (see
+  `PROP-LRH-CHAIN-DEFAULTS` Decision 3).
 - Adopt `PROP-LRH-CHAIN-DEFAULTS` once both increments are complete.
 
 ## Prior Art Check
@@ -99,7 +102,7 @@ filed via `/lrh-work-item` as each becomes ready to scope:
   `src/` and `.claude/` mirrors
 - Increment 2 implemented, `lrh validate` 0 errors, installed in both
   `src/` and `.claude/` mirrors, using Increment 1 session evidence to
-  justify each gate's "unusual" predicate
+  justify the `confirm_fixes_batch` gate's "unusual" predicate
 - `PROP-LRH-CHAIN-DEFAULTS` status updated to `adopted`
 - `CLAUDE.md ## Skills` index updated for any new or materially changed
   skill behavior
@@ -108,9 +111,11 @@ filed via `/lrh-work-item` as each becomes ready to scope:
 
 - Does not implement a generic, reusable rule engine across gates — each
   gate's "unusual" predicate stays gate-owned, per the proposal's Decision 2.
-- Does not extend autopilot to the merge gate or the chain-initiation
-  gate — both stay categorically excluded, per the proposal's Decision 3.
-- Does not cover backends other than Claude.app and Codex.app.
+- Does not extend autopilot to the merge gate, the chain-initiation
+  gate, or `/lrh-closeout`'s plan-confirm gate — all three stay
+  categorically excluded, per the proposal's Decision 3 (amended during
+  PR #490's review to add the closeout plan-confirm gate explicitly).
+- Does not cover backends other than Claude.app and Codex Cloud.
 - Does not skip or shortcut the design-review steelmanning session — it
   is a hard prerequisite to Increment 1, not an optional nicety.
 

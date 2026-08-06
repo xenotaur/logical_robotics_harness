@@ -615,6 +615,12 @@ def _skill_differs_from_source(
 ) -> bool:
     source_files = _render_skill_files(skill_name, source, target)
     skill_dir = skills_dir / skill_name
+    return _skill_differs_from_rendered(skill_dir, source_files)
+
+
+def _skill_differs_from_rendered(
+    skill_dir: Path, source_files: dict[str, bytes]
+) -> bool:
     fs_files = _collect_fs_files(skill_dir)
     if source_files != fs_files:
         return True
@@ -809,7 +815,7 @@ def inspect_skills(
     results: list[SkillInspectionResult] = []
     for name in _skill_names(skill_source):
         try:
-            _render_skill_files(name, skill_source, skill_target)
+            source_files = _render_skill_files(name, skill_source, skill_target)
             issues = _compatibility_issues(name, skill_source, skill_target)
         except SkillSourceError as err:
             results.append(
@@ -830,7 +836,7 @@ def inspect_skills(
         dest = target_dir / name
         if not dest.exists():
             status = SkillInspectionStatus.MISSING
-        elif _skill_differs_from_source(name, target_dir, skill_source, skill_target):
+        elif _skill_differs_from_rendered(dest, source_files):
             status = SkillInspectionStatus.MODIFIED
         else:
             status = SkillInspectionStatus.UP_TO_DATE
@@ -1025,7 +1031,19 @@ def format_inspection_report(
         elif result.status is SkillInspectionStatus.MODIFIED:
             lines.append(f"  modified: {result.name} differs from source")
         elif result.status is SkillInspectionStatus.SOURCE_ERROR:
-            lines.append(f"  source error: {result.name}")
+            source_error = next(
+                (issue for issue in result.issues if issue.code == "source_error"),
+                None,
+            )
+            if source_error is None:
+                lines.append(f"  source error: {result.name}")
+            else:
+                lines.append(f"  source error: {result.name}: {source_error.message}")
         for issue in result.issues:
+            if (
+                result.status is SkillInspectionStatus.SOURCE_ERROR
+                and issue.code == "source_error"
+            ):
+                continue
             lines.append(f"  {issue_label}: {issue.skill_name}: {issue.message}")
     return "\n".join(lines)

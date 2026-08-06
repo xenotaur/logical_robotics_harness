@@ -1215,6 +1215,29 @@ class TestInspectSkills(unittest.TestCase):
 
         self.assertIn("missing: sample-skill", output)
 
+    def test_format_inspection_report_deduplicates_source_error(self) -> None:
+        source_dir = self._make_source(
+            "\n".join(
+                [
+                    "---",
+                    "- not-a-mapping",
+                    "---",
+                    "",
+                    "# Sample",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+        report = installer.inspect_skills(
+            skills_dir=skills_dir, source=source_dir, target=installer.SkillTarget.CODEX
+        )
+
+        output = installer.format_inspection_report(report)
+
+        self.assertIn("source error: sample-skill: SKILL.md frontmatter", output)
+        self.assertNotIn("\n  error: sample-skill:", f"\n{output}")
+
     def test_format_inspection_report_accepts_custom_issue_label(self) -> None:
         source_dir = self._make_source(
             "\n".join(

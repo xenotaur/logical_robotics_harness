@@ -28,9 +28,31 @@ def _collect_threads(data: object) -> list[dict[str, object]]:
     return [thread for thread in threads if isinstance(thread, dict)]
 
 
-def _matches_state(thread: dict[str, object], state: str) -> bool:
+def collect_thread_ids(data: object) -> set[str]:
+    """Return the set of thread IDs present in the raw GraphQL payload."""
+    return {
+        thread["id"]
+        for thread in _collect_threads(data)
+        if isinstance(thread.get("id"), str)
+    }
+
+
+def resolved_thread_ids(data: object) -> set[str]:
+    """Return the set of thread IDs already marked isResolved=true."""
+    return {
+        thread["id"]
+        for thread in _collect_threads(data)
+        if isinstance(thread.get("id"), str) and bool(thread.get("isResolved", False))
+    }
+
+
+def _matches_state(
+    thread: dict[str, object], state: str, *, extra_ids: set[str] | None = None
+) -> bool:
     is_resolved = bool(thread.get("isResolved", False))
     is_outdated = bool(thread.get("isOutdated", False))
+    if extra_ids and thread.get("id") in extra_ids and not is_resolved:
+        return True
     if state == "all":
         return True
     if state == "resolved":
@@ -58,12 +80,13 @@ def format_threads_review(
     include_author: bool,
     include_url: bool,
     ref: pr_ref.PullRequestRef,
+    extra_ids: set[str] | None = None,
 ) -> str:
     lines: list[str] = []
     if show_pr:
         lines.append(f"PR: {ref.owner}/{ref.repo}#{ref.number}")
     for thread in _collect_threads(data):
-        if not _matches_state(thread, state):
+        if not _matches_state(thread, state, extra_ids=extra_ids):
             continue
         lines.append("---")
         path = (

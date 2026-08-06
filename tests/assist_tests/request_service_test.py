@@ -859,6 +859,158 @@ class TestReviewResponseTemplate(unittest.TestCase):
         self.assertIn("third-party input from PR reviewers", rendered)
         self.assertIn("PR: octo/repo#7", rendered)
 
+    def test_review_response_include_thread_surfaces_outdated_unresolved_thread(
+        self,
+    ) -> None:
+        args = argparse.Namespace(
+            template_name="review_response",
+            target="https://github.com/octo/repo/pull/7",
+            target_option=None,
+            scope=None,
+            repo_name=None,
+            project_goal=None,
+            background_file=None,
+            background_text=None,
+            project_type=None,
+            bootstrap_mode="minimal",
+            audit_file=None,
+            work_item_file=None,
+            style_file=None,
+            patch_file=None,
+            show_vars=False,
+            prompt_id=None,
+            force=False,
+            include_thread=["T1"],
+        )
+
+        from unittest import mock
+
+        threads_payload = {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "reviewThreads": {
+                            "nodes": [
+                                {
+                                    "id": "T1",
+                                    "isResolved": False,
+                                    "isOutdated": True,
+                                    "path": "src/lrh/skills/lrh-land/SKILL.md",
+                                    "line": 5,
+                                    "comments": {
+                                        "nodes": [
+                                            {
+                                                "author": {"login": "reviewer"},
+                                                "body": "Still needs a real fix.",
+                                                "url": "https://github.com/octo/repo/pull/7#discussion_r1",
+                                            }
+                                        ]
+                                    },
+                                },
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            return_value=threads_payload,
+        ):
+            rendered, _ = request_service.generate_request(args)
+
+        # --include-thread implies --force, and the only thread is outdated
+        # (invisible to the default "unresolved" filter), so without the
+        # flag this would have returned "Nothing to resolve:" instead.
+        self.assertIn("Still needs a real fix.", rendered)
+        self.assertIn("third-party input from PR reviewers", rendered)
+
+    def test_review_response_include_thread_unknown_id_raises(self) -> None:
+        args = argparse.Namespace(
+            template_name="review_response",
+            target="https://github.com/octo/repo/pull/7",
+            target_option=None,
+            scope=None,
+            repo_name=None,
+            project_goal=None,
+            background_file=None,
+            background_text=None,
+            project_type=None,
+            bootstrap_mode="minimal",
+            audit_file=None,
+            work_item_file=None,
+            style_file=None,
+            patch_file=None,
+            show_vars=False,
+            prompt_id=None,
+            force=False,
+            include_thread=["DOES_NOT_EXIST"],
+        )
+
+        from unittest import mock
+
+        threads_payload = {
+            "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}
+        }
+
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            return_value=threads_payload,
+        ):
+            with self.assertRaisesRegex(ValueError, "not found"):
+                request_service.generate_request(args)
+
+    def test_review_response_include_thread_already_resolved_raises(self) -> None:
+        args = argparse.Namespace(
+            template_name="review_response",
+            target="https://github.com/octo/repo/pull/7",
+            target_option=None,
+            scope=None,
+            repo_name=None,
+            project_goal=None,
+            background_file=None,
+            background_text=None,
+            project_type=None,
+            bootstrap_mode="minimal",
+            audit_file=None,
+            work_item_file=None,
+            style_file=None,
+            patch_file=None,
+            show_vars=False,
+            prompt_id=None,
+            force=False,
+            include_thread=["T1"],
+        )
+
+        from unittest import mock
+
+        threads_payload = {
+            "data": {
+                "repository": {
+                    "pullRequest": {
+                        "reviewThreads": {
+                            "nodes": [
+                                {
+                                    "id": "T1",
+                                    "isResolved": True,
+                                    "isOutdated": True,
+                                    "comments": {"nodes": []},
+                                },
+                            ]
+                        }
+                    }
+                }
+            }
+        }
+
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            return_value=threads_payload,
+        ):
+            with self.assertRaisesRegex(ValueError, "already resolved"):
+                request_service.generate_request(args)
+
 
 class TestOrganizeDocsTemplate(unittest.TestCase):
     def _args(self, **overrides: str | None) -> argparse.Namespace:

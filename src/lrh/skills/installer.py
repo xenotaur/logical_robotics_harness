@@ -525,7 +525,7 @@ def _parse_skill_frontmatter(
     except yaml.YAMLError as err:
         raise SkillSourceError(f"invalid YAML in SKILL.md frontmatter: {err}") from err
     if not isinstance(metadata, dict):
-        return None
+        raise SkillSourceError("SKILL.md frontmatter must be a mapping")
     return metadata, parts, closing_index
 
 
@@ -1013,7 +1013,9 @@ def format_report(report: InstallReport, dry_run: bool = False) -> str:
     return "\n".join(lines)
 
 
-def format_inspection_report(report: SkillInspectionReport) -> str:
+def format_inspection_report(
+    report: SkillInspectionReport, issue_label: str = "error"
+) -> str:
     lines: list[str] = []
     for result in report.results:
         if result.status is SkillInspectionStatus.MISSING:
@@ -1025,5 +1027,5 @@ def format_inspection_report(report: SkillInspectionReport) -> str:
         elif result.status is SkillInspectionStatus.SOURCE_ERROR:
             lines.append(f"  source error: {result.name}")
         for issue in result.issues:
-            lines.append(f"  error: {issue.skill_name}: {issue.message}")
+            lines.append(f"  {issue_label}: {issue.skill_name}: {issue.message}")
     return "\n".join(lines)

@@ -1345,6 +1345,10 @@ def main() -> None:
                     print(f"{report.target.value}: {report.skills_dir}")
                 if args.skills_command == "install":
                     output = installer.format_report(report, dry_run=args.dry_run)
+                elif args.skills_command == "status":
+                    output = installer.format_inspection_report(
+                        report, issue_label="notice"
+                    )
                 else:
                     output = installer.format_inspection_report(report)
                 if output:

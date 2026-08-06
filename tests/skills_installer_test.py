@@ -1155,6 +1155,34 @@ class TestInspectSkills(unittest.TestCase):
         self.assertEqual(report.results[0].issues[0].code, "invalid_codex_metadata")
         self.assertTrue(installer.inspection_report_has_failures(report))
 
+    def test_inspect_reports_non_mapping_skill_frontmatter_source_error(self) -> None:
+        source_dir = self._make_source(
+            "\n".join(
+                [
+                    "---",
+                    "- not-a-mapping",
+                    "---",
+                    "",
+                    "# Sample",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+
+        report = installer.inspect_skills(
+            skills_dir=skills_dir, source=source_dir, target=installer.SkillTarget.CODEX
+        )
+
+        self.assertEqual(
+            report.results[0].status, installer.SkillInspectionStatus.SOURCE_ERROR
+        )
+        self.assertEqual(report.results[0].issues[0].code, "source_error")
+        self.assertIn(
+            "frontmatter must be a mapping", report.results[0].issues[0].message
+        )
+        self.assertTrue(installer.inspection_report_has_failures(report))
+
     def test_inspect_skills_for_targets_honors_all_selection(self) -> None:
         source_dir = self._make_source()
         project_root = self._make_skills_dir()
@@ -1186,6 +1214,33 @@ class TestInspectSkills(unittest.TestCase):
         output = installer.format_inspection_report(report)
 
         self.assertIn("missing: sample-skill", output)
+
+    def test_format_inspection_report_accepts_custom_issue_label(self) -> None:
+        source_dir = self._make_source(
+            "\n".join(
+                [
+                    "---",
+                    "name: sample-skill",
+                    'argument-hint: "[thing]"',
+                    "---",
+                    "",
+                    "# Sample",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(
+            skills_dir=skills_dir, source=source_dir, target=installer.SkillTarget.CODEX
+        )
+        report = installer.inspect_skills(
+            skills_dir=skills_dir, source=source_dir, target=installer.SkillTarget.CODEX
+        )
+
+        output = installer.format_inspection_report(report, issue_label="notice")
+
+        self.assertIn("notice: sample-skill:", output)
+        self.assertNotIn("error: sample-skill:", output)
 
 
 if __name__ == "__main__":

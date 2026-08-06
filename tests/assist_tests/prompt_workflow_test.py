@@ -1,6 +1,7 @@
 import contextlib
 import datetime
 import io
+import json
 import pathlib
 import tempfile
 import unittest
@@ -189,6 +190,38 @@ class PromptWorkflowTest(unittest.TestCase):
             )
             fields = prompt_workflow.parse_front_matter_fields(path)
         self.assertEqual(fields, {})
+
+    def test_record_session_alias_cli_writes_index_entry(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            buffer = io.StringIO()
+            with contextlib.redirect_stdout(buffer):
+                exit_code = prompt_workflow.run_prompt_cli(
+                    [
+                        "record-session-alias",
+                        "--host-id",
+                        "cli-host-1",
+                        "--child-id",
+                        "cli-child-1",
+                        "--pr",
+                        "https://github.com/x/y/pull/5",
+                        "--project-root",
+                        temp_dir,
+                    ]
+                )
+            output = buffer.getvalue()
+            self.assertEqual(exit_code, 0)
+            index_path = pathlib.Path(temp_dir) / "project" / "sessions" / "index.jsonl"
+            self.assertIn(index_path.as_posix(), output)
+            data = json.loads(index_path.read_text(encoding="utf-8").splitlines()[0])
+            self.assertEqual(data["host_id"], "cli-host-1")
+            self.assertEqual(data["child_ids"], ["cli-child-1"])
+            self.assertEqual(data["prs"], ["https://github.com/x/y/pull/5"])
+
+    def test_record_session_alias_cli_requires_host_id(self) -> None:
+        buffer = io.StringIO()
+        with self.assertRaises(SystemExit):
+            with contextlib.redirect_stderr(buffer):
+                prompt_workflow.run_prompt_cli(["record-session-alias"])
 
 
 if __name__ == "__main__":

@@ -260,6 +260,29 @@ session_transcript: pending
 Commit the execution record and push it as an additional commit to the
 already-open PR.
 
+**Capture the child session-id alias when available.** This step runs
+live in the current window, so — unlike `/lrh-closeout`, which can run in
+a different session entirely after merge — there is no cross-session
+ambiguity here: `$CLAUDE_CODE_HOST_SESSION_ID` and `$CLAUDE_CODE_SESSION_ID`
+both name the session doing this work right now. If both are set, record
+the pairing (see `references/execution-session-reference.md`'s "Session
+identity capture" section for full detail):
+
+```bash
+lrh prompt record-session-alias \
+  --host-id "$(echo "$CLAUDE_CODE_HOST_SESSION_ID" | sed 's/^local_//')" \
+  --child-id "$CLAUDE_CODE_SESSION_ID" \
+  --pr <pr-url-from-step-8> \
+  --branch <branch-name-from-step-5> \
+  --project-root .
+```
+
+This writes to `project/sessions/index.jsonl`, not the execution record —
+`session_transcript` stays `pending` here exactly as before; this capture
+is independent of it. Commit this file alongside the execution record in
+the same commit. If `$CLAUDE_CODE_HOST_SESSION_ID` is unset (e.g. a
+non-Claude backend), skip this step entirely.
+
 ### Step 10 — Report and offer closeout
 
 Report to the user:

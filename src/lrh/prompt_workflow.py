@@ -8,7 +8,12 @@ import pathlib
 import re
 import sys
 
-from lrh import prompt_workflow_queries, prompt_workflow_records, prompt_workflow_slug
+from lrh import (
+    prompt_workflow_queries,
+    prompt_workflow_records,
+    prompt_workflow_sessions,
+    prompt_workflow_slug,
+)
 
 VALID_STATUSES = {
     "planned",
@@ -242,6 +247,41 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     update_parser.add_argument("--project-root", default=".")
     update_parser.add_argument("--output-root", default="project/executions")
 
+    session_parser = subparsers.add_parser(
+        "record-session-alias",
+        help=(
+            "Record a host/child Claude Code session identity observation "
+            "in project/sessions/index.jsonl (PROP-LRH-SESSION-ARCHIVE-SYNC "
+            "Stage 1 minimal index)."
+        ),
+    )
+    session_parser.add_argument(
+        "--host-id",
+        required=True,
+        help="Host session id, local_ prefix already stripped.",
+    )
+    session_parser.add_argument(
+        "--child-id",
+        default=None,
+        help=(
+            "Child SDK session id alias for this host id. Omit when the "
+            "host id was resolved cross-session (list_sessions by PR, or a "
+            "pasted URL) -- pairing it with the current window's child id "
+            "would record a false alias."
+        ),
+    )
+    session_parser.add_argument("--title", default=None)
+    session_parser.add_argument("--pr", default=None)
+    session_parser.add_argument("--branch", default=None)
+    session_parser.add_argument(
+        "--written-branch",
+        dest="written_branches",
+        action="append",
+        default=None,
+        help="Repeatable. Reserved for Stage 3 fork stitching.",
+    )
+    session_parser.add_argument("--project-root", default=".")
+
     args = parser.parse_args(argv)
     if args.prompt_command is None:
         parser.error("prompt requires a subcommand (try: lrh prompt label)")
@@ -338,6 +378,23 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
             )
         record.path.write_text(text, encoding="utf-8")
         print(f"updated: {record.path.as_posix()}")
+        return 0
+
+    if args.prompt_command == "record-session-alias":
+        updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat(
+            timespec="seconds"
+        )
+        path = prompt_workflow_sessions.record_session_observation(
+            args.project_root,
+            host_id=args.host_id,
+            child_id=args.child_id,
+            title=args.title,
+            pr=args.pr,
+            branch=args.branch,
+            written_branches=args.written_branches,
+            updated_at=updated_at,
+        )
+        print(f"recorded: {path.as_posix()}")
         return 0
 
     try:

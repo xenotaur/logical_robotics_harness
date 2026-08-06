@@ -62,6 +62,20 @@ class SkillsInstallCliTest(unittest.TestCase):
         self.assertIn("--source", result.stdout)
         self.assertNotIn("Install LRH skills to ~/.claude/skills/", result.stdout)
 
+    def test_skills_status_help_exits_zero(self) -> None:
+        result = self._run("skills", "status", "--help")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("--local", result.stdout)
+        self.assertIn("--target", result.stdout)
+        self.assertIn("--source", result.stdout)
+
+    def test_skills_check_help_exits_zero(self) -> None:
+        result = self._run("skills", "check", "--help")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("--local", result.stdout)
+        self.assertIn("--target", result.stdout)
+        self.assertIn("--source", result.stdout)
+
     def test_skills_help_is_target_neutral(self) -> None:
         result = self._run("skills", "--help")
         self.assertEqual(result.returncode, 0, msg=result.stderr)
@@ -135,6 +149,110 @@ class SkillsInstallCliTest(unittest.TestCase):
                 )
                 self.assertEqual(skill_md.read_text(), "sample skill\n")
 
+    def test_skills_status_reports_missing_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as source_dir:
+            source = pathlib.Path(source_dir)
+            (source / "sample-skill").mkdir()
+            (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
+            with tempfile.TemporaryDirectory() as fake_cwd:
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "lrh.cli.main",
+                        "skills",
+                        "status",
+                        "--local",
+                        "--source",
+                        str(source),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env=os.environ.copy(),
+                    cwd=fake_cwd,
+                )
+
+                self.assertEqual(result.returncode, 0, msg=result.stderr)
+                self.assertIn("missing: sample-skill", result.stdout)
+                self.assertFalse((pathlib.Path(fake_cwd) / ".claude").exists())
+
+    def test_skills_check_exits_nonzero_for_missing_target(self) -> None:
+        with tempfile.TemporaryDirectory() as source_dir:
+            source = pathlib.Path(source_dir)
+            (source / "sample-skill").mkdir()
+            (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
+            with tempfile.TemporaryDirectory() as fake_cwd:
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "lrh.cli.main",
+                        "skills",
+                        "check",
+                        "--local",
+                        "--source",
+                        str(source),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env=os.environ.copy(),
+                    cwd=fake_cwd,
+                )
+
+                self.assertEqual(result.returncode, 1, msg=result.stderr)
+                self.assertIn("missing: sample-skill", result.stdout)
+
+    def test_skills_check_exits_zero_for_up_to_date_target(self) -> None:
+        with tempfile.TemporaryDirectory() as source_dir:
+            source = pathlib.Path(source_dir)
+            (source / "sample-skill").mkdir()
+            (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
+            with tempfile.TemporaryDirectory() as fake_cwd:
+                env = os.environ.copy()
+                install_result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "lrh.cli.main",
+                        "skills",
+                        "install",
+                        "--local",
+                        "--source",
+                        str(source),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    cwd=fake_cwd,
+                )
+                self.assertEqual(
+                    install_result.returncode, 0, msg=install_result.stderr
+                )
+
+                check_result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-m",
+                        "lrh.cli.main",
+                        "skills",
+                        "check",
+                        "--local",
+                        "--source",
+                        str(source),
+                    ],
+                    check=False,
+                    capture_output=True,
+                    text=True,
+                    env=env,
+                    cwd=fake_cwd,
+                )
+
+                self.assertEqual(check_result.returncode, 0, msg=check_result.stderr)
+                self.assertIn("up to date: sample-skill", check_result.stdout)
+
     def test_skills_install_invalid_source_rejected(self) -> None:
         result = self._run(
             "skills",
@@ -142,6 +260,16 @@ class SkillsInstallCliTest(unittest.TestCase):
             "--source",
             "/not/a/real/skills/source",
             "--dry-run",
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("skill source does not exist", result.stderr)
+
+    def test_skills_status_invalid_source_rejected(self) -> None:
+        result = self._run(
+            "skills",
+            "status",
+            "--source",
+            "/not/a/real/skills/source",
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("skill source does not exist", result.stderr)

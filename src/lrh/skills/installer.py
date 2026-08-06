@@ -42,10 +42,31 @@ class SkillStatus(str, Enum):
     FORCED = "forced"
 
 
+class SkillInspectionStatus(str, Enum):
+    MISSING = "missing"
+    UP_TO_DATE = "up_to_date"
+    MODIFIED = "modified"
+    SOURCE_ERROR = "source_error"
+
+
 @dataclass(frozen=True)
 class SkillResult:
     name: str
     status: SkillStatus
+
+
+@dataclass(frozen=True)
+class SkillCheckIssue:
+    skill_name: str
+    code: str
+    message: str
+
+
+@dataclass(frozen=True)
+class SkillInspectionResult:
+    name: str
+    status: SkillInspectionStatus
+    issues: list[SkillCheckIssue]
 
 
 @dataclass(frozen=True)
@@ -141,6 +162,13 @@ class InstallReport:
     target: SkillTarget = SkillTarget.CLAUDE
 
 
+@dataclass(frozen=True)
+class SkillInspectionReport:
+    results: list[SkillInspectionResult]
+    skills_dir: Path
+    target: SkillTarget = SkillTarget.CLAUDE
+
+
 class ClaudeSkillRenderer:
     """Preserve canonical skill bytes for Claude installs."""
 
@@ -179,35 +207,10 @@ class CodexSkillRenderer:
         return rendered
 
     def _render_skill_md(self, content: bytes) -> tuple[dict[str, Any], bytes]:
-        try:
-            text = content.decode("utf-8")
-        except UnicodeDecodeError:
+        parsed = _parse_skill_frontmatter(content)
+        if parsed is None:
             return {}, content
-
-        parts = text.splitlines(keepends=True)
-        if len(parts) < 3 or parts[0].strip() != "---":
-            return {}, content
-
-        closing_index = next(
-            (
-                index
-                for index, line in enumerate(parts[1:], start=1)
-                if line.strip() == "---"
-            ),
-            None,
-        )
-        if closing_index is None:
-            return {}, content
-
-        frontmatter_text = "".join(parts[1:closing_index])
-        try:
-            metadata = yaml.safe_load(frontmatter_text) or {}
-        except yaml.YAMLError as err:
-            raise SkillSourceError(
-                f"invalid YAML in SKILL.md frontmatter: {err}"
-            ) from err
-        if not isinstance(metadata, dict):
-            return {}, content
+        metadata, parts, closing_index = parsed
 
         codex_metadata = {
             key: value
@@ -493,6 +496,39 @@ def _is_symlink_node(node: SkillTreeNode) -> bool:
     return isinstance(node, Path) and node.is_symlink()
 
 
+def _parse_skill_frontmatter(
+    content: bytes,
+) -> tuple[dict[str, Any], list[str], int] | None:
+    try:
+        text = content.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+    parts = text.splitlines(keepends=True)
+    if len(parts) < 3 or parts[0].strip() != "---":
+        return None
+
+    closing_index = next(
+        (
+            index
+            for index, line in enumerate(parts[1:], start=1)
+            if line.strip() == "---"
+        ),
+        None,
+    )
+    if closing_index is None:
+        return None
+
+    frontmatter_text = "".join(parts[1:closing_index])
+    try:
+        metadata = yaml.safe_load(frontmatter_text) or {}
+    except yaml.YAMLError as err:
+        raise SkillSourceError(f"invalid YAML in SKILL.md frontmatter: {err}") from err
+    if not isinstance(metadata, dict):
+        raise SkillSourceError("SKILL.md frontmatter must be a mapping")
+    return metadata, parts, closing_index
+
+
 def _skill_names(source: SkillSource | None = None) -> list[str]:
     return (source or resolve_skill_source()).skill_names()
 
@@ -579,6 +615,12 @@ def _skill_differs_from_source(
 ) -> bool:
     source_files = _render_skill_files(skill_name, source, target)
     skill_dir = skills_dir / skill_name
+    return _skill_differs_from_rendered(skill_dir, source_files)
+
+
+def _skill_differs_from_rendered(
+    skill_dir: Path, source_files: dict[str, bytes]
+) -> bool:
     fs_files = _collect_fs_files(skill_dir)
     if source_files != fs_files:
         return True
@@ -758,6 +800,141 @@ def install_skills_for_targets(
     ]
 
 
+def inspect_skills(
+    skills_dir: Path | None = None,
+    target: str | SkillTarget = SkillTarget.CLAUDE,
+    source: str | Path | SkillSource = SkillSourceKind.PACKAGE.value,
+    project_root: Path | None = None,
+) -> SkillInspectionReport:
+    """Inspect one agent skills directory without writing to it."""
+    skill_target = _coerce_target(target)
+    skill_source = resolve_skill_source(source, project_root=project_root)
+    target_dir = (
+        skills_dir if skills_dir is not None else _default_skills_dir(skill_target)
+    )
+    results: list[SkillInspectionResult] = []
+    for name in _skill_names(skill_source):
+        try:
+            source_files = _render_skill_files(name, skill_source, skill_target)
+            issues = _compatibility_issues(name, skill_source, skill_target)
+        except SkillSourceError as err:
+            results.append(
+                SkillInspectionResult(
+                    name=name,
+                    status=SkillInspectionStatus.SOURCE_ERROR,
+                    issues=[
+                        SkillCheckIssue(
+                            skill_name=name,
+                            code="source_error",
+                            message=str(err),
+                        )
+                    ],
+                )
+            )
+            continue
+
+        dest = target_dir / name
+        if not dest.exists():
+            status = SkillInspectionStatus.MISSING
+        elif _skill_differs_from_rendered(dest, source_files):
+            status = SkillInspectionStatus.MODIFIED
+        else:
+            status = SkillInspectionStatus.UP_TO_DATE
+        results.append(SkillInspectionResult(name=name, status=status, issues=issues))
+
+    return SkillInspectionReport(
+        results=results,
+        skills_dir=target_dir,
+        target=skill_target,
+    )
+
+
+def inspect_skills_for_targets(
+    target: str | SkillTarget | TargetSelection | None = None,
+    *,
+    local: bool | None = None,
+    project_root: Path | None = None,
+    source: str | Path | SkillSource | None = None,
+) -> list[SkillInspectionReport]:
+    """Inspect skills for every selected target and scope without writing."""
+    plan = resolve_agent_skills_install_plan(
+        target=target,
+        local=local,
+        source=source,
+        project_root=project_root,
+    )
+    skill_source = resolve_skill_source(plan.source, project_root=project_root)
+    return [
+        inspect_skills(
+            skills_dir=install_target.skills_dir,
+            target=install_target.target,
+            source=skill_source,
+        )
+        for install_target in resolve_install_targets(
+            plan.target, local=plan.local, project_root=project_root
+        )
+    ]
+
+
+def _compatibility_issues(
+    skill_name: str, source: SkillSource, target: SkillTarget
+) -> list[SkillCheckIssue]:
+    if target is not SkillTarget.CODEX:
+        return []
+    source_files = _collect_source_files(source.skill_root(skill_name))
+    issues: list[SkillCheckIssue] = []
+
+    skill_md = source_files.get(CodexSkillRenderer._SKILL_MD)
+    if skill_md is not None:
+        parsed = _parse_skill_frontmatter(skill_md)
+        if parsed is not None:
+            metadata, _parts, _closing_index = parsed
+            if "argument-hint" in metadata:
+                issues.append(
+                    SkillCheckIssue(
+                        skill_name=skill_name,
+                        code="unsupported_metadata",
+                        message=(
+                            "`argument-hint` has no Codex metadata equivalent"
+                            " and will be stripped"
+                        ),
+                    )
+                )
+
+    openai_yaml = source_files.get(CodexSkillRenderer._OPENAI_YAML)
+    if openai_yaml is not None:
+        renderer = CodexSkillRenderer()
+        try:
+            metadata = renderer._load_openai_yaml(openai_yaml)
+        except SkillSourceError as err:
+            issues.append(
+                SkillCheckIssue(
+                    skill_name=skill_name,
+                    code="invalid_codex_metadata",
+                    message=str(err),
+                )
+            )
+        else:
+            policy = metadata.get("policy")
+            if policy is not None and not isinstance(policy, dict):
+                issues.append(
+                    SkillCheckIssue(
+                        skill_name=skill_name,
+                        code="invalid_codex_metadata",
+                        message="policy in agents/openai.yaml must be a mapping",
+                    )
+                )
+
+    return issues
+
+
+def inspection_report_has_failures(report: SkillInspectionReport) -> bool:
+    return any(
+        result.status is not SkillInspectionStatus.UP_TO_DATE or result.issues
+        for result in report.results
+    )
+
+
 def install_named_skills(
     skill_names: Iterable[str], skills_dir: Path | None = None
 ) -> list[TargetedRefreshResult]:
@@ -839,4 +1016,34 @@ def format_report(report: InstallReport, dry_run: bool = False) -> str:
             f"\nnote: {report.skills_dir} was newly created."
             f" Restart {restart_name} to discover the installed skills."
         )
+    return "\n".join(lines)
+
+
+def format_inspection_report(
+    report: SkillInspectionReport, issue_label: str = "error"
+) -> str:
+    lines: list[str] = []
+    for result in report.results:
+        if result.status is SkillInspectionStatus.MISSING:
+            lines.append(f"  missing: {result.name}")
+        elif result.status is SkillInspectionStatus.UP_TO_DATE:
+            lines.append(f"  up to date: {result.name}")
+        elif result.status is SkillInspectionStatus.MODIFIED:
+            lines.append(f"  modified: {result.name} differs from source")
+        elif result.status is SkillInspectionStatus.SOURCE_ERROR:
+            source_error = next(
+                (issue for issue in result.issues if issue.code == "source_error"),
+                None,
+            )
+            if source_error is None:
+                lines.append(f"  source error: {result.name}")
+            else:
+                lines.append(f"  source error: {result.name}: {source_error.message}")
+        for issue in result.issues:
+            if (
+                result.status is SkillInspectionStatus.SOURCE_ERROR
+                and issue.code == "source_error"
+            ):
+                continue
+            lines.append(f"  {issue_label}: {issue.skill_name}: {issue.message}")
     return "\n".join(lines)

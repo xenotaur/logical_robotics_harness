@@ -37,9 +37,9 @@ decisions, work items, or status until a separate reviewed promotion step
 creates those artifacts. Sensitivity scanning is heuristic and does not certify
 that an export is safe to publish.
 
-This contract is used by the file-based Codex adapter and inspector below. It
-does not implement `lrh serve` archive viewing or any change to
-execution-record `session_transcript` pointer grammar.
+This contract is used by the file-based Codex adapter, inspector, and
+safe-default `lrh serve` archive viewer below. It does not implement any change
+to execution-record `session_transcript` pointer grammar.
 
 ## `lrh conversation convert-codex-file`
 
@@ -135,6 +135,29 @@ The command returns:
   sources;
 - `2` when the export artifact itself cannot be inspected, such as missing,
   non-file, unreadable, or non-UTF-8 input.
+
+## Viewing Codex exports with `lrh serve`
+
+```bash
+lrh serve --codex-archive-root private/codex-conversations
+```
+
+`lrh serve` can list and view Codex Markdown exports only from explicitly
+configured archive roots. Relative `--codex-archive-root` paths are resolved
+under `--project-root`, and the option may be supplied more than once.
+
+The archive viewer keeps the same privacy and authority boundary as the
+adapter and inspector:
+
+- `/conversations/codex` lists configured roots and export metadata.
+- `/conversations/codex/<export_id>` renders one transcript body as escaped
+  inert HTML text after explicit selection.
+- `/api/conversations/codex` and `/api/conversations/codex/<export_id>` return
+  deterministic metadata without transcript body text.
+- Missing archive roots are reported as diagnostics instead of becoming
+  arbitrary filesystem browsing.
+- Exports remain private, non-authoritative context until separately reviewed
+  and promoted into LRH project-control artifacts.
 
 ## `lrh conversation convert-pdf`
 

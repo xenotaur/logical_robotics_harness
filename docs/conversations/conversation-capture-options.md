@@ -4,7 +4,12 @@
 
 Use this guide when useful LRH work starts in a human/AI conversation and you need to preserve enough context for later review. Conversation material can help explain why a change was requested, how alternatives were considered, what commands were run, or what follow-up should become durable project work.
 
-Conversation capture is currently a manual, review-first workflow. LRH does not yet provide stable user-facing conversation import, storage, or promotion commands. Planned automation is tracked as design-stage work in the proposed [LRH Conversations, Storage, and External Agent Interop proposal](../../project/design/proposals/proposed/lrh-conversations-storage-interop/README.md).
+Conversation capture is currently a review-first workflow. LRH provides
+file-based local conversion, manifest inspection, and explicit local archive
+viewing for Codex conversation exports, but it does not provide managed
+conversation storage or automated promotion into authoritative project state.
+Planned storage and promotion automation is tracked as design-stage work in the
+proposed [LRH Conversations, Storage, and External Agent Interop proposal](../../project/design/proposals/proposed/lrh-conversations-storage-interop/README.md).
 
 ## Useful conversation inputs
 
@@ -26,8 +31,11 @@ Do not capture conversations just because they exist. Capture only the material 
 | --- | --- | --- |
 | Manual copy/paste of selected conversation excerpts into reviewable Markdown | Available | Use a private scratch file, PR description, design draft, work-item draft, evidence note, or execution record as appropriate. |
 | Prompt execution records | Available | Use the prompt workflow and `lrh prompt check-execution` / `lrh prompt record-execution` or the repository helper script when a prompt drives meaningful work. |
-| Sensitivity scanning helper library | Partially available | `lrh.conversations.sensitivity` exists as a local heuristic helper, but there is no stable user-facing conversation import command built around it. |
-| Conversation transcript import from vendor exports | Planned / design-stage | The proposed ChatGPT PDF conversion flow is not implemented as a stable CLI in this repository. |
+| Sensitivity scanning helper library | Available for local adapters | `lrh.conversations.sensitivity` is used by current conversion commands as a heuristic scan, not as a safety certification. |
+| Codex file export to Markdown | Available | Use `lrh conversation convert-codex-file INPUT.txt --out OUTPUT.md` for explicit local source files. |
+| Codex export inspection | Available | Use `lrh conversation inspect-export EXPORT.md` to verify manifest shape, transcript statistics, and optional source hash without printing transcript body text. |
+| Codex archive viewing | Available | Use `lrh serve --codex-archive-root PATH` to browse explicitly configured local Markdown export roots. |
+| ChatGPT PDF transcript extraction | Available | Use `lrh conversation convert-pdf INPUT.pdf --out OUTPUT.md` for digitally generated PDFs with an extractable text layer. |
 | LRH-managed conversation storage | Planned / design-stage | Keep raw conversation archives private and outside authoritative project state unless a future accepted workflow says otherwise. |
 | Automated promotion from transcript to project artifact | Planned / design-stage | Promote manually by writing the target LRH artifact and reviewing it like any other source change. |
 
@@ -56,6 +64,11 @@ Recommended private-export practices:
 3. Note the source tool and export method.
 4. Record whether the export has been reviewed for secrets, credentials, personal data, private URLs, or proprietary content.
 5. Link to the private location only where your team policy allows it.
+
+For Codex exports written as Markdown with the LRH manifest contract, use
+`lrh conversation inspect-export` before relying on the file and use
+`lrh serve --codex-archive-root PATH` when humans need a local read-only archive
+index and escaped transcript detail view.
 
 ### 3. Convert manually to a reviewable Markdown note
 

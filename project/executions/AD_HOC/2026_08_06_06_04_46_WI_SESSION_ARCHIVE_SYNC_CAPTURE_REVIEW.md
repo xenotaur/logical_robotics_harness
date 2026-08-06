@@ -2,10 +2,10 @@
 execution_id: 2026_08_06_06_04_46_WI_SESSION_ARCHIVE_SYNC_CAPTURE_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SESSION_ARCHIVE_SYNC_CAPTURE_REVIEW)[2026-08-06T06:04:28+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_06_05_51_01_WI_SESSION_ARCHIVE_SYNC_CAPTURE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/498
-commit: 
+commit: bc4994c0730b5baa5897b14cc43d9c00bf7e9ce9
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/498
 session_transcript: claude-app:9925d25c-1dab-4b64-bfa1-b484c2fa75fe

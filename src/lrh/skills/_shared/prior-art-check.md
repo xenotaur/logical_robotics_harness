@@ -30,11 +30,24 @@ new work is needed or should instead extend/replace what exists.
    the proposal/design-doc surface. Do not treat a governing proposal's own
    cross-references as an exhaustive map of what already exists — a
    concurrently created sibling artifact has no reason to be linked back into
-   an earlier proposal's text. Suppress errors for absent paths (some are
-   optional in client repos).
+   an earlier proposal's text. `2>/dev/null` only swallows stderr from an
+   absent optional path — `grep -rl` still exits non-zero on no matches or a
+   missing directory, so append `|| true` as well; otherwise a `set -e`
+   automation context would abort on the ordinary "nothing found" outcome.
 
    ```bash
-   grep -rl "<key-term>" src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ 2>/dev/null
+   grep -rl "<key-term>" src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ 2>/dev/null || true
+   ```
+
+   **If checking an artifact that already exists on disk** — for example,
+   `/lrh-implement` Step 1.5 validating a work item that predates this
+   check — exclude that artifact's own file from the results. Its own
+   title/summary terms will otherwise always match its own file in
+   `project/work_items/` or `project/workstreams/`, reporting it as a
+   duplicate of itself:
+
+   ```bash
+   grep -rl "<key-term>" src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ 2>/dev/null | grep -vF "<path-to-current-artifact>" || true
    ```
 
 2. **Sibling repos:** ask the user: "Are there sibling repositories that

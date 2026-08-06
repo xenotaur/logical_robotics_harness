@@ -1031,5 +1031,162 @@ class TestFormatReport(unittest.TestCase):
         )
 
 
+class TestInspectSkills(unittest.TestCase):
+    def _make_skills_dir(self) -> Path:
+        parent = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, parent, True)
+        return parent / "skills"
+
+    def _make_source(self, skill_md: str = "sample skill\n") -> Path:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(skill_md)
+        return source_dir
+
+    def test_inspect_reports_missing_without_writing(self) -> None:
+        source_dir = self._make_source()
+        skills_dir = self._make_skills_dir()
+
+        report = installer.inspect_skills(skills_dir=skills_dir, source=source_dir)
+
+        self.assertFalse(skills_dir.exists())
+        self.assertEqual(
+            report.results[0].status, installer.SkillInspectionStatus.MISSING
+        )
+        self.assertTrue(installer.inspection_report_has_failures(report))
+
+    def test_inspect_reports_up_to_date_after_install(self) -> None:
+        source_dir = self._make_source()
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir, source=source_dir)
+
+        report = installer.inspect_skills(skills_dir=skills_dir, source=source_dir)
+
+        self.assertEqual(
+            report.results[0].status, installer.SkillInspectionStatus.UP_TO_DATE
+        )
+        self.assertFalse(installer.inspection_report_has_failures(report))
+
+    def test_inspect_reports_modified_target_copy(self) -> None:
+        source_dir = self._make_source()
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir, source=source_dir)
+        (skills_dir / "sample-skill" / "SKILL.md").write_text("changed\n")
+
+        report = installer.inspect_skills(skills_dir=skills_dir, source=source_dir)
+
+        self.assertEqual(
+            report.results[0].status, installer.SkillInspectionStatus.MODIFIED
+        )
+        self.assertTrue(installer.inspection_report_has_failures(report))
+
+    def test_inspect_reports_symlinked_target_copy_modified(self) -> None:
+        source_dir = self._make_source()
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(skills_dir=skills_dir, source=source_dir)
+        shutil.rmtree(skills_dir / "sample-skill")
+        outside_dir = self._make_skills_dir()
+        outside_dir.mkdir(parents=True)
+        (outside_dir / "SKILL.md").write_text("sample skill\n")
+        (skills_dir / "sample-skill").symlink_to(outside_dir, target_is_directory=True)
+
+        report = installer.inspect_skills(skills_dir=skills_dir, source=source_dir)
+
+        self.assertEqual(
+            report.results[0].status, installer.SkillInspectionStatus.MODIFIED
+        )
+        self.assertTrue(installer.inspection_report_has_failures(report))
+
+    def test_inspect_reports_symlinked_source_entry_error(self) -> None:
+        source_dir = self._make_skills_dir()
+        source_dir.mkdir(parents=True)
+        real_skill = source_dir / "real-skill"
+        real_skill.mkdir()
+        (real_skill / "SKILL.md").write_text("sample skill\n")
+        (source_dir / "sample-skill").symlink_to(real_skill, target_is_directory=True)
+        skills_dir = self._make_skills_dir()
+
+        with self.assertRaisesRegex(
+            installer.SkillSourceError, "skill source contains symlinked entry"
+        ):
+            installer.inspect_skills(skills_dir=skills_dir, source=source_dir)
+
+    def test_inspect_reports_codex_unsupported_metadata(self) -> None:
+        source_dir = self._make_source(
+            "\n".join(
+                [
+                    "---",
+                    "name: sample-skill",
+                    'argument-hint: "[thing]"',
+                    "---",
+                    "",
+                    "# Sample",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+        installer.install_skills(
+            skills_dir=skills_dir, source=source_dir, target=installer.SkillTarget.CODEX
+        )
+
+        report = installer.inspect_skills(
+            skills_dir=skills_dir, source=source_dir, target=installer.SkillTarget.CODEX
+        )
+
+        self.assertEqual(
+            report.results[0].status, installer.SkillInspectionStatus.UP_TO_DATE
+        )
+        self.assertEqual(report.results[0].issues[0].code, "unsupported_metadata")
+        self.assertTrue(installer.inspection_report_has_failures(report))
+
+    def test_inspect_reports_invalid_codex_metadata(self) -> None:
+        source_dir = self._make_source()
+        skill_dir = source_dir / "sample-skill"
+        (skill_dir / "agents").mkdir()
+        (skill_dir / "agents" / "openai.yaml").write_text("- not-a-mapping\n")
+        skills_dir = self._make_skills_dir()
+
+        report = installer.inspect_skills(
+            skills_dir=skills_dir, source=source_dir, target=installer.SkillTarget.CODEX
+        )
+
+        self.assertEqual(report.results[0].issues[0].code, "invalid_codex_metadata")
+        self.assertTrue(installer.inspection_report_has_failures(report))
+
+    def test_inspect_skills_for_targets_honors_all_selection(self) -> None:
+        source_dir = self._make_source()
+        project_root = self._make_skills_dir()
+
+        reports = installer.inspect_skills_for_targets(
+            target=installer.TargetSelection.ALL,
+            local=True,
+            project_root=project_root,
+            source=source_dir,
+        )
+
+        self.assertEqual(
+            [report.target for report in reports],
+            [installer.SkillTarget.CLAUDE, installer.SkillTarget.CODEX],
+        )
+        self.assertEqual(
+            [report.skills_dir for report in reports],
+            [
+                project_root / ".claude" / "skills",
+                project_root / ".agents" / "skills",
+            ],
+        )
+
+    def test_format_inspection_report(self) -> None:
+        source_dir = self._make_source()
+        skills_dir = self._make_skills_dir()
+        report = installer.inspect_skills(skills_dir=skills_dir, source=source_dir)
+
+        output = installer.format_inspection_report(report)
+
+        self.assertIn("missing: sample-skill", output)
+
+
 if __name__ == "__main__":
     unittest.main()

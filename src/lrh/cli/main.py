@@ -142,6 +142,36 @@ def main() -> None:
         help="Manage LRH agent skills.",
     )
     skills_subparsers = skills_parser.add_subparsers(dest="skills_command")
+
+    def add_skills_resolution_args(
+        skills_command_parser: argparse.ArgumentParser,
+    ) -> None:
+        skills_command_parser.add_argument(
+            "--local",
+            action="store_true",
+            help="use project-local skills directory instead of user scope",
+        )
+        skills_command_parser.add_argument(
+            "--scope",
+            choices=("user", "project"),
+            default=None,
+            help="skills scope (default: repo config or user; --local is project)",
+        )
+        skills_command_parser.add_argument(
+            "--target",
+            choices=("claude", "codex", "all"),
+            default=None,
+            help="agent target (default: repo config or claude)",
+        )
+        skills_command_parser.add_argument(
+            "--source",
+            default=None,
+            help=(
+                "canonical skill source: lrh-package, current-repo, or a filesystem"
+                " path (default: repo config or lrh-package)"
+            ),
+        )
+
     skills_install_parser = skills_subparsers.add_parser(
         "install",
         help=(
@@ -159,36 +189,22 @@ def main() -> None:
         action="store_true",
         help="overwrite user-modified skills without warning",
     )
-    skills_install_parser.add_argument(
-        "--local",
-        action="store_true",
-        help="install to project-local skills directory instead of user scope",
-    )
-    skills_install_parser.add_argument(
-        "--scope",
-        choices=("user", "project"),
-        default=None,
-        help="install scope (default: repo config or user; --local is project)",
-    )
-    skills_install_parser.add_argument(
-        "--target",
-        choices=("claude", "codex", "all"),
-        default=None,
-        help="agent target to install for (default: repo config or claude)",
-    )
-    skills_install_parser.add_argument(
-        "--source",
-        default=None,
-        help=(
-            "canonical skill source: lrh-package, current-repo, or a filesystem"
-            " path (default: repo config or lrh-package)"
-        ),
-    )
+    add_skills_resolution_args(skills_install_parser)
     skills_install_parser.add_argument(
         "--diff",
         action="store_true",
         help="print a unified diff of local modifications for skipped skills",
     )
+    skills_status_parser = skills_subparsers.add_parser(
+        "status",
+        help="Inspect installed LRH skill state without writing files.",
+    )
+    add_skills_resolution_args(skills_status_parser)
+    skills_check_parser = skills_subparsers.add_parser(
+        "check",
+        help="Check installed LRH skill drift and compatibility without writing files.",
+    )
+    add_skills_resolution_args(skills_check_parser)
 
     project_parser = subparsers.add_parser(
         "project",
@@ -1285,7 +1301,7 @@ def main() -> None:
         parser.error("meta requires a subcommand (try: lrh meta init)")
 
     if args.command == "skills":
-        if args.skills_command == "install":
+        if args.skills_command in {"install", "status", "check"}:
             if passthrough_args:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
             from lrh.skills import installer
@@ -1298,20 +1314,28 @@ def main() -> None:
                     parser.error("--local cannot be combined with --scope user")
                 local_scope = True
             try:
-                install_plan = installer.resolve_agent_skills_install_plan(
+                skills_plan = installer.resolve_agent_skills_install_plan(
                     target=args.target,
                     local=local_scope,
                     project_root=Path.cwd(),
                     source=args.source,
                 )
-                reports = installer.install_skills_for_targets(
-                    target=install_plan.target,
-                    local=install_plan.local,
-                    project_root=Path.cwd(),
-                    dry_run=args.dry_run,
-                    force=args.force,
-                    source=install_plan.source,
-                )
+                if args.skills_command == "install":
+                    reports = installer.install_skills_for_targets(
+                        target=skills_plan.target,
+                        local=skills_plan.local,
+                        project_root=Path.cwd(),
+                        dry_run=args.dry_run,
+                        force=args.force,
+                        source=skills_plan.source,
+                    )
+                else:
+                    reports = installer.inspect_skills_for_targets(
+                        target=skills_plan.target,
+                        local=skills_plan.local,
+                        project_root=Path.cwd(),
+                        source=skills_plan.source,
+                    )
             except installer.SkillSourceError as err:
                 parser.error(str(err))
             for index, report in enumerate(reports):
@@ -1319,17 +1343,20 @@ def main() -> None:
                     if index:
                         print()
                     print(f"{report.target.value}: {report.skills_dir}")
-                output = installer.format_report(report, dry_run=args.dry_run)
+                if args.skills_command == "install":
+                    output = installer.format_report(report, dry_run=args.dry_run)
+                else:
+                    output = installer.format_inspection_report(report)
                 if output:
                     print(output)
-                if args.diff:
+                if args.skills_command == "install" and args.diff:
                     for result in report.results:
                         if result.status == installer.SkillStatus.USER_MODIFIED:
                             try:
                                 diff_text = installer.diff_skill(
                                     result.name,
                                     report.skills_dir,
-                                    source=install_plan.source,
+                                    source=skills_plan.source,
                                     project_root=Path.cwd(),
                                     target=report.target,
                                 )
@@ -1338,6 +1365,10 @@ def main() -> None:
                             if diff_text:
                                 print(f"\n--- diff: {result.name} ---")
                                 print(diff_text, end="")
+            if args.skills_command == "check" and any(
+                installer.inspection_report_has_failures(report) for report in reports
+            ):
+                raise SystemExit(1)
             raise SystemExit(0)
         parser.error("skills requires a subcommand (try: lrh skills install)")
 

@@ -2,14 +2,14 @@
 execution_id: 2026_08_05_06_45_52_WS_LRH_CHAIN_DEFAULTS
 prompt_id: PROMPT(AD_HOC:WS_LRH_CHAIN_DEFAULTS)[2026-08-05T06:44:36+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/491
-commit: 
+commit: 4104c11b654786cd00f3f0c111ed6aea341947cc
 created_at: 2026-08-05T06:45:52+00:00
 agent: claude_app
 instruction_source: project/workstreams/proposed/WS-LRH-CHAIN-DEFAULTS.md
-session_transcript: pending
+session_transcript: claude-app:23a15fdd-6d6c-4d84-a7be-960a54769157
 ---
 
 # Summary

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #495 (commit 4a873fbf4db6b6c0b0fcac12910cf30d26a024be)
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-STATUS-CHECK
 title: Add skill install status and check commands
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

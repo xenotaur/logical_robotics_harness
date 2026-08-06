@@ -2,10 +2,10 @@
 execution_id: 2026_08_06_02_48_50_WI_SKILLS_STATUS_CHECK_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_STATUS_CHECK_SELFREVIEW)[2026-08-06T02:48:43+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/495
+commit: 4a873fbf4db6b6c0b0fcac12910cf30d26a024be
 created_at: 2026-08-06T02:48:50+00:00
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SKILLS-STATUS-CHECK.md

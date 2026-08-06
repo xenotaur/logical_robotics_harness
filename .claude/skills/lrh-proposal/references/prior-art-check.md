@@ -21,12 +21,20 @@ new work is needed or should instead extend/replace what exists.
 
 **Search locations (in order):**
 
-1. **In-repo:** grep `src/`, `project/design/proposals/`, and
-   `.claude/skills/` for terms derived from the topic title/summary.
-   Suppress errors for absent paths (some are optional in client repos).
+1. **In-repo:** grep `src/`, `project/design/proposals/`,
+   `project/workstreams/`, `project/work_items/`, and `.claude/skills/` for
+   terms derived from the topic title/summary. A sibling planning artifact of
+   the same kind about to be created (an existing workstream or work item
+   covering the same topic, possibly under a different ID or wording) is
+   exactly the highest-risk duplicate, so this search must not rely solely on
+   the proposal/design-doc surface. Do not treat a governing proposal's own
+   cross-references as an exhaustive map of what already exists — a
+   concurrently created sibling artifact has no reason to be linked back into
+   an earlier proposal's text. Suppress errors for absent paths (some are
+   optional in client repos).
 
    ```bash
-   grep -rl "<key-term>" src/ project/design/proposals/ .claude/skills/ 2>/dev/null
+   grep -rl "<key-term>" src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ 2>/dev/null
    ```
 
 2. **Sibling repos:** ask the user: "Are there sibling repositories that

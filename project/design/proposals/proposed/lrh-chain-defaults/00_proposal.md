@@ -103,7 +103,7 @@ Options considered:
 
 **Chosen: repo-level, git-tracked plain YAML** (e.g.
 `project/config/chain-defaults.yaml`). Auditable in git history — a bad
-default is a visible, revertable commit, not opaque local state; travels
+default is a visible, revertible commit, not opaque local state; travels
 with the repo so every collaborator and both backends see the same
 values; consistent with this project's existing convention of storing
 decisions as reviewed files rather than machine-flippable config (the
@@ -132,21 +132,52 @@ implemented in that gate's own `SKILL.md`/reference file — mirroring
 `round-cap-gate.md`'s existing self-contained, gate-owned state pattern
 — rather than a shared rule library.
 
+**Which gates are eligible for the per-gate autopilot tier at all is
+narrower than "any gate" — see Decision 3's amendment below.**
+`DEC-DELIBERATE-CHAIN-INITIATION` categorically protects merge, publish,
+release, and closeout, "nor any skill's internal confirmation gate," from
+being satisfied by chain initiation. `/lrh-closeout` Step 4's plan-confirm
+gate is explicitly named there as one such gate. `confirm_fixes_batch` has
+a direct, already-adopted precedent for reduced asking
+(`WI-REVIEW-ROUND-ESCALATION-GATE`'s durable, human-gated-only-at-the-
+ceiling round cap) that `closeout_plan` does not — so the two example
+flags are not interchangeable candidates for the same treatment.
+
 ### Decision 3: Non-negotiable gates stay live every time
 
 Options considered:
-- Extend the profile to eventually cover the merge gate and chain-
-  initiation gate themselves, once trust is established.
-- Categorically exclude the merge gate (`DEC-AGENT-EXECUTED-MERGE-GATE`)
-  and the chain-initiation gate (`DEC-DELIBERATE-CHAIN-INITIATION`) from
-  any autopilot tier, permanently.
+- Extend the profile to eventually cover the merge gate, the chain-
+  initiation gate, and `/lrh-closeout`'s plan-confirm gate, once trust is
+  established.
+- Categorically exclude the merge gate (`DEC-AGENT-EXECUTED-MERGE-GATE`),
+  the chain-initiation gate, and `/lrh-closeout`'s plan-confirm gate
+  (both under `DEC-DELIBERATE-CHAIN-INITIATION`) from any autopilot tier,
+  permanently — leaving only gates without an explicit categorical
+  protection, and with their own reduced-asking precedent, as autopilot
+  candidates.
 
-**Chosen: categorical exclusion.** The profile changes *what's pre-filled
-and how often a gate asks*, never *whether* an irreversible or
-chain-starting action requires a live, in-session reply. This is a hard
-boundary, not a tunable default — consistent with both decisions'
-explicit "no chain starts itself" / "authorization requirement is
-unchanged" invariants.
+**Chosen: categorical exclusion, and it is wider than this proposal's
+first draft stated.** `DEC-DELIBERATE-CHAIN-INITIATION` names "merge,
+publish, release, and closeout" as protected human/policy gates and adds
+that chain initiation "never satisfies a skill's own internal
+confirmation gate," citing `/lrh-closeout` Step 4's plan-confirm gate by
+name as the example. An earlier draft of this proposal listed
+`closeout_plan` as an Increment 2 per-gate autopilot candidate alongside
+`confirm_fixes_batch` (Decision 2) — that draft contradicted this
+already-adopted decision, caught during this PR's own review round.
+Fixed: `/lrh-closeout`'s plan-confirm gate is excluded from the autopilot
+tier on the same categorical basis as merge and chain-initiation, not
+offered as an `auto_unless_unusual` candidate. `confirm_fixes_batch`
+remains a legitimate candidate specifically because
+`WI-REVIEW-ROUND-ESCALATION-GATE` already established, and this project
+already adopted, a durable-state mechanism that reduces asking frequency
+at that exact gate without violating the same decision — no equivalent
+precedent exists for closeout's plan-confirm gate. The profile changes
+*what's pre-filled and how often a gate asks*, never *whether* an
+irreversible, chain-starting, or internally-protected action requires a
+live, in-session reply. This is a hard boundary, not a tunable default —
+consistent with both decisions' explicit "no chain starts itself" /
+"authorization requirement is unchanged" invariants.
 
 ### Decision 4: Per-invocation override does not silently rewrite the profile
 
@@ -187,7 +218,12 @@ matching logic warn about elsewhere in this project.
   completion-condition wording, which gates start in
   `auto_unless_unusual` vs. `always_ask`) — Decision-level shape only;
   see Open Questions.
-- Does not cover backends other than Claude.app and Codex.app.
+- Does not cover backends other than Claude.app and Codex.app for this
+  proposal's own implementation work — the on-disk profile format itself
+  stays backend-agnostic plain YAML (Decision 1); this Non-Goal scopes
+  which backends this proposal's own Increment 1/2 work verifies and
+  wires up, not a limitation on the format a future third backend could
+  read.
 
 ## Implementation Plan
 
@@ -199,10 +235,13 @@ precedent in `WI-REVIEW-ROUND-ESCALATION-GATE`:
 1. **Increment 1 — chain-level defaults only**: profile schema, the
    propose-and-confirm flow at `/lrh-land`/`/lrh-execute` Step 2,
    completion/stop-condition and self-review-preference persistence.
-2. **Increment 2 — per-gate autopilot**: `confirm_fixes_batch` and
-   `closeout_plan` autopilot flags, once Increment 1 has session
-   evidence to steelman what "unusual" should mean per gate (see Open
-   Questions).
+2. **Increment 2 — per-gate autopilot**: `confirm_fixes_batch` autopilot
+   flag, once Increment 1 has session evidence to steelman what "unusual"
+   should mean for that gate (see Open Questions). `/lrh-closeout`'s
+   plan-confirm gate is excluded per Decision 3's amendment and is not an
+   Increment 2 candidate; if a future proposal wants to revisit that, it
+   must do so as an explicit amendment to `DEC-DELIBERATE-CHAIN-INITIATION`
+   itself, not as a quiet inclusion in this profile's per-gate tier.
 
 ## Open Questions
 

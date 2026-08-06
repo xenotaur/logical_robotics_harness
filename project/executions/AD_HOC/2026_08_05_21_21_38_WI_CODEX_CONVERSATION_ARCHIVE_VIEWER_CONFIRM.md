@@ -2,10 +2,10 @@
 execution_id: 2026_08_05_21_21_38_WI_CODEX_CONVERSATION_ARCHIVE_VIEWER_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_CODEX_CONVERSATION_ARCHIVE_VIEWER_CONFIRM)[2026-08-05T21:21:30+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_05_17_21_36_WI_CODEX_CONVERSATION_ARCHIVE_VIEWER_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/492
-commit: 0270cee2b1001e17536fbfa6c6f403171cb955db
+commit: 59ae473d3c2b4c7e9eb5937cd071bf7d0d4e9d91
 agent: codex_app
 instruction_source: skill:lrh-confirm-fixes https://github.com/xenotaur/logical_robotics_harness/pull/492
 session_transcript: none

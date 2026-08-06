@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented safe-default Codex conversation archive viewing and merged in PR #492 (commit 59ae473d)."
 blocked_reason: null
 blocked: false
 id: WI-CODEX-CONVERSATION-ARCHIVE-VIEWER
 title: Implement safe-default Codex conversation archive viewer
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

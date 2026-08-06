@@ -2,8 +2,8 @@
 id: WS-LRH-CODEX-CONVERSATION-EXPORTER
 kind: planning_node
 title: Codex Conversation Exporter
-status: proposed
-stage: assessed
+status: resolved
+stage: closed
 origin: proposal
 summary: >
   Coordinate implementation of private-by-default Codex conversation export
@@ -32,7 +32,7 @@ exit_criteria:
   - `lrh conversation inspect-export <path> --format text|json` validates manifest shape, source hashes when possible, sensitivity warnings, and stable JSON output
   - Tests cover valid exports, malformed exports, hash mismatch handling, sensitivity warning propagation, and JSON/text inspector behavior
   - User-facing conversation docs explain export, inspection, privacy, authority, and promotion boundaries
-  - Viewer support is either implemented through safe-default `lrh serve` archive viewing or explicitly deferred with a follow-up work item
+  - Viewer support is implemented through safe-default `lrh serve` archive viewing
   - PROP-LRH-CODEX-CONVERSATION-EXPORTER is adopted, superseded, or updated to reflect the implemented state
 ---
 
@@ -123,9 +123,8 @@ follow-up behavior not covered by the linked inspector item:
   inspection, privacy, authority, and reviewed promotion after the inspector
   behavior is stable.
 
-- **Viewer follow-up** — after the artifact contract and inspector have landed,
-  file a follow-up work item for safe-default `lrh serve` viewing of explicitly
-  configured archive roots.
+- `WI-CODEX-CONVERSATION-ARCHIVE-VIEWER` — implement safe-default `lrh serve`
+  viewing of explicitly configured archive roots.
 
 ## Exit Criteria
 
@@ -140,8 +139,7 @@ follow-up behavior not covered by the linked inspector item:
   sensitivity warning propagation, and JSON/text inspector behavior.
 - User-facing conversation docs explain export, inspection, privacy, authority,
   and promotion boundaries.
-- Viewer support is explicitly deferred with a follow-up work item after the
-  artifact contract and inspector are stable.
+- Viewer support is implemented through safe-default `lrh serve` archive viewing.
 - `PROP-LRH-CODEX-CONVERSATION-EXPORTER` is adopted, superseded, or updated to
   reflect the implemented state.
 

@@ -2,11 +2,15 @@
 id: PROP-LRH-CODEX-CONVERSATION-EXPORTER
 type: design_proposal
 title: LRH Codex Conversation Exporter and Inspectable Transcript Artifacts
-status: proposed
+status: adopted
 created_on: 2026-08-02
 updated_on: 2026-08-02
-implementation_status: not_started
-implemented_by: []
+implementation_status: implemented
+implemented_by:
+  - WI-CODEX-CONVERSATION-EXPORT-MANIFEST
+  - WI-CODEX-CONVERSATION-EXPORT-ADAPTER
+  - WI-CODEX-CONVERSATION-INSPECT-EXPORT
+  - WI-CODEX-CONVERSATION-ARCHIVE-VIEWER
 supersedes: []
 superseded_by: null
 related_design:

@@ -2,6 +2,7 @@ import json
 import pathlib
 import tempfile
 import unittest
+import unittest.mock
 
 from lrh import prompt_workflow_sessions
 
@@ -149,6 +150,60 @@ class SessionIndexTest(unittest.TestCase):
             lines = path.read_text(encoding="utf-8").splitlines()
             host_ids = [json.loads(line)["host_id"] for line in lines]
             self.assertEqual(host_ids, ["alpha", "zeta"])
+
+    def test_written_branches_key_is_snake_case(self) -> None:
+        # Regression: docs/docstrings must never drift to the proposal's
+        # own camelCase writtenBranches[] vocabulary -- the actual JSON key
+        # and CLI flag are snake_case.
+        with tempfile.TemporaryDirectory() as tmp:
+            path = prompt_workflow_sessions.record_session_observation(
+                tmp,
+                host_id="host-e",
+                written_branches=["b"],
+                updated_at="2026-08-06T00:00:00+00:00",
+            )
+            data = json.loads(path.read_text(encoding="utf-8").splitlines()[0])
+            self.assertIn("written_branches", data)
+            self.assertNotIn("writtenBranches", data)
+
+    def test_interrupted_write_never_truncates_existing_index(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt_workflow_sessions.record_session_observation(
+                tmp,
+                host_id="host-first",
+                child_id="child-first",
+                updated_at="2026-08-06T00:00:00+00:00",
+            )
+            path = prompt_workflow_sessions.index_path(tmp)
+            original_content = path.read_text(encoding="utf-8")
+
+            with unittest.mock.patch(
+                "lrh.prompt_workflow_sessions.os.replace",
+                side_effect=OSError("simulated interruption"),
+            ):
+                with self.assertRaises(OSError):
+                    prompt_workflow_sessions.record_session_observation(
+                        tmp,
+                        host_id="host-second",
+                        child_id="child-second",
+                        updated_at="2026-08-06T01:00:00+00:00",
+                    )
+
+            self.assertEqual(
+                path.read_text(encoding="utf-8"),
+                original_content,
+                "a failed replace must leave the previous complete index intact",
+            )
+            leftover_temp_files = [
+                p
+                for p in pathlib.Path(tmp, "project", "sessions").iterdir()
+                if p.name != "index.jsonl"
+            ]
+            self.assertEqual(
+                leftover_temp_files,
+                [],
+                "the temp file must be cleaned up even when the replace fails",
+            )
 
     def test_empty_host_id_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

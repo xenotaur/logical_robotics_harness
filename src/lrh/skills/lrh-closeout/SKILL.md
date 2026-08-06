@@ -298,8 +298,9 @@ fields in-place, and prints `updated: <path>` on success.
 See `references/closeout-workflow.md` for valid field values and the
 `session_transcript:` `pending` convention.
 
-**Session identity capture** (only for a record whose Step 3 resolution used
-path 1, the same-window env var):
+**Session identity capture** (for every record, regardless of which Step 3
+path resolved the host id — the host-to-PR association is worth recording
+either way):
 
 ```bash
 lrh prompt record-session-alias \
@@ -309,9 +310,12 @@ lrh prompt record-session-alias \
   --project-root .
 ```
 
-Skip this entirely for records resolved via path 2 (`list_sessions` by PR)
-or path 3 (pasted URL) — pairing a cross-session host id with the *current*
-window's child id would record a false alias. See
+**Omit `--child-id` entirely** (do not pass the flag) for records resolved
+via path 2 (`list_sessions` by PR) or path 3 (pasted URL) — pairing a
+cross-session host id with the *current* window's child id would record a
+false alias. The command and its underlying merge both treat a missing
+child id as "nothing to add here," not as an error, so the host id and PR
+are still captured on those paths; only the alias is withheld. See
 `references/closeout-workflow.md`'s "Session identity capture" section.
 
 **Work items** (for each WI marked `resolve and move`):

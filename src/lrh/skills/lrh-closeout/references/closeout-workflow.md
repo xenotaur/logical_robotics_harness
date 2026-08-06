@@ -293,19 +293,33 @@ records both together so the mapping is not lost. This capture is
 independent of the `session_transcript` field above — writing to it does
 not change that field's grammar or validator rules.
 
-**Capture only on resolution-order path 1.** Only when `$CLAUDE_CODE_HOST_SESSION_ID`
-was read directly in Step 3 and confirmed by the user does
-`$CLAUDE_CODE_SESSION_ID` in this same window belong to that same session.
-On path 2 (`list_sessions` by PR number) or path 3 (pasted View > Copy URL),
-the resolved host id belongs to a *different* window than the one running
-closeout right now — recording the current window's child id against that
-host id would create a false alias. Leave `--child-id` unset (omit the flag
-entirely) in those two cases; do not pass an empty string.
+**Always record the observation; the child-id alias is what's conditional.**
+Every resolution path (1, 2, or 3) yields a real, confirmed host id and a PR
+worth recording — that association is useful on its own even without a
+child-id alias, so call `record-session-alias` regardless of which path
+resolved the host id.
+
+**Only pair the child id on resolution-order path 1.** Only when
+`$CLAUDE_CODE_HOST_SESSION_ID` was read directly in Step 3 and confirmed by
+the user does `$CLAUDE_CODE_SESSION_ID` in this same window belong to that
+same session. On path 2 (`list_sessions` by PR number) or path 3 (pasted
+View > Copy URL), the resolved host id belongs to a *different* window than
+the one running closeout right now — recording the current window's child
+id against that host id would create a false alias. **Omit `--child-id`
+entirely** (do not pass the flag, and do not pass an empty string) in those
+two cases; the command still records the host id and PR.
 
 ```bash
+# Path 1 (same window): pair host + child.
 lrh prompt record-session-alias \
   --host-id <host-uuid-stem-from-step-3> \
   --child-id "$CLAUDE_CODE_SESSION_ID" \
+  --pr <pr-url> \
+  --project-root .
+
+# Path 2 or 3 (cross-session / manual): host + PR only, no child-id flag.
+lrh prompt record-session-alias \
+  --host-id <host-uuid-stem-from-step-3> \
   --pr <pr-url> \
   --project-root .
 ```

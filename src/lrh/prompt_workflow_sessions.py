@@ -1,7 +1,7 @@
 """Minimal project/sessions/ index: host<->child session identity capture.
 
 Stage 1 of PROP-LRH-SESSION-ARCHIVE-SYNC. This module owns only identity
-capture (host id, child id aliases, title, PRs, branch/writtenBranches[]
+capture (host id, child id aliases, title, PRs, branch/written_branches
 fields reserved for later fork stitching). It does not archive transcript
 content, reconcile against /export metadata, or implement lrh sessions
 sync/discover/link/report -- those are later stages.
@@ -9,9 +9,12 @@ sync/discover/link/report -- those are later stages.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import json
+import os
 import pathlib
+import tempfile
 import typing
 
 
@@ -141,5 +144,31 @@ def record_session_observation(
         json.dumps(records[key].to_json_dict(), sort_keys=True)
         for key in sorted(records)
     ]
-    path.write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
+    content = "\n".join(lines) + ("\n" if lines else "")
+    _atomic_write(path, content)
     return path
+
+
+def _atomic_write(path: pathlib.Path, content: str) -> None:
+    """Write ``content`` to ``path`` without ever leaving a truncated file.
+
+    A plain write_text() truncates the destination before writing; an
+    interruption or I/O error mid-write can leave index.jsonl empty or
+    partially written, silently erasing every previously captured host/
+    child mapping. Writing to a temp file in the same directory and
+    renaming into place is atomic on POSIX (and os.replace is atomic on
+    Windows too), so readers only ever see the old complete content or the
+    new complete content, never a partial write.
+    """
+
+    fd, tmp_name = tempfile.mkstemp(
+        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(content)
+        os.replace(tmp_name, path)
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(tmp_name)
+        raise

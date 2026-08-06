@@ -200,7 +200,7 @@ only the **host** id, but transcript files on disk are named by the
 else durably records that mapping, so a dangling `session_transcript`
 pointer cannot always be resolved back to its transcript. `project/sessions/index.jsonl`
 closes that gap by recording both ids together, plus title, PRs, and
-branch/`writtenBranches[]` fields reserved for later fork stitching
+branch/`written_branches` fields reserved for later fork stitching
 (Stage 3 enriches this schema; it does not replace it).
 
 ### `lrh prompt record-session-alias`
@@ -241,6 +241,8 @@ hand-edited.
 
 - **`/lrh-implement` Step 9** — always live, single-session: read both env
   vars directly and pair them (see that skill's Step 9).
-- **`/lrh-closeout` Step 5** — only on the same-window resolution path
-  (Step 3 path 1); leave `--child-id` unset on paths 2/3 (see
+- **`/lrh-closeout` Step 5** — every record, on every resolution path; only
+  the `--child-id` pairing is conditional — include it on Step 3 path 1
+  (same window), omit the flag entirely on paths 2/3 (cross-session), since
+  the host id and PR are still worth recording either way (see
   `references/closeout-workflow.md`'s "Session identity capture" section).

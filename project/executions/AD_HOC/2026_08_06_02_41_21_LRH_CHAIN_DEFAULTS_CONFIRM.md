@@ -2,10 +2,10 @@
 execution_id: 2026_08_06_02_41_21_LRH_CHAIN_DEFAULTS_CONFIRM
 prompt_id: PROMPT(AD_HOC:LRH_CHAIN_DEFAULTS_CONFIRM)[2026-08-06T02:41:15+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_05_06_42_48_LRH_CHAIN_DEFAULTS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/490
-commit: 06f90de
+commit: ff89ec6d54aebed60b04f61dba76cb21b8dd114d
 created_at: 2026-08-06T02:41:21+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/490

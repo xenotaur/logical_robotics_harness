@@ -204,6 +204,14 @@ stopping at the first that yields a confident value:
    var, the browser URL wins (case 3). When they agree, store the env-var
    value.
 
+   **This is the only path that may also capture a child-id alias.** Once
+   confirmed, `$CLAUDE_CODE_SESSION_ID` (still set in this same window) names
+   the same session as the confirmed host id — pair them in
+   `project/sessions/index.jsonl` at Step 5. Paths 2 and 3 below resolve a
+   host id belonging to a *different* window than the one running closeout
+   right now, so this pairing must not be made there — see
+   `references/closeout-workflow.md`'s "Session identity capture" section.
+
 2. **Cross-session — `list_sessions` by PR number.** When closing out on
    `main` after merge from a *different* session than the one that did the
    work, the env var is not the right session. Use the session-management
@@ -289,6 +297,22 @@ fields in-place, and prints `updated: <path>` on success.
 
 See `references/closeout-workflow.md` for valid field values and the
 `session_transcript:` `pending` convention.
+
+**Session identity capture** (only for a record whose Step 3 resolution used
+path 1, the same-window env var):
+
+```bash
+lrh prompt record-session-alias \
+  --host-id <host-uuid-stem-confirmed-in-step-3> \
+  --child-id "$CLAUDE_CODE_SESSION_ID" \
+  --pr <pr-url> \
+  --project-root .
+```
+
+Skip this entirely for records resolved via path 2 (`list_sessions` by PR)
+or path 3 (pasted URL) — pairing a cross-session host id with the *current*
+window's child id would record a false alias. See
+`references/closeout-workflow.md`'s "Session identity capture" section.
 
 **Work items** (for each WI marked `resolve and move`):
 

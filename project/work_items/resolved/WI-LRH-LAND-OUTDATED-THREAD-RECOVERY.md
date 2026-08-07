@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #511 (commit ffabbe9)"
 blocked_reason: null
 blocked: false
 id: WI-LRH-LAND-OUTDATED-THREAD-RECOVERY
 title: Governed outdated-thread recovery path in /lrh-land Step 4/5
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

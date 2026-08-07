@@ -2,13 +2,13 @@
 execution_id: 2026_08_07_19_31_37_WI_LRH_LAND_OUTDATED_THREAD_RECOVERY_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_LAND_OUTDATED_THREAD_RECOVERY_REVIEW)[2026-08-07T19:31:11+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_07_18_33_41_WI_LRH_LAND_OUTDATED_THREAD_RECOVERY_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/511
-commit: 02bb16805aa40ccafbe2297044e424f8cd3d59c6
+commit: ffabbe901c1bcae5321d2e14983ff6c0371d53d8
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/511
-session_transcript: pending
+session_transcript: claude-app:61881211-bfd7-40cb-8080-33938a265398
 created_at: 2026-08-07T19:31:37+00:00
 ---
 

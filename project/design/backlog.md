@@ -31,19 +31,19 @@ Step 2 (the command itself does not filter) — as input instead of
 re-deriving its own narrower list — so `/lrh-land` Step 4 can handle this
 case mechanically instead of requiring a documented manual workaround.
 
-**Status:** Tracked, not yet implemented. `/lrh-land` Step 4's `SKILL.md`
-text documents that a not-green Step 5 verdict caused by this case is a
-plain hard stop (no special-cased recovery path), the same as any other
-not-green verdict — the human decides how to proceed, until the
-implementation below lands. Designed via `/lrh-design` on 2026-08-01 and
-filed as `PROP-OUTDATED-THREAD-RECOVERY`
+**Status:** Closed 2026-08-07. Designed via `/lrh-design` on 2026-08-01
+and filed as `PROP-OUTDATED-THREAD-RECOVERY`
 (`project/design/proposals/proposed/outdated-thread-recovery/00_proposal.md`),
 with two work items: `WI-REVIEW-RESPONSE-INCLUDE-THREAD` (the mechanical
-`lrh request review_response` fix) and
+`lrh request review_response` fix, PR #497) and
 `WI-LRH-LAND-OUTDATED-THREAD-RECOVERY` (the governed `/lrh-land` Step 4/5
-recovery flow, depends on the former). This entry stays open until both
-work items are implemented and resolved; do not delete it on proposal
-adoption alone.
+recovery flow, PR #511). Both are now `resolved/`, satisfying this
+entry's own close condition. The governed recovery path — precondition
+check against the run's stop-work condition, hard bucket-scoping to
+Unaddressed/Partial/Problematic resolution, `--include-thread`
+propagation into `/lrh-review-response`'s Step 2, and a same-run
+continuation carve-out in that skill's Step 3 idempotence check — is
+live in `/lrh-land` Step 5 and `/lrh-review-response` Step 3.
 
 An earlier revision of this PR tried to solve the recovery path in prose
 instead — a `/lrh-land` Step 5 exception letting the operator fix the

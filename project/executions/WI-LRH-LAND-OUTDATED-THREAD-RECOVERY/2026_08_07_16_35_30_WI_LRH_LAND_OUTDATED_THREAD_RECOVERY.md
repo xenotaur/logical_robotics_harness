@@ -2,14 +2,14 @@
 execution_id: 2026_08_07_16_35_30_WI_LRH_LAND_OUTDATED_THREAD_RECOVERY
 prompt_id: PROMPT(WI-LRH-LAND-OUTDATED-THREAD-RECOVERY:WI_LRH_LAND_OUTDATED_THREAD_RECOVERY)[2026-08-07T16:27:48+00:00]
 work_item: WI-LRH-LAND-OUTDATED-THREAD-RECOVERY
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/511
-commit: 11b36e0fa042f303990d0197d686324562ad50f0
+commit: ffabbe901c1bcae5321d2e14983ff6c0371d53d8
 created_at: 2026-08-07T16:35:30+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-LAND-OUTDATED-THREAD-RECOVERY.md
-session_transcript: pending
+session_transcript: claude-app:61881211-bfd7-40cb-8080-33938a265398
 ---
 
 # Summary

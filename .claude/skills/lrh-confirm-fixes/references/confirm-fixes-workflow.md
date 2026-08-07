@@ -342,20 +342,23 @@ work item, with side records linked via `rerun_of`.
 xenotaur/feat/wi-skills-lrh-confirm-fixes → wi-skills-lrh-confirm-fixes-confirm
 ```
 
-**`rerun_of` population:** search for candidates, then classify each as
-primary or side by provenance — not a bare filename-suffix exclusion, which
+**`rerun_of` population:** convert the branch slug to upper-underscore
+form (`UPPER_SLUG`), then verify whether a genuine primary record with
+exactly that slug exists — not a bare filename-suffix exclusion, which
 would misclassify a primary record whose own topic slug ends in "review,"
-"confirm," etc. See `/lrh-land/references/land-workflow.md` § Primary vs.
-side-record provenance check for the full algorithm (shared with `/lrh-land`
-Step 1 and `/lrh-review-response`'s own `rerun_of` search) and why:
+"confirm," etc., and not a uniform substring/trailing-exact glob applied
+to every candidate alike (both were tried in this project's own history
+and both broke). See `/lrh-land/references/land-workflow.md` § A separate,
+narrower algorithm for the two slug-based `rerun_of` searches for the full
+algorithm (shared with `/lrh-review-response`'s own `rerun_of` search) and
+why the two simpler attempts each failed:
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-candidates=$(find project/executions/ -name "*${UPPER_SLUG}*.md")
 ```
 
-Run the provenance-check algorithm against `$candidates` to get `$primary`
-and `$ambiguous`. If `$primary` is found, set
+Run the target-verification algorithm from that section against
+`UPPER_SLUG` to get `$primary` and `$ambiguous`. If `$primary` is found, set
 `rerun_of: <execution_id-from-the-primary-record>`. If both are empty (the
 PR was created outside `/lrh-implement`, as in a planning-only PR with no
 primary record), leave `rerun_of:` empty and note it in the body. If

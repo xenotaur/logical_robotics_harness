@@ -276,27 +276,26 @@ targets and a fixed precedence between them:
    the more specific, immediate lineage (this exact invocation's own prior
    attempt), not just a relation to the primary implementation.
 2. **The primary implementation record, only if Step 3 found nothing.**
-   Convert the branch slug to upper-underscore form and match the
-   complete trailing filename segment — not a bare substring, which would
-   also match an unrelated longer slug that happens to contain this one —
-   then classify each matching candidate as primary or side by
-   provenance — **not** a bare filename-suffix exclusion, which would
-   misclassify a primary record whose own topic slug ends in "review,"
-   "confirm," etc. See `/lrh-land/references/land-workflow.md` § Primary
-   vs. side-record provenance check for the full algorithm and why:
+   Convert the branch slug to upper-underscore form (`UPPER_SLUG`), then
+   verify whether a genuine primary record with exactly that slug exists
+   — **not** a bare filename-suffix exclusion (misclassifies a primary
+   record whose own topic slug ends in "review," "confirm," etc.) and
+   **not** a bare substring/trailing-exact glob applied uniformly to every
+   candidate (both were tried and both broke — see
+   `/lrh-land/references/land-workflow.md` § A separate, narrower
+   algorithm for the two slug-based `rerun_of` searches for the full
+   algorithm, why the two simpler attempts failed, and why this one
+   doesn't):
 
    ```bash
    UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-   candidates=$(find project/executions/ -name "*_${UPPER_SLUG}.md" 2>/dev/null)
    ```
 
-   Run the provenance-check algorithm against `$candidates` to get
-   `$primary` and `$ambiguous`. If `$primary` is found, add
-   `rerun_of: <original-execution-id>` to the frontmatter. If `$ambiguous`
-   is non-empty instead, leave `rerun_of` empty and note the ambiguity in
-   the body rather than guessing — see `land-workflow.md`'s
-   provenance-check section for why this case can't be resolved from
-   naming alone.
+   Run the target-verification algorithm from that section against
+   `UPPER_SLUG` to get `$primary` and `$ambiguous`. If `$primary` is
+   found, add `rerun_of: <original-execution-id>` to the frontmatter. If
+   `$ambiguous` is non-empty instead, leave `rerun_of` empty and note the
+   ambiguity in the body rather than guessing.
 
 If neither `$primary` nor `$ambiguous` yields a match, leave `rerun_of` empty.
 

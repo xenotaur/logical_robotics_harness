@@ -294,20 +294,22 @@ and the body: which threads were resolved (author, bucket), which were
 surfaced (bucket, rationale), and the Step 6 thread-resolution verdict.
 
 Find the primary execution record for `rerun_of`. Convert the branch slug
-(without the `-confirm` suffix) to upper-underscore form, then classify each
-matching candidate as primary or side by provenance (**not** a bare
-filename-suffix exclusion — a primary record whose own topic slug ends in
-"review," "confirm," etc. would self-exclude; see `/lrh-land/references/land-workflow.md`
-§ Primary vs. side-record provenance check for the full algorithm and why):
+(without the `-confirm` suffix) to upper-underscore form (`UPPER_SLUG`),
+then verify whether a genuine primary record with exactly that slug
+exists — **not** a bare filename-suffix exclusion (a primary record whose
+own topic slug ends in "review," "confirm," etc. would self-exclude) and
+**not** a uniform substring/trailing-exact glob applied to every candidate
+alike (both were tried in this project's own history and both broke —
+see `/lrh-land/references/land-workflow.md` § A separate, narrower
+algorithm for the two slug-based `rerun_of` searches for the full
+algorithm and why):
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-candidates=$(find project/executions/ -name "*${UPPER_SLUG}*.md")
 ```
 
-Run the provenance-check algorithm from `land-workflow.md` § Primary vs.
-side-record provenance check against `$candidates` to get `$primary` and
-`$ambiguous`.
+Run the target-verification algorithm from that section against
+`UPPER_SLUG` to get `$primary` and `$ambiguous`.
 
 If `$primary` is found, set `rerun_of: <original-execution-id>`. If both
 are empty, leave `rerun_of:` empty and note it in the body. If `$ambiguous`

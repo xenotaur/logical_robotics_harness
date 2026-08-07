@@ -1,10 +1,15 @@
 """Minimal project/sessions/ index: host<->child session identity capture.
 
-Stage 1 of PROP-LRH-SESSION-ARCHIVE-SYNC. This module owns only identity
-capture (host id, child id aliases, title, PRs, branch/written_branches
-fields reserved for later fork stitching). It does not archive transcript
-content, reconcile against /export metadata, or implement lrh sessions
-sync/discover/link/report -- those are later stages.
+Stage 1 of PROP-LRH-SESSION-ARCHIVE-SYNC added identity capture (host id,
+child id aliases, title, PRs, branch/written_branches fields reserved for
+later fork stitching). Stage 2 (WI-SESSION-ARCHIVE-SYNC-RECONCILER) adds
+the archive reconciler: mirroring raw transcripts into a durable local
+archive, harvesting /export metadata.json for the host<->child<->PR
+mapping on pointers that already dangle, and the discover/link lookups
+that read the resulting archive and index. It does not implement
+lrh sessions report or index *enrichment* (era-general keys, multi-export
+dedup) -- those are Stage 3 -- nor the weekly/hook-triggered sync -- Stage
+4. It does not change the session_transcript scalar/sequence grammar.
 """
 
 from __future__ import annotations
@@ -14,8 +19,10 @@ import dataclasses
 import json
 import os
 import pathlib
+import re
 import tempfile
 import typing
+import zipfile
 
 
 @dataclasses.dataclass(frozen=True)
@@ -172,3 +179,423 @@ def _atomic_write(path: pathlib.Path, content: str) -> None:
         with contextlib.suppress(FileNotFoundError):
             os.remove(tmp_name)
         raise
+
+
+def _atomic_write_bytes(path: pathlib.Path, content: bytes) -> None:
+    """Byte-mode counterpart of ``_atomic_write``, for transcript mirroring.
+
+    Transcript JSONLs are copied verbatim (not re-serialized), so this
+    avoids a text round-trip that could alter encoding-sensitive bytes.
+    Same atomicity guarantee: readers only ever see the old complete
+    content or the new complete content, never a partial write.
+    """
+
+    fd, tmp_name = tempfile.mkstemp(
+        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+        os.replace(tmp_name, path)
+    except BaseException:
+        with contextlib.suppress(FileNotFoundError):
+            os.remove(tmp_name)
+        raise
+
+
+# ---------------------------------------------------------------------------
+# Archive root resolution
+# ---------------------------------------------------------------------------
+
+ARCHIVE_ROOT_ENV_VAR = "LRH_SESSION_ARCHIVE_ROOT"
+
+
+def default_archive_root() -> pathlib.Path:
+    """Default local archive root when neither an override nor the env var
+    is set. The proposal's archive-root-location open question is not
+    resolved by this default -- it is only a starting point, and both
+    ``--archive-root`` and ``LRH_SESSION_ARCHIVE_ROOT`` take precedence."""
+
+    return pathlib.Path.home() / ".local" / "share" / "lrh" / "session-archive"
+
+
+def resolve_archive_root(
+    override: str | pathlib.Path | None = None,
+) -> pathlib.Path:
+    """Resolve the archive root: ``override`` > env var > default."""
+
+    if override:
+        return pathlib.Path(override).expanduser()
+    env_value = os.environ.get(ARCHIVE_ROOT_ENV_VAR)
+    if env_value:
+        return pathlib.Path(env_value).expanduser()
+    return default_archive_root()
+
+
+# ---------------------------------------------------------------------------
+# Raw-JSONL mirroring (append-safe, never truncates a growing transcript)
+# ---------------------------------------------------------------------------
+
+
+def discover_transcripts(claude_projects_root: pathlib.Path) -> list[pathlib.Path]:
+    """All local Claude Code transcript JSONLs under ``<root>/*/*.jsonl``."""
+
+    if not claude_projects_root.exists():
+        return []
+    return sorted(claude_projects_root.glob("*/*.jsonl"))
+
+
+@dataclasses.dataclass(frozen=True)
+class MirrorResult:
+    source: pathlib.Path
+    dest: pathlib.Path
+    copied: bool
+
+
+def mirror_transcript(
+    source: pathlib.Path,
+    archive_root: pathlib.Path,
+    *,
+    project_slug: str,
+) -> MirrorResult:
+    """Mirror ``source`` into ``<archive_root>/raw/<project_slug>/<name>``.
+
+    Re-copies whenever the source has grown or changed, and is a no-op
+    when unchanged -- comparing size/mtime, not mere existence, per the
+    append-safety requirement: a session can remain active across several
+    syncs, and its transcript grows during that time. The archived copy is
+    written atomically (temp file + rename), so an interrupted copy never
+    leaves a truncated file in place of a complete earlier one -- the
+    destination is either the old complete copy or the new complete copy,
+    never a partial write.
+
+    The never-shrink invariant is a hard floor on size, independent of
+    mtime: a source smaller than the already-archived copy is **never**
+    copied, even if its mtime is newer (e.g. a rewritten, truncated, or
+    restored-from-backup source) -- an mtime-only trigger would otherwise
+    let a newer-but-smaller source overwrite a larger archived copy,
+    silently losing already-archived content.
+    """
+
+    dest = archive_root / "raw" / project_slug / source.name
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    src_stat = source.stat()
+    if dest.exists():
+        dest_stat = dest.stat()
+        if src_stat.st_size < dest_stat.st_size:
+            return MirrorResult(source=source, dest=dest, copied=False)
+        if (
+            src_stat.st_size == dest_stat.st_size
+            and src_stat.st_mtime <= dest_stat.st_mtime
+        ):
+            return MirrorResult(source=source, dest=dest, copied=False)
+    _atomic_write_bytes(dest, source.read_bytes())
+    return MirrorResult(source=source, dest=dest, copied=True)
+
+
+_SESSION_ID_FIELD = "sessionId"
+
+
+def collect_child_id_aliases(jsonl_path: pathlib.Path) -> set[str]:
+    """Distinct ``sessionId`` values found on any line of ``jsonl_path``.
+
+    A transcript's filename stem names only its *current* child id. On a
+    resumed lineage, earlier lines can carry a different, still-valid
+    child id that appears in no filename anywhere -- scanning every line
+    is what makes alias collection complete rather than filename-only.
+    Malformed lines are skipped rather than raising, since a transcript is
+    append-only application data, not a format this module controls.
+    """
+
+    aliases: set[str] = set()
+    if not jsonl_path.exists():
+        return aliases
+    for line in jsonl_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(data, dict):
+            continue
+        session_id = data.get(_SESSION_ID_FIELD)
+        if isinstance(session_id, str) and session_id:
+            aliases.add(session_id)
+    return aliases
+
+
+def reconcile_child_id_aliases(
+    project_root: str | pathlib.Path,
+    jsonl_path: pathlib.Path,
+    *,
+    updated_at: str,
+) -> tuple[str, frozenset[str]] | None:
+    """Fold every line-level ``sessionId`` alias in ``jsonl_path`` into the
+    index, for whichever host id the index already associates with any one
+    of them.
+
+    Raw JSONL alone cannot resolve a *new* host id (Decision 1 of the
+    governing proposal), so this only extends an *already-known* mapping:
+    if none of the transcript's aliases are yet linked to a host, this is a
+    no-op and returns ``None`` -- the export-metadata harvest (or a future
+    Stage 3 recovery pass) is what establishes the first link. Once any one
+    alias is known, every other alias found in the same file (including
+    ones that appear in no filename anywhere, per PR #435's documented
+    case) is recorded as a further child id of that same host.
+
+    Returns ``(host_id, newly_added_aliases)`` when it added at least one
+    new alias, else ``None``.
+    """
+
+    aliases = collect_child_id_aliases(jsonl_path)
+    if not aliases:
+        return None
+    child_to_host: dict[str, str] = {}
+    for record in load_session_index(project_root).values():
+        for child_id in record.child_ids:
+            child_to_host[child_id] = record.host_id
+    known_host_ids = {child_to_host[a] for a in aliases if a in child_to_host}
+    if not known_host_ids:
+        return None
+    # Ambiguous if the file's aliases are already split across more than
+    # one host in the index -- do not guess which one to extend.
+    if len(known_host_ids) > 1:
+        return None
+    host_id = next(iter(known_host_ids))
+    existing_record = load_session_index(project_root).get(host_id)
+    already_known = set(existing_record.child_ids) if existing_record else set()
+    new_aliases = aliases - already_known
+    if not new_aliases:
+        return None
+    for alias in sorted(new_aliases):
+        record_session_observation(
+            project_root, host_id=host_id, updated_at=updated_at, child_id=alias
+        )
+    return host_id, frozenset(new_aliases)
+
+
+# ---------------------------------------------------------------------------
+# /export zip metadata harvest (identity fields only -- never bodies/logs)
+# ---------------------------------------------------------------------------
+
+# Exactly the identity fields the governing proposal's archive layout
+# reserves (Decision 2): sessionId (host), cliSessionId (child), prNumber,
+# prs[], branch, title. Never transcript bodies or logs/ -- those stay
+# out by construction, since only these keys are ever read out of the zip.
+EXPORT_IDENTITY_FIELDS = (
+    "sessionId",
+    "cliSessionId",
+    "prNumber",
+    "prs",
+    "branch",
+    "title",
+)
+
+
+class ExportMetadataError(Exception):
+    """The export zip does not contain a usable ``metadata.json``."""
+
+
+def harvest_export_metadata(export_zip: pathlib.Path) -> dict[str, typing.Any]:
+    """Read only the permitted identity fields from an ``/export`` zip's
+    ``metadata.json`` -- never the transcript body or the bundled ``logs/``,
+    which is not opened or listed at all."""
+
+    try:
+        with zipfile.ZipFile(export_zip) as archive:
+            with archive.open("metadata.json") as handle:
+                raw = json.load(handle)
+    except (zipfile.BadZipFile, KeyError, json.JSONDecodeError) as error:
+        raise ExportMetadataError(
+            f"{export_zip}: not a valid export zip with metadata.json"
+        ) from error
+    if not isinstance(raw, dict):
+        raise ExportMetadataError(f"{export_zip}: metadata.json is not an object")
+    return {key: raw[key] for key in EXPORT_IDENTITY_FIELDS if key in raw}
+
+
+def session_key_from_metadata(metadata: dict[str, typing.Any]) -> str | None:
+    """The host id (``local_`` prefix stripped) named by harvested metadata."""
+
+    session_id = metadata.get("sessionId")
+    if not isinstance(session_id, str) or not session_id:
+        return None
+    return session_id.removeprefix("local_")
+
+
+def export_pr_urls(metadata: dict[str, typing.Any]) -> list[str]:
+    """PR URLs named by harvested metadata, from the ``prs[]`` list."""
+
+    urls: list[str] = []
+    for entry in metadata.get("prs") or ():
+        if isinstance(entry, dict):
+            url = entry.get("url")
+            if isinstance(url, str) and url:
+                urls.append(url)
+    return urls
+
+
+def exports_path(archive_root: pathlib.Path, session_key: str) -> pathlib.Path:
+    return archive_root / "exports" / session_key / "metadata.json"
+
+
+def persist_export_metadata(
+    archive_root: pathlib.Path,
+    session_key: str,
+    metadata: dict[str, typing.Any],
+) -> pathlib.Path:
+    """Atomically write the sanitized identity-fields-only metadata copy
+    so Stage 3 can rebuild or enrich the index later (recovering
+    ``written_branches``/``cwd``, multi-export latest-wins) even if the
+    original export zip is subsequently deleted -- per Decision 2's
+    archive layout, this copy is what makes the harvest re-derivable."""
+
+    dest = exports_path(archive_root, session_key)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    content = json.dumps(metadata, indent=2, sort_keys=True) + "\n"
+    _atomic_write(dest, content)
+    return dest
+
+
+def sync_export(
+    project_root: str | pathlib.Path,
+    archive_root: pathlib.Path,
+    export_zip: pathlib.Path,
+    *,
+    updated_at: str,
+) -> SessionRecord | None:
+    """Harvest one ``/export`` zip, persist its sanitized metadata copy,
+    then upsert the resulting host<->child<->PR mapping into the index.
+
+    Returns ``None`` (with the persisted copy still written) when the
+    metadata has no usable host id -- there is nothing to key an index
+    entry on, but the archived metadata copy remains valid for later
+    reconciliation.
+    """
+
+    metadata = harvest_export_metadata(export_zip)
+    session_key = session_key_from_metadata(metadata)
+    persist_export_metadata(archive_root, session_key or export_zip.stem, metadata)
+    if session_key is None:
+        return None
+
+    child_id = metadata.get("cliSessionId")
+    title = metadata.get("title")
+    branch = metadata.get("branch")
+    pr_urls = export_pr_urls(metadata) or [None]
+    # metadata.json can name several PRs (prs[]); record_session_observation
+    # merges one PR per call, so fold each in with its own call -- the
+    # first call also carries child_id/title/branch, the rest are pure
+    # PR-set unions against the record the first call just wrote.
+    first_child_id = child_id if isinstance(child_id, str) and child_id else None
+    first_title = title if isinstance(title, str) else None
+    first_branch = branch if isinstance(branch, str) else None
+    for index, pr_url in enumerate(pr_urls):
+        record_session_observation(
+            project_root,
+            host_id=session_key,
+            updated_at=updated_at,
+            child_id=first_child_id if index == 0 else None,
+            title=first_title if index == 0 else None,
+            pr=pr_url,
+            branch=first_branch if index == 0 else None,
+        )
+    return load_session_index(project_root).get(session_key)
+
+
+# ---------------------------------------------------------------------------
+# discover / link lookups
+# ---------------------------------------------------------------------------
+
+_PROJECT_SLUG_UNSAFE = re.compile(r"[/.]")
+
+
+def project_slug_for_path(path: str | pathlib.Path) -> str:
+    """Claude Code's own project-slug rule: normalize ``/`` and ``.`` to
+    ``-`` in the absolute path, matching how it names
+    ``~/.claude/projects/<slug>/``.
+
+    Verified against every real directory under ``~/.claude/projects/``
+    on this machine: a `.claude/worktrees/...` path segment becomes
+    `-claude-worktrees-...` (the leading dot *is* replaced), while a
+    repository name containing a literal underscore (e.g.
+    ``replication_vector``) is preserved as-is -- underscore is **not**
+    replaced. An earlier revision of this function replaced ``_`` instead
+    of ``.``, which silently broke resolution for every
+    ``.claude/worktrees/`` path -- this project's own most common working
+    layout.
+    """
+
+    absolute = str(pathlib.Path(path).expanduser().resolve())
+    return _PROJECT_SLUG_UNSAFE.sub("-", absolute)
+
+
+@dataclasses.dataclass(frozen=True)
+class DiscoveredSession:
+    child_id: str
+    path: pathlib.Path
+    size_bytes: int
+    mtime: float
+    host_id: str | None
+
+
+def discover_sessions_for_project(
+    project_root: str | pathlib.Path,
+    claude_projects_root: pathlib.Path,
+    *,
+    project_path: str | pathlib.Path | None = None,
+) -> list[DiscoveredSession]:
+    """List local transcripts for one project, cross-referenced against the
+    committed index for host-id resolution where harvest has already
+    resolved one -- archive/export awareness, not local-filesystem-only."""
+
+    target = project_path if project_path is not None else project_root
+    slug = project_slug_for_path(target)
+    project_dir = claude_projects_root / slug
+    child_to_host: dict[str, str] = {}
+    for record in load_session_index(project_root).values():
+        for child_id in record.child_ids:
+            child_to_host[child_id] = record.host_id
+    results: list[DiscoveredSession] = []
+    jsonl_paths = sorted(project_dir.glob("*.jsonl")) if project_dir.exists() else []
+    for jsonl_path in jsonl_paths:
+        stat = jsonl_path.stat()
+        child_id = jsonl_path.stem
+        results.append(
+            DiscoveredSession(
+                child_id=child_id,
+                path=jsonl_path,
+                size_bytes=stat.st_size,
+                mtime=stat.st_mtime,
+                host_id=child_to_host.get(child_id),
+            )
+        )
+    return results
+
+
+class LinkLookupError(Exception):
+    """A child id could not be resolved to exactly one host id."""
+
+
+def resolve_host_id_for_child(project_root: str | pathlib.Path, child_id: str) -> str:
+    """Resolve ``child_id`` to its host id via the committed index.
+
+    Raises ``LinkLookupError`` if the child id is unknown, or -- should a
+    data anomaly ever alias the same child id under two host ids -- if the
+    resolution is ambiguous; a caller must never guess in that case.
+    """
+
+    matches = [
+        record.host_id
+        for record in load_session_index(project_root).values()
+        if child_id in record.child_ids
+    ]
+    if not matches:
+        raise LinkLookupError(f"no session in the index has child id {child_id!r}")
+    if len(matches) > 1:
+        raise LinkLookupError(
+            f"child id {child_id!r} is aliased under multiple host ids: {matches!r}"
+        )
+    return matches[0]

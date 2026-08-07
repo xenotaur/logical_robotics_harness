@@ -46,7 +46,7 @@
 
 ## Next Findings To Add
 
-- Raw page count and turn count from a bounded `read_thread` pagination pass.
+- Larger bounded page count and turn count from a `read_thread` pagination pass.
 - Item type histogram from saved raw pages.
 - Truncation and omitted-output observations.
 - App-server route result, if a safe documented route is found.
@@ -83,3 +83,40 @@ Implications:
   summaries.
 - This does not yet prove a standalone LRH subprocess can read the same thread;
   that remains Phase 3.
+
+## 2026-08-07 Phase 1 Pagination Continuation
+
+Continued the model-visible `codex_app.read_thread` pagination pass using the
+cursor returned by the initial page. The continuation remained bounded and used
+`includeOutputs: false` to avoid expanding command or tool output bodies.
+
+Sanitized observations:
+
+- The second page request used `turnLimit: 10` and returned another page with
+  `schemaVersion: 1`, newest-first ordering, `hasMore: true`, and a new
+  `nextCursor`.
+- The third page request used that cursor with `turnLimit: 10` and again
+  returned newest-first ordering, `hasMore: true`, and a new `nextCursor`.
+- Across the three bounded pages, the app tool returned 25 turns total without a
+  pagination error.
+- The continuation reached older completed LRH workflow turns, including prior
+  work-item creation, execution, landing, and closeout activity in the same
+  Codex task.
+- Completed turns include start/completion timing and duration metadata.
+- The item stream can contain multiple assistant commentary messages inside one
+  turn, plus `reasoning` summaries and `fileChange` records.
+- With output expansion disabled, the page still exposes enough turn and item
+  structure to reconstruct a useful high-level transcript outline, but not
+  enough command output detail for a faithful raw export.
+
+Implications:
+
+- Pagination appears stable enough to support a skill-backed bounded export
+  prototype for long Codex tasks.
+- The exporter should persist page-level cursor/completeness metadata in any
+  private raw artifact so incomplete captures are auditable.
+- A useful first exporter can probably default to metadata plus user/assistant
+  messages and file-change summaries, with command output expansion controlled
+  by an explicit privacy/sensitivity option.
+- The model-visible route still does not establish that ordinary LRH CLI code
+  can fetch the same task without Codex app tool mediation.

@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_16_30_47_CHAIN_DEFAULTS_INCREMENTS_DECISION_CONFIRM
 prompt_id: PROMPT(AD_HOC:CHAIN_DEFAULTS_INCREMENTS_DECISION_CONFIRM)[2026-08-07T16:30:26+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_07_16_10_48_DEC_CHAIN_INIT_SKIP_CONSENT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/507
-commit: f7878d2
+commit: 7d44941e538c69b66153539c3ac62da136081596
 created_at: 2026-08-07T16:30:47+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/507

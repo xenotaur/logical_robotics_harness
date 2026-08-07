@@ -19,8 +19,9 @@ forbidden_actions:
   - delete_branch
 acceptance:
   - CLI subcommand lrh conversation export-antigravity-session is registered in src/lrh/cli/main.py.
-  - Supports --conversation-id, --latest, --app-data-dir, --out, --force, and --no-scan-sensitive flags.
+  - Primary input route is --transcript-path PATH, with --conversation-id, --latest, --app-data-dir as optional discovery flags.
   - Outputs metadata-only terminal status without dumping raw transcript body.
+  - Generated Markdown artifact passes lrh conversation inspect-export verification.
   - Passes lrh validate and CLI parser tests.
 ---
 
@@ -28,11 +29,11 @@ acceptance:
 
 ## Summary
 
-Implement Tranche 2 of the Antigravity conversation session exporter: register the `export-antigravity-session` subcommand under `lrh conversation` in `src/lrh/cli/main.py`, backed by the `src/lrh/conversations/antigravity_export.py` API.
+Implement Tranche 2 of the Antigravity conversation session exporter: register the `export-antigravity-session` subcommand under `lrh conversation` in `src/lrh/cli/main.py`, backed by the `src/lrh/conversations/antigravity_export.py` API with `--transcript-path PATH` as the primary input route.
 
 ## Problem / Context
 
-Users and scripts need a CLI entry point to export local Antigravity sessions into Markdown artifacts without writing custom Python scripts.
+Antigravity hooks pass explicit `transcriptPath` metadata. Users and scripts need a CLI command `lrh conversation export-antigravity-session --transcript-path PATH --out EXPORT.md` to export sessions with metadata-only terminal reporting and full compatibility with `lrh conversation inspect-export`.
 
 ### Prior Art Check
 - Duplication search: `convert-codex-file` and `convert-pdf` subcommands exist in `src/lrh/cli/main.py`.
@@ -52,8 +53,9 @@ Users and scripts need a CLI entry point to export local Antigravity sessions in
 
 - Implement `run_convert_antigravity_session_cli(argv, *, prog)` in `src/lrh/conversations/antigravity_export.py`.
 - Register `export-antigravity-session` under `conversation` subparsers in `src/lrh/cli/main.py`.
-- Wire flags: `--conversation-id`, `--latest`, `--app-data-dir`, `--out`, `--force`, `--no-scan-sensitive`.
-- Print metadata summary (privacy, sensitivity status, warning count) to stderr/stdout on completion.
+- Make `--transcript-path PATH` the primary required input option (or file path argument), while keeping `--conversation-id`, `--latest`, and `--app-data-dir` as optional discovery conveniences.
+- Support `--out`, `--force`, `--no-scan-sensitive`.
+- Print metadata-only summary (privacy, sensitivity status, warning count, hashes) to terminal output; never dump raw transcript body to stdout/stderr by default.
 
 ## Non-Goals
 
@@ -62,7 +64,8 @@ Users and scripts need a CLI entry point to export local Antigravity sessions in
 ## Acceptance Criteria
 
 - `lrh conversation export-antigravity-session --help` displays help documentation.
-- `lrh conversation export-antigravity-session` correctly converts a session log into a Markdown export artifact.
+- `lrh conversation export-antigravity-session --transcript-path PATH --out EXPORT.md` converts session logs cleanly.
+- Exported artifacts pass `lrh conversation inspect-export EXPORT.md`.
 - `lrh validate` reports 0 errors.
 
 ## Validation

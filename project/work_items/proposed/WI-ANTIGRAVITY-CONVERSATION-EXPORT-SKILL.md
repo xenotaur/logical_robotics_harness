@@ -18,7 +18,7 @@ forbidden_actions:
   - delete_branch
 acceptance:
   - Skill file src/lrh/skills/lrh-antigravity-export/SKILL.md exists with valid YAML frontmatter.
-  - Documents procedure for detecting active session conversation_id and executing lrh conversation export-antigravity-session.
+  - Documents procedure for extracting transcriptPath metadata and executing lrh conversation export-antigravity-session --transcript-path PATH.
   - Passes lrh validate cleanly.
 ---
 
@@ -30,7 +30,7 @@ Implement Tranche 3 of the Antigravity conversation session exporter: create the
 
 ## Problem / Context
 
-Google Antigravity does not ship with a native `/export` skill. Providing an LRH skill allows agents operating in Antigravity to dump session transcripts directly into private Markdown artifacts.
+Google Antigravity does not ship with a native `/export` skill. Providing an LRH skill allows agents operating in Antigravity to dump session transcripts directly into private Markdown artifacts using the session's documented `transcriptPath`.
 
 ### Prior Art Check
 - Duplication search: No existing `lrh-antigravity-export` skill in `src/lrh/skills/`.
@@ -48,7 +48,7 @@ Google Antigravity does not ship with a native `/export` skill. Providing an LRH
 
 - Create `src/lrh/skills/lrh-antigravity-export/SKILL.md`.
 - Add YAML frontmatter with `name: lrh-antigravity-export`, `description`, `when_to_use`, `argument-hint`.
-- Provide step-by-step procedure for determining active `conversation_id`, running `lrh conversation export-antigravity-session`, and reporting output path.
+- Provide step-by-step procedure for extracting `transcriptPath` from Antigravity session metadata, executing `lrh conversation export-antigravity-session --transcript-path PATH --out OUTPUT.md`, and reporting output path.
 
 ## Non-Goals
 

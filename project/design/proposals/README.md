@@ -85,6 +85,10 @@ to private-by-default, non-authoritative Markdown transcripts. Status: `proposed
 / `not_started` (documentation-only direction; no storage, chat UI, converter,
 scanner, MCP, GitHub, HTTP, model-provider, or run execution implementation).
 
+[`proposed/lrh-antigravity-conversation-exporter/`](proposed/lrh-antigravity-conversation-exporter/)
+— Defines the design and implementation model for exporting Google Antigravity agent conversation sessions into private-by-default, non-authoritative Markdown transcript artifacts backed by generalized `ConversationExportManifest` frontmatter metadata and heuristic sensitivity scanning. Status: `proposed` / `not_started` (documentation-only direction; no runtime implementation in this PR).
+
+
 [`proposed/lrh-console-visual-language/`](proposed/lrh-console-visual-language/)
 — Proposes Alternative D, the Enhanced Swimlane Console, as the future light/dark visual language
 for `lrh serve` dashboards and LRH Console views, with UX review criteria and a first implemented

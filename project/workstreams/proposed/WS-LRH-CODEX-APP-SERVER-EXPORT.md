@@ -140,4 +140,3 @@ Expected follow-on items after the first implementation lands:
 - Should the experimental paged adapter become a second work item in this
   workstream after the stable `thread/read` path lands, or wait until large
   sessions demonstrate a concrete need?
-

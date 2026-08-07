@@ -223,4 +223,3 @@ duplicating capture logic.
   `project/design/proposals/adopted/lrh-codex-conversation-exporter/00_proposal.md`
 - Spike findings:
   `experimental/save_codex_threads/findings.md`
-

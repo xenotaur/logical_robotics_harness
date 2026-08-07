@@ -244,4 +244,3 @@ Implement this through `WS-LRH-CODEX-APP-SERVER-EXPORT`.
 - What private archive-root convention should `/lrh-codex-export` use when the
   user does not provide paths? The first CLI can require explicit paths; the
   skill wrapper can choose a safe default later.
-

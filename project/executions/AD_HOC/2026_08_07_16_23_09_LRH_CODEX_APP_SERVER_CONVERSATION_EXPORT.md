@@ -3,7 +3,7 @@ execution_id: 2026_08_07_16_23_09_LRH_CODEX_APP_SERVER_CONVERSATION_EXPORT
 prompt_id: PROMPT(AD_HOC:LRH_CODEX_APP_SERVER_CONVERSATION_EXPORT)[2026-08-07T16:22:59+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
+rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/510
 commit: ae474071a1f333a57eb9cfeedb702c031f2c04a6
 created_at: 2026-08-07T16:23:09+00:00

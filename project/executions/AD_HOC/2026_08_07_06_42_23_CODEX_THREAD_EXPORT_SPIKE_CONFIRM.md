@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_06_42_23_CODEX_THREAD_EXPORT_SPIKE_CONFIRM
 prompt_id: PROMPT(AD_HOC:CODEX_THREAD_EXPORT_SPIKE_CONFIRM)[2026-08-07T06:42:13+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/503
-commit:
+commit: 5548300f5ecb102bbc1edeb9c6420f096144a350
 created_at: 2026-08-07T06:42:23+00:00
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/503

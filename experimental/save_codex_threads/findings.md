@@ -120,3 +120,50 @@ Implications:
   by an explicit privacy/sensitivity option.
 - The model-visible route still does not establish that ordinary LRH CLI code
   can fetch the same task without Codex app tool mediation.
+
+## 2026-08-07 Phase 3 App-Server Route First Pass
+
+Fetched the current official Codex manual and inspected the documented
+app-server route before attempting any standalone execution.
+
+Sanitized observations:
+
+- The official manual documents `codex app-server` as the interface for rich
+  clients and conversation history.
+- The documented app-server protocol is JSON-RPC over stdio, WebSocket, or Unix
+  socket transports.
+- The manual documents the required `initialize` / `initialized` handshake.
+- The manual lists `thread/read` as the stable method to read a stored thread by
+  id without resuming it.
+- The running ChatGPT desktop app process has a child app-server process:
+  `/Applications/ChatGPT.app/Contents/Resources/codex -c
+  features.code_mode_host=true app-server --analytics-default-enabled`.
+- That running child process does not show a `--listen` argument, which is
+  consistent with default stdio transport rather than an attachable localhost or
+  Unix-socket listener.
+- `lsof` showed the process has this task's rollout JSONL file open, but the
+  spike continues to treat direct storage inspection as out of scope because the
+  plan forbids relying on undocumented Codex app storage internals.
+- The ChatGPT-bundled candidate binary and the plugin-appserver candidate binary
+  are byte-identical by SHA-256:
+  `9f6748b4ab10ffc92c28b9ccedae89e61a302bbc011df7d276ee38f55906e481`.
+- Both candidate binaries failed `codesign --verify --strict --verbose=4` with
+  `invalid signature (code or signature have been modified)`.
+- The enclosing `/Applications/ChatGPT.app` bundle also failed
+  `codesign --verify --deep --strict`.
+- Because of the earlier macOS malware block and the failed signature
+  verification, no standalone app-server binary was executed in this pass.
+
+Implications:
+
+- The documented JSON-RPC method needed by LRH exists: `thread/read`.
+- The already-running desktop app-server is not obviously attachable through a
+  documented listener from an ordinary LRH subprocess.
+- The current local executable candidates are not acceptable for a safe
+  standalone route test until the local installation is repaired or replaced
+  from a trusted source.
+- Phase 3 is therefore blocked on installation trust, not on the documented API
+  shape.
+- The safest next implementation direction remains a skill-backed exporter
+  using `codex_app.read_thread`, while a standalone LRH CLI adapter should wait
+  for a trusted app-server executable or listener.

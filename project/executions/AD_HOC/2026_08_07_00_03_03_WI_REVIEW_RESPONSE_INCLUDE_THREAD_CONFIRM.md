@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_06_01_37_08_WI_REVIEW_RESPONSE_INCLUDE_THREAD
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/497
-commit: 3177ba5318dc8918b07def42fdbdb9287ea12d32
+commit: f02a7cdc19dd1729f155d0c6d3fc52fd3503784c
 created_at: 2026-08-07T00:03:03-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/497
@@ -45,24 +45,36 @@ re-settle and both reviewers must re-confirm against `3177ba5` before a
 final verdict, per Step 8's requirement that REVIEW-LANDED gate the
 verdict itself, not just who may act on it next.
 
+**REVIEW-LANDED retrigger, batch 2:** this record's own commit
+(`38be7e5`) moved `HEAD` again before batch 2's retrigger reached
+GitHub, so the actual commit reviewed was `38be7e5`, not `3177ba5`.
+CI settled green (5/5). Codex came back clean on `38be7e5` ("Didn't
+find any major issues. Can't wait for the next one!"). Copilot came
+back clean (plus a second suppressed, valid comment:
+`thread.get("id") in extra_ids` could raise `TypeError` on a
+malformed/mocked payload with a non-hashable `id`, inconsistent with
+`collect_thread_ids`/`resolved_thread_ids`'s existing `isinstance`
+guards). Fixed (commit `f02a7cd`) and re-verified locally (832 tests
+OK, `lrh validate` 0 errors) before pushing — this again moves `HEAD`,
+so a third retrigger batch is needed.
+
 # Validation
 
 lrh github threads --mode raw --state all — 1 thread found, isResolved:
 false pre-resolution; isResolved: true post-resolution
 gh pr checks --required — "no required checks reported"; confirmed via
 branch-protection check this is a real repo-config fact; fell back to
-unfiltered `gh pr checks`: all 5 checks SUCCESS at `9b85e48`; `coverage`
-and `tests` still IN_PROGRESS at `3177ba5` when this record was authored
+unfiltered `gh pr checks` each round: all 5 checks SUCCESS at `9b85e48`
+and again at `38be7e5`
 scripts/version tools, scripts/format --check --diff, scripts/lint,
-scripts/test (831 tests OK), lrh validate (0 errors, 1 pre-existing
-unrelated warning) — all run locally against `3177ba5` after the
-message-fix push
+scripts/test (832 tests OK after the batch-2 fix), lrh validate (0
+errors, 1 pre-existing unrelated warning) — run locally against
+`f02a7cd` before pushing
 
 # Follow-up
 
-- Re-fetch CI against `3177ba5` before the final verdict — `coverage`/
-  `tests` were still IN_PROGRESS at record-authoring time.
-- Retrigger both reviewers on `3177ba5` (round-cap batch 2 of ceiling 3)
+- Retrigger both reviewers on `f02a7cd` (round-cap batch 3 of ceiling
+  3 — the last authorized batch before the round-cap gate fires again)
   and wait for an affirmative, SHA-matched response from each before
   reporting Green.
 - Update `session_transcript: pending` on the primary record if it

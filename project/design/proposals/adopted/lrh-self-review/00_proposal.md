@@ -5,7 +5,7 @@ title: LRH Self-Review — /lrh-self-review Skill for Pre-Push and Post-Ceiling 
 status: adopted
 created_on: 2026-08-02
 updated_on: 2026-08-07
-implementation_status: implemented
+implementation_status: partial
 implemented_by:
   - WI-SKILLS-LRH-SELF-REVIEW
 supersedes: []

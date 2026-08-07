@@ -32,7 +32,7 @@
 - Conclusion: do not use the Homebrew `codex` binary for this spike unless it is
   repaired or replaced from a trusted current source.
 
-## Open Questions
+## Initial Open Questions
 
 - Can a user-run script call the same thread-read surface, or is it available
   only as a model-visible Codex app tool?
@@ -44,12 +44,16 @@
   should be summarized or omitted by default?
 - Should reasoning summaries be exported at all?
 
-## Next Findings To Add
+These are answered or reframed later in this file. The most important update is
+that both the model-visible tool route and the standalone app-server route can
+read this real Codex task.
 
-- Larger bounded page count and turn count from a `read_thread` pagination pass.
-- Item type histogram from saved raw pages.
-- Truncation and omitted-output observations.
-- App-server route result, if a safe documented route is found.
+## Next Findings To Add Or Defer
+
+- Optional private raw capture inspection under `/private/tmp`.
+- Optional upstream/local investigation of the failed strict signature
+  verification.
+- Production work item creation from the recommended implementation scope below.
 
 ## 2026-08-07 Phase 1 Bounded Read
 
@@ -365,3 +369,308 @@ Implications:
   write raw artifacts only to private/local paths, and include manifest warnings
   for active/interrupted turns, omitted item classes, pagination completeness,
   and experimental API use.
+
+## 2026-08-07 Private Raw Capture Write
+
+Extended `probe_app_server_stdio.py` with `--raw-out` for thread-read mode and
+ran one private raw full-turn capture under `/private/tmp`.
+
+Probe behavior:
+
+- Ran stable `thread/read` with `includeTurns: true`.
+- Wrote a private JSON capture envelope under `/private/tmp`.
+- Printed only the sanitized structural summary to the terminal.
+- Did not add or commit the raw capture file.
+
+Sanitized observations:
+
+- The raw capture write succeeded.
+- The private raw capture file size was 1,517,381 bytes.
+- The full-turn read returned 118 turns at capture time: 117 completed and 1
+  interrupted.
+- The earlier comparison returned 116 turns; the increase is expected because
+  this active Codex task continued while the spike continued.
+- The item type set remained consistent with the prior full read:
+  `userMessage`, `agentMessage`, `reasoning`, `fileChange`, `webSearch`, and
+  `contextCompaction`.
+
+Implications:
+
+- The adapter can produce the raw source artifact needed for a manifest-backed
+  Markdown export.
+- Production code must treat live Codex tasks as moving targets. It should
+  record `captured_at`, turn counts, status counts, and whether the source task
+  was active near capture time.
+- The default terminal output should remain metadata-only; raw captures should
+  stay in private archive locations and should never be committed.
+
+## 2026-08-07 Raw Source Shape For LRH
+
+The preferred initial raw source shape is the app-server `thread/read` response
+with `includeTurns: true`, captured as private JSON before rendering. This is
+the smallest stable shape that preserves enough information to render a
+complete transcript artifact and audit the capture later.
+
+Recommended raw capture envelope:
+
+```json
+{
+  "capture_kind": "lrh_codex_app_server_thread_read_capture",
+  "capture_schema_version": 1,
+  "captured_at": "<timezone-aware timestamp>",
+  "source_command": "codex app-server --listen stdio://",
+  "app_server_method": "thread/read",
+  "request": {
+    "threadId": "<codex thread id>",
+    "includeTurns": true
+  },
+  "response": {
+    "thread": {}
+  },
+  "capture_warnings": []
+}
+```
+
+The raw `response.thread` object should be stored without transformation in the
+private source artifact. Observed top-level thread metadata includes stable
+export inputs such as:
+
+- `id`, `name`, `preview`, `createdAt`, `updatedAt`, and `recencyAt`;
+- `cwd`, `gitInfo`, `historyMode`, `modelProvider`, `sessionId`, `source`, and
+  `threadSource`;
+- `ephemeral` and runtime `status`;
+- `turns`.
+
+Observed turn objects include:
+
+- `id`;
+- `status`;
+- `error`;
+- `startedAt`;
+- `completedAt`;
+- `durationMs`;
+- `items`;
+- `itemsView`.
+
+Observed item types include:
+
+- `userMessage`;
+- `agentMessage`;
+- `reasoning`;
+- `fileChange`;
+- `webSearch`;
+- `contextCompaction`.
+
+Recommended raw-source hash:
+
+- `source_sha256` in `ConversationExportManifest` should hash the exact raw JSON
+  bytes written by the app-server capture adapter, not the rendered Markdown.
+- The raw JSON should be deterministic enough for hashing after capture:
+  UTF-8, sorted top-level envelope keys when LRH writes the envelope, and no
+  post-write normalization.
+- If LRH later supports paged captures, each page should also have a page hash
+  and the envelope should record page order, cursors, and completeness.
+
+## 2026-08-07 Render Shape
+
+The rendered Markdown artifact should continue to use the existing
+`ConversationExportManifest` frontmatter contract rather than inventing a new
+manifest. The current manifest already supports the needed fields:
+
+- `source_tool: codex`;
+- a new `source_adapter`, recommended as `codex_app_server_thread_read`;
+- `source_id` set to the Codex thread id;
+- `source_sha256` set to the private raw JSON capture hash;
+- `privacy: private`;
+- `authority: non_authoritative_context`;
+- `warnings`;
+- `transcript_statistics` including rendered `turn_count` and `message_count`
+  where known.
+
+Recommended Markdown structure:
+
+```md
+---
+<ConversationExportManifest frontmatter>
+---
+
+# Codex Conversation Export
+
+Thread: <thread id>
+Title: <thread name or "untitled">
+Captured: <timestamp>
+Source adapter: codex_app_server_thread_read
+
+## Thread Metadata
+
+- Status: <status>
+- CWD: <cwd>
+- History mode: <historyMode>
+- Model provider: <modelProvider>
+
+## Turns
+
+### Turn 1: <turn id>
+
+- Status: <status>
+- Started: <startedAt>
+- Completed: <completedAt>
+
+#### User
+
+<user message text>
+
+#### Assistant
+
+<assistant message text>
+
+#### File Changes
+
+- <path> (<kind>, <status>)
+
+#### Web Searches
+
+- <query or redacted summary>
+
+#### Reasoning Summaries
+
+<included only if policy allows>
+```
+
+Recommended item mapping:
+
+- `userMessage`: render as a user section. Preserve text content, but keep the
+  raw JSON private and subject the rendered text to the sensitivity scanner.
+- `agentMessage`: render as an assistant section. Preserve phase metadata such
+  as `commentary` or `final_answer` in a small label when present.
+- `fileChange`: render a path/kind/status list. Do not read file contents.
+- `webSearch`: render search query/action metadata and result counts by default;
+  avoid storing large result payloads in the Markdown unless explicitly enabled.
+- `reasoning`: omit by default or include only summarized reasoning behind an
+  explicit option such as `--include-reasoning-summaries`. Record a manifest
+  warning either way so downstream readers know the policy used.
+- `contextCompaction`: render a marker that compaction happened; do not pretend
+  the transcript is continuous without noting it.
+- Unknown item types: render a metadata-only placeholder and add a manifest
+  warning.
+
+Recommended warnings:
+
+- `codex_signature_verification_failed` when the local executable still fails
+  strict signature verification at capture time.
+- `codex_trust_state_ambiguous` while successful execution and failed strict
+  verification coexist.
+- `interrupted_turn_present` when any turn status is `interrupted`.
+- `active_or_incomplete_turn_omitted` if the exporter excludes active turns.
+- `reasoning_items_omitted` or `reasoning_summaries_included` depending on the
+  selected policy.
+- `context_compaction_present` when compaction markers appear.
+- `web_search_results_summarized` when result payloads are not fully rendered.
+- `experimental_thread_turns_list_used` if the paged experimental adapter is
+  used.
+- `unknown_item_type_present` when an unrecognized item type is encountered.
+
+## 2026-08-07 Recommended Implementation Work Item
+
+Recommended work item id:
+
+`WI-CODEX-CONVERSATION-EXPORT-APP-SERVER`
+
+Recommended title:
+
+`Implement Codex app-server conversation export adapter`
+
+Recommended scope:
+
+- Add an LRH library adapter that spawns a configured Codex executable with
+  `app-server --listen stdio://`.
+- Implement the documented JSON-RPC handshake:
+  `initialize`, `initialized`, and `thread/read`.
+- Accept an explicit `--thread-id`; defaulting from `CODEX_THREAD_ID` is useful
+  for Codex sessions but should be visible in CLI help.
+- Write private raw JSON captures to an explicit output path or private archive
+  root.
+- Render a Markdown export using the existing `ConversationExportManifest`
+  frontmatter.
+- Use stable `thread/read` with `includeTurns: true` for the initial complete
+  exporter.
+- Add a later, optional `--experimental-paged-full` route using
+  `thread/turns/list` with `itemsView: full`.
+- Run sensitivity scanning on rendered Markdown body text.
+- Provide metadata-only terminal output: output path, privacy, sensitivity,
+  warning count, turn count, item-type counts, and source hash status.
+- Add tests with fake app-server JSONL subprocess boundaries, not real Codex
+  execution in unit tests.
+- Put real Codex smoke probes in `tests/smoke` or an explicit manual smoke
+  script, not the normal unit suite.
+
+Recommended acceptance criteria:
+
+- `lrh conversation export-codex-thread --thread-id ID --out EXPORT.md` creates
+  a private Markdown export from a documented app-server `thread/read` response.
+- The command never prints raw transcript text by default.
+- The command records `source_adapter: codex_app_server_thread_read` and
+  `source_id: ID`.
+- The command writes or can write the private raw source JSON and records its
+  SHA-256 in the manifest.
+- The renderer handles observed item types and records warnings for omitted,
+  summarized, interrupted, compacted, or unknown data.
+- Focused unit tests cover JSON-RPC handshake handling, successful thread reads,
+  malformed app-server responses, app-server errors, timeout/exit behavior,
+  renderer mapping, warnings, and manifest statistics.
+- `lrh conversation inspect-export` accepts the generated artifact.
+- `lrh validate` remains clean.
+
+Recommended non-goals:
+
+- Do not scrape `.codex/sessions` JSONL files directly.
+- Do not depend on ChatGPT desktop private storage internals.
+- Do not make conversation exports authoritative project state.
+- Do not implement automatic promotion from transcript to work items,
+  decisions, or evidence.
+- Do not require experimental app-server APIs for the first production adapter.
+- Do not run real Codex app-server in normal unit tests.
+
+## 2026-08-07 Residual Risks And Open Questions
+
+Resolved spike questions:
+
+- Current-task data is available to model-visible Codex tools.
+- Current-task data is also available to an ordinary LRH subprocess through the
+  documented app-server stdio route.
+- Stable `thread/read` can return complete turn data for this real long task.
+- Experimental `thread/turns/list` can page turn data and full item structure.
+- Direct app storage scraping is unnecessary for the target exporter.
+
+Residual risks:
+
+- Local trust remains ambiguous because `codesign --verify --strict` still fails
+  for the Homebrew Codex executable even though the app-server probes run.
+- `thread/read` is complete but not paged; very large tasks may need the
+  experimental paged adapter later.
+- Reasoning summaries need a product/policy decision before production export.
+- Web search result payloads may contain external source snippets and should be
+  summarized by default.
+- File-change records identify paths; those paths can themselves be sensitive.
+- Context compaction means a transcript may be incomplete from a literal
+  turn-by-turn archaeology perspective even when all stored turns are exported.
+- The active current turn may move while an export is running; production code
+  should record capture timestamps and statuses, and may need an option to omit
+  active turns.
+- The app-server schema is versioned by the installed Codex binary; production
+  code should record CLI version when available and tolerate unknown item types.
+
+Remaining spike work before closure:
+
+- Optionally draft the actual work item file using `/lrh-work-item` in a new
+  follow-up step.
+- Decide whether to file the local signature-verification issue upstream now or
+  leave it as a known environmental risk.
+- Close this experimental branch by pushing/opening a documentation-only PR, or
+  keep it local until the follow-up work item is created from these findings.
+
+Recommended stop point:
+
+This spike has enough evidence to stop before closure and move to planning the
+implementation work item. The main technical feasibility risk has been retired:
+LRH can fetch the current Codex session through documented app-server APIs.

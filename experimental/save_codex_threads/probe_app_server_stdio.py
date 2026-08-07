@@ -10,6 +10,7 @@ import subprocess
 import sys
 import time
 from collections import Counter
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -205,8 +206,19 @@ def main() -> int:
         default=5,
         help="Limit for thread/turns/list comparison requests.",
     )
+    parser.add_argument(
+        "--raw-out",
+        help=(
+            "Optional private JSON path for the raw app-server response envelope. "
+            "Only valid with --mode thread-read."
+        ),
+    )
     parser.add_argument("--timeout-seconds", type=float, default=10.0)
     args = parser.parse_args()
+
+    if args.raw_out and args.mode != "thread-read":
+        print("--raw-out is only supported with --mode thread-read", file=sys.stderr)
+        return 2
 
     if not args.thread_id:
         print("CODEX_THREAD_ID is required", file=sys.stderr)
@@ -315,6 +327,14 @@ def main() -> int:
                 request={"method": method, "id": index, "params": params},
                 timeout_seconds=args.timeout_seconds,
             )
+            if args.raw_out:
+                _write_raw_capture(
+                    Path(args.raw_out),
+                    codex=codex,
+                    method=method,
+                    params=params,
+                    response=response,
+                )
             summaries.append(
                 _summarize_response(
                     response, label=label, method=method, request_params=params
@@ -367,6 +387,33 @@ def main() -> int:
         except subprocess.TimeoutExpired:
             proc.kill()
             proc.wait(timeout=2)
+
+
+def _write_raw_capture(
+    output_path: Path,
+    *,
+    codex: Path,
+    method: str,
+    params: dict[str, Any],
+    response: dict[str, Any],
+) -> None:
+    envelope = {
+        "capture_kind": "lrh_codex_app_server_thread_read_capture",
+        "capture_schema_version": 1,
+        "captured_at": datetime.now(timezone.utc).isoformat(),
+        "source_command": f"{codex} app-server --listen stdio://",
+        "app_server_method": method,
+        "request": params,
+        "response": response,
+        "capture_warnings": [
+            "private_raw_transcript_do_not_commit",
+        ],
+    }
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(envelope, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
 
 
 if __name__ == "__main__":

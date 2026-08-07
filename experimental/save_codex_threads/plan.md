@@ -17,7 +17,8 @@ be implemented as:
 
 ## Safety Boundary
 
-- Do not run the Homebrew `codex` CLI until the macOS malware block is resolved.
+- Do not run the Homebrew `codex` CLI until the macOS malware block is resolved
+  or the user explicitly authorizes a narrowly scoped diagnostic command.
 - Do not restore or execute the binary macOS moved to Trash.
 - Keep raw thread JSON and transcript exports in `/private/tmp`.
 - Commit only this plan, sanitized findings, and helper code.
@@ -101,6 +102,31 @@ Steps:
   `lrh conversation export-codex-thread`.
 - If Phase 1 fails, stop and redesign; the current app surface is insufficient.
 
+## Current Spike Conclusion
+
+As of 2026-08-07, Phase 1 and Phase 3 have both succeeded in bounded probes:
+
+- the model-visible `codex_app.read_thread` route can read and page through this
+  real Codex task;
+- the standalone Homebrew `codex app-server --listen stdio://` route can perform
+  the documented `initialize` / `initialized` / `thread/read` sequence;
+- stable `thread/read` with `includeTurns: true` returned all turns for this
+  task in one response;
+- experimental `thread/turns/list` can page turn metadata, summary items, and
+  full item structure.
+
+Therefore, the recommended implementation path is an LRH CLI/library adapter
+for `lrh conversation export-codex-thread`, using stable `thread/read` as the
+initial complete-export route. A Codex skill can remain the user-facing
+current-task workflow wrapper, and a later optional adapter can use
+experimental paged `thread/turns/list` for very large exports.
+
+The remaining non-export blocker is local trust ambiguity: post-reinstall
+Homebrew Codex commands ran successfully in user-approved probes, but
+`codesign --verify --strict` still reports an invalid signature. Treat this as
+an upstream/local installation risk to document and monitor, not as a blocker to
+the API feasibility conclusion.
+
 ## Non-Goals
 
 - No production LRH CLI changes in this spike.
@@ -108,4 +134,3 @@ Steps:
 - No undocumented local storage scraping.
 - No full archive viewer changes.
 - No changes to execution-record `session_transcript` grammar.
-

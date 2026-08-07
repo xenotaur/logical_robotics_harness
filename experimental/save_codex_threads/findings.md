@@ -247,3 +247,48 @@ Implications:
   JSON-RPC handshake against the Homebrew binary, but doing so would execute
   more of the same binary than `--help`; that should remain an explicit user
   decision.
+
+## 2026-08-07 Minimal Stdio App-Server Handshake
+
+After user confirmation and monitoring for macOS pop-ups, added and ran
+`probe_app_server_stdio.py`, a minimal sanitized probe for the documented
+app-server stdio route.
+
+Probe behavior:
+
+- Spawned `/opt/homebrew/bin/codex app-server --listen stdio://`.
+- Sent `initialize` with LRH spike client metadata.
+- Sent the `initialized` notification.
+- Sent `thread/read` with the current task id and `includeTurns: false`.
+- Printed only a structural summary of the returned thread object.
+- Closed stdin and terminated the app-server process after the response.
+
+Sanitized observations:
+
+- The probe exited with status 0.
+- `thread/read` returned `ok: true` for thread
+  `019fc43f-e2d9-7503-88cb-9d9a8136c111`.
+- The returned thread summary reported `ephemeral: false`.
+- The returned runtime status was `notLoaded`, matching the expectation that
+  `thread/read` does not resume or load the thread.
+- `turns` was present as an empty list because the request used
+  `includeTurns: false`.
+- The returned thread summary included metadata keys such as `cwd`, `gitInfo`,
+  `historyMode`, `modelProvider`, `name`, `path`, `preview`, `sessionId`,
+  `source`, `threadSource`, and timestamps.
+- After the run, the Homebrew target binary still existed with the same size and
+  inode observed before the run.
+- `codesign --verify --strict --verbose=4 /opt/homebrew/bin/codex` still failed
+  with `invalid signature (code or signature have been modified)`.
+
+Implications:
+
+- The standalone Homebrew Codex app-server route can perform the documented
+  stdio `initialize` / `initialized` / `thread/read` sequence on this machine.
+- This substantially reduces the technical risk for an LRH CLI-backed
+  app-server adapter.
+- A raw export still requires a second, explicit test that requests actual turn
+  data, either via stable `thread/read` with `includeTurns: true` or via the
+  experimental paged `thread/turns/list` method.
+- The trust state remains unresolved: functional success does not explain or
+  clear the failed strict signature verification.

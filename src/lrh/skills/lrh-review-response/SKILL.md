@@ -51,6 +51,14 @@ Load these before running any step:
    command sequence, failure handling, and evidence format. Read to run
    and report validation correctly in Step 5.
 
+3. **`/lrh-land/references/land-workflow.md`** § Primary vs. side-record
+   provenance check — resolve as an installed sibling skill (the same
+   `/skill-name/...` reference style `/lrh-execute` uses to resolve its own
+   inlined sub-skills), not a hardcoded `src/lrh/skills/...` path. The
+   shared algorithm for distinguishing a primary execution record from a
+   side record by provenance rather than a bare filename-suffix match, used
+   by the `rerun_of` population step in Step 7. Read before that step.
+
 ---
 
 ## Execution Steps
@@ -160,11 +168,13 @@ exact same slug from above — do not append a round-number suffix (e.g.
 `-review-round2`) to disambiguate from the prior record. The timestamp
 prefix that `lrh prompt record-execution` (Step 7) adds gives each round a
 distinct filename in the normal case, and keeping the literal `-review`
-slug ending keeps every round's filename ending in `_REVIEW.md`, which the
-primary-record-selection exclusion in `/lrh-land` and the `rerun_of` lookups
-in this skill and `/lrh-confirm-fixes` all depend on
-(`grep -v "_REVIEW\.md$"` / `grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"`
-match only that literal suffix). The timestamp is second-resolution
+slug ending keeps every round's `execution_id` ending in the literal
+`_REVIEW` suffix, which the primary-vs-side-record provenance check in
+`/lrh-land` and the `rerun_of` lookups in this skill and
+`/lrh-confirm-fixes` all depend on (see `/lrh-land/references/land-workflow.md`
+§ Primary vs. side-record provenance check — it strips exactly that literal
+suffix when testing whether a candidate's base slug matches an existing
+primary). The timestamp is second-resolution
 (`%Y_%m_%d_%H_%M_%S`); two rounds recorded within the same second would
 collide — `lrh prompt record-execution` errors on an existing output path
 rather than overwriting it, so this surfaces as a clear failure to retry,
@@ -266,17 +276,21 @@ targets and a fixed precedence between them:
    the more specific, immediate lineage (this exact invocation's own prior
    attempt), not just a relation to the primary implementation.
 2. **The primary implementation record, only if Step 3 found nothing.**
-   Convert the branch slug to upper-underscore form before searching, and
-   exclude files whose names end with `_REVIEW.md`, `_CONFIRM.md`, or
-   `_SELFREVIEW.md` (those are review-response, confirm-fixes, and
-   self-review side records, not primary ones):
+   Convert the branch slug to upper-underscore form before searching, then
+   classify each matching candidate as primary or side by provenance —
+   **not** a bare filename-suffix exclusion, which would misclassify a
+   primary record whose own topic slug ends in "review," "confirm," etc.
+   See `/lrh-land/references/land-workflow.md` § Primary vs. side-record
+   provenance check for the full algorithm and why:
 
    ```bash
    UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-   find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"
+   candidates=$(find project/executions/ -name "*${UPPER_SLUG}*.md")
    ```
 
-   If found, add `rerun_of: <original-execution-id>` to the frontmatter.
+   Run the provenance-check algorithm against `$candidates` to get
+   `$primary`. If found, add `rerun_of: <original-execution-id>` to the
+   frontmatter.
 
 If neither yields a match, leave `rerun_of` empty.
 

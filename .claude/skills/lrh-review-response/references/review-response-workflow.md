@@ -57,19 +57,29 @@ response record to a prior one.
    Convert the branch slug (without the `-review` suffix) to
    upper-underscore form and match the complete trailing filename
    segment — not a bare substring, which would also match an unrelated
-   longer slug that happens to contain this one:
+   longer slug that happens to contain this one — then classify the
+   result by provenance, not a bare filename-suffix exclusion (which would
+   misclassify a primary record whose own slug happens to end in "review,"
+   e.g. `WI-SKILLS-LRH-SELF-REVIEW`'s own execution_id ends in
+   `_SELF_REVIEW`; see `/lrh-land/references/land-workflow.md` § Primary
+   vs. side-record provenance check for the full algorithm):
 
    ```bash
    UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-   find project/executions/ -name "*_${UPPER_SLUG}.md" 2>/dev/null | grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"
+   candidates=$(find project/executions/ -name "*_${UPPER_SLUG}.md" 2>/dev/null)
    ```
+
+   Run the provenance-check algorithm against `$candidates` to get
+   `$primary`.
 
    Example: branch `xenotaur/feat/wi-skills-lrh-review-response` →
    slug `wi-skills-lrh-review-response` → `UPPER_SLUG=WI_SKILLS_LRH_REVIEW_RESPONSE` →
-   search for `*_WI_SKILLS_LRH_REVIEW_RESPONSE.md`, exclude files whose names
-   end with `_REVIEW.md`, `_CONFIRM.md`, or `_SELFREVIEW.md`
-   (review-response, `/lrh-confirm-fixes`, and `/lrh-self-review` side
-   records end with those suffixes; primary records do not).
+   search for `*_WI_SKILLS_LRH_REVIEW_RESPONSE.md`. This trailing-exact glob
+   never matches a genuine side record to begin with (their filenames carry
+   an additional suffix beyond `UPPER_SLUG`, e.g. `..._REVIEW.md`), so the
+   provenance check here mainly guards against the one case the old
+   `grep -vE` exclusion got wrong: a primary record whose own slug happens
+   to end exactly in one of the four reserved words.
 
    If found, set:
 

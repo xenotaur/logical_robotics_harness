@@ -73,11 +73,18 @@ landed through this skill.
 
 **Primary record selection rule** (from `references/land-workflow.md`):
 
-Search `project/executions/` for records whose `pr:` field matches the PR URL:
+Search `project/executions/` for records whose `pr:` field matches the PR URL,
+then classify each match as primary or side by provenance (**not** a bare
+filename-suffix match — a primary record whose own topic slug ends in
+"review," "confirm," etc. would self-exclude; see `references/land-workflow.md`
+§ Primary vs. side-record provenance check for the full algorithm and why):
 
 ```bash
-grep -rl "pr: <pr-url>" project/executions/ | grep -v "_REVIEW\.md$" | grep -v "_CONFIRM\.md$" | grep -v "_CLOSEOUT_NOTE\.md$" | grep -v "_SELFREVIEW\.md$"
+candidates=$(grep -rl "pr: <pr-url>" project/executions/)
 ```
+
+Run the provenance-check algorithm from `references/land-workflow.md` § Primary
+vs. side-record provenance check against `$candidates` to get `$primary`.
 
 Classify the result:
 - **Found** — primary record exists; body is immutable; CHAIN-NOTE goes in a

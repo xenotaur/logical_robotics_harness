@@ -81,6 +81,14 @@ Load this before running any step:
    crash-recovery reconciliation, the three-way human gate, and explicit
    scope boundaries. Read before Step 8.
 
+3. **`/lrh-land/references/land-workflow.md`** § Primary vs. side-record
+   provenance check — resolve as an installed sibling skill (the same
+   `/skill-name/...` reference style `/lrh-execute` uses to resolve its own
+   inlined sub-skills), not a hardcoded `src/lrh/skills/...` path. The
+   shared algorithm for distinguishing a primary execution record from a
+   side record by provenance rather than a bare filename-suffix match, used
+   by the `rerun_of` population step below. Read before that step.
+
 ---
 
 ## Execution Steps
@@ -286,15 +294,19 @@ and the body: which threads were resolved (author, bucket), which were
 surfaced (bucket, rationale), and the Step 6 thread-resolution verdict.
 
 Find the primary execution record for `rerun_of`. Convert the branch slug
-(without the `-confirm` suffix) to upper-underscore form, and exclude
-`_REVIEW.md`, `_CONFIRM.md`, and `_SELFREVIEW.md` suffixed files
-(review-response, prior confirm-fixes, and self-review records are not
-primary records):
+(without the `-confirm` suffix) to upper-underscore form, then classify each
+matching candidate as primary or side by provenance (**not** a bare
+filename-suffix exclusion — a primary record whose own topic slug ends in
+"review," "confirm," etc. would self-exclude; see `/lrh-land/references/land-workflow.md`
+§ Primary vs. side-record provenance check for the full algorithm and why):
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"
+candidates=$(find project/executions/ -name "*${UPPER_SLUG}*.md")
 ```
+
+Run the provenance-check algorithm from `land-workflow.md` § Primary vs.
+side-record provenance check against `$candidates` to get `$primary`.
 
 If found, set `rerun_of: <original-execution-id>`. If not found, leave empty
 and note it in the body.
@@ -596,8 +608,8 @@ Before reporting completion, verify:
 - [ ] User confirmed the single batch at Step 4 before any thread was resolved
 - [ ] `resolveReviewThread` skipped already-resolved threads
 - [ ] Unaddressed threads offered `/lrh-review-response`, not auto-invoked
-- [ ] Execution record created with `rerun_of` excluding `_REVIEW.md`,
-      `_CONFIRM.md`, and `_SELFREVIEW.md`
+- [ ] Execution record created with `rerun_of` set via the primary
+      vs. side-record provenance check, not a bare filename-suffix exclusion
 - [ ] `lrh validate` reports 0 errors before the record was pushed
 - [ ] CI re-checked against the post-push `HEAD` SHA before the final verdict
 - [ ] REVIEW-LANDED re-checked against the `_CONFIRM` commit and required

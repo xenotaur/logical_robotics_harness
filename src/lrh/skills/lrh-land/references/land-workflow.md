@@ -25,13 +25,14 @@ prose each run. Source: `PROP-LRH-LAND-EXECUTE` Decision 3.
 disambiguate. `lrh prompt record-execution`'s timestamp prefix gives each
 round a distinct filename in the normal case (it's second-resolution and
 errors rather than overwrites on an exact collision), and every round's
-file still ends in the literal `_REVIEW.md`. A round-numbered suffix like
-`_REVIEW_ROUND2.md`
-breaks the primary-record-selection exclusion above (`grep -v "_REVIEW\.md$"`
-only matches the literal suffix) — a later `/lrh-land` re-run could pick up
-that file as the primary record instead of excluding it. If the round number
-needs to be recorded, put it in the record body or the CHAIN-NOTE's `cycles`
-field, not the filename.
+`execution_id` still ends in the literal `_REVIEW` suffix. A round-numbered
+suffix like `_REVIEW_ROUND2` breaks the primary-vs-side-record provenance
+check below — it strips exactly the literal `_REVIEW`/`_CONFIRM`/
+`_CLOSEOUT_NOTE`/`_SELFREVIEW` suffixes, so `_REVIEW_ROUND2` would not be
+recognized as a side-record suffix at all, and a later `/lrh-land` re-run
+could pick up that file as the primary record instead of excluding it. If
+the round number needs to be recorded, put it in the record body or the
+CHAIN-NOTE's `cycles` field, not the filename.
 
 ---
 
@@ -94,19 +95,87 @@ cycles=1; stops=0; gates=[merge]; friction=none; self_review_rounds=1; bot_round
 | Primary record found | Body is **immutable** — do not edit | New `_CLOSEOUT_NOTE` record; frontmatter must include `rerun_of: <primary-record-id>` |
 | No primary record | Author a new backfill `AD_HOC` record in `project/executions/AD_HOC/` | Directly in the `# Result` section of the backfill record being authored |
 
-A **primary record** is one whose filename does NOT end with `_REVIEW.md`,
-`_CONFIRM.md`, `_CLOSEOUT_NOTE.md`, or `_SELFREVIEW.md`, and whose `pr:`
-field matches the PR URL.
+A **primary record** is one whose `pr:` field matches the PR URL and whose
+`execution_id` was not minted by a side-record-producing skill (Primary vs.
+side-record provenance check below).
 
-**Known limitation, not fixed by this exclusion list:** these are bare
-filename-suffix matches, not a check for the actual slug-suffix
-convention that produces them. A primary record whose own topic slug
-happens to end in "review," "confirm," or "selfreview" self-excludes from
-this search — verified live during this project's own `PROP-LRH-SELF-REVIEW`
-and `WI-SKILLS-LRH-SELF-REVIEW` landings
-(`feedback_lrh_land_step1_primary_record_substring_exclusion` in agent
-memory). Cross-check with a plain `find` before trusting an empty result
-when the target topic's own name plausibly ends in one of these words.
+### Primary vs. side-record provenance check
+
+A bare filename-suffix match (`grep -v "_REVIEW\.md$"` etc.) misclassifies
+a primary record whose own topic slug happens to end in "review,"
+"confirm," or "selfreview" — it self-excludes from the search, even though
+no side-record-producing skill ever ran on it. This was hit live during
+this project's own `PROP-LRH-SELF-REVIEW` and `WI-SKILLS-LRH-SELF-REVIEW`
+landings (`feedback_lrh_land_step1_primary_record_substring_exclusion` in
+agent memory) — both artifacts are themselves about "self-review," so
+their own primary records' `execution_id`s end in `_SELF_REVIEW`, tripping
+the exclusion glob meant for genuine `_REVIEW.md` side records.
+
+The fix checks provenance instead of a bare suffix. `execution_id` is
+`<timestamp>_<SLUG>`, and each record — primary or side — gets its own
+fresh timestamp at creation time (`lrh prompt record-execution` stamps
+`now()`), so a side record's full `execution_id` never equals its
+primary's plus a suffix; only the `<SLUG>` portion carries the appending
+relationship. Strip the leading timestamp first (`^[0-9]{4}(_[0-9]{2}){5}_`)
+to get each record's `<SLUG>`, then compare slugs, not full IDs: a
+candidate is only a side record if BOTH (a) its `<SLUG>` ends in one of
+the four reserved suffixes (`_REVIEW`, `_CONFIRM`, `_CLOSEOUT_NOTE`,
+`_SELFREVIEW`) AND (b) stripping that suffix yields a `<SLUG>` that
+actually exists as another record's `<SLUG>` somewhere under
+`project/executions/` — i.e. the side-record-producing skill's own
+naming convention of appending the suffix onto an existing primary
+record's slug. If no such base slug exists, the suffix is coincidental
+(part of the topic's own slug, not an appended one) and the candidate is
+primary despite its filename.
+
+```bash
+# $candidates: newline-separated list of files to classify (e.g. from
+# `grep -rl "pr: <pr-url>" project/executions/`, or from the UPPER_SLUG
+# `find` used by /lrh-confirm-fixes and /lrh-review-response)
+slug_of() {
+  grep '^execution_id:' "$1" | head -1 \
+    | sed -E 's/^execution_id: *[0-9]{4}(_[0-9]{2}){5}_//'
+}
+all_slugs=$(grep -rh '^execution_id:' project/executions/ \
+  | sed -E 's/^execution_id: *[0-9]{4}(_[0-9]{2}){5}_//')
+primary=""
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  slug=$(slug_of "$f")
+  is_side=false
+  for suf in _REVIEW _CONFIRM _CLOSEOUT_NOTE _SELFREVIEW; do
+    case "$slug" in
+      *"$suf")
+        base="${slug%$suf}"
+        if grep -qxF "$base" <<< "$all_slugs"; then
+          is_side=true
+        fi
+        ;;
+    esac
+  done
+  if [ "$is_side" = false ]; then
+    primary="${primary:+$primary$'\n'}$f"
+  fi
+done <<< "$candidates"
+printf '%s\n' "$primary"
+```
+
+Verified against this repo's own real collision case: candidate
+`.../WI_SKILLS_LRH_SELF_REVIEW.md` has slug `WI_SKILLS_LRH_SELF_REVIEW`
+(ends in the `_REVIEW` suffix). Stripping `_REVIEW` gives
+`WI_SKILLS_LRH_SELF`, which is not any record's slug — so `is_side`
+stays `false` and the record is correctly kept as primary. By contrast,
+`.../WI_SKILLS_LRH_SELF_REVIEW_IMPL_CLOSEOUT_NOTE.md` has slug
+`WI_SKILLS_LRH_SELF_REVIEW_IMPL_CLOSEOUT_NOTE`; stripping `_CLOSEOUT_NOTE`
+gives `WI_SKILLS_LRH_SELF_REVIEW_IMPL`, which IS another record's slug
+(the primary implementation record, at its own distinct timestamp) — so
+it is correctly excluded as a genuine side record. The doubled-collision
+case `ADOPT_PROP_LRH_SELF_REVIEW_REVIEW` (a `_REVIEW` side record on a
+primary whose own slug already ends in `_REVIEW`) also resolves
+correctly: its base `ADOPT_PROP_LRH_SELF_REVIEW` matches the primary's
+slug and it is excluded, while the primary itself (`ADOPT_PROP_LRH_SELF_REVIEW`,
+base-stripped to `ADOPT_PROP_LRH_SELF`, which has no matching slug) is
+kept.
 
 A `_CLOSEOUT_NOTE` record must be placed in the same execution directory
 bucket as the primary record (e.g., `project/executions/WI-FOO/` if the

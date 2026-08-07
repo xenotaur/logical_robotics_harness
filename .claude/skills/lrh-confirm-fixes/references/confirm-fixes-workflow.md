@@ -342,23 +342,28 @@ work item, with side records linked via `rerun_of`.
 xenotaur/feat/wi-skills-lrh-confirm-fixes → wi-skills-lrh-confirm-fixes-confirm
 ```
 
-**`rerun_of` population:** search for the primary record, excluding
-review-response, confirm-fixes, and self-review side records:
+**`rerun_of` population:** search for candidates, then classify each as
+primary or side by provenance — not a bare filename-suffix exclusion, which
+would misclassify a primary record whose own topic slug ends in "review,"
+"confirm," etc. See `/lrh-land/references/land-workflow.md` § Primary vs.
+side-record provenance check for the full algorithm (shared with `/lrh-land`
+Step 1 and `/lrh-review-response`'s own `rerun_of` search) and why:
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"
+candidates=$(find project/executions/ -name "*${UPPER_SLUG}*.md")
 ```
 
+Run the provenance-check algorithm against `$candidates` to get `$primary`.
 If found, set `rerun_of: <execution_id-from-the-primary-record>`. If not
 found (the PR was created outside `/lrh-implement`, as in a planning-only PR
 with no primary record), leave `rerun_of:` empty and note it in the body.
 
-**Cross-skill consequence:** `/lrh-review-response`'s own `rerun_of` search
-must also exclude `_CONFIRM.md` files (in addition to its existing
-`_REVIEW.md` exclusion) — otherwise a confirm-fixes side record could be
-mismatched as the primary record for a later review-response run on the same
-branch. This exclusion-glob update is applied to both
+**Cross-skill consistency:** because the provenance check identifies side
+records by their actual naming convention rather than a hand-maintained
+exclusion-glob, `/lrh-review-response`'s own `rerun_of` search uses the same
+algorithm — there is no separate glob to keep in sync between the two
+skills. This shared algorithm is applied to both
 `src/lrh/skills/lrh-review-response/SKILL.md` and
 `references/review-response-workflow.md` (and mirrored to `.claude/skills/`)
 as part of this skill's implementation, not as a follow-up.

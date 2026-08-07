@@ -981,3 +981,76 @@ workstream in PR #468. The proposal-local
 `project/design/proposals/proposed/lrh-codex-conversation-exporter/backlog.md`
 exists only as a pointer back to this canonical backlog entry so future
 proposal/work-item demand searches do not miss these follow-ups.
+
+---
+
+## Experimental-code linkage guardrail
+
+**Noted:** 2026-08-07, while closing the Codex app-server thread export spike in
+`experimental/save_codex_threads/`.
+
+The repository now has an `experimental/` area for temporary exploration code.
+That is useful for fast technical-risk retirement, but it creates a governance
+gap: provisional spike helpers can accidentally become production dependencies
+if `src/lrh/`, package exports, or normal tests import from `experimental/`.
+
+Design a lightweight lint or validation check that preserves the intended
+boundary:
+
+- production package code under `src/lrh/` must not import from
+  `experimental`;
+- normal unit tests should not depend on `experimental` helpers;
+- documentation may link to experimental findings;
+- manual smoke scripts may invoke experimental probes only when explicitly
+  marked as such;
+- promoted code must move through an ordinary reviewed work item rather than
+  being imported in place.
+
+The check should be cheap enough to run with ordinary validation and should
+avoid freezing `experimental/` into a public API surface. A simple first pass
+could scan import statements and package metadata; a later proposal can decide
+whether this belongs in `scripts/lint`, `lrh validate`, or both.
+
+**Status:** Not started.
+
+**Related:** `experimental/README.md`;
+`experimental/save_codex_threads/findings.md`; Codex app-server thread export
+spike.
+
+---
+
+## Codex executable trust and signature investigation
+
+**Noted:** 2026-08-07, during the Codex app-server thread export spike after
+macOS reported "Malware Blocked and Moved to Trash" for a stale Homebrew Codex
+binary.
+
+The spike retired the API feasibility risk, but it did not fully explain the
+local trust state. After reinstall, the Homebrew Codex app-server route ran
+successfully, but strict codesign verification still reported an invalid
+signature for the candidate executable. That leaves an operational question for
+LRH's eventual Codex exporter: how should the tool diagnose and report local
+Codex executable trust ambiguity without either over-alarming users or silently
+normalizing a compromised install?
+
+Design or run an investigation that captures:
+
+- reproducible diagnostics for Homebrew and ChatGPT-bundled Codex binaries;
+- which `codesign`, Gatekeeper, XProtect, Homebrew cask, and ChatGPT app
+  signals are authoritative for this installation path;
+- whether the observed strict-verification failure is expected packaging
+  behavior, a local quarantine/signature issue, or an upstream bug to report;
+- the warning shape a production LRH exporter should emit when API calls work
+  but executable trust checks are ambiguous;
+- whether LRH should document a safe reinstall/verification path before
+  invoking standalone `codex app-server`.
+
+This should stay separate from the first exporter implementation unless it
+surfaces a disqualifying safety issue. The exporter can record a manifest
+warning such as `codex_trust_state_ambiguous` while the trust investigation
+continues.
+
+**Status:** Not started.
+
+**Related:** `experimental/save_codex_threads/findings.md`; Codex app-server
+thread export spike.

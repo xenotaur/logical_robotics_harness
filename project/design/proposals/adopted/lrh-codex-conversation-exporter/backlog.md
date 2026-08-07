@@ -18,6 +18,8 @@ Active backlog entries live in the canonical design backlog:
 
 - `Codex skill adaptation gaps encountered while creating PROP-LRH-CODEX-CONVERSATION-EXPORTER`
 - `Lifecycle landing skills still assume paid GitHub reviewer retriggers`
+- `Experimental-code linkage guardrail`
+- `Codex executable trust and signature investigation`
 
 ## Why This File Exists
 

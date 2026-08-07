@@ -276,16 +276,18 @@ targets and a fixed precedence between them:
    the more specific, immediate lineage (this exact invocation's own prior
    attempt), not just a relation to the primary implementation.
 2. **The primary implementation record, only if Step 3 found nothing.**
-   Convert the branch slug to upper-underscore form before searching, then
-   classify each matching candidate as primary or side by provenance —
-   **not** a bare filename-suffix exclusion, which would misclassify a
-   primary record whose own topic slug ends in "review," "confirm," etc.
-   See `/lrh-land/references/land-workflow.md` § Primary vs. side-record
-   provenance check for the full algorithm and why:
+   Convert the branch slug to upper-underscore form and match the
+   complete trailing filename segment — not a bare substring, which would
+   also match an unrelated longer slug that happens to contain this one —
+   then classify each matching candidate as primary or side by
+   provenance — **not** a bare filename-suffix exclusion, which would
+   misclassify a primary record whose own topic slug ends in "review,"
+   "confirm," etc. See `/lrh-land/references/land-workflow.md` § Primary
+   vs. side-record provenance check for the full algorithm and why:
 
    ```bash
    UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-   candidates=$(find project/executions/ -name "*${UPPER_SLUG}*.md")
+   candidates=$(find project/executions/ -name "*_${UPPER_SLUG}.md" 2>/dev/null)
    ```
 
    Run the provenance-check algorithm against `$candidates` to get

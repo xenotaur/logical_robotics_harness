@@ -2,8 +2,8 @@
 id: WS-SESSION-ARCHIVE-SYNC
 kind: planning_node
 title: Session Archive and Sync
-status: proposed
-stage: designed
+status: active
+stage: executing
 origin: follow_up
 summary: Deliver the session/PR/execution-record archive-and-sync system designed in PROP-LRH-SESSION-ARCHIVE-SYNC — durable local transcript archive, lrh sessions reconciler, non-authoritative project/sessions/ index, and both-identifier capture — so that no repo-changing agent session is ever lost.
 parent_id: null
@@ -17,6 +17,7 @@ related_design:
   - project/workstreams/proposed/WS-EXECUTION-FRAMEWORK.md
 work_items:
   - WI-SESSION-ARCHIVE-SYNC-CAPTURE
+  - WI-SESSION-ARCHIVE-SYNC-RECONCILER
 exit_criteria:
   - All four PROP-LRH-SESSION-ARCHIVE-SYNC stages are delivered as resolved work items (Stage 1 both-identifier capture + minimal project/sessions/ index with branch/PR stitching support; Stage 2 lrh sessions sync + discover/link; Stage 3 index enrichment + report; Stage 4 both required weekly scheduled sync and closeout-triggered sync, plus optional SessionEnd hook)
   - The archive-root-location open question is resolved and recorded (the index-regeneration-frequency open question is non-load-bearing and may be resolved informally during Stage 3 implementation)
@@ -79,25 +80,28 @@ staged, independently reviewable leaves.
 
 ## Work Items
 
-Stage 1 is filed as `WI-SESSION-ARCHIVE-SYNC-CAPTURE`; the remaining three
-leaves below are **provisional** names, to be filed via `/lrh-work-item` as
-the workstream advances. None reuses the retired `WI-EXEC-SESSIONS-DISCOVERY`
-id.
+Stage 1 is filed as `WI-SESSION-ARCHIVE-SYNC-CAPTURE` (resolved) and Stage 2
+as `WI-SESSION-ARCHIVE-SYNC-RECONCILER` (proposed); the remaining two leaves
+below are **provisional** names, to be filed via `/lrh-work-item` as the
+workstream advances. None reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
 
 - **Stage 1 — `WI-SESSION-ARCHIVE-SYNC-CAPTURE`: both-identifier capture +
-  minimal index** (forward fix; standalone, first). Extend `/lrh-implement`
-  record creation and `/lrh-closeout` to capture
-  `CLAUDE_CODE_HOST_SESSION_ID` and `CLAUDE_CODE_SESSION_ID`, recording the host
-  stem as the `session_transcript` pointer and persisting the child id in a
-  minimal `project/sessions/` index. Per the resolved fork-representation
-  question (PR #451), the index schema must support stitching entries by
-  shared `branch` / `writtenBranches[]` / PR from the start — fork continuity
-  is expressed only in the index, never by editing an already-landed record's
-  single-id `session_transcript`. Because this modifies `/lrh-closeout` **by
-  design**, its `forbidden_actions` must be *permissive-with-a-gate* ("ask for
-  explicit approval before exceeding scope"), not a hard
-  `modify_lrh_closeout_skill` prohibition.
-- **Stage 2 — `lrh sessions sync` + `discover`/`link`.** Raw-JSONL mirror plus
+  minimal index — resolved.** Merged via
+  [PR #498](https://github.com/xenotaur/logical_robotics_harness/pull/498):
+  `/lrh-implement` Step 9 and `/lrh-closeout` Step 3/5 both capture
+  `CLAUDE_CODE_HOST_SESSION_ID` and `CLAUDE_CODE_SESSION_ID`, recording the
+  host stem as the `session_transcript` pointer and persisting the child id
+  as an alias in the new `project/sessions/index.jsonl` (via a dedicated
+  `lrh prompt record-session-alias` CLI subcommand backed by
+  `src/lrh/prompt_workflow_sessions.py`). Per the resolved
+  fork-representation question (PR #451), the index schema supports
+  stitching entries by shared `branch` / `written_branches[]` / PR from the
+  start — fork continuity is expressed only in the index, never by editing
+  an already-landed record's single-id `session_transcript`. Closeout
+  records the child-id alias only on the same-window resolution path,
+  never on cross-session or pasted-URL resolution.
+- **Stage 2 — `WI-SESSION-ARCHIVE-SYNC-RECONCILER`: `lrh sessions sync` +
+  `discover`/`link`.** Raw-JSONL mirror plus
   `/export` `metadata.json` harvest for the host↔child mapping. Acceptance
   criteria must include: (a) **append-safety** — a growing transcript is
   re-copied whenever the source has grown (compare size/mtime, not mere

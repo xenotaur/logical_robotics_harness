@@ -424,6 +424,7 @@ Recommended raw capture envelope:
     "threadId": "<codex thread id>",
     "includeTurns": true
   },
+  "response_shape": "json_rpc_response_envelope",
   "response": {
     "jsonrpc": "2.0",
     "id": 1,
@@ -431,7 +432,9 @@ Recommended raw capture envelope:
       "thread": {}
     }
   },
-  "capture_warnings": []
+  "capture_warnings": [
+    "private_raw_transcript_do_not_commit"
+  ]
 }
 ```
 

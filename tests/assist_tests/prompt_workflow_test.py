@@ -224,5 +224,49 @@ class PromptWorkflowTest(unittest.TestCase):
                 prompt_workflow.run_prompt_cli(["record-session-alias"])
 
 
+class WriteSessionTranscriptFieldTest(unittest.TestCase):
+    def test_replaces_existing_field(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "r.md"
+            path.write_text(
+                "---\n"
+                "execution_id: R\n"
+                "commit: abc123\n"
+                "session_transcript: pending\n"
+                "---\n\n# Summary\n"
+            )
+            prompt_workflow.write_session_transcript_field(path, "host-1")
+            self.assertIn("session_transcript: claude-app:host-1", path.read_text())
+
+    def test_inserts_after_commit_when_field_is_missing(self) -> None:
+        """Regression: a record with no session_transcript: field at all
+        must still get the field written -- not silently left unchanged
+        while the caller believes it succeeded."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "r.md"
+            original = "---\nexecution_id: R\ncommit: abc123\n---\n\n# Summary\n"
+            path.write_text(original)
+            prompt_workflow.write_session_transcript_field(path, "host-1")
+            result = path.read_text()
+            self.assertNotEqual(result, original)
+            self.assertIn("session_transcript: claude-app:host-1", result)
+            # Inserted directly after commit:, not appended anywhere else.
+            self.assertIn(
+                "commit: abc123\nsession_transcript: claude-app:host-1", result
+            )
+
+    def test_raises_when_neither_field_nor_anchor_exists(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "r.md"
+            original = "---\nexecution_id: R\n---\n\n# Summary\n"
+            path.write_text(original)
+            with self.assertRaises(prompt_workflow.SessionTranscriptWriteError):
+                prompt_workflow.write_session_transcript_field(path, "host-1")
+            # Must not silently succeed -- and must not have written
+            # anything either, since the raise happens before the file write.
+            self.assertEqual(path.read_text(), original)
+
+
 if __name__ == "__main__":
     unittest.main()

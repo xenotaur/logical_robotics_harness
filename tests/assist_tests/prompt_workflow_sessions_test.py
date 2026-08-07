@@ -1,8 +1,10 @@
 import json
+import os
 import pathlib
 import tempfile
 import unittest
 import unittest.mock
+import zipfile
 
 from lrh import prompt_workflow_sessions
 
@@ -211,6 +213,542 @@ class SessionIndexTest(unittest.TestCase):
                 prompt_workflow_sessions.record_session_observation(
                     tmp, host_id="", updated_at="2026-08-06T00:00:00+00:00"
                 )
+
+
+class ArchiveRootTest(unittest.TestCase):
+    def test_override_wins(self) -> None:
+        with unittest.mock.patch.dict(
+            "os.environ", {"LRH_SESSION_ARCHIVE_ROOT": "/env/root"}
+        ):
+            self.assertEqual(
+                prompt_workflow_sessions.resolve_archive_root("/override/root"),
+                pathlib.Path("/override/root"),
+            )
+
+    def test_env_var_used_when_no_override(self) -> None:
+        with unittest.mock.patch.dict(
+            "os.environ", {"LRH_SESSION_ARCHIVE_ROOT": "/env/root"}
+        ):
+            self.assertEqual(
+                prompt_workflow_sessions.resolve_archive_root(),
+                pathlib.Path("/env/root"),
+            )
+
+    def test_default_used_when_neither_set(self) -> None:
+        with unittest.mock.patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(
+                prompt_workflow_sessions.resolve_archive_root(),
+                prompt_workflow_sessions.default_archive_root(),
+            )
+
+
+class DiscoverTranscriptsTest(unittest.TestCase):
+    def test_finds_nested_jsonl_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "proj-a").mkdir()
+            (root / "proj-a" / "s1.jsonl").write_text("{}\n")
+            (root / "proj-b").mkdir()
+            (root / "proj-b" / "s2.jsonl").write_text("{}\n")
+            (root / "proj-a" / "not-jsonl.txt").write_text("x")
+            found = prompt_workflow_sessions.discover_transcripts(root)
+            self.assertEqual(sorted(p.name for p in found), ["s1.jsonl", "s2.jsonl"])
+
+    def test_missing_root_returns_empty(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            found = prompt_workflow_sessions.discover_transcripts(
+                pathlib.Path(tmp) / "does-not-exist"
+            )
+            self.assertEqual(found, [])
+
+
+class MirrorTranscriptTest(unittest.TestCase):
+    def test_first_mirror_copies_bytes_exactly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive_root = pathlib.Path(tmp) / "archive"
+            source = pathlib.Path(tmp) / "source.jsonl"
+            source.write_bytes(b'{"sessionId": "a"}\n')
+            result = prompt_workflow_sessions.mirror_transcript(
+                source, archive_root, project_slug="proj"
+            )
+            self.assertTrue(result.copied)
+            self.assertEqual(result.dest.read_bytes(), source.read_bytes())
+            self.assertEqual(
+                result.dest, archive_root / "raw" / "proj" / "source.jsonl"
+            )
+
+    def test_unchanged_source_is_not_recopied(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive_root = pathlib.Path(tmp) / "archive"
+            source = pathlib.Path(tmp) / "source.jsonl"
+            source.write_bytes(b'{"sessionId": "a"}\n')
+            prompt_workflow_sessions.mirror_transcript(
+                source, archive_root, project_slug="proj"
+            )
+            second = prompt_workflow_sessions.mirror_transcript(
+                source, archive_root, project_slug="proj"
+            )
+            self.assertFalse(second.copied)
+
+    def test_grown_source_is_recopied_completely(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive_root = pathlib.Path(tmp) / "archive"
+            source = pathlib.Path(tmp) / "source.jsonl"
+            source.write_bytes(b'{"sessionId": "a"}\n')
+            first = prompt_workflow_sessions.mirror_transcript(
+                source, archive_root, project_slug="proj"
+            )
+            self.assertTrue(first.copied)
+            # Simulate the source growing while the session stays active --
+            # mtime must also advance for the growth to be detected on
+            # filesystems with coarse mtime resolution.
+            source.write_bytes(b'{"sessionId": "a"}\n{"sessionId": "b"}\n')
+            os.utime(source, (source.stat().st_mtime + 5, source.stat().st_mtime + 5))
+            second = prompt_workflow_sessions.mirror_transcript(
+                source, archive_root, project_slug="proj"
+            )
+            self.assertTrue(second.copied)
+            self.assertEqual(second.dest.read_bytes(), source.read_bytes())
+
+    def test_archived_copy_never_shrinks(self) -> None:
+        """A source that is smaller than the already-archived copy (should
+        never happen for an append-only transcript, but is the safety
+        property the append-safety requirement actually guarantees) must
+        never cause the archived copy to shrink."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            archive_root = pathlib.Path(tmp) / "archive"
+            source = pathlib.Path(tmp) / "source.jsonl"
+            source.write_bytes(b'{"sessionId": "a"}\n{"sessionId": "b"}\n')
+            first = prompt_workflow_sessions.mirror_transcript(
+                source, archive_root, project_slug="proj"
+            )
+            archived_content = first.dest.read_bytes()
+            # A shorter "source" now, with an older mtime than the archived
+            # copy -- neither condition alone should trigger a re-copy.
+            source.write_bytes(b'{"sessionId": "a"}\n')
+            os.utime(source, (1, 1))
+            second = prompt_workflow_sessions.mirror_transcript(
+                source, archive_root, project_slug="proj"
+            )
+            self.assertFalse(second.copied)
+            self.assertEqual(second.dest.read_bytes(), archived_content)
+
+    def test_shrunk_source_with_newer_mtime_still_never_shrinks_archive(
+        self,
+    ) -> None:
+        """Regression: a source that is smaller but has a *newer* mtime than
+        the archived copy (a rewrite, truncation, or restore-from-backup)
+        must still never shrink the archive -- mtime alone must not be able
+        to defeat the size floor."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            archive_root = pathlib.Path(tmp) / "archive"
+            source = pathlib.Path(tmp) / "source.jsonl"
+            source.write_bytes(b"x" * 80)
+            first = prompt_workflow_sessions.mirror_transcript(
+                source, archive_root, project_slug="proj"
+            )
+            self.assertEqual(first.dest.stat().st_size, 80)
+            source.write_bytes(b"x" * 8)
+            os.utime(
+                source,
+                (source.stat().st_mtime + 100, source.stat().st_mtime + 100),
+            )
+            second = prompt_workflow_sessions.mirror_transcript(
+                source, archive_root, project_slug="proj"
+            )
+            self.assertFalse(second.copied)
+            self.assertEqual(second.dest.stat().st_size, 80)
+
+
+class CollectChildIdAliasesTest(unittest.TestCase):
+    def test_collects_every_distinct_line_level_session_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "f1e9c968.jsonl"
+            path.write_text(
+                '{"sessionId": "aff3efd3"}\n'
+                '{"sessionId": "aff3efd3"}\n'
+                '{"sessionId": "f1e9c968"}\n'
+            )
+            aliases = prompt_workflow_sessions.collect_child_id_aliases(path)
+            self.assertEqual(aliases, {"aff3efd3", "f1e9c968"})
+
+    def test_malformed_lines_are_skipped_not_raised(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "f.jsonl"
+            path.write_text('{"sessionId": "a"}\nnot json\n\n{"sessionId": "b"}\n')
+            aliases = prompt_workflow_sessions.collect_child_id_aliases(path)
+            self.assertEqual(aliases, {"a", "b"})
+
+    def test_missing_file_returns_empty_set(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            aliases = prompt_workflow_sessions.collect_child_id_aliases(
+                pathlib.Path(tmp) / "missing.jsonl"
+            )
+            self.assertEqual(aliases, set())
+
+
+def _write_export_zip(
+    path: pathlib.Path,
+    metadata: dict,
+    *,
+    include_logs: bool = True,
+) -> None:
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("metadata.json", json.dumps(metadata))
+        archive.writestr("transcript.jsonl", '{"sessionId": "unused"}\n')
+        if include_logs:
+            archive.writestr("logs/main.log", "log content")
+
+
+class HarvestExportMetadataTest(unittest.TestCase):
+    def test_extracts_only_identity_fields(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = pathlib.Path(tmp) / "export.zip"
+            _write_export_zip(
+                zip_path,
+                {
+                    "sessionId": "local_abc",
+                    "cliSessionId": "def",
+                    "prNumber": 1,
+                    "prs": [{"url": "https://example.com/pull/1"}],
+                    "branch": "feat/x",
+                    "title": "A title",
+                    "cwd": "/should/not/appear",
+                    "model": "should-not-appear",
+                },
+            )
+            metadata = prompt_workflow_sessions.harvest_export_metadata(zip_path)
+            self.assertEqual(
+                metadata,
+                {
+                    "sessionId": "local_abc",
+                    "cliSessionId": "def",
+                    "prNumber": 1,
+                    "prs": [{"url": "https://example.com/pull/1"}],
+                    "branch": "feat/x",
+                    "title": "A title",
+                },
+            )
+            self.assertNotIn("cwd", metadata)
+            self.assertNotIn("model", metadata)
+
+    def test_missing_metadata_json_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = pathlib.Path(tmp) / "export.zip"
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                archive.writestr("transcript.jsonl", "{}\n")
+            with self.assertRaises(prompt_workflow_sessions.ExportMetadataError):
+                prompt_workflow_sessions.harvest_export_metadata(zip_path)
+
+    def test_bad_zip_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = pathlib.Path(tmp) / "export.zip"
+            zip_path.write_bytes(b"not a zip file")
+            with self.assertRaises(prompt_workflow_sessions.ExportMetadataError):
+                prompt_workflow_sessions.harvest_export_metadata(zip_path)
+
+    def test_never_lists_or_extracts_logs(self) -> None:
+        """Verified by construction: only metadata.json is opened, so a
+        zip whose logs/ entry would raise if read still harvests cleanly."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = pathlib.Path(tmp) / "export.zip"
+            _write_export_zip(zip_path, {"sessionId": "local_a"})
+            metadata = prompt_workflow_sessions.harvest_export_metadata(zip_path)
+            self.assertEqual(metadata, {"sessionId": "local_a"})
+
+
+class SessionKeyFromMetadataTest(unittest.TestCase):
+    def test_strips_local_prefix(self) -> None:
+        self.assertEqual(
+            prompt_workflow_sessions.session_key_from_metadata(
+                {"sessionId": "local_abc-123"}
+            ),
+            "abc-123",
+        )
+
+    def test_missing_session_id_returns_none(self) -> None:
+        self.assertIsNone(prompt_workflow_sessions.session_key_from_metadata({}))
+
+
+class ExportPrUrlsTest(unittest.TestCase):
+    def test_extracts_all_urls(self) -> None:
+        urls = prompt_workflow_sessions.export_pr_urls(
+            {
+                "prs": [
+                    {"url": "https://example.com/pull/1"},
+                    {"url": "https://example.com/pull/2"},
+                ]
+            }
+        )
+        self.assertEqual(
+            urls, ["https://example.com/pull/1", "https://example.com/pull/2"]
+        )
+
+    def test_missing_prs_returns_empty(self) -> None:
+        self.assertEqual(prompt_workflow_sessions.export_pr_urls({}), [])
+
+    def test_malformed_entries_skipped(self) -> None:
+        urls = prompt_workflow_sessions.export_pr_urls(
+            {"prs": ["not-a-dict", {"no_url": True}, {"url": "https://x/pull/9"}]}
+        )
+        self.assertEqual(urls, ["https://x/pull/9"])
+
+
+class PersistExportMetadataTest(unittest.TestCase):
+    def test_writes_sorted_json_atomically(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive_root = pathlib.Path(tmp) / "archive"
+            dest = prompt_workflow_sessions.persist_export_metadata(
+                archive_root, "abc-123", {"sessionId": "local_abc-123"}
+            )
+            self.assertEqual(
+                dest, archive_root / "exports" / "abc-123" / "metadata.json"
+            )
+            self.assertEqual(
+                json.loads(dest.read_text()), {"sessionId": "local_abc-123"}
+            )
+
+
+class SyncExportTest(unittest.TestCase):
+    def test_full_harvest_populates_index(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+            zip_path = pathlib.Path(tmp) / "session-export-1.zip"
+            _write_export_zip(
+                zip_path,
+                {
+                    "sessionId": "local_host-1",
+                    "cliSessionId": "child-1",
+                    "prs": [
+                        {"url": "https://example.com/pull/1"},
+                        {"url": "https://example.com/pull/2"},
+                    ],
+                    "branch": "feat/x",
+                    "title": "Title",
+                },
+            )
+            record = prompt_workflow_sessions.sync_export(
+                project_root,
+                archive_root,
+                zip_path,
+                updated_at="2026-08-07T00:00:00+00:00",
+            )
+            self.assertIsNotNone(record)
+            self.assertEqual(record.host_id, "host-1")
+            self.assertEqual(record.child_ids, ("child-1",))
+            self.assertEqual(
+                record.prs,
+                ("https://example.com/pull/1", "https://example.com/pull/2"),
+            )
+            self.assertEqual(record.branch, "feat/x")
+            self.assertEqual(record.title, "Title")
+            # The sanitized metadata copy is persisted for Stage 3 recovery.
+            self.assertTrue(
+                (archive_root / "exports" / "host-1" / "metadata.json").exists()
+            )
+
+    def test_no_host_id_persists_metadata_but_skips_index(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+            zip_path = pathlib.Path(tmp) / "session-export-1.zip"
+            _write_export_zip(zip_path, {"cliSessionId": "child-1"})
+            record = prompt_workflow_sessions.sync_export(
+                project_root,
+                archive_root,
+                zip_path,
+                updated_at="2026-08-07T00:00:00+00:00",
+            )
+            self.assertIsNone(record)
+            self.assertFalse(prompt_workflow_sessions.index_path(project_root).exists())
+            # Still persisted under the zip's own stem so the harvest is not
+            # silently lost even without a resolvable host id.
+            self.assertTrue(
+                (
+                    archive_root / "exports" / "session-export-1" / "metadata.json"
+                ).exists()
+            )
+
+
+class ProjectSlugForPathTest(unittest.TestCase):
+    def test_slashes_and_underscores_become_hyphens(self) -> None:
+        slug = prompt_workflow_sessions.project_slug_for_path("/a/b_c/d")
+        self.assertNotIn("/", slug)
+        self.assertNotIn("_", slug)
+        self.assertTrue(slug.startswith("-a-b-c-d"))
+
+
+class DiscoverSessionsForProjectTest(unittest.TestCase):
+    def test_lists_transcripts_and_resolves_known_host_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "proj"
+            claude_projects_root = pathlib.Path(tmp) / "claude-projects"
+            slug = prompt_workflow_sessions.project_slug_for_path(project_root)
+            project_dir = claude_projects_root / slug
+            project_dir.mkdir(parents=True)
+            (project_dir / "child-1.jsonl").write_text('{"sessionId": "child-1"}\n')
+
+            prompt_workflow_sessions.record_session_observation(
+                project_root,
+                host_id="host-1",
+                child_id="child-1",
+                updated_at="2026-08-07T00:00:00+00:00",
+            )
+
+            sessions = prompt_workflow_sessions.discover_sessions_for_project(
+                project_root, claude_projects_root
+            )
+            self.assertEqual(len(sessions), 1)
+            self.assertEqual(sessions[0].child_id, "child-1")
+            self.assertEqual(sessions[0].host_id, "host-1")
+
+    def test_unresolved_session_has_none_host_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "proj"
+            claude_projects_root = pathlib.Path(tmp) / "claude-projects"
+            slug = prompt_workflow_sessions.project_slug_for_path(project_root)
+            project_dir = claude_projects_root / slug
+            project_dir.mkdir(parents=True)
+            (project_dir / "unknown.jsonl").write_text("{}\n")
+
+            sessions = prompt_workflow_sessions.discover_sessions_for_project(
+                project_root, claude_projects_root
+            )
+            self.assertEqual(len(sessions), 1)
+            self.assertIsNone(sessions[0].host_id)
+
+    def test_missing_project_dir_returns_empty(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            sessions = prompt_workflow_sessions.discover_sessions_for_project(
+                pathlib.Path(tmp) / "proj", pathlib.Path(tmp) / "claude-projects"
+            )
+            self.assertEqual(sessions, [])
+
+
+class ReconcileChildIdAliasesTest(unittest.TestCase):
+    def test_adds_new_alias_for_already_known_host(self) -> None:
+        """The PR #435 case: a transcript named after one child id contains
+        an in-file sessionId belonging to no filename anywhere. Once either
+        alias is already linked to a host, the other must be folded in."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt_workflow_sessions.record_session_observation(
+                tmp,
+                host_id="host-1",
+                child_id="f1e9c968",
+                updated_at="2026-08-07T00:00:00+00:00",
+            )
+            jsonl_path = pathlib.Path(tmp) / "f1e9c968.jsonl"
+            jsonl_path.write_text(
+                '{"sessionId": "aff3efd3"}\n{"sessionId": "f1e9c968"}\n'
+            )
+            result = prompt_workflow_sessions.reconcile_child_id_aliases(
+                tmp, jsonl_path, updated_at="2026-08-07T01:00:00+00:00"
+            )
+            self.assertEqual(result, ("host-1", frozenset({"aff3efd3"})))
+            record = prompt_workflow_sessions.load_session_index(tmp)["host-1"]
+            self.assertEqual(record.child_ids, ("aff3efd3", "f1e9c968"))
+
+    def test_no_known_alias_is_a_noop(self) -> None:
+        """Raw JSONL alone cannot establish a *new* host id -- with no
+        alias already in the index, this must not guess or invent one."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            jsonl_path = pathlib.Path(tmp) / "unknown.jsonl"
+            jsonl_path.write_text('{"sessionId": "unknown-child"}\n')
+            result = prompt_workflow_sessions.reconcile_child_id_aliases(
+                tmp, jsonl_path, updated_at="2026-08-07T00:00:00+00:00"
+            )
+            self.assertIsNone(result)
+            self.assertEqual(prompt_workflow_sessions.load_session_index(tmp), {})
+
+    def test_ambiguous_across_two_hosts_is_a_noop(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt_workflow_sessions.record_session_observation(
+                tmp,
+                host_id="host-1",
+                child_id="child-a",
+                updated_at="2026-08-07T00:00:00+00:00",
+            )
+            prompt_workflow_sessions.record_session_observation(
+                tmp,
+                host_id="host-2",
+                child_id="child-b",
+                updated_at="2026-08-07T00:00:00+00:00",
+            )
+            jsonl_path = pathlib.Path(tmp) / "mixed.jsonl"
+            jsonl_path.write_text(
+                '{"sessionId": "child-a"}\n{"sessionId": "child-b"}\n'
+            )
+            result = prompt_workflow_sessions.reconcile_child_id_aliases(
+                tmp, jsonl_path, updated_at="2026-08-07T01:00:00+00:00"
+            )
+            self.assertIsNone(result)
+
+    def test_already_fully_known_is_a_noop(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt_workflow_sessions.record_session_observation(
+                tmp,
+                host_id="host-1",
+                child_id="only-child",
+                updated_at="2026-08-07T00:00:00+00:00",
+            )
+            jsonl_path = pathlib.Path(tmp) / "only-child.jsonl"
+            jsonl_path.write_text('{"sessionId": "only-child"}\n')
+            result = prompt_workflow_sessions.reconcile_child_id_aliases(
+                tmp, jsonl_path, updated_at="2026-08-07T01:00:00+00:00"
+            )
+            self.assertIsNone(result)
+
+    def test_empty_transcript_is_a_noop(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            jsonl_path = pathlib.Path(tmp) / "empty.jsonl"
+            jsonl_path.write_text("")
+            result = prompt_workflow_sessions.reconcile_child_id_aliases(
+                tmp, jsonl_path, updated_at="2026-08-07T00:00:00+00:00"
+            )
+            self.assertIsNone(result)
+
+
+class ResolveHostIdForChildTest(unittest.TestCase):
+    def test_resolves_known_child_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt_workflow_sessions.record_session_observation(
+                tmp,
+                host_id="host-1",
+                child_id="child-1",
+                updated_at="2026-08-07T00:00:00+00:00",
+            )
+            self.assertEqual(
+                prompt_workflow_sessions.resolve_host_id_for_child(tmp, "child-1"),
+                "host-1",
+            )
+
+    def test_unknown_child_id_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(prompt_workflow_sessions.LinkLookupError):
+                prompt_workflow_sessions.resolve_host_id_for_child(tmp, "nope")
+
+    def test_ambiguous_child_id_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            prompt_workflow_sessions.record_session_observation(
+                tmp,
+                host_id="host-1",
+                child_id="shared-child",
+                updated_at="2026-08-07T00:00:00+00:00",
+            )
+            prompt_workflow_sessions.record_session_observation(
+                tmp,
+                host_id="host-2",
+                child_id="shared-child",
+                updated_at="2026-08-07T00:00:00+00:00",
+            )
+            with self.assertRaises(prompt_workflow_sessions.LinkLookupError):
+                prompt_workflow_sessions.resolve_host_id_for_child(tmp, "shared-child")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,13 @@ import json
 import sys
 from pathlib import Path
 
-from lrh import prompt_workflow, prompt_workflow_match, prompt_workflow_search, serve
+from lrh import (
+    prompt_workflow,
+    prompt_workflow_match,
+    prompt_workflow_search,
+    serve,
+    sessions_workflow,
+)
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
@@ -129,6 +135,12 @@ def main() -> None:
         "match",
         add_help=False,
         help="Match prompt files to execution records.",
+    )
+
+    subparsers.add_parser(
+        "sessions",
+        add_help=False,
+        help="Session archive reconciler (sync/discover/link).",
     )
 
     subparsers.add_parser(
@@ -766,6 +778,14 @@ def main() -> None:
             prompt_workflow_search.run_search_cli(
                 argv=passthrough_args,
                 prog="lrh search",
+            )
+        )
+
+    if args.command == "sessions":
+        raise SystemExit(
+            sessions_workflow.run_sessions_cli(
+                argv=passthrough_args,
+                prog="lrh sessions",
             )
         )
 

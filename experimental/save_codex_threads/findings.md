@@ -51,3 +51,35 @@
 - Truncation and omitted-output observations.
 - App-server route result, if a safe documented route is found.
 
+## 2026-08-07 Phase 1 Bounded Read
+
+Ran a bounded model-visible `codex_app.read_thread` call against the current
+thread id from the Codex app context.
+
+Sanitized observations:
+
+- The call succeeded for the current thread.
+- The returned thread metadata identified the thread as `kind: codex`, with
+  `hostId: local`, an active status, and the LRH worktree as its current working
+  directory.
+- The response returned `schemaVersion: 1`.
+- The response used newest-first paging.
+- A `turnLimit` of 5 returned 5 turns.
+- The returned page had `hasMore: true` and a `nextCursor`, so additional older
+  history is available.
+- The newest returned turn was still `inProgress`, which means an exporter must
+  either mark active-turn captures as partial or default to completed turns only.
+- The returned item types included `userMessage`, `reasoning`, `agentMessage`,
+  and `fileChange`.
+- With `includeOutputs: false`, command/tool output bodies were not expanded in
+  this bounded read.
+
+Implications:
+
+- The model-visible `codex_app.read_thread` route can access real current-task
+  data and pagination metadata.
+- A skill-backed exporter is technically plausible.
+- The exporter design needs an explicit policy for active turns and reasoning
+  summaries.
+- This does not yet prove a standalone LRH subprocess can read the same thread;
+  that remains Phase 3.

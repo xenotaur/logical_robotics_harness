@@ -31,6 +31,7 @@ acceptance:
   - Claude-specific body prose is rewritten or deliberately retained with rationale
   - Codex-installed skills no longer instruct Codex to record itself as Claude
   - Invocation examples are agent-neutral or target-aware where practical
+  - Claude install behavior remains usable and intentional
   - lrh validate reports 0 errors
 required_evidence:
   - lrh_validate
@@ -115,7 +116,7 @@ workflow language.
 - `scripts/lint`
 - `scripts/test` when source behavior changes
 - `lrh skills check --target claude --local`
-- `lrh skills check --target codex --local`
+- `lrh skills status --target codex --local`
 - `lrh validate`
 
 ## Acceptance Criteria

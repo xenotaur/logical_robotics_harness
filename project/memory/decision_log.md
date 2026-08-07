@@ -1,5 +1,21 @@
 # Decision Log
 
+## 2026-08-07: Decision: Chain-Initiation Skip Consent Narrows the Per-Run Live-Reply Requirement — promoted to DEC-CHAIN-INIT-SKIP-CONSENT
+
+Promoted directly because it is cited from `DEC-DELIBERATE-CHAIN-INITIATION`
+and `PROP-LRH-CHAIN-DEFAULTS`, matching the promotion bar
+`precedence_semantics.md` set. Narrows `DEC-DELIBERATE-CHAIN-INITIATION`'s
+requirement that a human sign off on completion/stop conditions for *each*
+chain run — but only for a user-local, value-bound, revocable
+`chain_init_confirmation: skip_if_opted_in` consent, gated by two separate
+affirmative actions and a mandatory per-run special-conditions check.
+`always_confirm` (today's default) is unaffected. Produced by
+`WI-DEC-CHAIN-INIT-SKIP-AMENDMENT`, itself a direct follow-up to a Codex
+review finding during `PROP-LRH-CHAIN-DEFAULTS`'s own review (PR #499) that
+caught that proposal's first draft falsely claiming no impact on the
+governing decision. See that record for the full decision, rationale,
+consequences, and revisit conditions.
+
 ## 2026-07-30: Decision: Agent-Executed Merge Is Permitted Under Explicit, Unambiguous Authorization — promoted to DEC-AGENT-EXECUTED-MERGE-GATE
 
 Promoted directly because it is cited from `AGENTS.md`, `src/lrh/skills/lrh-land/SKILL.md`,

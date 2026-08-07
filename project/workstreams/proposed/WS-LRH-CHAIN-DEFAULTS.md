@@ -22,6 +22,8 @@ related_roadmap:
   - ROADMAP-PHASE-03
 work_items:
   - WI-DEC-CHAIN-INIT-SKIP-AMENDMENT
+  - WI-LRH-CHAIN-DEFAULTS-INCREMENT-1
+  - WI-LRH-CHAIN-DEFAULTS-INCREMENT-2
 exit_criteria:
   - A design-review session has produced concrete, steelmanned default values (completion condition, stop-work condition, self-review preference) with recorded rationale, before any Increment 1 code lands
   - Increment 1 (chain-level defaults: schema + propose-and-confirm flow wired into /lrh-land and /lrh-execute Step 2) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors
@@ -83,22 +85,23 @@ skipping.
 
 ## Work Items
 
+The design-review steelmanning session that produces concrete default
+values has already happened (`PROP-LRH-CHAIN-DEFAULTS`'s "Steelmanned
+Defaults" section, PR #499) and did not itself need a separate work
+item.
+
 - **WI-DEC-CHAIN-INIT-SKIP-AMENDMENT** — amend
   `DEC-DELIBERATE-CHAIN-INITIATION` to formally narrow its per-run
   live-reply requirement for `chain_init_confirmation: skip_if_opted_in`,
   per `PROP-LRH-CHAIN-DEFAULTS` Decision 6's own blocking Open Question.
-  Prerequisite for `skip_if_opted_in` shipping in any future increment.
-
-The design-review steelmanning session that produces concrete default
-values has already happened (`PROP-LRH-CHAIN-DEFAULTS`'s "Steelmanned
-Defaults" section, PR #499) and did not itself need a separate work
-item. Two more are anticipated, in delivery order, to be filed via
-`/lrh-work-item` as each becomes ready to scope:
-
-1. **Increment 1 implementation** (not yet filed) — chain-defaults
-   profile schema and propose-and-confirm flow.
-2. **Increment 2 implementation** (not yet filed) — per-gate autopilot
-   flags, informed by Increment 1 evidence.
+  Produced `DEC-CHAIN-INIT-SKIP-CONSENT`.
+- **WI-LRH-CHAIN-DEFAULTS-INCREMENT-1** — implement the chain-defaults
+  profile schema, the propose-and-confirm flow at `/lrh-land`/`/lrh-execute`
+  Step 2, and `chain_init_confirmation` in both modes. Depends on
+  `WI-DEC-CHAIN-INIT-SKIP-AMENDMENT`.
+- **WI-LRH-CHAIN-DEFAULTS-INCREMENT-2** — implement `confirm_fixes_batch`'s
+  per-gate autopilot predicate, defined from real Increment 1 session
+  evidence. Depends on `WI-LRH-CHAIN-DEFAULTS-INCREMENT-1`.
 
 ## Exit Criteria
 

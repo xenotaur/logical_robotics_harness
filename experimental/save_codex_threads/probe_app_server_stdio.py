@@ -15,25 +15,56 @@ from pathlib import Path
 from typing import Any
 
 
-def _read_json_line(
-    proc: subprocess.Popen[str],
-    selector: selectors.BaseSelector,
-    *,
-    timeout_seconds: float,
-) -> dict[str, Any]:
-    deadline = time.monotonic() + timeout_seconds
-    while time.monotonic() < deadline:
-        remaining = max(0.0, deadline - time.monotonic())
-        events = selector.select(timeout=min(remaining, 0.25))
-        if not events:
-            if proc.poll() is not None:
+REPO_ROOT = Path(__file__).resolve().parents[2]
+
+
+class JsonLineReader:
+    """Read JSONL from app-server stdout without TextIOWrapper buffering traps."""
+
+    def __init__(self, proc: subprocess.Popen[bytes]) -> None:
+        if proc.stdout is None:
+            raise RuntimeError("app-server stdout pipe was not created")
+        self._stdout = proc.stdout
+        self._selector = selectors.DefaultSelector()
+        self._selector.register(self._stdout, selectors.EVENT_READ)
+        self._buffer = bytearray()
+
+    def close(self) -> None:
+        self._selector.close()
+
+    def read_json_line(
+        self,
+        proc: subprocess.Popen[bytes],
+        *,
+        deadline: float,
+    ) -> dict[str, Any]:
+        while True:
+            newline_index = self._buffer.find(b"\n")
+            if newline_index >= 0:
+                raw_line = bytes(self._buffer[:newline_index])
+                del self._buffer[: newline_index + 1]
+                line = raw_line.decode("utf-8").strip()
+                if not line:
+                    continue
+                return json.loads(line)
+
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("timed out waiting for app-server response")
+
+            events = self._selector.select(timeout=min(remaining, 0.25))
+            if not events:
+                if proc.poll() is not None:
+                    raise RuntimeError(
+                        f"app-server exited before response: {proc.returncode}"
+                    )
+                continue
+
+            chunk = os.read(self._stdout.fileno(), 65536)
+            if chunk:
+                self._buffer.extend(chunk)
+            elif proc.poll() is not None:
                 raise RuntimeError(f"app-server exited before response: {proc.returncode}")
-            continue
-        line = proc.stdout.readline() if proc.stdout else ""
-        if not line:
-            continue
-        return json.loads(line)
-    raise TimeoutError("timed out waiting for app-server response")
 
 
 def _summarize_thread(thread: dict[str, Any]) -> dict[str, Any]:
@@ -107,19 +138,20 @@ def _summarize_one_turn(turn: dict[str, Any]) -> dict[str, Any]:
 
 
 def _send_request(
-    proc: subprocess.Popen[str],
-    selector: selectors.BaseSelector,
+    proc: subprocess.Popen[bytes],
+    reader: JsonLineReader,
     *,
     request: dict[str, Any],
     timeout_seconds: float,
 ) -> dict[str, Any]:
     assert proc.stdin is not None
-    proc.stdin.write(json.dumps(request) + "\n")
+    deadline = time.monotonic() + timeout_seconds
+    proc.stdin.write((json.dumps(request) + "\n").encode("utf-8"))
     proc.stdin.flush()
 
     request_id = request.get("id")
     while True:
-        response = _read_json_line(proc, selector, timeout_seconds=timeout_seconds)
+        response = reader.read_json_line(proc, deadline=deadline)
         if response.get("id") == request_id:
             return response
 
@@ -209,8 +241,8 @@ def main() -> int:
     parser.add_argument(
         "--raw-out",
         help=(
-            "Optional private JSON path for the raw app-server response envelope. "
-            "Only valid with --mode thread-read."
+            "Optional private absolute JSON path outside this repository for the "
+            "raw app-server response envelope. Only valid with --mode thread-read."
         ),
     )
     parser.add_argument("--timeout-seconds", type=float, default=10.0)
@@ -219,6 +251,13 @@ def main() -> int:
     if args.raw_out and args.mode != "thread-read":
         print("--raw-out is only supported with --mode thread-read", file=sys.stderr)
         return 2
+    raw_out = None
+    if args.raw_out:
+        try:
+            raw_out = _resolve_raw_output_path(Path(args.raw_out))
+        except ValueError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
 
     if not args.thread_id:
         print("CODEX_THREAD_ID is required", file=sys.stderr)
@@ -233,13 +272,9 @@ def main() -> int:
         [str(codex), "app-server", "--listen", "stdio://"],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-        encoding="utf-8",
+        bufsize=0,
     )
-    selector = selectors.DefaultSelector()
-    assert proc.stdout is not None
-    selector.register(proc.stdout, selectors.EVENT_READ)
+    reader = JsonLineReader(proc)
 
     try:
         assert proc.stdin is not None
@@ -257,7 +292,7 @@ def main() -> int:
         }
         init_response = _send_request(
             proc,
-            selector,
+            reader,
             request=initialize,
             timeout_seconds=args.timeout_seconds,
         )
@@ -270,7 +305,11 @@ def main() -> int:
             )
             return 1
 
-        proc.stdin.write(json.dumps({"method": "initialized", "params": {}}) + "\n")
+        proc.stdin.write(
+            (json.dumps({"method": "initialized", "params": {}}) + "\n").encode(
+                "utf-8"
+            )
+        )
         proc.stdin.flush()
 
         requests = [
@@ -323,13 +362,13 @@ def main() -> int:
         for index, (label, method, params) in enumerate(requests, start=1):
             response = _send_request(
                 proc,
-                selector,
+                reader,
                 request={"method": method, "id": index, "params": params},
                 timeout_seconds=args.timeout_seconds,
             )
-            if args.raw_out:
+            if raw_out:
                 _write_raw_capture(
-                    Path(args.raw_out),
+                    raw_out,
                     codex=codex,
                     method=method,
                     params=params,
@@ -349,7 +388,7 @@ def main() -> int:
                     }
                     page_2_response = _send_request(
                         proc,
-                        selector,
+                        reader,
                         request={
                             "method": "thread/turns/list",
                             "id": len(requests) + 1,
@@ -378,7 +417,7 @@ def main() -> int:
         )
         return 0
     finally:
-        selector.close()
+        reader.close()
         if proc.stdin:
             proc.stdin.close()
         try:
@@ -404,16 +443,37 @@ def _write_raw_capture(
         "source_command": f"{codex} app-server --listen stdio://",
         "app_server_method": method,
         "request": params,
+        "response_shape": "json_rpc_response_envelope",
         "response": response,
         "capture_warnings": [
             "private_raw_transcript_do_not_commit",
         ],
     }
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        json.dumps(envelope, indent=2, sort_keys=True),
-        encoding="utf-8",
-    )
+    fd = os.open(output_path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as capture_file:
+        os.fchmod(capture_file.fileno(), 0o600)
+        capture_file.write(json.dumps(envelope, indent=2, sort_keys=True))
+        capture_file.write("\n")
+
+
+def _resolve_raw_output_path(output_path: Path) -> Path:
+    expanded = output_path.expanduser()
+    if not expanded.is_absolute():
+        raise ValueError("--raw-out must be an absolute path outside this repository")
+
+    normalized = expanded.resolve(strict=False)
+    if _path_is_relative_to(normalized, REPO_ROOT):
+        raise ValueError("--raw-out must be outside this repository")
+    return normalized
+
+
+def _path_is_relative_to(path: Path, parent: Path) -> bool:
+    try:
+        path.relative_to(parent)
+    except ValueError:
+        return False
+    return True
 
 
 if __name__ == "__main__":

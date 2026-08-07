@@ -15,4 +15,3 @@ Guidelines:
   findings or plans.
 - Promote useful code into `src/lrh/` only through a separate reviewed work item
   or proposal.
-

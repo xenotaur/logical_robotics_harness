@@ -425,15 +425,19 @@ Recommended raw capture envelope:
     "includeTurns": true
   },
   "response": {
-    "thread": {}
+    "jsonrpc": "2.0",
+    "id": 1,
+    "result": {
+      "thread": {}
+    }
   },
   "capture_warnings": []
 }
 ```
 
-The raw `response.thread` object should be stored without transformation in the
-private source artifact. Observed top-level thread metadata includes stable
-export inputs such as:
+The raw `response.result.thread` object should be stored without transformation
+inside the private JSON-RPC response envelope. Observed top-level thread
+metadata includes stable export inputs such as:
 
 - `id`, `name`, `preview`, `createdAt`, `updatedAt`, and `recencyAt`;
 - `cwd`, `gitInfo`, `historyMode`, `modelProvider`, `sessionId`, `source`, and

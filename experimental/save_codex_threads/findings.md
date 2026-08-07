@@ -292,3 +292,76 @@ Implications:
   experimental paged `thread/turns/list` method.
 - The trust state remains unresolved: functional success does not explain or
   clear the failed strict signature verification.
+
+## 2026-08-07 Turn Data Route Comparison
+
+Extended `probe_app_server_stdio.py` with a sanitized compare mode and tested
+multiple app-server routes for actual turn data.
+
+Probe behavior:
+
+- Used the same stdio app-server handshake as the prior probe.
+- Enabled `experimentalApi` in the client capabilities so experimental methods
+  could be tested explicitly.
+- Ran stable `thread/read` with `includeTurns: true`.
+- Ran experimental `thread/turns/list` with `itemsView: notLoaded`.
+- Ran experimental `thread/turns/list` with `itemsView: summary`.
+- Followed the `itemsView: summary` `nextCursor` once to test page 2.
+- Ran experimental `thread/turns/list` with `itemsView: full` and a limit of 2.
+- Printed only sanitized structural summaries: counts, keys, item types,
+  statuses, cursor presence, and small turn metadata samples.
+
+Sanitized observations:
+
+- All comparison probes returned `ok: true`.
+- Stable `thread/read` with `includeTurns: true` returned all 116 turns in one
+  response.
+- The full stable read included 115 completed turns and 1 interrupted turn.
+- The full stable read included item types: `userMessage`, `agentMessage`,
+  `reasoning`, `fileChange`, `webSearch`, and `contextCompaction`.
+- The full stable read appears to return the thread in chronological order, with
+  the oldest sampled turns first.
+- `thread/turns/list` with `itemsView: notLoaded` returned 5 newest turns with
+  statuses and timing metadata, but no item content.
+- `thread/turns/list` with `itemsView: summary` returned 5 newest turns with
+  `userMessage` and `agentMessage` summary items only.
+- The summary route returned both `nextCursor` and `backwardsCursor`, and a
+  second request using `nextCursor` returned another 5 turns.
+- `thread/turns/list` with `itemsView: full` and limit 2 returned full item
+  structure for the newest turns, including `reasoning`, `fileChange`, and
+  `webSearch` item types.
+- After the comparison run, the Homebrew target binary still existed with the
+  same size and inode observed before the run.
+- `codesign --verify --strict --verbose=4 /opt/homebrew/bin/codex` still failed
+  with `invalid signature (code or signature have been modified)`.
+
+Fitness comparison:
+
+- `thread/read` with `includeTurns: true` is the best stable route for a first
+  complete raw export prototype because it returns the whole stored thread in a
+  single documented call.
+- `thread/read` with `includeTurns: true` is less attractive for very large
+  tasks because it is not paged; large responses may be memory-heavy and harder
+  to resume after interruption.
+- `thread/turns/list` with `itemsView: notLoaded` is useful for inventory,
+  completeness checks, status summaries, and planning a paged export, but cannot
+  render transcript content.
+- `thread/turns/list` with `itemsView: summary` is a good safe-default preview
+  or lightweight export route because it is paged and avoids expanded item
+  detail, but it omits reasoning, file changes, and other item types needed for
+  a faithful LRH session archive.
+- `thread/turns/list` with `itemsView: full` is the best shape for scalable raw
+  export because it is paged and includes rich item structure, but it is
+  experimental and should be treated as an adapter behind a capability check.
+
+Implications:
+
+- The original LRH goal is feasible through a standalone app-server adapter:
+  current-session data can be fetched through documented app-server methods.
+- A conservative implementation should use stable `thread/read` as the initial
+  complete-export path, with a later optional paged adapter using
+  `thread/turns/list` when experimental APIs are allowed.
+- The production exporter must avoid printing raw transcript content by default,
+  write raw artifacts only to private/local paths, and include manifest warnings
+  for active/interrupted turns, omitted item classes, pagination completeness,
+  and experimental API use.

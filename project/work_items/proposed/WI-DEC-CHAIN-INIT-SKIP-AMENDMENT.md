@@ -31,8 +31,10 @@ forbidden_actions:
   - merge_pr
   - implement_skip_if_opted_in
 acceptance:
-  - New decision-log entry exists, explicitly scoped to narrowing only the per-run live-reply requirement for a user-local, value-bound, revocable skip_if_opted_in consent -- not a general loosening of chain-initiation
+  - A dated entry lands in project/memory/decision_log.md before being promoted, per design.md's decision-record tiers
+  - New promoted decision-log entry exists, explicitly scoped to narrowing only the per-run live-reply requirement for a user-local, value-bound, revocable skip_if_opted_in consent -- not a general loosening of chain-initiation
   - DEC-DELIBERATE-CHAIN-INITIATION.md cross-references the new entry, following the precedent already set by its own DEC-AGENT-EXECUTED-MERGE-GATE cross-reference
+  - WI-DEC-CHAIN-INIT-SKIP-AMENDMENT is registered in WS-LRH-CHAIN-DEFAULTS's work_items list, not only declared as related
   - The entry explicitly preserves the human's slash-command invocation as the deliberate initiation act, the mandatory per-run special-conditions check surviving skip mode, and the two-separate-affirmative-actions requirement (store defaults, then separately opt into skipping)
   - PROP-LRH-CHAIN-DEFAULTS's Open Question blocking skip_if_opted_in is updated to reference the new decision once it lands
   - lrh validate reports 0 errors
@@ -40,17 +42,20 @@ required_evidence:
   - manual_review
   - lrh_validate
 artifacts_expected:
+  - project/memory/decision_log.md
   - project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
+  - project/workstreams/proposed/WS-LRH-CHAIN-DEFAULTS.md
 ---
 
 # Amend `DEC-DELIBERATE-CHAIN-INITIATION` to narrow the per-run live-reply requirement for opted-in skip mode
 
 ## Summary
 
-`PROP-LRH-CHAIN-DEFAULTS`'s Decision 6 introduces `chain_init_confirmation:
-skip_if_opted_in` — a user-local, value-bound, revocable consent that lets
+`PROP-LRH-CHAIN-DEFAULTS`'s Decision 6 introduces
+`chain_init_confirmation: skip_if_opted_in` — a user-local, value-bound,
+revocable consent that lets
 a chain-authorization gate skip re-confirming pre-filled completion/stop
 conditions on runs where the user has separately opted in. During that
 proposal's own review (PR #499), a Codex finding confirmed this genuinely
@@ -117,10 +122,15 @@ implementation work, tracked separately under `WS-LRH-CHAIN-DEFAULTS`).
 
 ## Required Changes
 
-1. Author `project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md` (or
-   an equivalently precise ID), following `DEC-AGENT-EXECUTED-MERGE-GATE.md`'s
-   structure (Summary, Context, Decision, Rationale, Alternatives
-   considered, Consequences, Revisit conditions).
+1. Add a dated entry to `project/memory/decision_log.md` first — per
+   `project/design/design.md`'s "Decision-record tiers" (`decision_log.md`
+   is "the default landing spot... this is where every decision
+   starts"), then promote it into `project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md`
+   (or an equivalently precise ID), following
+   `DEC-AGENT-EXECUTED-MERGE-GATE.md`'s structure (Summary, Context,
+   Decision, Rationale, Alternatives considered, Consequences, Revisit
+   conditions) — mirroring how the `DEC-AGENT-EXECUTED-MERGE-GATE`
+   precedent itself updated both records, not the promoted file alone.
 2. The entry must explicitly preserve, not silently drop:
    - The human's slash-command invocation as the deliberate initiation
      act in every mode.
@@ -155,13 +165,18 @@ implementation work, tracked separately under `WS-LRH-CHAIN-DEFAULTS`).
 
 ## Acceptance Criteria
 
-- New decision-log entry exists, explicitly scoped to narrowing only the
-  per-run live-reply requirement for a user-local, value-bound,
-  revocable `skip_if_opted_in` consent — not a general loosening of
-  chain-initiation
+- A dated entry lands in `project/memory/decision_log.md` before being
+  promoted, per `design.md`'s decision-record tiers
+- New promoted decision-log entry exists, explicitly scoped to
+  narrowing only the per-run live-reply requirement for a user-local,
+  value-bound, revocable `skip_if_opted_in` consent — not a general
+  loosening of chain-initiation
 - `DEC-DELIBERATE-CHAIN-INITIATION.md` cross-references the new entry,
   following the precedent already set by its own
   `DEC-AGENT-EXECUTED-MERGE-GATE` cross-reference
+- `WI-DEC-CHAIN-INIT-SKIP-AMENDMENT` is registered in
+  `WS-LRH-CHAIN-DEFAULTS`'s `work_items` list, not only declared as
+  related
 - The entry explicitly preserves the human's slash-command invocation as
   the deliberate initiation act, the mandatory per-run
   special-conditions check surviving skip mode, and the

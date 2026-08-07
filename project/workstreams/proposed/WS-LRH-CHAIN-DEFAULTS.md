@@ -20,7 +20,8 @@ related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
 related_roadmap:
   - ROADMAP-PHASE-03
-work_items: []
+work_items:
+  - WI-DEC-CHAIN-INIT-SKIP-AMENDMENT
 exit_criteria:
   - A design-review session has produced concrete, steelmanned default values (completion condition, stop-work condition, self-review preference) with recorded rationale, before any Increment 1 code lands
   - Increment 1 (chain-level defaults: schema + propose-and-confirm flow wired into /lrh-land and /lrh-execute Step 2) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors
@@ -82,15 +83,21 @@ skipping.
 
 ## Work Items
 
-No work items exist yet. Three are anticipated, in delivery order, to be
-filed via `/lrh-work-item` as each becomes ready to scope:
+- **WI-DEC-CHAIN-INIT-SKIP-AMENDMENT** — amend
+  `DEC-DELIBERATE-CHAIN-INITIATION` to formally narrow its per-run
+  live-reply requirement for `chain_init_confirmation: skip_if_opted_in`,
+  per `PROP-LRH-CHAIN-DEFAULTS` Decision 6's own blocking Open Question.
+  Prerequisite for `skip_if_opted_in` shipping in any future increment.
 
-1. **Design-review steelmanning session** (not yet filed) — produce
-   concrete default values with recorded rationale; this is a
-   prerequisite gate for Increment 1, not deferred to "later cleanup."
-2. **Increment 1 implementation** (not yet filed) — chain-defaults
+The design-review steelmanning session that produces concrete default
+values has already happened (`PROP-LRH-CHAIN-DEFAULTS`'s "Steelmanned
+Defaults" section, PR #499) and did not itself need a separate work
+item. Two more are anticipated, in delivery order, to be filed via
+`/lrh-work-item` as each becomes ready to scope:
+
+1. **Increment 1 implementation** (not yet filed) — chain-defaults
    profile schema and propose-and-confirm flow.
-3. **Increment 2 implementation** (not yet filed) — per-gate autopilot
+2. **Increment 2 implementation** (not yet filed) — per-gate autopilot
    flags, informed by Increment 1 evidence.
 
 ## Exit Criteria

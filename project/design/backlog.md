@@ -1095,3 +1095,26 @@ a full resolution.
 **Related:** `WI-LAND-PRIMARY-RECORD-SUFFIX-COLLISION`,
 `src/lrh/skills/lrh-land/references/land-workflow.md` § Primary vs.
 side-record provenance check.
+
+---
+
+## `lrh sessions sync` has no default `/export` zip location
+
+**Noted:** 2026-08-07, implementing `WI-SESSION-ARCHIVE-SYNC-RECONCILER`
+(Stage 2 of `PROP-LRH-SESSION-ARCHIVE-SYNC`). `lrh sessions sync`'s
+`--exports-dir` flag has no default value and export harvest is skipped
+entirely when it is omitted — there is no established OS-level or LRH
+convention for where a user's downloaded `session-export-*.zip` files
+live (unlike `--claude-projects-root`, which defaults to
+`~/.claude/projects`, the app's own fixed location). A wrong guess (e.g.
+defaulting to `~/Downloads`) risks silently harvesting unrelated files or
+missing the real location on a differently configured machine.
+
+**Idea:** Once the archive-root-location open question (tracked in
+`PROP-LRH-SESSION-ARCHIVE-SYNC`'s own Open Questions) is resolved, revisit
+whether export-zip discovery should also gain a configurable default —
+e.g. an `LRH_SESSION_EXPORTS_DIR` env var mirroring
+`LRH_SESSION_ARCHIVE_ROOT`, or a value stored via `lrh meta config` once
+that surface supports non-boolean values. Deferred rather than guessed at
+in Stage 2, matching the proposal's Non-Goal that this item "does not
+resolve the archive-root-location open question itself."

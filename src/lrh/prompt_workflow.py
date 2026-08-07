@@ -164,6 +164,41 @@ def find_execution_record_by_id(
     return [r for r in records if r.execution_id == execution_id]
 
 
+class SessionTranscriptWriteError(Exception):
+    """The frontmatter surgical edit could not place ``session_transcript:``."""
+
+
+def write_session_transcript_field(path: pathlib.Path, host_id: str) -> None:
+    """Set an execution record's ``session_transcript:`` field to the
+    canonical ``claude-app:<host_id>`` pointer.
+
+    Used by ``lrh sessions link`` (PROP-LRH-SESSION-ARCHIVE-SYNC Stage 2) to
+    promote a resolved child id to its host-keyed pointer once the archive
+    harvest has made that resolution authoritative. Reuses the same
+    frontmatter-surgical edit ``update-execution`` uses for this field --
+    including its ``insert_after="commit"`` anchor, since ``commit:`` is
+    always present in the base execution-record template
+    (``render_execution_content``) even on records that never had
+    ``session_transcript:`` written. Without that anchor, a record missing
+    the field would silently no-op: ``_replace_or_insert_frontmatter_field``
+    returns the text unchanged when neither the field nor an anchor is
+    found, so the caller would report success on a file it never touched.
+    """
+
+    text = path.read_text(encoding="utf-8")
+    new_value = f"claude-app:{host_id}"
+    new_text = _replace_or_insert_frontmatter_field(
+        text, "session_transcript", new_value, insert_after="commit"
+    )
+    if f"session_transcript: {new_value}" not in new_text:
+        raise SessionTranscriptWriteError(
+            f"{path}: could not write session_transcript -- no existing "
+            "session_transcript: field and no commit: anchor to insert "
+            "after; the file's frontmatter may be malformed"
+        )
+    path.write_text(new_text, encoding="utf-8")
+
+
 def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     parser = argparse.ArgumentParser(prog=prog, description="Prompt workflow helpers.")
     subparsers = parser.add_subparsers(dest="prompt_command")

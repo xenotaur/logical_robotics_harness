@@ -378,14 +378,14 @@ Background section as a proposed default; these supersede it.
 
 ## Open Questions
 
-- **`skip_if_opted_in` is blocked on a `DEC-DELIBERATE-CHAIN-INITIATION`
-  amendment** (added during this PR's review — see Decision 6 and
-  Non-Goals): a dedicated decision-log entry must formally narrow that
-  decision's per-run live-reply requirement before `skip_if_opted_in`
-  can ship, mirroring `DEC-AGENT-EXECUTED-MERGE-GATE`'s precedent for
-  narrowing the same decision on a different axis. `always_confirm`
-  (pre-filled text, still requiring a live reply) is unaffected and can
-  ship in Increment 1 without waiting on this.
+- ~~`skip_if_opted_in` is blocked on a `DEC-DELIBERATE-CHAIN-INITIATION`
+  amendment~~ — **resolved 2026-08-07**: `DEC-CHAIN-INIT-SKIP-CONSENT`
+  formally narrows that decision's per-run live-reply requirement for
+  exactly this consent model. `skip_if_opted_in` is now unblocked for
+  Increment 1 implementation, which must implement all five numbered
+  requirements in that decision's Decision section (initiation act
+  preserved, two-step consent, user-local storage, value-hash binding,
+  mandatory special-conditions check) — not only the field's existence.
 - Whether the per-gate "unusual" predicates should be documented in a
   shared reference table (for discoverability) even though each is
   gate-owned in implementation — deferred to Increment 2 design.

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged via PR #509 (commit e36753013e9e6ae1c2800dd8ba0b8757a03c4f6c). lrh sessions sync/discover/link landed, closing the retroactive half of the identity-mapping gap Stage 1 left open.
 blocked_reason: null
 blocked: false
 id: WI-SESSION-ARCHIVE-SYNC-RECONCILER
 title: lrh sessions sync, discover, and link — archive reconciler
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

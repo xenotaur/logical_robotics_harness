@@ -246,3 +246,75 @@ hand-edited.
   (same window), omit the flag entirely on paths 2/3 (cross-session), since
   the host id and PR are still worth recording either way (see
   `references/closeout-workflow.md`'s "Session identity capture" section).
+
+### `lrh sessions` — the Stage 2 archive reconciler
+
+Per `PROP-LRH-SESSION-ARCHIVE-SYNC` Stage 2
+(`WI-SESSION-ARCHIVE-SYNC-RECONCILER`): Stage 1 above closes the *forward*
+half of the identity gap (new sessions capture both ids going forward).
+`lrh sessions sync`/`discover`/`link` close the *retroactive* half — a
+durable local archive for transcripts that already exist, plus harvesting
+`/export` zip `metadata.json` for pointers that already dangle.
+
+```bash
+lrh sessions sync \
+  [--claude-projects-root <path>] \
+  [--exports-dir <path>] \
+  [--archive-root <path>] \
+  [--project-root .] \
+  [--dry-run]
+```
+
+- Mirrors every `<project-slug>/*.jsonl` transcript under
+  `--claude-projects-root` (default `~/.claude/projects`, one level of
+  project subdirectories, matching Claude Code's own layout) into
+  `<archive-root>/raw/<project-slug>/`, re-copying whenever the source has
+  grown (never when it has shrunk, even if its mtime is newer) so a
+  still-active, still-growing session is never archived truncated.
+- Also folds in any line-level `sessionId` alias a transcript reveals for
+  a host id the index already knows, so a forked lineage's aliases (which
+  can appear in no filename anywhere) are not left incomplete — this
+  extends an existing mapping only; raw JSONL alone cannot establish a
+  *new* host id (only the export harvest below, or a live session, can).
+- If `--exports-dir` is given, harvests every `session-export-*.zip` in it:
+  reads only the permitted identity fields (`sessionId`, `cliSessionId`,
+  `prNumber`, `prs[]`, `branch`, `title`) from `metadata.json` — never the
+  transcript body or the bundled `logs/` — persists a sanitized copy to
+  `<archive-root>/exports/<host-uuid-stem>/metadata.json`, and upserts the
+  resulting host↔child↔PR mapping into `project/sessions/index.jsonl` via
+  the same `record_session_observation` primitive `record-session-alias`
+  uses. **No default `--exports-dir` is assumed** — see
+  `project/design/backlog.md`'s "`lrh sessions sync` has no default
+  `/export` zip location" for why.
+- Archive root resolves `--archive-root` > `LRH_SESSION_ARCHIVE_ROOT` env
+  var > `~/.local/share/lrh/session-archive`. None of these resolve the
+  proposal's archive-root-location open question — they are only a
+  configurable starting point.
+
+```bash
+lrh sessions discover [--claude-projects-root <path>] [--project-path <path>] [--project-root .] [--format text|json]
+```
+
+`--project-path` overrides which path is slugged for the project-directory
+lookup; defaults to `--project-root`.
+
+Lists local transcripts for the current project (slugged the same way
+Claude Code itself does — `/` and `_` replaced with `-`), cross-referenced
+against `project/sessions/index.jsonl` so an already-resolved host id is
+shown rather than treating the archive as local-filesystem-only.
+
+```bash
+lrh sessions link --execution-id <id> --child-id <child-uuid> [--project-root .]
+```
+
+Promotes a child id to its host-keyed `session_transcript` pointer on one
+execution record, once `sync`'s harvest has made that resolution
+authoritative. Fails cleanly (non-zero exit, no file touched) if the child
+id is unknown to the index, or — should a data anomaly ever alias the same
+child id under two host ids — if the resolution is ambiguous; it never
+guesses.
+
+Does not implement `lrh sessions report` (Stage 3) or index *enrichment*
+(era-general keys beyond `claude-app:`, multi-export dedup) — Stage 3
+builds on this same index, `sync` only writes to it. Does not implement
+the weekly scheduled sync or `SessionEnd` hook (Stage 4).

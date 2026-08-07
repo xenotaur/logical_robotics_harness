@@ -170,6 +170,16 @@ not agentic.
   reference implementation of deliberate chain initiation — after this decision
   and the guidance cascade land, after the invocation follow-up above, and after
   initial `CHAIN-NOTE` evidence.
+- **2026-08-07:** `DEC-CHAIN-INIT-SKIP-CONSENT` narrows principle 1's
+  per-run live-reply requirement on one specific, bounded axis: a
+  user-local, value-bound, revocable `chain_init_confirmation:
+  skip_if_opted_in` consent, gated by two separate affirmative actions
+  and a mandatory per-run special-conditions check, may skip a
+  chain-authorization gate's live condition-confirmation reply.
+  `always_confirm` (the default) is unaffected, and the human's own
+  slash-command invocation remains the deliberate initiation act in
+  every mode — see that record for the full decision and its scope
+  boundaries.
 
 ## Revisit conditions
 

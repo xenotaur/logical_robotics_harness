@@ -141,8 +141,9 @@ def generate_request(
             ]
             if already_resolved:
                 raise ValueError(
-                    "error: --include-thread ID(s) already resolved, not "
-                    f"force-included: {', '.join(already_resolved)}"
+                    "error: --include-thread ID(s) already resolved on "
+                    f"{ref.owner}/{ref.repo}#{ref.number}, not force-included: "
+                    f"{', '.join(already_resolved)}"
                 )
         has_unresolved_threads = formatters.has_threads_for_state(
             threads_data, state="unresolved"

@@ -22,6 +22,7 @@ work_items:
   - WI-SKILLS-REPO-CONFIG
   - WI-SKILLS-RENDER-ADAPTERS
   - WI-SKILLS-STATUS-CHECK
+  - WI-SKILLS-ANTIGRAVITY-TARGET
   - WI-SKILLS-BODY-PROSE-NEUTRALIZATION
 exit_criteria:
   - `lrh skills install --target claude|codex|all` implemented with existing Claude behavior preserved by default

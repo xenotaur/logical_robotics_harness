@@ -871,8 +871,9 @@ speculative):
   round-cap state, and possible Copilot credit exhaustion after `_CONFIRM`
   commits.
 
-**Open design questions** — none of these are decided yet, which is why
-this remains a backlog entry and not a proposal:
+**Open design questions**, as originally posed when this was only a
+backlog entry — see **Status** below for which of these `PROP-LRH-SELF-REVIEW`
+went on to decide, and which (question 4 specifically) it left open:
 
 1. **Trigger point.** Does self-review run only as a post-ceiling
    substitute for a bot retrigger (the ad hoc pattern used in PR #452),
@@ -919,12 +920,20 @@ this remains a backlog entry and not a proposal:
 (`project/design/proposals/adopted/lrh-self-review/00_proposal.md`,
 adopted) and implemented the same day as `/lrh-self-review`
 (`WI-SKILLS-LRH-SELF-REVIEW`, resolved, PR #467). The proposal's
-Decisions 1-6 resolve open questions 1, 2, and 4 above (two trigger
-points — pre-push diff-mode and post-ceiling PR-mode substitute;
-`round-cap-gate.md` interaction — substituted rounds count identically;
-the "who decides clean enough" question — never, categorically, for the
-first bot round); open question 3 (resource substitution, not
-elimination) is Decision 3's explicit framing. Open question 5 (a
+Decisions 1-6 resolve open questions 1 and 2 above (two trigger points —
+pre-push diff-mode and post-ceiling PR-mode substitute; `round-cap-gate.md`
+interaction — substituted rounds count identically); open question 3
+(resource substitution, not elimination) is Decision 3's explicit
+framing. **Open question 4 remains genuinely open, not resolved** —
+Decision 4's title is specifically "Never skip a PR's **first** real bot
+round" and its own text defers "a broader design-space pass on
+later-round skip policy" as explicit future work, tracked in the
+proposal's own Open Questions ("trust-scored skip policies for later
+rounds"). Backlog question 4 asks about the *final*-round case
+specifically (is it safe that self-review substitution has, in practice,
+ended up skipping the last bot round before merge in all 3 trial PRs) —
+a narrower, harder question Decision 4 explicitly did not decide. Open
+question 5 (a
 tighter-scoped review agent vs. the ad hoc pattern) was not decided
 either way — the ad hoc `Agent`-tool pattern from the evidence PRs became
 the shipped mechanism by default, not by an explicit comparison. One gap

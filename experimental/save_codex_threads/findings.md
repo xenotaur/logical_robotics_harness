@@ -167,3 +167,44 @@ Implications:
 - The safest next implementation direction remains a skill-backed exporter
   using `codex_app.read_thread`, while a standalone LRH CLI adapter should wait
   for a trusted app-server executable or listener.
+
+## 2026-08-07 Post-Reinstall Trust Check
+
+After reinstalling ChatGPT/Codex and reinstalling the Homebrew Codex cask, ran a
+second read-only trust check before attempting any standalone app-server
+execution.
+
+Sanitized observations:
+
+- Homebrew now points `/opt/homebrew/bin/codex` at
+  `/opt/homebrew/Caskroom/codex/0.147.0/bin/codex`.
+- The previous stale `0.118.0` Homebrew installation is no longer the active
+  path.
+- The Homebrew `0.147.0` binary is a Mach-O arm64 executable.
+- `codesign --verify --strict --verbose=4 /opt/homebrew/bin/codex` still fails
+  with `invalid signature (code or signature have been modified)`.
+- `spctl -a -vvv -t execute /opt/homebrew/bin/codex` returns
+  `internal error in Code Signing subsystem`.
+- The Homebrew cask payload has `com.apple.quarantine` and
+  `com.apple.provenance` extended attributes.
+- ChatGPT is now version `26.803.41515`.
+- `codesign --verify --deep --strict --verbose=2 /Applications/ChatGPT.app`
+  still fails with `invalid signature (code or signature have been modified)`.
+- `codesign --verify --strict --verbose=4
+  /Applications/ChatGPT.app/Contents/Resources/codex` still fails with
+  `invalid signature (code or signature have been modified)`.
+- The Homebrew binary and ChatGPT-bundled app-server binary are different
+  files by SHA-256, and both currently fail local signature verification.
+- No `codex --version`, `codex app-server`, or embedded app-server executable
+  was run in this check because verification failed first.
+
+Implications:
+
+- Reinstallation fixed the stale Homebrew path, but it did not make the local
+  standalone executable candidates pass macOS signature checks.
+- This preserves the Phase 3 blocker: LRH should not yet use a standalone
+  app-server subprocess route on this machine.
+- The safest next LRH implementation path remains a Codex-skill-mediated export
+  using the already-proven `codex_app.read_thread` tool.
+- In parallel, the local trust issue should be reported or investigated
+  upstream with version, hash, code-signing, quarantine, and Gatekeeper outputs.

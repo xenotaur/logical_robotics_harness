@@ -17,7 +17,7 @@ related_roadmap:
 related_workstreams:
   - WS-SKILLS-EXECUTE
 related_design:
-  - project/design/proposals/proposed/lrh-land-execute/00_proposal.md
+  - project/design/proposals/adopted/lrh-land-execute/00_proposal.md
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - src/lrh/skills/_shared/lifecycle-chain.md
 depends_on:
@@ -209,7 +209,7 @@ is picked up.
 ## Related Workstream and Designs
 
 - Workstream: `project/workstreams/proposed/WS-SKILLS-EXECUTE.md`
-- Design: `project/design/proposals/proposed/lrh-land-execute/00_proposal.md`
+- Design: `project/design/proposals/adopted/lrh-land-execute/00_proposal.md`
 - Governance: `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`
 - Canonical chain: `src/lrh/skills/_shared/lifecycle-chain.md` (Required
   Changes #7 above registers `/lrh-execute` in its "Consuming sites" table)

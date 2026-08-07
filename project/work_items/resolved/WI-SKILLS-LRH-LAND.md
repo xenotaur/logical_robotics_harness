@@ -15,7 +15,7 @@ related_roadmap: []
 related_workstreams:
   - WS-SKILLS-EXECUTE
 related_design:
-  - project/design/proposals/proposed/lrh-land-execute/00_proposal.md
+  - project/design/proposals/adopted/lrh-land-execute/00_proposal.md
 depends_on: []
 blocked_by: []
 expected_actions:

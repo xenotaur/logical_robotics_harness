@@ -2,15 +2,15 @@
 id: WS-SKILLS-EXECUTE
 kind: planning_node
 title: Chain-Running Skills — /lrh-land, /lrh-execute, /lrh-next, /lrh-run-tree
-status: proposed
-stage: planned
+status: resolved
+stage: closed
 origin: follow_up
 summary: >
   Govern development of the four chain-running Claude Code skills that automate
   the LRH post-PR lifecycle chain: /lrh-land (primitive), /lrh-execute
   (compound), /lrh-next (navigator), and /lrh-run-tree (orchestrator).
 related_design:
-  - project/design/proposals/proposed/lrh-land-execute/00_proposal.md
+  - project/design/proposals/adopted/lrh-land-execute/00_proposal.md
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - src/lrh/skills/_shared/lifecycle-chain.md
   - project/design/proposals/proposed/workstream-execution-framework/00_proposal.md
@@ -144,7 +144,7 @@ child of this workstream.
 ## Relationship to Design
 
 - Governing proposal:
-  `project/design/proposals/proposed/lrh-land-execute/00_proposal.md`
+  `project/design/proposals/adopted/lrh-land-execute/00_proposal.md`
 - Governance decision:
   `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`
 - Canonical chain: `src/lrh/skills/_shared/lifecycle-chain.md`

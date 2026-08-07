@@ -2,11 +2,11 @@
 id: PROP-LRH-LAND-EXECUTE
 type: design_proposal
 title: LRH Chain-Running Skills — /lrh-land, /lrh-execute, /lrh-next, /lrh-run-tree
-status: proposed
+status: adopted
 created_on: 2026-07-28
-updated_on: 2026-07-30
-implementation_status: not_started
-implemented_by: []
+updated_on: 2026-08-07
+implementation_status: partial
+implemented_by: [WI-SKILLS-LRH-LAND, WI-SKILLS-LRH-EXECUTE]
 supersedes: []
 superseded_by: null
 related_design:

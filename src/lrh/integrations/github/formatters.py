@@ -62,7 +62,13 @@ def _matches_state(
     # would otherwise be excluded) -- it must not leak into the "all",
     # "resolved", or "outdated" branches above, which have their own,
     # unrelated meanings.
-    if extra_ids and thread.get("id") in extra_ids and not is_resolved:
+    thread_id = thread.get("id")
+    if (
+        extra_ids
+        and isinstance(thread_id, str)
+        and thread_id in extra_ids
+        and not is_resolved
+    ):
         return True
     return not is_resolved and not is_outdated
 

@@ -229,6 +229,21 @@ class GithubIntegrationTest(unittest.TestCase):
             )
         )
 
+    def test_matches_state_extra_ids_ignores_non_string_id(self) -> None:
+        # A malformed/mocked payload with a non-string id must not raise
+        # TypeError from an unhashable-type membership check against
+        # extra_ids. Outdated so the normal "unresolved" rule alone would
+        # exclude it -- isolates whether extra_ids handling itself crashes
+        # or wrongly includes it.
+        thread = {
+            "id": {"unexpected": "dict"},
+            "isResolved": False,
+            "isOutdated": True,
+        }
+        self.assertFalse(
+            formatters._matches_state(thread, "unresolved", extra_ids={"T1"})
+        )
+
     def test_format_raw_mode(self) -> None:
         data = {
             "data": {

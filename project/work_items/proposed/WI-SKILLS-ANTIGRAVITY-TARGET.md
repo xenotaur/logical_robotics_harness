@@ -28,8 +28,8 @@ forbidden_actions:
   - delete_branch
 acceptance:
   - "`lrh skills install` accepts `antigravity` target (`--target claude|codex|antigravity|all`)"
-  - "User-scope Antigravity installs write to `~/.gemini/config/plugins/lrh/skills/` and generate `plugin.json`"
-  - "Project-scope Antigravity installs with `--local` write to `./.gemini/plugins/lrh/skills/` and generate `plugin.json`"
+  - "User-scope Antigravity installs write skills to `~/.gemini/config/plugins/lrh/skills/` and generate root `plugin.json` at `~/.gemini/config/plugins/lrh/plugin.json`"
+  - "Project-scope Antigravity installs with `--local` write skills to `./.gemini/plugins/lrh/skills/` and generate root `plugin.json` at `./.gemini/plugins/lrh/plugin.json`"
   - "`AntigravitySkillRenderer` strips Claude-specific frontmatter (`disable-model-invocation`, `argument-hint`)"
   - "Dry-run, force, diff, and local-modification behavior holds for `antigravity` target"
   - "`lrh validate` reports 0 errors"
@@ -76,6 +76,15 @@ Antigravity uses native plugin manifests (`plugin.json`) and skill folders (`ski
 
 - Does not rewrite all skill bodies to be agent-neutral (scoped separately under `WI-SKILLS-BODY-PROSE-NEUTRALIZATION`).
 - Does not modify Claude or Codex renderer behavior.
+
+## Acceptance Criteria
+
+- `lrh skills install` accepts `antigravity` target (`--target claude|codex|antigravity|all`).
+- User-scope Antigravity installs write skills to `~/.gemini/config/plugins/lrh/skills/` and generate root `plugin.json` at `~/.gemini/config/plugins/lrh/plugin.json`.
+- Project-scope Antigravity installs with `--local` write skills to `./.gemini/plugins/lrh/skills/` and generate root `plugin.json` at `./.gemini/plugins/lrh/plugin.json`.
+- `AntigravitySkillRenderer` strips Claude-specific frontmatter (`disable-model-invocation`, `argument-hint`).
+- Dry-run, force, diff, and local-modification behavior holds for `antigravity` target.
+- `lrh validate` reports 0 errors.
 
 ## Validation
 

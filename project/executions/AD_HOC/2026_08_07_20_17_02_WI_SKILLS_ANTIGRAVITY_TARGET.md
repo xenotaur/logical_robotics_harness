@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: null
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/515
-commit: 5e9ec0865efc9feecf3223f66c1b3f9ff6fd35a0
+commit: 
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-ANTIGRAVITY-TARGET.md
 session_transcript: pending

@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_19_02_48_WI_LRH_CHAIN_DEFAULTS_INCREMENT_1
 prompt_id: PROMPT(AD_HOC:WI_LRH_CHAIN_DEFAULTS_INCREMENT_1)[2026-08-07T19:02:36+00:00]
 work_item: WI-LRH-CHAIN-DEFAULTS-INCREMENT-1
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/512
-commit: 6b12c62
+commit: b11841c98a1d0e4fa1f1a40f1c53566834b6be36
 created_at: 2026-08-07T19:02:48+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-CHAIN-DEFAULTS-INCREMENT-1.md

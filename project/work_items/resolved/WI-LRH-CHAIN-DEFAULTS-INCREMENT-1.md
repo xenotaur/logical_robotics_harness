@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #512 (commit b11841c)
 blocked_reason: null
 blocked: false
 id: WI-LRH-CHAIN-DEFAULTS-INCREMENT-1
 title: Implement Increment 1 of PROP-LRH-CHAIN-DEFAULTS -- chain-level defaults profile
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

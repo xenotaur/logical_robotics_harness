@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_06_48_20_BACKLOG_SELF_REVIEW_RESOLVED
 prompt_id: PROMPT(AD_HOC:BACKLOG_SELF_REVIEW_RESOLVED)[2026-08-07T06:48:00+00:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/506
-commit: 0defdd95f64e99dc305a3e7cf826dac2ac2627c7
+commit: 21fc5c1
 created_at: 2026-08-07T06:48:20+00:00
 agent: claude_app
 instruction_source: chat (user request to fix backlog.md's "Self-review-first tier..." entry after PR #501 flagged it as a remaining stale-metadata follow-up)

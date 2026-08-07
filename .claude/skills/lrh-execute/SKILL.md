@@ -148,15 +148,31 @@ Planned chain for <WI-ID>:
            gate, closeout, for the PR from Step 3
 ```
 
-Elicit from the user:
-1. **Completion condition** — what "done" means for this whole run (e.g.,
-   "PR merged and work item resolved").
-2. **Stop-work condition** — what forces a halt-and-report (e.g., "any
-   failing test, unexpected reviewer finding, or CI failure that isn't a
-   quick fix").
+**Run the chain-defaults propose-and-confirm flow before eliciting
+conditions from scratch** — canonical source:
+`src/lrh/skills/_shared/chain-defaults.md`, also inlined in
+`/lrh-land/references/land-workflow.md` § Chain-defaults
+propose-and-confirm flow. It pre-fills the conditions below from
+`project/config/chain-defaults.yaml` (proposing the steelmanned defaults on
+first encounter), and under `chain_init_confirmation: skip_if_opted_in`
+with valid user-local consent and no special condition firing, may skip
+the live confirming reply entirely — always falling back to the live-reply
+path below otherwise.
 
-Wait for explicit approval of both conditions. Do not proceed past this
-step without the user confirming them.
+Elicit from the user (or, under a validated `skip_if_opted_in` skip, display
+without asking):
+1. **Completion condition** — what "done" means for this whole run
+   (pre-filled from the stored profile, or "PR merged and work item
+   resolved" on first encounter).
+2. **Stop-work condition** — what forces a halt-and-report (pre-filled
+   from the stored profile, or "any failing test, unexpected reviewer
+   finding, or CI failure that isn't a quick fix" on first encounter).
+
+Wait for explicit approval of both conditions, unless the skip path above
+applied. Do not proceed past this step without either the user confirming
+them or a validated skip. If the user's live reply diverges from the
+stored values, apply the profile-update offer at the end of the run rather
+than silently persisting the override.
 
 **This gate does not exempt the gates inside the sub-skills inlined
 below.** `/lrh-implement`'s own Step 4 (confirm the implementation plan)

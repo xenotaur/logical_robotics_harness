@@ -284,6 +284,19 @@ git rev-parse HEAD
 gh pr merge <pr-url> --merge --match-head-commit <sha>
 ```
 
+**If Step 5's exception was used with a "defer" answer, there is no
+verbatim command to reuse — derive it yourself.** `/lrh-confirm-fixes`
+only emits its `gh pr merge` one-liner when its own verdict is Green
+(see its Step 8); a deferred thread makes that verdict not-green by
+construction, so no command was printed to copy. This is expected, not
+a gap: the defer precondition already requires every other component
+(CI, REVIEW-LANDED, and any other exception) to be independently green
+or cleared, which is the same substance a green verdict would have
+certified. Derive the same `--match-head-commit` form yourself against
+the current `HEAD` using the command above, and note in the presented
+summary that the command was self-derived because the verdict carried
+the named deferred thread rather than reading Green outright.
+
 **If this invocation is governed by an `project/assistants/<role>/policy.md`
 binding, check it first.** A role-level `prohibitions: repo:merge` or
 `obligations: merge:human` is a hard ceiling — "obligations accumulate and
@@ -404,14 +417,22 @@ Before reporting completion, verify:
       (fixed, or dismissed with rationale) — not once the thread list itself
       is empty, which requires confirm-fixes (Step 5) to run first
 - [ ] Confirm-fixes verdict is green before REVIEW-LANDED re-check — OR
-      Step 5's exception was used, and only after (a) checking the
-      finding against the run's own stop-work condition, (b) confirming
-      the thread's bucket is Unaddressed/Partial/Problematic resolution
-      only, never Ambiguous/Problematic comment
+      Step 5's exception's **defer** answer was used explicitly, and only
+      after (a) checking the finding against the run's own stop-work
+      condition, (b) confirming the thread's bucket is
+      Unaddressed/Partial/Problematic resolution only, never
+      Ambiguous/Problematic comment. **This OR is scoped to defer only** —
+      "fix now" must still end in a fresh Green verdict (or a further
+      explicit defer/stop decision) before this item is satisfied, and
+      "stop" never satisfies this item at all, by construction (a stopped
+      run does not reach Step 6)
 - [ ] If "fix now" was used: `--include-thread <id>` was passed
       explicitly into `/lrh-review-response` Step 2's own fetch command,
       and confirm-fixes was re-run from the top of Step 5 for a fresh
-      verdict before Step 6
+      **Green** verdict before Step 6 — not merely a fresh verdict of any
+      color; a fresh not-green result routes back through this same
+      exception (a further fix-now/defer/stop decision), it does not
+      satisfy this item on its own
 - [ ] If "defer" was used: the deferred thread is named explicitly in
       Step 6's summary, and every other component of the green-verdict
       invariant (CI, REVIEW-LANDED, other exceptions) was independently

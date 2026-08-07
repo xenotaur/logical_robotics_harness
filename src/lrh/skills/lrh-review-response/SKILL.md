@@ -145,15 +145,28 @@ Interpret the exit code: `1` is a blocking match — either
 (unresolved outcomes block too), or any match whose recency can't be
 established (a missing/malformed `created_at`) even if every status is
 otherwise terminal — **stop and report** unless the user explicitly asks
-for a rerun, **or** this invocation is itself a continuation within the
-same `/lrh-land` run that authored the matched record earlier in this run
-(not a different session or a later, unrelated rediscovery) — treat that
-case as a non-blocking rerun without needing a fresh explicit-rerun answer,
-since `/lrh-land`'s own Step 2 chain authorization already covers the
-whole `review-response ↔ confirm-fixes` loop for this run. This is the
-mechanism `/lrh-land` Step 5's outdated-thread recovery path relies on
-when it carries a thread's content into this protocol by hand. In either
-case, keep the printed `execution_id` to pass as `rerun_of` in Step 7.
+for a rerun, **or** the same-land-run continuation carve-out below applies.
+
+**Same-land-run continuation carve-out — concrete evidence required, not a
+self-report.** This is only a non-blocking rerun when the invoking agent
+itself created the matched record earlier in this exact session — it can
+point to having done so (recalling the specific prior tool calls in the
+current conversation), not merely infer plausibility from the record's
+timestamp or status. In practice this means: this invocation is
+`/lrh-land` Step 5's own inline call into this protocol, within the same
+conversation that ran the original `/lrh-review-response` round the
+matched record belongs to. If `/lrh-review-response` is invoked as a
+fresh, standalone session or conversation — even against the same PR and
+branch, even if a plausible-looking `in_progress` record exists — this
+carve-out does not apply; the record was not authored by *this*
+invocation's own history, so treat it as an ordinary blocking match and
+require an explicit rerun answer from the user. When the carve-out does
+apply, `/lrh-land`'s own Step 2 chain authorization already covers the
+whole `review-response ↔ confirm-fixes` loop for this run, so no separate
+explicit-rerun answer is needed on top of it. This is the mechanism
+`/lrh-land` Step 5's outdated-thread recovery path relies on when it
+carries a thread's content into this protocol by hand. In either case,
+keep the printed `execution_id` to pass as `rerun_of` in Step 7.
 `0` with a match printed means only
 `failed`/`reverted`/`superseded` — summarize it and continue, keeping its
 `execution_id` for `rerun_of` in Step 7. `0` with no match printed means
@@ -317,7 +330,10 @@ Before reporting completion, verify:
       metadata) before any changes
 - [ ] "Nothing to resolve" check performed; exited cleanly if applicable
 - [ ] Prompt ID minted before any file changes
-- [ ] Idempotence check passed (no prior landed/in_progress record)
+- [ ] Idempotence check passed (no prior landed/in_progress record, or a
+      same-land-run continuation recognized per Step 3's carve-out — the
+      invoking agent authored the matched record itself, earlier in this
+      exact session)
 - [ ] User confirmed at Step 4 before any files were touched
 - [ ] All validation commands passed before push
 - [ ] Execution record exists with `agent`, `instruction_source`,

@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_16_23_52_WI_SESSION_ARCHIVE_SYNC_RECONCILER_IMPL
 prompt_id: PROMPT(WI-SESSION-ARCHIVE-SYNC-RECONCILER:WI_SESSION_ARCHIVE_SYNC_RECONCILER_IMPL)[2026-08-07T16:22:32+00:00]
 work_item: WI-SESSION-ARCHIVE-SYNC-RECONCILER
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/509
-commit: 
+commit: e36753013e9e6ae1c2800dd8ba0b8757a03c4f6c
 created_at: 2026-08-07T16:23:52+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SESSION-ARCHIVE-SYNC-RECONCILER.md

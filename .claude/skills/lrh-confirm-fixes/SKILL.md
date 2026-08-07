@@ -81,6 +81,14 @@ Load this before running any step:
    crash-recovery reconciliation, the three-way human gate, and explicit
    scope boundaries. Read before Step 8.
 
+3. **`/lrh-land/references/land-workflow.md`** § Primary vs. side-record
+   provenance check — resolve as an installed sibling skill (the same
+   `/skill-name/...` reference style `/lrh-execute` uses to resolve its own
+   inlined sub-skills), not a hardcoded `src/lrh/skills/...` path. The
+   shared algorithm for distinguishing a primary execution record from a
+   side record by provenance rather than a bare filename-suffix match, used
+   by the `rerun_of` population step below. Read before that step.
+
 ---
 
 ## Execution Steps
@@ -286,18 +294,30 @@ and the body: which threads were resolved (author, bucket), which were
 surfaced (bucket, rationale), and the Step 6 thread-resolution verdict.
 
 Find the primary execution record for `rerun_of`. Convert the branch slug
-(without the `-confirm` suffix) to upper-underscore form, and exclude
-`_REVIEW.md`, `_CONFIRM.md`, and `_SELFREVIEW.md` suffixed files
-(review-response, prior confirm-fixes, and self-review records are not
-primary records):
+(without the `-confirm` suffix) to upper-underscore form (`UPPER_SLUG`),
+then verify whether a genuine primary record with exactly that slug
+exists — **not** a bare filename-suffix exclusion (a primary record whose
+own topic slug ends in "review," "confirm," etc. would self-exclude) and
+**not** a uniform substring/trailing-exact glob applied to every candidate
+alike (both were tried in this project's own history and both broke —
+see `/lrh-land/references/land-workflow.md` § A separate, narrower
+algorithm for the two slug-based `rerun_of` searches for the full
+algorithm and why):
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"
 ```
 
-If found, set `rerun_of: <original-execution-id>`. If not found, leave empty
-and note it in the body.
+Run the target-verification algorithm from that section against
+`UPPER_SLUG` to get `$primary` and `$ambiguous`.
+
+If `$primary` is found, set `rerun_of: <original-execution-id>`. If both
+are empty, leave `rerun_of:` empty and note it in the body. If `$ambiguous`
+is non-empty (a reserved-suffix candidate with no sibling to prove it's a
+genuine side record), leave `rerun_of:` empty and note the ambiguity
+explicitly in the body — do not guess which way to resolve it; unlike
+`/lrh-land` Step 1's found/backfill branch, this only affects an optional
+traceability link, so no hard stop is needed here.
 
 ```bash
 lrh validate
@@ -596,8 +616,8 @@ Before reporting completion, verify:
 - [ ] User confirmed the single batch at Step 4 before any thread was resolved
 - [ ] `resolveReviewThread` skipped already-resolved threads
 - [ ] Unaddressed threads offered `/lrh-review-response`, not auto-invoked
-- [ ] Execution record created with `rerun_of` excluding `_REVIEW.md`,
-      `_CONFIRM.md`, and `_SELFREVIEW.md`
+- [ ] Execution record created with `rerun_of` set via the primary
+      vs. side-record provenance check, not a bare filename-suffix exclusion
 - [ ] `lrh validate` reports 0 errors before the record was pushed
 - [ ] CI re-checked against the post-push `HEAD` SHA before the final verdict
 - [ ] REVIEW-LANDED re-checked against the `_CONFIRM` commit and required

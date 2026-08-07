@@ -1080,6 +1080,47 @@ thread export spike.
 
 ---
 
+## Execution records have no positive primary-vs-side marker
+
+**Noted:** 2026-08-07, during `WI-LAND-PRIMARY-RECORD-SUFFIX-COLLISION`'s
+own review (PR #508). Codex flagged (P1,
+`r3737192840`) that the fix's primary-vs-side-record provenance check —
+strip a candidate's reserved suffix (`_REVIEW`, `_CONFIRM`,
+`_CLOSEOUT_NOTE`, `_SELFREVIEW`) and check whether the resulting base slug
+matches another record's slug — cannot, on its own, distinguish a primary
+record whose slug coincidentally ends in one of those words from a
+genuinely orphaned side record (created via `/lrh-review-response` or
+`/lrh-confirm-fixes` for a PR that never got a `/lrh-implement` primary at
+all, per those skills' own "leave `rerun_of:` empty" rule for that case).
+Both produce identical `execution_id` content: a reserved-suffix ending
+with no matching base anywhere. The landed fix mitigates this with sibling
+elimination (a genuine side-record sibling for the same PR proves a
+primary exists) and falls back to an explicit "ambiguous, stop and ask"
+state rather than guessing when no sibling can prove it — but a PR with
+exactly one orphaned side record and nothing else remains fundamentally
+undecidable from naming alone.
+
+**Idea:** Add a positive `record_kind:` (or similarly named) frontmatter
+field, stamped by `lrh prompt record-execution` itself based on which
+skill invokes it (or passed explicitly via a new CLI flag from each
+side-record-producing skill's own call site), distinguishing `primary`
+from `side` unambiguously regardless of slug wording. This removes the
+need for any slug-based inference — the provenance check becomes a direct
+field read — and fully resolves the single-orphan case the current fix
+cannot. Touches `lrh prompt record-execution`'s CLI surface and the
+execution-record schema (`lrh validate`), not just skill/reference
+documentation, so it's a larger-scoped change than the current fix.
+
+**Status:** Not started. Current landed behavior (sibling-elimination +
+explicit ambiguous state) is a safe, appropriately-scoped mitigation, not
+a full resolution.
+
+**Related:** `WI-LAND-PRIMARY-RECORD-SUFFIX-COLLISION`,
+`src/lrh/skills/lrh-land/references/land-workflow.md` § Primary vs.
+side-record provenance check.
+
+---
+
 ## `lrh sessions sync` has no default `/export` zip location
 
 **Noted:** 2026-08-07, implementing `WI-SESSION-ARCHIVE-SYNC-RECONCILER`

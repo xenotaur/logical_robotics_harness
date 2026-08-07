@@ -163,8 +163,14 @@ is both useful independently and a prerequisite for the next.
 terminal chain:
 
 1. **Assess PR state** — verify PR is open; load execution records by `pr:`
-   field; apply primary-record selection rule (exclude filenames ending
-   `_REVIEW`, `_CONFIRM`, `_CLOSEOUT_NOTE`); classify as found/backfill.
+   field; apply the primary-record selection rule (classify each
+   `pr:`-matching candidate as primary/side/ambiguous by provenance — a
+   filename-suffix exclusion alone misclassifies a primary record whose
+   own topic slug ends in a reserved word; see
+   `src/lrh/skills/lrh-land/references/land-workflow.md` § Primary vs.
+   side-record provenance check. **Amended 2026-08-07** — supersedes the
+   original bare-suffix-exclusion description above, fixed in
+   `WI-LAND-PRIMARY-RECORD-SUFFIX-COLLISION`); classify as found/backfill.
 2. **Chain authorization gate** — elicit completion condition and stop-work
    condition per `DEC-DELIBERATE-CHAIN-INITIATION` before any automated
    link runs; show the full planned chain; wait for explicit approval. This

@@ -342,23 +342,36 @@ work item, with side records linked via `rerun_of`.
 xenotaur/feat/wi-skills-lrh-confirm-fixes → wi-skills-lrh-confirm-fixes-confirm
 ```
 
-**`rerun_of` population:** search for the primary record, excluding
-review-response, confirm-fixes, and self-review side records:
+**`rerun_of` population:** convert the branch slug to upper-underscore
+form (`UPPER_SLUG`), then verify whether a genuine primary record with
+exactly that slug exists — not a bare filename-suffix exclusion, which
+would misclassify a primary record whose own topic slug ends in "review,"
+"confirm," etc., and not a uniform substring/trailing-exact glob applied
+to every candidate alike (both were tried in this project's own history
+and both broke). See `/lrh-land/references/land-workflow.md` § A separate,
+narrower algorithm for the two slug-based `rerun_of` searches for the full
+algorithm (shared with `/lrh-review-response`'s own `rerun_of` search) and
+why the two simpler attempts each failed:
 
 ```bash
 UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
-find project/executions/ -name "*${UPPER_SLUG}*.md" | grep -vE "_(REVIEW|CONFIRM|SELFREVIEW)\.md$"
 ```
 
-If found, set `rerun_of: <execution_id-from-the-primary-record>`. If not
-found (the PR was created outside `/lrh-implement`, as in a planning-only PR
-with no primary record), leave `rerun_of:` empty and note it in the body.
+Run the target-verification algorithm from that section against
+`UPPER_SLUG` to get `$primary` and `$ambiguous`. If `$primary` is found, set
+`rerun_of: <execution_id-from-the-primary-record>`. If both are empty (the
+PR was created outside `/lrh-implement`, as in a planning-only PR with no
+primary record), leave `rerun_of:` empty and note it in the body. If
+`$ambiguous` is non-empty, also leave `rerun_of:` empty but note the
+ambiguity explicitly rather than guessing — see `land-workflow.md`'s
+provenance-check section for why this case can't be resolved from naming
+alone.
 
-**Cross-skill consequence:** `/lrh-review-response`'s own `rerun_of` search
-must also exclude `_CONFIRM.md` files (in addition to its existing
-`_REVIEW.md` exclusion) — otherwise a confirm-fixes side record could be
-mismatched as the primary record for a later review-response run on the same
-branch. This exclusion-glob update is applied to both
+**Cross-skill consistency:** because the provenance check identifies side
+records by their actual naming convention rather than a hand-maintained
+exclusion-glob, `/lrh-review-response`'s own `rerun_of` search uses the same
+algorithm — there is no separate glob to keep in sync between the two
+skills. This shared algorithm is applied to both
 `src/lrh/skills/lrh-review-response/SKILL.md` and
 `references/review-response-workflow.md` (and mirrored to `.claude/skills/`)
 as part of this skill's implementation, not as a follow-up.

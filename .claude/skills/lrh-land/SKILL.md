@@ -73,16 +73,31 @@ landed through this skill.
 
 **Primary record selection rule** (from `references/land-workflow.md`):
 
-Search `project/executions/` for records whose `pr:` field matches the PR URL:
+Search `project/executions/` for records whose `pr:` field matches the PR URL,
+then classify each match as primary or side by provenance (**not** a bare
+filename-suffix match — a primary record whose own topic slug ends in
+"review," "confirm," etc. would self-exclude; see `references/land-workflow.md`
+§ Primary vs. side-record provenance check for the full algorithm and why):
 
 ```bash
-grep -rl "pr: <pr-url>" project/executions/ | grep -v "_REVIEW\.md$" | grep -v "_CONFIRM\.md$" | grep -v "_CLOSEOUT_NOTE\.md$" | grep -v "_SELFREVIEW\.md$"
+candidates=$(grep -rl "pr: <pr-url>" project/executions/)
 ```
 
+Run the provenance-check algorithm from `references/land-workflow.md` § Primary
+vs. side-record provenance check against `$candidates` to get `$primary` and
+`$ambiguous`.
+
 Classify the result:
-- **Found** — primary record exists; body is immutable; CHAIN-NOTE goes in a
-  new `_CLOSEOUT_NOTE` record with `rerun_of:` linking back to the primary.
-- **Not found** — backfill path; the record authored in Step 7 receives the
+- **Found** (`$primary` non-empty) — primary record exists; body is
+  immutable; CHAIN-NOTE goes in a new `_CLOSEOUT_NOTE` record with
+  `rerun_of:` linking back to the primary.
+- **Ambiguous** (`$ambiguous` non-empty, `$primary` empty) — **stop and ask
+  the human** whether a primary implementation record ever existed for this
+  PR before proceeding to Step 2. Do not fall through to the backfill
+  path automatically — that path assumes "no primary exists" as a
+  confirmed fact, and here it is a genuine unknown, not a guess this skill
+  should make silently.
+- **Not found** (both empty) — backfill path; the record authored in Step 7 receives the
   CHAIN-NOTE directly.
 
 ### Step 2 — Chain authorization gate

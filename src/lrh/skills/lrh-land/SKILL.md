@@ -281,11 +281,14 @@ the verify pass and whoever ends up running the merge — the human or the
 agent, per the classification below.
 
 Present that command verbatim. If the confirm-fixes verdict omitted the SHA
-lock, derive it from the current HEAD:
+lock, derive it from the current HEAD, using whichever merge-mode flag
+(`--merge`, `--squash`, `--rebase`) this project treats as standard —
+the same project-standard-mode note `/lrh-confirm-fixes` Step 8 makes
+for its own Green-verdict command, not a hard-coded choice here:
 
 ```bash
 git rev-parse HEAD
-gh pr merge <pr-url> --merge --match-head-commit <sha>
+gh pr merge <pr-url> <project-standard-merge-mode-flag> --match-head-commit <sha>
 ```
 
 **If Step 5's exception was used with a "defer" answer, there is no

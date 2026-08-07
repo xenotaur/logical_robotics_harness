@@ -180,8 +180,12 @@ explicit-rerun answer is needed on top of it. This is the mechanism
 `/lrh-land` Step 5's outdated-thread recovery path relies on when it
 carries a thread's content into this protocol by hand. In either case,
 keep the printed `execution_id` to pass as `rerun_of` in Step 7.
-`0` with a match printed means only
-`failed`/`reverted`/`superseded` — summarize it and continue, keeping its
+`0` with a match printed means the **most recent** match is
+`failed`/`reverted`/`superseded` — the command prints every matching
+record, not only the latest, so older `landed`/`in_progress` entries can
+still appear in the list without making the result blocking; what makes
+exit `0` non-blocking is specifically that the most recent attempt
+resolved to a terminal status. Summarize it and continue, keeping its
 `execution_id` for `rerun_of` in Step 7. `0` with no match printed means
 no prior record. `3` means the check itself failed (a `git` error) —
 **stop and report** the error; this is not the same as "no prior record."

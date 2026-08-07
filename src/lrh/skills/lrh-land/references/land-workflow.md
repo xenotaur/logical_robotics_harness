@@ -117,16 +117,30 @@ fresh timestamp at creation time (`lrh prompt record-execution` stamps
 `now()`), so a side record's full `execution_id` never equals its
 primary's plus a suffix; only the `<SLUG>` portion carries the appending
 relationship. Strip the leading timestamp first (`^[0-9]{4}(_[0-9]{2}){5}_`)
-to get each record's `<SLUG>`, then compare slugs, not full IDs: a
-candidate is only a side record if BOTH (a) its `<SLUG>` ends in one of
-the four reserved suffixes (`_REVIEW`, `_CONFIRM`, `_CLOSEOUT_NOTE`,
-`_SELFREVIEW`) AND (b) stripping that suffix yields a `<SLUG>` that
-actually exists as another record's `<SLUG>` somewhere under
-`project/executions/` — i.e. the side-record-producing skill's own
-naming convention of appending the suffix onto an existing primary
-record's slug. If no such base slug exists, the suffix is coincidental
-(part of the topic's own slug, not an appended one) and the candidate is
-primary despite its filename.
+to get each record's `<SLUG>`, then compare slugs, not full IDs.
+
+**Three-state classification, not a binary side/not-side test.** An
+earlier draft of this fix classified any candidate as primary whenever
+stripping its reserved suffix found no matching base slug anywhere —
+but "no base found" is genuinely ambiguous on its own: it is produced
+both by a primary record whose slug coincidentally ends in a reserved
+word (the case this fix targets) *and* by an orphaned side record for a
+PR that never got a `/lrh-implement` primary at all (`rerun_of` left
+empty by design when "the PR was created outside `/lrh-implement`" — see
+the `rerun_of` population rules in `/lrh-confirm-fixes` and
+`/lrh-review-response`). These two situations are lexically
+indistinguishable from `execution_id` alone; treating "no base" as
+automatically primary silently picks the wrong answer in the orphan
+case, attaching closeout state to a record that was never a primary
+implementation record (caught in review on this WI's own PR, `chatgpt-codex-connector`
+on PR #508). The corrected algorithm resolves this with **sibling
+elimination**: classify every PR-matching candidate first, and only
+treat a "no base" reserved-suffix candidate as primary when at least one
+*other* candidate for the same PR is unambiguously a genuine side record
+(has a base match) — proving a primary must exist for this PR to be the
+"other" record review/confirm/self-review ran against. If no sibling can
+prove that, the candidate is **ambiguous**, not primary — stop and ask
+rather than guess.
 
 ```bash
 # $candidates: newline-separated list of files to classify (e.g. from
@@ -138,44 +152,75 @@ slug_of() {
 }
 all_slugs=$(grep -rh '^execution_id:' project/executions/ \
   | sed -E 's/^execution_id: *[0-9]{4}(_[0-9]{2}){5}_//')
-primary=""
+
+side=""; reserved_no_base=""; unsuffixed=""
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   slug=$(slug_of "$f")
-  is_side=false
+  matched=false
   for suf in _REVIEW _CONFIRM _CLOSEOUT_NOTE _SELFREVIEW; do
     case "$slug" in
       *"$suf")
+        matched=true
         base="${slug%$suf}"
         if grep -qxF "$base" <<< "$all_slugs"; then
-          is_side=true
+          side="${side:+$side$'\n'}$f"
+        else
+          reserved_no_base="${reserved_no_base:+$reserved_no_base$'\n'}$f"
         fi
         ;;
     esac
   done
-  if [ "$is_side" = false ]; then
-    primary="${primary:+$primary$'\n'}$f"
+  if [ "$matched" = false ]; then
+    unsuffixed="${unsuffixed:+$unsuffixed$'\n'}$f"
   fi
 done <<< "$candidates"
-printf '%s\n' "$primary"
+
+if [ -n "$unsuffixed" ]; then
+  primary="$unsuffixed"; ambiguous=""
+elif [ -n "$reserved_no_base" ]; then
+  if [ -n "$side" ]; then
+    primary="$reserved_no_base"; ambiguous=""
+  else
+    primary=""; ambiguous="$reserved_no_base"
+  fi
+else
+  primary=""; ambiguous=""
+fi
 ```
 
-Verified against this repo's own real collision case: candidate
-`.../WI_SKILLS_LRH_SELF_REVIEW.md` has slug `WI_SKILLS_LRH_SELF_REVIEW`
-(ends in the `_REVIEW` suffix). Stripping `_REVIEW` gives
-`WI_SKILLS_LRH_SELF`, which is not any record's slug — so `is_side`
-stays `false` and the record is correctly kept as primary. By contrast,
-`.../WI_SKILLS_LRH_SELF_REVIEW_IMPL_CLOSEOUT_NOTE.md` has slug
-`WI_SKILLS_LRH_SELF_REVIEW_IMPL_CLOSEOUT_NOTE`; stripping `_CLOSEOUT_NOTE`
-gives `WI_SKILLS_LRH_SELF_REVIEW_IMPL`, which IS another record's slug
-(the primary implementation record, at its own distinct timestamp) — so
-it is correctly excluded as a genuine side record. The doubled-collision
-case `ADOPT_PROP_LRH_SELF_REVIEW_REVIEW` (a `_REVIEW` side record on a
-primary whose own slug already ends in `_REVIEW`) also resolves
-correctly: its base `ADOPT_PROP_LRH_SELF_REVIEW` matches the primary's
-slug and it is excluded, while the primary itself (`ADOPT_PROP_LRH_SELF_REVIEW`,
-base-stripped to `ADOPT_PROP_LRH_SELF`, which has no matching slug) is
-kept.
+`$primary` is the result to use when non-empty (found path). `$ambiguous`
+being non-empty means: stop and ask the human whether a primary
+implementation record ever existed for this PR, rather than silently
+choosing found or backfill — do not fall through to the backfill path
+automatically, since that path also assumes "no primary exists" as a
+confirmed fact, not a guess.
+
+Verified against this repo's own real collision case (PR #464,
+`WI-SKILLS-LRH-SELF-REVIEW`): candidates are
+`.../WI_SKILLS_LRH_SELF_REVIEW.md` (slug `WI_SKILLS_LRH_SELF_REVIEW`,
+ends in `_REVIEW`, base `WI_SKILLS_LRH_SELF` has no match →
+`reserved_no_base`) and `.../WI_SKILLS_LRH_SELF_REVIEW_CONFIRM.md` (slug
+ends in `_CONFIRM`, base `WI_SKILLS_LRH_SELF_REVIEW` matches the other
+candidate's slug → `side`). Since `side` is non-empty, the
+`reserved_no_base` candidate is correctly promoted to primary by
+elimination. The doubled-collision case `ADOPT_PROP_LRH_SELF_REVIEW_REVIEW`
+resolves the same way against its own sibling `ADOPT_PROP_LRH_SELF_REVIEW_CONFIRM`.
+A simulated lone orphan (the same `WI_SKILLS_LRH_SELF_REVIEW.md` file
+with no sibling candidates at all) correctly falls into `$ambiguous`
+instead of being silently misclassified as primary — this is the exact
+regression Codex's finding on PR #508 identified in an earlier draft of
+this algorithm.
+
+This still does not resolve every conceivable case — a PR with **only**
+one orphaned side record and genuinely nothing else can never be
+disambiguated from `execution_id` content alone, no matter how the
+provenance check is written; that is a fundamental limit of inferring
+provenance from naming rather than an explicit record-kind marker (a
+schema change, out of this fix's scope — see
+`project/design/backlog.md`). The fix here converts that unresolvable
+case from a silent wrong answer into an explicit stop-and-ask, which is
+the actionable improvement in scope.
 
 A `_CLOSEOUT_NOTE` record must be placed in the same execution directory
 bucket as the primary record (e.g., `project/executions/WI-FOO/` if the

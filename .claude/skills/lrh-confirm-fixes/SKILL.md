@@ -306,10 +306,16 @@ candidates=$(find project/executions/ -name "*${UPPER_SLUG}*.md")
 ```
 
 Run the provenance-check algorithm from `land-workflow.md` § Primary vs.
-side-record provenance check against `$candidates` to get `$primary`.
+side-record provenance check against `$candidates` to get `$primary` and
+`$ambiguous`.
 
-If found, set `rerun_of: <original-execution-id>`. If not found, leave empty
-and note it in the body.
+If `$primary` is found, set `rerun_of: <original-execution-id>`. If both
+are empty, leave `rerun_of:` empty and note it in the body. If `$ambiguous`
+is non-empty (a reserved-suffix candidate with no sibling to prove it's a
+genuine side record), leave `rerun_of:` empty and note the ambiguity
+explicitly in the body — do not guess which way to resolve it; unlike
+`/lrh-land` Step 1's found/backfill branch, this only affects an optional
+traceability link, so no hard stop is needed here.
 
 ```bash
 lrh validate

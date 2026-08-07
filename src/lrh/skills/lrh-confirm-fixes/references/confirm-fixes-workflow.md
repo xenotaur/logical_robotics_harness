@@ -354,10 +354,15 @@ UPPER_SLUG=$(echo "<branch-slug>" | tr '-' '_' | tr '[:lower:]' '[:upper:]')
 candidates=$(find project/executions/ -name "*${UPPER_SLUG}*.md")
 ```
 
-Run the provenance-check algorithm against `$candidates` to get `$primary`.
-If found, set `rerun_of: <execution_id-from-the-primary-record>`. If not
-found (the PR was created outside `/lrh-implement`, as in a planning-only PR
-with no primary record), leave `rerun_of:` empty and note it in the body.
+Run the provenance-check algorithm against `$candidates` to get `$primary`
+and `$ambiguous`. If `$primary` is found, set
+`rerun_of: <execution_id-from-the-primary-record>`. If both are empty (the
+PR was created outside `/lrh-implement`, as in a planning-only PR with no
+primary record), leave `rerun_of:` empty and note it in the body. If
+`$ambiguous` is non-empty, also leave `rerun_of:` empty but note the
+ambiguity explicitly rather than guessing — see `land-workflow.md`'s
+provenance-check section for why this case can't be resolved from naming
+alone.
 
 **Cross-skill consistency:** because the provenance check identifies side
 records by their actual naming convention rather than a hand-maintained

@@ -289,10 +289,14 @@ targets and a fixed precedence between them:
    ```
 
    Run the provenance-check algorithm against `$candidates` to get
-   `$primary`. If found, add `rerun_of: <original-execution-id>` to the
-   frontmatter.
+   `$primary` and `$ambiguous`. If `$primary` is found, add
+   `rerun_of: <original-execution-id>` to the frontmatter. If `$ambiguous`
+   is non-empty instead, leave `rerun_of` empty and note the ambiguity in
+   the body rather than guessing — see `land-workflow.md`'s
+   provenance-check section for why this case can't be resolved from
+   naming alone.
 
-If neither yields a match, leave `rerun_of` empty.
+If neither `$primary` nor `$ambiguous` yields a match, leave `rerun_of` empty.
 
 Run `lrh validate` to confirm the execution record is valid before committing:
 

@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_03_32_35_WI_SESSION_ARCHIVE_SYNC_RECONCILER_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SESSION_ARCHIVE_SYNC_RECONCILER_REVIEW)[2026-08-07T03:27:16+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_07_03_09_22_WI_SESSION_ARCHIVE_SYNC_RECONCILER
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/500
-commit: 
+commit: 8d06b983614602ee2849fa934fc00e328c6c3d6e
 created_at: 2026-08-07T03:32:35+00:00
 agent: claude_app
 instruction_source: ad_hoc — lrh-land review-response step (inline) for PR #500

@@ -184,5 +184,5 @@ workstream: `WS-SESSION-ARCHIVE-SYNC`.
 
 ## Related Workstream and Designs
 
-- Workstream: `project/workstreams/proposed/WS-SESSION-ARCHIVE-SYNC.md`
+- Workstream: `project/workstreams/active/WS-SESSION-ARCHIVE-SYNC.md`
 - Design: `project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md`

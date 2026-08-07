@@ -139,6 +139,13 @@ install targets rendered from a shared canonical skill source, with ChatGPT Skil
 later, separately-researched export path. Status: `proposed` / `not_started` (documentation-only;
 no CLI, installer, or renderer code changes).
 
+[`proposed/lrh-codex-app-server-conversation-export/`](proposed/lrh-codex-app-server-conversation-export/)
+— Extends the adopted Codex conversation exporter design with a production
+app-server-backed current-session export path: `lrh conversation
+export-codex-thread` first, then `/lrh-codex-export` and later target-aware
+`/lrh-export` wrappers after dogfood. Status: `proposed` / `not_started`
+(planning/control-plane only; no CLI or skill implementation in this PR).
+
 [`adopted/dev-toolchain-env-resolution.md`](adopted/dev-toolchain-env-resolution.md)
 — Decides whether LRH-managed projects should rely on Taurworks
 (`.taurworks/config.toml [activation.environment]` + `tw activate`) to resolve

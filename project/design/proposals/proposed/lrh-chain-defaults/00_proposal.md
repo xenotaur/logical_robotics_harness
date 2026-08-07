@@ -5,7 +5,7 @@ title: Persisted, User-Editable Chain-Defaults Profile for LRH Skill Gates
 status: proposed
 implementation_status: not_started
 created_on: 2026-08-05
-updated_on: 2026-08-05
+updated_on: 2026-08-07
 related_design:
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
@@ -207,11 +207,100 @@ silently surviving a skill redesign it was never evaluated against —
 the same caution `land-workflow.md`'s "Known limitation" notes on other
 matching logic warn about elsewhere in this project.
 
+### Decision 6: Chain-initiation gate liveness is itself a configurable field
+
+Added during the design-review steelmanning session `WS-LRH-CHAIN-DEFAULTS`
+required before Increment 1 (see Steelmanned Defaults below). The original
+five decisions left one gap: does a pre-filled completion/stop-condition
+default still require one live confirming reply every chain-authorization
+gate, or can it be skipped entirely once a default is stored? Neither
+extreme is right.
+
+Options considered:
+- Always require a live reply, even with defaults pre-filled — safest, but
+  leaves real friction on the table for a skill triggered repeatedly with
+  genuinely identical conditions.
+- Skip the live reply entirely once any default is stored — removes the
+  friction, but conflates "the user once set a default value" with "the
+  user has authorized skipping confirmation," which are different acts.
+
+**Chosen: liveness is a separate, explicit, two-step-gated setting — with
+two corrections made during this PR's own review round, both confirmed
+against the actual governing texts before fixing.**
+`chain_init_confirmation: always_confirm | skip_if_opted_in` is its own
+setting, independent of the completion/stop-condition text and the
+self-review preference. Reaching `skip_if_opted_in` requires two separate
+affirmative user actions — storing the default values, and a distinct,
+explicit opt-in to actually use them without re-confirming — never one
+action implying the other. Even in `skip_if_opted_in` mode, a per-run
+"special conditions" check runs unconditionally before the gate is
+skipped: an unmet `depends_on`, a prior failed or stopped run on the same
+PR, uncommitted stray changes, or a target that doesn't match the stored
+default's assumptions each force a live gate regardless of the stored
+setting. This generalizes Decision 2's gate-owned "unusual predicate"
+pattern up to the chain-initiation gate itself.
+
+**Correction 1 — storage scope (Codex P1, confirmed real):** unlike the
+completion/stop-condition text and self-review preference, which are
+correctly repo-level per Decision 1, `chain_init_confirmation`'s
+`skip_if_opted_in` state must **not** live in the shared,
+git-tracked `project/config/chain-defaults.yaml` — Decision 1 explicitly
+says that file "travels with the repo so every collaborator... see the
+same values." If it lived there, collaborator A's opt-in commit would
+silently skip the gate for collaborator B's next invocation, even though
+B never performed the second affirmative action Decision 6 requires of
+*them*. The skip-mode opt-in is instead **user-local, never committed**
+— e.g. local git config (`git config --local`) or a gitignored per-user
+file — scoped to one person's own invocations only. The shared profile
+may still store and propose the condition *values*; only the "skip
+asking me" consent is local.
+
+**Correction 2 — opt-in binds to the specific values it was granted for
+(Codex P2, confirmed real):** because `chain_init_confirmation` is
+independent of the condition text, an opt-in granted for one set of
+completion/stop-condition values must not silently carry over once
+Decision 4's offered profile update changes those values — that would
+let a stored consent cover values the user never actually saw applied
+unattended. The local opt-in record stores a hash of the exact
+completion-condition, stop-work-condition, and self-review-preference
+values it was granted against; any change to the shared profile's values
+invalidates it back to `always_confirm` until re-opted-in.
+
+**Honest scope of impact on `DEC-DELIBERATE-CHAIN-INITIATION` (Codex P1,
+confirmed real — this proposal's first draft claimed no impact, which
+was false):** `DEC-DELIBERATE-CHAIN-INITIATION` requires a human to have
+"provided or signed off on" both conditions for *each* chain run —
+"[a]bsent an explicit initiation carrying both conditions, no chain
+self-starts." A `skip_if_opted_in` run genuinely has no fresh live reply
+carrying those conditions for that specific run; the human's own
+slash-command invocation is still a deliberate act, but it is not the
+same act the governing decision names. **This is a real, narrow
+narrowing of that decision, not something left unchanged** — and per
+that decision's own precedent (`DEC-AGENT-EXECUTED-MERGE-GATE` narrowed
+the same decision's merge-execution assumption via its own dedicated
+decision-log entry, not a silent proposal-level assertion),
+`skip_if_opted_in` must not ship in Increment 1 until an equivalent
+decision-log entry formally narrows `DEC-DELIBERATE-CHAIN-INITIATION`
+itself — tracked as a new Open Question below, not resolved by this PR.
+`always_confirm` (today's behavior, pre-filled but still requiring a
+live reply) has no such gap and may ship in Increment 1 without waiting
+on that amendment.
+
 ## Non-Goals
 
-- Does not weaken or amend `DEC-AGENT-EXECUTED-MERGE-GATE` or
-  `DEC-DELIBERATE-CHAIN-INITIATION` — both remain in force unchanged;
-  this proposal only narrows how often other, already-tolerant gates ask.
+- Does not weaken or amend `DEC-AGENT-EXECUTED-MERGE-GATE` — it remains
+  in force unchanged; this proposal never touches the merge gate.
+- **Does narrow `DEC-DELIBERATE-CHAIN-INITIATION` in one specific,
+  bounded way** (corrected during this PR's review — see Decision 6):
+  `chain_init_confirmation: skip_if_opted_in` removes the per-run live
+  reply that decision otherwise requires, for a user-scoped, value-bound,
+  revocable opt-in only. This is not "unchanged" and this proposal does
+  not ship that mode until a dedicated decision-log entry formally
+  narrows `DEC-DELIBERATE-CHAIN-INITIATION` itself, per that decision's
+  own `DEC-AGENT-EXECUTED-MERGE-GATE` precedent. `always_confirm` and
+  every other gate's reduced-asking behavior in this proposal narrow only
+  how often already-tolerant gates ask, not whether a protected gate's
+  live-reply requirement applies.
 - Does not implement a generic, reusable rule engine — each gate's
   "unusual" predicate is gate-owned, hand-written logic.
 - Does not itself define the concrete default *values* (exact
@@ -228,13 +317,15 @@ matching logic warn about elsewhere in this project.
 ## Implementation Plan
 
 Large scope, multi-stage: reference the governing workstream
-(`WS-LRH-CHAIN-DEFAULTS`, to be created next) rather than naming
+(`WS-LRH-CHAIN-DEFAULTS`, `project/workstreams/proposed/WS-LRH-CHAIN-DEFAULTS.md`) rather than naming
 individual work items here. Expected staging, per the escalation
 precedent in `WI-REVIEW-ROUND-ESCALATION-GATE`:
 
 1. **Increment 1 — chain-level defaults only**: profile schema, the
    propose-and-confirm flow at `/lrh-land`/`/lrh-execute` Step 2,
-   completion/stop-condition and self-review-preference persistence.
+   completion/stop-condition and self-review-preference persistence, and
+   the `chain_init_confirmation` liveness field (Decision 6) with its
+   two-step opt-in and special-conditions check.
 2. **Increment 2 — per-gate autopilot**: `confirm_fixes_batch` autopilot
    flag, once Increment 1 has session evidence to steelman what "unusual"
    should mean for that gate (see Open Questions). `/lrh-closeout`'s
@@ -243,16 +334,58 @@ precedent in `WI-REVIEW-ROUND-ESCALATION-GATE`:
    must do so as an explicit amendment to `DEC-DELIBERATE-CHAIN-INITIATION`
    itself, not as a quiet inclusion in this profile's per-gate tier.
 
+## Steelmanned Defaults
+
+Produced by the design-review steelmanning session `WS-LRH-CHAIN-DEFAULTS`
+required as a hard prerequisite before Increment 1 (see that workstream's
+exit criteria). These are concrete, well-justified default *values* —
+grounded in three consecutive `/lrh-land` runs in the same session that
+independently converged on nearly identical wording — not the mechanism
+shape decided above. Do not treat any example value in this proposal's
+Background section as a proposed default; these supersede it.
+
+- **Completion condition default:** *"PR merged, its execution records
+  landed, and any linked work item resolved."* Matches what `/lrh-closeout`
+  actually verifies, rather than the looser phrasing improvised across this
+  session's runs.
+- **Stop-work condition default:** *"Any failing CI check, a reviewer
+  finding that isn't Clear-satisfied on re-verification, or an
+  ambiguous/refused merge-authorization reply."* Reflects the wording used,
+  near-verbatim, across three separate `/lrh-land` invocations in the same
+  session — real convergent judgment, not an invented default.
+- **Self-review-vs-bot-retrigger preference default:** when
+  `round-cap-gate.md`'s ceiling fires, substitute self-review rather than
+  requesting a new bot-retrigger ceiling, by default. **Hard guardrail,
+  not optional phrasing:** this default must never be read — by a human or
+  an agent — as license for unbounded self-review rounds. It fires *only*
+  within `round-cap-gate.md`'s existing ceiling mechanism, which still
+  requires its own explicit human sign-off to raise past its escalation
+  sequence (3 → 10 → 20, per `WI-REVIEW-ROUND-ESCALATION-GATE`). The
+  default changes which kind of round gets substituted at an
+  already-bounded gate; it does not remove, raise, or bypass the bound
+  itself. A self-review-substituted round still counts against
+  `completed_count` identically to a bot round (per `round-cap-gate.md`'s
+  existing "Gate integration" note) — this default does not create a
+  parallel, uncounted review loop.
+- `confirm_fixes_batch`'s `auto_unless_unusual` predicate: deliberately
+  left **unresolved**, not defaulted, per the Implementation Plan's own
+  sequencing — Increment 2 needs real Increment 1 evidence before this is
+  steelmanned, not an invented threshold today. Recorded leaning to inform
+  that future session, not a decision: auto-continue only if every finding
+  is Clear-satisfied on re-verification *and* none carries a P0/P1
+  severity badge, since a P1 surfacing at all seems worth a human glance
+  even after it's fixed.
+
 ## Open Questions
 
-- Exact default *values* — what "reasonable PR closure" should read as
-  verbatim for the completion condition, and which gates (if any)
-  should ship with `auto_unless_unusual` versus `always_ask` on day
-  one. **A dedicated design-review session is needed to steelman a
-  concrete, well-justified set of defaults before Increment 1 ships** —
-  this proposal defines the mechanism's shape, not the values a first
-  cut would hard-code. Do not treat any example value mentioned in this
-  proposal's Background section as a proposed default.
+- **`skip_if_opted_in` is blocked on a `DEC-DELIBERATE-CHAIN-INITIATION`
+  amendment** (added during this PR's review — see Decision 6 and
+  Non-Goals): a dedicated decision-log entry must formally narrow that
+  decision's per-run live-reply requirement before `skip_if_opted_in`
+  can ship, mirroring `DEC-AGENT-EXECUTED-MERGE-GATE`'s precedent for
+  narrowing the same decision on a different axis. `always_confirm`
+  (pre-filled text, still requiring a live reply) is unaffected and can
+  ship in Increment 1 without waiting on this.
 - Whether the per-gate "unusual" predicates should be documented in a
   shared reference table (for discoverability) even though each is
   gate-owned in implementation — deferred to Increment 2 design.

@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_03_52_32_ADOPT_PROP_LRH_SELF_REVIEW_REVIEW
 prompt_id: PROMPT(AD_HOC:ADOPT_PROP_LRH_SELF_REVIEW_REVIEW)[2026-08-07T03:51:43+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_07_03_09_15_ADOPT_PROP_LRH_SELF_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/501
-commit: f0b907e
+commit: 5578815965b90ab8e043a584040679239ebe7dc0
 created_at: 2026-08-07T03:52:32+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/501

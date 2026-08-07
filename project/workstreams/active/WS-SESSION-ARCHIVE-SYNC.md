@@ -2,7 +2,7 @@
 id: WS-SESSION-ARCHIVE-SYNC
 kind: planning_node
 title: Session Archive and Sync
-status: proposed
+status: active
 stage: executing
 origin: follow_up
 summary: Deliver the session/PR/execution-record archive-and-sync system designed in PROP-LRH-SESSION-ARCHIVE-SYNC — durable local transcript archive, lrh sessions reconciler, non-authoritative project/sessions/ index, and both-identifier capture — so that no repo-changing agent session is ever lost.

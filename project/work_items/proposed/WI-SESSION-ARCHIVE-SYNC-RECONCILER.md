@@ -35,12 +35,12 @@ forbidden_actions:
   - modify_session_transcript_schema
 acceptance:
   - lrh sessions sync mirrors ~/.claude/projects/**/*.jsonl into a configurable local archive root, raw-file-first ordering, and re-copies (never truncates/shrinks/deletes) a growing transcript by comparing size/mtime, not mere existence
-  - lrh sessions sync harvests /export zip metadata.json (sessionId, cliSessionId, prNumber, prs[], branch, title) and upserts matching entries into project/sessions/index.jsonl via the existing record_session_observation primitive, without copying transcript bodies or logs
+  - lrh sessions sync harvests /export zip metadata.json (sessionId, cliSessionId, prNumber, prs[], branch, title), atomically persists a sanitized identity-fields-only copy under the local archive's exports/<session-key>/metadata.json before upserting into project/sessions/index.jsonl via the existing record_session_observation primitive, without ever copying transcript bodies or logs
   - Child-id alias collection scans distinct line-level sessionId values inside each JSONL, not just filename stems, so forked lineages are not left with incomplete alias sets
   - lrh sessions discover lists sessions for a project with archive/export awareness, surfacing the host id where harvest has resolved one
   - lrh sessions link can promote a bare child id to a host-keyed session_transcript pointer once harvest makes that resolution authoritative
   - No change to the session_transcript scalar/sequence grammar or its validator rules
-  - Any edit to src/lrh/skills/ is mirrored identically in .claude/skills/, verified by diff -r exiting 0
+  - Each touched skill directory under src/lrh/skills/ (at least lrh-implement, and lrh-closeout if touched) is mirrored identically in the corresponding .claude/skills/ directory, verified by a per-directory diff -r exiting 0 (not a repo-wide src/lrh/skills/ vs .claude/skills/ diff, which cannot pass due to package-only entries like __init__.py, _shared, and installer.py)
   - lrh validate passes with 0 errors
 required_evidence:
   - manual_review
@@ -115,8 +115,13 @@ that already dangle (Decision 1).
    re-copying (never leaving a shorter archived copy than the source).
 2. Add `/export` zip parsing: read `metadata.json` (`sessionId`,
    `cliSessionId`, `prNumber`, `prs[]`, `branch`, `title`) without extracting
-   transcript bodies or `logs/`; call `record_session_observation` to upsert
-   the resulting host↔child↔PR mapping.
+   transcript bodies or `logs/`. Per the proposal's archive layout
+   (`exports/<session-key>/metadata.json`), atomically write a sanitized
+   copy of just the permitted identity fields to the local archive *before*
+   calling `record_session_observation` to upsert the resulting
+   host↔child↔PR mapping — so Stage 3 can rebuild or enrich the index later
+   (recovering `written_branches[]`/`cwd`, multi-export latest-wins) even if
+   the original export zip is subsequently deleted.
 3. Add child-id alias collection that scans distinct line-level `sessionId`
    values inside each JSONL (not just the filename stem) — the case that
    PR #435's closing comment documents concretely (a file named `f1e9c968…`
@@ -153,14 +158,16 @@ that already dangle (Decision 1).
 
 - `lrh sessions sync` mirrors transcripts into a configurable local archive,
   re-copying (never truncating) a growing source.
-- `lrh sessions sync` harvests `/export` `metadata.json` and upserts entries
-  into `project/sessions/index.jsonl` via the existing merge primitive, never
+- `lrh sessions sync` harvests `/export` `metadata.json`, atomically persists
+  a sanitized identity-fields-only copy under the archive's
+  `exports/<session-key>/metadata.json`, then upserts entries into
+  `project/sessions/index.jsonl` via the existing merge primitive — never
   copying transcript bodies or logs.
 - Child-id alias collection scans line-level `sessionId` values, not just
   filenames.
 - `lrh sessions discover`/`link` are archive/harvest-aware.
 - No change to `session_transcript` grammar or validator.
-- `diff -r src/lrh/skills/ .claude/skills/` exits 0 for any touched skill.
+- Each touched skill directory's `diff -r src/lrh/skills/<name>/ .claude/skills/<name>/` exits 0 (not a repo-wide `src/lrh/skills/` vs `.claude/skills/` diff, which cannot pass — `src/lrh/skills/` has package-only entries like `__init__.py`, `_shared`, and `installer.py` absent from `.claude/skills/` even on unmodified `main`).
 - `lrh validate` passes with 0 errors.
 
 ## Validation
@@ -182,6 +189,6 @@ that already dangle (Decision 1).
 
 ## Related Workstream and Designs
 
-- Workstream: `project/workstreams/proposed/WS-SESSION-ARCHIVE-SYNC.md`
+- Workstream: `project/workstreams/active/WS-SESSION-ARCHIVE-SYNC.md`
 - Design: `project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md`
 - Superseded prior art: PR #435 (`WI-EXEC-SESSIONS-DISCOVERY`, closed unmerged)

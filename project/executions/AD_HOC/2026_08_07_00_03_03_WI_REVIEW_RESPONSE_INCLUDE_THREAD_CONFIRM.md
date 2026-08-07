@@ -2,7 +2,7 @@
 execution_id: 2026_08_07_00_03_03_WI_REVIEW_RESPONSE_INCLUDE_THREAD_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_REVIEW_RESPONSE_INCLUDE_THREAD_CONFIRM)[2026-08-06T23:51:38-04:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_06_01_37_08_WI_REVIEW_RESPONSE_INCLUDE_THREAD
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/497
 commit: f02a7cdc19dd1729f155d0c6d3fc52fd3503784c

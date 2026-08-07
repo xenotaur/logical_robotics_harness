@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_04_04_53_WI_DEC_CHAIN_INIT_SKIP_AMENDMENT
 prompt_id: PROMPT(AD_HOC:WI_DEC_CHAIN_INIT_SKIP_AMENDMENT)[2026-08-07T04:03:25+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/502
-commit: 
+commit: 209a2f2fa6d0bb8567756307495bb25c25de471d
 created_at: 2026-08-07T04:04:53+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-DEC-CHAIN-INIT-SKIP-AMENDMENT.md

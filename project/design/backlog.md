@@ -7,6 +7,42 @@ re-deriving context.
 
 ---
 
+## Generalize conversation export manifests beyond Codex before `/lrh-export`
+
+**Noted:** 2026-08-07, while reviewing Antigravity's draft conversation
+exporter plan in PR #514 after landing the Codex app-server export design in
+PR #510. The Antigravity plan correctly wants exported artifacts to identify
+`source_tool: antigravity`, but LRH's current
+`ConversationExportManifest` implementation is still Codex-specific: the module
+describes private Codex exports, sets `KIND =
+"lrh_codex_conversation_export"` and `SOURCE_TOOL_CODEX = "codex"`, and
+validates `source_tool` as exactly Codex. That is fine for
+`WI-CODEX-CONVERSATION-EXPORT-APP-SERVER`, whose immediate acceptance criteria
+remain Codex-specific, but it becomes a design blocker for non-Codex exporters
+and the later target-aware `/lrh-export` wrapper.
+
+**Idea:** Add a follow-on design/work item after the Codex app-server exporter
+lands and dogfoods: generalize the conversation export manifest and inspector
+contract for multiple source tools. Decide whether the manifest `kind` stays
+backward-compatible, becomes a more general `lrh_conversation_export`, or uses
+schema-versioned compatibility rules. The resulting contract should support
+`source_tool` values such as `codex`, `antigravity`, and future agent targets
+without weakening the existing private-by-default,
+`authority: non_authoritative_context`, sensitivity-scan, source-hash,
+metadata-only inspection, and archive-viewer safety boundaries.
+
+**Status:** Tracked, not yet designed. Do not block the Codex-specific
+`export-codex-thread` implementation on this, but do not implement umbrella
+`/lrh-export` or non-Codex export adapters on top of a Codex-only manifest
+contract.
+
+**Related:** PR #510; PR #514; `src/lrh/conversations/export_manifest.py`;
+`docs/reference/cli/conversation.md`;
+`project/design/proposals/proposed/lrh-codex-app-server-conversation-export/00_proposal.md`;
+`project/work_items/proposed/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md`.
+
+---
+
 ## `lrh request review_response` cannot surface a specific outdated-but-unresolved thread
 
 **Noted:** 2026-08-01, during PR #453's confirm-fixes round (fixing

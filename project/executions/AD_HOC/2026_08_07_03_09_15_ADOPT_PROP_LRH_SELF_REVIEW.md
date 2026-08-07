@@ -4,8 +4,8 @@ prompt_id: PROMPT(AD_HOC:ADOPT_PROP_LRH_SELF_REVIEW)[2026-08-07T03:06:42+00:00]
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/501
+commit: 10b563d
 created_at: 2026-08-07T03:09:15+00:00
 agent: claude_app
 instruction_source: chat (user request following a codebase survey that found PROP-LRH-SELF-REVIEW's frontmatter stale relative to its actual shipped state)

@@ -145,8 +145,16 @@ Interpret the exit code: `1` is a blocking match — either
 (unresolved outcomes block too), or any match whose recency can't be
 established (a missing/malformed `created_at`) even if every status is
 otherwise terminal — **stop and report** unless the user explicitly asks
-for a rerun; if they do, keep the printed `execution_id` to pass as
-`rerun_of` in Step 7. `0` with a match printed means only
+for a rerun, **or** this invocation is itself a continuation within the
+same `/lrh-land` run that authored the matched record earlier in this run
+(not a different session or a later, unrelated rediscovery) — treat that
+case as a non-blocking rerun without needing a fresh explicit-rerun answer,
+since `/lrh-land`'s own Step 2 chain authorization already covers the
+whole `review-response ↔ confirm-fixes` loop for this run. This is the
+mechanism `/lrh-land` Step 5's outdated-thread recovery path relies on
+when it carries a thread's content into this protocol by hand. In either
+case, keep the printed `execution_id` to pass as `rerun_of` in Step 7.
+`0` with a match printed means only
 `failed`/`reverted`/`superseded` — summarize it and continue, keeping its
 `execution_id` for `rerun_of` in Step 7. `0` with no match printed means
 no prior record. `3` means the check itself failed (a `git` error) —
@@ -179,7 +187,8 @@ lrh prompt check-execution --prompt-id "<id>" --project-root .
 ```
 
 If `check-execution` reports a `landed` or `in_progress` record, **stop and
-report** — do not continue unless the user explicitly asks for a rerun.
+report** — do not continue unless the user explicitly asks for a rerun, or
+this is a same-land-run continuation per the carve-out above.
 
 ### Step 4 — Confirm gate (human gate)
 

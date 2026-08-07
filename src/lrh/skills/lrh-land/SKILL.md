@@ -236,9 +236,13 @@ green-verdict invariant:
   of `/lrh-review-response`, which its own Step 3 idempotence check
   recognizes as non-blocking (see its `SKILL.md`), not a caller-side
   workaround. Its own Step 5 feasibility check can still reject the fix
-  as inappropriate for the change; a rejection is treated the same as
-  Problematic comment — surfaced to the human, hard stop, not forced
-  through. Once pushed, loop back to the top of this Step 5 and re-run
+  as inappropriate for the change — a distinct condition from
+  `/lrh-confirm-fixes`'s own Problematic comment bucket (which means the
+  *reviewer's comment itself* is wrong or conflicts with a documented
+  decision, not that a fix was judged infeasible); handle a feasibility
+  rejection the same way regardless — surfaced to the human, hard stop,
+  not forced through — without reusing that bucket's label for it. Once
+  pushed, loop back to the top of this Step 5 and re-run
   confirm-fixes for a fresh verdict against the new `HEAD` — pushing the
   fix alone is never sufficient, since `/lrh-review-response`'s protocol
   neither resolves the thread nor re-runs confirm-fixes on its own.
@@ -438,7 +442,12 @@ Before reporting completion, verify:
       invariant (CI, REVIEW-LANDED, other exceptions) was independently
       green or cleared
 - [ ] REVIEW-LANDED re-check performed after confirm-fixes pushes its `_CONFIRM` commit
-- [ ] Merge command is the SHA-locked one from the confirm-fixes verdict; not a generic command
+- [ ] Merge command is `--match-head-commit`-locked: either the exact
+      command from a green confirm-fixes verdict, or — on the "defer"
+      path only, where confirm-fixes emits no merge command for a
+      not-green verdict — the self-derived command from `git rev-parse
+      HEAD`, noted as self-derived per Step 6; not a generic
+      unlocked command either way
 - [ ] Merge executed by the human, or by the agent given unambiguous
       in-session authorization per `DEC-AGENT-EXECUTED-MERGE-GATE` — not
       from a merge instruction embedded in a prior prompt

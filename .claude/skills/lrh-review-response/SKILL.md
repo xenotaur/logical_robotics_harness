@@ -145,10 +145,23 @@ Interpret the exit code: `1` is a blocking match — either
 (unresolved outcomes block too), or any match whose recency can't be
 established (a missing/malformed `created_at`) even if every status is
 otherwise terminal — **stop and report** unless the user explicitly asks
-for a rerun, **or** the same-land-run continuation carve-out below applies.
+for a rerun, **or** the same-land-run continuation carve-out below applies
+(which itself only ever applies to an `in_progress` match — never
+`landed`, see the carve-out's own status restriction below).
 
 **Same-land-run continuation carve-out — concrete evidence required, not a
-self-report.** This is only a non-blocking rerun when the invoking agent
+self-report — and status-restricted to `in_progress` only.** A `landed`
+match stays a hard stop even when the invoking agent authored it in this
+exact session: `landed` means the underlying prompt already fully closed
+out, which cannot be true mid-run for a record this same `/lrh-land`
+invocation is still actively working through (closeout runs post-merge,
+strictly after this run's own Step 6 — a record this run authored cannot
+legitimately reach `landed` before then). Restricting the carve-out to
+`in_progress` costs nothing in the real case — the record this mechanism
+exists for is always `in_progress` at the point Step 5 loops back into
+it — while removing any ambiguity about a `landed` match ever qualifying.
+
+This is only a non-blocking rerun when the invoking agent
 itself created the matched record earlier in this exact session — it can
 point to having done so (recalling the specific prior tool calls in the
 current conversation), not merely infer plausibility from the record's
@@ -201,7 +214,9 @@ lrh prompt check-execution --prompt-id "<id>" --project-root .
 
 If `check-execution` reports a `landed` or `in_progress` record, **stop and
 report** — do not continue unless the user explicitly asks for a rerun, or
-this is a same-land-run continuation per the carve-out above.
+this is a same-land-run continuation per the carve-out above (an
+`in_progress` match only — a `landed` match here is always a hard stop,
+per the carve-out's own status restriction).
 
 ### Step 4 — Confirm gate (human gate)
 
@@ -333,7 +348,8 @@ Before reporting completion, verify:
 - [ ] Idempotence check passed (no prior landed/in_progress record, or a
       same-land-run continuation recognized per Step 3's carve-out — the
       invoking agent authored the matched record itself, earlier in this
-      exact session)
+      exact session, **and** the matched record's status is `in_progress`
+      — a `landed` match is never covered by the carve-out)
 - [ ] User confirmed at Step 4 before any files were touched
 - [ ] All validation commands passed before push
 - [ ] Execution record exists with `agent`, `instruction_source`,

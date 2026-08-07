@@ -16,7 +16,7 @@ related_roadmap:
   - ROADMAP-PHASE-03
 related_workstreams: []
 related_design:
-  - project/design/proposals/proposed/lrh-self-review/00_proposal.md
+  - project/design/proposals/adopted/lrh-self-review/00_proposal.md
   - project/design/backlog.md
 depends_on: []
 blocked_by: []
@@ -67,7 +67,7 @@ subagent reviews for GitHub bot retriggers throughout the session, successfully 
 purely as free-text instructions interpreted per-invocation, with no packaged
 skill, no execution-record trail distinguishing self-review from bot review,
 and no formal path into `round-cap-gate.md`'s three-way gate. `PROP-LRH-SELF-REVIEW`
-(`project/design/proposals/proposed/lrh-self-review/00_proposal.md`, merged
+(`project/design/proposals/adopted/lrh-self-review/00_proposal.md`, merged
 via PR #462) captures the full design: two trigger points (a single pre-push
 diff-mode pass, and a post-ceiling PR-mode substitute as the gate's fourth
 answer), why the pre-push pass is exempt from the ceiling by construction,
@@ -249,5 +249,5 @@ have no other WI actively editing them concurrently.
 - Workstream: `project/workstreams/proposed/WS-SKILLS-SELF-REVIEW.md`
   (does not exist yet — offered as follow-on, per Decision 7's governance
   choice: single-skill workstream, `WS-SKILLS-CONFIRM-FIXES` precedent)
-- Design: `project/design/proposals/proposed/lrh-self-review/00_proposal.md`
+- Design: `project/design/proposals/adopted/lrh-self-review/00_proposal.md`
 - Backlog: `project/design/backlog.md` "Self-review-first tier..." entry

@@ -664,8 +664,9 @@ Remaining spike work before closure:
 
 - Optionally draft the actual work item file using `/lrh-work-item` in a new
   follow-up step.
-- Decide whether to file the local signature-verification issue upstream now or
-  leave it as a known environmental risk.
+- Use the canonical design backlog entries "Experimental-code linkage
+  guardrail" and "Codex executable trust and signature investigation" to carry
+  the lint-boundary and local trust follow-ups out of this spike.
 - Close this experimental branch by pushing/opening a documentation-only PR, or
   keep it local until the follow-up work item is created from these findings.
 

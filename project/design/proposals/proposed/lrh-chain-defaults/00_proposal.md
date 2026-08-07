@@ -379,7 +379,7 @@ Background section as a proposed default; these supersede it.
 ## Open Questions
 
 - ~~`skip_if_opted_in` is blocked on a `DEC-DELIBERATE-CHAIN-INITIATION`
-  amendment`~~ — **resolved 2026-08-07**: `DEC-CHAIN-INIT-SKIP-CONSENT`
+  amendment~~ — **resolved 2026-08-07**: `DEC-CHAIN-INIT-SKIP-CONSENT`
   formally narrows that decision's per-run live-reply requirement for
   exactly this consent model. `skip_if_opted_in` is now unblocked for
   Increment 1 implementation, which must implement all five numbered

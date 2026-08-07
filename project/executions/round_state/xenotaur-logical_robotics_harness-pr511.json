@@ -1,12 +1,12 @@
 {
   "pr": "https://github.com/xenotaur/logical_robotics_harness/pull/511",
   "ceiling": 3,
-  "completed_count": 1,
+  "completed_count": 2,
   "pending_attempt": {
-    "promoted": false,
+    "promoted": true,
     "reviewers": {
-      "codex": "pending",
-      "copilot": "pending"
+      "codex": "submitted",
+      "copilot": "submitted"
     },
     "retriggered_at": "2026-08-07T19:33:20Z"
   }

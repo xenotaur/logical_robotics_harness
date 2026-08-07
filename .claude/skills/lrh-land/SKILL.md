@@ -436,10 +436,14 @@ Before reporting completion, verify:
 - [ ] If "fix now" was used: `--include-thread <id>` was passed
       explicitly into `/lrh-review-response` Step 2's own fetch command,
       and confirm-fixes was re-run from the top of Step 5 for a fresh
-      **Green** verdict before Step 6 — not merely a fresh verdict of any
-      color; a fresh not-green result routes back through this same
-      exception (a further fix-now/defer/stop decision), it does not
-      satisfy this item on its own
+      verdict before Step 6. This item is satisfied by either: a fresh
+      **Green** verdict, or a fresh not-green verdict whose resulting
+      loop-back decision is an explicit **defer** (checked against the
+      same precondition and bucket-scope rules as any other defer, per
+      the item below) — not merely a fresh verdict of any color; a
+      loop-back decision of **stop** never satisfies this item, and a
+      further **fix now** does not satisfy it until it too resolves to
+      Green or defer
 - [ ] If "defer" was used: the deferred thread is named explicitly in
       Step 6's summary, and every other component of the green-verdict
       invariant (CI, REVIEW-LANDED, other exceptions) was independently

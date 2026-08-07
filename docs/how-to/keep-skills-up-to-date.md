@@ -133,4 +133,5 @@ body-prose neutralization work produces fully agent-neutral skill bodies.
 
 ## Related reference
 
+- [Use LRH with AI Agent Assistants](use-lrh-with-agent-assistants.md)
 - [Your first LRH project](../tutorials/first-lrh-project.md)

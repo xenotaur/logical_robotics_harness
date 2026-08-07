@@ -509,13 +509,24 @@ def sync_export(
 # discover / link lookups
 # ---------------------------------------------------------------------------
 
-_PROJECT_SLUG_UNSAFE = re.compile(r"[/_]")
+_PROJECT_SLUG_UNSAFE = re.compile(r"[/.]")
 
 
 def project_slug_for_path(path: str | pathlib.Path) -> str:
-    """Claude Code's own project-slug rule: normalize ``/`` and ``_`` to
+    """Claude Code's own project-slug rule: normalize ``/`` and ``.`` to
     ``-`` in the absolute path, matching how it names
-    ``~/.claude/projects/<slug>/``."""
+    ``~/.claude/projects/<slug>/``.
+
+    Verified against every real directory under ``~/.claude/projects/``
+    on this machine: a `.claude/worktrees/...` path segment becomes
+    `-claude-worktrees-...` (the leading dot *is* replaced), while a
+    repository name containing a literal underscore (e.g.
+    ``replication_vector``) is preserved as-is -- underscore is **not**
+    replaced. An earlier revision of this function replaced ``_`` instead
+    of ``.``, which silently broke resolution for every
+    ``.claude/worktrees/`` path -- this project's own most common working
+    layout.
+    """
 
     absolute = str(pathlib.Path(path).expanduser().resolve())
     return _PROJECT_SLUG_UNSAFE.sub("-", absolute)

@@ -77,6 +77,41 @@ identity-mapping gap Stage 1 left open.
   `/lrh-execute` it to landing") was broad authorization — but the
   mint-before-Step-4 ordering itself was not followed as specified.
   Flagging for transparency rather than treating it as compliant.
+- **Self-review after this PR opened** (PR-mode, cold-context sub-agent,
+  triggered by ~2 minutes of GitHub-bot silence per this repo's
+  bot-is-expensive guidance): confirmed all headline claims and all gates
+  green, no `forbidden_actions` violated, and found 7 new findings.
+  1. **MEDIUM-HIGH, fixed:** `project_slug_for_path`'s regex replaced `/`
+     and `_`, but Claude Code's real rule replaces `/` and `.` — `_` is
+     preserved. Verified conclusively against every real directory under
+     `~/.claude/projects/` on this machine (a `replication_vector` repo
+     keeps its underscore; a `.claude/worktrees/...` segment becomes
+     `-claude-worktrees-...`). This broke `discover`/`link` resolution on
+     every path containing a dot, which includes every
+     `.claude/worktrees/` agent worktree — this project's own dominant
+     working pattern — so fixed before merge rather than deferring as a
+     fast follow.
+  2. MEDIUM, not fixed, deferred (see Follow-up): sequence-form
+     `session_transcript` YAML lists can be corrupted by
+     `_replace_or_insert_frontmatter_field`'s line-based regex when
+     `lrh sessions link` writes to them — a pre-existing bug in a helper
+     shared with `update-execution`, newly reachable via this PR.
+  3. LOW, not fixed, deferred: `write_session_transcript_field`'s
+     post-write success guard checks the whole file text rather than
+     scoping to the frontmatter block.
+  4. LOW, not fixed, deferred: `--dry-run` in `lrh sessions sync` doesn't
+     report alias-reconciliation activity (the `continue` happens before
+     the reconcile call).
+  5. LOW/perf, not fixed, deferred: `_run_sync` reconciles every
+     transcript on every run with no batching or short-circuiting.
+  6. NIT: already effectively addressed by the first self-review's
+     glob-depth doc fix.
+  7. NIT: already acknowledged above (the `prNumber`-without-`prs[]` gap).
+  Sub-agent's verdict was "safe to merge as-is, with finding 1 filed as a
+  fast follow"; judgment call made here to fix finding 1 immediately
+  instead, given its real-world impact on this project's own usage
+  pattern, and to defer findings 2-5 to Follow-up as genuinely
+  lower-severity and non-merge-blocking.
 
 # Validation
 
@@ -108,3 +143,16 @@ identity-mapping gap Stage 1 left open.
   an `/export` `metadata.json` with `prNumber` but an empty/absent
   `prs[]` records no PR at all, since the WI's Required Changes #2
   explicitly lists only `prs[]` (not `prUrl`) as the field to extract.
+- From the second self-review round, deferred as non-merge-blocking:
+  - `_replace_or_insert_frontmatter_field`'s line-based regex can
+    corrupt a sequence-form `session_transcript:` YAML list when
+    `lrh sessions link` writes to it (pre-existing shared-helper bug,
+    newly reachable here).
+  - `write_session_transcript_field`'s post-write success guard checks
+    the whole file text, not just the frontmatter block.
+  - `lrh sessions sync --dry-run` doesn't report alias-reconciliation
+    activity, since the dry-run `continue` happens before the reconcile
+    call.
+  - `_run_sync` reconciles every transcript on every run with no
+    batching/short-circuiting (reads full JSONLs and reloads the index
+    repeatedly).

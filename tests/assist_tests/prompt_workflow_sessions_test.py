@@ -575,11 +575,16 @@ class SyncExportTest(unittest.TestCase):
 
 
 class ProjectSlugForPathTest(unittest.TestCase):
-    def test_slashes_and_underscores_become_hyphens(self) -> None:
-        slug = prompt_workflow_sessions.project_slug_for_path("/a/b_c/d")
+    def test_slashes_and_dots_become_hyphens_underscore_preserved(self) -> None:
+        # Verified against real ~/.claude/projects/ directory names: `/`
+        # and `.` are both replaced with `-`, but `_` is preserved as-is
+        # (e.g. a `replication_vector` repo keeps its underscore intact,
+        # while a `.claude/worktrees/...` segment becomes
+        # `-claude-worktrees-...`).
+        slug = prompt_workflow_sessions.project_slug_for_path("/a/b_c/d.e")
         self.assertNotIn("/", slug)
-        self.assertNotIn("_", slug)
-        self.assertTrue(slug.startswith("-a-b-c-d"))
+        self.assertIn("_", slug)
+        self.assertTrue(slug.startswith("-a-b_c-d-e"))
 
 
 class DiscoverSessionsForProjectTest(unittest.TestCase):

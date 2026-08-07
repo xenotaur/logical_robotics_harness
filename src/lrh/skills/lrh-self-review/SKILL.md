@@ -20,7 +20,7 @@ project's own PRs #447, #452, #457, #459, #460, #461, #462, #464: dispatch
 a fresh `general-purpose` subagent with no session memory, cold context,
 to review a diff or PR independently, in place of a GitHub Copilot/Codex
 retrigger. See `PROP-LRH-SELF-REVIEW`
-(`project/design/proposals/proposed/lrh-self-review/00_proposal.md`) for
+(`project/design/proposals/adopted/lrh-self-review/00_proposal.md`) for
 the full design.
 
 **Two invocation modes, one shared procedure** (Decision 5): the target

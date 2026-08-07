@@ -2,11 +2,12 @@
 id: PROP-LRH-SELF-REVIEW
 type: design_proposal
 title: LRH Self-Review — /lrh-self-review Skill for Pre-Push and Post-Ceiling Independent Review
-status: proposed
+status: adopted
 created_on: 2026-08-02
-updated_on: 2026-08-02
-implementation_status: not_started
-implemented_by: []
+updated_on: 2026-08-07
+implementation_status: implemented
+implemented_by:
+  - WI-SKILLS-LRH-SELF-REVIEW
 supersedes: []
 superseded_by: null
 related_design:

@@ -16,7 +16,7 @@ related_roadmap:
   - ROADMAP-PHASE-03
 related_workstreams: []
 related_design:
-  - project/design/proposals/proposed/lrh-self-review/00_proposal.md
+  - project/design/proposals/adopted/lrh-self-review/00_proposal.md
   - project/design/backlog.md
 depends_on: []
 blocked_by: []

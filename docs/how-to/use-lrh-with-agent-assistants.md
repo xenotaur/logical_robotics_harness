@@ -73,19 +73,21 @@ lrh skills install --target all
 
 Antigravity supports both **Direct In-Repo Discovery** (zero-install via project rules) and **Native Plugin Installation**.
 
-#### Pattern A: Direct In-Repo Discovery (Recommended / Zero-Install)
+#### Pattern A: Direct In-Repo Discovery (Zero-Install / Rules-Based)
 Antigravity automatically loads workspace `AGENTS.md` and user-level `~/.gemini/GEMINI.md` files as system rules (`<user_rules>`).
+
+*Note on Skill Discovery*: In downstream repositories where LRH is installed as a package, agent skills live in project-local skills directories (installed via `lrh skills install --local`) or in the repository's source tree. Direct in-repo discovery reads these local skill files when present in the workspace.
 
 1. **Project-Wide Rules (`AGENTS.md`)**: Add the following directive to your project's `AGENTS.md`:
    ```markdown
    ## Agent Skill Rules
-   When asked to perform workflow tasks (e.g. lrh-work-item, lrh-implement, lrh-land), use `view_file` to read the corresponding `SKILL.md` in `src/lrh/skills/` or `.claude/skills/` before proceeding.
+   When asked to perform workflow tasks (e.g. lrh-work-item, lrh-implement, lrh-land), inspect and read the corresponding `SKILL.md` in `.claude/skills/`, `.agents/skills/`, or `src/*/skills/` before proceeding.
    ```
 
 2. **Global Rules (`~/.gemini/GEMINI.md`)**: To enable this discovery across all repositories on your system, add to `~/.gemini/GEMINI.md`:
    ```markdown
    # Global Agent Skill Rules
-   If the current workspace contains an `src/*/skills/`, `.claude/skills/`, or `.agents/skills/` directory, actively discover and utilize those skills by inspecting `SKILL.md` files.
+   If the current workspace contains an `src/*/skills/`, `.claude/skills/`, or `.agents/skills/` directory, actively discover and utilize those skills by inspecting their `SKILL.md` files.
    ```
 
 #### Pattern B: Native Plugin Installation

@@ -21,7 +21,7 @@ This decision defines how LRH models and integrates Google Antigravity as an age
 ## Decision
 
 1. **Dual-Tier Interoperability Strategy for Antigravity**:
-   - **Tier 1 (Direct In-Repo Discovery via Rules)**: Recommend repo-level (`AGENTS.md`) or user-level (`~/.gemini/GEMINI.md`) skill-discovery rules for immediate, zero-install use of LRH skills in Antigravity. When instructed, Antigravity directly reads `src/lrh/skills/<skill>/SKILL.md` via file-viewing tools.
+   - **Tier 1 (Direct In-Repo Discovery via Rules)**: Recommend repo-level (`AGENTS.md`) or user-level (`~/.gemini/GEMINI.md`) skill-discovery rules for immediate, zero-install use of LRH skills in Antigravity. When instructed, Antigravity directly reads project skill files (`.claude/skills/`, `.agents/skills/`, or `src/*/skills/`) via file-viewing capabilities.
    - **Tier 2 (Target Exporter Extension)**: Extend `lrh skills install` (`src/lrh/skills/installer.py`) with an explicit `--target antigravity` option in future target-aware installer work, rendering skills into `~/.gemini/config/plugins/lrh/skills/` and generating `~/.gemini/config/plugins/lrh/plugin.json`.
 
 2. **Metadata & Framing Semantics**:

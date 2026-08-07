@@ -1,5 +1,13 @@
 # Decision Log
 
+## 2026-08-07: Decision: Agent Skill Interoperability — Antigravity Integration & Discovery Semantics — promoted to DEC-AGENT-SKILL-INTEROPERABILITY-ANTIGRAVITY
+
+Promoted directly because it is cited from `docs/how-to/use-lrh-with-agent-assistants.md`,
+matching the promotion bar `precedence_semantics.md` set. Defines how LRH models and
+integrates Google Antigravity as an agent execution environment alongside Claude Code
+and Codex App via native plugin manifests and in-repo discovery rules. See that record
+for the full decision, rationale, and consequences.
+
 ## 2026-08-07: Decision: Chain-Initiation Skip Consent Narrows the Per-Run Live-Reply Requirement — promoted to DEC-CHAIN-INIT-SKIP-CONSENT
 
 Promoted directly because it is cited from `DEC-DELIBERATE-CHAIN-INITIATION`

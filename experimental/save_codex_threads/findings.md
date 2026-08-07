@@ -208,3 +208,42 @@ Implications:
   using the already-proven `codex_app.read_thread` tool.
 - In parallel, the local trust issue should be reported or investigated
   upstream with version, hash, code-signing, quarantine, and Gatekeeper outputs.
+
+## 2026-08-07 Re-Run Suspected Help Command
+
+After user confirmation and monitoring for macOS pop-ups, re-ran the command
+that likely triggered the original malware block before the reinstall:
+
+```bash
+/opt/homebrew/bin/codex app-server --help
+```
+
+Sanitized observations:
+
+- Before the run, `/opt/homebrew/bin/codex` pointed at
+  `/opt/homebrew/Caskroom/codex/0.147.0/bin/codex`.
+- Before the run, the target binary existed with size `219997536` and inode
+  `349419851`.
+- The command exited with status 0 and printed app-server help text.
+- The help text documented `daemon`, `proxy`, `generate-ts`,
+  `generate-json-schema`, and `help` subcommands.
+- The help text documented `--listen` values: `stdio://`, `unix://`,
+  `unix://PATH`, `ws://IP:PORT`, and `off`, with default `stdio://`.
+- After the run, the target binary still existed with the same size and inode.
+- `codesign --verify --strict --verbose=4 /opt/homebrew/bin/codex` still failed
+  with `invalid signature (code or signature have been modified)`.
+- The binary still had `com.apple.quarantine` and `com.apple.provenance`
+  extended attributes.
+
+Implications:
+
+- The original malware block was not reproduced by this single post-reinstall
+  `app-server --help` run.
+- The Homebrew `0.147.0` command can at least print app-server help in this
+  environment.
+- The local trust state remains ambiguous: successful execution does not
+  override the failed strict signature verification.
+- A narrowly scoped follow-up could test a local `stdio://` app-server
+  JSON-RPC handshake against the Homebrew binary, but doing so would execute
+  more of the same binary than `--help`; that should remain an explicit user
+  decision.

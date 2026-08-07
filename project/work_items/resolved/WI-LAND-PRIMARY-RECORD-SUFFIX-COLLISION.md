@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #508 (commit ea0de37)
 blocked_reason: null
 blocked: false
 id: WI-LAND-PRIMARY-RECORD-SUFFIX-COLLISION
 title: Fix /lrh-land-family primary-record search substring-collision bug
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

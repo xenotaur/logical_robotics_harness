@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_00_47_36_LRH_CHAIN_DEFAULTS_STEELMAN_AMENDMENT
 prompt_id: PROMPT(AD_HOC:LRH_CHAIN_DEFAULTS_STEELMAN_AMENDMENT)[2026-08-07T00:45:49+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/499
-commit: a65fb37
+commit: db3b59baac7a2107bbd1e408bec8cdf595ac4d7d
 created_at: 2026-08-07T00:47:36+00:00
 agent: claude_app
 instruction_source: project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md

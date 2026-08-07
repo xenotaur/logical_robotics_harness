@@ -145,9 +145,47 @@ Interpret the exit code: `1` is a blocking match — either
 (unresolved outcomes block too), or any match whose recency can't be
 established (a missing/malformed `created_at`) even if every status is
 otherwise terminal — **stop and report** unless the user explicitly asks
-for a rerun; if they do, keep the printed `execution_id` to pass as
-`rerun_of` in Step 7. `0` with a match printed means only
-`failed`/`reverted`/`superseded` — summarize it and continue, keeping its
+for a rerun, **or** the same-land-run continuation carve-out below applies
+(which itself only ever applies to an `in_progress` match — never
+`landed`, see the carve-out's own status restriction below).
+
+**Same-land-run continuation carve-out — concrete evidence required, not a
+self-report — and status-restricted to `in_progress` only.** A `landed`
+match stays a hard stop even when the invoking agent authored it in this
+exact session: `landed` means the underlying prompt already fully closed
+out, which cannot be true mid-run for a record this same `/lrh-land`
+invocation is still actively working through (closeout runs post-merge,
+strictly after this run's own Step 6 — a record this run authored cannot
+legitimately reach `landed` before then). Restricting the carve-out to
+`in_progress` costs nothing in the real case — the record this mechanism
+exists for is always `in_progress` at the point Step 5 loops back into
+it — while removing any ambiguity about a `landed` match ever qualifying.
+
+This is only a non-blocking rerun when the invoking agent
+itself created the matched record earlier in this exact session — it can
+point to having done so (recalling the specific prior tool calls in the
+current conversation), not merely infer plausibility from the record's
+timestamp or status. In practice this means: this invocation is
+`/lrh-land` Step 5's own inline call into this protocol, within the same
+conversation that ran the original `/lrh-review-response` round the
+matched record belongs to. If `/lrh-review-response` is invoked as a
+fresh, standalone session or conversation — even against the same PR and
+branch, even if a plausible-looking `in_progress` record exists — this
+carve-out does not apply; the record was not authored by *this*
+invocation's own history, so treat it as an ordinary blocking match and
+require an explicit rerun answer from the user. When the carve-out does
+apply, `/lrh-land`'s own Step 2 chain authorization already covers the
+whole `review-response ↔ confirm-fixes` loop for this run, so no separate
+explicit-rerun answer is needed on top of it. This is the mechanism
+`/lrh-land` Step 5's outdated-thread recovery path relies on when it
+carries a thread's content into this protocol by hand. In either case,
+keep the printed `execution_id` to pass as `rerun_of` in Step 7.
+`0` with a match printed means the **most recent** match is
+`failed`/`reverted`/`superseded` — the command prints every matching
+record, not only the latest, so older `landed`/`in_progress` entries can
+still appear in the list without making the result blocking; what makes
+exit `0` non-blocking is specifically that the most recent attempt
+resolved to a terminal status. Summarize it and continue, keeping its
 `execution_id` for `rerun_of` in Step 7. `0` with no match printed means
 no prior record. `3` means the check itself failed (a `git` error) —
 **stop and report** the error; this is not the same as "no prior record."
@@ -179,7 +217,10 @@ lrh prompt check-execution --prompt-id "<id>" --project-root .
 ```
 
 If `check-execution` reports a `landed` or `in_progress` record, **stop and
-report** — do not continue unless the user explicitly asks for a rerun.
+report** — do not continue unless the user explicitly asks for a rerun, or
+this is a same-land-run continuation per the carve-out above (an
+`in_progress` match only — a `landed` match here is always a hard stop,
+per the carve-out's own status restriction).
 
 ### Step 4 — Confirm gate (human gate)
 
@@ -308,7 +349,11 @@ Before reporting completion, verify:
       metadata) before any changes
 - [ ] "Nothing to resolve" check performed; exited cleanly if applicable
 - [ ] Prompt ID minted before any file changes
-- [ ] Idempotence check passed (no prior landed/in_progress record)
+- [ ] Idempotence check passed (no prior landed/in_progress record, or a
+      same-land-run continuation recognized per Step 3's carve-out — the
+      invoking agent authored the matched record itself, earlier in this
+      exact session, **and** the matched record's status is `in_progress`
+      — a `landed` match is never covered by the carve-out)
 - [ ] User confirmed at Step 4 before any files were touched
 - [ ] All validation commands passed before push
 - [ ] Execution record exists with `agent`, `instruction_source`,

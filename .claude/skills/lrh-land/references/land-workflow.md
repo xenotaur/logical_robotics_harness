@@ -13,7 +13,7 @@ prose each run. Source: `PROP-LRH-LAND-EXECUTE` Decision 3.
 
 | Logic | Rule |
 |---|---|
-| **Primary record selection** | `grep pr: <url>` across `project/executions/`; exclude `*_REVIEW.md`, `*_CONFIRM.md`, `*_CLOSEOUT_NOTE.md`, `*_SELFREVIEW.md` from results |
+| **Primary record selection** | `grep pr: <url>` across `project/executions/`; classify each match as primary/side/ambiguous via the provenance check (§ Primary vs. side-record provenance check below) — **not** a bare filename-suffix exclusion, which misclassifies a primary record whose own topic slug ends in a reserved word |
 | **Found-or-backfill** | Found → body is immutable; CHAIN-NOTE goes in a new `_CLOSEOUT_NOTE` record with `rerun_of:`. Not found → backfill record authored directly; CHAIN-NOTE in that record |
 | **CHAIN-NOTE placement** | Always in the record being *authored* this run; never appended to an already-merged record body |
 | **Main-worktree-lock** | When all worktrees have `main` checked out: `git fetch → checkout -b tmp-<slug> origin/main → apply changes → push tmp-<slug>:main → delete tmp-<slug>` |
@@ -142,6 +142,22 @@ treat a "no base" reserved-suffix candidate as primary when at least one
 prove that, the candidate is **ambiguous**, not primary — stop and ask
 rather than guess.
 
+**The base-slug proof must be scoped to this search's own candidates, not
+the whole repository.** An earlier draft looked up the stripped base slug
+against every `execution_id` under `project/executions/`, repo-wide —
+caught in review (Codex, P1, PR #508) as its own false-positive risk in
+the opposite direction: two entirely unrelated work items whose primaries
+happen to be named `FOO` and `FOO_REVIEW` would make the repo-wide lookup
+"prove" `FOO_REVIEW` is a side record of `FOO`, even though no
+side-record-producing skill ever ran on it and the two share no actual
+relationship. Since a genuine side record's base is always among this
+search's own gathered `$candidates` (that is what makes it a sibling —
+see "sibling elimination" above), scoping the lookup to `$candidates`
+itself gives the same correct answer for every real case (below) while
+closing the cross-project false-positive — important since this harness
+is installed into independent client repositories with their own,
+potentially much smaller, naming schemes (`AGENTS.md`).
+
 ```bash
 # $candidates: newline-separated list of files to classify (e.g. from
 # `grep -rl "pr: <pr-url>" project/executions/`, or from the UPPER_SLUG
@@ -150,8 +166,11 @@ slug_of() {
   grep '^execution_id:' "$1" | head -1 \
     | sed -E 's/^execution_id: *[0-9]{4}(_[0-9]{2}){5}_//'
 }
-all_slugs=$(grep -rh '^execution_id:' project/executions/ \
-  | sed -E 's/^execution_id: *[0-9]{4}(_[0-9]{2}){5}_//')
+candidate_slugs=""
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  candidate_slugs="${candidate_slugs:+$candidate_slugs$'\n'}$(slug_of "$f")"
+done <<< "$candidates"
 
 side=""; reserved_no_base=""; unsuffixed=""
 while IFS= read -r f; do
@@ -163,7 +182,7 @@ while IFS= read -r f; do
       *"$suf")
         matched=true
         base="${slug%$suf}"
-        if grep -qxF "$base" <<< "$all_slugs"; then
+        if grep -qxF "$base" <<< "$candidate_slugs"; then
           side="${side:+$side$'\n'}$f"
         else
           reserved_no_base="${reserved_no_base:+$reserved_no_base$'\n'}$f"
@@ -199,18 +218,26 @@ confirmed fact, not a guess.
 Verified against this repo's own real collision case (PR #464,
 `WI-SKILLS-LRH-SELF-REVIEW`): candidates are
 `.../WI_SKILLS_LRH_SELF_REVIEW.md` (slug `WI_SKILLS_LRH_SELF_REVIEW`,
-ends in `_REVIEW`, base `WI_SKILLS_LRH_SELF` has no match →
-`reserved_no_base`) and `.../WI_SKILLS_LRH_SELF_REVIEW_CONFIRM.md` (slug
-ends in `_CONFIRM`, base `WI_SKILLS_LRH_SELF_REVIEW` matches the other
-candidate's slug → `side`). Since `side` is non-empty, the
-`reserved_no_base` candidate is correctly promoted to primary by
-elimination. The doubled-collision case `ADOPT_PROP_LRH_SELF_REVIEW_REVIEW`
-resolves the same way against its own sibling `ADOPT_PROP_LRH_SELF_REVIEW_CONFIRM`.
-A simulated lone orphan (the same `WI_SKILLS_LRH_SELF_REVIEW.md` file
-with no sibling candidates at all) correctly falls into `$ambiguous`
-instead of being silently misclassified as primary — this is the exact
-regression Codex's finding on PR #508 identified in an earlier draft of
-this algorithm.
+ends in `_REVIEW`, base `WI_SKILLS_LRH_SELF` has no match within
+`$candidate_slugs` → `reserved_no_base`) and
+`.../WI_SKILLS_LRH_SELF_REVIEW_CONFIRM.md` (slug ends in `_CONFIRM`, base
+`WI_SKILLS_LRH_SELF_REVIEW` matches the other candidate's slug → `side`).
+Since `side` is non-empty, the `reserved_no_base` candidate is correctly
+promoted to primary by elimination. The doubled-collision case
+`ADOPT_PROP_LRH_SELF_REVIEW_REVIEW` resolves the same way against its own
+sibling `ADOPT_PROP_LRH_SELF_REVIEW_CONFIRM`. A real orphan case (PR #347,
+`.../WI_TEST_LAYOUT_SUBDIRECTORY_CONVENTION_REVIEW.md`, the sole
+`project/executions/` record for that PR, cited directly by Copilot's own
+finding on PR #508) correctly falls into `$ambiguous` instead of being
+silently misclassified as primary — this is the regression Codex's and
+Copilot's findings on PR #508 identified in an earlier draft of this
+algorithm. Codex's follow-up finding on the same PR — restricting the
+base-slug proof to `$candidate_slugs` rather than every `execution_id` in
+the repository — is also verified directly: isolating
+`.../WI_SKILLS_LRH_SELF_REVIEW.md` with no sibling candidates (simulating
+an unrelated primary elsewhere in the repo that happens to match its base
+slug) now correctly falls into `$ambiguous` rather than being
+misclassified as a side record of that unrelated primary.
 
 This still does not resolve every conceivable case — a PR with **only**
 one orphaned side record and genuinely nothing else can never be

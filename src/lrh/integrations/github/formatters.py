@@ -51,14 +51,19 @@ def _matches_state(
 ) -> bool:
     is_resolved = bool(thread.get("isResolved", False))
     is_outdated = bool(thread.get("isOutdated", False))
-    if extra_ids and thread.get("id") in extra_ids and not is_resolved:
-        return True
     if state == "all":
         return True
     if state == "resolved":
         return is_resolved
     if state == "outdated":
         return is_outdated
+    # state == "unresolved" (default): extra_ids only ever widens this
+    # branch (surfacing a specific outdated-but-unresolved thread that
+    # would otherwise be excluded) -- it must not leak into the "all",
+    # "resolved", or "outdated" branches above, which have their own,
+    # unrelated meanings.
+    if extra_ids and thread.get("id") in extra_ids and not is_resolved:
+        return True
     return not is_resolved and not is_outdated
 
 

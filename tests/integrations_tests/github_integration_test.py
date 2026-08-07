@@ -206,6 +206,29 @@ class GithubIntegrationTest(unittest.TestCase):
         self.assertNotIn("already resolved", out)
         self.assertNotIn("x.py:L2", out)
 
+    def test_matches_state_extra_ids_does_not_leak_into_other_states(self) -> None:
+        # A thread named in extra_ids is genuinely unresolved and not
+        # outdated -- extra_ids must not cause it to match "resolved" or
+        # "outdated" queries it doesn't actually satisfy.
+        thread = {"id": "T1", "isResolved": False, "isOutdated": False}
+        self.assertFalse(
+            formatters._matches_state(thread, "resolved", extra_ids={"T1"})
+        )
+        self.assertFalse(
+            formatters._matches_state(thread, "outdated", extra_ids={"T1"})
+        )
+        # "all" already matches everything regardless of extra_ids, so this
+        # just confirms extra_ids doesn't break that either.
+        self.assertTrue(formatters._matches_state(thread, "all", extra_ids={"T1"}))
+        # The actual intended effect: still widens the "unresolved" branch.
+        self.assertTrue(
+            formatters._matches_state(
+                {"id": "T1", "isResolved": False, "isOutdated": True},
+                "unresolved",
+                extra_ids={"T1"},
+            )
+        )
+
     def test_format_raw_mode(self) -> None:
         data = {
             "data": {

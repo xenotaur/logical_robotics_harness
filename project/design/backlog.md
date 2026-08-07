@@ -797,9 +797,8 @@ creation); PR #456 (attempted implementation + revert); memory
 
 **Noted:** 2026-08-01 (raised in another session, motivated by PR #453's
 9 retrigger batches); promoted from a cross-reference paragraph to its
-own entry 2026-08-02 while auditing outstanding review-credit work.
-Not yet filed as a proposal or work item — this entry is the first
-consolidation of what's actually known, ahead of that.
+own entry 2026-08-02 while auditing outstanding review-credit work, as
+the first consolidation of what was known ahead of a formal proposal.
 
 **Idea:** Every external bot-review retrigger (GitHub Copilot, Codex)
 draws on a metered, billable AI-credit resource — not merely session
@@ -916,9 +915,24 @@ this remains a backlog entry and not a proposal:
    become the designed mechanism, or whether a tighter-scoped review
    agent/prompt would do better, is unexplored.
 
-**Status:** Not started. This entry consolidates known evidence ahead of
-a `/lrh-proposal` or `/lrh-work-item` pass; no design work has happened
-yet beyond what's written here.
+**Status:** Resolved — 2026-08-02, filed as `PROP-LRH-SELF-REVIEW`
+(`project/design/proposals/adopted/lrh-self-review/00_proposal.md`,
+adopted) and implemented the same day as `/lrh-self-review`
+(`WI-SKILLS-LRH-SELF-REVIEW`, resolved, PR #467). The proposal's
+Decisions 1-6 resolve open questions 1, 2, and 4 above (two trigger
+points — pre-push diff-mode and post-ceiling PR-mode substitute;
+`round-cap-gate.md` interaction — substituted rounds count identically;
+the "who decides clean enough" question — never, categorically, for the
+first bot round); open question 3 (resource substitution, not
+elimination) is Decision 3's explicit framing. Open question 5 (a
+tighter-scoped review agent vs. the ad hoc pattern) was not decided
+either way — the ad hoc `Agent`-tool pattern from the evidence PRs became
+the shipped mechanism by default, not by an explicit comparison. One gap
+remains: Decision 7's named governance
+workstream, `WS-SKILLS-SELF-REVIEW`, was never created — the
+implementing WI deferred it as a follow-on rather than building it
+(see the WI's own Non-Goals); `PROP-LRH-SELF-REVIEW`'s
+`implementation_status` is therefore `partial`, not `implemented`.
 
 **Related:** `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`;
 `project/work_items/resolved/WI-REVIEW-ROUND-ESCALATION-GATE.md`; harness

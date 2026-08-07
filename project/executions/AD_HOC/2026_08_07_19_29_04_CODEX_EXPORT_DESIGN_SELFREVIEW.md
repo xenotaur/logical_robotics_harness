@@ -2,14 +2,14 @@
 execution_id: 2026_08_07_19_29_04_CODEX_EXPORT_DESIGN_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:CODEX_EXPORT_DESIGN_SELFREVIEW)[2026-08-07T19:28:57+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_07_16_23_09_LRH_CODEX_APP_SERVER_CONVERSATION_EXPORT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/510
-commit: d812a6545128e14d660fa376f56f4902d49f505f
+commit: 4a4e660c7e64a7871daec0b02385be8294bfb723
 created_at: 2026-08-07T19:29:04+00:00
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/510
-session_transcript: pending
+session_transcript: codex-app:019fc43f-e2d9-7503-88cb-9d9a8136c111
 ---
 
 # Summary

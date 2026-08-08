@@ -2,7 +2,7 @@
 id: WI-ANTIGRAVITY-CONVERSATION-EXPORT-API
 title: Implement Antigravity session export Python API
 type: deliverable
-status: proposed
+status: active
 blocked: false
 blocked_reason: null
 resolution: null

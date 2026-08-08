@@ -2,9 +2,6 @@
   "pr": "https://github.com/xenotaur/logical_robotics_harness/pull/517",
   "ceiling": 3,
   "completed_count": 2,
-  "pending_attempt": {
-    "promoted": true,
-    "reviewers": {"codex": "submitted", "copilot": "submitted"},
-    "retriggered_at": "2026-08-08T05:37:09Z"
-  }
+  "pending_attempt": null,
+  "note": "batch2 settled: copilot clean-pass confirmed (check-run 93064681151, success); codex non-response covered by explicit human confirmation per fleet-wide policy change (never retrigger codex, use self-review going forward)"
 }

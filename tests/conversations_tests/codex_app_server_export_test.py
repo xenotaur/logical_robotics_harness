@@ -51,7 +51,9 @@ class TestCodexAppServerExport(unittest.TestCase):
             self.assertIn('source_adapter: "codex_app_server_thread_read"', markdown)
             self.assertIn('source_id: "thread-123"', markdown)
             self.assertIn("### User\n\nPlease export this task.", markdown)
-            self.assertIn("### Assistant\n\nExport complete.", markdown)
+            self.assertIn(
+                "### Assistant\n\n- Phase: final_answer\n\nExport complete.", markdown
+            )
             self.assertIn("_Reasoning content omitted", markdown)
             self.assertNotIn("private chain of thought", markdown)
             self.assertNotIn("raw file diff secret", markdown)
@@ -265,7 +267,11 @@ def _write_fake_server(root: Path, *, mode: str = "success") -> Path:
                 "completedAt": "2026-08-08T00:00:01Z",
                 "items": [
                     {"type": "userMessage", "text": "Please export this task."},
-                    {"type": "agentMessage", "content": [{"text": "Export complete."}]},
+                    {
+                        "type": "agentMessage",
+                        "phase": "final_answer",
+                        "content": [{"text": "Export complete."}],
+                    },
                     {"type": "reasoning", "text": "private chain of thought"},
                     {
                         "type": "fileChange",

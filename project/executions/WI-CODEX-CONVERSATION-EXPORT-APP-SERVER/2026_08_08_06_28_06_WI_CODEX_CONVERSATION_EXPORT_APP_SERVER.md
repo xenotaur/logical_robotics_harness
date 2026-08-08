@@ -46,6 +46,8 @@ Implemented the production Codex app-server conversation export adapter for
 - Addressed the automatic initial Copilot review comments by converting non-UTF8
   app-server stdout into `CodexAppServerExportError` and making `os.fchmod`
   best-effort for platforms where it is unavailable.
+- Addressed the automatic initial Codex review comment by preserving
+  `agentMessage.phase` metadata in rendered message sections.
 
 # Validation
 

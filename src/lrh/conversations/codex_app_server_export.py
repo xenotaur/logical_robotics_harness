@@ -588,10 +588,23 @@ def _render_message(
             (f"{heading.lower()}_message_text_missing",),
             is_message=is_message,
         )
+    metadata = _message_metadata_lines(item)
+    if metadata:
+        return _RenderedItem(
+            (f"### {heading}", "", *metadata, "", text.rstrip()),
+            is_message=is_message,
+        )
     return _RenderedItem(
         (f"### {heading}", "", text.rstrip()),
         is_message=is_message,
     )
+
+
+def _message_metadata_lines(item: Mapping[str, object]) -> tuple[str, ...]:
+    phase = item.get("phase")
+    if isinstance(phase, str) and phase.strip():
+        return (f"- Phase: {phase}",)
+    return ()
 
 
 def _extract_message_text(value: object) -> str | None:

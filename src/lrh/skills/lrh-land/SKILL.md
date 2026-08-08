@@ -20,10 +20,14 @@ steps in this skill (not re-derived from prose each run). See
 `references/land-workflow.md` for the rule table, CHAIN-NOTE format, and
 found-or-backfill matrix.
 
-**Phase 1 interim invocation:** Steps 4–7 inline the sub-skill workflows
-(read target `SKILL.md` steps and execute them directly). After
-`WI-DELIBERATE-MODEL-INVOCATION` lands, upgrade to direct `Skill` tool
-calls — the upgrade is a one-step `SKILL.md` edit. See
+**Inlined invocation, by design, not as an interim step:** Steps 4–7 inline
+the sub-skill workflows (read target `SKILL.md` steps and execute them
+directly) rather than calling them via the `Skill` tool.
+`WI-DELIBERATE-MODEL-INVOCATION` resolved this as a permanent design
+preference (self-contained, independently testable chain runners), not a
+platform-forced workaround to drop once flags are removed — and
+`/lrh-confirm-fixes` (Step 5) keeps `disable-model-invocation` regardless,
+so a direct `Skill` call there would fail outright. See
 `references/land-workflow.md` § Interim invocation pattern.
 
 ---

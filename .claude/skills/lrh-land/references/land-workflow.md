@@ -417,11 +417,16 @@ Sub-skills to inline per step:
 | Step 5 (confirm-fixes) | `/lrh-confirm-fixes/SKILL.md` |
 | Step 7 (closeout) | `/lrh-closeout/SKILL.md` |
 
-After `WI-DELIBERATE-MODEL-INVOCATION` lands (which removes
-`disable-model-invocation: true` from the lifecycle skills), upgrade Steps
-4–7 to direct `Skill` tool calls. The upgrade is a one-step `SKILL.md` edit
-per step and does not require a new PR or a WI of its own. Source:
-`PROP-LRH-LAND-EXECUTE` Decision 7.
+**`WI-DELIBERATE-MODEL-INVOCATION` resolved this as permanent, not interim.**
+Per that work item's Design Decision, chain-runner invocation mechanics stay
+inlined by design (self-contained, independently testable chain runners) —
+removing flags from the lifecycle skills does not trigger an upgrade to
+direct `Skill` tool calls. `PROP-LRH-LAND-EXECUTE` Decision 7's original
+upgrade plan is superseded by that resolution. It would also be unsound as
+written regardless: Step 5's `/lrh-confirm-fixes` retains
+`disable-model-invocation` (a gate gap on its empty-thread fast path, not yet
+fixed), so a direct `Skill` call there fails outright — only Steps 4 and 7
+would ever have been eligible.
 
 
 ## Chain-defaults propose-and-confirm flow

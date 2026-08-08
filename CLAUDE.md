@@ -17,3 +17,4 @@
 - `/lrh-closeout` — Automate the post-execution closeout workflow: land execution records, resolve work items, close workstreams, and adopt proposals
 - `/lrh-readiness` — Close the ready-work-item apply loop: draft and apply a confirmed patch for a thin work item, then re-validate
 - `/lrh-pr-triage` — Investigate an open PR (bot-authored or otherwise) and produce a grounded go/no-go landing recommendation; report-only, takes no action
+- `/lrh-work-remains` — Summarize session accomplishments and report what work remains, grounded in tracked repo state rather than conversational recall

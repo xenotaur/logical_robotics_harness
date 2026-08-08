@@ -188,34 +188,95 @@ before any Increment 1 default value shipped — this is recorded as
 **required follow-up work**, not settled here (see Non-Goals and
 Implementation Plan).
 
-### Decision 3: Specify the wait mechanism as a bounded background poll
+**Caught in this PR's own review (Codex, P2): reading the field directly
+from Step 8 would bypass the profile's existing trust contract.**
+`project/config/chain-defaults.yaml` starts with `confirmed_commit: null`,
+and today the only place that confirms and staleness-checks the profile is
+`/lrh-land`/`/lrh-execute` Step 2's chain-authorization gate
+(`land-workflow.md`'s "Decision 5 — staleness fallback"). `/lrh-confirm-fixes`
+can also run standalone, outside any `/lrh-land`/`/lrh-execute` invocation
+— so a naive Step 8.1 read would let an unconfirmed or stale
+`self_review_preference` silently select bot vs. self-review with no guard
+at all. The eventual wiring therefore requires two things beyond a bare
+field read, locked here even though the exact value-space literals stay
+deferred: (a) Step 8.1 must check the same `confirmed_commit`/staleness
+gate `/lrh-land` Step 2 already runs, falling back to the pre-inversion
+bot-first default whenever the profile is unconfirmed or stale — the same
+fail-safe direction `land-workflow.md`'s staleness fallback already uses
+elsewhere; and (b) the staleness diff's own file list (`land-workflow.md`'s
+"Decision 5 — staleness fallback", currently `lrh-land/SKILL.md`,
+`lrh-land/references/land-workflow.md`, `lrh-execute/SKILL.md`,
+`_shared/chain-defaults.md`) must be extended to include
+`lrh-confirm-fixes/SKILL.md` and `round-cap-gate.md` themselves — today's
+list would silently miss a change to the very files this proposal edits.
+
+### Decision 3: Specify the wait mechanism as a bounded background poll, with predicates matched to what each wait is actually waiting for
 
 **Question:** What is the supported mechanism for waiting on a bot
 response (the now-rare opt-in path) or on CI, given `ScheduleWakeup` is
 scoped elsewhere and a foreground `sleep` loop is explicitly discouraged by
-this harness's own tool guidance?
+this project's own Bash-tool guidance — and what should each wait actually
+poll for?
 
 **Options considered:**
 - **`ScheduleWakeup`** (this session's improvisation) — rejected as the
   documented default. Its own description scopes it to `/loop` dynamic-mode
   self-pacing; using it for a general mid-skill wait works by accident, not
   by contract.
-- **Foreground `sleep` loop** — rejected. The harness's own Bash tool
+- **Foreground `sleep` loop** — rejected. This project's own Bash-tool
   guidance explicitly discourages long or chained sleeps in the foreground
   and directs polling loops to run in the background instead.
 - **`Bash` with `run_in_background: true`, wrapping a bounded shell polling
-  loop** — matches the Bash tool's own documented contract verbatim: "If
-  waiting for a background task you started with `run_in_background`, you
-  will be notified when it completes — do not poll."
+  loop** — chosen. The invoking agent harness is designed to notify the
+  session when a backgrounded process completes, rather than requiring the
+  session to poll for it. This is a property of the harness currently
+  driving these sessions, not something this LRH repository itself
+  documents or can cite in-repo — an implementer on a different
+  harness/backend should verify the equivalent notify-on-completion
+  behavior exists there before relying on it (see Decision 5's Claude-Code-
+  session scoping).
 
-**Chosen:** any residual wait (a real bot round chosen under Decision 1's
-opt-in path, or CI) runs as a single backgrounded shell command:
-`until <gh api check-run/CI state> || elapsed >= 900; do sleep <interval>;
-done`, relying on the harness's own background-task-completion
-notification as the wake signal. The poll cap reuses `round-cap-gate.md`'s
-existing `STALE_AGE_SECONDS=900` constant rather than introducing a second,
-undocumented magic number. `round-cap-gate.md` and `land-workflow.md` are
-both updated to name this mechanism explicitly in place of today's
+**Chosen, with a predicate correction caught in this PR's own review
+(Codex, P2):** a single check-run/CI-state predicate is wrong for a
+bot-response wait. `round-cap-gate.md`'s own existing Step 8.2 already
+establishes that a reviewer's real response can arrive as a review, an
+issue comment, or an inline thread — not only, or even primarily, as a
+check-run — and Codex in particular has no check-run signal at all for a
+plain-comment response. Polling only check-run/CI state for a bot-response
+wait would therefore either wait the full 900 seconds after Codex had
+already replied, or wake on an unrelated CI check reaching a terminal
+state before the review content was actually available. The design uses
+two distinct predicates instead, matched to what each wait is actually
+waiting for:
+
+- **Bot-response wait** (Decision 1's opt-in bot path): poll for a
+  response matching the retriggered reviewer(s) and the current SHA across
+  every surface `round-cap-gate.md`'s existing Step 8.2 already
+  recognizes — a new review, a new issue comment from that reviewer, or a
+  new inline thread citing the SHA — not check-run state.
+- **CI wait**: poll `gh pr checks` (or equivalent) for required-check
+  state — the check-run/CI-state predicate is correct here specifically.
+
+Both predicates run inside the same bounded-loop shape, capped at
+`round-cap-gate.md`'s existing `STALE_AGE_SECONDS=900` constant rather than
+a second, undocumented magic number:
+
+```bash
+START=$(date +%s)
+while true; do
+  if <predicate command returns success>; then
+    break
+  fi
+  if [ $(( $(date +%s) - START )) -ge 900 ]; then
+    echo "no response after 900s" >&2
+    break
+  fi
+  sleep 30
+done
+```
+
+`round-cap-gate.md` and `land-workflow.md` are both updated to name these
+two predicates and this loop shape explicitly, in place of today's
 unspecified "wait a reasonable amount of time" prose.
 
 ### Decision 4: Budget-signal gating is out of scope for automation
@@ -315,7 +376,10 @@ shipping same-day):
 - `src/lrh/skills/lrh-land/references/land-workflow.md` — the
   chain-defaults propose-and-confirm flow and CHAIN-NOTE
   `self_review_rounds`/`bot_rounds` fields this proposal's implementation
-  will need to keep consistent with the new default.
+  will need to keep consistent with the new default; its "Decision 5 —
+  staleness fallback" section is the confirm/staleness gate Decision 2's
+  eventual wiring must reuse, with `lrh-confirm-fixes/SKILL.md` and
+  `round-cap-gate.md` added to its staleness-diff file list.
 - `project/design/proposals/adopted/lrh-self-review/00_proposal.md` —
   Decision 4 and its "later-round skip policy" deferral, which this
   proposal resolves within the scope stated above.

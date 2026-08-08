@@ -3,9 +3,9 @@ execution_id: 2026_08_08_05_28_56_REVIEW_WAIT_POSTURE
 prompt_id: PROMPT(AD_HOC:REVIEW_WAIT_POSTURE)[2026-08-08T05:06:37+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
+rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/522
-commit: 
+commit:
 created_at: 2026-08-08T05:28:56+00:00
 agent: claude_app
 instruction_source: project/design/proposals/proposed/review-wait-posture/00_proposal.md
@@ -16,14 +16,14 @@ session_transcript: pending
 
 Ran `/lrh-design` to reassess the review-wait posture across `/lrh-land`,
 `/lrh-confirm-fixes`, and `/lrh-review-response` now that bot-triggered
-review (Codex/Copilot) can no longer be assumed available on demand (fleet
+review (Codex/Copilot) can no longer be assumed available on demand (flee
 at 1/7 monthly Codex credits, 2026-08-07), then `/lrh-proposal` to capture
 the resulting design as `PROP-REVIEW-WAIT-POSTURE`.
 
-# Result
+# Resul
 
-Produced and landed `project/design/proposals/proposed/review-wait-posture/00_proposal.md`
-(`id: PROP-REVIEW-WAIT-POSTURE`, `status: proposed`). The design pass
+Authored and pushed `project/design/proposals/proposed/review-wait-posture/00_proposal.md`
+(`id: PROP-REVIEW-WAIT-POSTURE`, `status: proposed`) to this PR. The design pass
 grounded itself in real, cited in-repo evidence rather than inventing a
 gap: `round-cap-gate.md`'s three-way gate already offers self-review as a
 fourth answer but only past a ceiling of 3 real bot rounds; the
@@ -49,7 +49,7 @@ GitHub exposes no such API; (5) scope this increment to Claude Code
 sessions only, since `/lrh-self-review`'s dispatch mechanism is
 Claude-Code-specific.
 
-Deliberately deferred rather than invented in this proposal: the exact
+Deliberately deferred rather than invented in this proposal: the exac
 new `self_review_preference` value-space literals, and whether any
 periodic/final-pre-merge round keeps a mandatory real bot pass for
 cross-vendor blind-spot coverage — both require a dedicated steelmanning
@@ -66,7 +66,7 @@ retried successfully using `--body-file` against a scratch file.
 - `lrh validate`: 0 errors, 1 pre-existing unrelated warning
   (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` on
   `WS-SESSION-ARCHIVE-SYNC`, unrelated to this change)
-- Manual review: proposal frontmatter checked against
+- Manual review: proposal frontmatter checked agains
   `references/proposal-schema.md` (required fields, status/bucket match,
   `implementation_status: not_started`); prior art check (duplication +
   demand search) run and recorded in the proposal body before drafting

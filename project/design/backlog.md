@@ -1205,11 +1205,13 @@ autonomy/review-cycle structure around `/lrh-execute`.
   `project/guardrails/*.md` = 7 files, 53 bullet-level units, 194 lines
   total. Every file's `status` field reads `active` — no other lifecycle
   value has ever been exercised. Nothing in `src/lrh/` parses the internal
-  structure: `src/lrh/assist/snapshot_cli.py:652-656` only pulls
-  frontmatter scalars plus an opaque prose blob for the `snapshot` CLI.
-  `src/lrh/guardrails/safety.py:9-12`'s `SafetyGuardrail.evaluate()` is a
-  literal no-op (`del proposal; return []`) — a same-named but disconnected
-  skeleton package that never reads these markdown files.
+  structure: `src/lrh/assist/snapshot_cli.py:571-587`'s `summarize_file()`
+  only pulls a fixed set of frontmatter keys (`id`/`title`/`status`/
+  `priority`/`owner`) plus an opaque prose-excerpt "summary" for the
+  `snapshot` CLI. `src/lrh/guardrails/safety.py:9-12`'s
+  `SafetyGuardrail.evaluate()` is a literal no-op (`del proposal; return
+  []`) — a same-named but disconnected skeleton package that never reads
+  these markdown files.
 - The actual growing complexity — autonomy scoping for `/lrh-execute`,
   review-cycle gating — is already served by a different, working,
   self-amending pattern: `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`
@@ -1218,10 +1220,18 @@ autonomy/review-cycle structure around `/lrh-execute`.
   `project/assistants/serve-interface-steward/*.md`'s independently
   invented `kind:`-tagged policy files. Neither borrows anything from
   prosoc.
-- Harness differentiation (Claude/Codex/Antigravity) is real and already
-  shipped, but lives at `src/lrh/skills/installer.py:24-32`'s
-  `SkillTarget` enum/renderer layer (skill packaging) — no evidence yet
-  that `project/guardrails/` *content* itself needs to fork per harness.
+- Harness differentiation is real and shipped for two of three targets:
+  `src/lrh/skills/installer.py:21-23`'s `SkillTarget` enum currently
+  covers `CLAUDE`/`CODEX` only, with `ClaudeSkillRenderer`/
+  `CodexSkillRenderer` (`installer.py:172`, `:181`) implementing the
+  per-target rendering. Antigravity support is tracked separately as
+  proposed, not-yet-shipped work
+  (`project/work_items/proposed/WI-SKILLS-ANTIGRAVITY-TARGET.md`,
+  `status: proposed`) — correcting an earlier overstatement in this note
+  that had it as already shipped for all three targets (caught in PR #517
+  review). Either way, this differentiation lives at the skill-packaging
+  layer — no evidence yet that `project/guardrails/` *content* itself
+  needs to fork per harness.
 - Checked against best-practice sources: Nygard's original ADR argument
   for small lightweight files over premature structure
   ("[l]arge documents are never kept up to date... [n]obody ever reads

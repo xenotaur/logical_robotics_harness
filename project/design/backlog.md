@@ -1177,3 +1177,97 @@ e.g. an `LRH_SESSION_EXPORTS_DIR` env var mirroring
 that surface supports non-boolean values. Deferred rather than guessed at
 in Stage 2, matching the proposal's Non-Goal that this item "does not
 resolve the archive-root-location open question itself."
+
+---
+
+## Card-architecture reuse assessment (prosoc) — not yet warranted
+
+**Noted:** 2026-08-03 (user-directed design session), assessing whether
+`prosoc`'s normative-card-architecture tooling (`prosoc/packet/`,
+`prosoc/literate/`, `prosoc/utils/cards/`, `prosoc/auditor/` — schema +
+template + literate compiler + lifecycle gate + packet assembly) could be
+extracted as a reusable library so LRH's own `project/principles/` and
+`project/guardrails/` governance could adopt it, given growing
+agent-harness surface (Claude Code, Codex, Antigravity) and deepening
+autonomy/review-cycle structure around `/lrh-execute`.
+
+**Findings, grounded in a full audit of both repos:**
+- prosoc's engine is mostly already domain-agnostic: `prosoc/literate/`,
+  `prosoc/packet/gate.py`, `prosoc/packet/manifest.py`,
+  `prosoc/packet/resolve.py`, and all of `prosoc/auditor/` have zero
+  family-specific branching. The one genuinely domain-coupled piece is
+  `prosoc/packet/assemble.py`'s principle-union composition
+  (`_principle_union`, lines 64-107; `_tensions`, lines 110-128), plus the required
+  `guidance.principles`/`guidance.tensions` fields baked into
+  `prosoc/packet/schema.json:108-136`. `prosoc/manifests/schema.json:50-59`
+  also closed-enums prosoc's five family names directly.
+- LRH's own current guidance content is small: `project/principles/*.md` +
+  `project/guardrails/*.md` = 7 files, 53 bullet-level units, 188 lines
+  (`wc -l project/principles/*.md project/guardrails/*.md`)
+  total. Every file's `status` field reads `active` — no other lifecycle
+  value has ever been exercised. Nothing in `src/lrh/` parses the internal
+  structure: `src/lrh/assist/snapshot_cli.py:571-587`'s `summarize_file()`
+  only pulls a fixed set of frontmatter keys (`id`/`title`/`status`/
+  `priority`/`owner`) plus an opaque prose-excerpt "summary" for the
+  `snapshot` CLI. `src/lrh/guardrails/safety.py:9-12`'s
+  `SafetyGuardrail.evaluate()` is a literal no-op (`del proposal; return
+  []`) — a same-named but disconnected skeleton package that never reads
+  these markdown files.
+- The actual growing complexity — autonomy scoping for `/lrh-execute`,
+  review-cycle gating — is already served by a different, working,
+  self-amending pattern: `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`
+  plus its two narrowing amendments (`DEC-CHAIN-INIT-SKIP-CONSENT.md`,
+  `DEC-AGENT-EXECUTED-MERGE-GATE.md`), and
+  `project/assistants/serve-interface-steward/*.md`'s independently
+  invented `kind:`-tagged policy files. Neither borrows anything from
+  prosoc.
+- Harness differentiation is real and shipped for two of three targets:
+  `src/lrh/skills/installer.py:21-23`'s `SkillTarget` enum currently
+  covers `CLAUDE`/`CODEX` only, with `ClaudeSkillRenderer`/
+  `CodexSkillRenderer` (`installer.py:172`, `:181`) implementing the
+  per-target rendering. Antigravity support is tracked separately as
+  proposed, not-yet-shipped work
+  (`project/work_items/proposed/WI-SKILLS-ANTIGRAVITY-TARGET.md`,
+  `status: proposed`) — correcting an earlier overstatement in this note
+  that had it as already shipped for all three targets (caught in PR #517
+  review). Either way, this differentiation lives at the skill-packaging
+  layer — no evidence yet that `project/guardrails/` *content* itself
+  needs to fork per harness.
+- Checked against best-practice sources: Nygard's original ADR argument
+  for small lightweight files over premature structure
+  ("[l]arge documents are never kept up to date... [n]obody ever reads
+  large documents, either" — cognitect.com, 2011); Fowler/Roberts' Rule of
+  Three (one worked example — prosoc — is short of the threshold usually
+  cited for safely abstracting a shared interface); Beck/Fowler's YAGNI
+  cost-of-delay framing (martinfowler.com/bliki/Yagni.html); and Sandi
+  Metz's "wrong abstraction" warning sign — *"if you find yourself passing
+  parameters and adding conditional paths through shared code, the
+  abstraction is incorrect"* (sandimetz.com, 2016) — which is already
+  visible inside prosoc's own single-consumer `assemble.py` today
+  (`if card.family == "constitutions": ...`).
+
+**Status:** Not adopting or extracting now. Revisit at a future backlog
+burndown when any of:
+1. something in LRH needs to *programmatically gate* on guardrail/principle
+   content, not just display it;
+2. a guardrail or principle actually needs a non-`active` lifecycle state;
+3. harness differentiation needs to reach into guidance *content*, not just
+   skill packaging;
+4. prosoc cleans up its own `packet/loader.py`/`utils/cards/validate_status.py`
+   `FAMILIES`-dict duplication and/or makes `assemble.py`'s
+   guidance-composition step pluggable — either would lower the cost of a
+   future LRH adoption enough to reopen this.
+
+If any of those fire, the recommended next step is prototyping directly in
+LRH — define LRH's own family registry and a from-scratch LRH `assemble`
+step (its composition need looks simpler than prosoc's, since it wouldn't
+need per-scenario/context principle-emphasis unioning) — rather than
+committing to a shared package up front.
+
+**Related:** Mirrored entry in the sibling `prosocial` repo's own
+`project/design/backlog.md` §
+"LRH card-architecture reuse assessment — not yet warranted";
+`prosoc/packet/assemble.py`, `prosoc/packet/loader.py`,
+`prosoc/manifests/schema.json`; `project/principles/`,
+`project/guardrails/`, `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`,
+`project/assistants/serve-interface-steward/`, `src/lrh/skills/installer.py`.

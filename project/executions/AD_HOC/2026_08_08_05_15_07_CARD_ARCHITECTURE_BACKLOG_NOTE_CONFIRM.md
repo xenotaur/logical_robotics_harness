@@ -2,13 +2,13 @@
 execution_id: 2026_08_08_05_15_07_CARD_ARCHITECTURE_BACKLOG_NOTE_CONFIRM
 prompt_id: PROMPT(AD_HOC:CARD_ARCHITECTURE_BACKLOG_NOTE_CONFIRM)[2026-08-08T05:09:46+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/517
-commit: f93c522
+commit: 470ef46
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/517
-session_transcript: pending
+session_transcript: claude-app:f087f2be-5992-4711-b12b-40cebb7e8305
 created_at: 2026-08-08T05:15:07+00:00
 ---
 

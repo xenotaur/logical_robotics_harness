@@ -83,7 +83,7 @@ Two incidents forced this from "deferred" to "decided": `disable-model-invocatio
 blocked `/lrh-land` when a user named it mid-sentence in a compound instruction
 ("...and land the WI via `/lrh-land`"), and separately blocked `/lrh-design`
 after the model correctly matched intent, with Claude Code's documented block
-behavior (see `code.claude.com/docs/en/skills#control-who-invokes-a-skill`)
+behavior (see <https://code.claude.com/docs/en/skills#control-who-invokes-a-skill>)
 instructing the model not to reproduce the workflow another way — so the
 model complied and simply refused a legitimate, explicit request. Both trace
 to the same root cause: the flag is a binary *mechanism* (can the Skill tool
@@ -102,8 +102,8 @@ and fires regardless of invocation route:
 
 | Tier | Skills | What already enforces safety without the flag |
 |---|---|---|
-| 1 — read/analyze only | `lrh-design`, `lrh-doc-audit` (analysis branch) | Nothing writes until Step 4's offer-and-wait |
-| 2 — writes/PRs, gated | `lrh-create-skill`, `lrh-implement`, `lrh-doc-organize`, `lrh-doc-work`, `lrh-review-response`, `lrh-confirm-fixes`, `lrh-readiness` | Existing confirm-before-write gate |
+| 1 — read/analyze only | `lrh-design` | Nothing writes until Step 4's offer-and-wait |
+| 2 — writes/PRs, gated | `lrh-create-skill`, `lrh-doc-audit`, `lrh-implement`, `lrh-doc-organize`, `lrh-doc-work`, `lrh-review-response`, `lrh-confirm-fixes`, `lrh-readiness` | Existing confirm-before-write gate (`lrh-doc-audit`: `SKILL.md` Step 7 confirm gate before Step 8 writes `project/audits/docs/docs-audit-YYYY-MM-DD.md` — it always writes on that path, not analysis-only, corrected from an earlier misclassification here) |
 | 2a — writes, gate gap confirmed | `lrh-self-review` | **Not yet gated — do not remove the flag until fixed.** `lrh-self-review/SKILL.md` Step 5 diff-mode fixes issues directly in the working tree with no confirm-before-write step (confirmed by reading `SKILL.md:151-176`; `when_to_use` alone is not a hard platform guarantee, per this WI's own precedent). Add a diff-mode confirm gate before removing the flag, or exclude `lrh-self-review` from this WI's flag-removal scope and track it separately. |
 | 3 — chain runners / commits to `main` / resolves or closes control-plane state | `lrh-land`, `lrh-execute`, `lrh-closeout` | Existing chain-authorization gate (Step 1/2) plus the hard-preserved merge/publish/closeout gates `DEC-DELIBERATE-CHAIN-INITIATION` does not let any chain skip |
 

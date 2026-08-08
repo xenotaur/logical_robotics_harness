@@ -12,8 +12,17 @@ skipping the category silently.
    posed (by either party) that were never resolved.
 3. **Uncommitted files** — `git status --short`
 4. **Feature branches not pushed to main** — `git status -sb` (current
-   branch ahead/behind), `git log --branches --not --remotes --oneline`
-   (commits on local branches not on any remote)
+   branch ahead/behind) for the truly-unpushed-anywhere case. **This alone
+   misses a branch that's fully pushed to its remote but not yet merged
+   into `main`** — `git log --branches --not --remotes` excludes any
+   commit reachable from a remote-tracking ref, so a pushed branch's
+   commits are excluded from that diff even though they're not in `main`
+   (see [git-scm.com/docs/gitrevisions](https://git-scm.com/docs/gitrevisions)
+   on `--not`/`--remotes` semantics). Use `git branch --no-merged main` to
+   find local branches not merged into `main` regardless of push state,
+   and report remote-push state for each separately (`git status -sb` for
+   the current branch; `git rev-parse --verify origin/<branch>` per other
+   local branch to check if a remote copy exists).
 5. **Open PRs not yet merged** — `gh pr list --author @me --state open`;
    for the current branch specifically, `gh pr view --json state,url`
 6. **Unaddressed comments on PRs** — `lrh request review_response <pr-url>`
@@ -49,8 +58,10 @@ skipping the category silently.
 10. **Unsaved memories** — manual eyeball of this session's actual decisions
     and corrected assumptions against `MEMORY.md`
     (`~/.claude/projects/<project-slug>/memory/MEMORY.md`, outside this
-    repo) — not an automated keyword search; see the parent SKILL.md's
-    Step 4 for what counts as memory-worthy. **State the exact directory
+    repo) — not an automated keyword search. Apply the standing bar for
+    what's memory-worthy: surprising, non-obvious, durable, and not
+    already captured by an existing memory or derivable by reading the
+    current project state. **State the exact directory
     path checked** (the `<project-slug>` actually used), not just "memory
     was checked" — a forked or relocated session can end up writing to a
     *different* project-slug directory than its predecessor without
@@ -69,14 +80,34 @@ skipping the category silently.
     use for this check
 13. **Control plane updates** — `lrh validate` (report errors and warnings
     verbatim, don't summarize away a warning)
-14. **Open work items** — `lrh snapshot current_focus --stdout` if `lrh` is
-    on PATH; otherwise `grep -l '^status: proposed' project/work_items/proposed/*.md`
+14. **Open work items** — **always inspect session-touched work-item files
+    directly**: `grep -l '^status: proposed' project/work_items/proposed/*.md`
     and `grep -l '^status: active' project/work_items/active/*.md`, scoped to
-    items touched or created this session
-15. **Unfinished workstreams** — `lrh snapshot current_focus --stdout` if
-    available; otherwise read `project/workstreams/active/*.md` frontmatter
-    (`work_items:`, `exit_criteria:`) directly and cross-check each listed
-    WI's status
+    items touched or created this session. Do not rely on
+    `lrh snapshot current_focus --stdout` for this, even when `lrh` is
+    installed — its `Relevant Work Items` section
+    (`relevant_work_items()` in `src/lrh/assist/snapshot_cli.py:607-631`)
+    filters to work items whose `related_focus` list contains the current
+    focus id, and only falls back to "include all" if *zero* work items
+    repo-wide match that focus id. A session-touched WI with an unrelated
+    or empty `related_focus` (a real case: the WI implementing this very
+    skill has `related_focus: []`) can be silently excluded from that
+    output while other, unrelated WIs still satisfy the fallback
+    condition — `lrh snapshot` is a useful cross-check, not a substitute
+    for reading the files directly.
+15. **Unfinished workstreams** — **always** read
+    `project/workstreams/active/*.md` frontmatter (`work_items:`,
+    `exit_criteria:`) directly and cross-check each listed WI's status. Do
+    not rely on `lrh snapshot current_focus --stdout` for this even when
+    `lrh` is installed — its `current_focus` scope
+    (`generate_current_focus_context()` in
+    `src/lrh/assist/snapshot_cli.py:746-810`) has no `## Workstreams`
+    section at all (that section only exists in the separate `work_item`
+    scope, `generate_work_item_context()`, a different command). Calling
+    `lrh snapshot current_focus --stdout` for workstream data will always
+    return nothing on this point, regardless of whether `lrh` is
+    installed or what state the workstreams are actually in — it is not a
+    fallback-only limitation.
 16. **Documentation updates** — check whether files this session touched
     have corresponding doc references (e.g. `CLAUDE.md`, a skill's own
     index entry, a README) that still need updating to reflect the change

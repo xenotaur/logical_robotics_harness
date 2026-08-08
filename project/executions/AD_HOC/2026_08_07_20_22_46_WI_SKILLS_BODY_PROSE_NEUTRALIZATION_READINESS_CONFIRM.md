@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_20_22_46_WI_SKILLS_BODY_PROSE_NEUTRALIZATION_READINESS_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_BODY_PROSE_NEUTRALIZATION_READINESS_CONFIRM)[2026-08-07T19:59:06+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: null
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/504
-commit: 953f4cd0d7e2a7dec165b7c9ab423e83af5470c6
+commit: ec41e6206bef8bda5fd3790d6a0187ce75a130ce
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/504
 session_transcript: codex-app:current-task

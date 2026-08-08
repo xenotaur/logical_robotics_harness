@@ -29,14 +29,15 @@ forbidden_actions:
   - delete_branch
   - promote_reference_skills
 acceptance:
-  - flag-vs-guidance enforcement of "no chain starts itself" is decided and recorded (resolved 2026-08-08 -- per-skill tiering, guidance-enforced for all 13 skills)
-  - chain-runner invocation mechanics (invoke flagged links vs. inline) are decided
+  - flag-vs-guidance enforcement of "no chain starts itself" is decided and recorded (resolved 2026-08-08 -- per-skill tiering, guidance-enforced for all covered skills)
+  - chain-runner invocation mechanics (invoke flagged links vs. inline) are decided (resolved -- stays inlined, unchanged by flag removal)
   - CHAIN-NOTE placement is resolved against the immutable-narrative rule
   - find-or-backfill is normalized in the lifecycle guidance
-  - each skill's disable-model-invocation setting is removed and when-to-use guidance is tiered per the Design Decision, in both src/lrh/skills/ and .claude/skills/
-  - each tier-2/3 skill's confirm-before-write or chain-authorization gate placement is audited, not assumed, before the flag is removed
+  - each of the 12 tier-1/2/3 skills' disable-model-invocation setting is removed and when-to-use guidance is tiered per the Design Decision, in both src/lrh/skills/ and .claude/skills/
+  - lrh-self-review (tier 2a) keeps disable-model-invocation until its diff-mode confirm-before-write gate gap is fixed; the flag is not removed as part of the same change that adds the gate
+  - each tier-2/3 skill's confirm-before-write or chain-authorization gate placement is audited, not assumed, before its flag is removed
   - installer.py subagent-preload behavior after flag removal is verified as intended
-  - DEC-DELIBERATE-CHAIN-INITIATION.md carries a dated addendum resolving point 2, cross-linked to this WI
+  - DEC-DELIBERATE-CHAIN-INITIATION.md carries a dated addendum resolving point 2, cross-linked to this WI (done 2026-08-08, this PR)
 required_evidence:
   - manual_review
 artifacts_expected:
@@ -102,7 +103,8 @@ and fires regardless of invocation route:
 | Tier | Skills | What already enforces safety without the flag |
 |---|---|---|
 | 1 — read/analyze only | `lrh-design`, `lrh-doc-audit` (analysis branch) | Nothing writes until Step 4's offer-and-wait |
-| 2 — writes/PRs, gated | `lrh-create-skill`, `lrh-implement`, `lrh-doc-organize`, `lrh-doc-work`, `lrh-review-response`, `lrh-confirm-fixes`, `lrh-readiness`, `lrh-self-review` | Existing confirm-before-write gate |
+| 2 — writes/PRs, gated | `lrh-create-skill`, `lrh-implement`, `lrh-doc-organize`, `lrh-doc-work`, `lrh-review-response`, `lrh-confirm-fixes`, `lrh-readiness` | Existing confirm-before-write gate |
+| 2a — writes, gate gap confirmed | `lrh-self-review` | **Not yet gated — do not remove the flag until fixed.** `lrh-self-review/SKILL.md` Step 5 diff-mode fixes issues directly in the working tree with no confirm-before-write step (confirmed by reading `SKILL.md:151-176`; `when_to_use` alone is not a hard platform guarantee, per this WI's own precedent). Add a diff-mode confirm gate before removing the flag, or exclude `lrh-self-review` from this WI's flag-removal scope and track it separately. |
 | 3 — chain runners / commits to `main` / resolves or closes control-plane state | `lrh-land`, `lrh-execute`, `lrh-closeout` | Existing chain-authorization gate (Step 1/2) plus the hard-preserved merge/publish/closeout gates `DEC-DELIBERATE-CHAIN-INITIATION` does not let any chain skip |
 
 Tier 3's `when_to_use` gets an explicit chain-authorization clause (invocation
@@ -114,7 +116,10 @@ answering it.
 **Gate audit required before the frontmatter pass, not assumed:** confirm each
 tier-2/3 skill's confirm/chain-auth gate genuinely fires *before* its first
 side-effecting step (this WI's acceptance criteria below make this an explicit
-checklist item — do not treat the tier table above as self-certifying).
+checklist item — do not treat the tier table above as self-certifying). One
+gap is already confirmed above (`lrh-self-review`, tier 2a) rather than
+merely hypothesized — the remaining tier-2/3 skills still need the same
+verification before their flags are removed.
 
 **Decision: chain-runner invocation mechanics stay inlined, unchanged by the
 flag removal.** Removing the flag makes flagged links `Skill()`-callable again,
@@ -144,37 +149,44 @@ Cascade the tiering decision above into `src/lrh/skills/_shared/lifecycle-chain.
 each affected skill's `disable-model-invocation` setting and `when_to_use`
 guidance, the stale flag-first authoring guidance in `lrh-create-skill`'s
 references, `installer.py`'s subagent-preload behavior (verify, don't
-silently accept, that removing the flag makes all 13 preload-eligible),
-`DEC-DELIBERATE-CHAIN-INITIATION.md` (dated addendum, not a rewrite — resolve
-point 2), and `project/executions/README.md` (CHAIN-NOTE placement,
+silently accept, that removing the flag makes the covered skills
+preload-eligible), and `project/executions/README.md` (CHAIN-NOTE placement,
 normalizing the existing pattern above).
+`DEC-DELIBERATE-CHAIN-INITIATION.md`'s dated addendum resolving point 2 is
+already recorded (2026-08-08, this PR) — no longer open scope here.
 
 ## Required Changes
 
 - Per the Design Decision above: remove `disable-model-invocation: true` from
-  all 13 flagged skills (`lrh-closeout`, `lrh-confirm-fixes`, `lrh-create-skill`,
-  `lrh-design`, `lrh-doc-audit`, `lrh-doc-organize`, `lrh-doc-work`,
-  `lrh-execute`, `lrh-implement`, `lrh-land`, `lrh-readiness`,
-  `lrh-review-response`, `lrh-self-review`), add/extend `when_to_use` per the
-  tier templates, in both `src/lrh/skills/` and the `.claude/skills/` mirror.
+  the 12 tier-1/2/3 flagged skills (`lrh-closeout`, `lrh-confirm-fixes`,
+  `lrh-create-skill`, `lrh-design`, `lrh-doc-audit`, `lrh-doc-organize`,
+  `lrh-doc-work`, `lrh-execute`, `lrh-implement`, `lrh-land`, `lrh-readiness`,
+  `lrh-review-response`), add/extend `when_to_use` per the tier templates, in
+  both `src/lrh/skills/` and the `.claude/skills/` mirror.
+- **`lrh-self-review` (tier 2a) is excluded from this pass until its diff-mode
+  gate gap is fixed** — add a confirm-before-write step to `SKILL.md` Step 5's
+  diff-mode branch (or an equivalent explicit approval point) before removing
+  its flag; do not remove the flag and add the gate as two unordered changes,
+  since removing it first reopens the ungated write path this review caught.
 - Audit each tier-2/3 skill's confirm-before-write or chain-authorization gate
   placement before relying on it (do not assume the tier table is correct —
-  verify).
+  verify; `lrh-self-review` is the one gap already confirmed, not the only one
+  assumed absent).
 - Update `_shared/lifecycle-chain.md`'s now-false claim that "most
   execution/lifecycle skills carry `disable-model-invocation: true`... so the
-  model cannot auto-trigger them" to describe the tier/gate model instead.
+  model cannot auto-trigger them" to describe the tier/gate model instead, and
+  drop its now-obsolete "flag blocks invoking them" rationale for why chain
+  runners inline (see the Design Decision on invocation mechanics above).
 - Rewrite the stale `disable-model-invocation`-first guidance in
   `lrh-create-skill/references/{lrh-skill-pattern.md,frontmatter-guide.md,worked-example.md}`
   so new skills don't reintroduce this bug.
-- Add a dated addendum to `DEC-DELIBERATE-CHAIN-INITIATION.md` resolving point
-  2 with the tiering decision, cross-linked to this WI.
 - Resolve the `CHAIN-NOTE` home per the Design Decision (fresh record's own
   body, never an append to an existing immutable narrative) and normalize
   find-or-backfill guidance already specified in `lifecycle-chain.md`.
 - Verify `installer.py`'s subagent-preload behavior after the flag removal
-  (all 13 become preload-eligible; confirm this is intended, matching the
-  already-adopted `lrh-work-item` "Preloading into forked subagents"
-  precedent).
+  (the covered skills become preload-eligible; confirm this is intended,
+  matching the already-adopted `lrh-work-item` "Preloading into forked
+  subagents" precedent).
 
 ## Non-Goals
 
@@ -188,20 +200,23 @@ normalizing the existing pattern above).
 
 - flag-vs-guidance enforcement of "no chain starts itself" is decided and
   recorded (resolved 2026-08-08 — per-skill tiering, guidance-enforced for
-  all 13 skills)
+  all covered skills)
 - chain-runner invocation mechanics (invoke flagged links vs. inline) are
   decided (resolved — stays inlined, unchanged by flag removal)
 - CHAIN-NOTE placement is resolved against the immutable-narrative rule
 - find-or-backfill is normalized in the lifecycle guidance
-- each skill's disable-model-invocation setting is removed and when-to-use
-  guidance is tiered per the Design Decision, in both `src/lrh/skills/` and
-  `.claude/skills/`
+- each of the 12 tier-1/2/3 skills' disable-model-invocation setting is
+  removed and when-to-use guidance is tiered per the Design Decision, in both
+  `src/lrh/skills/` and `.claude/skills/`
+- `lrh-self-review` (tier 2a) keeps `disable-model-invocation` until its
+  diff-mode confirm-before-write gate gap is fixed; the flag is not removed
+  as part of the same change that adds the gate
 - each tier-2/3 skill's confirm-before-write or chain-authorization gate
-  placement is audited, not assumed, before the flag is removed
+  placement is audited, not assumed, before its flag is removed
 - `installer.py` subagent-preload behavior after flag removal is verified as
   intended
 - `DEC-DELIBERATE-CHAIN-INITIATION.md` carries a dated addendum resolving
-  point 2, cross-linked to this WI
+  point 2, cross-linked to this WI (done 2026-08-08, this PR)
 
 ## Validation
 

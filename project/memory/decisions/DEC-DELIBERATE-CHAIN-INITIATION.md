@@ -78,16 +78,14 @@ not agentic.
    approval of the actual closeout plan before any files change. A
    deliberately-initiated chain drives to those gates and stops.
 
-2. **`disable-model-invocation` is preserved; the invariant is "no chain starts
-   itself."** The flag governs whether the *model* may auto-trigger a skill on
-   its own initiative — it is not, by itself, a mechanism for human-initiated
-   chaining. A chain-running prompt or skill that *invokes* flagged links
-   (`/lrh-review-response`, `/lrh-confirm-fixes`, `/lrh-closeout`) raises a real
-   mechanical question — whether flagged links can be invoked under deliberate
-   initiation or must have their workflows inlined — that this decision does
-   **not** resolve. Formalizing that (flag-vs-guidance enforcement of "no
-   self-start", and the per-skill invocation contract) is deferred to a
-   follow-up work item. What survives regardless is: no chain starts itself.
+2. **Superseded 2026-08-08 — see the dated Consequences entry below.**
+   ~~`disable-model-invocation` is preserved; the invariant is "no chain starts
+   itself."~~ The flag-vs-guidance question this principle deferred is now
+   resolved: enforcement moves to guidance (a per-skill `when_to_use` plus the
+   confirm-before-write / chain-authorization gates already in place), not the
+   flag. What survives unchanged from this principle: no chain starts itself —
+   that invariant is now carried by the gates directly rather than by
+   `disable-model-invocation`.
 
 3. **The execution-sessions non-automation was build-order, not a permanent
    non-goal.** `PROP-LRH-EXECUTION-SESSIONS`'s "do not automate the three-phase
@@ -180,6 +178,23 @@ not agentic.
   slash-command invocation remains the deliberate initiation act in
   every mode — see that record for the full decision and its scope
   boundaries.
+- **2026-08-08:** Principle 2's deferred flag-vs-guidance question is
+  resolved by `WI-DELIBERATE-MODEL-INVOCATION`'s design decision (recorded
+  in that work item, `/lrh-design` output on PR #518): enforcement of "no
+  chain starts itself" moves from `disable-model-invocation` to guidance —
+  a per-skill tier table (read-only / gated-write / chain-runner), with
+  `when_to_use` narrowing auto-trigger surface and the existing
+  confirm-before-write and chain-authorization gates carrying the actual
+  safety property, uniformly including chain runners (`/lrh-land`,
+  `/lrh-execute`, `/lrh-closeout`) since their chain-authorization gate does
+  not depend on the flag. Motivated by two incidents where the flag blocked
+  a user's own explicit, in-session request rather than unwanted
+  auto-triggering. Chain-runner invocation mechanics (principle 2's other
+  open question) resolve to: stays inlined, unaffected by the flag removal.
+  The cascade into the 13 flagged skills' frontmatter, the `lrh-self-review`
+  diff-mode gate gap this review surfaced, and the `installer.py`
+  verification remain `WI-DELIBERATE-MODEL-INVOCATION`'s implementation
+  scope; this decision record only carries the resolved policy.
 
 ## Revisit conditions
 
@@ -193,7 +208,9 @@ Revisit when:
   `DEC-AGENT-EXECUTED-MERGE-GATE.md`, which narrows principle 1 accordingly
   (the authorization requirement itself is unchanged);
 - the deliberate-model-invocation follow-up resolves the flag-vs-guidance
-  question (this record's principle 2 should then be updated);
+  question (this record's principle 2 should then be updated) — **met
+  2026-08-08**, see the dated Consequences entry above and
+  `WI-DELIBERATE-MODEL-INVOCATION`;
 - `WI-BOUNDED-STABILIZATION-LOOP-DESIGN` is designed (it inherits this policy);
   or
 - a compliance collaborator raises the assist/agentic boundary wording.

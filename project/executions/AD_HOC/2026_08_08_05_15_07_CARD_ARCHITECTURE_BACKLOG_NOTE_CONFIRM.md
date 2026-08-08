@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/517
-commit: 1f57e09
+commit: f93c522
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/517
 session_transcript: pending
@@ -84,6 +84,40 @@ on the `lrh-round-state` branch.
 Final thread-resolution verdict: **green** — 4/4 threads resolved across
 both batches (3 from batch 1, 1 from batch 2), no exceptions outstanding.
 
+**Round-cap batch 3** (retrigger 06:09:03Z, against `b0fd046` — this
+record's own prior narrative update): per the fleet-wide policy above,
+Codex was not retriggered (`reviewers.codex: "skipped_fleet_policy"` in
+round-state). Copilot's retrigger returned a clean pass at 06:12:20Z with
+one **suppressed (non-thread) comment**: `project/design/backlog.md:1268`
+read `prosocial/project/design/backlog.md` as if it were an in-repo path,
+when `prosocial` is a sibling repository. A parallel self-review pass
+(fresh independent subagent, standing in for Codex) independently found
+a second issue: the `assemble.py:64-107` citation named both
+`_principle_union` and `_tensions`, but `_tensions` actually starts at
+line 110 — outside the cited range. Both fixed and pushed as commit
+`f93c522`; replied to Copilot's suppressed comment citing the fix
+(`https://github.com/xenotaur/logical_robotics_harness/pull/517#issuecomment-5224891286`).
+`completed_count` promoted to 3, matching `ceiling: 3`.
+
+**Three-way gate fired** (`completed_count 3 >= ceiling 3`) before a
+4th batch (needed to verify `f93c522` itself) could start. Presented to
+the human; answer: **substitute self-review for this round** (the
+fourth gate answer — proceeds within the existing ceiling, does not
+raise it).
+
+**Round-cap batch 4** (self-review substitution, against `f93c522`): a
+fresh independent subagent re-verified the full cumulative diff from
+scratch — re-checked every citation (including several not previously
+spot-checked), verified the 188-line/53-unit counts by direct recount,
+confirmed internal consistency across all four rounds' fixes, confirmed
+CI green and no merge conflicts. **Clean pass, no findings.**
+`completed_count` promoted to 4 (within the existing ceiling, per the
+fourth gate answer's own accounting rule).
+
+**Final verdict: Green** — "All threads resolved, CI green, review
+landed (2 real bot rounds + 2 self-review rounds, all clean or
+fixed-and-confirmed) on `f93c522` → ready to merge."
+
 # Validation
 
 - `lrh github threads --mode raw --state all` on `5093f49` — 3 threads,
@@ -93,23 +127,23 @@ both batches (3 from batch 1, 1 from batch 2), no exceptions outstanding.
 - `gh pr checks` (unfiltered — confirmed via
   `gh api repos/xenotaur/logical_robotics_harness/rules/branches/main`
   that no `required_status_checks` rule exists on this repo, count 0,
-  same as the documented PR #399 precedent) on final `HEAD` `1f57e09`:
+  same as the documented PR #399 precedent) on final `HEAD` `f93c522`:
   5/5 checks pass (`coverage`, `lint`, `Check workflow files`,
-  `installed-wheel-smoke`, `tests`).
-- `lrh github threads --mode raw --state all` on `1f57e09` — 4 threads,
-  0 unresolved.
-- Copilot REVIEW-LANDED on `1f57e09`: check-run `93064681151`,
-  `conclusion: success`.
-- Codex REVIEW-LANDED on `1f57e09`: no bot response after 8+ minutes;
-  substituted by explicit human confirmation (live, in-session, given
-  after the retrigger).
+  `installed-wheel-smoke`, `tests`); `mergeable: MERGEABLE`.
+- `lrh github threads --mode raw --state all` on `f93c522` — 4 threads,
+  0 unresolved (the batch-3 finding was a suppressed non-thread
+  comment, addressed via direct reply, not `resolveReviewThread`).
+- Copilot REVIEW-LANDED: check-run `93064681151` on `1f57e09`
+  (`conclusion: success`) and a clean-with-one-suppressed-comment pass
+  on `b0fd046` at 06:12:20Z, addressed in `f93c522`.
+- Codex REVIEW-LANDED: substituted by explicit human confirmation from
+  batch 2 onward, per the fleet-wide policy change below.
+- Batch 4 self-review (fresh subagent, against `f93c522`): clean pass,
+  re-verified citations and counts independently rather than re-trusting
+  prior rounds' fixes.
 - `lrh validate` — 0 errors, 1 pre-existing unrelated warning
   (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` on an unrelated
-  in-progress workstream).
-
-**Final verdict: Green** — "All threads resolved, CI green, review
-landed (Copilot bot clean-pass + human confirmation standing in for
-Codex) on `1f57e09` → ready to merge."
+  in-progress workstream), each time re-run through this record's edits.
 
 # Follow-up
 

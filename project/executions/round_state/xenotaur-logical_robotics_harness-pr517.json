@@ -1,11 +1,7 @@
 {
   "pr": "https://github.com/xenotaur/logical_robotics_harness/pull/517",
   "ceiling": 3,
-  "completed_count": 3,
-  "pending_attempt": {
-    "promoted": false,
-    "reviewers": {"self_review": "pending"},
-    "retriggered_at": "2026-08-08T06:55:11Z"
-  },
-  "note": "three-way gate fired at 3/3; human authorized fourth answer (self-review substitution) for batch 4 against f93c522, per PROP-LRH-CONFIRM-FIXES round-cap-gate.md"
+  "completed_count": 4,
+  "pending_attempt": null,
+  "note": "batch4 (self-review substitution) clean pass on f93c522, no findings. All rounds complete. Final verdict: green."
 }

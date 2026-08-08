@@ -59,20 +59,49 @@ motivating incident is resolved by this WI, in any mode; the three stale
 upgrade-instruction sites rewritten to state inlining is permanent by
 design, with mirrors synced to `.claude/skills/`.
 
+## Round 2 — verification pass on the fix commit (`8f53d23`)
+
+Dispatched a second cold-context subagent against the round-1-fix commit,
+checking the same six specific claims: skill-count arithmetic, incident
+resolution consistency, DEC principle 2's exception list, absence of stale
+upgrade language, mirror parity, and execution-record frontmatter validity.
+All six checked out clean. The subagent additionally, on its own initiative,
+ran `lrh validate` and reported "35 errors," contradicting every prior
+report in this session of "0 errors, 1 warning."
+
+**Independent re-verification (Step 4, mandatory) — this finding does NOT
+hold up.** Ran `lrh validate` directly in this session's own worktree
+(`PYTHONPATH="$(pwd)/src"` set, per `project_worktree_pythonpath_gotcha`):
+"Validation completed: 0 error(s), 1 warning(s)" — identical to every prior
+run. The subagent's cold worktree almost certainly hit the documented
+`PYTHONPATH`/stale-install gotcha (validating against an installed `lrh`
+copy rather than this branch's `src/`), producing a false positive. Reported
+per this skill's own instruction: state explicitly that the top finding
+doesn't hold, don't silently drop it, and don't discount the rest of the
+report by association — the other five checks were verified independently
+here too (mirror `diff -r`, DEC file grep, WI file read) and hold.
+
+CI on `8f53d23`: 5/5 checks green (`installed-wheel-smoke`, `Check workflow
+files`, `coverage`, `lint`, `tests`). No genuine findings this round — this
+is a clean self-review pass. PR-mode per this skill's own contract: no fix
+pushed, no thread to resolve (no bot ran this round by design, per the
+switch to self-review); a clean result is itself the report.
+
 # Validation
 
-- `lrh validate` — 0 errors (1 pre-existing, unrelated warning)
+- `lrh validate` — 0 errors (1 pre-existing, unrelated warning), confirmed
+  directly in both rounds, not delegated
 - `lrh work-items validate` — no new findings
 - `diff -r src/lrh/skills/lrh-land/ .claude/skills/lrh-land/` and
   `lrh-execute/` — clean after mirror sync
 - 3 GitHub review threads (`r3740063139`, `r3740063142`, `r3740063145`)
   resolved via `resolveReviewThread`
+- `gh pr checks 518` — 5/5 green on `8f53d23`
 
 # Follow-up
 
-- Push these fixes as a new commit and run one more `/lrh-self-review`
-  PR-mode pass (not a bot retrigger) before reporting the final
-  merge-readiness verdict, per the user's fleet-wide no-manual-retrigger
-  guidance.
+- Round 2 is clean; merge-readiness verdict: **green** (all threads
+  resolved, CI green on `8f53d23`, self-review clean with no genuine
+  findings). Ready for the `/lrh-land` merge gate.
 - `session_transcript: pending` should be updated to
   `claude-app:<host-uuid-stem>` after the session ends.

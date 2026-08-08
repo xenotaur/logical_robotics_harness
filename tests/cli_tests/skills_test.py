@@ -322,6 +322,34 @@ class SkillsInstallCliTest(unittest.TestCase):
             self.assertTrue((pathlib.Path(fake_cwd) / ".agents" / "skills").exists())
             self.assertFalse((pathlib.Path(fake_cwd) / ".claude" / "skills").exists())
 
+    def test_skills_install_local_antigravity_writes_gemini_plugins(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_cwd:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "skills",
+                    "install",
+                    "--local",
+                    "--target",
+                    "antigravity",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=os.environ.copy(),
+                cwd=fake_cwd,
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertTrue(
+                (pathlib.Path(fake_cwd) / ".gemini" / "plugins" / "lrh" / "skills").exists()
+            )
+            self.assertTrue(
+                (pathlib.Path(fake_cwd) / ".gemini" / "plugins" / "lrh" / "plugin.json").exists()
+            )
+            self.assertFalse((pathlib.Path(fake_cwd) / ".claude" / "skills").exists())
+
     def test_skills_install_uses_repo_config_when_flags_are_absent(self) -> None:
         with tempfile.TemporaryDirectory() as source_dir:
             source = pathlib.Path(source_dir)

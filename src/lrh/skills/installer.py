@@ -14,6 +14,8 @@ from typing import Any, Protocol
 
 import yaml
 
+import json
+
 _SKILLS_PACKAGE = "lrh.skills"
 _AGENT_SKILLS_CONFIG = Path("project") / "agent_skills.yaml"
 
@@ -21,11 +23,13 @@ _AGENT_SKILLS_CONFIG = Path("project") / "agent_skills.yaml"
 class SkillTarget(str, Enum):
     CLAUDE = "claude"
     CODEX = "codex"
+    ANTIGRAVITY = "antigravity"
 
 
 class TargetSelection(str, Enum):
     CLAUDE = "claude"
     CODEX = "codex"
+    ANTIGRAVITY = "antigravity"
     ALL = "all"
 
 
@@ -78,7 +82,9 @@ class InstallTarget:
     def restart_name(self) -> str:
         if self.target is SkillTarget.CLAUDE:
             return "Claude Code"
-        return "Codex"
+        if self.target is SkillTarget.CODEX:
+            return "Codex"
+        return "Antigravity"
 
 
 @dataclass(frozen=True)
@@ -248,6 +254,43 @@ class CodexSkillRenderer:
         return loaded
 
 
+class AntigravitySkillRenderer:
+    """Render canonical skill bytes for Antigravity plugin installs."""
+
+    _SKILL_MD = "SKILL.md"
+    _ANTIGRAVITY_STRIPPED_FRONTMATTER_KEYS = {
+        "argument-hint",
+        "disable-model-invocation",
+    }
+
+    def render(
+        self, skill_name: str, source_files: dict[str, bytes]
+    ) -> dict[str, bytes]:
+        rendered = dict(source_files)
+        skill_md = source_files.get(self._SKILL_MD)
+        if skill_md is None:
+            return rendered
+
+        _metadata, rewritten_skill_md = self._render_skill_md(skill_md)
+        rendered[self._SKILL_MD] = rewritten_skill_md
+        return rendered
+
+    def _render_skill_md(self, content: bytes) -> tuple[dict[str, Any], bytes]:
+        parsed = _parse_skill_frontmatter(content)
+        if parsed is None:
+            return {}, content
+        metadata, parts, closing_index = parsed
+
+        antigravity_metadata = {
+            key: value
+            for key, value in metadata.items()
+            if key not in self._ANTIGRAVITY_STRIPPED_FRONTMATTER_KEYS
+        }
+        frontmatter = yaml.safe_dump(antigravity_metadata, sort_keys=False)
+        rewritten = f"---\n{frontmatter}---\n{''.join(parts[closing_index + 1:])}"
+        return metadata, rewritten.encode("utf-8")
+
+
 def _coerce_target(value: str | SkillTarget) -> SkillTarget:
     if isinstance(value, SkillTarget):
         return value
@@ -332,14 +375,20 @@ def _config_target(data: dict[str, Any], path: Path) -> TargetSelection | None:
     normalized = {target.lower() for target in targets}
     if not normalized:
         raise SkillSourceError(f"targets in {path} must not be empty")
-    if normalized == {"all"} or normalized == {"claude", "codex"}:
+    if not normalized.issubset({"claude", "codex", "antigravity", "all"}):
+        raise SkillSourceError(
+            f"targets in {path} must be claude, codex, antigravity, all, or a supported target subset"
+        )
+    if "all" in normalized or len(normalized) > 1:
         return TargetSelection.ALL
     if normalized == {"claude"}:
         return TargetSelection.CLAUDE
     if normalized == {"codex"}:
         return TargetSelection.CODEX
+    if normalized == {"antigravity"}:
+        return TargetSelection.ANTIGRAVITY
     raise SkillSourceError(
-        f"targets in {path} must be claude, codex, all, or both claude and codex"
+        f"targets in {path} must be claude, codex, antigravity, all, or a supported target subset"
     )
 
 
@@ -427,7 +476,9 @@ def resolve_agent_skills_install_plan(
 def _default_skills_dir(target: SkillTarget) -> Path:
     if target is SkillTarget.CLAUDE:
         return Path.home() / ".claude" / "skills"
-    return Path.home() / ".agents" / "skills"
+    if target is SkillTarget.CODEX:
+        return Path.home() / ".agents" / "skills"
+    return Path.home() / ".gemini" / "config" / "plugins" / "lrh" / "skills"
 
 
 def resolve_skill_source(
@@ -476,7 +527,7 @@ def resolve_install_targets(
 ) -> list[InstallTarget]:
     selection = _coerce_selection(target)
     targets = (
-        [SkillTarget.CLAUDE, SkillTarget.CODEX]
+        [SkillTarget.CLAUDE, SkillTarget.CODEX, SkillTarget.ANTIGRAVITY]
         if selection is TargetSelection.ALL
         else [_coerce_target(selection.value)]
     )
@@ -484,8 +535,12 @@ def resolve_install_targets(
     result: list[InstallTarget] = []
     for selected in targets:
         if local:
-            dirname = ".claude" if selected is SkillTarget.CLAUDE else ".agents"
-            skills_dir = root / dirname / "skills"
+            if selected is SkillTarget.CLAUDE:
+                skills_dir = root / ".claude" / "skills"
+            elif selected is SkillTarget.CODEX:
+                skills_dir = root / ".agents" / "skills"
+            else:
+                skills_dir = root / ".gemini" / "plugins" / "lrh" / "skills"
         else:
             skills_dir = _default_skills_dir(selected)
         result.append(InstallTarget(target=selected, skills_dir=skills_dir))
@@ -536,7 +591,9 @@ def _skill_names(source: SkillSource | None = None) -> list[str]:
 def _renderer_for_target(target: SkillTarget) -> SkillRenderer:
     if target is SkillTarget.CLAUDE:
         return ClaudeSkillRenderer()
-    return CodexSkillRenderer()
+    if target is SkillTarget.CODEX:
+        return CodexSkillRenderer()
+    return AntigravitySkillRenderer()
 
 
 def _render_skill_files(
@@ -721,6 +778,16 @@ def _copy_skill(skill_name: str, skills_dir: Path) -> None:
     )
 
 
+_ANTIGRAVITY_PLUGIN_MANIFEST = {
+    "name": "lrh",
+    "version": "0.1.0",
+    "description": "Logical Robotics Harness (LRH) workflow skills for agentic engineering.",
+    "author": {"name": "Logical Robotics Harness"},
+    "repository": "https://github.com/xenotaur/logical_robotics_harness",
+    "license": "Apache-2.0",
+}
+
+
 def install_skills(
     skills_dir: Path | None = None,
     dry_run: bool = False,
@@ -760,6 +827,13 @@ def install_skills(
         else:
             status = SkillStatus.UP_TO_DATE
         results.append(SkillResult(name=name, status=status))
+
+    if skill_target is SkillTarget.ANTIGRAVITY and not dry_run:
+        plugin_dir = target_dir.parent
+        plugin_dir.mkdir(parents=True, exist_ok=True)
+        manifest_path = plugin_dir / "plugin.json"
+        manifest_content = json.dumps(_ANTIGRAVITY_PLUGIN_MANIFEST, indent=2) + "\n"
+        manifest_path.write_text(manifest_content, encoding="utf-8")
 
     return InstallReport(
         results=results,
@@ -879,7 +953,7 @@ def inspect_skills_for_targets(
 def _compatibility_issues(
     skill_name: str, source: SkillSource, target: SkillTarget
 ) -> list[SkillCheckIssue]:
-    if target is not SkillTarget.CODEX:
+    if target not in (SkillTarget.CODEX, SkillTarget.ANTIGRAVITY):
         return []
     source_files = _collect_source_files(source.skill_root(skill_name))
     issues: list[SkillCheckIssue] = []
@@ -890,40 +964,42 @@ def _compatibility_issues(
         if parsed is not None:
             metadata, _parts, _closing_index = parsed
             if "argument-hint" in metadata:
+                target_label = "Codex" if target is SkillTarget.CODEX else "Antigravity"
                 issues.append(
                     SkillCheckIssue(
                         skill_name=skill_name,
                         code="unsupported_metadata",
                         message=(
-                            "`argument-hint` has no Codex metadata equivalent"
+                            f"`argument-hint` has no {target_label} metadata equivalent"
                             " and will be stripped"
                         ),
                     )
                 )
 
-    openai_yaml = source_files.get(CodexSkillRenderer._OPENAI_YAML)
-    if openai_yaml is not None:
-        renderer = CodexSkillRenderer()
-        try:
-            metadata = renderer._load_openai_yaml(openai_yaml)
-        except SkillSourceError as err:
-            issues.append(
-                SkillCheckIssue(
-                    skill_name=skill_name,
-                    code="invalid_codex_metadata",
-                    message=str(err),
-                )
-            )
-        else:
-            policy = metadata.get("policy")
-            if policy is not None and not isinstance(policy, dict):
+    if target is SkillTarget.CODEX:
+        openai_yaml = source_files.get(CodexSkillRenderer._OPENAI_YAML)
+        if openai_yaml is not None:
+            renderer = CodexSkillRenderer()
+            try:
+                metadata = renderer._load_openai_yaml(openai_yaml)
+            except SkillSourceError as err:
                 issues.append(
                     SkillCheckIssue(
                         skill_name=skill_name,
                         code="invalid_codex_metadata",
-                        message="policy in agents/openai.yaml must be a mapping",
+                        message=str(err),
                     )
                 )
+            else:
+                policy = metadata.get("policy")
+                if policy is not None and not isinstance(policy, dict):
+                    issues.append(
+                        SkillCheckIssue(
+                            skill_name=skill_name,
+                            code="invalid_codex_metadata",
+                            message="policy in agents/openai.yaml must be a mapping",
+                        )
+                    )
 
     return issues
 

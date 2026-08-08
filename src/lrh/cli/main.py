@@ -171,7 +171,7 @@ def main() -> None:
         )
         skills_command_parser.add_argument(
             "--target",
-            choices=("claude", "codex", "all"),
+            choices=("claude", "codex", "antigravity", "all"),
             default=None,
             help="agent target (default: repo config or claude)",
         )

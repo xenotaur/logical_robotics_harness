@@ -48,6 +48,9 @@ Implemented the production Codex app-server conversation export adapter for
   best-effort for platforms where it is unavailable.
 - Addressed the automatic initial Codex review comment by preserving
   `agentMessage.phase` metadata in rendered message sections.
+- Addressed the follow-up Codex review comments by rejecting repository-local raw
+  capture paths and by capturing bounded app-server stderr diagnostics instead of
+  discarding them.
 
 # Validation
 

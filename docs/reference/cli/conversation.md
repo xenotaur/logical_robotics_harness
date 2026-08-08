@@ -92,7 +92,7 @@ also reported as warnings on stderr.
 lrh conversation export-codex-thread \
   --thread-id THREAD_ID \
   --out EXPORT.md \
-  --raw-out RAW.json
+  --raw-out "$HOME/.lrh/private/codex/THREAD_ID.raw.json"
 ```
 
 Exports a stored Codex thread through the Codex app-server `thread/read` API.
@@ -118,6 +118,8 @@ The command is local and private-by-default:
 - `fileChange` and `webSearch` items are rendered as metadata-only sections;
 - the manifest records `codex_trust_state_unverified` because this adapter does
   not perform executable signature, notarization, or quarantine diagnostics;
+- bounded Codex app-server stderr diagnostics are relayed on stderr and recorded
+  with manifest warning `codex_app_server_stderr_diagnostics`;
 - sensitivity scanning is heuristic and does not certify that output is safe to
   publish.
 
@@ -133,7 +135,10 @@ more specific signal.
 - `--thread-id ID` — Codex thread id to export. Defaults to `CODEX_THREAD_ID`
   when the environment variable is set.
 - `--out EXPORT.md` — required Markdown export output path.
-- `--raw-out RAW.json` — required private raw JSON capture output path.
+- `--raw-out RAW.json` — required private raw JSON capture output path. This
+  must be an absolute path outside the current Git worktree; LRH rejects
+  repository-local raw captures so `git add -A` cannot accidentally publish the
+  complete app-server response.
 - `--codex PATH` — Codex executable path. Defaults to `CODEX`, then `codex`.
 - `--force` — overwrite existing output files. This never allows `--out` and
   `--raw-out` to be the same file.
@@ -146,7 +151,7 @@ more specific signal.
 The command returns nonzero for missing thread ids, invalid timeouts, output
 collisions, existing outputs when `--force` is not supplied, app-server startup
 failures, malformed app-server responses, app-server JSON-RPC errors, timeouts,
-and output write failures.
+repository-local raw capture paths, and output write failures.
 
 On success it prints a concise deterministic summary with the Markdown output
 path, raw capture path, privacy, sensitivity status, warning count, turn count,

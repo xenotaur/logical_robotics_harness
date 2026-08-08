@@ -107,6 +107,37 @@ class TestCodexAppServerExport(unittest.TestCase):
                     codex_command=[sys.executable, "-c", ""],
                 )
 
+    def test_export_codex_thread_rejects_relative_raw_output_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "export.md"
+
+            with self.assertRaisesRegex(
+                codex_app_server_export.CodexAppServerExportError,
+                "Raw output path must be absolute",
+            ):
+                codex_app_server_export.export_codex_thread(
+                    thread_id="thread-123",
+                    output_path=output_path,
+                    raw_output_path=Path("raw.json"),
+                    codex_command=[sys.executable, "-c", ""],
+                )
+
+    def test_export_codex_thread_rejects_raw_output_inside_git_worktree(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "export.md"
+            raw_path = Path.cwd() / "raw-codex-export.json"
+
+            with self.assertRaisesRegex(
+                codex_app_server_export.CodexAppServerExportError,
+                "outside the current Git worktree",
+            ):
+                codex_app_server_export.export_codex_thread(
+                    thread_id="thread-123",
+                    output_path=output_path,
+                    raw_output_path=raw_path,
+                    codex_command=[sys.executable, "-c", ""],
+                )
+
     def test_json_rpc_error_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -122,6 +153,25 @@ class TestCodexAppServerExport(unittest.TestCase):
                     raw_output_path=root / "raw.json",
                     codex_command=[sys.executable, str(server)],
                 )
+
+    def test_app_server_stderr_diagnostics_are_recorded(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            server = _write_fake_server(root, mode="stderr_warning")
+
+            result = codex_app_server_export.export_codex_thread(
+                thread_id="thread-123",
+                output_path=root / "export.md",
+                raw_output_path=root / "raw.json",
+                codex_command=[sys.executable, str(server)],
+            )
+
+            self.assertEqual(
+                result.stderr_diagnostics, "warning: trust state ambiguous"
+            )
+            self.assertIn(
+                "codex_app_server_stderr_diagnostics", result.manifest.warnings
+            )
 
     def test_malformed_app_server_response_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -331,6 +381,13 @@ for raw_line in sys.stdin:
         elif MODE == "non_utf8":
             sys.stdout.buffer.write(b"\\xff\\n")
             sys.stdout.buffer.flush()
+        elif MODE == "stderr_warning":
+            print("warning: trust state ambiguous", file=sys.stderr, flush=True)
+            emit({{
+                "jsonrpc": "2.0",
+                "id": request_id,
+                "result": {{"thread": json.loads(THREAD)}},
+            }})
         elif MODE == "timeout":
             continue
         elif MODE == "exit":

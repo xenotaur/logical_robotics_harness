@@ -10,6 +10,7 @@ import os
 import selectors
 import subprocess
 import sys
+import tempfile
 import time
 from collections import Counter
 from datetime import datetime, timezone
@@ -29,8 +30,10 @@ FILE_CHANGE_METADATA_WARNING = "file_change_metadata_only"
 WEB_SEARCH_METADATA_WARNING = "web_search_metadata_only"
 CONTEXT_COMPACTION_WARNING = "context_compaction_present"
 TRUST_STATE_UNVERIFIED_WARNING = "codex_trust_state_unverified"
+APP_SERVER_STDERR_WARNING = "codex_app_server_stderr_diagnostics"
 UNKNOWN_ITEM_WARNING_PREFIX = "unknown_item_type"
 NON_COMPLETED_TURN_WARNING_PREFIX = "turn_status"
+MAX_STDERR_DIAGNOSTIC_BYTES = 4096
 
 
 class CodexAppServerExportError(ValueError):
@@ -48,6 +51,7 @@ class CodexAppServerExport:
     sensitivity_result: sensitivity.SensitiveScanResult | None
     rendered_warnings: tuple[str, ...]
     item_type_counts: Mapping[str, int]
+    stderr_diagnostics: str | None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -59,6 +63,14 @@ class RenderedThread:
     turn_count: int
     message_count: int
     item_type_counts: Mapping[str, int]
+
+
+@dataclasses.dataclass(frozen=True)
+class AppServerThreadRead:
+    """Raw app-server thread/read response and bounded diagnostics."""
+
+    response: Mapping[str, object]
+    stderr_diagnostics: str | None
 
 
 class JsonLineReader:
@@ -153,16 +165,18 @@ def export_codex_thread(
     destination = output_path.expanduser()
     raw_destination = raw_output_path.expanduser()
     _reject_output_collision(destination, raw_destination)
+    _reject_unsafe_raw_output_path(raw_output_path, raw_destination)
     _reject_existing_output(destination, force)
     _reject_existing_output(raw_destination, force)
 
     captured_at = _exported_at_value(exported_at)
     request_params = {"threadId": normalized_thread_id, "includeTurns": True}
-    response = read_thread_from_app_server(
+    read_result = read_thread_from_app_server(
         codex_command=codex_command,
         params=request_params,
         timeout_seconds=timeout_seconds,
     )
+    response = read_result.response
     thread = _thread_from_response(response)
     rendered = render_thread(thread)
     raw_capture, raw_bytes, raw_sha256 = build_raw_capture(
@@ -185,6 +199,9 @@ def export_codex_thread(
         rendered=rendered,
         scan_result=scan_result,
         exported_at=captured_at,
+        app_server_warnings=(
+            (APP_SERVER_STDERR_WARNING,) if read_result.stderr_diagnostics else ()
+        ),
     )
     markdown = render_export_markdown(rendered.markdown_body, manifest)
 
@@ -205,6 +222,7 @@ def export_codex_thread(
         sensitivity_result=scan_result,
         rendered_warnings=rendered.warnings,
         item_type_counts=rendered.item_type_counts,
+        stderr_diagnostics=read_result.stderr_diagnostics,
     )
 
 
@@ -213,24 +231,31 @@ def read_thread_from_app_server(
     codex_command: Sequence[str] | str,
     params: Mapping[str, object],
     timeout_seconds: float,
-) -> dict[str, Any]:
+) -> AppServerThreadRead:
     """Run the Codex app-server handshake and return a thread/read response."""
 
     command = _codex_app_server_command(codex_command)
     try:
-        proc = subprocess.Popen(
-            command,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            bufsize=0,
-        )
+        stderr_file = tempfile.TemporaryFile()
+        try:
+            proc = subprocess.Popen(
+                command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=stderr_file,
+                bufsize=0,
+            )
+        except OSError:
+            stderr_file.close()
+            raise
     except OSError as err:
         raise CodexAppServerExportError(
             f"could not start Codex app-server: {command[0]}"
         ) from err
 
     reader = JsonLineReader(proc)
+    response: dict[str, Any] | None = None
+    caught_error: CodexAppServerExportError | None = None
     try:
         initialize = {
             "method": "initialize",
@@ -260,10 +285,27 @@ def read_thread_from_app_server(
             timeout_seconds=timeout_seconds,
         )
         _raise_for_json_rpc_error(response, stage="thread/read")
-        return response
+    except CodexAppServerExportError as err:
+        caught_error = err
     finally:
         reader.close()
         _terminate_process(proc)
+        stderr_diagnostics = _read_stderr_diagnostics(stderr_file)
+        stderr_file.close()
+
+    if caught_error is not None:
+        if stderr_diagnostics:
+            raise CodexAppServerExportError(
+                f"{caught_error}; app-server stderr: {stderr_diagnostics}"
+            ) from caught_error
+        raise caught_error
+
+    if response is None:
+        raise CodexAppServerExportError("thread/read response was not captured")
+    return AppServerThreadRead(
+        response=response,
+        stderr_diagnostics=stderr_diagnostics,
+    )
 
 
 def build_raw_capture(
@@ -299,6 +341,7 @@ def build_app_server_manifest(
     rendered: RenderedThread,
     scan_result: sensitivity.SensitiveScanResult | None,
     exported_at: datetime | str | None,
+    app_server_warnings: Sequence[str] = (),
 ) -> export_manifest.ConversationExportManifest:
     """Build manifest metadata for the app-server thread/read adapter."""
 
@@ -306,7 +349,11 @@ def build_app_server_manifest(
     scan_metadata: dict[str, object] = {
         "status": export_manifest.SCAN_STATUS_NOT_SCANNED
     }
-    warnings = [TRUST_STATE_UNVERIFIED_WARNING, *rendered.warnings]
+    warnings = [
+        TRUST_STATE_UNVERIFIED_WARNING,
+        *app_server_warnings,
+        *rendered.warnings,
+    ]
     if scan_result is not None:
         sensitivity_status = (
             export_manifest.SENSITIVITY_POTENTIAL
@@ -490,6 +537,12 @@ def run_export_codex_thread_cli(
             f"by heuristic scanner ({finding_count} finding(s))",
             file=sys.stderr,
         )
+    if result.stderr_diagnostics:
+        print(
+            "warning: Codex app-server emitted stderr diagnostics: "
+            f"{result.stderr_diagnostics}",
+            file=sys.stderr,
+        )
 
     print(f"Exported Codex thread: {args.out}")
     print(f"Raw capture: {args.raw_out}")
@@ -662,6 +715,30 @@ def _display_scalar(value: object) -> str:
     return json.dumps(value, sort_keys=True)
 
 
+def _read_stderr_diagnostics(stderr_file: object) -> str | None:
+    try:
+        stderr_file.seek(0)
+        data = stderr_file.read(MAX_STDERR_DIAGNOSTIC_BYTES + 1)
+    except OSError as err:
+        raise CodexAppServerExportError(
+            "could not read app-server stderr diagnostics"
+        ) from err
+    if not isinstance(data, bytes) or not data:
+        return None
+    truncated = len(data) > MAX_STDERR_DIAGNOSTIC_BYTES
+    if truncated:
+        data = data[:MAX_STDERR_DIAGNOSTIC_BYTES]
+    text = data.decode("utf-8", errors="replace").strip()
+    if not text:
+        return None
+    safe_text = "".join(
+        char if char in "\n\r\t" or char >= " " else "�" for char in text
+    )
+    if truncated:
+        safe_text = f"{safe_text}\n[stderr diagnostics truncated]"
+    return safe_text
+
+
 def _format_item_type_counts(counts: Mapping[str, int]) -> str:
     if not counts:
         return "none"
@@ -811,6 +888,36 @@ def _normalized_non_empty(value: str, field: str) -> str:
 def _reject_existing_output(path: Path, force: bool) -> None:
     if path.exists() and not force:
         raise CodexAppServerExportError(f"Output already exists: {path}")
+
+
+def _reject_unsafe_raw_output_path(original_path: Path, expanded_path: Path) -> None:
+    if not original_path.expanduser().is_absolute():
+        raise CodexAppServerExportError(
+            "Raw output path must be absolute and outside the current Git worktree"
+        )
+
+    git_root = _current_git_worktree_root()
+    if git_root is None:
+        return
+    try:
+        raw_path = expanded_path.resolve(strict=False)
+    except OSError:
+        raw_path = expanded_path.absolute()
+    if raw_path == git_root or git_root in raw_path.parents:
+        raise CodexAppServerExportError(
+            "Raw output path must be outside the current Git worktree"
+        )
+
+
+def _current_git_worktree_root() -> Path | None:
+    try:
+        current = Path.cwd().resolve(strict=False)
+    except OSError:
+        current = Path.cwd().absolute()
+    for candidate in (current, *current.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return None
 
 
 def _reject_output_collision(markdown_path: Path, raw_path: Path) -> None:

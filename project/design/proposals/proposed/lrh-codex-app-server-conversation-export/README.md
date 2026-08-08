@@ -39,7 +39,7 @@ updates to:
 - `src/lrh/skills/` and installed agent skill targets — later
   `/lrh-codex-export` and target-aware `/lrh-export` wrappers.
 - `project/workstreams/proposed/WS-LRH-CODEX-APP-SERVER-EXPORT.md` and
-  `project/work_items/proposed/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md` —
+  `project/work_items/resolved/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md` —
   the planning artifacts that sequence implementation.
 - `experimental/save_codex_threads/findings.md` — spike evidence that grounds
   the app-server feasibility decision; this remains evidence only, not a

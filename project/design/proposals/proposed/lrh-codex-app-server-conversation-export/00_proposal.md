@@ -230,7 +230,7 @@ Implement this through `WS-LRH-CODEX-APP-SERVER-EXPORT`.
 - Follow-on workstream:
   `project/workstreams/proposed/WS-LRH-CODEX-APP-SERVER-EXPORT.md`
 - First implementation work item:
-  `project/work_items/proposed/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md`
+  `project/work_items/resolved/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md`
 
 ## Open Questions
 

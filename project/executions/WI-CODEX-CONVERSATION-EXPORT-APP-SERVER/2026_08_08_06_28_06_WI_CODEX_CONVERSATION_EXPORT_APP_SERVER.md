@@ -2,12 +2,12 @@
 execution_id: 2026_08_08_06_28_06_WI_CODEX_CONVERSATION_EXPORT_APP_SERVER
 prompt_id: PROMPT(WI-CODEX-CONVERSATION-EXPORT-APP-SERVER:WI_CODEX_CONVERSATION_EXPORT_APP_SERVER)[2026-08-07T22:47:41+00:00]
 work_item: WI-CODEX-CONVERSATION-EXPORT-APP-SERVER
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/524
-commit: 1b8d5b1
+commit: 7d017f39d0b65845d2d3858d52740c91f5cb5142
 agent: codex_app
-instruction_source: project/work_items/proposed/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md
+instruction_source: project/work_items/resolved/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md
 session_transcript: codex-app:019fc43f-e2d9-7503-88cb-9d9a8136c111
 created_at: 2026-08-08T06:28:06+00:00
 ---
@@ -55,13 +55,13 @@ Implemented the production Codex app-server conversation export adapter for
 # Validation
 
 - `PYTHONPATH=src python -m unittest tests.conversations_tests.codex_app_server_export_test`
-  passed, 11 tests.
+  passed, 14 tests.
 - `scripts/format --check --diff` passed.
 - `scripts/lint` passed.
 - `scripts/version tools` passed.
 - `PYTHONPATH=src python -m lrh.cli.main validate` passed with 0 errors and 1
   unrelated warning for `WS-SESSION-ARCHIVE-SYNC` having no actionable leaf.
-- `PYTHONPATH=src scripts/test` passed, 1060 tests. This was run with explicit
+- `PYTHONPATH=src scripts/test` passed, 1065 tests. This was run with explicit
   worktree `PYTHONPATH` because the local Python environment still contains
   stale editable-install paths for other LRH checkouts; it also required the
   same localhost/socket permission used earlier for existing tests.

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: completed
 blocked_reason: null
 blocked: false
 id: WI-CODEX-CONVERSATION-EXPORT-APP-SERVER
 title: Implement Codex app-server conversation export adapter
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -39,7 +39,7 @@ contract.
 **Related:** PR #510; PR #514; `src/lrh/conversations/export_manifest.py`;
 `docs/reference/cli/conversation.md`;
 `project/design/proposals/proposed/lrh-codex-app-server-conversation-export/00_proposal.md`;
-`project/work_items/proposed/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md`.
+`project/work_items/resolved/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md`.
 
 ---
 

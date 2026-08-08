@@ -1202,7 +1202,8 @@ autonomy/review-cycle structure around `/lrh-execute`.
   `prosoc/packet/schema.json:108-136`. `prosoc/manifests/schema.json:50-59`
   also closed-enums prosoc's five family names directly.
 - LRH's own current guidance content is small: `project/principles/*.md` +
-  `project/guardrails/*.md` = 7 files, 53 bullet-level units, 194 lines
+  `project/guardrails/*.md` = 7 files, 53 bullet-level units, 188 lines
+  (`wc -l project/principles/*.md project/guardrails/*.md`)
   total. Every file's `status` field reads `active` — no other lifecycle
   value has ever been exercised. Nothing in `src/lrh/` parses the internal
   structure: `src/lrh/assist/snapshot_cli.py:571-587`'s `summarize_file()`

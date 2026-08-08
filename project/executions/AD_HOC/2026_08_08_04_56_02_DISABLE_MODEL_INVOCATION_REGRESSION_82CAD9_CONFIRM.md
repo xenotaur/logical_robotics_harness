@@ -55,17 +55,62 @@ CI on `df0133a` (post-fix commit, pre-`_CONFIRM`-record push): `coverage`,
 returns no `required_status_checks` entry — confirmed absence, not a
 reporting delay).
 
+## Round 2 — post-`_CONFIRM`-push retrigger (Step 8)
+
+This record's own commit (`df0133a` → pushed as part of creating this record)
+was retriggered per Step 8: `gh pr comment 518 --body "@codex review"` and
+`gh pr edit 518 --add-reviewer @copilot`. Both reviewers responded (Codex
+`05:00:38Z`, Copilot `04:59:56Z`) on the resulting HEAD. Copilot's review
+summary reported "generated no new comments" but its collapsed "Suppressed
+comments" section held 2 findings (per
+[[feedback_copilot_suppressed_comments_review_body]] — read before trusting
+the summary line), and Codex opened 2 new inline threads directly (not
+suppressed):
+
+- Codex (P1) — Design Decision's tier-3 claim ("invocation by any route
+  still stops at Step 2") is false under `DEC-CHAIN-INIT-SKIP-CONSENT`'s
+  `skip_if_opted_in` path, which can display conditions without asking;
+  combined with flag removal, a model-initiated invocation of `lrh-land`/
+  `lrh-execute` could ride stored consent with no live human reply at all.
+  **Clear-satisfied, and substantive**: added tier 3a, excluded `lrh-land`
+  and `lrh-execute` from this WI's flag-removal scope pending a verification
+  mechanism (separate follow-up), corrected every acceptance-criteria and
+  Required-Changes reference from 12/13 skills to 11.
+- Codex (P2) — `lrh-closeout` was miscited as having a chain-authorization
+  gate (Step 1/2) it doesn't have; its actual safety property is the Step 4
+  plan-confirm gate. **Clear-satisfied**: reclassified into its own tier-3
+  row with the correct citation, separated from tier 3a's `lrh-land`/
+  `lrh-execute`.
+- Copilot (suppressed, 2 instances of the same finding) — frontmatter line
+  32 / body line 201's resolved-note for mechanic 1 didn't mention the
+  tier-2a `lrh-self-review` exception, an internal inconsistency with the
+  acceptance list's own later bullet. **Clear-satisfied**: both notes now
+  name the tier-2a (and, after Codex's finding, tier-3a) exceptions
+  explicitly.
+
+Both new inline threads resolved via `resolveReviewThread`. Thread-resolution
+verdict after round 2: **green**.
+
 # Validation
 
 - `lrh validate` — 0 errors (1 pre-existing, unrelated warning) after each
-  edit
-- `gh pr checks 518` — 5/5 checks green on `df0133a`
-- `resolveReviewThread` — 5/5 threads confirmed `isResolved: true`
+  edit, both rounds
+- `gh pr checks 518` — 5/5 checks green on both `df0133a` and the round-2
+  commit
+- `resolveReviewThread` — 7/7 threads confirmed `isResolved: true` across
+  both rounds
+- `gh api .../commits/<sha>/check-runs` — confirmed `copilot-pull-request-reviewer`
+  check-run `completed`/`success` on the round-2 SHA before trusting its
+  review as landed
 
 # Follow-up
 
-- Post-push (this record's commit): re-check CI and REVIEW-LANDED against
-  the new `HEAD`, retrigger Codex/Copilot, before reporting the final
-  merge-readiness verdict.
+- Push the round-2 fixes as a new commit, re-check CI and REVIEW-LANDED
+  against that HEAD, retrigger again per Step 8, and confirm no further
+  findings before reporting the final merge-readiness verdict.
 - `session_transcript: pending` should be updated to
   `claude-app:<host-uuid-stem>` after the session ends.
+- Follow-up work (not this WI): a mechanism to verify a genuine human-typed
+  slash-command invocation, or a restriction on `DEC-CHAIN-INIT-SKIP-CONSENT`'s
+  `skip_if_opted_in` path, before `lrh-land`/`lrh-execute` can drop
+  `disable-model-invocation`.

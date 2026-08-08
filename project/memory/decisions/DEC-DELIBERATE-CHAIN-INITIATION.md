@@ -81,11 +81,15 @@ not agentic.
 2. **Superseded 2026-08-08 — see the dated Consequences entry below.**
    ~~`disable-model-invocation` is preserved; the invariant is "no chain starts
    itself."~~ The flag-vs-guidance question this principle deferred is now
-   resolved: enforcement moves to guidance (a per-skill `when_to_use` plus the
-   confirm-before-write / chain-authorization gates already in place), not the
-   flag. What survives unchanged from this principle: no chain starts itself —
-   that invariant is now carried by the gates directly rather than by
-   `disable-model-invocation`.
+   resolved, per-skill rather than uniformly: enforcement moves to guidance (a
+   per-skill `when_to_use` plus the confirm-before-write / chain-authorization
+   gates already in place) for most flagged skills, not the flag — except
+   `/lrh-land` and `/lrh-execute`, which keep the flag pending a
+   `DEC-CHAIN-INIT-SKIP-CONSENT` verification gap (see the Consequences entry).
+   What survives unchanged from this principle: no chain starts itself — for
+   the skills where enforcement moved, that invariant is now carried by the
+   gates directly; for `/lrh-land`/`/lrh-execute` it is still carried by
+   `disable-model-invocation` itself, as before.
 
 3. **The execution-sessions non-automation was build-order, not a permanent
    non-goal.** `PROP-LRH-EXECUTION-SESSIONS`'s "do not automate the three-phase
@@ -185,14 +189,24 @@ not agentic.
   a per-skill tier table (read-only / gated-write / chain-runner), with
   `when_to_use` narrowing auto-trigger surface and the existing
   confirm-before-write and chain-authorization gates carrying the actual
-  safety property, uniformly including chain runners (`/lrh-land`,
-  `/lrh-execute`, `/lrh-closeout`) since their chain-authorization gate does
-  not depend on the flag. Motivated by two incidents where the flag blocked
-  a user's own explicit, in-session request rather than unwanted
-  auto-triggering. Chain-runner invocation mechanics (principle 2's other
-  open question) resolve to: stays inlined, unaffected by the flag removal.
-  The cascade into the 13 flagged skills' frontmatter, the `lrh-self-review`
-  diff-mode gate gap this review surfaced, and the `installer.py`
+  safety property — for most skills, including `/lrh-closeout` (a Step 4
+  plan-confirm gate, not a chain-authorization gate; corrected from an
+  initial misclassification). **`/lrh-land` and `/lrh-execute` are the
+  exception**, confirmed by the same PR's review: `DEC-CHAIN-INIT-SKIP-CONSENT`'s
+  `skip_if_opted_in` path has no mechanical way to verify condition 1 (a
+  genuine human-typed slash-command invocation) once the model can call
+  `Skill()` on them directly, so their flags stay in place pending a
+  verification mechanism or a restriction on that skip path — separate
+  follow-up scope. Motivated by two incidents where the flag blocked a
+  user's own explicit, in-session request rather than unwanted
+  auto-triggering; the `/lrh-land` incident is resolved for the default
+  `chain_init_confirmation: always_confirm` mode (Step 2's live-reply
+  requirement already made the flag redundant there, regardless of
+  invocation route) but not for `skip_if_opted_in`. Chain-runner invocation
+  mechanics (principle 2's other open question) resolve to: stays inlined,
+  unaffected by the flag removal. The cascade into the 11 flagged skills'
+  frontmatter, the `lrh-self-review` diff-mode gate gap this review
+  surfaced, and the `installer.py`
   verification remain `WI-DELIBERATE-MODEL-INVOCATION`'s implementation
   scope; this decision record only carries the resolved policy.
 

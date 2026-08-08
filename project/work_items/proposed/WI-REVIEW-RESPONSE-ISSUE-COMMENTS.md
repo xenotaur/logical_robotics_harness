@@ -40,6 +40,10 @@ artifacts_expected:
   - src/lrh/assist/templates/request/review_response.md
   - src/lrh/skills/lrh-review-response/SKILL.md
   - .claude/skills/lrh-review-response/SKILL.md
+  - tests/assist_tests/request_service_test.py
+  - tests/integrations_tests/github_integration_test.py
+  - src/lrh/skills/lrh-confirm-fixes/SKILL.md (inspect only, per Required Change 5; edit only if it inlines or calls review_response directly)
+  - src/lrh/skills/lrh-land/SKILL.md (inspect only, per Required Change 5; edit only if it inlines or calls review_response directly)
 ---
 
 ## Summary

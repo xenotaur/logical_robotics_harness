@@ -22,21 +22,48 @@ skipping the category silently.
 7. **Incomplete closeouts of PRs** — `grep -rl '^status: in_progress'
    project/executions/ --include='*.md'`, then cross-check each record's
    `pr:` field against `gh pr view <pr-url> --json state,mergeCommit` —
-   a `MERGED` PR with an `in_progress` record is an incomplete closeout
+   a `MERGED` PR with an `in_progress` record is an incomplete closeout.
+   **Read this against fresh remote state, not a stale local checkout or a
+   prior session's own closeout report** — a record correctly landed by an
+   earlier PR can be silently reverted back to `in_progress` by a later,
+   unrelated merge (a real incident: PR #512 reverted 3 already-landed
+   records from PR #506 with no conflict and no warning). `git pull` (or
+   read via `gh api repos/<owner>/<repo>/contents/<path>?ref=main`) before
+   trusting a record's `status:` field, rather than assuming a status
+   reported earlier in this same session, or in a prior closeout, still
+   holds.
 8. **Stray files** — `git status --short` (untracked files outside expected
    output paths), and check the session's own scratchpad directory for
    leftover files that should have been cleaned up or delivered
 9. **Stale branches** — `git branch -a --sort=-committerdate`, cross-checked
-   against `gh pr list --state all` to find branches whose PR already merged
-   or closed but the branch wasn't deleted
+   against `gh pr list --state all --json headRefName,state`. **Check
+   `gh api repos/<owner>/<repo> --jq .delete_branch_on_merge` first** — if
+   `false` (common; this repo has 200+ accumulated branches this way), a
+   branch whose PR already merged or closed is the *expected*, low-value
+   case, not a signal — do not flag it. The real signal is a branch with
+   **no** merged or closed PR associated with it at all (never had one, or
+   its PR is still open but the branch has had no commits in a long
+   while) — that is what "stale" means here. Flagging every
+   merged-but-undeleted branch buries the one abandoned in-progress branch
+   under expected repo-wide noise.
 10. **Unsaved memories** — manual eyeball of this session's actual decisions
     and corrected assumptions against `MEMORY.md`
     (`~/.claude/projects/<project-slug>/memory/MEMORY.md`, outside this
     repo) — not an automated keyword search; see the parent SKILL.md's
-    Step 4 for what counts as memory-worthy
+    Step 4 for what counts as memory-worthy. **State the exact directory
+    path checked** (the `<project-slug>` actually used), not just "memory
+    was checked" — a forked or relocated session can end up writing to a
+    *different* project-slug directory than its predecessor without
+    either session noticing, silently splitting one session's memories
+    across two namespaces.
 11. **Untaken offers** — review this session's transcript for offers made
     ("want me to also...", "should I...") that were never confirmed or
-    declined
+    declined. **Also cross-check any skill invoked this session against
+    its own mandatory-offer steps** — e.g. `/lrh-closeout` Step 8 requires
+    offering `/export`; if that skill ran this session, confirm the offer
+    was actually made, not just that *some* offer was made somewhere. A
+    freeform transcript scan alone can miss a specific offer another
+    skill's own checklist requires.
 12. **Unaddressed issues** — `gh issue list --assignee @me --state open` if
     the repo uses GitHub issues; otherwise note that no issue tracker is in
     use for this check
@@ -55,7 +82,13 @@ skipping the category silently.
     index entry, a README) that still need updating to reflect the change
 17. **Dogfooding of user-facing features** — if this session built or
     changed a user-facing feature (a skill, a CLI command, a UI), check
-    whether it was actually invoked/exercised this session or only written
+    whether it was actually invoked/exercised this session or only written.
+    **Also check the inverse case:** did this session discover mid-session
+    that a relevant skill *already existed*, then manually re-derive its
+    documented pattern by hand (e.g. raw tool calls replicating what a
+    skill would have done) instead of actually invoking that skill? Look
+    for a documented skill's pattern appearing in the transcript without a
+    corresponding invocation of it.
 18. **Other unfinished scope of work** — catch-all; anything raised in
     conversation that doesn't fit categories 1–17 but is still open
 
@@ -67,3 +100,22 @@ session's own transcript). Do not auto-classify — surface it and ask the
 user to confirm whether it's theirs from this session or something another
 session already owns, so it isn't duplicated or reported as this session's
 own unfinished work.
+
+**No single signal is reliable alone — cross-reference multiple sources
+before concluding an item is (or isn't) already claimed:**
+
+- The candidate WI's own `assigned_agents:`/`blocked:` frontmatter fields
+- `gh pr list --state open`, checked by **actual file list**
+  (`gh pr view <n> --json files`), not just by title — two open PRs with
+  generic-sounding titles can still turn out to overlap or not overlap
+  only once their touched files are compared
+- `git worktree list` across all active local worktrees, to see if another
+  worktree already has the candidate's branch checked out
+- Remote branch names via `gh api repos/<owner>/<repo>/branches`, in case
+  a branch exists remotely that no local worktree has fetched yet
+- `project/focus/current_focus.md` and `project/focus/development_agenda.md`
+  for a stated current owner or priority
+
+Report which of these were actually checked, not just the conclusion —
+the same way this section's own citation trail was verified before being
+folded into this skill's design.

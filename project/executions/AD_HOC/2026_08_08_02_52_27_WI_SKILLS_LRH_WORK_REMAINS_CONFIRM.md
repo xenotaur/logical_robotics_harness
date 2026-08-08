@@ -2,10 +2,10 @@
 execution_id: 2026_08_08_02_52_27_WI_SKILLS_LRH_WORK_REMAINS_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_LRH_WORK_REMAINS_CONFIRM)[2026-08-08T02:32:39+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_08_02_22_30_WI_SKILLS_LRH_WORK_REMAINS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/516
-commit: 
+commit: 273470f90b874909b80322c6acd1180de38717f6
 created_at: 2026-08-08T02:52:27+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/516

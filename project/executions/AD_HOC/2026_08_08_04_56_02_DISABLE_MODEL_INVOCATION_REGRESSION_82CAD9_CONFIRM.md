@@ -129,11 +129,25 @@ verdict after round 3: **green**.
   check-run `completed`/`success` before trusting each round's review as
   landed
 
+## Correction — no further bot retriggers (round 4 onward)
+
+Round 4's push (`2fbaf0b`) was retriggered per Step 8 before the user gave
+fleet-wide guidance mid-session: **never manually retrigger GitHub
+Codex/Copilot review — it is a limited, near-exhausted monthly resource
+(6/7 used), and slow. Use `/lrh-self-review` instead**, which this project
+already has a skill for. This matches `feedback_never_manually_retrigger_github_bots`
+memory that should have been applied from the start of this land run. Round
+4's Codex/Copilot responses (already in flight from the pre-correction
+retrigger) surfaced 3 more real findings, fixed — see the `_SELFREVIEW`
+record `2026_08_08_05_48_27_DISABLE_MODEL_INVOCATION_REGRESSION_82CAD9_SELFREVIEW.md`
+for the round-4-fix verification pass, which used a self-review subagent
+instead of a further bot retrigger.
+
 # Follow-up
 
-- Push round 3's fixes as a new commit, re-check CI and REVIEW-LANDED against
-  that HEAD, retrigger again per Step 8, and confirm no further findings
-  before reporting the final merge-readiness verdict.
+- Push round-4's fixes as a new commit, run `/lrh-self-review` PR-mode
+  again (not a bot retrigger) against that HEAD, and confirm no further
+  findings before reporting the final merge-readiness verdict.
 - `session_transcript: pending` should be updated to
   `claude-app:<host-uuid-stem>` after the session ends.
 - Follow-up work (not this WI): a mechanism to verify a genuine human-typed

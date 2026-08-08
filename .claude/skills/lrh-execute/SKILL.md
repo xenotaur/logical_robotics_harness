@@ -21,11 +21,13 @@ It is the compound "implement a work item and land it" skill: given a
 item through `/lrh-implement` and hands the resulting PR to `/lrh-land`
 for the full review → confirm → merge → closeout chain — in one session.
 
-**Interim invocation:** Steps 3–4 inline the sub-skill workflows (read the
-target `SKILL.md`'s steps and execute them directly), the same pattern
-`/lrh-land` uses for its own Steps 4–7. After `WI-DELIBERATE-MODEL-INVOCATION`
-lands, upgrade to direct `Skill` tool calls — a one-step `SKILL.md` edit,
-per `PROP-LRH-LAND-EXECUTE` Decision 7.
+**Inlined invocation, by design, not as an interim step:** Steps 3–4 inline
+the sub-skill workflows (read the target `SKILL.md`'s steps and execute them
+directly), the same pattern `/lrh-land` uses for its own Steps 4–7.
+`WI-DELIBERATE-MODEL-INVOCATION` resolved this as permanent — see
+`/lrh-land/references/land-workflow.md` § Interim Invocation Pattern for why
+`PROP-LRH-LAND-EXECUTE` Decision 7's original upgrade-to-`Skill()` plan is
+superseded.
 
 ---
 

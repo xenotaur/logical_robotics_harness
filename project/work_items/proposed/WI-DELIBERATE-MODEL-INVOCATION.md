@@ -114,15 +114,18 @@ of invocation route. Tier 3a is the exception this review surfaced — see below
 **Tiers 2b and 3a stay flagged; this WI's flag-removal scope is 9 skills, not
 13** (13 originally flagged; excluded: `lrh-self-review` tier 2a,
 `lrh-confirm-fixes` tier 2b, `lrh-land` and `lrh-execute` tier 3a — 4
-exclusions, 9 remaining). This means the `/lrh-land` mid-sentence
-invocation incident that motivated this design is **not** fully resolved by
-this WI for users who have opted into `skip_if_opted_in` — it is resolved for
-the default `always_confirm` mode, where Step 2's live-reply requirement
-already makes the flag redundant regardless of invocation route (the
-counterfactual: if the flag had been absent during this WI's own `/lrh-land`
-run, Step 2 would still have required the live reply it in fact received,
-since `always_confirm` is the default and no opted-in consent exists in this
-session). Closing the tier-3a gap requires either a mechanical way to verify
+exclusions, 9 remaining). **This means the `/lrh-land` mid-sentence
+invocation incident that motivated this design is not resolved by this WI,
+in any `chain_init_confirmation` mode.** `disable-model-invocation` on
+`lrh-land`/`lrh-execute` is not conditional on that setting — it stays in
+place unconditionally per tier 3a above, so it continues to block a
+model-initiated `Skill()` call on these two skills the same way it did
+during this incident, regardless of whether `always_confirm` or
+`skip_if_opted_in` is active. (An earlier version of this paragraph
+described a counterfactual — what would happen if the flag were absent in
+`always_confirm` mode — as if it were the actual resolution; it wasn't,
+since the flag is in fact retained. Corrected by review.) Closing the
+tier-3a gap requires either a mechanical way to verify
 a literal human-typed slash-command invocation (not currently exposed by the
 platform — the same ambiguity `WI-DELIBERATE-MODEL-INVOCATION`'s Design
 Decision already names for the `/lrh-design` incident) or restricting

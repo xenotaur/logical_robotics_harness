@@ -84,11 +84,12 @@ not agentic.
    resolved, per-skill rather than uniformly: enforcement moves to guidance (a
    per-skill `when_to_use` plus the confirm-before-write / chain-authorization
    gates already in place) for most flagged skills, not the flag — except
-   `/lrh-land` and `/lrh-execute`, which keep the flag pending a
-   `DEC-CHAIN-INIT-SKIP-CONSENT` verification gap (see the Consequences entry).
-   What survives unchanged from this principle: no chain starts itself — for
+   `/lrh-self-review`, `/lrh-confirm-fixes`, `/lrh-land`, and `/lrh-execute`,
+   which keep the flag pending gate/verification gaps specific to each (see
+   the Consequences entry for the per-skill reasons). What survives
+   unchanged from this principle: no chain starts itself — for
    the skills where enforcement moved, that invariant is now carried by the
-   gates directly; for `/lrh-land`/`/lrh-execute` it is still carried by
+   gates directly; for the four retained-flag skills it is still carried by
    `disable-model-invocation` itself, as before.
 
 3. **The execution-sessions non-automation was build-order, not a permanent
@@ -203,10 +204,11 @@ not agentic.
   retrigger comment, requests a reviewer, and persists round-state with no
   human checkpoint on that path. Motivated by two incidents where the flag
   blocked a user's own explicit, in-session request rather than unwanted
-  auto-triggering; the `/lrh-land` incident is resolved for the default
-  `chain_init_confirmation: always_confirm` mode (Step 2's live-reply
-  requirement already made the flag redundant there, regardless of
-  invocation route) but not for `skip_if_opted_in`. Chain-runner invocation
+  auto-triggering — **neither incident is resolved by this decision**:
+  `disable-model-invocation` on `/lrh-land`/`/lrh-execute` is retained
+  unconditionally, not scoped to `skip_if_opted_in`, so it continues to
+  block the motivating mid-sentence/model-`Skill()` invocation regardless of
+  `chain_init_confirmation` mode. Chain-runner invocation
   mechanics (principle 2's other open question) resolve to: stays inlined,
   unaffected by the flag removal. The cascade into the 9 flagged skills'
   frontmatter, the `lrh-self-review` diff-mode and `lrh-confirm-fixes`

@@ -2,8 +2,8 @@
 id: WS-ANTIGRAVITY-CONVERSATION-EXPORT
 kind: planning_node
 title: Antigravity Conversation Session Exporter
-status: proposed
-stage: planned
+status: active
+stage: executing
 summary: "Orchestrates the 3-tranche implementation of the Antigravity conversation session exporter, spanning Python API library code, lrh conversation CLI integration, and a native Antigravity skill package."
 related_design:
   - project/design/proposals/proposed/lrh-antigravity-conversation-exporter/00_proposal.md

@@ -10,8 +10,12 @@ from typing import Mapping
 from lrh.conversations.frontmatter import yaml_mapping
 
 KIND = "lrh_codex_conversation_export"
+KIND_ANTIGRAVITY = "lrh_antigravity_conversation_export"
+SUPPORTED_KINDS = (KIND, KIND_ANTIGRAVITY, "lrh_conversation_export")
 SCHEMA_VERSION = 1
 SOURCE_TOOL_CODEX = "codex"
+SOURCE_TOOL_ANTIGRAVITY = "antigravity"
+SUPPORTED_SOURCE_TOOLS = (SOURCE_TOOL_CODEX, SOURCE_TOOL_ANTIGRAVITY)
 DEFAULT_SOURCE_ADAPTER = "codex_manual_export"
 DEFAULT_PRIVACY = "private"
 DEFAULT_AUTHORITY = "non_authoritative_context"
@@ -99,9 +103,9 @@ class ConversationExportManifest:
     warnings: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        _require_exact(self.kind, KIND, "kind")
+        _require_in(self.kind, SUPPORTED_KINDS, "kind")
         _require_exact(self.schema_version, SCHEMA_VERSION, "schema_version")
-        _require_exact(self.source_tool, SOURCE_TOOL_CODEX, "source_tool")
+        _require_in(self.source_tool, SUPPORTED_SOURCE_TOOLS, "source_tool")
         _require_non_empty_string(self.source_adapter, "source_adapter")
         _require_exact(self.privacy, DEFAULT_PRIVACY, "privacy")
         _require_exact(self.authority, DEFAULT_AUTHORITY, "authority")
@@ -366,6 +370,13 @@ def _require_exact(value: object, expected: object, field: str) -> None:
     if type(value) is not type(expected) or value != expected:
         raise ConversationExportManifestError(
             f"{field} must be {expected!r}, got {value!r}"
+        )
+
+
+def _require_in(value: object, expected: tuple[object, ...], field: str) -> None:
+    if value not in expected:
+        raise ConversationExportManifestError(
+            f"{field} must be one of {expected!r}, got {value!r}"
         )
 
 

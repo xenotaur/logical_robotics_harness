@@ -444,11 +444,37 @@ yet), proceed with the unconditional bot retrigger below:
    reviewer does not clear the ones still pending; if both Codex and
    Copilot were retriggered, both must post before REVIEW-LANDED is
    satisfied, the same way Step 6's thread-resolution verdict requires
-   *every* thread resolved, not just some. Poll for responses that
-   reference *this* commit — a new review, a new issue comment from a
-   reviewer, or a new inline thread whose body cites the current SHA. Do
-   not accept a stale comment from before this push as evidence for any
-   reviewer.
+   *every* thread resolved, not just some.
+
+   **Coverage for *this exact commit* rests on three sources — never on a
+   freehand `since <timestamp>` filter over comments, reviews, or
+   threads:**
+   - **`commit_id` vs. current head** — a formal review (including a
+     bot's plain "COMMENTED" review with no separate inline thread)
+     always has a real `commit_id` via the REST reviews endpoint, always
+     paginated (the endpoint defaults to `per_page=30`; without
+     pagination, a PR with more than 30 formal reviews can silently
+     truncate before a later finding is read):
+     ```bash
+     gh api --paginate repos/<owner>/<repo>/pulls/<N>/reviews \
+       --jq '.[] | "\(.submitted_at) \(.user.login) \(.state) commit=\(.commit_id[0:7])"'
+     ```
+     A formal review's coverage is determined by `commit_id`, never by
+     whether its text happens to quote the SHA — requiring SHA-text-match
+     for a formal review that already carries a `commit_id` would leave
+     a real review pending indefinitely if its body just didn't happen to
+     echo the SHA.
+   - **SHA-matched text, for the no-thread issue-comment case only** — a
+     `gh pr comment` reply has no entry in the reviews endpoint and
+     therefore no `commit_id`; that narrower case is the only one where
+     matching by a body citing the current SHA is the correct mechanism.
+   - **`isResolved` state** (Step 2 above) for inline-thread coverage.
+
+   Do not accept a stale comment from before this push as evidence for
+   any reviewer, and do not infer coverage from elapsed time — a live
+   session once scoped its check to "only since" a later commit's push
+   time and missed a real, unresolved Copilot review with 5 inline
+   findings that had landed against an earlier commit.
 
    **A response's mere existence is not enough — read its content.** A
    reviewer can report a real defect in a plain review body or issue
@@ -456,11 +482,12 @@ yet), proceed with the unconditional bot retrigger below:
    this skill's own worked example: Codex's clean passes and its findings
    both arrived as ordinary review/comment text, not always as a distinct
    `reviewThreads` entry). Do not count a response toward REVIEW-LANDED
-   just because it exists and cites the right SHA — read it. Only an
-   explicit clean pass (no findings reported) counts. A response that
-   reports any finding, in a review body, an issue comment, *or* a formal
-   inline thread, is a new finding — handle it per the paragraph below,
-   whichever surface it arrived on.
+   just because it exists and matches by `commit_id` or SHA-text per the
+   rules above — read it. Only an explicit clean pass (no findings
+   reported) counts. A response that reports any finding, in a review
+   body, an issue comment, *or* a formal inline thread, is a new
+   finding — handle it per the paragraph below, whichever surface it
+   arrived on.
 3. If one or more retriggered reviewers haven't responded after a reasonable
    wait, **first check whether that reviewer's own session actually
    started and stalled, rather than never having been invoked at all** —
@@ -624,10 +651,13 @@ Before reporting completion, verify:
       for the **Green** verdict itself (not scoped to "before agent
       execution only") — a human executing immediately races the same
       delayed finding an agent would
-- [ ] REVIEW-LANDED evidence is an affirmative, SHA-matched response after
-      an unconditional retrigger attempt — not inferred from elapsed time
-      alone, and "no reviewer configured" is never inferred from silence;
-      an unanswered retrigger is asked about, not assumed either way
+- [ ] REVIEW-LANDED evidence is an affirmative response matched by
+      `commit_id` (formal reviews) or SHA-text (no-thread issue comments
+      only) after an unconditional retrigger attempt — never by a
+      freehand `since <timestamp>` filter, never inferred from elapsed
+      time alone, and "no reviewer configured" is never inferred from
+      silence; an unanswered retrigger is asked about, not assumed either
+      way
 - [ ] A genuine new finding surfaced by the retrigger — whether a formal
       thread or a defect described in plain review/comment text — was
       routed through Step 3's taxonomy and Steps 4-5, not left as an

@@ -180,6 +180,17 @@ last commit is only seconds old, bots have not had time to run; wait and
 re-check. If enough time has passed with no threads, review is complete
 with no findings under this check → proceed to Step 5.
 
+**`lastPush` is a timing signal only — never a content filter.** Its sole
+purpose here is judging "have bots had time to run." Never construct or
+apply a `since <timestamp>` filter over review comments, threads, or
+reviews to decide what counts as landed — a live session once scoped its
+check to "only since" a later commit's push time and, on that basis,
+missed a real, unresolved Copilot review with 5 inline findings that had
+landed promptly against an *earlier* commit. Coverage is determined only
+by `isResolved` state, `commit_id` vs. current head, and SHA-matched text
+for the no-thread issue-comment case (see `/lrh-confirm-fixes` Step 8) —
+never by comment recency.
+
 If the output contains thread data → open threads present; execute the
 review-response workflow inline (Phase 1: read `/lrh-review-response/SKILL.md`
 steps and execute them in the current session).
@@ -454,7 +465,7 @@ Before reporting completion, verify:
 - [ ] Primary record classification (found/backfill) determined in Step 1
 - [ ] Chain authorization gate (Step 2) completed before Steps 4–5; both
       completion condition and stop-work condition stated and confirmed
-- [ ] REVIEW-LANDED check performed using `reviewThreads` (via `lrh request review_response`); empty output not treated as clean
+- [ ] REVIEW-LANDED check performed using `reviewThreads` (via `lrh request review_response`); empty output not treated as clean; `lastPush` used only for timing, never as a `since <timestamp>` content filter
 - [ ] Review-response completed once every comment returned by
       `lrh request review_response` has been triaged in the current diff
       (fixed, or dismissed with rationale) — not once the thread list itself

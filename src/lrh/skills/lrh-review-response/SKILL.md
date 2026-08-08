@@ -101,7 +101,22 @@ lrh request review_response <pr-url>
 ```
 
 If the output begins with `Nothing to resolve:`, report this to the user
-and exit cleanly — do not proceed further.
+and exit cleanly — do not proceed further. **This is not a full
+authoritative "zero unresolved threads anywhere" guarantee** — this
+command's own `state="unresolved"` filter excludes outdated threads (a
+thread whose commented line moved can stay `isResolved: false` while
+`isOutdated: true`). If a caller needs the authoritative check, that's
+`/lrh-confirm-fixes` Step 2's `isResolved`-only raw-threads read, not this
+command.
+
+**Never construct or apply a `since <timestamp>` filter** over review
+comments, threads, or reviews when deciding what to fetch or whether
+anything remains — a live session once scoped its check to "only since" a
+later commit's push time and missed a real, unresolved Copilot review
+with 5 inline findings that had landed against an earlier commit.
+Coverage is determined only by `isResolved` state, `commit_id` vs.
+current head, and SHA-matched text for the no-thread issue-comment case
+(see `/lrh-confirm-fixes` Step 8) — never by comment recency.
 
 Store the full output for Step 5. Do not re-emit or restructure it; the
 security boundary between the protocol preamble and reviewer-supplied content
@@ -366,7 +381,7 @@ Before reporting completion, verify:
 
 - [ ] Checkout identity verified against the PR (branch/SHA, or platform
       metadata) before any changes
-- [ ] "Nothing to resolve" check performed; exited cleanly if applicable
+- [ ] "Nothing to resolve" check performed; exited cleanly if applicable — not treated as an authoritative "zero unresolved anywhere" guarantee, and never inferred via a `since <timestamp>` filter
 - [ ] Prompt ID minted before any file changes
 - [ ] Idempotence check passed (no prior landed/in_progress record, or a
       same-land-run continuation recognized per Step 3's carve-out — the

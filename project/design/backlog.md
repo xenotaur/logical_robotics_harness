@@ -1197,7 +1197,7 @@ autonomy/review-cycle structure around `/lrh-execute`.
   `prosoc/packet/resolve.py`, and all of `prosoc/auditor/` have zero
   family-specific branching. The one genuinely domain-coupled piece is
   `prosoc/packet/assemble.py`'s principle-union composition
-  (`_principle_union`, lines 64-107; `_tensions`, lines 110-128), plus the required
+  (`_principle_union`, lines 64-107; `_tensions`, lines 110-126), plus the required
   `guidance.principles`/`guidance.tensions` fields baked into
   `prosoc/packet/schema.json:108-136`. `prosoc/manifests/schema.json:50-59`
   also closed-enums prosoc's five family names directly.

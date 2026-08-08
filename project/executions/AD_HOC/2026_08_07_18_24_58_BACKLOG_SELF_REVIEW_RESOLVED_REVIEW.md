@@ -2,10 +2,10 @@
 execution_id: 2026_08_07_18_24_58_BACKLOG_SELF_REVIEW_RESOLVED_REVIEW
 prompt_id: PROMPT(AD_HOC:BACKLOG_SELF_REVIEW_RESOLVED_REVIEW)[2026-08-07T16:29:29+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_07_06_48_20_BACKLOG_SELF_REVIEW_RESOLVED
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/506
-commit: 8e2928d
+commit: 0defdd95f64e99dc305a3e7cf826dac2ac2627c7
 created_at: 2026-08-07T18:24:58+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/506

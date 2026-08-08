@@ -91,26 +91,54 @@ suppressed):
 Both new inline threads resolved via `resolveReviewThread`. Thread-resolution
 verdict after round 2: **green**.
 
+## Round 3 — post-round-2-push retrigger (Step 8, repeated)
+
+Round 2's commit (`ecd4f79`) was retriggered the same way. Both reviewers
+responded (Codex `05:11:46Z`, Copilot `05:11:51Z`). Codex's review body was a
+clean pass on the substance but opened 2 new inline threads (not suppressed);
+Copilot's summary again said "generated no new comments" while its suppressed
+section held 5 duplicate instances of one finding:
+
+- Codex (P2, and Copilot's suppressed section independently, 5 instances
+  same root cause) — an arithmetic error introduced in round 2: 13 originally
+  flagged skills minus the 3 round-2 exclusions (`lrh-self-review`,
+  `lrh-land`, `lrh-execute`) is 10, not 11, and every count in the WI/DEC
+  files said 11. **Clear-satisfied and substantive on its own terms**: fixed
+  every occurrence.
+- Codex (P1) — a genuine new gate gap, same class as `lrh-self-review`'s:
+  `lrh-confirm-fixes` Step 2 skips straight to Step 8 (bypassing the Step 4
+  confirm gate) when there are no unresolved threads, and Step 8
+  unconditionally posts a retrigger comment, requests a reviewer, and
+  persists round-state on that path with no human checkpoint. **Clear-satisfied,
+  and it changed the count above**: added tier 2b, excluded `lrh-confirm-fixes`
+  from this WI's flag-removal scope (now 9 skills, not 10 — the count fix
+  above was itself superseded by this finding, corrected in the same pass
+  rather than left as a stale intermediate value).
+
+Both new inline threads resolved via `resolveReviewThread`. Thread-resolution
+verdict after round 3: **green**.
+
 # Validation
 
-- `lrh validate` — 0 errors (1 pre-existing, unrelated warning) after each
-  edit, both rounds
-- `gh pr checks 518` — 5/5 checks green on both `df0133a` and the round-2
-  commit
-- `resolveReviewThread` — 7/7 threads confirmed `isResolved: true` across
-  both rounds
+- `lrh validate` — 0 errors (1 pre-existing, unrelated warning) after every
+  edit, all three rounds
+- `gh pr checks 518` — 5/5 checks green on `df0133a`, `c420b58`/`ecd4f79`
+- `resolveReviewThread` — 9/9 threads confirmed `isResolved: true` across
+  all three rounds
 - `gh api .../commits/<sha>/check-runs` — confirmed `copilot-pull-request-reviewer`
-  check-run `completed`/`success` on the round-2 SHA before trusting its
-  review as landed
+  check-run `completed`/`success` before trusting each round's review as
+  landed
 
 # Follow-up
 
-- Push the round-2 fixes as a new commit, re-check CI and REVIEW-LANDED
-  against that HEAD, retrigger again per Step 8, and confirm no further
-  findings before reporting the final merge-readiness verdict.
+- Push round 3's fixes as a new commit, re-check CI and REVIEW-LANDED against
+  that HEAD, retrigger again per Step 8, and confirm no further findings
+  before reporting the final merge-readiness verdict.
 - `session_transcript: pending` should be updated to
   `claude-app:<host-uuid-stem>` after the session ends.
 - Follow-up work (not this WI): a mechanism to verify a genuine human-typed
   slash-command invocation, or a restriction on `DEC-CHAIN-INIT-SKIP-CONSENT`'s
   `skip_if_opted_in` path, before `lrh-land`/`lrh-execute` can drop
   `disable-model-invocation`.
+- Follow-up work (not this WI): a confirm gate on `lrh-confirm-fixes`'s
+  empty-thread fast path before it can drop `disable-model-invocation`.

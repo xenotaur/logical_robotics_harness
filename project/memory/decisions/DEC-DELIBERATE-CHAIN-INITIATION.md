@@ -197,16 +197,20 @@ not agentic.
   genuine human-typed slash-command invocation) once the model can call
   `Skill()` on them directly, so their flags stay in place pending a
   verification mechanism or a restriction on that skip path — separate
-  follow-up scope. Motivated by two incidents where the flag blocked a
-  user's own explicit, in-session request rather than unwanted
+  follow-up scope. `/lrh-confirm-fixes` also keeps its flag (a second gap
+  the same review round surfaced): its empty-thread fast path skips the
+  Step 4 confirm gate straight to Step 8, which unconditionally posts a
+  retrigger comment, requests a reviewer, and persists round-state with no
+  human checkpoint on that path. Motivated by two incidents where the flag
+  blocked a user's own explicit, in-session request rather than unwanted
   auto-triggering; the `/lrh-land` incident is resolved for the default
   `chain_init_confirmation: always_confirm` mode (Step 2's live-reply
   requirement already made the flag redundant there, regardless of
   invocation route) but not for `skip_if_opted_in`. Chain-runner invocation
   mechanics (principle 2's other open question) resolve to: stays inlined,
-  unaffected by the flag removal. The cascade into the 11 flagged skills'
-  frontmatter, the `lrh-self-review` diff-mode gate gap this review
-  surfaced, and the `installer.py`
+  unaffected by the flag removal. The cascade into the 9 flagged skills'
+  frontmatter, the `lrh-self-review` diff-mode and `lrh-confirm-fixes`
+  empty-thread gate gaps this review surfaced, and the `installer.py`
   verification remain `WI-DELIBERATE-MODEL-INVOCATION`'s implementation
   scope; this decision record only carries the resolved policy.
 

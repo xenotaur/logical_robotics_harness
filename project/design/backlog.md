@@ -1196,8 +1196,8 @@ autonomy/review-cycle structure around `/lrh-execute`.
   `prosoc/packet/gate.py`, `prosoc/packet/manifest.py`,
   `prosoc/packet/resolve.py`, and all of `prosoc/auditor/` have zero
   family-specific branching. The one genuinely domain-coupled piece is
-  `prosoc/packet/assemble.py:64-107`'s principle-union composition
-  (`_principle_union`/`_tensions`), plus the required
+  `prosoc/packet/assemble.py`'s principle-union composition
+  (`_principle_union`, lines 64-107; `_tensions`, lines 110-128), plus the required
   `guidance.principles`/`guidance.tensions` fields baked into
   `prosoc/packet/schema.json:108-136`. `prosoc/manifests/schema.json:50-59`
   also closed-enums prosoc's five family names directly.
@@ -1264,7 +1264,8 @@ step (its composition need looks simpler than prosoc's, since it wouldn't
 need per-scenario/context principle-emphasis unioning) — rather than
 committing to a shared package up front.
 
-**Related:** Mirrored entry in `prosocial/project/design/backlog.md` §
+**Related:** Mirrored entry in the sibling `prosocial` repo's own
+`project/design/backlog.md` §
 "LRH card-architecture reuse assessment — not yet warranted";
 `prosoc/packet/assemble.py`, `prosoc/packet/loader.py`,
 `prosoc/manifests/schema.json`; `project/principles/`,

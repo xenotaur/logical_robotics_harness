@@ -1,11 +1,7 @@
 {
   "pr": "https://github.com/xenotaur/logical_robotics_harness/pull/517",
   "ceiling": 3,
-  "completed_count": 2,
-  "pending_attempt": {
-    "promoted": false,
-    "reviewers": {"codex": "skipped_fleet_policy", "copilot": "pending"},
-    "retriggered_at": "2026-08-08T06:09:03Z"
-  },
-  "note": "batch3: codex retrigger permanently disabled per fleet-wide human policy (this session, PR #517 batch2); self-review substituted"
+  "completed_count": 3,
+  "pending_attempt": null,
+  "note": "batch3 complete: copilot clean-pass-with-suppressed-comment at 06:12:20Z (prosocial/ path ambiguity, fixed below); codex skipped per fleet policy. completed_count now == ceiling; a 4th batch requires the three-way gate."
 }

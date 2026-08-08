@@ -21,7 +21,12 @@ from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
-from lrh.conversations import codex_file_export, export_inspector, pdf_import
+from lrh.conversations import (
+    codex_app_server_export,
+    codex_file_export,
+    export_inspector,
+    pdf_import,
+)
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
@@ -107,6 +112,11 @@ def main() -> None:
         "convert-codex-file",
         add_help=False,
         help="Convert an explicit local Codex transcript/source file to Markdown.",
+    )
+    conversation_subparsers.add_parser(
+        "export-codex-thread",
+        add_help=False,
+        help="Export a Codex thread through app-server thread/read.",
     )
     conversation_subparsers.add_parser(
         "inspect-export",
@@ -751,9 +761,17 @@ def main() -> None:
                     prog="lrh conversation inspect-export",
                 )
             )
+        if args.conversation_command == "export-codex-thread":
+            raise SystemExit(
+                codex_app_server_export.run_export_codex_thread_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation export-codex-thread",
+                )
+            )
         parser.error(
             "conversation requires a subcommand "
             "(try: lrh conversation convert-codex-file, "
+            "lrh conversation export-codex-thread, "
             "lrh conversation inspect-export, or lrh conversation convert-pdf)"
         )
 

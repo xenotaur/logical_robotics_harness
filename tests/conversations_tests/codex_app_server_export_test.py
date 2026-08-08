@@ -137,6 +137,22 @@ class TestCodexAppServerExport(unittest.TestCase):
                     codex_command=[sys.executable, str(server)],
                 )
 
+    def test_non_utf8_app_server_response_is_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            server = _write_fake_server(root, mode="non_utf8")
+
+            with self.assertRaisesRegex(
+                codex_app_server_export.CodexAppServerExportError,
+                "non-UTF-8 output",
+            ):
+                codex_app_server_export.export_codex_thread(
+                    thread_id="thread-123",
+                    output_path=root / "export.md",
+                    raw_output_path=root / "raw.json",
+                    codex_command=[sys.executable, str(server)],
+                )
+
     def test_app_server_timeout_is_reported(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
@@ -222,6 +238,19 @@ class TestCodexAppServerExport(unittest.TestCase):
             "--thread-id or CODEX_THREAD_ID is required", mock_stderr.getvalue()
         )
 
+    def test_write_private_bytes_tolerates_missing_fchmod(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            output_path = Path(temp_dir) / "raw.json"
+
+            with patch.object(
+                codex_app_server_export.os,
+                "fchmod",
+                side_effect=AttributeError,
+            ):
+                codex_app_server_export._write_private_bytes(output_path, b"raw")
+
+            self.assertEqual(output_path.read_bytes(), b"raw")
+
 
 def _write_fake_server(root: Path, *, mode: str = "success") -> Path:
     thread = {
@@ -293,6 +322,9 @@ for raw_line in sys.stdin:
             }})
         elif MODE == "malformed":
             print("{{not json", flush=True)
+        elif MODE == "non_utf8":
+            sys.stdout.buffer.write(b"\\xff\\n")
+            sys.stdout.buffer.flush()
         elif MODE == "timeout":
             continue
         elif MODE == "exit":

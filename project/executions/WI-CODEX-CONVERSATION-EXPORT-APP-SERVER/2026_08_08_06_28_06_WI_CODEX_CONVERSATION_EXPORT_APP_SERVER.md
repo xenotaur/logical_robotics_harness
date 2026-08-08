@@ -43,11 +43,14 @@ Implemented the production Codex app-server conversation export adapter for
 - Updated CLI documentation and package exports.
 - Performed independent self-review with Codex subagent
   `019fe007-fab7-7012-9584-26655a08061b`; findings were fixed before PR open.
+- Addressed the automatic initial Copilot review comments by converting non-UTF8
+  app-server stdout into `CodexAppServerExportError` and making `os.fchmod`
+  best-effort for platforms where it is unavailable.
 
 # Validation
 
 - `PYTHONPATH=src python -m unittest tests.conversations_tests.codex_app_server_export_test`
-  passed, 9 tests.
+  passed, 11 tests.
 - `scripts/format --check --diff` passed.
 - `scripts/lint` passed.
 - `scripts/version tools` passed.

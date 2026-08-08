@@ -88,7 +88,12 @@ class JsonLineReader:
             if newline_index >= 0:
                 raw_line = bytes(self._buffer[:newline_index])
                 del self._buffer[: newline_index + 1]
-                line = raw_line.decode("utf-8").strip()
+                try:
+                    line = raw_line.decode("utf-8").strip()
+                except UnicodeDecodeError as err:
+                    raise CodexAppServerExportError(
+                        "app-server emitted non-UTF-8 output"
+                    ) from err
                 if not line:
                     continue
                 try:
@@ -744,7 +749,12 @@ def _write_private_bytes(path: Path, data: bytes) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         fd = os.open(path, os.O_CREAT | os.O_WRONLY | os.O_TRUNC, 0o600)
         with os.fdopen(fd, "wb") as output:
-            os.fchmod(output.fileno(), 0o600)
+            fchmod = getattr(os, "fchmod", None)
+            if fchmod is not None:
+                try:
+                    fchmod(output.fileno(), 0o600)
+                except AttributeError:
+                    pass
             output.write(data)
     except OSError as err:
         raise CodexAppServerExportError(f"Could not write raw capture: {path}") from err

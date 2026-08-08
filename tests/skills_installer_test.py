@@ -143,6 +143,45 @@ class TestInstallSkills(unittest.TestCase):
             (installed / "agents" / "openai.yaml").read_text(),
         )
 
+    def test_antigravity_target_strips_claude_metadata_and_writes_manifest(
+        self,
+    ) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    "name: sample-skill",
+                    "description: Sample skill.",
+                    "disable-model-invocation: true",
+                    'argument-hint: "[thing]"',
+                    "---",
+                    "",
+                    "# Sample Skill",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+
+        installed = skills_dir / "sample-skill"
+        skill_md = (installed / "SKILL.md").read_text()
+        self.assertIn("name: sample-skill", skill_md)
+        self.assertNotIn("disable-model-invocation", skill_md)
+        self.assertNotIn("argument-hint", skill_md)
+
+        plugin_json = skills_dir.parent / "plugin.json"
+        self.assertTrue(plugin_json.exists())
+        self.assertIn('"name": "lrh"', plugin_json.read_text())
+
     def test_codex_target_strips_multiline_claude_metadata(self) -> None:
         source_dir = self._make_skills_dir()
         skill_dir = source_dir / "sample-skill"
@@ -344,6 +383,14 @@ class TestResolveInstallTargets(unittest.TestCase):
         self.assertEqual(target.target, installer.SkillTarget.CODEX)
         self.assertEqual(target.skills_dir, Path.home() / ".agents" / "skills")
 
+    def test_antigravity_user_target(self) -> None:
+        target = installer.resolve_install_targets("antigravity")[0]
+        self.assertEqual(target.target, installer.SkillTarget.ANTIGRAVITY)
+        self.assertEqual(
+            target.skills_dir,
+            Path.home() / ".gemini" / "config" / "plugins" / "lrh" / "skills",
+        )
+
     def test_claude_project_target(self) -> None:
         project_root = Path("/tmp/project")
         target = installer.resolve_install_targets(
@@ -358,7 +405,16 @@ class TestResolveInstallTargets(unittest.TestCase):
         )[0]
         self.assertEqual(target.skills_dir, project_root / ".agents" / "skills")
 
-    def test_all_target_selects_claude_then_codex(self) -> None:
+    def test_antigravity_project_target(self) -> None:
+        project_root = Path("/tmp/project")
+        target = installer.resolve_install_targets(
+            "antigravity", local=True, project_root=project_root
+        )[0]
+        self.assertEqual(
+            target.skills_dir, project_root / ".gemini" / "plugins" / "lrh" / "skills"
+        )
+
+    def test_all_target_selects_claude_codex_antigravity(self) -> None:
         project_root = Path("/tmp/project")
         targets = installer.resolve_install_targets(
             "all", local=True, project_root=project_root
@@ -368,6 +424,10 @@ class TestResolveInstallTargets(unittest.TestCase):
             [
                 (installer.SkillTarget.CLAUDE, project_root / ".claude" / "skills"),
                 (installer.SkillTarget.CODEX, project_root / ".agents" / "skills"),
+                (
+                    installer.SkillTarget.ANTIGRAVITY,
+                    project_root / ".gemini" / "plugins" / "lrh" / "skills",
+                ),
             ],
         )
 
@@ -384,6 +444,8 @@ class TestResolveInstallTargets(unittest.TestCase):
         )
         self.assertTrue((parent / ".claude" / "skills").exists())
         self.assertTrue((parent / ".agents" / "skills").exists())
+        self.assertTrue((parent / ".gemini" / "plugins" / "lrh" / "skills").exists())
+        self.assertTrue((parent / ".gemini" / "plugins" / "lrh" / "plugin.json").exists())
 
     def test_dry_run_all_targets_writes_nothing(self) -> None:
         parent = Path(tempfile.mkdtemp())
@@ -393,9 +455,10 @@ class TestResolveInstallTargets(unittest.TestCase):
             "all", local=True, project_root=parent, dry_run=True
         )
 
-        self.assertEqual(len(reports), 2)
+        self.assertEqual(len(reports), 3)
         self.assertFalse((parent / ".claude").exists())
         self.assertFalse((parent / ".agents").exists())
+        self.assertFalse((parent / ".gemini").exists())
 
 
 class TestAgentSkillsConfig(unittest.TestCase):
@@ -1196,13 +1259,18 @@ class TestInspectSkills(unittest.TestCase):
 
         self.assertEqual(
             [report.target for report in reports],
-            [installer.SkillTarget.CLAUDE, installer.SkillTarget.CODEX],
+            [
+                installer.SkillTarget.CLAUDE,
+                installer.SkillTarget.CODEX,
+                installer.SkillTarget.ANTIGRAVITY,
+            ],
         )
         self.assertEqual(
             [report.skills_dir for report in reports],
             [
                 project_root / ".claude" / "skills",
                 project_root / ".agents" / "skills",
+                project_root / ".gemini" / "plugins" / "lrh" / "skills",
             ],
         )
 

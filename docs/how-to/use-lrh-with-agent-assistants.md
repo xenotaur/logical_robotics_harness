@@ -71,33 +71,42 @@ lrh skills install --target all
 
 ### 3. Google Antigravity
 
-Antigravity supports both **Direct In-Repo Discovery** (zero-install via project rules) and **Native Plugin Installation**.
+Antigravity supports both **Direct In-Repo Discovery** (zero-install via project/workspace rules) and **Native Plugin Installation**.
 
 #### Pattern A: Direct In-Repo Discovery (Zero-Install / Rules-Based)
-Antigravity automatically loads workspace `AGENTS.md` and user-level `~/.gemini/GEMINI.md` files as system rules (`<user_rules>`).
+Antigravity automatically loads workspace `AGENTS.md` and user-level `~/.gemini/GEMINI.md` files into `<user_rules>` during CLI session initialization. For IDE workspace configurations, rules can also be placed under `.agents/rules/` or `.gemini/rules/`.
 
 *Note on Skill Discovery*: In downstream repositories where LRH is installed as a package, agent skills live in project-local skills directories (installed via `lrh skills install --local`) or in the repository's source tree. Direct in-repo discovery reads these local skill files when present in the workspace.
 
-1. **Project-Wide Rules (`AGENTS.md`)**: Add the following directive to your project's `AGENTS.md`:
+1. **Project-Wide CLI / System Rules (`AGENTS.md`)**: Add the following directive to your project's `AGENTS.md`:
    ```markdown
    ## Agent Skill Rules
    When asked to perform workflow tasks (e.g. lrh-work-item, lrh-implement, lrh-land), inspect and read the corresponding `SKILL.md` in `.claude/skills/`, `.agents/skills/`, or `src/*/skills/` before proceeding.
    ```
 
-2. **Global Rules (`~/.gemini/GEMINI.md`)**: To enable this discovery across all repositories on your system, add to `~/.gemini/GEMINI.md`:
+2. **Global System Rules (`~/.gemini/GEMINI.md`)**: To enable this discovery across all repositories on your system, add to `~/.gemini/GEMINI.md`:
    ```markdown
    # Global Agent Skill Rules
    If the current workspace contains an `src/*/skills/`, `.claude/skills/`, or `.agents/skills/` directory, actively discover and utilize those skills by inspecting their `SKILL.md` files.
    ```
 
+3. **IDE Workspace Rules (`.agents/rules/` or `.gemini/rules/`)**: For IDE rule enforcement, place rule instructions under `.agents/rules/lrh-skills.md` or `.gemini/rules/lrh-skills.md`.
+
 #### Pattern B: Native Plugin Installation
-For ambient prompt indexing via plugin manifests (`plugin.json`), future releases of LRH will support:
+For ambient prompt indexing via plugin manifests (`plugin.json`), install LRH skills directly as an Antigravity plugin:
 
 ```bash
+# Global user-scope plugin install (~/.gemini/config/plugins/lrh/)
 lrh skills install --target antigravity
+
+# Project-scope plugin install (./.gemini/plugins/lrh/)
+lrh skills install --local --target antigravity
+
+# Install all targets (Claude Code, Codex, and Antigravity)
+lrh skills install --target all
 ```
 
-This renders skills to `~/.gemini/config/plugins/lrh/skills/` alongside a generated `plugin.json`.
+This renders skills to `~/.gemini/config/plugins/lrh/skills/` (or `./.gemini/plugins/lrh/skills/`) alongside a generated `plugin.json`.
 
 ---
 

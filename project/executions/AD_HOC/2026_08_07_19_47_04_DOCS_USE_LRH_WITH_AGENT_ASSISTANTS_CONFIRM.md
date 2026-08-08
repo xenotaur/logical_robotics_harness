@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 2026_08_07_19_46_24_DOCS_USE_LRH_WITH_AGENT_ASSISTANTS_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/513
-commit: 817c1705fd093dd1c20fc0c2caab3c915f79ee17
+commit: 2ea43a1daa1f365d1ce37de89ddc072370a0a851
 created_at: 2026-08-07T19:47:04+00:00
 ---
 

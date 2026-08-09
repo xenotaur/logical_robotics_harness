@@ -36,9 +36,10 @@ exports remain private non-authoritative context.
 Also included:
 
 - a pre-push `/lrh-self-review` diff-mode execution record with a clean result;
-- a lint-only import cleanup in
-  `tests/conversations_tests/antigravity_export_test.py` required for
-  `scripts/lint` to pass on this branch;
+- a CI repair in `tests/conversations_tests/antigravity_export_test.py`,
+  converting the new Antigravity tests from pytest-style functions to
+  `unittest` so they run under this repository's `scripts/test` command without
+  adding pytest as a runtime test dependency;
 - the chain-default confirmation stamp for the approved `/lrh-execute` chain.
 
 # Validation
@@ -46,7 +47,9 @@ Also included:
 - `scripts/version tools`
 - `scripts/format --check --diff`
 - `scripts/lint`
-- `scripts/test` — rerun with loopback permission; 1065 tests OK.
+- `python -m unittest tests.conversations_tests.antigravity_export_test` — 5
+  tests OK.
+- `scripts/test` — rerun with loopback permission; 1070 tests OK.
 - `lrh validate` — 0 errors, 1 existing warning:
   `PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` for
   `workstreams/active/WS-SESSION-ARCHIVE-SYNC.md`.

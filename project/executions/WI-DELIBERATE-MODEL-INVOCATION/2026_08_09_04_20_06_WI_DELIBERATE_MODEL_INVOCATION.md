@@ -3,9 +3,9 @@ execution_id: 2026_08_09_04_20_06_WI_DELIBERATE_MODEL_INVOCATION
 prompt_id: PROMPT(WI-DELIBERATE-MODEL-INVOCATION:WI_DELIBERATE_MODEL_INVOCATION)[2026-08-09T03:55:48+00:00]
 work_item: WI-DELIBERATE-MODEL-INVOCATION
 status: in_progress
-rerun_of: 
+rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/533
-commit: 
+commit:
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION.md
 session_transcript: pending

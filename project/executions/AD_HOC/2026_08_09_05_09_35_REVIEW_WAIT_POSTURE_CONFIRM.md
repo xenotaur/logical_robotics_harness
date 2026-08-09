@@ -135,23 +135,54 @@ retrigger.** Fixes committed as `e849b46f`. Retriggered both reviewers
 again (Codex comment, Copilot re-request — both confirmed submissions).
 CI on `e849b46f`: all 5 checks pass, genuinely green. Both reviewers
 responded within ~5 minutes, both citing `e849b46f` directly, both
-clean — Codex's boilerplate no-suggestion response, and this time
-Copilot's body has no `<details>`/suppressed-comments section at all
-(confirmed by reading the full response body, not just its summary
-line), so nothing further to triage. REVIEW-LANDED: **satisfied**.
+clean at the time — Codex's boilerplate no-suggestion response, and
+Copilot's body had no `<details>`/suppressed-comments section (confirmed
+by reading the full response body, not just its summary line).
 
-**Final verdict: Green.** Thread-resolution (Step 6) green, CI on
-`e849b46f` green, REVIEW-LANDED on `e849b46f` green (both retriggered
-reviewers responded clean, content-verified, SHA-matched). Merge command,
-locked to the verified `HEAD`:
+**Process correction, caught before presenting anything to the human.**
+Before compiling this record's own verdict text, an additional commit
+(`cc91e0b2`, recording the round-2 outcome and a draft verdict in this
+same file) was pushed on top of the already-reviewed `e849b46f` without a
+fresh retrigger — treating "this is just documentation of an
+already-clean commit" as exempt from Step 8's own rule ("elapsed time
+alone does not prove review ran... require an affirmative signal for this
+exact HEAD"). That reasoning does not survive this project's own
+practice: a self-granted exemption from the rule is exactly the kind of
+guess `DEC-AGENT-EXECUTED-MERGE-GATE`-adjacent governance exists to
+prevent. Caught immediately (before any verdict was shown to the human)
+and corrected by retriggering a third time on `cc91e0b2` rather than
+treating it as already covered.
 
-```
-gh pr merge https://github.com/xenotaur/logical_robotics_harness/pull/522 --merge --match-head-commit e849b46fe7843f82ac812472d7290179b62dbd1c
-```
+**Round 3 (batch 3, `completed_count: 2 → 3`, now at ceiling) — genuinely
+useful, not redundant.** This round's Copilot pass (again via a suppressed
+comments section, body still summarized as "no new comments") caught 2
+real, pre-existing issues that rounds 1–2 had both missed on the same
+underlying content:
 
-`--merge` chosen as this repository's standard mode, confirmed by
-inspecting a recent real merge commit's parent count (2 parents,
-`470ef462`) rather than assuming.
+1. The Decision 3 loop skeleton's placeholder, `<predicate command returns
+   success>`, is not valid shell as written — `<...>` parses as
+   redirection. Round 1's own claim of a `bash -n`-clean fix for the
+   *original* invalid-shell finding was therefore itself inaccurate: the
+   replacement was still invalid, just differently. Fixed by using a real,
+   syntactically legal placeholder (an undefined function name,
+   `check_predicate`) instead of an angle-bracket token, and by
+   parameterizing the previously-bare `900`/`30` magic numbers into named
+   variables. Re-verified directly with `bash -n` against the literal
+   snippet as committed, not just its shape after substitution.
+2. The `_REVIEW` record's own validation claim ("`bash -n` ... clean
+   except for the intentional prose placeholder token") was internally
+   contradictory — `bash -n` either succeeds or it doesn't. Corrected to
+   accurately state that round 1's fix was not, in fact, `bash -n`-clean,
+   and cross-references this record's corrected snippet instead.
+
+Both fixed directly; committed together with this note.
+
+**This confirm-fixes pass has now reached its round-cap ceiling
+(`completed_count: 3`, `ceiling: 3`) with a fresh, unreviewed fix commit
+pending.** Per `round-cap-gate.md`, starting a fourth batch requires the
+three-way gate — an explicit human answer, never inferred. This record
+stops here, not-green, pending that answer; see the PR/session report for
+the gate itself.
 
 # Validation
 
@@ -164,11 +195,19 @@ inspecting a recent real merge commit's parent count (2 parents,
   pre-existing, unrelated cause on `main`, not this PR's diff
 - CI re-checked on `031b6e0b` (round 1): all 5 checks pass, genuinely
   green, no exclusion needed
-- CI re-checked on `e849b46f` (round 2, final): all 5 checks pass
-- REVIEW-LANDED re-checked on `e849b46f`: both retriggered reviewers
-  responded clean, content read in full, SHA-matched
+- CI re-checked on `e849b46f` (round 2): all 5 checks pass; REVIEW-LANDED
+  on `e849b46f` also satisfied at the time (both reviewers clean,
+  content-verified) — superseded by round 3's finding below, not wrong at
+  the time it was checked
+- CI re-checked on `cc91e0b2` (round 3): all 5 checks pass; REVIEW-LANDED
+  surfaced 2 genuine non-thread findings (see above) — not yet green,
+  fixes pushed in a new commit still awaiting its own retrigger, blocked
+  on the round-cap three-way gate
+- `bash -n` re-verified directly against the corrected Decision 3 snippet
+  as committed: clean
 - Provisional thread/CI reads (Step 2) performed against the post-merge
-  `HEAD`; final Step 8 recheck performed against `e849b46f`
+  `HEAD`; verdict as of this record's last edit is **not green**, pending
+  the three-way gate's answer
 
 # Follow-up
 

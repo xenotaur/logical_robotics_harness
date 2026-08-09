@@ -261,21 +261,34 @@ waiting for:
 
 Both predicates run inside the same bounded-loop shape, capped at
 `round-cap-gate.md`'s existing `STALE_AGE_SECONDS=900` constant rather than
-a second, undocumented magic number:
+a second, undocumented magic number. `check_predicate` below stands for
+whichever predicate command applies (bot-response or CI-state, per the
+two bullets above) — a real, valid placeholder function name, not an
+angle-bracket token, since `<...>` is shell redirection syntax and would
+break exactly the parsing this snippet exists to get right. The poll
+interval is its own named constant, not a second bare magic number:
 
 ```bash
+STALE_AGE_SECONDS=900       # round-cap-gate.md's existing constant
+POLL_INTERVAL_SECONDS=30
 START=$(date +%s)
 while true; do
-  if <predicate command returns success>; then
+  if check_predicate; then
     break
   fi
-  if [ $(( $(date +%s) - START )) -ge 900 ]; then
-    echo "no response after 900s" >&2
+  if [ $(( $(date +%s) - START )) -ge "$STALE_AGE_SECONDS" ]; then
+    echo "no response after ${STALE_AGE_SECONDS}s" >&2
     break
   fi
-  sleep 30
+  sleep "$POLL_INTERVAL_SECONDS"
 done
 ```
+
+Verified with `bash -n` against the literal snippet above, not just the
+shape after substitution — it is genuinely valid shell as written, with
+`check_predicate` deliberately left undefined (a real, syntactically
+legal bash construct: calling a not-yet-defined function), unlike the
+angle-bracket placeholder an earlier revision of this section used.
 
 `round-cap-gate.md` and `land-workflow.md` are both updated to name these
 two predicates and this loop shape explicitly, in place of today's

@@ -76,8 +76,14 @@ markdown-only fixes.
   (caught and fixed pre-existing trailing whitespace on two frontmatter
   lines from the primary record's auto-generated template, unrelated to
   the review comments themselves, before committing)
-- `bash -n` against the Decision 3 loop skeleton: clean except for the
-  intentional prose placeholder token, confirming the syntax fix holds
+- Decision 3's loop skeleton was checked for shell-syntax validity, but
+  the angle-bracket placeholder token used in this round's fix
+  (`<predicate command returns success>`) was itself later found, in a
+  subsequent review round on this same PR, to still be invalid shell
+  (`<...>` parses as redirection) — this round's claim of a clean
+  `bash -n` result was inaccurate. See this PR's `_CONFIRM` record for
+  the corrected snippet (a real placeholder function name, not an
+  angle-bracket token), which is genuinely `bash -n`-clean as written
 - No `scripts/format`/`scripts/lint`/`scripts/test` — this PR touches only
   markdown, no Python source
 

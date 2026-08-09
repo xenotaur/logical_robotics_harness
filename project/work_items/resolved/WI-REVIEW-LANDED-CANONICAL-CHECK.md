@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #525 (commit 8bb1d9f)"
 blocked_reason: null
 blocked: false
 id: WI-REVIEW-LANDED-CANONICAL-CHECK
 title: Forbid ad hoc timestamp filtering in review-landed checks; require canonical isResolved/commit_id source
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -13,7 +13,8 @@ assigned_agents: []
 related_focus: []
 related_roadmap: []
 related_workstreams: []
-related_design: []
+related_design:
+  - project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md
 depends_on: []
 blocked_by: []
 expected_actions:
@@ -21,7 +22,7 @@ expected_actions:
 forbidden_actions:
   - force_push
   - delete_branch
-  - modify_lrh_land_step_7
+  - restructure_lrh_land_step_7
 acceptance:
   - No skill hard-codes the default branch; neither "git checkout main" nor "origin/main" appears anywhere under src/lrh/skills/ or .claude/skills/
   - Branch creation in all 8 affected skills branches from the resolved default branch's remote ref, so it succeeds while another worktree holds the default branch checked out
@@ -44,6 +45,8 @@ artifacts_expected:
   - src/lrh/skills/lrh-readiness/SKILL.md
   - src/lrh/skills/lrh-work-item/SKILL.md
   - src/lrh/skills/lrh-workstream/SKILL.md
+  - src/lrh/skills/lrh-land/SKILL.md
+  - src/lrh/skills/lrh-land/references/land-workflow.md
 ---
 
 # Make skill branch-creation worktree-safe, and fix non-compliant commit-message templates
@@ -219,8 +222,11 @@ and serve as the reference for Defect 2.
    `_shared/chain-defaults.md` conventions: a `CANONICAL SOURCE` header comment,
    the procedure, and a consuming-sites table listing all eight skills.
 2. Specify the procedure as: fetch; resolve the default branch at runtime
-   (reusing `round-cap-gate.md`'s hardened snippet, including its explicit
-   emptiness check rather than a `||` fallback, since without `pipefail` a
+   (reusing `round-cap-gate.md`'s hardened snippet — **note that
+   `PROP-INVOCATION-AND-GATE-RESET` Stage 1 reduces that file from 749 to ~59
+   lines and removes this block; if Stage 1 has already landed, recover the
+   snippet from git history rather than assuming the file still contains it** —
+   including its explicit emptiness check rather than a `||` fallback, since without `pipefail` a
    `git symbolic-ref | sed` pipeline reports the exit status of `sed`); check
    `git status --porcelain` and stop to surface a dirty tree rather than
    carrying it; then `git checkout -b <branch> origin/<default>` without ever
@@ -278,8 +284,9 @@ and serve as the reference for Defect 2.
 
 ## Acceptance Criteria
 
-- Grep for `git checkout main` across `src/lrh/skills/` and `.claude/skills/`
-  returns no matches.
+- Neither `git checkout main` nor `origin/main` appears anywhere under
+  `src/lrh/skills/` or `.claude/skills/` — the narrower first pattern misses
+  `checkout -b <branch> origin/main`, which is the shape `/lrh-land` uses.
 - Branch creation in all eight skills branches from the resolved default
   branch's remote ref, succeeding while another worktree holds the default
   branch checked out.
@@ -300,7 +307,7 @@ and serve as the reference for Defect 2.
 - `lrh validate`
 - `grep -rnE "git checkout main|origin/main" src/lrh/skills/ .claude/skills/` returns no matches (the narrower "git checkout main" form misses `checkout -b <branch> origin/main`, which is the shape /lrh-land uses)
 - `grep -rhn 'git commit -m' src/lrh/skills/ .claude/skills/ | grep -vE 'git commit -m "(feat|fix|chore|docs|test|refactor)(\([a-z-]+\))?: '` returns no matches
-- `for d in lrh-create-skill lrh-doc-organize lrh-doc-work lrh-implement lrh-proposal lrh-readiness lrh-work-item lrh-workstream; do diff -r "src/lrh/skills/$d" ".claude/skills/$d"; done`
+- `for d in lrh-create-skill lrh-doc-organize lrh-doc-work lrh-implement lrh-land lrh-proposal lrh-readiness lrh-work-item lrh-workstream; do diff -r "src/lrh/skills/$d" ".claude/skills/$d"; done`
 - Manual: invoke one affected skill from a worktree while another worktree holds the default branch checked out, and confirm the branch step succeeds
 - Manual: invoke one affected skill with a deliberately dirty working tree, and confirm it surfaces the changes instead of carrying them onto the new branch
 

@@ -205,7 +205,7 @@ single-maintainer projects, not a formatting fix.
 
 - `lrh validate` in each repository reports 0 errors
 - `git grep -n "project maintainers"` returns no matches in either repository
-- `git grep -c "^owner: <new-id>" -- '*.md'` matches the pre-change reference count in each repository
+- `git grep -c "^owner: <new-id>" -- '*.md' | awk -F: '{s+=$NF} END {print s+0}'` returns 35 for velumin and 18 for replication_vector, matching the pre-change `^owner:` counts; the list-entry patterns (`^  - `) are counted separately (4 and 0) rather than compared against the combined 39/18 totals
 - CI green on both repositories after the `scripts/validate` change and again after the rename
 - Quiet-window precondition re-checked immediately before the rename lands
 

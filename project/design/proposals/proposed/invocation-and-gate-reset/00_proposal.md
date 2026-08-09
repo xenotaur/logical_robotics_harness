@@ -360,15 +360,35 @@ off, and it should be taken.
 **Options considered:**
 
 - Prompt-level instruction forbidding recursive self-review invocation.
-- Platform-enforced tool restriction (`disallowed-tools`) on the dispatched
-  subagent.
+- A platform mechanism that scopes what the dispatched subagent can invoke.
 
-**Chosen: platform-enforced.** The demonstrated failure mode this entire
-proposal responds to is agents agreeing to a constraint and then violating it
-anyway. Advisory guidance is not adequate for a cost-bearing loop. The actual
-preload behavior must be *verified* rather than assumed —
+**Chosen: a platform mechanism, with the specific mechanism left to
+implementation.** The demonstrated failure mode this entire proposal responds to
+is agents agreeing to a constraint and then violating it anyway. Advisory
+guidance is not adequate for a cost-bearing loop.
+
+**Do not assume `disallowed-tools` is that mechanism.** An earlier revision of
+this decision named it directly; that was wrong, and the error is recorded
+because it would have produced a guard that silently does not guard. This
+repository's own frontmatter reference
+(`lrh-create-skill/references/frontmatter-guide.md:170-171`) defines it as
+"Tools removed from Claude's available pool **while this skill is active**. The
+restriction clears when the user sends their next message." That is the
+*invoking session's* tool pool, not the pool of the `general-purpose` `Agent`
+subagent `/lrh-self-review` dispatches. Implemented literally it would strip
+tools from the parent session — breaking it — while leaving the recursion path
+open.
+
+Implementation must therefore identify the mechanism that actually scopes a
+subagent's available skills (the agent-type definition and its own `skills:`
+declaration are the candidates, not the parent skill's frontmatter), and
+**verify it empirically** rather than reasoning from field names. Note also
+that `disable-model-invocation` governs *preload* into subagents, which is a
+different vector from a skill appearing in a subagent's Skill-tool listing; the
+guard must address whichever one actually enables recursion.
 `WI-DELIBERATE-MODEL-INVOCATION` already carries an acceptance criterion for
-exactly this verification that has never been executed.
+verifying subagent-preload behavior that has never been executed — that
+verification is a prerequisite here, not a formality.
 
 ### Decision 6: Stage 3 emits three artifacts — audit, proposal, and decision record
 
@@ -552,7 +572,7 @@ asking the constraint exists to prevent.
 | Stage | Deliverable | Owner |
 |---|---|---|
 | **1** | Retrigger removal; provisional self-review round cap; PR #522 disposition; `self_review_preference` cleanup; **disposition for the two stalled-reviewer backlog entries**; `confirmed_commit` re-stamp | new WS |
-| **2** | Flag removal ×4; `when_to_use` ×4; `/lrh-self-review` report-only default; platform-enforced recursion guard; **`/lrh-confirm-fixes` empty-thread gate**; **`installer.py` Codex-policy decision**; **amend `WI-DELIBERATE-MODEL-INVOCATION`'s two criteria**; **update the three inlining statements**; preload verification; `confirmed_commit` re-stamp | new WS |
+| **2** | Flag removal ×4; `when_to_use` ×4; `/lrh-self-review` report-only default **plus its two apply-behaviour call sites** (see below); platform-enforced recursion guard; **`/lrh-confirm-fixes` empty-thread gate**; **`installer.py` Codex-policy decision**; **amend `WI-DELIBERATE-MODEL-INVOCATION`'s two criteria**; **update the three inlining statements**; preload verification; `confirmed_commit` re-stamp | new WS |
 | **3** | Gate corpus audit artifact → policy proposal → DEC record → cascade; includes Decision 9's staleness redesign, Decision 7's shape, **and the Stage 3.5 compensating control** | new WS |
 | **3.5** | Activation: set `chain_init_confirmation`, grant two-step consent, stamp — under the control Stage 3 produces | new WS |
 | **4** | `confirm_fixes_batch` predicate (Increment 2); Increment 3 policy-derived fields including `closeout_with_merge` | `WS-LRH-CHAIN-DEFAULTS` |
@@ -561,7 +581,17 @@ asking the constraint exists to prevent.
 | **6** | Feed dogfood findings back into Stages 1–4 | new WS |
 | **7** | Resume normal fleet operation | new WS |
 
-**Three scope items an independent review surfaced as missing:**
+**Four scope items independent review surfaced as missing:**
+
+- **Stage 2 — Decision 4 invalidates two statements about diff-mode's apply
+  behaviour, and neither was in scope.** Making `/lrh-self-review` diff-mode
+  report-only contradicts `lrh-implement/SKILL.md:229` ("**Apply any fixes the
+  pass surfaces directly to the working tree**") and `lrh-self-review`'s own
+  `description` frontmatter, which advertises "(and, in diff-mode, applies any
+  fixes directly)". Both must be updated in the same change, or `/lrh-implement`
+  will instruct behaviour the skill no longer has. This is a fourth statement
+  alongside the three inlining statements above — the same class of defect,
+  found the same way.
 
 - **Stage 2 — the flag is load-bearing for Codex installs, not only Claude
   Code.** `src/lrh/skills/installer.py:203` emits `agents/openai.yaml` with
@@ -579,8 +609,9 @@ asking the constraint exists to prevent.
   from skill prose to a tested LRH primitive") and `:678`
   ("Stalled-reviewer-session detection is Copilot-specific but reads as
   reviewer-generic") both target `lrh-confirm-fixes/SKILL.md` Step 8.3 and
-  `round-cap-gate.md` — the two files Stage 1 reduces by roughly 256 and 784
-  lines. Stage 1 must record a disposition (obsolete / re-scope / preserve the
+  `round-cap-gate.md` — the two files Stage 1 cuts by a net 148 and 690 lines
+  respectively (256 and 784 are the diffstat +/- totals, i.e. churn, not
+  reduction). Stage 1 must record a disposition (obsolete / re-scope / preserve the
   detection logic elsewhere) rather than leaving them to be re-derived against
   deleted code.
 - **Stage 3 — the Stage 3.5 "compensating control" must be a named
@@ -662,7 +693,7 @@ inherited precedent of proving a mechanism narrow before widening it.
 1. **`installer.py`'s Codex policy emission (Stage 2).** Deferred to be decided
    with the implementation in front of the implementer, not pre-committed here.
    The options and the framing are recorded under "Three scope items an
-   independent review surfaced as missing" below; note in particular that
+   independent review surfaced as missing" in the Implementation Plan; note in particular that
    removing the flag makes these four skills behave in Codex exactly as the nine
    already-unflagged skills do today, so "accept the change" is a coherent
    answer rather than merely the lazy one. Whatever is chosen must be recorded

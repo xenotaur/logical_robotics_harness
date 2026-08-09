@@ -128,9 +128,16 @@ speculatively in `work_items:`. The planned decomposition, one per stage:
 | 3.5 | Chain-defaults activation under the Stage 3 control |
 | 5–7 | Dogfood, triage, feedback, resumption |
 
-Stages 1 and 2 are independent — they share no files — and may proceed in
-either order or in parallel. Stage 3 follows both so the corpus it audits is
-smaller and more stable. Stage 3.5 must follow Stage 3.
+**Stages 1, 2, and 3 are strictly sequential.** An earlier revision of this
+workstream and its proposal both claimed Stages 1 and 2 were independent
+"because they share no files." That is false: the exploratory branch interleaves
+both stages' changes across four files (`lrh-confirm-fixes/SKILL.md`,
+`lrh-self-review/SKILL.md`, `lrh-land/SKILL.md`, `land-workflow.md`) plus their
+`.claude/` mirrors. Running them in parallel would also break the
+`confirmed_commit` re-stamp constraint — whichever landed second would
+invalidate the other's stamp, increasing the asking this program exists to
+reduce. See `PROP-INVOCATION-AND-GATE-RESET`'s Implementation Plan, which is
+authoritative on sequencing. Stage 3.5 must follow Stage 3.
 
 ## Exit Criteria
 

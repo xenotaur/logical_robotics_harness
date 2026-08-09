@@ -40,8 +40,10 @@ Direct measurement contradicts that framing in three ways:
 1. **The reference counts were inverted.** LCATS carries 18 tracked
    contributor-id references (9 `owner:`, 9 list entries), all already
    `xenotaur`, so it needs zero changes to standardize on the GitHub handle. LRH
-   carries 276 (140 `owner:`, 135 list entries, 1 registry). LRH, not LCATS,
-   would have absorbed the entire cost.
+   carries 276 (140 `owner:`, 135 list entries, 1 registry), measured at commit
+   `cfcb4ba4` on this branch. Note that figure is self-inclusive: it counts the
+   artifact being added, so the same count taken on `main` is 274. LRH, not
+   LCATS, would have absorbed the entire cost.
 
    **Measurement note.** An earlier revision of this proposal reported 180 for
    LCATS. That figure was wrong by exactly 10×: it came from a filesystem

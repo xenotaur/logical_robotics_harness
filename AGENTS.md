@@ -79,9 +79,21 @@ since a repo with nine active worktrees reports every tracked file ten times. It
 also reports untracked scratch files as if they were part of the repository.
 
 ```bash
-git grep -c "<pattern>" -- '*.md'    # tracked files in the active checkout
-grep -rn "<pattern>" .               # also worktrees, untracked files, build output
+# Files containing a match, tracked only:
+git grep -l "<pattern>" -- '*.md' | wc -l
+
+# Total matching lines across the repository, tracked only:
+git grep -c "<pattern>" -- '*.md' | awk -F: '{s+=$NF} END {print s+0}'
+
+# Wrong for both: also walks worktrees, untracked files, and build output.
+grep -rn "<pattern>" .
 ```
+
+Note that `git grep -c` prints one `path:count` line **per file**, not a
+repository total, and counts matching *lines*, not occurrences — so a bare
+`git grep -c` is not itself an answer. Sum it as above, and say which of the two
+quantities a stated figure is: "12 files" and "57 references" are different
+numbers and get compared against different things.
 
 `grep -r` remains fine for interactive exploration. The rule applies when the
 number becomes an assertion: a proposal's reference count, an audit's file

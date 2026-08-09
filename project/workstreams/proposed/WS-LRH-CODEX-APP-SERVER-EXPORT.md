@@ -19,6 +19,7 @@ related_design:
   - experimental/save_codex_threads/plan.md
 work_items:
   - WI-CODEX-CONVERSATION-EXPORT-APP-SERVER
+  - WI-CODEX-CONVERSATION-EXPORT-SKILL
 exit_criteria:
   - `lrh conversation export-codex-thread` can export a real Codex thread through the app-server route into private raw JSON plus manifest-backed Markdown
   - generated Markdown exports pass `lrh conversation inspect-export` and preserve private, non-authoritative metadata
@@ -87,8 +88,8 @@ and standalone app-server access to real Codex task data.
 
 Expected follow-on items after the first implementation lands:
 
-- **Codex skill wrapper** — implement `/lrh-codex-export` as a thin workflow
-  wrapper around the CLI command.
+- **WI-CODEX-CONVERSATION-EXPORT-SKILL** — implement `/lrh-codex-export` as a
+  thin workflow wrapper around the CLI command.
 - **Target-aware export wrapper** — design and implement `/lrh-export` only after
   the Codex-specific path has been dogfooded.
 - **Dogfood and hardening** — run real private exports against this and other

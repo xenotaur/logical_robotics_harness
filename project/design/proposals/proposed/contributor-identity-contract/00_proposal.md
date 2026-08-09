@@ -37,11 +37,22 @@ references in LCATS.
 
 Direct measurement contradicts that framing in three ways:
 
-1. **The reference counts were inverted.** LCATS carries 180 contributor-id
-   references (90 `owner:`, 90 list entries), all already `xenotaur`, so it needs
-   zero changes to standardize on the GitHub handle. LRH carries 276 (140
-   `owner:`, 135 list entries, 1 registry). LRH, not LCATS, would have absorbed
-   the entire cost.
+1. **The reference counts were inverted.** LCATS carries 18 tracked
+   contributor-id references (9 `owner:`, 9 list entries), all already
+   `xenotaur`, so it needs zero changes to standardize on the GitHub handle. LRH
+   carries 276 (140 `owner:`, 135 list entries, 1 registry). LRH, not LCATS,
+   would have absorbed the entire cost.
+
+   **Measurement note.** An earlier revision of this proposal reported 180 for
+   LCATS. That figure was wrong by exactly 10×: it came from a filesystem
+   `grep -r` that counted nine `.claude/worktrees/` checkouts alongside the real
+   files (9 worktrees × 9 files + 9 real = 90 per field). Counts in this
+   document are now taken with `git grep`, which sees only tracked files in the
+   active checkout. The correction strengthens rather than weakens the
+   conclusion — the LRH-absorbs-the-cost asymmetry is 276 vs 18, not 276 vs 180
+   — but it is recorded because this proposal exists to stop a wrong measurement
+   from being re-derived, and shipping a second wrong measurement would defeat
+   that purpose.
 2. **The direction was backwards.** LRH's registry records `id: anthony` *and*
    `github: xenotaur` as distinct fields. LCATS's records `id: xenotaur` with
    `github:` empty. LCATS did not adopt a cleaner convention — it collapsed two
@@ -90,7 +101,7 @@ directory found seven, in four distinct states:
 | `replication_vector` | `project maintainers` | human | empty | Malformed id, missing key |
 | `velumin` | `project maintainers` | human | empty | Malformed id, missing key |
 | `taurworks-safety` | `CONTRIBUTORS-INIT` | **missing** | empty | Stub, missing a required field |
-| `prosocial` | — | — | — | **No registry**, with an `owner:` reference |
+| `prosocial` | — | — | — | **No registry** |
 
 Two observations worth stating plainly. First, **LRH's pattern is already used by
 two other repositories** (`taurcode` identically, `taurworks` with
@@ -168,7 +179,8 @@ Options considered:
 
 - Rename LRH's `anthony` → `xenotaur` (276 references) so all repositories read
   identically.
-- Rename LCATS/PROSOC's `xenotaur` → `anthony` (190 references) to match LRH.
+- Rename LCATS/PROSOC's `xenotaur` → `anthony` (18 tracked references) to match
+  LRH.
 - Populate `github` everywhere and leave `id` values repo-local.
 
 **Chosen: populate `github`; do not unify id values.** Once every registry
@@ -183,13 +195,18 @@ the intended shape, and the correlation key is where consistency belongs.
 
 For the record, the rejected options are *safe*, merely unnecessary. An earlier
 draft of this analysis characterized renaming in LCATS as dangerous because of
-its 8,506 `github.com/xenotaur` URLs; that overstated the risk, since anchored
+its `github.com/xenotaur` URLs (miscounted then as 8,506; 898 tracked); that
+overstated the risk, since anchored
 patterns (`^owner: `, `^  - `) never match a URL and `owner:` is validated
-(`validator.py:1371-1403`), so an incomplete rename fails loudly. The real
-argument against it is reviewability: LCATS carries roughly 250 additional
+(`validator.py:1371-1403`), so an incomplete rename fails loudly. A secondary
+argument against it is reviewability: LCATS carries some additional
 look-alike non-id uses — `repos/xenotaur/LCATS` API paths, `xenotaur/feat/...`
 branch names, a `xenotaur/gutenbergpy` fork — that a reviewer would have to
-distinguish by eye, for no functional gain.
+distinguish by eye, for no functional gain. This argument is weaker than an
+earlier revision claimed (it cited ~250 look-alikes from the same inflated
+filesystem count) and should not be treated as load-bearing. **The decisive
+argument is the first one: once `github` is populated everywhere, unifying id
+values solves nothing that the correlation key does not already solve.**
 
 ### Decision 3: `github` becomes required for human contributors, optional for agents
 
@@ -214,8 +231,13 @@ correlation key trustworthy enough for the dashboard proposal to build on later.
 The survey found four distinct defects, remediated as follows:
 
 - **Missing `github`** (`LCATS`) — populate `github: xenotaur`.
-- **No registry at all** (`prosocial`) — create one; it currently has an
-  `owner:` reference pointing at an undefined contributor.
+- **No registry at all** (`prosocial`) — create one, so the repository has a
+  contributor to reference when its planning artifacts begin using `owner:`.
+  (An earlier revision claimed `prosocial` already had an orphan `owner:`
+  reference. Corrected: `git grep '^owner:'` returns **zero** tracked matches
+  there. The single hit came from an untracked file inside a `.claude/worktrees/`
+  checkout — the same filesystem-vs-tracked measurement error corrected under
+  Background above.)
 - **Missing required `type`** (`taurworks-safety`) — a pre-existing validation
   failure surfaced by this survey, fixed opportunistically.
 - **Malformed ids** (`replication_vector`, `velumin`, both `project maintainers`)
@@ -291,8 +313,19 @@ repository.
    actively validated, or is the stub intentional scaffolding? Determines
    whether the missing `type` is a bug or a known placeholder.
 4. **Backfill scope** — should existing `owner:`/`contributors:` references be
-   audited for ids absent from their registry (as `prosocial`'s single `owner:`
-   reference currently is), or is fixing the registries sufficient?
+   audited for ids absent from their registry, or is fixing the registries
+   sufficient? The motivating example for this question (`prosocial` holding an
+   orphan `owner:` reference) turned out not to exist in tracked files, so the
+   question is now open on general principle rather than on a known instance —
+   weaker grounds, and possibly answerable with "registries only."
+
+5. **Measurement convention.** Should this project standardize on `git grep`
+   over filesystem `grep -r` for any repo-wide count that feeds a decision?
+   Every count error corrected in this proposal came from the same cause:
+   `.claude/worktrees/` checkouts and untracked files inflating filesystem
+   results, in one case by exactly 10×. `project/design/backlog.md` has no entry
+   for this. A convention, or a small `lrh` helper, would prevent recurrence
+   across every future audit — not just contributor identity.
 
 ## Cross-references
 

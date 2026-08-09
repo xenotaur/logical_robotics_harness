@@ -37,10 +37,11 @@ The `prosocial` session's report — that LRH and LCATS diverged and that
 standardizing on the GitHub handle meant roughly 150 changes in LCATS — was
 wrong in three respects, each verified directly:
 
-- **Counts inverted.** LCATS carries 180 contributor-id references (90 `owner:`,
-  90 list entries), all already `xenotaur`, so it needs zero changes in that
-  direction. LRH carries 276 (140 `owner:`, 135 list, 1 registry) and would have
-  absorbed the entire cost.
+- **Counts inverted.** LCATS carries 18 tracked contributor-id references
+  (9 `owner:`, 9 list entries), all already `xenotaur`, so it needs zero changes
+  in that direction. LRH carries 276 (140 `owner:`, 135 list, 1 registry) and
+  would have absorbed the entire cost. **(Figures corrected — see the
+  Correction section below. This record originally stated 180 for LCATS.)**
 - **Direction backwards.** LRH records `id: anthony` *and* `github: xenotaur` as
   distinct fields; LCATS records `id: xenotaur` with `github` empty. LCATS lost
   the mapping rather than simplifying it.
@@ -99,8 +100,58 @@ look-alike non-id uses in LCATS (API paths, branch prefixes, a fork name).
   (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` on `WS-SESSION-ARCHIVE-SYNC`)
   is pre-existing and unrelated.
 - `git diff --cached --check` → clean.
-- Fleet survey run directly against each repository's working tree, excluding
-  `.claude/worktrees/` copies to avoid double-counting.
+- Fleet **registry** survey (the seven-repo `id`/`type`/`github` table) run with
+  `.claude/worktrees/` copies excluded — that half is sound, and an independent
+  review re-derived every value in it.
+- **The reference *counts* were NOT run that way, contrary to what this record
+  originally certified.** See the Correction section below. This bullet
+  previously read "Fleet survey run directly against each repository's working
+  tree, excluding `.claude/worktrees/` copies to avoid double-counting," which
+  was true of the registry table and false of the counts, but written as though
+  it covered both.
+
+## Correction (2026-08-09, post-review)
+
+An independent cold-context subagent review caught two related factual errors in
+this record and in the proposal it produced. Both were re-verified directly
+before correcting, and both trace to one root cause.
+
+**Root cause.** The count commands used filesystem `grep -r`, which sees
+`.claude/worktrees/` checkouts and untracked files. LCATS has ten worktree
+entries, so every tracked file was counted ten times:
+
+    git grep -c "^owner: xenotaur" -- '*.md'   →  9   (tracked, correct)
+    grep -rn --include=*.md "^owner: xenotaur" →  90  (9 worktrees x 9 + 9 real)
+
+**Error 1 — LCATS counts inflated 10x.** Stated 180 contributor-id references
+(90 + 90); actual is 18 (9 + 9). `github.com/xenotaur` URLs stated as 8,506;
+actual tracked is 898. The "roughly 250 look-alike non-id uses" figure came from
+the same inflated source and is likewise overstated.
+
+**Error 2 — `prosocial`'s orphan `owner:` reference does not exist.** Stated
+that `prosocial` has an `owner:` reference pointing at an undefined contributor.
+`git grep '^owner:'` returns zero tracked matches there; the single hit was an
+untracked file in a worktree checkout, and it read `owner: anthony`, not
+`xenotaur`.
+
+**What survives.** The proposal's conclusion is unchanged and in fact
+strengthened: the LRH-absorbs-the-cost asymmetry is 276 vs 18 rather than
+276 vs 180. LRH's own 276 was independently confirmed correct at the authoring
+commit. The seven-repo registry survey — including the `taurworks` agent-handle
+mappings that supply the proposal's strongest evidence — is accurate, since it
+did exclude worktrees.
+
+**What weakens.** Decision 2's *secondary* reviewability argument rested on the
+inflated look-alike count and is no longer load-bearing; the proposal now says
+so explicitly and leans on the primary argument instead. Open Question 4 lost
+its motivating instance and is reframed as a general-principle question.
+
+**Process note.** This is precisely the failure mode
+`feedback_verify_repo_wide_audit_claims` warns about — a "grep found N" claim
+that is silently wrong — and the record compounded it by certifying a
+verification step that was performed for one half of the survey and not the
+other. A new Open Question 5 in the proposal asks whether this project should
+standardize on `git grep` for decision-feeding counts.
 
 # Follow-up
 

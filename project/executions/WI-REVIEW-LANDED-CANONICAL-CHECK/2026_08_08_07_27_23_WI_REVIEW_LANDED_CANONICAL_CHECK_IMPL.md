@@ -9,7 +9,7 @@ commit: 59308c2
 created_at: 2026-08-08T07:27:23+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-REVIEW-LANDED-CANONICAL-CHECK.md
-session_transcript: pending
+session_transcript: claude-app:f7e2dee6-84cf-4396-bc1e-fc9c23261c9c
 ---
 
 # Summary

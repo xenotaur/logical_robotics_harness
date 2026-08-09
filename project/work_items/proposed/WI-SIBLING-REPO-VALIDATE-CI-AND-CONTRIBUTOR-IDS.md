@@ -26,7 +26,8 @@ forbidden_actions:
 acceptance:
   - velumin and replication_vector each run lrh validate as part of scripts/validate, following the availability-guard pattern LRH's own scripts/validate uses
   - Both repositories are confirmed green on lrh validate in CI before any contributor id is renamed
-  - Each registry populates github for its human contributor, so the cross-repo correlation key exists
+  - The author has decided named ownership for each repository, since both registries record it as an open TODO that cannot be inferred
+  - If the decided id names a person, github is populated in the same change and the registry body prose no longer says the record does not identify named maintainers
   - The spaced id "project maintainers" is replaced with a slug-shaped id in both repositories, and every owner and contributors reference is updated in the same change
   - lrh validate reports 0 errors in both repositories after the rename
   - A quiet window is confirmed by the documented precondition check before the rename lands, not assumed
@@ -62,6 +63,34 @@ Two distinct problems:
 2. **No correlation key.** `github:` is empty in both, so neither repository can
    be correlated to the same person in LRH, `taurcode`, or `taurworks` — the
    defect `PROP-CONTRIBUTOR-IDENTITY-CONTRACT` Decision 1 exists to fix.
+
+**These two defects are not separable, and the placeholder is deliberate.** An
+initial assessment proposed populating `github:` immediately as a safe change
+independent of the rename. Reading the registry *bodies* — not just their
+frontmatter — showed that is wrong. `replication_vector`'s registry states:
+
+> The `id: project maintainers` frontmatter is a generic owner handle used so
+> current work items can resolve to a human ownership record. This does not
+> identify named maintainers or grant project-specific authority beyond the
+> generic bootstrap owner role.
+
+with an explicit `TODO: Replace generic owner labels with named maintainers or
+teams when confirmed.` `velumin` carries the same intent
+(`TODO: Identify named maintainers or teams if the project wants
+contributor-specific ownership`).
+
+`github` is the external identifier *for that contributor*. Populating it on a
+record whose own body says it does not identify a named person would assert that
+a deliberately-collective placeholder is one individual's account — contradicting
+the registry's documented meaning. The correlation key only becomes meaningful
+once the contributor is a named person, which is the rename.
+
+**This reframes the work.** It is not "fix a malformed id"; it is resolving an
+ownership question these repositories themselves recorded as open. That is a
+judgement about the projects, not repository hygiene, and belongs to the author
+rather than to a cleanup sweep. The `## Known Roles` and `## Unknowns` prose in
+both registries must be updated in the same change, or the body will contradict
+the new frontmatter.
 
 ### The CI gap, and why it must be fixed first
 
@@ -125,18 +154,29 @@ have different defects and are covered separately by
 2. Land that change and **confirm both repositories are green in CI** before
    touching any id. If either is already failing, fix that first — a
    pre-existing failure would mask a rename error.
-3. Populate `github:` for the human contributor in each registry.
-4. Rename the id from `project maintainers` to a slug-shaped value, updating the
-   registry and every `owner:`/`contributors:` reference in the same commit, so
-   validation either passes or fails as a unit. Use anchored patterns
-   (`^owner: `, `^  - `) so nothing else is touched.
-5. Confirm `lrh validate` reports 0 errors in both repositories afterward.
+3. **Obtain the author's decision on named ownership** for each repository —
+   both registries record this as an open TODO, so it cannot be inferred. Until
+   answered, steps 4–6 do not start.
+4. Rename the id to the decided slug-shaped value, updating the registry and
+   every `owner:`/`contributors:` reference in the same commit, so validation
+   passes or fails as a unit. Use anchored patterns (`^owner: `, `^  - `) so
+   nothing else is touched.
+5. Populate `github:` in the same change — meaningful only once the contributor
+   is a named person (see the Problem section).
+6. Update the `## Known Roles` and `## Unknowns` / `## Frontmatter Identity`
+   prose in both registries to match, and clear the naming TODOs. Leaving the
+   body asserting "this does not identify named maintainers" beside a named
+   contributor would be a self-contradicting record.
+7. Confirm `lrh validate` reports 0 errors in both repositories afterward.
 
 **Value for the new id is deliberately not fixed here.**
 `PROP-CONTRIBUTOR-IDENTITY-CONTRACT` Open Question 2 offers `xenotaur`, a
 slugged `project-maintainers`, or replacing the placeholder with a real
-registry. Any is compatible with this work item; the choice should be made when
-the contract is adopted, not pre-empted by an operations task.
+registry. Note that the middle option — keeping a collective handle, merely
+slug-shaped — is the one consistent with the registries' current documented
+intent, and it forgoes the correlation key by design, since a collective has no
+single GitHub account. Choosing `xenotaur` is a decision that these are
+single-maintainer projects, not a formatting fix.
 
 ## Non-Goals
 
@@ -153,7 +193,9 @@ the contract is adopted, not pre-empted by an operations task.
 - Both repositories run `lrh validate` from `scripts/validate`, with an
   availability guard.
 - Both are confirmed green in CI **before** any id is renamed.
-- Each registry populates `github:` for its human contributor.
+- The author has decided named ownership per repository; if the decided id names
+  a person, `github:` is populated in the same change and the registry body
+  prose no longer contradicts it.
 - The spaced id is replaced with a slug-shaped id, with all 57 references
   (39 velumin, 18 replication_vector) updated in the same change.
 - `lrh validate` reports 0 errors in both repositories afterward.

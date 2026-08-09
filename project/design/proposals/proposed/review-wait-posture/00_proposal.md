@@ -39,9 +39,11 @@ for this round" as a fourth answer, but it fires only after
 `completed_count` reaches the ceiling (default 3) — meaning up to three
 real, credit-consuming bot-retrigger batches happen before self-review is
 even offered. That default was fine when bot-review capacity was abundant;
-it no longer is. The fleet was down to 1/7 monthly Codex credits as of
-2026-08-07 (`feedback_never_manually_retrigger_github_bots` in agent
-memory), and `project/config/chain-defaults.yaml` already carries a
+it no longer is — the motivating context for this proposal is that the
+fleet was down to 1/7 monthly Codex credits as of 2026-08-07 (reported by
+the user at request time; not itself a durable, in-repo-citable fact, so
+treat it as the triggering circumstance rather than a source to look up
+later). `project/config/chain-defaults.yaml` already carries a
 `self_review_preference: substitute_self_review` field — steelmanned in
 `PROP-LRH-CHAIN-DEFAULTS` as "substitute self-review rather than requesting
 a new bot-retrigger ceiling, by default" — that has never actually been

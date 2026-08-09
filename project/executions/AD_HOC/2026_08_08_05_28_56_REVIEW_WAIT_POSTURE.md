@@ -16,11 +16,11 @@ session_transcript: pending
 
 Ran `/lrh-design` to reassess the review-wait posture across `/lrh-land`,
 `/lrh-confirm-fixes`, and `/lrh-review-response` now that bot-triggered
-review (Codex/Copilot) can no longer be assumed available on demand (flee
+review (Codex/Copilot) can no longer be assumed available on demand (fleet
 at 1/7 monthly Codex credits, 2026-08-07), then `/lrh-proposal` to capture
 the resulting design as `PROP-REVIEW-WAIT-POSTURE`.
 
-# Resul
+# Result
 
 Authored and pushed `project/design/proposals/proposed/review-wait-posture/00_proposal.md`
 (`id: PROP-REVIEW-WAIT-POSTURE`, `status: proposed`) to this PR. The design pass
@@ -49,7 +49,7 @@ GitHub exposes no such API; (5) scope this increment to Claude Code
 sessions only, since `/lrh-self-review`'s dispatch mechanism is
 Claude-Code-specific.
 
-Deliberately deferred rather than invented in this proposal: the exac
+Deliberately deferred rather than invented in this proposal: the exact
 new `self_review_preference` value-space literals, and whether any
 periodic/final-pre-merge round keeps a mandatory real bot pass for
 cross-vendor blind-spot coverage — both require a dedicated steelmanning
@@ -66,7 +66,7 @@ retried successfully using `--body-file` against a scratch file.
 - `lrh validate`: 0 errors, 1 pre-existing unrelated warning
   (`PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` on
   `WS-SESSION-ARCHIVE-SYNC`, unrelated to this change)
-- Manual review: proposal frontmatter checked agains
+- Manual review: proposal frontmatter checked against
   `references/proposal-schema.md` (required fields, status/bucket match,
   `implementation_status: not_started`); prior art check (duplication +
   demand search) run and recorded in the proposal body before drafting

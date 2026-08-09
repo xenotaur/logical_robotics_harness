@@ -2,7 +2,7 @@
 execution_id: 2026_08_09_03_48_25_REVIEW_WAIT_POSTURE_CONFIRM
 prompt_id: PROMPT(AD_HOC:REVIEW_WAIT_POSTURE_CONFIRM)[2026-08-08T20:54:55+00:00]
 work_item: AD_HOC
-status: in_progress
+status: superseded
 rerun_of: 2026_08_08_05_28_56_REVIEW_WAIT_POSTURE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/522
 commit: 1050932443b7988489419ec480721035792adb52
@@ -72,3 +72,17 @@ exceptions surfaced.
   work item).
 - `session_transcript: pending` should be updated to
   `claude-app:<host-uuid-stem>` after this session ends.
+
+**Supersession note (added post-hoc, frontmatter only — narrative above
+left as originally written):** a session restart interrupted this run
+before Step 7's `lrh validate`/CI recheck could be recorded and before
+Step 8 ran at all. On resumption, the interruption was not visible in the
+resumed context, so the confirm-fixes pass was independently redone from
+Step 2 rather than continued from here — an entirely separate run using
+the same pre-minted prompt ID, since the confirm gate had already been
+shown and confirmed before the restart. `status` above is set to
+`superseded`; the complete, followed-through pass (including the CI
+re-check, `main` merge-conflict resolution, and REVIEW-LANDED evidence
+this run never reached) lives in
+`2026_08_09_05_09_35_REVIEW_WAIT_POSTURE_CONFIRM.md`, which sets
+`rerun_of` back to this record's `execution_id`.

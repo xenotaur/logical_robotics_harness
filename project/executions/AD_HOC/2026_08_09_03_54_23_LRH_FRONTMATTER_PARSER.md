@@ -50,12 +50,27 @@ evaluated and ruled out). During the prior-art check for the design, found
 `PROP-LRH-FRONTMATTER-PARSER` (design decisions: PyYAML as the engine,
 accept real datetime objects and patch 3 consumers rather than disabling
 PyYAML's implicit resolver, a schema-level check for the colon-collapse
-case, a diff-based one-time content migration tool exposed via
-`lrh project doctor --fix-frontmatter`, and a raw-text lint guard plus
-authoring guidance to prevent recurrence) and its governing workstream
-`WS-LRH-FRONTMATTER-PARSER`. No implementation code was changed in this
-PR — this PR is planning-artifact-only, filing the design for the
-workstream's work items to implement.
+case, a raw-text lexical detector shared between a one-time content
+migration tool (`lrh project doctor --fix-frontmatter`) and a permanent
+`lrh validate` lint guard, plus authoring guidance to prevent recurrence)
+and its governing workstream `WS-LRH-FRONTMATTER-PARSER`. No
+implementation code was changed in this PR — this PR is
+planning-artifact-only, filing the design for the workstream's work items
+to implement.
+
+**Review round:** `chatgpt-codex-connector` (P1) found the migration
+tool's originally-drafted detection logic (diff the old lenient parser's
+output against `yaml.safe_load`'s output, rewrite every divergence) was
+unsound — verified directly that it would corrupt already-correctly-quoted
+list items (the old parser retains literal quote characters that
+`safe_load` strips) and would contradict Decision 2 by flagging the
+accepted date/datetime divergence as unsafe. Revised Decision 4 to share
+its detector with Decision 5's raw-text lint guard instead, so a rewrite
+only fires on a proven-unsafe lexical pattern in the raw text, never on a
+bare difference in what the two parsers return.
+`copilot-pull-request-reviewer` found this record's own `pr:` field used
+an unquoted integer, inconsistent with every other execution record's
+convention; corrected to the full PR URL.
 
 # Validation
 

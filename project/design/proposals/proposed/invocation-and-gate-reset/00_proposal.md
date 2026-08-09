@@ -439,15 +439,41 @@ codifying a superseded rule as a hard instruction.
 **Chosen: (C).** Option (B) is disqualified by two hard, independent structural
 blockers:
 
-1. **Circular dependency on the merge commit.** `/lrh-closeout` writes execution
-   records with `--commit <merge-commit-sha>`. Under merge-commit strategy —
-   this repository's confirmed practice — the merge commit is *created by* the
-   merge and does not exist beforehand.
+1. **It must *commit* a value that does not exist yet.** `/lrh-closeout` writes
+   execution records with `--commit <merge-commit-sha>`. Under merge-commit
+   strategy — this repository's confirmed practice — the merge commit is
+   *created by* the merge. Option (B) requires that SHA to be baked into file
+   content **inside the branch being merged**, so the write happens strictly
+   before the value exists. There is no ordering that resolves this.
+
+   **This blocker does not apply to (C), and the difference is the point.** (C)
+   also shows the human a plan before the merge, and that plan necessarily
+   carries a placeholder where the SHA will go. But (C) needs the SHA only at
+   *write* time, and its write happens **after** the merge, when the value can
+   simply be read. What (C) needs beforehand is authorization, not the value —
+   and the SHA is not a decision variable: nobody chooses it, nobody reviews it
+   for correctness, and it is a mechanical consequence of the merge the human
+   just authorized. Approving a plan with a placeholder there forfeits no
+   judgement the human would otherwise have exercised.
+
+   The one case where the placeholder is not merely clerical is an *unexpected*
+   merge result — a merge queue reordering, another commit landing first, a
+   rebase. That is exactly the divergence (C) routes to an alert rather than a
+   re-ask, below.
+
+   Stated precisely so a future reader does not read blockers 1 and 2 as
+   applying symmetrically: the discriminator between (B) and (C) is
+   *committing* a value versus *reading* one, not whether the value exists at
+   the moment the human is asked.
 2. **It would break the SHA lock it depends on.** `/lrh-land` merges with
    `--match-head-commit <sha>`, whose stated purpose is preventing a merge of a
    newer unchecked commit. Pushing a closeout commit to the PR branch moves
    `HEAD`, so the locked merge command would fail by design — the same hazard
    the round-state branch mechanism was built to avoid.
+
+   **This blocker is independently sufficient.** It rests on (B) pushing to the
+   reviewed branch, which (C) never does, and it would disqualify (B) even if
+   blocker 1 were struck entirely.
 
 Option (C) satisfies the requirement because a genuine failure ("I merged, but
 closeout hit X") is an **alert about a new condition**, not the same question

@@ -192,8 +192,18 @@ consent contract (unchanged), and activation of the mechanism itself, which is
   and that narrowing requires the DEC record from
   `WS-INVOCATION-AND-GATE-RESET` Stage 3 to land first.
 - Does not commit closeout content to the PR branch before merge. Execution
-  records cite the merge commit, which does not exist pre-merge, and pushing to
-  the PR branch would break the `--match-head-commit` SHA lock by design.
+  records cite the merge commit, and that value would have to be baked into file
+  content *inside the branch being merged* — a write that necessarily precedes
+  the value's existence. Pushing to the PR branch would also break the
+  `--match-head-commit` SHA lock by design.
+
+  **This does not mean the single-ask plan cannot be shown before the merge.**
+  The plan the human approves carries a placeholder where the SHA goes, which is
+  fine: the write happens after the merge, when the value can be read, and the
+  SHA is not a decision variable — it is a mechanical consequence of the merge
+  being authorized, not something anyone chooses or reviews. The constraint is
+  on *committing* an unknown value, not on *displaying* a plan that will later
+  contain a known one.
 - Does not weaken merge authorization under `DEC-AGENT-EXECUTED-MERGE-GATE`.
 - Does not change `chain_init_confirmation` or ship `skip_if_opted_in` as a
   default.

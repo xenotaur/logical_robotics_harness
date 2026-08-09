@@ -3,7 +3,7 @@ resolution: null
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-WORKTREE-SAFE-BRANCH-CREATION
-title: Make skill branch-creation worktree-safe and default-branch-agnostic
+title: Make skill branch-creation worktree-safe, and fix non-compliant commit-message templates
 type: deliverable
 status: proposed
 owner: anthony
@@ -28,6 +28,7 @@ acceptance:
   - Each of the 8 skills guards a dirty working tree before creating a branch, surfacing the changes rather than carrying them onto the new branch
   - The default branch is resolved at runtime rather than hard-coded, so the skills work in client repositories using master or trunk
   - Canonical guidance lives in one file under src/lrh/skills/_shared/ and is inlined at each consuming site, with the consuming-sites table listing all 8
+  - Every commit-message template in src/lrh/skills/ and .claude/skills/ satisfies STYLE.md's Conventional Commits requirement, with a type drawn from its Required types table
   - lrh validate reports 0 errors
   - diff -r src/lrh/skills/ .claude/skills/ reports no differences for every affected skill
 required_evidence:
@@ -45,20 +46,31 @@ artifacts_expected:
   - src/lrh/skills/lrh-workstream/SKILL.md
 ---
 
-# Make skill branch-creation worktree-safe and default-branch-agnostic
+# Make skill branch-creation worktree-safe, and fix non-compliant commit-message templates
 
 ## Summary
 
-Eight LRH skills instruct `git checkout main && git pull` before creating a
-feature branch. That instruction fails outright when another worktree holds the
-default branch checked out, silently carries unrelated uncommitted work onto the
-new branch, and hard-codes `main` in a harness designed to be installed into
-client repositories that may use `master` or `trunk`. Replace it with the
-worktree-safe pattern `/lrh-land` already uses, add a dirty-tree guard, and
-factor the guidance into a single canonical file rather than an eighth
+Two defects in the git-workflow steps LRH skills instruct agents to run, both
+found by using the skills rather than by audit.
+
+**Primary.** Eight skills instruct `git checkout main && git pull` before
+creating a feature branch. That instruction fails outright when another worktree
+holds the default branch checked out, silently carries unrelated uncommitted
+work onto the new branch, and hard-codes `main` in a harness designed to be
+installed into client repositories that may use `master` or `trunk`. Replace it
+with the worktree-safe pattern `/lrh-land` already uses, add a dirty-tree guard,
+and factor the guidance into a single canonical file rather than an eighth
 independent restatement.
 
+**Secondary, folded in.** Five commit-message templates across four of those
+same eight skills do not satisfy `STYLE.md`'s Conventional Commits requirement,
+and agents following them have already written non-compliant commits to `main`.
+Fixed in the same pass because the affected files are a subset of the primary
+scope.
+
 ## Problem / Context
+
+### Defect 1 — branch creation
 
 The instruction `git checkout main && git pull` appears verbatim in eight
 skills:
@@ -113,6 +125,39 @@ This is the same restatement-drift pattern already tracked in
 references": guidance restated independently in N places, with fixes landing in
 one and never propagating.
 
+### Defect 2 — non-compliant commit-message templates
+
+`STYLE.md` requires [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/),
+formatted `<type>: <description>` or `<type>(<scope>): <description>`, with
+`type` drawn from its Required types table (`feat`, `fix`, `chore`, `docs`,
+`test`, `refactor`). Five commit-message templates across four skills omit the
+type prefix entirely:
+
+| Skill | Line | Current template |
+|---|---|---|
+| `lrh-create-skill/SKILL.md` | 221 | `Add /<name> skill` |
+| `lrh-proposal/SKILL.md` | 304 | `Add design proposal <PROP-ID>: <title>` |
+| `lrh-work-item/SKILL.md` | 332 | `Add work item <ID>: <title>` |
+| `lrh-work-item/SKILL.md` | 395 | `Update workstream <WS-ID>: add <ID>` |
+| `lrh-workstream/SKILL.md` | 300 | `Add workstream <WS-ID>: <title>` |
+
+Two templates are already compliant and serve as the in-repo pattern to follow:
+`lrh-closeout/SKILL.md:411` (`chore(closeout): ...`) and
+`lrh-readiness/SKILL.md:180` (`chore(work-items): ...`).
+
+**This is not theoretical — agents are already following the bad templates.**
+Commits `eebba0d3` ("Add design proposal PROP-LRH-FRONTMATTER-PARSER") and
+`ca50b0d3` ("Add design proposal PROP-REVIEW-WAIT-POSTURE") are both
+non-compliant and both trace directly to `lrh-proposal`'s Step 9 template. Both
+currently sit on open PR branches (#531 and #522) rather than on `main`, and
+because this repository merges with merge commits rather than squashing, each
+message is preserved verbatim on `main` when its PR lands. A skill that
+instructs an agent to violate the repository's own documented standard will keep
+producing violations for as long as it says so.
+
+All four affected skills are already inside Defect 1's eight-skill set, so this
+is folded into the same work item rather than tracked separately.
+
 *Provenance.* Surfaced while creating `PROP-INVOCATION-AND-GATE-RESET`, when
 `/lrh-proposal`'s own Step 6 branch instruction had to be deviated from. The
 defect is independent of that proposal's scope and is tracked separately here.
@@ -148,11 +193,15 @@ therefore left empty deliberately, not by oversight.
 
 ## Scope
 
-The branch-creation step in the eight skills listed above, plus a new canonical
-reference under `src/lrh/skills/_shared/` and its `.claude/skills/` mirrors.
+The branch-creation step in the eight skills listed above, the five
+non-compliant commit-message templates in four of those same eight, a new
+canonical reference under `src/lrh/skills/_shared/`, and the `.claude/skills/`
+mirrors of all of the above.
 
-Out of scope: any other step in those skills, and `/lrh-land`'s Step 7, which is
-already correct and serves as the reference implementation.
+Out of scope: any other step in those skills; `/lrh-land`'s Step 7, which is
+already correct and serves as the reference implementation for Defect 1; and
+`lrh-closeout`/`lrh-readiness`'s commit templates, which are already compliant
+and serve as the reference for Defect 2.
 
 ## Required Changes
 
@@ -175,7 +224,26 @@ already correct and serves as the reference implementation.
    conditions," which produces inconsistent agent behavior run to run.
 4. Replace the `git checkout main && git pull` block in each of the eight
    skills with the inlined canonical procedure.
-5. Mirror every `src/lrh/skills/` change into `.claude/skills/` exactly.
+5. Rewrite the five non-compliant commit-message templates to satisfy
+   `STYLE.md`, choosing the type from its Required types table and following
+   the scope style the two already-compliant templates use. Suggested, subject
+   to implementation judgement:
+
+   | Site | Suggested |
+   |---|---|
+   | `lrh-create-skill:221` | `feat(skills): add /<name> skill` |
+   | `lrh-proposal:304` | `chore(design): add <PROP-ID>` |
+   | `lrh-work-item:332` | `chore(work-item): add <ID>` |
+   | `lrh-work-item:395` | `chore(workstream): add <ID> to <WS-ID>` |
+   | `lrh-workstream:300` | `chore(workstream): add <WS-ID>` |
+
+   `chore` is correct for the four planning-artifact sites per `STYLE.md`'s own
+   mapping ("planning artifacts"); `lrh-create-skill` is the one arguable case,
+   since a new skill is a new capability rather than maintenance.
+6. Where a skill's PR-body or commit step is adjacent to the message template,
+   check that the surrounding prose does not restate the old non-compliant form
+   in narrative text as well as in the command block.
+7. Mirror every `src/lrh/skills/` change into `.claude/skills/` exactly.
 
 ## Non-Goals
 
@@ -189,7 +257,14 @@ already correct and serves as the reference implementation.
 - Does not change the rerun/resume branch logic that precedes the branch
   creation step in `lrh-work-item`, `lrh-workstream`, and `lrh-proposal`; only
   the final `else` clause that creates a fresh branch is in scope.
-- Does not add a git hook or any enforcement mechanism outside skill text.
+- Does not add a git hook, commit-lint, or any enforcement mechanism outside
+  skill text. Fixing the templates stops the source of new violations; making
+  compliance mechanically enforced is separate work.
+- Does not rewrite the non-compliant commit messages already sitting on open PR
+  branches (#531, #522). Rewriting merged or in-review history is out of
+  proportion to the problem, and `forbidden_actions` prohibits force-push.
+- Does not audit commit-message compliance outside `src/lrh/skills/` and
+  `.claude/skills/` — Taurcode prompts and other repositories are not in scope.
 
 ## Acceptance Criteria
 
@@ -204,6 +279,8 @@ already correct and serves as the reference implementation.
   repositories using `master` or `trunk`.
 - Canonical guidance lives in one `src/lrh/skills/_shared/` file, inlined at
   each consuming site, with a consuming-sites table listing all eight.
+- Every `git commit` template in `src/lrh/skills/` and `.claude/skills/` begins
+  with a valid `STYLE.md` type, optionally scoped.
 - `lrh validate` reports 0 errors.
 - `diff -r` between `src/lrh/skills/` and `.claude/skills/` reports no
   differences for every affected skill.
@@ -212,6 +289,7 @@ already correct and serves as the reference implementation.
 
 - `lrh validate`
 - `grep -rn "git checkout main" src/lrh/skills/ .claude/skills/` returns no matches
+- `grep -rhn 'git commit -m' src/lrh/skills/ .claude/skills/ | grep -vE 'git commit -m "(feat|fix|chore|docs|test|refactor)(\([a-z-]+\))?: '` returns no matches
 - `for d in lrh-create-skill lrh-doc-organize lrh-doc-work lrh-implement lrh-proposal lrh-readiness lrh-work-item lrh-workstream; do diff -r "src/lrh/skills/$d" ".claude/skills/$d"; done`
 - Manual: invoke one affected skill from a worktree while another worktree holds the default branch checked out, and confirm the branch step succeeds
 - Manual: invoke one affected skill with a deliberately dirty working tree, and confirm it surfaces the changes instead of carrying them onto the new branch
@@ -231,3 +309,15 @@ file is maintainer-facing only; each consuming skill still carries its own
 inlined copy. This work item therefore reduces future drift but does not
 eliminate it, and adds one more synced reference to the deferred drift-check
 backlog entry's eventual scope.
+
+Defect 2 is low-risk textually but carries one judgement call worth surfacing at
+review rather than deciding silently: whether `lrh-create-skill`'s template
+should be `feat` or `chore`. `STYLE.md` maps "planning artifacts" to `chore`,
+which clearly covers the four proposal/work-item/workstream sites, but a new
+skill is closer to "a new feature or capability." Getting this wrong is
+cosmetic, not functional; it is called out so the reviewer decides deliberately.
+
+The two defects are bundled because their file sets overlap, not because they
+are related in substance. If Defect 1's design needs iteration in review, Defect
+2 should be split out and landed on its own rather than held behind it — it is a
+five-line text fix blocking nothing.

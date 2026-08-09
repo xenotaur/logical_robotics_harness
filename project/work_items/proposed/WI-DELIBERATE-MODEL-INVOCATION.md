@@ -15,6 +15,7 @@ related_focus:
 related_roadmap:
   - ROADMAP-PHASE-03
 related_workstreams:
+  - WS-INVOCATION-AND-GATE-RESET
   - WS-EXECUTION-FRAMEWORK
 related_design:
   - project/design/proposals/adopted/safe-default-agentic-extra-packaging/00_proposal.md

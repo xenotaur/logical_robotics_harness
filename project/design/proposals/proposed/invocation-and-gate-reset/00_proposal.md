@@ -217,6 +217,16 @@ absorb 15–25 self-review passes just as readily, with the cost shifted to
 subagent tokens and, more importantly, to a human never being pulled in to say
 "this needs a different approach."
 
+**Threshold: 3 consecutive no-progress rounds** (resolved 2026-08-09). A round
+counts as no-progress when it resolves no previously-unresolved thread and
+surfaces no new finding. Three inherits the only value with in-repo precedent —
+the retired mechanism's default ceiling sequence was 3 → 10 → 20, and that
+reference explicitly declined to compute further defaults as ungrounded. The
+detector deliberately measures *progress* rather than round count, because the
+failure this cap exists to catch is an unfixable PR absorbing passes, not a
+productive PR needing several. Provisional: Stage 4 re-baselines it against
+real post-Stage-1 evidence rather than treating 3 as settled.
+
 **Escape hatch: manual-only, outside the skills** (resolved 2026-08-09). A
 user-requested retrigger remains possible, but the commands live in
 documentation rather than in any skill's workflow. The reasoning is that
@@ -625,23 +635,42 @@ inherited precedent of proving a mechanism narrow before widening it.
   (budget-signal gating out of scope; scope limited to Claude Code sessions)
   survive as non-goals. Rescope that PR to Decision 3 rather than closing it.
 
-**Still open** — these require information or judgment the design cannot supply:
+**Also resolved 2026-08-09 (second review pass):**
 
-1. **Provisional cap threshold.** What count of no-progress review rounds should
-   trip the Stage 1 gate? The recommendation is **3**, inheriting the only value
-   with in-repo precedent: the retired mechanism's own default ceiling sequence
-   was 3 → 10 → 20, and that reference explicitly declined to compute further
-   defaults ("no formula — 30, 40, or doubling are all equally plausible and
-   none is grounded"). Confirm or override.
-2. **Taurcode scope.** Are Taurcode's `:land` / `:execute` prompts inside the
-   Stage 3 cascade, or tracked as separate downstream work? Recommendation:
-   tracked separately as a named handoff — `taurcode` carries the same gate
-   policy (and an identical contributor registry), but LRH's planning artifacts
-   do not govern it.
-3. **Triage capacity.** Recommendation: the **8 related** open PRs (skills,
-   gates, review, closeout, work-items), not all 13. Of the 5 unrelated, three
-   are stale "⚡ Bolt" traversal-optimization PRs (#403, #426, #474) better
-   triaged as a separate sweep.
+- **Provisional cap threshold → 3.** Inherits the only value with in-repo
+  precedent: the retired mechanism's own default ceiling sequence was
+  3 → 10 → 20, and that reference explicitly declined to compute further
+  defaults ("no formula — 30, 40, or doubling are all equally plausible and none
+  is grounded"). Provisional by construction; Stage 4 re-baselines it against
+  real post-Stage-1 evidence rather than treating 3 as settled.
+- **Taurcode scope → tracked separately**, as a named handoff. `taurcode`
+  carries the same gate policy (and an identical contributor registry), but LRH
+  planning artifacts do not govern it, so folding it in would claim authority
+  this workstream does not have.
+- **Stage 5b triage capacity → the 8 related open PRs** (skills, gates, review,
+  closeout, work-items), not all 13. Of the five unrelated, three are stale
+  "⚡ Bolt" traversal-optimization PRs (#403, #426, #474) better handled as a
+  separate sweep.
+- **Stalled-reviewer backlog entries (`backlog.md:622`, `:678`) → mark
+  obsolete** as part of Stage 1's disposition, with a note that a dispatched
+  *subagent* can also hang. If a stall heuristic is wanted again it should be
+  rebuilt for subagents, not resurrected for bots — the check-run and
+  issue-timeline signals those entries depend on do not exist for a subagent.
+
+**Still open** — deliberately deferred to the stage that implements them:
+
+1. **`installer.py`'s Codex policy emission (Stage 2).** Deferred to be decided
+   with the implementation in front of the implementer, not pre-committed here.
+   The options and the framing are recorded under "Three scope items an
+   independent review surfaced as missing" below; note in particular that
+   removing the flag makes these four skills behave in Codex exactly as the nine
+   already-unflagged skills do today, so "accept the change" is a coherent
+   answer rather than merely the lazy one. Whatever is chosen must be recorded
+   as a decision and must update `tests/skills_installer_test.py`.
+2. **The blocked-state representation** for
+   `WI-WORK-ITEM-BLOCKED-STATE-EXPRESSIVENESS` — three candidates are listed in
+   that work item; the choice belongs to its implementation design, since all
+   three preserve the intents of the rules they modify.
 
 ## Cross-references
 

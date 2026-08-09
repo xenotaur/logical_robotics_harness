@@ -23,7 +23,8 @@ related_roadmap:
 related_workstreams:
   - WS-LRH-CHAIN-DEFAULTS
   - WS-EXECUTION-FRAMEWORK
-work_items: []
+work_items:
+  - WI-DELIBERATE-MODEL-INVOCATION
 exit_criteria:
   - Stage 1 landed - manual GitHub bot retrigger removed from all skills, a provisional no-progress loop cap in place, PROP-REVIEW-WAIT-POSTURE rescoped, self_review_preference removed, a disposition recorded for the two stalled-reviewer-detection backlog entries scoped to the gutted files, and confirmed_commit re-stamped
   - Stage 2 landed - disable-model-invocation removed from all remaining skills with when_to_use added, /lrh-self-review report-only by default with a platform-enforced recursion guard, the /lrh-confirm-fixes empty-thread fast path gated, a deliberate decision recorded for installer.py's Codex allow_implicit_invocation emission with tests updated, WI-DELIBERATE-MODEL-INVOCATION's two same-change acceptance criteria explicitly amended, the three inlining-is-permanent statements updated, subagent-preload behavior verified, and confirmed_commit re-stamped
@@ -96,10 +97,12 @@ decision exists to separate. Cross-link instead."
 ### Demand search
 
 - **Work items:** `WI-DELIBERATE-MODEL-INVOCATION` (proposed) is completed by
-  Stage 2. It declares `related_workstreams: [WS-EXECUTION-FRAMEWORK]`, but
-  that workstream's `work_items:` list does not include it — so it is currently
-  related to, but not owned by, any workstream. Offered for linking rather than
-  claimed unilaterally.
+  Stage 2. It declared `related_workstreams: [WS-EXECUTION-FRAMEWORK]`, but that
+  workstream's `work_items:` list did not include it — so it was related to, but
+  owned by, no workstream. **Adopted here 2026-08-09**, with the author's
+  approval: this workstream now owns it, and the work item's
+  `related_workstreams:` lists both. Stage 2 both completes it and amends two of
+  its acceptance criteria, so this is its real home.
   `WI-BOUNDED-STABILIZATION-LOOP-DESIGN` inherits this policy.
 - **Proposals:** `PROP-LRH-CHAIN-DEFAULTS` governs the mechanism Stages 3.5 and
   4 touch. `PROP-REVIEW-WAIT-POSTURE` (PR #522) is partially obviated by Stage
@@ -111,8 +114,11 @@ decision exists to separate. Cross-link instead."
 
 ## Work Items
 
-None created yet — `work_items:` is deliberately empty rather than
-speculative. The planned decomposition, one work item per stage:
+`WI-DELIBERATE-MODEL-INVOCATION` is owned here — Stage 2 completes it and amends
+two of its acceptance criteria.
+
+No per-stage work items exist yet; they are described below rather than listed
+speculatively in `work_items:`. The planned decomposition, one per stage:
 
 | Stage | Planned work item |
 |---|---|

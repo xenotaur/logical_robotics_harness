@@ -71,6 +71,25 @@ At minimum, preserve these work item categories:
 Status should be grounded in evidence.
 Do not generate optimistic summaries that are detached from tests, logs, metrics, screenshots, reports, or review notes.
 
+**Use `git grep`, not filesystem `grep -r`, for any repository-wide count or
+survey that feeds a decision or is written into an artifact.** Filesystem
+recursion also walks `.claude/worktrees/` checkouts and untracked files, which
+silently inflates counts — in this project's own repositories by as much as 10×,
+since a repo with nine active worktrees reports every tracked file ten times. It
+also reports untracked scratch files as if they were part of the repository.
+
+```bash
+git grep -c "<pattern>" -- '*.md'    # tracked files in the active checkout
+grep -rn "<pattern>" .               # also worktrees, untracked files, build output
+```
+
+`grep -r` remains fine for interactive exploration. The rule applies when the
+number becomes an assertion: a proposal's reference count, an audit's file
+tally, a work item's scope estimate. If a count is stated as fact in a
+committed artifact, it should have come from `git grep` — and a claim that
+worktrees were excluded should be true of every count in the survey, not just
+some.
+
 ## Precedence maintenance note
 
 - Canonical precedence semantics are defined in `project/memory/decisions/precedence_semantics.md`.

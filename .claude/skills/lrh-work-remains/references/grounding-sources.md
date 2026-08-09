@@ -14,15 +14,26 @@ skipping the category silently.
 4. **Feature branches not pushed to main** — `git status -sb` (current
    branch ahead/behind) for the truly-unpushed-anywhere case. **This alone
    misses a branch that's fully pushed to its remote but not yet merged
-   into `main`** — `git log --branches --not --remotes` excludes any
-   commit reachable from a remote-tracking ref, so a pushed branch's
-   commits are excluded from that diff even though they're not in `main`
-   (see [git-scm.com/docs/gitrevisions](https://git-scm.com/docs/gitrevisions)
-   on `--not`/`--remotes` semantics). Use `git branch --no-merged main` to
-   find local branches not merged into `main` regardless of push state,
-   and report remote-push state for each separately (`git status -sb` for
-   the current branch; `git rev-parse --verify origin/<branch>` per other
-   local branch to check if a remote copy exists).
+   into the default branch** — `git log --branches --not --remotes`
+   excludes any commit reachable from a remote-tracking ref, so a pushed
+   branch's commits are excluded from that diff even though they're not
+   merged (see [git-scm.com/docs/gitrevisions](https://git-scm.com/docs/gitrevisions)
+   on `--not`/`--remotes` semantics). **Do not hard-code `main`** — this
+   skill may run in a client repo whose default branch is `master`,
+   `develop`, or something else; resolve it first:
+   `git symbolic-ref refs/remotes/origin/HEAD` (or
+   `gh repo view --json defaultBranchRef --jq .defaultBranchRef.name` as a
+   fallback), then use that value in `git branch --no-merged <default-branch>`
+   to find local branches not merged into it, regardless of push state.
+   For each such branch, **don't just check whether a remote copy
+   exists** — `git rev-parse --verify origin/<branch>` only confirms the
+   ref resolves, not that it matches the local tip, so a branch with newer
+   unpushed commits on top of an already-pushed base would be missed.
+   Compare tips directly: `git rev-parse <branch>` vs.
+   `git rev-parse origin/<branch>` (or
+   `git rev-list --left-right --count origin/<branch>...<branch>` for an
+   ahead/behind count) to see whether the local branch actually matches
+   what's pushed.
 5. **Open PRs not yet merged** — `gh pr list --author @me --state open`;
    for the current branch specifically, `gh pr view --json state,url`
 6. **Unaddressed comments on PRs** — `lrh request review_response <pr-url>`
@@ -36,16 +47,32 @@ skipping the category silently.
    prior session's own closeout report** — a record correctly landed by an
    earlier PR can be silently reverted back to `in_progress` by a later,
    unrelated merge (a real incident: PR #512 reverted 3 already-landed
-   records from PR #506 with no conflict and no warning). `git pull` (or
-   read via `gh api repos/<owner>/<repo>/contents/<path>?ref=main`) before
-   trusting a record's `status:` field, rather than assuming a status
-   reported earlier in this same session, or in a prior closeout, still
-   holds.
+   records from PR #506 with no conflict and no warning). **Use a
+   read-only remote query, never `git pull`** — this skill never mutates
+   git state, and `git pull` fetches *and* integrates changes into the
+   current branch, modifying refs and the working tree (see
+   [git-scm.com/docs/git-pull](https://git-scm.com/docs/git-pull)), which
+   is exactly the kind of side effect to avoid, especially at session end
+   with local work present. Read the file's actual content on the remote
+   default branch directly instead:
+   `gh api repos/<owner>/<repo>/contents/<path>?ref=<default-branch>`
+   (resolve `<default-branch>` the same way category 4 does) — this is
+   pure network read, no local git state touched — before trusting a
+   record's `status:` field, rather than assuming a status reported
+   earlier in this same session, or in a prior closeout, still holds.
 8. **Stray files** — `git status --short` (untracked files outside expected
    output paths), and check the session's own scratchpad directory for
    leftover files that should have been cleaned up or delivered
 9. **Stale branches** — `git branch -a --sort=-committerdate`, cross-checked
-   against `gh pr list --state all --json headRefName,state`. **Check
+   against `gh pr list --state all --limit 1000 --json headRefName,state`
+   — **`gh pr list` defaults to `--limit 30`**
+   ([manual](https://cli.github.com/manual/gh_pr_list)); in a repo with
+   more than 30 historical PRs (this repo has far more), the default
+   silently misses older merged/closed PRs, making their branches look
+   like they have no associated PR and falsely reporting them as stale —
+   exactly the noise this category is trying to avoid, recreated by a
+   different path. Always pass an explicit high `--limit` (or paginate)
+   here. **Check
    `gh api repos/<owner>/<repo> --jq .delete_branch_on_merge` first** — if
    `false` (common; this repo has 200+ accumulated branches this way), a
    branch whose PR already merged or closed is the *expected*, low-value

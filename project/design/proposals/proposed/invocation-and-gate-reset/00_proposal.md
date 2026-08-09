@@ -248,6 +248,39 @@ future session to "fix" the inconsistency by reverting it.
 a compound instruction ("`/lrh-proposal` that idea, then `/lrh-land` it"), which
 the flag blocks.
 
+**`/lrh-self-review`'s case is stronger still: the flag makes its own primary
+declared trigger point unreachable.** The skill declares "two trigger points
+(Decision 1), never more," the first being "diff-mode, called once from
+`/lrh-implement` Step 7.5, before the PR's first push"
+(`src/lrh/skills/lrh-self-review/SKILL.md`). `/lrh-implement` Step 7.5 in turn
+instructs: "**Invoke `/lrh-self-review` in diff-mode** (no `--pr` argument — no
+PR exists yet) on the current branch diff." But `disable-model-invocation: true`
+means the model cannot issue that call, and the platform's refusal explicitly
+forbids the workaround — "Do not replicate this skill's workflow by other
+means." So Step 7.5 either silently does not happen or the agent violates the
+guard; there is no compliant path. Verified live in this session: a Skill-tool
+invocation of `/lrh-self-review` returned exactly that refusal.
+
+The broken path is reachable today, not hypothetical. PR #533 already removed
+`disable-model-invocation` from `/lrh-implement`, so the model can invoke
+`/lrh-implement` — and every such run reaches a Step 7.5 it cannot execute as
+written. The flag removals are therefore not independent: unflagging a caller
+while its callee stays flagged converts a previously-unreachable instruction
+into a reachable broken one.
+
+This is a different and firmer justification than the two gap-closures below.
+Those describe risks that flag removal *introduces* and must be mitigated; this
+describes a designed behavior the flag currently *prevents*. Removing the flag
+here is not tidying — it is what makes the skill's own entry point work at all.
+
+For balance, the same session recorded a case where the flag behaved correctly:
+it blocked an out-of-scope Skill-tool invocation of `/lrh-self-review` for
+ad-hoc review of a planning-artifact set, which matches neither declared trigger
+point. The flag is not uniformly wrong — it is a binary mechanism standing in
+for a scope judgement, and it fails in both directions. `when_to_use` plus the
+skill's own declared trigger points express that scope directly, which the flag
+cannot.
+
 This is consistent with OWASP's *Excessive Agency* risk (LLM08 in the 2023 Top
 10 for LLM Applications; renumbered LLM06 in 2025), whose control is permission
 scoping and human approval on consequential actions — not blocking invocation

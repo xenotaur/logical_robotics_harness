@@ -38,16 +38,49 @@ All 4 threads classified Clear-satisfied and resolved via `resolveReviewThread`:
 No Unaddressed / Partial / Ambiguous / Problematic threads. Thread-resolution
 verdict: **green**.
 
+**Round-cap batch 1 retrigger** (`@codex review` + `--add-reviewer @copilot`,
+retriggered_at `2026-08-09T03:53:32Z`) surfaced a genuine non-thread finding
+on this record's own commit, handled per `/lrh-confirm-fixes` Step 8's
+non-thread-finding path (remediation via direct reply, not
+`resolveReviewThread`):
+
+- **Codex**: clean pass, no findings — standard informational blurb only.
+- **Copilot**: reported "generated no new comments" on the diff itself, but
+  carried 2 findings in a collapsed "Suppressed comments" section (a known
+  pattern — Copilot can hide real findings behind a headline "no new
+  comments"). Both valid:
+  1. The GitHub PR title still read the pre-revision "Gate... on empty
+     Pending-offers list" wording after the WI's `title:` field was revised
+     during review-response. Fixed: PR title updated via `gh pr edit
+     --title` to match the current WI title.
+  2. This record's own `rerun_of` primary
+     (`2026_08_08_05_10_18_WI_CLOSEOUT_EXPORT_SCOPE.md`) has a `# Result`
+     section describing the original "gate the Step 8 `/export` offer on an
+     empty Pending-offers list" design — superseded by the review-response
+     revision documented above (never suppress; only reword). Per this
+     project's convention that execution-record narrative is immutable, the
+     primary record's body is **not** edited to fix this — this paragraph is
+     that record's annotation. Anyone reading the primary record's `Result`
+     section should treat it as describing the *original* design as
+     proposed, not the design as actually implemented; this `_CONFIRM`
+     record (and the WI file itself, which reflects the current scope) are
+     authoritative for the current state.
+
+  Replied to Copilot's review comment directly (not `resolveReviewThread` —
+  these are non-thread findings) citing this commit and the fixes above.
+
 # Validation
 
 - Provisional CI (Step 2, pre-push): `lint` failing, other checks
-  pending/pass. Confirmed via `main`'s own check-runs
-  (`repos/.../commits/main/check-runs`) that `lint` fails on `main`'s current
-  tip (`3c9c3d6`) independent of this PR — same `I001`/`F401` findings in
-  `tests/conversations_tests/antigravity_export_test.py`, a file this PR's
-  diff never touches. Branch protection has no `required_status_checks` rule
-  (`rules/branches/main` returns count `0`), so this pre-existing failure
-  does not block merge. User confirmed treating this as a scoped,
+  pending/pass. Post-push re-check (Step 8): `lint`, `tests`, and `coverage`
+  all failing. Confirmed via `main`'s own check-runs
+  (`repos/.../commits/main/check-runs`) that all three fail on `main`'s
+  current tip (`3c9c3d6`) independent of this PR — same root cause,
+  `tests/conversations_tests/antigravity_export_test.py` imports `pytest`,
+  which isn't installed in CI (`ModuleNotFoundError`), a file this PR's diff
+  never touches. Branch protection has no `required_status_checks` rule
+  (`rules/branches/main` returns count `0`), so these pre-existing failures
+  do not block merge. User confirmed treating this as a scoped,
   non-blocking exception rather than a stop condition.
 - `lrh validate`: an earlier check during this same `/lrh-land` run (before
   the session was interrupted/restarted) reported 34 errors unrelated to

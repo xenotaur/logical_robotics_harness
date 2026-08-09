@@ -12,7 +12,8 @@ contributors:
 assigned_agents: []
 related_focus: []
 related_roadmap: []
-related_workstreams: []
+related_workstreams:
+  - WS-CROSS-REPO-CODE-HEALTH
 related_design:
   - project/design/proposals/proposed/contributor-identity-contract/00_proposal.md
 depends_on: []
@@ -142,10 +143,19 @@ incomplete.
 `project/contributors/` registries, and their `owner:`/`contributors:`
 references.
 
-Out of scope: `LCATS`, `prosocial`, `taurcode`, and `taurworks-safety`, which
-have different defects and are covered separately by
+Out of scope: `LCATS`, `prosocial`, and `taurworks-safety`, which have
+different defects and are covered separately by
 `PROP-CONTRIBUTOR-IDENTITY-CONTRACT` Decision 4. Also out of scope: adding
 `lrh validate` to repositories that already run it.
+
+**`taurcode` is a deliberate open question rather than a clean exclusion.**
+`WS-CROSS-REPO-CODE-HEALTH` records (synergy S2) that Taurcode has **no
+`scripts/validate` at all**, and none of its seven workflows runs
+`lrh validate` — the same CI gap this work item fixes, in a third repository.
+Its contributor registry is already conformant, so only the CI half applies.
+Whether to widen this work item to three repositories or have
+`WI-TAURCODE-PROMPT-AND-SKILL-SYNC` reuse the pattern is an implementation
+choice; doing neither means writing the same CI step twice.
 
 ## Required Changes
 

@@ -12,7 +12,8 @@ contributors:
 assigned_agents: []
 related_focus: []
 related_roadmap: []
-related_workstreams: []
+related_workstreams:
+  - WS-CROSS-REPO-CODE-HEALTH
 related_design:
   - project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md
 depends_on: []

@@ -14,7 +14,8 @@ related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
 related_roadmap:
   - ROADMAP-PHASE-03
-related_workstreams: []
+related_workstreams:
+  - WS-CROSS-REPO-CODE-HEALTH
 related_design:
   - project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md
 depends_on: []

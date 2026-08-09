@@ -218,8 +218,15 @@ absorb 15–25 self-review passes just as readily, with the cost shifted to
 subagent tokens and, more importantly, to a human never being pulled in to say
 "this needs a different approach."
 
-Whether a user-requested retrigger escape hatch should remain available in-skill
-is deliberately left open (see Open Questions).
+**Escape hatch: manual-only, outside the skills** (resolved 2026-08-09). A
+user-requested retrigger remains possible, but the commands live in
+documentation rather than in any skill's workflow. The reasoning is that
+guidance-level prohibition demonstrably failed — sessions agreed not to
+retrigger and then did, repeatedly — so the capability must leave the automated
+path, which is where the failures occurred. It is not removed from the project's
+vocabulary, because an externally-visible action of this kind is properly
+"ask the human first," not "never." Keeping it in-skill behind a prompt was
+rejected: that reinstates the exact surface that produced the overspend.
 
 ### Decision 3: `disable-model-invocation` is removed fleet-wide, including chain runners
 
@@ -497,24 +504,38 @@ inherited precedent of proving a mechanism narrow before widening it.
 
 ## Open Questions
 
-These require information or judgment the design cannot supply:
+**Resolved 2026-08-09:**
 
-1. **Retrigger escape hatch.** Should `/lrh-confirm-fixes` retain a
-   user-requested retrigger path, or should retrigger become a manual action
-   entirely outside the skills? Depends on budget posture and how strongly the
-   capability should be removed versus gated.
-2. **Provisional cap threshold.** What count of no-progress review rounds should
-   trip the Stage 1 gate? Any value chosen from analysis alone would be
-   invented; this should come from operator judgment.
-3. **Taurcode scope.** Are Taurcode's `:land` / `:execute` prompts inside the
-   Stage 3 cascade, or tracked as separate downstream work?
-4. **Triage capacity.** Do all currently-open PRs receive the Stage 5b go/no-go
-   treatment, or only the subset related to invocation, gates, skill
-   deployment, execution trees, or retriggering?
-5. **`PROP-REVIEW-WAIT-POSTURE` disposition.** Close as obviated, rescope to its
-   bounded-poll wait mechanism (which Stage 1's escape-hatch question may still
-   want), or land and immediately supersede? Rescoping is the design's
-   recommendation, but the call is the author's.
+- **Retrigger escape hatch → manual-only, outside the skills.** Recorded in
+  Decision 2 above.
+- **`PROP-REVIEW-WAIT-POSTURE` (PR #522) → rescope.** Its Decision 1 (invert
+  Step 8's default review mechanism) and Decision 2 (wire
+  `self_review_preference` into `round-cap-gate.md`) are obviated by Decision 2
+  here: with manual retrigger removed there is no default to invert, and the
+  `self_review_preference` field is deleted in Stage 1. Its **Decision 3 —
+  a bounded background poll with predicates matched to what each wait is
+  actually waiting for — is fully independent and retained**, since waiting for
+  CI is unaffected by who performs the review. Its Decisions 4 and 5
+  (budget-signal gating out of scope; scope limited to Claude Code sessions)
+  survive as non-goals. Rescope that PR to Decision 3 rather than closing it.
+
+**Still open** — these require information or judgment the design cannot supply:
+
+1. **Provisional cap threshold.** What count of no-progress review rounds should
+   trip the Stage 1 gate? The recommendation is **3**, inheriting the only value
+   with in-repo precedent: the retired mechanism's own default ceiling sequence
+   was 3 → 10 → 20, and that reference explicitly declined to compute further
+   defaults ("no formula — 30, 40, or doubling are all equally plausible and
+   none is grounded"). Confirm or override.
+2. **Taurcode scope.** Are Taurcode's `:land` / `:execute` prompts inside the
+   Stage 3 cascade, or tracked as separate downstream work? Recommendation:
+   tracked separately as a named handoff — `taurcode` carries the same gate
+   policy (and an identical contributor registry), but LRH's planning artifacts
+   do not govern it.
+3. **Triage capacity.** Recommendation: the **8 related** open PRs (skills,
+   gates, review, closeout, work-items), not all 13. Of the 5 unrelated, three
+   are stale "⚡ Bolt" traversal-optimization PRs (#403, #426, #474) better
+   triaged as a separate sweep.
 
 ## Cross-references
 

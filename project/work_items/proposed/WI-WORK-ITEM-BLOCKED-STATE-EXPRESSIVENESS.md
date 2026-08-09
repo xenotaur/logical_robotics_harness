@@ -194,21 +194,26 @@ to arbitrary artifacts could turn readiness into a graph traversal with cycle
 and staleness concerns it does not currently have. Prefer the narrowest
 representation that makes the one real case expressible.
 
-Second, `blocked` is read through more than one path, so a change to its
-semantics must be applied consistently or the flag will mean different things to
+**Second, and the larger risk: `blocked` is read through at least five
+independent sites, only one of which uses the typed model.** A change to its
+semantics must land in all of them or the flag will mean different things to
 different consumers. Verified directly:
 
-- `src/lrh/control/models.py:46` — the typed `WorkItem.blocked` field.
-- `src/lrh/control/work_item_policy.py:126` — reads `metadata.get("blocked")`
-  from the frontmatter mapping, not the typed field.
-- `src/lrh/assist/work_item_prompt_core.py:76` — independently reads
-  `frontmatter.get("blocked")` into its own `ParsedWorkItem`.
+| Site | How it reads `blocked` |
+|---|---|
+| `src/lrh/control/models.py:46` | the typed `WorkItem.blocked` field |
+| `src/lrh/control/loader.py` | populates the typed field from frontmatter; feeds `core_state.py` → `serve.py` and `ux/dashboard.py` |
+| `src/lrh/control/planning_tree.py:256` | `_frontmatter_bool(artifact.frontmatter, "blocked")` — recomputes, bypassing the typed field |
+| `src/lrh/control/work_item_policy.py:126` | `metadata.get("blocked")` — validation |
+| `src/lrh/assist/work_item_prompt_core.py:76` | `frontmatter.get("blocked")` — readiness |
 
-So validation and readiness each re-derive the flag from raw frontmatter rather
-than sharing the typed model. Whichever representation this work item chooses
-must land in all of them. A prior note in this project also referenced a
-`snapshot_cli.py` doing the same; no such file exists at
-`src/lrh/cli/snapshot_cli.py` today and no file under `src/lrh/cli/` references
-`blocked`, so that path is either stale or renamed — worth a quick sweep for
-other consumers before implementing, rather than trusting this list to be
-exhaustive.
+`src/lrh/assist/snapshot_cli.py` consumes the `planning_tree.py` projection, so
+it inherits the frontmatter-derived value rather than the typed one.
+
+The practical consequence: validation, readiness, the planning tree, and the
+dashboard each derive this flag separately. Introducing a new representation
+that only some of them understand would produce an item that reads blocked in
+one surface and ready in another — a worse failure than the current one, which
+is at least consistent. Enumerate every consumer before choosing a
+representation, and treat this table as a starting point rather than proof of
+completeness.

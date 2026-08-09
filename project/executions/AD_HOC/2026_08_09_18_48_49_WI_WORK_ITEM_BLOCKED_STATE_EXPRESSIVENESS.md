@@ -52,15 +52,24 @@ field, or introduce an `on_hold` status) with the choice left to design, since
 both existing rules have defensible intent and the defect is in their
 combination rather than in either alone.
 
-**Memory correction.** A prior note in this project recorded that
-`WorkItem.blocked` has three projection paths, naming `validator.py` and
-`snapshot_cli.py` as bypassing the typed field. Checked before writing it into
-the Risk Notes: the multi-path concern is real — `work_item_policy.py:126` and
-`work_item_prompt_core.py:76` each re-derive the flag from raw frontmatter
-rather than the typed `models.py:46` field — but `src/lrh/cli/snapshot_cli.py`
-does not exist, and no file under `src/lrh/cli/` references `blocked`. The Risk
-Notes record what was verified and flag the stale path as needing a sweep rather
-than repeating the unverified claim.
+**A self-correction worth recording, because it nearly went the wrong way.** A
+prior project note recorded that `WorkItem.blocked` has three projection paths,
+naming `validator.py` and `snapshot_cli.py` as bypassing the typed field. An
+initial check for `src/lrh/cli/snapshot_cli.py` found nothing, and the Risk
+Notes were first written to flag that note as stale.
+
+That was wrong. The file is at `src/lrh/assist/snapshot_cli.py` — the search
+looked in the wrong directory. Re-checked before the correction shipped, and the
+note is accurate: `planning_tree.py:256` does recompute
+`blocked=_frontmatter_bool(artifact.frontmatter, "blocked")`, and `snapshot_cli`
+consumes that projection.
+
+The corrected Risk Notes are consequently *stronger* than the original draft: at
+least five sites read `blocked`, only one via the typed model. Had the
+"stale note" version shipped, this work item would have understated its own
+central risk while appearing to have verified it — the same failure mode as the
+LCATS miscount corrected earlier in this session, and caught the same way, by
+checking rather than asserting.
 
 # Validation
 

@@ -26,14 +26,19 @@ skipping the category silently.
    fallback), then use that value in `git branch --no-merged <default-branch>`
    to find local branches not merged into it, regardless of push state.
    For each such branch, **don't just check whether a remote copy
-   exists** — `git rev-parse --verify origin/<branch>` only confirms the
-   ref resolves, not that it matches the local tip, so a branch with newer
-   unpushed commits on top of an already-pushed base would be missed.
-   Compare tips directly: `git rev-parse <branch>` vs.
-   `git rev-parse origin/<branch>` (or
-   `git rev-list --left-right --count origin/<branch>...<branch>` for an
-   ahead/behind count) to see whether the local branch actually matches
-   what's pushed.
+   exists, and don't hard-code the remote name `origin`** — a client
+   repo's remote may be named differently, or a local branch may track a
+   differently-named remote branch, in which case an `origin/<branch>`
+   comparison fails or checks the wrong ref even when the branch is fully
+   pushed, falsely reporting it as unpushed. Compare each branch against
+   its own configured upstream instead:
+   `git rev-parse <branch>` vs. `git rev-parse <branch>@{upstream}` (or
+   `git rev-list --left-right --count <branch>@{upstream}...<branch>` for
+   an ahead/behind count — see
+   [git-scm.com/docs/gitrevisions](https://git-scm.com/docs/gitrevisions#Documentation/gitrevisions.txt-emltbranchnamegtupstreamegmasterupstreamu)
+   on `@{upstream}` syntax). If a branch has no configured upstream at
+   all, treat that as its own distinct case (never pushed) rather than
+   folding it into either the pushed or unpushed bucket silently.
 5. **Open PRs not yet merged** — `gh pr list --author @me --state open`;
    for the current branch specifically, `gh pr view --json state,url`
 6. **Unaddressed comments on PRs** — `lrh request review_response <pr-url>`
@@ -55,10 +60,16 @@ skipping the category silently.
    is exactly the kind of side effect to avoid, especially at session end
    with local work present. Read the file's actual content on the remote
    default branch directly instead:
-   `gh api repos/<owner>/<repo>/contents/<path>?ref=<default-branch>`
-   (resolve `<default-branch>` the same way category 4 does) — this is
-   pure network read, no local git state touched — before trusting a
-   record's `status:` field, rather than assuming a status reported
+   `gh api -H "Accept: application/vnd.github.raw" repos/<owner>/<repo>/contents/<path>?ref=<default-branch>`
+   (resolve `<default-branch>` the same way category 4 does) — **the
+   Contents API returns JSON with the file body base64-encoded in
+   `.content` by default** (confirmed: a plain call returns
+   `"encoding": "base64"` and an unreadable `.content` blob); the raw
+   media-type header above returns the plain-text body directly instead —
+   without it, the frontmatter `status:` value isn't actually readable
+   from the response, defeating the point of this check. This is pure
+   network read either way, no local git state touched — before trusting
+   a record's `status:` field, rather than assuming a status reported
    earlier in this same session, or in a prior closeout, still holds.
 8. **Stray files** — `git status --short` (untracked files outside expected
    output paths), and check the session's own scratchpad directory for

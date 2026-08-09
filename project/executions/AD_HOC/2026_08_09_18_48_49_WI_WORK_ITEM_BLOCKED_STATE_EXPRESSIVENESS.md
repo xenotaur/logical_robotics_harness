@@ -91,6 +91,8 @@ No PR opened; the branch is pushed without one, so no automatic bot review fires
 `PROP-INVOCATION-AND-GATE-RESET` but is not that program's scope, and no
 existing workstream covers control-plane schema. Open to being adopted by one.
 
+**Updated 2026-08-09:** adopted by `WS-CROSS-REPO-CODE-HEALTH` later in the same session; the item is no longer unowned.
+
 This work item is itself an instance of the problem it describes: it reports
 `prompt_ready: yes` and has no blocker, which is correct — but it sits beside
 `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`, which reports the same and should not.

@@ -93,6 +93,8 @@ identity or sibling-repo operations, and `PROP-CONTRIBUTOR-IDENTITY-CONTRACT`
 has no workstream of its own yet. If that proposal gains one, this work item
 should move under it.
 
+**Updated 2026-08-09:** adopted by `WS-CROSS-REPO-CODE-HEALTH` later in the same session; the item is no longer unowned.
+
 Sequenced late by design: nothing depends on it, both repositories validate
 clean today, and it should not compete for attention with the
 invocation-and-gate reset.

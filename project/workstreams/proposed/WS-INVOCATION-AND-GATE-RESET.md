@@ -23,8 +23,7 @@ related_roadmap:
 related_workstreams:
   - WS-LRH-CHAIN-DEFAULTS
   - WS-EXECUTION-FRAMEWORK
-work_items:
-  - WI-DELIBERATE-MODEL-INVOCATION
+work_items: []
 exit_criteria:
   - Stage 1 landed - manual GitHub bot retrigger removed from all skills, a provisional no-progress loop cap in place, PROP-REVIEW-WAIT-POSTURE rescoped, self_review_preference removed, a disposition recorded for the two stalled-reviewer-detection backlog entries scoped to the gutted files, lrh skills install run and the retrigger commands verified absent from the installed corpus at ~/.claude/skills/ (not just the source tree), and confirmed_commit re-stamped
   - Stage 2 landed - disable-model-invocation removed from all remaining skills with when_to_use added, /lrh-self-review report-only by default with a platform-enforced recursion guard, the /lrh-confirm-fixes empty-thread fast path gated, a deliberate decision recorded for installer.py's Codex allow_implicit_invocation emission with tests updated, WI-DELIBERATE-MODEL-INVOCATION's two same-change acceptance criteria explicitly amended, the three inlining-is-permanent statements updated, subagent-preload behavior verified, lrh skills install run and disable-model-invocation verified absent from the installed corpus at ~/.claude/skills/ (not just the source tree), and confirmed_commit re-stamped
@@ -118,11 +117,28 @@ decision exists to separate. Cross-link instead."
 
 ## Work Items
 
-`WI-DELIBERATE-MODEL-INVOCATION` is owned here — Stage 2 completes it and amends
-two of its acceptance criteria.
+`WI-DELIBERATE-MODEL-INVOCATION` belongs to this workstream — Stage 2 completes
+it and amends two of its acceptance criteria — but it is **deliberately absent
+from `work_items:`**, which is the *executable* list.
 
-No per-stage work items exist yet; they are described below rather than listed
-speculatively in `work_items:`. The planned decomposition, one per stage:
+`/lrh-execute <WS-ID>` selects the first proposed entry in `work_items:` whose
+`depends_on` is satisfied (`lrh-execute/SKILL.md` Step 1). That item has
+`depends_on: []` and reports `prompt_ready: yes`, so listing it would let a
+chain runner **begin Stage 2 flag removal before Stage 1 retrigger removal** —
+the opposite of the strict sequencing this workstream requires. The sequencing
+lives in prose, and prose is not part of readiness evaluation.
+
+The correct fix is a machine-readable predecessor, which is not yet
+expressible: Stage 1's work item does not exist, and `depends_on:` takes
+work-item IDs. `WI-WORK-ITEM-BLOCKED-STATE-EXPRESSIVENESS`
+(`WS-CROSS-REPO-CODE-HEALTH`) exists to close exactly this gap. Until it does,
+withholding the item from the executable list is the only enforcement
+available. **Add it to `work_items:` once Stage 1's work item exists and can be
+named in `depends_on:`.**
+
+Ownership remains visible through the work item's own `related_workstreams:`
+and through this section. No per-stage work items exist yet; the planned
+decomposition, one per stage:
 
 | Stage | Planned work item |
 |---|---|

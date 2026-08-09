@@ -138,6 +138,19 @@ should land after Stage 2 unless someone has confirmed the diffs are disjoint.
 This is the clearest argument for this workstream existing: the collision is
 invisible from inside either work item.
 
+**That ordering is currently unenforced, and this workstream's `work_items:`
+exposes it.** `WI-SKILLS-WORKTREE-SAFE-BRANCH-CREATION` has `depends_on: []`
+and reports `prompt_ready: yes`, so `/lrh-execute WS-CROSS-REPO-CODE-HEALTH`
+would select it once item 1 resolves — regardless of whether reset Stage 2 has
+landed. The prose above is not part of readiness evaluation.
+
+The blocker is a workstream stage, not a work item, so `depends_on:` cannot
+name it — the same expressiveness gap item 3 exists to close. Until then this
+ordering depends on a human reading this section before dispatching, which is
+recorded here as a known weakness rather than presented as a control. Anyone
+running `/lrh-execute` against this workstream should confirm reset Stage 2 has
+landed first.
+
 **C2 — item 2 cites a snippet the reset deletes.** Its Required Change 2 reuses
 `round-cap-gate.md`'s hardened default-branch resolution, which Stage 1 removes
 when it reduces that file from 749 to ~59 lines. The work item already carries a

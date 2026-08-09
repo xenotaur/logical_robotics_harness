@@ -215,7 +215,7 @@ single-maintainer projects, not a formatting fix.
 
 - `lrh validate` in each repository reports 0 errors
 - `git grep -n "project maintainers"` returns no matches in either repository
-- `git grep -c "^owner: <new-id>" -- '*.md' | awk -F: '{s+=$NF} END {print s+0}'` returns 35 for velumin and 18 for replication_vector, matching the pre-change `^owner:` counts; the list-entry patterns (`^  - `) are counted separately (4 and 0) rather than compared against the combined 39/18 totals
+- `git grep -c "^owner: <new-id>" -- '*.md' | awk -F: '{s+=$NF} END {print s+0}'` returns 35 **matching lines** for velumin and 18 for replication_vector, matching the pre-change `^owner:` line counts; the list-entry patterns (`^  - `) are counted separately (4 and 0 lines) rather than compared against the combined 39/18 totals. These are line counts, not occurrence counts — an anchored `^owner:` pattern can match at most once per line, so the two coincide here, but the distinction is stated because `AGENTS.md`'s evidence convention requires it and a future unanchored pattern would break the equivalence
 - CI green on both repositories after the `scripts/validate` change and again after the rename
 - Quiet-window precondition re-checked immediately before the rename lands
 

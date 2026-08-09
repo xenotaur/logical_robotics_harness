@@ -101,12 +101,16 @@ If no thread id is available, stop and ask the user for the Codex thread id.
 ### Step 2 -- Choose private output paths
 
 Create a private absolute output directory outside the current Git worktree.
-For routine dogfood or ad hoc capture, prefer `/private/tmp`:
+For routine dogfood or ad hoc capture, prefer the platform temporary directory
+from `TMPDIR`, falling back to `/tmp`. On macOS, `TMPDIR` or `/tmp` may resolve
+under `/private`, but the skill should not hard-code `/private/tmp`:
 
 ```bash
 EXPORT_ID="$(date -u +%Y%m%dT%H%M%SZ)"
-EXPORT_DIR="/private/tmp/lrh-codex-export-$EXPORT_ID"
-mkdir -p "$EXPORT_DIR"
+TMP_ROOT="${TMPDIR:-/tmp}"
+TMP_ROOT="${TMP_ROOT%/}"
+EXPORT_DIR="$(mktemp -d "$TMP_ROOT/lrh-codex-export-$EXPORT_ID.XXXXXX")"
+chmod 700 "$EXPORT_DIR"
 EXPORT_PATH="$EXPORT_DIR/export.md"
 RAW_PATH="$EXPORT_DIR/raw.json"
 ```
@@ -119,14 +123,19 @@ approved a sanitized committed artifact.
 
 ### Step 3 -- Run the export
 
-Run the CLI exporter:
+Run the CLI exporter with a restrictive umask so the Markdown transcript is
+created user-only as well as the raw capture:
 
 ```bash
-lrh conversation export-codex-thread \
-  --thread-id "$THREAD_ID" \
-  --out "$EXPORT_PATH" \
-  --raw-out "$RAW_PATH" \
-  --timeout-seconds 20
+(
+  umask 077
+  lrh conversation export-codex-thread \
+    --thread-id "$THREAD_ID" \
+    --out "$EXPORT_PATH" \
+    --raw-out "$RAW_PATH" \
+    --timeout-seconds 20
+)
+chmod 600 "$EXPORT_PATH" "$RAW_PATH"
 ```
 
 If the output files already exist and the user wants to replace them, rerun with

@@ -33,6 +33,11 @@ also documents sandbox approval needs for Codex local state under `~/.codex`,
 warns against line-based transcript previews, and preserves the rule that raw
 exports remain private non-authoritative context.
 
+After automatic review feedback on the initial PR push, the skill was updated
+to avoid hard-coding macOS-specific `/private/tmp`, use `mktemp` under
+`${TMPDIR:-/tmp}`, create the export directory with `0700` permissions, run the
+export under `umask 077`, and `chmod 600` both generated output files.
+
 Also included:
 
 - a pre-push `/lrh-self-review` diff-mode execution record with a clean result;
@@ -54,6 +59,8 @@ Also included:
   `PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` for
   `workstreams/active/WS-SESSION-ARCHIVE-SYNC.md`.
 - `diff -r src/lrh/skills/lrh-codex-export .claude/skills/lrh-codex-export`
+- `mktemp`/`chmod 700` snippet check — created a user-only temporary export
+  directory under the platform temp root.
 - `/lrh-self-review` diff-mode — clean; top claims independently re-verified.
 
 # Follow-up

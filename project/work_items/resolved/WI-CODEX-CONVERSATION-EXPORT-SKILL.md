@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #532 (commit f6e0dde60f1b1a8d116a3881f735a621844acc7b)"
 blocked_reason: null
 blocked: false
 id: WI-CODEX-CONVERSATION-EXPORT-SKILL
 title: Implement thin Codex conversation export skill wrapper
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

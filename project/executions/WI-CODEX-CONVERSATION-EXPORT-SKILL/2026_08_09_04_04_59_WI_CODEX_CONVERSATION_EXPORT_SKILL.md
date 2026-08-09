@@ -2,10 +2,10 @@
 execution_id: 2026_08_09_04_04_59_WI_CODEX_CONVERSATION_EXPORT_SKILL
 prompt_id: PROMPT(WI-CODEX-CONVERSATION-EXPORT-SKILL:WI_CODEX_CONVERSATION_EXPORT_SKILL)[2026-08-09T03:34:54+00:00]
 work_item: WI-CODEX-CONVERSATION-EXPORT-SKILL
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/532
-commit: cec5843ea59762414a77a57cc90e2ea6a6914213
+commit: f6e0dde60f1b1a8d116a3881f735a621844acc7b
 created_at: 2026-08-09T04:04:59+00:00
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-CODEX-CONVERSATION-EXPORT-SKILL.md

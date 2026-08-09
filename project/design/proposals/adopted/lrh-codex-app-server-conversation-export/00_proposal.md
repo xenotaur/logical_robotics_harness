@@ -2,12 +2,13 @@
 id: PROP-LRH-CODEX-APP-SERVER-CONVERSATION-EXPORT
 type: design_proposal
 title: LRH Codex App-Server Conversation Export
-status: proposed
+status: adopted
 created_on: 2026-08-07
 updated_on: 2026-08-07
-implementation_status: not_started
+implementation_status: implemented
 implemented_by:
   - WI-CODEX-CONVERSATION-EXPORT-APP-SERVER
+  - WI-CODEX-CONVERSATION-EXPORT-SKILL
 supersedes: []
 superseded_by: null
 related_design:

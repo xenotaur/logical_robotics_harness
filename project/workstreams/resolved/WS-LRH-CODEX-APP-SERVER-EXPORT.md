@@ -2,8 +2,8 @@
 id: WS-LRH-CODEX-APP-SERVER-EXPORT
 kind: planning_node
 title: Codex App-Server Conversation Export
-status: proposed
-stage: planned
+status: resolved
+stage: closed
 origin: follow_up
 summary: >
   Coordinate implementation and dogfooding of LRH's Codex app-server current

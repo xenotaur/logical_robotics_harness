@@ -45,29 +45,78 @@ specific tracked gap; cascades the resolution into `_shared/lifecycle-chain.md`,
   `project/executions/README.md`, cross-referencing
   `lrh-land/references/land-workflow.md`'s canonical format tables rather
   than duplicating them.
-- `installer.py`: verified no code change needed — its Codex-side
-  `agents/openai.yaml` rendering derives entirely from the
-  `disable-model-invocation` frontmatter value already (no separate
-  preload-eligibility switch to update), and its own tests
-  (`tests/skills_installer_test.py`) use synthetic fixtures independent of
-  real skill content, so this change doesn't affect them.
+- `installer.py`: **superseded by Round 2 below** — the initial
+  verification (this bullet, originally) concluded no code change was
+  needed for `disable-model-invocation`/preload behavior, which held. But
+  the automatic first-push review caught a real, separate `installer.py`
+  gap this initial pass missed: `when_to_use` wasn't in
+  `CodexSkillRenderer._CODEX_STRIPPED_FRONTMATTER_KEYS`, so it survived
+  into Codex-rendered frontmatter and broke Codex's own schema validation.
+  Fixed in Round 2.
+
+## Round 2 — review findings and fixes (commit `75e833ce`)
+
+PR #533's automatic first-push review (Codex + Copilot) surfaced two real
+findings:
+
+- Codex (P1) — `CodexSkillRenderer` stripped `argument-hint` and
+  `disable-model-invocation` for Codex installs but not `when_to_use`,
+  which Codex's own frontmatter schema doesn't recognize; installing any
+  of the newly `when_to_use`-carrying skills to a Codex target produced an
+  invalid `SKILL.md`. Pre-existing gap (predates this PR — `lrh-work-item`/
+  `lrh-proposal`/`lrh-workstream` already had `when_to_use` with no flag),
+  but this PR's 9 additional skills raised it from 3 affected skills to
+  12. **Fixed**: added `when_to_use` to
+  `_CODEX_STRIPPED_FRONTMATTER_KEYS`, plus a dedicated regression test
+  (`test_codex_target_strips_when_to_use_without_disable_model_invocation`)
+  covering the no-flag case this PR's pattern uses.
+- Copilot (P2) — `lrh-create-skill/SKILL.md`'s own body (not just its
+  `references/` files) still framed `disable-model-invocation` as the
+  direct answer to "should this skill be explicit-only" in its Step 2
+  interview question, Step 7 frontmatter checklist, and final Quality
+  Checklist — contradicting the tiered guidance this PR wrote into
+  `references/lrh-skill-pattern.md`. **Fixed**: rewrote all three sites to
+  point authors at `when_to_use` + the confirm gate first, reserving the
+  flag for a specific confirmed gap.
+
+Both threads resolved via `resolveReviewThread`. Full test suite re-run
+after a tool-version drift (`scripts/develop` re-run per
+`feedback_codex_tool_env_can_revert_midrun`): 1066 tests, OK.
+
+## Round 3 — final self-review pass (commit `24ea1985`)
+
+`git diff --check origin/main...HEAD` flagged trailing whitespace on two
+blank frontmatter lines (`rerun_of:`, `commit:`) in this very record —
+fixed directly. A cold-context self-review subagent confirmed the fix was
+clean and, independently, caught that this Result section's original
+`installer.py` bullet (above) was now stale relative to Round 2's actual
+change — corrected in place rather than left contradicting Round 2.
 
 # Validation
 
-- `lrh validate` — 0 errors (1 pre-existing, unrelated warning)
+- `lrh validate` — 0 errors (1 pre-existing, unrelated warning), all three
+  rounds
 - `lrh work-items validate` — no findings
-- `scripts/test` — 1065 tests, OK
+- `scripts/test` — 1065 tests OK (round 1), 1066 tests OK (rounds 2–3,
+  after the new installer regression test)
 - `scripts/format --check --diff`, `scripts/lint` — clean (2 pre-existing,
   unrelated lint errors in `tests/conversations_tests/antigravity_export_test.py`,
   confirmed present on `main` before this branch via `git stash`)
 - `diff -r src/lrh/skills/<name>/ .claude/skills/<name>/` — clean for all
   9 edited skills and the 3 edited `lrh-create-skill` reference files
-- `/lrh-self-review` diff-mode pass (Step 7.5, before push) — cold-context
-  subagent found no defects across 6 specific checks (flag-removal scope,
-  `when_to_use` quality, mirror byte-identity, `lifecycle-chain.md`
-  accuracy, authoring-guidance consistency, step-number citations);
-  independently re-verified the flag-removal-scope claim directly
-  (`grep -l disable-model-invocation: true src/lrh/skills/*/SKILL.md`)
+- `git diff --check origin/main...HEAD` — clean as of round 3
+- `/lrh-self-review` — three passes: diff-mode before first push (Step
+  7.5), PR-mode after round 2's fixes, PR-mode final pass after round 3's
+  whitespace fix. Each independently re-verified its own top finding
+  directly rather than accepting the subagent's report — one finding
+  (a subagent's `lrh validate` "35 errors" claim, PR #518's own self-review,
+  not this PR) was caught not holding up under re-verification; the
+  installer.py staleness finding above (this PR) did hold up and was fixed.
+- CI (`coverage`, `tests`, `installed-wheel-smoke`, `lint`,
+  `Check workflow files`) — green on the final commit; round 1's CI showed
+  `tests`/`coverage`/`lint` failing from a pre-existing, unrelated `main`
+  break (PR #526's `antigravity_export_test.py` imports `pytest`, not a
+  CI dependency) that resolved itself by round 3 without action here
 
 # Follow-up
 

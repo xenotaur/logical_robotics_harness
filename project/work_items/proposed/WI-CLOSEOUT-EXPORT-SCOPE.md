@@ -22,10 +22,10 @@ forbidden_actions:
   - force_push
   - delete_branch
   - merge_pr
-  - implement_wi_skills_lrh_work_remains
+  - implement_lrh_work_remains
 acceptance:
   - src/lrh/skills/lrh-closeout/SKILL.md Step 8 always offers /export (never suppressed) but its wording no longer implies session completion when the Pending offers section is non-empty
-  - src/lrh/skills/lrh-closeout/SKILL.md or references/closeout-workflow.md documents that /lrh-closeout is scoped to one PR's artifact chain and lacks session-wide visibility, pointing to WI-SKILLS-LRH-WORK-REMAINS for full closure
+  - src/lrh/skills/lrh-closeout/SKILL.md or src/lrh/skills/lrh-closeout/references/closeout-workflow.md documents that /lrh-closeout is scoped to one PR's artifact chain and lacks session-wide visibility, pointing to WI-SKILLS-LRH-WORK-REMAINS for full closure
   - .claude/skills/lrh-closeout/ is byte-for-byte identical to src/lrh/skills/lrh-closeout/
   - lrh validate reports 0 errors
 required_evidence:
@@ -108,7 +108,7 @@ action on them.
   `/export` now still archives this session's transcript and does not mean
   the listed offers are resolved.
 - Add a short scoping-limitation note (in `SKILL.md`'s "What This Skill Does
-  Not Do" or `references/closeout-workflow.md`) stating that `/lrh-closeout`
+  Not Do" or `src/lrh/skills/lrh-closeout/references/closeout-workflow.md`) stating that `/lrh-closeout`
   has no session-wide visibility beyond its own PR/WI/WS/proposal chain —
   pointing to `WI-SKILLS-LRH-WORK-REMAINS` as the mechanism for full closure
   once implemented.
@@ -122,7 +122,7 @@ action on them.
    archives this session and does not imply those offers are resolved; when
    empty, the offer text is unchanged from today.
 2. Edit `src/lrh/skills/lrh-closeout/SKILL.md` (or
-   `references/closeout-workflow.md`): add the scoping-limitation note.
+   `src/lrh/skills/lrh-closeout/references/closeout-workflow.md`): add the scoping-limitation note.
 3. Copy both edited files to `.claude/skills/lrh-closeout/` (byte-for-byte).
 4. Verify `diff -r src/lrh/skills/lrh-closeout/ .claude/skills/lrh-closeout/`
    is empty.

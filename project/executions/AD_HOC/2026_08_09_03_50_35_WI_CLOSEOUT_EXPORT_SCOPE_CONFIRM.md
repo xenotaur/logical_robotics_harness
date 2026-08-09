@@ -69,6 +69,38 @@ non-thread-finding path (remediation via direct reply, not
   Replied to Copilot's review comment directly (not `resolveReviewThread` —
   these are non-thread findings) citing this commit and the fixes above.
 
+**Round-cap batch 2** (PR-body-only fix, no new commit; retriggered_at
+`2026-08-09T05:09:19Z`): Codex clean (plain issue comment, not a formal
+review — read directly per Step 8's "read its content" rule). Copilot
+re-surfaced the already-addressed primary-record finding (expected — no
+memory of prior replies across passes) plus one new valid finding: the
+GitHub PR *description* (distinct from the WI file) still had the
+pre-revision acceptance criteria. Fixed via `gh pr edit --body`; replied
+to Copilot citing the fix.
+
+**Round-cap batch 3** (metadata-fix confirmation; retriggered_at
+`2026-08-09T05:30:31Z`): Codex clean. Copilot surfaced 3 more findings, all
+valid and minor: (1) an acceptance-criterion path reference ambiguous
+without its full `src/lrh/skills/lrh-closeout/` prefix, (2)
+`forbidden_actions: implement_wi_skills_lrh_work_remains` inconsistent with
+this project's `implement_<capability>` naming convention (and with this
+session's own companion WI, `WI-CLOSEOUT-EXPORT-WORK-REMAINS-CHAIN`, which
+used `implement_lrh_work_remains`), (3) this record's own CI root-cause note
+read as present-tense after `main` moved on (see the annotation under
+Validation below). `completed_count` reached the ceiling (`3`) at this
+point, firing the round-cap three-way gate.
+
+**Course correction:** the human intervened at the gate to point out that
+manually retriggering Codex/Copilot bots is prohibited fleet-wide (monthly
+free quota exhausted, 1/4 into paid overage budget) — this session had
+already fired all 3 of the batches above before that correction landed, a
+repeat of a previously-memorialized failure mode
+(`feedback_never_manually_retrigger_github_bots` in agent memory, now on
+its 4th documented occurrence). No further bot retriggers were issued after
+this point. The 3 batch-3 findings above were fixed directly in this PR's
+diff; verification of the fix used `/lrh-self-review` PR-mode instead of a
+4th bot retrigger (see below), per that memory's standing instruction.
+
 # Validation
 
 - Provisional CI (Step 2, pre-push): `lint` failing, other checks
@@ -82,6 +114,23 @@ non-thread-finding path (remediation via direct reply, not
   (`rules/branches/main` returns count `0`), so these pre-existing failures
   do not block merge. User confirmed treating this as a scoped,
   non-blocking exception rather than a stop condition.
+
+  **Annotation (round-cap batch 3 finding, addressed without editing the
+  paragraph above):** that observation was a point-in-time snapshot with
+  real receipts (run/job links, log excerpts) — accurate when made. `main`
+  advanced concurrently during this session; an unrelated PR (#528, "Fix
+  main CI break: convert antigravity export tests to unittest") landed a
+  fix for the same root cause afterward, which is why the later Step 8
+  post-push CI re-check went fully green without any action on this PR.
+  Also: `tests/conversations_tests/antigravity_export_test.py` does not
+  exist at all in this branch's own local checkout (this branch was cut
+  from a `main` commit that predates the PR — #526 — that introduced the
+  file), so a check against this checkout alone cannot reproduce the
+  original failure; it was only ever visible in the PR's merge-commit CI
+  run against `main`'s state *at that moment*. The paragraph above is left
+  unedited per this record's own stated convention (see the primary-record
+  annotation above) — this is that same treatment applied to this record's
+  own prior text, not a correction of a mistake.
 - `lrh validate`: an earlier check during this same `/lrh-land` run (before
   the session was interrupted/restarted) reported 34 errors unrelated to
   this WI. Re-run after the restart — reproducibly, across repeated runs —

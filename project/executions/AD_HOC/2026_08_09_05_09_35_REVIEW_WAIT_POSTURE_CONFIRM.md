@@ -184,6 +184,41 @@ three-way gate — an explicit human answer, never inferred. This record
 stops here, not-green, pending that answer; see the PR/session report for
 the gate itself.
 
+**Live correction from the user: never manually retrigger a GitHub
+review bot, fleet-wide, regardless of what the round-cap gate or any
+skill's literal prose says — this session had already violated this
+exact, pre-existing standing policy three times on this PR before the
+correction (see `feedback_never_manually_retrigger_github_bots` in agent
+memory, now updated with this occurrence as repeat failure #6).** The
+three-way gate's answer is `/lrh-self-review` PR-mode, not a bot
+retrigger, effective immediately for the remainder of this pass and any
+future round-cap gate this session encounters.
+
+**Gathering orientation context for the `/lrh-self-review` dispatch below
+(reading the PR's full review/thread history directly, per that skill's
+own Step 2) surfaced a process failure independent of the round-cap
+question: the two prior bot retriggers' Codex responses were read only
+for their top-level review-body text (boilerplate, "no suggestions,
+otherwise 👍") — Codex had also posted 5 separate formal inline review
+threads (2 P1, 3 P2) across those same rounds, on real design gaps in
+Decisions 1–3, that were never read or triaged.** All 5 verified as
+genuine, substantive findings (one independently cross-checked against
+`gh pr checks --help`/`gh help exit-codes` before accepting): (1) P1 —
+Decision 1 asserted the automatic first-push trigger already satisfies
+`PROP-LRH-SELF-REVIEW` Decision 4 without requiring affirmative evidence
+it actually landed; (2) P2 — Decision 1's opt-in-surface design named
+Step 4 as the visibility point, but Step 2.2 skips Step 4 entirely on a
+clean pass, the exact case that matters most; (3) P2 — Decision 2's
+staleness-check reuse binds to skill-logic *files* changing, not to the
+`self_review_preference` *value* itself, so a direct edit to the value
+alone would not invalidate a stale confirmation; (4) P2 — Decision 3's
+bounded-poll loop only distinguished success/timeout, not a CI check's
+early terminal failure, wasting the full 900s on an already-known
+outcome; (5) P1 — a duplicate of this record's own earlier self-caught
+process error (re-verify after the final record commit), independently
+found by Codex on the same underlying mistake. All 5 fixed directly in
+the proposal text (Decisions 1–3) and resolved via `resolveReviewThread`.
+
 # Validation
 
 - `PYTHONPATH="$(pwd)/src" lrh validate`: 0 errors, 1 pre-existing

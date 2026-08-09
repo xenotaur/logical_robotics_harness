@@ -162,13 +162,39 @@ even though self-review doesn't draw the metered bot-credit resource).
 rounds identically (`round-cap-gate.md`'s existing "Any-side-effect-counts
 promotion" section), so no state-schema change is required for this shift.
 
-**Opt-in surface for a real bot round:** no new gate. The existing Step 4
-confirm-gate batch summary remains the natural pause point to surface
-"this round used self-review, not bot" for visibility; a human who wants a
-real bot round can ask for one at any point in the normal course of the
-conversation, consistent with this project's existing `skip_if_opted_in`
-philosophy and with reducing hand-typed friction rather than adding a
-fresh per-round ask that would defeat the purpose.
+**Require affirmative evidence the first bot round actually landed —
+caught in this PR's own review (Codex, P1).** Decision 1's own rationale
+above rests on "the PR's first review still comes from the automatic
+on-open bot trigger" — but that trigger firing is an assumption, not a
+verified fact, in two real scenarios this design must not silently
+assume away: `/lrh-confirm-fixes` can run standalone immediately after PR
+creation, before the automatic reviewer has had time to respond; and the
+automatic reviewer can simply be delayed, disabled, or unconfigured for a
+given repo. Defaulting straight to self-review in either case would let a
+clean subagent pass produce REVIEW-LANDED and a merge-ready verdict
+without any independent platform reviewer ever having actually responded
+— silently defeating `PROP-LRH-SELF-REVIEW` Decision 4's guarantee rather
+than resting on it. The wiring this proposal calls for must therefore
+check for affirmative evidence of a landed first-round response (e.g. at
+least one review or comment from a configured reviewer, dated after the
+PR's creation) before treating Decision 4's guarantee as satisfied; if no
+such evidence exists, retain bot-first handling for that first round
+until it does, rather than assuming the automatic trigger already ran.
+
+**Opt-in surface for a real bot round, corrected — caught in this PR's
+own review (Codex, P2).** The original text above named "the existing
+Step 4 confirm-gate batch summary" as the visibility point — but
+`/lrh-confirm-fixes` Step 2.2 explicitly skips directly to Step 8 when no
+unresolved threads exist, meaning Step 4 never runs at all in exactly the
+clean/standalone-confirmation case this mechanism most needs to be
+visible in. The opt-in surface must instead sit on a path that always
+runs: immediately before Step 8's mechanism choice executes, not
+contingent on Step 4 having fired. A human who wants a real bot round can
+still ask for one at any point in the normal course of the conversation
+— this correction is about where the choice is *displayed* by default,
+not about adding a fresh mandatory ask, so it stays consistent with this
+project's existing `skip_if_opted_in` philosophy and the friction-
+reduction goal.
 
 ### Decision 2: Wire `self_review_preference` into `round-cap-gate.md`
 
@@ -211,6 +237,24 @@ elsewhere; and (b) the staleness diff's own file list (`land-workflow.md`'s
 `_shared/chain-defaults.md`) must be extended to include
 `lrh-confirm-fixes/SKILL.md` and `round-cap-gate.md` themselves — today's
 list would silently miss a change to the very files this proposal edits.
+
+**The staleness-file-diff fix above is necessary but not sufficient —
+caught in this PR's own review (Codex, P2).** Extending the diffed file
+list only detects a change to the *skill-logic files themselves*; it does
+not detect a change to the *value* being trusted. A later commit could
+edit `project/config/chain-defaults.yaml`'s `self_review_preference`
+field directly, in isolation, without touching any of the diffed skill
+files at all — the existing `confirmed_commit` would stay non-null and
+"not stale" under file-diff staleness alone, even though the human never
+actually confirmed *this* value. The eventual wiring must therefore bind
+the confirmation to the specific *value* it was granted for, not only to
+the skill-logic files being unchanged — e.g. a stored hash of the
+confirmed `self_review_preference` value itself (the same value-hash-
+binding shape `DEC-CHAIN-INIT-SKIP-CONSENT`'s `skip_if_opted_in` opt-in
+already uses for its own consent, per `land-workflow.md`'s "the five
+requirements"), invalidated the moment the live value diverges from what
+was hashed at confirmation time — not merely an equivalent check in
+spirit, a real content binding.
 
 ### Decision 3: Specify the wait mechanism as a bounded background poll, with predicates matched to what each wait is actually waiting for
 
@@ -259,6 +303,22 @@ waiting for:
 - **CI wait**: poll `gh pr checks` (or equivalent) for required-check
   state — the check-run/CI-state predicate is correct here specifically.
 
+**The CI-wait predicate needs a three-way result, not a binary one —
+caught in this PR's own review (Codex, P2), verified independently
+against `gh pr checks --help` and `gh help exit-codes` before accepting:
+`gh pr checks` documents exit code `8` specifically for "Checks
+pending," distinct from exit code `1` for a command/check failure and
+`0` for success.** A predicate that only breaks the loop on success
+(exit `0`) and otherwise keeps sleeping cannot distinguish "still
+pending, keep waiting" from "already failed, stop now" — a required
+check that fails early would sit in the loop for the full 900 seconds
+producing no useful signal, when the real answer was already known. The
+CI-wait predicate must check for a terminal failure explicitly and break
+the loop on it (reporting failure, not timeout) rather than treating only
+exit `0` as a stopping condition. The bot-response predicate does not
+need this distinction — a missing response has no equivalent "terminal
+failure" state to detect early, only present-or-absent.
+
 Both predicates run inside the same bounded-loop shape, capped at
 `round-cap-gate.md`'s existing `STALE_AGE_SECONDS=900` constant rather than
 a second, undocumented magic number. `check_predicate` below stands for
@@ -274,7 +334,10 @@ POLL_INTERVAL_SECONDS=30
 START=$(date +%s)
 while true; do
   if check_predicate; then
-    break
+    break          # success (bot response present, or CI required-checks green)
+  elif [ $? -eq 1 ]; then
+    break           # CI-wait only: terminal failure, not pending -- report now,
+                     # don't keep sleeping toward the timeout (see note above)
   fi
   if [ $(( $(date +%s) - START )) -ge "$STALE_AGE_SECONDS" ]; then
     echo "no response after ${STALE_AGE_SECONDS}s" >&2

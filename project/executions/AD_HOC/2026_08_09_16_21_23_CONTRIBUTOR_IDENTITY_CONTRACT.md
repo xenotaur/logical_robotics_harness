@@ -85,6 +85,11 @@ claim, and is why validator enforcement is in scope rather than deferred.
 
 ## Correction carried into the proposal
 
+*(The two figures quoted in this subsection — 8,506 URLs and ~250 look-alikes —
+are themselves wrong, from the same measurement error. See the Correction
+section at the end of this record. Left as written to preserve what the run
+actually believed at the time.)*
+
 An earlier turn of the analysis called renaming in LCATS "catastrophic" because
 of its 8,506 `github.com/xenotaur` URLs. That overstated the risk: anchored
 patterns never match a URL, and `owner:` is cross-validated

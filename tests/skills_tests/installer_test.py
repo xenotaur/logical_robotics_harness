@@ -182,6 +182,43 @@ class TestInstallSkills(unittest.TestCase):
         self.assertTrue(plugin_json.exists())
         self.assertIn('"name": "lrh"', plugin_json.read_text())
 
+    def test_antigravity_target_preserves_custom_plugin_json_unless_forced(
+        self,
+    ) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("---\nname: sample-skill\n---\n")
+        skills_dir = self._make_skills_dir()
+
+        # First install creates standard plugin.json
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+        plugin_json = skills_dir.parent / "plugin.json"
+        custom_content = '{\n  "name": "custom-lrh"\n}\n'
+        plugin_json.write_text(custom_content, encoding="utf-8")
+
+        # Second install without force preserves custom plugin.json
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+            force=False,
+        )
+        self.assertEqual(plugin_json.read_text(encoding="utf-8"), custom_content)
+
+        # Third install with force overwrites custom plugin.json
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+            force=True,
+        )
+        self.assertIn('"name": "lrh"', plugin_json.read_text(encoding="utf-8"))
+
     def test_codex_target_strips_multiline_claude_metadata(self) -> None:
         source_dir = self._make_skills_dir()
         skill_dir = source_dir / "sample-skill"

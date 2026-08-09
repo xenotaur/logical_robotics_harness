@@ -828,12 +828,24 @@ def install_skills(
             status = SkillStatus.UP_TO_DATE
         results.append(SkillResult(name=name, status=status))
 
-    if skill_target is SkillTarget.ANTIGRAVITY and not dry_run:
+    if skill_target is SkillTarget.ANTIGRAVITY:
         plugin_dir = target_dir.parent
-        plugin_dir.mkdir(parents=True, exist_ok=True)
         manifest_path = plugin_dir / "plugin.json"
         manifest_content = json.dumps(_ANTIGRAVITY_PLUGIN_MANIFEST, indent=2) + "\n"
-        manifest_path.write_text(manifest_content, encoding="utf-8")
+
+        if not manifest_path.exists():
+            if not dry_run:
+                plugin_dir.mkdir(parents=True, exist_ok=True)
+                manifest_path.write_text(manifest_content, encoding="utf-8")
+        else:
+            try:
+                existing_content = manifest_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                existing_content = ""
+
+            if existing_content != manifest_content and force and not dry_run:
+                plugin_dir.mkdir(parents=True, exist_ok=True)
+                manifest_path.write_text(manifest_content, encoding="utf-8")
 
     return InstallReport(
         results=results,

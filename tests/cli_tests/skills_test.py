@@ -15,12 +15,14 @@ class SkillsInstallCliTest(unittest.TestCase):
         return pathlib.Path(__file__).resolve().parents[2]
 
     def _run(self, *args: str) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(self._repo_root() / "src")
         return subprocess.run(
             [sys.executable, "-m", "lrh.cli.main", *args],
             check=False,
             capture_output=True,
             text=True,
-            env=os.environ.copy(),
+            env=env,
             cwd=self._repo_root(),
         )
 
@@ -30,6 +32,7 @@ class SkillsInstallCliTest(unittest.TestCase):
             env = os.environ.copy()
             env["HOME"] = fake_home
             env["USERPROFILE"] = fake_home
+            env["PYTHONPATH"] = str(self._repo_root() / "src")
             return subprocess.run(
                 [sys.executable, "-m", "lrh.cli.main", *args],
                 check=False,
@@ -42,12 +45,14 @@ class SkillsInstallCliTest(unittest.TestCase):
     def _run_local(self, *args: str) -> subprocess.CompletedProcess[str]:
         """Run lrh with a temporary CWD so --local installs to a clean dir."""
         with tempfile.TemporaryDirectory() as fake_cwd:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(self._repo_root() / "src")
             return subprocess.run(
                 [sys.executable, "-m", "lrh.cli.main", *args],
                 check=False,
                 capture_output=True,
                 text=True,
-                env=os.environ.copy(),
+                env=env,
                 cwd=fake_cwd,
             )
 
@@ -324,6 +329,8 @@ class SkillsInstallCliTest(unittest.TestCase):
 
     def test_skills_install_local_antigravity_writes_gemini_plugins(self) -> None:
         with tempfile.TemporaryDirectory() as fake_cwd:
+            env = os.environ.copy()
+            env["PYTHONPATH"] = str(self._repo_root() / "src")
             result = subprocess.run(
                 [
                     sys.executable,
@@ -338,7 +345,7 @@ class SkillsInstallCliTest(unittest.TestCase):
                 check=False,
                 capture_output=True,
                 text=True,
-                env=os.environ.copy(),
+                env=env,
                 cwd=fake_cwd,
             )
             self.assertEqual(result.returncode, 0, msg=result.stderr)

@@ -416,14 +416,53 @@ disjunct was marked met on 2026-07-30, producing `DEC-AGENT-EXECUTED-MERGE-GATE`
 The first disjunct is met by current operating experience and has never been
 actioned.
 
-**Cascade taxonomy.** `DEC-AGENT-EXECUTED-MERGE-GATE`'s Consequences section is
-adopted verbatim as the template, including the correction it documents:
+**Cascade taxonomy — adopted as extended, not verbatim.**
+`DEC-AGENT-EXECUTED-MERGE-GATE`'s Consequences section is the template:
 adopted proposals are **updated in place** (per
 `project/design/proposals/README.md`'s lifecycle contract), execution records
 are **immutable** (historical accounts, not standing governance), resolved work
 items are **left untouched**, and cross-repository agent memories are
 **corrected, not left stale** — that record found two LCATS memory files
 codifying a superseded rule as a hard instruction.
+
+**That taxonomy has a gap, and this proposal extends it rather than adding a
+category.** As written it classifies by *artifact class* — asking "does this
+artifact govern ongoing behavior?" The discriminating question is actually about
+the *statement*: "does this sentence assert current state about something still
+live?"
+
+The gap is not hypothetical. Independent review found
+`WS-SKILLS-EXECUTE.md:77,114,133` (a **resolved workstream** — a class the
+taxonomy does not name at all) asserting that `WI-DELIBERATE-MODEL-INVOCATION`
+is "owned by `WS-EXECUTION-FRAMEWORK`". That claim was never true: that
+workstream's `work_items:` list contains zero occurrences of it. Checking the
+scope of the problem then found the *same false claim* at
+`WI-SKILLS-LRH-EXECUTE.md:70` — a **resolved work item**, which the taxonomy
+explicitly says is "correctly left as-is."
+
+So a category-based fix — adding "resolved workstreams" as a fifth bullet —
+would catch one of the two instances and instruct leaving the other false
+statement in place, purely because of which kind of file contains it.
+
+**The extension, which subsumes all four existing rules rather than competing
+with them:**
+
+- **Narrative about what happened** — immutable, whatever the container. This is
+  why `WI-SKILLS-LRH-LAND`'s acceptance criteria were correctly left alone: they
+  describe what *was delivered*, past-tense and self-contained.
+- **An assertion of current state about a still-live artifact** — corrected,
+  whatever the container's own status. `WI-SKILLS-LRH-EXECUTE:70` asserts
+  present-tense ownership of an item that is **still `proposed` today**. Same
+  artifact class as the example above; categorically different statement.
+
+Resolved artifacts outlive the things they point at. That is the property the
+original taxonomy has no way to express, and stating the test as a principle
+means it will not need a sixth bullet when a stale claim turns up in a resolved
+focus or an abandoned proposal.
+
+**Amending the taxonomy is a decision-record change**, so the extension is
+carried formally by the DEC record Stage 3 produces — this proposal records the
+reasoning and the evidence, not the amendment itself.
 
 ### Decision 7: The merge and closeout questions become one ask, with closeout still post-merge
 
@@ -607,7 +646,7 @@ asking the constraint exists to prevent.
 | **6** | Feed dogfood findings back into Stages 1–4 | new WS |
 | **7** | Resume normal fleet operation | new WS |
 
-**Four scope items independent review surfaced as missing:**
+**Five scope items independent review surfaced as missing:**
 
 - **Stage 2 — Decision 4 invalidates two statements about diff-mode's apply
   behaviour, and neither was in scope.** Making `/lrh-self-review` diff-mode
@@ -640,6 +679,16 @@ asking the constraint exists to prevent.
   reduction). Stage 1 must record a disposition (obsolete / re-scope / preserve the
   detection logic elsewhere) rather than leaving them to be re-derived against
   deleted code.
+- **Stage 3 — four known stale ownership claims to correct, and the extended
+  taxonomy to record.** The cascade must fix the instances independent review
+  already found, not merely describe the rule: `WS-SKILLS-EXECUTE.md:77`, `:114`,
+  `:133` and `WI-SKILLS-LRH-EXECUTE.md:70`, all asserting that
+  `WI-DELIBERATE-MODEL-INVOCATION` is "owned by `WS-EXECUTION-FRAMEWORK`" when
+  that workstream's `work_items:` list never contained it. Two of the four are
+  now doubly wrong, since `WS-INVOCATION-AND-GATE-RESET` has taken ownership.
+  Stage 3's DEC record must also carry the taxonomy extension in Decision 6, and
+  a sweep should look for the same statement shape elsewhere rather than
+  assuming these four are exhaustive.
 - **Stage 3 — the Stage 3.5 "compensating control" must be a named
   deliverable.** Decision 8 gates activation on it, but Decision 6 enumerates
   Stage 3's outputs without requiring it, so the gate could be satisfied by

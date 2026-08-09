@@ -28,7 +28,7 @@ work_items:
 exit_criteria:
   - Stage 1 landed - manual GitHub bot retrigger removed from all skills, a provisional no-progress loop cap in place, PROP-REVIEW-WAIT-POSTURE rescoped, self_review_preference removed, a disposition recorded for the two stalled-reviewer-detection backlog entries scoped to the gutted files, and confirmed_commit re-stamped
   - Stage 2 landed - disable-model-invocation removed from all remaining skills with when_to_use added, /lrh-self-review report-only by default with a platform-enforced recursion guard, the /lrh-confirm-fixes empty-thread fast path gated, a deliberate decision recorded for installer.py's Codex allow_implicit_invocation emission with tests updated, WI-DELIBERATE-MODEL-INVOCATION's two same-change acceptance criteria explicitly amended, the three inlining-is-permanent statements updated, subagent-preload behavior verified, and confirmed_commit re-stamped
-  - Stage 3 landed - gate corpus audit artifact written, gate policy proposal adopted, a DEC record naming exactly what it supersedes recorded, a named and checkable Stage 3.5 compensating control produced, and the cascade applied per DEC-AGENT-EXECUTED-MERGE-GATE's artifact taxonomy including cross-repo memory correction
+  - Stage 3 landed - gate corpus audit artifact written, gate policy proposal adopted, a DEC record naming exactly what it supersedes recorded, a named and checkable Stage 3.5 compensating control produced, the DEC record carrying the extended cascade taxonomy (statement-shaped, not artifact-class-shaped) per PROP-INVOCATION-AND-GATE-RESET Decision 6, the four known stale ownership claims corrected (WS-SKILLS-EXECUTE.md:77,114,133 and WI-SKILLS-LRH-EXECUTE.md:70), and the cascade applied including cross-repo memory correction
   - Stage 3.5 complete - chain-defaults mechanism activated under the compensating control Stage 3 produced, with the two-step consent contract of DEC-CHAIN-INIT-SKIP-CONSENT preserved and skip_if_opted_in never becoming the shipped default
   - Stages 5-6 complete - a low-stakes LRH-internal dogfood run clean, the related open PRs triaged with go/no-go decisions, and findings fed back into Stages 1-4
   - Stage 7 complete - normal fleet operation resumed across the repositories and harnesses paused for this program, with the resumption criterion met and recorded
@@ -61,9 +61,13 @@ Stages 1, 2, 3, 3.5, 5, 6, and 7 of the proposal's implementation plan:
   rescope, `self_review_preference` cleanup, `confirmed_commit` re-stamp.
 - **Stage 2** — `disable-model-invocation` removal across the remaining skills,
   `when_to_use` for each, `/lrh-self-review` report-only default plus a
-  platform-enforced recursion guard, subagent-preload verification, re-stamp.
-- **Stage 3** — gate corpus audit artifact, gate policy proposal, DEC record,
-  and the cascade into skills, guidance docs, and memories.
+  recursion guard, the `/lrh-confirm-fixes` empty-thread gate, the `installer.py`
+  Codex-policy decision, amending `WI-DELIBERATE-MODEL-INVOCATION`'s two
+  same-change criteria, updating the three inlining statements and the two
+  apply-behaviour statements, subagent-preload verification, re-stamp.
+- **Stage 3** — gate corpus audit artifact, gate policy proposal, DEC record
+  (carrying the extended cascade taxonomy), correction of the four known stale
+  ownership claims, and the cascade into skills, guidance docs, and memories.
 - **Stage 3.5** — chain-defaults activation, sequenced deliberately after
   Stage 3 so it does not recreate the `skip_if_opted_in` consent-riding gap.
 - **Stages 5–7** — LRH-internal dogfood, related-PR triage, feedback into
@@ -109,8 +113,8 @@ decision exists to separate. Cross-link instead."
   1 and is being rescoped to its bounded-poll wait mechanism.
 - **Backlog:** `project/design/backlog.md`'s "Self-review-first tier for
   reducing GitHub bot-review credit consumption" is satisfied by Stage 1.
-- **Recommendation:** Offer to link `WI-DELIBERATE-MODEL-INVOCATION`; mark the
-  backlog entry shipped when Stage 1 lands.
+- **Recommendation:** `WI-DELIBERATE-MODEL-INVOCATION` is now owned here (see
+  above); mark the backlog entry shipped when Stage 1 lands.
 
 ## Work Items
 
@@ -161,10 +165,14 @@ on the `skip_if_opted_in` clause.)
   `confirmed_commit` re-stamped.
 - Stage 3 landed: audit artifact written, gate policy proposal adopted, a DEC
   record naming exactly what it supersedes recorded, a **named and checkable
-  Stage 3.5 compensating control** produced, and the cascade applied
-  per `DEC-AGENT-EXECUTED-MERGE-GATE`'s artifact taxonomy — including
-  cross-repository memory correction, which that record documents as a step a
-  prior decision initially missed.
+  Stage 3.5 compensating control** produced, the DEC record carrying the
+  **extended cascade taxonomy** (classify by statement — narrative vs. assertion
+  of current state about a still-live artifact — not by artifact class; see
+  `PROP-INVOCATION-AND-GATE-RESET` Decision 6), the **four known stale ownership
+  claims corrected** (`WS-SKILLS-EXECUTE.md:77`, `:114`, `:133`,
+  `WI-SKILLS-LRH-EXECUTE.md:70`), and the cascade applied — including
+  cross-repository memory correction, which `DEC-AGENT-EXECUTED-MERGE-GATE`
+  documents as a step a prior decision initially missed.
 - Stage 3.5 complete: chain-defaults activated under the compensating control
   Stage 3 produced, with `DEC-CHAIN-INIT-SKIP-CONSENT`'s two-step consent
   contract preserved and `skip_if_opted_in` never becoming the shipped default.

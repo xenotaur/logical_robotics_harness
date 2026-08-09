@@ -454,12 +454,20 @@ yet), proceed with the unconditional bot retrigger below:
      always has a real `commit_id` via the REST reviews endpoint, always
      paginated (the endpoint defaults to `per_page=30`; without
      pagination, a PR with more than 30 formal reviews can silently
-     truncate before a later finding is read):
+     truncate before a later finding is read). The projection must
+     include `.body` — reading a review's content (below) is required
+     before crediting it, and a query that only prints metadata cannot
+     be read for content at all:
      ```bash
      gh api --paginate repos/<owner>/<repo>/pulls/<N>/reviews \
-       --jq '.[] | "\(.submitted_at) \(.user.login) \(.state) commit=\(.commit_id[0:7])"'
+       --jq '.[] | {submitted_at, login: .user.login, state, commit_id, body}'
      ```
-     A formal review's coverage is determined by `commit_id`, never by
+     **Match `commit_id` exactly against the current `HEAD`, never a
+     truncated prefix** — compare the full `commit_id` value to
+     `gh pr view <pr-url> --json headRefOid --jq .headRefOid`; an
+     abbreviated prefix is fine for a human-readable log line but is not
+     sufficient on its own to prove exact-commit coverage. A formal
+     review's coverage is determined by this `commit_id` match, never by
      whether its text happens to quote the SHA — requiring SHA-text-match
      for a formal review that already carries a `commit_id` would leave
      a real review pending indefinitely if its body just didn't happen to

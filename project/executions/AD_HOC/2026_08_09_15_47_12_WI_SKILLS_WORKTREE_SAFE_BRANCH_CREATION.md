@@ -86,8 +86,24 @@ eight sites this work item fixes. Its `git checkout main && git pull` would have
 failed in this environment, so the branch step was deviated from deliberately
 rather than executed. The skill diagnosed its own defect during use.
 
-Second instance of a skill-template defect found this session: `/lrh-work-item`
-Step 9 and `/lrh-proposal` Step 9 both specify commit messages
-(`Add work item <ID>: <title>`) that do not satisfy `STYLE.md`'s Conventional
-Commits requirement. `chore(work-item):` was used instead. Worth folding into
-this work item or a sibling.
+Second instance of a skill-template defect found this session: commit-message
+templates that do not satisfy `STYLE.md`'s Conventional Commits requirement.
+At the author's direction this was **folded into this same work item** rather
+than tracked separately, since all affected skills are already inside the
+eight-skill branch-creation set.
+
+Full scope measured before folding: five templates across four skills —
+`lrh-create-skill:221`, `lrh-proposal:304`, `lrh-work-item:332`,
+`lrh-work-item:395`, `lrh-workstream:300`. Two templates
+(`lrh-closeout:411`, `lrh-readiness:180`) are already compliant and serve as the
+in-repo pattern. The work item's `## Validation` section carries a grep that
+was tested against the pre-fix tree and correctly returns exactly the five
+offenders while excluding both compliant templates.
+
+**Correction made during drafting.** A first draft asserted the resulting
+non-compliant commits were already on `main`. Verified with
+`git merge-base --is-ancestor` before landing the claim: `eebba0d3` and
+`ca50b0d3` sit on open PR branches #531 and #522, not `main`, and reach `main`
+only when those PRs merge — which does preserve the messages verbatim, since
+this repository merges rather than squashes. The work item text was corrected
+before commit.

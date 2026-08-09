@@ -86,6 +86,33 @@ command; it was an execution record certifying "Fleet survey run … excluding
 the survey. A command that reports its own scope produces a line an artifact can
 cite and a reviewer can check. "I ran `git grep`" is unfalsifiable prose.
 
+**The failure is broader than worktrees, and that is the design discussion this
+work item should carry.** Every wrong claim in the originating session came from
+the same shape of mistake — *checking a narrower surface than the claim
+covered* — and only the first instance was a worktree problem:
+
+| Claim made | Surface actually checked | Surface the claim covered |
+|---|---|---|
+| LCATS has 180 refs | filesystem `grep -r` | tracked files only |
+| `prosocial` has an orphan `owner:` | filesystem, incl. untracked | tracked files |
+| Neither sibling repo runs `lrh validate` in CI | `.github/workflows/` | the `scripts/validate` those workflows call |
+| The `github:` addition is safe standalone | registry frontmatter | the registry **body**, which documented the placeholder as deliberate |
+| Retriggers are removed | `src/` and `.claude/` in this repo | **`~/.claude/skills/`**, the user-level install every repo loads from |
+
+The last is the sharpest: the retrigger commands were verified absent from the
+repository and still present in the copy that actually executes. A worktree-aware
+`git grep` would not have caught it, because the relevant corpus was not this
+repository at all.
+
+So the scope question is not "which files in this repo" but "**what is the
+corpus this claim is about**" — and the answer is sometimes outside the
+repository. That is the design discussion this work item owns. Candidate corpora
+observed so far: tracked files here; the user-level `~/.claude/skills/` install;
+sibling repositories' installed copies; a file's body rather than its
+frontmatter; a script a CI workflow calls rather than the workflow itself. Not
+all are greppable the same way, and some may not belong in a search tool at all
+— resolving that is part of the work, not a precondition to it.
+
 **A home for the non-obvious part.** *How* to grep is obvious; *what to count
 over* is not, and it varies:
 
@@ -96,6 +123,9 @@ over* is not, and it varies:
 - excluding `project/executions/`, when counting current usage rather than
   historical mentions — a real distinction no single `git grep` invocation
   expresses;
+- **the installed skill corpus rather than the source one** — `~/.claude/skills/`
+  and any per-repo `.claude/skills/`, which is what actually executes and which
+  can be arbitrarily stale relative to `main`;
 - project-specific asset layouts, where the interesting corpus is not "tracked
   markdown";
 - version-control systems other than git, where `git grep` is simply unavailable.

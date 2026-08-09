@@ -636,8 +636,8 @@ asking the constraint exists to prevent.
 
 | Stage | Deliverable | Owner |
 |---|---|---|
-| **1** | Retrigger removal; provisional self-review round cap; PR #522 disposition; `self_review_preference` cleanup; **disposition for the two stalled-reviewer backlog entries**; `confirmed_commit` re-stamp | new WS |
-| **2** | Flag removal ×4; `when_to_use` ×4; `/lrh-self-review` report-only default **plus its two apply-behaviour call sites** (see below); platform-enforced recursion guard; **`/lrh-confirm-fixes` empty-thread gate**; **`installer.py` Codex-policy decision**; **amend `WI-DELIBERATE-MODEL-INVOCATION`'s two criteria**; **update the three inlining statements**; preload verification; `confirmed_commit` re-stamp | new WS |
+| **1** | Retrigger removal; provisional self-review round cap; PR #522 disposition; `self_review_preference` cleanup; **disposition for the two stalled-reviewer backlog entries**; **`lrh skills install` + verification against `~/.claude/skills/`**; `confirmed_commit` re-stamp | new WS |
+| **2** | Flag removal ×4; `when_to_use` ×4; `/lrh-self-review` report-only default **plus its two apply-behaviour call sites** (see below); platform-enforced recursion guard; **`/lrh-confirm-fixes` empty-thread gate**; **`installer.py` Codex-policy decision**; **amend `WI-DELIBERATE-MODEL-INVOCATION`'s two criteria**; **update the three inlining statements**; preload verification; **`lrh skills install` + verification against `~/.claude/skills/`**; `confirmed_commit` re-stamp | new WS |
 | **3** | Gate corpus audit artifact → policy proposal → DEC record → cascade; includes Decision 9's staleness redesign, Decision 7's shape, **and the Stage 3.5 compensating control** | new WS |
 | **3.5** | Activation: set `chain_init_confirmation`, grant two-step consent, stamp — under the control Stage 3 produces | new WS |
 | **4** | `confirm_fixes_batch` predicate (Increment 2); Increment 3 policy-derived fields including `closeout_with_merge` | `WS-LRH-CHAIN-DEFAULTS` |
@@ -645,6 +645,39 @@ asking the constraint exists to prevent.
 | **5b** | Session and PR triage: related × go/no-go across open PRs and live sessions | new WS |
 | **6** | Feed dogfood findings back into Stages 1–4 | new WS |
 | **7** | Resume normal fleet operation | new WS |
+
+**Propagation is a required deliverable of Stages 1 and 2, not a follow-up.**
+
+Landing on `main` does not change agent behaviour. Skills execute from installed
+copies, and the authoritative one for most sessions is the **user-level**
+`~/.claude/skills/`, which applies in every repository regardless of which repo
+is checked out. Measured while writing this section, that copy was stale enough
+to predate work already merged:
+
+| | user-level `~/.claude/skills/` | `main` after PR #533 |
+|---|---|---|
+| Retrigger commands present | **yes** — `lrh-confirm-fixes/SKILL.md`, `references/round-cap-gate.md` | (removed by Stage 1) |
+| Skills carrying `disable-model-invocation` | **13** | 4 |
+
+Thirteen, not four: the user-level install had not picked up PR #533's removal
+from nine skills. So a Stage 1 that lands cleanly, passes `lrh validate`, and
+merges would leave every session in every repository still loading a
+`/lrh-confirm-fixes` that retriggers — while everyone reasonably believes the
+retriggers stopped. That is worse than not shipping, because it destroys the
+evidence that the fix worked.
+
+Each of Stages 1 and 2 must therefore include:
+
+1. **`lrh skills install`** after the change lands, refreshing the user-level
+   copy and any per-repo installs in active use.
+2. **Post-install verification against the installed corpus, not the source
+   tree.** Stage 1: no `@codex review` or `--add-reviewer @copilot` anywhere
+   under `~/.claude/skills/`. Stage 2: no `disable-model-invocation` there
+   either. Verifying `src/` and `.claude/` in this repository is exactly the
+   check that missed this.
+3. **A note that in-flight sessions keep the copy they loaded at start** and
+   need restarting to pick up the change — which is a reason to sequence these
+   stages inside the fleet pause rather than alongside live work.
 
 **Five scope items independent review surfaced as missing:**
 

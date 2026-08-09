@@ -3,8 +3,8 @@
   "ceiling": 3,
   "completed_count": 2,
   "pending_attempt": {
-    "promoted": true,
-    "reviewers": {"codex": "submitted", "copilot": "submitted"},
-    "retriggered_at": "2026-08-09T05:09:19Z"
+    "promoted": false,
+    "reviewers": {"codex": "pending", "copilot": "pending"},
+    "retriggered_at": "2026-08-09T05:30:31Z"
   }
 }

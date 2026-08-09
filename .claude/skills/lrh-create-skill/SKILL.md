@@ -6,7 +6,13 @@ description: >
   recurring workflow, capture domain knowledge for reuse, or asks
   "can we make a skill for X?" Produces SKILL.md and references/ under
   .claude/skills/<name>/ and adds an index entry to CLAUDE.md.
-disable-model-invocation: true
+when_to_use: >
+  Invoke when the user wants to add a project-local skill, automate a
+  recurring workflow as a skill, capture domain knowledge for reuse, or
+  explicitly asks "can we make a skill for X?" Do not invoke when the
+  user is only discussing, reading, or asking about existing skills. The
+  Step 4 confirm-before-write gate is the write-protection regardless of
+  invocation route.
 argument-hint: [skill-name]
 ---
 
@@ -77,9 +83,15 @@ Ask the user these five questions. Collect all answers before proceeding.
    suitable for the frontmatter `description` field.
 
 2. **Invocation:** Should Claude invoke this skill automatically when
-   relevant keywords appear in conversation, or should it only run when
-   the user explicitly types `/<name>`?
-   (Answer determines whether `disable-model-invocation: true` is needed.)
+   relevant keywords appear in conversation, or should auto-triggering be
+   narrowed? Most skills, including ones that write files, should stay
+   model-invocable — narrow the auto-trigger surface with a `when_to_use`
+   field and rely on an explicit confirm-before-write gate inside the
+   skill's own steps for write-protection (see
+   `references/lrh-skill-pattern.md`'s "When to use
+   `disable-model-invocation: true`" section — reserve that flag for a
+   specific, confirmed gap the confirm-gate pattern doesn't cover, not as
+   a default for "explicit intent only").
 
 3. **Arguments:** What arguments does the user pass when invoking the skill?
    Include a usage example.
@@ -106,7 +118,8 @@ Read the following before proposing the skill structure:
 
 Then propose:
 
-- The exact frontmatter (name, description, disable-model-invocation,
+- The exact frontmatter (name, description, when_to_use,
+  disable-model-invocation only if a specific gap requires it,
   argument-hint, context if needed).
 - The body section outline (Inputs, Reference Knowledge, Execution Steps,
   Quality Checklist, What This Skill Does Not Do).
@@ -182,7 +195,10 @@ After writing, check these conditions. Fix any failure before proceeding.
 
 - `name` matches the directory name and is kebab-case.
 - `description` is ≤ 1024 characters (count them).
-- `disable-model-invocation` is present and reflects the answer from Step 2.
+- `when_to_use` reflects the answer from Step 2, narrowing auto-trigger
+  surface. `disable-model-invocation` is present only if Step 2 identified
+  a specific gap the confirm-before-write gate doesn't cover — absent
+  otherwise.
 - `argument-hint` is present when the skill takes arguments.
 - No unknown keys are present (valid keys: `name`, `description`,
   `when_to_use`, `argument-hint`, `arguments`, `disable-model-invocation`,
@@ -242,7 +258,9 @@ Before reporting completion, verify:
 - [ ] `src/lrh/skills/<name>/SKILL.md` exists and is byte-for-byte identical
 - [ ] `name` is kebab-case and matches the directory name
 - [ ] `description` is ≤ 1024 characters
-- [ ] `disable-model-invocation` reflects the intended invocation mode
+- [ ] `when_to_use` reflects the intended invocation mode;
+      `disable-model-invocation` is present only if a specific,
+      confirmed gap requires it (not by default for "explicit intent only")
 - [ ] All proposed `references/` files exist and contain substantive content
 - [ ] The skill body includes: Inputs, Reference Knowledge, Execution Steps,
       Quality Checklist, What This Skill Does Not Do

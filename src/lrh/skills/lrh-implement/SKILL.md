@@ -7,7 +7,14 @@ description: >
   a branch, implements the changes, runs canonical validation, opens a PR,
   and creates a populated execution record. Use when the user wants to execute
   a defined work item (WI-*) or an ad-hoc task in a structured, traceable way.
-disable-model-invocation: true
+when_to_use: >
+  Invoke when the user wants to execute a defined LRH work item or ad-hoc
+  task through the full instruction-and-execution session (branch,
+  implement, validate, PR, execution record), or as a link in a
+  human-initiated /lrh-execute chain. Do not invoke for exploratory
+  discussion of a work item with no request to implement it. The Step 4
+  confirm-plan gate is the write-protection regardless of invocation
+  route.
 argument-hint: "[WI-ID or task description]"
 ---
 

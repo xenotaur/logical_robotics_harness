@@ -8,7 +8,12 @@ description: >
   to the open PR. Invoke in the same session that created the PR for best
   design-context continuity. Provide the PR URL as the argument, or omit
   to auto-detect from the current branch.
-disable-model-invocation: true
+when_to_use: >
+  Invoke when the user wants open PR review comments addressed and fixed,
+  or as a link in a human-initiated /lrh-land chain. Do not invoke merely
+  because a PR is mentioned with no request to address its comments. The
+  Step 4 confirm gate is the write-protection regardless of invocation
+  route.
 argument-hint: "[pr-url]"
 ---
 

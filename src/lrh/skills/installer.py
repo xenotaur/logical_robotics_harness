@@ -186,6 +186,7 @@ class CodexSkillRenderer:
     _CODEX_STRIPPED_FRONTMATTER_KEYS = {
         "argument-hint",
         "disable-model-invocation",
+        "when_to_use",
     }
 
     def render(

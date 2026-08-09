@@ -7,7 +7,11 @@ description: >
   Work-Item Patch from the rendered request, shows it for confirmation,
   applies it only after approval, re-validates readiness, and commits.
   Provide a WI-* ID as the argument.
-disable-model-invocation: true
+when_to_use: >
+  Invoke when the user wants to close the ready-work-item apply loop for a
+  specific thin work item. Do not invoke for general work-item discussion
+  with no readiness gap to close. The Step 4 confirm gate is the
+  write-protection regardless of invocation route.
 argument-hint: "[WI-ID]"
 ---
 

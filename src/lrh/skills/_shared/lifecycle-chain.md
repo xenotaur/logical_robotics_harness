@@ -21,12 +21,22 @@ open PR -> /lrh-review-response -> /lrh-confirm-fixes -> merge -> /lrh-closeout
 ```
 
 Each link is a **suggestion to the user**: no chain starts *itself*. A skill
-never fires another skill as an implicit side effect of finishing. Most
-execution/lifecycle skills carry `disable-model-invocation: true` (e.g.
-`/lrh-implement`, `/lrh-review-response`, `/lrh-confirm-fixes`, `/lrh-closeout`),
-so the *model* cannot auto-trigger them; the planning skills meant to be
-orchestrated (`/lrh-work-item`, `/lrh-proposal`, `/lrh-workstream`) deliberately
-do not carry it. (Do not assert a fixed count — the set drifts.)
+never fires another skill as an implicit side effect of finishing. Per
+`WI-DELIBERATE-MODEL-INVOCATION`'s resolution (see
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`'s dated
+2026-08-08 Consequences entry), this invariant is now carried by
+per-skill guidance and gates rather than the `disable-model-invocation`
+flag for most of the chain: `/lrh-implement`, `/lrh-review-response`, and
+`/lrh-closeout` no longer carry the flag — each is enforced instead by its
+own confirm-before-write gate plus a tiered `when_to_use` that narrows
+auto-trigger surface. `/lrh-confirm-fixes` is the one lifecycle-chain link
+that still carries the flag: its empty-thread fast path skips its own
+confirm gate on the way to an unconditional retrigger/round-state write,
+so removing the flag there remains unsafe until that gap is fixed
+(tracked separately). The planning skills meant to be orchestrated
+(`/lrh-work-item`, `/lrh-proposal`, `/lrh-workstream`) also do not carry
+it, by the earlier, separately-adopted precedent this WI generalized.
+(Do not assert a fixed count for either set — both drift.)
 
 What that invariant does **not** forbid is **deliberate chain initiation**: a
 human may authorize an entire chain in one explicit act — for example by pasting
@@ -47,10 +57,14 @@ actual closeout plan before any files change. Chain initiation authorizes
 
 `disable-model-invocation` governs whether the *model* may auto-trigger a skill
 on its own initiative; it is not by itself a mechanism for human-initiated
-chaining. Whether a chain runner can *invoke* flagged links or must *inline*
-their workflows is an unresolved mechanical question deferred to a follow-up work
-item — do not assert it is simply "orthogonal." See
-`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`.
+chaining. **Resolved:** chain runners (`/lrh-land`, `/lrh-execute`) *inline*
+their sub-workflows rather than invoking them via the `Skill` tool — this is
+now a permanent design preference (self-contained, independently testable
+chain runners), not a workaround for the flag. `/lrh-land` and `/lrh-execute`
+themselves still carry `disable-model-invocation`, unconditionally, pending a
+`DEC-CHAIN-INIT-SKIP-CONSENT` verification gap unrelated to the inlining
+question — see `DEC-DELIBERATE-CHAIN-INITIATION.md`'s dated 2026-08-08
+Consequences entry for the full reasoning.
 
 ## Canonical text
 

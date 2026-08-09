@@ -7,7 +7,13 @@ description: >
   structured audit artifact, and — after explicit user confirmation — writes
   it to project/audits/docs/docs-audit-YYYY-MM-DD.md. Use before
   /lrh-doc-organize to produce the audit artifact that scopes reorganization.
-disable-model-invocation: true
+when_to_use: >
+  Invoke when the user wants a structured Diataxis-framework documentation
+  audit artifact written, or as a link in a human-initiated documentation
+  workflow feeding /lrh-doc-organize. Do not invoke for a general question
+  about docs structure with no request for the audit artifact itself. The
+  Step 7 confirm gate before Step 8's write is the write-protection
+  regardless of invocation route.
 argument-hint: "[docs-root-path]"
 ---
 

@@ -118,6 +118,7 @@ class TestInstallSkills(unittest.TestCase):
                     "description: Sample skill.",
                     "disable-model-invocation: true",
                     'argument-hint: "[thing]"',
+                    "when_to_use: Invoke when the user asks for sample output.",
                     "---",
                     "",
                     "# Sample Skill",
@@ -138,10 +139,49 @@ class TestInstallSkills(unittest.TestCase):
         self.assertIn("name: sample-skill", skill_md)
         self.assertNotIn("disable-model-invocation", skill_md)
         self.assertNotIn("argument-hint", skill_md)
+        self.assertNotIn("when_to_use", skill_md)
         self.assertIn(
             "policy:\n  allow_implicit_invocation: false",
             (installed / "agents" / "openai.yaml").read_text(),
         )
+
+    def test_codex_target_strips_when_to_use_without_disable_model_invocation(
+        self,
+    ) -> None:
+        """A skill with when_to_use but no disable-model-invocation (the
+        pattern most LRH skills use, per WI-DELIBERATE-MODEL-INVOCATION)
+        must still have when_to_use stripped for Codex, since it is not a
+        key Codex's own frontmatter schema recognizes."""
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    "name: sample-skill",
+                    "description: Sample skill.",
+                    "when_to_use: Invoke when the user asks for sample output.",
+                    "---",
+                    "",
+                    "# Sample Skill",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.CODEX,
+        )
+
+        installed = skills_dir / "sample-skill"
+        skill_md = (installed / "SKILL.md").read_text()
+        self.assertIn("name: sample-skill", skill_md)
+        self.assertNotIn("when_to_use", skill_md)
+        self.assertFalse((installed / "agents" / "openai.yaml").exists())
 
     def test_codex_target_strips_multiline_claude_metadata(self) -> None:
         source_dir = self._make_skills_dir()

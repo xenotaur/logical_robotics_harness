@@ -200,3 +200,24 @@ adding `agent`/`instruction_source` to historical records. These are allowed
 happened. The narrative body (`# Summary`, `# Result`, `# Validation`,
 `# Follow-up`) and any unrelated context must remain immutable, even where it
 has since gone stale — annotate in a later record rather than rewriting it.
+
+**CHAIN-NOTE placement respects this same immutability rule.** A
+`/lrh-land`/`/lrh-execute` run appends a one-line `CHAIN-NOTE` summarizing
+the chain (cycles, stops, gates, friction) at closeout time. Where it goes
+depends on whether the PR already has a primary execution record:
+
+- **Primary record found** — its body is immutable per the rule above, so
+  the `CHAIN-NOTE` goes in a **new** `_CLOSEOUT_NOTE` record instead, with
+  `rerun_of: <primary-record-id>` linking back to it.
+- **No primary record** (a PR authored outside the skill chain, or a
+  planning-artifact PR with no execution record of its own) — the chain
+  runner creates an honest, explicitly post-hoc **backfill** `AD_HOC`
+  record (find-or-backfill: prefer a record a review round already
+  created; only fabricate a backfill if none exists), and the
+  `CHAIN-NOTE` goes directly in that fresh record's own `# Result` section
+  — there is no existing immutable narrative to protect against.
+
+See `src/lrh/skills/lrh-land/references/land-workflow.md` § CHAIN-NOTE
+Format and § Found-or-Backfill Matrix for the exact field grammar and the
+full decision table; this section only documents how the placement rule
+relates to the immutability rule above.

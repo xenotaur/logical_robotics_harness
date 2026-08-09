@@ -4,12 +4,12 @@ prompt_id: PROMPT(AD_HOC:FIX_ANTIGRAVITY_TEST_CI_CONFIRM)[2026-08-09T03:50:55+00
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 528
-commit: 3ae7e2a
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/528
+commit: 9a5398c
 created_at: 2026-08-09T03:51:17+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/528
-session_transcript: claude-app:local_860a6ba4-730e-4113-80e7-290d85a766f1
+session_transcript: claude-app:860a6ba4-730e-4113-80e7-290d85a766f1
 ---
 
 # Summary
@@ -37,20 +37,43 @@ this session) already confirmed 0 `required_status_checks` rules on
 coverage/installed-wheel-smoke/lint/Check workflow files/tests all
 SUCCESS.
 
-**Verdict: Green — all threads resolved (trivially), CI green, review
-landed clean → ready to merge.**
+**Round 1 verdict (commit `9a5398c`): CI green, thread-resolution green,
+but Review pending → not yet ready.** Retriggered both reviewers
+(`gh pr comment 528 --body "@codex review"`, `gh pr edit 528
+--add-reviewer @copilot`). Copilot responded clean (0 new comments).
+Codex responded with 3 real findings on this record's own content — all
+confirmed valid against this repo's own convention (checked via `grep`
+across `project/executions/AD_HOC/*.md`, not taken on faith):
 
-Merge command (SHA-locked to this record's `commit`):
+1. `pr: 528` should be the full PR URL — `/lrh-land`'s own documented
+   discovery pattern (`grep "pr: <pr-url>"`, `SKILL.md:79`) searches for
+   the literal URL string; a bare number silently fails that search on
+   every future `/lrh-land`/`/lrh-closeout` invocation. Fixed:
+   `pr: https://github.com/xenotaur/logical_robotics_harness/pull/528`.
+2. `session_transcript: claude-app:local_860a6ba4-...` carried the
+   `local_` prefix; every other record in this directory strips it
+   before the UUID. Fixed: `claude-app:860a6ba4-730e-4113-80e7-290d85a766f1`.
+3. The presented merge command was SHA-locked to `3ae7e2a` — the
+   pre-record-push commit — not `9a5398c`, the commit this round's CI
+   and thread checks actually verified. A human running that command
+   against the real PR head would get a `--match-head-commit` rejection,
+   not a merge. Fixed `commit:` field to `9a5398c` above; see the
+   round-2 verdict below for the actual commit to merge.
 
-```
-gh pr merge https://github.com/xenotaur/logical_robotics_harness/pull/528 --merge --match-head-commit 3ae7e2a1697af59994b7cd16402f6b89354c6492
-```
+All 3 were Clear-satisfied fixes in this same edit, pushed as a new
+commit superseding `9a5398c`. Per Step 8's non-thread-finding handling,
+this fix commit itself requires a fresh CI/REVIEW-LANDED check before a
+final verdict — see the round-2 note appended below (or the chat
+report, if this file was not further amended after that check).
 
 # Validation
 
-- `lrh github threads --mode raw --state all`: 0 threads
-- `gh pr checks 528`: all 5 checks pass
-- `gh pr view 528 --json reviews,comments`: 1 clean review, 0 issue comments
+- `lrh github threads --mode raw --state all`: 0 threads (round 1)
+- `gh pr checks 528`: all 5 checks pass (round 1, against `9a5398c`)
+- `gh pr view 528 --json reviews,comments`: 1 clean review, 0 issue
+  comments (round 1, pre-retrigger)
+- Retrigger round: Copilot clean; Codex posted 3 findings (frontmatter
+  format/convention issues in this record itself), all fixed above
 
 # Follow-up
 
@@ -60,4 +83,7 @@ gh pr merge https://github.com/xenotaur/logical_robotics_harness/pull/528 --merg
   `_CLOSEOUT_NOTE` to.
 - After this merges, `/lrh-land`'s chain on PR #527
   (WI-REVIEW-RESPONSE-ISSUE-COMMENTS) resumes with a fresh
-  confirm-fixes CI re-check against the now-fixed `main`.
+  confirm-fixes CI re-check against the now-fixed `main`. That PR's own
+  records (`pr: 527` bare number, `session_transcript: local_`-prefixed)
+  carry the identical two frontmatter defects found here and need the
+  same fix before that PR closes out.

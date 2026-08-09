@@ -2,14 +2,14 @@
 execution_id: 2026_08_08_04_56_02_DISABLE_MODEL_INVOCATION_REGRESSION_82CAD9_CONFIRM
 prompt_id: PROMPT(AD_HOC:DISABLE_MODEL_INVOCATION_REGRESSION_82CAD9_CONFIRM)[2026-08-08T04:55:51+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/518
-commit: df0133a88fb08c327846601dd118ec2833124bae
+commit: e1fa55fb9667fd3120e35a5af69b2213fc6b3532
 created_at: 2026-08-08T04:56:02+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/518
-session_transcript: pending
+session_transcript: claude-app:f7443527-b80a-49bc-addf-0ce776a885e3
 ---
 
 # Summary

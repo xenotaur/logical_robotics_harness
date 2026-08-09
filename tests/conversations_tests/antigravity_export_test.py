@@ -7,10 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from lrh.conversations import (
-    antigravity_export,
-    export_inspector,
-)
+from lrh.conversations import antigravity_export, export_inspector
 
 
 def _write_transcript(tmp_path: Path, lines: list[dict | str]) -> Path:
@@ -27,8 +24,8 @@ def _write_transcript(tmp_path: Path, lines: list[dict | str]) -> Path:
 
 class TestAntigravityExport(unittest.TestCase):
     def test_convert_antigravity_session_basic(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp_path = Path(tmp_dir)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
             steps = [
                 {
                     "step_index": 0,
@@ -75,6 +72,7 @@ class TestAntigravityExport(unittest.TestCase):
             self.assertIn("Thinking", res.markdown)
             self.assertIn("list_dir", res.markdown)
 
+            # Verify compatibility with inspect_export
             inspection = export_inspector.inspect_export(
                 out_file, source_path=source_file
             )
@@ -83,16 +81,16 @@ class TestAntigravityExport(unittest.TestCase):
             self.assertEqual(inspection.source_hash.status, "match")
 
     def test_convert_antigravity_session_file_not_found(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            missing = Path(tmp_dir) / "non_existent.jsonl"
+        with tempfile.TemporaryDirectory() as temp_dir:
+            missing = Path(temp_dir) / "non_existent.jsonl"
             with self.assertRaisesRegex(
                 antigravity_export.AntigravityExportError, "does not exist"
             ):
                 antigravity_export.convert_antigravity_session(missing)
 
     def test_convert_antigravity_session_output_collision(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp_path = Path(tmp_dir)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
             source_file = _write_transcript(
                 tmp_path,
                 [
@@ -112,15 +110,17 @@ class TestAntigravityExport(unittest.TestCase):
                     source_file, output_path=out_file
                 )
 
+            # Force overwrite succeeds
             res = antigravity_export.convert_antigravity_session(
                 source_file, output_path=out_file, force=True
             )
             self.assertIn("## User", res.markdown)
 
     def test_convert_antigravity_session_malformed_lines_warning(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
             source_file = _write_transcript(
-                Path(tmp_dir),
+                tmp_path,
                 [
                     {
                         "step_index": 0,
@@ -136,8 +136,8 @@ class TestAntigravityExport(unittest.TestCase):
             self.assertIn("line 2: invalid JSON", res.manifest.warnings[0])
 
     def test_convert_antigravity_session_derive_source_id(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            tmp_path = Path(tmp_dir)
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
             nested_dir = (
                 tmp_path / "brain" / "sess_abc123" / ".system_generated" / "logs"
             )
@@ -151,3 +151,7 @@ class TestAntigravityExport(unittest.TestCase):
 
             res = antigravity_export.convert_antigravity_session(source_file)
             self.assertEqual(res.manifest.source_id, "sess_abc123")
+
+
+if __name__ == "__main__":
+    unittest.main()

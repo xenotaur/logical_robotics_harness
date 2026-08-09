@@ -66,8 +66,7 @@ Claude Code *"blocks the call and instructs it not to reproduce the [skill's]
 steps another way."* The flag blocks every invocation route except a bare
 user-typed `/command`, including:
 
-- one skill's instructions invoking another (which is why `/lrh-land` and
-  `/lrh-execute` inline their sub-workflows rather than calling them);
+- one skill's instructions invoking another;
 - a user naming the skill mid-sentence in a compound instruction;
 - a skill offering itself, with the user accepting.
 
@@ -288,7 +287,20 @@ routes. It is also consistent with this repository's own authoring guidance,
 which already states that the confirm-before-write gate *"is what actually
 protects against an unwanted write — not `disable-model-invocation`."*
 
-**Two gaps must close in the same change, not after it:**
+**Chain-runner inlining is unaffected by this decision, and must not be
+"cleaned up" after it.** `/lrh-land` and `/lrh-execute` inline their
+sub-workflows as a settled design preference, not as a flag workaround. Three
+places say so explicitly — `lrh-land/SKILL.md:23` ("Inlined invocation, by
+design, not as an interim step"), `land-workflow.md:423` ("removing flags from
+the lifecycle skills does not trigger an upgrade to direct `Skill` tool calls"),
+and `_shared/lifecycle-chain.md:62` ("now a permanent design preference"). An
+earlier revision of this Background asserted the flag was *why* they inline;
+that was wrong and is corrected, because a future session reading it would
+reasonably reinstate the superseded upgrade plan from `PROP-LRH-LAND-EXECUTE`
+Decision 7. **Stage 2 must update all three statements**, since each currently
+describes flag state that Stage 2 changes.
+
+**Three gaps must close alongside the flag removals:**
 
 1. `/lrh-self-review`'s diff-mode currently applies fixes directly to the
    working tree with no confirm step.
@@ -297,6 +309,25 @@ protects against an unwanted write — not `disable-model-invocation`."*
    while `/lrh-self-review` itself dispatches a subagent — a plausible recursion
    path that would be an unforced error immediately after a stage dedicated to
    bounding runaway spend.
+3. **`/lrh-confirm-fixes`'s empty-thread fast path.** `WI-DELIBERATE-MODEL-INVOCATION`
+   names a second, separate gap: Step 2 skips straight to Step 8 when the
+   unresolved-thread list is empty, bypassing the Step 4 confirm gate. Stage 1
+   removes that path's retrigger and round-state write, which is most of what
+   made it dangerous, but the fast path still reaches Step 8 ungated and Step 8
+   still dispatches a subagent. An earlier revision of this proposal omitted
+   this gap entirely; it is in Stage 2's scope.
+
+**This decision knowingly amends `WI-DELIBERATE-MODEL-INVOCATION`, and that
+amendment is in scope.** That work item's acceptance criteria state, for both
+`lrh-self-review` and `lrh-confirm-fixes`, that "the flag is not removed as part
+of the same change that adds the gate" — the opposite of what Stage 2 does. The
+reversal is deliberate: the operator judgement recorded for this program is that
+a documented, short-lived inconsistent middle state is preferable to the current
+state, in which the flag blocks legitimate invocation across five repositories
+and three harnesses. But it is a reversal of an adopted criterion, not a
+reading of it, so **Stage 2 must amend those two criteria explicitly rather than
+silently contradicting them** — otherwise the work item cannot be resolved when
+Stage 2 lands.
 
 ### Decision 4: `/lrh-self-review` diff-mode becomes report-only by default
 
@@ -492,21 +523,63 @@ decision exists to separate. Cross-link instead."*
 
 ## Implementation Plan
 
-Staged delivery. Stages 1 and 2 are independent (they share no files) and may
-proceed in parallel or either order; Stage 3 follows both so the corpus it
-audits is smaller and stabler.
+Staged delivery, **strictly sequential: Stage 1, then Stage 2, then Stage 3.**
+
+An earlier revision claimed Stages 1 and 2 were independent because they "share
+no files." That is false. The exploratory branch that motivated this proposal
+touches four files with both stages' changes interleaved —
+`lrh-confirm-fixes/SKILL.md`, `lrh-self-review/SKILL.md`, `lrh-land/SKILL.md`,
+and `land-workflow.md` (plus their `.claude/` mirrors). Structurally as well:
+`lrh-self-review/SKILL.md` is written throughout in retrigger and round-cap
+terms that Stage 1 rewrites, while Stage 2 rewrites the same file's frontmatter
+and diff-mode behavior.
+
+Running them in parallel would produce conflicts on those four files, and would
+break the `confirmed_commit` re-stamp constraint below: whichever stage landed
+second would invalidate the other's stamp, producing exactly the increase in
+asking the constraint exists to prevent.
 
 | Stage | Deliverable | Owner |
 |---|---|---|
-| **1** | Retrigger removal; provisional self-review round cap; PR #522 disposition; `self_review_preference` cleanup; `confirmed_commit` re-stamp | new WS |
-| **2** | Flag removal ×4; `when_to_use` ×4; `/lrh-self-review` report-only default; platform-enforced recursion guard; preload verification; `confirmed_commit` re-stamp | new WS |
-| **3** | Gate corpus audit artifact → policy proposal → DEC record → cascade; includes Decision 9's staleness redesign and Decision 7's shape | new WS |
-| **3.5** | Activation: set `chain_init_confirmation`, grant two-step consent, stamp — under Stage 3's compensating control | new WS |
+| **1** | Retrigger removal; provisional self-review round cap; PR #522 disposition; `self_review_preference` cleanup; **disposition for the two stalled-reviewer backlog entries**; `confirmed_commit` re-stamp | new WS |
+| **2** | Flag removal ×4; `when_to_use` ×4; `/lrh-self-review` report-only default; platform-enforced recursion guard; **`/lrh-confirm-fixes` empty-thread gate**; **`installer.py` Codex-policy decision**; **amend `WI-DELIBERATE-MODEL-INVOCATION`'s two criteria**; **update the three inlining statements**; preload verification; `confirmed_commit` re-stamp | new WS |
+| **3** | Gate corpus audit artifact → policy proposal → DEC record → cascade; includes Decision 9's staleness redesign, Decision 7's shape, **and the Stage 3.5 compensating control** | new WS |
+| **3.5** | Activation: set `chain_init_confirmation`, grant two-step consent, stamp — under the control Stage 3 produces | new WS |
 | **4** | `confirm_fixes_batch` predicate (Increment 2); Increment 3 policy-derived fields including `closeout_with_merge` | `WS-LRH-CHAIN-DEFAULTS` |
 | **5a** | Low-stakes LRH-internal dogfood | new WS |
 | **5b** | Session and PR triage: related × go/no-go across open PRs and live sessions | new WS |
 | **6** | Feed dogfood findings back into Stages 1–4 | new WS |
 | **7** | Resume normal fleet operation | new WS |
+
+**Three scope items an independent review surfaced as missing:**
+
+- **Stage 2 — the flag is load-bearing for Codex installs, not only Claude
+  Code.** `src/lrh/skills/installer.py:203` emits `agents/openai.yaml` with
+  `policy.allow_implicit_invocation: false` **only when**
+  `disable-model-invocation` is `true`. Removing the flag therefore drops
+  Codex-side enforcement of "no chain starts itself" for all four skills, as a
+  silent side effect of a change otherwise reasoned about entirely in Claude
+  Code terms. This proposal does **not** decide what should happen — the options
+  are to emit the policy unconditionally, to derive it from `when_to_use`, or to
+  accept the loss because Codex enforcement was never the load-bearing guard.
+  Stage 2 must decide deliberately and update `tests/skills_installer_test.py`,
+  which covers `allow_implicit_invocation` today.
+- **Stage 1 — two open backlog entries are scoped to files Stage 1 guts.**
+  `project/design/backlog.md:622` ("Promote stalled-reviewer-session detection
+  from skill prose to a tested LRH primitive") and `:678`
+  ("Stalled-reviewer-session detection is Copilot-specific but reads as
+  reviewer-generic") both target `lrh-confirm-fixes/SKILL.md` Step 8.3 and
+  `round-cap-gate.md` — the two files Stage 1 reduces by roughly 256 and 784
+  lines. Stage 1 must record a disposition (obsolete / re-scope / preserve the
+  detection logic elsewhere) rather than leaving them to be re-derived against
+  deleted code.
+- **Stage 3 — the Stage 3.5 "compensating control" must be a named
+  deliverable.** Decision 8 gates activation on it, but Decision 6 enumerates
+  Stage 3's outputs without requiring it, so the gate could be satisfied by
+  assertion. Stage 3 must produce a specific, checkable mechanism answering:
+  with the chain-runner flags removed, what establishes that a
+  `skip_if_opted_in` run was initiated by a human? Until that exists, Stage 3.5
+  does not start.
 
 **Sequencing constraints:**
 
@@ -517,7 +590,7 @@ audits is smaller and stabler.
   hash, invalidating any consent granted against it — so field cleanup must land
   **before** Stage 3.5 activation, not after.
 - Before rewriting `round-cap-gate.md`, recover the original from git history.
-  It documents eight distinct correctness bugs found across eight review rounds
+  It documents nine distinct correctness bugs found across eight review rounds
   (worktree-path parsing, branch fast-forwarding, default-branch hard-coding,
   concurrent force-removal safety, cross-tenant branch-name collisions,
   Conventional Commits compliance, `stat` portability, `pipefail` semantics, and

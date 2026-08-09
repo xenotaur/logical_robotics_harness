@@ -25,11 +25,12 @@ related_workstreams:
   - WS-EXECUTION-FRAMEWORK
 work_items: []
 exit_criteria:
-  - Stage 1 landed - manual GitHub bot retrigger removed from all skills, a provisional no-progress loop cap in place, PROP-REVIEW-WAIT-POSTURE rescoped, self_review_preference removed, and confirmed_commit re-stamped
-  - Stage 2 landed - disable-model-invocation removed from all remaining skills with when_to_use added, /lrh-self-review report-only by default with a platform-enforced recursion guard, installer.py subagent-preload behavior verified, and confirmed_commit re-stamped
-  - Stage 3 landed - gate corpus audit artifact written, gate policy proposal adopted, a DEC record naming exactly what it supersedes recorded, and the cascade applied per DEC-AGENT-EXECUTED-MERGE-GATE's artifact taxonomy including cross-repo memory correction
-  - Stage 3.5 complete - chain-defaults mechanism activated under Stage 3's compensating control, with the two-step consent contract of DEC-CHAIN-INIT-SKIP-CONSENT preserved
+  - Stage 1 landed - manual GitHub bot retrigger removed from all skills, a provisional no-progress loop cap in place, PROP-REVIEW-WAIT-POSTURE rescoped, self_review_preference removed, a disposition recorded for the two stalled-reviewer-detection backlog entries scoped to the gutted files, and confirmed_commit re-stamped
+  - Stage 2 landed - disable-model-invocation removed from all remaining skills with when_to_use added, /lrh-self-review report-only by default with a platform-enforced recursion guard, the /lrh-confirm-fixes empty-thread fast path gated, a deliberate decision recorded for installer.py's Codex allow_implicit_invocation emission with tests updated, WI-DELIBERATE-MODEL-INVOCATION's two same-change acceptance criteria explicitly amended, the three inlining-is-permanent statements updated, subagent-preload behavior verified, and confirmed_commit re-stamped
+  - Stage 3 landed - gate corpus audit artifact written, gate policy proposal adopted, a DEC record naming exactly what it supersedes recorded, a named and checkable Stage 3.5 compensating control produced, and the cascade applied per DEC-AGENT-EXECUTED-MERGE-GATE's artifact taxonomy including cross-repo memory correction
+  - Stage 3.5 complete - chain-defaults mechanism activated under the compensating control Stage 3 produced, with the two-step consent contract of DEC-CHAIN-INIT-SKIP-CONSENT preserved and skip_if_opted_in never becoming the shipped default
   - Stages 5-6 complete - a low-stakes LRH-internal dogfood run clean, the related open PRs triaged with go/no-go decisions, and findings fed back into Stages 1-4
+  - Stage 7 complete - normal fleet operation resumed across the repositories and harnesses paused for this program, with the resumption criterion met and recorded
   - PROP-INVOCATION-AND-GATE-RESET status updated to adopted
   - AGENTS.md, CLAUDE.md, and STYLE.md carry the new policy guidance, and session memories encoding superseded gate rules are corrected rather than left stale
 ---
@@ -127,23 +128,38 @@ smaller and more stable. Stage 3.5 must follow Stage 3.
 
 ## Exit Criteria
 
+Kept in sync with the `exit_criteria:` frontmatter list above — if you change
+one, change both. (An independent review caught the two lists already drifting
+on the `skip_if_opted_in` clause.)
+
 - Stage 1 landed: manual GitHub bot retrigger removed from all skills, a
   provisional no-progress loop cap in place, `PROP-REVIEW-WAIT-POSTURE`
-  rescoped, `self_review_preference` removed, `confirmed_commit` re-stamped.
+  rescoped, `self_review_preference` removed, a disposition recorded for the two
+  stalled-reviewer-detection backlog entries (`backlog.md:622`, `:678`) scoped
+  to the files this stage guts, `confirmed_commit` re-stamped.
 - Stage 2 landed: `disable-model-invocation` removed from all remaining skills
   with `when_to_use` added, `/lrh-self-review` report-only by default with a
-  platform-enforced recursion guard, `installer.py` subagent-preload behavior
-  verified, `confirmed_commit` re-stamped.
+  platform-enforced recursion guard, the `/lrh-confirm-fixes` empty-thread fast
+  path gated, a deliberate decision recorded for `installer.py`'s Codex
+  `allow_implicit_invocation` emission with `tests/skills_installer_test.py`
+  updated, `WI-DELIBERATE-MODEL-INVOCATION`'s two "not removed as part of the
+  same change" acceptance criteria explicitly amended, the three
+  inlining-is-permanent statements updated, subagent-preload behavior verified,
+  `confirmed_commit` re-stamped.
 - Stage 3 landed: audit artifact written, gate policy proposal adopted, a DEC
-  record naming exactly what it supersedes recorded, and the cascade applied
+  record naming exactly what it supersedes recorded, a **named and checkable
+  Stage 3.5 compensating control** produced, and the cascade applied
   per `DEC-AGENT-EXECUTED-MERGE-GATE`'s artifact taxonomy — including
   cross-repository memory correction, which that record documents as a step a
   prior decision initially missed.
-- Stage 3.5 complete: chain-defaults activated under Stage 3's compensating
-  control, with `DEC-CHAIN-INIT-SKIP-CONSENT`'s two-step consent contract
-  preserved and `skip_if_opted_in` never becoming the shipped default.
+- Stage 3.5 complete: chain-defaults activated under the compensating control
+  Stage 3 produced, with `DEC-CHAIN-INIT-SKIP-CONSENT`'s two-step consent
+  contract preserved and `skip_if_opted_in` never becoming the shipped default.
 - Stages 5–6 complete: a low-stakes LRH-internal dogfood run clean, the related
   open PRs triaged with go/no-go decisions, and findings fed back.
+- Stage 7 complete: normal fleet operation resumed across the repositories and
+  harnesses paused for this program, with the resumption criterion met and
+  recorded.
 - `PROP-INVOCATION-AND-GATE-RESET` status updated to `adopted`.
 - `AGENTS.md`, `CLAUDE.md`, and `STYLE.md` carry the new policy guidance, and
   session memories encoding superseded gate rules are corrected rather than

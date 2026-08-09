@@ -23,7 +23,7 @@ forbidden_actions:
   - delete_branch
   - modify_lrh_land_step_7
 acceptance:
-  - No skill instructs a checkout of a hard-coded default branch; grep for "git checkout main" across src/lrh/skills/ and .claude/skills/ returns no matches
+  - No skill hard-codes the default branch; neither "git checkout main" nor "origin/main" appears anywhere under src/lrh/skills/ or .claude/skills/
   - Branch creation in all 8 affected skills branches from the resolved default branch's remote ref, so it succeeds while another worktree holds the default branch checked out
   - Each of the 8 skills guards a dirty working tree before creating a branch, surfacing the changes rather than carrying them onto the new branch
   - The default branch is resolved at runtime rather than hard-coded, so the skills work in client repositories using master or trunk
@@ -198,8 +198,17 @@ non-compliant commit-message templates in four of those same eight, a new
 canonical reference under `src/lrh/skills/_shared/`, and the `.claude/skills/`
 mirrors of all of the above.
 
-Out of scope: any other step in those skills; `/lrh-land`'s Step 7, which is
-already correct and serves as the reference implementation for Defect 1; and
+Also in scope: `/lrh-land`'s three `origin/main` occurrences
+(`lrh-land/SKILL.md:403`, `land-workflow.md:19`, `:20`). **These were initially
+placed out of scope on the grounds that Step 7 "already implements the correct
+pattern"; that is only half true.** Step 7 is correct about the *worktree-lock*
+half of Defect 1 — it branches from a remote ref rather than checking out the
+default branch — but it hard-codes `main`, which is the other half. Leaving it
+untouched would ship `_shared/branch-creation.md` saying "never hard-code
+`main`" alongside the very implementation it cites as exemplary doing exactly
+that, still broken in a `master`/`trunk` client repo.
+
+Out of scope: any other step in those skills, and
 `lrh-closeout`/`lrh-readiness`'s commit templates, which are already compliant
 and serve as the reference for Defect 2.
 
@@ -247,8 +256,9 @@ and serve as the reference for Defect 2.
 
 ## Non-Goals
 
-- Does not modify `/lrh-land` Step 7, which already implements the correct
-  pattern and is the reference for this change.
+- Does not change `/lrh-land` Step 7's *structure* — branching from a remote ref
+  rather than checking out the default branch is the pattern this work item
+  propagates. Only its hard-coded `main` is corrected, per Scope above.
 - Does not build an automated drift-check for the inlined copies. That remains
   the deferred backlog entry "Validator drift-check for synced skill
   references"; this work item adds one more synced reference to its eventual
@@ -288,7 +298,7 @@ and serve as the reference for Defect 2.
 ## Validation
 
 - `lrh validate`
-- `grep -rn "git checkout main" src/lrh/skills/ .claude/skills/` returns no matches
+- `grep -rnE "git checkout main|origin/main" src/lrh/skills/ .claude/skills/` returns no matches (the narrower "git checkout main" form misses `checkout -b <branch> origin/main`, which is the shape /lrh-land uses)
 - `grep -rhn 'git commit -m' src/lrh/skills/ .claude/skills/ | grep -vE 'git commit -m "(feat|fix|chore|docs|test|refactor)(\([a-z-]+\))?: '` returns no matches
 - `for d in lrh-create-skill lrh-doc-organize lrh-doc-work lrh-implement lrh-proposal lrh-readiness lrh-work-item lrh-workstream; do diff -r "src/lrh/skills/$d" ".claude/skills/$d"; done`
 - Manual: invoke one affected skill from a worktree while another worktree holds the default branch checked out, and confirm the branch step succeeds

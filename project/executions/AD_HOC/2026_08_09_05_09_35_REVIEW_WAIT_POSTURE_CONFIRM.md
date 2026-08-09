@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_09_03_48_25_REVIEW_WAIT_POSTURE_CONFIRM
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/522
-commit: 031b6e0b
+commit: e849b46f
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/522
 session_transcript: pending
@@ -128,9 +128,30 @@ review-body prose):
 All 7 were genuine and fixed directly in this PR's own files
 (remediation reply posted to the review, citing this record, in lieu of
 thread resolution — see PR comment). Per Step 8, a non-thread finding
-always requires a fresh retrigger-and-wait pass to confirm the fix; that
-follow-up round is what produced this record's own subsequent commit
-(see PR history after `031b6e0b`).
+always requires a fresh retrigger-and-wait pass to confirm the fix.
+
+**Round 2 (batch 2, `completed_count: 1 → 2`, ceiling 3): the confirming
+retrigger.** Fixes committed as `e849b46f`. Retriggered both reviewers
+again (Codex comment, Copilot re-request — both confirmed submissions).
+CI on `e849b46f`: all 5 checks pass, genuinely green. Both reviewers
+responded within ~5 minutes, both citing `e849b46f` directly, both
+clean — Codex's boilerplate no-suggestion response, and this time
+Copilot's body has no `<details>`/suppressed-comments section at all
+(confirmed by reading the full response body, not just its summary
+line), so nothing further to triage. REVIEW-LANDED: **satisfied**.
+
+**Final verdict: Green.** Thread-resolution (Step 6) green, CI on
+`e849b46f` green, REVIEW-LANDED on `e849b46f` green (both retriggered
+reviewers responded clean, content-verified, SHA-matched). Merge command,
+locked to the verified `HEAD`:
+
+```
+gh pr merge https://github.com/xenotaur/logical_robotics_harness/pull/522 --merge --match-head-commit e849b46fe7843f82ac812472d7290179b62dbd1c
+```
+
+`--merge` chosen as this repository's standard mode, confirmed by
+inspecting a recent real merge commit's parent count (2 parents,
+`470ef462`) rather than assuming.
 
 # Validation
 
@@ -141,12 +162,13 @@ follow-up round is what produced this record's own subsequent commit
   `installed-wheel-smoke` — pass; `lint`, `tests`, `coverage` — fail,
   human-authorized named exclusion (see above), traced to a single
   pre-existing, unrelated cause on `main`, not this PR's diff
-- CI re-checked on `031b6e0b` (this record's own commit, per Step 8's
-  requirement to re-fetch against the post-push `HEAD`): all 5 checks —
-  `Check workflow files`, `installed-wheel-smoke`, `lint`, `tests`,
-  `coverage` — pass, genuinely green, no exclusion needed
+- CI re-checked on `031b6e0b` (round 1): all 5 checks pass, genuinely
+  green, no exclusion needed
+- CI re-checked on `e849b46f` (round 2, final): all 5 checks pass
+- REVIEW-LANDED re-checked on `e849b46f`: both retriggered reviewers
+  responded clean, content read in full, SHA-matched
 - Provisional thread/CI reads (Step 2) performed against the post-merge
-  `HEAD`; this final Step 8 recheck performed against `031b6e0b`
+  `HEAD`; final Step 8 recheck performed against `e849b46f`
 
 # Follow-up
 

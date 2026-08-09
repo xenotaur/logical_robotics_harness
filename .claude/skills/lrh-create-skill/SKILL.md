@@ -6,7 +6,13 @@ description: >
   recurring workflow, capture domain knowledge for reuse, or asks
   "can we make a skill for X?" Produces SKILL.md and references/ under
   .claude/skills/<name>/ and adds an index entry to CLAUDE.md.
-disable-model-invocation: true
+when_to_use: >
+  Invoke when the user wants to add a project-local skill, automate a
+  recurring workflow as a skill, capture domain knowledge for reuse, or
+  explicitly asks "can we make a skill for X?" Do not invoke when the
+  user is only discussing, reading, or asking about existing skills. The
+  Step 4 confirm-before-write gate is the write-protection regardless of
+  invocation route.
 argument-hint: [skill-name]
 ---
 

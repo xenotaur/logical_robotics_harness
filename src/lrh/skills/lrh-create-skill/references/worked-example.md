@@ -26,9 +26,10 @@ description: >
 **Annotations:**
 
 - **No `disable-model-invocation`** — this is a domain-specific skill.
-  Auto-triggering on scenario keywords is desirable. Contrast with
-  `lrh-create-skill`, where `disable-model-invocation: true` is required because
-  the skill writes files and should only run on explicit user intent.
+  Auto-triggering on scenario keywords is desirable. `lrh-create-skill`
+  itself also omits this flag despite writing files — see the "Key design
+  contrasts" table below for why writing files alone isn't the deciding
+  factor.
 
 - **Specific trigger phrases** in the description ("implement", "add",
   "create", "draft", named scenarios, "fill in", "implement scenarios from
@@ -169,13 +170,15 @@ users who might try to extend the skill's scope mid-run.
 
 | Aspect | new-scenario | create-skill |
 |---|---|---|
-| `disable-model-invocation` | absent (auto-triggers) | `true` (explicit only) |
+| `disable-model-invocation` | absent (auto-triggers) | absent — write-protection is the confirm gate, not this flag (per `WI-DELIBERATE-MODEL-INVOCATION`) |
 | Validation step | domain distiller | frontmatter checklist |
 | Confirm-before-write gate | no (domain skill, lower risk) | yes (mandatory LRH gate) |
 | Target audience | prosoc contributors | LRH project developers |
 | Output | `scenario.md` + `scenario.yml` | `SKILL.md` + `references/` + `CLAUDE.md` entry |
 
-The confirm-before-write gate in `lrh-create-skill` is the primary LRH addition.
-`new-scenario` omits it because the risk of a bad scenario draft is low
-(it is marked DRAFTED and requires human promotion). `lrh-create-skill` includes
+The confirm-before-write gate in `lrh-create-skill` is the primary LRH addition,
+and is what actually protects against an unwanted write — not
+`disable-model-invocation`, which both skills omit. `new-scenario` skips the
+gate because the risk of a bad scenario draft is low (it is marked DRAFTED
+and requires human promotion). `lrh-create-skill` includes
 it because writing a poorly-scoped skill to disk has higher correction cost.

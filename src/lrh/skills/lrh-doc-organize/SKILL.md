@@ -7,7 +7,12 @@ description: >
   pass if no audit is provided), confirms the scope with the user, creates a
   branch, implements file moves/stubs/README updates, validates, and opens a
   PR. One phase per invocation — use /lrh-doc-audit first for best results.
-disable-model-invocation: true
+when_to_use: >
+  Invoke when the user wants to implement a scoped documentation
+  reorganization phase, ideally from an existing docs-audit artifact. Do
+  not invoke for a general documentation edit unrelated to a reorganization
+  phase. The Step 6 confirm gate is the write-protection regardless of
+  invocation route.
 argument-hint: "[audit-path] [--phase N]"
 ---
 

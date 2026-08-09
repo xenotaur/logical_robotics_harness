@@ -169,21 +169,52 @@ future authoring mistakes the same way the original bug did.
 Options considered: leave existing files broken until someone hits them
 (rejected — that's the status quo failure mode); hand-edit every affected
 file (works for the ~72 files found in LRH itself, but not reusable by
-downstream repos); build a generic content-rewriting tool.
+downstream repos); a diff-based tool comparing the old lenient parser's
+output against `yaml.safe_load`'s output and rewriting every divergence;
+a raw-text lexical scanner restricted to the proven-unsafe patterns.
 
-**Chosen:** a diff-based migration tool comparing LRH's existing lenient
-parser's literal-text reading (ground truth for author intent) against
-`yaml.safe_load`'s reading, for every scalar/list item in a target tree.
-Where they diverge, rewrite only that line to a properly quoted (or
-block-scalar, for multi-line) encoding of the original literal string —
-self-verifying (re-parse after rewrite, assert intent preserved),
-minimal-diff (never a full-file re-dump), and reusable by any repo
-carrying LRH's historical parser lineage. Exposed via the existing `lrh
-project doctor` surface (`src/lrh/cli/main.py:257`, already generic and
-`--project-root`-driven) as a new `--fix-frontmatter` flag, dry-run by
-default. For repos without that lenient-parser lineage, an allow-list
-fallback mode (quote anything that isn't a bare safe token) covers the
-same landmine classes without the diff signal.
+**Rejected: blanket diff-based rewriting.** An earlier draft of this
+decision proposed comparing LRH's existing lenient parser's reading
+against `yaml.safe_load`'s reading and rewriting any line where they
+diverge. Verified directly that this is unsound: the old parser retains
+literal quote characters on already-correctly-quoted list items (e.g.
+`- "some text"` reads back as the string `'"some text"'`, quotes
+included) while `yaml.safe_load` correctly strips them — a bare diff
+would treat *already-safe, correctly-quoted* content as a divergence and
+re-encode the old parser's quote-containing reading as new literal data,
+corrupting it. The same blanket-diff approach would also flag every
+`created_at`-shaped field as a divergence (string vs. `datetime`), which
+Decision 2 already resolved as an accepted, correct behavior — rewriting
+those would contradict Decision 2's own resolution rather than implement
+it.
+
+**Chosen:** the migration tool shares its detection logic with Decision
+5's lint guard — the same raw-text, pre-YAML-parse regex checks (unescaped
+`: `, unescaped ` #`, a scalar starting with a reserved indicator, or a
+plain scalar that fails to parse at all) — run in "fix" mode instead of
+"detect" mode. A line is only a rewrite candidate when its *raw text*
+matches one of these proven-unsafe patterns; a bare difference in what
+the two parsers *return* is never itself a rewrite trigger, so already-safe
+quoted content and the accepted date/datetime divergence are never
+touched. Once a line is flagged this way, the value to re-encode is that
+line's literal text as the historical lenient parser would have read it
+(ground truth for author intent for a *confirmed-unsafe* line only, not a
+detection signal) — rewritten as a properly quoted (or block-scalar, for
+multi-line) scalar. Self-verifying (re-parse after rewrite, assert intent
+preserved), minimal-diff (never a full-file re-dump). Exposed via the
+existing `lrh project doctor` surface (`src/lrh/cli/main.py:257`, already
+generic and `--project-root`-driven) as a new `--fix-frontmatter` flag,
+dry-run by default. Sharing the detector with Decision 5 also means the
+migration tool and the lint guard can never disagree about what counts as
+unsafe — a lint pass after migration is a hard guarantee of a clean
+result, not just an expectation.
+
+For repos without LRH's lenient-parser lineage, the same raw-text
+detector still applies unchanged (it never depended on the old parser for
+*detection*, only for the replacement text of an already-flagged line);
+those repos' replacement text is instead derived directly from the raw
+line (stripped of the specific unsafe construct) rather than from the old
+parser's reading.
 
 **Rollout for this repository specifically:** run dry-run first against
 LRH's own `project/` tree and manually review the diff before applying —
@@ -212,10 +243,11 @@ gets satisfied 95% of the way and still misses a landmine.
   by this proposal.
 - Does not adopt ruamel.yaml or strictyaml — both evaluated and ruled out
   per Decision 1.
-- Does not attempt to enumerate every possible YAML landmine in the lint
-  guard — the migration tool's diff-based approach is chosen specifically
-  because it doesn't depend on an exhaustive enumeration; the lint guard
-  covers the classes already confirmed.
+- Does not attempt to enumerate every possible YAML landmine — the lint
+  guard and migration tool (Decision 4, revised) share one detector
+  covering the four lexical-grammar classes already confirmed; a landmine
+  outside those classes would need a new pattern added to the shared
+  detector, not a separate mechanism.
 - Does not run the migration tool against any repo other than LRH itself
   as part of this proposal's implementation — downstream repos adopt it
   via their own LRH dependency upgrade, on their own timeline.

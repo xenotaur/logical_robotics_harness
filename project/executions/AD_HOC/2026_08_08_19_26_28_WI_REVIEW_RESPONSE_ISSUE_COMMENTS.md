@@ -4,12 +4,12 @@ prompt_id: PROMPT(AD_HOC:WI_REVIEW_RESPONSE_ISSUE_COMMENTS)[2026-08-08T19:24:34+
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 527
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/527
 commit: 6b6539e
 created_at: 2026-08-08T19:26:28+00:00
 agent: claude_app
 instruction_source: user-authored bug report (LCATS repo WI-ASSESS-0031 review-response loop finding)
-session_transcript: claude-app:local_860a6ba4-730e-4113-80e7-290d85a766f1
+session_transcript: claude-app:860a6ba4-730e-4113-80e7-290d85a766f1
 ---
 
 # Summary

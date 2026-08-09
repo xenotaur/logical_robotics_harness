@@ -4,12 +4,12 @@ prompt_id: PROMPT(AD_HOC:LRH_REVIEW_RESPONSE_ISSUE_COMMENTS_A6EE35_CONFIRM)[2026
 work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_08_19_26_28_WI_REVIEW_RESPONSE_ISSUE_COMMENTS
-pr: 527
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/527
 commit: 2018b3c
 created_at: 2026-08-08T20:54:02+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/527
-session_transcript: claude-app:local_860a6ba4-730e-4113-80e7-290d85a766f1
+session_transcript: claude-app:860a6ba4-730e-4113-80e7-290d85a766f1
 ---
 
 # Summary

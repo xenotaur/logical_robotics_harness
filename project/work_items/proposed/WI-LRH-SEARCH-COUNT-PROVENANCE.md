@@ -66,7 +66,7 @@ session, three such counts were wrong, all from the same cause — filesystem
 |---|---|---|
 | LCATS 180 contributor-id refs | 18 | 9 worktrees × 9 files + 9 real |
 | `prosocial` has an orphan `owner:` ref | zero tracked | untracked file in a worktree |
-| 75 spaced-id refs across two repos | 57 | worktree copies |
+| 75 spaced-id refs across two repos | 57 matching lines | worktree copies |
 
 The third occurred *while drafting the recommendation to fix the first two*. That
 is the load-bearing evidence for this work item: the failure is habitual, not
@@ -173,9 +173,13 @@ implementing a second backend is speculative until a repository needs one.
 1. Add a counting subcommand under `lrh search`, following the subparser pattern
    at `prompt_workflow_search.py:175`.
 2. Emit a count together with its scope and exclusions, in a single line
-   designed to be pasted into an artifact as evidence — for example:
-   `57 matches in 12 tracked files (scope: tracked; excluded 9 worktree
-   checkouts, 2 untracked)`. The exclusion counts must be real, not asserted:
+   designed to be pasted into an artifact as evidence. **The line must name
+   which quantity it reports** — matching lines, occurrences, or files — since
+   `AGENTS.md`'s evidence convention requires the distinction and they diverge
+   whenever a pattern can match twice on one line. If the tool reports more
+   than one quantity, label each. For example:
+   `57 matching lines in 12 tracked files (scope: tracked; excluded 9
+   worktree checkouts, 2 untracked)`. The exclusion counts must be real, not asserted:
    if the command cannot determine them, it must say so rather than print zero.
 3. Provide named scopes rather than raw flags. `tracked` is the default; the
    remaining set should be chosen from the cases listed above and kept small.

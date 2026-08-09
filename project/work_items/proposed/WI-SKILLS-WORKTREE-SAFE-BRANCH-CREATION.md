@@ -192,8 +192,8 @@ defect is independent of that proposal's scope and is tracked separately here.
 *Workstream note.* No active or proposed workstream fits. `WS-SKILLS` (Claude
 Code Skills Infrastructure) is the natural conceptual home but is `resolved`;
 attaching would reopen a closed workstream. `WS-SKILLS-TARGET-AWARE-INSTALL`
-covers Codex install targets, not branch mechanics. `related_workstreams` is
-was therefore left empty when this item was written — deliberately, not by
+covers Codex install targets, not branch mechanics. `related_workstreams` was
+therefore left empty when this item was written — deliberately, not by
 oversight. **It now reads `WS-CROSS-REPO-CODE-HEALTH`**, which adopted this item
 later in the same session; the frontmatter is authoritative.
 

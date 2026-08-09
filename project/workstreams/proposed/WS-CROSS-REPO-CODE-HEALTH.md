@@ -19,10 +19,8 @@ related_workstreams:
   - WS-INVOCATION-AND-GATE-RESET
 work_items:
   - WI-LRH-SEARCH-COUNT-PROVENANCE
-  - WI-SKILLS-WORKTREE-SAFE-BRANCH-CREATION
   - WI-WORK-ITEM-BLOCKED-STATE-EXPRESSIVENESS
   - WI-SIBLING-REPO-VALIDATE-CI-AND-CONTRIBUTOR-IDS
-  - WI-TAURCODE-PROMPT-AND-SKILL-SYNC
 exit_criteria:
   - A repo-wide count or survey that feeds a decision can be produced with its own scope and exclusions stated, over a corpus that may be outside the current repository, and the AGENTS.md convention cross-references it
   - The eight skills that hard-code a default branch resolve it at runtime, guard a dirty working tree, and branch from a remote ref, with the guidance in one canonical place
@@ -138,18 +136,25 @@ should land after Stage 2 unless someone has confirmed the diffs are disjoint.
 This is the clearest argument for this workstream existing: the collision is
 invisible from inside either work item.
 
-**That ordering is currently unenforced, and this workstream's `work_items:`
-exposes it.** `WI-SKILLS-WORKTREE-SAFE-BRANCH-CREATION` has `depends_on: []`
-and reports `prompt_ready: yes`, so `/lrh-execute WS-CROSS-REPO-CODE-HEALTH`
-would select it once item 1 resolves — regardless of whether reset Stage 2 has
-landed. The prose above is not part of readiness evaluation.
+**Enforced by withholding, not by prose.** `WI-SKILLS-WORKTREE-SAFE-BRANCH-CREATION`
+has `depends_on: []` and reports `prompt_ready: yes`, so listing it in
+`work_items:` would let `/lrh-execute WS-CROSS-REPO-CODE-HEALTH` select it
+regardless of whether reset Stage 2 had landed — prose is not part of readiness
+evaluation. Its blocker is a *workstream stage*, which `depends_on:` cannot
+name, so the only available enforcement is to keep it out of the executable
+list.
 
-The blocker is a workstream stage, not a work item, so `depends_on:` cannot
-name it — the same expressiveness gap item 3 exists to close. Until then this
-ordering depends on a human reading this section before dispatching, which is
-recorded here as a known weakness rather than presented as a control. Anyone
-running `/lrh-execute` against this workstream should confirm reset Stage 2 has
-landed first.
+It is therefore **absent from `work_items:`**, together with
+`WI-TAURCODE-PROMPT-AND-SKILL-SYNC`, which waits on the same reset stages. Both
+are in Scope and listed in the Work Items table below; neither is dispatchable
+until the reset lands. **Add them once reset Stage 2 has landed** — or sooner if
+`WI-WORK-ITEM-BLOCKED-STATE-EXPRESSIVENESS` ships a way to express a non-work-item
+blocker, which is exactly the gap it exists to close.
+
+An earlier revision recorded this hazard in prose only, while applying the
+withholding fix to the identical hazard in `WS-INVOCATION-AND-GATE-RESET` —
+two opposite dispositions of the same problem in one change set, caught in
+review. The dispositions now match.
 
 **C2 — item 2 cites a snippet the reset deletes.** Its Required Change 2 reuses
 `round-cap-gate.md`'s hardened default-branch resolution, which Stage 1 removes
@@ -169,13 +174,15 @@ frontmatter and deleted. Nothing currently schedules that follow-through, and
 | # | Work item | Type | Notes |
 |---|---|---|---|
 | 1 | `WI-LRH-SEARCH-COUNT-PROVENANCE` | deliverable | Build first — S1 |
-| 2 | `WI-SKILLS-WORKTREE-SAFE-BRANCH-CREATION` | deliverable | After reset Stage 2 — C1, C2 |
+| 2 | `WI-SKILLS-WORKTREE-SAFE-BRANCH-CREATION` | deliverable | **Not in `work_items:`** until reset Stage 2 lands — C1, C2 |
 | 3 | `WI-WORK-ITEM-BLOCKED-STATE-EXPRESSIVENESS` | deliverable | Triggers a follow-through in `WS-LRH-CHAIN-DEFAULTS` — C3 |
 | 4 | `WI-SIBLING-REPO-VALIDATE-CI-AND-CONTRIBUTOR-IDS` | operation | Consider widening to Taurcode — S2 |
-| 5 | `WI-TAURCODE-PROMPT-AND-SKILL-SYNC` | operation | After reset Stages 1–2 |
+| 5 | `WI-TAURCODE-PROMPT-AND-SKILL-SYNC` | operation | **Not in `work_items:`** until reset Stages 1–2 land |
 
-Items 1 and 3 are independent of everything else and can start immediately.
-Items 2, 4, and 5 all wait on the reset or on item 1.
+Items 1 and 3 are independent and can start immediately. Item 4 is listed and
+dispatchable, though S1 recommends item 1 first — a preference, not a blocker,
+so it is not expressed as `depends_on`. Items 2 and 5 are withheld from
+`work_items:` because their blocker is a reset stage that no field can name.
 
 ## Exit Criteria
 

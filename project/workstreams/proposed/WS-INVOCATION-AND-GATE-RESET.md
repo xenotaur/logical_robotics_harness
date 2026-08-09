@@ -102,18 +102,20 @@ decision exists to separate. Cross-link instead."
 - **Work items:** `WI-DELIBERATE-MODEL-INVOCATION` (proposed) is completed by
   Stage 2. It declared `related_workstreams: [WS-EXECUTION-FRAMEWORK]`, but that
   workstream's `work_items:` list did not include it — so it was related to, but
-  owned by, no workstream. **Adopted here 2026-08-09**, with the author's
-  approval: this workstream now owns it, and the work item's
-  `related_workstreams:` lists both. Stage 2 both completes it and amends two of
-  its acceptance criteria, so this is its real home.
+  owned by, no workstream. **This workstream is its intended home** — Stage 2
+  both completes it and amends two of its acceptance criteria — but it is
+  **not yet in `work_items:`**, so ownership is not yet asserted in the field
+  that denotes it. See "Work Items" below for why, and for the condition that
+  reverses this.
   `WI-BOUNDED-STABILIZATION-LOOP-DESIGN` inherits this policy.
 - **Proposals:** `PROP-LRH-CHAIN-DEFAULTS` governs the mechanism Stages 3.5 and
   4 touch. `PROP-REVIEW-WAIT-POSTURE` (PR #522) is partially obviated by Stage
   1 and is being rescoped to its bounded-poll wait mechanism.
 - **Backlog:** `project/design/backlog.md`'s "Self-review-first tier for
   reducing GitHub bot-review credit consumption" is satisfied by Stage 1.
-- **Recommendation:** `WI-DELIBERATE-MODEL-INVOCATION` is now owned here (see
-  above); mark the backlog entry shipped when Stage 1 lands.
+- **Recommendation:** `WI-DELIBERATE-MODEL-INVOCATION` is intended for this
+  workstream but is deliberately not yet in `work_items:` (see above); mark the
+  backlog entry shipped when Stage 1 lands.
 
 ## Work Items
 
@@ -136,8 +138,10 @@ withholding the item from the executable list is the only enforcement
 available. **Add it to `work_items:` once Stage 1's work item exists and can be
 named in `depends_on:`.**
 
-Ownership remains visible through the work item's own `related_workstreams:`
-and through this section. No per-stage work items exist yet; the planned
+Because `work_items:` is the field that denotes ownership, this workstream does
+not yet own the item in the schema's terms — only in intent. The work item's own
+`related_workstreams:` records the association, and this section records the
+intent; neither is an ownership claim. No per-stage work items exist yet; the planned
 decomposition, one per stage:
 
 | Stage | Planned work item |

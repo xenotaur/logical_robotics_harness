@@ -1,6 +1,7 @@
 {
   "pr": "https://github.com/xenotaur/logical_robotics_harness/pull/519",
   "ceiling": 3,
-  "completed_count": 3,
-  "pending_attempt": null
+  "completed_count": 4,
+  "pending_attempt": null,
+  "note": "batch 4 substituted /lrh-self-review PR-mode instead of a bot retrigger, per feedback_never_manually_retrigger_github_bots (fleet-wide quota exhaustion)"
 }

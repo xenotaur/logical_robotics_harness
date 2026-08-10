@@ -126,11 +126,12 @@ input (verified — zero occurrences of "readiness" in `SKILL.md:79-91`), the
 prior-art warning currently arrives *after* the chain is authorized, and the
 idempotence check can abort a run the human already approved.
 
-A full `/lrh-execute` run currently carries **eight** unconditional human
-stops — `lrh-execute:138`, `lrh-implement:95` (conditional), `lrh-implement:145`,
-`lrh-land:107` (conditions asked a second time), `lrh-review-response:255`,
-`lrh-confirm-fixes:236`, `lrh-land:313` (merge), `lrh-closeout:249`,
-`lrh-closeout:377` — of which three repeat per review round.
+A full `/lrh-execute` run currently carries **nine** human stops, **eight of
+them unconditional** — `lrh-execute:138`, `lrh-implement:95` (conditional),
+`lrh-implement:145`, `lrh-land:107` (conditions asked a second time),
+`lrh-review-response:255`, `lrh-confirm-fixes:236`, `lrh-land:313` (merge),
+`lrh-closeout:249`, `lrh-closeout:377` — of which three repeat per review
+round.
 
 The merge/closeout pair is the clearest case of asking one question twice.
 `project/config/chain-defaults.yaml`'s own steelmanned completion condition
@@ -724,7 +725,7 @@ evidence.
 
 **Target state.** Three human stops per `/lrh-execute` run — the front plan
 gate, the review-cycle gate, and the merge-plus-closeout ask Decision 7 defines
-— down from the eight enumerated in §3.
+— down from the eight unconditional stops enumerated in §3.
 
 ## Non-Goals
 

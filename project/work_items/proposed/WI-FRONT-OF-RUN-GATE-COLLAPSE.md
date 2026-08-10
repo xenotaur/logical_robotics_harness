@@ -190,3 +190,17 @@ added file must count; reformatting must not.
 **Propagation, not merge, is what changes behaviour.** Landing on `main` leaves
 every session running the stale installed corpus. The acceptance criteria
 require verification against `~/.claude/skills/` for this reason.
+
+**The workstream-body duplication convention needs one answer, not two.**
+`src/lrh/skills/lrh-workstream/references/workstream-body-guide.md:96` says a
+workstream's `## Exit Criteria` body section "mirrors and expands" the
+`exit_criteria:` frontmatter list, and `lrh-workstream/SKILL.md:107-109`
+instructs authors to produce both. Practice already diverges: five workstreams
+across every bucket carry a populated `exit_criteria:` with no body restatement
+(`WS-EXECUTION-FRAMEWORK`, `WS-CI-CAPABILITY-SCAFFOLDING`, `WS-LRH-ASSISTANTS`,
+`WS-PRIOR-ART-CHECK`, `WS-SKILLS`), and `WS-INVOCATION-AND-GATE-RESET` replaced
+its body copy with a pointer after the duplication drifted twice. Decide the
+convention and make the skill say it, rather than leaving authors to choose per
+file. Related but distinct from the
+`## Acceptance Criteria` case in this work item, which already points at
+frontmatter and relies on `parse_work_item_markdown`'s documented fallback.

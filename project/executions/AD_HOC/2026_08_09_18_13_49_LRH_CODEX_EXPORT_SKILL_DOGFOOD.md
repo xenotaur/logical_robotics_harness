@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:LRH_CODEX_EXPORT_SKILL_DOGFOOD)[2026-08-09T18:13:49+00:
 work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_09_04_04_59_WI_CODEX_CONVERSATION_EXPORT_SKILL
-pr:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/538
 commit:
 created_at: 2026-08-09T18:13:49+00:00
 agent: codex_app

@@ -29,6 +29,11 @@ Updated
 from `status: landed` to `status: in_progress`. No transcript body text or raw
 export data was added.
 
+A follow-up self-review caught that the same dogfood record also needed its
+`pr:` field populated while leaving `commit:` empty until merge, otherwise
+closeout would find only this `_REVIEW` side record for PR #538. Added the PR
+URL to the dogfood record so closeout can update both records after merge.
+
 # Validation
 
 - `scripts/version tools` initially showed the shell was selecting Homebrew
@@ -51,6 +56,8 @@ export data was added.
   — 0 errors, 1 existing unrelated warning:
   `PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` for
   `workstreams/active/WS-SESSION-ARCHIVE-SYNC.md`.
+- Post-self-review follow-up: `lrh validate` was rerun after populating the
+  dogfood record's `pr:` field.
 
 # Follow-up
 

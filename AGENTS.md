@@ -71,6 +71,37 @@ At minimum, preserve these work item categories:
 Status should be grounded in evidence.
 Do not generate optimistic summaries that are detached from tests, logs, metrics, screenshots, reports, or review notes.
 
+**Use `git grep`, not filesystem `grep -r`, for any repository-wide count or
+survey that feeds a decision or is written into an artifact.** Filesystem
+recursion also walks `.claude/worktrees/` checkouts and untracked files, which
+silently inflates counts — in this project's own repositories by as much as 10×,
+since a repo with nine active worktrees reports every tracked file ten times. It
+also reports untracked scratch files as if they were part of the repository.
+
+```bash
+# Files containing a match, tracked only:
+git grep -l "<pattern>" -- '*.md' | wc -l
+
+# Total matching lines across the repository, tracked only:
+git grep -c "<pattern>" -- '*.md' | awk -F: '{s+=$NF} END {print s+0}'
+
+# Wrong for both: also walks worktrees, untracked files, and build output.
+grep -rn "<pattern>" .
+```
+
+Note that `git grep -c` prints one `path:count` line **per file**, not a
+repository total, and counts matching *lines*, not occurrences — so a bare
+`git grep -c` is not itself an answer. Sum it as above, and say which of the two
+quantities a stated figure is: "12 files" and "57 references" are different
+numbers and get compared against different things.
+
+`grep -r` remains fine for interactive exploration. The rule applies when the
+number becomes an assertion: a proposal's reference count, an audit's file
+tally, a work item's scope estimate. If a count is stated as fact in a
+committed artifact, it should have come from `git grep` — and a claim that
+worktrees were excluded should be true of every count in the survey, not just
+some.
+
 ## Precedence maintenance note
 
 - Canonical precedence semantics are defined in `project/memory/decisions/precedence_semantics.md`.

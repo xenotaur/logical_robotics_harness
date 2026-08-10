@@ -86,7 +86,7 @@ discipline. This is the third work item in this packet with no workstream home
 `WI-SIBLING-REPO-VALIDATE-CI-AND-CONTRIBUTOR-IDS`), which may itself be a signal
 worth acting on later.
 
-**Updated 2026-08-09:** adopted by `WS-CROSS-REPO-CODE-HEALTH` later in the same session; the item is no longer unowned.
+**Updated 2026-08-09:** brought into `WS-CROSS-REPO-CODE-HEALTH`'s scope later in the same session. Whether it is currently in that workstream's `work_items:` depends on sequencing — consult that field rather than this note, which is not kept in sync with it.
 
 The convention half of `PROP-CONTRIBUTOR-IDENTITY-CONTRACT` Open Question 5 is
 already landed in `AGENTS.md`; this work item is the remaining half, so that

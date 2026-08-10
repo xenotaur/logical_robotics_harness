@@ -194,8 +194,11 @@ Code Skills Infrastructure) is the natural conceptual home but is `resolved`;
 attaching would reopen a closed workstream. `WS-SKILLS-TARGET-AWARE-INSTALL`
 covers Codex install targets, not branch mechanics. `related_workstreams` was
 therefore left empty when this item was written — deliberately, not by
-oversight. **It now reads `WS-CROSS-REPO-CODE-HEALTH`**, which adopted this item
-later in the same session; the frontmatter is authoritative.
+oversight. **It now reads `WS-CROSS-REPO-CODE-HEALTH`**, which took this item into scope
+later in the same session. Note that scope and `work_items:` membership are
+different things: this item is deliberately withheld from that workstream's
+`work_items:` until the reset's Stage 2 lands. Consult the workstream's
+frontmatter for current dispatchability.
 
 ## Scope
 

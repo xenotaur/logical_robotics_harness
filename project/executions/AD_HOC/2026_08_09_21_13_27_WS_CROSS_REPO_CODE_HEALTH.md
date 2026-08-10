@@ -22,7 +22,13 @@ only became visible once they were considered together.
 
 Created `project/workstreams/proposed/WS-CROSS-REPO-CODE-HEALTH.md`
 (`status: proposed`, `stage: conceived`, `origin: follow_up`) and added the
-reciprocal `related_workstreams:` link to all five adopted work items.
+reciprocal `related_workstreams:` link to all five.
+
+**Amended 2026-08-09:** a later review found that listing every item in
+`work_items:` made two of them dispatchable before their blocking reset stages;
+`WI-SKILLS-WORKTREE-SAFE-BRANCH-CREATION` and `WI-TAURCODE-PROMPT-AND-SKILL-SYNC`
+were withheld from that field as a result. All five remain in scope. Consult the
+workstream's `work_items:` for current membership rather than this record.
 
 ## A correction to the premise that prompted this
 
@@ -34,7 +40,7 @@ wiring tests, work-audit and work-remains features, template audit, and a
 doc-related-design repoint.
 
 So the gap is real but older and wider than the framing suggested, and the four
-items did not reveal it. The workstream therefore adopts **five** items on the
+items did not reveal it. The workstream therefore takes **five** items into scope on the
 basis of fit, and its Scope section explicitly declines to sweep the other ten:
 "Adopting an item here should be a judgement about fit, not a way to clear a
 list." Absorbing all fifteen would have produced a catch-all with no coherent

@@ -85,7 +85,7 @@ fires.
 `related_workstreams:` left empty — the fourth work item in this packet without
 a workstream home. No workstream covers cross-repository operations.
 
-**Updated 2026-08-09:** adopted by `WS-CROSS-REPO-CODE-HEALTH` later in the same session; the item is no longer unowned.
+**Updated 2026-08-09:** brought into `WS-CROSS-REPO-CODE-HEALTH`'s scope later in the same session. Whether it is currently in that workstream's `work_items:` depends on sequencing — consult that field rather than this note, which is not kept in sync with it.
 
 **Taurcode is not currently quiet:** `main` had three modified files and three
 open PRs when measured. Unlike `velumin` and `replication_vector`, a quiet

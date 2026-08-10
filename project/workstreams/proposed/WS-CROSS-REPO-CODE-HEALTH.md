@@ -88,12 +88,14 @@ be a judgement about fit, not a way to clear a list.
 ### Demand search
 
 - **Work items:** the five above, each already written and validating clean.
+  Three are in `work_items:`; two are withheld pending the reset (see
+  Collisions). `work_items:` is authoritative for which are dispatchable.
 - **Proposals:** `PROP-INVOCATION-AND-GATE-RESET` and
   `PROP-CONTRIBUTOR-IDENTITY-CONTRACT` supply items 4 and 5's governing design.
 - **Backlog:** `project/design/backlog.md`'s "Validator drift-check for synced
   skill references" is adjacent to item 2 and should be linked when that item is
   implemented, not before.
-- **Recommendation:** No action beyond adopting the five.
+- **Recommendation:** No action beyond taking the five into scope.
 
 ## Synergies
 

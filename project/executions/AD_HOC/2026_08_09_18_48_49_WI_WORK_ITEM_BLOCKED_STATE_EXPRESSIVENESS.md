@@ -91,7 +91,7 @@ No PR opened; the branch is pushed without one, so no automatic bot review fires
 `PROP-INVOCATION-AND-GATE-RESET` but is not that program's scope, and no
 existing workstream covers control-plane schema. Open to being adopted by one.
 
-**Updated 2026-08-09:** adopted by `WS-CROSS-REPO-CODE-HEALTH` later in the same session; the item is no longer unowned.
+**Updated 2026-08-09:** brought into `WS-CROSS-REPO-CODE-HEALTH`'s scope later in the same session. Whether it is currently in that workstream's `work_items:` depends on sequencing — consult that field rather than this note, which is not kept in sync with it.
 
 This work item is itself an instance of the problem it describes: it reports
 `prompt_ready: yes` and has no blocker, which is correct — but it sits beside

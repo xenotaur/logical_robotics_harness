@@ -52,7 +52,7 @@ home but is `resolved` (attaching would reopen a closed workstream), and
 `WS-SKILLS-TARGET-AWARE-INSTALL` covers Codex install targets, not branch
 mechanics.
 
-**Updated 2026-08-09:** adopted by `WS-CROSS-REPO-CODE-HEALTH` later in the same session; the item is no longer unowned.
+**Updated 2026-08-09:** brought into `WS-CROSS-REPO-CODE-HEALTH`'s scope later in the same session. Whether it is currently in that workstream's `work_items:` depends on sequencing — consult that field rather than this note, which is not kept in sync with it.
 
 Branch hygiene performed in the same run, at the author's direction: the 17
 uncommitted blast-radius exploration files that had been sharing this branch's

@@ -2,13 +2,13 @@
 execution_id: 2026_08_09_04_20_06_WI_DELIBERATE_MODEL_INVOCATION
 prompt_id: PROMPT(WI-DELIBERATE-MODEL-INVOCATION:WI_DELIBERATE_MODEL_INVOCATION)[2026-08-09T03:55:48+00:00]
 work_item: WI-DELIBERATE-MODEL-INVOCATION
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/533
-commit:
+commit: 271b2c6369f62d8ae4c4e2c992ff2e4b7b79d412
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION.md
-session_transcript: pending
+session_transcript: claude-app:3c4e404b-8420-4a62-9c3f-f5dcccfa5400
 created_at: 2026-08-09T04:20:06+00:00
 ---
 

@@ -322,7 +322,7 @@ lrh prompt record-execution \
 Edit the generated file to populate the optional fields:
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: <pr-url>
 session_transcript: pending
 ```
@@ -373,8 +373,8 @@ Report to the user:
 - What was fixed per comment (with a one-line description of each fix)
 - What was skipped and why (presence / validity / feasibility / user directive)
 - Validation evidence (tool versions, test count, result)
-- Reminder that `session_transcript: pending` should be updated to
-  `claude-app:<host-uuid-stem>` after the session ends
+- Reminder that `session_transcript: pending` should be updated to the durable
+  session pointer for the selected backend when one is available
 - Suggest running `/lrh-confirm-fixes <pr-url>` before merge to verify the
   fixes against the current diff and resolve the review threads
 

@@ -96,7 +96,7 @@ answers before proposing anything.
 
 1. **Title and summary:**
    - **Title:** A short one-line title for the `title` frontmatter field
-     (e.g., `Implement lrh-work-item Claude Code skill`).
+     (e.g., `Implement lrh-work-item agent skill`).
    - **Problem statement:** What problem does this work item solve, or what
      does it deliver? One paragraph suitable for the `## Summary` section.
 
@@ -361,7 +361,7 @@ Immediately edit the generated file to populate the three optional fields
 (see `references/execution-record.md`):
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: project/work_items/proposed/<ID>.md
 session_transcript: pending
 ```
@@ -405,7 +405,8 @@ git push
 - Which fields were inferred vs. directly from user answers — be explicit
   so the user can correct mismatches.
 - A reminder that `session_transcript: pending` in the execution record
-  should be updated to `claude-app:<host-uuid-stem>` after the session ends.
+  should be updated to the durable session pointer for the selected backend
+  when one is available.
 - Suggested next steps per `references/lrh-work-item-workflow.md`.
 
 ---

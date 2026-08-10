@@ -176,12 +176,20 @@ separate for Step 5.
 backend-specific, and running closeout from Claude must not associate the
 current Claude window with work another backend produced:
 
-- **Non-Claude backend** (`agent: codex_cloud`, `manual`, or any other
-  value): the Claude env var and Claude session URL are the *wrong* session —
-  do **not** use them. Resolve the backend's own scheme-prefixed id if one is
-  retrievable (e.g. `codex-cloud:<task-id>` from the Codex run, per
-  `project/executions/README.md`); otherwise use `none`. Skip the
-  Claude-specific steps below.
+- **Codex app** (`agent: codex_app`): the Claude env var and Claude session URL
+  are the *wrong* session — do **not** use them. Resolve
+  `codex-app:<task-or-thread-id>` when a durable Codex app task/thread
+  identifier is available; otherwise leave `pending` if the session should be
+  recorded later.
+- **Codex Cloud** (`agent: codex_cloud`): resolve `codex-cloud:<task-id>` from
+  the Codex run when available; otherwise leave `pending` if the task id should
+  be recorded later.
+- **Manual/no transcript backend** (`agent: manual`, or any other terminal
+  non-retrievable value): use `none`.
+- **Other non-Claude backend** (any other value): the Claude env var and
+  Claude session URL are the *wrong* session — do **not** use them. Resolve
+  the backend's own scheme-prefixed id if one is retrievable; otherwise use
+  `none`. Skip the Claude-specific steps below.
 - **Claude.app** (`agent: claude_app`, or absent/assumed Claude): resolve the
   host id with the steps below.
 
@@ -415,11 +423,15 @@ Report to the user:
 
 - Each action taken (file edited, file moved, validation result)
 - Commit SHA on `main`
-- If `session_transcript` is still `pending`: remind to update it before
-  archiving the session (the host id is `$CLAUDE_CODE_HOST_SESSION_ID` or the
-  `local_<uuid>` in View > Copy URL, `local_` stripped). Do **not** add this
+- If any `session_transcript` is still `pending`: remind the user to update it
+  with the durable pointer for that record's own backend before archiving the
+  session. For Claude.app records, that pointer is `claude-app:<host-uuid-stem>`
+  (from `$CLAUDE_CODE_HOST_SESSION_ID` or View > Copy URL, with `local_`
+  stripped). For Codex app or Codex Cloud records, use the corresponding
+  `codex-app:` or `codex-cloud:` pointer when available. Do **not** add this
   reminder for `none` — that value is terminal.
-- Offer to run `/export` to archive the session transcript locally
+- Offer the backend-appropriate local transcript archival/export workflow when
+  one is available.
 
 **Memory written (Step 7 outcome):** state explicitly whether memory was
 written this session. If yes: include a one-line summary of each memory

@@ -62,15 +62,18 @@ For skills work items, also run:
 
 ```bash
 lrh validate
-diff -r src/lrh/skills/<name>/ .claude/skills/<name>/
+lrh skills check --target claude --local
+lrh skills status --target codex --local
 ```
 
 `lrh validate` checks all control-plane files (work items, proposals,
 execution records, workstreams). Run it after any control-plane file change.
 
-`diff -r` confirms the `src/` and `.claude/` skill copies are byte-for-byte
-identical. A non-empty diff means the copies are out of sync — a common error
-when editing one copy and forgetting the other.
+The skills checks confirm the canonical sources render cleanly for the selected
+local targets. Claude installs preserve canonical bytes; Codex installs may
+strip Claude-only frontmatter and add `agents/openai.yaml`, so Codex validation
+should use `lrh skills status --target codex --local` rather than a raw byte
+diff against `src/`.
 
 ---
 
@@ -81,7 +84,7 @@ In the `## Validation` section of the execution record body, include:
 - Tool versions from `scripts/version tools`
 - Number of tests run and result (`Ran N tests ... OK`)
 - Output of `lrh validate` (error/warning count)
-- Output of `diff -r` for skill items (or "identical" if clean)
+- Output of the relevant `lrh skills` target checks for skill items
 
 Example:
 
@@ -91,5 +94,6 @@ scripts/format --check --diff  — N files unchanged
 scripts/lint  — all checks passed
 scripts/test  — N tests OK
 lrh validate  — 0 errors, 0 warnings
-diff -r src/lrh/skills/lrh-implement/ .claude/skills/lrh-implement/  — identical
+lrh skills check --target claude --local  — all installed skills up to date
+lrh skills status --target codex --local  — all installed skills up to date
 ```

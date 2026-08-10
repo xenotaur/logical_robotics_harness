@@ -10,7 +10,7 @@ This file defines the next-step chain an LRH skill suggests to the user when
 it finishes by handing control back, and enumerates every place that chain is
 written down. It is maintainer-facing: `src/lrh/skills/_shared/` is skipped by
 the installer (`installer.py` excludes `_`-prefixed directories), so nothing
-here is loaded at runtime or installed to `~/.claude/skills/`.
+here is loaded at runtime or installed to agent skills directories.
 
 ---
 
@@ -153,11 +153,12 @@ one site that was already correct before `WI-SKILLS-NEXT-STEP-CHAIN`.
 | `/lrh-land` | `SKILL.md` — Step 8 "Run journal" end report | Yes (via inlined `/lrh-closeout` sub-step) | Terminal chain runner; runs Steps 4–7 (review→confirm→merge→closeout) internally; end report does not suggest a successor — the chain is complete |
 | `/lrh-execute` | `SKILL.md` — Step 6 "Report" | Yes (via inlined `/lrh-implement` Step 9 + inlined `/lrh-land`'s own closeout) | Compound chain runner: inlines `/lrh-implement` (Step 3) then `/lrh-land`'s full Steps 1–8 (Step 4); end report does not suggest a successor — the chain is complete |
 
-Each **consuming-site file listed in the table above** also exists as a
-byte-identical mirror under `.claude/skills/`; edit both copies. This
-`_shared/lifecycle-chain.md` is the exception — the installer skips
-`_`-prefixed directories, so it is intentionally not mirrored and has no
-`.claude/` counterpart.
+Each **consuming-site file listed in the table above** is installed through
+the selected target renderer. Claude project installs preserve canonical bytes
+under `.claude/skills/`; Codex installs render to `.agents/skills/` with
+target-specific metadata. This `_shared/lifecycle-chain.md` is the exception —
+the installer skips `_`-prefixed directories, so it is intentionally not
+installed directly.
 
 ## Skills deliberately absent from the table
 
@@ -170,10 +171,9 @@ byte-identical mirror under `.claude/skills/`; edit both copies. This
 
 Unlike `_shared/prior-art-check.md`, which is a procedure a skill executes
 mid-run and therefore must be runtime-loadable, this is report text a skill
-emits at the end. Mirroring it into eleven `references/` directories (plus
-eleven `.claude/` mirrors) would enlarge the drift surface it is meant to
-shrink, and three sites need conditional phrasing a verbatim block cannot
-serve. The canonical value here is the table above: when the lifecycle gains
-or loses a link, it names every place to update. That is precisely what was
-missing when `/lrh-closeout` was added and the upstream skills were never
-back-updated.
+emits at the end. Mirroring it into eleven `references/` directories and their
+rendered install targets would enlarge the drift surface it is meant to shrink,
+and three sites need conditional phrasing a verbatim block cannot serve. The
+canonical value here is the table above: when the lifecycle gains or loses a
+link, it names every place to update. That is precisely what was missing when
+`/lrh-closeout` was added and the upstream skills were never back-updated.

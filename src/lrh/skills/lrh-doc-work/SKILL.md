@@ -255,7 +255,7 @@ lrh prompt record-execution \
 Use the prompt ID minted in Step 3. Populate optional fields:
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: <pr-url or WI-ID or WS-ID>
 session_transcript: pending
 ```

@@ -2,10 +2,10 @@
 execution_id: 2026_08_09_18_48_49_WI_WORK_ITEM_BLOCKED_STATE_EXPRESSIVENESS
 prompt_id: PROMPT(AD_HOC:WI_WORK_ITEM_BLOCKED_STATE_EXPRESSIVENESS)[2026-08-09T18:47:01+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/535
+commit: 98b128ed733a7b125a68f7d5d8db1308e6b62fd6
 created_at: 2026-08-09T18:48:49+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-WORK-ITEM-BLOCKED-STATE-EXPRESSIVENESS.md

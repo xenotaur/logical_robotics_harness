@@ -2,10 +2,10 @@
 execution_id: 2026_08_09_18_02_13_WS_INVOCATION_AND_GATE_RESET
 prompt_id: PROMPT(AD_HOC:WS_INVOCATION_AND_GATE_RESET)[2026-08-09T17:58:40+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/535
+commit: 98b128ed733a7b125a68f7d5d8db1308e6b62fd6
 created_at: 2026-08-09T18:02:13+00:00
 agent: claude_app
 instruction_source: project/workstreams/proposed/WS-INVOCATION-AND-GATE-RESET.md

@@ -2,10 +2,10 @@
 execution_id: 2026_08_09_15_47_12_WI_SKILLS_WORKTREE_SAFE_BRANCH_CREATION
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_WORKTREE_SAFE_BRANCH_CREATION)[2026-08-09T15:45:25+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/535
+commit: 98b128ed733a7b125a68f7d5d8db1308e6b62fd6
 created_at: 2026-08-09T15:47:12+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-WORKTREE-SAFE-BRANCH-CREATION.md

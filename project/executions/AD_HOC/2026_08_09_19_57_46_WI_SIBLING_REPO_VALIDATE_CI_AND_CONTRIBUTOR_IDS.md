@@ -2,10 +2,10 @@
 execution_id: 2026_08_09_19_57_46_WI_SIBLING_REPO_VALIDATE_CI_AND_CONTRIBUTOR_IDS
 prompt_id: PROMPT(AD_HOC:WI_SIBLING_REPO_VALIDATE_CI_AND_CONTRIBUTOR_IDS)[2026-08-09T19:56:03+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/535
+commit: 98b128ed733a7b125a68f7d5d8db1308e6b62fd6
 created_at: 2026-08-09T19:57:46+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SIBLING-REPO-VALIDATE-CI-AND-CONTRIBUTOR-IDS.md

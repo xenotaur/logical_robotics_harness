@@ -2,10 +2,10 @@
 execution_id: 2026_08_09_23_09_02_SELF_REVIEW_COMMAND_PREFS_68C9F9_REVIEW
 prompt_id: PROMPT(AD_HOC:SELF_REVIEW_COMMAND_PREFS_68C9F9_REVIEW)[2026-08-09T21:58:14+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/535
-commit:
+commit: 98b128ed733a7b125a68f7d5d8db1308e6b62fd6
 created_at: 2026-08-09T23:09:02+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/535

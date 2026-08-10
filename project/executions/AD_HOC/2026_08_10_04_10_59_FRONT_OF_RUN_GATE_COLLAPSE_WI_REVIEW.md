@@ -24,9 +24,10 @@ from `copilot-pull-request-reviewer` (an internally inconsistent count).
 
 **Premise verified independently before acting**, both halves. The body of
 `WS-INVOCATION-AND-GATE-RESET.md` did carry a second copy of the Stage 3 exit
-criterion, and the file itself instructed at `:168` that the two lists be kept
-in sync — noting that a prior independent review had already caught them
-drifting on the `skip_if_opted_in` clause. The PR had updated only the
+criterion, and the file itself instructed — at `:168` as of `0389abe2`, the
+commit under review; that line no longer exists, since this response deleted
+it — that the two lists be kept in sync, noting that a prior independent review
+had already caught them drifting on the `skip_if_opted_in` clause. The PR had updated only the
 frontmatter, so the body could have certified Stage 3 complete without
 Decision 11.
 

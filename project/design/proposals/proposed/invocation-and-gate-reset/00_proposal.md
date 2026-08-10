@@ -116,7 +116,10 @@ fires** — verified field by field against the skill text:
 
 Of the four intervening steps, exactly one can yield genuinely new
 information — the prior-art check (`lrh-implement/SKILL.md:95-115`), and only
-when the work item lacks one. The other two are *stops*, not questions. The
+when the work item lacks one. Two others are *stops*, not questions: the
+readiness check (Step 1) and the idempotence check (Step 3). The fourth,
+reading the work item (Step 2), asks nothing and reports nothing — for a
+work-item input it only summarizes a static file. The
 second gate is therefore a **restatement, not a decision point**, in the common
 case.
 

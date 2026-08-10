@@ -80,8 +80,10 @@ prompt ID needs only the WI-ID; the branch name needs `gh api user` plus the
 WI's `type`; readiness warnings come from `lrh work-items readiness`. Of the
 four intervening steps, only the prior-art check
 (`src/lrh/skills/lrh-implement/SKILL.md:95-115`) can yield genuinely new
-information, and only when the work item lacks a check of its own. The other two
-are stops, not questions.
+information, and only when the work item lacks a check of its own. Two others
+are stops, not questions — the readiness check (Step 1) and the idempotence
+check (Step 3) — and the fourth, reading the work item (Step 2), only
+summarizes a static file.
 
 This is not a lapse in the skill. `/lrh-execute` requires it
 (`SKILL.md:179-181`, with a Quality Checklist item at `:286` making a bypass a

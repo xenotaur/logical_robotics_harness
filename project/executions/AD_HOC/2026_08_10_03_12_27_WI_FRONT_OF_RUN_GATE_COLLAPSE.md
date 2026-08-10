@@ -40,8 +40,15 @@ commands come from the work item's own static sections; the prompt ID needs only
 the WI-ID; the branch name needs `gh api user` plus the WI's `type`; readiness
 warnings come from `lrh work-items readiness`. All six are obtainable before the
 first gate fires. Of the four intervening steps, only the prior-art check can
-yield genuinely new information, and only when the work item lacks one; the
-other two are stops, not questions.
+yield genuinely new information, and only when the work item lacks one; two
+others are stops, not questions (readiness at Step 1, idempotence at Step 3),
+and the fourth (Step 2) only summarizes a static file.
+
+*(Corrected pre-merge, 2026-08-10: this sentence originally read "the other two
+are stops," which accounts for only three of the four steps. Found by the
+cold-context pass at `/lrh-confirm-fixes` — the same arithmetic-inconsistency
+class Copilot flagged elsewhere in this PR. Corrected rather than annotated
+because this record had not yet merged and nothing had relied on it.)*
 
 Decision 11 chose hoist-and-merge plus divergence-only gating, adopting
 Decision 7's already-ratified reasoning rather than arguing the point afresh,

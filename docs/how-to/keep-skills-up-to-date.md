@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Use this guide when Claude Code or Codex does not offer an `/lrh-*` skill you expect to see (for example, a skill that was added to LRH recently). LRH skills are installed into each agent's skills directory as a copy; upgrading the `lrh` package does not automatically update that copy. This guide shows how to check for and apply skill updates.
+Use this guide when Claude Code or Codex does not offer an `/lrh-*` skill you expect to see (for example, a skill that was added to LRH recently). LRH skills are installed into each agent's skills directory from LRH's canonical skill source; upgrading the `lrh` package does not automatically update the installed copy. This guide shows how to check for and apply skill updates.
 
 ## Prerequisites
 
@@ -75,6 +75,14 @@ For a project-local Codex install, use:
 lrh skills install --dry-run --local --target codex
 ```
 
+To compare an installed Codex target against a selected source without
+previewing writes, use `status`:
+
+```bash
+lrh skills status --target codex
+lrh skills status --local --target codex --source current-repo
+```
+
 To preview what `--force` would change for a skill reported as locally modified, combine it with `--dry-run`:
 
 ```bash
@@ -121,13 +129,14 @@ sibling `agents/openai.yaml` file. If a canonical skill already supplies
 `agents/openai.yaml`, authored values are preserved and generated policy values
 only fill missing defaults.
 
-Some skill body prose may still mention Claude Code or slash-command
-conventions. Treat those references as an interim wording caveat until later
-body-prose neutralization work produces fully agent-neutral skill bodies.
+Skill body prose is written to be backend-aware where the workflow needs
+different execution-record or session-transcript values. Use the rendered
+Codex copy as the operative instructions for Codex sessions.
 
 ## Common troubleshooting notes
 
 - A newly created `/lrh-*` skill in the LRH source tree does not appear in Claude Code or Codex until `lrh skills install` (or `lrh skills install --local` with the relevant `--target`) has been run in the target environment. This is expected: skill installation is a deliberate, explicit step, not something that happens implicitly on every `lrh` invocation.
+- After creating `~/.agents/skills/` for the first time or changing global Codex skills, restart Codex so it re-discovers the installed skills.
 - If a skill reports the `has local modifications` warning, LRH has detected that the installed copy differs from the selected source and will not silently overwrite it — whether that difference is your own edit or simply an unapplied upstream update. Review the installed copy before deciding whether to re-run with `--force`.
 - If you maintain multiple repositories, remember that global (`~/.claude/skills/` or `~/.agents/skills/`) and per-repository (`./.claude/skills/` or `./.agents/skills/` via `--local`) installs are independent. Updating one does not update the other.
 

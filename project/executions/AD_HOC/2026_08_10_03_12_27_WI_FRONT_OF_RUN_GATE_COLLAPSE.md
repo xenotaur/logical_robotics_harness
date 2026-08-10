@@ -2,10 +2,10 @@
 execution_id: 2026_08_10_03_12_27_WI_FRONT_OF_RUN_GATE_COLLAPSE
 prompt_id: PROMPT(AD_HOC:WI_FRONT_OF_RUN_GATE_COLLAPSE)[2026-08-10T03:05:34+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/536
-commit:
+commit: aafd89f7780bf60f76e61ff8dfe026ec5c4b78a7
 created_at: 2026-08-10T03:12:27+00:00
 agent: claude_app
 instruction_source: project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md

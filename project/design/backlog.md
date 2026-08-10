@@ -1271,3 +1271,87 @@ committing to a shared package up front.
 `prosoc/manifests/schema.json`; `project/principles/`,
 `project/guardrails/`, `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`,
 `project/assistants/serve-interface-steward/`, `src/lrh/skills/installer.py`.
+
+---
+
+## `rerun_of`'s branch-slug search misses the primary record in two skills
+
+**Noted:** 2026-08-10, during PR #536's review-response and confirm-fixes
+rounds (`WI-FRONT-OF-RUN-GATE-COLLAPSE`). Both `/lrh-review-response` Step 7
+and `/lrh-confirm-fixes` Step 7 resolve `rerun_of` by converting the *current
+branch's* slug to upper-underscore and searching `project/executions/` for a
+matching filename (excluding `_REVIEW.md`/`_CONFIRM.md`/`_SELFREVIEW.md`).
+This search comes up empty whenever the branch slug and the primary record's
+own slug diverge, and it fails silently — no error, just an empty result,
+which is easy to miss and leave `rerun_of` unset without noticing.
+
+Two distinct divergence shapes are now confirmed, in two different skills:
+a branch carrying a disambiguating suffix the record's slug doesn't share
+(e.g. `-impl`, PR #374 — see `feedback_split_wi_creation_impl_branch_naming`
+in agent memory), and a WI-*creation* branch (`.../front-of-run-gate-collapse-wi`)
+whose slug never matches a record that's named after the work item ID rather
+than the branch (`..._WI_FRONT_OF_RUN_GATE_COLLAPSE.md`). Both times, a
+`grep -rl "^pr: <pr-url>" project/executions/` search (excluding the same
+three suffixes) found the record immediately.
+
+**Idea:** Change both skills' `rerun_of` resolution to search by the `pr:`
+field first (or as a fallback when the branch-slug search comes up empty),
+rather than relying solely on branch-slug matching. The `pr:` field is
+already populated on the primary record by the time either skill runs, so
+this doesn't require a new lookup mechanism — just reordering which one runs
+first.
+
+**Status:** Not yet a work item. Surfaced twice on the same PR (its `_REVIEW`
+and `_CONFIRM` records both hit it), so it's a live nuisance, not a
+theoretical one — but it's a small, mechanical fix confined to two `SKILL.md`
+files, better batched with other skill-text maintenance than run solo.
+
+**Related:** `src/lrh/skills/lrh-review-response/SKILL.md` Step 7;
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 7;
+`project/executions/AD_HOC/2026_08_10_04_10_59_FRONT_OF_RUN_GATE_COLLAPSE_WI_REVIEW.md`;
+`project/executions/AD_HOC/2026_08_10_07_01_20_FRONT_OF_RUN_GATE_COLLAPSE_WI_CONFIRM.md`;
+PR #536; PR #374.
+
+---
+
+## Workstream `## Exit Criteria` body-restatement guidance is stale relative to adopted practice
+
+**Noted:** 2026-08-10, during PR #536's review response. Fixing a Codex P2
+finding (a duplicated Stage 3 exit criterion drifting between
+`WS-INVOCATION-AND-GATE-RESET`'s frontmatter `exit_criteria:` list and its
+human-readable `## Exit Criteria` body section — the second copy had already
+drifted once before, on the `skip_if_opted_in` clause) meant choosing between
+syncing the two copies or removing the duplication. The duplication was
+removed, replaced with a pointer at the frontmatter field.
+
+That departs from the skill's own documented convention:
+`src/lrh/skills/lrh-workstream/references/workstream-body-guide.md:96` says
+the body section "mirrors and expands" the frontmatter list, and
+`src/lrh/skills/lrh-workstream/SKILL.md:107-109` instructs authors to produce
+both. But checking practice against convention found five sibling
+workstreams — spanning every lifecycle bucket
+(`WS-EXECUTION-FRAMEWORK`, `WS-CI-CAPABILITY-SCAFFOLDING` in `proposed/`;
+`WS-LRH-ASSISTANTS` in `active/`; `WS-PRIOR-ART-CHECK`, `WS-SKILLS` in
+`resolved/`) — already carry a populated `exit_criteria:` with no body
+restatement at all. The documented convention and the adopted practice
+disagree, and nothing currently reconciles them.
+
+**Idea:** Decide one convention for the `## Exit Criteria` body section —
+either restore the "mirrors and expands" instruction and backfill the five
+outlier workstreams, or update `workstream-body-guide.md` and
+`lrh-workstream/SKILL.md` to say the body section may be a pointer, and treat
+that as the default going forward. Two copies of a mutable list are two
+things to get right and one thing that will eventually be wrong, which is
+exactly the restatement-drift failure `PROP-INVOCATION-AND-GATE-RESET`
+documents — leaving the skill's own guidance ambiguous on this point
+guarantees the next workstream author picks arbitrarily.
+
+**Status:** Not yet a work item. Recorded as a Risk Notes follow-up in
+`WI-FRONT-OF-RUN-GATE-COLLAPSE` but not filed as its own item; small in scope
+(two reference files plus a decision about backfilling five workstreams),
+better batched with other `lrh-workstream` skill maintenance.
+
+**Related:** `src/lrh/skills/lrh-workstream/references/workstream-body-guide.md:96`;
+`src/lrh/skills/lrh-workstream/SKILL.md:107-109`;
+`project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` (Risk Notes);
+`project/workstreams/proposed/WS-INVOCATION-AND-GATE-RESET.md`; PR #536.

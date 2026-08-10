@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #539 (commit 0491fdbd07ec7772bcc9aa3e14bb11b55c0851b6)"
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-BODY-PROSE-NEUTRALIZATION
 title: Neutralize Claude-specific LRH skill body prose for Codex
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

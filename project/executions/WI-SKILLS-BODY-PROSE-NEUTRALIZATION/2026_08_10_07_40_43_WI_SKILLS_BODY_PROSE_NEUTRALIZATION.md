@@ -2,10 +2,10 @@
 execution_id: 2026_08_10_07_40_43_WI_SKILLS_BODY_PROSE_NEUTRALIZATION
 prompt_id: PROMPT(WI-SKILLS-BODY-PROSE-NEUTRALIZATION:WI_SKILLS_BODY_PROSE_NEUTRALIZATION)[2026-08-09T04:11:19+00:00]
 work_item: WI-SKILLS-BODY-PROSE-NEUTRALIZATION
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/539
-commit: 
+commit: 0491fdbd07ec7772bcc9aa3e14bb11b55c0851b6
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SKILLS-BODY-PROSE-NEUTRALIZATION.md
 session_transcript: pending

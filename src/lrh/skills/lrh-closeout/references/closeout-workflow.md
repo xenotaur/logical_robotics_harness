@@ -209,11 +209,18 @@ value when landing it — never reuse one record's resolved value for another.
 The pointer scheme is backend-specific. Check the execution record's `agent`
 before resolving:
 
-- **Non-Claude backend** (`agent: codex_cloud`, `manual`, or other): the
-  Claude env var and Claude session URL are the wrong session. Resolve the
-  backend's own scheme-prefixed id if retrievable (e.g. `codex-cloud:<task-id>`),
-  else use `none`. Do not construct a `claude-app:` pointer for non-Claude
-  work.
+- **Codex app** (`agent: codex_app`): the Claude env var and Claude session URL
+  are the wrong session. Resolve `codex-app:<task-or-thread-id>` when a durable
+  Codex app task/thread identifier is available; otherwise leave `pending` if
+  the session should be recorded later.
+- **Codex Cloud** (`agent: codex_cloud`): resolve `codex-cloud:<task-id>` from
+  the Codex run when available; otherwise leave `pending` if the task id should
+  be recorded later.
+- **Manual/no transcript backend** (`agent: manual`, or another terminal
+  non-retrievable backend): use `none`.
+- **Other non-Claude backend**: resolve the backend's own scheme-prefixed id if
+  retrievable; otherwise use `none`. Do not construct a `claude-app:` pointer
+  for non-Claude work.
 - **Claude.app** (`agent: claude_app`, or absent/assumed Claude): resolve the
   host id as below.
 

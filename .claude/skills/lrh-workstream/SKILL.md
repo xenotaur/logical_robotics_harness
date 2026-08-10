@@ -329,7 +329,7 @@ Immediately edit the generated file to populate the three optional fields
 (see `references/execution-record.md`):
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: project/workstreams/proposed/<WS-ID>.md
 session_transcript: pending
 ```
@@ -364,7 +364,8 @@ already-open PR.
 - Suggested next steps: design review → update `related_design`; define
   focus/roadmap references; populate `work_items:` as items are created.
 - A reminder that `session_transcript: pending` in the execution record
-  should be updated to `claude-app:<host-uuid-stem>` after the session ends.
+  should be updated to the durable session pointer for the selected backend
+  when one is available.
 - Next steps for the PR itself: run `/lrh-review-response <pr-url>` to
   address reviewer comments (repeat as needed), then
   `/lrh-confirm-fixes <pr-url>` to verify the fixes against the current diff

@@ -146,14 +146,21 @@ propose-and-confirm flow doc) rather than silently persisting the override.
 
 ### Step 3 — Resolve session transcript
 
-Attempt in order:
+Resolve a transcript value for the backend that authored the primary
+execution record:
 
-1. `echo $CLAUDE_CODE_HOST_SESSION_ID`
-2. `lrh sessions list` filtered by PR number (if available)
-3. Browser URL from the user's active session (`claude-app:<host-uuid-stem>`)
+- For `agent: claude_app` (or absent/legacy assumed Claude), use
+  `$CLAUDE_CODE_HOST_SESSION_ID`, `lrh sessions list` filtered by PR number
+  if available, or a pasted Claude.app session URL to produce
+  `claude-app:<host-uuid-stem>`.
+- For `agent: codex_app`, use `codex-app:<task-or-thread-id>` when a durable
+  Codex app task/thread identifier is available; otherwise keep `pending`.
+- For `agent: codex_cloud`, use `codex-cloud:<task-id>` when available.
+- For `agent: manual` or a backend with no retrievable transcript, use `none`.
 
-Record the resolved session ID for use in the execution record. If
-unavailable, mark as `pending` and note in the record.
+Record the resolved session ID for use in the execution record. If a
+retrievable session exists but its durable ID is unavailable, mark it as
+`pending` and note that in the record.
 
 ### Step 4 — Review-response
 

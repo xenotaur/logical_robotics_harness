@@ -2,9 +2,9 @@
 id: BACKLOG-LRH-SKILLS-TARGET-AWARE-INSTALL
 type: design_backlog
 title: Codex Skills Compatibility Backlog
-status: open
+status: closed
 created_on: 2026-08-02
-updated_on: 2026-08-02
+updated_on: 2026-08-09
 related_design:
   - project/design/proposals/proposed/lrh-skills-target-aware-install/00_proposal.md
   - project/workstreams/proposed/WS-SKILLS-TARGET-AWARE-INSTALL.md
@@ -37,7 +37,12 @@ label are different.
 skill instructions or target renderer so Codex-installed skills do not tell
 Codex to record itself as Claude.
 
-**Status:** Tracked, not yet implemented.
+**Disposition:** Fixed in canonical prose by
+`WI-SKILLS-BODY-PROSE-NEUTRALIZATION`. Execution-record templates now use
+`agent: <agent-backend>` and describe `claude_app`, `codex_app`,
+`codex_cloud`, and `manual` options. Session transcript guidance now branches
+by backend and does not tell Codex-installed skills to record themselves as
+Claude.
 
 **Related:** `src/lrh/skills/lrh-workstream/SKILL.md`;
 `src/lrh/skills/lrh-workstream/references/execution-record.md`;
@@ -66,7 +71,13 @@ renderer remove/translate Claude-only invocation metadata and examples where
 that can be done mechanically. Keep concrete command names only where the LRH
 workflow itself requires them as historical or user-facing identifiers.
 
-**Status:** Tracked, not yet implemented.
+**Disposition:** Partly fixed in the Codex renderer and partly retained with
+rationale. The render adapter strips Claude-only frontmatter metadata such as
+`argument-hint` from Codex installs. Body prose was neutralized where the
+wording described the executing backend or installed target. Literal
+`/lrh-*` names remain where they identify LRH workflow names or user-facing
+skill invocations; removing them would make the procedural references less
+clear without improving Codex behavior.
 
 **Related:** `src/lrh/skills/lrh-workstream/SKILL.md`;
 `src/lrh/skills/lrh-work-item/SKILL.md`;
@@ -95,7 +106,11 @@ policy.
 `policy.allow_implicit_invocation: false` in `agents/openai.yaml`, or an
 equivalent Codex-supported policy mechanism if the platform contract changes.
 
-**Status:** Tracked, not yet implemented.
+**Disposition:** Fixed by `WI-SKILLS-RENDER-ADAPTERS`. The Codex renderer
+strips `disable-model-invocation` from rendered `SKILL.md` and writes or
+preserves `agents/openai.yaml` with
+`policy.allow_implicit_invocation: false` when the canonical Claude metadata
+requests manual-only invocation.
 
 **Related:** `src/lrh/skills/lrh-implement/SKILL.md`;
 `src/lrh/skills/lrh-land/SKILL.md`;
@@ -118,7 +133,13 @@ once `.agents/skills/` becomes a first-class Codex install target.
 sources and selected install targets, then make validation or status tooling
 show both Claude and Codex mirror state when relevant.
 
-**Status:** Tracked, not yet implemented.
+**Disposition:** Fixed in canonical prose. Skill references now describe
+canonical source plus selected install targets, and validation guidance uses
+`lrh skills check --target claude --local` and
+`lrh skills status --target codex --local` instead of treating a raw
+`.claude/skills/` byte mirror as the universal test. Claude project installs
+remain available and intentional; Codex installs are validated as rendered
+target output.
 
 **Related:** `src/lrh/skills/lrh-work-item/references/work-item-body-guide.md`;
 `src/lrh/skills/lrh-workstream/SKILL.md`;
@@ -144,7 +165,11 @@ provenance guidance for Codex. Codex-installed lifecycle skills should refer to
 Codex task/thread identifiers where available and should not require the user
 to know that the canonical source lives under `src/lrh/skills/`.
 
-**Status:** Tracked, not yet implemented.
+**Disposition:** Fixed in canonical prose for the lifecycle skills. `/lrh-land`
+and `/lrh-closeout` now branch transcript resolution by execution-record
+backend, explicitly covering `codex_app`, `codex_cloud`, Claude.app, manual,
+and other non-Claude backends. Claude env vars and `claude-app:` URLs are
+retained only for Claude.app records.
 
 **Related:** `src/lrh/skills/lrh-land/SKILL.md`;
 `src/lrh/skills/lrh-land/references/land-workflow.md`;
@@ -174,7 +199,13 @@ an explicit workflow option. The guidance should distinguish local self-review
 from GitHub review objects so it does not accidentally imply branch-protection
 approval or consume reviewer resources.
 
-**Status:** Tracked, not yet implemented.
+**Disposition:** Deliberately retained as a workflow-policy concern for now.
+The repository chain defaults already encode
+`self_review_preference: substitute_self_review`, and this LRH run uses that
+preference. The `/lrh-land`/`/lrh-confirm-fixes` prose still distinguishes
+local self-review from GitHub review objects so it does not imply branch
+protection approval or consume reviewer resources. No renderer change is
+needed for this entry in this work item.
 
 **Related:** `src/lrh/skills/lrh-land/SKILL.md`;
 `src/lrh/skills/lrh-confirm-fixes/SKILL.md`;

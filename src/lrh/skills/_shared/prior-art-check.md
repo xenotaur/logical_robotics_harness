@@ -22,7 +22,7 @@ new work is needed or should instead extend/replace what exists.
 **Search locations (in order):**
 
 1. **In-repo:** grep `src/`, `project/design/proposals/`,
-   `project/workstreams/`, `project/work_items/`, and `.claude/skills/` for
+   `project/workstreams/`, `project/work_items/`, and installed local skill dirs (`.claude/skills/` and `.agents/skills/`) for
    terms derived from the topic title/summary. A sibling planning artifact of
    the same kind about to be created (an existing workstream or work item
    covering the same topic, possibly under a different ID or wording) is
@@ -36,7 +36,7 @@ new work is needed or should instead extend/replace what exists.
    automation context would abort on the ordinary "nothing found" outcome.
 
    ```bash
-   grep -rl "<key-term>" src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ 2>/dev/null || true
+   grep -rl "<key-term>" src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ .agents/skills/ 2>/dev/null || true
    ```
 
    **If checking an artifact that already exists on disk** — for example,
@@ -47,7 +47,7 @@ new work is needed or should instead extend/replace what exists.
    duplicate of itself:
 
    ```bash
-   grep -rl "<key-term>" src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ 2>/dev/null | grep -vF "<path-to-current-artifact>" || true
+   grep -rl "<key-term>" src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ .agents/skills/ 2>/dev/null | grep -vF "<path-to-current-artifact>" || true
    ```
 
 2. **Sibling repos:** ask the user: "Are there sibling repositories that

@@ -112,7 +112,7 @@ when landing, so an un-narrated record ships as `landed` with no evidence
 (see `AGENTS.md`'s evidence policy):
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: project/design/proposals/proposed/<slug>/00_proposal.md
 session_transcript: pending
 ```
@@ -122,6 +122,7 @@ session_transcript: pending
 | Value | Use when |
 |---|---|
 | `claude_app` | Created in a Claude Code (Claude.app) session |
+| `codex_app` | Created in a Codex desktop app task |
 | `codex_cloud` | Submitted to and executed by Codex Cloud |
 | `manual` | Created manually without an AI backend |
 
@@ -132,11 +133,18 @@ The path to the proposal file this PR creates, e.g.
 
 ### `session_transcript`
 
-Scheme-prefixed scalar `<backend>:<id>`, or `pending` if the session ID is
-not yet known. For Claude.app, use `claude-app:<host-uuid-stem>` (the host
-session id with the `local_` prefix stripped — see
-`CLAUDE_CODE_HOST_SESSION_ID`). Never commit an absolute path or the
-transcript itself.
+Scheme-prefixed scalar `<backend>:<id>`, or `pending` if the session exists
+but the durable ID is not yet known. Use the scheme that matches the selected
+agent backend:
+
+| Backend | Session transcript form |
+|---|---|
+| Claude.app | `claude-app:<host-uuid-stem>` (host id with `local_` stripped, when `CLAUDE_CODE_HOST_SESSION_ID` is available) |
+| Codex app | `codex-app:<task-or-thread-id>` when available; otherwise `pending` |
+| Codex Cloud | `codex-cloud:<task-id>` |
+| Manual/no retrievable session | `none` |
+
+Never commit an absolute path or the transcript itself.
 
 ---
 

@@ -50,7 +50,7 @@ lrh prompt update-execution \
   --status landed \
   --pr <pr-url> \
   --commit <merge-commit-sha> \
-  --session-transcript <claude-app:uuid-or-pending> \
+  --session-transcript <backend-session-pointer-or-sentinel> \
   --project-root .
 ```
 
@@ -115,7 +115,7 @@ These three fields are defined by `PROP-LRH-EXECUTION-SESSIONS`. Add them
 immediately after running `lrh prompt record-execution`:
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: <path-or-description>
 session_transcript: pending
 ```
@@ -127,6 +127,7 @@ Identifies the execution backend:
 | Value | Use when |
 |---|---|
 | `claude_app` | Implemented in a Claude Code (Claude.app) session |
+| `codex_app` | Implemented in a Codex desktop app task |
 | `codex_cloud` | Submitted to and executed by Codex Cloud |
 | `manual` | Implemented manually without an AI backend |
 
@@ -151,6 +152,7 @@ scheme-prefixed scalar `<backend>:<id>`, or one of two sentinels:
 | Value | Meaning |
 |---|---|
 | `claude-app:<host-uuid-stem>` | Claude.app session (see below) |
+| `codex-app:<task-or-thread-id>` | Codex desktop app task or thread, when available |
 | `codex-cloud:<task-id>` | Codex Cloud task |
 | `chatgpt:<conversation-id>` | ChatGPT conversation |
 | `pending` | Session exists, ID not yet recorded — **a to-do** |

@@ -56,7 +56,7 @@ Load before running any step:
    hardcoded `src/lrh/skills/...` path — `/lrh-execute` may be installed
    into a client repository via `lrh skills install`, where no
    `src/lrh/skills/` tree exists at all. The installed location is
-   whatever the Claude skills directory resolves it to.
+   whatever the selected agent skills directory resolves it to.
 2. **`/lrh-land/SKILL.md`** and its `references/land-workflow.md` —
    inlined at Step 4, resolved the same way.
 

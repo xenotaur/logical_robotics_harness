@@ -191,9 +191,9 @@ in the work item's `Required Changes` section. Respect `forbidden_actions`.
 Follow `STYLE.md` and `AGENTS.md`. Load only files needed for this specific
 task.
 
-This step is intentionally open-ended: the skill sets up the frame; Claude
-performs the implementation. The work item's acceptance criteria are the
-specification.
+This step is intentionally open-ended: the skill sets up the frame; the
+executing agent performs the implementation. The work item's acceptance
+criteria are the specification.
 
 ### Step 7 — Validate
 
@@ -259,7 +259,7 @@ Immediately edit the generated file to populate the three optional fields
 (see `references/execution-session-reference.md` for field descriptions):
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: <work-item path or ad-hoc description>
 session_transcript: pending
 ```
@@ -267,13 +267,14 @@ session_transcript: pending
 Commit the execution record and push it as an additional commit to the
 already-open PR.
 
-**Capture the child session-id alias when available.** This step runs
-live in the current window, so — unlike `/lrh-closeout`, which can run in
-a different session entirely after merge — there is no cross-session
-ambiguity here: `$CLAUDE_CODE_HOST_SESSION_ID` and `$CLAUDE_CODE_SESSION_ID`
-both name the session doing this work right now. If both are set, record
-the pairing (see `references/execution-session-reference.md`'s "Session
-identity capture" section for full detail):
+**For Claude.app sessions, capture the child session-id alias when available.**
+This step runs live in the current window, so — unlike `/lrh-closeout`, which
+can run in a different session entirely after merge — there is no cross-session
+ambiguity here for Claude.app: `$CLAUDE_CODE_HOST_SESSION_ID` and
+`$CLAUDE_CODE_SESSION_ID` both name the session doing this work right now. If
+both are set, record the pairing (see
+`references/execution-session-reference.md`'s "Session identity capture"
+section for full detail):
 
 ```bash
 lrh prompt record-session-alias \
@@ -285,10 +286,10 @@ lrh prompt record-session-alias \
 ```
 
 This writes to `project/sessions/index.jsonl`, not the execution record —
-`session_transcript` stays `pending` here exactly as before; this capture
-is independent of it. Commit this file alongside the execution record in
-the same commit. If `$CLAUDE_CODE_HOST_SESSION_ID` is unset (e.g. a
-non-Claude backend), skip this step entirely.
+`session_transcript` stays `pending` here exactly as before; this capture is
+independent of it. Commit this file alongside the execution record in the same
+commit. If `$CLAUDE_CODE_HOST_SESSION_ID` is unset, skip this Claude-only alias
+capture entirely and use the selected backend's transcript convention instead.
 
 ### Step 10 — Report and offer closeout
 
@@ -303,8 +304,8 @@ Offer (do not automatically do):
 
 - Adding the work item ID to the parent workstream's `work_items:` list if not
   already present
-- A reminder that `session_transcript: pending` should be updated to
-  `claude-app:<host-uuid-stem>` after the session ends
+- A reminder to update `session_transcript: pending` to the durable session
+  pointer for the selected backend when one is available
 - Next steps: wait for reviewer comments and run
   `/lrh-review-response <pr-url>` to address them (repeat as needed), then
   `/lrh-confirm-fixes <pr-url>` to verify the fixes against the current diff

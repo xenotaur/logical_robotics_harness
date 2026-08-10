@@ -232,7 +232,7 @@ lrh prompt record-execution \
 Use the prompt ID minted in Step 3. Populate optional fields:
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: <audit-path or "discovery mode — no audit available">
 session_transcript: pending
 ```

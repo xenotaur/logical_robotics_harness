@@ -285,7 +285,7 @@ lrh prompt record-execution \
 Edit the generated file to populate:
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: <pr-url>
 session_transcript: pending
 ```
@@ -628,8 +628,8 @@ Report to the user:
 - Next step after merging, only if the verdict is green: run
   `/lrh-closeout <pr-url>` to land the execution record, resolve the work
   item, and update the control plane
-- Reminder that `session_transcript: pending` should be updated to
-  `claude-app:<host-uuid-stem>` after the session ends
+- Reminder that `session_transcript: pending` should be updated to the durable
+  session pointer for the selected backend when one is available
 
 ---
 

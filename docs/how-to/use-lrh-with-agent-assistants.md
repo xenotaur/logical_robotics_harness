@@ -63,9 +63,12 @@ lrh skills install --local --target codex
 Check whether the rendered Codex install is current:
 
 ```bash
-lrh skills status --target codex
-lrh skills status --local --target codex --source current-repo
+lrh skills status --scope user --target codex
+lrh skills status --scope project --target codex
 ```
+
+LRH maintainers checking this repository's canonical source checkout can add
+`--source current-repo`.
 
 Restart Codex after creating `~/.agents/skills/` for the first time or after
 updating global Codex skills so the app re-discovers the installed skills.

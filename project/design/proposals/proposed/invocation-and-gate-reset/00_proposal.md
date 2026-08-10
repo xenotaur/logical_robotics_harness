@@ -5,7 +5,7 @@ title: Invocation and Gate Reset — Retrigger Removal, Flag Removal, and a Unif
 status: proposed
 implementation_status: not_started
 created_on: 2026-08-09
-updated_on: 2026-08-09
+updated_on: 2026-08-10
 related_design:
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md
@@ -13,6 +13,7 @@ related_design:
   - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
   - project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION.md
   - project/work_items/proposed/WI-LRH-CHAIN-DEFAULTS-INCREMENT-2.md
+  - project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md
   - src/lrh/skills/_shared/chain-defaults.md
   - src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md
 implemented_by: []
@@ -81,8 +82,59 @@ blocked in the next, requiring per-command babysitting.
 
 Sessions degraded into repeated near-no-op confirmations: the same
 completion/stop-condition pair re-elicited every run; obviously-correct
-trivial review fixes re-confirmed individually; and a "merge it?" question
-followed immediately by a separate "close it out?" question.
+trivial review fixes re-confirmed individually; a "merge it?" question
+followed immediately by a separate "close it out?" question; and — added
+2026-08-10 — a chain-authorization gate followed minutes later by an
+implementation-plan gate that restates it.
+
+**The fourth symptom is the front-of-run pair, and it cost two hours of
+wall-clock on a deadline.** A `/lrh-execute WI-LLM-0063` run authorized the
+chain at `/lrh-execute` Step 2 (`src/lrh/skills/lrh-execute/SKILL.md:138-177`),
+ran four deterministic steps, and then blocked on `/lrh-implement` Step 4
+(`src/lrh/skills/lrh-implement/SKILL.md:145-157`). The human — reasonably
+reading the first gate as *the* gate — had left. The run sat idle until they
+returned.
+
+This is not a lapse; `/lrh-execute` **requires** it
+(`src/lrh/skills/lrh-execute/SKILL.md:179-181`, *"This gate does not exempt the
+gates inside the sub-skills inlined below"*, with a Quality Checklist item at
+`:286` making a bypass a defect), implementing
+`DEC-DELIBERATE-CHAIN-INITIATION` principle 1 (`:75-76`): *"chain initiation
+never satisfies a skill's own internal confirmation gate."*
+
+**Every field the second gate displays is derivable before the first one
+fires** — verified field by field against the skill text:
+
+| Second-gate field | Source | Derivable pre-gate? |
+|---|---|---|
+| Task summary | the work item's Required Changes | yes — static file |
+| Prompt ID | `lrh prompt label --slug … --work-item …` | yes — the WI-ID is the only input |
+| Branch name | `gh api user` + WI `type` + slug (`lrh-implement/SKILL.md:159-183`) | yes |
+| Expected file changes | the work item's Required Changes | yes |
+| Validation commands | the work item's `## Validation` bullets | yes |
+| Readiness warnings | `lrh work-items readiness` | yes |
+
+Of the four intervening steps, exactly one can yield genuinely new
+information — the prior-art check (`lrh-implement/SKILL.md:95-115`), and only
+when the work item lacks one. Two others are *stops*, not questions: the
+readiness check (Step 1) and the idempotence check (Step 3). The fourth,
+reading the work item (Step 2), asks nothing and reports nothing — for a
+work-item input it only summarizes a static file. The
+second gate is therefore a **restatement, not a decision point**, in the common
+case.
+
+Hoisting that work ahead of the first gate also repairs three latent ordering
+defects: `/lrh-execute` Step 1 runs no readiness check at all for a `WI-ID`
+input (verified — zero occurrences of "readiness" in `SKILL.md:79-91`), the
+prior-art warning currently arrives *after* the chain is authorized, and the
+idempotence check can abort a run the human already approved.
+
+A full `/lrh-execute` run currently carries **nine** human stops, **eight of
+them unconditional** — `lrh-execute:138`, `lrh-implement:95` (conditional),
+`lrh-implement:145`, `lrh-land:107` (conditions asked a second time),
+`lrh-review-response:255`, `lrh-confirm-fixes:236`, `lrh-land:313` (merge),
+`lrh-closeout:249`, `lrh-closeout:377` — of which three repeat per review
+round.
 
 The merge/closeout pair is the clearest case of asking one question twice.
 `project/config/chain-defaults.yaml`'s own steelmanned completion condition
@@ -527,6 +579,11 @@ explicitly in the amending decision record — conflating "ask once" with "don't
 ask" is precisely the error an earlier draft of `PROP-LRH-CHAIN-DEFAULTS` made
 and had corrected in review.
 
+**Scope note added 2026-08-10.** This decision addresses the *back* of the run
+only. The same structure at the front — chain-authorization followed by an
+implementation-plan gate — is Decision 11, which adopts this decision's shape
+rather than arguing it afresh. Both are carried by one amending decision record.
+
 ### Decision 8: Activation of the defaults mechanism is a distinct, late stage
 
 **Options considered:**
@@ -591,6 +648,88 @@ Related via `related_workstreams:`, not folded. This follows
 into `WS-EXECUTION-FRAMEWORK` because *"folding re-conflates the two axes this
 decision exists to separate. Cross-link instead."*
 
+### Decision 11: Decision 7's shape applies to the front of the run as well
+
+*Added 2026-08-10, after the incident recorded as the fourth symptom in
+Background §3.*
+
+Decision 7 collapses the merge/closeout pair. The identical structure exists at
+the **front** of a chain run — `/lrh-execute` Step 2 followed by
+`/lrh-implement` Step 4 — and Decision 7 does not reach it. Both ends of the run
+ask one question twice; only one end was in scope.
+
+**Options considered:**
+
+- **(A) Label-only.** Reword the chain gate so it does not read as the plan
+  gate ("you will be asked again in ~4 min to approve the plan").
+- **(B) Hoist and merge.** Move `/lrh-implement` Steps 1–3 ahead of the chain
+  gate; present one fully-specified gate; the plan gate becomes a re-display.
+- **(C) Divergence-only.** Keep both gates; the second fires only when its
+  content materially differs from what was approved.
+- **(D) Activate `skip_if_opted_in` instead.** The mechanism already exists.
+- **(E1) Timeout-and-proceed.** **(E2) Notify on gate.**
+- **(F) Run-plan contract.** One front-loaded structured run plan; every
+  downstream gate checks itself against it and fires only on divergence.
+
+**Chosen: (B)+(C), with (F) as the end-state Stage 3's policy proposal should
+state generally, and (E2) as an independent complement.**
+
+**(D) is disqualified as a solo answer, and this is the sharpest finding: it
+would have made the motivating incident strictly worse.** `skip_if_opted_in` is
+scoped to the chain-authorization gate's *conditions*
+(`src/lrh/skills/_shared/chain-defaults.md:70-82`); `/lrh-implement` Step 4 is
+untouched by it, and `lrh-execute/SKILL.md:179-181` explicitly preserves that
+gate. Applied to the incident, skip mode would have skipped the gate the human
+*did* answer and left the one that blocked them — arriving at the same two-hour
+stall with no front gate at all. This matters beyond the option itself:
+"activate the defaults mechanism" is the intuitive fix for this incident and it
+is the wrong one, so Stage 3.5's sequencing (Decision 8) must not be read as
+also addressing this.
+
+**(E1) is disqualified.** Proceeding on a timeout converts every gate into a
+delay and cannot distinguish consent-by-silence from a human at dinner — the
+misuse mode Parasuraman & Riley describe, reached from the opposite direction.
+**(E2) is not an alternative**: notification does not reduce the number of asks,
+it reduces the cost of the ones that survive. Worth doing independently.
+
+**(A) is insufficient but is the correct interim patch** while Stage 3 is
+drafted: one sentence in the chain gate's presentation naming what will still be
+asked. It makes the trap legible without removing it, changes no policy, and
+ships immediately.
+
+**Why (B)+(C) rather than a fresh argument: the reasoning is already ratified.**
+Decision 7 holds that *"a genuine failure … is an alert about a new condition,
+not the same question asked twice."* (C) is that sentence applied to the plan
+gate: an unchanged plan is not new information, a changed one is. (B) is what
+makes (C) safe rather than agent-graded — with the plan derived before the gate,
+divergence is a diff against an approved object, not a judgement call.
+
+**This is a single-ask change, not a no-ask change**, and the amending decision
+record must say so as explicitly as Decision 7 does. Under (B) the human
+approves *more* than they do today — the plan, the prompt ID, the branch, the
+validation commands, and any prior-art or readiness warning — in the reply that
+authorizes the chain, rather than authorizing a chain and then being shown its
+plan.
+
+**Scope boundary.** This applies to `/lrh-execute`, whose input is always a
+work item, so the plan is always derivable from a static file. It does **not**
+extend to `/lrh-implement` invoked directly on a free-form description
+(`lrh-implement/SKILL.md:92-93`), where forming the plan requires reading the
+codebase and the gate is a genuine decision point.
+
+**Authority basis, and what must change.** (B) requires rewriting
+`lrh-execute/SKILL.md:179-181` and its Quality Checklist item at `:286`, and
+amending `DEC-DELIBERATE-CHAIN-INITIATION` principle 1 — the same amendment
+Decision 7 already requires, so one decision record covers both ends of the run.
+That record's own Revisit conditions open with *"CHAIN-NOTE evidence shows
+single-cycle chains frequently need mid-run human intervention"* (`:223`), which
+Decision 6 already records as met and never actioned. The incident in §3 is the
+evidence.
+
+**Target state.** Three human stops per `/lrh-execute` run — the front plan
+gate, the review-cycle gate, and the merge-plus-closeout ask Decision 7 defines
+— down from the eight unconditional stops enumerated in §3.
+
 ## Non-Goals
 
 - **Does not change control-plane precedence.** `DEC-PRECEDENCE-SEMANTICS`
@@ -638,7 +777,7 @@ asking the constraint exists to prevent.
 |---|---|---|
 | **1** | Retrigger removal; provisional self-review round cap; PR #522 disposition; `self_review_preference` cleanup; **disposition for the two stalled-reviewer backlog entries**; **`lrh skills install` + verification against `~/.claude/skills/`**; `confirmed_commit` re-stamp | new WS |
 | **2** | Flag removal ×4; `when_to_use` ×4; `/lrh-self-review` report-only default **plus its two apply-behaviour call sites** (see below); platform-enforced recursion guard; **`/lrh-confirm-fixes` empty-thread gate**; **`installer.py` Codex-policy decision**; **amend `WI-DELIBERATE-MODEL-INVOCATION`'s two criteria**; **update the three inlining statements**; preload verification; **`lrh skills install` + verification against `~/.claude/skills/`**; `confirmed_commit` re-stamp | new WS |
-| **3** | Gate corpus audit artifact → policy proposal → DEC record → cascade; includes Decision 9's staleness redesign, Decision 7's shape, **and the Stage 3.5 compensating control** | new WS |
+| **3** | Gate corpus audit artifact → policy proposal → DEC record → cascade; includes Decision 9's staleness redesign, Decision 7's shape, **Decision 11's front-of-run collapse (`WI-FRONT-OF-RUN-GATE-COLLAPSE`)**, **and the Stage 3.5 compensating control** | new WS |
 | **3.5** | Activation: set `chain_init_confirmation`, grant two-step consent, stamp — under the control Stage 3 produces | new WS |
 | **4** | `confirm_fixes_batch` predicate (Increment 2); Increment 3 policy-derived fields including `closeout_with_merge` | `WS-LRH-CHAIN-DEFAULTS` |
 | **5a** | Low-stakes LRH-internal dogfood | new WS |
@@ -827,4 +966,7 @@ inherited precedent of proving a mechanism narrow before widening it.
 - `project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION.md` — Stage 2
   completes its remaining scope.
 - `src/lrh/skills/_shared/chain-defaults.md` — the mechanism Decisions 8 and 9
-  activate and repair.
+  activate and repair; its `skip_if_opted_in` scope is why Decision 11
+  disqualifies activation as a fix for the front-of-run pair.
+- `project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` — implements
+  Decision 11 under Stage 3.

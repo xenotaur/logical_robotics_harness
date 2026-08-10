@@ -27,7 +27,7 @@ work_items: []
 exit_criteria:
   - Stage 1 landed - manual GitHub bot retrigger removed from all skills, a provisional no-progress loop cap in place, PROP-REVIEW-WAIT-POSTURE rescoped, self_review_preference removed, a disposition recorded for the two stalled-reviewer-detection backlog entries scoped to the gutted files, lrh skills install run and the retrigger commands verified absent from the installed corpus at ~/.claude/skills/ (not just the source tree), and confirmed_commit re-stamped
   - Stage 2 landed - disable-model-invocation removed from all remaining skills with when_to_use added, /lrh-self-review report-only by default with a platform-enforced recursion guard, the /lrh-confirm-fixes empty-thread fast path gated, a deliberate decision recorded for installer.py's Codex allow_implicit_invocation emission with tests updated, WI-DELIBERATE-MODEL-INVOCATION's two same-change acceptance criteria explicitly amended, the three inlining-is-permanent statements updated, subagent-preload behavior verified, lrh skills install run and disable-model-invocation verified absent from the installed corpus at ~/.claude/skills/ (not just the source tree), and confirmed_commit re-stamped
-  - Stage 3 landed - gate corpus audit artifact written, gate policy proposal adopted, a DEC record naming exactly what it supersedes recorded, a named and checkable Stage 3.5 compensating control produced, the DEC record carrying the extended cascade taxonomy (statement-shaped, not artifact-class-shaped) per PROP-INVOCATION-AND-GATE-RESET Decision 6, the four known stale ownership claims corrected (WS-SKILLS-EXECUTE.md:77,114,133 and WI-SKILLS-LRH-EXECUTE.md:70), and the cascade applied including cross-repo memory correction
+  - Stage 3 landed - gate corpus audit artifact written, gate policy proposal adopted, a DEC record naming exactly what it supersedes recorded, a named and checkable Stage 3.5 compensating control produced, the DEC record carrying the extended cascade taxonomy (statement-shaped, not artifact-class-shaped) per PROP-INVOCATION-AND-GATE-RESET Decision 6, the four known stale ownership claims corrected (WS-SKILLS-EXECUTE.md:77,114,133 and WI-SKILLS-LRH-EXECUTE.md:70), the front-of-run gate pair collapsed per PROP-INVOCATION-AND-GATE-RESET Decision 11 with the same DEC record carrying both ends of the run, and the cascade applied including cross-repo memory correction
   - Stage 3.5 complete - chain-defaults mechanism activated under the compensating control Stage 3 produced, with the two-step consent contract of DEC-CHAIN-INIT-SKIP-CONSENT preserved and skip_if_opted_in never becoming the shipped default
   - Stages 5-6 complete - a low-stakes LRH-internal dogfood run clean, the related open PRs triaged with go/no-go decisions, and findings fed back into Stages 1-4
   - Stage 7 complete - normal fleet operation resumed across the repositories and harnesses paused for this program, with the resumption criterion met and recorded
@@ -165,50 +165,34 @@ authoritative on sequencing. Stage 3.5 must follow Stage 3.
 
 ## Exit Criteria
 
-Kept in sync with the `exit_criteria:` frontmatter list above — if you change
-one, change both. (An independent review caught the two lists already drifting
-on the `skip_if_opted_in` clause.)
+**The `exit_criteria:` frontmatter list above is the single authoritative
+statement of this workstream's exit conditions. Consult that field; it is not
+restated here.**
 
-- Stage 1 landed: manual GitHub bot retrigger removed from all skills, a
-  provisional no-progress loop cap in place, `PROP-REVIEW-WAIT-POSTURE`
-  rescoped, `self_review_preference` removed, a disposition recorded for the two
-  stalled-reviewer-detection backlog entries (`backlog.md:622`, `:678`) scoped
-  to the files this stage guts, **`lrh skills install` run and the retrigger
-  commands verified absent from `~/.claude/skills/`** — the installed corpus
-  every repository loads from, not this repository's source tree —
-  `confirmed_commit` re-stamped.
-- Stage 2 landed: `disable-model-invocation` removed from all remaining skills
-  with `when_to_use` added, `/lrh-self-review` report-only by default with a
-  platform-enforced recursion guard, the `/lrh-confirm-fixes` empty-thread fast
-  path gated, a deliberate decision recorded for `installer.py`'s Codex
-  `allow_implicit_invocation` emission with `tests/skills_installer_test.py`
-  updated, `WI-DELIBERATE-MODEL-INVOCATION`'s two "not removed as part of the
-  same change" acceptance criteria explicitly amended, the three
-  inlining-is-permanent statements updated, subagent-preload behavior verified,
-  **`lrh skills install` run and `disable-model-invocation` verified absent from
-  `~/.claude/skills/`**, `confirmed_commit` re-stamped.
-- Stage 3 landed: audit artifact written, gate policy proposal adopted, a DEC
-  record naming exactly what it supersedes recorded, a **named and checkable
-  Stage 3.5 compensating control** produced, the DEC record carrying the
-  **extended cascade taxonomy** (classify by statement — narrative vs. assertion
-  of current state about a still-live artifact — not by artifact class; see
-  `PROP-INVOCATION-AND-GATE-RESET` Decision 6), the **four known stale ownership
-  claims corrected** (`WS-SKILLS-EXECUTE.md:77`, `:114`, `:133`,
-  `WI-SKILLS-LRH-EXECUTE.md:70`), and the cascade applied — including
-  cross-repository memory correction, which `DEC-AGENT-EXECUTED-MERGE-GATE`
-  documents as a step a prior decision initially missed.
-- Stage 3.5 complete: chain-defaults activated under the compensating control
-  Stage 3 produced, with `DEC-CHAIN-INIT-SKIP-CONSENT`'s two-step consent
-  contract preserved and `skip_if_opted_in` never becoming the shipped default.
-- Stages 5–6 complete: a low-stakes LRH-internal dogfood run clean, the related
-  open PRs triaged with go/no-go decisions, and findings fed back.
-- Stage 7 complete: normal fleet operation resumed across the repositories and
-  harnesses paused for this program, with the resumption criterion met and
-  recorded.
-- `PROP-INVOCATION-AND-GATE-RESET` status updated to `adopted`.
-- `AGENTS.md`, `CLAUDE.md`, and `STYLE.md` carry the new policy guidance, and
-  session memories encoding superseded gate rules are corrected rather than
-  left stale.
+This section previously carried a second, human-readable copy of that list,
+with an instruction to change both whenever either changed. That arrangement
+failed twice in the ways it was meant to prevent: an independent review caught
+the two lists drifting on the `skip_if_opted_in` clause, and a later change
+adding Decision 11's front-of-run collapse updated the frontmatter alone,
+leaving the body able to certify Stage 3 complete without it.
+
+Two copies of a mutable list are two things to get right and one thing that
+will eventually be wrong, and a workstream's exit criteria are precisely where
+being wrong is expensive — they are the check that decides whether the
+workstream may close. Restating them buys readability at the cost of the
+property that matters. This is the same restatement-drift failure
+`PROP-INVOCATION-AND-GATE-RESET` documents, so leaving it in place inside the
+workstream that delivers that proposal would be self-refuting.
+
+Five sibling workstreams already carry a populated `exit_criteria:` with no
+body restatement — `WS-EXECUTION-FRAMEWORK` and `WS-CI-CAPABILITY-SCAFFOLDING`
+(proposed), `WS-LRH-ASSISTANTS` (active), and `WS-PRIOR-ART-CHECK` and
+`WS-SKILLS` (resolved) — so this is existing practice across every bucket
+rather than a new deviation. It does depart from
+`lrh-workstream/references/workstream-body-guide.md:96`, which still says this
+section "mirrors and expands" the frontmatter list. That guidance should be
+revisited so the convention and the practice agree; the follow-up is carried in
+`WI-FRONT-OF-RUN-GATE-COLLAPSE`'s Risk Notes.
 
 ## Non-Goals
 

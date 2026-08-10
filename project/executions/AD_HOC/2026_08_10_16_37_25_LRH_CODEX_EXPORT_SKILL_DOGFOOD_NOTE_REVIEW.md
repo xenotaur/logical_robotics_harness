@@ -2,10 +2,10 @@
 execution_id: 2026_08_10_16_37_25_LRH_CODEX_EXPORT_SKILL_DOGFOOD_NOTE_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_CODEX_EXPORT_SKILL_DOGFOOD_NOTE_REVIEW)[2026-08-10T16:08:29+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_09_18_13_49_LRH_CODEX_EXPORT_SKILL_DOGFOOD
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/538
-commit:
+commit: dfb86c69d71d81a58bc16e97ca6c3a8920ce7838
 created_at: 2026-08-10T16:37:25+00:00
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/538

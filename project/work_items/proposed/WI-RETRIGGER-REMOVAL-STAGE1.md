@@ -31,29 +31,34 @@ forbidden_actions:
 acceptance:
   - No @codex review comment mention or --add-reviewer @copilot request remains anywhere under src/lrh/skills/lrh-confirm-fixes/, replaced by a provisional no-progress loop cap
   - PR 522 is rescoped to its Decision 3 (bounded background poll) per PROP-INVOCATION-AND-GATE-RESET's resolved Open Questions; its Decisions 1 and 2 are closed as obviated
-  - self_review_preference is removed from project/config/chain-defaults.yaml, src/lrh/skills/_shared/chain-defaults.md, and its inlined copy in lrh-land/references/land-workflow.md (both src/lrh/skills/ and .claude/skills/ mirrors)
+  - self_review_preference is removed from project/config/chain-defaults.yaml, src/lrh/skills/_shared/chain-defaults.md, and its inlined copy in lrh-land/references/land-workflow.md (src/lrh/skills/, .claude/skills/, and .agents/skills/ mirrors)
   - The two stalled-reviewer-detection backlog entries scoped to the gutted files are marked obsolete with a note that a dispatched subagent can also stall
   - lrh skills install is run for both the Claude and Codex targets after merge
-  - The retrigger strings are verified absent from all three installed corpora, not just the source tree -- ~/.claude/skills/, ~/.agents/skills/ (the Codex target lrh skills install writes to), and the per-repo .claude/skills/ mirror in this repository
+  - The retrigger strings are verified absent from all four active skill corpora, not just the source tree -- ~/.claude/skills/, ~/.agents/skills/ (the user-scope Codex target lrh skills install writes to), this repository's per-repo .claude/skills/ mirror, and this repository's per-repo .agents/skills/ Codex mirror
   - A note is recorded that in-flight Claude Code and Codex sessions must be restarted to pick up the change; a stale session keeps retriggering even after propagation
   - confirmed_commit in project/config/chain-defaults.yaml is re-stamped to the commit that lands this change
-  - New Python carries unit tests
+  - If new Python is added, it carries unit tests
+  - WI-RETRIGGER-REMOVAL-STAGE1 is listed in WS-INVOCATION-AND-GATE-RESET.work_items, and stale workstream prose about the previously missing Stage 1 work item is updated
   - lrh validate reports 0 errors
   - diff -r between src/lrh/skills/lrh-confirm-fixes/ and .claude/skills/lrh-confirm-fixes/ reports no differences
 required_evidence:
   - manual_review
   - lrh_validate
-  - test_new_python
 artifacts_expected:
   - src/lrh/skills/lrh-confirm-fixes/SKILL.md
   - src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md
   - .claude/skills/lrh-confirm-fixes/SKILL.md
   - .claude/skills/lrh-confirm-fixes/references/round-cap-gate.md
+  - .agents/skills/lrh-confirm-fixes/SKILL.md
+  - .agents/skills/lrh-confirm-fixes/references/round-cap-gate.md
   - project/config/chain-defaults.yaml
   - src/lrh/skills/_shared/chain-defaults.md
   - src/lrh/skills/lrh-land/references/land-workflow.md
   - .claude/skills/lrh-land/references/land-workflow.md
+  - .agents/skills/lrh-land/references/land-workflow.md
   - project/design/backlog.md
+  - project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md
+  - project/workstreams/proposed/WS-INVOCATION-AND-GATE-RESET.md
 ---
 
 # Remove GitHub bot retrigger commands fleet-wide
@@ -84,15 +89,18 @@ picked up any part of this fix -- PR #535 and PR #536 only amended the
 *plan* to remove retriggering (the proposal and this program's governing
 workstream); no skill file has changed yet.
 
-**Three install targets, three restart requirements, one exclusion.**
+**Four active skill corpora, restart requirements, one exclusion.**
 Codex has just picked up LRH skill support, so `~/.agents/skills/` is now a
 live, populated corpus that needs the same fix and verification as
 `~/.claude/skills/` -- previously the proposal and workstream only named
-the Claude corpus. Both Claude Code and Codex sessions currently running
-will keep the copy they loaded at start even after this change merges and
-propagates; each needs restarting. Antigravity has not shipped skill
-support yet, so it carries no corpus and is explicitly out of scope --
-revisit if that changes.
+the Claude corpus. This repository also has project-local Claude and Codex
+skill mirrors at `.claude/skills/` and `.agents/skills/`; both can be active
+instruction sources for local sessions and must be updated or verified as
+part of the same change. Both Claude Code and Codex sessions currently
+running will keep the copy they loaded at start even after this change merges
+and propagates; each needs restarting. Antigravity has not shipped skill
+support yet, so it carries no corpus and is explicitly out of scope -- revisit
+if that changes.
 
 **`self_review_preference` has a third copy, found during pre-merge
 verification.** A round-1 review comment (posted as an issue comment, not
@@ -133,9 +141,11 @@ In scope: `lrh-confirm-fixes/SKILL.md` and `references/round-cap-gate.md`
 in both `src/lrh/skills/` and `.claude/skills/`; `PR #522`'s rescope;
 `self_review_preference` removal from the chain-defaults profile, its
 canonical doc, and its inlined copy in `lrh-land/references/land-workflow.md`
-(both mirrors); the two stalled-reviewer backlog entries; `lrh skills
-install` for the Claude and Codex targets; verification against all three
-installed corpora; the `confirmed_commit` re-stamp.
+(both Claude and Codex mirrors); the two stalled-reviewer backlog entries;
+`lrh skills install` for the Claude and Codex targets; verification against
+all four active skill corpora; `WS-INVOCATION-AND-GATE-RESET.work_items`
+registration now that this Stage 1 work item exists; the `confirmed_commit`
+re-stamp.
 
 Out of scope: `disable-model-invocation` removal from any skill (Stage 2,
 already resolved separately); the gate corpus audit and DEC record (Stage
@@ -153,17 +163,26 @@ installed corpus to fix.
    Questions.
 3. Remove `self_review_preference` from `project/config/chain-defaults.yaml`,
    its canonical description in `src/lrh/skills/_shared/chain-defaults.md`,
-   and its inlined copy in `lrh-land/references/land-workflow.md` (both
-   `src/lrh/skills/` and `.claude/skills/`).
+   and its inlined copy in `lrh-land/references/land-workflow.md`
+   (`src/lrh/skills/`, `.claude/skills/`, and `.agents/skills/`).
 4. Mark the two stalled-reviewer-detection backlog entries obsolete in
    `project/design/backlog.md`, noting a dispatched subagent can also stall
    and would need its own heuristic if this is rebuilt.
 5. Run `lrh skills install` for both the Claude and Codex targets after
-   merge.
+   merge. The intended propagation commands are:
+   `lrh skills install --force --source current-repo --target all` for
+   user-scope installs and
+   `lrh skills install --force --source current-repo --local --target all`
+   for this repository's project-scope installs.
 6. Verify the retrigger strings are absent from `~/.claude/skills/`,
-   `~/.agents/skills/`, and this repository's own `.claude/skills/` mirror
-   -- three separate checks, not one.
-7. Re-stamp `confirmed_commit` in `project/config/chain-defaults.yaml` to
+   `~/.agents/skills/`, this repository's own `.claude/skills/` mirror, and
+   this repository's own `.agents/skills/` Codex mirror -- four separate
+   checks, not one. Use `git grep` for tracked repository paths and ordinary
+   filesystem search only for user-home installed corpora outside this repo.
+7. Add `WI-RETRIGGER-REMOVAL-STAGE1` to
+   `WS-INVOCATION-AND-GATE-RESET.work_items`, and update workstream body prose
+   that still describes Stage 1's work item as nonexistent.
+8. Re-stamp `confirmed_commit` in `project/config/chain-defaults.yaml` to
    the landing commit.
 
 ## Non-Goals
@@ -190,8 +209,10 @@ list.
 - diff -r src/lrh/skills/lrh-land .claude/skills/lrh-land
 - grep -rl "codex review\|add-reviewer @copilot" ~/.claude/skills/ (expect no match after propagation)
 - grep -rl "codex review\|add-reviewer @copilot" ~/.agents/skills/ (expect no match after propagation)
-- grep -rl "codex review\|add-reviewer @copilot" .claude/skills/ (this repository's own mirror; expect no match)
-- grep -rl "self_review_preference" src/lrh/skills/ .claude/skills/ project/config/ (expect no match after propagation)
+- git grep -n "codex review\|add-reviewer @copilot" -- .claude/skills/ .agents/skills/ (expect no match in this repository's tracked mirrors)
+- git grep -n "self_review_preference" -- src/lrh/skills/ .claude/skills/ .agents/skills/ project/config/ (expect no match after propagation)
+- lrh skills status --scope user --target codex --source current-repo
+- lrh skills status --scope project --target codex --source current-repo
 
 ## Risk Notes
 
@@ -199,7 +220,7 @@ list.
 changes nothing until `lrh skills install` runs for each target and the
 result is verified against the installed corpus, not the source tree --
 that is exactly the gap that let the $5 leak happen today. Acceptance
-criteria enforce all three corpora explicitly for this reason.
+criteria enforce all four active skill corpora explicitly for this reason.
 
 **Restart reminder has no mechanical enforcement.** A session that loaded
 its skill copy before this change propagates will keep retriggering

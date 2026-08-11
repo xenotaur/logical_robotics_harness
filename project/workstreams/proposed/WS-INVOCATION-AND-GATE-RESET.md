@@ -23,10 +23,11 @@ related_roadmap:
 related_workstreams:
   - WS-LRH-CHAIN-DEFAULTS
   - WS-EXECUTION-FRAMEWORK
-work_items: []
+work_items:
+  - WI-RETRIGGER-REMOVAL-STAGE1
 exit_criteria:
-  - Stage 1 landed - manual GitHub bot retrigger removed from all skills, a provisional no-progress loop cap in place, PROP-REVIEW-WAIT-POSTURE rescoped, self_review_preference removed, a disposition recorded for the two stalled-reviewer-detection backlog entries scoped to the gutted files, lrh skills install run and the retrigger commands verified absent from the installed corpus at ~/.claude/skills/ (not just the source tree), and confirmed_commit re-stamped
-  - Stage 2 landed - disable-model-invocation removed from all remaining skills with when_to_use added, /lrh-self-review report-only by default with a platform-enforced recursion guard, the /lrh-confirm-fixes empty-thread fast path gated, a deliberate decision recorded for installer.py's Codex allow_implicit_invocation emission with tests updated, WI-DELIBERATE-MODEL-INVOCATION's two same-change acceptance criteria explicitly amended, the three inlining-is-permanent statements updated, subagent-preload behavior verified, lrh skills install run and disable-model-invocation verified absent from the installed corpus at ~/.claude/skills/ (not just the source tree), and confirmed_commit re-stamped
+  - Stage 1 landed - manual GitHub bot retrigger removed from all skills, a provisional no-progress loop cap in place, PROP-REVIEW-WAIT-POSTURE rescoped, self_review_preference removed, a disposition recorded for the two stalled-reviewer-detection backlog entries scoped to the gutted files, lrh skills install run for Claude and Codex user-scope and project-scope installs, the retrigger commands verified absent from ~/.claude/skills/, ~/.agents/skills/, this repository's .claude/skills/ mirror, and this repository's .agents/skills/ Codex mirror (not just the source tree), and confirmed_commit re-stamped
+  - Stage 2 landed - disable-model-invocation removed from all remaining skills with when_to_use added, /lrh-self-review report-only by default with a platform-enforced recursion guard, the /lrh-confirm-fixes empty-thread fast path gated, a deliberate decision recorded for installer.py's Codex allow_implicit_invocation emission with tests updated, WI-DELIBERATE-MODEL-INVOCATION's two same-change acceptance criteria explicitly amended, the three inlining-is-permanent statements updated, subagent-preload behavior verified, lrh skills install run for Claude and Codex user-scope and project-scope installs, disable-model-invocation verified absent from the relevant installed corpora (not just the source tree), and confirmed_commit re-stamped
   - Stage 3 landed - gate corpus audit artifact written, gate policy proposal adopted, a DEC record naming exactly what it supersedes recorded, a named and checkable Stage 3.5 compensating control produced, the DEC record carrying the extended cascade taxonomy (statement-shaped, not artifact-class-shaped) per PROP-INVOCATION-AND-GATE-RESET Decision 6, the four known stale ownership claims corrected (WS-SKILLS-EXECUTE.md:77,114,133 and WI-SKILLS-LRH-EXECUTE.md:70), the front-of-run gate pair collapsed per PROP-INVOCATION-AND-GATE-RESET Decision 11 with the same DEC record carrying both ends of the run, and the cascade applied including cross-repo memory correction
   - Stage 3.5 complete - chain-defaults mechanism activated under the compensating control Stage 3 produced, with the two-step consent contract of DEC-CHAIN-INIT-SKIP-CONSENT preserved and skip_if_opted_in never becoming the shipped default
   - Stages 5-6 complete - a low-stakes LRH-internal dogfood run clean, the related open PRs triaged with go/no-go decisions, and findings fed back into Stages 1-4
@@ -119,35 +120,30 @@ decision exists to separate. Cross-link instead."
 
 ## Work Items
 
-`WI-DELIBERATE-MODEL-INVOCATION` belongs to this workstream — Stage 2 completes
-it and amends two of its acceptance criteria — but it is **deliberately absent
-from `work_items:`**, which is the *executable* list.
+`WI-RETRIGGER-REMOVAL-STAGE1` is the first executable item in this workstream's
+sequence. It exists to remove the live retrigger mechanism before any later
+gate-corpus work proceeds, and it is listed in `work_items:` so schema-level
+ownership no longer depends on prose intent.
+
+`WI-DELIBERATE-MODEL-INVOCATION` belongs to this workstream's program — Stage 2
+completed it and amended two of its acceptance criteria — but it is **not added
+to `work_items:` retroactively in this Stage 1 registration change**, because it
+is already resolved and this narrow update exists to make the pending Stage 1
+item executable without expanding closeout scope.
 
 `/lrh-execute <WS-ID>` selects the first proposed entry in `work_items:` whose
-`depends_on` is satisfied (`lrh-execute/SKILL.md` Step 1). That item has
-`depends_on: []` and reports `prompt_ready: yes`, so listing it would let a
-chain runner **begin Stage 2 flag removal before Stage 1 retrigger removal** —
-the opposite of the strict sequencing this workstream requires. The sequencing
-lives in prose, and prose is not part of readiness evaluation.
+`depends_on` is satisfied (`lrh-execute/SKILL.md` Step 1). Listing Stage 1 is
+therefore now the intended behavior: it is the unblocked first item and reports
+`prompt_ready: yes`. Future proposed stage items should be added only when their
+machine-readable `depends_on:` fields preserve the strict order below; do not
+rely on prose sequencing alone.
 
-The correct fix is a machine-readable predecessor, which is not yet
-expressible: Stage 1's work item does not exist, and `depends_on:` takes
-work-item IDs. `WI-WORK-ITEM-BLOCKED-STATE-EXPRESSIVENESS`
-(`WS-CROSS-REPO-CODE-HEALTH`) exists to close exactly this gap. Until it does,
-withholding the item from the executable list is the only enforcement
-available. **Add it to `work_items:` once Stage 1's work item exists and can be
-named in `depends_on:`.**
-
-Because `work_items:` is the field that denotes ownership, this workstream does
-not yet own the item in the schema's terms — only in intent. The work item's own
-`related_workstreams:` records the association, and this section records the
-intent; neither is an ownership claim. No per-stage work items exist yet; the planned
-decomposition, one per stage:
+The planned decomposition remains one item per stage:
 
 | Stage | Planned work item |
 |---|---|
-| 1 | Retrigger removal, provisional cap, PR #522 rescope, profile cleanup |
-| 2 | Flag removal, `when_to_use`, self-review gate and recursion guard |
+| 1 | `WI-RETRIGGER-REMOVAL-STAGE1` — retrigger removal, provisional cap, PR #522 rescope, profile cleanup |
+| 2 | `WI-DELIBERATE-MODEL-INVOCATION` — flag removal, `when_to_use`, self-review gate and recursion guard |
 | 3 | Gate corpus audit, policy proposal, DEC record, cascade |
 | 3.5 | Chain-defaults activation under the Stage 3 control |
 | 5–7 | Dogfood, triage, feedback, resumption |

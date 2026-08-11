@@ -775,8 +775,8 @@ asking the constraint exists to prevent.
 
 | Stage | Deliverable | Owner |
 |---|---|---|
-| **1** | Retrigger removal; provisional self-review round cap; PR #522 disposition; `self_review_preference` cleanup; **disposition for the two stalled-reviewer backlog entries**; **`lrh skills install` + verification against `~/.claude/skills/`**; `confirmed_commit` re-stamp | new WS |
-| **2** | Flag removal ×4; `when_to_use` ×4; `/lrh-self-review` report-only default **plus its two apply-behaviour call sites** (see below); platform-enforced recursion guard; **`/lrh-confirm-fixes` empty-thread gate**; **`installer.py` Codex-policy decision**; **amend `WI-DELIBERATE-MODEL-INVOCATION`'s two criteria**; **update the three inlining statements**; preload verification; **`lrh skills install` + verification against `~/.claude/skills/`**; `confirmed_commit` re-stamp | new WS |
+| **1** | Retrigger removal; provisional self-review round cap; PR #522 disposition; `self_review_preference` cleanup; **disposition for the two stalled-reviewer backlog entries**; **`lrh skills install` + verification against Claude and Codex user-scope and project-scope skill corpora**; `confirmed_commit` re-stamp | new WS |
+| **2** | Flag removal ×4; `when_to_use` ×4; `/lrh-self-review` report-only default **plus its two apply-behaviour call sites** (see below); platform-enforced recursion guard; **`/lrh-confirm-fixes` empty-thread gate**; **`installer.py` Codex-policy decision**; **amend `WI-DELIBERATE-MODEL-INVOCATION`'s two criteria**; **update the three inlining statements**; preload verification; **`lrh skills install` + verification against Claude and Codex user-scope and project-scope skill corpora**; `confirmed_commit` re-stamp | new WS |
 | **3** | Gate corpus audit artifact → policy proposal → DEC record → cascade; includes Decision 9's staleness redesign, Decision 7's shape, **Decision 11's front-of-run collapse (`WI-FRONT-OF-RUN-GATE-COLLAPSE`)**, **and the Stage 3.5 compensating control** | new WS |
 | **3.5** | Activation: set `chain_init_confirmation`, grant two-step consent, stamp — under the control Stage 3 produces | new WS |
 | **4** | `confirm_fixes_batch` predicate (Increment 2); Increment 3 policy-derived fields including `closeout_with_merge` | `WS-LRH-CHAIN-DEFAULTS` |
@@ -807,13 +807,16 @@ evidence that the fix worked.
 
 Each of Stages 1 and 2 must therefore include:
 
-1. **`lrh skills install`** after the change lands, refreshing the user-level
-   copy and any per-repo installs in active use.
+1. **`lrh skills install`** after the change lands, refreshing user-level
+   copies and any per-repo installs in active use for both Claude and Codex
+   targets.
 2. **Post-install verification against the installed corpus, not the source
-   tree.** Stage 1: no `@codex review` or `--add-reviewer @copilot` anywhere
-   under `~/.claude/skills/`. Stage 2: no `disable-model-invocation` there
-   either. Verifying `src/` and `.claude/` in this repository is exactly the
-   check that missed this.
+   tree.** Stage 1: no `@codex review` or `--add-reviewer @copilot` under
+   `~/.claude/skills/`, `~/.agents/skills/`, this repository's `.claude/skills/`
+   mirror, or this repository's `.agents/skills/` Codex mirror. Stage 2: no
+   `disable-model-invocation` in the relevant installed corpora either.
+   Verifying only `src/` and `.claude/` in this repository is exactly the check
+   that missed this.
 3. **A note that in-flight sessions keep the copy they loaded at start** and
    need restarting to pick up the change — which is a reason to sequence these
    stages inside the fleet pause rather than alongside live work.

@@ -17,6 +17,7 @@ import yaml
 
 _SKILLS_PACKAGE = "lrh.skills"
 _AGENT_SKILLS_CONFIG = Path("project") / "agent_skills.yaml"
+_ANTIGRAVITY_PLUGIN_MANIFEST_NAME = "plugin.json"
 
 
 class SkillTarget(str, Enum):
@@ -621,12 +622,61 @@ def _antigravity_plugin_manifest() -> bytes:
     return (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
-def _write_antigravity_plugin_manifest(skills_dir: Path, *, dry_run: bool) -> None:
-    if dry_run:
-        return
+def _antigravity_plugin_manifest_path(skills_dir: Path) -> Path:
+    return skills_dir.parent / _ANTIGRAVITY_PLUGIN_MANIFEST_NAME
+
+
+def _antigravity_plugin_manifest_differs(skills_dir: Path) -> bool:
+    manifest_path = _antigravity_plugin_manifest_path(skills_dir)
+    if manifest_path.is_symlink() or not manifest_path.is_file():
+        return True
+    return manifest_path.read_bytes() != _antigravity_plugin_manifest()
+
+
+def _write_antigravity_plugin_manifest(skills_dir: Path) -> None:
     plugin_root = skills_dir.parent
     plugin_root.mkdir(parents=True, exist_ok=True)
-    (plugin_root / "plugin.json").write_bytes(_antigravity_plugin_manifest())
+    manifest_path = plugin_root / _ANTIGRAVITY_PLUGIN_MANIFEST_NAME
+    if manifest_path.is_symlink() or manifest_path.is_file():
+        manifest_path.unlink()
+    elif manifest_path.exists() and manifest_path.is_dir():
+        shutil.rmtree(manifest_path)
+    manifest_path.write_bytes(_antigravity_plugin_manifest())
+
+
+def _install_antigravity_plugin_manifest(
+    skills_dir: Path, *, dry_run: bool, force: bool
+) -> SkillResult:
+    manifest_path = _antigravity_plugin_manifest_path(skills_dir)
+    if not manifest_path.exists() and not manifest_path.is_symlink():
+        if not dry_run:
+            _write_antigravity_plugin_manifest(skills_dir)
+        status = SkillStatus.INSTALLED
+    elif _antigravity_plugin_manifest_differs(skills_dir):
+        if force:
+            if not dry_run:
+                _write_antigravity_plugin_manifest(skills_dir)
+            status = SkillStatus.FORCED
+        else:
+            status = SkillStatus.USER_MODIFIED
+    else:
+        status = SkillStatus.UP_TO_DATE
+    return SkillResult(name=_ANTIGRAVITY_PLUGIN_MANIFEST_NAME, status=status)
+
+
+def _inspect_antigravity_plugin_manifest(skills_dir: Path) -> SkillInspectionResult:
+    manifest_path = _antigravity_plugin_manifest_path(skills_dir)
+    if not manifest_path.exists() and not manifest_path.is_symlink():
+        status = SkillInspectionStatus.MISSING
+    elif _antigravity_plugin_manifest_differs(skills_dir):
+        status = SkillInspectionStatus.MODIFIED
+    else:
+        status = SkillInspectionStatus.UP_TO_DATE
+    return SkillInspectionResult(
+        name=_ANTIGRAVITY_PLUGIN_MANIFEST_NAME,
+        status=status,
+        issues=[],
+    )
 
 
 def _render_skill_files(
@@ -740,6 +790,13 @@ def diff_skill(
     Symlinked entries under the installed skill directory are reported but
     never dereferenced — their target contents are never read or diffed.
     """
+    skill_target = _coerce_target(target)
+    if (
+        skill_target is SkillTarget.ANTIGRAVITY
+        and skill_name == _ANTIGRAVITY_PLUGIN_MANIFEST_NAME
+    ):
+        return _diff_antigravity_plugin_manifest(skills_dir)
+
     skill_source = resolve_skill_source(source, project_root=project_root)
     skill_dir = skills_dir / skill_name
     if skill_dir.is_symlink():
@@ -748,7 +805,6 @@ def diff_skill(
             " (refusing to read through it)\n"
         )
 
-    skill_target = _coerce_target(target)
     source_files = _render_skill_files(skill_name, skill_source, skill_target)
     fs_files = _collect_fs_files(skill_dir)
     fs_symlinks = _collect_fs_symlinks(skill_dir)
@@ -787,6 +843,42 @@ def diff_skill(
         segments.append("".join(diff_lines))
 
     return "".join(segments)
+
+
+def _diff_antigravity_plugin_manifest(skills_dir: Path) -> str:
+    manifest_path = _antigravity_plugin_manifest_path(skills_dir)
+    if manifest_path.is_symlink():
+        return (
+            f"{_ANTIGRAVITY_PLUGIN_MANIFEST_NAME}: installed artifact is a"
+            " symlink — skipped (refusing to read through it)\n"
+        )
+    if not manifest_path.exists():
+        return (
+            f"{_ANTIGRAVITY_PLUGIN_MANIFEST_NAME}: removed (present in source,"
+            " missing on disk)\n"
+        )
+    if not manifest_path.is_file():
+        return (
+            f"{_ANTIGRAVITY_PLUGIN_MANIFEST_NAME}: installed artifact is not a"
+            " file — skipped\n"
+        )
+
+    source_bytes = _antigravity_plugin_manifest()
+    fs_bytes = manifest_path.read_bytes()
+    if source_bytes == fs_bytes:
+        return ""
+    try:
+        source_lines = source_bytes.decode("utf-8").splitlines(keepends=True)
+        fs_lines = fs_bytes.decode("utf-8").splitlines(keepends=True)
+    except UnicodeDecodeError:
+        return f"{_ANTIGRAVITY_PLUGIN_MANIFEST_NAME}: binary files differ\n"
+    diff_lines = difflib.unified_diff(
+        source_lines,
+        fs_lines,
+        fromfile=f"source/{_ANTIGRAVITY_PLUGIN_MANIFEST_NAME}",
+        tofile=f"installed/{_ANTIGRAVITY_PLUGIN_MANIFEST_NAME}",
+    )
+    return "".join(diff_lines)
 
 
 def _copy_resource_tree(node: SkillTreeNode, dest_dir: Path) -> None:
@@ -852,7 +944,11 @@ def install_skills(
         results.append(SkillResult(name=name, status=status))
 
     if skill_target is SkillTarget.ANTIGRAVITY and results:
-        _write_antigravity_plugin_manifest(target_dir, dry_run=dry_run)
+        results.append(
+            _install_antigravity_plugin_manifest(
+                target_dir, dry_run=dry_run, force=force
+            )
+        )
 
     return InstallReport(
         results=results,
@@ -934,6 +1030,9 @@ def inspect_skills(
         else:
             status = SkillInspectionStatus.UP_TO_DATE
         results.append(SkillInspectionResult(name=name, status=status, issues=issues))
+
+    if skill_target is SkillTarget.ANTIGRAVITY and results:
+        results.append(_inspect_antigravity_plugin_manifest(target_dir))
 
     return SkillInspectionReport(
         results=results,

@@ -457,6 +457,133 @@ class TestInstallSkills(unittest.TestCase):
         self.assertIn("antigravity local change", skill_md.read_text())
         self.assertIn("+# antigravity local change", diff_text)
 
+    def test_antigravity_target_user_modified_manifest_skipped_and_diffed(
+        self,
+    ) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("sample skill\n")
+        plugin_root = Path(tempfile.mkdtemp()) / "lrh"
+        self.addCleanup(shutil.rmtree, plugin_root.parent, True)
+        installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+        manifest_path = plugin_root / "plugin.json"
+        manifest_path.write_text('{"name": "custom-lrh"}\n')
+
+        report = installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+        diff_text = installer.diff_skill(
+            "plugin.json",
+            plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+
+        manifest = next(r for r in report.results if r.name == "plugin.json")
+        self.assertEqual(manifest.status, installer.SkillStatus.USER_MODIFIED)
+        self.assertEqual(manifest_path.read_text(), '{"name": "custom-lrh"}\n')
+        self.assertIn("--- source/plugin.json", diff_text)
+        self.assertIn("+++ installed/plugin.json", diff_text)
+        self.assertIn('+{"name": "custom-lrh"}', diff_text)
+
+    def test_antigravity_target_force_overwrites_user_modified_manifest(
+        self,
+    ) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("sample skill\n")
+        plugin_root = Path(tempfile.mkdtemp()) / "lrh"
+        self.addCleanup(shutil.rmtree, plugin_root.parent, True)
+        installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+        manifest_path = plugin_root / "plugin.json"
+        manifest_path.write_text('{"name": "custom-lrh"}\n')
+
+        report = installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+            force=True,
+        )
+
+        manifest = next(r for r in report.results if r.name == "plugin.json")
+        self.assertEqual(manifest.status, installer.SkillStatus.FORCED)
+        self.assertEqual(json.loads(manifest_path.read_text())["name"], "lrh")
+
+    def test_antigravity_target_dry_run_reports_missing_manifest(self) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("sample skill\n")
+        plugin_root = Path(tempfile.mkdtemp()) / "lrh"
+        self.addCleanup(shutil.rmtree, plugin_root.parent, True)
+        installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+        (plugin_root / "plugin.json").unlink()
+
+        report = installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+            dry_run=True,
+        )
+        output = installer.format_report(report, dry_run=True)
+
+        manifest = next(r for r in report.results if r.name == "plugin.json")
+        self.assertEqual(manifest.status, installer.SkillStatus.INSTALLED)
+        self.assertIn("would install: plugin.json", output)
+        self.assertFalse((plugin_root / "plugin.json").exists())
+
+    def test_antigravity_target_symlinked_manifest_not_dereferenced(self) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text("sample skill\n")
+        plugin_root = Path(tempfile.mkdtemp()) / "lrh"
+        self.addCleanup(shutil.rmtree, plugin_root.parent, True)
+        installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+        secret_file = Path(tempfile.mkdtemp()) / "secret-plugin.json"
+        self.addCleanup(shutil.rmtree, secret_file.parent, True)
+        secret_file.write_text("do not read this manifest target\n")
+        manifest_path = plugin_root / "plugin.json"
+        manifest_path.unlink()
+        manifest_path.symlink_to(secret_file)
+
+        report = installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+        diff_text = installer.diff_skill(
+            "plugin.json",
+            plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+
+        manifest = next(r for r in report.results if r.name == "plugin.json")
+        self.assertEqual(manifest.status, installer.SkillStatus.USER_MODIFIED)
+        self.assertIn("installed artifact is a symlink", diff_text)
+        self.assertNotIn("do not read this manifest target", diff_text)
+
 
 class TestResolveInstallTargets(unittest.TestCase):
     def test_claude_user_target(self) -> None:
@@ -1264,6 +1391,70 @@ class TestInspectSkills(unittest.TestCase):
             report.results[0].status, installer.SkillInspectionStatus.UP_TO_DATE
         )
         self.assertFalse(installer.inspection_report_has_failures(report))
+
+    def test_antigravity_inspect_reports_manifest_up_to_date_after_install(
+        self,
+    ) -> None:
+        source_dir = self._make_source()
+        plugin_root = Path(tempfile.mkdtemp()) / "lrh"
+        self.addCleanup(shutil.rmtree, plugin_root.parent, True)
+        installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+
+        report = installer.inspect_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+
+        manifest = next(r for r in report.results if r.name == "plugin.json")
+        self.assertEqual(manifest.status, installer.SkillInspectionStatus.UP_TO_DATE)
+        self.assertFalse(installer.inspection_report_has_failures(report))
+
+    def test_antigravity_inspect_reports_missing_manifest(self) -> None:
+        source_dir = self._make_source()
+        plugin_root = Path(tempfile.mkdtemp()) / "lrh"
+        self.addCleanup(shutil.rmtree, plugin_root.parent, True)
+        installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+        (plugin_root / "plugin.json").unlink()
+
+        report = installer.inspect_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+
+        manifest = next(r for r in report.results if r.name == "plugin.json")
+        self.assertEqual(manifest.status, installer.SkillInspectionStatus.MISSING)
+        self.assertTrue(installer.inspection_report_has_failures(report))
+
+    def test_antigravity_inspect_reports_modified_manifest(self) -> None:
+        source_dir = self._make_source()
+        plugin_root = Path(tempfile.mkdtemp()) / "lrh"
+        self.addCleanup(shutil.rmtree, plugin_root.parent, True)
+        installer.install_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+        (plugin_root / "plugin.json").write_text('{"name": "custom-lrh"}\n')
+
+        report = installer.inspect_skills(
+            skills_dir=plugin_root / "skills",
+            source=source_dir,
+            target=installer.SkillTarget.ANTIGRAVITY,
+        )
+
+        manifest = next(r for r in report.results if r.name == "plugin.json")
+        self.assertEqual(manifest.status, installer.SkillInspectionStatus.MODIFIED)
+        self.assertTrue(installer.inspection_report_has_failures(report))
 
     def test_inspect_reports_modified_target_copy(self) -> None:
         source_dir = self._make_source()

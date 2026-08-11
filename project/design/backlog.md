@@ -1355,3 +1355,53 @@ better batched with other `lrh-workstream` skill maintenance.
 `src/lrh/skills/lrh-workstream/SKILL.md:107-109`;
 `project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` (Risk Notes);
 `project/workstreams/proposed/WS-INVOCATION-AND-GATE-RESET.md`; PR #536.
+
+---
+
+## Review-comment fetch misses the GitHub issue-comments surface entirely
+
+**Noted:** 2026-08-10/11, during PR #541's confirm-fixes round
+(`WI-RETRIGGER-REMOVAL-STAGE1`). `chatgpt-codex-connector` posted a
+substantive comment on the PR's automatic first-push review — narrating
+findings and an attempted (unmerged, unreachable) fix — via
+`POST /issues/{n}/comments`, not as a formal PR review or an inline review
+thread. Neither `lrh request review_response`'s comment fetch (used by
+`/lrh-review-response` Step 2 and `/lrh-confirm-fixes` Step 2) nor
+`lrh github threads` reads that endpoint, so the comment was invisible to
+both skills' standard triage. It surfaced only because this session
+independently queried
+`gh api repos/<owner>/<repo>/issues/<n>/comments` out of caution after a
+prior, unrelated finding about non-thread reviewer content
+(`feedback_codex_clean_pass_issue_comment` in agent memory) — not because
+any tooling step called for it.
+
+One of the comment's two claims was real: a propagation gap
+(`self_review_preference` inlined a third time, in
+`lrh-land/references/land-workflow.md`, missed by the work item's own
+Required Changes and `artifacts_expected`) that a full review round had
+already passed without catching, simply because the finding never reached
+either skill's read path. Round 1 of this PR's review-response therefore
+completed, and Round 1 of confirm-fixes nearly reported clean, without
+either skill ever having read the comment that contained the one thing
+still wrong.
+
+**Idea:** Add `gh api repos/{owner}/{repo}/issues/{pr_number}/comments` as
+a third read in `lrh request review_response`'s comment-gathering step
+(alongside the existing reviews and review-thread reads), or as an
+explicit Step 2.4 in `/lrh-confirm-fixes`, so issue-comment-posted findings
+enter the same triage taxonomy as thread comments rather than requiring a
+human or an unusually cautious agent to think to check a third endpoint.
+Needs its own dedup logic against `lrh github threads`' output, since a
+bot sometimes posts the same content on both surfaces.
+
+**Status:** Not yet a work item. Confirmed exactly once so far (this PR),
+but the mechanism generalizes to any Codex/Copilot posting pattern that
+uses the issue-comment API rather than a formal review, and the existing
+`feedback_codex_clean_pass_issue_comment` memory shows this is not a
+first occurrence of content landing there — only the first occurrence
+of a *missed defect*, not just a missed clean-pass signal.
+
+**Related:** `src/lrh/skills/lrh-review-response/SKILL.md` Step 2;
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 2;
+`project/executions/AD_HOC/2026_08_11_00_55_07_RETRIGGER_REMOVAL_STAGE1_WI_CONFIRM.md`
+(Round 2); PR #541.

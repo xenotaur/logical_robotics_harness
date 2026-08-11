@@ -60,6 +60,25 @@ lrh skills install --target codex
 lrh skills install --local --target codex
 ```
 
+Check whether the rendered Codex install is current:
+
+```bash
+lrh skills status --scope user --target codex
+lrh skills status --scope project --target codex
+```
+
+LRH maintainers checking this repository's canonical source checkout can add
+`--source current-repo`.
+
+Restart Codex after creating `~/.agents/skills/` for the first time or after
+updating global Codex skills so the app re-discovers the installed skills.
+
+#### Usage in Session
+Once Codex discovers the skills, invoke LRH workflows by naming the skill
+directly, such as `lrh-work-item`, `lrh-implement`, or `lrh-land`. The rendered
+skill prose includes backend-aware execution-record and session-transcript
+guidance for Codex app sessions.
+
 #### Multi-Target Install
 To update skills for both Claude Code and Codex simultaneously:
 

@@ -31,7 +31,7 @@ forbidden_actions:
 acceptance:
   - No @codex review comment mention or --add-reviewer @copilot request remains anywhere under src/lrh/skills/lrh-confirm-fixes/, replaced by a provisional no-progress loop cap
   - PR 522 is rescoped to its Decision 3 (bounded background poll) per PROP-INVOCATION-AND-GATE-RESET's resolved Open Questions; its Decisions 1 and 2 are closed as obviated
-  - self_review_preference is removed from project/config/chain-defaults.yaml, src/lrh/skills/_shared/chain-defaults.md, and its inlined copy in lrh-land/references/land-workflow.md (both src/lrh/skills/ and .claude/skills/ mirrors)
+  - self_review_preference is removed from project/config/chain-defaults.yaml, src/lrh/skills/_shared/chain-defaults.md, and its inlined copy in lrh-land/references/land-workflow.md (src/lrh/skills/, .claude/skills/, and .agents/skills/ mirrors)
   - The two stalled-reviewer-detection backlog entries scoped to the gutted files are marked obsolete with a note that a dispatched subagent can also stall
   - lrh skills install is run for both the Claude and Codex targets after merge
   - The retrigger strings are verified absent from all four active skill corpora, not just the source tree -- ~/.claude/skills/, ~/.agents/skills/ (the user-scope Codex target lrh skills install writes to), this repository's per-repo .claude/skills/ mirror, and this repository's per-repo .agents/skills/ Codex mirror
@@ -163,8 +163,8 @@ installed corpus to fix.
    Questions.
 3. Remove `self_review_preference` from `project/config/chain-defaults.yaml`,
    its canonical description in `src/lrh/skills/_shared/chain-defaults.md`,
-   and its inlined copy in `lrh-land/references/land-workflow.md` (both
-   `src/lrh/skills/` and `.claude/skills/`).
+   and its inlined copy in `lrh-land/references/land-workflow.md`
+   (`src/lrh/skills/`, `.claude/skills/`, and `.agents/skills/`).
 4. Mark the two stalled-reviewer-detection backlog entries obsolete in
    `project/design/backlog.md`, noting a dispatched subagent can also stall
    and would need its own heuristic if this is rebuilt.

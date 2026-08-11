@@ -71,9 +71,10 @@ Retrigger commands are still live today. Verified directly, not assumed:
 `references/round-cap-gate.md` both still carry `@codex review` and
 `--add-reviewer @copilot`. So does the installed corpus at
 `~/.claude/skills/lrh-confirm-fixes/`. So does `~/.agents/skills/lrh-confirm-fixes/`
--- the directory `src/lrh/skills/installer.py:429`'s `_default_skills_dir`
-resolves to for the Codex install target, confirmed populated with both
-files, retrigger strings intact.
+-- the directory `src/lrh/skills/installer.py:428-431`'s
+`_default_skills_dir` resolves to for the Codex install target (the
+Claude branch returns early at `:429-430`; the Codex path falls through to
+`:431`), confirmed populated with both files, retrigger strings intact.
 
 This is not hypothetical cost. An agent session burned roughly $5 of
 GitHub review credits on a retrigger today, from a corpus that had not
@@ -93,10 +94,11 @@ revisit if that changes.
 
 ### Prior-art check
 
-**Duplication search -- no duplicate.** No existing work item names
+**Duplication search -- no duplicate.** No other work item names
 retrigger removal (`git grep -li "retrigger removal" project/work_items/`
-returns nothing) and no execution record or open PR implements this
-specific change; `WI-DELIBERATE-MODEL-INVOCATION` (Stage 2, resolved via
+found nothing before this file was added -- it now matches this file
+itself, which is expected and not a duplicate) and no execution record or
+open PR implements this specific change; `WI-DELIBERATE-MODEL-INVOCATION` (Stage 2, resolved via
 PR #533) and `WI-FRONT-OF-RUN-GATE-COLLAPSE` (Stage 3, proposed) cover
 different, later stages of the same proposal and do not touch
 `lrh-confirm-fixes`'s retrigger mechanism.

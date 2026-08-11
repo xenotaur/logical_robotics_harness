@@ -31,7 +31,7 @@ forbidden_actions:
 acceptance:
   - No @codex review comment mention or --add-reviewer @copilot request remains anywhere under src/lrh/skills/lrh-confirm-fixes/, replaced by a provisional no-progress loop cap
   - PR 522 is rescoped to its Decision 3 (bounded background poll) per PROP-INVOCATION-AND-GATE-RESET's resolved Open Questions; its Decisions 1 and 2 are closed as obviated
-  - self_review_preference is removed from project/config/chain-defaults.yaml and src/lrh/skills/_shared/chain-defaults.md
+  - self_review_preference is removed from project/config/chain-defaults.yaml, src/lrh/skills/_shared/chain-defaults.md, and its inlined copy in lrh-land/references/land-workflow.md (both src/lrh/skills/ and .claude/skills/ mirrors)
   - The two stalled-reviewer-detection backlog entries scoped to the gutted files are marked obsolete with a note that a dispatched subagent can also stall
   - lrh skills install is run for both the Claude and Codex targets after merge
   - The retrigger strings are verified absent from all three installed corpora, not just the source tree -- ~/.claude/skills/, ~/.agents/skills/ (the Codex target lrh skills install writes to), and the per-repo .claude/skills/ mirror in this repository
@@ -51,6 +51,8 @@ artifacts_expected:
   - .claude/skills/lrh-confirm-fixes/references/round-cap-gate.md
   - project/config/chain-defaults.yaml
   - src/lrh/skills/_shared/chain-defaults.md
+  - src/lrh/skills/lrh-land/references/land-workflow.md
+  - .claude/skills/lrh-land/references/land-workflow.md
   - project/design/backlog.md
 ---
 
@@ -92,6 +94,20 @@ propagates; each needs restarting. Antigravity has not shipped skill
 support yet, so it carries no corpus and is explicitly out of scope --
 revisit if that changes.
 
+**`self_review_preference` has a third copy, found during pre-merge
+verification.** A round-1 review comment (posted as an issue comment, not
+a formal review, so `lrh request review_response`'s fetch did not surface
+it) claimed additional propagation gaps. Its own claimed fix was never
+delivered to this PR or reachable from this repository -- committed, by
+its own account, on an isolated branch with no git remote and no GitHub
+auth, so nothing about the claim could be taken on trust. Verified
+independently instead: `self_review_preference` also appears, inlined, in
+`lrh-land/references/land-workflow.md` in both `src/lrh/skills/` and
+`.claude/skills/` -- a third copy this work item's Required Changes and
+`artifacts_expected` had missed. A second claim in the same comment, that
+distinct in-repo Codex-specific `lrh-confirm-fixes` artifacts exist beyond
+the installed runtime corpus, was checked and does not hold.
+
 ### Prior-art check
 
 **Duplication search -- no duplicate.** No other work item names
@@ -115,8 +131,9 @@ already argued.
 
 In scope: `lrh-confirm-fixes/SKILL.md` and `references/round-cap-gate.md`
 in both `src/lrh/skills/` and `.claude/skills/`; `PR #522`'s rescope;
-`self_review_preference` removal from the chain-defaults profile and its
-canonical doc; the two stalled-reviewer backlog entries; `lrh skills
+`self_review_preference` removal from the chain-defaults profile, its
+canonical doc, and its inlined copy in `lrh-land/references/land-workflow.md`
+(both mirrors); the two stalled-reviewer backlog entries; `lrh skills
 install` for the Claude and Codex targets; verification against all three
 installed corpora; the `confirmed_commit` re-stamp.
 
@@ -134,8 +151,10 @@ installed corpus to fix.
 2. Rescope PR #522 to Decision 3 only (bounded background poll); close
    Decisions 1 and 2 as obviated per the proposal's resolved Open
    Questions.
-3. Remove `self_review_preference` from `project/config/chain-defaults.yaml`
-   and its canonical description in `src/lrh/skills/_shared/chain-defaults.md`.
+3. Remove `self_review_preference` from `project/config/chain-defaults.yaml`,
+   its canonical description in `src/lrh/skills/_shared/chain-defaults.md`,
+   and its inlined copy in `lrh-land/references/land-workflow.md` (both
+   `src/lrh/skills/` and `.claude/skills/`).
 4. Mark the two stalled-reviewer-detection backlog entries obsolete in
    `project/design/backlog.md`, noting a dispatched subagent can also stall
    and would need its own heuristic if this is rebuilt.
@@ -168,9 +187,11 @@ list.
 - lrh validate
 - scripts/test
 - diff -r src/lrh/skills/lrh-confirm-fixes .claude/skills/lrh-confirm-fixes
+- diff -r src/lrh/skills/lrh-land .claude/skills/lrh-land
 - grep -rl "codex review\|add-reviewer @copilot" ~/.claude/skills/ (expect no match after propagation)
 - grep -rl "codex review\|add-reviewer @copilot" ~/.agents/skills/ (expect no match after propagation)
 - grep -rl "codex review\|add-reviewer @copilot" .claude/skills/ (this repository's own mirror; expect no match)
+- grep -rl "self_review_preference" src/lrh/skills/ .claude/skills/ project/config/ (expect no match after propagation)
 
 ## Risk Notes
 

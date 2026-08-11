@@ -40,7 +40,7 @@ Fields:
 |---|---:|---|---|
 | `schema_version` | no | `1` | Omitted version defaults to `1`. Other versions are rejected. |
 | `sources` | no | one list item: `lrh-package`, `current-repo`, or a filesystem path | Selects the canonical skill source when `--source` is absent. This installer stage supports exactly one configured source. |
-| `targets` | no | `claude`, `codex`, `all`, or both `claude` and `codex` | Selects install targets when `--target` is absent. Both `claude` and `codex` are equivalent to `all`. |
+| `targets` | no | `all`, or one or more of `claude`, `codex`, `antigravity` | Selects install targets when `--target` is absent. Listing all concrete targets is equivalent to `all`; smaller explicit lists install only those targets. |
 | `scope` | no | `user` or `project` | Selects user-scope or project-local install destinations when `--scope` and `--local` are absent. |
 | `install.overwrite` | no | `false`, `skip`, or `preserve` | Documents non-destructive overwrite policy. Any value that attempts to enable force or overwrite is rejected. |
 
@@ -56,6 +56,7 @@ User scope:
 |---|---|
 | `claude` | `~/.claude/skills/` |
 | `codex` | `~/.agents/skills/` |
+| `antigravity` | `~/.gemini/config/plugins/lrh/skills/` plus `~/.gemini/config/plugins/lrh/plugin.json` |
 
 Project scope:
 
@@ -63,11 +64,12 @@ Project scope:
 |---|---|
 | `claude` | `./.claude/skills/` |
 | `codex` | `./.agents/skills/` |
+| `antigravity` | `./.gemini/plugins/lrh/skills/` plus `./.gemini/plugins/lrh/plugin.json` |
 
 ## Example
 
 Use LRH skills from the current checkout as the canonical source and install
-them into both project-local Claude and Codex directories:
+them into all project-local agent targets:
 
 ```yaml
 schema_version: 1
@@ -76,6 +78,7 @@ sources:
 targets:
   - claude
   - codex
+  - antigravity
 scope: project
 install:
   overwrite: skip

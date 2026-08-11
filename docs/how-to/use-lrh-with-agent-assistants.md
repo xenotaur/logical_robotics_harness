@@ -20,7 +20,7 @@ LRH maintains a single canonical skill source (`src/lrh/skills/`) that can be re
            ┌──────────────────────────┼──────────────────────────┐
            ▼                          ▼                          ▼
     CLAUDE CODE                   CODEX APP                 ANTIGRAVITY
- (~/.claude/skills/)          (~/.agents/skills/)      (AGENTS.md / .gemini)
+ (~/.claude/skills/)          (~/.agents/skills/)    (~/.gemini/.../lrh/)
 ```
 
 ---
@@ -80,7 +80,7 @@ skill prose includes backend-aware execution-record and session-transcript
 guidance for Codex app sessions.
 
 #### Multi-Target Install
-To update skills for both Claude Code and Codex simultaneously:
+To update skills for Claude Code, Codex, and Antigravity simultaneously:
 
 ```bash
 lrh skills install --target all
@@ -100,23 +100,31 @@ Antigravity automatically loads workspace `AGENTS.md` and user-level `~/.gemini/
 1. **Project-Wide Rules (`AGENTS.md`)**: Add the following directive to your project's `AGENTS.md`:
    ```markdown
    ## Agent Skill Rules
-   When asked to perform workflow tasks (e.g. lrh-work-item, lrh-implement, lrh-land), inspect and read the corresponding `SKILL.md` in `.claude/skills/`, `.agents/skills/`, or `src/*/skills/` before proceeding.
+   When asked to perform workflow tasks (e.g. lrh-work-item, lrh-implement, lrh-land), inspect and read the corresponding `SKILL.md` in `.claude/skills/`, `.agents/skills/`, `.gemini/plugins/lrh/skills/`, or `src/*/skills/` before proceeding.
    ```
 
 2. **Global Rules (`~/.gemini/GEMINI.md`)**: To enable this discovery across all repositories on your system, add to `~/.gemini/GEMINI.md`:
    ```markdown
    # Global Agent Skill Rules
-   If the current workspace contains an `src/*/skills/`, `.claude/skills/`, or `.agents/skills/` directory, actively discover and utilize those skills by inspecting their `SKILL.md` files.
+   If the current workspace contains an `src/*/skills/`, `.claude/skills/`, `.agents/skills/`, or `.gemini/plugins/lrh/skills/` directory, actively discover and utilize those skills by inspecting their `SKILL.md` files.
    ```
 
 #### Pattern B: Native Plugin Installation
-For ambient prompt indexing via plugin manifests (`plugin.json`), future releases of LRH will support:
+For ambient prompt indexing via plugin manifests (`plugin.json`), install the
+Antigravity target:
 
 ```bash
+# Global user-scope install (~/.gemini/config/plugins/lrh/)
 lrh skills install --target antigravity
+
+# Project-scope install (./.gemini/plugins/lrh/)
+lrh skills install --local --target antigravity
 ```
 
-This renders skills to `~/.gemini/config/plugins/lrh/skills/` alongside a generated `plugin.json`.
+This renders skills to `~/.gemini/config/plugins/lrh/skills/` or
+`./.gemini/plugins/lrh/skills/` alongside a generated `plugin.json` at the
+plugin root. The Antigravity renderer strips Claude-only frontmatter such as
+`disable-model-invocation` and `argument-hint`.
 
 ---
 

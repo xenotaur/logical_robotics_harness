@@ -5,6 +5,7 @@ from __future__ import annotations
 import difflib
 import importlib.resources
 import importlib.resources.abc
+import json
 import shutil
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -21,11 +22,16 @@ _AGENT_SKILLS_CONFIG = Path("project") / "agent_skills.yaml"
 class SkillTarget(str, Enum):
     CLAUDE = "claude"
     CODEX = "codex"
+    ANTIGRAVITY = "antigravity"
 
 
 class TargetSelection(str, Enum):
     CLAUDE = "claude"
     CODEX = "codex"
+    ANTIGRAVITY = "antigravity"
+    CLAUDE_CODEX = "claude,codex"
+    CLAUDE_ANTIGRAVITY = "claude,antigravity"
+    CODEX_ANTIGRAVITY = "codex,antigravity"
     ALL = "all"
 
 
@@ -78,6 +84,8 @@ class InstallTarget:
     def restart_name(self) -> str:
         if self.target is SkillTarget.CLAUDE:
             return "Claude Code"
+        if self.target is SkillTarget.ANTIGRAVITY:
+            return "Antigravity"
         return "Codex"
 
 
@@ -249,6 +257,39 @@ class CodexSkillRenderer:
         return loaded
 
 
+class AntigravitySkillRenderer:
+    """Render canonical skill bytes for Antigravity plugin installs."""
+
+    _SKILL_MD = "SKILL.md"
+    _ANTIGRAVITY_STRIPPED_FRONTMATTER_KEYS = {
+        "argument-hint",
+        "disable-model-invocation",
+    }
+
+    def render(
+        self, skill_name: str, source_files: dict[str, bytes]
+    ) -> dict[str, bytes]:
+        rendered = dict(source_files)
+        skill_md = source_files.get(self._SKILL_MD)
+        if skill_md is None:
+            return rendered
+
+        parsed = _parse_skill_frontmatter(skill_md)
+        if parsed is None:
+            return rendered
+        metadata, parts, closing_index = parsed
+
+        antigravity_metadata = {
+            key: value
+            for key, value in metadata.items()
+            if key not in self._ANTIGRAVITY_STRIPPED_FRONTMATTER_KEYS
+        }
+        frontmatter = yaml.safe_dump(antigravity_metadata, sort_keys=False)
+        rewritten = f"---\n{frontmatter}---\n{''.join(parts[closing_index + 1:])}"
+        rendered[self._SKILL_MD] = rewritten.encode("utf-8")
+        return rendered
+
+
 def _coerce_target(value: str | SkillTarget) -> SkillTarget:
     if isinstance(value, SkillTarget):
         return value
@@ -333,14 +374,25 @@ def _config_target(data: dict[str, Any], path: Path) -> TargetSelection | None:
     normalized = {target.lower() for target in targets}
     if not normalized:
         raise SkillSourceError(f"targets in {path} must not be empty")
-    if normalized == {"all"} or normalized == {"claude", "codex"}:
+    if normalized == {"all"}:
         return TargetSelection.ALL
     if normalized == {"claude"}:
         return TargetSelection.CLAUDE
     if normalized == {"codex"}:
         return TargetSelection.CODEX
+    if normalized == {"antigravity"}:
+        return TargetSelection.ANTIGRAVITY
+    if normalized == {"claude", "codex"}:
+        return TargetSelection.CLAUDE_CODEX
+    if normalized == {"claude", "antigravity"}:
+        return TargetSelection.CLAUDE_ANTIGRAVITY
+    if normalized == {"codex", "antigravity"}:
+        return TargetSelection.CODEX_ANTIGRAVITY
+    if normalized == {target.value for target in SkillTarget}:
+        return TargetSelection.ALL
     raise SkillSourceError(
-        f"targets in {path} must be claude, codex, all, or both claude and codex"
+        f"targets in {path} must be all, or one or more of claude, codex,"
+        " antigravity"
     )
 
 
@@ -428,6 +480,8 @@ def resolve_agent_skills_install_plan(
 def _default_skills_dir(target: SkillTarget) -> Path:
     if target is SkillTarget.CLAUDE:
         return Path.home() / ".claude" / "skills"
+    if target is SkillTarget.ANTIGRAVITY:
+        return Path.home() / ".gemini" / "config" / "plugins" / "lrh" / "skills"
     return Path.home() / ".agents" / "skills"
 
 
@@ -476,17 +530,32 @@ def resolve_install_targets(
     project_root: Path | None = None,
 ) -> list[InstallTarget]:
     selection = _coerce_selection(target)
-    targets = (
-        [SkillTarget.CLAUDE, SkillTarget.CODEX]
-        if selection is TargetSelection.ALL
-        else [_coerce_target(selection.value)]
-    )
+    target_map = {
+        TargetSelection.CLAUDE: [SkillTarget.CLAUDE],
+        TargetSelection.CODEX: [SkillTarget.CODEX],
+        TargetSelection.ANTIGRAVITY: [SkillTarget.ANTIGRAVITY],
+        TargetSelection.CLAUDE_CODEX: [SkillTarget.CLAUDE, SkillTarget.CODEX],
+        TargetSelection.CLAUDE_ANTIGRAVITY: [
+            SkillTarget.CLAUDE,
+            SkillTarget.ANTIGRAVITY,
+        ],
+        TargetSelection.CODEX_ANTIGRAVITY: [
+            SkillTarget.CODEX,
+            SkillTarget.ANTIGRAVITY,
+        ],
+        TargetSelection.ALL: list(SkillTarget),
+    }
+    targets = target_map[selection]
     root = project_root if project_root is not None else Path.cwd()
     result: list[InstallTarget] = []
     for selected in targets:
         if local:
-            dirname = ".claude" if selected is SkillTarget.CLAUDE else ".agents"
-            skills_dir = root / dirname / "skills"
+            if selected is SkillTarget.CLAUDE:
+                skills_dir = root / ".claude" / "skills"
+            elif selected is SkillTarget.CODEX:
+                skills_dir = root / ".agents" / "skills"
+            else:
+                skills_dir = root / ".gemini" / "plugins" / "lrh" / "skills"
         else:
             skills_dir = _default_skills_dir(selected)
         result.append(InstallTarget(target=selected, skills_dir=skills_dir))
@@ -537,7 +606,27 @@ def _skill_names(source: SkillSource | None = None) -> list[str]:
 def _renderer_for_target(target: SkillTarget) -> SkillRenderer:
     if target is SkillTarget.CLAUDE:
         return ClaudeSkillRenderer()
+    if target is SkillTarget.ANTIGRAVITY:
+        return AntigravitySkillRenderer()
     return CodexSkillRenderer()
+
+
+def _antigravity_plugin_manifest() -> bytes:
+    manifest = {
+        "name": "lrh",
+        "displayName": "Logical Robotics Harness",
+        "description": "LRH workflow skills rendered from canonical SKILL.md sources.",
+        "version": "0.1.0",
+    }
+    return (json.dumps(manifest, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _write_antigravity_plugin_manifest(skills_dir: Path, *, dry_run: bool) -> None:
+    if dry_run:
+        return
+    plugin_root = skills_dir.parent
+    plugin_root.mkdir(parents=True, exist_ok=True)
+    (plugin_root / "plugin.json").write_bytes(_antigravity_plugin_manifest())
 
 
 def _render_skill_files(
@@ -761,6 +850,9 @@ def install_skills(
         else:
             status = SkillStatus.UP_TO_DATE
         results.append(SkillResult(name=name, status=status))
+
+    if skill_target is SkillTarget.ANTIGRAVITY and results:
+        _write_antigravity_plugin_manifest(target_dir, dry_run=dry_run)
 
     return InstallReport(
         results=results,

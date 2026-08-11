@@ -11,7 +11,9 @@ from __future__ import annotations
 import argparse
 import ast
 import dataclasses
+import fnmatch
 import json
+import os
 import pathlib
 import sys
 import tomllib
@@ -99,9 +101,37 @@ def _has_main_guard(text: str) -> bool:
 
 def _should_skip_path(path: pathlib.Path) -> bool:
     return any(
-        part in (".venv", "venv", "__pycache__", ".git", ".mypy_cache", ".pytest_cache")
+        part
+        in (
+            ".venv",
+            "venv",
+            "__pycache__",
+            ".git",
+            ".mypy_cache",
+            ".pytest_cache",
+            "node_modules",
+        )
         for part in path.parts
     )
+
+
+def _find_files(root: pathlib.Path, pattern: str) -> typing.Iterator[pathlib.Path]:
+    """Fast file traversal using os.walk with in-place directory pruning."""
+    skip_dirs = {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
+    for dirpath, dirnames, filenames in os.walk(root):
+        # Prune ignored directories in-place to avoid traversing them
+        dirnames[:] = [d for d in dirnames if d not in skip_dirs]
+        for f in filenames:
+            if fnmatch.fnmatch(f, pattern):
+                yield pathlib.Path(dirpath) / f
 
 
 def _infer_tests_root(root: pathlib.Path) -> typing.Optional[pathlib.Path]:
@@ -210,7 +240,7 @@ def scan_tree(
     root: pathlib.Path, tests_root: typing.Optional[pathlib.Path]
 ) -> list[FileReport]:
     reports: list[FileReport] = []
-    for path in sorted(root.rglob("*.py")):
+    for path in sorted(_find_files(root, "*.py")):
         # Skip common junk dirs
         if _should_skip_path(path):
             continue
@@ -232,7 +262,7 @@ def survey_python_tree(
 
     discovered_test_files: list[str] = []
     if effective_tests_root is not None:
-        for test_path in sorted(effective_tests_root.rglob("*.py")):
+        for test_path in sorted(_find_files(effective_tests_root, "*.py")):
             if _should_skip_path(test_path):
                 continue
             if _looks_like_test_file(test_path):
@@ -242,12 +272,12 @@ def survey_python_tree(
 
     readme_files = sorted(
         str(path.relative_to(root))
-        for path in root.rglob("README.md")
+        for path in _find_files(root, "README.md")
         if not _should_skip_path(path)
     )
     documentation_files = sorted(
         str(path.relative_to(root))
-        for path in root.rglob("*.md")
+        for path in _find_files(root, "*.md")
         if path.name != "README.md" and not _should_skip_path(path)
     )
     cli_candidate_files = sorted(

@@ -170,9 +170,10 @@ installed corpus to fix.
    and would need its own heuristic if this is rebuilt.
 5. Run `lrh skills install` for both the Claude and Codex targets after
    merge. The intended propagation commands are:
-   `lrh skills install --force --target all` for user-scope installs and
-   `lrh skills install --force --local --target all` for this repository's
-   project-scope installs.
+   `lrh skills install --force --source current-repo --target all` for
+   user-scope installs and
+   `lrh skills install --force --source current-repo --local --target all`
+   for this repository's project-scope installs.
 6. Verify the retrigger strings are absent from `~/.claude/skills/`,
    `~/.agents/skills/`, this repository's own `.claude/skills/` mirror, and
    this repository's own `.agents/skills/` Codex mirror -- four separate

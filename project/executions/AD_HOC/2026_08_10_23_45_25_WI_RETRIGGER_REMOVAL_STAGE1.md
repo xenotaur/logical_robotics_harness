@@ -2,10 +2,10 @@
 execution_id: 2026_08_10_23_45_25_WI_RETRIGGER_REMOVAL_STAGE1
 prompt_id: PROMPT(AD_HOC:WI_RETRIGGER_REMOVAL_STAGE1)[2026-08-10T23:40:46+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/541
-commit:
+commit: bd46ba39e62b4e5008f691e74ab62e37d09f0050
 agent: claude_app
 instruction_source: project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md
 session_transcript: claude-app:3c4e404b-8420-4a62-9c3f-f5dcccfa5400

@@ -3,9 +3,9 @@ execution_id: 2026_08_12_00_42_00_WI_RETRIGGER_REMOVAL_STAGE1_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_RETRIGGER_REMOVAL_STAGE1_SELFREVIEW)[2026-08-12T00:35:18+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
-pr: 
-commit: 
+rerun_of:
+pr:
+commit:
 agent: codex_app
 instruction_source: skill:lrh-self-review diff-mode for WI-RETRIGGER-REMOVAL-STAGE1
 session_transcript: pending

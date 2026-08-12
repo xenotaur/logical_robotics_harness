@@ -29,3 +29,4 @@ Add content here when the reader already knows which command they need and wants
 - [`serve`](serve.md) — start the safe-default local read-only server skeleton.
 - [`work-items`](work-items.md) — validate, audit, and diagnose prompt-readiness for work-item files.
 - [`meta`](meta.md) — manage LRH meta workspaces and project registry records.
+- [`skills`](skills.md) — install and inspect LRH agent skills for Claude, Codex, and Antigravity targets.

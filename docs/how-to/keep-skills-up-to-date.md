@@ -75,6 +75,11 @@ Each skill is reported as one of:
 - `would install` — the skill is missing from the target directory entirely.
 - `warning: <name> has local modifications — skipped (use --force to overwrite)` — the installed copy exists but differs from the selected source (for example, an update to a skill you already have installed). A plain `lrh skills install` will **not** update this skill; see [Apply the update](#apply-the-update).
 
+For Antigravity targets, `plugin.json` is checked and reported alongside skill
+directories. A customized or stale `plugin.json` is preserved unless
+`--force` is passed, and `--diff` can show how it differs from LRH's generated
+manifest.
+
 Add `--local` to check the per-repository skills directory instead of the global one:
 
 ```bash
@@ -191,5 +196,6 @@ Claude-only frontmatter such as `disable-model-invocation` and `argument-hint`.
 
 ## Related reference
 
+- [`lrh skills` CLI reference](../reference/cli/skills.md)
 - [Use LRH with AI Agent Assistants](use-lrh-with-agent-assistants.md)
 - [Your first LRH project](../tutorials/first-lrh-project.md)

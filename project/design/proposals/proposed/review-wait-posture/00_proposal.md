@@ -1,9 +1,7 @@
 ---
 id: PROP-REVIEW-WAIT-POSTURE
 type: design_proposal
-title: >
-  Review-Wait Posture: Self-Review-First Default and a Bounded-Poll Wait
-  Mechanism
+title: "Review-Wait Posture: Bounded-Poll Wait Mechanism"
 status: proposed
 created_on: 2026-08-08
 updated_on: 2026-08-08
@@ -23,14 +21,29 @@ related_design:
 
 ## Summary
 
-This proposal inverts the default review-retrigger mechanism inside
-`/lrh-confirm-fixes` Step 8's round-cap loop — from "bot retrigger first,
-self-review only past the ceiling" to "self-review first, bot retrigger
-only as an explicit exception" — and specifies a bounded-poll wait
-mechanism for the residual cases where a bot round still runs. It resolves
-`PROP-LRH-SELF-REVIEW`'s Decision 4 neighborhood's explicitly deferred
-"later-round skip policy" question and wires the currently-dead
-`self_review_preference` field in `project/config/chain-defaults.yaml`.
+This proposal is rescoped to the bounded-poll wait mechanism only. Its
+original Decisions 1 and 2 are closed as obviated by
+`PROP-INVOCATION-AND-GATE-RESET` Decision 2 and
+`WI-RETRIGGER-REMOVAL-STAGE1`: manual GitHub review-bot retriggering is
+removed from the skill workflow unconditionally, and the dead
+`self_review_preference` field is deleted rather than wired. The retained
+Decision 3 specifies the supported bounded background-poll shape for waits
+that still exist, especially CI waits.
+
+## Stage 1 Rescope
+
+`PROP-INVOCATION-AND-GATE-RESET` resolved the open disposition for this PR on
+2026-08-09: Decision 1 (invert Step 8's default hosted-review mechanism) and
+Decision 2 (wire `self_review_preference` into `round-cap-gate.md`) are
+obviated. With manual review-bot retriggering removed, there is no in-skill
+default hosted-review mechanism to invert, and with `self_review_preference`
+removed from `project/config/chain-defaults.yaml`, there is no profile field
+to wire.
+
+Decision 3 remains independent: a bounded background poll with predicates
+matched to what each wait is actually waiting for is still useful for CI waits
+and any future explicitly-authorized wait surface. Decisions 4 and 5 remain
+non-goal/scope notes.
 
 ## Background / Motivation
 
@@ -123,7 +136,12 @@ backlog entry naming it.
 
 ## Design Decisions
 
-### Decision 1: Invert `/lrh-confirm-fixes` Step 8's default review mechanism
+### Decision 1: Invert `/lrh-confirm-fixes` Step 8's default review mechanism — obviated
+
+**Disposition:** Closed as obviated by `PROP-INVOCATION-AND-GATE-RESET`
+Decision 2. Stage 1 removes manual GitHub review-bot retriggering from the
+skill workflow unconditionally, so there is no in-skill hosted-review default
+left for this decision to invert.
 
 **Question:** Should every Step 8 round default to a bot retrigger (today's
 behavior, self-review only past the ceiling), or should every round default
@@ -196,7 +214,12 @@ not about adding a fresh mandatory ask, so it stays consistent with this
 project's existing `skip_if_opted_in` philosophy and the friction-
 reduction goal.
 
-### Decision 2: Wire `self_review_preference` into `round-cap-gate.md`
+### Decision 2: Wire `self_review_preference` into `round-cap-gate.md` — obviated
+
+**Disposition:** Closed as obviated by `PROP-INVOCATION-AND-GATE-RESET`
+Decision 2 and `WI-RETRIGGER-REMOVAL-STAGE1`. Stage 1 deletes
+`self_review_preference` from the chain-defaults profile and removes the
+manual hosted-review retrigger path this field would have selected between.
 
 **Question:** How does the inverted default in Decision 1 actually get
 consumed, given the field already exists but nothing reads it?
@@ -393,11 +416,9 @@ record defaults) rather than inventing a new blind spot.
 
 ## Non-Goals
 
-- Does not settle `self_review_preference`'s exact new value-space
-  literals, or whether any periodic/final-pre-merge round still gets a
-  mandatory real bot pass for cross-vendor blind-spot coverage — Decision 2
-  explicitly defers this to a dedicated steelmanning session, mirroring
-  `PROP-LRH-CHAIN-DEFAULTS`'s own precedent before its Increment 1 shipped.
+- Does not settle `self_review_preference`'s exact new value-space literals;
+  the field is removed by `WI-RETRIGGER-REMOVAL-STAGE1`, so that question is
+  no longer active in this proposal.
 - Does not touch `PROP-LRH-SELF-REVIEW` Decision 4's guarantee that a PR's
   *first* real bot round (the automatic on-open trigger) is never skipped.
 - Does not change `round-cap-gate.md`'s escalation sequence (3 → 10 → 20)
@@ -423,28 +444,12 @@ record defaults) rather than inventing a new blind spot.
 
 ## Implementation Plan
 
-This proposal feeds into the **existing** `WS-LRH-CHAIN-DEFAULTS`
-workstream (`project/workstreams/proposed/WS-LRH-CHAIN-DEFAULTS.md`) as a
-new increment, rather than a new workstream — same governance home, same
-profile file, same steelmanning-before-code practice already established
-there.
-
-Staged, evidence-gated sequencing (mirroring `WI-LRH-CHAIN-DEFAULTS-
-INCREMENT-2`'s own precedent of being gated on a prerequisite rather than
-shipping same-day):
-
-1. **Steelmanning session** (required prerequisite, not yet scheduled) —
-   settle `self_review_preference`'s new value-space literals and whether
-   any periodic/final-round bot pass survives, per Decision 2's deferral.
-2. **`WI-DEC-REVIEW-WAIT-POSTURE-AMENDMENT`** (or similarly named,
-   analogous to `WI-DEC-CHAIN-INIT-SKIP-AMENDMENT`'s precedent) — produces
-   the `DEC-*` decision-log entry narrowing `PROP-LRH-SELF-REVIEW`
-   Decision 4's neighborhood, required before implementation per Non-Goals
-   above.
-3. **Implementation work item** (to be filed once 1 and 2 land) —
-   `round-cap-gate.md` Step 8.1 rewiring (Decision 1, 2), `land-workflow.md`
-   and `round-cap-gate.md` wait-mechanism documentation (Decision 3), and
-   `.claude/` mirror updates across `lrh-confirm-fixes` and `lrh-land`.
+This proposal now feeds only the bounded-poll wait mechanism into future
+implementation work. The retained implementation scope is Decision 3:
+document and, where needed, implement a bounded background poll with distinct
+predicates for CI waits and any future explicitly-authorized review-response
+wait. Decisions 1 and 2 require no implementation because Stage 1 removes the
+underlying retrigger/profile-field surface.
 
 ## Cross-References
 
@@ -473,8 +478,8 @@ shipping same-day):
 
 ## Open Questions
 
-- Exact `self_review_preference` value-space literals (Decision 2) —
-  deferred to the required steelmanning session.
+- Exact `self_review_preference` value-space literals — closed as obviated by
+  Stage 1 field removal.
 - Whether any periodic or final-pre-merge round should still get a
   mandatory real bot pass for cross-vendor blind-spot coverage, given
   `PROP-LRH-SELF-REVIEW` Decision 4's own rationale that a same-vendor

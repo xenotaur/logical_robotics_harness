@@ -47,26 +47,24 @@ Field definitions:
 | Field | Description |
 |---|---|
 | `cycles` | Number of review-response → confirm-fixes iterations in this run |
-| `stops` | Number of times the chain halted before reaching completion, **including round-cap gate crossings** (see below) |
+| `stops` | Number of times the chain halted before reaching completion, **including no-progress review-cap stops** (see below) |
 | `gates` | Human gates encountered, e.g. `[merge]` or `[merge, confirm]` |
 | `friction` | Brief phrase describing the primary friction source, or `none` |
-| `note` | Free text; record design findings, backfill path, noteworthy deviations, or **round-cap ceilings authorized this run** (see below) |
-| `self_review_rounds` | Optional. Number of `/lrh-self-review` PR-mode passes substituted for a bot round in this run (see `round-cap-gate.md`'s "The three-way gate", fourth answer). Omit the field entirely when zero — do not write `self_review_rounds=0` to every CHAIN-NOTE. |
-| `bot_rounds` | Optional, present only when `self_review_rounds` is also present. `completed_count - self_review_rounds` — **never** read directly from `round-cap-gate.md`'s `completed_count`, which is source-agnostic and counts both bot and self-review rounds identically; reading it straight would double-count self-review rounds as bot rounds. |
+| `note` | Free text; record design findings, backfill path, noteworthy deviations, or **no-progress review-cap stops** (see below) |
+| `self_review_rounds` | Optional. Number of `/lrh-self-review` PR-mode passes used as substitute review signals in this run. Omit the field entirely when zero — do not write `self_review_rounds=0` to every CHAIN-NOTE. |
+| `bot_rounds` | Optional. Present only when a hosted review-bot round occurred outside this skill's manual workflow, such as an automatic first-push review or a human-reported external reviewer run. Do not infer or trigger bot rounds from `/lrh-confirm-fixes` Step 8. |
 
-**Round-cap counter vs. `cycles`.** `/lrh-confirm-fixes` Step 8's round-cap
-gate (`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`)
-counts bot-retrigger batches — a finer-grained, separate metric from
-`cycles`, which counts whole review-response ↔ confirm-fixes iterations.
-A single `cycles` count can span many round-cap batches (this is exactly
-what happened on PR #442: `cycles=1` while the round-cap-relevant count
-would have been 14). Do not conflate the two, and do not derive one from
-the other.
+**No-progress cap vs. `cycles`.** `/lrh-confirm-fixes` Step 8's provisional
+review cap (`src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`)
+counts consecutive substitute self-review rounds that produce no actionable
+progress — a finer-grained, separate metric from `cycles`, which counts whole
+review-response ↔ confirm-fixes iterations. Do not conflate the two, and do
+not derive one from the other.
 
-Each time the round-cap gate blocks and the human is asked to authorize a
-new ceiling, deny, or pause: count it toward `stops`, and record the
-ceiling the human authorized (or "denied"/"paused") in `note`, e.g.
-`note="round-cap: authorized ceiling 3->10"`.
+Each time the no-progress review cap stops the chain and the human chooses
+a different path: count it toward `stops`, and record the disposition in
+`note`, e.g. `note="review-cap: stopped after 3 no-progress substitute
+reviews; human chose redesign"`.
 
 Example:
 
@@ -74,16 +72,16 @@ Example:
 cycles=2; stops=0; gates=[merge]; friction=stale-review; note="Codex reviewed first commit only; second review pass required after rebase."
 ```
 
-Example with a round-cap crossing:
+Example with a no-progress review-cap stop:
 
 ```text
-cycles=1; stops=1; gates=[merge]; friction=none; note="round-cap: authorized ceiling 3->10 after 3 real findings"
+cycles=1; stops=1; gates=[merge]; friction=stale-review; note="review-cap: stopped after 3 no-progress substitute reviews; human chose redesign"
 ```
 
 Example with a self-review substitution:
 
 ```text
-cycles=1; stops=0; gates=[merge]; friction=none; self_review_rounds=1; bot_rounds=0; note="round-cap: substituted self-review for the only round this PR needed"
+cycles=1; stops=0; gates=[merge]; friction=none; self_review_rounds=1; note="review-cap: substitute self-review clean"
 ```
 
 ---

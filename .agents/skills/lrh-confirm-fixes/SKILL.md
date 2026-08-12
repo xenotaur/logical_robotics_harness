@@ -73,10 +73,10 @@ Load this before running any step:
    population, and idempotency / re-run edge cases. Read before Step 2,
    Step 5, Step 7, and Step 8.
 
-2. **`references/round-cap-gate.md`** — The Step 8 round-cap check: state
-   schema, check-then-attempt ordering, any-side-effect-counts promotion,
-   crash-recovery reconciliation, the three-way human gate, and explicit
-   scope boundaries. Read before Step 8.
+2. **`references/round-cap-gate.md`** — The Step 8 provisional no-progress
+   review cap for substitute self-review rounds: no manual hosted review-bot
+   retrigger, no-progress accounting, crash-recovery reconciliation, and
+   explicit scope boundaries. Read before Step 8.
 
 3. **`/lrh-land/references/land-workflow.md`** § Primary vs. side-record
    provenance check — resolve as an installed sibling skill (the same

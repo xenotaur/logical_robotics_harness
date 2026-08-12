@@ -534,7 +534,7 @@ Before reporting completion, verify:
 - Does not implement a persistent run journal — the scratchpad journal is a
   prototype (per `PROP-LRH-LAND-EXECUTE` Decision 8).
 - Does not auto-resolve a Step 5 not-green verdict without a live human
-  answer to the three-way gate — the exception is always live-gated,
+  answer to the applicable exception or recovery gate — the exception is always live-gated,
   never an automatic "not a hard stop" (`PROP-OUTDATED-THREAD-RECOVERY`
   Decision 2; PR #453's reverted attempt at an automatic version drew a
   P1 governance finding).

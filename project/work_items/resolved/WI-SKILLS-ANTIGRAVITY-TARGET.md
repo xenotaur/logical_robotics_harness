@@ -2,7 +2,7 @@
 id: WI-SKILLS-ANTIGRAVITY-TARGET
 title: Add Antigravity target and plugin exporter support to lrh skills install
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony
@@ -12,14 +12,14 @@ related_roadmap: []
 related_workstreams:
   - WS-SKILLS-TARGET-AWARE-INSTALL
 related_design:
-  - project/design/proposals/proposed/lrh-skills-target-aware-install/00_proposal.md
+  - project/design/proposals/adopted/lrh-skills-target-aware-install/00_proposal.md
   - project/memory/decisions/DEC-AGENT-SKILL-INTEROPERABILITY-ANTIGRAVITY.md
 depends_on:
   - WI-SKILLS-TARGET-AWARE-INSTALL
 blocked_by: []
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: "Implemented and merged in PR #544 (commit 5641c878bc07733e9da87e7fb5de004a5c40dceb)"
 expected_actions:
   - edit_file
   - run_tests

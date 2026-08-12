@@ -2,8 +2,8 @@
 id: WS-SKILLS-TARGET-AWARE-INSTALL
 kind: planning_node
 title: Target-Aware LRH Skills Install for Codex
-status: proposed
-stage: planned
+status: resolved
+stage: closed
 origin: proposal
 summary: >
   Govern staged implementation of target-aware `lrh skills install`, making
@@ -11,8 +11,8 @@ summary: >
   Claude's `.claude/skills/` directories while preserving LRH's canonical skill
   source model.
 related_design:
-  - project/design/proposals/proposed/lrh-skills-target-aware-install/00_proposal.md
-  - project/design/proposals/proposed/lrh-skills-target-aware-install/backlog.md
+  - project/design/proposals/adopted/lrh-skills-target-aware-install/00_proposal.md
+  - project/design/proposals/adopted/lrh-skills-target-aware-install/backlog.md
   - project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md
   - src/lrh/skills/installer.py
   - docs/how-to/keep-skills-up-to-date.md

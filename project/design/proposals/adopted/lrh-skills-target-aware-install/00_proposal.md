@@ -2,11 +2,18 @@
 id: PROP-LRH-SKILLS-TARGET-AWARE-INSTALL
 type: design_proposal
 title: Target-Aware `lrh skills install` — Codex as a First-Class Local Target
-status: proposed
+status: adopted
 created_on: 2026-07-31
-updated_on: 2026-08-01
-implementation_status: not_started
-implemented_by: []
+updated_on: 2026-08-12
+implementation_status: implemented
+implemented_by:
+  - WI-SKILLS-TARGET-AWARE-INSTALL
+  - WI-SKILLS-SOURCE-ABSTRACTION
+  - WI-SKILLS-REPO-CONFIG
+  - WI-SKILLS-RENDER-ADAPTERS
+  - WI-SKILLS-STATUS-CHECK
+  - WI-SKILLS-ANTIGRAVITY-TARGET
+  - WI-SKILLS-BODY-PROSE-NEUTRALIZATION
 supersedes: []
 superseded_by: null
 related_design:

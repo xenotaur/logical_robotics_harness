@@ -15,8 +15,8 @@ related_roadmap: []
 related_workstreams:
   - WS-SKILLS-TARGET-AWARE-INSTALL
 related_design:
-  - project/design/proposals/proposed/lrh-skills-target-aware-install/00_proposal.md
-  - project/design/proposals/proposed/lrh-skills-target-aware-install/backlog.md
+  - project/design/proposals/adopted/lrh-skills-target-aware-install/00_proposal.md
+  - project/design/proposals/adopted/lrh-skills-target-aware-install/backlog.md
 depends_on:
   - WI-SKILLS-RENDER-ADAPTERS
 blocked_by: []
@@ -39,7 +39,7 @@ required_evidence:
 artifacts_expected:
   - src/lrh/skills
   - .claude/skills
-  - project/design/proposals/proposed/lrh-skills-target-aware-install/backlog.md
+  - project/design/proposals/adopted/lrh-skills-target-aware-install/backlog.md
 ---
 
 # Neutralize Claude-specific LRH skill body prose for Codex

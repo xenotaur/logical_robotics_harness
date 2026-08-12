@@ -15,7 +15,7 @@ related_roadmap: []
 related_workstreams:
   - WS-SKILLS-TARGET-AWARE-INSTALL
 related_design:
-  - project/design/proposals/proposed/lrh-skills-target-aware-install/00_proposal.md
+  - project/design/proposals/adopted/lrh-skills-target-aware-install/00_proposal.md
 depends_on: []
 blocked_by: []
 expected_actions:

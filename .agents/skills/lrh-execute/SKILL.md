@@ -308,8 +308,9 @@ Before reporting completion, verify:
   sub-skills (`/lrh-implement` Step 4, `/lrh-land` Step 2, or any gate
   `/lrh-land` itself inlines) — chain initiation authorizes running the
   links, not skipping their internal gates.
-- Does not build a second, parallel bot-retrigger mechanism — reuses
-  `round-cap-gate.md` via the inlined `/lrh-land` → confirm-fixes chain.
+- Does not build a second, parallel review-cap mechanism — reuses
+  `/lrh-confirm-fixes` Step 8's provisional no-progress review cap via the
+  inlined `/lrh-land` → confirm-fixes chain.
 - Does not implement multiple work items in one invocation — one `WI-ID`
   (direct or `WS-ID`-resolved) per run, mirroring `/lrh-implement`'s own
   constraint.

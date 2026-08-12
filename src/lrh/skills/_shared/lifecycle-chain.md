@@ -31,9 +31,9 @@ flag for most of the chain: `/lrh-implement`, `/lrh-review-response`, and
 own confirm-before-write gate plus a tiered `when_to_use` that narrows
 auto-trigger surface. `/lrh-confirm-fixes` is the one lifecycle-chain link
 that still carries the flag: its empty-thread fast path skips its own
-confirm gate on the way to an unconditional retrigger/round-state write,
-so removing the flag there remains unsafe until that gap is fixed
-(tracked separately). The planning skills meant to be orchestrated
+confirm gate on the way to REVIEW-LANDED review-signal state handling, so
+removing the flag there remains unsafe until that gap is fixed (tracked
+separately). The planning skills meant to be orchestrated
 (`/lrh-work-item`, `/lrh-proposal`, `/lrh-workstream`) also do not carry
 it, by the earlier, separately-adopted precedent this WI generalized.
 (Do not assert a fixed count for either set — both drift.)

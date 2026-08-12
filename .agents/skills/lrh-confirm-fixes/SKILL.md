@@ -539,7 +539,8 @@ this REVIEW-LANDED state on the `_CONFIRM` commit:
 - **CI failing** — "Threads resolved, CI failing on `<sha>` — not ready."
 - **Threads outstanding** — "Not ready — `<N>` threads need attention:
   `<list by bucket>`." Includes both Step 2's original threads and any new
-  ones a retriggered review surfaced on the `_CONFIRM` commit.
+  ones an automatic reviewer response or substitute self-review signal surfaced
+  on the `_CONFIRM` commit.
 
 If CI is still pending at the post-push SHA, report that explicitly rather
 than a false green from the Step 2 provisional read.
@@ -586,19 +587,20 @@ Before reporting completion, verify:
       delayed finding an agent would
 - [ ] REVIEW-LANDED evidence is an affirmative response matched by
       `commit_id` (formal reviews) or SHA-text (no-thread issue comments
-      only) after an unconditional retrigger attempt — never by a
-      freehand `since <timestamp>` filter, never inferred from elapsed
-      time alone, and "no reviewer configured" is never inferred from
-      silence; an unanswered retrigger is asked about, not assumed either
-      way
-- [ ] A genuine new finding surfaced by the retrigger — whether a formal
-      thread or a defect described in plain review/comment text — was
-      routed through Step 3's taxonomy and Steps 4-5, not left as an
-      indefinite "recheck later," and not silently counted as a clean
-      response just because it referenced the right SHA
-- [ ] Green required a response from *every* reviewer actually retriggered,
-      not just the first one back — a fast clean pass from one does not
-      clear a slower reviewer still pending
+      only) from an automatic reviewer response or substitute self-review
+      signal — never by a freehand `since <timestamp>` filter, never inferred
+      from elapsed time alone, and "no reviewer configured" is never inferred
+      from silence; missing automatic review signal is handled by the Step 8
+      substitute self-review path or surfaced to the human
+- [ ] A genuine new finding surfaced by an automatic reviewer response or
+      substitute self-review signal — whether a formal thread or a defect
+      described in plain review/comment text — was routed through Step 3's
+      taxonomy and Steps 4-5, not left as an indefinite "recheck later," and
+      not silently counted as a clean response just because it referenced the
+      right SHA
+- [ ] Green required every expected review signal for the current head to be
+      accounted for — a fast clean automatic response or substitute pass does
+      not clear another reviewer signal that is known to still be pending
 - [ ] Before permitting agent execution, checked whether an
       `project/assistants/*/policy.md` role binding governs this
       invocation and imposes a stricter `repo:merge` prohibition or

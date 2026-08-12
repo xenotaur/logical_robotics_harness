@@ -63,8 +63,7 @@ not derive one from the other.
 
 Each time the no-progress review cap stops the chain and the human chooses
 a different path: count it toward `stops`, and record the disposition in
-`note`, e.g. `note="review-cap: stopped after 3 no-progress substitute
-reviews; human chose redesign"`.
+`note`, e.g. `note="review-cap: stopped after 3 no-progress substitute reviews; human chose redesign"`.
 
 Example:
 

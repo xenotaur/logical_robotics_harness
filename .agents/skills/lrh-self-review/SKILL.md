@@ -221,9 +221,8 @@ Before reporting completion, verify:
 ## What This Skill Does Not Do
 
 - Does not retrigger a GitHub bot review, or build a second, parallel
-  round-cap mechanism — `round-cap-gate.md`'s existing ceiling and
-  escalation flow are unchanged; this skill is one of its answers, not a
-  replacement for it.
+  review-cap mechanism — `/lrh-confirm-fixes` Step 8 owns the provisional
+  no-progress review cap and calls PR-mode as a substitute review signal.
 - Does not push, open a PR, or merge — diff-mode applies fixes to the
   working tree only; `/lrh-implement` Step 8 does the push.
 - Does not resolve GitHub review threads — that remains

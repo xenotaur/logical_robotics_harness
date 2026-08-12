@@ -8,12 +8,6 @@ description: 'Automate the post-execution closeout workflow for an LRH session. 
   adopting proposals), validates, prompts for session reflection, and reports.
 
   '
-when_to_use: "Invoke when the user wants to run post-execution closeout for a merged\
-  \ PR, resolved WI, or closed WS \u2014 landing execution records, resolving work\
-  \ items, closing workstreams, adopting proposals \u2014 or as the final link in\
-  \ a human-initiated /lrh-land or /lrh-execute chain. Do not invoke for an open,\
-  \ unmerged PR; the skill itself aborts on anything but MERGED. The Step 4 plan-confirm\
-  \ gate is the write-protection regardless of invocation route.\n"
 ---
 
 # lrh-closeout Skill

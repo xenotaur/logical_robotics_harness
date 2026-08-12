@@ -1,13 +1,12 @@
 # Chain-defaults profile for LRH's chain-running skills (/lrh-land,
 # /lrh-execute). See src/lrh/skills/_shared/chain-defaults.md for the
 # propose-and-confirm flow this file drives, and PROP-LRH-CHAIN-DEFAULTS's
-# "Steelmanned Defaults" section for where these three values came from.
+# "Steelmanned Defaults" section for where these two values came from.
 #
 # confirmed_commit/confirmed_at are null until a human live-confirms these
 # values at a chain-authorization gate for the first time in this repo.
 completion_condition: "PR merged, its execution records landed, and any linked work item resolved."
 stop_work_condition: "Any failing CI check, a reviewer finding that isn't Clear-satisfied on re-verification, or an ambiguous/refused merge-authorization reply."
-self_review_preference: substitute_self_review
 chain_init_confirmation: always_confirm
-confirmed_commit: fc8aa96be9021235cd2f09cbac3fc73976ba17ae
-confirmed_at: 2026-08-09T03:34:40Z
+confirmed_commit: 85f2352572a9ea9829136d4597c1b79dc73bacd1
+confirmed_at: 2026-08-12T01:29:22Z

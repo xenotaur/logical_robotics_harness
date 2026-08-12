@@ -222,8 +222,8 @@ unreachable.
 
 Read `/lrh-land/SKILL.md` and execute its Steps 1–8 directly in this
 session, for the PR opened in Step 3. This runs review-response,
-confirm-fixes (including `round-cap-gate.md`'s bot-retrigger ceiling —
-reuse it as-is; do not build a second, parallel retrigger mechanism), the
+confirm-fixes (including Step 8's provisional no-progress review cap —
+reuse it as-is; do not build a second, parallel review-cap mechanism), the
 merge gate, and closeout.
 
 If `/lrh-land`'s own steps stop and report, same principle as Step 3: go
@@ -310,8 +310,9 @@ Before reporting completion, verify:
   sub-skills (`/lrh-implement` Step 4, `/lrh-land` Step 2, or any gate
   `/lrh-land` itself inlines) — chain initiation authorizes running the
   links, not skipping their internal gates.
-- Does not build a second, parallel bot-retrigger mechanism — reuses
-  `round-cap-gate.md` via the inlined `/lrh-land` → confirm-fixes chain.
+- Does not build a second, parallel review-cap mechanism — reuses
+  `/lrh-confirm-fixes` Step 8's provisional no-progress review cap via the
+  inlined `/lrh-land` → confirm-fixes chain.
 - Does not implement multiple work items in one invocation — one `WI-ID`
   (direct or `WS-ID`-resolved) per run, mirroring `/lrh-implement`'s own
   constraint.

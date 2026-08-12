@@ -133,22 +133,19 @@ lrh prompt record-execution \
   yet when it was authored).
 
 **CHAIN-NOTE fields (PR-mode substitutions, recorded at `/lrh-land`
-closeout, not by this skill directly):** `self_review_rounds=<N>` and
-`bot_rounds=<N>`, where `bot_rounds = completed_count - self_review_rounds`
-— **never** `bot_rounds = completed_count` directly.
-`round-cap-gate.md`'s `completed_count` is source-agnostic (both
-bot-triggered and self-review-substituted rounds increment it identically,
-per its "Gate integration" — see `round-cap-gate.md`'s own "The three-way
-gate" section), so reading `bot_rounds` straight from that counter would
-double-count self-review rounds as bot rounds. `self_review_rounds` is the
-count of `_SELFREVIEW` PR-mode records created for this PR; subtract that
-from `completed_count` to get the true bot-round count.
+closeout, not by this skill directly):** `self_review_rounds=<N>` counts
+`_SELFREVIEW` PR-mode records used as substitute review signals in this run.
+`bot_rounds=<N>` is optional and should only describe hosted review-bot
+rounds that occurred outside `/lrh-confirm-fixes` Step 8's manual workflow,
+such as automatic first-push review or a human-reported external reviewer
+run. Stage 1 removed the in-skill manual retrigger counter; do not infer bot
+rounds from the no-progress review cap.
 
 **What's recorded, since no GitHub API exposes per-review credit cost**
 (Decision 3): occurrence, not currency. Mode, findings (count and one-line
 description each), whether fixes were applied (diff-mode) or routed to
-`/lrh-confirm-fixes` (PR-mode), and — PR-mode only — the `completed_count`
-value at dispatch time (which round this substituted for).
+`/lrh-confirm-fixes` (PR-mode), and — PR-mode only — whether the pass was a
+substitute review signal or a follow-up signal for a non-thread finding.
 
 ---
 

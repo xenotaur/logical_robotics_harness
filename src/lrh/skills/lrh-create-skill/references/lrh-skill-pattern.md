@@ -58,8 +58,8 @@ actions") without blocking composition or a user's own in-prose request.
 this pattern doesn't cover — name the gap explicitly in the skill's own
 guidance when you do, don't just assert "explicit intent only." Two real
 examples from this project: a fast path that skips the skill's own confirm
-gate entirely (`/lrh-confirm-fixes`'s empty-thread path reaches an
-unconditional retrigger/round-state write with no gate in between), and a
+gate entirely (`/lrh-confirm-fixes`'s empty-thread path reaches
+REVIEW-LANDED review-signal state handling with no gate in between), and a
 live-reply requirement a different mechanism can bypass under one of its
 own modes (`/lrh-land`/`/lrh-execute`'s chain-authorization gate can be
 skipped under `DEC-CHAIN-INIT-SKIP-CONSENT`'s `skip_if_opted_in`, and

@@ -5,8 +5,9 @@ description: >
   a PR — a credit-free substitute for a GitHub bot review. Two modes:
   diff-mode (default, no argument) reviews the local branch diff against
   main, for use once before a PR's first push; --pr <url> reviews an
-  existing PR, for use as round-cap-gate.md's post-ceiling substitute for a
-  bot retrigger. Ends at a report of findings (and, in diff-mode, applies
+  existing PR as `/lrh-confirm-fixes` Step 8's substitute review signal when
+  another manual hosted review-bot retrigger would otherwise have been
+  requested. Ends at a report of findings (and, in diff-mode, applies
   any fixes directly) plus an execution record — it does not push, open a
   PR, resolve GitHub threads, or merge.
 disable-model-invocation: true
@@ -35,12 +36,14 @@ re-verification, and the execution-record convention are identical.
   explicit retrigger, so there is no "PR open, bot hasn't looked yet"
   window; independent pre-push review is only possible before the PR
   exists.
-- **PR-mode**, called from `round-cap-gate.md`'s three-way gate as its
-  fourth answer, substituting for a bot retrigger once the ceiling blocks.
+- **PR-mode**, called from `/lrh-confirm-fixes` Step 8 when no matching
+  automatic reviewer response appears after a reasonable wait, or when a
+  later review signal is needed for a non-thread finding. It substitutes for
+  any manual hosted review-bot retrigger path.
 
-Diff-mode is exempt from `round-cap-gate.md`'s ceiling by construction — no
-PR exists yet to attach ceiling state to (Decision 2). PR-mode counts
-against the ceiling identically to a bot round.
+Diff-mode is exempt from review-cap state by construction — no PR exists yet
+to attach state to (Decision 2). PR-mode substitute passes count against
+`/lrh-confirm-fixes` Step 8's provisional no-progress review cap.
 
 **This skill never authorizes skipping a PR's first real bot round**
 (Decision 4) — diff-mode findings get fixed or not, but the PR is pushed
@@ -156,7 +159,7 @@ issues, fix them directly in the working tree. Do not push — that remains
 step found (Decision 4).
 
 **PR-mode:** do not push fixes as part of this skill's own workflow —
-report findings back to the caller (`round-cap-gate.md`'s Step 8
+report findings back to the caller (`/lrh-confirm-fixes` Step 8
 integration), which routes any genuine finding through
 `/lrh-confirm-fixes` Step 3's taxonomy the same as a bot-sourced one. A
 clean result (no findings) is itself the report.
@@ -171,9 +174,8 @@ empty by construction, not as an oversight.
 
 Capture in the record: mode, findings (count and one-line description
 each), whether fixes were applied (diff-mode) or the finding was routed to
-`/lrh-confirm-fixes` (PR-mode), and which round this substituted for
-(PR-mode only — the `completed_count` value from `round-cap-gate.md` at
-dispatch time).
+`/lrh-confirm-fixes` (PR-mode), and whether the PR-mode pass was a substitute
+review signal or a follow-up signal for a non-thread finding.
 
 ```bash
 lrh prompt label --slug <slug>-selfreview
@@ -223,9 +225,8 @@ Before reporting completion, verify:
 ## What This Skill Does Not Do
 
 - Does not retrigger a GitHub bot review, or build a second, parallel
-  round-cap mechanism — `round-cap-gate.md`'s existing ceiling and
-  escalation flow are unchanged; this skill is one of its answers, not a
-  replacement for it.
+  review-cap mechanism — `/lrh-confirm-fixes` Step 8 owns the provisional
+  no-progress review cap and calls PR-mode as a substitute review signal.
 - Does not push, open a PR, or merge — diff-mode applies fixes to the
   working tree only; `/lrh-implement` Step 8 does the push.
 - Does not resolve GitHub review threads — that remains

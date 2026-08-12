@@ -7,12 +7,6 @@ description: 'Create a new LRH design proposal at project/design/proposals/propo
   only after explicit confirmation. Validates with lrh validate.
 
   '
-when_to_use: 'Invoke only when explicitly creating a new LRH design proposal planning
-  artifact in project/design/proposals/proposed/. Do not invoke when the user is discussing,
-  reading, or querying proposals. Suitable for orchestration from /lrh-design when
-  it needs to create a companion proposal as part of a design-capture workflow.
-
-  '
 ---
 
 # lrh-proposal Skill

@@ -6,12 +6,6 @@ description: "Update a repository's documentation to reflect recently completed 
   \ Identifies which docs are affected, classifies needed updates by Diataxis quadrant,\
   \ confirms with the user, and implements the updates in a reviewable PR. Use after\
   \ work lands to keep docs current.\n"
-when_to_use: 'Invoke when the user wants documentation updated to reflect a specific
-  merged PR, resolved WI, or closed WS. Do not invoke for general documentation editing
-  unrelated to a specific completed piece of work. The Step 7 confirm gate is the
-  write-protection regardless of invocation route.
-
-  '
 ---
 
 # lrh-doc-work Skill

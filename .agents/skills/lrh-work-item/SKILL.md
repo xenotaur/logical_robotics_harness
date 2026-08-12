@@ -7,13 +7,6 @@ description: 'Create a new LRH work item in project/work_items/proposed/. Use wh
   confirmation. Validates with lrh validate.
 
   '
-when_to_use: 'Invoke only when explicitly creating a new LRH work item planning artifact
-  in project/work_items/proposed/. Do not invoke when the user is discussing, reading,
-  or querying work items. Suitable for orchestration from /lrh-design, /lrh-proposal,
-  or /lrh-workstream when those skills need to create companion work items as part
-  of a design-capture workflow.
-
-  '
 ---
 
 # lrh-work-item Skill

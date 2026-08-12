@@ -2,16 +2,29 @@
 
 ## Purpose
 
-Use this guide when Claude Code or Codex does not offer an `/lrh-*` skill you expect to see (for example, a skill that was added to LRH recently). LRH skills are installed into each agent's skills directory from LRH's canonical skill source; upgrading the `lrh` package does not automatically update the installed copy. This guide shows how to check for and apply skill updates.
+Use this guide when Claude Code, Codex, or Antigravity does not offer an
+`/lrh-*` skill you expect to see (for example, a skill that was added to LRH
+recently). LRH skills are installed into each agent's skills directory from
+LRH's canonical skill source; upgrading the `lrh` package does not
+automatically update the installed copy. This guide shows how to check for and
+apply skill updates.
 
 ## Prerequisites
 
 - LRH installed so the `lrh` command is available.
-- Claude Code configured to read skills from `~/.claude/skills/` (global) or `./.claude/skills/` (per-repository, via `--local`), or Codex configured to read skills from `~/.agents/skills/` (global) or `./.agents/skills/` (per-repository, via `--local --target codex`).
+- Claude Code configured to read skills from `~/.claude/skills/` (global) or
+  `./.claude/skills/` (per-repository, via `--local`), Codex configured to read
+  skills from `~/.agents/skills/` (global) or `./.agents/skills/`
+  (per-repository, via `--local --target codex`), or Antigravity configured to
+  read the LRH plugin under `~/.gemini/config/plugins/lrh/` or
+  `./.gemini/plugins/lrh/`.
 
 ## Check whether installed skills are current
 
-Run this from the repository root when using `--local` — the target directory is resolved relative to the current working directory, so running it from a subdirectory installs into that subdirectory's `.claude/skills/` or `.agents/skills/` instead of the repository's.
+Run this from the repository root when using `--local` — the target directory
+is resolved relative to the current working directory, so running it from a
+subdirectory installs into that subdirectory's `.claude/skills/`,
+`.agents/skills/`, or `.gemini/plugins/lrh/skills/` instead of the repository's.
 
 Preview what an install would change without writing any files:
 
@@ -28,8 +41,10 @@ compatibility. The explicit target options are:
 | `lrh skills install --local` or `lrh skills install --local --target claude` | `./.claude/skills/` |
 | `lrh skills install --target codex` | `~/.agents/skills/` |
 | `lrh skills install --local --target codex` | `./.agents/skills/` |
-| `lrh skills install --target all` | both Claude and Codex user-scope directories |
-| `lrh skills install --local --target all` | both Claude and Codex project-scope directories |
+| `lrh skills install --target antigravity` | `~/.gemini/config/plugins/lrh/skills/` plus `~/.gemini/config/plugins/lrh/plugin.json` |
+| `lrh skills install --local --target antigravity` | `./.gemini/plugins/lrh/skills/` plus `./.gemini/plugins/lrh/plugin.json` |
+| `lrh skills install --target all` | Claude, Codex, and Antigravity user-scope directories |
+| `lrh skills install --local --target all` | Claude, Codex, and Antigravity project-scope directories |
 
 By default, skills are copied from the packaged LRH skill source. Use
 `--source` when you need to install from a different canonical source:
@@ -41,10 +56,11 @@ By default, skills are copied from the packaged LRH skill source. Use
 | `lrh skills install --source ./path/to/skills` | explicit filesystem skill source |
 
 The source directory is the canonical skill tree to copy from; target
-directories such as `.claude/skills/` and `.agents/skills/` remain generated
-install destinations. Existing safety behavior still applies for every source:
-locally modified target copies are skipped unless `--force` is passed, and
-`--diff` compares the installed copy against the selected source.
+directories such as `.claude/skills/`, `.agents/skills/`, and
+`.gemini/plugins/lrh/skills/` remain generated install destinations. Existing
+safety behavior still applies for every source: locally modified target copies
+are skipped unless `--force` is passed, and `--diff` compares the installed copy
+against the selected source.
 
 Repositories may also define optional defaults in `project/agent_skills.yaml`.
 When that file is present, `lrh skills install` uses its configured source,
@@ -81,6 +97,13 @@ previewing writes, use `status`:
 ```bash
 lrh skills status --scope user --target codex
 lrh skills status --scope project --target codex
+```
+
+For Antigravity plugin installs, use:
+
+```bash
+lrh skills status --scope user --target antigravity
+lrh skills status --scope project --target antigravity
 ```
 
 LRH maintainers checking this repository's canonical source checkout can add
@@ -123,6 +146,13 @@ lrh skills install --force --target codex
 lrh skills install --force --local --target codex
 ```
 
+For Antigravity, choose the Antigravity target explicitly:
+
+```bash
+lrh skills install --force --target antigravity
+lrh skills install --force --local --target antigravity
+```
+
 ## Codex render-adapter behavior
 
 Codex installs are rendered for `.agents/skills/` rather than copied byte for
@@ -136,12 +166,28 @@ Skill body prose is written to be backend-aware where the workflow needs
 different execution-record or session-transcript values. Use the rendered
 Codex copy as the operative instructions for Codex sessions.
 
+## Antigravity render-adapter behavior
+
+Antigravity installs are rendered as plugin trees rather than bare skills
+directories. LRH writes skills under `.gemini/.../plugins/lrh/skills/` and
+generates `plugin.json` at the `lrh` plugin root. The renderer strips
+Claude-only frontmatter such as `disable-model-invocation` and `argument-hint`.
+
 ## Common troubleshooting notes
 
-- A newly created `/lrh-*` skill in the LRH source tree does not appear in Claude Code or Codex until `lrh skills install` (or `lrh skills install --local` with the relevant `--target`) has been run in the target environment. This is expected: skill installation is a deliberate, explicit step, not something that happens implicitly on every `lrh` invocation.
+- A newly created `/lrh-*` skill in the LRH source tree does not appear in
+  Claude Code, Codex, or Antigravity until `lrh skills install` (or
+  `lrh skills install --local` with the relevant `--target`) has been run in
+  the target environment. This is expected: skill installation is a deliberate,
+  explicit step, not something that happens implicitly on every `lrh`
+  invocation.
 - After creating `~/.agents/skills/` for the first time or changing global Codex skills, restart Codex so it re-discovers the installed skills.
 - If a skill reports the `has local modifications` warning, LRH has detected that the installed copy differs from the selected source and will not silently overwrite it — whether that difference is your own edit or simply an unapplied upstream update. Review the installed copy before deciding whether to re-run with `--force`.
-- If you maintain multiple repositories, remember that global (`~/.claude/skills/` or `~/.agents/skills/`) and per-repository (`./.claude/skills/` or `./.agents/skills/` via `--local`) installs are independent. Updating one does not update the other.
+- If you maintain multiple repositories, remember that global
+  (`~/.claude/skills/`, `~/.agents/skills/`, or
+  `~/.gemini/config/plugins/lrh/`) and per-repository (`./.claude/skills/`,
+  `./.agents/skills/`, or `./.gemini/plugins/lrh/` via `--local`) installs are
+  independent. Updating one does not update the other.
 
 ## Related reference
 

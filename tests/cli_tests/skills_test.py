@@ -14,20 +14,29 @@ class SkillsInstallCliTest(unittest.TestCase):
     def _repo_root(self) -> pathlib.Path:
         return pathlib.Path(__file__).resolve().parents[2]
 
+    def _cli_env(self) -> dict[str, str]:
+        env = os.environ.copy()
+        src_path = str(self._repo_root() / "src")
+        existing = env.get("PYTHONPATH")
+        env["PYTHONPATH"] = (
+            src_path if not existing else os.pathsep.join([src_path, existing])
+        )
+        return env
+
     def _run(self, *args: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
             [sys.executable, "-m", "lrh.cli.main", *args],
             check=False,
             capture_output=True,
             text=True,
-            env=os.environ.copy(),
+            env=self._cli_env(),
             cwd=self._repo_root(),
         )
 
     def _run_isolated(self, *args: str) -> subprocess.CompletedProcess[str]:
         """Run lrh with a temporary HOME so the skills dir starts empty."""
         with tempfile.TemporaryDirectory() as fake_home:
-            env = os.environ.copy()
+            env = self._cli_env()
             env["HOME"] = fake_home
             env["USERPROFILE"] = fake_home
             return subprocess.run(
@@ -47,7 +56,7 @@ class SkillsInstallCliTest(unittest.TestCase):
                 check=False,
                 capture_output=True,
                 text=True,
-                env=os.environ.copy(),
+                env=self._cli_env(),
                 cwd=fake_cwd,
             )
 
@@ -135,7 +144,7 @@ class SkillsInstallCliTest(unittest.TestCase):
                     check=False,
                     capture_output=True,
                     text=True,
-                    env=os.environ.copy(),
+                    env=self._cli_env(),
                     cwd=fake_cwd,
                 )
 
@@ -169,7 +178,7 @@ class SkillsInstallCliTest(unittest.TestCase):
                     check=False,
                     capture_output=True,
                     text=True,
-                    env=os.environ.copy(),
+                    env=self._cli_env(),
                     cwd=fake_cwd,
                 )
 
@@ -197,7 +206,7 @@ class SkillsInstallCliTest(unittest.TestCase):
                     check=False,
                     capture_output=True,
                     text=True,
-                    env=os.environ.copy(),
+                    env=self._cli_env(),
                     cwd=fake_cwd,
                 )
 
@@ -210,7 +219,7 @@ class SkillsInstallCliTest(unittest.TestCase):
             (source / "sample-skill").mkdir()
             (source / "sample-skill" / "SKILL.md").write_text("sample skill\n")
             with tempfile.TemporaryDirectory() as fake_cwd:
-                env = os.environ.copy()
+                env = self._cli_env()
                 install_result = subprocess.run(
                     [
                         sys.executable,
@@ -289,7 +298,7 @@ class SkillsInstallCliTest(unittest.TestCase):
         self.assertIn("skill source does not exist", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
-    def test_skills_install_all_local_dry_run_reports_both_targets(self) -> None:
+    def test_skills_install_all_local_dry_run_reports_all_targets(self) -> None:
         result = self._run_local(
             "skills", "install", "--local", "--target", "all", "--dry-run"
         )
@@ -298,6 +307,8 @@ class SkillsInstallCliTest(unittest.TestCase):
         self.assertIn(".claude/skills", result.stdout)
         self.assertIn("codex:", result.stdout)
         self.assertIn(".agents/skills", result.stdout)
+        self.assertIn("antigravity:", result.stdout)
+        self.assertIn(".gemini/plugins/lrh/skills", result.stdout)
 
     def test_skills_install_local_codex_writes_agents_skills(self) -> None:
         with tempfile.TemporaryDirectory() as fake_cwd:
@@ -315,12 +326,39 @@ class SkillsInstallCliTest(unittest.TestCase):
                 check=False,
                 capture_output=True,
                 text=True,
-                env=os.environ.copy(),
+                env=self._cli_env(),
                 cwd=fake_cwd,
             )
             self.assertEqual(result.returncode, 0, msg=result.stderr)
             self.assertTrue((pathlib.Path(fake_cwd) / ".agents" / "skills").exists())
             self.assertFalse((pathlib.Path(fake_cwd) / ".claude" / "skills").exists())
+
+    def test_skills_install_local_antigravity_writes_plugin_tree(self) -> None:
+        with tempfile.TemporaryDirectory() as fake_cwd:
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "skills",
+                    "install",
+                    "--local",
+                    "--target",
+                    "antigravity",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+                env=self._cli_env(),
+                cwd=fake_cwd,
+            )
+            plugin_root = pathlib.Path(fake_cwd) / ".gemini" / "plugins" / "lrh"
+
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertTrue((plugin_root / "skills").exists())
+            self.assertTrue((plugin_root / "plugin.json").exists())
+            self.assertFalse((pathlib.Path(fake_cwd) / ".claude").exists())
+            self.assertFalse((pathlib.Path(fake_cwd) / ".agents").exists())
 
     def test_skills_install_uses_repo_config_when_flags_are_absent(self) -> None:
         with tempfile.TemporaryDirectory() as source_dir:
@@ -349,7 +387,7 @@ class SkillsInstallCliTest(unittest.TestCase):
                     check=False,
                     capture_output=True,
                     text=True,
-                    env=os.environ.copy(),
+                    env=self._cli_env(),
                     cwd=fake_cwd,
                 )
 
@@ -401,7 +439,7 @@ class SkillsInstallCliTest(unittest.TestCase):
                     check=False,
                     capture_output=True,
                     text=True,
-                    env=os.environ.copy(),
+                    env=self._cli_env(),
                     cwd=fake_cwd,
                 )
 
@@ -438,7 +476,7 @@ class SkillsInstallCliTest(unittest.TestCase):
                             ]
                         )
                     )
-                    env = os.environ.copy()
+                    env = self._cli_env()
                     env["HOME"] = fake_home
                     env["USERPROFILE"] = fake_home
 
@@ -480,7 +518,7 @@ class SkillsInstallCliTest(unittest.TestCase):
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as fake_cwd:
-            env = os.environ.copy()
+            env = self._cli_env()
             install_result = subprocess.run(
                 [
                     sys.executable,

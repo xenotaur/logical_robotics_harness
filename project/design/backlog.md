@@ -646,16 +646,14 @@ scheduled poller) could call, rather than duplicating hand-rolled
 pr-health check`) would also get `scripts/test` unit coverage, unlike the
 current prose, which is verified only by manual reasoning.
 
-**Status:** Deferred — `WI-BOUNDED-STABILIZATION-LOOP-DESIGN.md` is a
-planning item whose own `depends_on` (`WI-GITHUB-PR-CI-OBSERVATION`,
-`WI-AGENT-BRANCH-CONTAINMENT`, `WI-DELIBERATE-MODEL-INVOCATION`) and
-acceptance criteria ("no mutation-capable automation or backend
-implementation is added") explicitly gate real implementation behind
-further design work. Not a same-day follow-up to the Step 8.3 change.
-Revisit once `WI-BOUNDED-STABILIZATION-LOOP-DESIGN` is implemented, or
-sooner if the current skill-prose detection is observed producing a real
-false positive/negative in practice — per this project's practice of
-promoting on observed incident rather than speculative hardening.
+**Status:** Obsolete — `WI-RETRIGGER-REMOVAL-STAGE1` removes the hosted
+reviewer retrigger path and the skill-prose stalled-reviewer-session
+diagnostic this entry targeted. The replacement path uses a synchronous
+fresh self-review subagent plus a provisional no-progress cap, so the old
+GitHub check-run/timeline heuristic no longer has an active call site. A
+dispatched subagent can also stall, but that would need a separate
+subagent-lifecycle heuristic rather than promotion of the retired hosted
+reviewer detector.
 
 **Cross-reference (2026-08-01):** This entry's own landing PR (#452) is
 cited as supporting evidence for the self-review-first tier problem —
@@ -711,18 +709,14 @@ correctness bug, and a misleading null-object edge case — see this PR's
    configuration state. Purely a documentation-consistency echo, not a
    behavioral issue.
 
-**Status:** Deferred — round 7 was this PR's explicit, pre-committed
-stopping point for chasing further review rounds (recorded in the
-`_CONFIRM` execution record before this round's response was even read),
-consistent with this project's "defer narrow edge cases, fix core-scope
-findings" practice and with `round-cap-gate.md`'s own precedent (that
-mechanism's implementation, PR #445, stopped chasing after 8 rounds for
-the same reason — see its "Risk Notes — deferred hardening" section).
-Neither item is core to this PR's stated purpose (detecting a
-Copilot-credit-exhaustion-shaped stall) or a correctness bug. Revisit
-alongside a future change to `SKILL.md` Step 8.3 or `round-cap-gate.md`,
-or sooner if a non-Copilot reviewer is added to `REVIEWS.md` and the
-generic framing causes real confusion in practice.
+**Status:** Obsolete — `WI-RETRIGGER-REMOVAL-STAGE1` removes the hosted
+reviewer retrigger path and the stalled-reviewer-session diagnostic this
+entry wanted to clarify. The remaining Step 8 path no longer tries to
+distinguish Copilot-specific hosted-reviewer stalls from absent reviewer
+responses; it waits for any automatic response already in flight, then uses
+a fresh self-review substitute subject to the provisional no-progress cap.
+A dispatched subagent can also stall, but that is a new subagent-lifecycle
+problem rather than a reason to preserve this Copilot-specific wording fix.
 
 **Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8.3;
 `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`

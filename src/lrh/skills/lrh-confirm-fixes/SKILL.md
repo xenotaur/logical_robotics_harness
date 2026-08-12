@@ -371,84 +371,35 @@ scenario) would be misclassified as human-only, letting a human clean-pass
 statement produce Green without ever giving the configured reviewer a
 chance to weigh in. Do not attempt to infer configuration state at all:
 
-**If the round-cap check above blocked and the human's answer at the
-three-way gate was "substitute self-review for this round"** (see
-`references/round-cap-gate.md`'s "The three-way gate", fourth answer):
-dispatch `/lrh-self-review` in PR-mode instead of items 1–3 below — this
-path is synchronous (dispatch, get the result, done), so there is no
-retrigger timestamp to persist, no async wait, and no "no response yet"
-ambiguity. On completion, increment `completed_count` by 1 directly (same
-as a bot batch's promotion) and route any genuine finding through Step
-3's taxonomy the same as a bot-sourced one; a clean pass satisfies
-REVIEW-LANDED for this round. Otherwise (the gate answer was "authorize a
-new ceiling," or no gate fired because the ceiling hasn't been reached
-yet), proceed with the unconditional bot retrigger below:
+**Manual GitHub review-bot retriggering has been removed from this skill.**
+The automatic first-push or ready-for-review pass may still run on its own,
+and any matching response from that pass still counts. But if no matching
+automatic reviewer response has landed for the `_CONFIRM` commit after a
+reasonable wait, do not start a new GitHub review-bot round from this skill.
+Dispatch a fresh `/lrh-self-review` PR-mode pass instead.
 
-1. **Once the round-cap check above has cleared a new batch to start,
-   always attempt its retrigger(s), unconditionally** — neither command
-   changes any PR code. The comment mention is a harmless no-op if
-   nothing listens for it; the reviewer-request may likewise no-op
-   (already requested) or fail harmlessly (no permission, Copilot review
-   not enabled for this repo) without touching a file either way. (This
-   does not apply to a reviewer reconciled from a `"pending"` orphaned
-   attempt — step 2 above explicitly does not re-mention those; and it
-   does not override the round-cap gate itself, which can still block a
-   *new* batch independently.)
+This substitute pass is synchronous (dispatch, get the result, done), so
+there is no retrigger timestamp to persist, no async wait, and no "no
+response yet" ambiguity. Route any genuine finding through Step 3's taxonomy
+the same as an automated-reviewer finding; a clean substitute pass satisfies
+REVIEW-LANDED for this round.
 
-   **Persist the timestamp of this retrigger into the round-state file's
-   `pending_attempt.retriggered_at`, as part of the same write that
-   starts this batch** (`references/round-cap-gate.md`'s "State schema"
-   and "Check-then-attempt ordering") — do not just capture it into a
-   shell variable and expect it to still be set when Step 8.3 reads it.
-   Step 8.2's wait is inherently one or more separate tool calls (it can
-   also span a session interruption), and shell variable state does not
-   survive across separate invocations in this harness; a bash-variable-only
-   version of this capture looked correct but was silently broken in the
-   normal case, not an edge case, since Step 8.1 and Step 8.3 are never
-   the same invocation. `references/round-cap-gate.md`'s "Detecting a
-   stalled reviewer session" reads this value back from the round-state
-   file in Step 8.3 below; it must never re-issue this retrigger itself
-   to get a fresh one either, since the no-op case just above means a
-   second call at Step 8.3's later checking time would produce a
-   timestamp *after* the real check-run this batch already started,
-   filtering out the very evidence it exists to find:
+**Provisional no-progress cap.** The cap now bounds consecutive substitute
+self-review rounds that make no progress, not GitHub review-bot submissions.
+A round counts as no-progress when it resolves no previously-unresolved
+thread and surfaces no new finding. At three consecutive no-progress
+substitute rounds, stop and ask the human for new direction (for example:
+wait longer for an automatic reviewer response, accept a human review signal,
+or redesign the PR). Reset the counter to zero when a substitute pass
+surfaces a genuine finding or when the current run resolves a previously
+unresolved thread. Stage 4 replaces this provisional cap with a policy-derived
+mechanism after real post-Stage-1 evidence exists.
 
-   ```bash
-   gh pr comment <pr-url> --body "@codex review"
-   gh pr edit <pr-url> --add-reviewer @copilot
-   ```
-
-   **Do not retrigger Copilot with a plain `@copilot` PR comment.** Any
-   `@copilot` mention in a comment body invokes Copilot's *coding agent* —
-   a different product from Copilot code review — and as of GitHub's
-   2026-03-24 default change it pushes commits straight onto the PR's
-   branch instead of opening a separate PR (GitHub Changelog, "Ask
-   @copilot to make changes to any pull request"). Re-requesting Copilot
-   as a reviewer (`gh pr edit <pr-url> --add-reviewer @copilot`, the REST
-   API, or the PR sidebar) hits the review-only bot instead, which "always leaves
-   a 'Comment' review" and never commits (GitHub Docs, "Using GitHub
-   Copilot code review").
-
-   (Substitute or add other reviewer mentions/review-requests this
-   repository's `REVIEWS.md`, if present, documents — the same caveat
-   applies to any reviewer whose plain-comment mention doubles as an
-   agent-invocation trigger, and only Codex in this repo is confirmed
-   safe as a plain mention.) A returned comment URL (Codex) or a
-   successful review-request response (Copilot) is a confirmed
-   submission for that reviewer; a command error is not. Apply step 4's
-   per-reviewer status update and promote-on-first-confirmed-submission
-   rule as each command returns.
-2. **Track every reviewer retriggered in step 1 (whether via comment
-   mention or reviewer request), and wait for each one to respond — not
-   just the first.** A fast clean response from one
-   reviewer does not clear the ones still pending; if both Codex and
-   Copilot were retriggered, both must post before REVIEW-LANDED is
-   satisfied, the same way Step 6's thread-resolution verdict requires
-   *every* thread resolved, not just some.
-
-   **Coverage for *this exact commit* rests on three sources — never on a
-   freehand `since <timestamp>` filter over comments, reviews, or
-   threads:**
+1. **First read any automatic reviewer responses that already exist for this
+   exact commit.** A reviewer response can arrive without any explicit action
+   from this skill. **Coverage for *this exact commit* rests on three sources
+   — never on a freehand `since <timestamp>` filter over comments, reviews,
+   or threads:**
    - **`commit_id` vs. current head** — a formal review (including a
      bot's plain "COMMENTED" review with no separate inline thread)
      always has a real `commit_id` via the REST reviews endpoint, always
@@ -496,47 +447,23 @@ yet), proceed with the unconditional bot retrigger below:
    body, an issue comment, *or* a formal inline thread, is a new
    finding — handle it per the paragraph below, whichever surface it
    arrived on.
-3. If one or more retriggered reviewers haven't responded after a reasonable
-   wait, **first check whether that reviewer's own session actually
-   started and stalled, rather than never having been invoked at all** —
-   see `references/round-cap-gate.md`'s "Detecting a stalled reviewer
-   session" for the exact check-run and timeline queries and the
-   15-minute threshold. These are materially different situations
-   requiring different human responses (wait longer vs. treat your own
-   confirmation as the signal vs. top up the reviewer's usage/credits and
-   retry vs. authorize a different remediation for this repo, such as a
-   documented self-review fallback, if one exists) — collapsing them into
-   one generic question would hide that choice from the human.
+2. **If no matching automatic reviewer response is available after a
+   reasonable wait, run the substitute self-review pass.** Do not inspect
+   reviewer-session check-runs to decide whether to restart a GitHub
+   reviewer; this skill no longer owns that action. The substitute pass is
+   the review signal for this round, subject to the provisional no-progress
+   cap above.
 
-   **Do not silently conclude "no reviewer configured" and fall back to a
-   human statement, and do not report Green on a partial set.** Ask the
-   human directly, naming which case applies:
-   - **No stall detected:** "No response yet from `<reviewer>` on `<sha>`
-     — is it configured for this repo (worth waiting longer), or should I
-     treat your own confirmation as the review signal for it?"
-   - **Stall detected:** "`<reviewer>`'s session on `<sha>` started at
-     `<started_at>` and check run `<name>` is still `in_progress` after
-     over 15 minutes — this matches this project's stalled-session
-     heuristic. One known cause is the reviewer's own automation running
-     out of included usage/credits, though the API can't confirm the
-     cause — it could also be lag. Wait longer, treat your own
-     confirmation as the review signal, or handle it another way (e.g.
-     top up the reviewer's usage and retrigger, or authorize a
-     self-review fallback if this repo has one)?"
+The verdict is **Review pending** only while the automatic response wait or
+the substitute self-review pass is actually in progress. Do not time out into
+Green from silence alone.
 
-   Only an explicit answer resolves this per missing reviewer, not an
-   inferred default in either direction.
-
-The verdict is **Review pending** — report it explicitly and re-check
-later — for as long as any retriggered reviewer's matching response, or an
-explicit human answer standing in for it, is still outstanding. Do not
-time out into Green on a partial response.
-
-**If the retrigger surfaces a genuine new finding on the `_CONFIRM`
-commit — whether as a formal inline thread, or as a defect described in a
-plain review body or issue comment with no separate thread — that is not
-"pending," it is a new finding.** Waiting longer cannot resolve real
-content the way it resolves silence. Classify it via the Step 3 taxonomy
+**If either an automatic response or the substitute self-review surfaces a
+genuine new finding on the `_CONFIRM` commit — whether as a formal inline
+thread, or as a defect described in a plain review body or issue comment with
+no separate thread — that is not "pending," it is a new finding.** Waiting
+longer cannot resolve real content the way it resolves silence. Classify it
+via the Step 3 taxonomy
 (Clear-satisfied / Unaddressed / Partial / Ambiguous / Problematic) and
 handle it via Steps 4–5 the same way any other review round is handled —
 but Steps 3–5's mechanics are built around `reviewThreads`, which a plain
@@ -552,15 +479,15 @@ ID that a top-level comment does not have). For a **non-thread** finding:
   to flip `isResolved` on. This is acknowledgment, not resolution in the
   GraphQL sense — it does not clear anything from the `isResolved` count in
   Step 2/Step 6.
-- A non-thread finding therefore **always** requires a fresh
-  retrigger-and-wait pass to confirm the fix, even for changes that would
-  otherwise only need a reply-and-resolve on a real thread — there is no
-  resolved-state signal to trust instead.
+- A non-thread finding therefore **always** requires a fresh review signal on
+  the next `_CONFIRM` commit, even for changes that would otherwise only need
+  a reply-and-resolve on a real thread — there is no resolved-state signal to
+  trust instead.
 
 If remediation needs a code change, it produces another pushed commit, and
-Step 8's CI and REVIEW-LANDED checks apply again to that new `HEAD`. Only
-an explicit clean pass (no findings, on any surface) satisfies
-REVIEW-LANDED for that reviewer.
+Step 8's CI and REVIEW-LANDED checks apply again to that new `HEAD`. Only an
+explicit clean pass (no findings, on any surface) satisfies REVIEW-LANDED for
+that review signal.
 
 Aggregate per `references/confirm-fixes-workflow.md`. The **final verdict**
 is the Step 6 thread-resolution verdict AND the re-checked CI state AND
@@ -608,8 +535,9 @@ this REVIEW-LANDED state on the `_CONFIRM` commit:
   `state == MERGED` before proceeding, whether you ran the merge yourself or
   the human reports having done so.
 - **Review pending** — "Threads resolved, CI green, review not yet landed
-  on `<sha>` — not yet ready." No matching bot response yet after retrigger;
-  re-check later. Do not present the merge command as ready.
+  on `<sha>` — not yet ready." The automatic-response wait or substitute
+  self-review pass is still in progress. Do not present the merge command as
+  ready.
 - **CI pending** — "Threads resolved, CI pending on `<sha>` — not yet ready."
 - **CI failing** — "Threads resolved, CI failing on `<sha>` — not ready."
 - **Threads outstanding** — "Not ready — `<N>` threads need attention:

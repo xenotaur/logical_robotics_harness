@@ -7,7 +7,6 @@
 # values at a chain-authorization gate for the first time in this repo.
 completion_condition: "PR merged, its execution records landed, and any linked work item resolved."
 stop_work_condition: "Any failing CI check, a reviewer finding that isn't Clear-satisfied on re-verification, or an ambiguous/refused merge-authorization reply."
-self_review_preference: substitute_self_review
 chain_init_confirmation: always_confirm
 confirmed_commit: fc8aa96be9021235cd2f09cbac3fc73976ba17ae
 confirmed_at: 2026-08-09T03:34:40Z

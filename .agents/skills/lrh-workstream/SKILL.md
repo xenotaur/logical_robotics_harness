@@ -6,13 +6,6 @@ description: "Create a new LRH workstream planning node at project/workstreams/p
   \ Interviews the user, researches existing workstreams, proposes complete frontmatter\
   \ and body for review, and writes the file only after explicit confirmation. Validates\
   \ with lrh validate.\n"
-when_to_use: 'Invoke only when explicitly creating a new LRH workstream planning artifact
-  in project/workstreams/proposed/. Do not invoke when the user is discussing, reading,
-  or querying workstreams. Suitable for orchestration from /lrh-design or /lrh-proposal
-  when those skills need to create a companion workstream as part of a design-capture
-  workflow.
-
-  '
 ---
 
 # lrh-workstream Skill

@@ -7,11 +7,6 @@ description: "Generate a structured design for a feature, improvement, or system
   \ needed. After the design, offers to capture findings as an LRH work item. Invoke\
   \ with /lrh-design followed by the idea to design; typically used before /lrh-work-item\
   \ and /lrh-implement to front-load design thinking.\n"
-when_to_use: "Invoke when the user wants the LRH-formatted design process specifically\
-  \ \u2014 prior-art check, best-practices review, high/low-level design, and a WI/proposal/workstream\
-  \ handoff offer. Do not treat a generic design-thinking or best-practices request\
-  \ as requiring this skill; use ordinary judgment for those instead. Nothing writes\
-  \ until Step 4's offer-and-wait.\n"
 ---
 
 # lrh-design Skill

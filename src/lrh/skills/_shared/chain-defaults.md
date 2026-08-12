@@ -25,16 +25,15 @@ of `PROP-LRH-CHAIN-DEFAULTS`):
 ```yaml
 completion_condition: "PR merged, its execution records landed, and any linked work item resolved."
 stop_work_condition: "Any failing CI check, a reviewer finding that isn't Clear-satisfied on re-verification, or an ambiguous/refused merge-authorization reply."
-self_review_preference: substitute_self_review
 chain_init_confirmation: always_confirm
 confirmed_commit: null
 confirmed_at: null
 ```
 
-The three steelmanned default values (`completion_condition`,
-`stop_work_condition`, `self_review_preference`) are `PROP-LRH-CHAIN-DEFAULTS`'s
-"Steelmanned Defaults" section, verbatim — do not paraphrase them when
-proposing. `chain_init_confirmation` ships `always_confirm` by default;
+The two steelmanned default values (`completion_condition`,
+`stop_work_condition`) are `PROP-LRH-CHAIN-DEFAULTS`'s "Steelmanned Defaults"
+section, verbatim — do not paraphrase them when proposing.
+`chain_init_confirmation` ships `always_confirm` by default;
 reaching `skip_if_opted_in` requires the two-step consent below.
 `confirmed_commit`/`confirmed_at` record when a human last live-confirmed
 these exact values (Decision 5 staleness fallback below).

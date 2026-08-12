@@ -8,5 +8,5 @@
 completion_condition: "PR merged, its execution records landed, and any linked work item resolved."
 stop_work_condition: "Any failing CI check, a reviewer finding that isn't Clear-satisfied on re-verification, or an ambiguous/refused merge-authorization reply."
 chain_init_confirmation: always_confirm
-confirmed_commit: fc8aa96be9021235cd2f09cbac3fc73976ba17ae
-confirmed_at: 2026-08-09T03:34:40Z
+confirmed_commit: 02e80d1b718334dc0efe06bac8a4fe3dda4538ed
+confirmed_at: 2026-08-12T00:31:37Z

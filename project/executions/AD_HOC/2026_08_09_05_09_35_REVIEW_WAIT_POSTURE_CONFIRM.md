@@ -2,13 +2,13 @@
 execution_id: 2026_08_09_05_09_35_REVIEW_WAIT_POSTURE_CONFIRM
 prompt_id: PROMPT(AD_HOC:REVIEW_WAIT_POSTURE_CONFIRM)[2026-08-08T20:54:55+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_09_03_48_25_REVIEW_WAIT_POSTURE_CONFIRM
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/522
-commit: a211477f
+commit: e9de72e1730089c95df1dc300d0ce17b7c2a6108
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/522
-session_transcript: pending
+session_transcript: claude-app:529191fc-e38a-4928-baf0-3196753dda62
 created_at: 2026-08-09T05:09:35+00:00
 ---
 

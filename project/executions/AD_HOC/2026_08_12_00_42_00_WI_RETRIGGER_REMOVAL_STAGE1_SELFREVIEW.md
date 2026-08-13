@@ -2,10 +2,10 @@
 execution_id: 2026_08_12_00_42_00_WI_RETRIGGER_REMOVAL_STAGE1_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_RETRIGGER_REMOVAL_STAGE1_SELFREVIEW)[2026-08-12T00:35:18+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/545
+commit: b8d9ca1548fb32eb32ef42108e5f1c9cab40cf5d
 agent: codex_app
 instruction_source: skill:lrh-self-review diff-mode for WI-RETRIGGER-REMOVAL-STAGE1
 session_transcript: pending

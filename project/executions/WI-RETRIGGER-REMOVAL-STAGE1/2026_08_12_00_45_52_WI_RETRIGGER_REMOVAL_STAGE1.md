@@ -2,10 +2,10 @@
 execution_id: 2026_08_12_00_45_52_WI_RETRIGGER_REMOVAL_STAGE1
 prompt_id: PROMPT(WI-RETRIGGER-REMOVAL-STAGE1:WI_RETRIGGER_REMOVAL_STAGE1)[2026-08-11T23:45:13+00:00]
 work_item: WI-RETRIGGER-REMOVAL-STAGE1
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/545
-commit:
+commit: b8d9ca1548fb32eb32ef42108e5f1c9cab40cf5d
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-RETRIGGER-REMOVAL-STAGE1.md
 session_transcript: pending

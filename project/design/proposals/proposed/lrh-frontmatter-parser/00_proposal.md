@@ -48,7 +48,7 @@ lines unconditionally, everywhere, and so never trips on this shape. Only
 `lrh work-items validate` and `lrh work-items readiness` (which route
 through `src/lrh/control/parser.py`) surface the bug, and `readiness` surfaces it
 as a misleading "work item not found" rather than a parse error, since
-`_parse_work_item_lenient` in `assist/work_item_prompt_core.py` catches
+`_parse_work_item_lenient` in `src/lrh/work_items/readiness.py:165` catches
 the `ValueError` and returns `None`.
 
 `WI-VALIDATOR-YAML-PARSER` already recorded the demand to replace
@@ -203,7 +203,7 @@ line's literal text as the historical lenient parser would have read it
 detection signal) — rewritten as a properly quoted (or block-scalar, for
 multi-line) scalar. Self-verifying (re-parse after rewrite, assert intent
 preserved), minimal-diff (never a full-file re-dump). Exposed via the
-existing `lrh project doctor` surface (`src/lrh/cli/main.py:257`, already
+existing `lrh project doctor` surface (`src/lrh/cli/main.py:267`, already
 generic and `--project-root`-driven) as a new `--fix-frontmatter` flag,
 dry-run by default. Sharing the detector with Decision 5 also means the
 migration tool and the lint guard can never disagree about what counts as

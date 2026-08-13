@@ -111,8 +111,10 @@ lrh skills status --scope user --target antigravity
 lrh skills status --scope project --target antigravity
 ```
 
-LRH maintainers checking this repository's canonical source checkout can add
-`--source current-repo`.
+Project scope changes where LRH writes the rendered skills; it does not, by
+itself, change which source tree LRH copies from. LRH maintainers checking this
+repository's canonical source checkout should add `--source current-repo`, or
+set the equivalent source default in `project/agent_skills.yaml`.
 
 To preview what `--force` would change for a skill reported as locally modified, combine it with `--dry-run`:
 

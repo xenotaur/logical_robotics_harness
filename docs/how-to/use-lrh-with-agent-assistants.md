@@ -67,15 +67,18 @@ lrh skills status --scope user --target codex
 lrh skills status --scope project --target codex
 ```
 
-LRH maintainers checking this repository's canonical source checkout can add
-`--source current-repo`.
+Project scope changes where LRH writes the rendered skills; it does not, by
+itself, change which source tree LRH copies from. LRH maintainers checking this
+repository's canonical source checkout should add `--source current-repo`, or
+set the equivalent source default in `project/agent_skills.yaml`.
 
 Restart Codex after creating `~/.agents/skills/` for the first time or after
 updating global Codex skills so the app re-discovers the installed skills.
 
 Use global installs when you want skills to appear across unrelated repositories
-or worktrees. Use project-scope installs when you want a checkout-specific copy
-rendered from that repository's current source.
+or worktrees. Use project-scope installs when you want a checkout-specific
+destination; combine project scope with `--source current-repo` or repo config
+when the installed copy should reflect that checkout's current source.
 
 #### Usage in Session
 Once Codex discovers the skills, invoke LRH workflows by naming the skill

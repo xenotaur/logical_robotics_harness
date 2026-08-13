@@ -187,6 +187,17 @@ last commit is only seconds old, bots have not had time to run; wait and
 re-check. If enough time has passed with no threads, review is complete
 with no findings under this check → proceed to Step 5.
 
+**This wait is a bot-response wait, not a CI wait — deliberately
+unspecified here, not an oversight.** `WI-REVIEW-WAIT-POSTURE-BOUNDED-
+POLL` specified a bounded background-poll mechanism for CI waits only
+(`lrh-confirm-fixes/references/confirm-fixes-workflow.md` § Bounded
+background-poll wait); a bot-response predicate — matching a review,
+issue comment, or inline thread citing the current SHA rather than a
+check-run state — is a different mechanism, out of that WI's scope and
+deferred to Stage 4 per `PROP-INVOCATION-AND-GATE-RESET`'s own
+Non-Goals. "Wait and re-check" above remains the current guidance for
+this specific wait.
+
 **`lastPush` is a timing signal only — never a content filter.** Its sole
 purpose here is judging "have bots had time to run." Never construct or
 apply a `since <timestamp>` filter over review comments, threads, or
@@ -237,6 +248,13 @@ plain hard stop.
 Execute the confirm-fixes workflow inline (Phase 1: read
 `/lrh-confirm-fixes/SKILL.md` steps and execute them in the current session).
 Report the merge-readiness verdict.
+
+**CI-wait mechanism inherited via this inlining, not separately specified
+here.** This step inlines the whole of `/lrh-confirm-fixes/SKILL.md`, so
+its own Step 8 CI-wait mechanism (a bounded background-poll loop —
+`lrh-confirm-fixes/references/confirm-fixes-workflow.md` § Bounded
+background-poll wait) applies automatically once that inlined step runs;
+no separate wait logic exists or is needed here.
 
 If the verdict is **not green**, stop and report — do not proceed to the merge
 gate with a failing confirm-fixes pass, **except for the one narrow case

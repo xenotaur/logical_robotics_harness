@@ -20,19 +20,23 @@ Conversation documentation covers user-facing workflows for capturing, reviewing
 
 Add content here when the reader's problem starts with conversation material: capture it, preserve provenance, review it safely, or promote it into durable LRH artifacts. If the resulting artifact is a stable schema, document the schema in [reference](../reference/README.md) and link from here.
 
-## Implemented CLI support
+## Implemented capture support
 
-LRH includes `lrh conversation convert-pdf INPUT.pdf --out OUTPUT.md` for
-converting local ChatGPT PDF conversation exports with extractable text into
-private, non-authoritative Markdown transcripts. The command does not perform
-OCR, storage import, redaction, model calls, or public export; its sensitivity
-scan is heuristic and does not certify publication safety. See the
-[`lrh conversation` CLI reference](../reference/cli/conversation.md) for exact
-options and exit behavior.
+LRH includes local, private-by-default conversation capture paths for Codex app
+tasks, explicit local Codex files, and ChatGPT PDF exports with extractable
+text. These paths create non-authoritative Markdown artifacts for later private
+review; they do not perform redaction certification, public export, storage
+import, model calls, or automatic promotion into project-control state.
+
+For Codex app tasks, use [`/lrh-codex-export`](codex_export.md) as the
+agent-facing workflow wrapper around `lrh conversation export-codex-thread`.
+For exact command options and exit behavior, see the
+[`lrh conversation` CLI reference](../reference/cli/conversation.md).
 
 ## Currently relevant docs
 
 - [Import ChatGPT PDF conversations](chatgpt_pdf_import.md) — convert ChatGPT PDFs into private-by-default Markdown transcripts with sensitivity metadata and review guidance.
+- [Export Codex conversations](codex_export.md) — capture a current or specified Codex task through `/lrh-codex-export` without printing transcript text or committing raw exports.
 - [Conversation capture options](conversation-capture-options.md) — current manual capture/export choices, safety guidance, and implementation-status boundaries.
 - [Promote conversation-derived content to a project artifact](promote-conversation-to-project-artifact.md) — manual workflow for turning reviewed conversation material into durable LRH artifacts.
 

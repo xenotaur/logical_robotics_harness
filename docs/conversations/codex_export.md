@@ -53,12 +53,18 @@ not print transcript body text.
 Use the CLI directly when you are scripting or working outside an agent skill:
 
 ```bash
-mkdir -p "$HOME/.lrh/private/codex"
+umask 077
+install -d -m 700 "$HOME/.lrh/private/codex"
 lrh conversation export-codex-thread \
   --thread-id "$CODEX_THREAD_ID" \
   --out "$HOME/.lrh/private/codex/export.md" \
   --raw-out "$HOME/.lrh/private/codex/raw.json"
 ```
+
+The direct CLI requires both `--out` and `--raw-out`. Keep both paths outside
+the Git worktree, and keep the raw capture at an absolute private path. Use a
+restrictive `umask` or explicit permissions so both the Markdown transcript and
+raw JSON remain private to the local user.
 
 Then inspect the export without printing transcript content:
 

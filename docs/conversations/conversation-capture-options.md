@@ -33,7 +33,7 @@ Do not capture conversations just because they exist. Capture only the material 
 | Manual copy/paste of selected conversation excerpts into reviewable Markdown | Available | Use a private scratch file, PR description, design draft, work-item draft, evidence note, or execution record as appropriate. |
 | Prompt execution records | Available | Use the prompt workflow and `lrh prompt check-execution` / `lrh prompt record-execution` or the repository helper script when a prompt drives meaningful work. |
 | Sensitivity scanning helper library | Available for local adapters | `lrh.conversations.sensitivity` is used by current conversion commands as a heuristic scan, not as a safety certification. |
-| Codex app task export | Available | Use `/lrh-codex-export [THREAD_ID]` in Codex, or `lrh conversation export-codex-thread` directly, to capture a private raw JSON file plus manifest-backed Markdown artifact. |
+| Codex app task export | Available | Use `/lrh-codex-export [THREAD_ID]` in Codex, or run `lrh conversation export-codex-thread` directly with both `--out` and `--raw-out`; keep `--raw-out` as an absolute private path outside the Git worktree. |
 | Codex file export to Markdown | Available | Use `lrh conversation convert-codex-file INPUT.txt --out OUTPUT.md` for explicit local source files. |
 | Codex export inspection | Available | Use `lrh conversation inspect-export EXPORT.md` to verify manifest shape, transcript statistics, and optional source hash without printing transcript body text. |
 | Codex archive viewing | Available | Use `lrh serve --codex-archive-root PATH` to browse explicitly configured local Markdown export roots. |

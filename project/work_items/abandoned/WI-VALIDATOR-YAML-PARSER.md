@@ -1,5 +1,5 @@
 ---
-resolution: "Superseded by PROP-LRH-FRONTMATTER-PARSER (WS-LRH-FRONTMATTER-PARSER), which subsumes and substantially extends this work item's scope: parser consolidation across both control/parser.py and control/validator.py (this WI covered only validator.py), plus a content-safety migration tool, lint guard, and authoring guidance the original WI did not anticipate."
+resolution: "Superseded by PROP-LRH-FRONTMATTER-PARSER (WS-LRH-FRONTMATTER-PARSER), which subsumes and substantially extends this work item's scope: parser consolidation across both src/lrh/control/parser.py and src/lrh/control/validator.py (this WI covered only src/lrh/control/validator.py), plus a content-safety migration tool, lint guard, and authoring guidance the original WI did not anticipate."
 blocked_reason: null
 blocked: false
 id: WI-VALIDATOR-YAML-PARSER
@@ -22,7 +22,7 @@ Superseded by [`PROP-LRH-FRONTMATTER-PARSER`](../../design/proposals/proposed/lr
 and its governing workstream [`WS-LRH-FRONTMATTER-PARSER`](../../workstreams/proposed/WS-LRH-FRONTMATTER-PARSER.md).
 That proposal was produced by a fuller investigation that found this WI's
 premise correct but its scope too narrow: the actually-reported parser bug
-lives in `control/parser.py`, not `validator.py` alone, and a naive swap
+lives in `src/lrh/control/parser.py`, not `src/lrh/control/validator.py` alone, and a naive swap
 to a production-grade parser would silently mishandle real existing
 content in ways this WI did not anticipate. See the proposal's Design
 Decisions for the resolution.

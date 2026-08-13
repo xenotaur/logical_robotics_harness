@@ -12,11 +12,11 @@ related_design:
   - project/design/proposals/proposed/lrh-frontmatter-parser/00_proposal.md
 work_items: []
 exit_criteria:
-  - control/parser.py and control/validator.py share a single PyYAML-based frontmatter parser; lrh validate and lrh work-items validate agree on well-formed frontmatter
+  - src/lrh/control/parser.py and src/lrh/control/validator.py share a single PyYAML-based frontmatter parser; lrh validate and lrh work-items validate agree on well-formed frontmatter
   - The 3 identified datetime consumers (prompt_workflow_records.py, prompt_workflow_slug.py, prompt_workflow_search.py) handle datetime/date values explicitly, with tests
   - The 27 files found by manual audit (9 colon-collapse + 18 syntax-error) are fixed; lrh validate and the real-project-tree loader test pass with 0 errors
   - lrh project doctor --fix-frontmatter migration tool exists, dry-run by default, and has been run (dry-run) and manually reviewed against LRH's own project/ tree before any --apply
-  - lrh validate includes a lexical lint guard for the four confirmed unsafe-plain-scalar patterns (colon-collapse, reserved-indicator start, mid-scalar comment truncation, implicit bool/date/int typing)
+  - lrh validate includes a lexical lint guard for the four confirmed unsafe-plain-scalar patterns (colon-collapse, reserved-indicator start, mid-scalar comment truncation, implicit non-string typing), and lrh project doctor --fix-frontmatter shares the same detector so migration and lint can never disagree
   - Frontmatter-authoring skills (lrh-work-item, lrh-workstream, lrh-proposal, lrh-closeout, lrh-execute) updated with the "always quote free text" guidance
   - WI-VALIDATOR-YAML-PARSER is closed as superseded
 ---
@@ -32,8 +32,8 @@ that motivated this work cannot silently recur.
 
 ## Scope
 
-- Replace `control/parser.py`'s `_parse_frontmatter_mapping` and
-  `control/validator.py`'s `_parse_simple_yaml` with one shared
+- Replace `src/lrh/control/parser.py`'s `_parse_frontmatter_mapping` and
+  `src/lrh/control/validator.py`'s `_parse_simple_yaml` with one shared
   `yaml.safe_load`-based parser.
 - Patch the 3 identified downstream consumers of raw `created_at` values
   for explicit `datetime`/`date` handling.
@@ -50,8 +50,8 @@ that motivated this work cannot silently recur.
 
 ### Duplication search
 - In-repo: Related — `project/work_items/abandoned/WI-VALIDATOR-YAML-PARSER.md`
-  proposed replacing `validator.py`'s `_parse_simple_yaml` with a
-  production-grade parser, scoped only to `validator.py` and without
+  proposed replacing `src/lrh/control/validator.py`'s `_parse_simple_yaml` with a
+  production-grade parser, scoped only to `src/lrh/control/validator.py` and without
   awareness of the content-compatibility findings this workstream's
   governing proposal documents.
 - Sibling repos: None identified — not individually checked for local
@@ -77,7 +77,7 @@ that motivated this work cannot silently recur.
 Not yet filed. Per the proposal's Implementation Plan, expected work items
 (to be created under this workstream as planning matures):
 
-- Parser consolidation (`control/parser.py` + `control/validator.py`) with
+- Parser consolidation (`src/lrh/control/parser.py` + `src/lrh/control/validator.py`) with
   tests, including the 27-file content fixes needed for `lrh validate` and
   the real-project-tree loader test to pass.
 - Datetime consumer patches (3 files) with tests.

@@ -15,9 +15,9 @@ session_transcript: "claude-app:494c3b1f-14c8-46bf-a4e3-0b6e8df119e8"
 # Summary
 
 Investigated a reported bug where a `#` comment line interleaved in a
-YAML frontmatter list crashes `control/parser.py`'s hand-rolled parser
+YAML frontmatter list crashes `src/lrh/control/parser.py`'s hand-rolled parser
 but is invisible to `lrh validate` (which uses a second, independent
-hand-rolled parser in `validator.py` that happens to tolerate it). Ran a
+hand-rolled parser in `src/lrh/control/validator.py` that happens to tolerate it). Ran a
 full design (`/lrh-design`) evaluating whether to patch the two
 hand-rolled parsers or consolidate onto a standard YAML engine, and
 created `PROP-LRH-FRONTMATTER-PARSER` and `WS-LRH-FRONTMATTER-PARSER` to
@@ -44,7 +44,7 @@ specifically (quoted and block-scalar forms are immune), not fixable by
 switching to a different YAML library (ruamel.yaml, strictyaml both
 evaluated and ruled out). During the prior-art check for the design, found
 `WI-VALIDATOR-YAML-PARSER` already proposed a narrower version of this fix
-(scoped only to `validator.py`); closed it as superseded
+(scoped only to `src/lrh/control/validator.py`); closed it as superseded
 (`status: abandoned`, moved to `project/work_items/abandoned/`,
 `resolution:` records the supersession) rather than duplicating it. Wrote
 `PROP-LRH-FRONTMATTER-PARSER` (design decisions: PyYAML as the engine,
@@ -71,6 +71,18 @@ bare difference in what the two parsers return.
 `copilot-pull-request-reviewer` found this record's own `pr:` field used
 an unquoted integer, inconsistent with every other execution record's
 convention; corrected to the full PR URL.
+
+**Review round 2:** `chatgpt-codex-connector` found two P2 inconsistencies
+in the round-1 fix: Decision 4's shared-detector list omitted the
+implicit-resolution check Decision 5 had, contradicting the "can never
+disagree" claim; and Decision 5's `bool/null/date/int` enumeration missed
+`float`. Fixed both — Decision 4 now lists the implicit-resolution check
+explicitly, and Decision 5's language covers any non-string implicit
+resolution rather than a closed, re-forgettable list. Also independently
+caught, via `copilot-pull-request-reviewer`'s suppressed-comments section,
+that this proposal/workstream/WI used the shorthand `control/parser.py`/
+`control/validator.py` throughout instead of the real repo path
+`src/lrh/control/...` — fixed across all four touched files.
 
 # Validation
 

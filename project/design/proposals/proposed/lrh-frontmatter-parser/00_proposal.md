@@ -17,8 +17,8 @@ related_design:
 
 ## Summary
 
-LRH's two hand-rolled frontmatter parsers (`control/parser.py`,
-`control/validator.py`) disagree on what valid frontmatter is, causing a
+LRH's two hand-rolled frontmatter parsers (`src/lrh/control/parser.py`,
+`src/lrh/control/validator.py`) disagree on what valid frontmatter is, causing a
 comment line inside a YAML list to crash one code path silently while
 passing the other. This proposal consolidates both onto a single
 PyYAML-based parser, and — because existing content across the repo (and,
@@ -33,7 +33,7 @@ durable rather than trading one silent-failure class for another.
 A `#` comment line interleaved between items of a YAML list in frontmatter
 (e.g. `artifacts_expected:\n  # note\n  - path/one`) is valid YAML — PyYAML
 parses it fine — but raises `ValueError: unsupported nested mapping` in
-`control/parser.py`'s `_parse_frontmatter_mapping`
+`src/lrh/control/parser.py`'s `_parse_frontmatter_mapping`
 (`src/lrh/control/parser.py:65-123`), because its block-list scanner only
 recognizes `- item`, blank lines, or "indented → illegal nested mapping."
 This exact pattern was independently introduced and independently
@@ -42,11 +42,11 @@ is itself evidence it's an easy, recurring mistake, not a one-off.
 
 Worse, `lrh validate` (the validator everyone runs by default) does not
 catch it, because it uses a second, independent hand-rolled parser —
-`validator.py`'s `_parse_simple_yaml` (`src/lrh/control/validator.py:568-639`,
+`src/lrh/control/validator.py`'s `_parse_simple_yaml` (`src/lrh/control/validator.py:568-639`,
 prior to this proposal's changes) — which happens to skip `#`-prefixed
 lines unconditionally, everywhere, and so never trips on this shape. Only
 `lrh work-items validate` and `lrh work-items readiness` (which route
-through `control/parser.py`) surface the bug, and `readiness` surfaces it
+through `src/lrh/control/parser.py`) surface the bug, and `readiness` surfaces it
 as a misleading "work item not found" rather than a parse error, since
 `_parse_work_item_lenient` in `assist/work_item_prompt_core.py` catches
 the `ValueError` and returns `None`.
@@ -89,10 +89,10 @@ to include a content-encoding change, not just an engine change.
 
 ### Duplication search
 - In-repo: Related — `project/work_items/abandoned/WI-VALIDATOR-YAML-PARSER.md`
-  already proposes replacing `validator.py`'s `_parse_simple_yaml` with
+  already proposes replacing `src/lrh/control/validator.py`'s `_parse_simple_yaml` with
   PyYAML/ruamel.yaml, for the same "bootstrap avoided dependencies, no
-  longer justified" reason. It is scoped only to `validator.py`, not
-  `control/parser.py` (where the actually-reported bug lives), and has no
+  longer justified" reason. It is scoped only to `src/lrh/control/validator.py`, not
+  `src/lrh/control/parser.py` (where the actually-reported bug lives), and has no
   awareness of the content-compatibility findings below, since none of
   that was known when it was filed.
 - Sibling repos: None identified — LCATS, Taurcode, Taurworks, prosoc,
@@ -107,7 +107,7 @@ to include a content-encoding change, not just an engine change.
   `conversations/frontmatter.py`, is already a separate hand-written
   serializer, not a read-modify-write loop through this parser),
   strictyaml (ruled out for this scope — returns a wrapper object
-  requiring all ~15 `control/parser.py` consumers to change, and still
+  requiring all ~15 `src/lrh/control/parser.py` consumers to change, and still
   inherits the same plain-scalar lexical grammar since it "parses a
   restricted subset of the YAML specification").
 - Recommendation: Proceed — extend/supersede `WI-VALIDATOR-YAML-PARSER`
@@ -189,11 +189,12 @@ those would contradict Decision 2's own resolution rather than implement
 it.
 
 **Chosen:** the migration tool shares its detection logic with Decision
-5's lint guard — the same raw-text, pre-YAML-parse regex checks (unescaped
-`: `, unescaped ` #`, a scalar starting with a reserved indicator, or a
-plain scalar that fails to parse at all) — run in "fix" mode instead of
-"detect" mode. A line is only a rewrite candidate when its *raw text*
-matches one of these proven-unsafe patterns; a bare difference in what
+5's lint guard — the same raw-text, pre-YAML-parse checks (unescaped
+`: `, unescaped ` #`, a scalar starting with a reserved indicator, a
+plain scalar that fails to parse at all, or a scalar in a string field
+that would implicit-resolve to a non-string type) — run in "fix" mode
+instead of "detect" mode. A line is only a rewrite candidate when its *raw
+text* matches one of these proven-unsafe patterns; a bare difference in what
 the two parsers *return* is never itself a rewrite trigger, so already-safe
 quoted content and the accepted date/datetime divergence are never
 touched. Once a line is flagged this way, the value to re-encode is that
@@ -227,8 +228,12 @@ committed files.
 **Chosen:** a raw-text, pre-YAML-parse lexical scanner added to `lrh
 validate` — detector only, never a rewriter — flagging unescaped `: `,
 unescaped ` #`, scalars starting with a reserved indicator, or
-whole-scalar values that would implicit-resolve to bool/null/date/int in
-a string field. Paired with a single blanket rule added to the
+whole-scalar values that would implicit-resolve to any non-string type
+(bool, null, int, float, or date/timestamp) in a string field — not a
+fixed bool/null/date/int enumeration, since that list was itself found
+missing `float` during review (a bare unquoted `1.5` implicit-resolves the
+same way `1` does) and a closed list invites the same class of gap again.
+Paired with a single blanket rule added to the
 frontmatter-authoring skills (`lrh-work-item`, `lrh-workstream`,
 `lrh-proposal`, `lrh-closeout`/`lrh-execute`'s record-writing steps): quote
 every free-text scalar value; never write bare prose after `key:` or
@@ -261,8 +266,8 @@ Large scope, multi-stage — governed by a companion workstream
 (`WS-LRH-FRONTMATTER-PARSER`, filed alongside this proposal). Work items
 to be filed under it:
 
-1. Parser consolidation: `control/parser.py` → `parse_frontmatter_mapping()`
-   on `yaml.safe_load`; `validator.py` drops `_parse_simple_yaml`, imports
+1. Parser consolidation: `src/lrh/control/parser.py` → `parse_frontmatter_mapping()`
+   on `yaml.safe_load`; `src/lrh/control/validator.py` drops `_parse_simple_yaml`, imports
    the shared function; `_check_list_field_items_are_strings()` added to
    the three schema checks. Unit + integration tests (including the
    real-`project/`-tree loader test as regression guard).
@@ -292,6 +297,6 @@ to be filed under it:
   LRH's lenient-parser lineage) be built now or deferred until a
   downstream repo actually needs it? Deferred to the governing work item's
   scoping.
-- Should the lint guard's four risk patterns live in `control/validator.py`
+- Should the lint guard's four risk patterns live in `src/lrh/control/validator.py`
   directly or a new `control/frontmatter_lint.py` module? Deferred to
   implementation.

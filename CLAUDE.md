@@ -16,3 +16,4 @@
 - `/lrh-doc-work` — Update a repository's documentation to reflect recently completed work (merged PR, resolved WI, or closed WS)
 - `/lrh-closeout` — Automate the post-execution closeout workflow: land execution records, resolve work items, close workstreams, and adopt proposals
 - `/lrh-readiness` — Close the ready-work-item apply loop: draft and apply a confirmed patch for a thin work item, then re-validate
+- `/lrh-pr-triage` — Investigate an open PR (bot-authored or otherwise) and produce a grounded go/no-go landing recommendation; report-only, takes no action

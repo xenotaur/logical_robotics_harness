@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #521 (commit 02e49461). Rebased mid-flight onto a substantially advanced main and migrated to the when_to_use frontmatter pattern per WI-DELIBERATE-MODEL-INVOCATION.
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-WORK-REMAINS
 title: Implement lrh-work-remains Claude Code skill
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

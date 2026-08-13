@@ -2,10 +2,10 @@
 execution_id: 2026_08_13_06_50_20_WI_SKILLS_LRH_WORK_REMAINS_IMPL_REBASE_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_LRH_WORK_REMAINS_IMPL_REBASE_SELFREVIEW)[2026-08-13T06:50:02+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_08_05_19_03_WI_SKILLS_LRH_WORK_REMAINS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/521
-commit: 23331436d834cb041ea35e9cc3a8dca86a802948
+commit: 02e4946184c8277760d024738b958e5069d7bc00
 created_at: 2026-08-13T06:50:20+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/521

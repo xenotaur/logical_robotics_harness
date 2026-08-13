@@ -77,10 +77,15 @@ Three checks, in order:
 2. **Execution-record check** — does any tracked record reference this PR?
    Use `git grep`, not a filesystem-recursive `grep` — the latter also
    matches untracked scratch files outside the control plane, which is not
-   evidence of anyone actually owning this PR:
+   evidence of anyone actually owning this PR. Use `-w` (whole-word match)
+   — an unanchored `pull/<n>` is a substring match, so investigating PR 54
+   would false-positive on any record mentioning `pull/548`, `pull/541`,
+   etc.; `-w` requires a non-digit (or line boundary) on both sides of the
+   number, which correctly excludes those while still matching `pull/54`
+   itself:
 
    ```bash
-   git grep -l "pull/<n>" -- project/executions/
+   git grep -lw "pull/<n>" -- project/executions/
    ```
 
 3. **Recency and shape of activity** — pull commits, comments, and reviews:

@@ -26,7 +26,7 @@ forbidden_actions:
   - modify_lrh_snapshot_cli
   - implement_taurcode_prompt_port
 acceptance:
-  - .claude/skills/lrh-work-remains/SKILL.md exists with valid frontmatter (name, description, disable-model-invocation: true)
+  - .claude/skills/lrh-work-remains/SKILL.md exists with valid frontmatter (name, description, when_to_use)
   - .claude/skills/lrh-work-remains/ is an exact copy of src/lrh/skills/lrh-work-remains/
   - references/remains-checklist.md preserves the 18-item checklist verbatim (see this WI's "Checklist" section)
   - CLAUDE.md ## Skills has a /lrh-work-remains entry
@@ -136,7 +136,9 @@ dropped or added relative to the original text.)
 ## Acceptance Criteria
 
 - `.claude/skills/lrh-work-remains/SKILL.md` exists with valid frontmatter
-  (`name`, `description`, `disable-model-invocation: true`)
+  (`name`, `description`, `when_to_use` — per `WI-DELIBERATE-MODEL-INVOCATION`'s
+  tier-1 guidance-enforced pattern, not `disable-model-invocation`, since
+  this skill never writes anything for a confirm-gate to protect)
 - `.claude/skills/lrh-work-remains/` is an exact copy of `src/lrh/skills/lrh-work-remains/`
 - `references/remains-checklist.md` preserves all 18 checklist items verbatim
 - `CLAUDE.md ## Skills` has a `/lrh-work-remains` entry

@@ -12,7 +12,13 @@ description: >
   dogfooding, and more) and flags candidates that may belong to a
   different session instead of auto-classifying them. Use at the end of a
   session, or any time you want a grounded picture of what's left.
-disable-model-invocation: true
+when_to_use: >
+  Use when the user wants a grounded picture of what work remains in the
+  current session — at session end, or any time an explicit "what's left"
+  check is wanted. Do not invoke merely because a session has touched many
+  files; wait for the user to actually ask. Report-only — never writes
+  files, runs `lrh prompt` commands, or mutates git state, so there is
+  nothing for a confirm-before-write gate to protect.
 ---
 
 # lrh-work-remains Skill

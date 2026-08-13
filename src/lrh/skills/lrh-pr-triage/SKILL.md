@@ -63,13 +63,15 @@ the investigation early with its own report.
 ### Step 1 — Confirm the PR is still open
 
 ```bash
-gh pr view <n> --json state,mergeable,headRefName,createdAt,updatedAt
+gh pr view <n> --json state,mergeable,headRefName,headRefOid,baseRefName,createdAt,updatedAt
 ```
 
 If `state` is not `OPEN`, stop and report the actual state (`MERGED`,
 `CLOSED`) — there is nothing to triage.
 
-Note `mergeable` and `headRefName` for later steps.
+Note `mergeable`, `headRefName`, `headRefOid`, and `baseRefName` for later
+steps. `baseRefName` is the PR's actual target branch — do not assume
+`main`; a PR can target a release or feature branch instead.
 
 ### Step 2 — Check whether another session is actively working it
 
@@ -82,10 +84,13 @@ Three checks, in order:
    git worktree list
    ```
 
-2. **Execution-record check** — does any record reference this PR?
+2. **Execution-record check** — does any tracked record reference this PR?
+   Use `git grep`, not a filesystem-recursive `grep` — the latter also
+   matches untracked scratch files outside the control plane, which is not
+   evidence of anyone actually owning this PR:
 
    ```bash
-   grep -rl "pull/<n>" project/executions/
+   git grep -l "pull/<n>" -- project/executions/
    ```
 
 3. **Recency and shape of activity** — pull commits, comments, and reviews:
@@ -101,36 +106,68 @@ Three checks, in order:
 If any check indicates active ownership, **stop and report that** — do not
 proceed to Steps 3–5.
 
-### Step 3 — Note mergeable state
+### Step 3 — Note mergeable state and CI status
 
 From Step 1's `mergeable` field: `MERGEABLE` or `CONFLICTING`. If
 `CONFLICTING`, investigate why — this is often itself a symptom of
 obsolescence (Step 4) rather than a separate, independent problem.
 
-### Step 4 — Check relevance against current main
+`mergeable` alone is not evidence about CI — a PR can be `MERGEABLE` with
+failing checks. Fetch the actual status checks:
+
+```bash
+gh pr checks <n>
+```
+
+or, for the raw data behind it:
+
+```bash
+gh pr view <n> --json statusCheckRollup
+```
+
+A failing or errored check is grounds for **Blocked** in Step 6's report —
+do not report a PR as not-blocked without having read this evidence.
+
+### Step 4 — Check relevance against current base branch
 
 ```bash
 gh pr diff <n>
 ```
 
-For each file the diff touches, fetch its **current** state via the GitHub
-API — not a local checkout, which can be stale:
+Also fetch each touched file's diff **status** (added, removed, renamed,
+modified) — not just its content — so a file that legitimately doesn't
+exist pre-PR (an addition) is never confused with one that used to exist
+and was since removed:
 
 ```bash
-gh api repos/<owner>/<repo>/contents/<path>?ref=main
+gh api repos/<owner>/<repo>/pulls/<n>/files --jq '.[] | {filename, status, previous_filename}'
+```
+
+For each file the diff **modifies or removes** (not files whose `status`
+is `added`, or the pre-rename path of a `renamed` file — those are
+expected to 404 against the base branch and are not evidence of anything),
+fetch its **current** state via the GitHub API against Step 1's actual
+`baseRefName` — never hardcode `main`, and not a local checkout, which can
+be stale:
+
+```bash
+gh api repos/<owner>/<repo>/contents/<path>?ref=<baseRefName>
 ```
 
 Confirm:
 
 - The file(s)/function(s) the PR modifies still exist at the paths it
-  targets.
+  targets (for pre-existing files only — see the addition/rename carve-out
+  above).
 - The specific problem it fixes hasn't already been fixed some other way.
 - Any design doc, convention, or upstream dependency it relies on hasn't
   since changed.
 
-A PR targeting a path that 404s on current `main`, or "fixing" code that no
-longer looks like what the diff assumes, is **obsolete** — say so plainly,
-citing the specific path or commit that changed underneath it.
+A PR modifying or removing a path that 404s on the current base branch, or
+"fixing" pre-existing code that no longer looks like what the diff
+assumes, is **obsolete** — say so plainly, citing the specific path or
+commit that changed underneath it. A 404 on an added or renamed-from path
+is expected, not evidence of staleness.
 
 ### Step 5 — Judge value independent of staleness
 
@@ -148,11 +185,11 @@ Even a still-relevant PR can be not-valuable or counterproductive:
 
 Produce a structured summary and stop. Do not take any action.
 
-- **Blocked / not-blocked** — by an active session (Step 2), a failing
-  check, or something needing a fix first.
-- **Relevant / obsolete** — with the specific evidence from Step 4 (a path
-  that doesn't exist, a fix already applied elsewhere, a changed
-  convention).
+- **Blocked / not-blocked** — by an active session (Step 2), a failing or
+  errored CI check (Step 3), or something needing a fix first.
+- **Relevant / obsolete** — with the specific evidence from Step 4 (a
+  pre-existing path that doesn't exist on the current base branch, a fix
+  already applied elsewhere, a changed convention).
 - **Valuable / not-valuable / counterproductive** — with the reasoning
   from Step 5.
 - **Go/no-go recommendation**: land it, close it as obsolete/superseded
@@ -168,13 +205,20 @@ merging, or commenting is the user's call, made after reading this report.
 
 Before reporting completion, verify:
 
-- [ ] PR state confirmed OPEN before any further investigation (Step 1)
-- [ ] Active-ownership check covered all three signals: worktree, execution
-      records, and activity recency/shape (Step 2)
+- [ ] PR state confirmed OPEN before any further investigation (Step 1);
+      `headRefOid` and `baseRefName` were fetched, not just `headRefName`
+- [ ] Active-ownership check covered all three signals: worktree, tracked
+      (`git grep`) execution records, and activity recency/shape (Step 2)
 - [ ] If actively owned, the investigation stopped there — Steps 3–5 were
       not run
-- [ ] Relevance was checked against the **current** `main` via the GitHub
-      API, not a local checkout (Step 4)
+- [ ] CI status checks (not just `mergeable`) were read before reporting
+      Blocked/not-blocked (Step 3)
+- [ ] Relevance was checked against the PR's actual `baseRefName` via the
+      GitHub API — never hardcoded `main` — and not a local checkout,
+      which can be stale (Step 4)
+- [ ] Added and renamed-from files were excluded from the 404-obsolescence
+      check via each file's diff `status` (Step 4) — a 404 on an addition
+      is expected, not evidence of staleness
 - [ ] Every claim in the final report cites a file path, commit, or
       timestamp — not the PR's own description
 - [ ] The report states plainly that no action was taken

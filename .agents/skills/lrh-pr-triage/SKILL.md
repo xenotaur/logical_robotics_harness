@@ -1,22 +1,12 @@
 ---
 name: lrh-pr-triage
-description: >
-  Investigate an open GitHub pull request — bot-authored (Jules, BOLT,
-  Sentinel, or similar) or otherwise — and produce a grounded go/no-go
-  landing recommendation: blocked/not-blocked, relevant/obsolete,
-  valuable/not-valuable/counterproductive, each backed by evidence cited
-  to file paths, commits, or timestamps rather than the PR's own claims.
-  Report-only — takes no destructive action (no close, merge, comment, or
-  edit); the user acts on the recommendation manually or via another
-  skill/command.
-when_to_use: >
-  Use when the user wants a landing recommendation for a specific open PR
-  before deciding whether to merge, close as obsolete/superseded, or hold
-  it pending a fix. This is a candidate input to WS-INVOCATION-AND-GATE-RESET
-  Stage 5b ("Session and PR triage: related × go/no-go across open PRs and
-  live sessions") — until that workstream lands, this skill covers the
-  single-PR investigation case standalone.
-argument-hint: "<pr-number-or-url>"
+description: "Investigate an open GitHub pull request \u2014 bot-authored (Jules,\
+  \ BOLT, Sentinel, or similar) or otherwise \u2014 and produce a grounded go/no-go\
+  \ landing recommendation: blocked/not-blocked, relevant/obsolete, valuable/not-valuable/counterproductive,\
+  \ each backed by evidence cited to file paths, commits, or timestamps rather than\
+  \ the PR's own claims. Report-only \u2014 takes no destructive action (no close,\
+  \ merge, comment, or edit); the user acts on the recommendation manually or via\
+  \ another skill/command.\n"
 context: fork
 ---
 

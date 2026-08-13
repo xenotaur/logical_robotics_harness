@@ -3,7 +3,7 @@ execution_id: 2026_08_12_23_01_38_DOC_WORK_WS_SKILLS_TARGET_AWARE_INSTALL
 prompt_id: PROMPT(AD_HOC:DOC_WORK_WS_SKILLS_TARGET_AWARE_INSTALL)[2026-08-12T21:29:04+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
+rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/546
 commit: c1075a51
 created_at: 2026-08-12T23:01:38+00:00

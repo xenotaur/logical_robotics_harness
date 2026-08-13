@@ -425,6 +425,19 @@ written regardless: Step 5's `/lrh-confirm-fixes` retains
 fixed), so a direct `Skill` call there fails outright — only Steps 4 and 7
 would ever have been eligible.
 
+**Step 5's CI-wait mechanism is inherited via this inlining, not separately
+specified here.** `/lrh-land` has no CI-check logic of its own — Step 5
+inlines the whole of `/lrh-confirm-fixes/SKILL.md`, so whatever CI-wait
+mechanism that skill's own Step 8 uses (the bounded background-poll loop
+in `lrh-confirm-fixes/references/confirm-fixes-workflow.md` § Bounded
+background-poll wait) applies here automatically once that step runs.
+`/lrh-land` Step 4's own "wait and re-check" note (§ Step 4 above) and the
+"Re-run REVIEW-LANDED... sufficient time to run" passage near Step 5/6 are
+a **different** predicate — waiting on the automatic first-push bot
+response, not CI — and remain deliberately unspecified; that gap is
+out of scope for the CI-wait work this note describes, deferred to Stage
+4 per `PROP-INVOCATION-AND-GATE-RESET`'s own Non-Goals.
+
 
 ## Chain-defaults propose-and-confirm flow
 

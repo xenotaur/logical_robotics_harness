@@ -345,6 +345,12 @@ on the fresh `HEAD` are more likely than usual to not have started
 reporting yet — falling back to the unfiltered aggregate in that window
 could report a false green built only from optional checks.
 
+If CI is genuinely pending (not the exit-code-1 ambiguity above, but a
+real in-progress check), wait using the bounded background-poll mechanism
+in `references/confirm-fixes-workflow.md` § Bounded background-poll wait
+— a single backgrounded shell command, capped at 900 seconds — rather
+than repeatedly re-attempting this step in the foreground.
+
 **Also re-run a REVIEW-LANDED check against the `_CONFIRM` commit itself —
 this gates the verdict, not just who may act on it.** Step 7's commit is
 new content on the PR; automated reviewers (Codex, Copilot) post *after* a

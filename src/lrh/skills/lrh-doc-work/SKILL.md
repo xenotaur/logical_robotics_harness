@@ -7,7 +7,12 @@ description: >
   is provided. Identifies which docs are affected, classifies needed updates
   by Diataxis quadrant, confirms with the user, and implements the updates
   in a reviewable PR. Use after work lands to keep docs current.
-disable-model-invocation: true
+when_to_use: >
+  Invoke when the user wants documentation updated to reflect a specific
+  merged PR, resolved WI, or closed WS. Do not invoke for general
+  documentation editing unrelated to a specific completed piece of work.
+  The Step 7 confirm gate is the write-protection regardless of invocation
+  route.
 argument-hint: "[pr-url | WI-ID | WS-ID]"
 ---
 
@@ -250,13 +255,20 @@ lrh prompt record-execution \
 Use the prompt ID minted in Step 3. Populate optional fields:
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: <pr-url or WI-ID or WS-ID>
 session_transcript: pending
 ```
 
 Run `lrh validate`, commit the record as an additional commit to the open PR,
 and push.
+
+Then report the PR URL, the execution record path, and the next steps: run
+`/lrh-review-response <pr-url>` to address reviewer comments (repeat as
+needed), then `/lrh-confirm-fixes <pr-url>` to verify the fixes against the
+current diff and resolve the review threads before merge. After merging, run
+`/lrh-closeout <pr-url>` to land the execution record and update the control
+plane.
 
 ---
 

@@ -94,6 +94,37 @@ class TestCoreState(unittest.TestCase):
             self.assertFalse(hasattr(item, "frontmatter"))
             self.assertIn("required_evidence", item.path.read_text(encoding="utf-8"))
 
+    def test_blocked_flag_and_reason_project_through_with_empty_blocked_by(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = Path(tmp_dir)
+            _write_representative_project(root)
+            _write(
+                root / "project" / "work_items" / "active" / "WI-A.md",
+                """---
+id: WI-A
+title: Alpha
+type: investigation
+status: active
+blocked: true
+blocked_reason: waiting on an external decision
+resolution: null
+related_focus:
+  - FOCUS-1
+depends_on:
+  - WI-B
+---
+""",
+            )
+
+            state = core_state.load_core_project_state(root)
+            item = state.work_items_by_id["WI-A"]
+
+            self.assertTrue(item.blocked)
+            self.assertEqual(item.blocked_reason, "waiting on an external decision")
+            self.assertEqual(item.blocked_by, ())
+
     def test_indexes_are_read_only_and_precomputed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = Path(tmp_dir)

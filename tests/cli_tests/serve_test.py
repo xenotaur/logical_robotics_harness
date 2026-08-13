@@ -12,6 +12,7 @@ import urllib.request
 
 from lrh import serve
 from lrh.cli import main as cli_main
+from lrh.conversations import codex_file_export
 
 
 class TestLrhServeCli(unittest.TestCase):
@@ -30,6 +31,7 @@ class TestLrhServeCli(unittest.TestCase):
         self.assertIn("safe-default LRH local read-only viewer", output)
         self.assertIn("--host", output)
         self.assertIn("--port", output)
+        self.assertIn("--codex-archive-root", output)
         self.assertIn("--allow-nonlocal-host", output)
         self.assertIn("not an autonomous runner", " ".join(output.split()))
 
@@ -41,6 +43,27 @@ class TestLrhServeCli(unittest.TestCase):
         self.assertEqual(config.host, "127.0.0.1")
         self.assertEqual(config.port, 8765)
         self.assertFalse(config.allow_nonlocal_host)
+        self.assertEqual(config.codex_archive_roots, ())
+
+    def test_codex_archive_roots_are_explicit_repeatable_configuration(self) -> None:
+        parser = serve.build_parser("lrh serve")
+        args = parser.parse_args(
+            [
+                "--codex-archive-root",
+                "private/codex",
+                "--codex-archive-root",
+                "/tmp/codex-exports",
+            ]
+        )
+        config = serve.config_from_args(args)
+
+        self.assertEqual(
+            config.codex_archive_roots,
+            (
+                pathlib.Path("private/codex"),
+                pathlib.Path("/tmp/codex-exports"),
+            ),
+        )
 
     def test_show_config_reports_no_write_or_agent_capabilities(self) -> None:
         stdout = io.StringIO()
@@ -53,6 +76,8 @@ class TestLrhServeCli(unittest.TestCase):
         self.assertEqual(stderr.getvalue(), "")
         payload = json.loads(stdout.getvalue())
         self.assertEqual(payload["host"], "127.0.0.1")
+        self.assertEqual(payload["codex_archive_root_count"], 0)
+        self.assertEqual(payload["codex_archive_root_names"], [])
         self.assertFalse(payload["capabilities"]["write_routes"])
         self.assertFalse(payload["capabilities"]["agent_dispatch"])
         self.assertFalse(payload["capabilities"]["branch_mutation"])
@@ -104,13 +129,67 @@ class TestLrhServeCli(unittest.TestCase):
         self.assertEqual(payload["project_root_name"], "example-project")
         self.assertNotIn("project_root", payload)
 
+    def test_status_reports_resolved_deduplicated_codex_archive_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            archive = root / "private" / "codex"
+            config = serve.ServeConfig(
+                project_root=root,
+                codex_archive_roots=(
+                    pathlib.Path("private/codex"),
+                    archive,
+                ),
+            )
+
+            payload = serve.status_payload(config)
+
+        self.assertEqual(payload["codex_archive_root_count"], 1)
+        self.assertEqual(payload["codex_archive_root_names"], ["codex"])
+
+
+class TestBlockedWorkItemCount(unittest.TestCase):
+    def test_counts_blocked_true_with_empty_blocked_by_and_active_status(
+        self,
+    ) -> None:
+        work_items = {
+            "items": [
+                {
+                    "id": "WI-BLOCKED-FLAG",
+                    "status": "active",
+                    "blocked": True,
+                    "blocked_by": [],
+                }
+            ]
+        }
+
+        self.assertEqual(serve._blocked_work_item_count(work_items), 1)
+
+    def test_does_not_count_unblocked_active_item(self) -> None:
+        work_items = {
+            "items": [
+                {
+                    "id": "WI-ACTIVE",
+                    "status": "active",
+                    "blocked": False,
+                    "blocked_by": [],
+                }
+            ]
+        }
+
+        self.assertEqual(serve._blocked_work_item_count(work_items), 0)
+
 
 class TestLrhServeRoutes(unittest.TestCase):
     def _start_server(
-        self, project_root: pathlib.Path | None = None
+        self,
+        project_root: pathlib.Path | None = None,
+        *,
+        codex_archive_roots: tuple[pathlib.Path, ...] = (),
     ) -> tuple[serve.ThreadingHTTPServer, str]:
         config = serve.ServeConfig(
-            port=0, project_root=project_root or pathlib.Path(".")
+            port=0,
+            project_root=project_root or pathlib.Path("."),
+            codex_archive_roots=codex_archive_roots,
         )
         httpd = serve.create_http_server(config)
         host, port = httpd.server_address[:2]
@@ -167,6 +246,8 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/workbench/prompt",
                 "/workbench/run-packet",
                 "/workbench/run-report",
+                "/conversations/codex",
+                "/conversations/codex/<export_id>",
                 "/meta",
                 "/meta/project",
                 "/project/<project_id>",
@@ -178,6 +259,8 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/api/status",
                 "/api/project",
                 "/api/workbench",
+                "/api/conversations/codex",
+                "/api/conversations/codex/<export_id>",
                 "/api/meta",
                 "/api/workbench/prompt",
                 "/api/workbench/run-packet",
@@ -186,8 +269,221 @@ class TestLrhServeRoutes(unittest.TestCase):
         )
         self.assertFalse(payload["capabilities"]["write_routes"])
         self.assertFalse(payload["capabilities"]["packet_generation"])
+        self.assertTrue(payload["capabilities"]["codex_archive_viewer"])
         self.assertEqual(payload["port"], _httpd.server_address[1])
         self.assertNotEqual(payload["port"], 0)
+
+    def test_codex_archive_api_lists_only_configured_exports_without_text(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            archive = root / "private" / "codex"
+            outside = root / "outside"
+            _write_viewer_project(root)
+            _write_codex_export(
+                archive / "session-one.md",
+                root / "session-one.txt",
+                "User: hello\nAssistant: hello back\n",
+            )
+            _write_codex_export(
+                outside / "outside.md",
+                root / "outside.txt",
+                "User: not configured\n",
+            )
+            _httpd, base_url = self._start_server(
+                root, codex_archive_roots=(pathlib.Path("private/codex"),)
+            )
+
+            status, content_type, body = self._read(
+                base_url + "/api/conversations/codex"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn("application/json", content_type)
+        payload = json.loads(body)
+        self.assertEqual(
+            payload["mode"], "safe-default-codex-conversation-archive-viewer"
+        )
+        self.assertEqual(payload["configured_root_count"], 1)
+        self.assertEqual(payload["roots"][0]["name"], "codex")
+        self.assertEqual(payload["roots"][0]["export_count"], 1)
+        self.assertEqual(len(payload["exports"]), 1)
+        export = payload["exports"][0]
+        self.assertEqual(export["relative_path"], "session-one.md")
+        self.assertTrue(export["valid"])
+        self.assertEqual(export["privacy"], "private")
+        self.assertNotIn("hello back", body)
+        self.assertNotIn("not configured", body)
+
+    def test_codex_archive_detail_renders_escaped_inert_transcript(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            archive = root / "private" / "codex"
+            _write_viewer_project(root)
+            _write_codex_export(
+                archive / "danger.md",
+                root / "danger.txt",
+                'User: <script>alert("x")</script>\n',
+            )
+            _httpd, base_url = self._start_server(root, codex_archive_roots=(archive,))
+            _list_status, _list_type, list_body = self._read(
+                base_url + "/api/conversations/codex"
+            )
+            export_id = json.loads(list_body)["exports"][0]["id"]
+
+            status, content_type, body = self._read(
+                base_url + f"/conversations/codex/{export_id}"
+            )
+            api_status, api_type, api_body = self._read(
+                base_url + f"/api/conversations/codex/{export_id}"
+            )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;", body)
+        self.assertNotIn('<script>alert("x")</script>', body)
+        self.assertEqual(api_status, 200)
+        self.assertIn("application/json", api_type)
+        self.assertTrue(json.loads(api_body)["transcript_body_available"])
+        self.assertNotIn("alert", api_body)
+
+    def test_codex_archive_api_detail_inspects_only_matching_export(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            archive = root / "private" / "codex"
+            first_export = archive / "a.md"
+            second_export = archive / "b.md"
+            _write_viewer_project(root)
+            _write_codex_export(first_export, root / "a.txt", "User: first\n")
+            _write_codex_export(second_export, root / "b.txt", "User: second\n")
+            _httpd, base_url = self._start_server(root, codex_archive_roots=(archive,))
+            _list_status, _list_type, list_body = self._read(
+                base_url + "/api/conversations/codex"
+            )
+            exports = json.loads(list_body)["exports"]
+            first_id = next(
+                export["id"] for export in exports if export["relative_path"] == "a.md"
+            )
+
+            with unittest.mock.patch.object(
+                serve.export_inspector,
+                "inspect_export",
+                wraps=serve.export_inspector.inspect_export,
+            ) as inspect_mock:
+                status, _content_type, _body = self._read(
+                    base_url + f"/api/conversations/codex/{first_id}"
+                )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(inspect_mock.call_count, 1)
+        self.assertEqual(inspect_mock.call_args.args[0], first_export.resolve())
+
+    def test_codex_archive_detail_head_does_not_read_transcript_body(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            archive = root / "private" / "codex"
+            _write_viewer_project(root)
+            _write_codex_export(archive / "head.md", root / "head.txt", "User: head\n")
+            _httpd, base_url = self._start_server(root, codex_archive_roots=(archive,))
+            _list_status, _list_type, list_body = self._read(
+                base_url + "/api/conversations/codex"
+            )
+            export_id = json.loads(list_body)["exports"][0]["id"]
+
+            with unittest.mock.patch.object(
+                serve.export_inspector,
+                "read_export_transcript_body",
+                side_effect=AssertionError("HEAD must not read transcript body"),
+            ):
+                status, content_type = self._head(
+                    base_url + f"/conversations/codex/{export_id}"
+                )
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+
+    def test_codex_archive_routes_do_not_browse_unconfigured_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            unconfigured = root / "private" / "codex" / "hidden.md"
+            _write_codex_export(
+                unconfigured,
+                root / "hidden.txt",
+                "User: should stay hidden\n",
+            )
+            _httpd, base_url = self._start_server(root)
+
+            status, _content_type, body = self._read(
+                base_url + "/api/conversations/codex"
+            )
+            with self.assertRaises(urllib.error.HTTPError) as err_ctx:
+                urllib.request.urlopen(
+                    base_url + "/conversations/codex/not-a-real-id",
+                    timeout=5,
+                )
+
+        self.assertEqual(status, 200)
+        payload = json.loads(body)
+        self.assertEqual(payload["configured_root_count"], 0)
+        self.assertEqual(payload["exports"], [])
+        self.assertNotIn("should stay hidden", body)
+        self.assertEqual(err_ctx.exception.code, 404)
+
+    def test_codex_archive_detail_rejects_invalid_exports_without_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            archive = root / "private" / "codex"
+            _write_viewer_project(root)
+            _write(
+                archive / "note.md",
+                "---\ntitle: not a codex export\n---\nUser: do not render\n",
+            )
+            _httpd, base_url = self._start_server(root, codex_archive_roots=(archive,))
+            _list_status, _list_type, list_body = self._read(
+                base_url + "/api/conversations/codex"
+            )
+            payload = json.loads(list_body)
+            export_id = payload["exports"][0]["id"]
+
+            with self.assertRaises(urllib.error.HTTPError) as detail_ctx:
+                urllib.request.urlopen(
+                    base_url + f"/conversations/codex/{export_id}",
+                    timeout=5,
+                )
+
+        self.assertFalse(payload["exports"][0]["valid"])
+        self.assertIn("manifest", payload["exports"][0]["errors"][0])
+        self.assertNotIn("note.md", payload["exports"][0]["errors"][0])
+        self.assertEqual(detail_ctx.exception.code, 404)
+        body = detail_ctx.exception.read().decode("utf-8")
+        self.assertNotIn("do not render", body)
+        self.assertEqual(
+            json.loads(body),
+            {"error": "not_found", "message": "Codex export is not valid"},
+        )
+
+    def test_codex_archive_metadata_redacts_invalid_manifest_details(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            archive = root / "private" / "codex"
+            _write_viewer_project(root)
+            _write(
+                archive / "sensitive.md",
+                "---\nkind: SECRET_TOKEN_VALUE\n---\nUser: do not list\n",
+            )
+            _httpd, base_url = self._start_server(root, codex_archive_roots=(archive,))
+
+            _status, _content_type, body = self._read(
+                base_url + "/api/conversations/codex"
+            )
+            payload = json.loads(body)
+
+        self.assertFalse(payload["exports"][0]["valid"])
+        self.assertEqual(payload["exports"][0]["errors"], ["manifest"])
+        self.assertNotIn("SECRET_TOKEN_VALUE", body)
+        self.assertNotIn("do not list", body)
 
     def test_project_api_returns_read_only_project_summary(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -1523,6 +1819,17 @@ Body.
 def _write(path: pathlib.Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+def _write_codex_export(
+    export_path: pathlib.Path, source_path: pathlib.Path, transcript: str
+) -> None:
+    _write(source_path, transcript)
+    codex_file_export.convert_codex_file(
+        source_path,
+        output_path=export_path,
+        exported_at="2026-08-05T00:00:00+00:00",
+    )
 
 
 if __name__ == "__main__":

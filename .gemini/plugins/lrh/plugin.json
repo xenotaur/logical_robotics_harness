@@ -1,0 +1,6 @@
+{
+  "description": "LRH workflow skills rendered from canonical SKILL.md sources.",
+  "displayName": "Logical Robotics Harness",
+  "name": "lrh",
+  "version": "0.1.0"
+}

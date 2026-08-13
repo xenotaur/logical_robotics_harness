@@ -37,8 +37,28 @@ def parse_front_matter_fields(path: pathlib.Path) -> dict[str, str]:
     if parsed is None:
         return {}
 
+    return _string_frontmatter_fields(parsed.frontmatter)
+
+
+def parse_front_matter_fields_from_text(text: str) -> dict[str, str]:
+    """Return string frontmatter fields from Markdown text already in memory.
+
+    Used for execution-record content read from a non-filesystem source
+    (for example ``git show <ref>:<path>``) where there is no local path
+    to hand to :func:`parse_front_matter_fields`. Invalid Markdown returns
+    an empty mapping, matching :func:`parse_front_matter_fields`.
+    """
+
+    try:
+        parsed = control_parser.parse_markdown_text(text)
+    except ValueError:
+        return {}
+    return _string_frontmatter_fields(parsed.frontmatter)
+
+
+def _string_frontmatter_fields(frontmatter: dict[str, typing.Any]) -> dict[str, str]:
     fields: dict[str, str] = {}
-    for key, value in parsed.frontmatter.items():
+    for key, value in frontmatter.items():
         if isinstance(value, str):
             fields[key] = value
     return fields
@@ -78,7 +98,19 @@ def load_execution_records(
 
     execution_root = pathlib.Path(project_root) / output_root
     records: list[ExecutionRecord] = []
-    for path in sorted(execution_root.glob("**/*.md")):
+    for path in sorted(execution_root.rglob("*")):
+        # `.glob("**/*.md")` is case-sensitive regardless of the
+        # underlying filesystem's own case-sensitivity -- the identical
+        # gap already fixed in
+        # ``prompt_workflow_slug.find_local_matches`` (confirmed
+        # empirically there: glob matching does not match a
+        # `.MD`-suffixed file even on a case-insensitive-by-default
+        # filesystem). A hand-written or migrated record ending in `.MD`
+        # would otherwise be silently invisible to `--prompt-id` lookup,
+        # `update-execution`, and exploratory search, even though the
+        # sibling `--slug` lookup already finds it correctly.
+        if not path.is_file() or path.suffix.lower() != ".md":
+            continue
         record = parse_execution_record(path)
         if record is not None:
             records.append(record)

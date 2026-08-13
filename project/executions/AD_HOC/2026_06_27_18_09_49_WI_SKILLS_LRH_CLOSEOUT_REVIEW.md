@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/341
-session_transcript: claude-app:local_6f9b846e-c6f9-45aa-9cf9-8c744ec57026
+session_transcript: claude-app:6f9b846e-c6f9-45aa-9cf9-8c744ec57026
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/341
 commit: 9fc4dbf

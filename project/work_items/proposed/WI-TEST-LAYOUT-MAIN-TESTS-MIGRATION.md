@@ -28,7 +28,7 @@ forbidden_actions:
   - add_cli_wiring_tests
 acceptance:
   - All per-subcommand test files for main.py subcommands live under tests/cli_tests/main_tests/
-  - True module mirrors (argcomplete_adapter, completion_sources, github_cli, serve, serve_triage) and the integration test (version_integration) remain at tests/cli_tests/
+  - True module mirrors (argcomplete_adapter, completion_sources, github_cli, serve, serve_triage) remain at tests/cli_tests/
   - tests/cli_tests/main_test.py remains at tests/cli_tests/ (whole-CLI wiring)
   - No orphaned files remain at the old paths
   - scripts/test passes with 0 failures
@@ -115,7 +115,6 @@ Files that stay at `tests/cli_tests/` (true module mirrors or whole-CLI):
 - `github_cli_test.py` → mirrors `src/lrh/cli/github.py`
 - `serve_test.py` → mirrors `src/lrh/serve.py`
 - `serve_triage_test.py` → mirrors `src/lrh/serve_triage.py`
-- `version_integration_test.py` → integration test (broader than one module)
 
 ## Non-Goals
 

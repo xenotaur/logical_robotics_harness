@@ -66,6 +66,69 @@ information - for example, a cleanup prompt that was removing a variable or fold
 documentation should not remove references to the directory in previous completed execution
 records. This applies to all updates to execution records and especially to cleanup work items.
 
+## Claude.app execution sessions
+
+An execution session has three phases. Each phase produces artifacts LRH can
+reference in execution records or design documents:
+
+```text
+Phase 1: Design
+  → the source of the design: a conversation, prior docs, review notes
+
+Phase 2: Instruction
+  → explicit task statement submitted to the execution backend:
+    • Codex Cloud: a structured prompt file with prompt ID
+    • Claude.app: a restated design + Taurcode meta-prompt
+    • Manual: a work item or design proposal with acceptance criteria
+
+Phase 3: Execution
+  → implementation → validation → PR → execution record
+```
+
+**Design phase.** Produces the reasoning behind the change. It may span
+multiple conversations or documents; LRH does not require a formal artifact
+for every run. When a Claude.app session produces a design, the session
+transcript is a design-phase artifact — observability, not a control-plane
+claim. It need not be committed to the repository (see the "Session
+Transcripts Are Never Committed to the Repository" entry in
+`project/memory/decision_log.md`).
+
+**Instruction phase.** For a Claude.app session: run
+`lrh prompt label --slug <slug>` to mint a canonical prompt ID, then
+`lrh prompt check-execution --prompt-id "<id>"` for soft idempotence (see
+"Installed CLI commands (preferred)" below for the full command forms).
+Restate the design explicitly in the session as the instruction-phase marker,
+and optionally generate a Taurcode meta-prompt for future reuse. Minting the
+prompt ID before implementation begins ensures the resulting execution record
+has a `prompt_id` that `lrh search` and `lrh prompt check-execution` can find.
+The `/lrh-implement` Claude Code skill automates this workflow end to end.
+
+**Execution phase.** Runs the change: branch creation, code or documentation
+editing, validation, PR creation. The execution record captures the outcome —
+already well-modeled by `project/executions/`.
+
+### Optional execution-record fields for Claude.app sessions
+
+Three optional execution-record fields — `agent`, `instruction_source`,
+`session_transcript` — track which backend did the work and where its
+session lives. `project/executions/README.md` is canonical for their allowed
+values and grammar; summarized here for the Claude.app case:
+
+- `agent: claude_app` identifies the backend.
+- `instruction_source` references the instruction-phase artifact — for
+  Claude.app, a description or path to the Taurcode meta-prompt (e.g.
+  `taurcode:lrh-review-response-protocol-fix`).
+- `session_transcript` references the session as `claude-app:<host-uuid-stem>`
+  — the **host** session id (`local_<uuid>` from View > Copy URL or the
+  `$CLAUDE_CODE_HOST_SESSION_ID` env var, `local_` prefix stripped), not the
+  child SDK id that names the local JSONL file. Use `session_transcript:
+  pending` when the id is not yet known. `/lrh-closeout` attempts to resolve
+  it (env var with confirmation, then `list_sessions` by PR number, then a
+  View > Copy URL prompt) and updates it to the `claude-app:<host-uuid-stem>`
+  form when one of these yields a confident id — it is not automatic in
+  every case, and the record can still be left `pending` for a human to
+  resolve later.
+
 ## Rerun, revert, and supersession handling
 
 Use status values from `project/executions/README.md`: `planned`, `in_progress`, `landed`, `failed`, `reverted`, `superseded`.
@@ -93,10 +156,40 @@ If a prior exact record exists:
 - `failed`, `reverted`, or `superseded`: summarize prior run and continue only if prompt is a rerun or follow-up.
 - unknown or ambiguous status: stop and report ambiguity.
 
-Exploratory search results can provide useful context for discovery, auditing,
-and debugging, but they should not by themselves drive blocking or rerun
-decisions. If future heuristic or fuzzy matching is added, it must be clearly
-labeled non-authoritative unless later design work explicitly changes this rule.
+### Pre-mint duplicate detection by slug (a second authoritative case)
+
+`lrh prompt label` mints a fresh, timestamped prompt ID on every call, so
+there is no existing ID to check with `check-execution` before a skill's own
+instruction phase has run once already — the exact-lookup mechanism above
+cannot answer "has this same logical slug already produced a record?"
+because no ID for it exists yet to look up. When a skill needs to detect
+that before minting, a filename search against the relevant bucket
+(typically `project/executions/AD_HOC/`) matched to the **complete
+trailing segment** of the slug (not a bare substring) is authoritative for
+this narrower question — it is not the same thing as the exploratory/fuzzy
+search described below.
+
+What a skill does with a match beyond "block or don't" is a **default
+starting point, not a rule enforced here**: absent a documented reason to
+differ, a match with a blocking-shaped status (`landed`/`in_progress`)
+stops and reports unless the prompt explicitly asks for a rerun; a match
+with a terminal-shaped status (`failed`/`reverted`/`superseded`) is
+summarized and continued past, linking `rerun_of` to the matched record. A
+skill may deviate from this default, or handle a status/scenario it
+doesn't cover — it documents that locally with a short rationale rather
+than requiring this document to enumerate every case in advance;
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md` already does exactly this for
+its own repeatable-verification behavior. See `DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT`
+(`project/memory/decisions/DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT.md`) for
+the full rationale and the skills that currently apply, deviate from, or
+haven't yet aligned with this default.
+
+Exploratory search results — fuzzy or heuristic matching across arbitrary
+content, not the deterministic slug-bucket case above — can provide useful
+context for discovery, auditing, and debugging, but they should not by
+themselves drive blocking or rerun decisions. If future heuristic or fuzzy
+matching is added, it must be clearly labeled non-authoritative unless later
+design work explicitly changes this rule.
 
 ## Codex Cloud prompt requirements
 

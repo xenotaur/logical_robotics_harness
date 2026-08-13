@@ -8,7 +8,12 @@ import pathlib
 import re
 import sys
 
-from lrh import prompt_workflow_queries, prompt_workflow_records
+from lrh import (
+    prompt_workflow_queries,
+    prompt_workflow_records,
+    prompt_workflow_sessions,
+    prompt_workflow_slug,
+)
 
 VALID_STATUSES = {
     "planned",
@@ -159,6 +164,41 @@ def find_execution_record_by_id(
     return [r for r in records if r.execution_id == execution_id]
 
 
+class SessionTranscriptWriteError(Exception):
+    """The frontmatter surgical edit could not place ``session_transcript:``."""
+
+
+def write_session_transcript_field(path: pathlib.Path, host_id: str) -> None:
+    """Set an execution record's ``session_transcript:`` field to the
+    canonical ``claude-app:<host_id>`` pointer.
+
+    Used by ``lrh sessions link`` (PROP-LRH-SESSION-ARCHIVE-SYNC Stage 2) to
+    promote a resolved child id to its host-keyed pointer once the archive
+    harvest has made that resolution authoritative. Reuses the same
+    frontmatter-surgical edit ``update-execution`` uses for this field --
+    including its ``insert_after="commit"`` anchor, since ``commit:`` is
+    always present in the base execution-record template
+    (``render_execution_content``) even on records that never had
+    ``session_transcript:`` written. Without that anchor, a record missing
+    the field would silently no-op: ``_replace_or_insert_frontmatter_field``
+    returns the text unchanged when neither the field nor an anchor is
+    found, so the caller would report success on a file it never touched.
+    """
+
+    text = path.read_text(encoding="utf-8")
+    new_value = f"claude-app:{host_id}"
+    new_text = _replace_or_insert_frontmatter_field(
+        text, "session_transcript", new_value, insert_after="commit"
+    )
+    if f"session_transcript: {new_value}" not in new_text:
+        raise SessionTranscriptWriteError(
+            f"{path}: could not write session_transcript -- no existing "
+            "session_transcript: field and no commit: anchor to insert "
+            "after; the file's frontmatter may be malformed"
+        )
+    path.write_text(new_text, encoding="utf-8")
+
+
 def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     parser = argparse.ArgumentParser(prog=prog, description="Prompt workflow helpers.")
     subparsers = parser.add_subparsers(dest="prompt_command")
@@ -194,14 +234,34 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
 
     check_parser = subparsers.add_parser(
         "check-execution",
-        help="Check whether execution records already exist for a prompt ID.",
+        help="Check whether execution records already exist for a prompt ID or slug.",
         description=(
-            "Authoritative exact structured lookup for prompt soft idempotence. "
-            "Use exploratory search only as context, not as the basis for "
-            "blocking or rerun decisions."
+            "Two authoritative lookup modes: --prompt-id is the exact "
+            "structured lookup for prompt soft idempotence; --slug is the "
+            "pre-mint trailing-segment filename search authorized by "
+            "DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT for the case where no "
+            "prompt ID exists yet to look up exactly. Exactly one of the "
+            "two must be given. Exploratory (non-slug, non-exact) search "
+            "must never drive blocking or rerun decisions."
         ),
     )
-    check_parser.add_argument("--prompt-id", required=True)
+    check_parser.add_argument("--prompt-id", default=None)
+    check_parser.add_argument(
+        "--slug",
+        default=None,
+        help="Pre-mint slug idempotence check (mutually exclusive with --prompt-id).",
+    )
+    check_parser.add_argument(
+        "--work-item",
+        default="AD_HOC",
+        help="Execution bucket to search. Only applies with --slug; ignored "
+        "with --prompt-id, which searches every bucket.",
+    )
+    check_parser.add_argument(
+        "--no-remote",
+        action="store_true",
+        help="With --slug, skip cross-PR/fork discovery; local checkout only.",
+    )
     check_parser.add_argument("--project-root", default=".")
     check_parser.add_argument("--output-root", default="project/executions")
 
@@ -222,11 +282,76 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     update_parser.add_argument("--project-root", default=".")
     update_parser.add_argument("--output-root", default="project/executions")
 
+    session_parser = subparsers.add_parser(
+        "record-session-alias",
+        help=(
+            "Record a host/child Claude Code session identity observation "
+            "in project/sessions/index.jsonl (PROP-LRH-SESSION-ARCHIVE-SYNC "
+            "Stage 1 minimal index)."
+        ),
+    )
+    session_parser.add_argument(
+        "--host-id",
+        required=True,
+        help="Host session id, local_ prefix already stripped.",
+    )
+    session_parser.add_argument(
+        "--child-id",
+        default=None,
+        help=(
+            "Child SDK session id alias for this host id. Omit when the "
+            "host id was resolved cross-session (list_sessions by PR, or a "
+            "pasted URL) -- pairing it with the current window's child id "
+            "would record a false alias."
+        ),
+    )
+    session_parser.add_argument("--title", default=None)
+    session_parser.add_argument("--pr", default=None)
+    session_parser.add_argument("--branch", default=None)
+    session_parser.add_argument(
+        "--written-branch",
+        dest="written_branches",
+        action="append",
+        default=None,
+        help="Repeatable. Reserved for Stage 3 fork stitching.",
+    )
+    session_parser.add_argument("--project-root", default=".")
+
     args = parser.parse_args(argv)
     if args.prompt_command is None:
         parser.error("prompt requires a subcommand (try: lrh prompt label)")
 
     if args.prompt_command == "check-execution":
+        # Presence, not truthiness: `--slug ""` (or `--prompt-id ""`) is
+        # "provided but invalid," and must fall through to the specific
+        # validator below (normalize_slug's own error) rather than being
+        # treated the same as "not provided at all" purely because an
+        # empty string is falsy.
+        if (args.prompt_id is None) == (args.slug is None):
+            parser.error(
+                "check-execution requires exactly one of --prompt-id or --slug"
+            )
+
+        if args.slug is not None:
+            try:
+                slug = normalize_slug(args.slug)
+                work_item = normalize_work_item(args.work_item)
+            except ValueError as error:
+                parser.error(str(error))
+            try:
+                slug_result = prompt_workflow_slug.check_slug(
+                    project_root=args.project_root,
+                    slug=slug,
+                    work_item=work_item,
+                    output_root=args.output_root,
+                    include_remote=not args.no_remote,
+                )
+            except prompt_workflow_slug.SlugCheckError as error:
+                print(f"error: {error}", file=sys.stderr)
+                return 3
+            print(prompt_workflow_slug.format_text_result(slug_result), end="")
+            return slug_result.exit_code
+
         result = prompt_workflow_queries.check_execution(
             project_root=args.project_root,
             prompt_id=args.prompt_id,
@@ -290,13 +415,34 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
         print(f"updated: {record.path.as_posix()}")
         return 0
 
+    if args.prompt_command == "record-session-alias":
+        updated_at = datetime.datetime.now(datetime.timezone.utc).isoformat(
+            timespec="seconds"
+        )
+        path = prompt_workflow_sessions.record_session_observation(
+            args.project_root,
+            host_id=args.host_id,
+            child_id=args.child_id,
+            title=args.title,
+            pr=args.pr,
+            branch=args.branch,
+            written_branches=args.written_branches,
+            updated_at=updated_at,
+        )
+        print(f"recorded: {path.as_posix()}")
+        return 0
+
     try:
         slug = normalize_slug(args.slug)
         work_item = normalize_work_item(args.work_item)
     except ValueError as error:
         parser.error(str(error))
 
-    now = datetime.datetime.now(datetime.timezone.utc).astimezone()
+    # UTC, not local time: filenames (timestamp_for_file/timestamp_for_id
+    # below) are offset-free, so lexicographic sort order only matches true
+    # chronological order if this instant is never converted to the host's
+    # local timezone first.
+    now = datetime.datetime.now(datetime.timezone.utc)
     output_root = resolve_output_root(args.project_root, args.output_root)
 
     if args.prompt_command == "label":

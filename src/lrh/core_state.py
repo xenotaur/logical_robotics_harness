@@ -105,6 +105,8 @@ class WorkItemState:
     related_design: tuple[str, ...]
     depends_on: tuple[str, ...]
     blocked_by: tuple[str, ...]
+    blocked: bool
+    blocked_reason: str | None
     required_evidence: tuple[str, ...]
     artifacts_expected: tuple[str, ...]
     execution_readiness: ExecutionReadinessState | None
@@ -469,6 +471,8 @@ def _work_item_states(
                 related_design=tuple(sorted(item.related_design)),
                 depends_on=tuple(sorted(item.depends_on)),
                 blocked_by=tuple(sorted(item.blocked_by)),
+                blocked=item.blocked,
+                blocked_reason=item.blocked_reason,
                 required_evidence=tuple(sorted(item.required_evidence)),
                 artifacts_expected=tuple(sorted(item.artifacts_expected)),
                 execution_readiness=_execution_readiness_state(

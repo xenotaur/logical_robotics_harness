@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Pre-Merge Verification — /lrh-confirm-fixes Skill for Fresh-Eyes Thread Resolution
 status: adopted
 created_on: 2026-07-15
-updated_on: 2026-07-17
+updated_on: 2026-07-30
 implementation_status: implemented
 implemented_by:
   - WI-SKILLS-LRH-CONFIRM-FIXES
@@ -15,6 +15,7 @@ related_design:
   - project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md
   - src/lrh/skills/lrh-review-response/references/review-response-workflow.md
   - src/lrh/skills/lrh-implement/references/execution-session-reference.md
+  - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
 ---
 
 # LRH Pre-Merge Verification — `/lrh-confirm-fixes` Skill for Fresh-Eyes Thread Resolution
@@ -211,6 +212,20 @@ Three reasons compound:
 If automated merge is ever wanted, it belongs in a separate, explicitly-named
 skill with its own gate — never as a silent tail of a verification pass.
 
+**Amended 2026-07-30:** `DEC-AGENT-EXECUTED-MERGE-GATE` narrows "merge is
+out of scope and stays a human action" to "this skill's own workflow does
+not execute the merge; the merge that follows may be executed by the human
+or by the agent, per a bright-line authorization test, but never as a
+silent tail of this verification pass." The three reasons above hold
+unchanged for why *this skill* does not fold merge into its own workflow —
+the amendment is about who may act on the verdict this skill hands off,
+not about the skill's own scope. Per this repository's proposal lifecycle
+contract (`project/design/proposals/README.md`, "`status: adopted`...
+[s]ubsequent changes go through new proposals or directly through edits to
+the canonical documents, with the proposal updated to reflect them"), this
+adopted proposal is updated in place rather than left to silently
+contradict the current rule.
+
 ### Decision 6: Verify all open threads; tag bot vs human
 
 **Question:** Should the skill verify all open threads, or only those tied to
@@ -399,11 +414,26 @@ Step 7 — Create execution record and validate
 
 Step 8 — Readiness report
          Re-fetch CI (gh pr checks, aggregated) against the post-push HEAD SHA.
-         Final verdict = Step 6 thread-resolution verdict AND this re-checked
-         CI state. Report the verdict, the exact HEAD SHA it was checked
-         against, surfaced exceptions, and the gh pr merge one-liner (human
-         clicks). If CI is still pending at the post-push SHA, report
-         "not yet ready — CI pending on <sha>" rather than a false green.
+         **Amended 2026-07-30, superseding this step's original text below:**
+         final verdict = Step 6 thread-resolution verdict AND re-checked CI
+         state AND a REVIEW-LANDED re-check against the `_CONFIRM` commit
+         itself (an affirmative, SHA-matched signal from whichever reviewers
+         this repository has — automated retrigger or explicit human
+         statement — not inferred from elapsed time). A `_CONFIRM` commit can
+         itself draw findings after the fact, so CI alone does not prove the
+         PR is ready; see `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8
+         and `DEC-AGENT-EXECUTED-MERGE-GATE` for the full current logic,
+         including the new `Review pending` verdict state and the routing of
+         a genuine new thread back through Steps 3–5 rather than a bare
+         recheck. Report the verdict, the exact HEAD SHA it was checked
+         against, surfaced exceptions, and the gh pr merge one-liner — which
+         the human or the agent may run, per the authorization test in
+         `DEC-AGENT-EXECUTED-MERGE-GATE` (superseding "human clicks" below).
+         *Original text, preserved for history:* "Report the verdict, the
+         exact HEAD SHA it was checked against, surfaced exceptions, and the
+         gh pr merge one-liner (human clicks). If CI is still pending at the
+         post-push SHA, report 'not yet ready — CI pending on <sha>' rather
+         than a false green."
 ```
 
 ### Decision 14: Reference file structure
@@ -419,7 +449,10 @@ re-run edge cases. Follows the one-reference-file convention of
 
 ## Non-Goals
 
-- Does not merge the PR — merge is a human action (Decision 5).
+- Does not merge the PR as part of this skill's own workflow — whether the
+  merge that follows is executed by the human or the agent is governed by
+  `DEC-AGENT-EXECUTED-MERGE-GATE`, not by this skill (Decision 5, amended
+  2026-07-30).
 - Does not trigger `/lrh-closeout` — closeout runs post-merge.
 - Does not resolve any thread the diff does not plainly satisfy — ambiguous,
   partial, and problematic threads are surfaced, never guess-resolved.

@@ -8,7 +8,14 @@ description: >
   execution records via lrh prompt update-execution, resolving work items,
   closing workstreams, adopting proposals), validates, prompts for session
   reflection, and reports.
-disable-model-invocation: true
+when_to_use: >
+  Invoke when the user wants to run post-execution closeout for a merged
+  PR, resolved WI, or closed WS — landing execution records, resolving
+  work items, closing workstreams, adopting proposals — or as the final
+  link in a human-initiated /lrh-land or /lrh-execute chain. Do not invoke
+  for an open, unmerged PR; the skill itself aborts on anything but
+  MERGED. The Step 4 plan-confirm gate is the write-protection regardless
+  of invocation route.
 argument-hint: "[pr-url | WI-ID | WS-ID]"
 ---
 
@@ -48,11 +55,11 @@ Load this before running any step:
 
 1. **`references/closeout-workflow.md`** — Full decision matrix (artifact →
    condition → action), execution record update protocol (field values, valid
-   transitions, `pending` convention), WI resolution protocol (`mv` commands,
-   frontmatter fields), WS closeout protocol, proposal adoption protocol,
-   and session transcript auto-detection (JSONL path pattern,
-   `claude-app:<uuid>` format, `pending` sentinel). Read this before Step 2
-   and Step 5.
+   transitions, `pending`/`none` conventions), WI resolution protocol
+   (`mv` commands, frontmatter fields), WS closeout protocol, proposal
+   adoption protocol, and session-transcript resolution (host-id env var →
+   `list_sessions` → View > Copy URL, `claude-app:<host-uuid-stem>` format,
+   `pending`/`none` sentinels). Read this before Step 2 and Step 5.
 
 ---
 
@@ -129,7 +136,8 @@ Read the `related_workstreams:` field of the WI. For each workstream:
   WIs already marked `resolve and move` in the current plan as resolved —
   assess WS readiness from the **post-plan state**, not the current on-disk
   state. Check disk only for WIs not mentioned in the current plan.
-- If all WIs resolve (on disk or planned) AND WS is in `workstreams/proposed/`:
+- If all WIs resolve (on disk or planned) AND WS is in `workstreams/proposed/`
+  or `workstreams/active/`:
   - Also read `exit_criteria:` from the WS file
   - Include the criteria list in the plan output as a sub-list below the WS
     row — the user must see the criteria at assessment time
@@ -150,33 +158,101 @@ Present the full plan as a table:
 | Execution record `<id>` | `in_progress` | update to `landed` |
 | WI `<WI-ID>` | in `proposed/` | resolve and move |
 | WS `<WS-ID>` | in `proposed/`, 1/2 WIs resolved | skip — not all WIs resolved |
+| WS `<WS-ID>` | in `active/`, all WIs resolved | offer closeout — exit criteria confirmation required |
 | PROP-`<slug>` | in `proposed/` | skip — governing WS not closing |
 
 ### Step 3 — Resolve session transcript
 
-Attempt JSONL auto-detection. Derive the project slug dynamically — Claude
-Code normalizes both `/` and `_` to `-` when creating the project directory:
+**Resolve a transcript value separately for each execution record matched in
+Step 2** — a single PR can carry records from different backends (e.g. a
+`codex_cloud` implementation record plus Claude-authored review-response/
+confirm-fixes records), and stamping one resolved value onto every record
+would misattribute provenance on whichever records don't share that backend.
+Repeat the branch-and-resolve procedure below once per matched record, keyed
+off that record's own `agent` field, and keep each record's resolved value
+separate for Step 5.
 
-```bash
-project_slug=$(git rev-parse --show-toplevel | sed 's|[/_]|-|g')
-ls ~/.claude/projects/${project_slug}/*.jsonl 2>/dev/null
-```
+**First, branch on the execution record's `agent`** — the pointer scheme is
+backend-specific, and running closeout from Claude must not associate the
+current Claude window with work another backend produced:
 
-**3-way resolution:**
+- **Codex app** (`agent: codex_app`): the Claude env var and Claude session URL
+  are the *wrong* session — do **not** use them. Resolve
+  `codex-app:<task-or-thread-id>` when a durable Codex app task/thread
+  identifier is available; otherwise leave `pending` if the session should be
+  recorded later.
+- **Codex Cloud** (`agent: codex_cloud`): resolve `codex-cloud:<task-id>` from
+  the Codex run when available; otherwise leave `pending` if the task id should
+  be recorded later.
+- **Manual/no transcript backend** (`agent: manual`, or any other terminal
+  non-retrievable value): use `none`.
+- **Other non-Claude backend** (any other value): the Claude env var and
+  Claude session URL are the *wrong* session — do **not** use them. Resolve
+  the backend's own scheme-prefixed id if one is retrievable; otherwise use
+  `none`. Skip the Claude-specific steps below.
+- **Claude.app** (`agent: claude_app`, or absent/assumed Claude): resolve the
+  host id with the steps below.
 
-1. **Found (one file):** "Detected session ID `<uuid>`. Is this correct? (The
-   format stored is `claude-app:<uuid>`.)"
-   - If confirmed: use `claude-app:<uuid>`
-   - If rejected: fall through to case 2
+For a Claude.app session the canonical stored value is
+`claude-app:<host-uuid-stem>` — the **host** session id (`local_<uuid>`,
+`local_` stripped), not the child SDK id that names the JSONL file. Do **not**
+use JSONL-filename auto-detection: on Claude.app sessions it returns the child
+id, which differs from the host id on resumed/continued sessions and produces
+a pointer that session-management tools cannot resolve. Resolve in this order,
+stopping at the first that yields a confident value:
 
-2. **Not found or ambiguous:** "Could not auto-detect the session ID. Provide
-   it from the URL in your browser (e.g., `local_6f9b846e-...` from
-   `claude.ai/.../local_<uuid>`), or confirm that `pending` is acceptable."
-   - If user provides ID: store as `claude-app:<uuid>` (strip any `local_` prefix; use UUID stem only)
-   - If user confirms `pending`: use `pending`
+1. **Same session — env var (preferred).** Read the host id directly:
 
-3. **User confirms `pending`:** Set `session_transcript: pending`; include a
-   reminder in the Step 8 report to update it before archiving the session.
+   ```bash
+   echo "$CLAUDE_CODE_HOST_SESSION_ID"   # e.g. local_4c3d03d6-...
+   ```
+
+   Strip the `local_` prefix and propose `claude-app:<host-uuid-stem>`.
+
+   **Confirm before storing — the env var tracks the *current* window.**
+   `CLAUDE_CODE_HOST_SESSION_ID` reflects the session window you are in right
+   now, and the host id **rotates when a session is resumed or continued**.
+   On a long or resumed session it can therefore differ from the session that
+   actually authored the work. So: show the value and ask the user to confirm
+   it, e.g. "In-session host id is `claude-app:<stem>` — is this the session
+   for this work?" If the user's **View > Copy URL** disagrees with the env
+   var, the browser URL wins (case 3). When they agree, store the env-var
+   value.
+
+   **This is the only path that may also capture a child-id alias.** Once
+   confirmed, `$CLAUDE_CODE_SESSION_ID` (still set in this same window) names
+   the same session as the confirmed host id — pair them in
+   `project/sessions/index.jsonl` at Step 5. Paths 2 and 3 below resolve a
+   host id belonging to a *different* window than the one running closeout
+   right now, so this pairing must not be made there — see
+   `references/closeout-workflow.md`'s "Session identity capture" section.
+
+2. **Cross-session — `list_sessions` by PR number.** When closing out on
+   `main` after merge from a *different* session than the one that did the
+   work, the env var is not the right session. Use the session-management
+   `list_sessions` tool and match the target session by its `prNumber`
+   (it returns other sessions with `sessionId`, `prNumber`, `branch`); take
+   that session's `sessionId` (host id), strip `local_`, and store
+   `claude-app:<host-uuid-stem>`. Confirm the match with the user if more than
+   one session references the PR.
+
+3. **Manual — View > Copy URL.** If neither above yields a confident id, ask:
+   "Paste View > Copy URL for the session (e.g. `local_6f9b846e-...` from
+   `claude.ai/.../local_<uuid>`), or confirm `none`/`pending`." Store the
+   pasted id as `claude-app:<uuid>` (strip any `local_` prefix; UUID stem
+   only). The browser URL is authoritative over the env var when they differ.
+
+4. **Sentinels — `none` vs `pending` (distinct, not interchangeable).**
+   - `none`: the backend produced **no retrievable transcript** (e.g. a
+     `codex_cloud` or `manual` execution). This is a **terminal** value — do
+     not add a "update it later" reminder.
+   - `pending`: a transcript exists but its id is **not yet known**. This is a
+     **to-do** — include the Step 8 reminder to update it before archiving.
+
+   Use `none` (not `pending`) whenever the backend simply has no session URL
+   to resolve, so a finished record is never left looking like unfinished
+   work. See the 2026-07-23 "Backend-Agnostic Session Pointer Grammar"
+   decision-log entry and `project/executions/README.md`.
 
 ### Step 4 — Confirm gate (human gate)
 
@@ -184,7 +260,11 @@ Before touching any files, show the user:
 
 - PR URL, state (`MERGED`), and commit SHA
 - The full closeout plan table (from Step 2)
-- Resolved session transcript value (from Step 3)
+- Resolved session transcript value for **every** matched execution record
+  from Step 3, enumerated by execution ID — not a single summary value.
+  Step 3 resolves a value per record (Step 5 writes each to its own
+  record), so showing only one here would let the user confirm without
+  ever seeing what gets written to the others.
 - For any WI being resolved: the `resolution:` text to be written. If the
   user has not already stated it, ask: "What should the `resolution:` note
   say for `<WI-ID>`?" (one-line summary; e.g., `"Implemented and merged in PR #342 (commit abc1234)"`)
@@ -211,7 +291,9 @@ Execute all confirmed actions. Abort on any error rather than partially completi
 
 **Execution records** (for each record marked `update to landed`):
 
-Call the CLI to update all four fields atomically:
+Call the CLI to update all four fields atomically, using **that record's own**
+resolved transcript value from Step 3 — not a value resolved for a different
+record on the same PR:
 
 ```bash
 lrh prompt update-execution \
@@ -219,7 +301,7 @@ lrh prompt update-execution \
   --status landed \
   --pr <pr-url> \
   --commit <merge-commit-sha> \
-  --session-transcript <resolved-value-from-step-3> \
+  --session-transcript <this-record's-resolved-value-from-step-3> \
   --project-root .
 ```
 
@@ -230,6 +312,26 @@ fields in-place, and prints `updated: <path>` on success.
 
 See `references/closeout-workflow.md` for valid field values and the
 `session_transcript:` `pending` convention.
+
+**Session identity capture** (for every record, regardless of which Step 3
+path resolved the host id — the host-to-PR association is worth recording
+either way):
+
+```bash
+lrh prompt record-session-alias \
+  --host-id <host-uuid-stem-confirmed-in-step-3> \
+  --child-id "$CLAUDE_CODE_SESSION_ID" \
+  --pr <pr-url> \
+  --project-root .
+```
+
+**Omit `--child-id` entirely** (do not pass the flag) for records resolved
+via path 2 (`list_sessions` by PR) or path 3 (pasted URL) — pairing a
+cross-session host id with the *current* window's child id would record a
+false alias. The command and its underlying merge both treat a missing
+child id as "nothing to add here," not as an error, so the host id and PR
+are still captured on those paths; only the alias is withheld. See
+`references/closeout-workflow.md`'s "Session identity capture" section.
 
 **Work items** (for each WI marked `resolve and move`):
 
@@ -251,9 +353,10 @@ Edit the frontmatter in-place:
 - `stage:` → `stage: closed`
 - `status:` → `status: resolved`
 
-Then move:
+Then move from whichever bucket the WS was found in at Step 2 (`proposed/` or
+`active/`):
 ```bash
-mv project/workstreams/proposed/<WS-ID>.md project/workstreams/resolved/<WS-ID>.md
+mv project/workstreams/<current-bucket>/<WS-ID>.md project/workstreams/resolved/<WS-ID>.md
 ```
 
 **Proposal** (if offered adoption and user confirmed):
@@ -320,9 +423,15 @@ Report to the user:
 
 - Each action taken (file edited, file moved, validation result)
 - Commit SHA on `main`
-- If `session_transcript` is still `pending`: remind to update it before
-  archiving the session (the real session ID is the UUID from the browser URL)
-- Offer to run `/export` to archive the session transcript locally
+- If any `session_transcript` is still `pending`: remind the user to update it
+  with the durable pointer for that record's own backend before archiving the
+  session. For Claude.app records, that pointer is `claude-app:<host-uuid-stem>`
+  (from `$CLAUDE_CODE_HOST_SESSION_ID` or View > Copy URL, with `local_`
+  stripped). For Codex app or Codex Cloud records, use the corresponding
+  `codex-app:` or `codex-cloud:` pointer when available. Do **not** add this
+  reminder for `none` — that value is terminal.
+- Offer the backend-appropriate local transcript archival/export workflow when
+  one is available.
 
 **Memory written (Step 7 outcome):** state explicitly whether memory was
 written this session. If yes: include a one-line summary of each memory

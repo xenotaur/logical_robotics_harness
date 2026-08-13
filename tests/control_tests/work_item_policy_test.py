@@ -89,6 +89,38 @@ class TestWorkItemPolicy(unittest.TestCase):
         self.assertIn("WORK_ITEM_BLOCKED_STATUS_INVALID", codes)
         self.assertIn("WORK_ITEM_BLOCKED_REASON_REQUIRED", codes)
 
+    def test_non_null_blocked_reason_is_error_when_not_blocked(self) -> None:
+        root = self._make_project()
+        path = root / "work_items" / "active" / "WI-0006.md"
+        metadata = {
+            "id": "WI-0006",
+            "title": "Not blocked",
+            "status": "active",
+            "blocked": False,
+            "blocked_reason": 123,
+        }
+
+        result = work_item_policy.validate_work_item_policy(root, path, metadata)
+
+        codes = {issue.code for issue in result.errors}
+        self.assertIn("WORK_ITEM_BLOCKED_REASON_NOT_NULL", codes)
+
+    def test_non_null_string_blocked_reason_is_error_when_not_blocked(self) -> None:
+        root = self._make_project()
+        path = root / "work_items" / "active" / "WI-0007.md"
+        metadata = {
+            "id": "WI-0007",
+            "title": "Not blocked",
+            "status": "active",
+            "blocked": False,
+            "blocked_reason": "leftover reason text",
+        }
+
+        result = work_item_policy.validate_work_item_policy(root, path, metadata)
+
+        codes = {issue.code for issue in result.errors}
+        self.assertIn("WORK_ITEM_BLOCKED_REASON_NOT_NULL", codes)
+
     def test_root_work_items_file_is_invalid_bucket(self) -> None:
         root = self._make_project()
         path = root / "work_items" / "WI-0004.md"

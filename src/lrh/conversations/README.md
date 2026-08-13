@@ -21,3 +21,23 @@ operands with PDF string-escape handling, writes private-by-default Markdown
 frontmatter, and runs the local sensitivity scanner unless disabled. The
 extractor is not OCR and reports warnings when page count or turn boundaries are
 uncertain.
+
+## Codex file export
+
+`lrh.conversations.codex_file_export` converts an explicit local Codex
+transcript/source text file into a private, non-authoritative Markdown artifact
+with `ConversationExportManifest` frontmatter. It backs the
+`lrh conversation convert-codex-file INPUT --out OUTPUT.md` CLI command. The
+adapter is intentionally file-based: callers provide the source and output
+paths, output is rejected if it collides with the source even under `--force`,
+and no undocumented Codex app storage internals are inspected.
+
+## Codex export inspection
+
+`lrh.conversations.export_inspector` inspects those Markdown export artifacts
+without promoting transcript text into LRH project state. It validates
+`ConversationExportManifest` frontmatter, recomputes artifact body statistics,
+optionally checks an explicit source file's SHA-256 digest, and formats
+metadata-only text or JSON reports. Default output is designed for terminal and
+CI use: it reports statuses, counts, hashes, warnings, and diagnostics without
+printing raw transcript body, snippets, or message text.

@@ -11,11 +11,39 @@ when present.
 ## 0) Precondition — verify before doing anything else
 
 This protocol is invoked in the context of an existing pull request. Before
-making any changes:
+making any changes, establish identity: does this checkout actually
+correspond to the target PR? Compare PR/platform metadata against your
+local checkout — when both are available, treat them as complementary
+evidence to cross-check, not as alternatives where one substitutes for the
+other:
 
-1. Confirm the current working branch and remote correspond to the target PR.
-2. If the branch does not match, stop and report the mismatch. Do not make
-   local-only fixes.
+```bash
+gh pr view <pr-url> --json headRefName,headRefOid,state
+git rev-parse HEAD
+git branch --show-current
+```
+
+(or use your environment's own PR-tracking integration in place of `gh` if
+it has one).
+
+- If PR/platform metadata is reachable, compare its reported `headRefOid`
+  against your local `HEAD` — not just the branch name. A local `HEAD`
+  equal to, or a descendant of, that SHA confirms identity even on a
+  generic/synthetic branch name or with no configured git remote; some
+  environments materialize a PR's content without exposing git remotes
+  directly, and that alone is not evidence of a mismatch.
+- Only when PR/platform metadata is entirely unreachable (no `gh`, no
+  integration, no network) may local git state stand on its own — compare
+  commit history and changed files against the PR's known content as
+  described in the invoking prompt.
+- If neither source is available, or the two sources conflict, identity is
+  inconclusive, not confirmed.
+
+- If the evidence shows this checkout is for a **different PR or
+  repository**, stop immediately, report the mismatch, and make no changes.
+- If identity **cannot be established by any available method**, stop and
+  report exactly what you checked and why it was inconclusive.
+- Otherwise, proceed.
 
 ## 1) Triage each reported comment/issue
 
@@ -85,8 +113,37 @@ used.
 
 ## 6) Output
 
-After addressing all comments, commit and push fixes to the branch backing
-the target PR.
+After addressing all comments, get the fixes onto the target PR, then
+report exactly one of the following publication outcomes:
+
+- **Pushed directly** — you ran `git push` (or equivalent) yourself to the
+  branch backing the PR.
+- **Submitted via platform** — your environment provides its own mechanism
+  for publishing local commits to an existing PR (a "create/update PR"
+  action, a managed sandbox integration, etc.) that does not depend on a
+  working `git push` from inside the checkout. Commit the fixes locally,
+  leave the working tree clean, and use that mechanism.
+- **Local only** — neither of the above was possible. This is only a valid
+  outcome if you attempted direct git publication — including adding a
+  remote if none was configured — and confirmed no platform-managed
+  publication mechanism exists in this environment. When adding a remote,
+  derive it from the PR's **head repository**, not the base repository
+  parsed from the PR URL: for a fork-based PR these differ, and pushing to
+  the base repository can fail to reach the PR or, if credentials and a
+  same-named branch happen to exist there, push to the wrong place. Query
+  the head repository/owner from PR metadata first, for example:
+
+  ```bash
+  gh pr view <pr-url> --json headRepositoryOwner,headRepository,headRefName
+  ```
+
+  and derive the publication remote from that, falling back to the base
+  repository only if the PR's head repository cannot be determined. Quote
+  the exact command and error that blocked direct publication, and state
+  plainly that the fixes have not reached the PR.
+
+Do not report success unless the fixes have actually reached the target PR
+by one of the first two paths.
 
 Then provide a summary:
 - What was fixed and the fix applied.

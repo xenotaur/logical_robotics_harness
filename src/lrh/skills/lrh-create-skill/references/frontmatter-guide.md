@@ -103,8 +103,29 @@ the skill from being preloaded into subagents.
 When `false` or absent, Claude may invoke the skill automatically if the
 conversation matches the `description`.
 
-Use `true` for skills that write files, modify control-plane artifacts, or
-should only run on explicit user intent.
+**Do not reach for `true` by default for a skill that writes files or
+modifies control-plane artifacts.** `WI-DELIBERATE-MODEL-INVOCATION` found
+that this flag is a binary *mechanism* (can the Skill tool fire at all)
+doing the job of a *policy* question (should this write happen right now)
+— and it blocks a user's own explicit, in-session request as readily as
+unwanted auto-triggering, since the platform cannot distinguish "the model
+decided on its own" from "the user named this skill mid-sentence instead
+of typing the bare `/name`." Prefer the pattern most LRH skills now use
+instead: omit the flag, add a `when_to_use` field that narrows the
+auto-trigger surface, and rely on an explicit confirm-before-write gate
+inside the skill as the actual write-protection — that gate fires
+regardless of invocation route, so it doesn't depend on getting this flag
+right.
+
+Reserve `true` for a skill with a **specific, confirmed** gap this pattern
+doesn't cover — for example a fast path that skips its own confirm gate
+entirely (`/lrh-confirm-fixes`'s empty-thread path), or a live-reply
+requirement a different mechanism can bypass under one of its own modes
+(`/lrh-land`/`/lrh-execute` under `DEC-CHAIN-INIT-SKIP-CONSENT`'s
+`skip_if_opted_in`). Name the specific gap in the skill's own guidance
+when you do — "should only run on explicit user intent" alone is not
+sufficient justification, since the confirm gate already provides that for
+every other skill.
 
 ```yaml
 disable-model-invocation: true

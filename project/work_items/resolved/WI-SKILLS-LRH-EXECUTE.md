@@ -1,0 +1,215 @@
+---
+resolution: Implemented and merged in PR #459 (commit f48f94e303af39cce32f9d3e42bf9bd57be5e5ef)
+blocked_reason: null
+blocked: false
+id: WI-SKILLS-LRH-EXECUTE
+title: Implement /lrh-execute Claude Code skill
+type: deliverable
+status: resolved
+owner: anthony
+contributors:
+  - anthony
+assigned_agents: []
+related_focus:
+  - FOCUS-EXECUTION-FRAMEWORK-PLANNING
+related_roadmap:
+  - ROADMAP-PHASE-03
+related_workstreams:
+  - WS-SKILLS-EXECUTE
+related_design:
+  - project/design/proposals/adopted/lrh-land-execute/00_proposal.md
+  - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
+  - src/lrh/skills/_shared/lifecycle-chain.md
+depends_on:
+  - WI-SKILLS-LRH-LAND
+blocked_by: []
+expected_actions:
+  - create_file
+  - edit_file
+forbidden_actions:
+  - force_push
+  - delete_branch
+  - merge_pr
+acceptance:
+  - src/lrh/skills/lrh-execute/SKILL.md exists with valid frontmatter
+  - .claude/skills/lrh-execute/ is a byte-identical copy of src/lrh/skills/lrh-execute/
+  - /lrh-execute's chain authorization gate (completion + stop-work conditions, DEC-DELIBERATE-CHAIN-INITIATION) runs before /lrh-implement starts, not deferred to /lrh-land's later gate
+  - Given WI-ID, /lrh-execute enforces depends_on (all entries resolved) before starting; given WS-ID, it finds the next ready WI per PROP-LRH-LAND-EXECUTE's exact selection rule (proposed, depends_on satisfied, prompt_ready: yes in lrh work-items readiness structured output, no in_progress/landed execution record) and stops without proposing creation if none exists
+  - /lrh-execute invokes the /lrh-implement workflow and hands off to /lrh-land for landing
+  - /lrh-execute writes the Decision 8 scratchpad run journal (execute_wi action, distinct from /lrh-land's own land_pr action)
+  - /lrh-execute retriggers bot review only through /lrh-land's existing round-cap-gate.md guardrail, never an independent unguarded retrigger path
+  - lrh validate passes with 0 errors
+  - CLAUDE.md's ## Skills index has an entry for /lrh-execute
+required_evidence:
+  - manual_review
+  - lrh_validate
+artifacts_expected:
+  - src/lrh/skills/lrh-execute/SKILL.md
+  - .claude/skills/lrh-execute/SKILL.md
+  - CLAUDE.md (Skills index entry)
+---
+
+## Summary
+
+Implement the `/lrh-execute` Claude Code skill — the compound "implement a
+work item and land it" skill (Phase 2 of `PROP-LRH-LAND-EXECUTE`),
+packaging the Taurcode `:execute` master prompt as a first-class LRH skill.
+
+## Problem / Context
+
+`/lrh-execute` does not exist yet, even though `PROP-LRH-LAND-EXECUTE`
+proposed it alongside `/lrh-land` (implemented, resolved via
+`WI-SKILLS-LRH-LAND`). Sessions that need to implement-and-land a work
+item currently fall back to the raw Taurcode `:execute` master prompt,
+which predates and lacks `round-cap-gate.md`'s bot-review retrigger
+guardrail. On 2026-08-01 this caused a real incident: a session using
+`:execute` ran 14 uncapped review rounds before a human manually
+triggered a fresh-context self-review that returned a NO-GO verdict,
+finding a root-cause design issue and a bug none of the 14 rounds had
+caught. `WI-SKILLS-LRH-LAND` is resolved, satisfying this item's stated
+prerequisite. `WI-DELIBERATE-MODEL-INVOCATION` (proposed, owned by
+`WS-EXECUTION-FRAMEWORK`) would enable direct sub-skill invocation but is
+explicitly not a hard gate — `WS-SKILLS-EXECUTE` documents that Phase 1's
+inline sub-skill pattern can carry Phase 2 if needed.
+
+### Duplication search
+- In-repo: No existing `/lrh-execute` implementation. `WS-SKILLS-EXECUTE`'s
+  own prior art check (2026-07-28) found no existing chain-running-skills
+  workstream; re-verified 2026-08-01 — still true.
+- Sibling repos: Taurcode's `:execute` master prompt is the pre-LRH-skill
+  implementation this item canonicalizes, per `PROP-LRH-LAND-EXECUTE` —
+  not a duplicate to preserve.
+- External libraries: None identified.
+- Recommendation: Proceed.
+
+### Demand search
+- Work items: None found under this ID; `WS-SKILLS-EXECUTE`'s own
+  `## Work Items` section already describes this item's scope (Phase 2) —
+  this WI formalizes that as a standalone, validated artifact.
+- Proposals: `PROP-LRH-LAND-EXECUTE` (proposed, PR #427 merged
+  2026-07-28) is the governing design this item implements.
+- Backlog: No matching entries in `project/design/backlog.md`.
+- Recommendation: No action — this WI is the demand item `WS-SKILLS-EXECUTE`
+  and `PROP-LRH-LAND-EXECUTE` already call for.
+
+## Scope
+
+- Implement `/lrh-execute`: given `WI-ID`, enforce `depends_on`, invoke
+  `/lrh-implement`, hand off to `/lrh-land`; given `WS-ID`, resolve to a
+  ready WI first (see Required Changes #3), then proceed identically.
+- Run `/lrh-execute`'s own chain authorization gate — completion condition
+  and stop-work condition per `DEC-DELIBERATE-CHAIN-INITIATION` — *before*
+  `/lrh-implement` starts, mirroring `/lrh-land`'s own Step 2
+  (`src/lrh/skills/lrh-land/SKILL.md:88-109`): "this gate must be reached
+  before any automated link runs," and its own Quality Checklist requires
+  it "completed before Steps 4–5" (`SKILL.md:334`). Do not rely on
+  `/lrh-land`'s later gate — by the time `/lrh-land` runs, implementation
+  and PR creation have already happened.
+- Write the Decision 8 scratchpad run journal (see Required Changes #5) —
+  distinct from `/lrh-land`'s own `land_pr` journal action.
+- Reuse `/lrh-land`'s existing inline chain (review-response →
+  confirm-fixes → merge gate → closeout) and `round-cap-gate.md`'s
+  bot-retrigger guardrail — do not build a second, parallel retrigger
+  mechanism.
+- Mirror to both `src/lrh/skills/lrh-execute/` and `.claude/skills/lrh-execute/`.
+- Add a `## Skills` index entry to `CLAUDE.md`.
+
+## Required Changes
+
+1. Create `src/lrh/skills/lrh-execute/SKILL.md` following the established
+   LRH skill pattern (see `src/lrh/skills/lrh-land/SKILL.md` for the
+   sibling chain-running skill's structure), opening with its own chain
+   authorization gate before any automated step, per Scope above.
+2. Wire `/lrh-execute` to invoke `/lrh-implement`'s three-phase workflow
+   for the target `WI-ID`, then hand off to `/lrh-land` for the resulting
+   PR — inline sub-skill execution (matching `/lrh-land`'s own current
+   pattern), not direct Skill-tool invocation, since
+   `WI-DELIBERATE-MODEL-INVOCATION` remains unresolved.
+3. For a `WI-ID` target: enforce `depends_on` (all entries `resolved`;
+   stop and report if not). For a `WS-ID` target: find the next ready WI
+   per `PROP-LRH-LAND-EXECUTE`'s exact rule (`00_proposal.md:221-225`) —
+   status `proposed`, `depends_on` satisfied, `prompt_ready: yes` in
+   `lrh work-items readiness` structured output (not merely a zero exit
+   code), and no `in_progress` or `landed` execution record — then proceed
+   as the `WI-ID` case. Stop and report if no ready WI exists; do not
+   propose creating one (that is `/lrh-next`'s scope).
+4. Write the scratchpad run journal per Decision 8
+   (`00_proposal.md:294-315`): an `execute_wi` action entry (`wi`,
+   `prompt_id`, `pr`, `result`, `chain_note`) distinct from `/lrh-land`'s
+   own `land_pr` action, so handing off to `/lrh-land` doesn't silently
+   drop the original WI/WS node this run started from.
+5. Mirror `src/lrh/skills/lrh-execute/SKILL.md` byte-for-byte to
+   `.claude/skills/lrh-execute/SKILL.md`.
+6. Add a `/lrh-execute` entry to `CLAUDE.md`'s `## Skills` index.
+7. Add a `/lrh-execute` row to `src/lrh/skills/_shared/lifecycle-chain.md`'s
+   "Consuming sites" table (`:124-139`) — every other terminal/chain-running
+   skill has one, and that file's own maintainer note requires updating
+   "every site in the table" when the lifecycle changes; `/lrh-execute` is
+   currently only mentioned in that file's prose (`:103`), not the table.
+
+## Non-Goals
+
+- Does not implement `/lrh-next` or `/lrh-run-tree` — Phases 3–4 of
+  `PROP-LRH-LAND-EXECUTE`, explicitly deferred by `WS-SKILLS-EXECUTE`.
+- Does not implement direct Skill-tool sub-skill invocation —
+  `WI-DELIBERATE-MODEL-INVOCATION`'s scope.
+- Does not design or implement the fresh-context go/no-go escalation
+  pattern discussed as a response to hitting a review-round ceiling —
+  that is `WI-BOUNDED-STABILIZATION-LOOP-DESIGN`'s scope; this item's
+  obligation is narrower: reuse the *existing* round-cap-gate
+  ceiling/ask-the-human mechanism, not invent a new escalation behavior.
+- Does not retire or modify the Taurcode `:execute` master prompt itself.
+- Does not modify execution-record schema, `PROP-LRH-LAND-EXECUTE`'s
+  adoption status, or any of `/lrh-land`'s existing behavior.
+
+## Acceptance Criteria
+
+- `src/lrh/skills/lrh-execute/SKILL.md` exists with valid frontmatter.
+- `.claude/skills/lrh-execute/` is byte-identical to
+  `src/lrh/skills/lrh-execute/`.
+- `/lrh-execute`'s chain authorization gate runs before `/lrh-implement`
+  starts, not deferred to `/lrh-land`'s later gate.
+- Given `WI-ID`, `/lrh-execute` enforces `depends_on` before starting;
+  given `WS-ID`, it finds the next ready WI per `PROP-LRH-LAND-EXECUTE`'s
+  exact selection rule and stops without proposing creation if none exists.
+- `/lrh-execute` invokes the `/lrh-implement` workflow and hands off to
+  `/lrh-land` for landing.
+- `/lrh-execute` writes the Decision 8 scratchpad run journal (`execute_wi`
+  action, distinct from `/lrh-land`'s own `land_pr` action).
+- `/lrh-execute` retriggers bot review only through `/lrh-land`'s existing
+  `round-cap-gate.md` guardrail.
+- `lrh validate` reports 0 errors.
+- `CLAUDE.md`'s `## Skills` index has an entry for `/lrh-execute`.
+
+## Validation
+
+- `scripts/version tools`
+- `lrh validate`
+- `scripts/format --check --diff`
+- `scripts/lint`
+- `scripts/test`
+- `diff -r src/lrh/skills/lrh-execute/ .claude/skills/lrh-execute/`
+
+## Risk Notes
+
+- The coverage gap this item closes is actively costing GitHub review
+  credits today (two known incidents on 2026-08-01) — time-sensitive, not
+  routine backlog work.
+- Reusing `/lrh-land`'s inline pattern duplicates some of its prose rather
+  than composing it — a known, accepted tradeoff per `WS-SKILLS-EXECUTE`,
+  not a defect to fix here.
+
+## Dependencies / Order
+
+`WI-SKILLS-LRH-LAND` is resolved, satisfying this item's stated
+prerequisite. `WI-DELIBERATE-MODEL-INVOCATION` is not a hard gate —
+proceed with the inline pattern if it remains unresolved when this item
+is picked up.
+
+## Related Workstream and Designs
+
+- Workstream: `project/workstreams/proposed/WS-SKILLS-EXECUTE.md`
+- Design: `project/design/proposals/adopted/lrh-land-execute/00_proposal.md`
+- Governance: `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`
+- Canonical chain: `src/lrh/skills/_shared/lifecycle-chain.md` (Required
+  Changes #7 above registers `/lrh-execute` in its "Consuming sites" table)

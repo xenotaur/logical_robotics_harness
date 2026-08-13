@@ -17,29 +17,56 @@ description: >
   One-paragraph description used for auto-invocation matching.
   Must be ≤ 1024 characters. Should be specific enough that
   Claude knows exactly when to trigger the skill.
-disable-model-invocation: true   # or omit/false for auto-triggered skills
+when_to_use: >
+  Narrows the auto-trigger surface further, or names the human-initiated
+  chain(s) this skill is a link in. Omit disable-model-invocation for
+  most skills — see below.
 argument-hint: [arg1, arg2]      # omit if skill takes no arguments
 ---
 ```
 
-Valid frontmatter keys: `name`, `description`, `disable-model-invocation`,
-`argument-hint`, `context`. No other keys are recognised.
+Valid frontmatter keys: `name`, `description`, `when_to_use`,
+`disable-model-invocation`, `argument-hint`, `context`. No other keys are
+recognised.
 
 ---
 
 ## When to use `disable-model-invocation: true`
 
-Set `disable-model-invocation: true` when:
+**Do not set this by default for a skill that writes files or modifies
+control-plane artifacts.** `WI-DELIBERATE-MODEL-INVOCATION` found that
+"high-consequence action" is not, by itself, a reason to reach for this
+flag — it is a binary *mechanism* (can the Skill tool fire at all) doing
+the job of a *policy* question (should this write happen right now), and
+it blocks a user's own explicit, in-session request as readily as
+unwanted auto-triggering (the platform cannot tell "the model decided on
+its own" from "the user named this skill mid-sentence instead of typing
+the bare `/name`"). This is why most LRH skills that write files —
+`/lrh-implement`, `/lrh-review-response`, `/lrh-closeout`, `/lrh-work-item`,
+`/lrh-proposal`, `/lrh-workstream`, and others — do **not** carry this
+flag.
 
-- The skill performs high-consequence actions (writing files, modifying
-  project control plane artifacts).
-- Invocation is intentional — the user must explicitly type `/<name>`.
-- The description keywords are likely to appear in unrelated queries.
+**The default pattern:** omit the flag, add a `when_to_use` field that
+narrows the auto-trigger surface (and names any human-initiated chain the
+skill is a link in), and put an explicit confirm-before-write gate inside
+the skill's own steps as the real write-protection — that gate fires
+regardless of invocation route, so it doesn't depend on getting this flag
+right. This satisfies OWASP LLM08 ("require human approval for high-impact
+actions") without blocking composition or a user's own in-prose request.
 
-Omit `disable-model-invocation` (or set to `false`) when:
-
-- The skill is domain-specific and auto-triggering is desirable.
-- Accidental triggering would be harmless (e.g., a read-only reporting skill).
+**Set `disable-model-invocation: true` only for a specific, confirmed gap**
+this pattern doesn't cover — name the gap explicitly in the skill's own
+guidance when you do, don't just assert "explicit intent only." Two real
+examples from this project: a fast path that skips the skill's own confirm
+gate entirely (`/lrh-confirm-fixes`'s empty-thread path reaches
+REVIEW-LANDED review-signal state handling with no gate in between), and a
+live-reply requirement a different mechanism can bypass under one of its
+own modes (`/lrh-land`/`/lrh-execute`'s chain-authorization gate can be
+skipped under `DEC-CHAIN-INIT-SKIP-CONSENT`'s `skip_if_opted_in`, and
+nothing else currently verifies the invocation was a genuine human-typed
+command). "The skill performs high-consequence actions" alone is not
+sufficient justification — the confirm gate already covers that for every
+other skill.
 
 ---
 

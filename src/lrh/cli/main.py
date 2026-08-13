@@ -9,13 +9,24 @@ import json
 import sys
 from pathlib import Path
 
-from lrh import prompt_workflow, prompt_workflow_match, prompt_workflow_search, serve
+from lrh import (
+    prompt_workflow,
+    prompt_workflow_match,
+    prompt_workflow_search,
+    serve,
+    sessions_workflow,
+)
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
-from lrh.conversations import pdf_import
+from lrh.conversations import (
+    codex_app_server_export,
+    codex_file_export,
+    export_inspector,
+    pdf_import,
+)
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
@@ -97,6 +108,21 @@ def main() -> None:
         add_help=False,
         help="Convert a local ChatGPT PDF export to Markdown.",
     )
+    conversation_subparsers.add_parser(
+        "convert-codex-file",
+        add_help=False,
+        help="Convert an explicit local Codex transcript/source file to Markdown.",
+    )
+    conversation_subparsers.add_parser(
+        "export-codex-thread",
+        add_help=False,
+        help="Export a Codex thread through app-server thread/read.",
+    )
+    conversation_subparsers.add_parser(
+        "inspect-export",
+        add_help=False,
+        help="Inspect a Codex conversation export Markdown artifact.",
+    )
 
     subparsers.add_parser(
         "version",
@@ -122,6 +148,12 @@ def main() -> None:
     )
 
     subparsers.add_parser(
+        "sessions",
+        add_help=False,
+        help="Session archive reconciler (sync/discover/link).",
+    )
+
+    subparsers.add_parser(
         "search",
         add_help=False,
         help="Search LRH project records.",
@@ -129,14 +161,44 @@ def main() -> None:
 
     skills_parser = subparsers.add_parser(
         "skills",
-        help="Manage LRH Claude Code skills.",
+        help="Manage LRH agent skills.",
     )
     skills_subparsers = skills_parser.add_subparsers(dest="skills_command")
+
+    def add_skills_resolution_args(
+        skills_command_parser: argparse.ArgumentParser,
+    ) -> None:
+        skills_command_parser.add_argument(
+            "--local",
+            action="store_true",
+            help="use project-local skills directory instead of user scope",
+        )
+        skills_command_parser.add_argument(
+            "--scope",
+            choices=("user", "project"),
+            default=None,
+            help="skills scope (default: repo config or user; --local is project)",
+        )
+        skills_command_parser.add_argument(
+            "--target",
+            choices=("claude", "codex", "antigravity", "all"),
+            default=None,
+            help="agent target (default: repo config or claude)",
+        )
+        skills_command_parser.add_argument(
+            "--source",
+            default=None,
+            help=(
+                "canonical skill source: lrh-package, current-repo, or a filesystem"
+                " path (default: repo config or lrh-package)"
+            ),
+        )
+
     skills_install_parser = skills_subparsers.add_parser(
         "install",
         help=(
-            "Install LRH skills to ~/.claude/skills/"
-            " (or ./.claude/skills/ with --local)."
+            "Install LRH skills to agent skills directories."
+            " Use --target and --local to choose exact destinations."
         ),
     )
     skills_install_parser.add_argument(
@@ -149,11 +211,22 @@ def main() -> None:
         action="store_true",
         help="overwrite user-modified skills without warning",
     )
+    add_skills_resolution_args(skills_install_parser)
     skills_install_parser.add_argument(
-        "--local",
+        "--diff",
         action="store_true",
-        help="install to ./.claude/skills/ instead of ~/.claude/skills/",
+        help="print a unified diff of local modifications for skipped skills",
     )
+    skills_status_parser = skills_subparsers.add_parser(
+        "status",
+        help="Inspect installed LRH skill state without writing files.",
+    )
+    add_skills_resolution_args(skills_status_parser)
+    skills_check_parser = skills_subparsers.add_parser(
+        "check",
+        help="Check installed LRH skill drift and compatibility without writing files.",
+    )
+    add_skills_resolution_args(skills_check_parser)
 
     project_parser = subparsers.add_parser(
         "project",
@@ -667,6 +740,13 @@ def main() -> None:
         )
 
     if args.command == "conversation":
+        if args.conversation_command == "convert-codex-file":
+            raise SystemExit(
+                codex_file_export.run_convert_codex_file_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation convert-codex-file",
+                )
+            )
         if args.conversation_command == "convert-pdf":
             raise SystemExit(
                 pdf_import.run_convert_pdf_cli(
@@ -674,8 +754,25 @@ def main() -> None:
                     prog="lrh conversation convert-pdf",
                 )
             )
+        if args.conversation_command == "inspect-export":
+            raise SystemExit(
+                export_inspector.run_inspect_export_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation inspect-export",
+                )
+            )
+        if args.conversation_command == "export-codex-thread":
+            raise SystemExit(
+                codex_app_server_export.run_export_codex_thread_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation export-codex-thread",
+                )
+            )
         parser.error(
-            "conversation requires a subcommand (try: lrh conversation convert-pdf)"
+            "conversation requires a subcommand "
+            "(try: lrh conversation convert-codex-file, "
+            "lrh conversation export-codex-thread, "
+            "lrh conversation inspect-export, or lrh conversation convert-pdf)"
         )
 
     if args.command == "prompt":
@@ -699,6 +796,14 @@ def main() -> None:
             prompt_workflow_search.run_search_cli(
                 argv=passthrough_args,
                 prog="lrh search",
+            )
+        )
+
+    if args.command == "sessions":
+        raise SystemExit(
+            sessions_workflow.run_sessions_cli(
+                argv=passthrough_args,
+                prog="lrh sessions",
             )
         )
 
@@ -1234,18 +1339,78 @@ def main() -> None:
         parser.error("meta requires a subcommand (try: lrh meta init)")
 
     if args.command == "skills":
-        if args.skills_command == "install":
+        if args.skills_command in {"install", "status", "check"}:
             if passthrough_args:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
             from lrh.skills import installer
 
-            skills_dir = Path.cwd() / ".claude" / "skills" if args.local else None
-            report = installer.install_skills(
-                skills_dir=skills_dir, dry_run=args.dry_run, force=args.force
-            )
-            output = installer.format_report(report, dry_run=args.dry_run)
-            if output:
-                print(output)
+            local_scope = None
+            if args.scope is not None:
+                local_scope = args.scope == "project"
+            if args.local:
+                if local_scope is False:
+                    parser.error("--local cannot be combined with --scope user")
+                local_scope = True
+            try:
+                skills_plan = installer.resolve_agent_skills_install_plan(
+                    target=args.target,
+                    local=local_scope,
+                    project_root=Path.cwd(),
+                    source=args.source,
+                )
+                if args.skills_command == "install":
+                    reports = installer.install_skills_for_targets(
+                        target=skills_plan.target,
+                        local=skills_plan.local,
+                        project_root=Path.cwd(),
+                        dry_run=args.dry_run,
+                        force=args.force,
+                        source=skills_plan.source,
+                    )
+                else:
+                    reports = installer.inspect_skills_for_targets(
+                        target=skills_plan.target,
+                        local=skills_plan.local,
+                        project_root=Path.cwd(),
+                        source=skills_plan.source,
+                    )
+            except installer.SkillSourceError as err:
+                parser.error(str(err))
+            for index, report in enumerate(reports):
+                if len(reports) > 1:
+                    if index:
+                        print()
+                    print(f"{report.target.value}: {report.skills_dir}")
+                if args.skills_command == "install":
+                    output = installer.format_report(report, dry_run=args.dry_run)
+                elif args.skills_command == "status":
+                    output = installer.format_inspection_report(
+                        report, issue_label="notice"
+                    )
+                else:
+                    output = installer.format_inspection_report(report)
+                if output:
+                    print(output)
+                if args.skills_command == "install" and args.diff:
+                    for result in report.results:
+                        if result.status == installer.SkillStatus.USER_MODIFIED:
+                            try:
+                                diff_text = installer.diff_skill(
+                                    result.name,
+                                    report.skills_dir,
+                                    source=skills_plan.source,
+                                    project_root=Path.cwd(),
+                                    target=report.target,
+                                )
+                            except installer.SkillSourceError as err:
+                                parser.error(str(err))
+                            if diff_text:
+                                print(f"\n--- diff: {result.name} ---")
+                                print(diff_text, end="")
+            if args.skills_command == "check" and any(
+                installer.inspection_report_has_failures(report) for report in reports
+            ):
+                raise SystemExit(1)
             raise SystemExit(0)
         parser.error("skills requires a subcommand (try: lrh skills install)")
 

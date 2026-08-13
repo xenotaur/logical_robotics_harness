@@ -60,7 +60,8 @@ lrh request ready-work-item       ← refine if thin
     ↓
 project/executions/<ID>/          ← execution record (created by this skill)
     ↓
-Merge PR + closeout (human)
+Merge PR + closeout (human, or agent given unambiguous authorization
+  per DEC-AGENT-EXECUTED-MERGE-GATE, amended 2026-07-30)
 ```
 
 The existing `lrh request prompt-from-work-item` step is intentionally

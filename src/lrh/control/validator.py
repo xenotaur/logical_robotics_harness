@@ -97,6 +97,12 @@ DESIGN_PROPOSAL_IMPLEMENTATION_STATUS = {
 DESIGN_PROPOSAL_LIST_FIELDS = {"implemented_by", "evidence", "supersedes"}
 DESIGN_PROPOSAL_BUCKETS = ("proposed", "adopted", "rejected", "superseded")
 
+# Execution-record optional fields (PROP-LRH-EXECUTION-SESSIONS). The
+# session_transcript grammar is the scheme-prefixed scalar <backend>:<id>
+# plus these two sentinels; see the 2026-07-23 "Backend-Agnostic Session
+# Pointer Grammar" decision-log entry and project/executions/README.md.
+EXECUTION_TRANSCRIPT_SENTINELS = {"pending", "none"}
+
 
 @dataclass(frozen=True)
 class ValidationIssue:
@@ -127,6 +133,120 @@ class ValidationReport:
 class _ParsedArtifact:
     path: Path
     data: dict[str, Any] | None
+
+
+def _is_absolute_pathish(value: str) -> bool:
+    """True for values that leak local workspace layout: POSIX absolute or
+    home-relative paths, or Windows drive-letter paths (``C:\\`` / ``C:/``).
+
+    A single-letter drive prefix is distinguished from a real ``<scheme>:``
+    prefix by requiring a path separator after the colon, so scheme-prefixed
+    values like ``claude-app:...`` are never treated as absolute paths.
+    """
+    if value.startswith("/") or value.startswith("~"):
+        return True
+    if (
+        len(value) >= 2
+        and value[0].isalpha()
+        and value[1] == ":"
+        and (len(value) == 2 or value[2] in "\\/")
+    ):
+        return True
+    return False
+
+
+def _is_scheme_prefixed(value: str) -> bool:
+    """True for a genuine ``<scheme>:<id>`` pointer: a non-empty scheme with no
+    path separators or whitespace, a colon, and a non-empty identifier.
+
+    Rejects near-misses that merely contain a colon (``:id``, ``backend:``,
+    ``some/path:foo``, ``not a scheme: text``).
+    """
+    scheme, sep, identifier = value.partition(":")
+    if not sep or not scheme or not identifier:
+        return False
+    return not any(ch in scheme for ch in "/\\ \t")
+
+
+def _validate_execution_record(
+    project_root: Path,
+    artifact: _ParsedArtifact,
+    issues: list[ValidationIssue],
+) -> None:
+    """Advisory checks for the optional execution-session fields.
+
+    Warnings only (never errors): the fields are optional and
+    backward-compatible. ``agent`` is intentionally not enum-validated because
+    the schema is open-ended (``claude_app | codex_cloud | manual | <other>``).
+    """
+    data = artifact.data or {}
+
+    transcript = data.get("session_transcript")
+    if transcript is not None:
+        elements = transcript if isinstance(transcript, list) else [transcript]
+        for element in elements:
+            # Non-string values (e.g. an unquoted YAML bool/number) match
+            # neither the grammar nor a sentinel.
+            if not isinstance(element, str):
+                issues.append(
+                    _issue(
+                        project_root,
+                        artifact.path,
+                        "warning",
+                        "EXECUTION_SESSION_TRANSCRIPT_MALFORMED",
+                        f"session_transcript value '{element!r}' is not a "
+                        "string; use the '<backend>:<id>' short form or a "
+                        "'pending'/'none' sentinel",
+                    )
+                )
+                continue
+            # List elements keep any surrounding YAML quotes (the frontmatter
+            # parser only strips quotes from scalars); normalize before checks.
+            value = element.strip("'\"")
+            if value in EXECUTION_TRANSCRIPT_SENTINELS:
+                continue
+            if _is_absolute_pathish(value):
+                issues.append(
+                    _issue(
+                        project_root,
+                        artifact.path,
+                        "warning",
+                        "EXECUTION_SESSION_TRANSCRIPT_ABSOLUTE_PATH",
+                        f"session_transcript value '{value}' is an absolute "
+                        "path (leaks local workspace layout); use the "
+                        "'<backend>:<id>' short form (e.g. "
+                        "claude-app:<host-uuid-stem>)",
+                    )
+                )
+            elif not _is_scheme_prefixed(value):
+                issues.append(
+                    _issue(
+                        project_root,
+                        artifact.path,
+                        "warning",
+                        "EXECUTION_SESSION_TRANSCRIPT_MALFORMED",
+                        f"session_transcript value '{value}' is not a valid "
+                        "'<scheme>:<id>' pointer; use the '<backend>:<id>' "
+                        "short form or a 'pending'/'none' sentinel",
+                    )
+                )
+
+    instruction_source = data.get("instruction_source")
+    if isinstance(instruction_source, str) and _is_absolute_pathish(
+        instruction_source.strip("'\"")
+    ):
+        issues.append(
+            _issue(
+                project_root,
+                artifact.path,
+                "warning",
+                "EXECUTION_INSTRUCTION_SOURCE_ABSOLUTE_PATH",
+                "instruction_source value "
+                f"'{instruction_source}' is an absolute path (leaks local "
+                "workspace layout); use a repo-relative path or a "
+                "scheme-prefixed reference (e.g. promptspace:<relative-path>)",
+            )
+        )
 
 
 def validate_project(
@@ -315,6 +435,17 @@ def validate_project(
         work_items,
         issues,
     )
+
+    execution_files = [
+        path
+        for path in sorted((project_root / "executions").glob("**/*.md"))
+        if path.name != "README.md"
+    ]
+    execution_records = _parse_many(project_root, execution_files, issues)
+    for artifact in execution_records:
+        if artifact.data is None:
+            continue
+        _validate_execution_record(project_root, artifact, issues)
 
     return ValidationReport(issues=issues)
 

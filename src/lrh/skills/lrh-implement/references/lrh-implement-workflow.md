@@ -23,10 +23,11 @@ lrh request ready-work-item <ID>    ← refine if thin
 project/executions/<WI-ID>/         ← execution record (in_progress)
     │
     ▼
-/lrh-review-response <PR-URL>       ← address reviewer comments (repeat as needed)
+/lrh-review-response <pr-url>       ← address reviewer comments (repeat as needed)
     │
     ▼
-Merge PR + closeout (human)         ← update record to landed, resolve WI
+Merge PR (human, or agent given         ← update record to landed, resolve WI
+  unambiguous authorization) + closeout
 ```
 
 The PR is rarely mergeable the moment it opens — expect at least one round of
@@ -53,16 +54,18 @@ proposes a patch to fill missing sections; apply it manually and re-run
 ### `lrh request prompt-from-work-item`
 
 Not called by this skill. `prompt-from-work-item` generates a prompt file for
-submission to Codex Cloud. In a Claude.app session, Claude reads the work item
-directly — a rendered prompt file adds a step with no benefit.
+submission to Codex Cloud. In an interactive local agent session, the agent
+reads the work item directly — a rendered prompt file adds a step with no
+benefit.
 
 ### `lrh skills install`
 
-`lrh skills install` installs LRH skills globally to `~/.claude/skills/`, making
-`/lrh-implement` available in any project on the machine. Use `--local` to install
-to `./.claude/skills/` for a project-scoped installation instead.
+`lrh skills install` installs LRH skills to the selected agent target. Claude
+user installs write to `~/.claude/skills/`; Codex user installs write to
+`~/.agents/skills/`. Use `--local` for project-scoped installs under the
+project's `.claude/skills/` or `.agents/skills/` directory.
 
-### `/lrh-review-response <PR-URL>`
+### `/lrh-review-response <pr-url>`
 
 Run after `/lrh-implement` opens a PR, once reviewer comments arrive — not
 called by this skill directly, but it is the expected next step before
@@ -78,9 +81,10 @@ of comments; only proceed to "After the PR lands" once the PR is clean.
 1. **Update the execution record** — edit the file under
    `project/executions/<WI-ID>/` to set:
    - `status: landed`
-   - `pr: <PR-URL>`
+   - `pr: <pr-url>`
    - `commit: <merge-SHA>`
-   - `session_transcript: claude-app:<session-id>` (if still `pending`)
+   - `session_transcript: <backend>:<id>` (if still `pending` and the durable
+     backend session pointer is available)
 
 2. **Resolve the work item** — move the file from
    `project/work_items/proposed/` to `project/work_items/resolved/` and set:

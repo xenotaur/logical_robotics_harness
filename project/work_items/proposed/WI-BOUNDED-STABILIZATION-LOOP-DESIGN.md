@@ -19,9 +19,11 @@ related_workstreams:
 related_design:
   - project/design/proposals/proposed/workstream-execution-framework/00_proposal.md
   - project/design/proposals/adopted/workstreams-and-recursive-planning-tree/00_proposal.md
+  - src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md
 depends_on:
   - WI-GITHUB-PR-CI-OBSERVATION
   - WI-AGENT-BRANCH-CONTAINMENT
+  - WI-DELIBERATE-MODEL-INVOCATION
 blocked_by: []
 expected_actions:
   - edit_file
@@ -83,6 +85,26 @@ The execution-framework proposal includes bounded PR/CI stabilization, but autom
 
 - A stabilization-loop plan could be interpreted as approval for full autonomous execution.
 - Retry loops could obscure failures unless stop conditions are concrete.
+- **Evidence this risk is not hypothetical:** `WI-REVIEW-ROUND-ESCALATION-GATE`
+  (resolved, PR #445) implemented the *assisted-mode* slice of exactly this
+  loop — a durable round cap on `/lrh-confirm-fixes` Step 8's bot-retrigger
+  loop — as skill-embedded bash/git prose. It took 8 review rounds to reach
+  its current state, each round finding a genuinely different category of
+  correctness bug (state-machine/crash-recovery semantics, PR-identity
+  atomicity, architectural placement of durable state relative to the
+  reviewed branch, cross-platform shell portability, multi-tenant branch
+  namespacing, concurrent-write races) — not the same bug rephrased. See
+  `src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md`'s own
+  "Risk Notes — deferred hardening" section for what remains unresolved
+  even after those 8 rounds (untested in practice, guessed retry/staleness
+  thresholds, no automated test coverage). Before designing the
+  `bounded-auto` mode's own iteration/state tracking (which will likely
+  need similar durable round/CI-count state), weigh whether it should
+  reuse this same bash-in-skill-prose approach — which the evidence above
+  suggests is expensive to get right and inherently untestable — or
+  whether round/CI-loop state tracking should become a shared,
+  unit-tested LRH primitive (real code, not skill prose) that both the
+  assisted and bounded-auto modes draw on.
 
 ## Dependencies / Order
 

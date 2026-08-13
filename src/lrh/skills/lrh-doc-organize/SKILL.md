@@ -7,7 +7,12 @@ description: >
   pass if no audit is provided), confirms the scope with the user, creates a
   branch, implements file moves/stubs/README updates, validates, and opens a
   PR. One phase per invocation — use /lrh-doc-audit first for best results.
-disable-model-invocation: true
+when_to_use: >
+  Invoke when the user wants to implement a scoped documentation
+  reorganization phase, ideally from an existing docs-audit artifact. Do
+  not invoke for a general documentation edit unrelated to a reorganization
+  phase. The Step 6 confirm gate is the write-protection regardless of
+  invocation route.
 argument-hint: "[audit-path] [--phase N]"
 ---
 
@@ -227,13 +232,21 @@ lrh prompt record-execution \
 Use the prompt ID minted in Step 3. Populate optional fields:
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: <audit-path or "discovery mode — no audit available">
 session_transcript: pending
 ```
 
 Run `lrh validate`, commit the record as an additional commit to the open PR,
 and push.
+
+Then report the PR URL, the execution record path, and the next steps: run
+`/lrh-review-response <pr-url>` to address reviewer comments (repeat as
+needed), then `/lrh-confirm-fixes <pr-url>` to verify the fixes against the
+current diff and resolve the review threads before merge. After merging, run
+`/lrh-closeout <pr-url>` to land the execution record and update the control
+plane. If more phases remain, `/lrh-doc-organize` runs again for the next one
+only after this phase's PR is merged and closed out.
 
 ---
 

@@ -21,12 +21,33 @@ new work is needed or should instead extend/replace what exists.
 
 **Search locations (in order):**
 
-1. **In-repo:** grep `src/`, `project/design/proposals/`, and
-   `.claude/skills/` for terms derived from the topic title/summary.
-   Suppress errors for absent paths (some are optional in client repos).
+1. **In-repo:** grep `src/`, `project/design/proposals/`,
+   `project/workstreams/`, `project/work_items/`, and installed local skill dirs (`.claude/skills/` and `.agents/skills/`) for
+   terms derived from the topic title/summary. A sibling planning artifact of
+   the same kind about to be created (an existing workstream or work item
+   covering the same topic, possibly under a different ID or wording) is
+   exactly the highest-risk duplicate, so this search must not rely solely on
+   the proposal/design-doc surface. Do not treat a governing proposal's own
+   cross-references as an exhaustive map of what already exists — a
+   concurrently created sibling artifact has no reason to be linked back into
+   an earlier proposal's text. `2>/dev/null` only swallows stderr from an
+   absent optional path — `grep -rl` still exits non-zero on no matches or a
+   missing directory, so append `|| true` as well; otherwise a `set -e`
+   automation context would abort on the ordinary "nothing found" outcome.
 
    ```bash
-   grep -rl "<key-term>" src/ project/design/proposals/ .claude/skills/ 2>/dev/null
+   grep -rl "<key-term>" src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ .agents/skills/ 2>/dev/null || true
+   ```
+
+   **If checking an artifact that already exists on disk** — for example,
+   `/lrh-implement` Step 1.5 validating a work item that predates this
+   check — exclude that artifact's own file from the results. Its own
+   title/summary terms will otherwise always match its own file in
+   `project/work_items/` or `project/workstreams/`, reporting it as a
+   duplicate of itself:
+
+   ```bash
+   grep -rl "<key-term>" src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ .agents/skills/ 2>/dev/null | grep -vF "<path-to-current-artifact>" || true
    ```
 
 2. **Sibling repos:** ask the user: "Are there sibling repositories that

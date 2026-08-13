@@ -125,10 +125,31 @@ def generate_request(
         threads_data = pull_reviews.get_pull_review_threads(ref)
         variables["REVIEW_URL"] = target_input
         variables["REPO_NAME"] = f"{ref.owner}/{ref.repo}"
+        include_thread_ids = list(getattr(args, "include_thread", None) or [])
+        if include_thread_ids:
+            known_ids = formatters.collect_thread_ids(threads_data)
+            unknown_ids = [tid for tid in include_thread_ids if tid not in known_ids]
+            if unknown_ids:
+                raise ValueError(
+                    "error: --include-thread ID(s) not found on "
+                    f"{ref.owner}/{ref.repo}#{ref.number}: "
+                    f"{', '.join(unknown_ids)}"
+                )
+            resolved_ids = formatters.resolved_thread_ids(threads_data)
+            already_resolved = [
+                tid for tid in include_thread_ids if tid in resolved_ids
+            ]
+            if already_resolved:
+                raise ValueError(
+                    "error: --include-thread ID(s) already resolved on "
+                    f"{ref.owner}/{ref.repo}#{ref.number}, not force-included: "
+                    f"{', '.join(already_resolved)}"
+                )
         has_unresolved_threads = formatters.has_threads_for_state(
             threads_data, state="unresolved"
         )
-        if not has_unresolved_threads and not getattr(args, "force", False):
+        force = bool(getattr(args, "force", False)) or bool(include_thread_ids)
+        if not has_unresolved_threads and not force:
             return (
                 "Nothing to resolve: no unresolved review threads found for "
                 f"{ref.owner}/{ref.repo}#{ref.number}",
@@ -141,6 +162,7 @@ def generate_request(
             include_author=True,
             include_url=True,
             ref=ref,
+            extra_ids=set(include_thread_ids) if include_thread_ids else None,
         )
 
     template_text = request_templates.load_template_text(

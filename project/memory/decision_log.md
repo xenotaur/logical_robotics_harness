@@ -1,5 +1,226 @@
 # Decision Log
 
+## 2026-08-07: Decision: Agent Skill Interoperability — Antigravity Integration & Discovery Semantics — promoted to DEC-AGENT-SKILL-INTEROPERABILITY-ANTIGRAVITY
+
+Promoted directly because it is cited from `docs/how-to/use-lrh-with-agent-assistants.md`,
+matching the promotion bar `precedence_semantics.md` set. Defines how LRH models and
+integrates Google Antigravity as an agent execution environment alongside Claude Code
+and Codex App via native plugin manifests and in-repo discovery rules. See that record
+for the full decision, rationale, and consequences.
+
+## 2026-08-07: Decision: Chain-Initiation Skip Consent Narrows the Per-Run Live-Reply Requirement — promoted to DEC-CHAIN-INIT-SKIP-CONSENT
+
+Promoted directly because it is cited from `DEC-DELIBERATE-CHAIN-INITIATION`
+and `PROP-LRH-CHAIN-DEFAULTS`, matching the promotion bar
+`precedence_semantics.md` set. Narrows `DEC-DELIBERATE-CHAIN-INITIATION`'s
+requirement that a human sign off on completion/stop conditions for *each*
+chain run — but only for a user-local, value-bound, revocable
+`chain_init_confirmation: skip_if_opted_in` consent, gated by two separate
+affirmative actions and a mandatory per-run special-conditions check.
+`always_confirm` (today's default) is unaffected. Produced by
+`WI-DEC-CHAIN-INIT-SKIP-AMENDMENT`, itself a direct follow-up to a Codex
+review finding during `PROP-LRH-CHAIN-DEFAULTS`'s own review (PR #499) that
+caught that proposal's first draft falsely claiming no impact on the
+governing decision. See that record for the full decision, rationale,
+consequences, and revisit conditions.
+
+## 2026-07-30: Decision: Agent-Executed Merge Is Permitted Under Explicit, Unambiguous Authorization — promoted to DEC-AGENT-EXECUTED-MERGE-GATE
+
+Promoted directly because it is cited from `AGENTS.md`, `src/lrh/skills/lrh-land/SKILL.md`,
+`src/lrh/skills/lrh-confirm-fixes/SKILL.md`, and `PROP-LRH-LAND-EXECUTE`, and amends
+`DEC-DELIBERATE-CHAIN-INITIATION`'s Revisit conditions — matching the promotion bar
+`precedence_semantics.md` set. Replaces the categorical "agent never executes `gh pr merge`"
+rule with a bright-line authorization test, ratifying cross-session practice the human judged
+correct over the literal documented rule. See that record for the full decision, rationale,
+consequences, and revisit conditions.
+
+## 2026-07-30: Decision: Pre-Mint Slug Idempotence Is a Default, Not a Mandate — promoted to DEC-PRE-MINT-SLUG-IDEMPOTENCE-DEFAULT
+
+Promoted directly (not staged through the chronological log first) because
+`PROMPTS.md`, `project/executions/README.md`, and both `project_bootstrap`
+template stubs all need to cite it independently, matching the promotion
+bar `precedence_semantics.md` set. See that record for the full decision,
+rationale, consequences, and revisit conditions.
+
+## 2026-07-24: Decision: Deliberate Chain Initiation — promoted to DEC-DELIBERATE-CHAIN-INITIATION
+
+Promoted out of the chronological log to
+`project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md` because it is a
+load-bearing invariant cited independently by `src/lrh/skills/_shared/lifecycle-chain.md`,
+`PROP-LRH-EXECUTION-SESSIONS`, and `PROP-SAFE-DEFAULT-AGENTIC-EXTRA-PACKAGING`
+(the `precedence_semantics.md` pattern). See that record for the full decision,
+rationale, consequences, and revisit conditions.
+
+## 2026-07-23: Decision: Backend-Agnostic Session Pointer Grammar
+
+### Summary
+
+`session_transcript` accepts a scheme-prefixed scalar `<backend>:<id>` for
+any execution backend — not only Claude.app — plus the sentinels `pending`
+and `none`. The field is defined so that a future sequence-valued form is a
+compatible superset, and so that both forms converge on the
+`PROP-LRH-CONVERSATIONS-STORAGE-INTEROP` ledger when it exists.
+
+### Context
+
+- `PROP-LRH-EXECUTION-SESSIONS` defines `agent` as open-ended
+  (`claude_app | codex_cloud | manual | <other>`) but defines
+  `session_transcript` purely in Claude.app terms ("references the Claude.app
+  session by its session ID"). The field name is backend-agnostic; its
+  definition is not.
+- The corpus is entirely single-backend: of 324 execution records, 118 carry
+  `agent:` and **all 118 say `claude_app`**. `codex_cloud` has never been
+  written, because the Codex-era records predate the field.
+- Three May 2026 records (PRs #260, #264, #268) sat at
+  `session_transcript: pending` since creation. They were Codex Cloud
+  executions: the surviving prompt package
+  (`lrh_readiness_prompt_package.zip`) contains four files whose first lines
+  are those records' exact prompt IDs, each titled "Codex Cloud Prompt", and
+  every May-era merge branch is named `codex/…`. There is no Claude session
+  to point at, so `pending` was never going to resolve — it misrepresented a
+  complete record as unfinished work.
+- `PROP-LRH-CONVERSATIONS-STORAGE-INTEROP` already specifies the eventual
+  storage layer (an `lrh://` URI namespace, privacy/durability/retention/
+  authority classes, and a backend capability model stating that "Git is not
+  the default raw chat database"). Its `implementation_status` is
+  `not_started`; only `lrh conversation convert-pdf` ships today.
+- `project/executions/README.md` documented eight frontmatter fields and none
+  of `agent`, `instruction_source`, or `session_transcript`, despite 121
+  records carrying them.
+
+### Decision
+
+- `session_transcript` takes a **scheme-prefixed scalar** `<backend>:<id>`.
+  Known schemes: `claude-app:<host-uuid-stem>`, `codex-cloud:<task-id>`,
+  `chatgpt:<conversation-id>`. New backends add a scheme rather than a field.
+- Two sentinels, with distinct meanings that must not be conflated:
+  - `pending` — a retrievable session exists but its ID is not yet recorded.
+    This is a **to-do**.
+  - `none` — this backend produced no retrievable session transcript. This is
+    a **terminal state**, not a backlog item.
+- `instruction_source` uses the same scheme-prefixed style for artifacts
+  outside the repository: `promptspace:<relative-path>` resolved against the
+  user's configured prompt archive root. Absolute paths remain forbidden, for
+  the same workspace-layout-leak reason that already applies to JSONL paths.
+- The field is specified as **scalar or sequence of scalars**. Records stay
+  scalar until a genuinely multi-backend execution appears; a sequence form
+  can then be adopted without rewriting any existing record.
+- When the conversations ledger exists, `lrh://` becomes simply another
+  scheme. No migration of this field is required to get there.
+
+### Rationale
+
+- All 121 existing values already match `<backend>:<id>`. Adopting this
+  grammar is a documentation fix, not a migration — decisive against every
+  alternative, each of which pays migration cost across a corpus that is
+  ~100% one backend.
+- Keeping a scalar preserves substring greppability, which
+  `project/executions/README.md` explicitly relies on for
+  `lrh search executions`. A nested object would break that contract for
+  capability the scalar-or-sequence form already provides.
+- Separating `none` from `pending` is what actually retires the three May
+  records: without it, a complete record is indistinguishable from unfinished
+  work, which is why they read as a standing backlog item for two months.
+- Deferring to the ledger today is premature: a pointer into storage that
+  does not exist is a worse record than an honest `none`.
+
+### Alternatives considered
+
+1. Structured object (`session: {backend:, id:, recoverable:}`).
+   Pros: room for capture status and recoverability metadata.
+   Cons: breaks the substring-search contract; migrates 121 records for
+   capability the scalar-or-sequence union already supplies; still models
+   only one session.
+2. Sequence-only from the start (`sessions: [{role:, ref:}, …]`).
+   Pros: directly closes the multi-backend gap flagged as Risk 3 in
+   `PROP-LRH-EXECUTION-SESSIONS` — the ChatGPT-design-then-Codex-execution
+   case that produced these very records.
+   Cons: most invasive, and overkill while the corpus is single-backend.
+   Retained as the compatible future form rather than rejected.
+3. `lrh://` ledger URI now.
+   Pros: matches the already-designed storage model exactly; one pointer
+   regardless of backend count.
+   Cons: depends on unimplemented phases of a `not_started` proposal;
+   unusable today. This is the intended endpoint, not the current step.
+
+### Consequences
+
+- The scalar-or-sequence union complicates strict schema validation; union
+  types are a known cost in schema design. Accepted deliberately for a
+  hand-authored corpus read mostly by grep.
+- A future `lrh validate` rule should check the scheme grammar and still warn
+  on absolute paths, as `PROP-LRH-EXECUTION-SESSIONS` specifies for Stage 2
+  and as remains unimplemented today.
+
+### Status
+
+Accepted
+
+## 2026-07-23: Decision: Session Transcripts Are Never Committed to the Repository
+
+### Summary
+
+Session transcripts (Claude Code `/export` output, `~/.claude/projects/`
+JSONL files, and equivalent artifacts from other agent backends) are never
+committed to this repository. The repository stores only the pointer
+`session_transcript: claude-app:<host-uuid-stem>` in execution records.
+
+### Context
+
+- Execution records carry a `session_transcript` field (defined by
+  `PROP-LRH-EXECUTION-SESSIONS`) that references the agent session which
+  produced the work.
+- Raw session transcripts contain environment dumps, absolute local paths,
+  and potentially accidental PII; they are also large (multi-MB) and purely
+  historical.
+- The sensitivity scanner contract in `src/lrh/conversations/README.md`
+  already establishes that transcript-derived content is private by default
+  and that public export requires human review.
+- This practice predates the LRH control plane — it was already the norm in
+  the ChatGPT/Codex era — but had never been recorded as a standing
+  decision.
+- Desktop-app Claude Code sessions have two identifiers (a `local_`-prefixed
+  host session id and a child SDK session id that names the JSONL file);
+  documenting the pointer convention forced the question of what, if
+  anything, of the session itself belongs in the repo.
+
+### Decision
+
+- Never commit session transcripts, in any form, to this repository.
+- The repository stores only the pointer `session_transcript:
+  claude-app:<host-uuid-stem>` (host UUID stem, `local_` prefix stripped) in
+  execution records.
+- Users archive `/export` output and/or JSONL files to local disk. A
+  private, enhanced-security store for such archives is permitted; a plain
+  hosted repository of raw transcripts is not — cf. the sensitivity scanner
+  contract in `src/lrh/conversations/README.md`.
+
+### Rationale
+
+- Transcripts leak local workspace layout (absolute paths), environment
+  details, and possibly PII to everyone who clones the repository; a pointer
+  leaks nothing.
+- Multi-MB historical blobs bloat the repository without serving the control
+  plane's purpose — traceability needs the link, not the content.
+- Keeping archives local (or in a private, enhanced-security store) preserves
+  the ability to consult a transcript when provenance questions arise.
+
+### Alternatives considered
+
+1. Commit sanitized/redacted transcripts alongside execution records.
+   Pros: self-contained provenance in one repository.
+   Cons: sanitization is error-prone (the sensitivity scanner is explicitly
+   a safety rail, not a certifier); size and churn costs remain; a single
+   miss leaks permanently via git history.
+2. Host raw transcripts in a separate plain hosted repository.
+   Pros: keeps this repository lean while retaining shared access.
+   Cons: merely relocates the leak; a plain hosted repo offers no stronger
+   guarantees than committing here, so it is equally disallowed.
+
+### Status
+
+Accepted
+
 ## 2026-07-09: Decision: PyPI Release Environment Protection Rules
 
 ### Summary

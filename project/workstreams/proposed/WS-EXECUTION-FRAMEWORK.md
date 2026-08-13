@@ -28,6 +28,13 @@ work_items:
   - WI-WORK-ITEMS-READINESS-CLI-MVP
   - WI-REQUEST-READY-WORK-ITEM-MVP
   - WI-WORKFLOW-DOCS-READINESS-AUDIT-PROMPTING
+  - WI-EVIDENCE-WORKBOOKS-DIRECTORY
+  - WI-EXEC-SESSIONS-DOCS
+  - WI-EXEC-SESSIONS-SCHEMA
+  - WI-CLOSEOUT-SESSION-SOURCING
+  - WI-SLUG-IDEMPOTENCE-CLI-TOOLING
+  - WI-PROMPT-WORKFLOW-UTC-TIMESTAMPS
+  - WI-REVIEW-LANDED-CANONICAL-CHECK
 exit_criteria:
   - execution-framework design is updated and reconciled with the workstream/planning-tree model
   - roadmap, current focus, and work items identify the first execution-framework implementation phase

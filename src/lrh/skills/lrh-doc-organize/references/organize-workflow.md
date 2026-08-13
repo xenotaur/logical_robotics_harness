@@ -84,13 +84,13 @@ This makes multiple organize runs on the same audit distinguishable.
 ### Required fields
 
 ```yaml
-agent: claude_app
+agent: <agent-backend>
 instruction_source: <path-to-audit-artifact or "discovery mode — no audit available">
 session_transcript: pending
 ```
 
-Update `session_transcript` from `pending` to `claude-app:<session-id>` after
-the session ends.
+Update `session_transcript` from `pending` to the durable session pointer for
+the selected backend when one is available.
 
 ### rerun_of
 

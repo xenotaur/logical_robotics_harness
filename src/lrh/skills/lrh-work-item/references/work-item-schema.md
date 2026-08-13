@@ -160,7 +160,7 @@ resolution: null
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-WORK-ITEM
-title: Implement lrh-work-item Claude Code skill
+title: Implement lrh-work-item agent skill
 type: deliverable
 status: proposed
 owner: anthony
@@ -185,7 +185,7 @@ forbidden_actions:
   - implement_lrh_setup
 acceptance:
   - src/lrh/skills/lrh-work-item/SKILL.md exists with valid frontmatter
-  - .claude/skills/lrh-work-item/ is an exact copy of src/lrh/skills/lrh-work-item/
+  - Rendered Claude and Codex installs are up to date with src/lrh/skills/lrh-work-item/
   - lrh validate passes with 0 errors
 required_evidence:
   - manual_review
@@ -196,5 +196,6 @@ artifacts_expected:
   - src/lrh/skills/lrh-work-item/references/work-item-body-guide.md
   - src/lrh/skills/lrh-work-item/references/lrh-work-item-workflow.md
   - .claude/skills/lrh-work-item/SKILL.md
+  - .agents/skills/lrh-work-item/SKILL.md
 ---
 ```

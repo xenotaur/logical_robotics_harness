@@ -890,6 +890,83 @@ class TestRequestCli(unittest.TestCase):
         self.assertIn("third-party input from PR reviewers", stdout.getvalue())
         self.assertIn("PR: octo/repo#7", stdout.getvalue())
 
+    def test_review_response_include_thread_surfaces_outdated_thread(self) -> None:
+        import unittest.mock as mock
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            return_value={
+                "data": {
+                    "repository": {
+                        "pullRequest": {
+                            "reviewThreads": {
+                                "nodes": [
+                                    {
+                                        "id": "T1",
+                                        "isResolved": False,
+                                        "isOutdated": True,
+                                        "comments": {
+                                            "nodes": [
+                                                {
+                                                    "body": "Still needs a fix.",
+                                                    "author": {"login": "reviewer"},
+                                                    "url": "u",
+                                                }
+                                            ]
+                                        },
+                                    }
+                                ]
+                            }
+                        }
+                    }
+                }
+            },
+        ):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "review_response",
+                        "https://github.com/octo/repo/pull/7",
+                        "--include-thread",
+                        "T1",
+                    ],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("Still needs a fix.", stdout.getvalue())
+
+    def test_review_response_include_thread_unknown_id_is_error(self) -> None:
+        import unittest.mock as mock
+
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with mock.patch(
+            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+            return_value={
+                "data": {
+                    "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
+                }
+            },
+        ):
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                exit_code = request_cli.run_request_cli(
+                    [
+                        "review_response",
+                        "https://github.com/octo/repo/pull/7",
+                        "--include-thread",
+                        "MISSING",
+                    ],
+                    prog="lrh request",
+                )
+
+        self.assertEqual(exit_code, 2)
+        self.assertIn("not found", stderr.getvalue())
+        self.assertEqual("", stdout.getvalue())
+
     def test_review_response_missing_pull_request_is_error(self) -> None:
         import unittest.mock as mock
 

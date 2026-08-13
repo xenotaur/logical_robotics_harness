@@ -15,6 +15,8 @@ Identify need
 /lrh-work-item WI-<ID>            ← this skill
     │  Creates project/work_items/proposed/<ID>.md
     │  Runs lrh validate
+    │  Mints a prompt ID and creates an in_progress execution record
+    │  for this PR (see references/execution-record.md)
     │
     ▼
 lrh work-items validate            ← verify hygiene
@@ -83,7 +85,7 @@ If `lrh work-items readiness` flags the item as not prompt-ready, run
 
 After creating a work item with this skill:
 
-1. The skill offers (in Step 7) to add the new ID to the parent workstream's
+1. The skill offers (in Step 11) to add the new ID to the parent workstream's
    `work_items:` YAML list.
 2. If you accept, the skill edits the workstream file and re-runs
    `lrh validate`.
@@ -95,6 +97,34 @@ After editing, run `lrh validate` to confirm the reference is valid.
 ---
 
 ## Suggested next steps after skill completes
+
+There are two independent next-step paths, on different axes. They are not
+alternatives — a work item usually needs both.
+
+### Path 1 — PR lifecycle (the branch Step 9 just pushed)
+
+Step 9 opens a PR containing the new work item file, and Step 10 pushes an
+`in_progress` execution record to that same PR as an additional commit, so
+the PR needs review like any other:
+
+1. `/lrh-review-response <pr-url>` — address reviewer comments. Repeat as
+   needed until no comments remain outstanding.
+2. `/lrh-confirm-fixes <pr-url>` — verify the fixes against the current diff
+   and resolve the review threads before merge.
+3. Merge the PR.
+4. `/lrh-closeout <pr-url>` — lands this skill's execution record (marking it
+   `landed` with the merge commit), plus any additional `_REVIEW`/`_CONFIRM`
+   records that `/lrh-review-response` and `/lrh-confirm-fixes` created during
+   review. No backfill or reconstruction is needed for this record — it was
+   created up front in Step 10.
+
+Merging does not resolve the work item — it stays `proposed` until the work
+it describes is implemented. Resolving the item is a *separate* closeout, run
+later against the *implementation* PR — see "Evidence and closeout" below.
+
+### Path 2 — item refinement (making the item prompt-ready)
+
+Independent of the PR. Use when the item is not yet ready to drive execution:
 
 ```bash
 # 1. Verify hygiene
@@ -115,17 +145,15 @@ lrh request prompt-from-work-item WI-<ID>
 
 ## Evidence and closeout
 
-Once implementation is complete:
+Once implementation is complete and its PR is merged, run
+`/lrh-closeout <pr-url>`. It creates or lands the execution record under
+`project/executions/<WI-ID>/`, moves the file to
+`project/work_items/resolved/` with `status: resolved` and a non-null
+`resolution`, and re-validates.
 
-1. Create an execution record under `project/executions/<WI-ID>/`.
-2. Run `lrh validate` and `lrh work-items audit --format md` to confirm
-   traceability.
-3. Move the file to `project/work_items/resolved/` and set
-   `status: resolved` with a non-null `resolution` value.
-4. Run `lrh validate` after the move.
-
-The status change and file move must happen together — `lrh validate` fails
-if the file is in the wrong bucket.
+Do not hand-roll these steps. The status change and file move must happen
+together — `lrh validate` fails if the file is in the wrong bucket — and
+`/lrh-closeout` is the single place that sequencing is maintained.
 
 ---
 
@@ -148,7 +176,7 @@ The first concern is desirable. The second prevents composition — orchestratin
 skills cannot call `/lrh-work-item` as a sub-task without requiring the user to
 manually type the slash command, defeating the purpose of skill composition.
 
-The Step 4 confirm gate shows the complete proposed work item and requires
+The Step 5 confirm gate shows the complete proposed work item and requires
 explicit user approval before any file is written. This satisfies OWASP LLM08
 ("Require human approval for high-impact actions") without blocking programmatic
 invocation. The confirm gate fires in any invocation context — direct user call

@@ -64,7 +64,9 @@ Claude.app and Codex Cloud workflows; proposes optional `agent`, `instruction_so
 source session JSONL; integrates execution sessions into the existing workstream → work-item →
 execution-record hierarchy; and notes where Taurcode meta-prompts belong in LRH's distribution
 model (`src/lrh/skills/` per the now-adopted `PROP-LRH-PROJECT-LOCAL-SKILLS`). Status: `proposed` /
-`not_started` (documentation-only proposal; no CLI, schema, or runtime changes in this PR).
+`partial` (the proposal PR itself was documentation-only; the docs and `lrh validate` schema
+changes it called for have since landed via `WI-EXEC-SESSIONS-DOCS` and `WI-EXEC-SESSIONS-SCHEMA`;
+session-discovery CLI commands remain deferred).
 
 [`proposed/activity-lanes-and-observational-dashboard.md`](proposed/activity-lanes-and-observational-dashboard.md)
 — Proposes a lightweight, tool-agnostic activity-lane model (`project/activity/ACT-*.md`) plus
@@ -82,6 +84,10 @@ adapter design as an early manual capture path from browser Save as PDF exports
 to private-by-default, non-authoritative Markdown transcripts. Status: `proposed`
 / `not_started` (documentation-only direction; no storage, chat UI, converter,
 scanner, MCP, GitHub, HTTP, model-provider, or run execution implementation).
+
+[`proposed/lrh-antigravity-conversation-exporter/`](proposed/lrh-antigravity-conversation-exporter/)
+— Defines the design and implementation model for exporting Google Antigravity agent conversation sessions into private-by-default, non-authoritative Markdown transcript artifacts backed by generalized `ConversationExportManifest` frontmatter metadata and heuristic sensitivity scanning. Status: `proposed` / `not_started` (documentation-only direction; no runtime implementation in this PR).
+
 
 [`proposed/lrh-console-visual-language/`](proposed/lrh-console-visual-language/)
 — Proposes Alternative D, the Enhanced Swimlane Console, as the future light/dark visual language
@@ -129,6 +135,20 @@ semi-autonomous LRH execution: agents may propose arbitrary actions, but
 only policy-checked, sandboxed, logged, and interruptible capabilities may
 execute. Status: `proposed` / `not_started` (documentation-only design;
 no runtime behavior changes).
+
+[`proposed/lrh-skills-target-aware-install/`](proposed/lrh-skills-target-aware-install/)
+— Extends `lrh skills install` from a Claude-only installer into a target-aware Agent Skills
+installer, treating `.claude/skills/` and `.agents/skills/` (Codex) as parallel first-class local
+install targets rendered from a shared canonical skill source, with ChatGPT Skills deferred to a
+later, separately-researched export path. Status: `proposed` / `not_started` (documentation-only;
+no CLI, installer, or renderer code changes).
+
+[`proposed/lrh-codex-app-server-conversation-export/`](proposed/lrh-codex-app-server-conversation-export/)
+— Extends the adopted Codex conversation exporter design with a production
+app-server-backed current-session export path: `lrh conversation
+export-codex-thread` first, then `/lrh-codex-export` and later target-aware
+`/lrh-export` wrappers after dogfood. Status: `proposed` / `not_started`
+(planning/control-plane only; no CLI or skill implementation in this PR).
 
 [`adopted/dev-toolchain-env-resolution.md`](adopted/dev-toolchain-env-resolution.md)
 — Decides whether LRH-managed projects should rely on Taurworks

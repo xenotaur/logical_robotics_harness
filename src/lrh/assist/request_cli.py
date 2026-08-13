@@ -140,6 +140,19 @@ def configure_parser(parser: argparse.ArgumentParser) -> argparse.ArgumentParser
         ),
     )
     parser.add_argument(
+        "--include-thread",
+        action="append",
+        default=[],
+        metavar="THREAD_ID",
+        help=(
+            "For review_response, also include a specific review thread by "
+            "ID even if it doesn't match the default unresolved-and-current "
+            "filter (e.g. an outdated-but-unresolved thread). Repeatable. "
+            "Implies --force. A thread already resolved by fetch time is "
+            "reported separately, not force-included."
+        ),
+    )
+    parser.add_argument(
         "--show-vars",
         action="store_true",
         help="Print computed variables to stderr for debugging.",

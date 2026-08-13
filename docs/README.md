@@ -29,6 +29,8 @@ Use [Documentation structure](reference/documentation-structure.md) when decidin
 - [Inspect workspace state](how-to/inspect-workspace-state.md) — inspect active meta workspace paths and registered projects.
 - [Use the developer sandbox](how-to/use-the-developer-sandbox.md) — run LRH commands against isolated developer state.
 - [How to run a release](how-to/run-a-release.md) — maintainer release, TestPyPI, PyPI, and tag-push validation guidance.
+- [Use LRH with AI Agent Assistants](how-to/use-lrh-with-agent-assistants.md) — set up and operate LRH skills across Claude Code, Codex App, and Google Antigravity.
+- [Keep skills up to date](how-to/keep-skills-up-to-date.md) — check status, diffs, and force-update installed agent skills.
 - [Project setup playbooks](how-to/project-setup/README.md) — reusable setup and hardening guidance for heterogeneous project repositories.
 
 ## Current CLI reference

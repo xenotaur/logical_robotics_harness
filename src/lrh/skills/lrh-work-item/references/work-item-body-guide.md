@@ -19,8 +19,8 @@ checks to fail even though the content looks correct.
 
 One to two sentences. State the deliverable or outcome — not the approach.
 
-**Good:** "Implement the `lrh-work-item` Claude Code skill that guides users
-through creating new LRH work items."
+**Good:** "Implement the `lrh-work-item` agent skill that guides users through
+creating new LRH work items."
 
 **Avoid:** "This work item is about creating a skill because we need one."
 
@@ -72,7 +72,7 @@ while Required Changes lists the specific files and actions.
 **Good:**
 
 ```
-- Implement `src/lrh/skills/lrh-work-item/` and mirror to `.claude/skills/`
+- Implement `src/lrh/skills/lrh-work-item/` and verify rendered agent targets
 - Create work item and execution records in `project/`
 - Add a `## Skills` index entry to `CLAUDE.md`
 ```
@@ -93,7 +93,7 @@ bullet should name a specific file, command, or artifact.
 ```
 1. Create `src/lrh/skills/lrh-work-item/SKILL.md` following the LRH pattern.
 2. Create three `references/` files: work-item-schema.md, ...
-3. Mirror both to `.claude/skills/lrh-work-item/`.
+3. Verify Claude and Codex rendered installs for `lrh-work-item`.
 4. Add WI-SKILLS-LRH-WORK-ITEM to WS-SKILLS `work_items:` list.
 ```
 
@@ -134,8 +134,10 @@ human review.
 
 ```
 - `lrh validate` reports 0 errors after all files are written.
-- `diff -r src/lrh/skills/lrh-work-item/ .claude/skills/lrh-work-item/`
-  reports no differences.
+- `lrh skills check --target claude --local` reports the Claude install is up
+  to date.
+- `lrh skills status --target codex --local` reports the Codex install is up
+  to date.
 - The skill produces a valid work item when run in the LRH repo session.
 ```
 
@@ -175,7 +177,8 @@ For items that touch Python package behavior or tests, add:
 
 Add item-specific commands as additional bullets:
 
-- `diff -r src/lrh/skills/lrh-work-item/ .claude/skills/lrh-work-item/`
+- `lrh skills check --target claude --local`
+- `lrh skills status --target codex --local`
 - `` `python -c "import lrh.skills"` ``
 
 ---

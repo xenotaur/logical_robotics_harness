@@ -6,7 +6,9 @@ status: landed
 rerun_of: null
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/260
 commit: 8b2421c5fce75fcdf836dd35c8ef2ba298758295
-session_transcript: pending
+agent: codex_cloud
+instruction_source: promptspace:Z. Completed Prompts/lrh_readiness_prompt_package.zip#lrh_readiness_prompts/00_design_work_item_readiness.md
+session_transcript: none
 created_at: 2026-05-18T02:11:56+00:00
 ---
 

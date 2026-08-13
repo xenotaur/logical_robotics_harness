@@ -193,7 +193,6 @@ class VersionInstallSmokeTests(unittest.TestCase):
                     "pip",
                     "install",
                     "--no-input",
-                    "--no-deps",
                     str(wheels[0]),
                 ]
             )

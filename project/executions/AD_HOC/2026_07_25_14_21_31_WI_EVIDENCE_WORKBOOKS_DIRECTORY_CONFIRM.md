@@ -1,0 +1,75 @@
+---
+execution_id: 2026_07_25_14_21_31_WI_EVIDENCE_WORKBOOKS_DIRECTORY_CONFIRM
+prompt_id: PROMPT(AD_HOC:WI_EVIDENCE_WORKBOOKS_DIRECTORY_CONFIRM)[2026-07-25T14:21:09-04:00]
+work_item: AD_HOC
+status: landed
+rerun_of: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/416
+commit: b5ca51c0089fc52820c7dcbad372531cf6fa085f
+agent: claude_app
+instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/416
+session_transcript: claude-app:a787b253-6f9b-4896-a9ec-383fb1c6b1ac
+created_at: 2026-07-25T14:21:31-04:00
+---
+
+# Summary
+
+Pre-merge fresh-eyes verification of PR #416 (WI-EVIDENCE-WORKBOOKS-DIRECTORY,
+a planning-artifact PR — no primary execution record of its own, so
+`rerun_of` is left empty, matching the same edge case noted in the
+`_REVIEW` record for this PR).
+
+# Result
+
+`lrh request review_response` reported "Nothing to resolve" (its narrower
+unresolved-state filter excludes outdated threads), but
+`lrh github threads --mode raw --state all` filtered to `isResolved ==
+false` showed both threads from the prior review round still open
+(`isOutdated: true` after the review-response push moved the diff, but
+not resolved) — proceeded to verify them per the documented edge case
+rather than skipping.
+
+Both threads verified Clear-satisfied against the current `HEAD` diff
+(`gh pr diff`), both authored by `chatgpt-codex-connector` (tagged bot):
+
+1. **Clean-pass marker thread** (`PRRT_kwDOR7l1D86ToIh2`) — the current WI
+   text no longer claims the script can determine which `_CONFIRM` pass
+   was "the" clean one; it reports pass counts and unverified prose
+   verdicts, and Risk Notes documents the PR #400 evidence the reviewer
+   cited. Resolved via `resolveReviewThread`.
+2. **Filename-collision thread** (`PRRT_kwDOR7l1D86ToIh8`) — the current
+   WI text now defines the review/confirm cohort predicate as
+   `work_item == "AD_HOC"` plus a non-empty `rerun_of`, not filename
+   suffix, and Risk Notes documents the PR #413/#412 evidence the
+   reviewer cited. Resolved via `resolveReviewThread`.
+
+No threads were Unaddressed, Partial, Ambiguous, or Problematic. No
+`/lrh-review-response` follow-on needed.
+
+**Thread-resolution verdict (Step 6): green** — both threads resolved, no
+exceptions remain.
+
+CHAIN-NOTE: cycles=1; stops=1; gates=[merge]; friction="Step 6/land-PR template assumes primary-or-backfill; no case for a Variant B PR with review+confirm records but no primary"; note="appended to the _CONFIRM record — this PR has no primary record to prefer, per Step 6's own definition"
+
+# Validation
+
+- `lrh github threads --mode raw --state all`, filtered to `isResolved ==
+  false` client-side — authoritative unresolved-thread list (2 threads,
+  both bot-authored, both Clear-satisfied)
+- Provisional CI (Step 2): `gh pr checks --required` returned "no required
+  checks reported on the 'xenotaur/feat/wi-evidence-workbooks-directory'
+  branch"; distinguished via
+  `gh api repos/xenotaur/logical_robotics_harness/rules/branches/main
+  --jq '[.[] | select(.type=="required_status_checks")] | length'` → `0`,
+  confirming no required-check protection (matches the documented PR #399
+  precedent for this repo) — safe to fall back to the unfiltered
+  `gh pr checks` read: `tests` and `coverage` pending, `installed-wheel-smoke`
+  / `lint` / `Check workflow files` passing.
+- `lrh validate` — 0 errors, 0 warnings (run prior to this record's
+  commit, after the review-response fixes)
+
+# Follow-up
+
+- Step 8 (readiness report) re-checks CI against the post-push `HEAD` SHA
+  after this record is committed — see the confirm-fixes readiness report
+  in the session output, not this record, for the final merge verdict.

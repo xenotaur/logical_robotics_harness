@@ -4,9 +4,11 @@ type: design_proposal
 title: LRH Execution Sessions — Three-Phase Model and Claude.app Session Traceability
 status: proposed
 created_on: 2026-06-23
-updated_on: 2026-06-28
+updated_on: 2026-07-29
 implementation_status: partial
-implemented_by: []
+implemented_by:
+  - WI-EXEC-SESSIONS-DOCS
+  - WI-EXEC-SESSIONS-SCHEMA
 supersedes: []
 superseded_by: null
 related_design:
@@ -434,7 +436,7 @@ stages, each backed by a separate work item.
 Deliverable: a written design with a specific vocabulary for future
 implementation work.
 
-### Stage 1 — Documentation additions (`WI-EXEC-SESSIONS-DOCS`) — not_started
+### Stage 1 — Documentation additions (`WI-EXEC-SESSIONS-DOCS`) — done
 
 - Update `project/executions/README.md` to document the new optional
   fields: `agent`, `instruction_source`, `session_transcript`.
@@ -444,28 +446,37 @@ implementation work.
   unknown frontmatter fields without error. If they do not, a
   targeted fix belongs here.
 
-Stage 1 is documentation-only and can land quickly. As of 2026-06-28,
-163 execution records already use the new fields organically (populated
-by `/lrh-implement`), but neither README.md nor PROMPTS.md documents
-them. The fields are documented in `.claude/skills/lrh-implement/
-references/execution-session-reference.md`, but that is skill-internal,
-not the canonical location.
+Landed in two parts: `project/executions/README.md` was updated by
+PR #411 (as part of the 2026-07-23 backend-agnostic session pointer
+grammar work), and `PROMPTS.md` gained its three-phase-model section
+in PR #432 (2026-07-29). Both are now the canonical documentation for
+the optional fields; the skill-internal
+`.claude/skills/lrh-implement/references/execution-session-reference.md`
+remains a secondary, skill-specific reference.
 
-### Stage 2 — Schema validation (`WI-EXEC-SESSIONS-SCHEMA`) — not_started
+### Stage 2 — Schema validation (`WI-EXEC-SESSIONS-SCHEMA`) — done for the work item's scope; one original bullet deferred
 
 - Update `lrh validate` to recognize and validate the optional new
   fields: `agent` value set, `session_transcript` path or short-form,
-  `instruction_source` format.
-- Add tests for valid and invalid values.
+  `instruction_source` format. **Done, PR #421.**
+- Add tests for valid and invalid values. **Done, PR #421.**
 - Add `lrh snapshot project` reporting: counts by `agent` value if
   the field is present; flag records with `session_transcript` that
-  reference missing local files (advisory, not error).
+  reference missing local files (advisory, not error). **Not built.**
+  `WI-EXEC-SESSIONS-SCHEMA` explicitly moved this to its own Non-Goals
+  when it was implemented, so the work item itself has no remaining
+  criteria — but this original Stage 2 bullet is still undelivered.
+  It remains open if a concrete consumer emerges.
 
-As of 2026-06-28, `lrh validate` has no execution-record validation
-logic; the new fields pass through silently without enum checking or
-path-format warnings.
+Landed in PR #421 (2026-07-25): `lrh validate` now warns (never
+errors) on malformed or absolute-path `session_transcript` values —
+covering the scheme-prefixed scalar grammar, the `pending`/`none`
+sentinels, and the multi-backend sequence form — and on absolute-path
+`instruction_source` values. `agent` is deliberately left open-ended
+(no enum warning), matching its definition above
+(`claude_app | codex_cloud | manual | <other>`).
 
-### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`) — deferred
+### Stage 3 — Session discovery (`WI-EXEC-SESSIONS-DISCOVERY`, PR #435) — scope expanded under `PROP-LRH-SESSION-ARCHIVE-SYNC`
 
 - `lrh sessions discover [--project-root .]` — scan
   `~/.claude/projects/<project-slug>/` for JSONL files and list
@@ -476,6 +487,19 @@ path-format warnings.
 
 This stage requires local filesystem access to `~/.claude/projects/`
 and is a new CLI command surface.
+
+**Update (2026-07-29): scope expanded under
+`PROP-LRH-SESSION-ARCHIVE-SYNC`.** `WI-EXEC-SESSIONS-DISCOVERY` is now
+filed as open PR #435 (`discover`/`link`). Session discovery has since
+been folded into a larger design —
+`project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md`
+— which adds a durable local transcript archive, an `lrh sessions sync`
+reconciler (raw-JSONL mirror plus `/export` `metadata.json` harvest for
+the host↔child identity map), a non-authoritative `project/sessions/`
+index, and both-identifier capture at record creation and closeout. That
+proposal treats `discover`/`link` as one leaf of a four-stage plan; PR
+#435 is to be reconciled against the adopted design once that proposal
+lands. This bullet is retained for history.
 
 ### Stage 4 — Skill — done (subsumed by /lrh-implement)
 
@@ -505,8 +529,12 @@ skill mechanism is in place.
 - Do not add a new first-class artifact directory (e.g.,
   `project/sessions/`). The execution record with optional new fields
   is sufficient in Stage 1.
-- Do not automate the three-phase workflow. Claude.app sessions are
-  human-driven; the skill (Stage 4) guides but does not automate.
+- Do not automate the three-phase workflow *in this proposal*. Building the
+  human-walkable links first was a sequencing choice, not a permanent
+  prohibition: human-initiated automation of the links is permitted under
+  **deliberate chain initiation** (see
+  `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`). Claude.app
+  sessions remain human-driven; no chain starts itself.
 - Do not import or ingest session JSONL content into the repository.
   The transcript path is a reference, not a copy.
 
@@ -574,17 +602,25 @@ This proposal can be considered effectively implemented when:
 
 ## Work items
 
-Status as of 2026-06-28:
+Status as of 2026-07-29:
 
 - `WI-EXEC-SESSIONS-DOCS` — update `project/executions/README.md`
   and `PROMPTS.md` to document the three-phase model and optional
-  new fields — **not started**
+  new fields — **resolved** (README: PR #411; PROMPTS.md: PR #432)
 - `WI-EXEC-SESSIONS-SCHEMA` — update `lrh validate` for the new
-  optional fields; add tests — **not started**
-- `WI-EXEC-SESSIONS-DISCOVERY` — implement `lrh sessions discover`
-  and `lrh sessions link` commands — **deferred**
+  optional fields; add tests — **resolved** (PR #421)
+- `WI-EXEC-SESSIONS-DISCOVERY` — implement `lrh sessions discover` and
+  `lrh sessions link` commands — filed as open PR #435; **scope expanded
+  under `PROP-LRH-SESSION-ARCHIVE-SYNC`** (see Stage 3 update above),
+  which folds discovery into a durable-archive-and-sync design
 - `WI-EXEC-SESSIONS-SKILL` — **superseded** by `/lrh-implement`
   (WS-SKILLS); no separate skill needed
+
+Related but not part of this proposal's staged plan:
+`WI-CLOSEOUT-SESSION-SOURCING` (resolved, PR #431) made `/lrh-closeout`
+source `session_transcript` from `$CLAUDE_CODE_HOST_SESSION_ID` and
+`list_sessions` instead of JSONL auto-detection, consuming the grammar
+this proposal and the 2026-07-23 decision-log entry define.
 
 ## References
 

@@ -67,11 +67,18 @@ lrh skills status --scope user --target codex
 lrh skills status --scope project --target codex
 ```
 
-LRH maintainers checking this repository's canonical source checkout can add
-`--source current-repo`.
+Project scope changes where LRH writes the rendered skills; it does not, by
+itself, change which source tree LRH copies from. LRH maintainers checking this
+repository's canonical source checkout should add `--source current-repo`, or
+set the equivalent source default in `project/agent_skills.yaml`.
 
 Restart Codex after creating `~/.agents/skills/` for the first time or after
 updating global Codex skills so the app re-discovers the installed skills.
+
+Use global installs when you want skills to appear across unrelated repositories
+or worktrees. Use project-scope installs when you want a checkout-specific
+destination; combine project scope with `--source current-repo` or repo config
+when the installed copy should reflect that checkout's current source.
 
 #### Usage in Session
 Once Codex discovers the skills, invoke LRH workflows by naming the skill
@@ -126,6 +133,11 @@ This renders skills to `~/.gemini/config/plugins/lrh/skills/` or
 plugin root. The Antigravity renderer strips Claude-only frontmatter such as
 `disable-model-invocation` and `argument-hint`.
 
+Use the global Antigravity install when you want LRH skills available across
+worktrees. Project-scope installs are intentionally checkout-local, so another
+worktree will not see them unless it also has a project-scope install or the
+global plugin is installed.
+
 ---
 
 ### 4. Extending for Other Assistants
@@ -137,5 +149,6 @@ Because LRH decouples canonical skill sources (`src/lrh/skills/`) from target-re
 ## Related Documentation
 
 - [Keep skills up to date](keep-skills-up-to-date.md) — check status, diffs, and force-updates.
+- [`lrh skills` CLI reference](../reference/cli/skills.md) — exact command behavior and target paths.
 - [Agent skills config reference](../reference/schemas/agent-skills-config.md) — repository-local configuration schema (`project/agent_skills.yaml`).
 - [Antigravity Interoperability Decision](../../project/memory/decisions/DEC-AGENT-SKILL-INTEROPERABILITY-ANTIGRAVITY.md) — architectural decision record.

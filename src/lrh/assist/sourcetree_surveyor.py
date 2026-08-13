@@ -98,24 +98,8 @@ def _has_main_guard(text: str) -> bool:
     return 'if __name__ == "__main__"' in text or "if __name__=='__main__'" in text
 
 
-def _should_skip_path(path: pathlib.Path) -> bool:
-    return any(
-        part
-        in (
-            ".venv",
-            "venv",
-            "__pycache__",
-            ".git",
-            ".mypy_cache",
-            ".pytest_cache",
-            "node_modules",
-        )
-        for part in path.parts
-    )
-
-
-def _walk_files(root: pathlib.Path, pattern: str) -> list[pathlib.Path]:
-    ignored_dirs = {
+_IGNORED_DIRS = frozenset(
+    {
         ".venv",
         "venv",
         "__pycache__",
@@ -124,13 +108,21 @@ def _walk_files(root: pathlib.Path, pattern: str) -> list[pathlib.Path]:
         ".pytest_cache",
         "node_modules",
     }
+)
+
+
+def _walk_files(root: pathlib.Path, pattern: str) -> list[pathlib.Path]:
     paths: list[pathlib.Path] = []
-    for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = [d for d in dirnames if d not in ignored_dirs]
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
         for f in filenames:
-            if pattern.startswith(".") and f.endswith(pattern):
+            # Case-insensitive to match pathlib.Path.rglob's platform behavior
+            # (case-insensitive on Windows) regardless of host OS, so e.g.
+            # `module.PY` or `README.MD` are still found.
+            f_lower = f.lower()
+            if pattern.startswith(".") and f_lower.endswith(pattern.lower()):
                 paths.append(pathlib.Path(dirpath) / f)
-            elif not pattern.startswith(".") and f == pattern:
+            elif not pattern.startswith(".") and f_lower == pattern.lower():
                 paths.append(pathlib.Path(dirpath) / f)
     return sorted(paths)
 

@@ -2,13 +2,13 @@
 execution_id: 2026_08_13_06_57_50_WI_REVIEW_WAIT_POSTURE_BOUNDED_POLL
 prompt_id: PROMPT(AD_HOC:WI_REVIEW_WAIT_POSTURE_BOUNDED_POLL)[2026-08-13T06:55:41+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/549
-commit: 02c5eacc
+commit: dc62bdb1eed49b2bf7cfcf2a18fc1929b5a8e51d
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL.md
-session_transcript: pending
+session_transcript: claude-app:529191fc-e38a-4928-baf0-3196753dda62
 created_at: 2026-08-13T06:57:50+00:00
 ---
 

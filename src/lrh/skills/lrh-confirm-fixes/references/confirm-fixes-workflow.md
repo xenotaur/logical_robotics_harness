@@ -357,38 +357,80 @@ is wrong: exit `1` is ambiguous — it also fires when no
 `required_status_checks` rule exists at all, the case the distinguishing
 check above exists to rule out. Treating exit `1` as a terminal failure
 signal would misfire on exactly the post-push race this section already
-documents. `check_ci_predicate` below is illustrative shorthand for "run
-the distinguishing check, then the count-`0`/count-`>0`/lookup-failure
-branches from above, and report pending/success/failure accordingly" —
-not a literal function to copy in; the actual predicate is whatever those
-existing branches already compute.
+documents. `check_ci_predicate` below is a real, runnable implementation
+of that logic — not illustrative shorthand — using a three-way return
+code (`0` success, `1` terminal failure, `2` still pending) so the outer
+loop can distinguish all three states explicitly, rather than inferring
+"pending" from the absence of the other two:
 
 ```bash
+check_ci_predicate() {
+  local pr_url="$1"
+  local ci_json owner_repo base_branch required_count fail_count nonpass_count
+
+  ci_json=$(gh pr checks "$pr_url" --required --json name,state,bucket 2>/dev/null)
+  if [ -z "$ci_json" ]; then
+    # --required errored -- disambiguate per the branch-rules check above
+    owner_repo=$(echo "$pr_url" | sed -E 's#https://github.com/([^/]+/[^/]+)/pull/.*#\1#')
+    base_branch=$(gh pr view "$pr_url" --json baseRefName --jq '.baseRefName')
+    required_count=$(gh api "repos/${owner_repo}/rules/branches/${base_branch}" \
+      --jq '[.[] | select(.type=="required_status_checks")] | length' 2>/dev/null)
+    if [ -z "$required_count" ]; then
+      return 2   # rules lookup itself failed -- inconclusive, treat as pending
+    elif [ "$required_count" -eq 0 ]; then
+      ci_json=$(gh pr checks "$pr_url" --json name,state,bucket 2>/dev/null)
+    else
+      return 2   # required checks exist but haven't posted yet -- pending
+    fi
+  fi
+
+  fail_count=$(echo "$ci_json" | jq '[.[] | select(.bucket=="fail" or .bucket=="cancel")] | length')
+  nonpass_count=$(echo "$ci_json" | jq '[.[] | select(.bucket!="pass")] | length')
+
+  if [ "$fail_count" -gt 0 ]; then
+    return 1
+  elif [ "$nonpass_count" -gt 0 ]; then
+    return 2
+  else
+    return 0
+  fi
+}
+
 STALE_AGE_SECONDS=900
 POLL_INTERVAL_SECONDS=30
 START=$(date +%s)
 while true; do
-  if check_ci_predicate; then
-    break          # success -- every required check passed (or, on the
-                    # count-0 fallback, every reported check passed)
-  elif [ $? -eq 1 ]; then
-    break           # terminal failure -- a required check genuinely
-                     # failed or was cancelled, not merely pending
+  check_ci_predicate "<pr-url>"
+  STATUS=$?
+  if [ "$STATUS" -eq 0 ]; then
+    echo "CI green"
+    exit 0
+  elif [ "$STATUS" -eq 1 ]; then
+    echo "CI failing" >&2
+    exit 1
   fi
   if [ $(( $(date +%s) - START )) -ge "$STALE_AGE_SECONDS" ]; then
     echo "CI still pending after ${STALE_AGE_SECONDS}s" >&2
-    break
+    exit 1
   fi
   sleep "$POLL_INTERVAL_SECONDS"
 done
 ```
 
-`check_ci_predicate` is deliberately left undefined here — a real,
-syntactically legal bash construct (calling a not-yet-defined function),
-not a placeholder that breaks parsing. Run this loop as a single
-backgrounded shell command at Step 8's CI re-check; do not spread it
-across multiple foreground tool calls with the session itself sleeping
-between them.
+**Exit the backgrounded command itself with a distinguishing status, not
+a bare `break`.** The loop's own `break` paths (terminal failure, and
+timeout) would otherwise typically leave the command's exit status at
+whatever the last-run statement inside the loop returned (an `echo`,
+`sleep`, or the `[ ]` test itself) — usually `0` regardless of which
+path was taken, which defeats the point of backgrounding this for a
+caller that checks the process's own exit code afterward. `exit 0` on
+success and `exit 1` on both terminal failure and timeout (report is via
+the printed message, not the exit code, for that one) make the outcome
+checkable from outside the loop.
+
+Run this as a single backgrounded shell command at Step 8's CI re-check;
+do not spread it across multiple foreground tool calls with the session
+itself sleeping between them.
 
 This predicate is CI-specific. A bot-response wait (waiting for the
 automatic first-push reviewer's own reply, as opposed to a CI check)

@@ -204,11 +204,12 @@ related_workstreams:
 ```
 
 This object is the mechanical comparison target for `/lrh-implement` Step 4
-when Step 3 reaches it. A change to `prompt_id`, `branch`, expected file
-changes, validation commands, readiness/prior-art warnings, forbidden actions,
-or related workstreams is material. Pure reformatting, wording tightening that
-does not alter meaning, or reordering of already-approved validation commands
-when the command set is unchanged is not material.
+when Step 3 reaches it. A change to `prompt_id`, `branch`, `task_summary`,
+expected file changes, validation commands, readiness/prior-art warnings,
+forbidden actions, or related workstreams is material. Pure reformatting,
+wording tightening that does not alter meaning, or reordering of
+already-approved validation commands when the command set is unchanged is not
+material.
 
 ### Step 2 — Chain authorization gate
 
@@ -227,10 +228,13 @@ Planned chain for <WI-ID>:
 Run plan:
   prompt_id: <PROMPT(...)>
   branch: <branch-name>
+  task_summary: <one paragraph>
   expected file changes: <list>
   validation commands: <list>
   readiness: <prompt_ready and warnings>
   prior art: <present/performed and warnings>
+  forbidden_actions: <list, or "none">
+  related_workstreams: <list, or "none">
 ```
 
 **Run the chain-defaults propose-and-confirm flow before eliciting
@@ -319,7 +323,8 @@ skip straight to reporting.
 
 Append a structured YAML entry to a scratchpad run journal (not
 committed), per `PROP-LRH-LAND-EXECUTE` Decision 8 (`00_proposal.md:294-315`).
-Minimum shape:
+For a run that reached the Step 2 chain authorization gate, use this minimum
+shape:
 
 ```yaml
 run_id: <datetime-slug>
@@ -336,6 +341,30 @@ actions:
 findings:
   - <gap or observation surfaced during this run>
 ```
+
+For a pre-gate stop in Step 1.5 — for example, an idempotence match before
+the user has provided chain conditions and before any PR or closeout note can
+exist — use the early-stop variant instead of inventing unavailable values:
+
+```yaml
+run_id: <datetime-slug>
+node: <WS-ID or WI-ID this run started from>
+authorization_gate_reached: false
+stop_reason: <idempotence_match | readiness_block | prior_art_block | other>
+actions:
+  - type: execute_wi
+    wi: <WI-ID resolved in Step 1>
+    prompt_id: <PROMPT(...) minted in Step 1.5, if any>
+    pr: null
+    result: stopped
+    chain_note: null
+findings:
+  - <gap or observation surfaced during this run>
+```
+
+Only include `completion_condition`, `stop_work_condition`, `pr`, or a
+non-null `chain_note` when the run has actually reached the step that
+produces that value.
 
 Store the journal at `<scratchpad>/lrh-execute-run-journal.yaml` — a
 separate file from `/lrh-land`'s own `<scratchpad>/lrh-land-run-journal.yaml`

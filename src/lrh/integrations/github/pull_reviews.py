@@ -156,6 +156,29 @@ def get_pull_review_threads(ref: pr_ref.PullRequestRef) -> object:
     }
 
 
+def get_pull_issue_comments(ref: pr_ref.PullRequestRef) -> list[dict[str, object]]:
+    """Fetch a pull request's plain issue comments (not inline review comments)."""
+    payload = gh_client.run_gh_json(
+        [
+            "api",
+            "--paginate",
+            "--slurp",
+            f"repos/{ref.owner}/{ref.repo}/issues/{ref.number}/comments",
+        ]
+    )
+    # --slurp wraps each paginated page in an outer array, so the raw
+    # payload is a list of pages (each page itself a list of comments),
+    # not a flat list of comments -- flatten before filtering.
+    if not isinstance(payload, list):
+        return []
+    comments: list[dict[str, object]] = []
+    for page in payload:
+        if not isinstance(page, list):
+            continue
+        comments.extend(item for item in page if isinstance(item, dict))
+    return comments
+
+
 def get_pull_comments(ref: pr_ref.PullRequestRef) -> dict[str, object]:
     return {
         "review_comments": gh_client.run_gh_json(

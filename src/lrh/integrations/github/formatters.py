@@ -127,6 +127,43 @@ def format_threads_review(
     return "\n".join(lines)
 
 
+def _collect_issue_comments(data: object) -> list[dict[str, object]]:
+    if not isinstance(data, list):
+        return []
+    return [comment for comment in data if isinstance(comment, dict)]
+
+
+def has_issue_comments(data: object) -> bool:
+    """Return whether at least one plain issue comment is present."""
+    return bool(_collect_issue_comments(data))
+
+
+def format_issue_comments(
+    data: object,
+    *,
+    show_pr: bool,
+    include_author: bool,
+    include_url: bool,
+    ref: pr_ref.PullRequestRef,
+) -> str:
+    comments = _collect_issue_comments(data)
+    if not comments:
+        return ""
+    lines: list[str] = []
+    if show_pr:
+        lines.append(f"PR: {ref.owner}/{ref.repo}#{ref.number}")
+    for comment in comments:
+        lines.append("---")
+        body = comment.get("body") if isinstance(comment.get("body"), str) else ""
+        lines.append(body)
+        author = comment.get("user") if isinstance(comment.get("user"), dict) else {}
+        if include_author and isinstance(author.get("login"), str):
+            lines.append(f"author: {author['login']}")
+        if include_url and isinstance(comment.get("html_url"), str):
+            lines.append(f"url: {comment['html_url']}")
+    return "\n".join(lines)
+
+
 def format_threads_raw(
     data: object, *, state: str, show_pr: bool, ref: pr_ref.PullRequestRef
 ) -> str:

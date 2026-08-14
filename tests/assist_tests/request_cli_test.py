@@ -839,13 +839,19 @@ class TestRequestCli(unittest.TestCase):
 
         stdout = io.StringIO()
         stderr = io.StringIO()
-        with mock.patch(
-            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
-            return_value={
-                "data": {
-                    "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
-                }
-            },
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value={
+                    "data": {
+                        "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
+                    }
+                },
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
         ):
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 exit_code = request_cli.run_request_cli(
@@ -867,13 +873,19 @@ class TestRequestCli(unittest.TestCase):
 
         stdout = io.StringIO()
         stderr = io.StringIO()
-        with mock.patch(
-            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
-            return_value={
-                "data": {
-                    "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
-                }
-            },
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value={
+                    "data": {
+                        "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
+                    }
+                },
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
         ):
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 exit_code = request_cli.run_request_cli(
@@ -895,34 +907,40 @@ class TestRequestCli(unittest.TestCase):
 
         stdout = io.StringIO()
         stderr = io.StringIO()
-        with mock.patch(
-            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
-            return_value={
-                "data": {
-                    "repository": {
-                        "pullRequest": {
-                            "reviewThreads": {
-                                "nodes": [
-                                    {
-                                        "id": "T1",
-                                        "isResolved": False,
-                                        "isOutdated": True,
-                                        "comments": {
-                                            "nodes": [
-                                                {
-                                                    "body": "Still needs a fix.",
-                                                    "author": {"login": "reviewer"},
-                                                    "url": "u",
-                                                }
-                                            ]
-                                        },
-                                    }
-                                ]
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value={
+                    "data": {
+                        "repository": {
+                            "pullRequest": {
+                                "reviewThreads": {
+                                    "nodes": [
+                                        {
+                                            "id": "T1",
+                                            "isResolved": False,
+                                            "isOutdated": True,
+                                            "comments": {
+                                                "nodes": [
+                                                    {
+                                                        "body": "Still needs a fix.",
+                                                        "author": {"login": "reviewer"},
+                                                        "url": "u",
+                                                    }
+                                                ]
+                                            },
+                                        }
+                                    ]
+                                }
                             }
                         }
                     }
-                }
-            },
+                },
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
         ):
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 exit_code = request_cli.run_request_cli(
@@ -944,13 +962,19 @@ class TestRequestCli(unittest.TestCase):
 
         stdout = io.StringIO()
         stderr = io.StringIO()
-        with mock.patch(
-            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
-            return_value={
-                "data": {
-                    "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
-                }
-            },
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value={
+                    "data": {
+                        "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
+                    }
+                },
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
         ):
             with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 exit_code = request_cli.run_request_cli(

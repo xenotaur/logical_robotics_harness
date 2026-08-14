@@ -41,6 +41,77 @@ class GithubIntegrationTest(unittest.TestCase):
         self.assertIn("--paginate", issue_call)
         self.assertIn("--slurp", issue_call)
 
+    def test_get_pull_issue_comments_uses_paginate_and_slurp(self) -> None:
+        # --slurp wraps each paginated page in an outer array, so the raw
+        # gh CLI payload is a list of pages (each page itself a list of
+        # comments) -- a single-page PR still returns [[...]], not [...].
+        ref = pr_ref.PullRequestRef("o", "r", 1)
+        with mock.patch(
+            "lrh.integrations.github.pull_reviews.gh_client.run_gh_json",
+            return_value=[[{"id": 1, "body": "clean pass"}]],
+        ) as run_json:
+            comments = pull_reviews.get_pull_issue_comments(ref)
+        self.assertEqual(comments, [{"id": 1, "body": "clean pass"}])
+        call_args = run_json.call_args_list[0].args[0]
+        self.assertIn("--paginate", call_args)
+        self.assertIn("--slurp", call_args)
+        self.assertIn("repos/o/r/issues/1/comments", call_args)
+
+    def test_get_pull_issue_comments_flattens_multiple_pages(self) -> None:
+        ref = pr_ref.PullRequestRef("o", "r", 1)
+        with mock.patch(
+            "lrh.integrations.github.pull_reviews.gh_client.run_gh_json",
+            return_value=[
+                [{"id": 1, "body": "first page"}],
+                [{"id": 2, "body": "second page"}],
+            ],
+        ):
+            comments = pull_reviews.get_pull_issue_comments(ref)
+        self.assertEqual(
+            comments,
+            [{"id": 1, "body": "first page"}, {"id": 2, "body": "second page"}],
+        )
+
+    def test_get_pull_issue_comments_tolerates_non_list_payload(self) -> None:
+        ref = pr_ref.PullRequestRef("o", "r", 1)
+        with mock.patch(
+            "lrh.integrations.github.pull_reviews.gh_client.run_gh_json",
+            return_value={"unexpected": "shape"},
+        ):
+            comments = pull_reviews.get_pull_issue_comments(ref)
+        self.assertEqual(comments, [])
+
+    def test_has_issue_comments_true_and_false(self) -> None:
+        self.assertFalse(formatters.has_issue_comments([]))
+        self.assertFalse(formatters.has_issue_comments(None))
+        self.assertTrue(formatters.has_issue_comments([{"body": "hi"}]))
+
+    def test_format_issue_comments_includes_body_author_and_url(self) -> None:
+        ref = pr_ref.PullRequestRef("octo", "repo", 7)
+        data = [
+            {
+                "body": "Clean pass, no findings.",
+                "user": {"login": "chatgpt-codex-connector"},
+                "html_url": "https://github.com/octo/repo/pull/7#issuecomment-1",
+            }
+        ]
+        rendered = formatters.format_issue_comments(
+            data, show_pr=True, include_author=True, include_url=True, ref=ref
+        )
+        self.assertIn("PR: octo/repo#7", rendered)
+        self.assertIn("Clean pass, no findings.", rendered)
+        self.assertIn("author: chatgpt-codex-connector", rendered)
+        self.assertIn(
+            "url: https://github.com/octo/repo/pull/7#issuecomment-1", rendered
+        )
+
+    def test_format_issue_comments_empty_returns_empty_string(self) -> None:
+        ref = pr_ref.PullRequestRef("octo", "repo", 7)
+        rendered = formatters.format_issue_comments(
+            [], show_pr=True, include_author=True, include_url=True, ref=ref
+        )
+        self.assertEqual(rendered, "")
+
     def test_format_review_mode_and_state_filter(self) -> None:
         data = {
             "data": {

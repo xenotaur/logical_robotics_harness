@@ -160,3 +160,4 @@ Then provide a summary:
 PR: {{REVIEW_URL}}
 ---
 {{UNRESOLVED_THREADS}}
+{{ISSUE_COMMENTS}}

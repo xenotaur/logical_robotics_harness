@@ -55,6 +55,8 @@ artifacts_expected:
   - src/lrh/skills/lrh-codex-export/SKILL.md
   - .agents/skills/lrh-codex-export/SKILL.md
   - .claude/skills/lrh-codex-export/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-codex-export/SKILL.md
+  - .gemini/plugins/lrh/plugin.json
   - src/lrh/cli/main.py
   - src/lrh/conversations/
   - tests/cli_tests/
@@ -77,10 +79,10 @@ Dogfooding found that the current `/lrh-codex-export` skill uses
 `/var/folders/`. That made exported sessions hard to discover and vulnerable to
 cleanup, defeating the point of a Claude `/export` equivalent after a user
 archives or deletes the live Codex task. A manual rescue of `/var/folders/`
-exports into `/Users/centaur/Workspace/Promptspace/CodexExports` found five
-valid exports and six empty directories; the empty directories may be harmless
-aborted attempts, but they carry no durable provenance and can look like
-successful export artifacts.
+exports into a private Promptspace-style archive directory found five valid
+exports and six empty directories; the empty directories may be harmless aborted
+attempts, but they carry no durable provenance and can look like successful
+export artifacts.
 
 `WS-SESSION-ARCHIVE-SYNC` already establishes the governing invariant that no
 repo-changing agent session should be lost, and its exit criteria require
@@ -149,9 +151,9 @@ design/implementation.
    status, and error summary when applicable.
 5. Add or extend a CLI command to import/migrate existing LRH Codex export
    directories such as
-   `/Users/centaur/Workspace/Promptspace/CodexExports/lrh-codex-export-*` into
-   the durable archive. The command must inspect manifests and hashes without
-   printing transcript bodies.
+   `$HOME/<private-archive>/CodexExports/lrh-codex-export-*` into the durable
+   archive. The command must inspect manifests and hashes without printing
+   transcript bodies.
 6. Treat empty, partial, or invalid export directories as explicit
    failed/partial attempts, not successful exports; preserve whatever metadata
    exists and report missing `export.md` / `raw.json` clearly.
@@ -202,6 +204,9 @@ design/implementation.
 - `scripts/lint`
 - `scripts/test`
 - `lrh validate`
+- `lrh skills check --target claude --local`
+- `lrh skills check --target codex --local`
+- `lrh skills check --target antigravity --local`
 - `lrh conversation inspect-export <migrated-export.md> --source <migrated-raw.json> --format json`
 - `lrh conversation <migration-command> --help`
 

@@ -5,3 +5,4 @@ Project setup playbooks capture reusable, human-facing setup and validation guid
 ## Playbooks
 
 - [CI setup and debugging](ci.md) — assess, repair, and harden continuous integration across heterogeneous repositories using canonical commands, reproducible tool versions, workflow guardrails, and evidence-backed debugging.
+- [Claude Code permission allowlist](claude-code-permissions.md) — what the project-level `.claude/settings.json` pre-approves, what it deliberately still gates, and how to extend it.

@@ -18,7 +18,8 @@ related_workstreams:
   - WS-INVOCATION-AND-GATE-RESET
 related_design:
   - project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md
-depends_on: []
+depends_on:
+  - WI-GATE-POLICY-CASCADE-STAGE3
 blocked_by: []
 expected_actions:
   - edit_file
@@ -173,16 +174,12 @@ Consult the `acceptance:` frontmatter field, which is the authoritative list.
 
 ## Risk Notes
 
-- **File-collision risk with Stage 3.** `WS-INVOCATION-AND-GATE-RESET.md:151-160`
+- **File-collision risk with Stage 3.** `WS-INVOCATION-AND-GATE-RESET`
   documents that Stages 1-2 wrongly assumed independence "because they
   share no files" and broke a re-stamp constraint as a result. This item
-  touches the same gate-bearing files Stage 3's cascade touches. `depends_on`
-  is left empty here because Stage 3's own gate-corpus-audit/cascade work
-  item has not yet been minted a `WI-*` ID (see
-  `project/workstreams/proposed/WS-INVOCATION-AND-GATE-RESET.md:147`, which
-  still lists Stage 3 as unassigned in its work-item table) -- update
-  `depends_on` to name it once minted, and do not start this item's file
-  edits concurrently with Stage 3's cascade in the meantime.
+  touches the same gate-bearing files Stage 3's cascade touches, so it now
+  depends on `WI-GATE-POLICY-CASCADE-STAGE3`. Do not start this item's file
+  edits concurrently with Stage 3's cascade.
 - **Codex's collapsed-summary placement is a client rendering quirk.**
   Instructing "state the gate as the final top-level message" mitigates
   but cannot guarantee Codex will stop collapsing tool-call sections --

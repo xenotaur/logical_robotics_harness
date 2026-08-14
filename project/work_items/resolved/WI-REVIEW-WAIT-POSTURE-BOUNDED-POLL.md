@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #552 (commit ec40e9d7); bounded-poll CI-wait mechanism landed in confirm-fixes-workflow.md, cross-referenced in lrh-land Step 4/5, mirrored to all four skill corpora."
 blocked_reason: null
 blocked: false
 id: WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL
 title: Specify a bounded-poll CI-wait mechanism (PROP-REVIEW-WAIT-POSTURE Decision 3, CI-wait only)
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

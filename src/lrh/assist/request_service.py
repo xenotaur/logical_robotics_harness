@@ -123,6 +123,7 @@ def generate_request(
         target_input = resolve_target_input(args)
         ref = pr_ref.parse_pull_request_url(target_input)
         threads_data = pull_reviews.get_pull_review_threads(ref)
+        issue_comments_data = pull_reviews.get_pull_issue_comments(ref)
         variables["REVIEW_URL"] = target_input
         variables["REPO_NAME"] = f"{ref.owner}/{ref.repo}"
         include_thread_ids = list(getattr(args, "include_thread", None) or [])
@@ -148,8 +149,14 @@ def generate_request(
         has_unresolved_threads = formatters.has_threads_for_state(
             threads_data, state="unresolved"
         )
+        # Issue comments have no isResolved/isOutdated state the way review
+        # threads do, so "unaddressed" is approximated as "always include" --
+        # a documented first-cut heuristic (WI-REVIEW-RESPONSE-ISSUE-COMMENTS),
+        # not a gap: resolving true addressed/unaddressed tracking for issue
+        # comments would need its own investigation.
+        has_issue_comments = formatters.has_issue_comments(issue_comments_data)
         force = bool(getattr(args, "force", False)) or bool(include_thread_ids)
-        if not has_unresolved_threads and not force:
+        if not has_unresolved_threads and not has_issue_comments and not force:
             return (
                 "Nothing to resolve: no unresolved review threads found for "
                 f"{ref.owner}/{ref.repo}#{ref.number}",
@@ -163,6 +170,13 @@ def generate_request(
             include_url=True,
             ref=ref,
             extra_ids=set(include_thread_ids) if include_thread_ids else None,
+        )
+        variables["ISSUE_COMMENTS"] = formatters.format_issue_comments(
+            issue_comments_data,
+            show_pr=True,
+            include_author=True,
+            include_url=True,
+            ref=ref,
         )
 
     template_text = request_templates.load_template_text(

@@ -169,7 +169,10 @@ pushing does not satisfy this check — it may mean review has not run yet
 (bots post after push, not simultaneously). The correct check uses
 `reviewThreads.isResolved` state (not `reviews` or `comments`, which do not
 expose inline thread resolution). Use `lrh request review_response`, which
-queries `reviewThreads` via GraphQL internally:
+queries `reviewThreads` via GraphQL internally and also fetches plain PR
+issue comments via REST (surfaced in its output alongside unresolved
+threads, and factored into its own "Nothing to resolve" gate — see
+`WI-REVIEW-RESPONSE-ISSUE-COMMENTS`):
 
 ```bash
 gh pr view <pr-url> --json headRefOid,commits --jq '{head: .headRefOid, lastPush: (.commits | last | .committedDate)}'

@@ -746,9 +746,15 @@ class TestReviewResponseTemplate(unittest.TestCase):
             }
         }
 
-        with mock.patch(
-            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
-            return_value=threads_payload,
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value=threads_payload,
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
         ):
             rendered, variables = request_service.generate_request(args)
 
@@ -810,9 +816,15 @@ class TestReviewResponseTemplate(unittest.TestCase):
             "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}
         }
 
-        with mock.patch(
-            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
-            return_value=threads_payload,
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value=threads_payload,
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
         ):
             rendered, _ = request_service.generate_request(args)
 
@@ -850,9 +862,15 @@ class TestReviewResponseTemplate(unittest.TestCase):
             "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}
         }
 
-        with mock.patch(
-            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
-            return_value=threads_payload,
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value=threads_payload,
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
         ):
             rendered, _ = request_service.generate_request(args)
 
@@ -914,9 +932,15 @@ class TestReviewResponseTemplate(unittest.TestCase):
             }
         }
 
-        with mock.patch(
-            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
-            return_value=threads_payload,
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value=threads_payload,
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
         ):
             rendered, _ = request_service.generate_request(args)
 
@@ -954,9 +978,15 @@ class TestReviewResponseTemplate(unittest.TestCase):
             "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}
         }
 
-        with mock.patch(
-            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
-            return_value=threads_payload,
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value=threads_payload,
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
         ):
             with self.assertRaisesRegex(ValueError, "not found"):
                 request_service.generate_request(args)
@@ -1004,12 +1034,120 @@ class TestReviewResponseTemplate(unittest.TestCase):
             }
         }
 
-        with mock.patch(
-            "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
-            return_value=threads_payload,
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value=threads_payload,
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
         ):
             with self.assertRaisesRegex(ValueError, "already resolved"):
                 request_service.generate_request(args)
+
+    def test_review_response_surfaces_issue_comment_with_no_unresolved_threads(
+        self,
+    ) -> None:
+        args = argparse.Namespace(
+            template_name="review_response",
+            target="https://github.com/octo/repo/pull/7",
+            target_option=None,
+            scope=None,
+            repo_name=None,
+            project_goal=None,
+            background_file=None,
+            background_text=None,
+            project_type=None,
+            bootstrap_mode="minimal",
+            audit_file=None,
+            work_item_file=None,
+            style_file=None,
+            patch_file=None,
+            show_vars=False,
+            prompt_id=None,
+            force=False,
+        )
+
+        threads_payload = {
+            "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}
+        }
+        issue_comments_payload = [
+            {
+                "body": "Looks good, no findings.",
+                "user": {"login": "chatgpt-codex-connector"},
+                "html_url": "https://github.com/octo/repo/pull/7#issuecomment-1",
+            }
+        ]
+
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value=threads_payload,
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=issue_comments_payload,
+            ),
+        ):
+            rendered, _ = request_service.generate_request(args)
+
+        # A finding present only as an issue comment (no reviewThreads entry)
+        # must not silently short-circuit to "Nothing to resolve".
+        self.assertNotEqual(
+            rendered,
+            "Nothing to resolve: no unresolved review threads found for octo/repo#7",
+        )
+        self.assertIn("Looks good, no findings.", rendered)
+        self.assertIn("author: chatgpt-codex-connector", rendered)
+        self.assertIn(
+            "url: https://github.com/octo/repo/pull/7#issuecomment-1", rendered
+        )
+
+    def test_review_response_no_threads_no_issue_comments_nothing_to_resolve(
+        self,
+    ) -> None:
+        args = argparse.Namespace(
+            template_name="review_response",
+            target="https://github.com/octo/repo/pull/7",
+            target_option=None,
+            scope=None,
+            repo_name=None,
+            project_goal=None,
+            background_file=None,
+            background_text=None,
+            project_type=None,
+            bootstrap_mode="minimal",
+            audit_file=None,
+            work_item_file=None,
+            style_file=None,
+            patch_file=None,
+            show_vars=False,
+            prompt_id=None,
+            force=False,
+        )
+
+        threads_payload = {
+            "data": {"repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}}
+        }
+
+        with (
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
+                return_value=threads_payload,
+            ),
+            mock.patch(
+                "lrh.assist.request_service.pull_reviews.get_pull_issue_comments",
+                return_value=[],
+            ),
+        ):
+            rendered, _ = request_service.generate_request(args)
+
+        self.assertEqual(
+            rendered,
+            "Nothing to resolve: no unresolved review threads found for octo/repo#7",
+        )
 
 
 class TestOrganizeDocsTemplate(unittest.TestCase):

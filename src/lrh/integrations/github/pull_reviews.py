@@ -156,6 +156,21 @@ def get_pull_review_threads(ref: pr_ref.PullRequestRef) -> object:
     }
 
 
+def get_pull_issue_comments(ref: pr_ref.PullRequestRef) -> list[dict[str, object]]:
+    """Fetch a pull request's plain issue comments (not inline review comments)."""
+    payload = gh_client.run_gh_json(
+        [
+            "api",
+            "--paginate",
+            "--slurp",
+            f"repos/{ref.owner}/{ref.repo}/issues/{ref.number}/comments",
+        ]
+    )
+    if not isinstance(payload, list):
+        return []
+    return [comment for comment in payload if isinstance(comment, dict)]
+
+
 def get_pull_comments(ref: pr_ref.PullRequestRef) -> dict[str, object]:
     return {
         "review_comments": gh_client.run_gh_json(

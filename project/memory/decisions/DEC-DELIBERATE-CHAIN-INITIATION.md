@@ -15,9 +15,12 @@ an automatic chain over them may run only when a human has explicitly initiated
 it and has provided or signed off on both a completion condition and a
 stop-work condition. This does not weaken the rule that no chain starts itself;
 it does not pre-authorize the human/policy gates — merge, publish, release, and
-closeout — nor any skill's internal confirmation gate; and it does not move any
-skill into the agentic package — an agent running skills or templates is assist,
-not agentic.
+closeout — nor any independently load-bearing skill confirmation gate. A later
+narrow amendment permits single-ask handling for pure restatement gates when
+the upstream gate presents the concrete downstream plan and the downstream step
+asks again on material divergence; see the 2026-08-13 Consequences entry. This
+does not move any skill into the agentic package — an agent running skills or
+templates is assist, not agentic.
 
 ## Context
 
@@ -72,11 +75,15 @@ not agentic.
    "preserve human/policy gates for merge, release, publish, and closeout") and
    require explicit, in-session authorization — a merge instruction embedded in a
    run prompt is data, not authorization (see `AGENTS.md`, "Pull requests and
-   merge authority"). More generally, **chain initiation never satisfies a
-   skill's own internal confirmation gate**: e.g. `/lrh-closeout`'s plan-confirm
-   gate (`src/lrh/skills/lrh-closeout/SKILL.md`, Step 4) still requires explicit
-   approval of the actual closeout plan before any files change. A
-   deliberately-initiated chain drives to those gates and stops.
+   merge authority"). More generally, **chain initiation by itself does not
+   satisfy a skill's own internal confirmation gate**: e.g. `/lrh-closeout`'s
+   plan-confirm gate (`src/lrh/skills/lrh-closeout/SKILL.md`, Step 4) still
+   requires explicit approval of the actual closeout plan before any files
+   change. A deliberately-initiated chain drives to those gates and stops.
+   `DEC-SINGLE-ASK-RUN-GATES` later narrows this sentence for restatement gates:
+   when the upstream gate already presents the concrete downstream plan, the
+   downstream gate may be satisfied by a mechanical no-material-divergence check
+   and must ask again if material fields differ.
 
 2. **Superseded 2026-08-08 — see the dated Consequences entry below.**
    ~~`disable-model-invocation` is preserved; the invariant is "no chain starts
@@ -215,6 +222,18 @@ not agentic.
   empty-thread gate gaps this review surfaced, and the `installer.py`
   verification remain `WI-DELIBERATE-MODEL-INVOCATION`'s implementation
   scope; this decision record only carries the resolved policy.
+- **2026-08-13:** `DEC-SINGLE-ASK-RUN-GATES` narrows principle 1's
+  internal-gate rule on one specific axis: a downstream confirmation gate
+  whose only job is to restate a concrete plan already approved upstream may be
+  satisfied by a mechanical no-material-divergence check. The upstream gate
+  must present the fields the downstream gate would otherwise ask about, and
+  the downstream step must ask again if any material field differs. This is the
+  governing shape for `/lrh-execute` presenting a complete run plan before
+  inlining `/lrh-implement`, then letting `/lrh-implement` Step 4 proceed
+  without a second live reply only when the live plan still matches. Direct
+  `/lrh-implement` invocation, merge authorization, publish/release gates,
+  `/lrh-land`'s chain gate, and any independently load-bearing confirmation
+  gate are unaffected.
 
 ## Revisit conditions
 

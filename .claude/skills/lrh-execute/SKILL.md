@@ -72,7 +72,10 @@ for provenance only, not as a required preload.
 ## Execution Steps
 
 Work through these steps in order. Do not skip Step 2 (chain authorization
-gate) — it must precede Step 3.
+gate) — it must precede Step 3's implementation work. Step 1 deliberately
+front-loads the deterministic setup that `/lrh-implement` used to ask about
+later, so Step 2 can approve one complete run plan instead of a vague chain
+followed by a second, restated plan gate.
 
 ### Step 1 — Resolve the target work item
 
@@ -88,6 +91,16 @@ find project/work_items/ -name "<dependency-WI-ID>.md"
 Every entry must have `status: resolved`. If any entry is not resolved
 (or its file can't be found at all — report that distinctly, not as
 "not resolved"), stop and report which one, and do not proceed to Step 2.
+Also run the readiness check here, before the chain is authorized:
+
+```bash
+lrh work-items readiness <WI-ID> --format md
+```
+
+Record the structured `prompt_ready` value and any warnings for the Step 2
+run-plan presentation. If the item is not prompt-ready, carry that warning into
+the Step 2 gate rather than asking separately here; the human's Step 2 reply
+decides whether to continue with that known readiness risk.
 
 **Given `WS-ID`:** find the next ready WI per `PROP-LRH-LAND-EXECUTE`'s
 exact rule ("Chosen scope", `00_proposal.md:221-225`): "find the next
@@ -135,19 +148,93 @@ them here would blur the verb "execute" into something it isn't.
 Once resolved to a `WI-ID` either way, this becomes the target for every
 step below.
 
+### Step 1.5 — Prepare the approved run plan
+
+Before Step 2 asks for chain authorization, perform the deterministic setup
+from `/lrh-implement` Steps 1, 1.5, 2, and 3. These steps read static planning
+state and run stop checks; they do not edit files or create a branch.
+
+1. Validate/readiness is already covered by Step 1. Carry its result forward.
+2. Validate or perform the prior-art check using `/lrh-implement` Step 1.5's
+   search procedure, but do not ask separately on a warning here. Carry any
+   warning into the Step 2 run-plan presentation so the same gate decides
+   whether to continue.
+3. Read the work item fully and extract:
+   - task summary;
+   - expected file changes;
+   - validation commands;
+   - forbidden actions;
+   - related workstream;
+   - readiness warnings, prior-art warnings, or dependency warnings.
+4. Mint the prompt ID and run idempotence:
+
+   ```bash
+   lrh prompt label --slug <slug> --work-item <WI-ID>
+   lrh prompt check-execution --prompt-id "<id>" --project-root .
+   ```
+
+   If the idempotence check reports a `landed` or `in_progress` record, stop
+   here; then go to Step 5 and record a `stopped` journal entry.
+5. Derive the branch name using `/lrh-implement`'s convention:
+   `<github-login>/<type>/<slug>`.
+
+Create an **approved run plan** object with these fields:
+
+```yaml
+wi: <WI-ID>
+prompt_id: <PROMPT(...)>
+branch: <derived-branch>
+task_summary: <one paragraph>
+expected_file_changes:
+  - <path or path family>
+validation_commands:
+  - <command>
+readiness:
+  prompt_ready: <yes|no>
+  warnings:
+    - <warning text>
+prior_art:
+  verdict: <present|performed|warning>
+  warnings:
+    - <warning text>
+forbidden_actions:
+  - <action>
+related_workstreams:
+  - <WS-ID>
+```
+
+This object is the mechanical comparison target for `/lrh-implement` Step 4
+when Step 3 reaches it. A change to `prompt_id`, `branch`, `task_summary`,
+expected file changes, validation commands, readiness/prior-art warnings,
+forbidden actions, or related workstreams is material. Pure reformatting,
+wording tightening that does not alter meaning, or reordering of
+already-approved validation commands when the command set is unchanged is not
+material.
+
 ### Step 2 — Chain authorization gate
 
 Per `DEC-DELIBERATE-CHAIN-INITIATION`, this gate must be reached before
 any automated link runs — before `/lrh-implement` in Step 3, not deferred
 to `/lrh-land`'s own later gate in Step 4 (by the time that gate is
 reached, implementation and PR creation have already happened). Present
-the full planned chain to the user:
+the full planned chain and the approved run plan to the user:
 
 ```
 Planned chain for <WI-ID>:
   [Step 3] /lrh-implement (inline) — build the change, open a PR
   [Step 4] /lrh-land (inline) — review-response, confirm-fixes, merge
            gate, closeout, for the PR from Step 3
+
+Run plan:
+  prompt_id: <PROMPT(...)>
+  branch: <branch-name>
+  task_summary: <one paragraph>
+  expected file changes: <list>
+  validation commands: <list>
+  readiness: <prompt_ready and warnings>
+  prior art: <present/performed and warnings>
+  forbidden_actions: <list, or "none">
+  related_workstreams: <list, or "none">
 ```
 
 **Run the chain-defaults propose-and-confirm flow before eliciting
@@ -176,12 +263,13 @@ them or a validated skip. If the user's live reply diverges from the
 stored values, apply the profile-update offer at the end of the run rather
 than silently persisting the override.
 
-**This gate does not exempt the gates inside the sub-skills inlined
-below.** `/lrh-implement`'s own Step 4 (confirm the implementation plan)
-and `/lrh-land`'s own Step 2 (chain authorization gate, for the landing
-portion specifically) still fire when reached — chain initiation
-authorizes running the links, not skipping their internal gates, the same
-principle `/lrh-land` itself applies to the sub-skills *it* inlines. When
+This is a single-ask change, not a no-ask change. The human approves more at
+this gate than the old chain gate carried: completion/stop conditions plus the
+prompt ID, branch, expected files, validation commands, readiness result, and
+prior-art result. `/lrh-implement` Step 4 is not bypassed; when reached through
+this skill, it compares its live plan against the approved run plan above and
+asks only on material divergence. `/lrh-land`'s own Step 2 chain-authorization
+gate, for the landing portion specifically, still fires when reached. When
 `/lrh-land`'s Step 2 is reached in Step 4 below, its completion/stop-work
 conditions may be satisfied by re-confirming the conditions already
 established here, if the human agrees they still apply, rather than
@@ -189,13 +277,14 @@ re-eliciting them from scratch.
 
 ### Step 3 — Implement (inline `/lrh-implement`)
 
-Read `/lrh-implement/SKILL.md` and execute **all** of its steps — 1, 1.5,
-2, 3, 4, 5, 6, 7, 8, 9, 10, including Step 1.5 (prior-art check), not just
-"1 through 10" read as excluding the decimal-numbered step — directly in
-this session, for the `WI-ID` resolved in Step 1. This mints a prompt ID,
-checks idempotence, confirms the implementation plan (its own Step 4 gate
-— see the note above), implements the change, validates, and opens a PR
-with a populated execution record.
+Read `/lrh-implement/SKILL.md` and execute its workflow directly in this
+session for the `WI-ID` resolved in Step 1. Steps 1, 1.5, 2, and 3 were already
+performed in Step 1.5 above; do not re-mint the prompt ID or re-run idempotence
+unless the live values needed for Step 4 differ from the approved run plan.
+At `/lrh-implement` Step 4, pass the approved run plan and apply that step's
+divergence-only rule. If there is no material divergence, proceed to Step 5
+without a second human ask; if there is material divergence, stop at the Step 4
+gate and ask with a structured diff.
 
 **Populate the execution record's `pr:` field before proceeding to Step
 4.** `/lrh-implement`'s own Step 9 does not do this — its
@@ -234,7 +323,8 @@ skip straight to reporting.
 
 Append a structured YAML entry to a scratchpad run journal (not
 committed), per `PROP-LRH-LAND-EXECUTE` Decision 8 (`00_proposal.md:294-315`).
-Minimum shape:
+For a run that reached the Step 2 chain authorization gate, use this minimum
+shape:
 
 ```yaml
 run_id: <datetime-slug>
@@ -251,6 +341,30 @@ actions:
 findings:
   - <gap or observation surfaced during this run>
 ```
+
+For a pre-gate stop in Step 1.5 — for example, an idempotence match before
+the user has provided chain conditions and before any PR or closeout note can
+exist — use the early-stop variant instead of inventing unavailable values:
+
+```yaml
+run_id: <datetime-slug>
+node: <WS-ID or WI-ID this run started from>
+authorization_gate_reached: false
+stop_reason: <idempotence_match | readiness_block | prior_art_block | other>
+actions:
+  - type: execute_wi
+    wi: <WI-ID resolved in Step 1>
+    prompt_id: <PROMPT(...) minted in Step 1.5, if any>
+    pr: null
+    result: stopped
+    chain_note: null
+findings:
+  - <gap or observation surfaced during this run>
+```
+
+Only include `completion_condition`, `stop_work_condition`, `pr`, or a
+non-null `chain_note` when the run has actually reached the step that
+produces that value.
 
 Store the journal at `<scratchpad>/lrh-execute-run-journal.yaml` — a
 separate file from `/lrh-land`'s own `<scratchpad>/lrh-land-run-journal.yaml`
@@ -283,8 +397,9 @@ Before reporting completion, verify:
       before Step 2
 - [ ] Chain authorization gate (Step 2) completed before Step 3; both
       completion condition and stop-work condition stated and confirmed
-- [ ] `/lrh-implement`'s own Step 4 plan-confirm gate was not bypassed
-      when Step 3 reached it
+- [ ] `/lrh-implement`'s own Step 4 plan-confirm gate was satisfied by the
+      approved run plan only after a mechanical no-material-divergence check,
+      or a live divergence gate fired when the plan changed
 - [ ] `/lrh-implement`'s own Step 1.5 (prior-art check) was not skipped
 - [ ] Step 3's execution record has `pr:` populated before Step 4 starts
 - [ ] `/lrh-land`'s own Step 2 chain-authorization gate was not bypassed
@@ -306,10 +421,11 @@ Before reporting completion, verify:
   skill's; it stops and reports instead.
 - Does not implement `/lrh-next` or `/lrh-run-tree` — Phases 3–4 of
   `PROP-LRH-LAND-EXECUTE`, explicitly deferred.
-- Does not bypass any internal confirmation gate inside the inlined
-  sub-skills (`/lrh-implement` Step 4, `/lrh-land` Step 2, or any gate
-  `/lrh-land` itself inlines) — chain initiation authorizes running the
-  links, not skipping their internal gates.
+- Does not silently bypass any internal confirmation gate inside the inlined
+  sub-skills. `/lrh-implement` Step 4 is satisfied only by a mechanical
+  no-material-divergence check against the approved run plan, or by a live
+  divergence gate. `/lrh-land` Step 2 and the gates `/lrh-land` itself inlines
+  still fire under their own rules.
 - Does not build a second, parallel review-cap mechanism — reuses
   `/lrh-confirm-fixes` Step 8's provisional no-progress review cap via the
   inlined `/lrh-land` → confirm-fixes chain.

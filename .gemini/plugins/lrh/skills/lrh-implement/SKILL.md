@@ -156,6 +156,37 @@ Before touching any files or creating any branches, show the user:
 **Wait for explicit confirmation.** If the user redirects, adjust and re-show.
 Do not proceed past this gate without approval.
 
+**When inlined by `/lrh-execute` with an approved run plan:** do not ask the
+same question again merely because this step was reached. Compare the live
+Step 4 plan against the approved run plan that `/lrh-execute` presented at
+its Step 2 chain gate.
+
+Material fields:
+
+- task summary meaning;
+- prompt ID;
+- branch name;
+- expected file changes;
+- validation commands;
+- readiness warnings;
+- prior-art warnings;
+- forbidden actions;
+- related workstream.
+
+If every material field matches, record that `/lrh-execute`'s approved run
+plan satisfies this Step 4 gate and continue to Step 5 without a second live
+reply. If any material field differs, present a structured diff and wait for
+explicit confirmation before continuing. This is a divergence-only gate, not
+an agent-judged exemption: changed validation commands, added or removed
+expected files, a different branch, a different prompt ID, or a newly surfaced
+readiness/prior-art warning must fire the gate. Pure formatting or wording
+tightening that does not change the meaning of a material field does not.
+
+This special path applies only when `/lrh-execute` invoked this skill with an
+approved run plan derived from a static `WI-*` file. Direct `/lrh-implement`
+invocation, including free-form ad-hoc descriptions, still uses the normal live
+confirmation gate above.
+
 ### Step 5 — Create branch from main
 
 ```bash

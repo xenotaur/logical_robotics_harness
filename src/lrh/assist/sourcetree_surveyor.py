@@ -12,6 +12,7 @@ import argparse
 import ast
 import dataclasses
 import json
+import os
 import pathlib
 import sys
 import tomllib
@@ -97,11 +98,33 @@ def _has_main_guard(text: str) -> bool:
     return 'if __name__ == "__main__"' in text or "if __name__=='__main__'" in text
 
 
-def _should_skip_path(path: pathlib.Path) -> bool:
-    return any(
-        part in (".venv", "venv", "__pycache__", ".git", ".mypy_cache", ".pytest_cache")
-        for part in path.parts
-    )
+_IGNORED_DIRS = frozenset(
+    {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
+)
+
+
+def _walk_files(root: pathlib.Path, pattern: str) -> list[pathlib.Path]:
+    paths: list[pathlib.Path] = []
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+        for f in filenames:
+            # Case-insensitive to match pathlib.Path.rglob's platform behavior
+            # (case-insensitive on Windows) regardless of host OS, so e.g.
+            # `module.PY` or `README.MD` are still found.
+            f_lower = f.lower()
+            if pattern.startswith(".") and f_lower.endswith(pattern.lower()):
+                paths.append(pathlib.Path(dirpath) / f)
+            elif not pattern.startswith(".") and f_lower == pattern.lower():
+                paths.append(pathlib.Path(dirpath) / f)
+    return sorted(paths)
 
 
 def _infer_tests_root(root: pathlib.Path) -> typing.Optional[pathlib.Path]:
@@ -210,10 +233,7 @@ def scan_tree(
     root: pathlib.Path, tests_root: typing.Optional[pathlib.Path]
 ) -> list[FileReport]:
     reports: list[FileReport] = []
-    for path in sorted(root.rglob("*.py")):
-        # Skip common junk dirs
-        if _should_skip_path(path):
-            continue
+    for path in _walk_files(root, ".py"):
         reports.append(analyze_file(root, path, tests_root))
     return reports
 
@@ -232,23 +252,19 @@ def survey_python_tree(
 
     discovered_test_files: list[str] = []
     if effective_tests_root is not None:
-        for test_path in sorted(effective_tests_root.rglob("*.py")):
-            if _should_skip_path(test_path):
-                continue
+        for test_path in _walk_files(effective_tests_root, ".py"):
             if _looks_like_test_file(test_path):
                 discovered_test_files.append(
                     str(test_path.relative_to(effective_tests_root))
                 )
 
     readme_files = sorted(
-        str(path.relative_to(root))
-        for path in root.rglob("README.md")
-        if not _should_skip_path(path)
+        str(path.relative_to(root)) for path in _walk_files(root, "README.md")
     )
     documentation_files = sorted(
         str(path.relative_to(root))
-        for path in root.rglob("*.md")
-        if path.name != "README.md" and not _should_skip_path(path)
+        for path in _walk_files(root, ".md")
+        if path.name.lower() != "readme.md"
     )
     cli_candidate_files = sorted(
         report.relpath

@@ -1075,7 +1075,7 @@ class TestReviewResponseTemplate(unittest.TestCase):
         }
         issue_comments_payload = [
             {
-                "body": "Looks good, no findings.",
+                "body": "This still needs a null check before dereferencing.",
                 "user": {"login": "chatgpt-codex-connector"},
                 "html_url": "https://github.com/octo/repo/pull/7#issuecomment-1",
             }
@@ -1099,7 +1099,7 @@ class TestReviewResponseTemplate(unittest.TestCase):
             rendered,
             "Nothing to resolve: no unresolved review threads found for octo/repo#7",
         )
-        self.assertIn("Looks good, no findings.", rendered)
+        self.assertIn("This still needs a null check before dereferencing.", rendered)
         self.assertIn("author: chatgpt-codex-connector", rendered)
         self.assertIn(
             "url: https://github.com/octo/repo/pull/7#issuecomment-1", rendered

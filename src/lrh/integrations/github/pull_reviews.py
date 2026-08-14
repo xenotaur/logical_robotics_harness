@@ -166,9 +166,17 @@ def get_pull_issue_comments(ref: pr_ref.PullRequestRef) -> list[dict[str, object
             f"repos/{ref.owner}/{ref.repo}/issues/{ref.number}/comments",
         ]
     )
+    # --slurp wraps each paginated page in an outer array, so the raw
+    # payload is a list of pages (each page itself a list of comments),
+    # not a flat list of comments -- flatten before filtering.
     if not isinstance(payload, list):
         return []
-    return [comment for comment in payload if isinstance(comment, dict)]
+    comments: list[dict[str, object]] = []
+    for page in payload:
+        if not isinstance(page, list):
+            continue
+        comments.extend(item for item in page if isinstance(item, dict))
+    return comments
 
 
 def get_pull_comments(ref: pr_ref.PullRequestRef) -> dict[str, object]:

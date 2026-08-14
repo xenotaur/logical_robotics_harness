@@ -42,10 +42,13 @@ class GithubIntegrationTest(unittest.TestCase):
         self.assertIn("--slurp", issue_call)
 
     def test_get_pull_issue_comments_uses_paginate_and_slurp(self) -> None:
+        # --slurp wraps each paginated page in an outer array, so the raw
+        # gh CLI payload is a list of pages (each page itself a list of
+        # comments) -- a single-page PR still returns [[...]], not [...].
         ref = pr_ref.PullRequestRef("o", "r", 1)
         with mock.patch(
             "lrh.integrations.github.pull_reviews.gh_client.run_gh_json",
-            return_value=[{"id": 1, "body": "clean pass"}],
+            return_value=[[{"id": 1, "body": "clean pass"}]],
         ) as run_json:
             comments = pull_reviews.get_pull_issue_comments(ref)
         self.assertEqual(comments, [{"id": 1, "body": "clean pass"}])
@@ -53,6 +56,21 @@ class GithubIntegrationTest(unittest.TestCase):
         self.assertIn("--paginate", call_args)
         self.assertIn("--slurp", call_args)
         self.assertIn("repos/o/r/issues/1/comments", call_args)
+
+    def test_get_pull_issue_comments_flattens_multiple_pages(self) -> None:
+        ref = pr_ref.PullRequestRef("o", "r", 1)
+        with mock.patch(
+            "lrh.integrations.github.pull_reviews.gh_client.run_gh_json",
+            return_value=[
+                [{"id": 1, "body": "first page"}],
+                [{"id": 2, "body": "second page"}],
+            ],
+        ):
+            comments = pull_reviews.get_pull_issue_comments(ref)
+        self.assertEqual(
+            comments,
+            [{"id": 1, "body": "first page"}, {"id": 2, "body": "second page"}],
+        )
 
     def test_get_pull_issue_comments_tolerates_non_list_payload(self) -> None:
         ref = pr_ref.PullRequestRef("o", "r", 1)

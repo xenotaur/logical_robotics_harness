@@ -156,23 +156,44 @@ def get_pull_review_threads(ref: pr_ref.PullRequestRef) -> object:
     }
 
 
+def _flatten_paginated_pages(payload: object) -> list[dict[str, object]]:
+    """Flatten a `gh api --paginate --slurp` payload into a flat comment list.
+
+    `--slurp` wraps each paginated page in an outer array, so the raw
+    payload is a list of pages (each page itself a list of comments), not
+    a flat list of comments.
+    """
+    if not isinstance(payload, list):
+        return []
+    comments: list[dict[str, object]] = []
+    for page in payload:
+        if not isinstance(page, list):
+            continue
+        comments.extend(item for item in page if isinstance(item, dict))
+    return comments
+
+
 def get_pull_comments(ref: pr_ref.PullRequestRef) -> dict[str, object]:
     return {
-        "review_comments": gh_client.run_gh_json(
-            [
-                "api",
-                "--paginate",
-                "--slurp",
-                f"repos/{ref.owner}/{ref.repo}/pulls/{ref.number}/comments",
-            ]
+        "review_comments": _flatten_paginated_pages(
+            gh_client.run_gh_json(
+                [
+                    "api",
+                    "--paginate",
+                    "--slurp",
+                    f"repos/{ref.owner}/{ref.repo}/pulls/{ref.number}/comments",
+                ]
+            )
         ),
-        "issue_comments": gh_client.run_gh_json(
-            [
-                "api",
-                "--paginate",
-                "--slurp",
-                f"repos/{ref.owner}/{ref.repo}/issues/{ref.number}/comments",
-            ]
+        "issue_comments": _flatten_paginated_pages(
+            gh_client.run_gh_json(
+                [
+                    "api",
+                    "--paginate",
+                    "--slurp",
+                    f"repos/{ref.owner}/{ref.repo}/issues/{ref.number}/comments",
+                ]
+            )
         ),
         "review_threads": get_pull_review_threads(ref),
     }

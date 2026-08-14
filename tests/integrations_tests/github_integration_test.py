@@ -23,8 +23,8 @@ class GithubIntegrationTest(unittest.TestCase):
         with mock.patch(
             "lrh.integrations.github.pull_reviews.gh_client.run_gh_json",
             side_effect=[
-                [{"id": "r"}],
-                [{"id": "i"}],
+                [[{"id": "r"}]],
+                [[{"id": "i"}]],
                 {
                     "data": {
                         "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
@@ -40,6 +40,36 @@ class GithubIntegrationTest(unittest.TestCase):
         self.assertIn("--slurp", review_call)
         self.assertIn("--paginate", issue_call)
         self.assertIn("--slurp", issue_call)
+
+    def test_get_pull_comments_flattens_paginated_pages(self) -> None:
+        """`--paginate --slurp` returns a list of pages, each page a list of
+        comments -- get_pull_comments must flatten before counting, not
+        report the page count as the comment count."""
+        ref = pr_ref.PullRequestRef("o", "r", 1)
+        with mock.patch(
+            "lrh.integrations.github.pull_reviews.gh_client.run_gh_json",
+            side_effect=[
+                [[{"id": "r1"}, {"id": "r2"}], [{"id": "r3"}]],
+                [[{"id": "i1"}], [{"id": "i2"}, {"id": "i3"}]],
+                {
+                    "data": {
+                        "repository": {"pullRequest": {"reviewThreads": {"nodes": []}}}
+                    }
+                },
+            ],
+        ):
+            data = pull_reviews.get_pull_comments(ref)
+        self.assertEqual(
+            data["review_comments"],
+            [{"id": "r1"}, {"id": "r2"}, {"id": "r3"}],
+        )
+        self.assertEqual(
+            data["issue_comments"],
+            [{"id": "i1"}, {"id": "i2"}, {"id": "i3"}],
+        )
+        self.assertEqual(
+            formatters.format_comments(data), "review_comments=3\nissue_comments=3"
+        )
 
     def test_format_review_mode_and_state_filter(self) -> None:
         data = {

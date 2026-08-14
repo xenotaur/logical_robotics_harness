@@ -2,10 +2,10 @@
 execution_id: 2026_08_13_15_35_50_WI_GATE_CONFIRM_RENDERING
 prompt_id: PROMPT(AD_HOC:WI_GATE_CONFIRM_RENDERING)[2026-08-13T15:29:04+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/551
-commit: 45b85023
+commit: 85357e2128f381d52b52f2dbb15440342fe0f907
 created_at: 2026-08-13T15:35:50+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-GATE-CONFIRM-RENDERING.md

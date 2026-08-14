@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #550 (commit 4558b43687fffa21a8f9cb3a8c7ef23183cc0024)
 blocked_reason: null
 blocked: false
 id: WI-FRONT-OF-RUN-GATE-COLLAPSE
 title: Collapse the front-of-run gate pair into one fully-specified /lrh-execute gate
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -2,10 +2,10 @@
 execution_id: 2026_08_13_20_01_03_WI_FRONT_OF_RUN_GATE_COLLAPSE_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_FRONT_OF_RUN_GATE_COLLAPSE_REVIEW)[2026-08-13T19:59:06+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_13_15_13_11_WI_FRONT_OF_RUN_GATE_COLLAPSE_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/550
-commit: e466e8ea1497a560054bf4a1a866cf42636a046f
+commit: 4558b43687fffa21a8f9cb3a8c7ef23183cc0024
 agent: codex_app
 instruction_source: substitute-self-review for https://github.com/xenotaur/logical_robotics_harness/pull/550
 session_transcript: pending

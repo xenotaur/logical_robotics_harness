@@ -2,10 +2,10 @@
 execution_id: 2026_08_13_14_39_13_WI_FRONT_OF_RUN_GATE_COLLAPSE
 prompt_id: PROMPT(WI-FRONT-OF-RUN-GATE-COLLAPSE:WI_FRONT_OF_RUN_GATE_COLLAPSE)[2026-08-13T06:52:03+00:00]
 work_item: WI-FRONT-OF-RUN-GATE-COLLAPSE
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/550
-commit:
+commit: 4558b43687fffa21a8f9cb3a8c7ef23183cc0024
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md
 session_transcript: pending

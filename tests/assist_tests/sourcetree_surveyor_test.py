@@ -124,6 +124,24 @@ class TestSourcetreeSurveyorAnalysis(unittest.TestCase):
             sourcetree_surveyor._is_cli_candidate_relpath("pkg\\tools\\cli.py")
         )
 
+    def test_lowercase_readme_is_not_duplicated_into_documentation_files(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir) / "src"
+            root.mkdir(parents=True)
+            (root / "module.py").write_text(
+                "def demo():\n    return 1\n", encoding="utf-8"
+            )
+            (root / "readme.md").write_text("lowercase readme\n", encoding="utf-8")
+            (root / "guide.md").write_text("other docs\n", encoding="utf-8")
+
+            survey = sourcetree_surveyor.survey_python_tree(root, tests_root=None)
+
+            self.assertEqual(survey.readme_files, ["readme.md"])
+            self.assertEqual(survey.documentation_files, ["guide.md"])
+            self.assertNotIn("readme.md", survey.documentation_files)
+
 
 if __name__ == "__main__":
     unittest.main()

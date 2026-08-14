@@ -264,7 +264,7 @@ def survey_python_tree(
     documentation_files = sorted(
         str(path.relative_to(root))
         for path in _walk_files(root, ".md")
-        if path.name != "README.md"
+        if path.name.lower() != "readme.md"
     )
     cli_candidate_files = sorted(
         report.relpath

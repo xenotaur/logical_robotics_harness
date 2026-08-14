@@ -2,10 +2,10 @@
 execution_id: 2026_08_13_03_49_59_DOC_WORK_WI_CODEX_CONVERSATION_EXPORT_SKILL
 prompt_id: PROMPT(AD_HOC:DOC_WORK_WI_CODEX_CONVERSATION_EXPORT_SKILL)[2026-08-12T23:07:17+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/547
-commit: 3adff45e8fb90283cae1d4c6732b642377f11b6d
+commit: b566f39250e5c5b7393fa93c50beceae09e43c56
 agent: codex_app
 instruction_source: WI-CODEX-CONVERSATION-EXPORT-SKILL
 session_transcript: codex-app:019fc43f-e2d9-7503-88cb-9d9a8136c111

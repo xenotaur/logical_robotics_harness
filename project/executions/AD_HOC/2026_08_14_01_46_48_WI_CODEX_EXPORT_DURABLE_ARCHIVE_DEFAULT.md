@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: null
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/554
-commit: 
+commit:
 created_at: 2026-08-14T01:46:48+00:00
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT.md

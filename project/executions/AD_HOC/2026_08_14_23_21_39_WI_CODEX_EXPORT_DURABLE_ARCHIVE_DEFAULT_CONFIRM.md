@@ -8,7 +8,7 @@ agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/554
 session_transcript: codex-app:019fc43f-e2d9-7503-88cb-9d9a8136c111
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/554
-commit: 
+commit:
 created_at: 2026-08-14T23:21:39+00:00
 ---
 
@@ -27,6 +27,10 @@ thread before merge-readiness evaluation.
   `$HOME/<private-archive>/CodexExports/lrh-codex-export-*`.
 - Found no surfaced exceptions after resolving the clear-satisfied thread.
 - Thread-resolution verdict: green.
+- A follow-up substitute self-review on
+  `df4d5b0435f1e768791c20848a7cdd0f96189e88` found trailing whitespace in
+  blank `commit:` frontmatter fields in the three new execution records; this
+  follow-up change removes that whitespace.
 
 # Validation
 
@@ -54,8 +58,10 @@ thread before merge-readiness evaluation.
   passed: 1086 tests.
 - `env PYTHONNOUSERSITE=1 PYTHONPATH=/Users/centaur/.codex/worktrees/b1ba/logical_robotics_harness/src PATH=/Users/centaur/anaconda3/bin:$PATH lrh validate`
   passed: 0 errors, 0 warnings.
+- `git diff --check` passed after removing trailing whitespace from the three
+  new execution records.
 
 # Follow-up
 
-After this record is pushed, re-check CI and review coverage against the new
-PR head before presenting a merge-readiness verdict.
+After the trailing-whitespace fix is pushed, re-check CI and review coverage
+against the new PR head before presenting a merge-readiness verdict.

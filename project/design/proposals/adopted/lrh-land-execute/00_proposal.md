@@ -380,7 +380,7 @@ in practice; their WI definitions are thin until `/lrh-execute` is stable.
 - Governing decision:
   `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`
 - Prerequisite work item:
-  `project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION.md`
+  `project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION.md`
 - Long-term framework:
   `project/design/proposals/proposed/workstream-execution-framework/00_proposal.md`
 - Evidence: LCATS full-lifecycle case study (2026-07-26 to 2026-07-28,

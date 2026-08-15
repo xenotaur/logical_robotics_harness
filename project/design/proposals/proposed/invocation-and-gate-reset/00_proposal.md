@@ -3,27 +3,54 @@ id: PROP-INVOCATION-AND-GATE-RESET
 type: design_proposal
 title: Invocation and Gate Reset — Retrigger Removal, Flag Removal, and a Unified Gate Policy
 status: proposed
-implementation_status: not_started
+implementation_status: partial
 created_on: 2026-08-09
-updated_on: 2026-08-10
+updated_on: 2026-08-14
 related_design:
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
   - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
-  - project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION.md
+  - project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION.md
   - project/work_items/proposed/WI-LRH-CHAIN-DEFAULTS-INCREMENT-2.md
-  - project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md
+  - project/work_items/resolved/WI-RETRIGGER-REMOVAL-STAGE1.md
+  - project/work_items/resolved/WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL.md
+  - project/work_items/resolved/WI-FRONT-OF-RUN-GATE-COLLAPSE.md
+  - project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE.md
+  - project/work_items/proposed/WI-GATE-POLICY-CASCADE-STAGE3.md
+  - project/work_items/proposed/WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5.md
+  - project/work_items/proposed/WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME.md
   - src/lrh/skills/_shared/chain-defaults.md
   - src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md
-implemented_by: []
-evidence: []
+implemented_by:
+  - WI-RETRIGGER-REMOVAL-STAGE1
+  - WI-DELIBERATE-MODEL-INVOCATION
+  - WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL
+  - WI-FRONT-OF-RUN-GATE-COLLAPSE
+evidence:
+  - EV-0011
 supersedes: []
 superseded_by: null
 parent: null
 ---
 
 # Invocation and Gate Reset — Retrigger Removal, Flag Removal, and a Unified Gate Policy
+
+## Implementation Status
+
+As of 2026-08-14, this proposal is partially implemented. Stage 1 landed via
+`WI-RETRIGGER-REMOVAL-STAGE1`, Stage 2's scoped flag-removal work landed via
+`WI-DELIBERATE-MODEL-INVOCATION`, the retained bounded CI-wait portion of
+`PROP-REVIEW-WAIT-POSTURE` landed via
+`WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL`, and Decision 11's front-of-run collapse
+landed via `WI-FRONT-OF-RUN-GATE-COLLAPSE`.
+
+The remaining executable leaves are now tracked explicitly:
+`WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`,
+`WI-GATE-POLICY-CASCADE-STAGE3`,
+`WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5`, and
+`WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME`. Stage 3 implementation remains
+deliberately out of this planning cleanup.
 
 ## Summary
 
@@ -966,10 +993,10 @@ inherited precedent of proving a mechanism narrow before widening it.
   cascade template adopted in Decision 6.
 - `project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md` —
   Decision 3's categorical exclusion, narrowed in form by Decision 7.
-- `project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION.md` — Stage 2
+- `project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION.md` — Stage 2
   completes its remaining scope.
 - `src/lrh/skills/_shared/chain-defaults.md` — the mechanism Decisions 8 and 9
   activate and repair; its `skip_if_opted_in` scope is why Decision 11
   disqualifies activation as a fix for the front-of-run pair.
-- `project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` — implements
+- `project/work_items/resolved/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` — implements
   Decision 11 under Stage 3.

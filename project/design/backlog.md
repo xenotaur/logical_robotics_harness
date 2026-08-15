@@ -1347,8 +1347,8 @@ better batched with other `lrh-workstream` skill maintenance.
 
 **Related:** `src/lrh/skills/lrh-workstream/references/workstream-body-guide.md:96`;
 `src/lrh/skills/lrh-workstream/SKILL.md:107-109`;
-`project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` (Risk Notes);
-`project/workstreams/proposed/WS-INVOCATION-AND-GATE-RESET.md`; PR #536.
+`project/work_items/resolved/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` (Risk Notes);
+`project/workstreams/active/WS-INVOCATION-AND-GATE-RESET.md`; PR #536.
 
 ---
 

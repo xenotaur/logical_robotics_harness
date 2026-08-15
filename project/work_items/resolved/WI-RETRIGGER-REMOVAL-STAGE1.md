@@ -58,7 +58,7 @@ artifacts_expected:
   - .agents/skills/lrh-land/references/land-workflow.md
   - project/design/backlog.md
   - project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md
-  - project/workstreams/proposed/WS-INVOCATION-AND-GATE-RESET.md
+  - project/workstreams/active/WS-INVOCATION-AND-GATE-RESET.md
 ---
 
 # Remove GitHub bot retrigger commands fleet-wide

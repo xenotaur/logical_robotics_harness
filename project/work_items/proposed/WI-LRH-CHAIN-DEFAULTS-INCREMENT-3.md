@@ -21,6 +21,7 @@ related_design:
   - project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md
 depends_on:
   - WI-LRH-CHAIN-DEFAULTS-INCREMENT-1
+  - WI-GATE-POLICY-CASCADE-STAGE3
 blocked_by: []
 expected_actions:
   - edit_file
@@ -53,23 +54,10 @@ artifacts_expected:
 
 # Implement Increment 3 of `PROP-LRH-CHAIN-DEFAULTS` -- policy-derived profile fields and a semantic staleness watch
 
-> **DO NOT START THIS WORK ITEM YET — it reads as ready but is not.**
->
-> Its only declared dependency (`WI-LRH-CHAIN-DEFAULTS-INCREMENT-1`) is already
-> resolved, and `lrh work-items readiness` reports `prompt_ready: yes`. A chain
-> runner resolving "the next ready WI under `WS-LRH-CHAIN-DEFAULTS`" will
-> therefore select this item and begin work its own Risk Notes forbid.
->
-> The real blocker is the DEC record from `WS-INVOCATION-AND-GATE-RESET`
-> Stage 3, which must narrow `PROP-LRH-CHAIN-DEFAULTS` Decision 3 before
-> `closeout_with_merge` can be implemented without contradicting a governing
-> document.
->
-> **This cannot currently be expressed in frontmatter.** `blocked_by:` takes
-> work-item IDs, and the blocker is a decision record; `blocked: true` is
-> rejected by the validator unless `status: active`
-> (`WORK_ITEM_BLOCKED_STATUS_INVALID`), which a `proposed` item is not. When
-> Stage 3's work item exists, add it to `depends_on:` and delete this banner.
+This item depends on `WI-GATE-POLICY-CASCADE-STAGE3` because Stage 3 must
+produce the DEC record that narrows `PROP-LRH-CHAIN-DEFAULTS` Decision 3 before
+`closeout_with_merge` can be implemented without contradicting a governing
+document.
 
 ## Summary
 

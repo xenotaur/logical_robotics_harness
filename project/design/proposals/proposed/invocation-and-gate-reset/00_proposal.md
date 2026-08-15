@@ -16,6 +16,7 @@ related_design:
   - project/work_items/resolved/WI-RETRIGGER-REMOVAL-STAGE1.md
   - project/work_items/resolved/WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL.md
   - project/work_items/resolved/WI-FRONT-OF-RUN-GATE-COLLAPSE.md
+  - project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE.md
   - project/work_items/proposed/WI-GATE-POLICY-CASCADE-STAGE3.md
   - project/work_items/proposed/WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5.md
   - project/work_items/proposed/WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME.md
@@ -45,6 +46,7 @@ As of 2026-08-14, this proposal is partially implemented. Stage 1 landed via
 landed via `WI-FRONT-OF-RUN-GATE-COLLAPSE`.
 
 The remaining executable leaves are now tracked explicitly:
+`WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`,
 `WI-GATE-POLICY-CASCADE-STAGE3`,
 `WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5`, and
 `WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME`. Stage 3 implementation remains

@@ -72,9 +72,9 @@ normal operation on an unverified assumption.
 ### Prior Art Check
 
 **Duplication search.** No existing work item owns the combined Stage 5-7
-dogfood, related-PR triage, feedback, and resumption record. `WI-TAURCODE-
-PROMPT-AND-SKILL-SYNC` is a named cross-repository handoff, not this LRH
-resumption pass.
+dogfood, related-PR triage, feedback, and resumption record.
+`WI-TAURCODE-PROMPT-AND-SKILL-SYNC` is a named cross-repository handoff, not
+this LRH resumption pass.
 
 **Demand search.** Demand is explicit in
 `WS-INVOCATION-AND-GATE-RESET.exit_criteria` and

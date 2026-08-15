@@ -28,6 +28,7 @@ work_items:
   - WI-DELIBERATE-MODEL-INVOCATION
   - WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL
   - WI-FRONT-OF-RUN-GATE-COLLAPSE
+  - WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE
   - WI-GATE-POLICY-CASCADE-STAGE3
   - WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5
   - WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME
@@ -110,7 +111,8 @@ decision exists to separate. Cross-link instead."
   executable phase. `WI-DELIBERATE-MODEL-INVOCATION`,
   `WI-RETRIGGER-REMOVAL-STAGE1`, `WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL`, and
   `WI-FRONT-OF-RUN-GATE-COLLAPSE` are already resolved; the remaining tracked
-  leaves are `WI-GATE-POLICY-CASCADE-STAGE3`,
+  leaves are `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`,
+  `WI-GATE-POLICY-CASCADE-STAGE3`,
   `WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5`, and
   `WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME`.
 - **Proposals:** `PROP-LRH-CHAIN-DEFAULTS` governs the mechanism Stages 3.5 and
@@ -146,6 +148,7 @@ The planned decomposition is now:
 | 2 | `WI-DELIBERATE-MODEL-INVOCATION` -- resolved scoped flag-removal work |
 | 1/5 support | `WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL` -- resolved bounded CI-wait follow-up |
 | 3 Decision 11 support | `WI-FRONT-OF-RUN-GATE-COLLAPSE` -- resolved front-of-run collapse |
+| 2 completion | `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` -- proposed retained-flag completion |
 | 3 | `WI-GATE-POLICY-CASCADE-STAGE3` -- proposed gate audit, policy proposal, DEC record, and cascade |
 | 3.5 | `WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5` -- proposed activation under the Stage 3 control |
 | 5-7 | `WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME` -- proposed dogfood, triage, feedback, and fleet resumption |

@@ -2,10 +2,10 @@
 execution_id: 2026_08_15_00_07_24_INVOCATION_GATE_RESET_PLANNING_CLEANUP_CONFIRM
 prompt_id: PROMPT(AD_HOC:INVOCATION_GATE_RESET_PLANNING_CLEANUP_CONFIRM)[2026-08-15T00:07:24+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_14_23_06_11_INVOCATION_GATE_RESET_PLANNING_CLEANUP
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/556
-commit: 
+commit: 299404f59b8482286f248ea2b8010508b9801528
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/556 confirm-fixes
 session_transcript: pending

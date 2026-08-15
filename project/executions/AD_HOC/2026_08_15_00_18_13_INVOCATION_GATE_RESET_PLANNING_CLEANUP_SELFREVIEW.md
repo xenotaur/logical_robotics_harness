@@ -2,10 +2,10 @@
 execution_id: 2026_08_15_00_18_13_INVOCATION_GATE_RESET_PLANNING_CLEANUP_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:INVOCATION_GATE_RESET_PLANNING_CLEANUP_SELFREVIEW)[2026-08-15T00:18:13+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_14_23_06_11_INVOCATION_GATE_RESET_PLANNING_CLEANUP
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/556
-commit: 6aec453c0aaf9125637179fbed739a7eb85ae609
+commit: 299404f59b8482286f248ea2b8010508b9801528
 agent: codex_app
 instruction_source: command:lrh-self-review --pr https://github.com/xenotaur/logical_robotics_harness/pull/556
 session_transcript: pending

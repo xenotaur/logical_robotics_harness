@@ -2,13 +2,13 @@
 execution_id: 2026_08_14_22_57_10_WI_CODEX_EXPORT_DURABLE_ARCHIVE_DEFAULT_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_CODEX_EXPORT_DURABLE_ARCHIVE_DEFAULT_REVIEW)[2026-08-14T01:54:45+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_14_01_46_48_WI_CODEX_EXPORT_DURABLE_ARCHIVE_DEFAULT
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/554
 session_transcript: codex-app:019fc43f-e2d9-7503-88cb-9d9a8136c111
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/554
-commit:
+commit: 8b897fe4cefb6a4f5487d33d22da7756df8dfb23
 created_at: 2026-08-14T22:57:10+00:00
 ---
 

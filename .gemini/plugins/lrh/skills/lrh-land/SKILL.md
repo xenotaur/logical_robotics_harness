@@ -6,6 +6,11 @@ description: 'Land an open PR end-to-end: chain authorization gate, review-respo
   an open PR through the complete terminal lifecycle chain in a single traceable session.
 
   '
+when_to_use: 'Invoke only when the user explicitly asks to land a specific open PR,
+  or when /lrh-execute reaches its landing phase for the PR it just opened. The chain-authorization
+  gate must still run before review-response, confirm-fixes, merge, or closeout actions.
+
+  '
 ---
 
 # lrh-land Skill
@@ -23,9 +28,7 @@ the sub-skill workflows (read target `SKILL.md` steps and execute them
 directly) rather than calling them via the `Skill` tool.
 `WI-DELIBERATE-MODEL-INVOCATION` resolved this as a permanent design
 preference (self-contained, independently testable chain runners), not a
-platform-forced workaround to drop once flags are removed — and
-`/lrh-confirm-fixes` (Step 5) keeps `disable-model-invocation` regardless,
-so a direct `Skill` call there would fail outright. See
+platform-forced workaround to drop once flags are removed. See
 `references/land-workflow.md` § Interim invocation pattern.
 
 ---

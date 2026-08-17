@@ -419,11 +419,9 @@ Per that work item's Design Decision, chain-runner invocation mechanics stay
 inlined by design (self-contained, independently testable chain runners) —
 removing flags from the lifecycle skills does not trigger an upgrade to
 direct `Skill` tool calls. `PROP-LRH-LAND-EXECUTE` Decision 7's original
-upgrade plan is superseded by that resolution. It would also be unsound as
-written regardless: Step 5's `/lrh-confirm-fixes` retains
-`disable-model-invocation` (a gate gap on its empty-thread fast path, not yet
-fixed), so a direct `Skill` call there fails outright — only Steps 4 and 7
-would ever have been eligible.
+upgrade plan is superseded by that resolution. The inlining rule is a settled
+chain-runner design preference, not a workaround for any one sub-skill's
+frontmatter.
 
 **Step 5's CI-wait mechanism is inherited via this inlining, not separately
 specified here.** `/lrh-land` has no CI-check logic of its own — Step 5

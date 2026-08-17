@@ -30,14 +30,14 @@ forbidden_actions:
   - delete_branch
   - promote_reference_skills
 acceptance:
-  - flag-vs-guidance enforcement of "no chain starts itself" is decided and recorded (resolved 2026-08-08 -- per-skill tiering for tiers 1/2/3, guidance-enforced; tier 3a (lrh-land, lrh-execute) keeps the flag pending the skip_if_opted_in verification gap)
+  - flag-vs-guidance enforcement of "no chain starts itself" is decided and recorded (resolved 2026-08-08 -- per-skill tiering for tiers 1/2/3, guidance-enforced; retained-flag exceptions later superseded by WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE)
   - chain-runner invocation mechanics (invoke flagged links vs. inline) are decided (resolved -- stays inlined, unchanged by flag removal)
   - CHAIN-NOTE placement is resolved against the immutable-narrative rule
   - find-or-backfill is normalized in the lifecycle guidance
   - each of the 9 tier-1/2/3 skills' disable-model-invocation setting is removed and when-to-use guidance is tiered per the Design Decision, in both src/lrh/skills/ and .claude/skills/
-  - lrh-self-review (tier 2a) keeps disable-model-invocation until its diff-mode confirm-before-write gate gap is fixed; the flag is not removed as part of the same change that adds the gate
-  - lrh-confirm-fixes (tier 2b) keeps disable-model-invocation until its empty-thread fast path (Step 2 skip to Step 8) has a confirm gate before Step 8's unconditional retrigger and round-state write; the flag is not removed as part of the same change that adds the gate
-  - lrh-land and lrh-execute (tier 3a) keep disable-model-invocation until DEC-CHAIN-INIT-SKIP-CONSENT's skip_if_opted_in path has a mechanical way to verify a genuine human-typed invocation; closing this gap is separate follow-up scope, not part of this WI
+  - lrh-self-review retained its flag in this WI; that follow-up was completed by WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE, which made diff-mode report-only by default
+  - lrh-confirm-fixes retained its flag in this WI; that follow-up was completed by WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE, which added an empty-thread gate before REVIEW-LANDED handling
+  - lrh-land and lrh-execute retained their flags in this WI; that follow-up was completed by WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE, which added narrow when_to_use guidance and explicit Codex policy
   - each tier-2/3 skill's confirm-before-write or chain-authorization gate placement is audited, not assumed, before its flag is removed
   - installer.py subagent-preload behavior after flag removal is verified as intended
   - DEC-DELIBERATE-CHAIN-INITIATION.md carries a dated addendum resolving point 2, cross-linked to this WI (done 2026-08-08, this PR)
@@ -107,22 +107,17 @@ of invocation route. Tier 3a is the exception this review surfaced — see below
 |---|---|---|
 | 1 — read/analyze only | `lrh-design` | Nothing writes until Step 4's offer-and-wait |
 | 2 — writes/PRs, gated | `lrh-create-skill`, `lrh-doc-audit`, `lrh-implement`, `lrh-doc-organize`, `lrh-doc-work`, `lrh-review-response`, `lrh-readiness` | Existing confirm-before-write gate (`lrh-doc-audit`: `SKILL.md` Step 7 confirm gate before Step 8 writes `project/audits/docs/docs-audit-YYYY-MM-DD.md` — it always writes on that path, not analysis-only, corrected from an earlier misclassification here) |
-| 2a — writes, gate gap confirmed | `lrh-self-review` | **Not yet gated — do not remove the flag until fixed.** `lrh-self-review/SKILL.md` Step 5 diff-mode fixes issues directly in the working tree with no confirm-before-write step (confirmed by reading `SKILL.md:151-176`; `when_to_use` alone is not a hard platform guarantee, per this WI's own precedent). Add a diff-mode confirm gate before removing the flag, or exclude `lrh-self-review` from this WI's flag-removal scope and track it separately. |
-| 2b — writes/PRs, gate gap confirmed on one path | `lrh-confirm-fixes` | **Not yet gated on its empty-thread fast path — do not remove the flag until fixed.** `SKILL.md` Step 2 explicitly skips Steps 3–7 (including the Step 4 confirm gate) straight to Step 8 when the unresolved-thread list is empty; Step 8 then unconditionally posts a PR comment (`@codex review`) and requests a reviewer (`gh pr edit --add-reviewer @copilot`) and persists round-state, with no human checkpoint on that path (confirmed by reading `SKILL.md:127-130,387-419`). The skill's own text calls these actions "harmless no-ops" that change no PR code, but they are still autonomous GitHub-write actions with zero confirm gate — add a lightweight gate on the empty-thread fast path before removing the flag, or exclude `lrh-confirm-fixes` and track it separately, same treatment as `lrh-self-review`. |
+| 2a — writes, gate gap confirmed | `lrh-self-review` | **Superseded by `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`.** This WI retained the flag; the follow-up made diff-mode report-only by default, with `--apply` as an explicit opt-in. |
+| 2b — writes/PRs, gate gap confirmed on one path | `lrh-confirm-fixes` | **Superseded by `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`.** This WI retained the flag; the follow-up added an explicit empty-thread gate before Step 8's REVIEW-LANDED handling. |
 | 3 — commits to `main` / resolves or closes control-plane state, single-workflow (not a chain runner) | `lrh-closeout` | `SKILL.md` Step 4 plan-confirm gate before Step 5 executes any confirmed action (corrected from an earlier misclassification — `lrh-closeout` has no chain-authorization Step 1/2 like `lrh-land`/`lrh-execute`; its own plan-confirm gate is the actual safety property to audit) |
-| 3a — chain runners, flag retained pending a real gap | `lrh-land`, `lrh-execute` | **Not yet safe to unflag.** `DEC-CHAIN-INIT-SKIP-CONSENT` condition 1 requires "the human's slash-command invocation remains the deliberate initiation act," but nothing mechanically verifies that once the model can call `Skill()` on these directly — under `chain_init_confirmation: skip_if_opted_in` with valid stored consent and no special condition firing, `lrh-land/SKILL.md:117-139` and `lrh-execute/SKILL.md:151-173` display the completion/stop-work conditions **without asking**, so a model-initiated invocation (not a genuine human-typed command) could ride stored consent through Step 2 with no live human reply at all. This does not affect `chain_init_confirmation: always_confirm` (the default) — that mode still requires a fresh live reply every run regardless of invocation route, which is what actually protected this WI's own `/lrh-land` run. The gap is specific to the opt-in skip path combined with flag removal. |
+| 3a — chain runners | `lrh-land`, `lrh-execute` | **Superseded by `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`.** The chain runners keep their explicit chain-authorization gates, gain narrow `when_to_use`, and keep inlining as a permanent design preference. |
 
-**Tiers 2b and 3a stay flagged; this WI's flag-removal scope is 9 skills, not
-13** (13 originally flagged; excluded: `lrh-self-review` tier 2a,
-`lrh-confirm-fixes` tier 2b, `lrh-land` and `lrh-execute` tier 3a — 4
-exclusions, 9 remaining). **This means the `/lrh-land` mid-sentence
-invocation incident that motivated this design is not resolved by this WI,
-in any `chain_init_confirmation` mode.** `disable-model-invocation` on
-`lrh-land`/`lrh-execute` is not conditional on that setting — it stays in
-place unconditionally per tier 3a above, so it continues to block a
-model-initiated `Skill()` call on these two skills the same way it did
-during this incident, regardless of whether `always_confirm` or
-`skip_if_opted_in` is active. (An earlier version of this paragraph
+**This retained-flag posture was later superseded by
+`WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`.** This WI removed the first
+9 flags and deliberately left four follow-up gaps. The Stage 2 completion work
+closed or reassigned those gaps, removed the remaining four flags, and made
+Codex policy explicit rather than deriving it accidentally from Claude
+frontmatter. (An earlier version of this paragraph
 described a counterfactual — what would happen if the flag were absent in
 `always_confirm` mode — as if it were the actual resolution; it wasn't,
 since the flag is in fact retained. Corrected by review.) Closing the
@@ -250,17 +245,9 @@ already recorded (2026-08-08, this PR) — no longer open scope here.
 - each of the 9 tier-1/2/3 skills' disable-model-invocation setting is
   removed and when-to-use guidance is tiered per the Design Decision, in both
   `src/lrh/skills/` and `.claude/skills/`
-- `lrh-self-review` (tier 2a) keeps `disable-model-invocation` until its
-  diff-mode confirm-before-write gate gap is fixed; the flag is not removed
-  as part of the same change that adds the gate
-- `lrh-confirm-fixes` (tier 2b) keeps `disable-model-invocation` until its
-  empty-thread fast path (Step 2 skip to Step 8) has a confirm gate before
-  Step 8's unconditional retrigger and round-state write; the flag is not
-  removed as part of the same change that adds the gate
-- `lrh-land` and `lrh-execute` (tier 3a) keep `disable-model-invocation` —
-  `DEC-CHAIN-INIT-SKIP-CONSENT`'s `skip_if_opted_in` path has no mechanical
-  verification of a genuine human-typed invocation once the flag is gone;
-  closing this is separate follow-up scope, not part of this WI
+- `lrh-self-review`, `lrh-confirm-fixes`, `lrh-land`, and `lrh-execute`
+  retained their flags as follow-up scope in this WI; that retained-flag
+  posture is superseded by `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`
 - each tier-2/3 skill's confirm-before-write or chain-authorization gate
   placement is audited, not assumed, before its flag is removed
 - `installer.py` subagent-preload behavior after flag removal is verified as

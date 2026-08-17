@@ -234,6 +234,25 @@ templates is assist, not agentic.
   `/lrh-implement` invocation, merge authorization, publish/release gates,
   `/lrh-land`'s chain gate, and any independently load-bearing confirmation
   gate are unaffected.
+- **2026-08-17:** `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` supersedes
+  the four retained-flag exceptions from the 2026-08-08 entry for Stage 2's
+  declared skills: `/lrh-self-review`, `/lrh-confirm-fixes`, `/lrh-land`, and
+  `/lrh-execute`. The replacement policy is deliberately split by target and
+  risk surface. For Codex, each skill carries an authored
+  `agents/openai.yaml` with `policy.allow_implicit_invocation: false`, so
+  removal of Claude's `disable-model-invocation` frontmatter does not silently
+  widen Codex implicit invocation. For skill-body behavior,
+  `/lrh-self-review` is report-only by default with `--apply` as explicit
+  diff-mode opt-in, `/lrh-confirm-fixes` has an empty-thread gate before Step
+  8, and `/lrh-land`/`/lrh-execute` keep their chain-authorization gates and
+  inlined-link structure. The remaining unresolved hard-guard concern is
+  Claude subagent preloading: this repository has no repo-owned agent-type
+  `skills:` allowlist or empirically verified mechanism equivalent to Codex's
+  `allow_implicit_invocation` for the `general-purpose` subagent used by
+  `/lrh-self-review`. That concern is explicitly reassigned to Stage 3's
+  gate-policy audit/cascade scope instead of being treated as closed by
+  advisory prose or by `disallowed-tools`, which governs the parent skill's
+  active tool pool rather than the dispatched subagent's skill inventory.
 
 ## Revisit conditions
 

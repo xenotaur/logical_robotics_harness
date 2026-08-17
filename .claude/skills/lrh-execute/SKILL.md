@@ -8,7 +8,11 @@ description: >
   and close it out. Use when the user wants to go from "implement this
   work item" to "it's merged" in one traceable session, without manually
   chaining /lrh-implement and /lrh-land themselves.
-disable-model-invocation: true
+when_to_use: >
+  Invoke only when the user explicitly asks to execute a specific WI-ID or
+  WS-ID end-to-end through implementation, PR review, merge gate, and closeout.
+  The chain-authorization gate must still run before any implementation,
+  branch, PR, merge, or closeout action.
 argument-hint: "[WI-ID or WS-ID]"
 ---
 

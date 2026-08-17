@@ -23,9 +23,7 @@ the sub-skill workflows (read target `SKILL.md` steps and execute them
 directly) rather than calling them via the `Skill` tool.
 `WI-DELIBERATE-MODEL-INVOCATION` resolved this as a permanent design
 preference (self-contained, independently testable chain runners), not a
-platform-forced workaround to drop once flags are removed — and
-`/lrh-confirm-fixes` (Step 5) keeps `disable-model-invocation` regardless,
-so a direct `Skill` call there would fail outright. See
+platform-forced workaround to drop once flags are removed. See
 `references/land-workflow.md` § Interim invocation pattern.
 
 ---

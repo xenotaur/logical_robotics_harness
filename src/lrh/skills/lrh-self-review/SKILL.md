@@ -7,11 +7,16 @@ description: >
   main, for use once before a PR's first push; --pr <url> reviews an
   existing PR as `/lrh-confirm-fixes` Step 8's substitute review signal when
   another manual hosted review-bot retrigger would otherwise have been
-  requested. Ends at a report of findings (and, in diff-mode, applies
-  any fixes directly) plus an execution record — it does not push, open a
-  PR, resolve GitHub threads, or merge.
-disable-model-invocation: true
-argument-hint: "[--pr <pr-url>]"
+  requested. Ends at a report of findings plus an execution record; diff-mode
+  is report-only by default and applies fixes only with explicit --apply.
+  It does not push, open a PR, resolve GitHub threads, or merge.
+when_to_use: >
+  Invoke only at the two declared review-substitution trigger points: once in
+  diff-mode from /lrh-implement before a PR is opened, or in PR-mode from
+  /lrh-confirm-fixes when a fresh substitute review signal is needed instead
+  of a hosted GitHub review-bot retrigger. Do not use for ad-hoc review outside
+  those caller-owned workflows.
+argument-hint: "[--apply | --pr <pr-url>]"
 ---
 
 # lrh-self-review Skill
@@ -56,13 +61,16 @@ found.
 
 ```
 /lrh-self-review
+/lrh-self-review --apply
 /lrh-self-review --pr https://github.com/xenotaur/logical_robotics_harness/pull/419
 ```
 
 Omit `--pr` for diff-mode (default): reviews `git diff main` (working tree
 against `main`'s tip — see Step 1 for why not the three-dot `main...HEAD`
-form) on the current branch. Pass `--pr <url>` for PR-mode: reviews that
-PR's current `HEAD` diff and comment history.
+form) on the current branch. Diff-mode reports findings by default; pass
+`--apply` only when the caller explicitly wants this skill to apply verified
+fixes to the working tree. Pass `--pr <url>` for PR-mode: reviews that PR's
+current `HEAD` diff and comment history. `--apply` is invalid with `--pr`.
 
 ---
 
@@ -82,6 +90,9 @@ Load before running any step:
 Work through these steps in order.
 
 ### Step 1 — Determine mode and target
+
+If both `--apply` and `--pr` were passed, stop and report — PR-mode is
+report-only by design and routes findings back to `/lrh-confirm-fixes`.
 
 **Diff-mode (no `--pr`):**
 
@@ -139,6 +150,16 @@ the active mode. Give it only:
   files rather than trust prose — including this skill's own prompt
 - Explicit instruction not to assume anything from outside what it finds
   itself (no access to this session's prior context)
+- Explicit instruction not to invoke `/lrh-self-review`, run other LRH
+  skills, or spawn another review agent
+
+Codex installations carry `agents/openai.yaml` with
+`policy.allow_implicit_invocation: false` for this skill, so removing Claude's
+`disable-model-invocation` frontmatter does not make Codex invoke it
+implicitly. Claude subagent-preload hard-guarding remains an explicitly reassigned
+Stage 3 gate-policy audit item; until that platform mechanism exists, the
+subagent task must stay narrowly report-only and Step 4's direct
+re-verification remains load-bearing.
 
 ### Step 4 — Independently re-verify the top finding
 
@@ -153,10 +174,11 @@ reporting it as accepted.
 
 ### Step 5 — Apply fixes or report findings
 
-**Diff-mode:** if the subagent (and your own re-verification) found real
-issues, fix them directly in the working tree. Do not push — that remains
-`/lrh-implement` Step 8's job, which runs next regardless of what this
-step found (Decision 4).
+**Diff-mode:** report findings by default. If the subagent (and your own
+re-verification) found real issues, do not edit the working tree unless
+`--apply` was passed. With `--apply`, fix the verified in-scope issues directly
+in the working tree. Do not push — that remains `/lrh-implement` Step 8's job,
+which runs next regardless of what this step found (Decision 4).
 
 **PR-mode:** do not push fixes as part of this skill's own workflow —
 report findings back to the caller (`/lrh-confirm-fixes` Step 8
@@ -172,10 +194,11 @@ differs by mode: PR-mode always has a primary record to link to; diff-mode
 runs before `/lrh-implement` Step 9 creates one, so `rerun_of` starts
 empty by construction, not as an oversight.
 
-Capture in the record: mode, findings (count and one-line description
-each), whether fixes were applied (diff-mode) or the finding was routed to
-`/lrh-confirm-fixes` (PR-mode), and whether the PR-mode pass was a substitute
-review signal or a follow-up signal for a non-thread finding.
+Capture in the record: mode, findings (count and one-line description each),
+whether diff-mode was report-only or `--apply` was used, whether fixes were
+applied, whether a finding was routed to `/lrh-confirm-fixes` (PR-mode), and
+whether the PR-mode pass was a substitute review signal or a follow-up signal
+for a non-thread finding.
 
 ```bash
 lrh prompt label --slug <slug>-selfreview
@@ -212,7 +235,8 @@ Before reporting completion, verify:
 - [ ] The subagent's top finding was independently re-verified by the
       invoking session directly, not merely accepted or re-delegated to
       another subagent
-- [ ] Diff-mode: fixes applied to the working tree, not pushed
+- [ ] Diff-mode: report-only by default; fixes applied only when `--apply`
+      was explicitly passed, and never pushed by this skill
 - [ ] Diff-mode: `/lrh-implement` Step 8 still runs afterward regardless
       of findings — no skip path exists
 - [ ] PR-mode: no fix was pushed as part of this skill's own workflow
@@ -227,8 +251,9 @@ Before reporting completion, verify:
 - Does not retrigger a GitHub bot review, or build a second, parallel
   review-cap mechanism — `/lrh-confirm-fixes` Step 8 owns the provisional
   no-progress review cap and calls PR-mode as a substitute review signal.
-- Does not push, open a PR, or merge — diff-mode applies fixes to the
-  working tree only; `/lrh-implement` Step 8 does the push.
+- Does not push, open a PR, or merge — diff-mode reports by default; with
+  explicit `--apply`, it applies verified fixes to the working tree only.
+  `/lrh-implement` Step 8 does the push.
 - Does not resolve GitHub review threads — that remains
   `/lrh-confirm-fixes`'s job; PR-mode only reports findings back to it.
 - Does not run on every push — exactly the two trigger points named

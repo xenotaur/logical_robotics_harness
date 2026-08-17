@@ -257,11 +257,13 @@ retrigger — there is no "PR open, bot hasn't looked yet" window, so
 independent pre-push review is only possible here, before Step 8's
 `gh pr create` runs.
 
-Apply any fixes the pass surfaces directly to the working tree. **Proceed
-to Step 8 regardless of what this pass found** — a clean result and a
-result with fixes applied both continue identically; this step never
-skips or replaces the PR's first real bot round (Decision 4). If fixes
-were applied, re-run Step 7's validation sequence before continuing.
+Review any findings the pass surfaces. Because `/lrh-self-review` diff-mode is
+report-only by default, apply fixes in this workflow only after independently
+verifying that the finding is real and in scope. **Proceed to Step 8 regardless
+of what this pass found** — a clean result and a result with verified fixes
+applied both continue identically; this step never skips or replaces the PR's
+first real bot round (Decision 4). If fixes were applied, re-run Step 7's
+validation sequence before continuing.
 
 ### Step 8 — Commit and PR
 

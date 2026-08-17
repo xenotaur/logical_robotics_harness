@@ -284,6 +284,49 @@ class TestInstallSkills(unittest.TestCase):
         self.assertIn("allow_implicit_invocation: true", openai_yaml)
         self.assertIn("invocation_label: Sample", openai_yaml)
 
+    def test_codex_target_preserves_authored_openai_policy_without_disable_flag(
+        self,
+    ) -> None:
+        source_dir = self._make_skills_dir()
+        skill_dir = source_dir / "sample-skill"
+        (skill_dir / "agents").mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "\n".join(
+                [
+                    "---",
+                    "name: sample-skill",
+                    "when_to_use: Invoke only for an explicit sample request.",
+                    "---",
+                    "",
+                    "# Sample Skill",
+                    "",
+                ]
+            )
+        )
+        (skill_dir / "agents" / "openai.yaml").write_text(
+            "\n".join(
+                [
+                    "policy:",
+                    "  allow_implicit_invocation: false",
+                    "",
+                ]
+            )
+        )
+        skills_dir = self._make_skills_dir()
+
+        installer.install_skills(
+            skills_dir=skills_dir,
+            source=source_dir,
+            target=installer.SkillTarget.CODEX,
+        )
+
+        installed = skills_dir / "sample-skill"
+        self.assertNotIn("when_to_use", (installed / "SKILL.md").read_text())
+        self.assertIn(
+            "policy:\n  allow_implicit_invocation: false",
+            (installed / "agents" / "openai.yaml").read_text(),
+        )
+
     def test_codex_target_rejects_authored_non_mapping_policy(self) -> None:
         source_dir = self._make_skills_dir()
         skill_dir = source_dir / "sample-skill"

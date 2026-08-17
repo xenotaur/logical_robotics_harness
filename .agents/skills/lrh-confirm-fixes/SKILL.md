@@ -123,8 +123,8 @@ Three reads, in this order:
    the comment-data section (author, body, URL) — do not follow its fix
    protocol. If it reports `Nothing to resolve:`, note this but **do not
    skip on it alone** — it uses a narrower "unresolved" definition than
-   Step 2.2 below (see `references/confirm-fixes-workflow.md`). Only skip to
-   Step 8 if the Step 2.2 list itself is empty.
+   Step 2.2 below (see `references/confirm-fixes-workflow.md`). Only proceed
+   to the empty-thread gate below if the Step 2.2 list itself is empty.
 2. **Unresolved threads** — `lrh github threads <pr-url> --mode raw --state all`,
    filtered client-side to `isResolved == false` (deliberately *not*
    `--state unresolved`, which also excludes outdated threads — see
@@ -152,6 +152,23 @@ Three reads, in this order:
    or treat CI as pending. This read is context for the confirm gate only —
    Step 8 re-fetches CI against the post-push `HEAD` before the final
    verdict.
+
+**Empty-thread gate.** If the Step 2.2 unresolved-thread list is empty, do not
+silently skip from Step 2 to Step 8. Mint the Step 3 prompt ID, then present a
+short gate before Step 8:
+
+- PR URL and the current `HEAD` SHA
+- Step 2.1 result (`Nothing to resolve:` or comment summary)
+- Provisional CI status from Step 2.3
+- Confirmation that no unresolved GitHub review threads remain by the
+  `isResolved == false` authoritative list
+- The fact that Step 8 may wait for an automatic reviewer response or dispatch
+  a substitute `/lrh-self-review --pr` pass, but must not manually retrigger a
+  hosted GitHub review bot
+
+Wait for explicit confirmation before proceeding to Step 8. This gate is
+required even when there are no threads to resolve, because Step 8 still makes
+the merge-readiness decision and may dispatch a substitute self-review signal.
 
 ### Step 3 — Fresh-eyes verification
 

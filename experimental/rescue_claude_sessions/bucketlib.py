@@ -33,6 +33,24 @@ def projects_root() -> Path:
     return config_root() / "projects"
 
 
+def lrh_archive_root() -> Path:
+    """Return LRH's durable session-archive root.
+
+    Mirrors the default used by ``lrh sessions sync``: ``$LRH_SESSION_ARCHIVE_ROOT``
+    if set, else ``~/.local/share/lrh/session-archive``. That archive, not this
+    tooling, is the durable record; see plan.md.
+    """
+    raw = os.environ.get("LRH_SESSION_ARCHIVE_ROOT")
+    if raw:
+        return Path(raw).expanduser()
+    return Path("~/.local/share/lrh/session-archive").expanduser()
+
+
+def archived_copy(transcript: Path) -> Path:
+    """Where ``lrh sessions sync`` would mirror this transcript."""
+    return lrh_archive_root() / "raw" / transcript.parent.name / transcript.name
+
+
 def slugify(path: str | Path) -> str:
     """Convert a filesystem path to its bucket directory name."""
     return re.sub(r"[^A-Za-z0-9]", "-", str(path))

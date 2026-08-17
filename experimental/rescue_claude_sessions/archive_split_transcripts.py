@@ -64,6 +64,12 @@ def main() -> int:
         action="store_true",
         help=f"archive even if modified within {LIVE_WINDOW_SECONDS}s (a live session may be writing)",
     )
+    parser.add_argument(
+        "--no-require-archived",
+        action="store_true",
+        help="skip the precondition that LRH's durable archive already holds the copy "
+        "(run 'lrh sessions sync' first; this tool's own archive dir is not durable)",
+    )
     args = parser.parse_args()
 
     raw = args.alias or list(bucketlib.DEFAULT_ALIASES)
@@ -99,6 +105,22 @@ def main() -> int:
                 print(f"  REFUSE : {path.parent.name} is NOT a byte-exact prefix - divergent content")
                 refused += 1
                 continue
+            if not args.no_require_archived:
+                mirrored = bucketlib.archived_copy(path)
+                if not mirrored.exists():
+                    print(
+                        f"  REFUSE : {path.parent.name} is not in LRH's durable archive yet\n"
+                        f"           expected {mirrored}\n"
+                        f"           run 'lrh sessions sync' first, then re-run"
+                    )
+                    refused += 1
+                    continue
+                if not bucketlib.is_byte_prefix(path, mirrored):
+                    print(
+                        f"  REFUSE : {path.parent.name} differs from its archived copy at {mirrored}"
+                    )
+                    refused += 1
+                    continue
             age = now - path.stat().st_mtime
             if age < LIVE_WINDOW_SECONDS and not args.force_live:
                 print(

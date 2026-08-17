@@ -155,8 +155,8 @@ the active mode. Give it only:
 
 Codex installations carry `agents/openai.yaml` with
 `policy.allow_implicit_invocation: false` for this skill, so removing Claude's
-`disable-model-invocation` frontmatter does not make Codex implicitly inject
-it. Claude subagent-preload hard-guarding remains an explicitly reassigned
+`disable-model-invocation` frontmatter does not make Codex invoke it
+implicitly. Claude subagent-preload hard-guarding remains an explicitly reassigned
 Stage 3 gate-policy audit item; until that platform mechanism exists, the
 subagent task must stay narrowly report-only and Step 4's direct
 re-verification remains load-bearing.

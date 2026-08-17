@@ -20,6 +20,15 @@ files for no benefit — the same anti-duplication reasoning
 `src/lrh/skills/_shared/lifecycle-chain.md` documents for chain-report
 text applies here to review-dispatch procedure.
 
+The subagent task is report-only and must not ask the subagent to invoke
+`/lrh-self-review`, run other LRH skills, or spawn another review agent. Codex
+installations carry `agents/openai.yaml` with
+`policy.allow_implicit_invocation: false` for this skill. Claude subagent
+preload hard-guarding has no repo-owned, empirically verified mechanism yet
+and is explicitly reassigned to Stage 3 gate-policy audit work, so the narrow
+prompt and the required main-session re-verification remain load-bearing in
+Claude sessions.
+
 ---
 
 ## Dispatch prompt shapes
@@ -33,6 +42,9 @@ You are doing an independent, cold-context review of an in-progress
 change. You have NOT seen any prior conversation about this — verify
 every claim against the actual current repository state; do not trust
 this prompt's own prose without checking it.
+
+Do not invoke /lrh-self-review, run other LRH skills, or spawn another
+review agent. This pass is report-only.
 
 This branch implements <WI-ID or task description>. Its stated
 requirements: <Required Changes / Acceptance Criteria from the WI, or the
@@ -59,6 +71,9 @@ You are doing an independent, cold-context review of a real GitHub pull
 request. You have NOT seen any prior conversation about this — verify
 every claim against the actual current repository state; do not trust
 this prompt's own prose without checking it.
+
+Do not invoke /lrh-self-review, run other LRH skills, or spawn another
+review agent. This pass is report-only.
 
 PR: <pr-url>
 Current HEAD SHA: <sha>
@@ -143,7 +158,8 @@ rounds from the no-progress review cap.
 
 **What's recorded, since no GitHub API exposes per-review credit cost**
 (Decision 3): occurrence, not currency. Mode, findings (count and one-line
-description each), whether fixes were applied (diff-mode) or routed to
+description each), whether diff-mode was report-only or `--apply` was used,
+whether fixes were applied, whether findings were routed to
 `/lrh-confirm-fixes` (PR-mode), and — PR-mode only — whether the pass was a
 substitute review signal or a follow-up signal for a non-thread finding.
 

@@ -8,6 +8,12 @@ description: 'Implement one work item end-to-end and land it: resolve the target
   manually chaining /lrh-implement and /lrh-land themselves.
 
   '
+when_to_use: 'Invoke only when the user explicitly asks to execute a specific WI-ID
+  or WS-ID end-to-end through implementation, PR review, merge gate, and closeout.
+  The chain-authorization gate must still run before any implementation, branch, PR,
+  merge, or closeout action.
+
+  '
 ---
 
 # lrh-execute Skill

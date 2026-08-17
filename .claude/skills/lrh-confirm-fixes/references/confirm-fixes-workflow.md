@@ -517,12 +517,12 @@ for the normal "verify again after another review round" flow.
 
 A re-run in this state is a clean no-op after the empty-thread gate: Step 2's
 thread list is empty, Step 6's thread-resolution verdict is green with nothing
-to do, and Step 8 reports "already ready to merge" with the current `HEAD`
-SHA. No execution record content changes meaningfully, but the record is still
-created for audit continuity (each run's `_CONFIRM` record documents what was
-checked and when). Do not skip the empty-thread gate just because there are no
-threads; that gate is the human checkpoint that replaced the old ungated
-fast path.
+to do, Step 7 writes the `_CONFIRM` execution record, and Step 8 reports
+"already ready to merge" with the post-record `HEAD` SHA. No execution record
+content changes meaningfully, but the record is still created for audit
+continuity (each run's `_CONFIRM` record documents what was checked and when).
+Do not skip the empty-thread gate just because there are no threads; that gate
+is the human checkpoint that replaced the old ungated fast path.
 
 ### Partial resolution across rounds
 
@@ -538,7 +538,8 @@ Treat `lrh github threads --mode raw --state all`, filtered to
 `isResolved == false`, as authoritative — not `lrh request review_response`'s
 `Nothing to resolve:` report, which uses a narrower filter that excludes
 outdated threads (see the Thread listing section above). Proceed to the
-empty-thread gate and then the CI-only verdict path (Step 8) only when the
-`isResolved == false` list itself is empty. A `Nothing to resolve:` report with
-a non-empty `isResolved == false` list means outdated-but-unresolved threads
-exist — proceed to verify them normally; do not skip.
+empty-thread gate, Step 6's empty-thread verdict, Step 7's `_CONFIRM` record,
+and then the CI-only verdict path (Step 8) only when the `isResolved == false`
+list itself is empty. A `Nothing to resolve:` report with a non-empty
+`isResolved == false` list means outdated-but-unresolved threads exist —
+proceed to verify them normally; do not skip.

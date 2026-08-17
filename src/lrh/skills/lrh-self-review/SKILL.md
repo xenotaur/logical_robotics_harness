@@ -16,7 +16,7 @@ when_to_use: >
   /lrh-confirm-fixes when a fresh substitute review signal is needed instead
   of a hosted GitHub review-bot retrigger. Do not use for ad-hoc review outside
   those caller-owned workflows.
-argument-hint: "[--apply] [--pr <pr-url>]"
+argument-hint: "[--apply | --pr <pr-url>]"
 ---
 
 # lrh-self-review Skill

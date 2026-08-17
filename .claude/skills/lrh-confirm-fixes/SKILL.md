@@ -162,7 +162,7 @@ Three reads, in this order:
 
 **Empty-thread gate.** If the Step 2.2 unresolved-thread list is empty, do not
 silently skip from Step 2 to Step 8. Mint the Step 3 prompt ID, then present a
-short gate before Step 8:
+short gate before continuing through Steps 6 and 7:
 
 - PR URL and the current `HEAD` SHA
 - Step 2.1 result (`Nothing to resolve:` or comment summary)
@@ -170,12 +170,15 @@ short gate before Step 8:
 - Confirmation that no unresolved GitHub review threads remain by the
   `isResolved == false` authoritative list
 - The fact that Step 8 may wait for an automatic reviewer response or dispatch
-  a substitute `/lrh-self-review --pr` pass, but must not manually retrigger a
-  hosted GitHub review bot
+  a substitute `/lrh-self-review --pr` pass after the `_CONFIRM` record commit,
+  but must not manually retrigger a hosted GitHub review bot
 
-Wait for explicit confirmation before proceeding to Step 8. This gate is
-required even when there are no threads to resolve, because Step 8 still makes
-the merge-readiness decision and may dispatch a substitute self-review signal.
+Wait for explicit confirmation before proceeding to Step 6. Step 6 records the
+empty-thread green verdict, Step 7 creates and pushes the `_CONFIRM` execution
+record, and Step 8 then re-checks CI and review coverage against that
+post-record `HEAD`. This gate is required even when there are no threads to
+resolve, because Step 8 still makes the merge-readiness decision and may
+dispatch a substitute self-review signal.
 
 ### Step 3 — Fresh-eyes verification
 

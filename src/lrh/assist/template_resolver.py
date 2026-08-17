@@ -5,6 +5,19 @@ import importlib.resources as resources
 import os
 import pathlib
 
+# Bolt: Shared ignored dirs for os.walk optimizations
+_IGNORED_DIRS = frozenset(
+    {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
+)
+
 _PACKAGE_TEMPLATE_RESOURCE = "lrh.assist.templates"
 
 
@@ -170,17 +183,23 @@ def _filesystem_logical_names(template_dir: pathlib.Path) -> set[str]:
         return set()
 
     names: set[str] = set()
-    for candidate in template_dir.rglob("*.md"):
-        try:
-            safe_candidate = _safe_filesystem_template_path(
-                template_dir=template_dir,
-                candidate=candidate,
-            )
-        except PermissionError:
-            continue
-        if safe_candidate is None:
-            continue
-        names.add(candidate.relative_to(template_dir).as_posix())
+    # Bolt: Replaced rglob with os.walk and directory pruning to avoid traversing
+    # large ignored directories.
+    for dirpath, dirnames, filenames in os.walk(template_dir):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+        for f in filenames:
+            if f.lower().endswith(".md"):
+                candidate = pathlib.Path(dirpath) / f
+                try:
+                    safe_candidate = _safe_filesystem_template_path(
+                        template_dir=template_dir,
+                        candidate=candidate,
+                    )
+                except PermissionError:
+                    continue
+                if safe_candidate is None:
+                    continue
+                names.add(candidate.relative_to(template_dir).as_posix())
     return names
 
 

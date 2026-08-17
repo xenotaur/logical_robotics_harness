@@ -6,6 +6,7 @@ import difflib
 import importlib.resources
 import importlib.resources.abc
 import json
+import os
 import shutil
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -14,6 +15,19 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import yaml
+
+# Bolt: Shared ignored dirs for os.walk optimizations
+_IGNORED_DIRS = frozenset(
+    {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
+)
 
 _SKILLS_PACKAGE = "lrh.skills"
 _AGENT_SKILLS_CONFIG = Path("project") / "agent_skills.yaml"
@@ -724,11 +738,16 @@ def _collect_fs_files(directory: Path) -> dict[str, bytes]:
         # outcome — never dereference, never silently treat as up to date.
         return {}
     result: dict[str, bytes] = {}
-    for path in directory.rglob("*"):
-        if path.is_symlink():
-            continue
-        if path.is_file():
-            result[path.relative_to(directory).as_posix()] = path.read_bytes()
+    # Bolt: Replaced rglob with os.walk and directory pruning to avoid traversing
+    # large ignored directories.
+    for dirpath, dirnames, filenames in os.walk(directory):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+        for f in filenames:
+            path = Path(dirpath) / f
+            if path.is_symlink():
+                continue
+            if path.is_file():
+                result[path.relative_to(directory).as_posix()] = path.read_bytes()
     return result
 
 
@@ -743,11 +762,19 @@ def _collect_fs_symlinks(directory: Path) -> set[str]:
     """
     if directory.is_symlink():
         return set()
-    return {
-        path.relative_to(directory).as_posix()
-        for path in directory.rglob("*")
-        if path.is_symlink()
-    }
+    symlinks = set()
+    # Bolt: Replaced rglob with os.walk and directory pruning to avoid traversing
+    # large ignored directories.
+    # We must check symlinks before pruning dirnames, because a symlink
+    # might match an ignored name.
+    for dirpath, dirnames, filenames in os.walk(directory):
+        for name in dirnames + filenames:
+            path = Path(dirpath) / name
+            if path.is_symlink():
+                symlinks.add(path.relative_to(directory).as_posix())
+        # Prune explicitly to avoid traversing *inside* heavy ignored directories.
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+    return symlinks
 
 
 def _skill_differs_from_source(

@@ -7,6 +7,7 @@ import hashlib
 import html
 import http.server
 import json
+import os
 import shlex
 import socket
 import socketserver
@@ -23,6 +24,19 @@ from lrh.control import loader as control_loader
 from lrh.conversations import export_inspector
 from lrh.meta import workspace as meta_workspace
 from lrh.ux import dashboard
+
+# Bolt: Shared ignored dirs for os.walk optimizations
+_IGNORED_DIRS = frozenset(
+    {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
+)
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
@@ -1839,7 +1853,15 @@ def codex_archive_payload(config: ServeConfig) -> dict[str, object]:
         elif not root.is_dir():
             diagnostics.append("archive root is not a directory")
         else:
-            for export_path in sorted(root.rglob("*.md")):
+            found_paths = []
+            # Bolt: Replaced rglob with os.walk and directory pruning to avoid
+            # traversing large ignored directories.
+            for dirpath, dirnames, filenames in os.walk(root):
+                dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+                for f in filenames:
+                    if f.lower().endswith(".md"):
+                        found_paths.append(Path(dirpath) / f)
+            for export_path in sorted(found_paths):
                 if not export_path.is_file():
                     continue
                 if not _is_path_within(export_path.resolve(), root):
@@ -2041,7 +2063,15 @@ def _codex_export_summary_for_id(
     for root_index, root in enumerate(_configured_codex_archive_roots(config)):
         if not root.exists() or not root.is_dir():
             continue
-        for export_path in sorted(root.rglob("*.md")):
+        found_paths = []
+        # Bolt: Replaced rglob with os.walk and directory pruning to avoid
+        # traversing large ignored directories.
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+            for f in filenames:
+                if f.lower().endswith(".md"):
+                    found_paths.append(Path(dirpath) / f)
+        for export_path in sorted(found_paths):
             if not export_path.is_file():
                 continue
             resolved = export_path.resolve()

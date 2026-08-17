@@ -1,0 +1,114 @@
+# Rescue Claude Sessions Plan
+
+## Purpose
+
+Recover Claude Code state stranded when a repository's physical path changed
+while its logical path stayed stable.
+
+The LRH and LCATS repositories moved from `~/Workspace/...` to
+`~/Tempspace/Projects/...` to keep Git worktree churn out of Google Drive's
+managed storage, with symlinks left at the old locations so other tooling kept
+working. Git tolerated this after repair. Claude Code did not, because several
+of its persistence layers are keyed by the working directory *path string*:
+
+> Claude Code stores transcripts as JSONL at
+> `~/.claude/projects/<project>/<session-id>.jsonl`, where `<project>` is your
+> working directory path with non-alphanumeric characters replaced by `-`.
+>
+> — [Manage sessions](https://code.claude.com/docs/en/sessions)
+
+A second path spelling therefore produces a second *bucket* with its own
+transcripts and its own `memory/`.
+
+The general lesson, which outlives this incident:
+
+> When a project's physical repository path changes while its logical path
+> stays stable, path-keyed agent state must be migrated to the canonical
+> physical identity or intentionally retired. Symlinking the filesystem is not
+> sufficient.
+
+## Observed Damage
+
+Measured on 2026-08-17, after the move:
+
+| Symptom | Extent |
+| :--- | :--- |
+| Buckets with both spellings | 4 |
+| Memory corpora orphaned under the old spelling | 2 (LRH 136 files, LCATS 159) |
+| Sessions whose id exists in two buckets | 4 (2 divergent, 2 identical) |
+| Not-yet-moved projects carrying a corpus that would orphan next | 12 (~172 files) |
+
+The memory orphaning is the severe part and it fails silently: sessions started
+from the new path read an empty corpus and never report a problem.
+
+The transcript split is bounded and no longer growing — zero old-bucket
+transcripts were written after the move. It still matters because duplicates
+degrade resume: the picker groups duplicate rows, and cross-project resume by
+id resolves only when exactly one other project holds a transcript for it.
+
+## Safety Boundary
+
+- Snapshot before mutating anything path-keyed; `~/.claude/projects` is roughly
+  1 GB and nothing else backs it up. Claude Code does keep its own rolling
+  backups of `~/.claude.json` under `~/.claude/backups`.
+- Copy memory corpora; do not move them. The old corpus is the rollback until
+  new-path sessions are observed reading the migrated one.
+- Archive stale transcripts; never delete. Only archive a copy proven to be a
+  byte-exact prefix of the surviving copy.
+- Do not hand-edit `~/.claude.json` or any JSONL transcript.
+- Quit Claude before migrating, or accept that a live session may write mid-run.
+  `archive_split_transcripts.py` refuses files touched in the last 300 seconds.
+- Per `experimental/README.md`, raw captures stay out of Git: snapshots and
+  archives default to `/private/tmp`.
+
+## Tools
+
+| Script | Role | Writes? |
+| :--- | :--- | :--- |
+| `bucketlib.py` | Shared bucket/slug/hash helpers | no |
+| `audit_buckets.py` | Diagnostic: pairs, orphans, splits, latent risk | no |
+| `snapshot_state.sh` | Restorable tar of projects + `.claude.json` | to `/private/tmp` |
+| `migrate_memory.py` | Copy corpus old bucket to canonical bucket, verify SHA-256 | `--apply` only |
+| `archive_split_transcripts.py` | Move proven-prefix duplicates aside | `--apply` only |
+
+Both Python mutators are dry-run by default.
+
+### `cmp` is not a prefix test
+
+BSD `cmp -n <size> old new` reports `EOF on old` and exits non-zero when `old`
+is a pure prefix of `new`, which reads as "they differ" when they do not. It
+does so even at `-n <size-1>`. Compare a SHA-256 of the whole shorter file
+against a SHA-256 of the longer file's first *size* bytes instead;
+`bucketlib.is_byte_prefix` does exactly that.
+
+## Sequence
+
+1. `audit_buckets.py` — establish current state.
+2. `snapshot_state.sh --scope memory --fast` before the memory step; full
+   `--scope all` before archiving transcripts.
+3. `migrate_memory.py` (dry run, then `--apply`).
+4. Start one session from the canonical path and confirm it recalls a fact only
+   present in the migrated corpus. This is the acceptance test for step 3.
+5. `archive_split_transcripts.py` (dry run, then `--apply`).
+6. Re-run `audit_buckets.py`; expect zero orphans and zero splits.
+7. Only after new-path sessions are proven healthy, retire the old corpus.
+
+## Open Questions
+
+- Desktop app session history is documented as separate from the CLI's
+  ("The desktop app, Claude Code on the web, and the VS Code extension each
+  maintain their own session history"), while transcript storage is
+  demonstrably shared. What the app's picker keys off is not established here.
+- Whether the ~50 unsplit sessions still resident in old buckets should be
+  migrated, resumed in place via `--resume <id>` cross-project lookup, or
+  handed off and restarted, is a per-session judgment this tooling does not make.
+- Slugs at the 200-character truncation limit gain a hash of the full path that
+  these tools cannot reproduce; `audit_buckets.py` flags them instead.
+
+## Promotion
+
+Everything here is provisional per `experimental/README.md`. If this becomes
+routine rather than incidental, promote it through a reviewed work item under
+`WS-SESSION-ARCHIVE-SYNC`, whose proposal
+(`project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md`)
+already covers session-id mapping and durable transcript reconciliation.

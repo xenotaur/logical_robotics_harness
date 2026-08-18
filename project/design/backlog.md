@@ -1399,3 +1399,42 @@ of a *missed defect*, not just a missed clean-pass signal.
 `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 2;
 `project/executions/AD_HOC/2026_08_11_00_55_07_RETRIGGER_REMOVAL_STAGE1_WI_CONFIRM.md`
 (Round 2); PR #541.
+
+---
+
+## `lrh memory` command to make cross-agent memory writes well-formed by construction
+
+**Noted:** 2026-08-17, while preparing the memory migration in
+`experimental/rescue_claude_sessions/`. Auditing all 461 memory files under
+`~/.claude/projects/*/memory/` found 19 across 5 project buckets that lack
+Claude's memory frontmatter (`name`, `description`, `metadata.type`). Codex was
+caught writing one live: it created a memory file in Claude's LCATS corpus with
+no frontmatter and no `MEMORY.md` entry, making it unreachable by recall. In
+another bucket it wrote `MEMORY.md` to the bucket root instead of
+`memory/MEMORY.md`, orphaning all three files there. Nothing was overwritten
+and no data was lost — the existing 129-line LCATS index was verified
+byte-identical against a snapshot — but the writes are silently ineffective.
+
+The pattern predates the 2026-08-17 repository relocation: non-conforming
+writes start 2026-08-03, and conforming and non-conforming files appear on the
+same days (Aug 3: 5 vs 4; Aug 13: 25 vs 5), which rules out a format migration
+and indicates two writers with two conventions.
+
+**Idea:** Provide an `lrh memory` command (or equivalent) that agents call
+instead of writing memory files directly, so a malformed memory is not
+representable: validate frontmatter on write; update `MEMORY.md` in the same
+operation so an unindexed memory cannot exist; resolve the corpus path
+internally so "wrong location" cannot happen; record `authored_by` (and
+possibly `applies_to`) so memories can be filtered by agent; and offer a read
+path so agents recall without knowing the layout. The `authored_by` field also
+addresses semantic contamination — the Codex file that landed in LCATS is
+Codex-specific sandbox guidance sitting where a Claude session would read it as
+its own.
+
+**Status:** Tracked, not designed. Deliberately not blocking the memory
+migration it was discovered during: migration is a byte-exact copy and is
+format-agnostic, so it neither improves nor worsens these files.
+
+**Related:** `experimental/rescue_claude_sessions/findings.md` (full evidence,
+per-bucket counts, and the interleaving analysis);
+`experimental/rescue_claude_sessions/README.md`; PR #561.

@@ -1449,9 +1449,28 @@ addresses semantic contamination — the Codex file that landed in LCATS is
 Codex-specific sandbox guidance sitting where a Claude session would read it as
 its own.
 
+**Second gap — memory has no archival path at all (found 2026-08-18).**
+`lrh sessions sync` mirrors `<project-slug>/*.jsonl` only. It archives **zero**
+memory files: after a full sync of 187 transcripts, `find <archive-root> -name
+'*.md'` returned 0 and no `memory/` directory existed anywhere under it. So the
+durable-archive guarantee that covers transcripts does not extend to memory,
+and during this rescue the only backup of 296 memory files was a tarball in
+`/private/tmp`, which macOS reclaims. That was caught only at the point of
+retiring the source corpora, which would otherwise have left them single-copy;
+they were moved to `~/.local/share/claude-session-rescue/` instead.
+
+This is arguably the larger half of the problem: the write-side idea above
+stops malformed memories being created, but nothing today makes memory
+*survivable*. Candidate fix: have `lrh sessions sync` mirror `memory/`
+alongside `*.jsonl` under the same archive root, with the same never-replace-
+with-a-smaller-source invariant. That would also give `authored_by` filtering
+a durable corpus to operate over, and would close the gap without a new
+mechanism — memory is already path-keyed the same way transcripts are.
+
 **Status:** Tracked, not designed. Deliberately not blocking the memory
 migration it was discovered during: migration is a byte-exact copy and is
-format-agnostic, so it neither improves nor worsens these files.
+format-agnostic, so it neither improves nor worsens these files. The archival
+gap is independent of the write-side idea and could land first.
 
 **Related:** `experimental/rescue_claude_sessions/findings.md` (full evidence,
 per-bucket counts, and the interleaving analysis);

@@ -2,14 +2,14 @@
 execution_id: 2026_08_18_19_22_45_RESCUE_CLAUDE_SESSIONS_CONFIRM
 prompt_id: PROMPT(AD_HOC:RESCUE_CLAUDE_SESSIONS_CONFIRM)[2026-08-18T18:59:49+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/561
-commit: 
+commit: 0a8b3e6dc9d1214fcedbbde0e0ba0f5d8687cfe6
 created_at: 2026-08-18T19:22:45+00:00
 agent: claude-code
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/561
-session_transcript: pending
+session_transcript: claude-app:dcf660e9-d89f-41e7-a220-edcede420919
 ---
 
 # Summary

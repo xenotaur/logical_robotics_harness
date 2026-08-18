@@ -142,6 +142,14 @@ only forks a duplicate when it is first touched under the new path.
   handed off and restarted, is a per-session judgment this tooling does not make.
 - Slugs at the 200-character truncation limit gain a hash of the full path that
   these tools cannot reproduce; `audit_buckets.py` flags them instead.
+- `migrate_memory.py --allow-merge` has an unwarned mirror of the divergent-
+  collision case it does refuse: copying a source `MEMORY.md` into a destination
+  that holds memory files but *no* index leaves those pre-existing files
+  unreferenced by the copied index, and the run still reports success. Found by
+  cold-context review on PR #561. Narrow — it needs `--allow-merge` plus an
+  index-less destination corpus — and outside the reviewed comment's scope,
+  which covered same-path collisions only. Cheap mitigation: warn when the
+  copied index does not name every file already at the destination.
 
 ## Promotion
 

@@ -34,7 +34,8 @@ Usage: snapshot_state.sh [--scope all|memory] [--fast] [--dest DIR]
   --scope all     transcripts + memory + .claude.json (default; ~1GB, slow)
   --scope memory  memory corpora + .claude.json only (small, seconds)
   --fast          store uncompressed; much quicker on large scopes
-  --dest DIR      output directory (default /private/tmp/claude-rescue-snapshots)
+  --dest DIR      output directory (default: /private/tmp when it exists,
+                  else ${TMPDIR:-/tmp}, + /claude-rescue-snapshots)
 
 Restore is a manual, deliberate step:
   tar xf <snapshot>.tar[.gz] -C /   # archive holds paths relative to /

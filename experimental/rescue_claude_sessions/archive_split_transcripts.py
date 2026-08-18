@@ -37,7 +37,10 @@ def default_archive_dir() -> str:
     """
     if Path("/private/tmp").is_dir():
         return "/private/tmp/claude-rescue-archive"
-    return str(Path(os.environ.get("TMPDIR", "/tmp")) / "claude-rescue-archive")
+    # `.get(k, default)` substitutes only when TMPDIR is *absent*; a
+    # set-but-empty TMPDIR would yield a relative path and stage private
+    # transcripts under the caller's cwd. `or` matches bash's ${TMPDIR:-/tmp}.
+    return str(Path(os.environ.get("TMPDIR") or "/tmp") / "claude-rescue-archive")
 
 
 LIVE_WINDOW_SECONDS = 300

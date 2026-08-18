@@ -73,36 +73,30 @@ Nothing skipped.
 
 # Validation
 
-    scripts/version tools          — Python 3.11.8, Ruff 0.15.0, Black 25.11.0,
+Run inside the `LRH` conda environment (`conda activate LRH`):
+
+    scripts/version tools          — Python 3.11.15, Ruff 0.15.12, Black 26.3.1,
                                      lrh 0.2.5.dev1727+g8b897fe4c
-    scripts/format --check --diff  — FAILED (exit 1) — environment, see below
-    scripts/lint                   — FAILED (exit 1) — environment, see below
+    scripts/format --check --diff  — 196 files unchanged (exit 0)
+    scripts/lint                   — all checks passed (exit 0)
     scripts/test                   — Ran 1088 tests, OK (exit 0)
     lrh validate                   — 0 errors, 0 warnings
 
-**`scripts/format` and `scripts/lint` fail on a pinned-version gate, not on
-this branch's code.** `pyproject.toml:75` pins Black `26.3.1` (installed
-`25.11.0`) and `pyproject.toml:80` pins Ruff `==0.15.12` (installed `0.15.0`).
-Both tools refuse before examining any file. Evidence that this is
-pre-existing and unrelated to this PR:
+**Correction.** An earlier revision of this record reported
+`scripts/format`/`scripts/lint` as failing and attributed it to a repository
+environment gap "blocking the canonical gate for every PR in this repository."
+That was wrong. The `LRH` conda environment has Black `26.3.1` and Ruff
+`0.15.12` installed, matching `pyproject.toml:75` and `pyproject.toml:80`
+exactly. The agent's non-interactive shell had started in conda `base`
+(`CONDA_DEFAULT_ENV=base`), whose Black `25.11.0` and Ruff `0.15.0` tripped
+each tool's `required-version` assertion. The repository, its pins, and the
+project environment were correct throughout; only the shell was wrong.
 
-- Both pins are byte-identical on `main` (`git show main:pyproject.toml`).
-- Black fails the same way on `src/lrh/__init__.py`, which this PR never
-  touches; the PR's diff is confined to `experimental/rescue_claude_sessions/`.
-- The failure text is a version assertion, not a formatting or lint finding.
-
-Treated as a missing environment dependency per the review-response protocol's
-canonical-validation section, not a code regression. Remediation is
-`pip install 'black==26.3.1' 'ruff==0.15.12'`, deliberately not run here
-because it mutates the user's shared environment.
-
-To avoid shipping code that would fail once the pins are met, both tools were
-run against the changed files with the pin bypassed (isolated config, same
-line-length 88 / py311 / `E,F,I` rule set). That surfaced 16 real findings,
-all fixed: Black reformatted 4 files, and 8 Ruff findings (7 × E501, 1 × I001)
-were resolved. Both now report clean. This is supplementary evidence, not a
-substitute for the canonical run — Black 25.11.0 may differ from 26.3.1 in
-edge cases.
+The formatting work done before that was diagnosed still stands: Black
+`26.3.1` reports all 196 files unchanged, so the 4 files reformatted under
+`25.11.0` and the 8 Ruff findings (7 × E501, 1 × I001) resolved under `0.15.0`
+agree with the pinned versions. That agreement is now verified rather than
+assumed.
 
 Behaviour re-verified after formatting, with regression coverage for the two
 silent-failure bugs:
@@ -122,8 +116,12 @@ silent-failure bugs:
 - `session_transcript: pending` — update to the durable session pointer once
   available.
 - Run `/lrh-confirm-fixes` on PR #561 before merge.
-- The Black/Ruff version drift blocks the canonical gate for *every* PR in this
-  repository, not just this one. Worth resolving independently of #561.
-- Unrelated to this PR and still outstanding: the rescue itself has not been
-  performed. 136 LRH and 159 LCATS memory files remain orphaned under the old
-  bucket spelling.
+- Agent sessions must `conda activate LRH` before running `scripts/*`. A
+  non-interactive shell starts in conda `base`, where Black and Ruff fail their
+  `required-version` assertions and the failure reads like repository drift. A
+  wrapper or a documented preamble would stop this recurring; worth considering
+  independently of #561.
+- The rescue this tooling exists for has since been performed: 136 LRH and 160
+  LCATS memory files migrated and SHA-256 verified, 187 transcripts archived by
+  `lrh sessions sync`, and 5 redundant split copies displaced. Orphaned corpora
+  2 → 0, split sessions 5 → 0.

@@ -35,7 +35,7 @@ Measured on 2026-08-17, after the move:
 | :--- | :--- |
 | Buckets with both spellings | 4 |
 | Memory corpora orphaned under the old spelling | 2 (LRH 136 files, LCATS 159) |
-| Sessions whose id exists in two buckets | 4 (2 divergent, 2 identical) |
+| Sessions whose id exists in two buckets | 5 (2 pairs differing in size — canonical is a strict superset — 3 pairs byte-identical; all 5 verified byte-exact prefixes, none genuinely divergent) |
 | Not-yet-moved projects carrying a corpus that would orphan next | 12 (~172 files) |
 
 The memory orphaning is the severe part and it fails silently: sessions started
@@ -59,7 +59,7 @@ id resolves only when exactly one other project holds a transcript for it.
 - Quit Claude before migrating, or accept that a live session may write mid-run.
   `archive_split_transcripts.py` refuses files touched in the last 300 seconds.
 - Per `experimental/README.md`, raw captures stay out of Git: snapshots and
-  archives default to `/private/tmp`.
+  archives default to `/private/tmp` when it exists, else `${TMPDIR:-/tmp}`.
 
 ## Tools
 
@@ -67,7 +67,7 @@ id resolves only when exactly one other project holds a transcript for it.
 | :--- | :--- | :--- |
 | `bucketlib.py` | Shared bucket/slug/hash helpers | no |
 | `audit_buckets.py` | Diagnostic: pairs, orphans, splits, latent risk | no |
-| `snapshot_state.sh` | Restorable tar of projects + `.claude.json` | to `/private/tmp` |
+| `snapshot_state.sh` | Restorable tar of projects + `.claude.json` | to `/private/tmp` or `$TMPDIR` |
 | `migrate_memory.py` | Copy corpus old bucket to canonical bucket, verify SHA-256 | `--apply` only |
 | `archive_split_transcripts.py` | Move proven-prefix duplicates aside | `--apply` only |
 

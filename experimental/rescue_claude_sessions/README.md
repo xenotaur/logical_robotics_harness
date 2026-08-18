@@ -146,11 +146,15 @@ against a SHA-256 of the longer file's first *size* bytes instead;
 | :--- | :--- | :--- |
 | `bucketlib.py` | Shared bucket/slug/hash helpers | no |
 | `audit_buckets.py` | Pairs, orphans, splits, latent risk; `--json` | no |
-| `snapshot_state.sh` | Verified tar of projects + `.claude.json` | to `/private/tmp` |
+| `snapshot_state.sh` | Verified tar of projects + `.claude.json` | to `/private/tmp` or `$TMPDIR` |
 | `migrate_memory.py` | Copy corpus forward, SHA-256 verify, refuse divergence | `--apply` only |
 | `archive_split_transcripts.py` | Move proven-prefix duplicates aside | `--apply` only |
 
-Both Python mutators are dry-run by default and safe to re-run.
+Both Python mutators are dry-run by default. Re-running after a successful
+`--apply` is safe but not silently idempotent: `migrate_memory.py` refuses
+(exit 1, nothing written) rather than re-copying into a now-populated
+destination, and a second `archive_split_transcripts.py --apply` finds
+nothing left to move.
 
 ## Prior art check
 

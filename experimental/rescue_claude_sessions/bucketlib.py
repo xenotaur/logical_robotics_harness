@@ -70,9 +70,16 @@ class Bucket:
         return sorted(self.path.glob("*.jsonl"))
 
     def memory_files(self) -> list[Path]:
+        """Every file under the memory corpus, recursively.
+
+        Not just top-level ``*.md``: ``migrate_memory.py`` copies via
+        ``rglob("*")`` over all files, and this count must agree with what it
+        actually moves, or a corpus of nested/non-``.md`` files silently
+        reads as "no memory corpus" and gets skipped without a failure.
+        """
         if not self.memory_dir.is_dir():
             return []
-        return sorted(self.memory_dir.glob("*.md"))
+        return sorted(p for p in self.memory_dir.rglob("*") if p.is_file())
 
     def memory_count(self) -> int:
         """Number of memory files, or -1 when the directory is absent."""

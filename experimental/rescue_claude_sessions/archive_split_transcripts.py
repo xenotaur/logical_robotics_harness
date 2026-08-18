@@ -49,7 +49,15 @@ LIVE_WINDOW_SECONDS = 300
 def choose_keeper(
     paths: list[Path], new_prefixes: list[str]
 ) -> tuple[Path | None, str]:
-    """Pick the copy to keep: longest wins; ties go to the canonical bucket."""
+    """Pick the copy to keep.
+
+    Longest wins outright, with no preference for the canonical bucket at
+    that stage — a partially-written canonical copy can lose to a longer
+    stale one. The 300-second live-window guard, the durable-archive
+    precondition, and move-never-delete all still apply, so this can
+    misfile a copy but cannot lose data. Canonical preference only breaks
+    a tie between copies of *equal* size.
+    """
     ordered = sorted(paths, key=lambda p: p.stat().st_size, reverse=True)
     largest = ordered[0].stat().st_size
     tied = [p for p in ordered if p.stat().st_size == largest]
@@ -171,7 +179,11 @@ def main() -> int:
     if not args.apply:
         print(f"(dry run - nothing moved; would archive under {archive_root})")
         print("Re-run with --apply to move.")
-        return 0
+        # Match the exit code the --apply branch would produce on the same
+        # state: a mix of staged and refused items must still signal that not
+        # everything cleared, so a `dry-run && --apply` runbook check can't
+        # read a partially-refused run as clean.
+        return 1 if refused else 0
 
     for source, target in staged:
         target.parent.mkdir(parents=True, exist_ok=True)

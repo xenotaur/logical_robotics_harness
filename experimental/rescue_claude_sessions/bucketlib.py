@@ -16,7 +16,6 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
-
 # Claude Code truncates slugs past this length and appends a hash of the full
 # path, which we cannot reproduce; pairing is unreliable at or beyond it.
 SLUG_TRUNCATION_LIMIT = 200
@@ -96,6 +95,20 @@ def load_buckets(root: Path | None = None) -> dict[str, Bucket]:
     }
 
 
+def matches_root(bucket_name: str, root_prefix: str) -> bool:
+    """True when a bucket is the alias root itself, or a descendant of it.
+
+    An alias may map a whole workspace (``~/Workspace=~/Tempspace/Projects``),
+    where every bucket is a descendant, or a single repository
+    (``~/old/repo=~/new/repo``), where the bucket name *equals* the prefix
+    exactly. Requiring the ``-`` boundary alone silently skips the second case;
+    accepting a bare prefix alone would also match an unrelated sibling such as
+    ``<prefix>Extra``. Both callers must agree, or a bucket can be paired by one
+    and rejected by the other.
+    """
+    return bucket_name == root_prefix or bucket_name.startswith(root_prefix + "-")
+
+
 def parse_alias(raw: str) -> tuple[Path, Path]:
     """Parse an ``OLD=NEW`` filesystem-prefix alias."""
     if "=" not in raw:
@@ -122,8 +135,10 @@ def pair_buckets(
         old_prefix = slugify(old_root)
         new_prefix = slugify(new_root)
         for name, bucket in buckets.items():
-            if not name.startswith(old_prefix + "-"):
+            if not matches_root(name, old_prefix):
                 continue
+            # An exact root match leaves an empty remainder, mapping the
+            # repository's own bucket straight onto the new root.
             expected = new_prefix + name[len(old_prefix) :]
             pairs.append((bucket, expected, buckets.get(expected)))
     return pairs
@@ -180,4 +195,6 @@ def is_byte_prefix(shorter: Path, longer: Path) -> bool:
 
 def count_lines(path: Path) -> int:
     with path.open("rb") as handle:
-        return sum(chunk.count(b"\n") for chunk in iter(lambda: handle.read(1 << 20), b""))
+        return sum(
+            chunk.count(b"\n") for chunk in iter(lambda: handle.read(1 << 20), b"")
+        )

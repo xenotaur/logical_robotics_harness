@@ -122,8 +122,15 @@ migration as unproven and keep the source corpus.
   `~/.claude/projects` and is host-agnostic for the raw mirror. Run it from the
   LRH checkout. `--no-require-archived` exists only for genuinely LRH-less
   environments.
-- **Divergent duplicates.** Refused, reported, never auto-merged. A non-prefix
-  duplicate holds unique content and needs human adjudication.
+- **Divergent duplicates.** Refused, reported, never auto-merged — in both
+  tools, and with no override flag. A non-prefix transcript holds unique
+  content; a memory file that differs at both ends is two versions of a fact.
+  Reconciling either is a judgement about content, not a mechanical merge.
+  This matters most for `MEMORY.md`: silently keeping the destination's copy
+  would leave migrated facts unindexed while the run still reported success,
+  so `migrate_memory.py` refuses and names the file.
+- **Non-macOS hosts.** `/private/tmp` is preferred per `experimental/README.md`
+  but does not exist on Linux, so both tools fall back to `${TMPDIR:-/tmp}`.
 
 ## `cmp` is not a prefix test
 
@@ -140,7 +147,7 @@ against a SHA-256 of the longer file's first *size* bytes instead;
 | `bucketlib.py` | Shared bucket/slug/hash helpers | no |
 | `audit_buckets.py` | Pairs, orphans, splits, latent risk; `--json` | no |
 | `snapshot_state.sh` | Verified tar of projects + `.claude.json` | to `/private/tmp` |
-| `migrate_memory.py` | Copy corpus forward, SHA-256 verify | `--apply` only |
+| `migrate_memory.py` | Copy corpus forward, SHA-256 verify, refuse divergence | `--apply` only |
 | `archive_split_transcripts.py` | Move proven-prefix duplicates aside | `--apply` only |
 
 Both Python mutators are dry-run by default and safe to re-run.

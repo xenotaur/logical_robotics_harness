@@ -21,19 +21,29 @@ from pathlib import Path
 import bucketlib
 
 
-def plan_copy(source: Path, dest: Path) -> tuple[list[Path], list[Path]]:
-    """Return (files to copy, files already present at dest)."""
+def plan_copy(source: Path, dest: Path) -> tuple[list[Path], list[Path], list[Path]]:
+    """Classify every source file against the destination.
+
+    Returns ``(to_copy, identical, divergent)``. A *divergent* collision is a
+    file present at both ends with different content — most dangerously
+    ``MEMORY.md``, the index that drives recall. Copying around it would leave
+    the migrated facts unindexed while the run still reported success, so
+    divergence is refused rather than silently resolved in either direction.
+    """
     to_copy: list[Path] = []
-    collisions: list[Path] = []
+    identical: list[Path] = []
+    divergent: list[Path] = []
     for item in sorted(source.rglob("*")):
         if not item.is_file():
             continue
         target = dest / item.relative_to(source)
-        if target.exists():
-            collisions.append(item)
-        else:
+        if not target.exists():
             to_copy.append(item)
-    return to_copy, collisions
+        elif bucketlib.sha256_file(item) == bucketlib.sha256_file(target):
+            identical.append(item)
+        else:
+            divergent.append(item)
+    return to_copy, identical, divergent
 
 
 def migrate(
@@ -63,12 +73,26 @@ def migrate(
         )
         return 1
 
-    to_copy, collisions = plan_copy(source, dest)
+    to_copy, identical, divergent = plan_copy(source, dest)
     print(f"  source : {source}  ({len(files)} files)")
     print(f"  dest   : {dest}")
     print(f"  copy   : {len(to_copy)} file(s)")
-    if collisions:
-        print(f"  keep   : {len(collisions)} existing destination file(s) left untouched")
+    if identical:
+        print(f"  same   : {len(identical)} file(s) already identical at destination")
+
+    if divergent:
+        # No override flag: reconciling two versions of a memory is a judgement
+        # about content, not a mechanical merge. Mirrors the divergence refusal
+        # in archive_split_transcripts.py.
+        print(f"  REFUSE : {len(divergent)} file(s) differ between source and dest:")
+        for item in divergent[:10]:
+            rel = item.relative_to(source)
+            note = "  <-- index that drives recall" if rel.name == "MEMORY.md" else ""
+            print(f"           {rel}{note}")
+        if len(divergent) > 10:
+            print(f"           ... and {len(divergent) - 10} more")
+        print("           reconcile these by hand, then re-run")
+        return 1
 
     if not apply:
         print("  (dry run - nothing written; pass --apply to copy)")
@@ -121,7 +145,9 @@ def main() -> int:
         metavar="SUBSTRING",
         help="restrict to buckets whose name contains SUBSTRING, repeatable",
     )
-    parser.add_argument("--apply", action="store_true", help="actually copy (default: dry run)")
+    parser.add_argument(
+        "--apply", action="store_true", help="actually copy (default: dry run)"
+    )
     parser.add_argument(
         "--allow-merge",
         action="store_true",

@@ -56,7 +56,8 @@ def build_report(aliases: list[tuple[Path, Path]]) -> dict:
                     "lines": bucketlib.count_lines(path),
                     "is_longest": path == longest,
                     "byte_prefix_of_longest": (
-                        True if same_size and path == longest
+                        True
+                        if same_size and path == longest
                         else bucketlib.is_byte_prefix(path, longest)
                     ),
                 }
@@ -74,7 +75,7 @@ def build_report(aliases: list[tuple[Path, Path]]) -> dict:
         if name in paired_names:
             continue
         is_old_root = any(
-            name.startswith(bucketlib.slugify(old) + "-") for old, _ in aliases
+            bucketlib.matches_root(name, bucketlib.slugify(old)) for old, _ in aliases
         )
         if is_old_root and bucket.memory_count() > 0:
             latent.append(
@@ -116,17 +117,26 @@ def print_report(report: dict) -> None:
         print(f"    -> {row['new_bucket']}")
         print(
             f"       transcripts {row['old_transcripts']} -> {row['new_transcripts']}"
-            f"   memory {show(row['old_memory'])} -> {show(row['new_memory'])}   [{status}]"
+            f"   memory {show(row['old_memory'])} -> {show(row['new_memory'])}"
+            f"   [{status}]"
         )
 
     print("\n== sessions split across buckets ==")
     if not report["splits"]:
         print("  none")
     for row in report["splits"]:
-        verdict = "safe to archive shorter" if row["all_prefixes"] else "DIVERGENT - do not archive"
+        verdict = (
+            "safe to archive shorter"
+            if row["all_prefixes"]
+            else "DIVERGENT - do not archive"
+        )
         print(f"  {row['session_id']}  [{verdict}]")
         for copy in row["copies"]:
-            marker = "keep" if copy["is_longest"] else ("prefix" if copy["byte_prefix_of_longest"] else "DIVERGENT")
+            marker = (
+                "keep"
+                if copy["is_longest"]
+                else ("prefix" if copy["byte_prefix_of_longest"] else "DIVERGENT")
+            )
             print(
                 f"    {copy['lines']:>7} lines  {copy['bytes']:>10} bytes  "
                 f"{marker:<9} {copy['bucket']}"
@@ -137,7 +147,8 @@ def print_report(report: dict) -> None:
         print("  none")
     for row in report["latent_orphan_risk"]:
         print(
-            f"  {row['memory']:>4} memory files, {row['transcripts']:>3} transcripts  {row['bucket']}"
+            f"  {row['memory']:>4} memory files,"
+            f" {row['transcripts']:>3} transcripts  {row['bucket']}"
         )
 
     if report["truncated_slugs"]:
@@ -156,7 +167,9 @@ def main() -> int:
         help="filesystem prefix move, repeatable "
         f"(default: {' '.join(bucketlib.DEFAULT_ALIASES)})",
     )
-    parser.add_argument("--json", action="store_true", help="emit machine-readable JSON")
+    parser.add_argument(
+        "--json", action="store_true", help="emit machine-readable JSON"
+    )
     args = parser.parse_args()
 
     raw = args.alias or list(bucketlib.DEFAULT_ALIASES)

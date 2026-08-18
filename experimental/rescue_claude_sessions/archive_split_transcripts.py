@@ -19,6 +19,7 @@ Files are moved to an archive directory, never deleted. Dry-run by default.
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import time
 from pathlib import Path
@@ -26,18 +27,36 @@ from pathlib import Path
 import bucketlib
 
 
-DEFAULT_ARCHIVE = "/private/tmp/claude-rescue-archive"
+def default_archive_dir() -> str:
+    """Staging location for displaced copies.
+
+    ``experimental/README.md`` asks for raw captures under ``/private/tmp``,
+    which exists on macOS. Elsewhere that path is usually absent and not
+    creatable by a normal user, so fall back to the platform temp dir. This is
+    staging only — durability belongs to ``lrh sessions sync``.
+    """
+    if Path("/private/tmp").is_dir():
+        return "/private/tmp/claude-rescue-archive"
+    return str(Path(os.environ.get("TMPDIR", "/tmp")) / "claude-rescue-archive")
+
+
 LIVE_WINDOW_SECONDS = 300
 
 
-def choose_keeper(paths: list[Path], new_prefixes: list[str]) -> tuple[Path | None, str]:
+def choose_keeper(
+    paths: list[Path], new_prefixes: list[str]
+) -> tuple[Path | None, str]:
     """Pick the copy to keep: longest wins; ties go to the canonical bucket."""
     ordered = sorted(paths, key=lambda p: p.stat().st_size, reverse=True)
     largest = ordered[0].stat().st_size
     tied = [p for p in ordered if p.stat().st_size == largest]
     if len(tied) == 1:
         return tied[0], "longest copy"
-    canonical = [p for p in tied if any(p.parent.name.startswith(pre) for pre in new_prefixes)]
+    canonical = [
+        p
+        for p in tied
+        if any(bucketlib.matches_root(p.parent.name, pre) for pre in new_prefixes)
+    ]
     if len(canonical) == 1:
         return canonical[0], "identical copies; kept the canonical bucket"
     return None, f"{len(tied)} identical copies, none uniquely canonical"
@@ -55,14 +74,17 @@ def main() -> int:
     )
     parser.add_argument(
         "--archive-dir",
-        default=DEFAULT_ARCHIVE,
-        help=f"where to move stale copies (default {DEFAULT_ARCHIVE})",
+        default=default_archive_dir(),
+        help=f"where to move stale copies (default {default_archive_dir()})",
     )
-    parser.add_argument("--apply", action="store_true", help="actually move (default: dry run)")
+    parser.add_argument(
+        "--apply", action="store_true", help="actually move (default: dry run)"
+    )
     parser.add_argument(
         "--force-live",
         action="store_true",
-        help=f"archive even if modified within {LIVE_WINDOW_SECONDS}s (a live session may be writing)",
+        help=f"archive even if modified within {LIVE_WINDOW_SECONDS}s "
+        "(a live session may be writing)",
     )
     parser.add_argument(
         "--no-require-archived",
@@ -102,14 +124,18 @@ def main() -> int:
             if path == keeper:
                 continue
             if not bucketlib.is_byte_prefix(path, keeper):
-                print(f"  REFUSE : {path.parent.name} is NOT a byte-exact prefix - divergent content")
+                print(
+                    f"  REFUSE : {path.parent.name} is NOT a byte-exact prefix"
+                    " - divergent content"
+                )
                 refused += 1
                 continue
             if not args.no_require_archived:
                 mirrored = bucketlib.archived_copy(path)
                 if not mirrored.exists():
                     print(
-                        f"  REFUSE : {path.parent.name} is not in LRH's durable archive yet\n"
+                        f"  REFUSE : {path.parent.name} is not in LRH's"
+                        " durable archive yet\n"
                         f"           expected {mirrored}\n"
                         f"           run 'lrh sessions sync' first, then re-run"
                     )
@@ -117,7 +143,8 @@ def main() -> int:
                     continue
                 if not bucketlib.is_byte_prefix(path, mirrored):
                     print(
-                        f"  REFUSE : {path.parent.name} differs from its archived copy at {mirrored}"
+                        f"  REFUSE : {path.parent.name} differs from its"
+                        f" archived copy at {mirrored}"
                     )
                     refused += 1
                     continue
@@ -129,7 +156,9 @@ def main() -> int:
                 )
                 refused += 1
                 continue
-            print(f"  archive: {path.parent.name}  (byte-exact prefix, no unique content)")
+            print(
+                f"  archive: {path.parent.name}  (byte-exact prefix, no unique content)"
+            )
             staged.append((path, archive_root / path.parent.name / path.name))
 
     print(f"\n{len(staged)} file(s) to archive, {refused} refusal(s)")

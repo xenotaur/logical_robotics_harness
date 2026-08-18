@@ -10,8 +10,20 @@
 
 set -euo pipefail
 
+# experimental/README.md asks for raw captures under /private/tmp, which exists
+# on macOS. Elsewhere that path is usually absent and not creatable by a normal
+# user, so fall back to the platform temp dir rather than failing outright.
+default_tmp() {
+  if [[ -d /private/tmp ]]; then
+    printf '%s' /private/tmp
+  else
+    local t="${TMPDIR:-/tmp}"
+    printf '%s' "${t%/}"
+  fi
+}
+
 CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
-DEST="${RESCUE_SNAPSHOT_DIR:-/private/tmp/claude-rescue-snapshots}"
+DEST="${RESCUE_SNAPSHOT_DIR:-$(default_tmp)/claude-rescue-snapshots}"
 SCOPE="all"
 COMPRESS="gzip"
 

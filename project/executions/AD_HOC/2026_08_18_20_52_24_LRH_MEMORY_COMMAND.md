@@ -4,8 +4,8 @@ prompt_id: PROMPT(AD_HOC:LRH_MEMORY_COMMAND)[2026-08-18T20:48:53+00:00]
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/563
+commit: 79ce5d259bd4d95a524ada9448ec6247f6aa2edc
 created_at: 2026-08-18T20:52:24+00:00
 agent: claude_app
 instruction_source: project/design/proposals/proposed/lrh-memory-command/00_proposal.md

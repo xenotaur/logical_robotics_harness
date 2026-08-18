@@ -20,7 +20,7 @@ related_design:
 
 ## Summary
 
-This proposal establishes an `lrh memory` command family that makes malformed writes to Claude Code's per-project memory corpus (`~/.claude/projects/<slug>/memory/*.md`) structurally impossible, and closes the separate gap that no durable archive covers memory at all. It defines a write-side surface (`lrh memory write`/`list`/`validate`) that validates frontmatter, updates `MEMORY.md` atomically in the same operation, resolves the corpus path internally, and records `authored_by`; a read-side surface (`lrh memory read`/`search`) for inspecting a corpus without knowing its layout; a portability surface (`lrh memory export`/`import`/`transfer`) that moves curated memories between corpora — the concrete need being that every new workstream subdirectory or worktree starts with a wholly separate, empty memory corpus by construction, verified empirically below; and an archive-side surface (`lrh memory sync`) that mirrors the corpus into the same durable archive `lrh sessions sync` already maintains for transcripts, using a snapshot-before-overwrite invariant suited to edited (not append-only) files. The full nine-command surface is specified in this proposal; v1 implementation is staged by risk (see Implementation Plan), not all nine at once.
+This proposal establishes an `lrh memory` command family that makes malformed writes to Claude Code's per-project memory corpus (`~/.claude/projects/<slug>/memory/*.md`) structurally impossible, and closes the separate gap that no durable archive covers memory at all. It defines a write-side surface (`lrh memory write`/`list`/`validate`) that validates frontmatter, updates `MEMORY.md` atomically in the same operation, resolves the corpus path internally, and records `authored_by`; a read-side surface (`lrh memory read`/`search`) for inspecting a corpus without knowing its layout; a portability surface (`lrh memory export`/`import`/`transfer`) that moves curated memories between corpora — the concrete need being that every new workstream subdirectory or worktree starts with a wholly separate, empty memory corpus by construction, verified empirically below; and an archive-side surface (`lrh memory sync`) that mirrors the corpus into the same durable archive `lrh sessions sync` already maintains for transcripts, using a snapshot-before-overwrite invariant suited to edited (not append-only) files. The full ten-command surface — including `lrh memory repair`, a conservative, structural-only fix-up command for memories already on disk — is specified in this proposal; v1 implementation is staged by risk (see Implementation Plan), not all ten at once.
 
 ## Background / Motivation
 
@@ -118,11 +118,21 @@ The third gap in Background/Motivation (fresh workstream/worktree buckets start 
 
 **Chosen: curated file-based export/import/transfer**, with automatic invocation deferred as a follow-on question (see Open Questions) rather than committed in this proposal. It is the only option that is simultaneously precedented in this codebase, compatible with the 200-line context-budget constraint by construction, and layered on top of — rather than bypassing — the write-side validation Decisions 2 and 3 already establish.
 
+### Decision 9: Retroactive fix-up — `repair`
+
+Options considered:
+- Leave retroactive cleanup of already-written, non-conforming memories entirely out of scope, as originally drafted — `validate` can detect but nothing in this proposal can act on what it finds.
+- Add `lrh memory repair`, a conservative, structural-only fix-up command scoped to frontmatter and index fields, modeled directly on the "detect, then conservatively repair" split this codebase already uses three times over: `lrh work-items validate`/`lrh work-items organize` (whose own help text reads "Conservatively repair work-item frontmatter and status buckets, including legacy layouts" — `src/lrh/cli/main.py:293-296`), and the equivalent `organize` commands for workstreams and design proposals (`src/lrh/cli/main.py:383,413`).
+
+**Chosen: add `repair`.** It closes the gap the original Non-Goals draft named directly — cleanup of the 19 already-known non-conforming files (`experimental/rescue_claude_sessions/findings.md`) had no tool to act on `validate`'s findings. Scoping it to structural fields only, never body content, follows the "conservatively" framing already established for `organize` rather than inventing a looser repair semantics. Implementation must route through `write`'s own validated path (read the existing file, apply the field patch, call `write`'s logic) rather than writing bytes directly — the same discipline already applied to `import` in Decision 8, so `repair` cannot become a second, less-validated way to produce a memory file.
+
+This raises one question Decision 3 didn't need to answer, because nothing previously edited another agent's memory after the fact: does repairing a memory change who it's attributed to? **Resolved: `repair` preserves the original `authored_by` unless the caller explicitly overrides it.** Repairing a Codex-authored memory's frontmatter as Claude is a structural fix, not a re-authoring — the content and its original authorship claim are unchanged, only its conformance is. An explicit `--set metadata.authored_by=<new-agent>` remains possible for the rarer case where re-attribution is genuinely intended, but that is an opt-in override, never the default effect of running `repair`.
+
 ## Non-Goals
 
 - Does not implement semantic or relevance-ranked search — `lrh memory search` is deterministic substring matching, following `lrh search`'s existing design (Decision 7), not an embeddings-based recall model.
 - Does not modify `lrh sessions sync`'s existing behavior — transcript mirroring, its never-shrink invariant, and its archive-root resolution are unchanged by this proposal (Decision 5).
-- Does not retroactively migrate or fix the 19 already-known non-conforming memory files found in the findings audit — this proposal governs new writes going forward; `lrh memory validate` supplies the tool that retroactive cleanup work would use, but performing that cleanup is separate scope.
+- Does not itself perform the retroactive cleanup of the 19 already-known non-conforming memory files found in the findings audit — `lrh memory validate` detects them and `lrh memory repair` (Decision 9) supplies the tool to fix them, but running that cleanup across the existing corpus is a separate operational step, not something this proposal or its work items execute.
 - Does not resolve the archive-root's ultimate storage location or backup/sync-arrangement question — deferred the same way `PROP-LRH-SESSION-ARCHIVE-SYNC` defers it, for the same reason (interacts with the user's own backup and file-sync setup).
 - Does not cover any Codex-native or other agent-native memory mechanism outside Claude Code's `~/.claude/projects/<slug>/memory/` layout — scoped strictly to the corpus the findings evidence actually covers.
 - Does not add enforcement that prevents an agent from bypassing this command and writing memory files directly — v1 makes correct writes easy and structurally sound when the command is used; it does not (yet) make direct writes impossible (see Open Questions).
@@ -148,6 +158,7 @@ This proposal is deliberately held at `proposed` with implementation on hold spe
 This proposal specifies the full nine-command surface, but v1 does not implement all nine at once — staged by risk and by dependency, pending resolution of the Open Questions above:
 
 - **Stage 1 — WI-A (write-side):** `lrh memory write`/`list`/`validate`, the `authored_by`/`applies_to` schema addition (recorded as a short `project/memory/decisions/DEC-*` entry alongside this work, following the precedent of `WI-GATE-POLICY-CASCADE-STAGE3`'s comparable schema/policy decisions), and extraction of the shared atomic-write helper.
+- **Stage 1a — fast follow-up on WI-A:** `lrh memory repair` (Decision 9), once `write`'s validated path exists for it to wrap. Named as a fast follow-up rather than folded into WI-A itself so the write-side work item stays scoped to what the original findings audit required; `repair` is the retroactive-cleanup complement to it, not a precondition.
 - **Stage 1 — WI-B (archive-side):** `lrh memory sync`, built on the extracted atomic-write helper and a new shared `mirror_file`/`mirror_tree` primitive (generalizing `mirror_transcript`) implementing the snapshot-before-overwrite invariant from Decision 6.
 - **Stage 2 — WI-C (read-side):** `lrh memory read`/`search`, following Decision 7. Depends only on the resolved corpus path already established by Stage 1 (or can land independently, since it introduces no new schema or write path) — low-risk, no open questions block it.
 - **Stage 3 — WI-D (portability):** `lrh memory export`/`import`/`transfer`, following Decision 8. Depends on `write`'s validation path (Stage 1) for `import`'s per-record checks, and should not start implementation until the default-selection-policy and bundle-format Open Questions above are resolved.
@@ -223,6 +234,13 @@ lrh memory transfer --from PATH_OR_SLUG --to PATH_OR_SLUG
                      [--name TEXT[,TEXT...]] [--agent TEXT] [--dry-run]
 ```
 Thin `export`+`import` wrapper through a temp bundle (Decision 8); kept thin so `export`/`import` remain independently useful.
+
+### `lrh memory repair`
+```
+lrh memory repair <name> --set FIELD=VALUE[,FIELD=VALUE...]
+                   [--project-root PATH] [--dry-run]
+```
+Conservative, structural-only fix-up — frontmatter and index fields, never body content (Decision 9; precedent: `lrh work-items organize`'s "conservatively repair" framing, `main.py:293-296`). Preserves the original `metadata.authored_by` unless the caller explicitly includes it in `--set`. Implemented as a thin wrapper over `write`'s own validated path, not a separate write mechanism — same discipline as `import` (Decision 8).
 
 ## Cross-References
 

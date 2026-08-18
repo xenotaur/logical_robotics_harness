@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #560 (commit 916012d0ff251347d0ba1f66df8fbd01545922b3)"
 blocked_reason: null
 blocked: false
 id: WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE
 title: Complete Stage 2 retained-flag removal and invocation-policy propagation
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

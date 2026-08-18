@@ -26,6 +26,15 @@ is to prevent silent failure.
 through `/lrh-implement`, so there is no primary implementation record to
 link.
 
+Corroborated by the `pr:`-field fallback rather than by the branch-slug
+search alone, per the `feedback_rerun_of_branch_slug_mismatch` memory: that
+search returns nothing on a slug mismatch *and* on a genuine absence, so an
+empty result cannot by itself distinguish the two.
+`grep -rl "^pr: <url>" project/executions/`, excluding
+`_REVIEW`/`_CONFIRM`/`_SELFREVIEW`, also returns nothing for PR #561, while
+the same query against PR #556 returns its three records — so the query is
+sound and the absence is real.
+
 # Result
 
 **Codex P1 — divergent memory-file collisions (fixed).** Under `--allow-merge`,

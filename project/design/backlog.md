@@ -1288,17 +1288,35 @@ than the branch (`..._WI_FRONT_OF_RUN_GATE_COLLAPSE.md`). Both times, a
 `grep -rl "^pr: <pr-url>" project/executions/` search (excluding the same
 three suffixes) found the record immediately.
 
+A third shape surfaced 2026-08-17 on PR #561 (`/lrh-review-response` against
+`experimental/rescue_claude_sessions`), and it is not a divergence at all:
+the PR was opened by hand rather than through `/lrh-implement`, so **no**
+primary record exists. The branch-slug search returned empty — correctly this
+time — but produced exactly the same signal as the two miss cases above. That
+generalises the defect: an empty result is not merely easy to overlook, it is
+*uninterpretable*, because "the search missed the record" and "there is no
+record" are indistinguishable without a second query. The run reached the
+right `rerun_of` value on reasoning the search itself could not support, and
+only confirmed it afterwards by running the `pr:`-field fallback (which also
+returned nothing for #561, while returning three records for #556 — proving
+the query sound and the absence real).
+
 **Idea:** Change both skills' `rerun_of` resolution to search by the `pr:`
 field first (or as a fallback when the branch-slug search comes up empty),
 rather than relying solely on branch-slug matching. The `pr:` field is
 already populated on the primary record by the time either skill runs, so
 this doesn't require a new lookup mechanism — just reordering which one runs
-first.
+first. Given the third shape, make the second query **mandatory** rather than
+advisory: a skill should never record an empty `rerun_of` on the strength of
+the branch-slug search alone, since that search cannot distinguish absence
+from failure. Confirming a genuine absence is as much a use of the fallback
+as finding a missed record.
 
 **Status:** Not yet a work item. Surfaced twice on the same PR (its `_REVIEW`
-and `_CONFIRM` records both hit it), so it's a live nuisance, not a
-theoretical one — but it's a small, mechanical fix confined to two `SKILL.md`
-files, better batched with other skill-text maintenance than run solo.
+and `_CONFIRM` records both hit it) and a third time on PR #561, so it's a
+live nuisance, not a theoretical one — but it's a small, mechanical fix
+confined to two `SKILL.md` files, better batched with other skill-text
+maintenance than run solo.
 
 **Related:** `src/lrh/skills/lrh-review-response/SKILL.md` Step 7;
 `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 7;
@@ -1399,3 +1417,61 @@ of a *missed defect*, not just a missed clean-pass signal.
 `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 2;
 `project/executions/AD_HOC/2026_08_11_00_55_07_RETRIGGER_REMOVAL_STAGE1_WI_CONFIRM.md`
 (Round 2); PR #541.
+
+---
+
+## `lrh memory` command to make cross-agent memory writes well-formed by construction
+
+**Noted:** 2026-08-17, while preparing the memory migration in
+`experimental/rescue_claude_sessions/`. Auditing all 461 memory files under
+`~/.claude/projects/*/memory/` found 19 across 5 project buckets that lack
+Claude's memory frontmatter (`name`, `description`, `metadata.type`). Codex was
+caught writing one live: it created a memory file in Claude's LCATS corpus with
+no frontmatter and no `MEMORY.md` entry, making it unreachable by recall. In
+another bucket it wrote `MEMORY.md` to the bucket root instead of
+`memory/MEMORY.md`, orphaning all three files there. Nothing was overwritten
+and no data was lost — the existing 129-line LCATS index was verified
+byte-identical against a snapshot — but the writes are silently ineffective.
+
+The pattern predates the 2026-08-17 repository relocation: non-conforming
+writes start 2026-08-03, and conforming and non-conforming files appear on the
+same days (Aug 3: 5 vs 4; Aug 13: 25 vs 5), which rules out a format migration
+and indicates two writers with two conventions.
+
+**Idea:** Provide an `lrh memory` command (or equivalent) that agents call
+instead of writing memory files directly, so a malformed memory is not
+representable: validate frontmatter on write; update `MEMORY.md` in the same
+operation so an unindexed memory cannot exist; resolve the corpus path
+internally so "wrong location" cannot happen; record `authored_by` (and
+possibly `applies_to`) so memories can be filtered by agent; and offer a read
+path so agents recall without knowing the layout. The `authored_by` field also
+addresses semantic contamination — the Codex file that landed in LCATS is
+Codex-specific sandbox guidance sitting where a Claude session would read it as
+its own.
+
+**Second gap — memory has no archival path at all (found 2026-08-18).**
+`lrh sessions sync` mirrors `<project-slug>/*.jsonl` only. It archives **zero**
+memory files: after a full sync of 187 transcripts, `find <archive-root> -name
+'*.md'` returned 0 and no `memory/` directory existed anywhere under it. So the
+durable-archive guarantee that covers transcripts does not extend to memory,
+and during this rescue the only backup of 296 memory files was a tarball in
+`/private/tmp`, which macOS reclaims. That was caught only at the point of
+retiring the source corpora, which would otherwise have left them single-copy;
+they were moved to `~/.local/share/claude-session-rescue/` instead.
+
+This is arguably the larger half of the problem: the write-side idea above
+stops malformed memories being created, but nothing today makes memory
+*survivable*. Candidate fix: have `lrh sessions sync` mirror `memory/`
+alongside `*.jsonl` under the same archive root, with the same never-replace-
+with-a-smaller-source invariant. That would also give `authored_by` filtering
+a durable corpus to operate over, and would close the gap without a new
+mechanism — memory is already path-keyed the same way transcripts are.
+
+**Status:** Tracked, not designed. Deliberately not blocking the memory
+migration it was discovered during: migration is a byte-exact copy and is
+format-agnostic, so it neither improves nor worsens these files. The archival
+gap is independent of the write-side idea and could land first.
+
+**Related:** `experimental/rescue_claude_sessions/findings.md` (full evidence,
+per-bucket counts, and the interleaving analysis);
+`experimental/rescue_claude_sessions/README.md`; PR #561.

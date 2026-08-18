@@ -1288,17 +1288,35 @@ than the branch (`..._WI_FRONT_OF_RUN_GATE_COLLAPSE.md`). Both times, a
 `grep -rl "^pr: <pr-url>" project/executions/` search (excluding the same
 three suffixes) found the record immediately.
 
+A third shape surfaced 2026-08-17 on PR #561 (`/lrh-review-response` against
+`experimental/rescue_claude_sessions`), and it is not a divergence at all:
+the PR was opened by hand rather than through `/lrh-implement`, so **no**
+primary record exists. The branch-slug search returned empty — correctly this
+time — but produced exactly the same signal as the two miss cases above. That
+generalises the defect: an empty result is not merely easy to overlook, it is
+*uninterpretable*, because "the search missed the record" and "there is no
+record" are indistinguishable without a second query. The run reached the
+right `rerun_of` value on reasoning the search itself could not support, and
+only confirmed it afterwards by running the `pr:`-field fallback (which also
+returned nothing for #561, while returning three records for #556 — proving
+the query sound and the absence real).
+
 **Idea:** Change both skills' `rerun_of` resolution to search by the `pr:`
 field first (or as a fallback when the branch-slug search comes up empty),
 rather than relying solely on branch-slug matching. The `pr:` field is
 already populated on the primary record by the time either skill runs, so
 this doesn't require a new lookup mechanism — just reordering which one runs
-first.
+first. Given the third shape, make the second query **mandatory** rather than
+advisory: a skill should never record an empty `rerun_of` on the strength of
+the branch-slug search alone, since that search cannot distinguish absence
+from failure. Confirming a genuine absence is as much a use of the fallback
+as finding a missed record.
 
 **Status:** Not yet a work item. Surfaced twice on the same PR (its `_REVIEW`
-and `_CONFIRM` records both hit it), so it's a live nuisance, not a
-theoretical one — but it's a small, mechanical fix confined to two `SKILL.md`
-files, better batched with other skill-text maintenance than run solo.
+and `_CONFIRM` records both hit it) and a third time on PR #561, so it's a
+live nuisance, not a theoretical one — but it's a small, mechanical fix
+confined to two `SKILL.md` files, better batched with other skill-text
+maintenance than run solo.
 
 **Related:** `src/lrh/skills/lrh-review-response/SKILL.md` Step 7;
 `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 7;

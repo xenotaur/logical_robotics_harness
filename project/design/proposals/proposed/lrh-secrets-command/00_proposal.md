@@ -59,6 +59,33 @@ custom `azure-openai-key-contextual` rule, which `gitleaks detect`
 auto-discovers from the scanned path's root with no extra flag. This
 directly affects Decision 6 below.
 
+**Second update (2026-08-18, handoff prompt from LCATS PR #315):** a
+handoff prompt from that PR's author supplies additional first-hand
+incident context this design must account for. In short: (a) provider
+detection coverage is uneven and must be disclosed to the user, not
+assumed uniform — OpenAI/Anthropic/Gemini keys have structural prefixes
+`gitleaks` catches reliably, Azure keys do not and depend entirely on
+contextual variable naming; (b) a specific, previously-uncaptured
+technical gap: inside a Jupyter notebook, source lines are JSON string
+literals, so `KEY = "value"` is stored on disk as `KEY = \"value\"` —
+`gitleaks`' generic delimiter regex doesn't tolerate that escaping and
+silently under-matches on exactly the file type most likely to leak a key
+via saved cell output; (c) `purge_history.py`'s printed manual-step
+reminders (notify every collaborator/branch-owner before pushing; file a
+GitHub Support request to purge cached views if the repo was ever public)
+are load-bearing content, not incidental, and must survive graduation;
+and (d) the human-review gate between `scan` and `purge` needs to be
+enforceable by filename convention, not merely documented — see Decision
+3's revision below, which fixes a real gap this update surfaced: `review`
+was designed to overwrite `scan`'s draft `replacements.txt` in place,
+leaving no filename signal distinguishing reviewed from unreviewed
+output. Points (a)–(d) are folded into the decisions and work items
+below; three further ideas from the handoff (repo-local `.gitleaks.toml`
+scaffolding, a periodic key-lifecycle audit mode, and nudging toward
+habit-level fixes such as LCATS's `nbstripout` hook) are real but are new
+capabilities, not refinements of `scan`/`review`/`purge` — recorded under
+Open Questions rather than added as scope here.
+
 ## Prior Art Check
 
 ### Duplication search
@@ -124,10 +151,26 @@ convention anywhere in its CLI (gating is flag-based:
 `--dry-run`/`--check`/`--apply`). `lrh secrets review` reads
 `findings.json` + the draft `replacements.txt` and requires a `--decisions
 <file>` (one entry per unique secret: `keep`/`ignore` + reason) before
-writing a final `replacements.txt`. `--check` fails if any finding is
-undecided — usable as a CI gate blocking an unreviewed scan from ever
-reaching `purge`. This keeps the no-prompts convention intact while making
-triage auditable, which the free-text status quo is not.
+writing a final, reviewed replacements file. `--check` fails if any
+finding is undecided — usable as a CI gate blocking an unreviewed scan
+from ever reaching `purge`. This keeps the no-prompts convention intact
+while making triage auditable, which the free-text status quo is not.
+
+**Revised per the handoff-prompt update above:** the original draft of
+this decision had `review --apply` overwrite `scan`'s draft
+`replacements.txt` in place — same filename for both the unreviewed and
+reviewed state. The handoff's emphasis that `purge` "must refuse to run
+without an explicit, human-reviewed input from the scan stage — never
+scan-then-auto-purge" exposed this as a real gap: nothing would stop
+`purge --replacements` from being pointed at the unreviewed draft before
+`review` ever ran, since the tool has no way to distinguish the two states
+by inspecting the file. Fix: `review --apply` writes to a distinctly-named
+`<out-dir>/replacements.reviewed.txt`, leaving `scan`'s draft
+`<out-dir>/replacements.txt` untouched. `purge`'s `--replacements`
+argument is documented as expecting the `.reviewed.txt` output — the
+naming difference is the enforcement mechanism, consistent with this
+codebase's convention of flag/file-based gating rather than runtime
+provenance tracking.
 
 ### Decision 4: Preserving `purge_history.py`'s safety invariants
 
@@ -139,6 +182,7 @@ over **unmodified, not relaxed into optional flags**:
 - Always re-verifies the mirror is clean of every listed secret after rewrite; a failed verification is a hard `exit(1)`.
 - **No `--push` flag exists, ever** — the push command is always printed, never executed. This is an omission by design: there is no code path from this tool to `git push`.
 - `--apply` performs the mirror-clone + rewrite + verify; without it (`--dry-run`), the command validates inputs (refs file well-formed, replacements file exists, binaries present) without cloning or rewriting anything.
+- **Per the handoff-prompt update above:** `purge_history.py`'s existing printed manual-step reminders — notify every collaborator/branch-owner before pushing (a stale clone's `git pull` silently reintroduces the purged secret via merge, it does not error), and file a request with the git host's support team to purge cached views/forks if the repo was ever public — are preserved verbatim in spirit in the graduated command's output alongside the push command, not dropped as "just documentation." These reminders are exactly as load-bearing as the push command itself.
 
 ### Decision 5: Disposition of the LCATS standalone scripts
 
@@ -185,6 +229,33 @@ sufficient today. An explicit `--config` override is easy to add later as
 a non-breaking flag if a repo with a non-standard layout needs it — no
 reason to speculatively build it now.
 
+### Decision 7: Disclosing provider-coverage limitations to the user
+
+Per the handoff prompt: "provider coverage is uneven and worth surfacing
+to the user, not assuming uniform." `find_secrets.py`'s own README already
+documents this empirically (OpenAI/Anthropic/Gemini keys caught reliably
+via structural prefixes; Azure keys caught only contextually; and, newly,
+the notebook JSON-escaping delimiter gap that let a live Azure key sit
+undetected). The gap is that this knowledge lived only in the LCATS
+README — nothing required the graduated `scan` command itself to surface
+it to a user running it against an unfamiliar repo.
+
+Options considered:
+- Leave coverage caveats as external documentation only (status quo — the risk this decision addresses)
+- Require `scan`'s own `--help`/docstring and printed run summary to state known coverage gaps
+
+**Chosen: require disclosure in the tool itself**, not only in
+prose documentation elsewhere. `WI-SECRETS-SCAN` must document, in its
+module docstring and `--help` output, that (a) Azure-family keys have no
+structural prefix and are only caught via contextual rules — either
+`gitleaks`' default `generic-api-key` rule or a target repo's own
+`.gitleaks.toml` extension (Decision 6) — and are invisible to
+pattern-based scanning entirely if assigned to a non-suggestive variable
+name, and (b) `.ipynb` files store source as JSON-escaped strings, which
+can defeat delimiter-based rules that don't account for the escaping,
+regardless of provider. This is disclosure, not new detection logic —
+`scan.py` still wraps `gitleaks` unmodified per Decision 6.
+
 ## Non-Goals
 
 - Does not implement `lrh secrets push` or any flag that executes `git push --force` — the push step remains permanently manual by design, not merely by default.
@@ -192,6 +263,7 @@ reason to speculatively build it now.
 - Does not delete the LCATS experimental scripts in this PR — that is a separate, fast-follow LCATS-side PR (see Decision 5).
 - Does not expand `gitleaks`' *default* rule coverage, and does not add rule-authoring tooling — rule-set tuning (e.g. LCATS's project-specific `azure-openai-key-contextual` rule in its repo-root `.gitleaks.toml`, added in PR #315 `fa308bb18`) is each target repo's own responsibility, not `lrh secrets`'. `scan.py` must preserve `gitleaks`' automatic discovery of a target repo's own `.gitleaks.toml` unmodified (see Decision 6) — that is in scope as a preservation requirement, not as new coverage this proposal builds.
 - Does not decide whether/when to actually run an all-branches purge against LCATS's real leaked-key history — that operational decision is separate from shipping the tool.
+- Does not implement repo-local `.gitleaks.toml` scaffolding/management, a periodic key-lifecycle/audit reminder mode, or remediation-pattern nudging (e.g. suggesting a habit-level backstop like LCATS's `nbstripout` hook when a leak is found) — all three are real ideas from the handoff prompt but are new capabilities beyond scan/review/purge; see Open Questions.
 
 ## Implementation Plan
 
@@ -220,3 +292,6 @@ existing coverage today and `purge` specifically rewrites git history.
 
 - Should `purge`'s `--source` default (derived from `git remote get-url origin`) replace `purge_history.py`'s original required-positional `source`, or should the graduated command keep the positional for a closer 1:1 port? Recommended: the `--project-root`-derived default, for CLI consistency — but this is a UX-consistency-vs-minimal-diff tradeoff worth a second opinion during `WI-SECRETS-PURGE` implementation.
 - Exact `decisions` file format (YAML shape, key names) for `review` is left to `WI-SECRETS-REVIEW`'s implementation rather than fixed here.
+- Should `lrh secrets` eventually scaffold/manage a repo-local `.gitleaks.toml` (e.g. `lrh secrets rules init`) rather than only relying on a target repo to maintain one by hand? The handoff prompt notes `gitleaks`' `[extend] useDefault = true` mechanism is a clean base to build on. Deferred — no work item in this workstream covers it; would need its own design/prior-art pass (including the handoff's precision/recall lesson: any shipped rule must be empirically validated against a real repo before landing, not assumed additive) if picked up later.
+- Should `lrh secrets` grow a periodic audit/key-lifecycle-reminder mode, given the handoff's finding that OpenAI keys have no native expiration and nothing else prompts periodic review across provider dashboards? Deferred — out of scope for the scan/review/purge pipeline; would be a distinct capability if pursued.
+- Should `scan` or `review` output nudge toward habit-level remediation (e.g. "this pattern also exists in N other files" or "consider a pre-commit stripping hook"), per the handoff's observation that the same leaky print pattern existed dormant in six other LCATS notebooks beyond the one that actually leaked? Deferred — real UX idea, not required for this workstream's exit criteria.

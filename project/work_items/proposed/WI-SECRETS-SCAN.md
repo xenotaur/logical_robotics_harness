@@ -33,6 +33,7 @@ acceptance:
   - lrh secrets scan --help works and lrh secrets requires a subcommand error names scan
   - lrh secrets scan fails fast with an install hint when gitleaks is not on PATH
   - lrh secrets scan never passes a config-related flag that would suppress gitleaks auto-discovering a target repo's own .gitleaks.toml
+  - lrh secrets scan --help and its module docstring document known provider-coverage limitations (Azure-family keys are context-only detected; .ipynb JSON-escaping can defeat delimiter-based rules) rather than implying uniform coverage
   - lrh validate passes with 0 errors
   - tests/secrets_tests/scan_test.py and the scan portion of tests/cli_tests/secrets_test.py pass
 required_evidence:
@@ -70,6 +71,17 @@ auto-discovery" an explicit, tested requirement of this item (see
 Required Changes item 2 and the added test case below), not an implicit
 assumption.
 
+A handoff prompt from LCATS PR #315's author, reviewed after this item's
+initial draft, added a further requirement (per `PROP-LRH-SECRETS-COMMAND`
+Decision 7): `scan`'s own `--help`/docstring must disclose known
+provider-coverage gaps to the user directly, not rely on prose
+documentation living only in LCATS's README. Specifically: Azure-family
+keys have no structural prefix and are only caught via contextual rules
+(default or repo-supplied), and `.ipynb` files store source as
+JSON-escaped strings, which can defeat delimiter-based detection rules
+regardless of provider — this is exactly the bug that let a live Azure key
+sit undetected in a real LCATS notebook. See Required Changes item 2a.
+
 ### Duplication search
 - In-repo: No existing implementation found.
 - Sibling repos: LCATS `lcats/experimental/secrets_hygiene/find_secrets.py` — source being graduated.
@@ -92,6 +104,7 @@ assumption.
 
 1. Create `src/lrh/secrets/__init__.py`.
 2. Create `src/lrh/secrets/scan.py`: fail fast with an install hint if `gitleaks` is not on `PATH` (mirror `find_secrets.py`'s `_check_gitleaks_available` message); accept `--project-root` (default cwd) and `--out-dir`; run `gitleaks detect --source <project-root> --log-opts=--all --report-format json --report-path <out-dir>/findings.json`; dedupe findings by secret value and write `<out-dir>/replacements.txt` (`<secret>==>***REMOVED-<RuleID>***` per line); support `--format text|json` for the summary printed to stdout. **Do not pass `--config`, `--no-git`, or any other flag that would suppress `gitleaks`' automatic discovery of a `.gitleaks.toml` at `--project-root`** — a target repo (e.g. LCATS, whose repo-root `.gitleaks.toml` adds a custom `azure-openai-key-contextual` rule after a real live-key incident) may depend on that auto-discovery for correct scan coverage; document this explicitly in the module docstring.
+2a. Document known provider-coverage limitations directly in `scan.py`'s module docstring and surface them in `--help`: OpenAI/Anthropic/Gemini keys have structural prefixes `gitleaks`' default rules catch reliably; Azure-family keys have no distinguishing prefix and are only caught via contextual rules (default `generic-api-key` or a repo's own `.gitleaks.toml` extension), invisible entirely if assigned to a non-suggestive variable name; and `.ipynb` files store source as JSON-escaped strings (`KEY = \"value\"` on disk), which can defeat delimiter-based detection regexes that don't account for the escaping, regardless of provider — this is the specific bug that let a live Azure key go undetected in a real LCATS notebook (PR #315 `fa308bb18`). This is disclosure text only, not new detection logic.
 3. In `src/lrh/cli/main.py`: add `secrets_parser = subparsers.add_parser("secrets", help=...)`, `secrets_subparsers = secrets_parser.add_subparsers(dest="secrets_command")`, a `scan` sub-parser with the above arguments, and a dispatch branch `if args.command == "secrets": if args.secrets_command == "scan": ...`. Include a `parser.error("secrets requires a subcommand ...")` fallback (this will be extended by `WI-SECRETS-REVIEW` and `WI-SECRETS-PURGE`).
 4. Create `tests/secrets_tests/scan_test.py` mocking the `gitleaks` subprocess call (mirror `tests/assist_tests/sourcetree_surveyor_test.py`'s structure), covering: findings parsed correctly, dedup behavior, missing-binary fail-fast, no-findings case (does not write `replacements.txt`), and a regression-guard asserting the constructed `gitleaks` command never includes `--config`/`--no-config`/`--no-git` or any other flag that would override or suppress `.gitleaks.toml` auto-discovery.
 5. Create `tests/cli_tests/secrets_test.py` covering `lrh secrets scan --help`, the missing-subcommand error path, and argv-delegation (mirror `tests/cli_tests/survey_test.py`).

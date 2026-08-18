@@ -72,6 +72,7 @@ stays visible from design through closeout.
 - Does not expand `gitleaks` rule coverage (e.g. the known Azure-key detection gap) — scan-quality tuning is separate follow-up work, not blocking this workstream.
 - Does not decide whether/when LCATS actually executes an all-branches history purge against its real leaked-key incident — that operational decision belongs to LCATS, not this workstream.
 - Does not include the LCATS-side script deletion PR itself as a work item under this workstream — that PR lives in a different repository and is tracked as a follow-up, not a dependency gating this workstream's closure.
+- Does not implement repo-local `.gitleaks.toml` scaffolding/management, a periodic key-lifecycle/audit reminder mode, or remediation-pattern nudging in scan/review output — three ideas surfaced by a PR #315 handoff prompt, recorded as Open Questions in `PROP-LRH-SECRETS-COMMAND` for possible future scoping, not part of this workstream's exit criteria.
 
 ## Relationship to Design
 

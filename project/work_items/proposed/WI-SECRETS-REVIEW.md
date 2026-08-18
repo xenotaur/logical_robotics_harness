@@ -32,7 +32,8 @@ forbidden_actions:
 acceptance:
   - src/lrh/secrets/review.py exists and implements decisions-file-gated triage as described in Required Changes
   - lrh secrets review --check exits nonzero when any finding lacks a recorded decision
-  - lrh secrets review --apply refuses to write a final replacements.txt when any finding is undecided
+  - lrh secrets review --apply refuses to write a final replacements.reviewed.txt when any finding is undecided
+  - lrh secrets review --apply writes to out-dir/replacements.reviewed.txt, distinct from scan's draft out-dir/replacements.txt, and never overwrites the draft
   - lrh validate passes with 0 errors
   - tests/secrets_tests/review_test.py and the review portion of tests/cli_tests/secrets_test.py pass
 required_evidence:
@@ -63,6 +64,15 @@ with LRH's no-interactive-prompts, flag-gated mutation convention. This
 item depends on `WI-SECRETS-SCAN` because it consumes `scan`'s
 `findings.json`/`replacements.txt` output format directly.
 
+Per `PROP-LRH-SECRETS-COMMAND`'s revised Decision 3 (handoff-prompt
+update): the original design had `--apply` overwrite `scan`'s draft
+`replacements.txt` in place, leaving no filename signal distinguishing
+reviewed from unreviewed output — a real gap, since the handoff prompt is
+explicit that `purge` "must refuse to run without an explicit,
+human-reviewed input from the scan stage — never scan-then-auto-purge."
+This item now writes the finalized output to a distinctly-named
+`replacements.reviewed.txt` instead (see Required Changes item 1).
+
 ### Duplication search
 - In-repo: No existing implementation found — this is a new capability, not a graduation of existing LCATS code.
 - Sibling repos: None identified (LCATS has no equivalent review step today — this closes that gap).
@@ -84,7 +94,7 @@ item depends on `WI-SECRETS-SCAN` because it consumes `scan`'s
 
 ## Required Changes
 
-1. Create `src/lrh/secrets/review.py`: accept `--out-dir` (containing `findings.json` and the draft `replacements.txt` from `scan`) and `--decisions <path>`. Default mode (no `--check`/`--apply`): print an annotated report of findings against any existing decisions. `--check`: exit nonzero if any unique secret in `findings.json` lacks a matching entry in the decisions file. `--apply`: require every finding decided; write the finalized `<out-dir>/replacements.txt`, filtered to only `keep`-decided secrets.
+1. Create `src/lrh/secrets/review.py`: accept `--out-dir` (containing `findings.json` and the draft `replacements.txt` from `scan`) and `--decisions <path>`. Default mode (no `--check`/`--apply`): print an annotated report of findings against any existing decisions. `--check`: exit nonzero if any unique secret in `findings.json` lacks a matching entry in the decisions file. `--apply`: require every finding decided; write the finalized `<out-dir>/replacements.reviewed.txt` (a name distinct from `scan`'s draft `<out-dir>/replacements.txt`, never overwriting the draft), filtered to only `keep`-decided secrets — this filename distinction is the mechanism that stops `purge` from ever being pointed at unreviewed output by accident (see `PROP-LRH-SECRETS-COMMAND` Decision 3).
 2. Define the `--decisions` file format (e.g. one YAML mapping per secret hash/prefix → `{decision: keep|ignore, reason: str}`) and document it in the module docstring.
 3. In `src/lrh/cli/main.py`: add a `review` sub-parser under the existing `secrets_subparsers` (from `WI-SECRETS-SCAN`), with `--out-dir`, `--decisions`, `--check`, `--apply` (assert `--check`/`--apply` are not combined with contradictory flags, per this repo's mutation-flag convention), and a dispatch branch.
 4. Create `tests/secrets_tests/review_test.py`: covers undecided-finding `--check` failure, `--apply` with full decisions writing a correctly filtered `replacements.txt`, and `--apply` refusing to write when any finding is undecided.

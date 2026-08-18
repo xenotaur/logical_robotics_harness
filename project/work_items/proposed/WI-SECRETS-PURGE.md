@@ -142,7 +142,7 @@ alongside the push command itself, not be dropped as incidental.
 
 ## Dependencies / Order
 
-Depends on both `WI-SECRETS-SCAN` and `WI-SECRETS-REVIEW`: `purge` consumes the finalized `replacements.txt` that `review --apply` produces from `scan`'s findings. Implement last.
+Depends on both `WI-SECRETS-SCAN` and `WI-SECRETS-REVIEW`: `purge` consumes the finalized `replacements.reviewed.txt` that `review --apply` produces from `scan`'s findings. Implement last.
 
 ## Related Workstream and Designs
 

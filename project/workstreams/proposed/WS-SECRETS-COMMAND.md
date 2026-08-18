@@ -62,8 +62,8 @@ stays visible from design through closeout.
 
 - All three subcommands implemented, tested, and merged to `main`
 - `lrh validate` passes with 0 errors after each work item lands
-- `tests/secrets_tests/` and `tests/cli_tests/secrets_test.py` exist and pass, covering mocked external-binary behavior plus at least one real-`git` mirror-clone/verify integration path
-- Every safety invariant from `purge_history.py` (mandatory `--refs-file`, mirror-only operation, mandatory post-rewrite verification, no code path to `git push`) is preserved unmodified in the graduated `purge` command
+- `tests/secrets_tests/` (fully mocked/hermetic) and `tests/cli_tests/secrets_test.py` exist and pass; `tests/smoke/secrets_purge_smoke.py` (real `git-filter-repo` mirror-clone/verify, run via `scripts/smoke`) exists and passes when `git-filter-repo` is installed
+- Every safety invariant from `purge_history.py` (mandatory `--refs-file`, mirror-only operation, mandatory post-rewrite verification, no code path to `git push`) is preserved unmodified in the graduated `purge` command, including a runtime-enforced (not just documented) reviewed-replacements gate and literal-string (not regex) secret verification
 - A companion LCATS PR removing `lcats/experimental/secrets_hygiene/{find_secrets.py,purge_history.py}` and repointing its docs at `lrh secrets` has been opened
 
 ## Non-Goals

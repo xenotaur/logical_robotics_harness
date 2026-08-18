@@ -167,10 +167,22 @@ scan-then-auto-purge" exposed this as a real gap: nothing would stop
 by inspecting the file. Fix: `review --apply` writes to a distinctly-named
 `<out-dir>/replacements.reviewed.txt`, leaving `scan`'s draft
 `<out-dir>/replacements.txt` untouched. `purge`'s `--replacements`
-argument is documented as expecting the `.reviewed.txt` output — the
-naming difference is the enforcement mechanism, consistent with this
-codebase's convention of flag/file-based gating rather than runtime
-provenance tracking.
+argument is documented as expecting the `.reviewed.txt` output.
+
+**Second revision (2026-08-18, PR #562 review, `chatgpt-codex-connector`
+P1):** the filename alone is documentation, not enforcement —
+`purge --apply --replacements out/replacements.txt` (pointed straight at
+`scan`'s unreviewed draft, under any filename) was still valid input
+under the design as first revised, silently defeating the human-review
+gate this decision exists to guarantee. Fix: `review --apply` now writes
+a fixed marker line, `# lrh-secrets-reviewed v1`, as the first line of
+`replacements.reviewed.txt`. `purge` reads `--replacements` and hard-fails
+before doing anything else — no clone, no rewrite — if that exact marker
+line isn't present, then strips it before the remaining lines are ever
+passed to `git-filter-repo`. This is genuine runtime enforcement, not
+naming convention: the marker, not the filename, is what `purge` actually
+checks. See `WI-SECRETS-REVIEW` Required Changes item 1 and
+`WI-SECRETS-PURGE` Required Changes item 1a.
 
 ### Decision 4: Preserving `purge_history.py`'s safety invariants
 
@@ -179,7 +191,7 @@ external tool. The experimental script's existing invariants are carried
 over **unmodified, not relaxed into optional flags**:
 - Operates only on a fresh `--mirror` clone in a scratch dir; never touches `--project-root`'s working tree.
 - `--refs-file` is mandatory; omitting it is a hard failure, not a flag toggle.
-- Always re-verifies the mirror is clean of every listed secret after rewrite; a failed verification is a hard `exit(1)`.
+- Always re-verifies the mirror is clean of every listed secret after rewrite; a failed verification is a hard `exit(1)`. **Per PR #562 review (`chatgpt-codex-connector` P1):** the original `purge_history.py` (and this proposal's first draft) verified via `git log --all -S <secret> --pickaxe-regex`, which interprets `<secret>` as an extended POSIX regex — a secret containing regex metacharacters (e.g. `ab+c`) can defeat verification entirely (false "clean," or an abort on an unmatched `[`). The graduated command drops `--pickaxe-regex`; `-S<string>` alone is already a literal pickaxe match, which is what verification actually needs.
 - **No `--push` flag exists, ever** — the push command is always printed, never executed. This is an omission by design: there is no code path from this tool to `git push`.
 - `--apply` performs the mirror-clone + rewrite + verify; without it (`--dry-run`), the command validates inputs (refs file well-formed, replacements file exists, binaries present) without cloning or rewriting anything.
 - **Per the handoff-prompt update above:** `purge_history.py`'s existing printed manual-step reminders — notify every collaborator/branch-owner before pushing (a stale clone's `git pull` silently reintroduces the purged secret via merge, it does not error), and file a request with the git host's support team to purge cached views/forks if the repo was ever public — are preserved verbatim in spirit in the graduated command's output alongside the push command, not dropped as "just documentation." These reminders are exactly as load-bearing as the push command itself.
@@ -278,6 +290,12 @@ module tests + `tests/cli_tests/secrets_test.py` CLI-dispatch tests,
 mirroring `tests/assist_tests/sourcetree_surveyor_test.py` and
 `tests/cli_tests/survey_test.py`), since this graduates code with no
 existing coverage today and `purge` specifically rewrites git history.
+**Per PR #562 review (`chatgpt-codex-connector` P2):** `WI-SECRETS-PURGE`'s
+real, environment-dependent `git-filter-repo` integration test lives in
+`tests/smoke/secrets_purge_smoke.py`, run via `scripts/smoke`, not in
+`tests/secrets_tests/` — per `AGENTS.md`'s testing policy
+(`AGENTS.md:164-166`), unit tests stay hermetic, and real install/binary
+checks belong in `tests/smoke/*_smoke.py`.
 
 ## Cross-References
 

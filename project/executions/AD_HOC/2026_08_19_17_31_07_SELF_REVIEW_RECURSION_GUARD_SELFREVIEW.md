@@ -2,10 +2,10 @@
 execution_id: 2026_08_19_17_31_07_SELF_REVIEW_RECURSION_GUARD_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:SELF_REVIEW_RECURSION_GUARD_SELFREVIEW)[2026-08-19T17:31:07+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/566
+commit: 3202bf3f
 agent: claude_code
 instruction_source: skill:lrh-self-review diff-mode for PROMPT(AD_HOC:SELF_REVIEW_RECURSION_GUARD)
 session_transcript: pending

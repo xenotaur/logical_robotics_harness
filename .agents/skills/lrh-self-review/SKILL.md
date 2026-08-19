@@ -8,6 +8,7 @@ description: "Dispatch a fresh, cold-context subagent to independently review a 
   \ would otherwise have been requested. Ends at a report of findings plus an execution\
   \ record; diff-mode is report-only by default and applies fixes only with explicit\
   \ --apply. It does not push, open a PR, resolve GitHub threads, or merge.\n"
+disallowed-tools: Skill
 ---
 
 # lrh-self-review Skill
@@ -144,13 +145,17 @@ the active mode. Give it only:
 - Explicit instruction not to invoke `/lrh-self-review`, run other LRH
   skills, or spawn another review agent
 
-Codex installations carry `agents/openai.yaml` with
+This skill's own frontmatter carries `disallowed-tools: Skill` — a
+platform-enforced control verified (see `DEC-SELF-REVIEW-RECURSION-GUARD`) to
+remove the `Skill` tool from both the invoking session and the dispatched
+subagent while this skill is active. It is the primary recursion guard;
+the instruction above not to invoke `/lrh-self-review` or spawn another
+review agent is defense-in-depth, not a substitute for it.
+Codex installations separately carry `agents/openai.yaml` with
 `policy.allow_implicit_invocation: false` for this skill, so removing Claude's
 `disable-model-invocation` frontmatter does not make Codex invoke it
-implicitly. Claude subagent-preload hard-guarding remains an explicitly reassigned
-Stage 3 gate-policy audit item; until that platform mechanism exists, the
-subagent task must stay narrowly report-only and Step 4's direct
-re-verification remains load-bearing.
+implicitly either. Step 4's direct re-verification remains load-bearing
+regardless, since the guard bounds recursion, not review quality.
 
 ### Step 4 — Independently re-verify the top finding
 

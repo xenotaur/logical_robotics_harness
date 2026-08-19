@@ -5,18 +5,19 @@ title: Invocation and Gate Reset — Retrigger Removal, Flag Removal, and a Unif
 status: proposed
 implementation_status: partial
 created_on: 2026-08-09
-updated_on: 2026-08-14
+updated_on: 2026-08-19
 related_design:
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
+  - project/memory/decisions/DEC-SELF-REVIEW-RECURSION-GUARD.md
   - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
   - project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION.md
   - project/work_items/proposed/WI-LRH-CHAIN-DEFAULTS-INCREMENT-2.md
   - project/work_items/resolved/WI-RETRIGGER-REMOVAL-STAGE1.md
   - project/work_items/resolved/WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL.md
   - project/work_items/resolved/WI-FRONT-OF-RUN-GATE-COLLAPSE.md
-  - project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE.md
+  - project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE.md
   - project/work_items/proposed/WI-GATE-POLICY-CASCADE-STAGE3.md
   - project/work_items/proposed/WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5.md
   - project/work_items/proposed/WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME.md
@@ -27,6 +28,7 @@ implemented_by:
   - WI-DELIBERATE-MODEL-INVOCATION
   - WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL
   - WI-FRONT-OF-RUN-GATE-COLLAPSE
+  - WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE
 evidence:
   - EV-0011
 supersedes: []
@@ -435,6 +437,14 @@ This is the rare case where the safety and ergonomic objectives do not trade
 off, and it should be taken.
 
 ### Decision 5: The recursion guard is platform-enforced, not advisory
+
+**Amended by `DEC-SELF-REVIEW-RECURSION-GUARD` (2026-08-19).** `disallowed-tools`
+was empirically tested rather than assumed either way, verified to remove the
+`Skill` tool from both the invoking session and the dispatched subagent, and
+adopted as the primary guard alongside the advisory instruction as a secondary
+layer — closing the gap this decision left open. See that record for the test
+methodology, its residual uncertainty, and the "Options considered" amendment
+below. The rest of this section is retained for the original reasoning.
 
 **Options considered:**
 

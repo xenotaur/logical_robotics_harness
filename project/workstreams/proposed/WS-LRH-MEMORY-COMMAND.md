@@ -11,7 +11,7 @@ summary: >
   write-side validation, durable archival, read-side inspection, and
   cross-corpus portability.
 related_design:
-  - project/design/proposals/proposed/lrh-memory-command/00_proposal.md
+  - project/design/proposals/adopted/lrh-memory-command/00_proposal.md
   - project/design/backlog.md
 work_items:
   - WI-LRH-MEMORY-WRITE-SIDE
@@ -134,6 +134,6 @@ Carried forward from the proposal, relevant to sequencing:
 
 ## Relationship to Design
 
-- Design proposal: `project/design/proposals/proposed/lrh-memory-command/00_proposal.md`
+- Design proposal: `project/design/proposals/adopted/lrh-memory-command/00_proposal.md`
 - Backlog entry: `project/design/backlog.md`, "lrh memory command to make
   cross-agent memory writes well-formed by construction"

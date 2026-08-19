@@ -14,7 +14,7 @@ related_roadmap: []
 related_workstreams:
   - WS-LRH-MEMORY-COMMAND
 related_design:
-  - project/design/proposals/proposed/lrh-memory-command/00_proposal.md
+  - project/design/proposals/adopted/lrh-memory-command/00_proposal.md
 depends_on: []
 blocked_by: []
 expected_actions:
@@ -136,5 +136,5 @@ Decision 7.
 ## Related Workstream and Designs
 
 - Workstream: `project/workstreams/proposed/WS-LRH-MEMORY-COMMAND.md`
-- Design: `project/design/proposals/proposed/lrh-memory-command/00_proposal.md`
+- Design: `project/design/proposals/adopted/lrh-memory-command/00_proposal.md`
   (Decision 7)

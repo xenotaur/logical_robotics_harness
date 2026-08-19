@@ -14,7 +14,7 @@ related_roadmap: []
 related_workstreams:
   - WS-LRH-MEMORY-COMMAND
 related_design:
-  - project/design/proposals/proposed/lrh-memory-command/00_proposal.md
+  - project/design/proposals/adopted/lrh-memory-command/00_proposal.md
 depends_on:
   - WI-LRH-MEMORY-WRITE-SIDE
 blocked_by: []
@@ -147,5 +147,5 @@ This item closes that gap per `PROP-LRH-MEMORY-COMMAND` Decisions 5 and 6.
 ## Related Workstream and Designs
 
 - Workstream: `project/workstreams/proposed/WS-LRH-MEMORY-COMMAND.md`
-- Design: `project/design/proposals/proposed/lrh-memory-command/00_proposal.md`
+- Design: `project/design/proposals/adopted/lrh-memory-command/00_proposal.md`
   (Decisions 5, 6)

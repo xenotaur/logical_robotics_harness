@@ -14,7 +14,7 @@ related_roadmap: []
 related_workstreams:
   - WS-LRH-MEMORY-COMMAND
 related_design:
-  - project/design/proposals/proposed/lrh-memory-command/00_proposal.md
+  - project/design/proposals/adopted/lrh-memory-command/00_proposal.md
 depends_on:
   - WI-LRH-MEMORY-WRITE-SIDE
 blocked_by: []
@@ -160,5 +160,5 @@ it collides with the 200-line `MEMORY.md` truncation ceiling and with
 ## Related Workstream and Designs
 
 - Workstream: `project/workstreams/proposed/WS-LRH-MEMORY-COMMAND.md`
-- Design: `project/design/proposals/proposed/lrh-memory-command/00_proposal.md`
+- Design: `project/design/proposals/adopted/lrh-memory-command/00_proposal.md`
   (Decision 8)

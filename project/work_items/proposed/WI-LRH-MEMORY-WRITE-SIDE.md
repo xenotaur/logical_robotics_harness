@@ -14,7 +14,7 @@ related_roadmap: []
 related_workstreams:
   - WS-LRH-MEMORY-COMMAND
 related_design:
-  - project/design/proposals/proposed/lrh-memory-command/00_proposal.md
+  - project/design/proposals/adopted/lrh-memory-command/00_proposal.md
 depends_on: []
 blocked_by: []
 expected_actions:
@@ -189,5 +189,5 @@ conformance auditor (`validate`), and the retroactive fix-up tool
 ## Related Workstream and Designs
 
 - Workstream: `project/workstreams/proposed/WS-LRH-MEMORY-COMMAND.md`
-- Design: `project/design/proposals/proposed/lrh-memory-command/00_proposal.md`
+- Design: `project/design/proposals/adopted/lrh-memory-command/00_proposal.md`
   (Decisions 2, 3, 4, 9)

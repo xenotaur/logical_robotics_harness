@@ -38,7 +38,7 @@ This capability is not LCATS-specific — any git repository can leak a
 secret into its history, and any LRH-managed repo should have this tooling
 available without depending on LCATS's experimental tree. LRH already has a
 graduation precedent for exactly this situation:
-`scripts/aiprog/sourcetree_surveyor.py` → `lrh survey` (commits `200e490f`,
+`src/lrh/assist/sourcetree_surveyor.py` → `lrh survey` (commits `200e490f`,
 `4a0cd0b6`, `94f58395`), where standalone-script logic moved into an
 importable, tested package module and was wired into `src/lrh/cli/main.py`.
 
@@ -283,7 +283,7 @@ Delivered under `WS-SECRETS-COMMAND`, as three work items in dependency order:
 
 1. `WI-SECRETS-SCAN` — `lrh secrets scan` (no dependencies)
 2. `WI-SECRETS-REVIEW` — `lrh secrets review` (depends on `WI-SECRETS-SCAN`'s output format)
-3. `WI-SECRETS-PURGE` — `lrh secrets purge` (depends on both — consumes `review`'s finalized `replacements.txt`)
+3. `WI-SECRETS-PURGE` — `lrh secrets purge` (depends on both — consumes `review`'s finalized `replacements.reviewed.txt`)
 
 Each work item carries a hard test-coverage requirement (`tests/secrets_tests/`
 module tests + `tests/cli_tests/secrets_test.py` CLI-dispatch tests,

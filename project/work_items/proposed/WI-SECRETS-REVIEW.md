@@ -60,8 +60,10 @@ Today, a human hand-edits `find_secrets.py`'s draft `replacements.txt`
 directly, with no record of which findings were reviewed or why a given
 line was kept or dropped. `PROP-LRH-SECRETS-COMMAND` Decision 3 resolves
 this by requiring an explicit `--decisions` file (per-secret keep/ignore +
-reason) before a finalized `replacements.txt` can be written, consistent
-with LRH's no-interactive-prompts, flag-gated mutation convention. This
+reason) before a finalized `replacements.reviewed.txt` can be written —
+distinct from `scan`'s draft `replacements.txt`, which is never
+overwritten — consistent with LRH's no-interactive-prompts, flag-gated
+mutation convention. This
 item depends on `WI-SECRETS-SCAN` because it consumes `scan`'s
 `findings.json`/`replacements.txt` output format directly.
 

@@ -73,8 +73,8 @@ conformance auditor (`validate`), and the retroactive fix-up tool
 
 ### Duplication search
 - In-repo: No existing implementation. `project_slug_for_path()` at
-  `src/lrh/prompt_workflow_sessions.py:515` and `_atomic_write`/
-  `_atomic_write_bytes` at `:159-181` already exist and should be reused/
+  `src/lrh/prompt_workflow_sessions.py:515` and `_atomic_write` at
+  `:159-181`/`_atomic_write_bytes` at `:184-211` already exist and should be reused/
   extracted, not reimplemented. `lrh work-items organize`'s "conservatively
   repair" framing (`src/lrh/cli/main.py:293-296`) is the precedent for
   `repair`'s scope.
@@ -101,8 +101,8 @@ conformance auditor (`validate`), and the retroactive fix-up tool
 
 ## Required Changes
 
-1. Extract `_atomic_write`/`_atomic_write_bytes` from
-   `src/lrh/prompt_workflow_sessions.py:159-181` into a shared module
+1. Extract `_atomic_write` (`src/lrh/prompt_workflow_sessions.py:159-181`)
+   and `_atomic_write_bytes` (`:184-211`) into a shared module
    (`src/lrh/atomic_write.py`); update `prompt_workflow_sessions.py` to
    import from it instead of defining them locally.
 2. Create `src/lrh/prompt_workflow_memory.py` implementing: frontmatter
@@ -135,6 +135,9 @@ conformance auditor (`validate`), and the retroactive fix-up tool
 
 ## Non-Goals
 
+- Does not begin implementation before `PROP-LRH-MEMORY-COMMAND` reaches
+  `status: adopted` — see the workstream's Purpose section for why
+  adoption is an entry gate, not just an exit criterion.
 - Does not implement `lrh memory sync` — see `WI-LRH-MEMORY-ARCHIVE-SIDE`.
 - Does not implement `lrh memory read`/`search` — see
   `WI-LRH-MEMORY-READ-SIDE`.

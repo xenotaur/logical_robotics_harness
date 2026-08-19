@@ -39,6 +39,21 @@ sequencing, dependencies, and shared helpers (an extracted atomic-write
 module, `project_slug_for_path` reuse) are tracked as one coordinated
 effort rather than four unrelated PRs.
 
+**Prerequisite — gates entry, not just exit.** `PROP-LRH-MEMORY-COMMAND`
+must reach `status: adopted` before any of these four work items proceeds
+past planning into `/lrh-implement`. The proposal itself states
+implementation is on hold pending its Open Questions (MCP-tool delivery,
+enforcement posture, `authored_by` provenance, archive retention,
+`export`/`transfer`'s default-selection policy and bundle format), and
+`project/design/proposals/README.md` documents that a `status: proposed`
+design "may still change substantively." Listing adoption only in Exit
+Criteria (below) would let all four work items report `prompt_ready: yes`
+and be executed while the delivery model and portability API they
+implement are still unsettled — this Purpose section is the entry-stage
+statement that closes that gap; each work item repeats it in its own
+Non-Goals so the constraint travels with the artifact a reader is most
+likely to act on directly.
+
 ## Scope
 
 - Implement all ten `lrh memory` commands (`write`, `list`, `validate`,
@@ -58,8 +73,12 @@ Carried forward from the proposal's own check, re-verified at
 workstream-creation time.
 
 ### Duplication search
-- In-repo: No existing implementation. `find project/workstreams/ -name
-  "WS-LRH-MEMORY-COMMAND.md"` returns nothing; no other workstream covers
+- In-repo: No existing implementation, confirmed via `git grep -l
+  "WS-LRH-MEMORY-COMMAND" -- '*.md'` (tracked files only, per `AGENTS.md`'s
+  survey convention — a filesystem `find`/`grep -r` also walks
+  `.claude/worktrees/` checkouts and untracked scratch files, inflating or
+  misrepresenting results). At the time this check was run, before this
+  file existed, the query returned nothing; no other workstream covers
   this scope.
 - Recommendation: Proceed.
 

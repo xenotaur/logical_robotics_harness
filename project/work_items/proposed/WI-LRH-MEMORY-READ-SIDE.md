@@ -99,6 +99,9 @@ Decision 7.
 
 ## Non-Goals
 
+- Does not begin implementation before `PROP-LRH-MEMORY-COMMAND` reaches
+  `status: adopted` — see the workstream's Purpose section for why
+  adoption is an entry gate, not just an exit criterion.
 - Does not implement semantic or relevance-ranked search — deterministic
   substring matching only, per Decision 7.
 - Does not implement `write`/`list`/`validate`/`repair` — see

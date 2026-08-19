@@ -64,10 +64,11 @@ it collides with the 200-line `MEMORY.md` truncation ceiling and with
 `authored_by`/`applies_to` scoping.
 
 ### Duplication search
-- In-repo: No existing implementation. `harvest_export_metadata()`/
-  `sync_export()` at `src/lrh/prompt_workflow_sessions.py:401-462` is the
-  direct precedent for export-as-escape-hatch from a path-keyed bucket
-  (for transcripts); this item is the memory analogue.
+- In-repo: No existing implementation. `harvest_export_metadata()`
+  (`src/lrh/prompt_workflow_sessions.py:401`) and `sync_export()`
+  (`:462`) — two separate, non-adjacent functions, not one contiguous
+  range — are the direct precedent for export-as-escape-hatch from a
+  path-keyed bucket (for transcripts); this item is the memory analogue.
 - Sibling repos: None identified.
 - External libraries: None identified.
 - Recommendation: Proceed.
@@ -89,9 +90,13 @@ it collides with the 200-line `MEMORY.md` truncation ceiling and with
 
 ## Required Changes
 
-1. Implement `export()`: dumps selected (`--name`/`--agent` filter) or all
-   memories, plus `exported_from_slug` provenance, to a portable bundle
-   file (`--output`).
+1. Implement `export()`: dumps memories selected by `--name`/`--agent`
+   filter, plus `exported_from_slug` provenance, to a portable bundle file
+   (`--output`). **Do not implement an unfiltered "all memories" fallback
+   as default behavior** — whether `export`/`transfer` should require an
+   explicit filter at all, given the 200-line `MEMORY.md` ceiling, is the
+   first Open Question below and must be resolved before this behavior is
+   encoded, not assumed by the implementor.
 2. Implement `import()`: validates and writes each bundled memory through
    `write`'s own rules per record; supports `--name` filter, `--force`,
    `--dry-run`.
@@ -102,6 +107,11 @@ it collides with the 200-line `MEMORY.md` truncation ceiling and with
 
 ## Non-Goals
 
+- Does not begin implementation before `PROP-LRH-MEMORY-COMMAND` reaches
+  `status: adopted` — see the workstream's Purpose section for why
+  adoption is an entry gate, not just an exit criterion. This item in
+  particular also cannot start before its own two Open Questions below
+  are resolved, independent of the workstream-level gate.
 - Does not implement automatic transfer-on-bucket-creation (Decision 8's
   third option) — explicitly deferred to a later proposal or amendment.
 - Does not define a default-selection policy for "what memory is relevant
@@ -110,8 +120,9 @@ it collides with the 200-line `MEMORY.md` truncation ceiling and with
 
 ## Acceptance Criteria
 
-- `lrh memory export --output <file>` produces a bundle containing
-  selected or all memories with correct provenance.
+- `lrh memory export --output <file>` produces a bundle containing the
+  filtered memories (`--name`/`--agent`) with correct provenance, per
+  whatever no-filter behavior the Open Questions below resolve to.
 - `lrh memory import --input <file>` writes bundled memories through
   `write`'s validation, rejecting anything `write` itself would reject.
 - `lrh memory transfer --from <a> --to <b>` moves memories between two

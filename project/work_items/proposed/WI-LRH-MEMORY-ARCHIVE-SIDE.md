@@ -105,6 +105,9 @@ This item closes that gap per `PROP-LRH-MEMORY-COMMAND` Decisions 5 and 6.
 
 ## Non-Goals
 
+- Does not begin implementation before `PROP-LRH-MEMORY-COMMAND` reaches
+  `status: adopted` — see the workstream's Purpose section for why
+  adoption is an entry gate, not just an exit criterion.
 - Does not modify `lrh sessions sync`'s existing behavior, transcript
   mirroring, or never-shrink invariant.
 - Does not implement retention or pruning of the `history/` subtree —

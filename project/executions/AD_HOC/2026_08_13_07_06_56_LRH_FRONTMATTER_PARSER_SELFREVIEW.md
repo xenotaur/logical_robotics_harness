@@ -2,14 +2,14 @@
 execution_id: 2026_08_13_07_06_56_LRH_FRONTMATTER_PARSER_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LRH_FRONTMATTER_PARSER_SELFREVIEW)[2026-08-13T07:06:47+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_09_03_54_23_LRH_FRONTMATTER_PARSER
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/531
-commit: 
+commit: 8790e7ac1b95334ed7101ee6364353a127b405e2
 created_at: 2026-08-13T07:06:56+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/531
-session_transcript: "claude-app:494c3b1f-14c8-46bf-a4e3-0b6e8df119e8"
+session_transcript: claude-app:494c3b1f-14c8-46bf-a4e3-0b6e8df119e8
 ---
 
 # Summary

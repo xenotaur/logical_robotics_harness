@@ -50,6 +50,7 @@ import json
 import pathlib
 import shutil
 import subprocess
+import sys
 
 
 def check_gitleaks_available() -> None:
@@ -57,9 +58,18 @@ def check_gitleaks_available() -> None:
         print(
             "FAIL: `gitleaks` not found on PATH. Install it first, e.g.:\n"
             "  brew install gitleaks\n"
-            "See https://github.com/gitleaks/gitleaks#installing for other platforms."
+            "See https://github.com/gitleaks/gitleaks#installing for other platforms.",
+            file=sys.stderr,
         )
         raise SystemExit(1)
+
+
+def _restrict_permissions(path: pathlib.Path) -> None:
+    """Best-effort chmod 0600 - these files contain real secret values."""
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
 
 
 def run_gitleaks(project_root: pathlib.Path, report_path: pathlib.Path) -> None:
@@ -114,15 +124,23 @@ def run_scan(project_root: pathlib.Path, out_dir: pathlib.Path) -> ScanResult:
     replacements_path = out_dir / "replacements.txt"
 
     run_gitleaks(project_root, findings_path)
+    _restrict_permissions(findings_path)
     findings = load_findings(findings_path)
 
     if not findings:
+        # A stale replacements.txt from an earlier, dirtier scan of this
+        # same --out-dir would otherwise sit here holding old live secrets
+        # while this clean result reports replacements_path: null - remove
+        # it so it can't be mistaken for the current scan's output.
+        if replacements_path.exists():
+            replacements_path.unlink()
         return ScanResult(0, 0, findings_path, None)
 
     replacements = draft_replacements(findings)
     with replacements_path.open("w") as f:
         for secret, placeholder in replacements:
             f.write(f"{secret}==>{placeholder}\n")
+    _restrict_permissions(replacements_path)
 
     return ScanResult(
         len(findings), len(replacements), findings_path, replacements_path

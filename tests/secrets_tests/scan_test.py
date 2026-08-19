@@ -1,7 +1,10 @@
+import io
 import json
 import pathlib
+import stat
 import tempfile
 import unittest
+from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 from lrh.secrets import scan
@@ -40,10 +43,14 @@ class ScanTest(unittest.TestCase):
             self.assertEqual(scan.load_findings(empty), [])
 
     def test_check_gitleaks_available_missing_binary_fails_fast(self) -> None:
+        stdout, stderr = io.StringIO(), io.StringIO()
         with mock.patch("lrh.secrets.scan.shutil.which", return_value=None):
-            with self.assertRaises(SystemExit) as exc:
-                scan.check_gitleaks_available()
+            with redirect_stdout(stdout), redirect_stderr(stderr):
+                with self.assertRaises(SystemExit) as exc:
+                    scan.check_gitleaks_available()
         self.assertEqual(exc.exception.code, 1)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("gitleaks", stderr.getvalue())
 
     def test_run_scan_no_findings_does_not_write_replacements(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -100,6 +107,61 @@ class ScanTest(unittest.TestCase):
             self.assertIn("sk-aaa==>***REMOVED-openai-api-key***", replacements_text)
             self.assertIn("sk-bbb==>***REMOVED-generic-api-key***", replacements_text)
             self.assertEqual(replacements_text.count("sk-aaa"), 1)
+
+    def test_run_scan_writes_findings_and_replacements_as_0600(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "repo"
+            out_dir = pathlib.Path(tmp) / "out"
+            project_root.mkdir()
+
+            findings = [{"Secret": "sk-aaa", "RuleID": "openai-api-key"}]
+
+            def fake_run(cmd, check):
+                report_path = pathlib.Path(cmd[cmd.index("--report-path") + 1])
+                _write_report(report_path, findings)
+                return mock.Mock(returncode=0)
+
+            with mock.patch(
+                "lrh.secrets.scan.shutil.which", return_value="/usr/bin/gitleaks"
+            ):
+                with mock.patch(
+                    "lrh.secrets.scan.subprocess.run", side_effect=fake_run
+                ):
+                    scan.run_scan(project_root=project_root, out_dir=out_dir)
+
+            for name in ("findings.json", "replacements.txt"):
+                mode = stat.S_IMODE((out_dir / name).stat().st_mode)
+                self.assertEqual(
+                    mode, 0o600, f"{name} should be user-only readable/writable"
+                )
+
+    def test_run_scan_removes_stale_replacements_on_clean_rescan(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "repo"
+            out_dir = pathlib.Path(tmp) / "out"
+            project_root.mkdir()
+            out_dir.mkdir()
+            stale = out_dir / "replacements.txt"
+            stale.write_text("old-secret==>***REMOVED-old-rule***\n")
+
+            def fake_run(cmd, check):
+                report_path = pathlib.Path(cmd[cmd.index("--report-path") + 1])
+                _write_report(report_path, [])
+                return mock.Mock(returncode=0)
+
+            with mock.patch(
+                "lrh.secrets.scan.shutil.which", return_value="/usr/bin/gitleaks"
+            ):
+                with mock.patch(
+                    "lrh.secrets.scan.subprocess.run", side_effect=fake_run
+                ):
+                    result = scan.run_scan(project_root=project_root, out_dir=out_dir)
+
+            self.assertEqual(result.findings_count, 0)
+            self.assertIsNone(result.replacements_path)
+            self.assertFalse(
+                stale.exists(), "stale draft with old secrets must be removed"
+            )
 
     def test_run_gitleaks_never_suppresses_gitleaks_toml_auto_discovery(self) -> None:
         """Regression guard: never pass a flag that would override or suppress

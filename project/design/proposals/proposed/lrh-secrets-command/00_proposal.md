@@ -128,7 +128,7 @@ single-parser commands), dispatched from `src/lrh/cli/main.py` via
 
 Options considered:
 - A bare positional `repo_path`, matching `find_secrets.py`'s existing signature
-- LRH's established `--project-root` convention (seen in `work_items/organize.py`, `snapshot_cli.py`), default cwd
+- LRH's established `--project-root` convention (seen in `src/lrh/work_items/organize.py`, `src/lrh/assist/snapshot_cli.py`), default cwd
 
 **Chosen: `--project-root`, default cwd**, for `scan` and `review` (both
 read/report against a checked-out repo). `purge` additionally accepts

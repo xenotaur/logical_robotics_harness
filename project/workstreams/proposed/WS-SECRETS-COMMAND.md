@@ -55,7 +55,7 @@ stays visible from design through closeout.
 ## Work Items
 
 - **WI-SECRETS-SCAN** — Implement `lrh secrets scan`, wrapping `gitleaks` for a read-only full-history scan writing `findings.json` + draft `replacements.txt`.
-- **WI-SECRETS-REVIEW** — Implement `lrh secrets review`, a decisions-file-gated triage step producing a finalized, auditable `replacements.txt`.
+- **WI-SECRETS-REVIEW** — Implement `lrh secrets review`, a decisions-file-gated triage step producing a finalized, auditable `replacements.reviewed.txt` (distinct from `scan`'s draft `replacements.txt`).
 - **WI-SECRETS-PURGE** — Implement `lrh secrets purge`, wrapping `git-filter-repo` for a mirror-clone rewrite scoped to explicit refs, with mandatory post-rewrite verification and a printed-never-run push command.
 
 ## Exit Criteria

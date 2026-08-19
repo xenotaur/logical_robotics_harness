@@ -41,18 +41,16 @@ effort rather than four unrelated PRs.
 
 **Prerequisite — gates entry, not just exit.** `PROP-LRH-MEMORY-COMMAND`
 must reach `status: adopted` before any of these four work items proceeds
-past planning into `/lrh-implement`. The proposal itself states
-implementation is on hold pending its Open Questions (MCP-tool delivery,
-enforcement posture, `authored_by` provenance, archive retention,
-`export`/`transfer`'s default-selection policy and bundle format), and
-`project/design/proposals/README.md` documents that a `status: proposed`
-design "may still change substantively." Listing adoption only in Exit
-Criteria (below) would let all four work items report `prompt_ready: yes`
-and be executed while the delivery model and portability API they
-implement are still unsettled — this Purpose section is the entry-stage
-statement that closes that gap; each work item repeats it in its own
-Non-Goals so the constraint travels with the artifact a reader is most
-likely to act on directly.
+past planning into `/lrh-implement`. **Satisfied as of 2026-08-19** — the
+proposal is now `adopted`. Adoption alone does not resolve every Open
+Question the proposal lists, so it does not blanket-unblock all four work
+items uniformly: `WI-LRH-MEMORY-PORTABILITY` remains independently gated
+on its own two listed Open Questions (default-selection policy, bundle
+format — see that work item's Non-Goals and Open Questions) regardless of
+the workstream-level gate above. `WI-LRH-MEMORY-WRITE-SIDE`,
+`ARCHIVE-SIDE`, and `READ-SIDE` are not blocked by any remaining Open
+Question — see the proposal's own "Adoption note" in its Open Questions
+section for the per-question blocking classification that grounds this.
 
 ## Scope
 

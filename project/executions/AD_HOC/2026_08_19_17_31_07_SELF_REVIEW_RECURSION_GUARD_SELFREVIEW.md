@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/566
 commit: 3202bf3f
 agent: claude_code
 instruction_source: skill:lrh-self-review diff-mode for PROMPT(AD_HOC:SELF_REVIEW_RECURSION_GUARD)
-session_transcript: pending
+session_transcript: claude-app:local_dd7df709-1e50-4e78-a5bf-802d06e31d50
 created_at: 2026-08-19T17:31:07+00:00
 ---
 

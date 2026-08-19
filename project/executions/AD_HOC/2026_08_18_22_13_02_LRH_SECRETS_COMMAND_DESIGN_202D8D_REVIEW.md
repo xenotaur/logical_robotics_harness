@@ -2,10 +2,10 @@
 execution_id: 2026_08_18_22_13_02_LRH_SECRETS_COMMAND_DESIGN_202D8D_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_SECRETS_COMMAND_DESIGN_202D8D_REVIEW)[2026-08-18T21:31:55+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/562
-commit: 
+commit: 65cdb3ec7e3cdf6a388cd0400fef9cf63090aed6
 created_at: 2026-08-18T22:13:02+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/562

@@ -2,10 +2,10 @@
 execution_id: 2026_08_18_21_24_29_LRH_SECRETS_COMMAND
 prompt_id: PROMPT(AD_HOC:LRH_SECRETS_COMMAND)[2026-08-18T19:48:00+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/562
-commit: 
+commit: 65cdb3ec7e3cdf6a388cd0400fef9cf63090aed6
 created_at: 2026-08-18T21:24:29+00:00
 agent: claude_app
 instruction_source: project/design/proposals/proposed/lrh-secrets-command/00_proposal.md

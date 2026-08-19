@@ -1,0 +1,126 @@
+---
+id: DEC-SELF-REVIEW-RECURSION-GUARD
+---
+
+# `disallowed-tools: Skill` Is the Verified, Platform-Enforced `/lrh-self-review` Recursion Guard
+
+Status: accepted
+Date: 2026-08-19
+
+## Summary
+
+`PROP-INVOCATION-AND-GATE-RESET` Decision 5 required a platform-enforced
+recursion guard for `/lrh-self-review`, rejected assuming `disallowed-tools`
+was that mechanism without verification, and left the guard itself
+unimplemented — `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` (PR #560)
+shipped only the advisory dispatch-prompt instruction and recorded the
+platform guard as reassigned to Stage 3. This decision closes that gap:
+`disallowed-tools: Skill`, added to `lrh-self-review/SKILL.md`, is empirically
+verified to remove the `Skill` tool from both the invoking session and the
+dispatched subagent while the skill is active, and is adopted as the primary,
+enforced recursion guard. The existing advisory instruction is retained as a
+secondary, defense-in-depth layer — not a substitute for the platform
+mechanism.
+
+This also amends Decision 5's "Options considered" framing, which posed
+prompt-level instruction and platform mechanism as mutually exclusive and
+never evaluated using both together.
+
+## Context
+
+Decision 5 (`00_proposal.md:410-432`) chose "a platform mechanism, with the
+specific mechanism left to implementation" and explicitly warned: *"Do not
+assume `disallowed-tools` is that mechanism... it would produce a guard that
+silently does not guard,"* reasoning that the frontmatter reference describes
+it as restricting *"Claude's available pool while this skill is active"* —
+read as the invoking session's pool, not necessarily a dispatched
+`general-purpose` `Agent` subagent's pool.
+
+`WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` (merged as PR #560,
+commit 916012d0ff251347d0ba1f66df8fbd01545922b3) removed
+`disable-model-invocation` from `lrh-self-review` and the three other retained
+skills, but for the recursion guard specifically shipped only an advisory
+dispatch-prompt instruction ("explicit instruction not to invoke
+`/lrh-self-review`... or spawn another review agent") plus a Codex-side
+static `agents/openai.yaml` policy. Its own PR body recorded the Claude-side
+platform guard as unresolved: *"records the unresolved Claude subagent-preload
+hard guard as reassigned to Stage 3 gate-policy audit scope."* That
+reassignment was never actually reflected in `WI-GATE-POLICY-CASCADE-STAGE3`'s
+own acceptance criteria or scope — grepped and confirmed absent — so nothing
+would have forced it to be picked up there.
+
+### Empirical test
+
+Before this decision, the assumption Decision 5 warned against was tested
+directly rather than re-assumed either way: a throwaway skill with
+`disallowed-tools: Skill` was invoked, then a `general-purpose` `Agent`
+subagent was dispatched from within it and instructed to attempt a `Skill`
+tool call and report the result.
+
+- The invoking session's own `Skill` tool call was blocked while the test
+  skill was active, consistent with the documented behavior.
+- The dispatched subagent reported it had **no `Skill` tool available at
+  all** — contradicting the specific failure mode Decision 5 worried about
+  (a guard that restricts only the parent session while leaving the
+  subagent's access open).
+
+One residual uncertainty from the test: it was not possible to fully isolate
+whether the subagent's lack of `Skill` access was *caused* by
+`disallowed-tools`, or is a structural property of the `general-purpose`
+agent type independent of the parent skill's frontmatter. Either way, the
+observed outcome — blocked — is the safety property this guard needs; the
+mechanism attribution matters only for how confidently this generalizes to
+other skills or agent types in the future, not for whether it holds here.
+
+## Decision
+
+1. `lrh-self-review/SKILL.md` carries `disallowed-tools: Skill` in its
+   frontmatter (source and all installed corpora: `.claude/skills/`,
+   `.agents/skills/`, and user-scope Claude/Codex installs). This is the
+   primary, verified, platform-enforced recursion guard Decision 5 required.
+2. The advisory dispatch-prompt instruction added by PR #560 ("explicit
+   instruction not to invoke `/lrh-self-review`... or spawn another review
+   agent") is retained as a secondary, defense-in-depth layer. It is
+   explicitly **not** sufficient on its own — Decision 5's objection to
+   advisory-only guidance for a cost-bearing loop still holds — and must not
+   be cited as the enforced control for this or any other skill.
+3. Decision 5's "Options considered" framing is amended: it posed
+   prompt-level instruction and platform mechanism as mutually exclusive and
+   never evaluated combining them. Both together, clearly labeled by which is
+   primary, is the correct shape going forward wherever this pattern recurs.
+4. `WI-GATE-POLICY-CASCADE-STAGE3`'s Stage 3 gate-corpus audit no longer needs
+   to resolve the self-review recursion guard as an open item — this decision
+   closes it ahead of that audit so Stage 3 audits a stable target rather than
+   a moving one.
+
+## Consequences
+
+- `/lrh-self-review`'s recursion risk — a subagent reviewing content that
+  references `/lrh-self-review` itself (e.g., a diff touching this skill's
+  own files, as this change is) re-invoking it — is closed by an enforced
+  mechanism, not a request the subagent could ignore.
+- Any future skill with a similar cold-context-subagent-dispatch pattern
+  should default to `disallowed-tools: Skill` plus an explicit dispatch-prompt
+  instruction, not advisory instruction alone.
+- `lrh-self-review/SKILL.md` Step 3's prose was updated to describe the guard
+  as implemented, replacing the "explicitly reassigned Stage 3" language that
+  is no longer accurate.
+
+## Non-Goals
+
+- Does not address the `lrh-codex-export` retained flag, which remains
+  ungoverned by any work item.
+- Does not implement Stage 3's gate corpus audit, policy proposal, or
+  cascade — those proceed under `WI-GATE-POLICY-CASCADE-STAGE3` unchanged.
+- Does not claim the empirical test generalizes to other agent types or
+  skills without separate verification.
+
+## Revisit conditions
+
+- If a future platform change alters how `disallowed-tools` or subagent tool
+  provisioning works, re-run the empirical test before relying on this
+  decision's verification.
+- If the residual uncertainty about causation (flag-caused vs.
+  structural-to-agent-type) becomes load-bearing for a different skill's
+  design, resolve it explicitly rather than assuming this decision's result
+  transfers.

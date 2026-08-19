@@ -21,13 +21,14 @@ files for no benefit — the same anti-duplication reasoning
 text applies here to review-dispatch procedure.
 
 The subagent task is report-only and must not ask the subagent to invoke
-`/lrh-self-review`, run other LRH skills, or spawn another review agent. Codex
-installations carry `agents/openai.yaml` with
-`policy.allow_implicit_invocation: false` for this skill. Claude subagent
-preload hard-guarding has no repo-owned, empirically verified mechanism yet
-and is explicitly reassigned to Stage 3 gate-policy audit work, so the narrow
-prompt and the required main-session re-verification remain load-bearing in
-Claude sessions.
+`/lrh-self-review`, run other LRH skills, or spawn another review agent. This
+skill's frontmatter carries `disallowed-tools: Skill` as the primary,
+platform-enforced recursion guard (see `DEC-SELF-REVIEW-RECURSION-GUARD`),
+empirically verified to remove the `Skill` tool from both the invoking
+session and the dispatched subagent. Codex installations separately carry
+`agents/openai.yaml` with `policy.allow_implicit_invocation: false` for this
+skill. The narrow prompt and the required main-session re-verification remain
+load-bearing regardless — the guard bounds recursion, not review quality.
 
 ---
 

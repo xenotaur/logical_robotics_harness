@@ -28,7 +28,8 @@ never evaluated using both together.
 
 ## Context
 
-Decision 5 (`00_proposal.md:410-432`) chose "a platform mechanism, with the
+Decision 5 (`project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md`,
+Decision 5 heading) chose "a platform mechanism, with the
 specific mechanism left to implementation" and explicitly warned: *"Do not
 assume `disallowed-tools` is that mechanism... it would produce a guard that
 silently does not guard,"* reasoning that the frontmatter reference describes
@@ -64,13 +65,20 @@ tool call and report the result.
   (a guard that restricts only the parent session while leaving the
   subagent's access open).
 
-One residual uncertainty from the test: it was not possible to fully isolate
-whether the subagent's lack of `Skill` access was *caused* by
-`disallowed-tools`, or is a structural property of the `general-purpose`
-agent type independent of the parent skill's frontmatter. Either way, the
-observed outcome — blocked — is the safety property this guard needs; the
-mechanism attribution matters only for how confidently this generalizes to
-other skills or agent types in the future, not for whether it holds here.
+**Control test — causation confirmed, not merely correlated.** The original
+test left open whether the subagent's lack of `Skill` access was *caused* by
+`disallowed-tools`, or was a structural property of the `general-purpose`
+agent type regardless of the parent skill's frontmatter — a gap a PR #566
+review comment (Codex, P2) correctly identified as unclosed: both prior
+observations were made with the flag present, with no no-flag baseline to
+compare against. A no-flag control was then run: a `general-purpose` `Agent`
+subagent dispatched from a plain session context, with no `disallowed-tools`
+active anywhere in the call chain, was asked only to report whether a `Skill`
+tool was available to it. Result: **`SKILL_TOOL_AVAILABLE`** — the tool was
+directly present in its tool list. This confirms causation: a
+`general-purpose` subagent has `Skill` tool access by default, and
+`disallowed-tools: Skill` on the dispatching skill is what removes it. The
+guard is not incidentally piggybacking on an unrelated platform restriction.
 
 This test used a throwaway skill created and deleted within the same session,
 so no file artifact of it survives in the repo — a self-review pass on this
@@ -80,7 +88,9 @@ unverifiable against tracked state. As a second, independent data point: the
 (after `disallowed-tools: Skill` was already live on this skill) itself
 reported having no `Skill` tool available in its dispatch context, consistent
 with the original test and obtained under real operating conditions rather
-than a purpose-built one.
+than a purpose-built one. Read together with the no-flag control above (same
+agent type, same dispatch pattern, only the flag differs), the two results
+bracket the mechanism from both sides.
 
 ## Decision
 
@@ -130,7 +140,8 @@ than a purpose-built one.
 - If a future platform change alters how `disallowed-tools` or subagent tool
   provisioning works, re-run the empirical test before relying on this
   decision's verification.
-- If the residual uncertainty about causation (flag-caused vs.
-  structural-to-agent-type) becomes load-bearing for a different skill's
-  design, resolve it explicitly rather than assuming this decision's result
+- Causation (flag-caused, not structural-to-agent-type) is now confirmed by
+  the no-flag control test above, for the `general-purpose` agent type
+  specifically. Applying this guard to a *different* agent type or dispatch
+  pattern should still verify independently rather than assume the result
   transfers.

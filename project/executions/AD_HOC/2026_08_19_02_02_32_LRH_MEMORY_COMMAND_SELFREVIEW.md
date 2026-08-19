@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_19_01_53_20_LRH_MEMORY_COMMAND_SELFREVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/563
-commit: 
+commit: f460a4a4be0f376b427a72eca77321e67e46c5d8
 created_at: 2026-08-19T02:02:32+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/563

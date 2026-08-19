@@ -2,10 +2,10 @@
 execution_id: 2026_08_19_17_32_17_SELF_REVIEW_RECURSION_GUARD
 prompt_id: PROMPT(AD_HOC:SELF_REVIEW_RECURSION_GUARD)[2026-08-19T17:22:42+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/566
-commit: 3202bf3f
+commit: d5b401f331db5201303b8dcdaced9be06aee84e6
 agent: claude_code
 instruction_source: user request, in-conversation design carried forward from PROP-INVOCATION-AND-GATE-RESET Decision 5
 session_transcript: claude-app:local_dd7df709-1e50-4e78-a5bf-802d06e31d50

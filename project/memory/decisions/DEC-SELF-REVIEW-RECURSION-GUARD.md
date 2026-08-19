@@ -72,6 +72,16 @@ observed outcome — blocked — is the safety property this guard needs; the
 mechanism attribution matters only for how confidently this generalizes to
 other skills or agent types in the future, not for whether it holds here.
 
+This test used a throwaway skill created and deleted within the same session,
+so no file artifact of it survives in the repo — a self-review pass on this
+decision's own diff flagged that the empirical claim above is otherwise
+unverifiable against tracked state. As a second, independent data point: the
+`/lrh-self-review` diff-mode subagent dispatched to review this exact change
+(after `disallowed-tools: Skill` was already live on this skill) itself
+reported having no `Skill` tool available in its dispatch context, consistent
+with the original test and obtained under real operating conditions rather
+than a purpose-built one.
+
 ## Decision
 
 1. `lrh-self-review/SKILL.md` carries `disallowed-tools: Skill` in its

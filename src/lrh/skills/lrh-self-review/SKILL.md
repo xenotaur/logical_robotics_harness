@@ -158,7 +158,8 @@ This skill's own frontmatter carries `disallowed-tools: Skill` — a
 platform-enforced control verified (see `DEC-SELF-REVIEW-RECURSION-GUARD`) to
 remove the `Skill` tool from both the invoking session and the dispatched
 subagent while this skill is active. It is the primary recursion guard;
-the two instructions above are defense-in-depth, not a substitute for it.
+the instruction above not to invoke `/lrh-self-review` or spawn another
+review agent is defense-in-depth, not a substitute for it.
 Codex installations separately carry `agents/openai.yaml` with
 `policy.allow_implicit_invocation: false` for this skill, so removing Claude's
 `disable-model-invocation` frontmatter does not make Codex invoke it

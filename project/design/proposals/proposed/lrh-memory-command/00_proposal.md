@@ -159,7 +159,7 @@ This proposal is deliberately held at `proposed` with implementation on hold spe
 
 ## Implementation Plan
 
-This proposal specifies the full nine-command surface, but v1 does not implement all nine at once — staged by risk and by dependency, pending resolution of the Open Questions above:
+This proposal specifies the full ten-command surface, but v1 does not implement all ten at once — staged by risk and by dependency, pending resolution of the Open Questions above:
 
 - **Stage 1 — WI-A (write-side):** `lrh memory write`/`list`/`validate`, the `authored_by`/`applies_to` schema addition (recorded as a short `project/memory/decisions/DEC-*` entry alongside this work, following the precedent of `WI-GATE-POLICY-CASCADE-STAGE3`'s comparable schema/policy decisions), extraction of the shared atomic-write helper, and migrating `src/lrh/skills/lrh-closeout/SKILL.md:403-406`'s direct-write instruction to call `lrh memory write` instead — otherwise this canonical LRH workflow keeps bypassing the new validation entirely, defeating the proposal's purpose for its most frequent real caller.
 - **Stage 1a — fast follow-up on WI-A:** `lrh memory repair` (Decision 9), once `write`'s validated path exists for it to wrap. Named as a fast follow-up rather than folded into WI-A itself so the write-side work item stays scoped to what the original findings audit required; `repair` is the retroactive-cleanup complement to it, not a precondition.
@@ -172,7 +172,7 @@ Stage 1's two work items, once drafted, should offer to close/link `project/desi
 
 ## API Sketch
 
-Concrete CLI shape for all nine commands, derived from the Design Decisions above plus the flag conventions already established by `lrh sessions` (`src/lrh/sessions_workflow.py`) and `lrh search` (`src/lrh/prompt_workflow_search.py`). Flags marked "(precedent)" are lifted directly from an existing command rather than invented for this proposal; flags with no such marker are new, decided by the Design Decision cited.
+Concrete CLI shape for all ten commands, derived from the Design Decisions above plus the flag conventions already established by `lrh sessions` (`src/lrh/sessions_workflow.py`) and `lrh search` (`src/lrh/prompt_workflow_search.py`). Flags marked "(precedent)" are lifted directly from an existing command rather than invented for this proposal; flags with no such marker are new, decided by the Design Decision cited.
 
 ### `lrh memory write`
 ```

@@ -2,10 +2,10 @@
 execution_id: 2026_08_19_22_40_42_WI_SECRETS_SCAN_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SECRETS_SCAN_REVIEW)[2026-08-19T22:12:49+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_19_20_39_53_WI_SECRETS_SCAN
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/567
-commit: 
+commit: 12e7eb3f87c8ea5afa14351027cab9a76d19f763
 created_at: 2026-08-19T22:40:42+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/567

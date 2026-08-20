@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #567 (commit 12e7eb3f)."
 blocked_reason: null
 blocked: false
 id: WI-SECRETS-SCAN
 title: Implement lrh secrets scan
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from lrh import (
+    memory_workflow,
     prompt_workflow,
     prompt_workflow_match,
     prompt_workflow_search,
@@ -158,6 +159,12 @@ def main() -> None:
         "search",
         add_help=False,
         help="Search LRH project records.",
+    )
+
+    subparsers.add_parser(
+        "memory",
+        add_help=False,
+        help="Memory corpus commands (write/list/validate/repair).",
     )
 
     skills_parser = subparsers.add_parser(
@@ -845,6 +852,14 @@ def main() -> None:
             sessions_workflow.run_sessions_cli(
                 argv=passthrough_args,
                 prog="lrh sessions",
+            )
+        )
+
+    if args.command == "memory":
+        raise SystemExit(
+            memory_workflow.run_memory_cli(
+                argv=passthrough_args,
+                prog="lrh memory",
             )
         )
 

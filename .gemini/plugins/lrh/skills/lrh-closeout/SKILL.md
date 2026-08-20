@@ -398,9 +398,12 @@ Then present the candidates (or the explicit "nothing stands out" finding)
 and ask: "Does this look right — anything to add, edit, or drop?"
 
 If candidates were presented and the user confirms, adds, or edits: write
-the resulting content using the auto-memory system
-(`~/.claude/projects/<project-slug>/memory/`). Update `MEMORY.md` with a
-pointer. See the session memory instructions for file format.
+each one with `lrh memory write <name> --description "..." --type <type>
+--agent <agent-backend>`, one candidate per name. This validates
+frontmatter and updates `MEMORY.md` in the same operation — do not write
+the memory file and index entry by hand; that is exactly the unvalidated,
+unindexable-by-mistake path `PROP-LRH-MEMORY-COMMAND` exists to close.
+See `lrh memory write --help` for the full flag reference.
 
 If the user declines all candidates, or confirms the "nothing stands out"
 finding with no additions: proceed to Step 8 without writing anything.

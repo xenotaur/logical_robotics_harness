@@ -700,7 +700,10 @@ class ReadFrontmatterAndBodyTest(unittest.TestCase):
         relative to what `write_memory`/`_render_memory_file` actually
         wrote (which always `.strip("\\n")`s the body)."""
 
-        text = "---\nname: foo\ndescription: d\nmetadata:\n  type: feedback\n  authored_by: claude\n---\n\nbody text\n"
+        text = (
+            "---\nname: foo\ndescription: d\nmetadata:\n"
+            "  type: feedback\n  authored_by: claude\n---\n\nbody text\n"
+        )
         _, body = prompt_workflow_memory.read_frontmatter_and_body(text)
         self.assertEqual(body, "body text\n")
         self.assertFalse(body.startswith("\n"))

@@ -76,7 +76,8 @@ def filename_for(name: str) -> str:
 def _validate_name(name: str) -> None:
     if not name or not _NAME_PATTERN.fullmatch(name):
         raise MemoryValidationError(
-            f"name must be a non-empty kebab-case slug (e.g. 'feedback-foo-bar'), got {name!r}"
+            "name must be a non-empty kebab-case slug "
+            f"(e.g. 'feedback-foo-bar'), got {name!r}"
         )
 
 

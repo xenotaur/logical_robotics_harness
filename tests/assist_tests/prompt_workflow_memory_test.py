@@ -408,7 +408,8 @@ class RepairMemoryTest(unittest.TestCase):
             memory_dir = claude_root / slug / "memory"
             memory_dir.mkdir(parents=True)
             (memory_dir / "legacy.md").write_text(
-                "---\nname: legacy\ndescription: d\nmetadata:\n  type: feedback\n---\n\nbody\n",
+                "---\nname: legacy\ndescription: d\nmetadata:\n"
+                "  type: feedback\n---\n\nbody\n",
                 encoding="utf-8",
             )
 
@@ -600,7 +601,8 @@ class RepairMemoryTest(unittest.TestCase):
             memory_dir = claude_root / slug / "memory"
             memory_dir.mkdir(parents=True)
             (memory_dir / "broken_meta.md").write_text(
-                "---\nname: broken-meta\ndescription: d\nmetadata: broken\n---\n\nbody\n",
+                "---\nname: broken-meta\ndescription: d\n"
+                "metadata: broken\n---\n\nbody\n",
                 encoding="utf-8",
             )
 

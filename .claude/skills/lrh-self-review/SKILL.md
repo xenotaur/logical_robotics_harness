@@ -99,6 +99,7 @@ report-only by design and routes findings back to `/lrh-confirm-fixes`.
 
 ```bash
 git rev-parse HEAD
+git add -N .
 git diff main
 ```
 
@@ -112,6 +113,21 @@ without ever reviewing what Step 6 actually did. `git diff main` compares
 `main`'s tip directly against the current working tree — staged and
 unstaged changes both included — which is what Step 7.5 actually needs to
 review.
+
+**`git add -N .` (intent-to-add) before `git diff main` — not optional.**
+`git diff`, in any dot form, only ever reports changes to files Git is
+already tracking; a brand-new file that has never been `git add`-ed is
+invisible to it and shows up only in `git status`'s "Untracked files"
+section. If Step 6 created only new files with no modification to any
+existing tracked file, plain `git diff main` is empty even though real new
+content exists, producing the same false "nothing to review" exit this
+step exists to avoid. `git add -N .` (`--intent-to-add`) marks untracked
+files as tracked for diff purposes only — it does **not** stage their
+content. An explicit `git add <files>` at Step 8 (this skill's own
+convention) behaves exactly as if this step had never run. Note `git
+commit -a` is the one exception: unlike an ordinary untracked file, an
+intent-to-add file *is* included by `-a`, since it is already tracked as
+of this step.
 
 If the diff is empty, stop and report — nothing to review.
 

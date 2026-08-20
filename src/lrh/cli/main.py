@@ -424,8 +424,9 @@ def main() -> None:
             "    decision: keep     # or: ignore\n"
             '    reason: "why"\n'
             "--apply writes out-dir/replacements.reviewed.txt, distinct from\n"
-            "scan's draft replacements.txt -- this is the file lrh secrets\n"
-            "purge accepts, never the draft."
+            "scan's draft replacements.txt -- this is intended to be the file\n"
+            "a future lrh secrets purge command will accept, never the draft\n"
+            "(purge is not yet implemented -- see WI-SECRETS-PURGE)."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
@@ -1033,13 +1034,18 @@ def main() -> None:
             decisions_path = (
                 Path(args.decisions).expanduser().resolve() if args.decisions else None
             )
-            report = secrets_review.build_report(
-                out_dir=out_dir, decisions_path=decisions_path
-            )
+            try:
+                report = secrets_review.build_report(
+                    out_dir=out_dir, decisions_path=decisions_path
+                )
+            except secrets_review.ReviewInputError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
             undecided = report.undecided()
             if args.apply:
                 print(secrets_review.format_text(report))
                 if undecided:
+                    secrets_review.invalidate_stale_reviewed(out_dir)
                     print(
                         f"\nFAIL: {len(undecided)} finding(s) undecided; "
                         "cannot --apply until every finding is decided.",
@@ -1055,7 +1061,10 @@ def main() -> None:
             if args.check:
                 raise SystemExit(1 if undecided else 0)
             raise SystemExit(0)
-        parser.error("secrets requires a subcommand (try: lrh secrets scan)")
+        parser.error(
+            "secrets requires a subcommand "
+            "(try: lrh secrets scan or lrh secrets review)"
+        )
 
     if args.command == "workstreams":
         if args.workstreams_command == "organize":

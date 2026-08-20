@@ -106,6 +106,64 @@ class TestLrhSecretsReviewCli(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("secrets requires a subcommand", result.stderr)
 
+    def test_lrh_secrets_review_missing_findings_report_fails_cleanly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)  # no findings.json written
+            result = self._run_lrh(
+                ["secrets", "review", "--out-dir", str(out_dir), "--check"]
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("not found", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_lrh_secrets_review_out_dir_not_a_directory_fails_cleanly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            not_a_dir = pathlib.Path(tmp) / "does-not-exist"
+            result = self._run_lrh(
+                ["secrets", "review", "--out-dir", str(not_a_dir), "--check"]
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_lrh_secrets_review_malformed_decisions_fails_cleanly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            with (out_dir / "findings.json").open("w") as f:
+                json.dump([{"Secret": "sk-aaa", "RuleID": "openai-api-key"}], f)
+            decisions_path = out_dir / "decisions.yaml"
+            decisions_path.write_text("sk-aaa: keep\n")  # not a mapping
+            result = self._run_lrh(
+                [
+                    "secrets",
+                    "review",
+                    "--out-dir",
+                    str(out_dir),
+                    "--decisions",
+                    str(decisions_path),
+                    "--check",
+                ]
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_lrh_secrets_review_apply_invalidates_stale_reviewed_on_failure(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            stale = out_dir / "replacements.reviewed.txt"
+            out_dir.mkdir(parents=True, exist_ok=True)
+            stale.write_text("# lrh-secrets-reviewed v1\nold-secret==>x\n")
+            with (out_dir / "findings.json").open("w") as f:
+                json.dump([{"Secret": "sk-new", "RuleID": "generic-api-key"}], f)
+            result = self._run_lrh(
+                ["secrets", "review", "--out-dir", str(out_dir), "--apply"]
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(
+                stale.exists(), "a failed --apply must not leave a stale reviewed file"
+            )
+
     def test_lrh_secrets_review_check_fails_on_undecided(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = pathlib.Path(tmp)

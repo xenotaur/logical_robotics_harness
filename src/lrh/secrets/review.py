@@ -9,11 +9,12 @@ explicit `--decisions` file. Default mode prints an annotated report;
 `<out-dir>/replacements.reviewed.txt` - a name distinct from `scan`'s
 draft `<out-dir>/replacements.txt`, which this command never overwrites.
 
-`replacements.reviewed.txt` is what `lrh secrets purge` accepts via its
-`--replacements` flag. `scan`'s draft `replacements.txt` is deliberately
-rejected by `purge` (see that module's docstring) - the enforcement
-mechanism is a fixed first line, `# lrh-secrets-reviewed v1`, that `purge`
-checks for before doing anything else, not just the filename.
+`replacements.reviewed.txt` is intended to be the file a future
+`lrh secrets purge` command will accept via its `--replacements` flag,
+rejecting `scan`'s draft `replacements.txt` outright (`purge` does not
+exist in this repo yet - see `WI-SECRETS-PURGE`). The enforcement
+mechanism `purge` will use is a fixed first line, `# lrh-secrets-reviewed
+v1`, checked before doing anything else, not just the filename.
 
 Decisions file format (YAML), one entry per secret value:
 
@@ -28,8 +29,17 @@ committed. `lrh secrets review --apply`'s output additionally gets its
 permissions restricted (best-effort `chmod 0600`), same as `scan`'s
 output files, since it also contains real secrets.
 
-A finding is "undecided" unless its `decision` is exactly `keep` or
-`ignore` - any other or missing value blocks `--check`/`--apply`.
+A finding is "undecided" unless it has both a `decision` of exactly
+`keep` or `ignore` *and* a non-empty `reason` - a decision with no
+recorded rationale is not auditable and does not count as decided.
+
+Missing or malformed inputs (`--out-dir` not a directory, `findings.json`
+absent, `findings.json`/the decisions file not parseable, a decisions
+entry not shaped as expected) raise `ReviewInputError` rather than
+letting a raw parse exception or stack trace reach the user - an
+*existing but empty* `findings.json` is a legitimate clean scan and is
+not an error; a *missing* one means `scan` was never run against this
+`--out-dir` and must not be silently treated as "nothing found".
 """
 
 from __future__ import annotations
@@ -45,6 +55,10 @@ MARKER_LINE = "# lrh-secrets-reviewed v1"
 _VALID_DECISIONS = ("keep", "ignore")
 
 
+class ReviewInputError(Exception):
+    """Raised for a missing/malformed --out-dir, findings.json, or decisions file."""
+
+
 def _restrict_permissions(path: pathlib.Path) -> None:
     """Best-effort chmod 0600 - this file contains real secret values."""
     try:
@@ -58,13 +72,29 @@ class Decision:
     decision: str
     reason: str
 
+    def is_decided(self) -> bool:
+        return self.decision in _VALID_DECISIONS and bool(self.reason.strip())
+
+
+_UNDECIDED = Decision("", "")
+
 
 def load_findings(out_dir: pathlib.Path) -> list[dict]:
+    if not out_dir.is_dir():
+        raise ReviewInputError(f"{out_dir} is not a directory")
     findings_path = out_dir / "findings.json"
-    if not findings_path.exists() or findings_path.stat().st_size == 0:
+    if not findings_path.exists():
+        raise ReviewInputError(
+            f"{findings_path} not found -- run `lrh secrets scan --out-dir "
+            f"{out_dir}` first"
+        )
+    if findings_path.stat().st_size == 0:
         return []
-    with findings_path.open() as f:
-        return json.load(f)
+    try:
+        with findings_path.open() as f:
+            return json.load(f)
+    except json.JSONDecodeError as err:
+        raise ReviewInputError(f"{findings_path} is not valid JSON: {err}") from err
 
 
 def unique_secrets(findings: list[dict]) -> list[tuple[str, str]]:
@@ -80,16 +110,34 @@ def unique_secrets(findings: list[dict]) -> list[tuple[str, str]]:
 
 
 def load_decisions(decisions_path: pathlib.Path | None) -> dict[str, Decision]:
-    if decisions_path is None or not decisions_path.exists():
+    if decisions_path is None:
         return {}
-    with decisions_path.open() as f:
-        raw = yaml.safe_load(f) or {}
+    if not decisions_path.exists():
+        raise ReviewInputError(f"{decisions_path} not found")
+    try:
+        with decisions_path.open() as f:
+            raw = yaml.safe_load(f)
+    except yaml.YAMLError as err:
+        raise ReviewInputError(f"{decisions_path} is not valid YAML: {err}") from err
+    if raw is None:
+        raw = {}
+    if not isinstance(raw, dict):
+        raise ReviewInputError(
+            f"{decisions_path} must be a YAML mapping of "
+            "<secret> -> {decision, reason}"
+        )
     decisions: dict[str, Decision] = {}
     for secret, entry in raw.items():
-        entry = entry or {}
+        if entry is None:
+            entry = {}
+        if not isinstance(entry, dict):
+            raise ReviewInputError(
+                f"{decisions_path}: entry for a secret must be a mapping with "
+                f"decision/reason keys, got {entry!r}"
+            )
         decisions[secret] = Decision(
-            decision=entry.get("decision", ""),
-            reason=entry.get("reason", ""),
+            decision=str(entry.get("decision", "")),
+            reason=str(entry.get("reason", "")),
         )
     return decisions
 
@@ -103,15 +151,15 @@ class ReviewReport:
         return [
             secret
             for secret, _ in self.secrets
-            if self.decisions.get(secret, Decision("", "")).decision
-            not in _VALID_DECISIONS
+            if not self.decisions.get(secret, _UNDECIDED).is_decided()
         ]
 
     def kept(self) -> list[tuple[str, str]]:
         return [
             (secret, placeholder)
             for secret, placeholder in self.secrets
-            if self.decisions.get(secret, Decision("", "")).decision == "keep"
+            if self.decisions.get(secret, _UNDECIDED).is_decided()
+            and self.decisions[secret].decision == "keep"
         ]
 
 
@@ -122,6 +170,16 @@ def build_report(
     secrets = unique_secrets(findings)
     decisions = load_decisions(decisions_path)
     return ReviewReport(secrets=secrets, decisions=decisions)
+
+
+def invalidate_stale_reviewed(out_dir: pathlib.Path) -> None:
+    """Remove a leftover replacements.reviewed.txt from an earlier successful
+    --apply, so a later failed --apply in the same --out-dir never leaves a
+    stale, marker-bearing file that could be mistaken for current, validated
+    review output."""
+    reviewed_path = out_dir / "replacements.reviewed.txt"
+    if reviewed_path.exists():
+        reviewed_path.unlink()
 
 
 def write_reviewed_replacements(
@@ -143,12 +201,10 @@ def format_text(report: ReviewReport) -> str:
     lines = [f"{len(report.secrets)} unique secret(s) found in findings.json."]
     for secret, placeholder in report.secrets:
         decision = report.decisions.get(secret)
-        if decision is None or decision.decision not in _VALID_DECISIONS:
+        if decision is None or not decision.is_decided():
             status = "UNDECIDED"
         else:
-            status = decision.decision
-            if decision.reason:
-                status += f" ({decision.reason})"
+            status = f"{decision.decision} ({decision.reason})"
         lines.append(f"  {placeholder}: {status}")
 
     undecided = report.undecided()

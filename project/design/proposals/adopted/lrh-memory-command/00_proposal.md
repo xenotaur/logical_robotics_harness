@@ -2,9 +2,9 @@
 id: PROP-LRH-MEMORY-COMMAND
 type: design_proposal
 title: LRH Memory Command — Validated Cross-Agent Writes and Durable Archival for Claude Code Memory
-status: proposed
+status: adopted
 created_on: 2026-08-18
-updated_on: 2026-08-18
+updated_on: 2026-08-19
 implementation_status: not_started
 implemented_by: []
 supersedes: []
@@ -145,7 +145,12 @@ This raises one question Decision 3 didn't need to answer, because nothing previ
 
 ## Open Questions
 
-This proposal is deliberately held at `proposed` with implementation on hold specifically to leave room to widen scope before work items are drafted. Known open questions:
+**Adoption note (2026-08-19).** This proposal is now `status: adopted` — the write-side/archive-side/read-side design direction is settled and `WI-LRH-MEMORY-WRITE-SIDE`/`ARCHIVE-SIDE`/`READ-SIDE` may proceed to `/lrh-implement`. Adoption does not itself resolve any of the questions below; each is classified by whether it actually blocks a stage, not left as an undifferentiated list a reader might assume all block equally:
+
+- **Blocking `WI-LRH-MEMORY-PORTABILITY` only:** "Default-selection policy for transfer" and "Export bundle format" (the last two bullets below) — already documented as blocking in that work item's own Open Questions and Non-Goals. `WI-D` should not proceed to implementation until these resolve.
+- **Non-blocking for all four current work items** — each is already scoped as deferred, out-of-scope-for-v1, or explicitly excluded in the relevant work item's own Non-Goals, so resolving it is a future refinement, not a prerequisite: "CLI-only or also an MCP tool" (`WI-A`'s Non-Goals explicitly scope it CLI-only), "Voluntary convention or enforced" (orthogonal to building `write`/`list`/`validate`/`repair` themselves), "`authored_by` provenance" (the explicit `--agent` flag is already the settled v1 interface; auto-detection is a possible later enhancement), "Archive retention/versioning mechanism" (`WI-B`'s Non-Goals already defer this), "Layering of `project_slug_for_path`" (a code-organization note, not a design blocker), "Scope beyond this repo's evidence" (a meta-question about future initiatives, not this scope), "Automatic-transfer trigger point" (none of the four work items implement automatic transfer).
+
+Known open questions:
 
 - **CLI-only or also an MCP tool?** The findings show Codex writing memory files directly rather than through any shared tool. If Codex (or other agents) don't reliably shell out to `lrh`, a CLI-only surface may not actually get adopted by the agent that caused the original incident. Should this ship as an MCP-exposed tool as well, so an agent calls it as a tool rather than a subprocess? This changes the delivery mechanism, not just the implementation, so it's worth resolving before work items are scoped.
 - **Voluntary convention or enforced?** V1 makes correct writes *easy*; it doesn't make incorrect direct writes *impossible*, since nothing stops an agent from still hand-writing a `.md` file. Is a lint/audit-on-sync check (surfacing non-conforming files at `lrh memory sync` time, using the same detector `validate` implements) sufficient, or does this need something closer to enforcement?

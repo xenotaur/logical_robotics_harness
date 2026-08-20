@@ -313,9 +313,9 @@ fields in-place, and prints `updated: <path>` on success.
 See `references/closeout-workflow.md` for valid field values and the
 `session_transcript:` `pending` convention.
 
-**Session identity capture** (for every record, regardless of which Step 3
-path resolved the host id — the host-to-PR association is worth recording
-either way):
+**Session identity capture** (only for records where Step 3's Claude.app
+branch — paths 1, 2, or 3 — resolved a confirmed host-uuid-stem; the
+host-to-PR association is worth recording for any of those three paths):
 
 ```bash
 lrh prompt record-session-alias \
@@ -324,6 +324,12 @@ lrh prompt record-session-alias \
   --pr <pr-url> \
   --project-root .
 ```
+
+**Skip this step entirely** for records resolved via Step 3's `codex_app`,
+`codex_cloud`, `manual`, or other-non-Claude-backend branches — those
+resolve to `codex-app:<id>`, `codex-cloud:<id>`, `pending`, or `none`, none
+of which is a usable `--host-id`. There is no analogous alias mechanism for
+those backends; do not pass any of those values as `--host-id`.
 
 **Omit `--child-id` entirely** (do not pass the flag) for records resolved
 via path 2 (`list_sessions` by PR) or path 3 (pasted URL) — pairing a

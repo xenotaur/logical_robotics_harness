@@ -30,6 +30,7 @@ from lrh.conversations import (
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
+from lrh.secrets import review as secrets_review
 from lrh.secrets import scan as secrets_scan
 from lrh.work_items import audit as work_items_audit
 from lrh.work_items import organize as work_items_organize
@@ -412,6 +413,41 @@ def main() -> None:
         choices=("text", "json"),
         default="text",
         help="output format (default: text)",
+    )
+
+    secrets_review_parser = secrets_subparsers.add_parser(
+        "review",
+        help="Decisions-file-gated triage of a scan's findings.",
+        epilog=(
+            "Decisions file (YAML), one entry per secret value:\n"
+            "  <secret-value>:\n"
+            "    decision: keep     # or: ignore\n"
+            '    reason: "why"\n'
+            "--apply writes out-dir/replacements.reviewed.txt, distinct from\n"
+            "scan's draft replacements.txt -- this is the file lrh secrets\n"
+            "purge accepts, never the draft."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    secrets_review_parser.add_argument(
+        "--out-dir",
+        required=True,
+        help="directory containing scan's findings.json/replacements.txt",
+    )
+    secrets_review_parser.add_argument(
+        "--decisions",
+        default=None,
+        help="path to the decisions YAML file (see epilog for format)",
+    )
+    secrets_review_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="exit nonzero if any finding lacks a recorded decision",
+    )
+    secrets_review_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="write replacements.reviewed.txt; requires every finding decided",
     )
 
     workstreams_parser = subparsers.add_parser(
@@ -987,6 +1023,37 @@ def main() -> None:
                 print(secrets_scan.format_json(result))
             else:
                 print(secrets_scan.format_text(result))
+            raise SystemExit(0)
+        if args.secrets_command == "review":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            if args.check and args.apply:
+                parser.error("--check and --apply are mutually exclusive")
+            out_dir = Path(args.out_dir).expanduser().resolve()
+            decisions_path = (
+                Path(args.decisions).expanduser().resolve() if args.decisions else None
+            )
+            report = secrets_review.build_report(
+                out_dir=out_dir, decisions_path=decisions_path
+            )
+            undecided = report.undecided()
+            if args.apply:
+                print(secrets_review.format_text(report))
+                if undecided:
+                    print(
+                        f"\nFAIL: {len(undecided)} finding(s) undecided; "
+                        "cannot --apply until every finding is decided.",
+                        file=sys.stderr,
+                    )
+                    raise SystemExit(1)
+                reviewed_path = secrets_review.write_reviewed_replacements(
+                    report, out_dir
+                )
+                print(f"\nWrote {len(report.kept())} secret(s) to {reviewed_path}")
+                raise SystemExit(0)
+            print(secrets_review.format_text(report))
+            if args.check:
+                raise SystemExit(1 if undecided else 0)
             raise SystemExit(0)
         parser.error("secrets requires a subcommand (try: lrh secrets scan)")
 

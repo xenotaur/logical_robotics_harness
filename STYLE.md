@@ -88,6 +88,19 @@ If a file must be touched for a real reason, keep unrelated edits in that file t
 
 When a change would benefit from broader cleanup, that cleanup should usually be proposed as a separate follow-up change.
 
+## Gate Policy and Governance Text
+
+When editing LRH skill or planning guidance that describes a human gate, follow
+`project/design/proposals/adopted/lrh-gate-policy/00_proposal.md` and
+`project/memory/decisions/DEC-GATE-POLICY-CASCADE.md`.
+
+- Prefer one canonical policy statement plus references over duplicated prose.
+- Keep gates single-ask where the approved payload is unchanged, but ask again
+  on material divergence.
+- Correct false current-state assertions about live artifacts even when they
+  appear in resolved planning documents; preserve historical narrative.
+- Do not restore manual hosted GitHub review-bot retrigger instructions.
+
 ## Python Version and Environment
 
 LRH should use a clearly documented Python version and a reproducible development setup.

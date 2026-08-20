@@ -67,10 +67,12 @@ guardrail. On 2026-08-01 this caused a real incident: a session using
 triggered a fresh-context self-review that returned a NO-GO verdict,
 finding a root-cause design issue and a bug none of the 14 rounds had
 caught. `WI-SKILLS-LRH-LAND` is resolved, satisfying this item's stated
-prerequisite. `WI-DELIBERATE-MODEL-INVOCATION` (proposed, owned by
-`WS-EXECUTION-FRAMEWORK`) would enable direct sub-skill invocation but is
-explicitly not a hard gate — `WS-SKILLS-EXECUTE` documents that Phase 1's
-inline sub-skill pattern can carry Phase 2 if needed.
+prerequisite. `WI-DELIBERATE-MODEL-INVOCATION` is now resolved under
+`WS-INVOCATION-AND-GATE-RESET`; it superseded the original direct sub-skill
+invocation question with per-skill `when_to_use`, explicit gates, and
+target-specific invocation policy. `WS-SKILLS-EXECUTE` documents that Phase 1's
+inline sub-skill pattern can carry Phase 2 if needed, and `/lrh-execute` keeps
+that inlined-link structure.
 
 ### Duplication search
 - In-repo: No existing `/lrh-execute` implementation. `WS-SKILLS-EXECUTE`'s

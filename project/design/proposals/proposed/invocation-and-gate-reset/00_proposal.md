@@ -5,12 +5,14 @@ title: Invocation and Gate Reset — Retrigger Removal, Flag Removal, and a Unif
 status: proposed
 implementation_status: partial
 created_on: 2026-08-09
-updated_on: 2026-08-19
+updated_on: 2026-08-20
 related_design:
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
   - project/memory/decisions/DEC-SELF-REVIEW-RECURSION-GUARD.md
+  - project/memory/decisions/DEC-GATE-POLICY-CASCADE.md
+  - project/design/proposals/adopted/lrh-gate-policy/00_proposal.md
   - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
   - project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION.md
   - project/work_items/proposed/WI-LRH-CHAIN-DEFAULTS-INCREMENT-2.md
@@ -29,6 +31,7 @@ implemented_by:
   - WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL
   - WI-FRONT-OF-RUN-GATE-COLLAPSE
   - WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE
+  - WI-GATE-POLICY-CASCADE-STAGE3
 evidence:
   - EV-0011
 supersedes: []
@@ -40,19 +43,22 @@ parent: null
 
 ## Implementation Status
 
-As of 2026-08-14, this proposal is partially implemented. Stage 1 landed via
+As of 2026-08-20, this proposal is partially implemented. Stage 1 landed via
 `WI-RETRIGGER-REMOVAL-STAGE1`, Stage 2's scoped flag-removal work landed via
 `WI-DELIBERATE-MODEL-INVOCATION`, the retained bounded CI-wait portion of
 `PROP-REVIEW-WAIT-POSTURE` landed via
-`WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL`, and Decision 11's front-of-run collapse
-landed via `WI-FRONT-OF-RUN-GATE-COLLAPSE`.
+`WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL`, Decision 11's front-of-run collapse
+landed via `WI-FRONT-OF-RUN-GATE-COLLAPSE`, and Stage 2's retained-flag
+completion landed via `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`. Stage
+3's gate policy audit/cascade is implemented by
+`WI-GATE-POLICY-CASCADE-STAGE3` and remains pending merge and closeout until
+that work item is resolved.
 
 The remaining executable leaves are now tracked explicitly:
-`WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`,
 `WI-GATE-POLICY-CASCADE-STAGE3`,
 `WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5`, and
-`WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME`. Stage 3 implementation remains
-deliberately out of this planning cleanup.
+`WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME`. Stage 3.5 activation remains
+separate from the Stage 3 policy/cascade change.
 
 ## Summary
 

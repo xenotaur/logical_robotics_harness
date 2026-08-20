@@ -552,7 +552,7 @@ and re-stamp `confirmed_commit`/`confirmed_at`.
    Any hit forces the full `always_confirm` path for this run, regardless of
    stored `chain_init_confirmation` or valid consent.
 
-## Decision 5 — staleness fallback
+## Decision 5 — gate-definition staleness fallback
 
 **Only applies once `confirmed_commit` is non-null** — the
 propose-and-confirm flow above already routes a null/absent
@@ -568,20 +568,33 @@ if [ "$CONFIRMED_COMMIT" = "null" ] || [ -z "$CONFIRMED_COMMIT" ]; then
   echo "No prior confirmation on record — staleness check does not apply; use the first-encounter path above." >&2
 else
   # Before trusting any stored value (always_confirm pre-fill or
-  # skip_if_opted_in skip), check whether the gate's own skill logic has
-  # changed materially since the profile was last confirmed:
+  # skip_if_opted_in skip), check whether any gate-definition surface has
+  # changed since the profile was last confirmed:
   git diff --quiet "$CONFIRMED_COMMIT" HEAD -- \
+    src/lrh/skills/_shared/chain-defaults.md \
     src/lrh/skills/lrh-land/SKILL.md \
     src/lrh/skills/lrh-land/references/land-workflow.md \
     src/lrh/skills/lrh-execute/SKILL.md \
-    src/lrh/skills/_shared/chain-defaults.md
+    src/lrh/skills/lrh-implement/SKILL.md \
+    src/lrh/skills/lrh-review-response/SKILL.md \
+    src/lrh/skills/lrh-confirm-fixes/SKILL.md \
+    src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md \
+    src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md \
+    src/lrh/skills/lrh-self-review/SKILL.md \
+    src/lrh/skills/lrh-closeout/SKILL.md \
+    src/lrh/skills/lrh-closeout/references/closeout-workflow.md
 fi
 ```
 
-A non-zero exit (files changed) means the stored confirmation predates a
-skill-logic change it was never evaluated against — treat this run as if
-`chain_init_confirmation` were `always_confirm` regardless of the stored
-value, and note this in the gate's presentation ("defaults pre-filled, but
-re-confirming since the skill logic changed since you last confirmed").
-Do not silently rewrite the stored value based on this fallback alone — it
-only affects this run's liveness, not the persisted setting.
+A non-zero exit means a gate-definition surface changed since the stored
+confirmation. Per `DEC-GATE-POLICY-CASCADE`, inspect the diff for changes to
+gate-definition statements: when a gate is reached, what payload is presented,
+what reply or stored consent satisfies it, what special condition forces a live
+gate, what downstream step may rely on it, or what action is forbidden without
+it. If any such statement changed, treat this run as if
+`chain_init_confirmation` were `always_confirm` regardless of the stored value,
+and note this in the gate's presentation ("defaults pre-filled, but
+re-confirming since gate policy changed since you last confirmed"). If the diff
+is only non-semantic churn, document that inspection and continue. Do not
+silently rewrite the stored value based on this fallback alone — it only affects
+this run's liveness, not the persisted setting.

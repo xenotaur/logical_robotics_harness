@@ -74,9 +74,10 @@ stable and observed in practice.
 
 ### Demand search
 
-- **Work items:** `WI-DELIBERATE-MODEL-INVOCATION` (proposed, owned by
-  `WS-EXECUTION-FRAMEWORK`) is a prerequisite for Phase 2's direct sub-skill
-  invocation; cross-link but do not subsume.
+- **Work items:** `WI-DELIBERATE-MODEL-INVOCATION` is resolved under
+  `WS-INVOCATION-AND-GATE-RESET`. It superseded the original direct sub-skill
+  invocation question with a per-skill `when_to_use` plus gate-policy model;
+  cross-link but do not subsume.
 - **Proposals:** `PROP-LRH-LAND-EXECUTE` (proposed, PR #427 merged
   2026-07-28) is the governing design — this workstream implements it.
 - **Backlog:** No matching entries.
@@ -111,9 +112,9 @@ Delivery is phased per `PROP-LRH-LAND-EXECUTE` § Implementation Plan:
   and stop-work condition.
   Design after Phase 3 is stable.
 
-The prerequisite `WI-DELIBERATE-MODEL-INVOCATION` is owned by
-`WS-EXECUTION-FRAMEWORK` and tracked there; it is a dependency, not a
-child of this workstream.
+The prerequisite `WI-DELIBERATE-MODEL-INVOCATION` is resolved under
+`WS-INVOCATION-AND-GATE-RESET`; it is a dependency, not a child of this
+workstream.
 
 ## Exit Criteria
 
@@ -130,8 +131,8 @@ child of this workstream.
 
 ## Non-Goals
 
-- Does not govern `WI-DELIBERATE-MODEL-INVOCATION` — owned by
-  `WS-EXECUTION-FRAMEWORK`.
+- Does not govern `WI-DELIBERATE-MODEL-INVOCATION` — it is resolved under
+  `WS-INVOCATION-AND-GATE-RESET`.
 - Does not implement the bounded autonomous execution framework
   (`lrh[agentic]`) — that remains the scope of `WS-EXECUTION-FRAMEWORK`.
 - Does not require `/lrh-next` or `/lrh-run-tree` to ship before closure —

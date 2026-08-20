@@ -30,6 +30,7 @@ from lrh.conversations import (
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
+from lrh.secrets import scan as secrets_scan
 from lrh.work_items import audit as work_items_audit
 from lrh.work_items import organize as work_items_organize
 from lrh.work_items import readiness as work_items_readiness
@@ -371,6 +372,46 @@ def main() -> None:
         choices=("md", "json"),
         default="md",
         help="output format (default: md)",
+    )
+
+    secrets_parser = subparsers.add_parser(
+        "secrets",
+        help="Secrets-hygiene scan/review/purge commands.",
+    )
+    secrets_subparsers = secrets_parser.add_subparsers(dest="secrets_command")
+    secrets_scan_parser = secrets_subparsers.add_parser(
+        "scan",
+        help="Read-only full-history secrets scan via gitleaks.",
+        epilog=(
+            "Provider coverage is uneven, not uniform: OpenAI/Anthropic/Gemini\n"
+            "keys have structural prefixes gitleaks' default rules catch\n"
+            "reliably; Azure-family keys have no distinguishing prefix and are\n"
+            "only caught via contextual rules (default or repo-supplied\n"
+            ".gitleaks.toml), invisible entirely on a non-suggestive variable\n"
+            "name. .ipynb files store source as JSON-escaped strings, which can\n"
+            "defeat delimiter-based detection regexes regardless of provider."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    secrets_scan_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root to scan (default: current directory)",
+    )
+    secrets_scan_parser.add_argument(
+        "--out-dir",
+        required=True,
+        help=(
+            "directory to write findings.json and replacements.txt into. "
+            "These files contain real secret values -- choose a gitignored "
+            "location, not a directory a later `git add .` would pick up."
+        ),
+    )
+    secrets_scan_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
     )
 
     workstreams_parser = subparsers.add_parser(
@@ -934,6 +975,20 @@ def main() -> None:
                 print(work_items_readiness.format_markdown(report))
             raise SystemExit(0)
         parser.error("work-items requires a subcommand (try: lrh work-items organize)")
+
+    if args.command == "secrets":
+        if args.secrets_command == "scan":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            out_dir = Path(args.out_dir).expanduser().resolve()
+            result = secrets_scan.run_scan(project_root=project_root, out_dir=out_dir)
+            if args.format == "json":
+                print(secrets_scan.format_json(result))
+            else:
+                print(secrets_scan.format_text(result))
+            raise SystemExit(0)
+        parser.error("secrets requires a subcommand (try: lrh secrets scan)")
 
     if args.command == "workstreams":
         if args.workstreams_command == "organize":

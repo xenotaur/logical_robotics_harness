@@ -2,8 +2,8 @@
 
 Use this guide when a Codex task contains useful context that should be kept as
 a private, non-authoritative transcript for later review. The normal user-facing
-entry point is `/lrh-codex-export`, which wraps the lower-level
-`lrh conversation export-codex-thread` CLI command and immediately verifies the
+entry point is `/lrh-codex-export`, which wraps
+`lrh conversation archive-codex-thread` and immediately verifies the
 result with `lrh conversation inspect-export`.
 
 ## When to use this
@@ -37,8 +37,8 @@ environment does not expose a thread id, provide one explicitly:
 /lrh-codex-export 019fc43f-e2d9-7503-88cb-9d9a8136c111
 ```
 
-The skill creates a private output directory outside the current Git worktree,
-runs `lrh conversation export-codex-thread`, then runs:
+The skill creates a private output directory in LRH's durable local session
+archive, runs `lrh conversation archive-codex-thread`, then runs:
 
 ```bash
 lrh conversation inspect-export "$EXPORT_PATH" --source "$RAW_PATH" --format json
@@ -48,30 +48,58 @@ It reports metadata such as output paths, privacy, sensitivity, warnings,
 source-hash status, turn count, message count, and artifact statistics. It does
 not print transcript body text.
 
+The default archive root resolves as `--archive-root`, then
+`LRH_SESSION_ARCHIVE_ROOT`, then
+`~/.local/share/lrh/session-archive`. Codex exports are stored below that root
+under `codex/exports/YYYY/MM/`. This root is local and private by convention;
+do not place it inside a Git worktree.
+
+Each attempted archive export writes `attempt.json` before talking to the Codex
+app-server, then updates that file with success, failure, output paths, source
+hash, and validation status. This prevents an empty directory from looking like
+a completed export.
+
+Use scratch mode only for explicitly ephemeral dogfood or debugging captures:
+
+```bash
+lrh conversation archive-codex-thread \
+  --thread-id "$CODEX_THREAD_ID" \
+  --scratch
+```
+
+Scratch exports are reported as ephemeral and may live under platform temporary
+storage. Move or re-export anything that needs to survive cleanup.
+
 ## Use the CLI directly
 
-Use the CLI directly when you are scripting or working outside an agent skill:
+For the normal durable archive path, use:
 
 ```bash
 umask 077
-install -d -m 700 "$HOME/.lrh/private/codex"
-lrh conversation export-codex-thread \
-  --thread-id "$CODEX_THREAD_ID" \
-  --out "$HOME/.lrh/private/codex/export.md" \
-  --raw-out "$HOME/.lrh/private/codex/raw.json"
+lrh conversation archive-codex-thread \
+  --thread-id "$CODEX_THREAD_ID"
 ```
 
-The direct CLI requires both `--out` and `--raw-out`. Keep both paths outside
-the Git worktree, and keep the raw capture at an absolute private path. Use a
-restrictive `umask` or explicit permissions so both the Markdown transcript and
-raw JSON remain private to the local user.
+Use the lower-level explicit-path adapter only when you are scripting a custom
+layout:
+
+```bash
+umask 077
+lrh conversation export-codex-thread \
+  --thread-id "$CODEX_THREAD_ID" \
+  --out "$PRIVATE_DIR/export.md" \
+  --raw-out "$PRIVATE_DIR/raw.json"
+```
+
+The low-level CLI requires both `--out` and `--raw-out`. Keep both paths outside
+the Git worktree, and keep the raw capture at an absolute private path.
 
 Then inspect the export without printing transcript content:
 
 ```bash
 lrh conversation inspect-export \
-  "$HOME/.lrh/private/codex/export.md" \
-  --source "$HOME/.lrh/private/codex/raw.json" \
+  "$PRIVATE_DIR/export.md" \
+  --source "$PRIVATE_DIR/raw.json" \
   --format json
 ```
 
@@ -88,6 +116,27 @@ Every Codex app export writes two files:
 Keep both outside the project Git worktree unless a separate reviewed workflow
 has produced a sanitized committed artifact. The raw JSON capture is especially
 sensitive because it preserves the original app-server response for local audit.
+
+## Import rescued Codex export directories
+
+Use this when older `/lrh-codex-export` dogfood runs left directories such as
+`Promptspace/CodexExports/lrh-codex-export-*` outside the durable archive:
+
+```bash
+lrh conversation import-codex-exports "$HOME/Workspace/Promptspace/CodexExports"
+```
+
+The importer copies each immediate child directory into
+`codex/imports/YYYY/MM/` under the durable archive root, writes an `attempt.json`
+marker, and reports only metadata. Valid directories with both `export.md` and
+`raw.json` are inspected with `inspect-export`. Directories missing one or both
+files are preserved as `partial` or `empty` attempts instead of being reported
+as successful exports.
+
+Use `--dry-run` to preview the classification, and `--archive-root` to direct
+the import into a configured private archive root. The importer copies by
+default; remove or reorganize the original rescued files only after verifying
+the archive copy.
 
 Before sharing or promoting any content from an export:
 

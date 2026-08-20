@@ -62,8 +62,26 @@ class ConversationCliTest(unittest.TestCase):
         completed = self._run_lrh("conversation", "--help")
 
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("archive-codex-thread", completed.stdout)
         self.assertIn("convert-pdf", completed.stdout)
+        self.assertIn("import-codex-exports", completed.stdout)
         self.assertIn("inspect-export", completed.stdout)
+
+    def test_conversation_archive_codex_thread_help_describes_archive(self) -> None:
+        completed = self._run_lrh("conversation", "archive-codex-thread", "--help")
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("durable private session archive", completed.stdout)
+        self.assertIn("--archive-root", completed.stdout)
+        self.assertIn("--scratch", completed.stdout)
+
+    def test_conversation_import_codex_exports_help_describes_scope(self) -> None:
+        completed = self._run_lrh("conversation", "import-codex-exports", "--help")
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("Import existing LRH Codex export directories", completed.stdout)
+        self.assertIn("--dry-run", completed.stdout)
+        self.assertIn("--archive-root", completed.stdout)
 
     def test_convert_pdf_writes_private_non_authoritative_markdown(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

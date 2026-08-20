@@ -115,7 +115,13 @@ def read_frontmatter_and_body(text: str) -> tuple[dict[str, typing.Any], str]:
         )
     frontmatter_text = text[4:closing]
     body_start = text.find("\n", closing + 1)
-    body = text[body_start + 1 :] if body_start != -1 else ""
+    # `.lstrip("\n")`, not a bare slice: the blank line between the closing
+    # `---` and the body is a separator, not content -- without stripping
+    # it, every read body carries one spurious leading newline relative to
+    # what `_render_memory_file()` wrote (it always `.strip("\n")`s the
+    # body on write), so a verbatim consumer like the planned `lrh memory
+    # read` would print an extra blank line no caller ever wrote.
+    body = text[body_start + 1 :].lstrip("\n") if body_start != -1 else ""
     try:
         frontmatter = yaml.safe_load(frontmatter_text)
     except yaml.YAMLError as error:

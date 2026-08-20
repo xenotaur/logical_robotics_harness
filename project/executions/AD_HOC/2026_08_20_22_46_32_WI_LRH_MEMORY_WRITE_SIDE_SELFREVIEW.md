@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_20_22_31_29_WI_LRH_MEMORY_WRITE_SIDE_SELFREVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/570
-commit: 
+commit: 980668a5297c2ba826c5dd1bc9537c8e540c6eef
 created_at: 2026-08-20T22:46:32+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/570

@@ -1,3 +1,4 @@
+import concurrent.futures
 import pathlib
 import tempfile
 import unittest
@@ -142,6 +143,94 @@ class WriteMemoryTest(unittest.TestCase):
             )
             self.assertFalse(result.index_updated)
 
+    def test_write_escapes_colon_in_description(self) -> None:
+        """A description containing a colon must not corrupt the YAML.
+
+        Regression test: an earlier draft hand-interpolated frontmatter
+        values into an f-string with no escaping, so
+        `--description 'Rule: retain evidence'` produced
+        `description: Rule: retain evidence` -- a second, unintended
+        top-level YAML key-value pair that `yaml.safe_load` rejects on
+        read-back.
+        """
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            result = prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-colon-desc",
+                description="Rule: retain evidence",
+                type_="feedback",
+                agent="claude",
+                body="body",
+                claude_projects_root=claude_root,
+            )
+            frontmatter, _ = prompt_workflow_memory.read_frontmatter_and_body(
+                result.memory_path.read_text(encoding="utf-8")
+            )
+            self.assertEqual(frontmatter["description"], "Rule: retain evidence")
+
+    def test_write_escapes_embedded_newline_in_agent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            result = prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-newline-agent",
+                description="d",
+                type_="feedback",
+                agent="claude\nmetadata:\n  authored_by: injected",
+                body="body",
+                claude_projects_root=claude_root,
+            )
+            frontmatter, _ = prompt_workflow_memory.read_frontmatter_and_body(
+                result.memory_path.read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                frontmatter["metadata"]["authored_by"],
+                "claude\nmetadata:\n  authored_by: injected",
+            )
+
+    def test_concurrent_writes_do_not_lose_index_entries(self) -> None:
+        """Two concurrent writers to different names must both land in the index.
+
+        Regression test: an earlier draft's index read-modify-write had
+        no locking, so two concurrent `write_memory` calls could each
+        read the same MEMORY.md, append only their own entry, and
+        atomically replace it -- the later replacement silently dropping
+        the earlier caller's entry even though both memory files were
+        written successfully.
+        """
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            names = [f"feedback-concurrent-{i}" for i in range(12)]
+
+            def _write(name: str) -> None:
+                prompt_workflow_memory.write_memory(
+                    project_root,
+                    name,
+                    description="d",
+                    type_="feedback",
+                    agent="claude",
+                    body="body",
+                    claude_projects_root=claude_root,
+                )
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=12) as pool:
+                list(pool.map(_write, names))
+
+            entries = prompt_workflow_memory.list_memories(
+                project_root, claude_projects_root=claude_root
+            )
+            indexed_filenames = {e.filename for e in entries}
+            expected = {prompt_workflow_memory.filename_for(n) for n in names}
+            self.assertEqual(indexed_filenames, expected)
+
     def test_write_resolves_corpus_path_via_project_slug(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             claude_root = pathlib.Path(tmp) / "claude-projects"
@@ -205,6 +294,42 @@ class ListMemoriesTest(unittest.TestCase):
             )
             self.assertEqual(len(all_entries), 2)
 
+    def test_list_skips_path_traversal_index_entries(self) -> None:
+        """A crafted index line must never resolve outside the memory dir.
+
+        Regression test: an earlier draft did `memory_dir / filename` for
+        whatever string the ``(...)`` link target contained, so a crafted
+        or corrupted `MEMORY.md` line like `[x](../../secret.md)` would
+        read an arbitrary accessible file. Also covers the related
+        "no match at all" case, which previously appended a bogus
+        empty-filename entry instead of skipping the line.
+        """
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            slug = project_slug_for_path(project_root)
+            memory_dir = claude_root / slug / "memory"
+            memory_dir.mkdir(parents=True)
+            outside = pathlib.Path(tmp) / "outside"
+            outside.mkdir()
+            (outside / "secret.md").write_text(
+                "---\nname: secret\ndescription: d\nmetadata:\n"
+                "  type: feedback\n  authored_by: codex\n---\n\nSECRET\n",
+                encoding="utf-8",
+            )
+            (memory_dir / "MEMORY.md").write_text(
+                "# Memory Index\n"
+                "- [traversal](../../outside/secret.md) — d\n"
+                "- [malformed link with no closing target\n",
+                encoding="utf-8",
+            )
+
+            entries = prompt_workflow_memory.list_memories(
+                project_root, claude_projects_root=claude_root
+            )
+            self.assertEqual(entries, [])
+
 
 class ValidateCorpusTest(unittest.TestCase):
     def test_validate_empty_corpus(self) -> None:
@@ -248,6 +373,22 @@ class ValidateCorpusTest(unittest.TestCase):
                 "---\nname: malformed\n---\n\nbody\n",
                 encoding="utf-8",
             )
+            (memory_dir / "unindexed.md").write_text(
+                "---\n"
+                "name: unindexed\n"
+                "description: d\n"
+                "metadata:\n"
+                "  type: feedback\n"
+                "  authored_by: claude\n"
+                "---\n\nbody\n",
+                encoding="utf-8",
+            )
+            (memory_dir / "MEMORY.md").write_text(
+                "# Memory Index\n"
+                "- [conforming](conforming.md) — d\n"
+                "- [legacy](legacy.md) — d\n",
+                encoding="utf-8",
+            )
 
             report = prompt_workflow_memory.validate_corpus(
                 project_root, claude_projects_root=claude_root
@@ -255,6 +396,7 @@ class ValidateCorpusTest(unittest.TestCase):
             self.assertEqual(report.conforming, ("conforming.md",))
             self.assertEqual(report.legacy, ("legacy.md",))
             self.assertEqual(report.malformed, ("malformed.md",))
+            self.assertEqual(report.unindexed, ("unindexed.md",))
 
 
 class RepairMemoryTest(unittest.TestCase):
@@ -409,6 +551,124 @@ class RepairMemoryTest(unittest.TestCase):
             memory_dir = claude_root / slug / "memory"
             if memory_dir.exists():
                 self.assertNotIn("secret.md", [p.name for p in memory_dir.glob("*.md")])
+
+    def test_repair_rejects_set_name(self) -> None:
+        """`--set name=<new>` must be rejected, not silently orphan the original.
+
+        Regression test: an earlier draft let `--set name=<new>` write a
+        *new* file+index entry under the new name via `write_memory`
+        without ever removing the original file or its old index entry,
+        leaving a stale duplicate behind.
+        """
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-original",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="b",
+                claude_projects_root=claude_root,
+            )
+
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.repair_memory(
+                    project_root,
+                    "feedback-original",
+                    sets={"name": "feedback-renamed"},
+                    claude_projects_root=claude_root,
+                )
+
+    def test_repair_handles_non_mapping_metadata_without_crashing(self) -> None:
+        """A malformed `metadata: broken` value must raise, not crash.
+
+        Regression test: `dict(frontmatter.get("metadata") or {})` raises
+        `TypeError`, not `MemoryValidationError`, when `metadata` is a
+        non-mapping scalar -- the CLI only catches the latter, so this
+        repair scenario used to end in an unhandled traceback instead of
+        the intended clean error (or, with `--set metadata.type=...`
+        supplied, a successful recovery).
+        """
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            slug = project_slug_for_path(project_root)
+            memory_dir = claude_root / slug / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "broken_meta.md").write_text(
+                "---\nname: broken-meta\ndescription: d\nmetadata: broken\n---\n\nbody\n",
+                encoding="utf-8",
+            )
+
+            # No fields supplied to recover with: raises cleanly, not a TypeError.
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.repair_memory(
+                    project_root,
+                    "broken-meta",
+                    sets={},
+                    claude_projects_root=claude_root,
+                )
+
+            # Supplying the missing fields recovers the file successfully.
+            path = prompt_workflow_memory.repair_memory(
+                project_root,
+                "broken-meta",
+                sets={
+                    "metadata.type": "feedback",
+                    "metadata.authored_by": "claude",
+                },
+                claude_projects_root=claude_root,
+            )
+            content = path.read_text(encoding="utf-8")
+            self.assertIn("authored_by: claude", content)
+
+    def test_repair_fixes_unindexed_file(self) -> None:
+        """Repairing an unindexed-but-complete file adds its missing index entry.
+
+        This is the crash state Decision 4's write ordering intentionally
+        permits (memory file written, MEMORY.md rename interrupted) --
+        `repair` closes it by re-running `write`'s own path, which adds
+        the missing index line as a side effect of the ordinary write.
+        """
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            slug = project_slug_for_path(project_root)
+            memory_dir = claude_root / slug / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "feedback_orphan.md").write_text(
+                "---\n"
+                "name: feedback-orphan\n"
+                "description: d\n"
+                "metadata:\n"
+                "  type: feedback\n"
+                "  authored_by: claude\n"
+                "---\n\nbody\n",
+                encoding="utf-8",
+            )
+
+            report_before = prompt_workflow_memory.validate_corpus(
+                project_root, claude_projects_root=claude_root
+            )
+            self.assertEqual(report_before.unindexed, ("feedback_orphan.md",))
+
+            prompt_workflow_memory.repair_memory(
+                project_root,
+                "feedback-orphan",
+                sets={},
+                claude_projects_root=claude_root,
+            )
+
+            report_after = prompt_workflow_memory.validate_corpus(
+                project_root, claude_projects_root=claude_root
+            )
+            self.assertEqual(report_after.unindexed, ())
+            self.assertIn("feedback_orphan.md", report_after.conforming)
 
 
 class ReadFrontmatterAndBodyTest(unittest.TestCase):

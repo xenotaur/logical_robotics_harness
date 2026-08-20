@@ -101,7 +101,8 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
 
 def _run_write(args: argparse.Namespace) -> int:
     if args.body_file:
-        body = open(args.body_file, encoding="utf-8").read()
+        with open(args.body_file, encoding="utf-8") as handle:
+            body = handle.read()
     else:
         body = sys.stdin.read()
 
@@ -173,6 +174,7 @@ def _run_validate(args: argparse.Namespace) -> int:
             json.dumps(
                 {
                     "malformed": list(report.malformed),
+                    "unindexed": list(report.unindexed),
                     "legacy": list(report.legacy),
                     "conforming": list(report.conforming),
                 },
@@ -183,8 +185,15 @@ def _run_validate(args: argparse.Namespace) -> int:
     print(
         f"conforming: {len(report.conforming)}  "
         f"legacy: {len(report.legacy)}  "
+        f"unindexed: {len(report.unindexed)}  "
         f"malformed: {len(report.malformed)}"
     )
+    if report.unindexed:
+        print(
+            "unindexed (no MEMORY.md entry, unreachable by recall, repair candidates):"
+        )
+        for name in report.unindexed:
+            print(f"  {name}")
     if report.legacy:
         print("legacy (missing authored_by, repair candidates):")
         for name in report.legacy:

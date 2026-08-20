@@ -11,7 +11,10 @@ Decision 4). Does not implement ``sync``/``read``/``search``/``export``/
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
+import fcntl
+import os
 import pathlib
 import re
 import typing
@@ -130,19 +133,32 @@ def _render_memory_file(
     applies_to: typing.Sequence[str],
     body: str,
 ) -> str:
+    """Render frontmatter through ``yaml.safe_dump``, not hand-built strings.
+
+    A naive ``f"description: {description}"`` interpolation produces
+    invalid or silently-reinterpreted YAML for any value containing a
+    colon, a leading special character, or an embedded newline (e.g.
+    ``--description 'Rule: retain evidence'``) -- exactly the accepted-
+    but-malformed-output bug ``yaml.safe_dump`` exists to prevent, since
+    it quotes/escapes every scalar it needs to and leaves the rest bare,
+    the same guarantee :func:`read_frontmatter_and_body`'s
+    ``yaml.safe_load`` counts on to parse it back correctly.
+    """
+
     applies_to_list = list(applies_to) if applies_to else [authored_by]
-    lines = [
-        "---",
-        f"name: {name}",
-        f"description: {description}",
-        "metadata:",
-        f"  type: {type_}",
-        f"  authored_by: {authored_by}",
-        "  applies_to:",
-    ]
-    lines.extend(f"    - {item}" for item in applies_to_list)
-    lines.append("---")
-    return "\n".join(lines) + "\n\n" + body.strip("\n") + "\n"
+    frontmatter = {
+        "name": name,
+        "description": description,
+        "metadata": {
+            "type": type_,
+            "authored_by": authored_by,
+            "applies_to": applies_to_list,
+        },
+    }
+    frontmatter_text = yaml.safe_dump(
+        frontmatter, default_flow_style=False, sort_keys=False, allow_unicode=True
+    )
+    return "---\n" + frontmatter_text + "---\n\n" + body.strip("\n") + "\n"
 
 
 def _derive_title(name: str) -> str:
@@ -152,6 +168,32 @@ def _derive_title(name: str) -> str:
     return " ".join(words) if words else name
 
 
+@contextlib.contextmanager
+def _locked_index(index_path: pathlib.Path) -> typing.Iterator[None]:
+    """Hold an exclusive lock for the duration of one index read-modify-write.
+
+    Atomic rename alone (:func:`atomic_write`) only protects a single
+    file's own write from truncation -- it does not serialize two
+    concurrent callers' read-then-replace of the *same* file. Without
+    this lock, two agents writing different memories at once can each
+    read the same ``MEMORY.md``, append only their own entry, and
+    atomically replace it; the later replacement silently discards the
+    earlier caller's entry even though both memory files were written
+    successfully. A POSIX advisory lock (``fcntl.flock``) on a sibling
+    lock file serializes the whole read-modify-write sequence instead.
+    """
+
+    index_path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = index_path.parent / f".{index_path.name}.lock"
+    lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
+
+
 def _ensure_index_entry(
     index_path: pathlib.Path, *, filename: str, name: str, description: str
 ) -> bool:
@@ -159,29 +201,31 @@ def _ensure_index_entry(
 
     Returns whether the index changed. Matching by the ``(filename)`` link
     target, not the whole line, so refreshing an entry's description does
-    not create a duplicate.
+    not create a duplicate. The whole read-modify-write happens under
+    :func:`_locked_index` so a concurrent writer's entry is never lost.
     """
 
     hook = description if len(description) <= 150 else description[:147] + "..."
     entry_line = f"- [{_derive_title(name)}]({filename}) — {hook}"
 
-    if index_path.exists():
-        lines = index_path.read_text(encoding="utf-8").splitlines()
-    else:
-        lines = ["# Memory Index"]
+    with _locked_index(index_path):
+        if index_path.exists():
+            lines = index_path.read_text(encoding="utf-8").splitlines()
+        else:
+            lines = ["# Memory Index"]
 
-    marker = f"]({filename})"
-    for i, line in enumerate(lines):
-        if marker in line:
-            if line == entry_line:
-                return False
-            lines[i] = entry_line
-            atomic_write(index_path, "\n".join(lines) + "\n")
-            return True
+        marker = f"]({filename})"
+        for i, line in enumerate(lines):
+            if marker in line:
+                if line == entry_line:
+                    return False
+                lines[i] = entry_line
+                atomic_write(index_path, "\n".join(lines) + "\n")
+                return True
 
-    lines.append(entry_line)
-    atomic_write(index_path, "\n".join(lines) + "\n")
-    return True
+        lines.append(entry_line)
+        atomic_write(index_path, "\n".join(lines) + "\n")
+        return True
 
 
 @dataclasses.dataclass(frozen=True)
@@ -208,8 +252,9 @@ def write_memory(
     Crash-consistency ordering (PROP-LRH-MEMORY-COMMAND Decision 4): the
     memory-file rename happens *before* the ``MEMORY.md`` rename. An
     interruption between the two always fails toward an unindexed-but-
-    content-complete file -- the "legacy" category :func:`validate_corpus`
-    already detects and :func:`repair_memory` already fixes -- never
+    content-complete file -- the "unindexed" category :func:`validate_corpus`
+    detects (independent of frontmatter completeness) and
+    :func:`repair_memory` fixes by re-running this same write path -- never
     toward an index entry pointing at a file that was never written.
     """
 
@@ -283,10 +328,23 @@ def list_memories(
         if not stripped.startswith("- ["):
             continue
         match = re.search(r"\]\(([^)]+)\)", stripped)
-        filename = match.group(1) if match else ""
+        if match is None:
+            continue
+        filename = match.group(1)
+        # A crafted or corrupted index line could point outside the corpus
+        # (e.g. `../../secret.md`) -- only ever resolve a flat filename
+        # matching what filename_for() itself can produce, never a path
+        # with separators or a traversal segment.
+        if (
+            not filename
+            or "/" in filename
+            or "\\" in filename
+            or filename in (".", "..")
+        ):
+            continue
         authored_by = None
-        candidate = memory_dir / filename if filename else None
-        if candidate is not None and candidate.exists():
+        candidate = memory_dir / filename
+        if candidate.exists():
             try:
                 frontmatter, _ = read_frontmatter_and_body(
                     candidate.read_text(encoding="utf-8")
@@ -307,33 +365,66 @@ def list_memories(
 @dataclasses.dataclass(frozen=True)
 class ValidationReport:
     malformed: tuple[str, ...]
+    unindexed: tuple[str, ...]
     legacy: tuple[str, ...]
     conforming: tuple[str, ...]
+
+
+def _indexed_filenames(index_path: pathlib.Path) -> set[str]:
+    if not index_path.exists():
+        return set()
+    filenames: set[str] = set()
+    for line in index_path.read_text(encoding="utf-8").splitlines():
+        match = re.search(r"\]\(([^)]+)\)", line.strip())
+        if match:
+            filenames.add(match.group(1))
+    return filenames
 
 
 def validate_corpus(
     project_root: str | pathlib.Path,
     claude_projects_root: str | pathlib.Path | None = None,
 ) -> ValidationReport:
-    """Audit a memory corpus, distinguishing malformed from legacy files.
+    """Audit a memory corpus: malformed, unindexed, legacy, or conforming.
 
-    Two tiers, per Decision 3's grandfathering clause -- **not** one
-    undifferentiated "non-conforming" bucket: *malformed* (missing
-    ``name``/``description``/``metadata.type`` -- the original 19-file
-    defect, unreachable by recall) and *legacy* (conforming to that
-    pre-existing schema, simply predating ``metadata.authored_by`` --
-    reachable and correct, just unattributed, and a :func:`repair_memory`
-    candidate). Only ``write`` enforces ``authored_by`` as a hard
-    requirement; this reports it as a separate, non-error category.
+    Four tiers, not the two-tier malformed/legacy split alone. Scanning
+    only file *contents* cannot detect the exact crash state Decision 4's
+    write ordering intentionally permits: an interruption between the
+    memory-file rename and the ``MEMORY.md`` rename leaves a
+    content-complete file -- even one with ``authored_by`` set -- that is
+    unreachable by recall because nothing links to it. That file must not
+    be reported as ``conforming`` just because its own frontmatter is
+    valid, so index membership is checked independently of frontmatter
+    shape:
+
+    - *malformed* -- missing ``name``/``description``/``metadata.type``,
+      the original 19-file defect, unreachable by recall.
+    - *unindexed* -- frontmatter is structurally fine (name/description/
+      type present) but the file has no ``MEMORY.md`` entry -- also
+      unreachable by recall, regardless of whether ``authored_by`` is
+      set. Checked before the legacy/conforming split below, since an
+      unindexed file's ``authored_by`` status doesn't change that it's
+      unreachable either way.
+    - *legacy* -- indexed and structurally conforming to the pre-existing
+      schema, simply predating ``metadata.authored_by`` -- reachable and
+      correct, just unattributed, and a :func:`repair_memory` candidate
+      per Decision 3's grandfathering clause.
+    - *conforming* -- indexed, with ``authored_by`` set.
+
+    Only ``write`` enforces ``authored_by`` as a hard requirement; this
+    reports its absence as a separate, non-error category.
     """
 
     memory_dir = memory_dir_for_project(project_root, claude_projects_root)
     malformed: list[str] = []
+    unindexed: list[str] = []
     legacy: list[str] = []
     conforming: list[str] = []
 
     if not memory_dir.exists():
-        return ValidationReport(malformed=(), legacy=(), conforming=())
+        return ValidationReport(malformed=(), unindexed=(), legacy=(), conforming=())
+
+    indexed = _indexed_filenames(memory_dir / INDEX_FILENAME)
 
     for path in sorted(memory_dir.glob("*.md")):
         if path.name == INDEX_FILENAME:
@@ -352,6 +443,10 @@ def validate_corpus(
             malformed.append(path.name)
             continue
 
+        if path.name not in indexed:
+            unindexed.append(path.name)
+            continue
+
         authored_by = (
             metadata.get("authored_by") if isinstance(metadata, dict) else None
         )
@@ -361,7 +456,10 @@ def validate_corpus(
             conforming.append(path.name)
 
     return ValidationReport(
-        malformed=tuple(malformed), legacy=tuple(legacy), conforming=tuple(conforming)
+        malformed=tuple(malformed),
+        unindexed=tuple(unindexed),
+        legacy=tuple(legacy),
+        conforming=tuple(conforming),
     )
 
 
@@ -393,11 +491,25 @@ def repair_memory(
             f"no memory file found for {name!r} at {memory_path}"
         )
 
+    if "name" in sets:
+        raise MemoryValidationError(
+            "repair does not support renaming a memory via --set name=<...>; "
+            "it would leave the original file and its old index entry orphaned "
+            "as a stale duplicate. Repair is structural-field-only by design."
+        )
+
     frontmatter, body = read_frontmatter_and_body(
         memory_path.read_text(encoding="utf-8")
     )
-    metadata = dict(frontmatter.get("metadata") or {})
-    merged_name = frontmatter.get("name", name)
+    raw_metadata = frontmatter.get("metadata")
+    # A malformed repair target's `metadata` key can itself be a
+    # non-mapping value (e.g. `metadata: broken`) -- dict(raw_metadata)
+    # would raise TypeError in that case rather than the intended
+    # MemoryValidationError. Since repair exists to recover from exactly
+    # this kind of malformed state, treat a non-mapping metadata as
+    # empty and let --set populate it, rather than crashing.
+    metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+    merged_name = frontmatter.get("name", slug)
     merged_description = frontmatter.get("description", "")
 
     for key, value in sets.items():
@@ -409,8 +521,6 @@ def repair_memory(
             ]
         elif key == "metadata.type":
             metadata["type"] = value
-        elif key == "name":
-            merged_name = value
         elif key == "description":
             merged_description = value
         else:

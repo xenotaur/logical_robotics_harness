@@ -49,5 +49,38 @@ Hello.
             self.assertEqual(parsed.body, "body\n")
 
 
+    def test_unindented_comment_in_block_list_is_skipped(self) -> None:
+        # Bug: unindented comment caused premature list termination (silent data loss).
+        parsed = parse_markdown_text(
+            "---\nitems:\n  - one\n# comment\n  - two\n---\n"
+        )
+        self.assertEqual(parsed.frontmatter["items"], ["one", "two"])
+
+    def test_indented_comment_in_block_list_is_skipped(self) -> None:
+        # Bug: indented comment raised ValueError("unsupported nested mapping").
+        parsed = parse_markdown_text(
+            "---\nitems:\n  - one\n  # comment\n  - two\n---\n"
+        )
+        self.assertEqual(parsed.frontmatter["items"], ["one", "two"])
+
+    def test_multiple_comments_in_block_list_are_all_skipped(self) -> None:
+        parsed = parse_markdown_text(
+            "---\nitems:\n  - one\n# first\n  # second\n  - two\n  - three\n---\n"
+        )
+        self.assertEqual(parsed.frontmatter["items"], ["one", "two", "three"])
+
+    def test_comment_only_block_list_yields_null(self) -> None:
+        # A block list with only comments and no items parses as null (same as empty).
+        parsed = parse_markdown_text("---\nitems:\n# comment only\n---\n")
+        self.assertIsNone(parsed.frontmatter["items"])
+
+    def test_comment_between_multiple_block_lists(self) -> None:
+        parsed = parse_markdown_text(
+            "---\nfoo:\n  - a\n# between keys\nbar:\n  - b\n---\n"
+        )
+        self.assertEqual(parsed.frontmatter["foo"], ["a"])
+        self.assertEqual(parsed.frontmatter["bar"], ["b"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -48,12 +48,9 @@ Hello.
             self.assertEqual(parsed.frontmatter["id"], "TEST")
             self.assertEqual(parsed.body, "body\n")
 
-
     def test_unindented_comment_in_block_list_is_skipped(self) -> None:
         # Bug: unindented comment caused premature list termination (silent data loss).
-        parsed = parse_markdown_text(
-            "---\nitems:\n  - one\n# comment\n  - two\n---\n"
-        )
+        parsed = parse_markdown_text("---\nitems:\n  - one\n# comment\n  - two\n---\n")
         self.assertEqual(parsed.frontmatter["items"], ["one", "two"])
 
     def test_indented_comment_in_block_list_is_skipped(self) -> None:

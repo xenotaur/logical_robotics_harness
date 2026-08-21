@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_17_51_24_WI_LRH_MEMORY_PORTABILITY_CONFIRM_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_MEMORY_PORTABILITY_CONFIRM_SELFREVIEW)[2026-08-21T17:51:16+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_21_17_39_29_WI_LRH_MEMORY_PORTABILITY_CONFIRM
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/589
-commit: 327299c50bbf0214f9db775b6a58cbec2570fd1b
+commit: c2672f22a3ed2465d9e81b14b97db09dac978959
 created_at: 2026-08-21T17:51:24+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/589

@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_17_31_49_WI_LRH_MEMORY_PORTABILITY_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_MEMORY_PORTABILITY_REVIEW)[2026-08-21T17:31:11+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_21_17_21_02_WI_LRH_MEMORY_PORTABILITY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/589
-commit: 9d524c99a70b8d4f6978dcb56278c5d6ee501ade
+commit: c2672f22a3ed2465d9e81b14b97db09dac978959
 created_at: 2026-08-21T17:31:49+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/589

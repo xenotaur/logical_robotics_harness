@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #589 (commit c2672f22)"
 blocked_reason: null
 blocked: false
 id: WI-LRH-MEMORY-PORTABILITY
 title: Implement lrh memory export/import/transfer
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

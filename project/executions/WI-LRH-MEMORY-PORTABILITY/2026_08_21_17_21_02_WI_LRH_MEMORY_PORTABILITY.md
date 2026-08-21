@@ -2,14 +2,14 @@
 execution_id: 2026_08_21_17_21_02_WI_LRH_MEMORY_PORTABILITY
 prompt_id: PROMPT(WI-LRH-MEMORY-PORTABILITY:WI_LRH_MEMORY_PORTABILITY)[2026-08-21T16:20:35+00:00]
 work_item: WI-LRH-MEMORY-PORTABILITY
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/589
-commit:
+commit: c2672f22a3ed2465d9e81b14b97db09dac978959
 created_at: 2026-08-21T17:21:02+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-MEMORY-PORTABILITY.md
-session_transcript: pending
+session_transcript: claude-app:3bfe1290-c27a-4ffe-82f5-e718adbd8319
 ---
 
 # Summary

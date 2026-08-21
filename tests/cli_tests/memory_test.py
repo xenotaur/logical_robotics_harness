@@ -4,6 +4,8 @@ import sys
 import tempfile
 import unittest
 
+from lrh.prompt_workflow_sessions import project_slug_for_path
+
 
 class MemoryCliTest(unittest.TestCase):
     def _repo_root(self) -> pathlib.Path:
@@ -484,6 +486,179 @@ class MemoryCliTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("error:", result.stderr)
             self.assertNotIn("Traceback", result.stderr)
+
+    def test_read_prints_frontmatter_and_body(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            self._run(
+                "write",
+                "feedback-read-target",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="a distinctive body line\n",
+            )
+
+            result = self._run(
+                "read",
+                "feedback-read-target",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertIn("name: feedback-read-target", result.stdout)
+            self.assertIn("a distinctive body line", result.stdout)
+
+    def test_read_missing_memory_reports_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            result = self._run(
+                "read",
+                "feedback-does-not-exist",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("error:", result.stderr)
+
+    def test_read_symlinked_memory_reports_error_not_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            outside_secret = pathlib.Path(tmp) / "secret.md"
+            outside_secret.write_text("top secret\n", encoding="utf-8")
+
+            memory_dir = claude_root / project_slug_for_path(project_root) / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "feedback_symlinked.md").symlink_to(outside_secret)
+
+            result = self._run(
+                "read",
+                "feedback-symlinked",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("error:", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+            self.assertNotIn("top secret", result.stdout)
+
+    def test_read_json_handles_yaml_timestamp_in_frontmatter(self) -> None:
+        """Regression test: yaml.safe_load parses a YAML timestamp into a
+        datetime object, which json.dumps cannot serialize by default --
+        --format json must not crash on such a memory."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            memory_dir = claude_root / project_slug_for_path(project_root) / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "feedback_dated.md").write_text(
+                "---\n"
+                "name: feedback-dated\n"
+                "description: d\n"
+                "metadata:\n"
+                "  type: feedback\n"
+                "  authored_by: claude\n"
+                "  observed_at: 2026-01-01\n"
+                "---\n\nbody\n",
+                encoding="utf-8",
+            )
+
+            result = self._run(
+                "read",
+                "feedback-dated",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                "--format",
+                "json",
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertIn("2026-01-01", result.stdout)
+
+    def test_search_finds_and_reports_no_match(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            self._run(
+                "write",
+                "feedback-search-target",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="a line about apples\n",
+            )
+
+            found = self._run(
+                "search",
+                "apples",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(found.returncode, 0, msg=found.stderr)
+            self.assertIn("matches: 1", found.stdout)
+            self.assertIn("feedback-search-target", found.stdout)
+
+            not_found = self._run(
+                "search",
+                "bananas",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(not_found.returncode, 1)
+            self.assertIn("matches: 0", not_found.stdout)
+
+    def test_search_empty_query_returns_exit_code_one(self) -> None:
+        """Regression test: search's error exit code must be 1, consistent
+        with every other MemoryValidationError handler in this CLI (write,
+        read, repair, export, import, transfer) -- not the 2 lrh search's
+        own unrelated ValueError convention uses."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            result = self._run(
+                "search",
+                "",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("error:", result.stderr)
 
 
 if __name__ == "__main__":

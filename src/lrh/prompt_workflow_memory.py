@@ -3,12 +3,12 @@ per-project memory corpus (``~/.claude/projects/<slug>/memory/``).
 
 Implements Stage 1 of PROP-LRH-MEMORY-COMMAND: ``write``, ``list``,
 ``validate``, and ``repair`` (Decision 9's fast follow-up), Stage 2's
-``sync`` (WI-LRH-MEMORY-ARCHIVE-SIDE, Decisions 5-6), and Stage 4's
+``sync`` (WI-LRH-MEMORY-ARCHIVE-SIDE, Decisions 5-6), Stage 3's ``read``/
+``search`` (WI-LRH-MEMORY-READ-SIDE, Decision 7), and Stage 4's
 ``export``/``import``/``transfer`` (WI-LRH-MEMORY-PORTABILITY, Decision 8).
 Resolves the corpus path via ``project_slug_for_path`` (reused from
 ``prompt_workflow_sessions``, not reimplemented -- see that proposal's
-Decision 4). Does not implement ``read``/``search`` -- that is a separate
-work item.
+Decision 4).
 """
 
 from __future__ import annotations
@@ -1009,3 +1009,207 @@ def transfer_memories(
         return _import_records_into_dir(
             to_dir, bundle_records, force=force, dry_run=dry_run
         )
+
+
+# ---------------------------------------------------------------------------
+# Read-side: read / search (PROP-LRH-MEMORY-COMMAND Decision 7)
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class ReadResult:
+    name: str
+    path: pathlib.Path
+    frontmatter: dict[str, typing.Any]
+    body: str
+    content: str
+
+
+def read_memory(
+    project_root: str | pathlib.Path,
+    name: str,
+    *,
+    claude_projects_root: str | pathlib.Path | None = None,
+) -> ReadResult:
+    """Read one memory's full frontmatter and body, given only its name."""
+
+    _validate_name(name)
+    memory_dir = memory_dir_for_project(project_root, claude_projects_root)
+    filename = filename_for(name)
+    path = memory_dir / filename
+    if not path.exists():
+        raise MemoryValidationError(f"no memory named {name!r} found ({filename})")
+    if path.is_symlink():
+        # _validate_name blocks path traversal via the name itself, but a
+        # symlink placed directly in the corpus (feedback-x.md -> /etc/passwd)
+        # bypasses that entirely -- Path.read_text() follows symlinks by
+        # default, so an unchecked read here could print content from
+        # anywhere on disk, not just the resolved corpus.
+        raise MemoryValidationError(
+            f"{filename} is a symlink; refusing to read outside the memory corpus"
+        )
+    content = path.read_text(encoding="utf-8")
+    frontmatter, body = read_frontmatter_and_body(content)
+    return ReadResult(
+        name=name, path=path, frontmatter=frontmatter, body=body, content=content
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class MemorySearchMatch:
+    name: str
+    path: pathlib.Path
+    authored_by: str | None
+    contexts: list[str]
+
+
+@dataclasses.dataclass(frozen=True)
+class MemorySearchResult:
+    query: str
+    matches: list[MemorySearchMatch]
+    case_sensitive: bool
+    agent: str = ""
+    type_: str = ""
+
+    @property
+    def match_count(self) -> int:
+        return len(self.matches)
+
+    @property
+    def exit_code(self) -> int:
+        return 0 if self.matches else 1
+
+
+def _comparable(value: str, *, case_sensitive: bool) -> str:
+    if case_sensitive:
+        return value
+    return value.casefold()
+
+
+def _compact_context(value: str) -> str:
+    compacted = " ".join(value.split())
+    if len(compacted) <= 160:
+        return compacted
+    return compacted[:157].rstrip() + "..."
+
+
+def _memory_stringify(value: typing.Any) -> str:
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _memory_searchable_segments(
+    frontmatter: dict[str, typing.Any], body: str
+) -> list[tuple[str, str]]:
+    segments: list[tuple[str, str]] = []
+    for key in sorted(frontmatter):
+        segments.append((f"frontmatter.{key}", _memory_stringify(frontmatter[key])))
+    for line_number, line in enumerate(body.splitlines(), start=1):
+        if line.strip():
+            segments.append((f"body:{line_number}", line.strip()))
+    return segments
+
+
+def search_memories(
+    project_root: str | pathlib.Path,
+    query: str,
+    *,
+    agent: str = "",
+    type_: str = "",
+    case_sensitive: bool = False,
+    claude_projects_root: str | pathlib.Path | None = None,
+) -> MemorySearchResult:
+    """Deterministic, case-folded substring search over a memory corpus's
+    frontmatter and body text.
+
+    Modeled directly on
+    :func:`lrh.prompt_workflow_search.search_execution_records`'s design
+    (Decision 7: exploratory substring matching only, no semantic or
+    relevance-ranked search).
+    """
+
+    if query == "":
+        raise MemoryValidationError("query must not be empty")
+
+    memory_dir = memory_dir_for_project(project_root, claude_projects_root)
+    comparable_query = _comparable(query, case_sensitive=case_sensitive)
+
+    matches: list[MemorySearchMatch] = []
+    if memory_dir.exists():
+        for path in sorted(memory_dir.glob("*.md")):
+            if path.name == INDEX_FILENAME:
+                continue
+            if path.is_symlink():
+                # Path.read_text() follows symlinks by default -- a symlink
+                # placed directly in the corpus could point outside it
+                # entirely. Skip it rather than aborting the whole search,
+                # matching how a malformed/unreadable entry is handled below.
+                continue
+            try:
+                raw_content = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                # A single unreadable or non-UTF-8 *.md file must not abort
+                # the whole search -- skip it and keep returning matches
+                # from the remaining memories, matching the existing
+                # execution-record search's per-record resilience.
+                continue
+            try:
+                frontmatter, body = read_frontmatter_and_body(raw_content)
+            except MemoryValidationError:
+                # A malformed/legacy memory has no valid frontmatter to
+                # filter or attribute by -- but its content is still real,
+                # searchable text, and is exactly the population this
+                # command family exists to help inspect and repair.
+                # Skip it only when an --agent/--type filter was requested
+                # (unanswerable without valid metadata); otherwise search
+                # its raw content as a single opaque blob rather than
+                # silently excluding it from results.
+                if agent or type_:
+                    continue
+                comparable_raw = _comparable(raw_content, case_sensitive=case_sensitive)
+                if comparable_query in comparable_raw:
+                    matches.append(
+                        MemorySearchMatch(
+                            name=path.stem,
+                            path=path,
+                            authored_by=None,
+                            contexts=[f"content: {_compact_context(raw_content)}"],
+                        )
+                    )
+                continue
+            metadata = frontmatter.get("metadata")
+            if not isinstance(metadata, dict):
+                metadata = {}
+            authored_by = metadata.get("authored_by")
+            if agent and authored_by != agent:
+                continue
+            if type_ and metadata.get("type") != type_:
+                continue
+
+            contexts: list[str] = []
+            for label, text in _memory_searchable_segments(frontmatter, body):
+                comparable_text = _comparable(text, case_sensitive=case_sensitive)
+                if comparable_query in comparable_text:
+                    contexts.append(f"{label}: {_compact_context(text)}")
+                if len(contexts) >= 3:
+                    break
+            if contexts:
+                matches.append(
+                    MemorySearchMatch(
+                        name=frontmatter.get("name") or path.stem,
+                        path=path,
+                        authored_by=authored_by,
+                        contexts=contexts,
+                    )
+                )
+
+    return MemorySearchResult(
+        query=query,
+        matches=matches,
+        case_sensitive=case_sensitive,
+        agent=agent,
+        type_=type_,
+    )

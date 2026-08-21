@@ -326,10 +326,15 @@ lrh prompt record-session-alias \
 ```
 
 **Skip this step entirely** for records resolved via Step 3's `codex_app`,
-`codex_cloud`, `manual`, or other-non-Claude-backend branches — those
-resolve to `codex-app:<id>`, `codex-cloud:<id>`, `pending`, or `none`, none
-of which is a usable `--host-id`. There is no analogous alias mechanism for
-those backends; do not pass any of those values as `--host-id`.
+`codex_cloud`, `manual`, or other-non-Claude-backend branches. The
+`codex_app`/`codex_cloud`/`manual` branches resolve to `codex-app:<id>`,
+`codex-cloud:<id>`, `pending`, or `none`; the catch-all other-non-Claude
+branch may resolve to a different backend's own scheme-prefixed id
+instead. None of these — nor any other non-Claude-backend pointer value,
+whatever its exact form — is a usable `--host-id`; the value this flag
+expects is specifically the Claude.app host-uuid-stem paths 1/2/3 above
+resolve. There is no analogous alias mechanism for non-Claude backends; do
+not pass any non-Claude-backend pointer value as `--host-id`.
 
 **Omit `--child-id` entirely** (do not pass the flag) for records resolved
 via path 2 (`list_sessions` by PR) or path 3 (pasted URL) — pairing a

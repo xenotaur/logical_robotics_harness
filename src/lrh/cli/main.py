@@ -24,6 +24,7 @@ from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.conversations import (
     codex_app_server_export,
+    codex_archive,
     codex_file_export,
     export_inspector,
     pdf_import,
@@ -120,6 +121,16 @@ def main() -> None:
         "export-codex-thread",
         add_help=False,
         help="Export a Codex thread through app-server thread/read.",
+    )
+    conversation_subparsers.add_parser(
+        "archive-codex-thread",
+        add_help=False,
+        help="Export a Codex thread into the durable private archive.",
+    )
+    conversation_subparsers.add_parser(
+        "import-codex-exports",
+        add_help=False,
+        help="Import existing LRH Codex export directories into the archive.",
     )
     conversation_subparsers.add_parser(
         "inspect-export",
@@ -853,10 +864,26 @@ def main() -> None:
                     prog="lrh conversation export-codex-thread",
                 )
             )
+        if args.conversation_command == "archive-codex-thread":
+            raise SystemExit(
+                codex_archive.run_archive_codex_thread_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation archive-codex-thread",
+                )
+            )
+        if args.conversation_command == "import-codex-exports":
+            raise SystemExit(
+                codex_archive.run_import_codex_exports_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation import-codex-exports",
+                )
+            )
         parser.error(
             "conversation requires a subcommand "
             "(try: lrh conversation convert-codex-file, "
+            "lrh conversation archive-codex-thread, "
             "lrh conversation export-codex-thread, "
+            "lrh conversation import-codex-exports, "
             "lrh conversation inspect-export, or lrh conversation convert-pdf)"
         )
 

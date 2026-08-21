@@ -158,6 +158,87 @@ path, raw capture path, privacy, sensitivity status, warning count, turn count,
 message count, item-type counts, and raw source hash. Potential sensitive
 findings are also reported as warnings on stderr.
 
+## `lrh conversation archive-codex-thread`
+
+```bash
+lrh conversation archive-codex-thread --thread-id THREAD_ID
+lrh conversation archive-codex-thread --thread-id THREAD_ID --scratch
+```
+
+Exports a Codex thread through the same app-server adapter as
+`export-codex-thread`, but chooses the output paths automatically and writes an
+`attempt.json` marker for every attempt. This is the durable default used by
+`/lrh-codex-export`.
+
+The archive root resolves in this order:
+
+1. `--archive-root`;
+2. `LRH_SESSION_ARCHIVE_ROOT`;
+3. `~/.local/share/lrh/session-archive`.
+
+Routine exports are written under
+`<archive-root>/codex/exports/YYYY/MM/lrh-codex-export-<timestamp>-<thread>/`.
+The archive directory is created with restrictive permissions where supported.
+LRH rejects archive roots that resolve inside the current Git worktree.
+`attempt.json` is written before app-server access starts, then updated with
+success or failure outcome, output paths, source hash, and validation status.
+
+Use `--scratch` only for explicitly ephemeral dogfood or debugging captures.
+Scratch output is reported with `Ephemeral: yes` and is not the durable archive
+default.
+
+### Options
+
+- `--thread-id ID` — Codex thread id to export. Defaults to `CODEX_THREAD_ID`
+  when the environment variable is set.
+- `--archive-root ROOT` — session archive root override.
+- `--scratch` — write to an explicit ephemeral scratch directory instead of the
+  durable archive.
+- `--scratch-root ROOT` — scratch parent directory; requires `--scratch`.
+- `--codex PATH` — Codex executable path. Defaults to `CODEX`, then `codex`.
+- `--timeout-seconds N` — timeout for each app-server response.
+- `--no-scan-sensitive` — skip the local heuristic sensitivity scanner.
+
+### Exit behavior
+
+The command returns nonzero for missing thread ids, invalid timeouts, invalid
+scratch options, app-server/export failures, write failures, and failed
+manifest/source-hash validation. Terminal output is metadata-only and does not
+print transcript body text.
+
+## `lrh conversation import-codex-exports`
+
+```bash
+lrh conversation import-codex-exports "$HOME/Workspace/Promptspace/CodexExports"
+```
+
+Imports existing LRH Codex export directories into the durable archive without
+printing transcript bodies. The source may be one export directory or a parent
+directory containing immediate child export directories.
+
+Each imported directory is copied under
+`<archive-root>/codex/imports/YYYY/MM/`. Valid directories containing both
+`export.md` and `raw.json` are inspected with `inspect-export` and classified as
+`imported`. Missing files are preserved as explicit `partial` or `empty`
+attempts with an `attempt.json` marker, so an empty rescued directory cannot be
+mistaken for a successful export. LRH rejects archive roots that resolve inside
+the current Git worktree, and copied `export.md`, `raw.json`, and
+`attempt.json` files are chmod'd private where supported.
+
+### Options
+
+- `SOURCE` — directory containing one Codex export or child export directories.
+- `--archive-root ROOT` — session archive root override.
+- `--dry-run` — report classification without copying or writing attempts.
+- `--force` — replace an existing imported directory with the same destination
+  name.
+
+### Exit behavior
+
+The command returns nonzero for missing/non-directory sources, destination write
+failures, and other archive errors. On success it prints one metadata-only line
+per source directory plus a status-count summary.
+
 ## `lrh conversation inspect-export`
 
 ```bash

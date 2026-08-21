@@ -24,12 +24,14 @@ Add content here when the reader's problem starts with conversation material: ca
 
 LRH includes local, private-by-default conversation capture paths for Codex app
 tasks, explicit local Codex files, and ChatGPT PDF exports with extractable
-text. These paths create non-authoritative Markdown artifacts for later private
-review; they do not perform redaction certification, public export, storage
-import, model calls, or automatic promotion into project-control state.
+text. Codex app exports default to LRH's durable private session archive, while
+explicit file/PDF conversions write caller-chosen local paths. These paths
+create non-authoritative Markdown artifacts for later private review; they do
+not perform redaction certification, public export, model calls, or automatic
+promotion into project-control state.
 
 For Codex app tasks, use [`/lrh-codex-export`](codex_export.md) as the
-agent-facing workflow wrapper around `lrh conversation export-codex-thread`.
+agent-facing workflow wrapper around `lrh conversation archive-codex-thread`.
 For exact command options and exit behavior, see the
 [`lrh conversation` CLI reference](../reference/cli/conversation.md).
 

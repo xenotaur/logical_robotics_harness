@@ -257,6 +257,7 @@ def _write_memory_into_dir(
     body: str,
     applies_to: typing.Sequence[str] | None = None,
     force: bool = False,
+    dry_run: bool = False,
 ) -> WriteResult:
     """Core of :func:`write_memory`, taking an already-resolved ``memory_dir``.
 
@@ -265,6 +266,13 @@ def _write_memory_into_dir(
     corpus directory (``transfer``'s ``--to`` may name a slug rather than a
     project path -- see :func:`_resolve_memory_dir`) without re-deriving a
     slug from a string that was never a filesystem path to begin with.
+
+    ``dry_run`` runs every validation and conflict check below -- field
+    validation, the cross-agent overwrite guard -- without touching the
+    filesystem at all (no directory creation, no file write), so a caller
+    previewing an import/transfer sees exactly the same accept/reject
+    outcome a real run would produce, not merely "well-formed enough to
+    reach this function."
 
     Crash-consistency ordering (PROP-LRH-MEMORY-COMMAND Decision 4): the
     memory-file rename happens *before* the ``MEMORY.md`` rename. An
@@ -278,9 +286,9 @@ def _write_memory_into_dir(
     _validate_new_write_fields(name, description, type_, agent)
     applies_to = tuple(applies_to) if applies_to else (agent,)
 
-    memory_dir.mkdir(parents=True, exist_ok=True)
     filename = filename_for(name)
     memory_path = memory_dir / filename
+    index_path = memory_dir / INDEX_FILENAME
 
     if memory_path.exists() and not force:
         existing_frontmatter, _ = read_frontmatter_and_body(
@@ -298,6 +306,12 @@ def _write_memory_into_dir(
                 f"refusing to overwrite as {agent!r} without --force"
             )
 
+    if dry_run:
+        return WriteResult(
+            memory_path=memory_path, index_path=index_path, index_updated=False
+        )
+
+    memory_dir.mkdir(parents=True, exist_ok=True)
     content = _render_memory_file(
         name=name,
         description=description,
@@ -309,7 +323,6 @@ def _write_memory_into_dir(
     # Memory-file rename first -- see the crash-consistency note above.
     atomic_write(memory_path, content)
 
-    index_path = memory_dir / INDEX_FILENAME
     index_updated = _ensure_index_entry(
         index_path, filename=filename, name=name, description=description
     )
@@ -779,8 +792,15 @@ def _write_bundle(
     atomic_write(output_path, content)
 
 
-def _read_bundle(input_path: pathlib.Path) -> list[dict[str, typing.Any]]:
-    records: list[dict[str, typing.Any]] = []
+def _read_bundle(input_path: pathlib.Path) -> list[typing.Any]:
+    """Parse a bundle's lines as JSON. Does not require each line to decode
+    to an object -- a malformed line (a JSON list, string, or number) is
+    passed through as-is; :func:`_import_records_into_dir` is the layer
+    responsible for rejecting it as a clean per-record error rather than
+    crashing, since it is the one place both a bare CLI file read and a
+    ``transfer``-internal bundle share."""
+
+    records: list[typing.Any] = []
     for line in input_path.read_text(encoding="utf-8").splitlines():
         line = line.strip()
         if not line:
@@ -813,7 +833,7 @@ def export_memories(
 
 def _import_records_into_dir(
     memory_dir: pathlib.Path,
-    records: list[dict[str, typing.Any]],
+    records: list[typing.Any],
     *,
     names: typing.Sequence[str] | None = None,
     force: bool = False,
@@ -821,10 +841,24 @@ def _import_records_into_dir(
 ) -> list[ImportEntry]:
     if names:
         wanted = set(names)
-        records = [record for record in records if record.get("name") in wanted]
+        records = [
+            record
+            for record in records
+            if isinstance(record, dict) and record.get("name") in wanted
+        ]
 
     results: list[ImportEntry] = []
     for record in records:
+        if not isinstance(record, dict):
+            results.append(
+                ImportEntry(
+                    name=repr(record),
+                    written=False,
+                    error="bundle record is not a JSON object",
+                )
+            )
+            continue
+
         name = record.get("name")
         metadata = record.get("metadata")
         if not isinstance(metadata, dict):
@@ -834,13 +868,25 @@ def _import_records_into_dir(
         type_ = metadata.get("type")
         description = record.get("description")
         body = record.get("body") or ""
-        if dry_run:
-            results.append(ImportEntry(name=name, written=False, error=None))
-            continue
         try:
+            if applies_to is not None and not isinstance(applies_to, (list, tuple)):
+                # A string applies_to would not raise inside
+                # _write_memory_into_dir -- `tuple("not-a-list")` silently
+                # succeeds, splitting the string into one bogus applies_to
+                # entry per character, rather than crashing or being
+                # rejected. Reject it explicitly at the bundle boundary
+                # instead of writing corrupted metadata.
+                raise MemoryValidationError(
+                    "bundle record 'metadata.applies_to' must be a list, "
+                    f"got {type(applies_to).__name__}"
+                )
             # Routes through the exact same validated path write_memory()
             # uses -- rejecting anything write itself would reject -- not a
-            # second, less-validated write mechanism.
+            # second, less-validated write mechanism. ``dry_run`` here runs
+            # every validation/conflict check without touching the
+            # filesystem, so a dry-run preview reports the same
+            # accept/reject outcome a real import would, not merely
+            # "well-formed enough to reach this call."
             _write_memory_into_dir(
                 memory_dir,
                 name,
@@ -850,9 +896,18 @@ def _import_records_into_dir(
                 body=body,
                 applies_to=applies_to,
                 force=force,
+                dry_run=dry_run,
             )
-            results.append(ImportEntry(name=name, written=True, error=None))
+            results.append(ImportEntry(name=name, written=not dry_run, error=None))
         except MemoryValidationError as exc:
+            results.append(ImportEntry(name=name, written=False, error=str(exc)))
+        except (TypeError, AttributeError) as exc:
+            # Defensive: a bundle record can be a well-formed JSON object
+            # with an incorrectly-typed field (e.g. `description: 7` or
+            # `metadata.applies_to: "not-a-list"`) that only fails once it
+            # reaches string/sequence operations deep inside validation or
+            # rendering -- this must still produce a clean ImportEntry, not
+            # an uncaught traceback.
             results.append(ImportEntry(name=name, written=False, error=str(exc)))
     return results
 
@@ -882,25 +937,34 @@ def _resolve_memory_dir(
     claude_projects_root: str | pathlib.Path | None,
 ) -> tuple[pathlib.Path, str]:
     """Resolve a ``transfer`` ``--from``/``--to`` argument as either a
-    literal project slug (if a corpus already exists at
-    ``<claude_projects_root>/<value>/memory``) or a project root path
-    (slug derived via :func:`project_slug_for_path`, same as every other
-    memory command) -- ``transfer`` is the only command that needs this
-    dual form, since its whole point is moving memories *between* two
-    corpora that are not both "the current project".
+    literal project slug or a project root path (slug derived via
+    :func:`project_slug_for_path`, same as every other memory command) --
+    ``transfer`` is the only command that needs this dual form, since its
+    whole point is moving memories *between* two corpora that are not both
+    "the current project".
 
-    The literal-slug branch is only attempted when ``path_or_slug`` looks
-    like a bare slug (no path separators). ``pathlib``'s ``/`` operator
-    silently discards its left operand whenever the right operand is
-    itself absolute, so ``root / literal_slug`` for an absolute
-    ``path_or_slug`` (the normal shape of a project-root argument) would
-    resolve to ``<path_or_slug>/memory`` -- a directory *inside* the
-    caller's own path, entirely outside ``claude_projects_root`` -- and
-    silently read from or write into it if that directory happened to
-    already exist, with no error surfaced. A genuine slug from
+    A value with no path separators (and not ``.``/``..``) is *always*
+    treated as a literal slug -- never gated on the destination's
+    ``memory/`` directory already existing. An earlier revision required
+    ``<claude_projects_root>/<value>/memory`` to already exist before
+    accepting the literal-slug interpretation; that silently broke the
+    normal ``--to <fresh-slug>`` case this command exists to support (a
+    destination corpus that doesn't exist yet), falling through to
+    :func:`project_slug_for_path` instead -- which resolves the bare slug
+    string as a *relative filesystem path from the current working
+    directory*, silently writing into a derived corpus for whatever
+    directory that happened to name, while still reporting success.
+
+    ``pathlib``'s ``/`` operator silently discards its left operand
+    whenever the right operand is itself absolute, so ``root /
+    literal_slug`` for an absolute ``path_or_slug`` (the normal shape of a
+    project-root argument) would resolve to ``<path_or_slug>/memory`` --
+    entirely outside ``claude_projects_root``. A genuine slug from
     :func:`project_slug_for_path` never contains a path separator (it
-    replaces ``/`` and ``.`` with ``-``), so this check never misclassifies
-    a real slug as a path.
+    replaces ``/`` and ``.`` with ``-``), so restricting the literal-slug
+    branch to separator-free values never misclassifies a real slug as a
+    path, and unconditionally accepting it (once separator-free) never
+    misclassifies a real path as a slug either.
     """
 
     root = (
@@ -909,11 +973,13 @@ def _resolve_memory_dir(
         else default_claude_projects_root()
     )
     literal_slug = str(path_or_slug)
-    looks_like_bare_slug = "/" not in literal_slug and "\\" not in literal_slug
+    looks_like_bare_slug = (
+        "/" not in literal_slug
+        and "\\" not in literal_slug
+        and literal_slug not in (".", "..")
+    )
     if looks_like_bare_slug:
-        literal_dir = root / literal_slug / MEMORY_DIRNAME
-        if literal_dir.is_dir():
-            return literal_dir, literal_slug
+        return root / literal_slug / MEMORY_DIRNAME, literal_slug
     slug = project_slug_for_path(path_or_slug)
     return root / slug / MEMORY_DIRNAME, slug
 

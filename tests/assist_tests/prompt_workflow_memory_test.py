@@ -1203,6 +1203,95 @@ class ImportMemoriesTest(unittest.TestCase):
             self.assertFalse(entries[0].written)
             self.assertIsNotNone(entries[0].error)
 
+    def test_import_rejects_malformed_bundle_records_without_crashing(self) -> None:
+        """Regression test: a JSONL line may legally decode to a list,
+        scalar, or an object with incorrectly typed fields -- these must
+        become a clean ImportEntry error, not an uncaught AttributeError/
+        TypeError from calling .get() or string/sequence operations on a
+        non-dict or mistyped value."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            dest_root = pathlib.Path(tmp) / "proj"
+            bundle = pathlib.Path(tmp) / "bundle.jsonl"
+            bundle.write_text(
+                "\n".join(
+                    [
+                        json.dumps([1, 2, 3]),
+                        json.dumps("just a string"),
+                        json.dumps(
+                            {
+                                "name": "feedback-bad-description",
+                                "description": 7,
+                                "metadata": {
+                                    "type": "feedback",
+                                    "authored_by": "claude",
+                                },
+                                "body": "b\n",
+                            }
+                        ),
+                        json.dumps(
+                            {
+                                "name": "feedback-bad-applies-to",
+                                "description": "d",
+                                "metadata": {
+                                    "type": "feedback",
+                                    "authored_by": "claude",
+                                    "applies_to": "not-a-list",
+                                },
+                                "body": "b\n",
+                            }
+                        ),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            entries = prompt_workflow_memory.import_memories(
+                dest_root, input=bundle, claude_projects_root=claude_root
+            )
+
+            self.assertEqual(len(entries), 4)
+            self.assertTrue(all(not entry.written for entry in entries))
+            self.assertTrue(all(entry.error is not None for entry in entries))
+
+    def test_import_dry_run_runs_real_validation(self) -> None:
+        """Regression test: dry-run previously marked every parsed record
+        error-free unconditionally, before write_memory's own validation
+        ever ran -- so an invalid type, missing author, or cross-agent
+        conflict that a real import rejects was reported as `would write`.
+        Dry-run must run the exact same validation/conflict checks a real
+        import would, just without touching the filesystem."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            dest_root = pathlib.Path(tmp) / "proj"
+            bundle = pathlib.Path(tmp) / "bundle.jsonl"
+            bundle.write_text(
+                json.dumps(
+                    {
+                        "name": "feedback-bad",
+                        "description": "d",
+                        "metadata": {
+                            "type": "not-a-real-type",
+                            "authored_by": "claude",
+                        },
+                        "body": "b\n",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            entries = prompt_workflow_memory.import_memories(
+                dest_root, input=bundle, dry_run=True, claude_projects_root=claude_root
+            )
+
+            self.assertEqual(len(entries), 1)
+            self.assertFalse(entries[0].written)
+            self.assertIsNotNone(entries[0].error)
+
     def test_import_dry_run_does_not_write(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             claude_root = pathlib.Path(tmp) / "claude-projects"
@@ -1334,11 +1423,7 @@ class TransferMemoriesTest(unittest.TestCase):
                 body="body\n",
                 claude_projects_root=claude_root,
             )
-            # Establish the destination corpus first so its slug directory
-            # already exists (transfer's literal-slug detection requires
-            # <claude_projects_root>/<value>/memory to already exist).
             dest_slug = project_slug_for_path(dest_root)
-            (claude_root / dest_slug / "memory").mkdir(parents=True)
 
             entries = prompt_workflow_memory.transfer_memories(
                 from_=source_root,
@@ -1351,6 +1436,49 @@ class TransferMemoriesTest(unittest.TestCase):
             self.assertTrue(entries[0].written)
             self.assertTrue(
                 (claude_root / dest_slug / "memory" / "feedback_foo.md").exists()
+            )
+
+    def test_transfer_accepts_a_fresh_literal_slug_with_no_existing_corpus(
+        self,
+    ) -> None:
+        """Regression test: an earlier revision only accepted the
+        literal-slug interpretation of --to when
+        <claude_projects_root>/<value>/memory already existed, silently
+        falling through to project_slug_for_path() (treating the bare slug
+        string as a relative filesystem path from the CWD) for the normal
+        "fresh destination corpus" case -- exactly the state transfer is
+        meant to populate. A bare slug (no path separators) must be
+        accepted unconditionally, regardless of whether its corpus
+        directory exists yet."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+
+            fresh_slug = "brand-new-project-slug"
+            self.assertFalse((claude_root / fresh_slug).exists())
+
+            entries = prompt_workflow_memory.transfer_memories(
+                from_=source_root,
+                to=fresh_slug,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+
+            self.assertEqual(len(entries), 1)
+            self.assertTrue(entries[0].written)
+            self.assertTrue(
+                (claude_root / fresh_slug / "memory" / "feedback_foo.md").exists()
             )
 
     def test_transfer_with_absolute_path_never_escapes_claude_projects_root(

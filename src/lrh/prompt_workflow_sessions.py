@@ -164,7 +164,9 @@ def record_session_observation(
 # ---------------------------------------------------------------------------
 
 ARCHIVE_ROOT_ENV_VAR = "LRH_SESSION_ARCHIVE_ROOT"
-_SESSION_ID_DIR = re.compile(r"^[0-9A-Fa-f][0-9A-Fa-f-]{7,}$")
+_SESSION_ID_DIR = re.compile(
+    r"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-" r"[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$"
+)
 
 
 def default_archive_root() -> pathlib.Path:
@@ -226,7 +228,7 @@ def _top_level_transcripts(
 def _is_session_artifact_dir(name: str, known_session_ids: set[str]) -> bool:
     if name in known_session_ids:
         return True
-    return bool(_SESSION_ID_DIR.fullmatch(name) and any(c.isdigit() for c in name))
+    return bool(_SESSION_ID_DIR.fullmatch(name))
 
 
 def discover_transcripts(
@@ -258,7 +260,9 @@ def discover_transcripts(
             if not _is_session_artifact_dir(session_id, known_session_ids):
                 continue
             owner_slug = session_id_to_slug.get(session_id, local_slug)
-            for nested_file in sorted(p for p in session_dir.rglob("*") if p.is_file()):
+            for nested_file in sorted(
+                p for p in session_dir.rglob("*") if not p.is_symlink() and p.is_file()
+            ):
                 relative_path = pathlib.Path(session_id) / nested_file.relative_to(
                     session_dir
                 )

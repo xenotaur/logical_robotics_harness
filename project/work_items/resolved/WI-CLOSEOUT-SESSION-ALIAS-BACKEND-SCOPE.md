@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #572 (creation, commit 5f57a74d) and PR #573 (implementation, commit b6474a17)."
 blocked_reason: null
 blocked: false
 id: WI-CLOSEOUT-SESSION-ALIAS-BACKEND-SCOPE
 title: Scope /lrh-closeout session-alias capture to Claude-resolved host ids
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

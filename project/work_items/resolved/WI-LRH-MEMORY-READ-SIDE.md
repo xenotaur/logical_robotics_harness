@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #594 (commit 4acd447e)"
 blocked_reason: null
 blocked: false
 id: WI-LRH-MEMORY-READ-SIDE
 title: Implement lrh memory read/search
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

@@ -2,14 +2,14 @@
 execution_id: 2026_08_21_18_32_00_WI_LRH_MEMORY_READ_SIDE
 prompt_id: PROMPT(WI-LRH-MEMORY-READ-SIDE:WI_LRH_MEMORY_READ_SIDE)[2026-08-21T18:13:56+00:00]
 work_item: WI-LRH-MEMORY-READ-SIDE
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/594
-commit:
+commit: 4acd447ecc1035574c58de440685ebe56d081c63
 created_at: 2026-08-21T18:32:00+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-MEMORY-READ-SIDE.md
-session_transcript: pending
+session_transcript: claude-app:3bfe1290-c27a-4ffe-82f5-e718adbd8319
 ---
 
 # Summary

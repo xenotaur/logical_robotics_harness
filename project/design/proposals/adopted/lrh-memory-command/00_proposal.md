@@ -4,9 +4,13 @@ type: design_proposal
 title: LRH Memory Command — Validated Cross-Agent Writes and Durable Archival for Claude Code Memory
 status: adopted
 created_on: 2026-08-18
-updated_on: 2026-08-19
-implementation_status: not_started
-implemented_by: []
+updated_on: 2026-08-21
+implementation_status: implemented
+implemented_by:
+  - WI-LRH-MEMORY-WRITE-SIDE
+  - WI-LRH-MEMORY-ARCHIVE-SIDE
+  - WI-LRH-MEMORY-READ-SIDE
+  - WI-LRH-MEMORY-PORTABILITY
 supersedes: []
 superseded_by: null
 related_design:

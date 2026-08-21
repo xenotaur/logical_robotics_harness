@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_18_38_33_WI_LRH_MEMORY_READ_SIDE_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_MEMORY_READ_SIDE_REVIEW)[2026-08-21T18:37:56+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_21_18_32_00_WI_LRH_MEMORY_READ_SIDE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/594
-commit: 93d741083919b0b185f059b1146a81ca9f2a1db2
+commit: 4acd447ecc1035574c58de440685ebe56d081c63
 created_at: 2026-08-21T18:38:33+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/594

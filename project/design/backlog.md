@@ -1467,10 +1467,13 @@ with-a-smaller-source invariant. That would also give `authored_by` filtering
 a durable corpus to operate over, and would close the gap without a new
 mechanism — memory is already path-keyed the same way transcripts are.
 
-**Status:** Tracked, not designed. Deliberately not blocking the memory
-migration it was discovered during: migration is a byte-exact copy and is
-format-agnostic, so it neither improves nor worsens these files. The archival
-gap is independent of the write-side idea and could land first.
+**Status:** Closed 2026-08-21. Both gaps designed and implemented via
+`PROP-LRH-MEMORY-COMMAND` (`project/design/proposals/adopted/lrh-memory-command/00_proposal.md`)
+and its four implementing work items, all now resolved: `WI-LRH-MEMORY-WRITE-SIDE`
+(`lrh memory write`/`list`/`validate`/`repair`, PR #570), `WI-LRH-MEMORY-ARCHIVE-SIDE`
+(`lrh memory sync`, PR #583), `WI-LRH-MEMORY-READ-SIDE` (`lrh memory read`/`search`,
+PR #594), and `WI-LRH-MEMORY-PORTABILITY` (`lrh memory export`/`import`/`transfer`,
+PR #589).
 
 **Related:** `experimental/rescue_claude_sessions/findings.md` (full evidence,
 per-bucket counts, and the interleaving analysis);

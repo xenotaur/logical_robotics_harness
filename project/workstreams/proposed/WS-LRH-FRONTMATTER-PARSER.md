@@ -10,15 +10,17 @@ related_focus: []
 related_roadmap: []
 related_design:
   - project/design/proposals/proposed/lrh-frontmatter-parser/00_proposal.md
-work_items: []
+work_items:
+  - WI-FRONTMATTER-PARSER-CONSOLIDATION
+  - WI-FRONTMATTER-MIGRATION-LINT-GUARD
 exit_criteria:
   - src/lrh/control/parser.py and src/lrh/control/validator.py share a single PyYAML-based frontmatter parser; lrh validate and lrh work-items validate agree on well-formed frontmatter
   - The 3 identified datetime consumers (prompt_workflow_records.py, prompt_workflow_slug.py, prompt_workflow_search.py) handle datetime/date values explicitly, with tests
-  - The 27 files found by manual audit (9 colon-collapse + 18 syntax-error) are fixed; lrh validate and the real-project-tree loader test pass with 0 errors
+  - Every file with a colon-collapse list item or syntax-error scalar (27 at the original 2026-08 audit, 30 at re-verification before filing the implementation work items -- count drifts as content lands, re-locate at implementation time) is fixed; lrh validate and the real-project-tree loader test pass with 0 errors
   - lrh project doctor --fix-frontmatter migration tool exists, dry-run by default, and has been run (dry-run) and manually reviewed against LRH's own project/ tree before any --apply
   - lrh validate includes a lexical lint guard for the four confirmed unsafe-plain-scalar patterns (colon-collapse, reserved-indicator start, mid-scalar comment truncation, implicit non-string typing), and lrh project doctor --fix-frontmatter shares the same detector so migration and lint can never disagree
   - Frontmatter-authoring skills (lrh-work-item, lrh-workstream, lrh-proposal, lrh-closeout, lrh-execute) updated with the "always quote free text" guidance
-  - WI-VALIDATOR-YAML-PARSER is closed as superseded
+  - WI-VALIDATOR-YAML-PARSER and WI-PARSER-HARDENING are closed as superseded
 ---
 
 ## Purpose
@@ -37,8 +39,10 @@ that motivated this work cannot silently recur.
   `yaml.safe_load`-based parser.
 - Patch the 3 identified downstream consumers of raw `created_at` values
   for explicit `datetime`/`date` handling.
-- Fix the 27 files already found by manual audit to be incompatible with
-  real YAML (9 colon-collapse, 18 hard syntax errors).
+- Fix the files already found by manual audit to be incompatible with real
+  YAML (colon-collapse list items, hard syntax errors on backtick/multi-colon
+  scalars; count drifts as new content lands, re-locate at implementation
+  time rather than relying on a cached count).
 - Build and dry-run (then, after manual review, apply) a reusable content
   migration tool exposed via `lrh project doctor --fix-frontmatter`.
 - Add a raw-text lexical lint guard to `lrh validate` and update
@@ -74,16 +78,18 @@ that motivated this work cannot silently recur.
 
 ## Work Items
 
-Not yet filed. Per the proposal's Implementation Plan, expected work items
-(to be created under this workstream as planning matures):
-
-- Parser consolidation (`src/lrh/control/parser.py` + `src/lrh/control/validator.py`) with
-  tests, including the 27-file content fixes needed for `lrh validate` and
-  the real-project-tree loader test to pass.
-- Datetime consumer patches (3 files) with tests.
-- Migration tool (`lrh project doctor --fix-frontmatter`).
-- Lint guard in `lrh validate` + frontmatter-authoring skill guidance
-  updates.
+- **WI-FRONTMATTER-PARSER-CONSOLIDATION** — parser/validator consolidation
+  onto `yaml.safe_load`, datetime consumer patches, content fixes for the
+  files already found incompatible with real YAML, and the non-string
+  list-item schema check. Note: a narrower, independently-landed fix
+  (commit `2e1af28d`, PR #574) already patched the specific reported
+  crash directly on `control/parser.py`; this work item's broader scope
+  (consolidation, `validator.py`, content fixes, datetime handling) is
+  unaffected and still required.
+- **WI-FRONTMATTER-MIGRATION-LINT-GUARD** — shared unsafe-scalar detector,
+  `lrh validate` lint category, `lrh project doctor --fix-frontmatter`
+  migration tool, frontmatter-authoring skill guidance updates.
+  `depends_on: [WI-FRONTMATTER-PARSER-CONSOLIDATION]`.
 
 ## Exit Criteria
 

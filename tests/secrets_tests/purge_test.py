@@ -1,5 +1,6 @@
 import os
 import pathlib
+import shlex
 import subprocess
 import tempfile
 import unittest
@@ -213,6 +214,41 @@ class RunPurgeApplyTest(unittest.TestCase):
         )
         self.assertIn("Notify every collaborator", output)
         self.assertIn("host to purge cached views", output)
+
+    @mock.patch("lrh.secrets.purge.verify_clean", return_value=[])
+    @mock.patch("lrh.secrets.purge.run_filter_repo")
+    @mock.patch("lrh.secrets.purge.mirror_clone")
+    @mock.patch("lrh.secrets.purge.check_filter_repo_available")
+    def test_apply_shell_quotes_paths_with_spaces_in_push_command(
+        self, mock_check_available, mock_clone, mock_run_filter_repo, mock_verify
+    ) -> None:
+        spacey_mirror_dir = self.tmp_path / "my mirror"
+        output = purge.run_purge(
+            project_root=self.tmp_path,
+            source="git@example.com:has space/x.git",
+            refs_file=self.refs_file,
+            replacements_path=self.replacements_path,
+            mirror_dir=spacey_mirror_dir,
+            apply=True,
+        )
+        printed_command = next(
+            line for line in output.splitlines() if line.strip().startswith("git")
+        )
+        # A round trip through shlex.split() must reproduce the exact
+        # unquoted argument list -- confirming the printed command is
+        # actually safe to copy-paste into a shell.
+        self.assertEqual(
+            shlex.split(printed_command),
+            [
+                "git",
+                "-C",
+                str(spacey_mirror_dir),
+                "push",
+                "--force",
+                "git@example.com:has space/x.git",
+                "refs/heads/main",
+            ],
+        )
 
     @mock.patch("lrh.secrets.purge.verify_clean", return_value=["sk-aaa"])
     @mock.patch("lrh.secrets.purge.run_filter_repo")

@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_20_04_35_54_WI_CODEX_EXPORT_INVOCATION_FLAG_REMOVAL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/571
-commit: 
+commit: 0578ac8e
 agent: claude_code
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/571
 session_transcript: pending

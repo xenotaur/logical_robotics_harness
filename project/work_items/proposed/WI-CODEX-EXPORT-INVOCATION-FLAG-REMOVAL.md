@@ -17,10 +17,10 @@ related_roadmap:
 related_workstreams:
   - WS-INVOCATION-AND-GATE-RESET
 related_design:
-  - project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION.md
-  - project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE.md
   - project/memory/decisions/DEC-SELF-REVIEW-RECURSION-GUARD.md
-depends_on: []
+depends_on:
+  - WI-DELIBERATE-MODEL-INVOCATION
+  - WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE
 blocked_by: []
 expected_actions:
   - edit_file
@@ -32,6 +32,7 @@ forbidden_actions:
 acceptance:
   - A recorded assessment states explicitly why lrh-codex-export does or does not need a platform-enforced recursion guard analogous to lrh-self-review's, grounded in the skill's actual dispatch/chain behavior rather than assumed from precedent
   - If the flag is removed, when_to_use guidance is added narrowing invocation to explicit user requests, consistent with the skill's existing privacy and safety posture
+  - A persistent src/lrh/skills/lrh-codex-export/agents/openai.yaml with policy.allow_implicit_invocation:false is committed to source before or alongside the flag removal, verified to survive a fresh lrh skills install --target codex (which shutil.rmtree's the installed skill directory and only regenerates agents/openai.yaml from source, not by deriving it from disable-model-invocation once that flag is gone)
   - disable-model-invocation is absent from the source and all installed-corpus mirrors (.claude/skills/, .agents/skills/, .gemini/plugins/lrh/skills/), and from repo-local and user-scope Claude/Codex/Antigravity installs, not just the source tree
   - lrh validate reports 0 errors
 required_evidence:
@@ -39,8 +40,10 @@ required_evidence:
   - lrh_validate
 artifacts_expected:
   - src/lrh/skills/lrh-codex-export/SKILL.md
+  - src/lrh/skills/lrh-codex-export/agents/openai.yaml
   - .claude/skills/lrh-codex-export/SKILL.md
   - .agents/skills/lrh-codex-export/SKILL.md
+  - .agents/skills/lrh-codex-export/agents/openai.yaml
   - .gemini/plugins/lrh/skills/lrh-codex-export/SKILL.md
 ---
 
@@ -48,7 +51,7 @@ artifacts_expected:
 
 ## Summary
 
-`lrh-codex-export/SKILL.md` still carries `disable-model-invocation: true`,
+`src/lrh/skills/lrh-codex-export/SKILL.md` still carries `disable-model-invocation: true`,
 unlike the 9 skills `WI-DELIBERATE-MODEL-INVOCATION` already cleared to
 `when_to_use` guidance and the 4 skills
 `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` closed out with the same
@@ -71,8 +74,7 @@ instructions and one skill offering another, not just malicious invocation).
 
 ### Prior Art Check
 
-**Duplication search.** No existing work item owns this. `git grep -rl
-"lrh-codex-export" project/design/proposals/ project/workstreams/` finds
+**Duplication search.** No existing work item owns this. `git grep -rl "lrh-codex-export" project/design/proposals/ project/workstreams/` finds
 only `lrh-codex-export`'s own origin proposal/workstream
 (`WS-LRH-CODEX-APP-SERVER-EXPORT`, resolved) — neither mentions the flag.
 `project/design/backlog.md` has no entry.
@@ -112,16 +114,31 @@ actual risk first, don't assume the precedent transfers uncritically.
 
 ## Required Changes
 
-1. Read `lrh-codex-export/SKILL.md` in full against the recursion/gap
-   criteria above and record the assessment's conclusion explicitly.
+1. Read `src/lrh/skills/lrh-codex-export/SKILL.md` in full against the
+   recursion/gap criteria above and record the assessment's conclusion
+   explicitly.
 2. If clear to remove: delete `disable-model-invocation: true`, add
    `when_to_use` guidance narrowing invocation to explicit user requests
    (matching the skill's existing Safety Rules posture around explicit
    thread IDs and private data handling).
-3. Run `lrh skills install` for `--target claude|codex|antigravity` with
-   both `--local` and `--scope user`, and verify the flag's absence in each
-   resulting corpus, not just `src/`.
-4. Record the decision — a short note or DEC entry, whichever this
+3. **Before or alongside step 2, commit a persistent
+   `src/lrh/skills/lrh-codex-export/agents/openai.yaml`** with
+   `policy.allow_implicit_invocation: false`, matching the pattern already
+   committed at `src/lrh/skills/lrh-self-review/agents/openai.yaml`. This is
+   required, not optional: `_copy_skill_from_source`
+   (`src/lrh/skills/installer.py`) `shutil.rmtree`s the entire installed
+   skill directory before rewriting it, and `CodexSkillRenderer` only
+   regenerates `agents/openai.yaml` when source `disable-model-invocation`
+   is `True` — today that file exists only as an installer-derived artifact
+   at `.agents/skills/lrh-codex-export/agents/openai.yaml`, with no source
+   copy. Removing the flag without first committing a persistent source
+   copy means the next `lrh skills install --target codex` silently deletes
+   the file and permits implicit invocation of a privacy-sensitive exporter.
+4. Run `lrh skills install` for `--target claude|codex|antigravity` with
+   both `--local` and `--scope user`, and verify both the flag's absence
+   and `agents/openai.yaml`'s presence in each resulting Codex corpus, not
+   just `src/`.
+5. Record the decision — a short note or DEC entry, whichever this
    project's promotion bar calls for given the size of the change.
 
 ## Non-Goals
@@ -133,6 +150,14 @@ actual risk first, don't assume the precedent transfers uncritically.
   Safety Rules section.
 - Does not assume the flag should be removed — the assessment in Required
   Changes step 1 is a real decision point, not a formality.
+- Does not add this WI to `WS-INVOCATION-AND-GATE-RESET`'s `work_items:`
+  list in this same change, even though it is a valid registration gap
+  (review-flagged, PR #571) — that file is concurrently owned by
+  `WI-GATE-POLICY-CASCADE-STAGE3`'s implementation (open as PR #577 at the
+  time of this note), and editing it here would recreate the exact
+  concurrent-edit collision this program has already hit once (`PR #556`
+  vs. this session's local changes). Register this WI in that list as a
+  follow-up once PR #577 lands, not as part of this PR.
 
 ## Acceptance Criteria
 

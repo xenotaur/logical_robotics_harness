@@ -309,12 +309,15 @@ def mirror_file_with_snapshot(
     version is ever unrecoverable, but shrinkage is never treated as
     corruption or blocked.
 
-    Snapshot filenames follow ``<dest-name>.<timestamp>.<shorthash>.md``
-    under ``history_dir``, keyed by the *prior* content's hash so the same
-    snapshot is never written twice for an unchanged prior version. The
-    whole read-compare-snapshot-write sequence runs under :func:`_locked_dest`
-    so two overlapping mirrors of the same ``dest`` cannot race each other
-    into dropping an intermediate version.
+    Snapshot filenames follow ``<dest-stem>.<timestamp>.<shorthash><dest-suffix>``
+    under ``history_dir`` -- derived from ``dest.stem``/``dest.suffix``, not a
+    hard-coded ``.md``, so a ``.md`` destination doesn't get a doubled
+    extension and a non-``.md`` destination keeps its own extension rather
+    than silently becoming a ``.md`` file. Keyed by the *prior* content's
+    hash so the same snapshot is never written twice for an unchanged prior
+    version. The whole read-compare-snapshot-write sequence runs under
+    :func:`_locked_dest` so two overlapping mirrors of the same ``dest``
+    cannot race each other into dropping an intermediate version.
     """
 
     data = source.read_bytes()
@@ -330,7 +333,9 @@ def mirror_file_with_snapshot(
                 )
             history_dir.mkdir(parents=True, exist_ok=True)
             short_hash = content_hash(existing)[:12]
-            snapshot = history_dir / f"{dest.name}.{timestamp}.{short_hash}.md"
+            snapshot = (
+                history_dir / f"{dest.stem}.{timestamp}.{short_hash}{dest.suffix}"
+            )
             atomic_write_bytes(snapshot, existing)
         atomic_write_bytes(dest, data)
         return SnapshotMirrorResult(

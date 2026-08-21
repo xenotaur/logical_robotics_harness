@@ -829,6 +829,13 @@ class SyncMemoryTest(unittest.TestCase):
             self.assertTrue(entry.snapshot.exists())
             self.assertIn("20260102T000000Z", entry.snapshot.name)
             self.assertIn("body v1", entry.snapshot.read_text(encoding="utf-8"))
+
+            # Regression test: the snapshot filename must not double the
+            # `.md` extension (e.g. `feedback_foo.md.<ts>.<hash>.md`) --
+            # exactly one `.md` suffix, derived from dest.stem/dest.suffix.
+            self.assertEqual(entry.snapshot.suffix, ".md")
+            self.assertNotIn(".md.", entry.snapshot.name[:-3])
+            self.assertTrue(entry.snapshot.name.startswith("feedback_foo."))
             self.assertIn("body v2", memory_file.read_text(encoding="utf-8"))
 
     def test_sync_mirrors_a_shrunk_file_rather_than_blocking_it(self) -> None:

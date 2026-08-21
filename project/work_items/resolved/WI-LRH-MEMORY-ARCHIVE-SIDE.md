@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #583 (commit f37672d4)"
 blocked_reason: null
 blocked: false
 id: WI-LRH-MEMORY-ARCHIVE-SIDE
 title: Implement lrh memory sync
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

@@ -11,12 +11,12 @@
       "Bash(git branch)",
       "Bash(git branch --show-current)",
       "Bash(git rev-parse *)",
-      "Bash(git fetch *)",
       "Bash(git ls-remote *)",
       "Bash(git pull)",
       "Bash(git pull *)",
       "Bash(git checkout -b *)",
       "Bash(git checkout main)",
+      "Bash(git fetch *)",
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git commit -m *)",
@@ -60,7 +60,6 @@
       "Bash(find * -execdir*)",
       "Bash(find * -ok*)",
       "Bash(find * -okdir*)",
-      "Bash(find * -fprintf*)",
       "Bash(find * -fprint*)",
       "Bash(rm -rf*)"
     ]

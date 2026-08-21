@@ -2,10 +2,10 @@
 execution_id: 2026_08_20_19_00_32_WI_SECRETS_REVIEW_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_SECRETS_REVIEW_SELFREVIEW)[2026-08-20T19:00:17+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/578
+commit: 89f95593e46b3ec93f87725f2959b72ca9f1726b
 created_at: 2026-08-20T19:00:32+00:00
 agent: claude_app
 instruction_source: WI-SECRETS-REVIEW (proactive diff-mode self-review, /lrh-implement Step 7.5)

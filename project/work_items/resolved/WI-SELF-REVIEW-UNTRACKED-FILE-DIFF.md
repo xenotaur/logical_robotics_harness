@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #575 (creation, commit 0900ff4f) and PR #576 (implementation, commit ae710248)."
 blocked_reason: null
 blocked: false
 id: WI-SELF-REVIEW-UNTRACKED-FILE-DIFF
 title: Fix lrh-self-review diff-mode missing brand-new untracked files
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

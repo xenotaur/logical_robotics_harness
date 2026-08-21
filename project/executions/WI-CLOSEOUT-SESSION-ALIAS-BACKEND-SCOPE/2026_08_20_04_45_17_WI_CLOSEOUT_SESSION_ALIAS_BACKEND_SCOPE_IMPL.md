@@ -2,14 +2,14 @@
 execution_id: 2026_08_20_04_45_17_WI_CLOSEOUT_SESSION_ALIAS_BACKEND_SCOPE_IMPL
 prompt_id: PROMPT(WI-CLOSEOUT-SESSION-ALIAS-BACKEND-SCOPE:WI_CLOSEOUT_SESSION_ALIAS_BACKEND_SCOPE_IMPL)[2026-08-20T04:41:16+00:00]
 work_item: WI-CLOSEOUT-SESSION-ALIAS-BACKEND-SCOPE
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/573
-commit: 
+commit: b6474a1704ecd93678ec98b69335b7e5929348fc
 created_at: 2026-08-20T04:45:17+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CLOSEOUT-SESSION-ALIAS-BACKEND-SCOPE.md
-session_transcript: pending
+session_transcript: claude-app:c02da21d-4a23-4315-857f-0829e0483667
 ---
 
 # Summary

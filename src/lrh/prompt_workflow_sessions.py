@@ -14,15 +14,15 @@ dedup) -- those are Stage 3 -- nor the weekly/hook-triggered sync -- Stage
 
 from __future__ import annotations
 
-import contextlib
 import dataclasses
 import json
 import os
 import pathlib
 import re
-import tempfile
 import typing
 import zipfile
+
+from lrh.atomic_write import atomic_write, atomic_write_bytes
 
 
 @dataclasses.dataclass(frozen=True)
@@ -152,55 +152,8 @@ def record_session_observation(
         for key in sorted(records)
     ]
     content = "\n".join(lines) + ("\n" if lines else "")
-    _atomic_write(path, content)
+    atomic_write(path, content)
     return path
-
-
-def _atomic_write(path: pathlib.Path, content: str) -> None:
-    """Write ``content`` to ``path`` without ever leaving a truncated file.
-
-    A plain write_text() truncates the destination before writing; an
-    interruption or I/O error mid-write can leave index.jsonl empty or
-    partially written, silently erasing every previously captured host/
-    child mapping. Writing to a temp file in the same directory and
-    renaming into place is atomic on POSIX (and os.replace is atomic on
-    Windows too), so readers only ever see the old complete content or the
-    new complete content, never a partial write.
-    """
-
-    fd, tmp_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(content)
-        os.replace(tmp_name, path)
-    except BaseException:
-        with contextlib.suppress(FileNotFoundError):
-            os.remove(tmp_name)
-        raise
-
-
-def _atomic_write_bytes(path: pathlib.Path, content: bytes) -> None:
-    """Byte-mode counterpart of ``_atomic_write``, for transcript mirroring.
-
-    Transcript JSONLs are copied verbatim (not re-serialized), so this
-    avoids a text round-trip that could alter encoding-sensitive bytes.
-    Same atomicity guarantee: readers only ever see the old complete
-    content or the new complete content, never a partial write.
-    """
-
-    fd, tmp_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(content)
-        os.replace(tmp_name, path)
-    except BaseException:
-        with contextlib.suppress(FileNotFoundError):
-            os.remove(tmp_name)
-        raise
 
 
 # ---------------------------------------------------------------------------
@@ -289,7 +242,7 @@ def mirror_transcript(
             and src_stat.st_mtime <= dest_stat.st_mtime
         ):
             return MirrorResult(source=source, dest=dest, copied=False)
-    _atomic_write_bytes(dest, source.read_bytes())
+    atomic_write_bytes(dest, source.read_bytes())
     return MirrorResult(source=source, dest=dest, copied=True)
 
 
@@ -455,7 +408,7 @@ def persist_export_metadata(
     dest = exports_path(archive_root, session_key)
     dest.parent.mkdir(parents=True, exist_ok=True)
     content = json.dumps(metadata, indent=2, sort_keys=True) + "\n"
-    _atomic_write(dest, content)
+    atomic_write(dest, content)
     return dest
 
 

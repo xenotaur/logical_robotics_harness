@@ -2,14 +2,14 @@
 execution_id: 2026_08_20_04_47_48_WI_SELF_REVIEW_UNTRACKED_FILE_DIFF
 prompt_id: PROMPT(AD_HOC:WI_SELF_REVIEW_UNTRACKED_FILE_DIFF)[2026-08-20T04:46:46+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/575
-commit: 
+commit: 0900ff4f8c814b85197c3bca711a4ada7097bb1c
 created_at: 2026-08-20T04:47:48+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SELF-REVIEW-UNTRACKED-FILE-DIFF.md
-session_transcript: pending
+session_transcript: claude-app:c02da21d-4a23-4315-857f-0829e0483667
 ---
 
 # Summary

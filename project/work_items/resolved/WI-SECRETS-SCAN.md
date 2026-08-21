@@ -15,7 +15,7 @@ related_roadmap: []
 related_workstreams:
   - WS-SECRETS-COMMAND
 related_design:
-  - project/design/proposals/proposed/lrh-secrets-command/00_proposal.md
+  - project/design/proposals/adopted/lrh-secrets-command/00_proposal.md
 depends_on: []
 blocked_by: []
 expected_actions:
@@ -133,5 +133,5 @@ sit undetected in a real LCATS notebook. See Required Changes item 2a.
 
 ## Related Workstream and Designs
 
-- Workstream: `project/workstreams/proposed/WS-SECRETS-COMMAND.md`
-- Design: `project/design/proposals/proposed/lrh-secrets-command/00_proposal.md`
+- Workstream: `project/workstreams/resolved/WS-SECRETS-COMMAND.md`
+- Design: `project/design/proposals/adopted/lrh-secrets-command/00_proposal.md`

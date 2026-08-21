@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #584 (commit 9bb90d92)."
 blocked_reason: null
 blocked: false
 id: WI-SECRETS-PURGE
 title: Implement lrh secrets purge
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony
@@ -15,7 +15,7 @@ related_roadmap: []
 related_workstreams:
   - WS-SECRETS-COMMAND
 related_design:
-  - project/design/proposals/proposed/lrh-secrets-command/00_proposal.md
+  - project/design/proposals/adopted/lrh-secrets-command/00_proposal.md
 depends_on:
   - WI-SECRETS-SCAN
   - WI-SECRETS-REVIEW
@@ -156,5 +156,5 @@ Depends on both `WI-SECRETS-SCAN` and `WI-SECRETS-REVIEW`: `purge` consumes the 
 
 ## Related Workstream and Designs
 
-- Workstream: `project/workstreams/proposed/WS-SECRETS-COMMAND.md`
-- Design: `project/design/proposals/proposed/lrh-secrets-command/00_proposal.md`
+- Workstream: `project/workstreams/resolved/WS-SECRETS-COMMAND.md`
+- Design: `project/design/proposals/adopted/lrh-secrets-command/00_proposal.md`

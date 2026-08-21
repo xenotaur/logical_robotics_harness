@@ -2,15 +2,18 @@
 id: PROP-LRH-SECRETS-COMMAND
 type: design_proposal
 title: "lrh secrets — Graduate Secrets-Hygiene Tooling into a Permanent LRH Command"
-status: proposed
+status: adopted
 created_on: 2026-08-18
-updated_on: 2026-08-18
-implementation_status: not_started
-implemented_by: []
+updated_on: 2026-08-21
+implementation_status: implemented
+implemented_by:
+  - WI-SECRETS-SCAN
+  - WI-SECRETS-REVIEW
+  - WI-SECRETS-PURGE
 supersedes: []
 superseded_by: null
 related_design:
-  - project/workstreams/proposed/WS-SECRETS-COMMAND.md
+  - project/workstreams/resolved/WS-SECRETS-COMMAND.md
 ---
 
 ## Summary
@@ -299,7 +302,7 @@ checks belong in `tests/smoke/*_smoke.py`.
 
 ## Cross-References
 
-- Workstream: `project/workstreams/proposed/WS-SECRETS-COMMAND.md`
+- Workstream: `project/workstreams/resolved/WS-SECRETS-COMMAND.md`
 - Graduation precedent: `src/lrh/assist/sourcetree_surveyor.py`, `tests/cli_tests/survey_test.py`
 - Grouped-command precedent: `src/lrh/work_items/organize.py`, `src/lrh/cli/main.py` (`work-items` dispatch)
 - Related capability (transcript scanning, not history scanning): `src/lrh/conversations/sensitivity.py`

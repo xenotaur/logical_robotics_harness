@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_06_38_17_WI_SECRETS_PURGE_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_SECRETS_PURGE_SELFREVIEW)[2026-08-21T06:38:11+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_21_06_37_20_WI_SECRETS_PURGE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/584
-commit: 9d05405118565c2216eadbdb2e27665d34fbb11f
+commit: 9bb90d921b8ae1a065e43b95a130a0fbda5108e3
 created_at: 2026-08-21T06:38:17+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SECRETS-PURGE.md

@@ -2,14 +2,14 @@
 id: WS-SECRETS-COMMAND
 kind: planning_node
 title: "lrh secrets — Scan/Review/Purge Command Graduation"
-status: proposed
+status: resolved
 stage: designed
 origin: design_review
 summary: Graduate LCATS's experimental secrets-hygiene scripts into a permanent lrh secrets scan|review|purge command, with a new review subcommand closing the manual replacements.txt triage gap.
 related_focus: []
 related_roadmap: []
 related_design:
-  - project/design/proposals/proposed/lrh-secrets-command/00_proposal.md
+  - project/design/proposals/adopted/lrh-secrets-command/00_proposal.md
 work_items:
   - WI-SECRETS-SCAN
   - WI-SECRETS-REVIEW
@@ -76,10 +76,30 @@ stays visible from design through closeout.
 
 ## Relationship to Design
 
-- Design proposal: `project/design/proposals/proposed/lrh-secrets-command/00_proposal.md`
+- Design proposal: `project/design/proposals/adopted/lrh-secrets-command/00_proposal.md`
 - Graduation precedent: `src/lrh/assist/sourcetree_surveyor.py`, `tests/cli_tests/survey_test.py`
 - Grouped-command precedent: `src/lrh/work_items/` package, `src/lrh/cli/main.py` `work-items` dispatch
 
 ## Open Questions
 
 - `purge`'s exact `--source` default-derivation behavior (see the proposal's Open Questions) may be revisited during `WI-SECRETS-PURGE` implementation.
+
+## Closeout Notes
+
+All three work items (`WI-SECRETS-SCAN` PR #567, `WI-SECRETS-REVIEW` PR
+#578, `WI-SECRETS-PURGE` PR #584) are implemented, tested, and merged to
+`main`. Module-level tests under `tests/secrets_tests/`, CLI-dispatch
+tests in `tests/cli_tests/secrets_test.py`, and the real-`git-filter-repo`
+smoke test `tests/smoke/secrets_purge_smoke.py` all exist and pass.
+`purge`'s safety invariants (mandatory `--refs-file`, mirror-only
+operation, mandatory post-rewrite literal-string verification, no code
+path to `git push`, runtime-enforced reviewed-replacements marker gate)
+were preserved and independently verified via pre-push self-review and
+PR review-response.
+
+**Outstanding, non-blocking follow-up**: the companion LCATS PR deleting
+`lcats/experimental/secrets_hygiene/{find_secrets.py,purge_history.py}`
+and repointing its docs at `lrh secrets` has not been opened as of this
+workstream's closure — this lives in a different repository and the
+exit criteria explicitly track it as follow-up, not a blocker. Whoever
+picks this up next should open that PR against LCATS.

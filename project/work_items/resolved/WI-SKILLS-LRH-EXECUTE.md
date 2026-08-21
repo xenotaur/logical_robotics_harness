@@ -125,8 +125,8 @@ that inlined-link structure.
 2. Wire `/lrh-execute` to invoke `/lrh-implement`'s three-phase workflow
    for the target `WI-ID`, then hand off to `/lrh-land` for the resulting
    PR — inline sub-skill execution (matching `/lrh-land`'s own current
-   pattern), not direct Skill-tool invocation, since
-   `WI-DELIBERATE-MODEL-INVOCATION` remains unresolved.
+   pattern), not direct Skill-tool invocation. That inline invocation pattern
+   remains the settled design after `WI-DELIBERATE-MODEL-INVOCATION` resolved.
 3. For a `WI-ID` target: enforce `depends_on` (all entries `resolved`;
    stop and report if not). For a `WS-ID` target: find the next ready WI
    per `PROP-LRH-LAND-EXECUTE`'s exact rule (`00_proposal.md:221-225`) —

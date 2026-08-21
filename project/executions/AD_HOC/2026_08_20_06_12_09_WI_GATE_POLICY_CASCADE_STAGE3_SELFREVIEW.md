@@ -3,9 +3,9 @@ execution_id: 2026_08_20_06_12_09_WI_GATE_POLICY_CASCADE_STAGE3_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_GATE_POLICY_CASCADE_STAGE3_SELFREVIEW)[2026-08-20T06:12:03+00:00]
 work_item: AD_HOC
 status: completed
-rerun_of: 
-pr: 
-commit: 
+rerun_of:
+pr:
+commit:
 created_at: 2026-08-20T06:12:09+00:00
 agent: codex_app
 instruction_source: skill:lrh-self-review

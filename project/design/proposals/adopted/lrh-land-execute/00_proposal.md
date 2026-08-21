@@ -103,8 +103,8 @@ the `/lrh-land` and `/lrh-execute` workflows keep their inlined-link structure.
 
 ### Demand search
 
-- **Work items:** `WI-DELIBERATE-MODEL-INVOCATION` (proposed) captures the
-  prerequisite `disable-model-invocation` migration this proposal depends on.
+- **Work items:** `WI-DELIBERATE-MODEL-INVOCATION` is resolved and captured the
+  prerequisite `disable-model-invocation` migration this proposal depended on.
   Cross-link, do not subsume.
 - **Proposals:** None found requesting these skills directly.
 - **Backlog:** No matching entries.
@@ -366,7 +366,7 @@ dependency order:
 | Phase | Work item | Description | Depends on |
 |---|---|---|---|
 | 1 | `WI-SKILLS-LRH-LAND` | `/lrh-land` skill | — |
-| Pre-2 | `WI-DELIBERATE-MODEL-INVOCATION` | Enable sub-skill orchestration | Exists (proposed) |
+| Pre-2 | `WI-DELIBERATE-MODEL-INVOCATION` | Enable sub-skill orchestration | Resolved |
 | 2 | `WI-SKILLS-LRH-EXECUTE` | `/lrh-execute` skill | WI-SKILLS-LRH-LAND |
 | 3 | `WI-SKILLS-LRH-NEXT` | `/lrh-next` navigator skill | WI-SKILLS-LRH-EXECUTE |
 | 4 | `WI-SKILLS-LRH-RUN-TREE` | `/lrh-run-tree` orchestrator skill | WI-SKILLS-LRH-NEXT |

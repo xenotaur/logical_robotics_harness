@@ -3,7 +3,7 @@ execution_id: 2026_08_20_06_44_55_WI_GATE_POLICY_CASCADE_STAGE3
 prompt_id: PROMPT(WI-GATE-POLICY-CASCADE-STAGE3:WI_GATE_POLICY_CASCADE_STAGE3)[2026-08-20T01:01:23+00:00]
 work_item: WI-GATE-POLICY-CASCADE-STAGE3
 status: in_progress
-rerun_of: 
+rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/577
 commit: 1016b990fcb392f29993944604ffb8520a1db9c0
 created_at: 2026-08-20T06:44:55+00:00

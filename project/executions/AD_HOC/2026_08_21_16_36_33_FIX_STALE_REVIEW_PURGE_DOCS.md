@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_16_36_33_FIX_STALE_REVIEW_PURGE_DOCS
 prompt_id: PROMPT(AD_HOC:FIX_STALE_REVIEW_PURGE_DOCS)[2026-08-21T16:33:35+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/585
-commit: c003c7785c30cda971d7e53b452edc03ed8b1fa3
+commit: 923a72a07b0200187753ff2f8eb5c5c69e05e16c
 created_at: 2026-08-21T16:36:33+00:00
 agent: claude_app
 instruction_source: ad_hoc

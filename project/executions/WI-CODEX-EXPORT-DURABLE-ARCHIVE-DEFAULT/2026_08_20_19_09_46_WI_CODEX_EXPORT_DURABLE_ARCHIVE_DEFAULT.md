@@ -2,10 +2,10 @@
 execution_id: 2026_08_20_19_09_46_WI_CODEX_EXPORT_DURABLE_ARCHIVE_DEFAULT
 prompt_id: PROMPT(WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT:WI_CODEX_EXPORT_DURABLE_ARCHIVE_DEFAULT)[2026-08-20T01:04:01+00:00]
 work_item: WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/579
-commit: 
+commit: e094d443d813eabc81e96f95301fdc15ac5787ce
 created_at: 2026-08-20T19:09:46+00:00
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT.md

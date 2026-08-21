@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #579 (commit e094d443d813eabc81e96f95301fdc15ac5787ce)."
 blocked_reason: null
 blocked: false
 id: WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT
 title: Make Codex exports durable-archive-first by default
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

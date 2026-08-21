@@ -38,14 +38,23 @@ immediately as one lane, independent of the *session* lane, which is
 lazy per-session by design. My original note conflated two unrelated
 facts: (a) resuming a paused Codex session is safe regardless of memory
 migration status, because Codex isn't path-keyed — true, and (b) *when*
-the repo-lane memory migration itself should happen — which has nothing
-to do with Codex at all. Per `README.md:21-24`, *any* ordinary Claude
-session starting from the new path before migration completes sees a
-silently empty corpus — the actual incident mechanism. Tying migration
-timing to "whenever the Codex sessions are revisited" could leave that
-window open indefinitely for no real reason. Feasibility: trivial
-wording fix. Rewrote the Notes to decouple the two claims: Codex-session
-resumption safety stands on its own; the repo-lane steps should complete
+the repo-lane memory migration itself should happen — which does not
+depend on the Codex sessions' *resumption* specifically, though Codex
+activity remains relevant to *snapshot freshness*: `findings.md:9-11`
+documents Codex writing memory files directly into Claude's memory area,
+and `findings.md:91-94` warns "a snapshot taken before a Codex write
+goes stale" — so if a paused Codex session writes memory before the
+repo-lane migration runs, the existing insurance snapshot could be
+stale, independent of whether that session has been formally "resumed."
+Per `README.md:21-24`, *any* ordinary Claude session starting from the
+new path before migration completes also sees a silently empty corpus —
+the actual incident mechanism. Tying migration timing to "whenever the
+Codex sessions are revisited" could leave either window open
+indefinitely for no real reason. Feasibility: trivial wording fix.
+Rewrote the Notes to decouple resumption-safety from migration
+scheduling while also noting the snapshot-freshness caveat
+(`findings.md:91-94`'s "re-snapshot immediately before migrating");
+the repo-lane steps should complete
 promptly on their own schedule regardless.
 
 Nothing skipped.

@@ -1673,6 +1673,28 @@ class ReadMemoryTest(unittest.TestCase):
                     project_root, "../../etc/passwd", claude_projects_root=claude_root
                 )
 
+    def test_read_rejects_symlinked_memory_file(self) -> None:
+        """Regression test: `_validate_name` blocks path traversal via the
+        `name` argument, but Path.read_text() follows filesystem symlinks
+        by default -- a symlink placed directly in the corpus
+        (feedback-x.md -> /some/other/file) would otherwise let `read`
+        print content from anywhere on disk."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            outside_secret = pathlib.Path(tmp) / "secret.md"
+            outside_secret.write_text("top secret content\n", encoding="utf-8")
+
+            memory_dir = claude_root / project_slug_for_path(project_root) / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "feedback_symlinked.md").symlink_to(outside_secret)
+
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.read_memory(
+                    project_root, "feedback-symlinked", claude_projects_root=claude_root
+                )
+
 
 class SearchMemoriesTest(unittest.TestCase):
     def test_search_finds_substring_in_body(self) -> None:
@@ -1884,6 +1906,54 @@ class SearchMemoriesTest(unittest.TestCase):
                 claude_projects_root=claude_root,
             )
             self.assertEqual(result.match_count, 0)
+
+    def test_search_skips_symlinked_entries_rather_than_following_them(self) -> None:
+        """Regression test: search must never follow a symlink placed
+        directly in the corpus out to arbitrary filesystem content --
+        skip it like any other bad entry, don't abort or leak content."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            outside_secret = pathlib.Path(tmp) / "secret.md"
+            outside_secret.write_text("needle in outside file\n", encoding="utf-8")
+
+            memory_dir = claude_root / project_slug_for_path(project_root) / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "feedback_symlinked.md").symlink_to(outside_secret)
+
+            result = prompt_workflow_memory.search_memories(
+                project_root, "needle", claude_projects_root=claude_root
+            )
+            self.assertEqual(result.match_count, 0)
+
+    def test_search_skips_unreadable_file_rather_than_aborting(self) -> None:
+        """Regression test: one unreadable/non-UTF-8 *.md entry must not
+        abort the whole search -- other memories must still be found."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-good",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="a findable needle\n",
+                claude_projects_root=claude_root,
+            )
+            memory_dir = claude_root / project_slug_for_path(project_root) / "memory"
+            (memory_dir / "feedback_bad_encoding.md").write_bytes(
+                b"---\nname: feedback-bad-encoding\n---\n\n\xff\xfe not valid utf-8"
+            )
+
+            result = prompt_workflow_memory.search_memories(
+                project_root, "needle", claude_projects_root=claude_root
+            )
+            self.assertEqual(result.match_count, 1)
+            self.assertEqual(result.matches[0].name, "feedback-good")
 
 
 if __name__ == "__main__":

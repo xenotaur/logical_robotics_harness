@@ -1039,6 +1039,15 @@ def read_memory(
     path = memory_dir / filename
     if not path.exists():
         raise MemoryValidationError(f"no memory named {name!r} found ({filename})")
+    if path.is_symlink():
+        # _validate_name blocks path traversal via the name itself, but a
+        # symlink placed directly in the corpus (feedback-x.md -> /etc/passwd)
+        # bypasses that entirely -- Path.read_text() follows symlinks by
+        # default, so an unchecked read here could print content from
+        # anywhere on disk, not just the resolved corpus.
+        raise MemoryValidationError(
+            f"{filename} is a symlink; refusing to read outside the memory corpus"
+        )
     content = path.read_text(encoding="utf-8")
     frontmatter, body = read_frontmatter_and_body(content)
     return ReadResult(
@@ -1133,7 +1142,20 @@ def search_memories(
         for path in sorted(memory_dir.glob("*.md")):
             if path.name == INDEX_FILENAME:
                 continue
-            raw_content = path.read_text(encoding="utf-8")
+            if path.is_symlink():
+                # Path.read_text() follows symlinks by default -- a symlink
+                # placed directly in the corpus could point outside it
+                # entirely. Skip it rather than aborting the whole search,
+                # matching how a malformed/unreadable entry is handled below.
+                continue
+            try:
+                raw_content = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                # A single unreadable or non-UTF-8 *.md file must not abort
+                # the whole search -- skip it and keep returning matches
+                # from the remaining memories, matching the existing
+                # execution-record search's per-record resilience.
+                continue
             try:
                 frontmatter, body = read_frontmatter_and_body(raw_content)
             except MemoryValidationError:

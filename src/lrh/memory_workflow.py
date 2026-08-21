@@ -494,7 +494,11 @@ def _run_read(args: argparse.Namespace) -> int:
             args.name,
             claude_projects_root=args.claude_projects_root,
         )
-    except prompt_workflow_memory.MemoryValidationError as error:
+    except (
+        prompt_workflow_memory.MemoryValidationError,
+        OSError,
+        UnicodeDecodeError,
+    ) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
 
@@ -508,6 +512,11 @@ def _run_read(args: argparse.Namespace) -> int:
                     "body": result.body,
                 },
                 indent=2,
+                # yaml.safe_load parses YAML timestamps/dates into datetime
+                # objects, which json.dumps cannot serialize by default --
+                # a memory with such a value in its frontmatter would
+                # otherwise crash `--format json` outright.
+                default=str,
             )
         )
         return 0

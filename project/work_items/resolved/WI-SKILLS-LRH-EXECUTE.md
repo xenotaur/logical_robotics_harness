@@ -67,10 +67,12 @@ guardrail. On 2026-08-01 this caused a real incident: a session using
 triggered a fresh-context self-review that returned a NO-GO verdict,
 finding a root-cause design issue and a bug none of the 14 rounds had
 caught. `WI-SKILLS-LRH-LAND` is resolved, satisfying this item's stated
-prerequisite. `WI-DELIBERATE-MODEL-INVOCATION` (proposed, owned by
-`WS-EXECUTION-FRAMEWORK`) would enable direct sub-skill invocation but is
-explicitly not a hard gate — `WS-SKILLS-EXECUTE` documents that Phase 1's
-inline sub-skill pattern can carry Phase 2 if needed.
+prerequisite. `WI-DELIBERATE-MODEL-INVOCATION` is now resolved under
+`WS-INVOCATION-AND-GATE-RESET`; it superseded the original direct sub-skill
+invocation question with per-skill `when_to_use`, explicit gates, and
+target-specific invocation policy. `WS-SKILLS-EXECUTE` documents that Phase 1's
+inline sub-skill pattern can carry Phase 2 if needed, and `/lrh-execute` keeps
+that inlined-link structure.
 
 ### Duplication search
 - In-repo: No existing `/lrh-execute` implementation. `WS-SKILLS-EXECUTE`'s
@@ -123,8 +125,8 @@ inline sub-skill pattern can carry Phase 2 if needed.
 2. Wire `/lrh-execute` to invoke `/lrh-implement`'s three-phase workflow
    for the target `WI-ID`, then hand off to `/lrh-land` for the resulting
    PR — inline sub-skill execution (matching `/lrh-land`'s own current
-   pattern), not direct Skill-tool invocation, since
-   `WI-DELIBERATE-MODEL-INVOCATION` remains unresolved.
+   pattern), not direct Skill-tool invocation. That inline invocation pattern
+   remains the settled design after `WI-DELIBERATE-MODEL-INVOCATION` resolved.
 3. For a `WI-ID` target: enforce `depends_on` (all entries `resolved`;
    stop and report if not). For a `WS-ID` target: find the next ready WI
    per `PROP-LRH-LAND-EXECUTE`'s exact rule (`00_proposal.md:221-225`) —

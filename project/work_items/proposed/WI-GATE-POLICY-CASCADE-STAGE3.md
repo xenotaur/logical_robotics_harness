@@ -18,9 +18,13 @@ related_workstreams:
   - WS-INVOCATION-AND-GATE-RESET
 related_design:
   - project/design/proposals/proposed/invocation-and-gate-reset/00_proposal.md
+  - project/design/proposals/adopted/lrh-gate-policy/00_proposal.md
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
+  - project/memory/decisions/DEC-SINGLE-ASK-RUN-GATES.md
+  - project/memory/decisions/DEC-SELF-REVIEW-RECURSION-GUARD.md
+  - project/memory/decisions/DEC-GATE-POLICY-CASCADE.md
 depends_on:
   - WI-RETRIGGER-REMOVAL-STAGE1
   - WI-DELIBERATE-MODEL-INVOCATION
@@ -51,9 +55,9 @@ required_evidence:
   - manual_review
   - lrh_validate
 artifacts_expected:
-  - project/audits/
-  - project/design/proposals/
-  - project/memory/decisions/
+  - project/audits/gates/gate-corpus-audit-2026-08-20.md
+  - project/design/proposals/adopted/lrh-gate-policy/00_proposal.md
+  - project/memory/decisions/DEC-GATE-POLICY-CASCADE.md
   - project/workstreams/
   - project/work_items/
   - src/lrh/skills/

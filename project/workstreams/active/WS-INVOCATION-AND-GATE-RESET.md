@@ -35,7 +35,7 @@ work_items:
 exit_criteria:
   - Stage 1 landed - manual GitHub bot retrigger removed from all skills, a provisional no-progress loop cap in place, PROP-REVIEW-WAIT-POSTURE rescoped, self_review_preference removed, a disposition recorded for the two stalled-reviewer-detection backlog entries scoped to the gutted files, lrh skills install run for Claude and Codex user-scope and project-scope installs, the retrigger commands verified absent from ~/.claude/skills/, ~/.agents/skills/, this repository's .claude/skills/ mirror, and this repository's .agents/skills/ Codex mirror (not just the source tree), and confirmed_commit re-stamped
   - Stage 2 landed - disable-model-invocation removed from all remaining skills with when_to_use added, /lrh-self-review report-only by default with a platform-enforced recursion guard, the /lrh-confirm-fixes empty-thread fast path gated, a deliberate decision recorded for installer.py's Codex allow_implicit_invocation emission with tests updated, WI-DELIBERATE-MODEL-INVOCATION's two same-change acceptance criteria explicitly amended, the three inlining-is-permanent statements updated, subagent-preload behavior verified, lrh skills install run for Claude and Codex user-scope and project-scope installs, disable-model-invocation verified absent from the relevant installed corpora (not just the source tree), and confirmed_commit re-stamped
-  - Stage 3 landed - gate corpus audit artifact written, gate policy proposal adopted, a DEC record naming exactly what it supersedes recorded, a named and checkable Stage 3.5 compensating control produced, the DEC record carrying the extended cascade taxonomy (statement-shaped, not artifact-class-shaped) per PROP-INVOCATION-AND-GATE-RESET Decision 6, the four known stale ownership claims corrected (WS-SKILLS-EXECUTE.md:77,114,133 and WI-SKILLS-LRH-EXECUTE.md:70), the front-of-run gate pair collapsed per PROP-INVOCATION-AND-GATE-RESET Decision 11 with the same DEC record carrying both ends of the run, and the cascade applied including cross-repo memory correction
+  - Stage 3 landed - gate corpus audit artifact written, gate policy proposal adopted, a DEC record naming exactly what it supersedes recorded, a named and checkable Stage 3.5 compensating control produced, the DEC record carrying the extended cascade taxonomy (statement-shaped, not artifact-class-shaped) per PROP-INVOCATION-AND-GATE-RESET Decision 6, the four known stale ownership claims corrected (WS-SKILLS-EXECUTE.md:77,114,133 and WI-SKILLS-LRH-EXECUTE.md:70), the front-of-run gate pair collapsed per PROP-INVOCATION-AND-GATE-RESET Decision 11 with the same DEC record carrying both ends of the run, LRH-owned memory corrected, and cross-repo/Taurcode corrections recorded as named handoffs rather than direct out-of-scope edits
   - Stage 3.5 complete - chain-defaults mechanism activated under the compensating control Stage 3 produced, with the two-step consent contract of DEC-CHAIN-INIT-SKIP-CONSENT preserved and skip_if_opted_in never becoming the shipped default
   - Stages 5-6 complete - a low-stakes LRH-internal dogfood run clean, the related open PRs triaged with go/no-go decisions, and findings fed back into Stages 1-4
   - Stage 7 complete - normal fleet operation resumed across the repositories and harnesses paused for this program, with the resumption criterion met and recorded
@@ -109,19 +109,21 @@ decision exists to separate. Cross-link instead."
 
 - **Work items:** The program now has explicit leaves for each remaining
   executable phase. `WI-DELIBERATE-MODEL-INVOCATION`,
-  `WI-RETRIGGER-REMOVAL-STAGE1`, `WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL`, and
-  `WI-FRONT-OF-RUN-GATE-COLLAPSE` are already resolved; the remaining tracked
-  leaves are `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`,
-  `WI-GATE-POLICY-CASCADE-STAGE3`,
-  `WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5`, and
+  `WI-RETRIGGER-REMOVAL-STAGE1`, `WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL`,
+  `WI-FRONT-OF-RUN-GATE-COLLAPSE`, and
+  `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` are resolved. The current
+  Stage 3 implementation leaf is `WI-GATE-POLICY-CASCADE-STAGE3`; after its
+  merge and closeout, the remaining tracked leaves are
+  `WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5` and
   `WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME`.
 - **Proposals:** `PROP-LRH-CHAIN-DEFAULTS` governs the mechanism Stages 3.5 and
   4 touch. `PROP-REVIEW-WAIT-POSTURE` was rescoped to its bounded-poll wait
   mechanism and landed as `WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL`.
 - **Backlog:** `project/design/backlog.md`'s "Self-review-first tier for
   reducing GitHub bot-review credit consumption" is satisfied by Stage 1.
-- **Recommendation:** Continue with Stage 3 next; do not expand this planning
-  cleanup into the gate-policy audit/cascade implementation.
+- **Recommendation:** Complete the current Stage 3 PR, then continue with Stage
+  3.5; do not fold chain-defaults activation into the gate-policy audit/cascade
+  implementation.
 
 ## Work Items
 
@@ -134,11 +136,9 @@ ask. These resolved leaves stay listed so schema-level ownership matches the
 history the proposal now cites.
 
 `/lrh-execute <WS-ID>` selects the first proposed entry in `work_items:` whose
-`depends_on` is satisfied (`lrh-execute/SKILL.md` Step 1). Listing Stage 1 is
-therefore now the intended behavior: it is the unblocked first item and reports
-`prompt_ready: yes`. Future proposed stage items should be added only when their
-machine-readable `depends_on:` fields preserve the strict order below; do not
-rely on prose sequencing alone.
+`depends_on` is satisfied (`lrh-execute/SKILL.md` Step 1). Future proposed stage
+items should be added only when their machine-readable `depends_on:` fields
+preserve the strict order below; do not rely on prose sequencing alone.
 
 The planned decomposition is now:
 
@@ -148,8 +148,8 @@ The planned decomposition is now:
 | 2 | `WI-DELIBERATE-MODEL-INVOCATION` -- resolved scoped flag-removal work |
 | 1/5 support | `WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL` -- resolved bounded CI-wait follow-up |
 | 3 Decision 11 support | `WI-FRONT-OF-RUN-GATE-COLLAPSE` -- resolved front-of-run collapse |
-| 2 completion | `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` -- proposed retained-flag completion |
-| 3 | `WI-GATE-POLICY-CASCADE-STAGE3` -- proposed gate audit, policy proposal, DEC record, and cascade |
+| 2 completion | `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` -- resolved retained-flag completion |
+| 3 | `WI-GATE-POLICY-CASCADE-STAGE3` -- current gate audit, policy proposal, DEC record, and cascade implementation |
 | 3.5 | `WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5` -- proposed activation under the Stage 3 control |
 | 5-7 | `WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME` -- proposed dogfood, triage, feedback, and fleet resumption |
 

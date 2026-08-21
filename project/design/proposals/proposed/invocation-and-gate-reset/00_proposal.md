@@ -5,12 +5,14 @@ title: Invocation and Gate Reset — Retrigger Removal, Flag Removal, and a Unif
 status: proposed
 implementation_status: partial
 created_on: 2026-08-09
-updated_on: 2026-08-19
+updated_on: 2026-08-20
 related_design:
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
   - project/memory/decisions/DEC-SELF-REVIEW-RECURSION-GUARD.md
+  - project/memory/decisions/DEC-GATE-POLICY-CASCADE.md
+  - project/design/proposals/adopted/lrh-gate-policy/00_proposal.md
   - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
   - project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION.md
   - project/work_items/proposed/WI-LRH-CHAIN-DEFAULTS-INCREMENT-2.md
@@ -29,6 +31,7 @@ implemented_by:
   - WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL
   - WI-FRONT-OF-RUN-GATE-COLLAPSE
   - WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE
+  - WI-GATE-POLICY-CASCADE-STAGE3
 evidence:
   - EV-0011
 supersedes: []
@@ -40,19 +43,22 @@ parent: null
 
 ## Implementation Status
 
-As of 2026-08-14, this proposal is partially implemented. Stage 1 landed via
+As of 2026-08-20, this proposal is partially implemented. Stage 1 landed via
 `WI-RETRIGGER-REMOVAL-STAGE1`, Stage 2's scoped flag-removal work landed via
 `WI-DELIBERATE-MODEL-INVOCATION`, the retained bounded CI-wait portion of
 `PROP-REVIEW-WAIT-POSTURE` landed via
-`WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL`, and Decision 11's front-of-run collapse
-landed via `WI-FRONT-OF-RUN-GATE-COLLAPSE`.
+`WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL`, Decision 11's front-of-run collapse
+landed via `WI-FRONT-OF-RUN-GATE-COLLAPSE`, and Stage 2's retained-flag
+completion landed via `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`. Stage
+3's gate policy audit/cascade is implemented by
+`WI-GATE-POLICY-CASCADE-STAGE3` and remains pending merge and closeout until
+that work item is resolved.
 
 The remaining executable leaves are now tracked explicitly:
-`WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`,
 `WI-GATE-POLICY-CASCADE-STAGE3`,
 `WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5`, and
-`WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME`. Stage 3 implementation remains
-deliberately out of this planning cleanup.
+`WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME`. Stage 3.5 activation remains
+separate from the Stage 3 policy/cascade change.
 
 ## Summary
 
@@ -896,10 +902,10 @@ Each of Stages 1 and 2 must therefore include:
   already found, not merely describe the rule: `WS-SKILLS-EXECUTE.md:77`, `:114`,
   `:133` and `WI-SKILLS-LRH-EXECUTE.md:70`, all asserting that
   `WI-DELIBERATE-MODEL-INVOCATION` is "owned by `WS-EXECUTION-FRAMEWORK`" when
-  that workstream's `work_items:` list never contained it. Note that
-  `WS-INVOCATION-AND-GATE-RESET` has *not* taken ownership either — it holds the
-  item as intended-but-unlisted while its Stage 1 predecessor does not exist, so
-  the correction is to state the item is currently unowned, not to reassign it.
+  that workstream's `work_items:` list never contained it. That statement was
+  later superseded by the current source of truth: the work item is resolved
+  under `WS-INVOCATION-AND-GATE-RESET`, and that workstream lists it in
+  `work_items:`. The correction is to point at that resolved ownership.
   Stage 3's DEC record must also carry the taxonomy extension in Decision 6, and
   a sweep should look for the same statement shape elsewhere rather than
   assuming these four are exhaustive.

@@ -172,6 +172,13 @@ encodes the three-phase execution session model for implementing work items. Sta
 `partial` (`lrh-create-skill` and `lrh-work-item` shipped; `lrh-implement` and `lrh setup`
 remain to be implemented).
 
+[`adopted/lrh-gate-policy/`](adopted/lrh-gate-policy/)
+— Defines LRH's canonical human-gate policy: statement-shaped cascade semantics,
+single-ask restatement handling, protected merge/closeout gates, retired hosted
+review-bot retriggers, gate-definition staleness, and the
+`human_initiated_invocation_evidence` control required before Stage 3.5 can
+activate `skip_if_opted_in`. Status: `adopted` / `implemented`.
+
 [`adopted/workstreams-and-recursive-planning-tree/`](adopted/workstreams-and-recursive-planning-tree/)
 — Proposes a documentation-first, minimal workstream planning model
 (Project → Workstream → Work Item) with recursive planning-tree

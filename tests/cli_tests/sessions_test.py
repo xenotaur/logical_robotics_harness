@@ -1,10 +1,16 @@
+import argparse
+import contextlib
+import io
 import json
 import pathlib
 import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 import zipfile
+
+from lrh import sessions_workflow
 
 
 class SessionsCliTest(unittest.TestCase):
@@ -69,6 +75,43 @@ class SessionsCliTest(unittest.TestCase):
             self.assertIn("dry-run:", completed.stdout)
             self.assertFalse(archive_root.exists())
 
+    def test_sync_dry_run_reports_nested_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_projects_root = pathlib.Path(tmp) / "claude-projects"
+            live_project_dir = claude_projects_root / "-live-proj"
+            stale_project_dir = claude_projects_root / "-stale-proj"
+            nested_dir = stale_project_dir / "child-1" / "tool-results"
+            live_project_dir.mkdir(parents=True)
+            nested_dir.mkdir(parents=True)
+            (live_project_dir / "child-1.jsonl").write_text(
+                '{"sessionId": "child-1"}\n'
+            )
+            (nested_dir / "result.txt").write_text("result\n")
+            archive_root = pathlib.Path(tmp) / "archive"
+
+            completed = self._run(
+                "sync",
+                "--claude-projects-root",
+                str(claude_projects_root),
+                "--archive-root",
+                str(archive_root),
+                "--dry-run",
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn(
+                str(
+                    archive_root
+                    / "raw"
+                    / "-live-proj"
+                    / "child-1"
+                    / "tool-results"
+                    / "result.txt"
+                ),
+                completed.stdout,
+            )
+            self.assertFalse(archive_root.exists())
+
     def test_sync_harvests_export_zip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             claude_projects_root = pathlib.Path(tmp) / "claude-projects"
@@ -107,6 +150,48 @@ class SessionsCliTest(unittest.TestCase):
             self.assertIn("1 export(s) harvested", completed.stdout)
             index_path = project_root / "project" / "sessions" / "index.jsonl"
             self.assertIn("host-1", index_path.read_text())
+
+    def test_sync_mirrors_nested_file_without_alias_reconciliation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_projects_root = pathlib.Path(tmp) / "claude-projects"
+            project_dir = claude_projects_root / "-fake-proj"
+            nested_dir = project_dir / "child-1" / "subagents"
+            nested_dir.mkdir(parents=True)
+            (project_dir / "child-1.jsonl").write_text('{"sessionId": "child-1"}\n')
+            (nested_dir / "sub.jsonl").write_text('{"sessionId": "nested"}\n')
+            archive_root = pathlib.Path(tmp) / "archive"
+            project_root = pathlib.Path(tmp) / "proj"
+            args = argparse.Namespace(
+                claude_projects_root=str(claude_projects_root),
+                exports_dir=None,
+                archive_root=str(archive_root),
+                project_root=str(project_root),
+                dry_run=False,
+            )
+
+            with unittest.mock.patch(
+                "lrh.prompt_workflow_sessions.reconcile_child_id_aliases",
+                return_value=None,
+            ) as reconcile:
+                with contextlib.redirect_stdout(io.StringIO()):
+                    exit_code = sessions_workflow._run_sync(args)
+
+            self.assertEqual(exit_code, 0)
+            self.assertTrue(
+                (
+                    archive_root
+                    / "raw"
+                    / "-fake-proj"
+                    / "child-1"
+                    / "subagents"
+                    / "sub.jsonl"
+                ).exists()
+            )
+            reconcile.assert_called_once_with(
+                str(project_root),
+                project_dir / "child-1.jsonl",
+                updated_at=unittest.mock.ANY,
+            )
 
     def test_discover_lists_transcripts_as_json(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

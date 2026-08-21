@@ -164,6 +164,7 @@ def record_session_observation(
 # ---------------------------------------------------------------------------
 
 ARCHIVE_ROOT_ENV_VAR = "LRH_SESSION_ARCHIVE_ROOT"
+_SESSION_ID_DIR = re.compile(r"^[0-9A-Fa-f][0-9A-Fa-f-]{7,}$")
 
 
 def default_archive_root() -> pathlib.Path:
@@ -193,12 +194,82 @@ def resolve_archive_root(
 # ---------------------------------------------------------------------------
 
 
-def discover_transcripts(claude_projects_root: pathlib.Path) -> list[pathlib.Path]:
-    """All local Claude Code transcript JSONLs under ``<root>/*/*.jsonl``."""
+@dataclasses.dataclass(frozen=True)
+class DiscoveredTranscript:
+    """One local session archive source and its destination context."""
+
+    path: pathlib.Path
+    slug: str
+    relative_path: pathlib.Path
+
+    @property
+    def is_top_level(self) -> bool:
+        return len(self.relative_path.parts) == 1
+
+
+def _top_level_transcripts(
+    claude_projects_root: pathlib.Path,
+) -> list[DiscoveredTranscript]:
+    discovered: list[DiscoveredTranscript] = []
+    for jsonl_path in sorted(claude_projects_root.glob("*/*.jsonl")):
+        slug = jsonl_path.parent.name
+        discovered.append(
+            DiscoveredTranscript(
+                path=jsonl_path,
+                slug=slug,
+                relative_path=pathlib.Path(jsonl_path.name),
+            )
+        )
+    return discovered
+
+
+def _is_session_artifact_dir(name: str, known_session_ids: set[str]) -> bool:
+    if name in known_session_ids:
+        return True
+    return bool(_SESSION_ID_DIR.fullmatch(name) and any(c.isdigit() for c in name))
+
+
+def discover_transcripts(
+    claude_projects_root: pathlib.Path,
+) -> list[DiscoveredTranscript]:
+    """All local Claude Code transcript artifacts to mirror.
+
+    Top-level transcripts still come from ``<root>/<slug>/<session-id>.jsonl``.
+    Nested session-adjacent artifacts are discovered under
+    ``<root>/<any-slug>/<session-id>/`` only when ``session-id`` matches a
+    top-level transcript anywhere under the root; those files are archived
+    under the owning top-level transcript's slug. Orphaned session-id
+    directories with no matching top-level transcript are archived under
+    their local slug as a best-effort fallback.
+    """
 
     if not claude_projects_root.exists():
         return []
-    return sorted(claude_projects_root.glob("*/*.jsonl"))
+
+    top_level = _top_level_transcripts(claude_projects_root)
+    session_id_to_slug = {item.path.stem: item.slug for item in top_level}
+    known_session_ids = set(session_id_to_slug)
+    discovered = list(top_level)
+
+    for project_dir in sorted(p for p in claude_projects_root.iterdir() if p.is_dir()):
+        local_slug = project_dir.name
+        for session_dir in sorted(p for p in project_dir.iterdir() if p.is_dir()):
+            session_id = session_dir.name
+            if not _is_session_artifact_dir(session_id, known_session_ids):
+                continue
+            owner_slug = session_id_to_slug.get(session_id, local_slug)
+            for nested_file in sorted(p for p in session_dir.rglob("*") if p.is_file()):
+                relative_path = pathlib.Path(session_id) / nested_file.relative_to(
+                    session_dir
+                )
+                discovered.append(
+                    DiscoveredTranscript(
+                        path=nested_file,
+                        slug=owner_slug,
+                        relative_path=relative_path,
+                    )
+                )
+    return sorted(discovered, key=lambda item: (item.slug, item.relative_path.parts))
 
 
 @dataclasses.dataclass(frozen=True)
@@ -213,8 +284,9 @@ def mirror_transcript(
     archive_root: pathlib.Path,
     *,
     project_slug: str,
+    relative_path: str | pathlib.Path | None = None,
 ) -> MirrorResult:
-    """Mirror ``source`` into ``<archive_root>/raw/<project_slug>/<name>``.
+    """Mirror ``source`` into ``<archive_root>/raw/<project_slug>/<relative_path>``.
 
     Re-copies whenever the source has grown or changed, and is a no-op
     when unchanged -- comparing size/mtime, not mere existence, per the
@@ -233,7 +305,14 @@ def mirror_transcript(
     silently losing already-archived content.
     """
 
-    dest = archive_root / "raw" / project_slug / source.name
+    dest_relative_path = (
+        pathlib.Path(relative_path)
+        if relative_path is not None
+        else pathlib.Path(source.name)
+    )
+    if dest_relative_path.is_absolute() or ".." in dest_relative_path.parts:
+        raise ValueError("relative_path must be a safe relative path")
+    dest = archive_root / "raw" / project_slug / dest_relative_path
     dest.parent.mkdir(parents=True, exist_ok=True)
     src_stat = source.stat()
     if dest.exists():

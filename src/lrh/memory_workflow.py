@@ -1,13 +1,11 @@
-"""``lrh memory`` CLI: write, list, validate, repair, sync, export, import,
-transfer.
+"""``lrh memory`` CLI: write, list, validate, repair, sync, read, search,
+export, import, transfer.
 
 PROP-LRH-MEMORY-COMMAND Stage 1 (WI-LRH-MEMORY-WRITE-SIDE), Stage 2
-(WI-LRH-MEMORY-ARCHIVE-SIDE), and Stage 4 (WI-LRH-MEMORY-PORTABILITY). Thin
-CLI wiring over the core logic in ``prompt_workflow_memory``, following the
-same pattern as ``lrh sessions`` (``sessions_workflow.py`` over
-``prompt_workflow_sessions``).
-
-Does not implement ``read``/``search`` (WI-LRH-MEMORY-READ-SIDE).
+(WI-LRH-MEMORY-ARCHIVE-SIDE), Stage 3 (WI-LRH-MEMORY-READ-SIDE), and Stage 4
+(WI-LRH-MEMORY-PORTABILITY). Thin CLI wiring over the core logic in
+``prompt_workflow_memory``, following the same pattern as ``lrh sessions``
+(``sessions_workflow.py`` over ``prompt_workflow_sessions``).
 """
 
 from __future__ import annotations
@@ -190,6 +188,34 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
         "--dry-run", action="store_true", help="report what would be transferred"
     )
 
+    read_parser = subparsers.add_parser(
+        "read", help="Print one memory's full frontmatter and body."
+    )
+    read_parser.add_argument("name", help="kebab-case memory name")
+    read_parser.add_argument("--project-root", default=".")
+    read_parser.add_argument("--claude-projects-root", default=None)
+    read_parser.add_argument("--format", choices=("text", "json"), default="text")
+
+    search_parser = subparsers.add_parser(
+        "search",
+        help=(
+            "Deterministic substring search over a memory corpus's "
+            "frontmatter and body -- no semantic ranking."
+        ),
+    )
+    search_parser.add_argument("query")
+    search_parser.add_argument("--project-root", default=".")
+    search_parser.add_argument("--claude-projects-root", default=None)
+    search_parser.add_argument("--agent", default="")
+    search_parser.add_argument(
+        "--type",
+        dest="type_",
+        default="",
+        choices=("",) + prompt_workflow_memory.VALID_TYPES,
+    )
+    search_parser.add_argument("--case-sensitive", action="store_true")
+    search_parser.add_argument("--format", choices=("text", "json"), default="text")
+
     args = parser.parse_args(argv)
     if args.memory_command is None:
         parser.error("memory requires a subcommand (try: lrh memory list)")
@@ -210,6 +236,10 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
         return _run_import(args)
     if args.memory_command == "transfer":
         return _run_transfer(args)
+    if args.memory_command == "read":
+        return _run_read(args)
+    if args.memory_command == "search":
+        return _run_search(args)
     parser.error("memory requires a subcommand (try: lrh memory list)")
     return 2  # pragma: no cover -- parser.error raises SystemExit
 
@@ -455,3 +485,95 @@ def _run_transfer(args: argparse.Namespace) -> int:
         return 1
 
     return _report_import_entries(entries, dry_run=args.dry_run)
+
+
+def _run_read(args: argparse.Namespace) -> int:
+    try:
+        result = prompt_workflow_memory.read_memory(
+            args.project_root,
+            args.name,
+            claude_projects_root=args.claude_projects_root,
+        )
+    except prompt_workflow_memory.MemoryValidationError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+
+    if args.format == "json":
+        print(
+            json.dumps(
+                {
+                    "name": result.name,
+                    "path": str(result.path),
+                    "frontmatter": result.frontmatter,
+                    "body": result.body,
+                },
+                indent=2,
+            )
+        )
+        return 0
+
+    print(f"path: {result.path}")
+    print(result.content, end="")
+    return 0
+
+
+def _run_search(args: argparse.Namespace) -> int:
+    try:
+        result = prompt_workflow_memory.search_memories(
+            args.project_root,
+            args.query,
+            agent=args.agent,
+            type_=args.type_,
+            case_sensitive=args.case_sensitive,
+            claude_projects_root=args.claude_projects_root,
+        )
+    except prompt_workflow_memory.MemoryValidationError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+
+    if args.format == "json":
+        print(
+            json.dumps(
+                {
+                    "query": result.query,
+                    "match_count": result.match_count,
+                    "case_sensitive": result.case_sensitive,
+                    "agent": result.agent,
+                    "type": result.type_,
+                    "mode": "exploratory_substring_search",
+                    "memories": [
+                        {
+                            "name": match.name,
+                            "path": str(match.path),
+                            "authored_by": match.authored_by,
+                            "contexts": match.contexts,
+                        }
+                        for match in result.matches
+                    ],
+                },
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return result.exit_code
+
+    print(f"query: {result.query}")
+    print(f"matches: {result.match_count}")
+    filters = []
+    if result.agent:
+        filters.append(f"agent={result.agent}")
+    if result.type_:
+        filters.append(f"type={result.type_}")
+    if filters:
+        print(f"filters: {', '.join(filters)}")
+    print("mode: deterministic substring search; no semantic ranking")
+    if not result.matches:
+        print("No memories matched.")
+        return result.exit_code
+    for match in result.matches:
+        print(f"- {match.name} ({match.path})")
+        if match.authored_by:
+            print(f"  authored_by: {match.authored_by}")
+        for context in match.contexts:
+            print(f"  context: {context}")
+    return result.exit_code

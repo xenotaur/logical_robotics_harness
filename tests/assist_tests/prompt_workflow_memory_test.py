@@ -1624,5 +1624,216 @@ class TransferMemoriesTest(unittest.TestCase):
             self.assertEqual(dest_memories[0].authored_by, "codex")
 
 
+class ReadMemoryTest(unittest.TestCase):
+    def test_read_returns_frontmatter_and_body(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body text\n",
+                claude_projects_root=claude_root,
+            )
+
+            result = prompt_workflow_memory.read_memory(
+                project_root, "feedback-foo", claude_projects_root=claude_root
+            )
+
+            self.assertEqual(result.name, "feedback-foo")
+            self.assertEqual(result.frontmatter["name"], "feedback-foo")
+            self.assertEqual(result.frontmatter["description"], "d")
+            self.assertEqual(result.body, "body text\n")
+            self.assertIn("body text", result.content)
+            self.assertTrue(result.path.exists())
+
+    def test_read_missing_memory_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.read_memory(
+                    project_root,
+                    "feedback-nonexistent",
+                    claude_projects_root=claude_root,
+                )
+
+    def test_read_rejects_path_traversal_name(self) -> None:
+        """A `name` with path segments must never escape the memory dir."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.read_memory(
+                    project_root, "../../etc/passwd", claude_projects_root=claude_root
+                )
+
+
+class SearchMemoriesTest(unittest.TestCase):
+    def test_search_finds_substring_in_body(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="a line about apples\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-bar",
+                description="d2",
+                type_="feedback",
+                agent="claude",
+                body="a line about oranges\n",
+                claude_projects_root=claude_root,
+            )
+
+            result = prompt_workflow_memory.search_memories(
+                project_root, "apples", claude_projects_root=claude_root
+            )
+
+            self.assertEqual(result.match_count, 1)
+            self.assertEqual(result.matches[0].name, "feedback-foo")
+            self.assertEqual(result.exit_code, 0)
+
+    def test_search_finds_substring_in_frontmatter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-unique-description-xyz",
+                description="a very distinctive description",
+                type_="feedback",
+                agent="claude",
+                body="unrelated body\n",
+                claude_projects_root=claude_root,
+            )
+
+            result = prompt_workflow_memory.search_memories(
+                project_root, "distinctive", claude_projects_root=claude_root
+            )
+
+            self.assertEqual(result.match_count, 1)
+            self.assertTrue(
+                any("frontmatter.description" in c for c in result.matches[0].contexts)
+            )
+
+    def test_search_is_case_insensitive_by_default(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="MixedCase Content\n",
+                claude_projects_root=claude_root,
+            )
+
+            result = prompt_workflow_memory.search_memories(
+                project_root, "mixedcase", claude_projects_root=claude_root
+            )
+            self.assertEqual(result.match_count, 1)
+
+            case_sensitive_result = prompt_workflow_memory.search_memories(
+                project_root,
+                "mixedcase",
+                case_sensitive=True,
+                claude_projects_root=claude_root,
+            )
+            self.assertEqual(case_sensitive_result.match_count, 0)
+
+    def test_search_filters_by_agent_and_type(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-claude",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="shared search term\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-codex",
+                description="d",
+                type_="feedback",
+                agent="codex",
+                body="shared search term\n",
+                claude_projects_root=claude_root,
+            )
+
+            by_agent = prompt_workflow_memory.search_memories(
+                project_root,
+                "shared search term",
+                agent="codex",
+                claude_projects_root=claude_root,
+            )
+            self.assertEqual(by_agent.match_count, 1)
+            self.assertEqual(by_agent.matches[0].name, "feedback-codex")
+
+    def test_search_excludes_the_index_file_itself(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="a searchable description",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+
+            result = prompt_workflow_memory.search_memories(
+                project_root, "searchable", claude_projects_root=claude_root
+            )
+
+            self.assertTrue(
+                all(match.path.name != "MEMORY.md" for match in result.matches)
+            )
+
+    def test_search_rejects_empty_query(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.search_memories(
+                    project_root, "", claude_projects_root=claude_root
+                )
+
+    def test_search_empty_corpus_returns_no_matches(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            result = prompt_workflow_memory.search_memories(
+                project_root, "anything", claude_projects_root=claude_root
+            )
+            self.assertEqual(result.match_count, 0)
+            self.assertEqual(result.exit_code, 1)
+
+
 if __name__ == "__main__":
     unittest.main()

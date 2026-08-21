@@ -1133,11 +1133,30 @@ def search_memories(
         for path in sorted(memory_dir.glob("*.md")):
             if path.name == INDEX_FILENAME:
                 continue
+            raw_content = path.read_text(encoding="utf-8")
             try:
-                frontmatter, body = read_frontmatter_and_body(
-                    path.read_text(encoding="utf-8")
-                )
+                frontmatter, body = read_frontmatter_and_body(raw_content)
             except MemoryValidationError:
+                # A malformed/legacy memory has no valid frontmatter to
+                # filter or attribute by -- but its content is still real,
+                # searchable text, and is exactly the population this
+                # command family exists to help inspect and repair.
+                # Skip it only when an --agent/--type filter was requested
+                # (unanswerable without valid metadata); otherwise search
+                # its raw content as a single opaque blob rather than
+                # silently excluding it from results.
+                if agent or type_:
+                    continue
+                comparable_raw = _comparable(raw_content, case_sensitive=case_sensitive)
+                if comparable_query in comparable_raw:
+                    matches.append(
+                        MemorySearchMatch(
+                            name=path.stem,
+                            path=path,
+                            authored_by=None,
+                            contexts=[f"content: {_compact_context(raw_content)}"],
+                        )
+                    )
                 continue
             metadata = frontmatter.get("metadata")
             if not isinstance(metadata, dict):

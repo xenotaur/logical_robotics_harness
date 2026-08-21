@@ -1834,6 +1834,57 @@ class SearchMemoriesTest(unittest.TestCase):
             self.assertEqual(result.match_count, 0)
             self.assertEqual(result.exit_code, 1)
 
+    def test_search_finds_substring_in_malformed_memory_raw_content(self) -> None:
+        """Regression test: a memory without valid frontmatter (legacy or
+        malformed) must still be searchable by its raw content -- silently
+        skipping it would hide exactly the population `lrh memory search`
+        exists to help inspect and repair."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            memory_dir = claude_root / project_slug_for_path(project_root) / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "legacy_foo.md").write_text(
+                "no frontmatter here, just a distinctive_needle_xyz string\n",
+                encoding="utf-8",
+            )
+
+            result = prompt_workflow_memory.search_memories(
+                project_root, "distinctive_needle_xyz", claude_projects_root=claude_root
+            )
+
+            self.assertEqual(result.match_count, 1)
+            self.assertEqual(result.matches[0].name, "legacy_foo")
+            self.assertIsNone(result.matches[0].authored_by)
+            self.assertTrue(
+                any("distinctive_needle_xyz" in c for c in result.matches[0].contexts)
+            )
+
+    def test_search_skips_malformed_memory_when_agent_or_type_filter_set(
+        self,
+    ) -> None:
+        """A malformed memory has no valid metadata to filter by -- it must
+        be excluded (not error, not falsely included) when --agent/--type
+        is requested, since the filter question is unanswerable for it."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            memory_dir = claude_root / project_slug_for_path(project_root) / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "legacy_foo.md").write_text(
+                "no frontmatter, but has the word needle in it\n", encoding="utf-8"
+            )
+
+            result = prompt_workflow_memory.search_memories(
+                project_root,
+                "needle",
+                agent="claude",
+                claude_projects_root=claude_root,
+            )
+            self.assertEqual(result.match_count, 0)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 2026_08_21_17_34_50_DOC_WORK_WS_SECRETS_COMMAND
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/590
-commit: 2c2a7293b6a155b199eda92ede780ddc0ece890f
+commit: 6d61aa8d8ab27ab61b83d44f49a2201dbd7aded0
 created_at: 2026-08-21T18:05:15+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/590

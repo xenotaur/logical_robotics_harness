@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_17_34_50_DOC_WORK_WS_SECRETS_COMMAND
 prompt_id: PROMPT(AD_HOC:DOC_WORK_WS_SECRETS_COMMAND)[2026-08-21T17:05:01+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/590
-commit: ea4221dbcc7d69bf2fc47e3850ca6a1ff78c94f6
+commit: 6d61aa8d8ab27ab61b83d44f49a2201dbd7aded0
 created_at: 2026-08-21T17:34:50+00:00
 agent: claude_app
 instruction_source: WS-SECRETS-COMMAND

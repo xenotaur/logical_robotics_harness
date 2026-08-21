@@ -302,5 +302,166 @@ class TestLrhSecretsReviewCli(unittest.TestCase):
         self.assertIsNone(kwargs["decisions_path"])
 
 
+class TestLrhSecretsPurgeCli(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.repo_root = pathlib.Path(__file__).resolve().parents[2]
+
+    def _run_lrh(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            ["lrh", *args],
+            check=False,
+            capture_output=True,
+            text=True,
+            cwd=self.repo_root,
+        )
+
+    def test_lrh_secrets_purge_help(self) -> None:
+        result = self._run_lrh(["secrets", "purge", "--help"])
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("--project-root", result.stdout)
+        self.assertIn("--source", result.stdout)
+        self.assertIn("--refs-file", result.stdout)
+        self.assertIn("--replacements", result.stdout)
+        self.assertIn("--mirror-dir", result.stdout)
+        self.assertIn("--dry-run", result.stdout)
+        self.assertIn("--apply", result.stdout)
+
+    def test_lrh_secrets_purge_help_documents_reviewed_replacements_expectation(
+        self,
+    ) -> None:
+        result = self._run_lrh(["secrets", "purge", "--help"])
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("replacements.reviewed.txt", result.stdout)
+
+    def test_lrh_secrets_requires_subcommand_mentions_purge(self) -> None:
+        result = self._run_lrh(["secrets"])
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("lrh secrets purge", result.stderr)
+
+    def test_lrh_secrets_purge_missing_refs_file_fails_cleanly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            replacements_path = out_dir / "replacements.reviewed.txt"
+            replacements_path.write_text(
+                "# lrh-secrets-reviewed v1\nsk-aaa==>***REMOVED-x***\n"
+            )
+            result = self._run_lrh(
+                [
+                    "secrets",
+                    "purge",
+                    "--refs-file",
+                    str(out_dir / "missing-refs.txt"),
+                    "--replacements",
+                    str(replacements_path),
+                    "--dry-run",
+                ]
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_lrh_secrets_purge_missing_marker_fails_cleanly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            refs_file = out_dir / "refs.txt"
+            refs_file.write_text("refs/heads/main\n")
+            replacements_path = out_dir / "replacements.txt"
+            replacements_path.write_text("sk-aaa==>***REMOVED-x***\n")
+            result = self._run_lrh(
+                [
+                    "secrets",
+                    "purge",
+                    "--refs-file",
+                    str(refs_file),
+                    "--replacements",
+                    str(replacements_path),
+                    "--dry-run",
+                ]
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("review --apply", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_lrh_secrets_purge_dry_run_and_apply_mutually_exclusive(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            refs_file = out_dir / "refs.txt"
+            refs_file.write_text("refs/heads/main\n")
+            replacements_path = out_dir / "replacements.reviewed.txt"
+            replacements_path.write_text(
+                "# lrh-secrets-reviewed v1\nsk-aaa==>***REMOVED-x***\n"
+            )
+            result = self._run_lrh(
+                [
+                    "secrets",
+                    "purge",
+                    "--refs-file",
+                    str(refs_file),
+                    "--replacements",
+                    str(replacements_path),
+                    "--dry-run",
+                    "--apply",
+                ]
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("mutually exclusive", result.stderr)
+
+    def test_lrh_secrets_purge_dry_run_reports_no_rewrite(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            refs_file = out_dir / "refs.txt"
+            refs_file.write_text("refs/heads/main\n")
+            replacements_path = out_dir / "replacements.reviewed.txt"
+            replacements_path.write_text(
+                "# lrh-secrets-reviewed v1\nsk-aaa==>***REMOVED-x***\n"
+            )
+            result = self._run_lrh(
+                [
+                    "secrets",
+                    "purge",
+                    "--source",
+                    "git@example.com:x",
+                    "--refs-file",
+                    str(refs_file),
+                    "--replacements",
+                    str(replacements_path),
+                    "--dry-run",
+                ]
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertIn("DRY RUN", result.stdout)
+
+    def test_lrh_secrets_purge_delegates_to_secrets_purge_module(self) -> None:
+        with unittest.mock.patch(
+            "lrh.cli.main.secrets_purge.run_purge",
+            return_value="DRY RUN: ...",
+        ) as mock_run_purge:
+            with unittest.mock.patch(
+                "sys.argv",
+                [
+                    "lrh",
+                    "secrets",
+                    "purge",
+                    "--refs-file",
+                    "/tmp/refs.txt",
+                    "--replacements",
+                    "/tmp/replacements.reviewed.txt",
+                    "--dry-run",
+                ],
+            ):
+                with self.assertRaises(SystemExit) as exc:
+                    cli_main.main()
+        self.assertEqual(exc.exception.code, 0)
+        mock_run_purge.assert_called_once()
+        _, kwargs = mock_run_purge.call_args
+        self.assertEqual(kwargs["refs_file"], pathlib.Path("/tmp/refs.txt").resolve())
+        self.assertEqual(
+            kwargs["replacements_path"],
+            pathlib.Path("/tmp/replacements.reviewed.txt").resolve(),
+        )
+        self.assertFalse(kwargs["apply"])
+        self.assertIsNone(kwargs["mirror_dir"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1503,3 +1503,52 @@ covers its import/migrate requirement and can either reuse or supersede it.
 
 **Related:** `experimental/rescue_codex_exports/README.md`;
 `project/work_items/proposed/WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT.md`.
+
+---
+
+## `/lrh-assess` skill — not yet warranted
+
+**Noted:** 2026-08-21, during WS-SKILLS retrospective after all workstream
+items resolved.
+
+**Background:** `WS-SKILLS` (`project/workstreams/resolved/WS-SKILLS.md`)
+described Stage 3 workflow skills as `/lrh-work-item`, `/lrh-workstream`, and
+`/lrh-assess`. The first two were implemented and their work items resolved.
+`/lrh-assess` was never promoted to a work item; the workstream closed without
+it. No work item, backlog entry, or decision record for `/lrh-assess` existed
+anywhere in the control plane as of the date above.
+
+**Original intent:** The WS-SKILLS summary describes LRH's Apple Notes workflow
+steps as "assess → design → create workstream → create work item." The `assess`
+step was the session-opening triage: survey project state, synthesise
+priorities, recommend what to work on next.
+
+**Analysis:**
+
+`/lrh-work-remains` (`.claude/skills/lrh-work-remains/SKILL.md`) reads the
+same signals (open PRs, work items, workstreams, `lrh snapshot current_focus`)
+but is oriented retrospectively — "what's unfinished?" — and is report-only by
+design; it "does not offer to act on any finding." The genuinely missing piece
+would be prospective synthesis: given current state, recommend the
+highest-value next action with rationale.
+
+That prospective question is, however, already largely answered by the
+structured planning artifacts: the active workstream's `stage` +
+`exit_criteria` fields, `lrh work-items readiness --status proposed`, and
+`lrh snapshot current_focus` together deterministically identify the next ready
+item in most sessions. The session-opening question "what's next on this
+workstream?" is answered correctly in two tool calls — a skill for it would add
+maintenance cost (two-file mirror: `src/lrh/skills/` + `.claude/skills/`)
+without a proportionate reduction in friction.
+
+Extending `/lrh-work-remains` with a `--plan` mode was considered and
+rejected: the skill's strict report-only identity is its most important safety
+property; mixing retrospective accounting with prospective action
+recommendations would erode that.
+
+**Decision:** Do not implement `/lrh-assess` as a separate skill. Re-evaluate
+if a pattern emerges where session-start triage is consistently painful despite
+using `/lrh-work-remains` + workstream/work-item reads. If that pattern
+emerges, prefer a `--plan` flag on `/lrh-work-remains` over a new skill only
+if the prospective output is genuinely separable from report-only; otherwise
+implement as a new skill at that time.

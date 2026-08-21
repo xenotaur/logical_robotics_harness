@@ -150,14 +150,18 @@ actual risk first, don't assume the precedent transfers uncritically.
   Safety Rules section.
 - Does not assume the flag should be removed — the assessment in Required
   Changes step 1 is a real decision point, not a formality.
-- Does not add this WI to `WS-INVOCATION-AND-GATE-RESET`'s `work_items:`
-  list in this same change, even though it is a valid registration gap
-  (review-flagged, PR #571) — that file is concurrently owned by
-  `WI-GATE-POLICY-CASCADE-STAGE3`'s implementation (open as PR #577 at the
-  time of this note), and editing it here would recreate the exact
-  concurrent-edit collision this program has already hit once (`PR #556`
-  vs. this session's local changes). Register this WI in that list as a
-  follow-up once PR #577 lands, not as part of this PR.
+- **Registration status update (2026-08-21, confirm-fixes round 2):** this
+  WI was initially left out of `WS-INVOCATION-AND-GATE-RESET`'s
+  `work_items:` list (review-flagged, PR #571, Codex P2) with a stated
+  rationale that `WI-GATE-POLICY-CASCADE-STAGE3`'s implementation, PR #577,
+  was concurrently open and touching the same workstream file. That
+  rationale was stale the moment it was written — `gh pr view 577` shows
+  PR #577 merged at `2026-08-21T15:57:07Z`, roughly 17 minutes before the
+  commit that added the deferral text. A substitute `/lrh-self-review`
+  pass caught the discrepancy; the WI has now been registered in
+  `WS-INVOCATION-AND-GATE-RESET`'s `work_items:` list, appended after the
+  Stage 5-7 item since it is a side-fix outside the sequential Stage 1-7
+  plan, not part of it.
 
 ## Acceptance Criteria
 

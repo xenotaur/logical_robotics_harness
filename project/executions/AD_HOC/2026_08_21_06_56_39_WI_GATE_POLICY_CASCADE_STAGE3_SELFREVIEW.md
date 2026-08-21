@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_06_56_39_WI_GATE_POLICY_CASCADE_STAGE3_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_GATE_POLICY_CASCADE_STAGE3_SELFREVIEW)[2026-08-21T06:56:32+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_20_06_44_55_WI_GATE_POLICY_CASCADE_STAGE3
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/577
-commit: 2a4c27cb9953dcea0209ea66313cc1a14dd21fbf
+commit: 194d0262e660d91297c7ff8b4c59b761218aefa1
 created_at: 2026-08-21T06:56:39+00:00
 agent: codex_app
 instruction_source: skill:lrh-self-review --pr

@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_05_31_19_WI_GATE_POLICY_CASCADE_STAGE3_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_GATE_POLICY_CASCADE_STAGE3_REVIEW)[2026-08-21T05:25:17+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_20_06_44_55_WI_GATE_POLICY_CASCADE_STAGE3
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/577
-commit: b2d5666496832b94ff6685541433e7e66d28938f
+commit: 194d0262e660d91297c7ff8b4c59b761218aefa1
 created_at: 2026-08-21T05:31:19+00:00
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/577

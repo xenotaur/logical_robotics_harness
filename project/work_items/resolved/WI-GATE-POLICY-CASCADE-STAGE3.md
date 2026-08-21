@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #577 (commit 194d0262e660d91297c7ff8b4c59b761218aefa1)
 blocked_reason: null
 blocked: false
 id: WI-GATE-POLICY-CASCADE-STAGE3
 title: Deliver PROP-INVOCATION-AND-GATE-RESET Stage 3 gate policy audit, DEC, and cascade
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

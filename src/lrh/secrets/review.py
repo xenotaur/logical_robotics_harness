@@ -9,12 +9,11 @@ explicit `--decisions` file. Default mode prints an annotated report;
 `<out-dir>/replacements.reviewed.txt` - a name distinct from `scan`'s
 draft `<out-dir>/replacements.txt`, which this command never overwrites.
 
-`replacements.reviewed.txt` is intended to be the file a future
-`lrh secrets purge` command will accept via its `--replacements` flag,
-rejecting `scan`'s draft `replacements.txt` outright (`purge` does not
-exist in this repo yet - see `WI-SECRETS-PURGE`). The enforcement
-mechanism `purge` will use is a fixed first line, `# lrh-secrets-reviewed
-v1`, checked before doing anything else, not just the filename.
+`replacements.reviewed.txt` is the file `lrh secrets purge` accepts via
+its `--replacements` flag, rejecting `scan`'s draft `replacements.txt`
+outright. The enforcement mechanism `purge` uses is a fixed first line,
+`# lrh-secrets-reviewed v1`, checked before doing anything else, not
+just the filename.
 
 Decisions file format (YAML), one entry per secret value:
 

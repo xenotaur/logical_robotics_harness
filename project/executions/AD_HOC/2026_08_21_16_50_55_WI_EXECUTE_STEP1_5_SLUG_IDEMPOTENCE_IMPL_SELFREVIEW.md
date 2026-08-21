@@ -2,13 +2,13 @@
 execution_id: 2026_08_21_16_50_55_WI_EXECUTE_STEP1_5_SLUG_IDEMPOTENCE_IMPL_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_EXECUTE_STEP1_5_SLUG_IDEMPOTENCE_IMPL_SELFREVIEW)[2026-08-21T16:50:49+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/588
+commit: 7b15d948f4792cefe991b6f885b03868ad3414b0
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-EXECUTE-STEP1-5-SLUG-IDEMPOTENCE.md
-session_transcript: pending
+session_transcript: claude-app:c02da21d-4a23-4315-857f-0829e0483667
 created_at: 2026-08-21T16:50:55+00:00
 ---
 

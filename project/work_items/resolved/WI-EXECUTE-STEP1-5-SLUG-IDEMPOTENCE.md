@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #586 (creation, commit 76d837a2) and PR #588 (implementation, commit 7b15d948)."
 blocked_reason: null
 blocked: false
 id: WI-EXECUTE-STEP1-5-SLUG-IDEMPOTENCE
 title: Add slug-based pre-mint idempotence check to lrh-execute Step 1.5
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -172,12 +172,41 @@ state and run stop checks; they do not edit files or create a branch.
    - readiness warnings, prior-art warnings, or dependency warnings.
 4. Mint the prompt ID and run idempotence:
 
+   **Before minting, check for an existing record by stable slug** — the
+   same pre-mint check `/lrh-work-item` Step 4 documents. `lrh prompt
+   label` always mints a fresh, uniquely-timestamped prompt ID, so a
+   post-mint `check-execution --prompt-id` check on it can never find a
+   prior record — no prior record was ever recorded under an ID that
+   didn't exist until this call created it. Use the slug-based mode
+   first:
+
+   ```bash
+   lrh prompt check-execution --slug <slug> --work-item <WI-ID> --project-root .
+   ```
+
+   Interpret the exit code: `1` (a `landed`/`in_progress`/unresolved-status
+   match, or unresolved recency) — stop here, go to Step 5, and record a
+   `stopped` journal entry, unless the user explicitly asks for a rerun;
+   `0` with a `failed`/`reverted`/`superseded` match — summarize and
+   continue; `0` with no match — proceed; `3` (the check itself failed)
+   — stop and report, this is not the same as "no prior record"; `2`
+   (malformed input) — stop and report, a usage error.
+
+   **Unlike `/lrh-work-item` Step 4, this check's matched `execution_id`
+   has no `--rerun-of` consumer here** — Step 3 inlines `/lrh-implement`,
+   whose own `record-execution` call does not accept a `--rerun-of` flag.
+   If the user asks for a rerun on a blocking match, note the matched
+   `execution_id` in this run's journal entry for traceability; it is not
+   passed to any downstream command.
+
+   Then mint the prompt ID and run the existing post-mint check:
+
    ```bash
    lrh prompt label --slug <slug> --work-item <WI-ID>
    lrh prompt check-execution --prompt-id "<id>" --project-root .
    ```
 
-   If the idempotence check reports a `landed` or `in_progress` record, stop
+   If this second check reports a `landed` or `in_progress` record, stop
    here; then go to Step 5 and record a `stopped` journal entry.
 5. Derive the branch name using `/lrh-implement`'s convention:
    `<github-login>/<type>/<slug>`.

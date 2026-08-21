@@ -2,14 +2,14 @@
 execution_id: 2026_08_21_18_19_41_LRH_PII_SCAN_CONFIRM
 prompt_id: PROMPT(AD_HOC:LRH_PII_SCAN_CONFIRM)[2026-08-21T18:17:51+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_21_17_55_09_LRH_PII_SCAN
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/591
-commit: pending
+commit: cf2c2466
 created_at: 2026-08-21T18:19:41+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/591
-session_transcript: "claude-app:cf93c405-ed0f-409d-946f-7451a1cb2f7c"
+session_transcript: claude-app:cf93c405-ed0f-409d-946f-7451a1cb2f7c
 ---
 
 # Summary

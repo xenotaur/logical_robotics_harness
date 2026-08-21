@@ -14,7 +14,9 @@ dedup) -- those are Stage 3 -- nor the weekly/hook-triggered sync -- Stage
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
+import fcntl
 import hashlib
 import json
 import os
@@ -259,6 +261,34 @@ class SnapshotMirrorResult:
     snapshot: pathlib.Path | None
 
 
+@contextlib.contextmanager
+def _locked_dest(dest: pathlib.Path) -> typing.Iterator[None]:
+    """Hold an exclusive lock for the duration of one dest's read-snapshot-write.
+
+    Without this, two overlapping ``mirror_file_with_snapshot`` calls for the
+    same ``dest`` (e.g. two concurrent ``lrh memory sync`` processes racing a
+    fast-changing source) can each read the same prior content, snapshot it,
+    and overwrite -- silently dropping whichever version landed on ``dest``
+    between the two reads: it is never the one snapshotted (both callers
+    snapshotted the same earlier version) and never the one left current
+    (the later writer's own source overwrites it), violating the "no version
+    is ever unrecoverable" invariant this function exists to provide. A
+    POSIX advisory lock on a sibling lock file serializes the whole
+    read-compare-snapshot-write sequence per destination, the same pattern
+    ``prompt_workflow_memory._locked_index`` uses for the same reason.
+    """
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = dest.parent / f".{dest.name}.lock"
+    lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
+
+
 def mirror_file_with_snapshot(
     source: pathlib.Path,
     dest: pathlib.Path,
@@ -281,27 +311,31 @@ def mirror_file_with_snapshot(
 
     Snapshot filenames follow ``<dest-name>.<timestamp>.<shorthash>.md``
     under ``history_dir``, keyed by the *prior* content's hash so the same
-    snapshot is never written twice for an unchanged prior version.
+    snapshot is never written twice for an unchanged prior version. The
+    whole read-compare-snapshot-write sequence runs under :func:`_locked_dest`
+    so two overlapping mirrors of the same ``dest`` cannot race each other
+    into dropping an intermediate version.
     """
 
     data = source.read_bytes()
     source_hash = content_hash(data)
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    snapshot: pathlib.Path | None = None
-    if dest.exists():
-        existing = dest.read_bytes()
-        if content_hash(existing) == source_hash:
-            return SnapshotMirrorResult(
-                source=source, dest=dest, copied=False, snapshot=None
-            )
-        history_dir.mkdir(parents=True, exist_ok=True)
-        short_hash = content_hash(existing)[:12]
-        snapshot = history_dir / f"{dest.name}.{timestamp}.{short_hash}.md"
-        atomic_write_bytes(snapshot, existing)
-    atomic_write_bytes(dest, data)
-    return SnapshotMirrorResult(
-        source=source, dest=dest, copied=True, snapshot=snapshot
-    )
+
+    with _locked_dest(dest):
+        snapshot: pathlib.Path | None = None
+        if dest.exists():
+            existing = dest.read_bytes()
+            if content_hash(existing) == source_hash:
+                return SnapshotMirrorResult(
+                    source=source, dest=dest, copied=False, snapshot=None
+                )
+            history_dir.mkdir(parents=True, exist_ok=True)
+            short_hash = content_hash(existing)[:12]
+            snapshot = history_dir / f"{dest.name}.{timestamp}.{short_hash}.md"
+            atomic_write_bytes(snapshot, existing)
+        atomic_write_bytes(dest, data)
+        return SnapshotMirrorResult(
+            source=source, dest=dest, copied=True, snapshot=snapshot
+        )
 
 
 _SESSION_ID_FIELD = "sessionId"

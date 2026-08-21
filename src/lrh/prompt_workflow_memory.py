@@ -605,7 +605,30 @@ def sync_memory(
     if not memory_dir.exists():
         return []
 
-    resolved_archive_root = prompt_workflow_sessions.resolve_archive_root(archive_root)
+    resolved_archive_root = prompt_workflow_sessions.resolve_archive_root(
+        archive_root
+    ).resolve()
+    resolved_memory_dir = memory_dir.resolve()
+    # Either direction of nesting (archive root inside the memory corpus, or
+    # vice versa) has the same failure mode: the next run's `rglob("*.md")`
+    # would pick up the archive's own prior output and re-mirror it one level
+    # deeper, growing without bound. Equality is covered by both `in` checks
+    # (a path is always a member of its own `(self, *self.parents)` tuple).
+    if resolved_memory_dir in (resolved_archive_root, *resolved_archive_root.parents):
+        raise MemoryValidationError(
+            f"archive root {resolved_archive_root} is nested under (or equal "
+            f"to) the memory corpus {resolved_memory_dir}; each sync would "
+            "re-mirror its own prior output, growing without bound -- choose "
+            "an archive root outside the memory corpus"
+        )
+    if resolved_archive_root in (resolved_memory_dir, *resolved_memory_dir.parents):
+        raise MemoryValidationError(
+            f"memory corpus {resolved_memory_dir} is nested under (or equal "
+            f"to) the archive root {resolved_archive_root}; each sync would "
+            "re-mirror its own prior output, growing without bound -- choose "
+            "an archive root outside the memory corpus"
+        )
+
     project_slug = project_slug_for_path(project_root)
     resolved_timestamp = timestamp or _utc_now_compact()
 

@@ -911,6 +911,121 @@ class SyncMemoryTest(unittest.TestCase):
             )
             self.assertEqual(entries, [])
 
+    def test_sync_rejects_archive_root_nested_under_memory_corpus(self) -> None:
+        """Regression test: an archive root inside the memory corpus would
+        have its own mirrored output picked up by the next run's rglob,
+        re-mirroring it one level deeper every run without ever converging."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+            memory_dir = prompt_workflow_memory.memory_dir_for_project(
+                project_root, claude_root
+            )
+            nested_archive_root = memory_dir / "archive"
+
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.sync_memory(
+                    project_root,
+                    claude_projects_root=claude_root,
+                    archive_root=nested_archive_root,
+                )
+
+    def test_sync_rejects_memory_corpus_nested_under_archive_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.sync_memory(
+                    project_root,
+                    claude_projects_root=claude_root,
+                    archive_root=claude_root,
+                )
+
+    def test_sync_concurrent_syncs_never_drop_an_intermediate_version(self) -> None:
+        """Regression test: two overlapping mirrors of the same dest must
+        not both snapshot the same prior content and race the final write --
+        that would drop whichever version landed on dest between their reads
+        (never snapshotted, never left current)."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body v1\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.sync_memory(
+                project_root,
+                claude_projects_root=claude_root,
+                archive_root=archive_root,
+                timestamp="20260101T000000Z",
+            )
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body v2\n",
+                claude_projects_root=claude_root,
+                force=True,
+            )
+
+            def run_sync(timestamp: str) -> None:
+                prompt_workflow_memory.sync_memory(
+                    project_root,
+                    claude_projects_root=claude_root,
+                    archive_root=archive_root,
+                    timestamp=timestamp,
+                )
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [
+                    pool.submit(run_sync, "20260102T000000Z"),
+                    pool.submit(run_sync, "20260102T000001Z"),
+                ]
+                for future in futures:
+                    future.result()
+
+            slug = project_slug_for_path(project_root)
+            dest = archive_root / "raw" / slug / "memory" / "feedback_foo.md"
+            self.assertIn("body v2", dest.read_text(encoding="utf-8"))
+            history_dir = archive_root / "history" / slug / "memory"
+            snapshot_contents = [
+                p.read_text(encoding="utf-8") for p in history_dir.glob("*")
+            ]
+            self.assertTrue(any("body v1" in c for c in snapshot_contents))
+
 
 if __name__ == "__main__":
     unittest.main()

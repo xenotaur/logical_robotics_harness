@@ -22,15 +22,27 @@ current state) and re-run *after* (plan.md step 7, "expect zero orphans
 and zero splits"). Both get their own column below so a row can't read as
 fully done while either is actually skipped.
 
-| Repo | Physical move + symlink | Worktree repair | Pre-migration snapshot | Pre-migration audit | Canonical bucket minted | Memory migrated | Acceptance test | Post-migration re-audit | Notes |
+**"Insurance memory snapshot" is a separate, optional activity from the
+in-sequence "Pre-migration audit" step** — do not conflate the two.
+Several repos below had their memory corpus snapshotted as a standalone
+precaution before any physical move was even scheduled (see "Memory
+snapshots already taken" below); that's legitimately independent of, and
+can predate, every other column in the same row, including "Physical move
++ symlink" itself — the memory corpus being snapshotted lives in the
+*old* bucket regardless of whether the repo directory has moved yet. The
+formal step-3 snapshot (`snapshot_state.sh`, run as part of the
+in-sequence procedure right before "Pre-migration audit") is a distinct,
+later action even when this column already reads "done."
+
+| Repo | Physical move + symlink | Worktree repair | Canonical bucket minted | Insurance memory snapshot | Pre-migration audit | Memory migrated | Acceptance test | Post-migration re-audit | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | LogicalRoboticsHarness (LRH) | done | n/a checked at move time | done | done | done | done | done | done — 0 orphans, 0 splits | Original incident repo; full history in `findings.md`. |
 | LCATS | done | n/a checked at move time | done | done | done | done | done | done — 0 orphans, 0 splits | Original incident repo; full history in `findings.md`. |
 | ProsocialRobotics (`prosocial`) | done (2026-08-21) | done (2026-08-21) — 4 linked worktrees repaired, `prunable` cleared | not yet | not yet | not yet | not yet | not yet | not yet | Move predates this checklist; worktree repair was the gap found and fixed. No `Workstreams`-style sibling symlink added — no evidence `ProsocialRobotics/` ever had one (unlike LRH/LCATS). |
-| Taurworks (`taurworks`) | done (2026-08-21) | done (2026-08-21) — 1 linked worktree (`intelligent-einstein-81d3f9`) repaired, `prunable` cleared | done (2026-08-19) — see snapshot list below | not yet | not yet | not yet | not yet | not yet | `taurworks-safety` (a stale second clone of the same GitHub repo, found alongside during survey) was investigated and deleted separately by the user — not part of this migration. `Archive/` and `.taurworks/` siblings deliberately left in place (not git-tracked, no evidence they need to travel with the repo). |
-| Taurcode (`taurcode`) | not started | n/a — no worktrees found | done (2026-08-19) — see snapshot list below | not yet | not yet | not yet | not yet | not yet | Blocked on the user closing out the active Taurcode session (Claude) and a paused Codex session — do not move while either is live. Taurcode PR #82 (skills-resync work) landed separately and is unrelated to this move. |
-| Velumin (`velumin`) | not started | not started | done (2026-08-19) — see snapshot list below | not yet | not yet | not yet | not yet | not yet | Confirmed session-free and clean per the 2026-08-19 to 2026-08-20 survey (1 linked worktree `velumin-project-status-816cb8`; Velumin PR #7 already merged). Ready to move whenever. |
-| ReplicationVector (`replication_vector`) | not started | n/a — no worktrees found | done (2026-08-19) — see snapshot list below | not yet | not yet | not yet | not yet | not yet | Confirmed clean, no worktrees, `main`, no open PRs. Ready to move whenever. |
+| Taurworks (`taurworks`) | done (2026-08-21) | done (2026-08-21) — 1 linked worktree (`intelligent-einstein-81d3f9`) repaired, `prunable` cleared | not yet | done (2026-08-19) — see snapshot list below; a standalone insurance copy, not the in-sequence step | not yet | not yet | not yet | not yet | `taurworks-safety` (a stale second clone of the same GitHub repo, found alongside during survey) was investigated and deleted separately by the user — not part of this migration. `Archive/` and `.taurworks/` siblings deliberately left in place (not git-tracked, no evidence they need to travel with the repo). |
+| Taurcode (`taurcode`) | not started | n/a — no worktrees found | not started | done (2026-08-19) — see snapshot list below; a standalone insurance copy, not the in-sequence step | not yet | not yet | not yet | not yet | Blocked on the user closing out the active Taurcode session (Claude) and a paused Codex session — do not move while either is live. Taurcode PR #82 (skills-resync work) landed separately and is unrelated to this move. |
+| Velumin (`velumin`) | not started | not started | not started | done (2026-08-19) — see snapshot list below; a standalone insurance copy, not the in-sequence step | not yet | not yet | not yet | not yet | Confirmed session-free and clean per the 2026-08-19 to 2026-08-20 survey (1 linked worktree `velumin-project-status-816cb8`; Velumin PR #7 already merged). Ready to move whenever. |
+| ReplicationVector (`replication_vector`) | not started | n/a — no worktrees found | not started | done (2026-08-19) — see snapshot list below; a standalone insurance copy, not the in-sequence step | not yet | not yet | not yet | not yet | Confirmed clean, no worktrees, `main`, no open PRs. Ready to move whenever. |
 
 ## Memory snapshots already taken (insurance, independent of move status)
 

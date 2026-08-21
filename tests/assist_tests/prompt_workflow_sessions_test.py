@@ -263,6 +263,26 @@ class DiscoverTranscriptsTest(unittest.TestCase):
                 ],
             )
 
+    def test_top_level_symlinked_transcripts_are_excluded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+            root = tmp_path / "claude-projects"
+            project_dir = root / "proj-a"
+            outside_dir = tmp_path / "outside"
+            project_dir.mkdir(parents=True)
+            outside_dir.mkdir()
+            external_file = outside_dir / "external.jsonl"
+            external_file.write_text("{}\n")
+            (project_dir / "safe.jsonl").write_text("{}\n")
+            (project_dir / "linked.jsonl").symlink_to(external_file)
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                [(item.slug, str(item.relative_path)) for item in found],
+                [("proj-a", "safe.jsonl")],
+            )
+
     def test_missing_root_returns_empty(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             found = prompt_workflow_sessions.discover_transcripts(
@@ -365,6 +385,31 @@ class DiscoverTranscriptsTest(unittest.TestCase):
             external_file.write_text("secret\n")
             (session_dir / "leak.txt").symlink_to(external_file)
             (session_dir / "result.txt").write_text("result\n")
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                sorted((item.slug, str(item.relative_path)) for item in found),
+                [
+                    ("proj-a", "child-1.jsonl"),
+                    ("proj-a", "child-1/tool-results/result.txt"),
+                ],
+            )
+
+    def test_nested_symlinked_directories_are_not_descended(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            project_dir = root / "proj-a"
+            session_dir = project_dir / "child-1"
+            external_dir = root / "outside"
+            (session_dir / "tool-results").mkdir(parents=True)
+            external_dir.mkdir()
+            (project_dir / "child-1.jsonl").write_text("{}\n")
+            (session_dir / "tool-results" / "result.txt").write_text("result\n")
+            (external_dir / "secret.txt").write_text("secret\n")
+            (session_dir / "linked-dir").symlink_to(
+                external_dir, target_is_directory=True
+            )
 
             found = prompt_workflow_sessions.discover_transcripts(root)
 

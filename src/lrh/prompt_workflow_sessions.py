@@ -213,7 +213,11 @@ def _top_level_transcripts(
     claude_projects_root: pathlib.Path,
 ) -> list[DiscoveredTranscript]:
     discovered: list[DiscoveredTranscript] = []
-    for jsonl_path in sorted(claude_projects_root.glob("*/*.jsonl")):
+    for jsonl_path in sorted(
+        p
+        for p in claude_projects_root.glob("*/*.jsonl")
+        if not p.is_symlink() and p.is_file()
+    ):
         slug = jsonl_path.parent.name
         discovered.append(
             DiscoveredTranscript(
@@ -229,6 +233,20 @@ def _is_session_artifact_dir(name: str, known_session_ids: set[str]) -> bool:
     if name in known_session_ids:
         return True
     return bool(_SESSION_ID_DIR.fullmatch(name))
+
+
+def _nested_session_files(session_dir: pathlib.Path) -> list[pathlib.Path]:
+    nested_files: list[pathlib.Path] = []
+    for dirpath, dirnames, filenames in os.walk(session_dir, followlinks=False):
+        current_dir = pathlib.Path(dirpath)
+        dirnames[:] = [
+            dirname for dirname in dirnames if not (current_dir / dirname).is_symlink()
+        ]
+        for filename in filenames:
+            nested_file = current_dir / filename
+            if not nested_file.is_symlink() and nested_file.is_file():
+                nested_files.append(nested_file)
+    return sorted(nested_files)
 
 
 def discover_transcripts(
@@ -260,9 +278,7 @@ def discover_transcripts(
             if not _is_session_artifact_dir(session_id, known_session_ids):
                 continue
             owner_slug = session_id_to_slug.get(session_id, local_slug)
-            for nested_file in sorted(
-                p for p in session_dir.rglob("*") if not p.is_symlink() and p.is_file()
-            ):
+            for nested_file in _nested_session_files(session_dir):
                 relative_path = pathlib.Path(session_id) / nested_file.relative_to(
                     session_dir
                 )

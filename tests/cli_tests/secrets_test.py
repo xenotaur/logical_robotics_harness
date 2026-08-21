@@ -164,6 +164,42 @@ class TestLrhSecretsReviewCli(unittest.TestCase):
                 stale.exists(), "a failed --apply must not leave a stale reviewed file"
             )
 
+    def test_lrh_secrets_review_apply_invalidates_stale_reviewed_on_input_error(
+        self,
+    ) -> None:
+        """A --apply that fails via ReviewInputError (not just undecided
+        findings) must also invalidate a stale reviewed file -- regression
+        test for a gap a substitute self-review caught: the invalidation
+        call originally lived only inside the undecided-findings branch,
+        never reached when build_report() itself raised first."""
+        with tempfile.TemporaryDirectory() as tmp:
+            out_dir = pathlib.Path(tmp)
+            stale = out_dir / "replacements.reviewed.txt"
+            stale.write_text("# lrh-secrets-reviewed v1\nold-secret==>x\n")
+            # Malformed decisions file triggers ReviewInputError before
+            # undecided() is ever computed.
+            decisions_path = out_dir / "decisions.yaml"
+            decisions_path.write_text("sk-aaa: keep\n")  # not a mapping
+            with (out_dir / "findings.json").open("w") as f:
+                json.dump([{"Secret": "sk-aaa", "RuleID": "openai-api-key"}], f)
+            result = self._run_lrh(
+                [
+                    "secrets",
+                    "review",
+                    "--out-dir",
+                    str(out_dir),
+                    "--decisions",
+                    str(decisions_path),
+                    "--apply",
+                ]
+            )
+            self.assertEqual(result.returncode, 2)
+            self.assertFalse(
+                stale.exists(),
+                "a --apply failing via ReviewInputError must also invalidate "
+                "a stale reviewed file",
+            )
+
     def test_lrh_secrets_review_check_fails_on_undecided(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = pathlib.Path(tmp)

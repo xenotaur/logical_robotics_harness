@@ -1039,6 +1039,12 @@ def main() -> None:
                     out_dir=out_dir, decisions_path=decisions_path
                 )
             except secrets_review.ReviewInputError as err:
+                if args.apply:
+                    # A failed --apply must never leave a stale, marker-bearing
+                    # replacements.reviewed.txt from an earlier successful
+                    # --apply in this same --out-dir -- invalid input is just
+                    # as much a failure as undecided findings.
+                    secrets_review.invalidate_stale_reviewed(out_dir)
                 print(f"error: {err}", file=sys.stderr)
                 raise SystemExit(2) from err
             undecided = report.undecided()

@@ -32,6 +32,7 @@ from lrh.conversations import (
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
+from lrh.secrets import purge as secrets_purge
 from lrh.secrets import review as secrets_review
 from lrh.secrets import scan as secrets_scan
 from lrh.work_items import audit as work_items_audit
@@ -467,6 +468,57 @@ def main() -> None:
         "--apply",
         action="store_true",
         help="write replacements.reviewed.txt; requires every finding decided",
+    )
+
+    secrets_purge_parser = secrets_subparsers.add_parser(
+        "purge",
+        help="Mirror-clone-scoped git-filter-repo rewrite, verify, never push.",
+        epilog=(
+            "--replacements must be review --apply's replacements.reviewed.txt\n"
+            "output, not scan's draft replacements.txt -- enforced at runtime\n"
+            "via a required first-line marker, not just by filename.\n"
+            "--refs-file is mandatory; purge refuses to run unscoped.\n"
+            "This command never runs `git push` under any flag combination --\n"
+            "on success it prints the push command for a human to run manually,\n"
+            "together with collaborator-notification and host-support-request\n"
+            "reminders."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    secrets_purge_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root, used to default --source (default: cwd)",
+    )
+    secrets_purge_parser.add_argument(
+        "--source",
+        default=None,
+        help="URL or path to mirror-clone (default: --project-root's origin)",
+    )
+    secrets_purge_parser.add_argument(
+        "--refs-file",
+        required=True,
+        help="mandatory: path to a file listing one ref per line to rewrite",
+    )
+    secrets_purge_parser.add_argument(
+        "--replacements",
+        required=True,
+        help="path to review --apply's replacements.reviewed.txt output",
+    )
+    secrets_purge_parser.add_argument(
+        "--mirror-dir",
+        default=None,
+        help="directory for the mirror clone (default: a fresh temp dir)",
+    )
+    secrets_purge_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="validate inputs without cloning or rewriting anything",
+    )
+    secrets_purge_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="mirror-clone, rewrite, and verify (mutually exclusive with --dry-run)",
     )
 
     workstreams_parser = subparsers.add_parser(
@@ -1109,9 +1161,36 @@ def main() -> None:
             if args.check:
                 raise SystemExit(1 if undecided else 0)
             raise SystemExit(0)
+        if args.secrets_command == "purge":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            if args.dry_run and args.apply:
+                parser.error("--dry-run and --apply are mutually exclusive")
+            project_root = Path(args.project_root).expanduser().resolve()
+            refs_file = Path(args.refs_file).expanduser().resolve()
+            replacements_path = Path(args.replacements).expanduser().resolve()
+            mirror_dir = (
+                Path(args.mirror_dir).expanduser().resolve()
+                if args.mirror_dir
+                else None
+            )
+            try:
+                output = secrets_purge.run_purge(
+                    project_root=project_root,
+                    source=args.source,
+                    refs_file=refs_file,
+                    replacements_path=replacements_path,
+                    mirror_dir=mirror_dir,
+                    apply=args.apply,
+                )
+            except secrets_purge.PurgeInputError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            print(output)
+            raise SystemExit(0)
         parser.error(
             "secrets requires a subcommand "
-            "(try: lrh secrets scan or lrh secrets review)"
+            "(try: lrh secrets scan, lrh secrets review, or lrh secrets purge)"
         )
 
     if args.command == "workstreams":

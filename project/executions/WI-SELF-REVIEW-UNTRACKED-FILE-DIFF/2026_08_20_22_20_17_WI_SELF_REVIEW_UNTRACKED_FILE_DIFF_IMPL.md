@@ -64,3 +64,34 @@ change itself, only for the WI's eventual `resolved` status).
   assumptions elsewhere in this skill and `/lrh-implement`, not a new gap.
 - Update `session_transcript` from `pending` to the durable session
   pointer once available.
+
+## Review-response round 1
+
+Two real `chatgpt-codex-connector` findings applied here (one on this PR,
+one on the paired PR #581's equivalent gap, replicated here since the same
+bug existed in this PR too):
+
+1. **P2 (this PR) — `git add -N .` pollutes the index for unrelated
+   untracked files.** Independently verified: with unrelated,
+   non-`.gitignore`d untracked files present, `git add -N .` intent-adds
+   *all* of them, not just the diff's own new files, and — since Step 8
+   doesn't prohibit `git commit -a` — those entries could leak into a
+   later commit. Fixed by adding `git reset` (no path) immediately after
+   `git diff main` in Step 1's diff-mode block, restoring the index to
+   its pre-diff state; verified in a scratch repo that this fully resolves
+   it (`git commit -a` afterward includes nothing from the untracked
+   files). Rewrote the accompanying prose accordingly — the previous
+   "`git commit -a` is the one exception" caveat no longer applies since
+   the intent-to-add entries don't survive past this step anymore.
+2. **P1 (found on paired PR #581 for `lrh-land`; same gap here) — missing
+   Codex/Antigravity mirror sync.** Re-ran `lrh skills install --local
+   --target all --source current-repo --force` and verified with
+   `lrh skills check --target claude --local --source current-repo` /
+   `lrh skills status --target {codex,antigravity} --local --source
+   current-repo` that all three targets are up to date.
+
+Re-ran `lrh validate` after both fixes — 0 errors, 0 warnings. Rebased
+onto latest `main` and force-pushed (`--force-with-lease`) to keep the
+branch history linear and the diff clean of unrelated upstream drift —
+this is a solo feature branch on an open, not-yet-reviewed-by-a-human PR,
+not shared history.

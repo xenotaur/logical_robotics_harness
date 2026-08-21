@@ -64,6 +64,10 @@ class TestCodexArchive(unittest.TestCase):
             self.assertTrue(result.paths.export_path.exists())
             self.assertTrue(result.paths.raw_path.exists())
             self.assertEqual(
+                result.export_result.manifest.exported_at,
+                "2026-08-20T01:02:03+00:00",
+            )
+            self.assertEqual(
                 stat.S_IMODE(result.paths.attempt_path.stat().st_mode), 0o600
             )
             self.assertNotIn(
@@ -168,6 +172,7 @@ class TestCodexArchive(unittest.TestCase):
                 codex_command=[sys.executable, str(server)],
                 exported_at=EXPORTED_AT,
             )
+            (valid_source / "export.md").chmod(0o644)
 
             results = codex_archive.import_codex_export_directories(
                 source_root,
@@ -192,6 +197,36 @@ class TestCodexArchive(unittest.TestCase):
                 )
                 self.assertEqual(attempt["operation"], "import")
                 self.assertEqual(attempt["status"], result.status)
+                if result.status == "imported":
+                    self.assertEqual(
+                        stat.S_IMODE((result.destination / "export.md").stat().st_mode),
+                        0o600,
+                    )
+
+    def test_import_rejects_archive_root_inside_git_worktree(self) -> None:
+        original_cwd = Path.cwd()
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            worktree = root / "worktree"
+            worktree.mkdir()
+            (worktree / ".git").mkdir()
+            source_root = root / "CodexExports"
+            (source_root / "lrh-codex-export-20260820T010203Z.empty").mkdir(
+                parents=True
+            )
+            os.chdir(worktree)
+            try:
+                with self.assertRaisesRegex(
+                    codex_archive.CodexArchiveError,
+                    "archive root must be outside the current Git worktree",
+                ):
+                    codex_archive.import_codex_export_directories(
+                        source_root,
+                        archive_root=worktree / "private",
+                        imported_at=EXPORTED_AT,
+                    )
+            finally:
+                os.chdir(original_cwd)
 
     @patch("sys.stdout", new_callable=io.StringIO)
     def test_import_cli_is_metadata_only(self, mock_stdout: io.StringIO) -> None:

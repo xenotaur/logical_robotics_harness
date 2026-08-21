@@ -67,7 +67,9 @@ def resolve_codex_archive_root(
     """Resolve the Codex export archive root under the session archive."""
 
     root = prompt_workflow_sessions.resolve_archive_root(archive_root)
-    return root / CODEX_ARCHIVE_SUBDIR
+    codex_root = root / CODEX_ARCHIVE_SUBDIR
+    _reject_archive_root_inside_current_git_worktree(codex_root)
+    return codex_root
 
 
 def plan_codex_export_paths(
@@ -122,11 +124,12 @@ def archive_codex_thread(
 
     if not thread_id:
         raise CodexArchiveError("thread_id is required")
+    resolved_exported_at = _resolved_exported_at(exported_at)
     started_at = _now_iso()
     paths = plan_codex_export_paths(
         thread_id=thread_id,
         archive_root=archive_root,
-        exported_at=exported_at,
+        exported_at=resolved_exported_at,
         scratch=scratch,
         scratch_root=scratch_root,
     )
@@ -154,6 +157,7 @@ def archive_codex_thread(
             codex_command=codex_command,
             scan_sensitive=scan_sensitive,
             timeout_seconds=timeout_seconds,
+            exported_at=resolved_exported_at,
         )
         inspection = export_inspector.inspect_export(
             paths.export_path,
@@ -461,6 +465,7 @@ def _import_one_directory(
     attempt_path = dest / "attempt.json"
     if export_path.exists() and export_path.is_file():
         shutil.copy2(export_path, copied_export_path)
+        _chmod_private_file(copied_export_path)
     if raw_path.exists() and raw_path.is_file():
         shutil.copy2(raw_path, copied_raw_path)
         _chmod_private_file(copied_raw_path)
@@ -620,6 +625,29 @@ def _chmod_private_directory(path: pathlib.Path) -> None:
         pass
 
 
+def _reject_archive_root_inside_current_git_worktree(path: pathlib.Path) -> None:
+    git_root = _current_git_worktree_root()
+    if git_root is None:
+        return
+    try:
+        archive_path = path.resolve(strict=False)
+    except OSError:
+        archive_path = path.absolute()
+    if archive_path == git_root or git_root in archive_path.parents:
+        raise CodexArchiveError("archive root must be outside the current Git worktree")
+
+
+def _current_git_worktree_root() -> pathlib.Path | None:
+    try:
+        current = pathlib.Path.cwd().resolve(strict=False)
+    except OSError:
+        current = pathlib.Path.cwd().absolute()
+    for candidate in (current, *current.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
 def _write_attempt(path: pathlib.Path, fields: dict[str, typing.Any]) -> None:
     payload = {
         "kind": ATTEMPT_KIND,
@@ -686,6 +714,15 @@ def _timestamp(value: datetime.datetime | None = None) -> str:
     if timestamp.tzinfo is None:
         raise CodexArchiveError("timestamp must be timezone-aware")
     return timestamp.astimezone(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+def _resolved_exported_at(
+    value: datetime.datetime | None = None,
+) -> datetime.datetime:
+    timestamp = value or datetime.datetime.now(datetime.timezone.utc)
+    if timestamp.tzinfo is None:
+        raise CodexArchiveError("timestamp must be timezone-aware")
+    return timestamp
 
 
 def _now_iso() -> str:

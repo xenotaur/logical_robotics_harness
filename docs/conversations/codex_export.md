@@ -52,7 +52,7 @@ The default archive root resolves as `--archive-root`, then
 `LRH_SESSION_ARCHIVE_ROOT`, then
 `~/.local/share/lrh/session-archive`. Codex exports are stored below that root
 under `codex/exports/YYYY/MM/`. This root is local and private by convention;
-do not place it inside a Git worktree.
+LRH rejects archive roots that resolve inside the current Git worktree.
 
 Each attempted archive export writes `attempt.json` before talking to the Codex
 app-server, then updates that file with success, failure, output paths, source
@@ -131,7 +131,8 @@ The importer copies each immediate child directory into
 marker, and reports only metadata. Valid directories with both `export.md` and
 `raw.json` are inspected with `inspect-export`. Directories missing one or both
 files are preserved as `partial` or `empty` attempts instead of being reported
-as successful exports.
+as successful exports. Imported `export.md`, `raw.json`, and `attempt.json`
+files are chmod'd private where supported.
 
 Use `--dry-run` to preview the classification, and `--archive-root` to direct
 the import into a configured private archive root. The importer copies by

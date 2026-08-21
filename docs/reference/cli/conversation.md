@@ -179,6 +179,7 @@ The archive root resolves in this order:
 Routine exports are written under
 `<archive-root>/codex/exports/YYYY/MM/lrh-codex-export-<timestamp>-<thread>/`.
 The archive directory is created with restrictive permissions where supported.
+LRH rejects archive roots that resolve inside the current Git worktree.
 `attempt.json` is written before app-server access starts, then updated with
 success or failure outcome, output paths, source hash, and validation status.
 
@@ -220,7 +221,9 @@ Each imported directory is copied under
 `export.md` and `raw.json` are inspected with `inspect-export` and classified as
 `imported`. Missing files are preserved as explicit `partial` or `empty`
 attempts with an `attempt.json` marker, so an empty rescued directory cannot be
-mistaken for a successful export.
+mistaken for a successful export. LRH rejects archive roots that resolve inside
+the current Git worktree, and copied `export.md`, `raw.json`, and
+`attempt.json` files are chmod'd private where supported.
 
 ### Options
 

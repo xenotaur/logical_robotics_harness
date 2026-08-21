@@ -1,5 +1,6 @@
 import json
 import pathlib
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -406,6 +407,9 @@ class TestLrhSecretsPurgeCli(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("mutually exclusive", result.stderr)
 
+    @unittest.skipUnless(
+        shutil.which("git-filter-repo"), "git-filter-repo not installed"
+    )
     def test_lrh_secrets_purge_dry_run_reports_no_rewrite(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = pathlib.Path(tmp)

@@ -1,12 +1,13 @@
-"""``lrh memory`` CLI: write, list, validate, repair, sync.
+"""``lrh memory`` CLI: write, list, validate, repair, sync, export, import,
+transfer.
 
-PROP-LRH-MEMORY-COMMAND Stage 1 (WI-LRH-MEMORY-WRITE-SIDE) and Stage 2
-(WI-LRH-MEMORY-ARCHIVE-SIDE). Thin CLI wiring over the core logic in
-``prompt_workflow_memory``, following the same pattern as ``lrh sessions``
-(``sessions_workflow.py`` over ``prompt_workflow_sessions``).
+PROP-LRH-MEMORY-COMMAND Stage 1 (WI-LRH-MEMORY-WRITE-SIDE), Stage 2
+(WI-LRH-MEMORY-ARCHIVE-SIDE), and Stage 4 (WI-LRH-MEMORY-PORTABILITY). Thin
+CLI wiring over the core logic in ``prompt_workflow_memory``, following the
+same pattern as ``lrh sessions`` (``sessions_workflow.py`` over
+``prompt_workflow_sessions``).
 
-Does not implement ``read``/``search`` (WI-LRH-MEMORY-READ-SIDE), or
-``export``/``import``/``transfer`` (WI-LRH-MEMORY-PORTABILITY).
+Does not implement ``read``/``search`` (WI-LRH-MEMORY-READ-SIDE).
 """
 
 from __future__ import annotations
@@ -105,6 +106,90 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
         help="report what would be mirrored without writing anything",
     )
 
+    export_parser = subparsers.add_parser(
+        "export",
+        help="Export selected memories to a portable JSONL bundle.",
+    )
+    export_parser.add_argument("--output", required=True, help="bundle output path")
+    export_parser.add_argument(
+        "--name",
+        dest="names",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="repeatable; kebab-case memory name to include",
+    )
+    export_parser.add_argument(
+        "--agent", default=None, help="filter to memories authored_by this agent"
+    )
+    export_parser.add_argument("--project-root", default=".")
+    export_parser.add_argument("--claude-projects-root", default=None)
+
+    import_parser = subparsers.add_parser(
+        "import",
+        help=(
+            "Import a portable JSONL bundle, writing each record through "
+            "write's own validation."
+        ),
+    )
+    import_parser.add_argument("--input", required=True, help="bundle input path")
+    import_parser.add_argument(
+        "--name",
+        dest="names",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="repeatable; restrict import to these memory names",
+    )
+    import_parser.add_argument("--project-root", default=".")
+    import_parser.add_argument("--claude-projects-root", default=None)
+    import_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="overwrite even if authored_by differs from the bundled record",
+    )
+    import_parser.add_argument(
+        "--dry-run", action="store_true", help="report what would be written"
+    )
+
+    transfer_parser = subparsers.add_parser(
+        "transfer",
+        help="Move memories between two corpora through a temp bundle (export+import).",
+    )
+    transfer_parser.add_argument(
+        "--from",
+        dest="from_",
+        required=True,
+        metavar="PATH-OR-SLUG",
+        help="source project root path, or a literal project slug",
+    )
+    transfer_parser.add_argument(
+        "--to",
+        required=True,
+        metavar="PATH-OR-SLUG",
+        help="destination project root path, or a literal project slug",
+    )
+    transfer_parser.add_argument(
+        "--name",
+        dest="names",
+        action="append",
+        default=[],
+        metavar="NAME",
+        help="repeatable; kebab-case memory name to include",
+    )
+    transfer_parser.add_argument(
+        "--agent", default=None, help="filter to memories authored_by this agent"
+    )
+    transfer_parser.add_argument("--claude-projects-root", default=None)
+    transfer_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="overwrite even if authored_by differs from the transferred record",
+    )
+    transfer_parser.add_argument(
+        "--dry-run", action="store_true", help="report what would be transferred"
+    )
+
     args = parser.parse_args(argv)
     if args.memory_command is None:
         parser.error("memory requires a subcommand (try: lrh memory list)")
@@ -119,6 +204,12 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
         return _run_repair(args)
     if args.memory_command == "sync":
         return _run_sync(args)
+    if args.memory_command == "export":
+        return _run_export(args)
+    if args.memory_command == "import":
+        return _run_import(args)
+    if args.memory_command == "transfer":
+        return _run_transfer(args)
     parser.error("memory requires a subcommand (try: lrh memory list)")
     return 2  # pragma: no cover -- parser.error raises SystemExit
 
@@ -281,3 +372,86 @@ def _run_sync(args: argparse.Namespace) -> int:
     else:
         print(f"sync complete: {mirrored} mirrored, {unchanged} unchanged")
     return 0
+
+
+def _run_export(args: argparse.Namespace) -> int:
+    try:
+        result = prompt_workflow_memory.export_memories(
+            args.project_root,
+            output=args.output,
+            names=args.names or None,
+            agent=args.agent,
+            claude_projects_root=args.claude_projects_root,
+        )
+    except (
+        prompt_workflow_memory.MemoryValidationError,
+        OSError,
+        UnicodeDecodeError,
+    ) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+
+    print(f"exported: {result.count} memory(ies) -> {result.output_path}")
+    return 0
+
+
+def _report_import_entries(
+    entries: list[prompt_workflow_memory.ImportEntry], *, dry_run: bool
+) -> int:
+    written = 0
+    errors = 0
+    for entry in entries:
+        if entry.error is not None:
+            errors += 1
+            print(f"error: {entry.name}: {entry.error}", file=sys.stderr)
+            continue
+        if entry.written:
+            written += 1
+            print(f"wrote: {entry.name}")
+        else:
+            print(f"would write: {entry.name}")
+
+    if dry_run:
+        print(f"dry-run: {len(entries)} memory(ies) considered, {errors} would error")
+    else:
+        print(f"import complete: {written} written, {errors} errors")
+    return 1 if errors else 0
+
+
+def _run_import(args: argparse.Namespace) -> int:
+    try:
+        entries = prompt_workflow_memory.import_memories(
+            args.project_root,
+            input=args.input,
+            names=args.names or None,
+            force=args.force,
+            dry_run=args.dry_run,
+            claude_projects_root=args.claude_projects_root,
+        )
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    return _report_import_entries(entries, dry_run=args.dry_run)
+
+
+def _run_transfer(args: argparse.Namespace) -> int:
+    try:
+        entries = prompt_workflow_memory.transfer_memories(
+            from_=args.from_,
+            to=args.to,
+            names=args.names or None,
+            agent=args.agent,
+            force=args.force,
+            dry_run=args.dry_run,
+            claude_projects_root=args.claude_projects_root,
+        )
+    except (
+        prompt_workflow_memory.MemoryValidationError,
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+    ) as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+
+    return _report_import_entries(entries, dry_run=args.dry_run)

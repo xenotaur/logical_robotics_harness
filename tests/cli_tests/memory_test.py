@@ -245,6 +245,246 @@ class MemoryCliTest(unittest.TestCase):
             self.assertIn("dry-run:", result.stdout)
             self.assertFalse(archive_root.exists())
 
+    def test_export_reports_oserror_cleanly(self) -> None:
+        """Regression test: export's CLI handler previously caught only
+        MemoryValidationError, so an --output path that can't be created
+        (e.g. its parent is actually a file) surfaced an uncaught
+        traceback instead of a clean error: ... message."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            blocking_file = pathlib.Path(tmp) / "not-a-directory"
+            blocking_file.write_text("x", encoding="utf-8")
+
+            self._run(
+                "write",
+                "feedback-export-oserror",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="body\n",
+            )
+
+            result = self._run(
+                "export",
+                "--output",
+                str(blocking_file / "bundle.jsonl"),
+                "--name",
+                "feedback-export-oserror",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("error:", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
+    def test_export_requires_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            self._run(
+                "write",
+                "feedback-export-target",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="body\n",
+            )
+
+            result = self._run(
+                "export",
+                "--output",
+                str(pathlib.Path(tmp) / "bundle.jsonl"),
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("explicit --name or --agent filter", result.stderr)
+
+    def test_export_then_import_then_transfer(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+            transfer_root = pathlib.Path(tmp) / "proj_c"
+            bundle_path = pathlib.Path(tmp) / "bundle.jsonl"
+
+            self._run(
+                "write",
+                "feedback-portable",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(source_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="body text\n",
+            )
+
+            export_result = self._run(
+                "export",
+                "--output",
+                str(bundle_path),
+                "--name",
+                "feedback-portable",
+                "--project-root",
+                str(source_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(export_result.returncode, 0, msg=export_result.stderr)
+            self.assertIn("exported: 1", export_result.stdout)
+            self.assertTrue(bundle_path.exists())
+
+            import_result = self._run(
+                "import",
+                "--input",
+                str(bundle_path),
+                "--project-root",
+                str(dest_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(import_result.returncode, 0, msg=import_result.stderr)
+            self.assertIn("import complete: 1 written, 0 errors", import_result.stdout)
+
+            list_result = self._run(
+                "list",
+                "--project-root",
+                str(dest_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertIn("feedback_portable.md", list_result.stdout)
+
+            transfer_result = self._run(
+                "transfer",
+                "--from",
+                str(source_root),
+                "--to",
+                str(transfer_root),
+                "--name",
+                "feedback-portable",
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(transfer_result.returncode, 0, msg=transfer_result.stderr)
+            self.assertIn(
+                "import complete: 1 written, 0 errors", transfer_result.stdout
+            )
+
+            transfer_list_result = self._run(
+                "list",
+                "--project-root",
+                str(transfer_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertIn("feedback_portable.md", transfer_list_result.stdout)
+
+    def test_import_dry_run_reports_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+            bundle_path = pathlib.Path(tmp) / "bundle.jsonl"
+
+            self._run(
+                "write",
+                "feedback-dry",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(source_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="body\n",
+            )
+            self._run(
+                "export",
+                "--output",
+                str(bundle_path),
+                "--name",
+                "feedback-dry",
+                "--project-root",
+                str(source_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+
+            result = self._run(
+                "import",
+                "--input",
+                str(bundle_path),
+                "--project-root",
+                str(dest_root),
+                "--claude-projects-root",
+                str(claude_root),
+                "--dry-run",
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertIn("dry-run:", result.stdout)
+
+            list_result = self._run(
+                "list",
+                "--project-root",
+                str(dest_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertIn("no memory index found", list_result.stdout)
+
+    def test_import_reports_missing_input_file_cleanly(self) -> None:
+        """Regression test: a missing --input file must produce a clean
+        error: ... message and exit code 1, not an uncaught traceback --
+        unlike export/transfer, import previously had no exception
+        handling around its core call at all."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            dest_root = pathlib.Path(tmp) / "proj"
+
+            result = self._run(
+                "import",
+                "--input",
+                str(pathlib.Path(tmp) / "does-not-exist.jsonl"),
+                "--project-root",
+                str(dest_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("error:", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

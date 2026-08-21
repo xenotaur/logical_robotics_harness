@@ -2,12 +2,13 @@
 per-project memory corpus (``~/.claude/projects/<slug>/memory/``).
 
 Implements Stage 1 of PROP-LRH-MEMORY-COMMAND: ``write``, ``list``,
-``validate``, and ``repair`` (Decision 9's fast follow-up), plus Stage 2's
-``sync`` (WI-LRH-MEMORY-ARCHIVE-SIDE, Decisions 5-6). Resolves the corpus
-path via ``project_slug_for_path`` (reused from ``prompt_workflow_sessions``,
-not reimplemented -- see that proposal's Decision 4). Does not implement
-``read``/``search``/``export``/``import``/``transfer`` -- those are
-separate work items.
+``validate``, and ``repair`` (Decision 9's fast follow-up), Stage 2's
+``sync`` (WI-LRH-MEMORY-ARCHIVE-SIDE, Decisions 5-6), and Stage 4's
+``export``/``import``/``transfer`` (WI-LRH-MEMORY-PORTABILITY, Decision 8).
+Resolves the corpus path via ``project_slug_for_path`` (reused from
+``prompt_workflow_sessions``, not reimplemented -- see that proposal's
+Decision 4). Does not implement ``read``/``search`` -- that is a separate
+work item.
 """
 
 from __future__ import annotations
@@ -16,9 +17,11 @@ import contextlib
 import dataclasses
 import datetime
 import fcntl
+import json
 import os
 import pathlib
 import re
+import tempfile
 import typing
 
 import yaml
@@ -245,8 +248,8 @@ class WriteResult:
     index_updated: bool
 
 
-def write_memory(
-    project_root: str | pathlib.Path,
+def _write_memory_into_dir(
+    memory_dir: pathlib.Path,
     name: str,
     *,
     description: str,
@@ -254,10 +257,23 @@ def write_memory(
     agent: str,
     body: str,
     applies_to: typing.Sequence[str] | None = None,
-    claude_projects_root: str | pathlib.Path | None = None,
     force: bool = False,
+    dry_run: bool = False,
 ) -> WriteResult:
-    """Validate and write one memory file, then update its ``MEMORY.md`` entry.
+    """Core of :func:`write_memory`, taking an already-resolved ``memory_dir``.
+
+    Factored out so :func:`import_memories`/:func:`transfer_memories` can
+    write through this exact validated path against a directly-resolved
+    corpus directory (``transfer``'s ``--to`` may name a slug rather than a
+    project path -- see :func:`_resolve_memory_dir`) without re-deriving a
+    slug from a string that was never a filesystem path to begin with.
+
+    ``dry_run`` runs every validation and conflict check below -- field
+    validation, the cross-agent overwrite guard -- without touching the
+    filesystem at all (no directory creation, no file write), so a caller
+    previewing an import/transfer sees exactly the same accept/reject
+    outcome a real run would produce, not merely "well-formed enough to
+    reach this function."
 
     Crash-consistency ordering (PROP-LRH-MEMORY-COMMAND Decision 4): the
     memory-file rename happens *before* the ``MEMORY.md`` rename. An
@@ -271,10 +287,9 @@ def write_memory(
     _validate_new_write_fields(name, description, type_, agent)
     applies_to = tuple(applies_to) if applies_to else (agent,)
 
-    memory_dir = memory_dir_for_project(project_root, claude_projects_root)
-    memory_dir.mkdir(parents=True, exist_ok=True)
     filename = filename_for(name)
     memory_path = memory_dir / filename
+    index_path = memory_dir / INDEX_FILENAME
 
     if memory_path.exists() and not force:
         existing_frontmatter, _ = read_frontmatter_and_body(
@@ -292,6 +307,12 @@ def write_memory(
                 f"refusing to overwrite as {agent!r} without --force"
             )
 
+    if dry_run:
+        return WriteResult(
+            memory_path=memory_path, index_path=index_path, index_updated=False
+        )
+
+    memory_dir.mkdir(parents=True, exist_ok=True)
     content = _render_memory_file(
         name=name,
         description=description,
@@ -303,12 +324,38 @@ def write_memory(
     # Memory-file rename first -- see the crash-consistency note above.
     atomic_write(memory_path, content)
 
-    index_path = memory_dir / INDEX_FILENAME
     index_updated = _ensure_index_entry(
         index_path, filename=filename, name=name, description=description
     )
     return WriteResult(
         memory_path=memory_path, index_path=index_path, index_updated=index_updated
+    )
+
+
+def write_memory(
+    project_root: str | pathlib.Path,
+    name: str,
+    *,
+    description: str,
+    type_: str,
+    agent: str,
+    body: str,
+    applies_to: typing.Sequence[str] | None = None,
+    claude_projects_root: str | pathlib.Path | None = None,
+    force: bool = False,
+) -> WriteResult:
+    """Validate and write one memory file, then update its ``MEMORY.md`` entry."""
+
+    memory_dir = memory_dir_for_project(project_root, claude_projects_root)
+    return _write_memory_into_dir(
+        memory_dir,
+        name,
+        description=description,
+        type_=type_,
+        agent=agent,
+        body=body,
+        applies_to=applies_to,
+        force=force,
     )
 
 
@@ -319,15 +366,11 @@ class IndexEntry:
     authored_by: str | None
 
 
-def list_memories(
-    project_root: str | pathlib.Path,
-    *,
-    claude_projects_root: str | pathlib.Path | None = None,
-    agent: str | None = None,
+def _list_memories_in_dir(
+    memory_dir: pathlib.Path, *, agent: str | None = None
 ) -> list[IndexEntry]:
-    """Return the ``MEMORY.md`` index, optionally filtered by ``authored_by``."""
+    """Core of :func:`list_memories`, taking an already-resolved ``memory_dir``."""
 
-    memory_dir = memory_dir_for_project(project_root, claude_projects_root)
     index_path = memory_dir / INDEX_FILENAME
     if not index_path.exists():
         return []
@@ -370,6 +413,18 @@ def list_memories(
             IndexEntry(filename=filename, line=stripped, authored_by=authored_by)
         )
     return entries
+
+
+def list_memories(
+    project_root: str | pathlib.Path,
+    *,
+    claude_projects_root: str | pathlib.Path | None = None,
+    agent: str | None = None,
+) -> list[IndexEntry]:
+    """Return the ``MEMORY.md`` index, optionally filtered by ``authored_by``."""
+
+    memory_dir = memory_dir_for_project(project_root, claude_projects_root)
+    return _list_memories_in_dir(memory_dir, agent=agent)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -662,3 +717,295 @@ def sync_memory(
             )
         )
     return entries
+
+
+# ---------------------------------------------------------------------------
+# Portability: export / import / transfer (PROP-LRH-MEMORY-COMMAND Decision 8)
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass(frozen=True)
+class ExportResult:
+    output_path: pathlib.Path
+    count: int
+
+
+@dataclasses.dataclass(frozen=True)
+class ImportEntry:
+    name: str
+    written: bool
+    error: str | None
+
+
+def _require_export_filter(
+    names: typing.Sequence[str] | None, agent: str | None
+) -> None:
+    """Open Question 1 (resolved): no unfiltered "export everything"
+    fallback. A full-corpus export/import could itself exceed the
+    200-line ``MEMORY.md`` ceiling on the receiving end -- require a
+    deliberate ``--name``/``--agent`` filter instead of guessing."""
+
+    if not names and not agent:
+        raise MemoryValidationError(
+            "export/transfer require an explicit --name or --agent filter "
+            "-- there is no unfiltered export-everything default"
+        )
+
+
+def _export_records_from_dir(
+    memory_dir: pathlib.Path,
+    project_slug: str,
+    *,
+    names: typing.Sequence[str] | None = None,
+    agent: str | None = None,
+) -> list[dict[str, typing.Any]]:
+    _require_export_filter(names, agent)
+    entries = _list_memories_in_dir(memory_dir, agent=agent)
+    if names:
+        wanted_filenames = {filename_for(n) for n in names}
+        entries = [e for e in entries if e.filename in wanted_filenames]
+    records: list[dict[str, typing.Any]] = []
+    for entry in entries:
+        path = memory_dir / entry.filename
+        frontmatter, body = read_frontmatter_and_body(path.read_text(encoding="utf-8"))
+        records.append(
+            {
+                "name": frontmatter.get("name"),
+                "description": frontmatter.get("description"),
+                "metadata": frontmatter.get("metadata"),
+                "body": body,
+                "exported_from_slug": project_slug,
+            }
+        )
+    return records
+
+
+def _write_bundle(
+    output_path: pathlib.Path, records: list[dict[str, typing.Any]]
+) -> None:
+    """Write a portable bundle: one JSON object per memory, one per line
+    (JSONL, matching ``project/sessions/index.jsonl``'s own convention --
+    Open Question 2, resolved)."""
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    lines = [json.dumps(record, sort_keys=True) for record in records]
+    content = "\n".join(lines) + ("\n" if lines else "")
+    atomic_write(output_path, content)
+
+
+def _read_bundle(input_path: pathlib.Path) -> list[typing.Any]:
+    """Parse a bundle's lines as JSON. Does not require each line to decode
+    to an object -- a malformed line (a JSON list, string, or number) is
+    passed through as-is; :func:`_import_records_into_dir` is the layer
+    responsible for rejecting it as a clean per-record error rather than
+    crashing, since it is the one place both a bare CLI file read and a
+    ``transfer``-internal bundle share."""
+
+    records: list[typing.Any] = []
+    for line in input_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        records.append(json.loads(line))
+    return records
+
+
+def export_memories(
+    project_root: str | pathlib.Path,
+    *,
+    output: str | pathlib.Path,
+    names: typing.Sequence[str] | None = None,
+    agent: str | None = None,
+    claude_projects_root: str | pathlib.Path | None = None,
+) -> ExportResult:
+    """Export selected memories to a portable JSONL bundle with
+    ``exported_from_slug`` provenance. Requires an explicit ``names``/
+    ``agent`` filter -- see :func:`_require_export_filter`."""
+
+    memory_dir = memory_dir_for_project(project_root, claude_projects_root)
+    project_slug = project_slug_for_path(project_root)
+    records = _export_records_from_dir(
+        memory_dir, project_slug, names=names, agent=agent
+    )
+    output_path = pathlib.Path(output)
+    _write_bundle(output_path, records)
+    return ExportResult(output_path=output_path, count=len(records))
+
+
+def _import_records_into_dir(
+    memory_dir: pathlib.Path,
+    records: list[typing.Any],
+    *,
+    names: typing.Sequence[str] | None = None,
+    force: bool = False,
+    dry_run: bool = False,
+) -> list[ImportEntry]:
+    if names:
+        wanted = set(names)
+        records = [
+            record
+            for record in records
+            if isinstance(record, dict) and record.get("name") in wanted
+        ]
+
+    results: list[ImportEntry] = []
+    for record in records:
+        if not isinstance(record, dict):
+            results.append(
+                ImportEntry(
+                    name=repr(record),
+                    written=False,
+                    error="bundle record is not a JSON object",
+                )
+            )
+            continue
+
+        name = record.get("name")
+        metadata = record.get("metadata")
+        if not isinstance(metadata, dict):
+            metadata = {}
+        agent = metadata.get("authored_by")
+        applies_to = metadata.get("applies_to")
+        type_ = metadata.get("type")
+        description = record.get("description")
+        body = record.get("body") or ""
+        try:
+            if applies_to is not None and not isinstance(applies_to, (list, tuple)):
+                # A string applies_to would not raise inside
+                # _write_memory_into_dir -- `tuple("not-a-list")` silently
+                # succeeds, splitting the string into one bogus applies_to
+                # entry per character, rather than crashing or being
+                # rejected. Reject it explicitly at the bundle boundary
+                # instead of writing corrupted metadata.
+                raise MemoryValidationError(
+                    "bundle record 'metadata.applies_to' must be a list, "
+                    f"got {type(applies_to).__name__}"
+                )
+            # Routes through the exact same validated path write_memory()
+            # uses -- rejecting anything write itself would reject -- not a
+            # second, less-validated write mechanism. ``dry_run`` here runs
+            # every validation/conflict check without touching the
+            # filesystem, so a dry-run preview reports the same
+            # accept/reject outcome a real import would, not merely
+            # "well-formed enough to reach this call."
+            _write_memory_into_dir(
+                memory_dir,
+                name,
+                description=description,
+                type_=type_,
+                agent=agent,
+                body=body,
+                applies_to=applies_to,
+                force=force,
+                dry_run=dry_run,
+            )
+            results.append(ImportEntry(name=name, written=not dry_run, error=None))
+        except MemoryValidationError as exc:
+            results.append(ImportEntry(name=name, written=False, error=str(exc)))
+        except (TypeError, AttributeError) as exc:
+            # Defensive: a bundle record can be a well-formed JSON object
+            # with an incorrectly-typed field (e.g. `description: 7` or
+            # `metadata.applies_to: "not-a-list"`) that only fails once it
+            # reaches string/sequence operations deep inside validation or
+            # rendering -- this must still produce a clean ImportEntry, not
+            # an uncaught traceback.
+            results.append(ImportEntry(name=name, written=False, error=str(exc)))
+    return results
+
+
+def import_memories(
+    project_root: str | pathlib.Path,
+    *,
+    input: str | pathlib.Path,
+    names: typing.Sequence[str] | None = None,
+    force: bool = False,
+    dry_run: bool = False,
+    claude_projects_root: str | pathlib.Path | None = None,
+) -> list[ImportEntry]:
+    """Import a portable JSONL bundle, writing each record through
+    :func:`write_memory`'s own validated path (never a duplicate
+    write mechanism)."""
+
+    memory_dir = memory_dir_for_project(project_root, claude_projects_root)
+    records = _read_bundle(pathlib.Path(input))
+    return _import_records_into_dir(
+        memory_dir, records, names=names, force=force, dry_run=dry_run
+    )
+
+
+def _resolve_memory_dir(
+    path_or_slug: str | pathlib.Path,
+    claude_projects_root: str | pathlib.Path | None,
+) -> tuple[pathlib.Path, str]:
+    """Resolve a ``transfer`` ``--from``/``--to`` argument as either a
+    literal project slug or a project root path (slug derived via
+    :func:`project_slug_for_path`, same as every other memory command) --
+    ``transfer`` is the only command that needs this dual form, since its
+    whole point is moving memories *between* two corpora that are not both
+    "the current project".
+
+    A value with no path separators (and not ``.``/``..``) is *always*
+    treated as a literal slug -- never gated on the destination's
+    ``memory/`` directory already existing. An earlier revision required
+    ``<claude_projects_root>/<value>/memory`` to already exist before
+    accepting the literal-slug interpretation; that silently broke the
+    normal ``--to <fresh-slug>`` case this command exists to support (a
+    destination corpus that doesn't exist yet), falling through to
+    :func:`project_slug_for_path` instead -- which resolves the bare slug
+    string as a *relative filesystem path from the current working
+    directory*, silently writing into a derived corpus for whatever
+    directory that happened to name, while still reporting success.
+
+    ``pathlib``'s ``/`` operator silently discards its left operand
+    whenever the right operand is itself absolute, so ``root /
+    literal_slug`` for an absolute ``path_or_slug`` (the normal shape of a
+    project-root argument) would resolve to ``<path_or_slug>/memory`` --
+    entirely outside ``claude_projects_root``. A genuine slug from
+    :func:`project_slug_for_path` never contains a path separator (it
+    replaces ``/`` and ``.`` with ``-``), so restricting the literal-slug
+    branch to separator-free values never misclassifies a real slug as a
+    path, and unconditionally accepting it (once separator-free) never
+    misclassifies a real path as a slug either.
+    """
+
+    root = (
+        pathlib.Path(claude_projects_root).expanduser()
+        if claude_projects_root
+        else default_claude_projects_root()
+    )
+    literal_slug = str(path_or_slug)
+    looks_like_bare_slug = (
+        "/" not in literal_slug
+        and "\\" not in literal_slug
+        and literal_slug not in (".", "..")
+    )
+    if looks_like_bare_slug:
+        return root / literal_slug / MEMORY_DIRNAME, literal_slug
+    slug = project_slug_for_path(path_or_slug)
+    return root / slug / MEMORY_DIRNAME, slug
+
+
+def transfer_memories(
+    *,
+    from_: str | pathlib.Path,
+    to: str | pathlib.Path,
+    names: typing.Sequence[str] | None = None,
+    agent: str | None = None,
+    force: bool = False,
+    dry_run: bool = False,
+    claude_projects_root: str | pathlib.Path | None = None,
+) -> list[ImportEntry]:
+    """Move memories between two corpora through a temp bundle -- a thin
+    export+import wrapper (PROP-LRH-MEMORY-COMMAND Decision 8), so the
+    caller never manages an intermediate file themselves."""
+
+    from_dir, from_slug = _resolve_memory_dir(from_, claude_projects_root)
+    to_dir, _ = _resolve_memory_dir(to, claude_projects_root)
+    records = _export_records_from_dir(from_dir, from_slug, names=names, agent=agent)
+    with tempfile.TemporaryDirectory() as tmp:
+        bundle_path = pathlib.Path(tmp) / "transfer-bundle.jsonl"
+        _write_bundle(bundle_path, records)
+        bundle_records = _read_bundle(bundle_path)
+        return _import_records_into_dir(
+            to_dir, bundle_records, force=force, dry_run=dry_run
+        )

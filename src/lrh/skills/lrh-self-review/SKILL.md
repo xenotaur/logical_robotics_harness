@@ -99,7 +99,9 @@ report-only by design and routes findings back to `/lrh-confirm-fixes`.
 
 ```bash
 git rev-parse HEAD
+git add -N .
 git diff main
+git reset
 ```
 
 **Not `git diff main...HEAD`.** At `/lrh-implement` Step 7.5's own call
@@ -112,6 +114,33 @@ without ever reviewing what Step 6 actually did. `git diff main` compares
 `main`'s tip directly against the current working tree — staged and
 unstaged changes both included — which is what Step 7.5 actually needs to
 review.
+
+**`git add -N .` (intent-to-add) before `git diff main` — not optional,
+and the trailing `git reset` is equally not optional.** `git diff`, in
+any dot form, only ever reports changes to files Git is already tracking;
+a brand-new file that has never been `git add`-ed is invisible to it and
+shows up only in `git status`'s "Untracked files" section. If Step 6
+created only new files with no modification to any existing tracked file,
+plain `git diff main` is empty even though real new content exists,
+producing the same false "nothing to review" exit this step exists to
+avoid. `git add -N .` (`--intent-to-add`) marks untracked files as tracked
+for diff purposes only — it does not stage their content — but it marks
+*every* untracked file under the current directory this way, not just the
+ones this diff is reviewing, and those index entries persist until
+something clears them. If the working tree happens to contain other
+unrelated untracked files (scratch files, local config, anything not
+`.gitignore`d), they would also become intent-to-add, and a later `git
+commit -a` — unlike an ordinary untracked file — *would* include them,
+since they are now tracked as of this step. The immediate `git reset`
+(no path) after the diff clears every intent-to-add entry this step
+created, returning the index to exactly its pre-diff state — real
+untracked files go back to being untracked, and nothing this report-only
+step does can leak into what a later `git add <files>` or `git commit -a`
+at Step 8 actually includes. `git reset` only touches the index, never the
+working tree — file content on disk is unaffected either way, so at worst
+(if something was already staged before this step ran, which should not
+happen at Step 7.5's call site since Step 8 is what stages) it becomes
+unstaged again, not lost.
 
 If the diff is empty, stop and report — nothing to review.
 

@@ -9,6 +9,7 @@ commit: 76d837a262969ad4fbb66760d91ccabf8017e821
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-EXECUTE-STEP1-5-SLUG-IDEMPOTENCE.md
 session_transcript: claude-app:c02da21d-4a23-4315-857f-0829e0483667
+created_at: 2026-08-21T16:44:04+00:00
 ---
 
 # Summary

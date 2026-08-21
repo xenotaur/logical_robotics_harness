@@ -185,19 +185,26 @@ state and run stop checks; they do not edit files or create a branch.
    ```
 
    Interpret the exit code: `1` (a `landed`/`in_progress`/unresolved-status
-   match, or unresolved recency) — stop here, go to Step 5, and record a
-   `stopped` journal entry, unless the user explicitly asks for a rerun;
-   `0` with a `failed`/`reverted`/`superseded` match — summarize and
-   continue; `0` with no match — proceed; `3` (the check itself failed)
-   — stop and report, this is not the same as "no prior record"; `2`
+   match, or unresolved recency) — stop here, go to the global **Step 5 —
+   Run journal** below (not this numbered sub-list's own item "5"), and
+   record a `stopped` journal entry, unless the user explicitly asks for a
+   rerun; `0` with a `failed`/`reverted`/`superseded` match — summarize and
+   continue, keeping the matched `execution_id` for the `--rerun-of` wiring
+   below; `0` with no match — proceed; `3` (the check itself failed) —
+   stop and report, this is not the same as "no prior record"; `2`
    (malformed input) — stop and report, a usage error.
 
-   **Unlike `/lrh-work-item` Step 4, this check's matched `execution_id`
-   has no `--rerun-of` consumer here** — Step 3 inlines `/lrh-implement`,
-   whose own `record-execution` call does not accept a `--rerun-of` flag.
-   If the user asks for a rerun on a blocking match, note the matched
-   `execution_id` in this run's journal entry for traceability; it is not
-   passed to any downstream command.
+   **Carry a matched `execution_id` into `--rerun-of` the same way Step 3
+   already overrides `/lrh-implement`'s inlined `record-execution` call
+   with `--pr`.** `/lrh-implement`'s own documented Step 9 invocation
+   doesn't include `--rerun-of` — but the `record-execution` CLI itself
+   does accept the flag. If this check matched a `failed`/`reverted`/
+   `superseded` record (the rerun case), pass `--rerun-of
+   <matched-execution_id>` explicitly when Step 3 reaches its own
+   `record-execution` call, the same way that step already adds `--pr`.
+   If the user authorizes a rerun of a blocking (`1`-exit) match instead,
+   the same applies: carry that match's `execution_id` through to Step 3's
+   `--rerun-of` override.
 
    Then mint the prompt ID and run the existing post-mint check:
 
@@ -332,6 +339,12 @@ would stay `proposed` even after the PR merges, silently defeating this
 skill's own advertised end-to-end guarantee. (This is a gap in
 `/lrh-implement/SKILL.md` itself, not unique to inlining it here — see
 `project/design/backlog.md` for the broader fix.)
+
+**If Step 1.5 matched a prior `execution_id` for `--rerun-of` (the rerun
+case), pass it the same way:** `lrh prompt record-execution ... --pr
+<pr-url-from-step-8> --rerun-of <matched-execution_id-from-step-1.5>`.
+Omit the flag entirely when Step 1.5 found no match — an absent
+`--rerun-of` is the correct value for a first attempt, not a gap to fill.
 
 **If `/lrh-implement`'s own steps stop and report** (e.g. an idempotence
 check finds a prior `landed`/`in_progress` record), do not attempt to

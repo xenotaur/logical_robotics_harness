@@ -1,3 +1,4 @@
+import os
 import pathlib
 import subprocess
 import tempfile
@@ -70,6 +71,23 @@ class LoadStrippedReplacementsTest(unittest.TestCase):
                 ],
             )
 
+    def test_drops_blank_and_comment_lines_after_marker(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "replacements.reviewed.txt"
+            path.write_text(
+                f"{MARKER_LINE}\n\n# a human comment\nsk-aaa==>***REMOVED-x***\n\n"
+            )
+            self.assertEqual(
+                purge.load_stripped_replacements(path), ["sk-aaa==>***REMOVED-x***"]
+            )
+
+    def test_malformed_entry_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "replacements.reviewed.txt"
+            path.write_text(f"{MARKER_LINE}\nnot-a-valid-entry\n")
+            with self.assertRaises(purge.PurgeInputError):
+                purge.load_stripped_replacements(path)
+
 
 class SecretsFromReplacementsTest(unittest.TestCase):
     def test_extracts_secret_values(self) -> None:
@@ -117,6 +135,45 @@ class DefaultSourceTest(unittest.TestCase):
             subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), check=True)
             with self.assertRaises(purge.PurgeInputError):
                 purge.default_source(tmp_path)
+
+
+class ResolveLocalSourceTest(unittest.TestCase):
+    def test_existing_local_path_resolved_to_absolute(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cwd = os.getcwd()
+            try:
+                os.chdir(tmp)
+                self.assertEqual(
+                    purge.resolve_local_source("."), str(pathlib.Path(tmp).resolve())
+                )
+            finally:
+                os.chdir(cwd)
+
+    def test_url_left_untouched(self) -> None:
+        self.assertEqual(
+            purge.resolve_local_source("git@example.com:x/y.git"),
+            "git@example.com:x/y.git",
+        )
+        self.assertEqual(
+            purge.resolve_local_source("https://example.com/x/y.git"),
+            "https://example.com/x/y.git",
+        )
+
+
+class RunFilterRepoTest(unittest.TestCase):
+    @mock.patch("subprocess.run")
+    def test_passes_single_refs_flag_with_all_refs(self, mock_run) -> None:
+        purge.run_filter_repo(
+            pathlib.Path("/mirror"),
+            ["sk-aaa==>***REMOVED-x***"],
+            ["refs/heads/main", "refs/heads/dev"],
+        )
+        called_cmd = mock_run.call_args.args[0]
+        self.assertEqual(called_cmd.count("--refs"), 1)
+        refs_index = called_cmd.index("--refs")
+        self.assertEqual(
+            called_cmd[refs_index + 1 :], ["refs/heads/main", "refs/heads/dev"]
+        )
 
 
 class RunPurgeApplyTest(unittest.TestCase):

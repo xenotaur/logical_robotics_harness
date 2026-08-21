@@ -93,7 +93,10 @@ def load_refs(refs_file: pathlib.Path) -> list[str]:
 
 def load_stripped_replacements(replacements_path: pathlib.Path) -> list[str]:
     """Validate the reviewed-replacements marker, then return the remaining
-    `secret==>placeholder` lines with the marker itself stripped off."""
+    `secret==>placeholder` lines with the marker itself stripped off. Blank
+    and comment (`#`) lines after the marker are dropped -- they are not
+    secrets and must never reach git-filter-repo or the literal-string
+    verification step as if they were one."""
     if not replacements_path.exists():
         raise PurgeInputError(f"{replacements_path} not found")
     lines = replacements_path.read_text().splitlines()
@@ -104,7 +107,18 @@ def load_stripped_replacements(replacements_path: pathlib.Path) -> list[str]:
             "-- run `lrh secrets review --apply` first"
         )
     marker_index = lines.index(non_empty[0])
-    return lines[marker_index + 1 :]
+    entries = [
+        line
+        for line in lines[marker_index + 1 :]
+        if line.strip() and not line.strip().startswith("#")
+    ]
+    for entry in entries:
+        if "==>" not in entry:
+            raise PurgeInputError(
+                f"{replacements_path}: malformed entry {entry!r} -- expected "
+                "<secret>==><placeholder>"
+            )
+    return entries
 
 
 def default_source(project_root: pathlib.Path) -> str:
@@ -121,6 +135,20 @@ def default_source(project_root: pathlib.Path) -> str:
             "-- pass --source explicitly"
         ) from err
     return result.stdout.strip()
+
+
+def resolve_local_source(source: str) -> str:
+    """A relative local path (e.g. `.`) resolves fine for the mirror clone
+    itself (relative to this process's cwd), but the printed push command
+    runs as `git -C <mirror_dir> push --force <source> <ref>` -- a relative
+    `source` there resolves against `mirror_dir`, not this process's cwd,
+    silently pushing back into the mirror. A URL (or an ssh-style
+    `user@host:path`) is left untouched; only an existing local filesystem
+    path is resolved to absolute."""
+    path = pathlib.Path(source)
+    if path.exists():
+        return str(path.resolve())
+    return source
 
 
 def mirror_clone(source: str, mirror_dir: pathlib.Path) -> None:
@@ -144,9 +172,9 @@ def run_filter_repo(
             "--replace-text",
             str(replacements_tmp_path),
             "--force",
+            "--refs",
+            *refs,
         ]
-        for ref in refs:
-            cmd += ["--refs", ref]
         subprocess.run(cmd, cwd=str(mirror_dir), check=True)
     finally:
         replacements_tmp_path.unlink(missing_ok=True)
@@ -231,7 +259,7 @@ def run_purge(
     stripped_replacements = load_stripped_replacements(replacements_path)
     secrets = secrets_from_replacements(stripped_replacements)
     check_filter_repo_available()
-    resolved_source = source or default_source(project_root)
+    resolved_source = resolve_local_source(source or default_source(project_root))
 
     if not apply:
         return format_dry_run_text(refs, len(secrets), resolved_source)

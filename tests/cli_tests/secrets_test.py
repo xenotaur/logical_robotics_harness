@@ -1,6 +1,5 @@
 import json
 import pathlib
-import shutil
 import subprocess
 import tempfile
 import unittest
@@ -407,10 +406,11 @@ class TestLrhSecretsPurgeCli(unittest.TestCase):
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("mutually exclusive", result.stderr)
 
-    @unittest.skipUnless(
-        shutil.which("git-filter-repo"), "git-filter-repo not installed"
-    )
     def test_lrh_secrets_purge_dry_run_reports_no_rewrite(self) -> None:
+        # Mocks the git-filter-repo availability boundary rather than
+        # requiring the real binary, so this unit test stays hermetic --
+        # the real-binary path is covered separately by the skip-gated
+        # smoke test.
         with tempfile.TemporaryDirectory() as tmp:
             out_dir = pathlib.Path(tmp)
             refs_file = out_dir / "refs.txt"
@@ -419,21 +419,28 @@ class TestLrhSecretsPurgeCli(unittest.TestCase):
             replacements_path.write_text(
                 "# lrh-secrets-reviewed v1\nsk-aaa==>***REMOVED-x***\n"
             )
-            result = self._run_lrh(
-                [
-                    "secrets",
-                    "purge",
-                    "--source",
-                    "git@example.com:x",
-                    "--refs-file",
-                    str(refs_file),
-                    "--replacements",
-                    str(replacements_path),
-                    "--dry-run",
-                ]
-            )
-            self.assertEqual(result.returncode, 0)
-            self.assertIn("DRY RUN", result.stdout)
+            with unittest.mock.patch(
+                "lrh.cli.main.secrets_purge.check_filter_repo_available",
+                return_value=None,
+            ):
+                with unittest.mock.patch(
+                    "sys.argv",
+                    [
+                        "lrh",
+                        "secrets",
+                        "purge",
+                        "--source",
+                        "git@example.com:x",
+                        "--refs-file",
+                        str(refs_file),
+                        "--replacements",
+                        str(replacements_path),
+                        "--dry-run",
+                    ],
+                ):
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
+            self.assertEqual(exc.exception.code, 0)
 
     def test_lrh_secrets_purge_delegates_to_secrets_purge_module(self) -> None:
         with unittest.mock.patch(

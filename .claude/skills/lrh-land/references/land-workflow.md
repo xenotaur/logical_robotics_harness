@@ -586,7 +586,7 @@ else
 fi
 ```
 
-A non-zero exit means a gate-definition surface changed since the stored
+Exit status `1` means a gate-definition surface changed since the stored
 confirmation. Per `DEC-GATE-POLICY-CASCADE`, inspect the diff for changes to
 gate-definition statements: when a gate is reached, what payload is presented,
 what reply or stored consent satisfies it, what special condition forces a live
@@ -595,6 +595,8 @@ it. If any such statement changed, treat this run as if
 `chain_init_confirmation` were `always_confirm` regardless of the stored value,
 and note this in the gate's presentation ("defaults pre-filled, but
 re-confirming since gate policy changed since you last confirmed"). If the diff
-is only non-semantic churn, document that inspection and continue. Do not
-silently rewrite the stored value based on this fallback alone — it only affects
-this run's liveness, not the persisted setting.
+is only non-semantic churn, document that inspection and continue. Exit status
+greater than `1` means the diff command itself failed; surface the error and do
+not classify it as a semantic gate-definition change. Do not silently rewrite
+the stored value based on this fallback alone — it only affects this run's
+liveness, not the persisted setting.

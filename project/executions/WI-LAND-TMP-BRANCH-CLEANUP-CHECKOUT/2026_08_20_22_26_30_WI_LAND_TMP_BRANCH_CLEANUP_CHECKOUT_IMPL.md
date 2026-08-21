@@ -66,3 +66,33 @@ change itself, only for the WI's eventual `resolved` status).
   `status: resolved`.
 - Update `session_transcript` from `pending` to the durable session
   pointer once available.
+
+## Review-response round 1
+
+Two real bot findings on the paired WI PR (#580) applied here, since they
+implicated this PR's actual fix, not just the WI text:
+
+1. **`chatgpt-codex-connector` P1 — missing Codex/Antigravity mirror
+   targets.** The original push only synced `.claude/skills/lrh-land/`.
+   This repo also renders to `.agents/skills/lrh-land/` (Codex) and
+   `.gemini/plugins/lrh/skills/lrh-land/` (Antigravity/Gemini) via
+   `lrh skills install --local --target all --source current-repo
+   --force` — verified these are *rendered* outputs (different YAML
+   frontmatter formatting per target), not byte-identical copies, so a
+   raw `cp` would have been wrong even if attempted. Re-ran the installer
+   for all three targets and confirmed with `lrh skills check --target
+   claude --local --source current-repo` and `lrh skills status --target
+   {codex,antigravity} --local --source current-repo` that all three are
+   now up to date against this branch's `src/lrh/skills/lrh-land/`.
+2. **`chatgpt-codex-connector` P1 — broken `git push tmp-<slug>:main`.**
+   Independently verified in a scratch repo: `git push tmp-<slug>:main`
+   (no explicit remote) fails — a bare `<ref>:<ref>` argument with no
+   space is parsed as the repository, not a refspec. This line predates
+   this WI's own change (I only added the checkout-away step after it),
+   but it sits directly upstream of my fix and the WI's acceptance
+   criteria implicitly claim the full documented sequence runs correctly
+   end-to-end, so fixed it here too: `git push tmp-<slug>:main` →
+   `git push origin tmp-<slug>:main` in both `SKILL.md` Step 7 and
+   `references/land-workflow.md`'s rule row.
+
+Re-ran `lrh validate` after both fixes — 0 errors, 0 warnings.

@@ -15,6 +15,7 @@ dedup) -- those are Stage 3 -- nor the weekly/hook-triggered sync -- Stage
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
 import os
 import pathlib
@@ -244,6 +245,63 @@ def mirror_transcript(
             return MirrorResult(source=source, dest=dest, copied=False)
     atomic_write_bytes(dest, source.read_bytes())
     return MirrorResult(source=source, dest=dest, copied=True)
+
+
+def content_hash(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+@dataclasses.dataclass(frozen=True)
+class SnapshotMirrorResult:
+    source: pathlib.Path
+    dest: pathlib.Path
+    copied: bool
+    snapshot: pathlib.Path | None
+
+
+def mirror_file_with_snapshot(
+    source: pathlib.Path,
+    dest: pathlib.Path,
+    *,
+    history_dir: pathlib.Path,
+    timestamp: str,
+) -> SnapshotMirrorResult:
+    """Mirror ``source`` to ``dest``, snapshotting prior ``dest`` content first.
+
+    A generalization of :func:`mirror_transcript` for sources that are
+    legitimately edited or shrunk, not append-only -- ``mirror_transcript``'s
+    never-shrink invariant assumes the source only grows, which holds for
+    JSONL transcripts but not for memory files (the installed
+    ``consolidate-memory`` skill routinely merges duplicates and prunes
+    stale entries, a legitimate shrink). This compares by content hash
+    instead of size/mtime, and on any change, preserves the file currently
+    at ``dest`` under ``history_dir`` before overwriting it -- so no prior
+    version is ever unrecoverable, but shrinkage is never treated as
+    corruption or blocked.
+
+    Snapshot filenames follow ``<dest-name>.<timestamp>.<shorthash>.md``
+    under ``history_dir``, keyed by the *prior* content's hash so the same
+    snapshot is never written twice for an unchanged prior version.
+    """
+
+    data = source.read_bytes()
+    source_hash = content_hash(data)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    snapshot: pathlib.Path | None = None
+    if dest.exists():
+        existing = dest.read_bytes()
+        if content_hash(existing) == source_hash:
+            return SnapshotMirrorResult(
+                source=source, dest=dest, copied=False, snapshot=None
+            )
+        history_dir.mkdir(parents=True, exist_ok=True)
+        short_hash = content_hash(existing)[:12]
+        snapshot = history_dir / f"{dest.name}.{timestamp}.{short_hash}.md"
+        atomic_write_bytes(snapshot, existing)
+    atomic_write_bytes(dest, data)
+    return SnapshotMirrorResult(
+        source=source, dest=dest, copied=True, snapshot=snapshot
+    )
 
 
 _SESSION_ID_FIELD = "sessionId"

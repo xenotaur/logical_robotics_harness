@@ -2,17 +2,19 @@
 per-project memory corpus (``~/.claude/projects/<slug>/memory/``).
 
 Implements Stage 1 of PROP-LRH-MEMORY-COMMAND: ``write``, ``list``,
-``validate``, and ``repair`` (Decision 9's fast follow-up). Resolves the
-corpus path via ``project_slug_for_path`` (reused from
-``prompt_workflow_sessions``, not reimplemented -- see that proposal's
-Decision 4). Does not implement ``sync``/``read``/``search``/``export``/
-``import``/``transfer`` -- those are separate work items.
+``validate``, and ``repair`` (Decision 9's fast follow-up), plus Stage 2's
+``sync`` (WI-LRH-MEMORY-ARCHIVE-SIDE, Decisions 5-6). Resolves the corpus
+path via ``project_slug_for_path`` (reused from ``prompt_workflow_sessions``,
+not reimplemented -- see that proposal's Decision 4). Does not implement
+``read``/``search``/``export``/``import``/``transfer`` -- those are
+separate work items.
 """
 
 from __future__ import annotations
 
 import contextlib
 import dataclasses
+import datetime
 import fcntl
 import os
 import pathlib
@@ -21,6 +23,7 @@ import typing
 
 import yaml
 
+from lrh import prompt_workflow_sessions
 from lrh.atomic_write import atomic_write
 from lrh.prompt_workflow_sessions import project_slug_for_path
 
@@ -562,3 +565,77 @@ def repair_memory(
         force=True,
     )
     return result.memory_path
+
+
+def _utc_now_compact() -> str:
+    """A filesystem-safe timestamp for snapshot filenames (no ``:``)."""
+
+    return datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
+@dataclasses.dataclass(frozen=True)
+class SyncEntry:
+    source: pathlib.Path
+    dest: pathlib.Path
+    copied: bool
+    snapshot: pathlib.Path | None
+
+
+def sync_memory(
+    project_root: str | pathlib.Path,
+    *,
+    claude_projects_root: str | pathlib.Path | None = None,
+    archive_root: str | pathlib.Path | None = None,
+    dry_run: bool = False,
+    timestamp: str | None = None,
+) -> list[SyncEntry]:
+    """Mirror a project's memory corpus into the durable archive root.
+
+    Reuses :func:`prompt_workflow_sessions.mirror_file_with_snapshot`
+    (Decision 6's snapshot-before-overwrite invariant, not
+    ``mirror_transcript``'s never-shrink invariant, which would wrongly
+    block a legitimate ``consolidate-memory`` shrink). Mirrors every
+    ``*.md`` file under the corpus, including ``MEMORY.md`` itself, into
+    ``<archive_root>/raw/<slug>/memory/**`` -- matching ``sessions
+    sync``'s own ``raw/<slug>/`` layout, per Decision 5's "independent
+    subcommand, shared conventions" choice.
+    """
+
+    memory_dir = memory_dir_for_project(project_root, claude_projects_root)
+    if not memory_dir.exists():
+        return []
+
+    resolved_archive_root = prompt_workflow_sessions.resolve_archive_root(archive_root)
+    project_slug = project_slug_for_path(project_root)
+    resolved_timestamp = timestamp or _utc_now_compact()
+
+    entries: list[SyncEntry] = []
+    for path in sorted(memory_dir.rglob("*.md")):
+        relpath = path.relative_to(memory_dir)
+        dest = resolved_archive_root / "raw" / project_slug / MEMORY_DIRNAME / relpath
+        if dry_run:
+            source_data = path.read_bytes()
+            copied = not dest.exists() or dest.read_bytes() != source_data
+            entries.append(
+                SyncEntry(source=path, dest=dest, copied=copied, snapshot=None)
+            )
+            continue
+        history_dir = (
+            resolved_archive_root
+            / "history"
+            / project_slug
+            / MEMORY_DIRNAME
+            / relpath.parent
+        )
+        result = prompt_workflow_sessions.mirror_file_with_snapshot(
+            path, dest, history_dir=history_dir, timestamp=resolved_timestamp
+        )
+        entries.append(
+            SyncEntry(
+                source=path,
+                dest=result.dest,
+                copied=result.copied,
+                snapshot=result.snapshot,
+            )
+        )
+    return entries

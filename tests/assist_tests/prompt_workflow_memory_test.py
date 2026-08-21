@@ -717,5 +717,200 @@ class ReadFrontmatterAndBodyTest(unittest.TestCase):
             prompt_workflow_memory.read_frontmatter_and_body("---\nname: foo\n")
 
 
+class SyncMemoryTest(unittest.TestCase):
+    def test_sync_mirrors_corpus_into_archive_root(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body v1\n",
+                claude_projects_root=claude_root,
+            )
+
+            entries = prompt_workflow_memory.sync_memory(
+                project_root,
+                claude_projects_root=claude_root,
+                archive_root=archive_root,
+            )
+
+            self.assertEqual(len(entries), 2)  # feedback_foo.md + MEMORY.md
+            for entry in entries:
+                self.assertTrue(entry.copied)
+                self.assertIsNone(entry.snapshot)
+                self.assertEqual(entry.dest.read_bytes(), entry.source.read_bytes())
+
+            slug = project_slug_for_path(project_root)
+            expected_dest = archive_root / "raw" / slug / "memory" / "feedback_foo.md"
+            self.assertTrue(expected_dest.exists())
+
+    def test_sync_is_a_no_op_when_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body v1\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.sync_memory(
+                project_root,
+                claude_projects_root=claude_root,
+                archive_root=archive_root,
+            )
+
+            second_run = prompt_workflow_memory.sync_memory(
+                project_root,
+                claude_projects_root=claude_root,
+                archive_root=archive_root,
+            )
+
+            self.assertTrue(all(not entry.copied for entry in second_run))
+
+    def test_sync_snapshots_prior_content_before_overwrite_and_never_deletes(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body v1\n",
+                claude_projects_root=claude_root,
+            )
+            first_run = prompt_workflow_memory.sync_memory(
+                project_root,
+                claude_projects_root=claude_root,
+                archive_root=archive_root,
+                timestamp="20260101T000000Z",
+            )
+            memory_file = next(
+                e.dest for e in first_run if e.dest.name == "feedback_foo.md"
+            )
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body v2, edited and shorter\n",
+                claude_projects_root=claude_root,
+                force=True,
+            )
+            second_run = prompt_workflow_memory.sync_memory(
+                project_root,
+                claude_projects_root=claude_root,
+                archive_root=archive_root,
+                timestamp="20260102T000000Z",
+            )
+
+            entry = next(e for e in second_run if e.dest.name == "feedback_foo.md")
+            self.assertTrue(entry.copied)
+            self.assertIsNotNone(entry.snapshot)
+            self.assertTrue(entry.snapshot.exists())
+            self.assertIn("20260102T000000Z", entry.snapshot.name)
+            self.assertIn("body v1", entry.snapshot.read_text(encoding="utf-8"))
+            self.assertIn("body v2", memory_file.read_text(encoding="utf-8"))
+
+    def test_sync_mirrors_a_shrunk_file_rather_than_blocking_it(self) -> None:
+        """Decision 6: snapshot-before-overwrite, not mirror_transcript's
+        never-shrink invariant -- a smaller edited memory (e.g. via
+        consolidate-memory) must be mirrored, not refused."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="a much longer original body with lots of detail\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.sync_memory(
+                project_root,
+                claude_projects_root=claude_root,
+                archive_root=archive_root,
+            )
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="short\n",
+                claude_projects_root=claude_root,
+                force=True,
+            )
+            second_run = prompt_workflow_memory.sync_memory(
+                project_root,
+                claude_projects_root=claude_root,
+                archive_root=archive_root,
+            )
+
+            entry = next(e for e in second_run if e.dest.name == "feedback_foo.md")
+            self.assertTrue(entry.copied)
+            self.assertIn("short", entry.dest.read_text(encoding="utf-8"))
+
+    def test_sync_dry_run_writes_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body v1\n",
+                claude_projects_root=claude_root,
+            )
+
+            entries = prompt_workflow_memory.sync_memory(
+                project_root,
+                claude_projects_root=claude_root,
+                archive_root=archive_root,
+                dry_run=True,
+            )
+
+            self.assertTrue(all(entry.copied for entry in entries))
+            self.assertFalse(archive_root.exists())
+
+    def test_sync_is_empty_when_corpus_does_not_exist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            entries = prompt_workflow_memory.sync_memory(
+                pathlib.Path(tmp) / "proj",
+                claude_projects_root=pathlib.Path(tmp) / "claude-projects",
+                archive_root=pathlib.Path(tmp) / "archive",
+            )
+            self.assertEqual(entries, [])
+
+
 if __name__ == "__main__":
     unittest.main()

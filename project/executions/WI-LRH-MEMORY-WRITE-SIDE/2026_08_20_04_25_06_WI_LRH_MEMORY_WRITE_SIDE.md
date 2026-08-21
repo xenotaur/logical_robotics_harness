@@ -2,10 +2,10 @@
 execution_id: 2026_08_20_04_25_06_WI_LRH_MEMORY_WRITE_SIDE
 prompt_id: PROMPT(WI-LRH-MEMORY-WRITE-SIDE:WI_LRH_MEMORY_WRITE_SIDE)[2026-08-20T01:29:37+00:00]
 work_item: WI-LRH-MEMORY-WRITE-SIDE
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/570
-commit: 774e2cf9e13d878075bad5f579330712460ae399
+commit: 84bd10ae8e531f3d02311e0ec49a2804005392a3
 created_at: 2026-08-20T04:25:06+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-MEMORY-WRITE-SIDE.md

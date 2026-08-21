@@ -1,11 +1,17 @@
 ---
-resolution: null
+resolution: >
+  Implemented and merged in PR #570 (commit 84bd10ae). Delivered
+  lrh memory write/list/validate/repair with the
+  metadata.authored_by/applies_to schema, crash-consistent write
+  ordering, extracted atomic-write helper, and the lrh-closeout
+  migration. Two review rounds (8 bot findings, 1 self-review-caught
+  security fix) landed before merge.
 blocked_reason: null
 blocked: false
 id: WI-LRH-MEMORY-WRITE-SIDE
 title: Implement lrh memory write/list/validate/repair
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

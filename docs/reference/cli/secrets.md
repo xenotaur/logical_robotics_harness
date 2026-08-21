@@ -83,10 +83,14 @@ lrh secrets review --out-dir /tmp/secrets-audit --decisions decisions.yaml --app
     decision: keep     # or: ignore
     reason: "why this is/isn't a real secret to purge"
   ```
-  The key is the literal secret value, not a hash. This file carries the
-  same trust level as `findings.json` — it contains real secret values and
-  must never be committed. A finding counts as decided only when it has both
-  a valid `decision` (`keep` or `ignore`) *and* a non-empty `reason`.
+  The key is the literal secret value, not a hash — always YAML-quote it,
+  since an unquoted value that happens to be YAML-significant (`true`,
+  `12345`, `[abc]`, or anything containing `: `) changes its parsed type
+  or breaks the file, and `review` matches findings by exact string value.
+  This file carries the same trust level as `findings.json` — it contains
+  real secret values and must never be committed. A finding counts as
+  decided only when it has both a valid `decision` (`keep` or `ignore`)
+  *and* a non-empty `reason`.
 - `--check`: exit nonzero if any finding lacks a recorded decision. With no
   `--check`/`--apply` flag, `review` prints an annotated report and exits
   `0`.

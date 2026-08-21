@@ -82,10 +82,18 @@ then record a decision per secret value in a decisions YAML file:
 
 ```yaml
 # Audits/decisions.yaml
-0.1.4=py311hca03da5_0:
+"0.1.4=py311hca03da5_0":
   decision: ignore
   reason: "conda package version pin in environment.yml, not a secret"
 ```
+
+**Always quote the secret value used as a key.** An unquoted key that
+happens to be YAML-significant (`true`, `12345`, `[abc]`, or any value
+containing `: `) either changes the key's parsed type or breaks the file
+outright — `review` looks up findings by their exact string secret value,
+so a key that didn't parse as that same string is silently treated as
+undecided instead of matched. Quoting the key, as above, keeps it a
+literal string regardless of what the secret's value looks like.
 
 Then check or apply:
 

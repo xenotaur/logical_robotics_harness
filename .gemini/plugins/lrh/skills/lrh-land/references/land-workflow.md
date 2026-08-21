@@ -16,7 +16,7 @@ prose each run. Source: `PROP-LRH-LAND-EXECUTE` Decision 3.
 | **Primary record selection** | `grep pr: <url>` across `project/executions/`; classify each match as primary/side/ambiguous via the provenance check (§ Primary vs. side-record provenance check below) — **not** a bare filename-suffix exclusion, which misclassifies a primary record whose own topic slug ends in a reserved word |
 | **Found-or-backfill** | Found → body is immutable; CHAIN-NOTE goes in a new `_CLOSEOUT_NOTE` record with `rerun_of:`. Not found → backfill record authored directly; CHAIN-NOTE in that record |
 | **CHAIN-NOTE placement** | Always in the record being *authored* this run; never appended to an already-merged record body |
-| **Main-worktree-lock** | When all worktrees have `main` checked out: `git fetch → checkout -b tmp-<slug> origin/main → apply changes → push tmp-<slug>:main → delete tmp-<slug>` |
+| **Main-worktree-lock** | When all worktrees have `main` checked out: `git fetch → checkout -b tmp-<slug> origin/main → apply changes → push origin tmp-<slug>:main → checkout <pr-branch> (or --detach) → delete tmp-<slug>` — the explicit `origin` is required (a bare `tmp-<slug>:main` argument is parsed as a repository, not a refspec) and the checkout-away step is required because Git refuses to delete the branch `HEAD` currently points to |
 | **Stale-branch safety** | Before reusing a planning-PR branch: `git diff origin/main <branch> --stat` must confirm zero net lines |
 
 **Multi-round review-response naming.** A single `/lrh-land` run can invoke

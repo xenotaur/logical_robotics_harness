@@ -429,9 +429,19 @@ workaround explicitly:
 git fetch
 git checkout -b tmp-<slug> origin/main
 # ... execute the closeout edits and commits on this branch ...
-git push tmp-<slug>:main
+git push origin tmp-<slug>:main
+git checkout <pr-branch>   # or: git checkout --detach
 git branch -D tmp-<slug>
 ```
+
+**The checkout-away step is not optional.** Git refuses to delete the
+branch `HEAD` currently points to, even with `-D` — so without it, the
+final `git branch -D tmp-<slug>` always fails, right after
+`git push origin tmp-<slug>:main` has already landed the closeout commit(s) on
+`main`. Check out `<pr-branch>` — the merged PR's branch, already known
+from Step 1's `headRefName` — to return to a normal working state; if that
+branch is unavailable for some reason, `git checkout --detach` is an
+always-safe fallback that still frees `tmp-<slug>` for deletion.
 
 Do not assume the workaround will be applied automatically — it must be
 executed here in Step 7 before inlining the closeout workflow.

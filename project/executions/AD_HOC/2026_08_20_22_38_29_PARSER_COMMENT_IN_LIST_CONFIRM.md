@@ -2,10 +2,10 @@
 execution_id: 2026_08_20_22_38_29_PARSER_COMMENT_IN_LIST_CONFIRM
 prompt_id: PROMPT(AD_HOC:PARSER_COMMENT_IN_LIST_CONFIRM)[2026-08-20T22:38:16+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/574
-commit: af9df3491ccb73770bc22562464edeed4ff74086
+commit: 83fe906a61b94f2dcea37efad0717141e0565d17
 created_at: 2026-08-20T22:38:29+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/574

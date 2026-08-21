@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_06_28_06_RESCUE_CODEX_EXPORTS_CONFIRM_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:RESCUE_CODEX_EXPORTS_CONFIRM_SELFREVIEW)[2026-08-21T06:27:48+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/582
-commit: 
+commit: 74b0e994d2386ca4c30524b1304af53ee0b4089d
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/582
 session_transcript: claude-app:dcf660e9-d89f-41e7-a220-edcede420919

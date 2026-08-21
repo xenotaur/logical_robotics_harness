@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_17_46_36_TEMPSPACE_MIGRATION_STATUS_CONFIRM_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:TEMPSPACE_MIGRATION_STATUS_CONFIRM_SELFREVIEW)[2026-08-21T17:46:22+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/587
-commit: 
+commit: 637fec71609d2dc56bd8e9b914c58d089ea9163d
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/587
 session_transcript: claude-app:dcf660e9-d89f-41e7-a220-edcede420919

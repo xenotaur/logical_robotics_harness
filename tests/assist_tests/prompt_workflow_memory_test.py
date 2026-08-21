@@ -1,4 +1,5 @@
 import concurrent.futures
+import json
 import pathlib
 import tempfile
 import unittest
@@ -1032,6 +1033,467 @@ class SyncMemoryTest(unittest.TestCase):
                 p.read_text(encoding="utf-8") for p in history_dir.glob("*")
             ]
             self.assertTrue(any("body v1" in c for c in snapshot_contents))
+
+
+class ExportMemoriesTest(unittest.TestCase):
+    def test_export_rejects_missing_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.export_memories(
+                    project_root,
+                    output=pathlib.Path(tmp) / "bundle.jsonl",
+                    claude_projects_root=claude_root,
+                )
+
+    def test_export_by_name_produces_jsonl_with_provenance(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            output = pathlib.Path(tmp) / "bundle.jsonl"
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body text\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-bar",
+                description="d2",
+                type_="feedback",
+                agent="claude",
+                body="other body\n",
+                claude_projects_root=claude_root,
+            )
+
+            result = prompt_workflow_memory.export_memories(
+                project_root,
+                output=output,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+
+            self.assertEqual(result.count, 1)
+            lines = output.read_text(encoding="utf-8").strip().splitlines()
+            self.assertEqual(len(lines), 1)
+            record = json.loads(lines[0])
+            self.assertEqual(record["name"], "feedback-foo")
+            self.assertEqual(record["body"], "body text\n")
+            self.assertEqual(record["metadata"]["authored_by"], "claude")
+            slug = project_slug_for_path(project_root)
+            self.assertEqual(record["exported_from_slug"], slug)
+
+    def test_export_by_agent_filters_correctly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            output = pathlib.Path(tmp) / "bundle.jsonl"
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="b1\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.write_memory(
+                project_root,
+                "feedback-bar",
+                description="d2",
+                type_="feedback",
+                agent="codex",
+                body="b2\n",
+                claude_projects_root=claude_root,
+            )
+
+            result = prompt_workflow_memory.export_memories(
+                project_root,
+                output=output,
+                agent="codex",
+                claude_projects_root=claude_root,
+            )
+
+            self.assertEqual(result.count, 1)
+            record = json.loads(output.read_text(encoding="utf-8").strip())
+            self.assertEqual(record["name"], "feedback-bar")
+
+
+class ImportMemoriesTest(unittest.TestCase):
+    def test_import_writes_through_write_validation(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+            bundle = pathlib.Path(tmp) / "bundle.jsonl"
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.export_memories(
+                source_root,
+                output=bundle,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+
+            entries = prompt_workflow_memory.import_memories(
+                dest_root, input=bundle, claude_projects_root=claude_root
+            )
+
+            self.assertEqual(len(entries), 1)
+            self.assertTrue(entries[0].written)
+            self.assertIsNone(entries[0].error)
+            imported = prompt_workflow_memory.list_memories(
+                dest_root, claude_projects_root=claude_root
+            )
+            self.assertEqual([e.filename for e in imported], ["feedback_foo.md"])
+
+    def test_import_rejects_what_write_would_reject(self) -> None:
+        """A bundled record with an invalid type must fail the same way a
+        direct write_memory() call would -- import is not a second, less
+        validated write mechanism."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            dest_root = pathlib.Path(tmp) / "proj"
+            bundle = pathlib.Path(tmp) / "bundle.jsonl"
+            bundle.write_text(
+                json.dumps(
+                    {
+                        "name": "feedback-bad",
+                        "description": "d",
+                        "metadata": {
+                            "type": "not-a-real-type",
+                            "authored_by": "claude",
+                        },
+                        "body": "b\n",
+                        "exported_from_slug": "somewhere",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            entries = prompt_workflow_memory.import_memories(
+                dest_root, input=bundle, claude_projects_root=claude_root
+            )
+
+            self.assertEqual(len(entries), 1)
+            self.assertFalse(entries[0].written)
+            self.assertIsNotNone(entries[0].error)
+
+    def test_import_dry_run_does_not_write(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+            bundle = pathlib.Path(tmp) / "bundle.jsonl"
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.export_memories(
+                source_root,
+                output=bundle,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+
+            entries = prompt_workflow_memory.import_memories(
+                dest_root,
+                input=bundle,
+                dry_run=True,
+                claude_projects_root=claude_root,
+            )
+
+            self.assertEqual(len(entries), 1)
+            self.assertFalse(entries[0].written)
+            imported = prompt_workflow_memory.list_memories(
+                dest_root, claude_projects_root=claude_root
+            )
+            self.assertEqual(imported, [])
+
+    def test_import_name_filter_restricts_bundle(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+            bundle = pathlib.Path(tmp) / "bundle.jsonl"
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="b1\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-bar",
+                description="d2",
+                type_="feedback",
+                agent="claude",
+                body="b2\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.export_memories(
+                source_root,
+                output=bundle,
+                agent="claude",
+                claude_projects_root=claude_root,
+            )
+
+            entries = prompt_workflow_memory.import_memories(
+                dest_root,
+                input=bundle,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+
+            self.assertEqual(len(entries), 1)
+            self.assertEqual(entries[0].name, "feedback-foo")
+
+
+class TransferMemoriesTest(unittest.TestCase):
+    def test_transfer_moves_memories_between_corpora_by_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+
+            entries = prompt_workflow_memory.transfer_memories(
+                from_=source_root,
+                to=dest_root,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+
+            self.assertEqual(len(entries), 1)
+            self.assertTrue(entries[0].written)
+            dest_memories = prompt_workflow_memory.list_memories(
+                dest_root, claude_projects_root=claude_root
+            )
+            self.assertEqual([e.filename for e in dest_memories], ["feedback_foo.md"])
+
+    def test_transfer_accepts_a_literal_slug_for_to(self) -> None:
+        """transfer's --to may name an existing corpus slug directly, not
+        only a project-root path -- the whole point of transfer is moving
+        memories between two corpora, which need not both be reachable via
+        "the current project"."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+            # Establish the destination corpus first so its slug directory
+            # already exists (transfer's literal-slug detection requires
+            # <claude_projects_root>/<value>/memory to already exist).
+            dest_slug = project_slug_for_path(dest_root)
+            (claude_root / dest_slug / "memory").mkdir(parents=True)
+
+            entries = prompt_workflow_memory.transfer_memories(
+                from_=source_root,
+                to=dest_slug,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+
+            self.assertEqual(len(entries), 1)
+            self.assertTrue(entries[0].written)
+            self.assertTrue(
+                (claude_root / dest_slug / "memory" / "feedback_foo.md").exists()
+            )
+
+    def test_transfer_with_absolute_path_never_escapes_claude_projects_root(
+        self,
+    ) -> None:
+        """Regression test: pathlib's `/` operator silently discards its
+        left operand whenever the right operand is itself absolute, so
+        `root / str(absolute_path_or_slug)` would previously resolve to
+        `<path_or_slug>/memory` -- a directory *inside* the caller's own
+        project root, entirely outside claude_projects_root -- and write
+        there silently if that directory happened to already exist (e.g.
+        an unrelated local `memory/` folder), reporting success with no
+        error and no data ever reaching the real corpus."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+            # An unrelated local "memory" directory that happens to already
+            # exist directly under dest_root -- the exact collision shape
+            # the bug exploited.
+            local_decoy_dir = dest_root / "memory"
+            local_decoy_dir.mkdir(parents=True)
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+
+            entries = prompt_workflow_memory.transfer_memories(
+                from_=source_root,
+                to=dest_root,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+
+            self.assertEqual(len(entries), 1)
+            self.assertTrue(entries[0].written)
+            # Must land under claude_projects_root/<slug>/memory, never in
+            # the decoy directory inside dest_root itself.
+            self.assertEqual(list(local_decoy_dir.iterdir()), [])
+            dest_slug = project_slug_for_path(dest_root)
+            self.assertTrue(
+                (claude_root / dest_slug / "memory" / "feedback_foo.md").exists()
+            )
+
+    def test_transfer_by_agent_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="b1\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-bar",
+                description="d2",
+                type_="feedback",
+                agent="codex",
+                body="b2\n",
+                claude_projects_root=claude_root,
+            )
+
+            entries = prompt_workflow_memory.transfer_memories(
+                from_=source_root,
+                to=dest_root,
+                agent="codex",
+                claude_projects_root=claude_root,
+            )
+
+            self.assertEqual(len(entries), 1)
+            self.assertEqual(entries[0].name, "feedback-bar")
+
+    def test_transfer_rejects_missing_filter(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.transfer_memories(
+                    from_=source_root, to=dest_root, claude_projects_root=claude_root
+                )
+
+    def test_transfer_force_overwrites_cross_agent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="codex",
+                body="from source\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.write_memory(
+                dest_root,
+                "feedback-foo",
+                description="pre-existing",
+                type_="feedback",
+                agent="claude",
+                body="original\n",
+                claude_projects_root=claude_root,
+            )
+
+            without_force = prompt_workflow_memory.transfer_memories(
+                from_=source_root,
+                to=dest_root,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+            self.assertFalse(without_force[0].written)
+            self.assertIsNotNone(without_force[0].error)
+
+            with_force = prompt_workflow_memory.transfer_memories(
+                from_=source_root,
+                to=dest_root,
+                names=["feedback-foo"],
+                force=True,
+                claude_projects_root=claude_root,
+            )
+            self.assertTrue(with_force[0].written)
+            dest_memories = prompt_workflow_memory.list_memories(
+                dest_root, claude_projects_root=claude_root
+            )
+            self.assertEqual(dest_memories[0].authored_by, "codex")
 
 
 if __name__ == "__main__":

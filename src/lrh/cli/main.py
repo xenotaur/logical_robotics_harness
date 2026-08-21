@@ -443,9 +443,8 @@ def main() -> None:
             "    decision: keep     # or: ignore\n"
             '    reason: "why"\n'
             "--apply writes out-dir/replacements.reviewed.txt, distinct from\n"
-            "scan's draft replacements.txt -- this is intended to be the file\n"
-            "a future lrh secrets purge command will accept, never the draft\n"
-            "(purge is not yet implemented -- see WI-SECRETS-PURGE)."
+            "scan's draft replacements.txt -- this is the file lrh secrets\n"
+            "purge accepts via its --replacements flag, never the draft."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

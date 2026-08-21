@@ -59,3 +59,35 @@ accurate).
   `status: resolved`.
 - Update `session_transcript` from `pending` to the durable session
   pointer once available.
+
+## Review-response round 1
+
+Three findings from `Copilot`/`chatgpt-codex-connector` on this PR:
+
+1. **Copilot — skip rationale too narrowly enumerated.** The added Step 5
+   skip instruction named only four specific resolved values
+   (`codex-app:<id>`, `codex-cloud:<id>`, `pending`, `none`), but Step 3's
+   catch-all "other non-Claude backend" branch can resolve to a different
+   backend's own scheme-prefixed pointer too, not only those four. Fixed:
+   reworded to state that *no* non-Claude-backend pointer value, whatever
+   its exact form, is a usable `--host-id`, while keeping the four
+   concrete examples for the common cases.
+2. **`chatgpt-codex-connector` P1 — missing Codex/Antigravity mirror
+   sync.** Same gap as PR #581/#576: re-ran `lrh skills install --local
+   --target all --source current-repo --force` and verified with
+   `lrh skills check --target claude --local --source current-repo` /
+   `lrh skills status --target {codex,antigravity} --local --source
+   current-repo` that all three targets are up to date.
+3. **Copilot — `instruction_source` points to a file absent from this
+   branch.** Declined: `instruction_source:
+   project/work_items/proposed/WI-CLOSEOUT-SESSION-ALIAS-BACKEND-SCOPE.md`
+   is correct once WI PR #572 merges — this is this project's established
+   convention of splitting a WI's creation and implementation into
+   separate branches/PRs (see the `-impl` branch-naming pattern used
+   throughout this session), not a broken reference. Left as-is.
+
+Re-ran `lrh validate` after the two applied fixes — 0 errors, 0 warnings.
+Rebased onto latest `main` and force-pushed (`--force-with-lease`) to keep
+the branch history linear and the diff clean of unrelated upstream drift —
+this is a solo feature branch on an open, not-yet-reviewed-by-a-human PR,
+not shared history.

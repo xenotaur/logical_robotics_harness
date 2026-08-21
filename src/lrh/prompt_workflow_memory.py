@@ -2,12 +2,13 @@
 per-project memory corpus (``~/.claude/projects/<slug>/memory/``).
 
 Implements Stage 1 of PROP-LRH-MEMORY-COMMAND: ``write``, ``list``,
-``validate``, and ``repair`` (Decision 9's fast follow-up), plus Stage 2's
-``sync`` (WI-LRH-MEMORY-ARCHIVE-SIDE, Decisions 5-6). Resolves the corpus
-path via ``project_slug_for_path`` (reused from ``prompt_workflow_sessions``,
-not reimplemented -- see that proposal's Decision 4). Does not implement
-``read``/``search``/``export``/``import``/``transfer`` -- those are
-separate work items.
+``validate``, and ``repair`` (Decision 9's fast follow-up), Stage 2's
+``sync`` (WI-LRH-MEMORY-ARCHIVE-SIDE, Decisions 5-6), and Stage 4's
+``export``/``import``/``transfer`` (WI-LRH-MEMORY-PORTABILITY, Decision 8).
+Resolves the corpus path via ``project_slug_for_path`` (reused from
+``prompt_workflow_sessions``, not reimplemented -- see that proposal's
+Decision 4). Does not implement ``read``/``search`` -- that is a separate
+work item.
 """
 
 from __future__ import annotations

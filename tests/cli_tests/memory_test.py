@@ -245,6 +245,49 @@ class MemoryCliTest(unittest.TestCase):
             self.assertIn("dry-run:", result.stdout)
             self.assertFalse(archive_root.exists())
 
+    def test_export_reports_oserror_cleanly(self) -> None:
+        """Regression test: export's CLI handler previously caught only
+        MemoryValidationError, so an --output path that can't be created
+        (e.g. its parent is actually a file) surfaced an uncaught
+        traceback instead of a clean error: ... message."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            blocking_file = pathlib.Path(tmp) / "not-a-directory"
+            blocking_file.write_text("x", encoding="utf-8")
+
+            self._run(
+                "write",
+                "feedback-export-oserror",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="body\n",
+            )
+
+            result = self._run(
+                "export",
+                "--output",
+                str(blocking_file / "bundle.jsonl"),
+                "--name",
+                "feedback-export-oserror",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("error:", result.stderr)
+            self.assertNotIn("Traceback", result.stderr)
+
     def test_export_requires_filter(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             claude_root = pathlib.Path(tmp) / "claude-projects"

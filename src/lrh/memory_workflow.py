@@ -383,7 +383,11 @@ def _run_export(args: argparse.Namespace) -> int:
             agent=args.agent,
             claude_projects_root=args.claude_projects_root,
         )
-    except prompt_workflow_memory.MemoryValidationError as error:
+    except (
+        prompt_workflow_memory.MemoryValidationError,
+        OSError,
+        UnicodeDecodeError,
+    ) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
 
@@ -424,7 +428,7 @@ def _run_import(args: argparse.Namespace) -> int:
             dry_run=args.dry_run,
             claude_projects_root=args.claude_projects_root,
         )
-    except (OSError, json.JSONDecodeError) as error:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     return _report_import_entries(entries, dry_run=args.dry_run)
@@ -441,7 +445,12 @@ def _run_transfer(args: argparse.Namespace) -> int:
             dry_run=args.dry_run,
             claude_projects_root=args.claude_projects_root,
         )
-    except prompt_workflow_memory.MemoryValidationError as error:
+    except (
+        prompt_workflow_memory.MemoryValidationError,
+        OSError,
+        UnicodeDecodeError,
+        json.JSONDecodeError,
+    ) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
 

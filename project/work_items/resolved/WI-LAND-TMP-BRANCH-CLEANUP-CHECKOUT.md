@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #580 (creation, commit 4f4244ec) and PR #581 (implementation, commit 3e0a5429)."
 blocked_reason: null
 blocked: false
 id: WI-LAND-TMP-BRANCH-CLEANUP-CHECKOUT
 title: Fix lrh-land main-worktree-lock workaround deleting the checked-out tmp branch
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

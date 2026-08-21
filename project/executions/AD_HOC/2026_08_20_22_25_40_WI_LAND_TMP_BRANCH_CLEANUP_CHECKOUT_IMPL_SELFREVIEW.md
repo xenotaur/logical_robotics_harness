@@ -2,14 +2,14 @@
 execution_id: 2026_08_20_22_25_40_WI_LAND_TMP_BRANCH_CLEANUP_CHECKOUT_IMPL_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_LAND_TMP_BRANCH_CLEANUP_CHECKOUT_IMPL_SELFREVIEW)[2026-08-20T22:25:36+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/581
+commit: 3e0a54298d1e68678ac10904b34ef5fc6349888a
 created_at: 2026-08-20T22:25:40+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LAND-TMP-BRANCH-CLEANUP-CHECKOUT.md
-session_transcript: pending
+session_transcript: claude-app:c02da21d-4a23-4315-857f-0829e0483667
 ---
 
 # Summary

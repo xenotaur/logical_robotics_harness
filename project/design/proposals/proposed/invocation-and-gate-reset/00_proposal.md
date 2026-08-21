@@ -902,10 +902,10 @@ Each of Stages 1 and 2 must therefore include:
   already found, not merely describe the rule: `WS-SKILLS-EXECUTE.md:77`, `:114`,
   `:133` and `WI-SKILLS-LRH-EXECUTE.md:70`, all asserting that
   `WI-DELIBERATE-MODEL-INVOCATION` is "owned by `WS-EXECUTION-FRAMEWORK`" when
-  that workstream's `work_items:` list never contained it. Note that
-  `WS-INVOCATION-AND-GATE-RESET` has *not* taken ownership either — it holds the
-  item as intended-but-unlisted while its Stage 1 predecessor does not exist, so
-  the correction is to state the item is currently unowned, not to reassign it.
+  that workstream's `work_items:` list never contained it. That statement was
+  later superseded by the current source of truth: the work item is resolved
+  under `WS-INVOCATION-AND-GATE-RESET`, and that workstream lists it in
+  `work_items:`. The correction is to point at that resolved ownership.
   Stage 3's DEC record must also carry the taxonomy extension in Decision 6, and
   a sweep should look for the same statement shape elsewhere rather than
   assuming these four are exhaustive.

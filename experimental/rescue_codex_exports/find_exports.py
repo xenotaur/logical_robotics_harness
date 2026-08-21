@@ -32,8 +32,11 @@ def main() -> int:
     print(f"scanning: {source}")
 
     if not source.is_dir():
+        # Non-fatal, matching move_exports.py's exit code for the same
+        # condition -- a missing scan root (e.g. ${TMPDIR:-/tmp} absent in a
+        # constrained environment) is a no-op to report, not a tool error.
         print(f"  skip: not a directory: {source}")
-        return 1
+        return 0
 
     dirs = codexexportlib.find_export_dirs(source)
     if not dirs:

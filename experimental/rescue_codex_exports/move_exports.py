@@ -35,11 +35,21 @@ MANIFEST_NAME = "MIGRATION_LOG.md"
 def plan_move(
     candidates: list[codexexportlib.ExportCandidate], dest_root: Path
 ) -> tuple[list[Path], list[Path], list[Path]]:
-    """Classify each valid candidate against the destination.
+    """Classify each valid candidate against the destination and each other.
 
     Returns ``(to_move, already_present, divergent)``, keyed by top-level
     candidate directory (not per-file, unlike ``migrate_memory.py``'s
     ``plan_copy`` -- an export directory is one unit here).
+
+    Two candidates at different source depths can share a basename (the
+    skill mints ``lrh-codex-export-<id>`` names independent of nesting
+    depth). Checking only against the pre-run destination misses this: both
+    would appear absent from ``dest_root`` during planning and both would be
+    queued into ``to_move``, so the second ``shutil.copytree`` during
+    ``--apply`` would collide with the first's freshly-written directory.
+    Any such same-name collision within this candidate batch is refused the
+    same way a source/destination content divergence is -- reconciling
+    which one is authoritative is a judgement call, not a mechanical one.
     """
     to_move: list[Path] = []
     already_present: list[Path] = []
@@ -67,6 +77,16 @@ def plan_move(
             divergent.append(candidate.path)
         else:
             already_present.append(candidate.path)
+
+    by_name: dict[str, list[Path]] = {}
+    for path in to_move:
+        by_name.setdefault(path.name, []).append(path)
+    colliding_names = {name for name, paths in by_name.items() if len(paths) > 1}
+    if colliding_names:
+        to_move = [p for p in to_move if p.name not in colliding_names]
+        for name in colliding_names:
+            divergent.extend(by_name[name])
+
     return to_move, already_present, divergent
 
 
@@ -76,8 +96,18 @@ def copy_and_verify(source_dir: Path, dest_dir: Path) -> list[str]:
     Returns a list of mismatch descriptions; empty means every file verified.
     Does not touch ``source_dir`` -- deletion is the caller's decision, made
     only once this returns empty.
+
+    A ``copytree`` failure (permissions, ENOSPC, a source file vanishing
+    mid-copy) is caught rather than left to crash the run: it can leave a
+    partial ``dest_dir`` behind that would block a re-run's own "target
+    already exists" check, so any partial copy is removed here before
+    reporting the failure.
     """
-    shutil.copytree(source_dir, dest_dir)
+    try:
+        shutil.copytree(source_dir, dest_dir)
+    except OSError as err:
+        shutil.rmtree(dest_dir, ignore_errors=True)
+        return [f"copy failed: {err}"]
     mismatched: list[str] = []
     for item in source_dir.rglob("*"):
         if not item.is_file():
@@ -91,9 +121,23 @@ def copy_and_verify(source_dir: Path, dest_dir: Path) -> list[str]:
     return mismatched
 
 
-def append_manifest(
-    dest_root: Path, moved: list[Path], dest_by_source: dict[Path, Path]
-) -> None:
+def _escape_table_cell(value: str) -> str:
+    """Escape ``|`` so a path containing one cannot corrupt the Markdown table."""
+    return value.replace("|", "\\|")
+
+
+def append_manifest_entry(dest_root: Path, source_dir: Path, dest_dir: Path) -> None:
+    """Append one row recording a single migrated directory's provenance.
+
+    Called once per directory, immediately after that directory's copy is
+    verified and *before* its original is deleted (see the call site in
+    ``main``) -- not batched at the end of the run. Batching meant a
+    manifest-write failure (an unwritable log, a full disk) could occur only
+    after every source in the batch had already been deleted, leaving
+    destination arrivals with no recoverable provenance. Writing and
+    deleting one directory at a time makes each migration transactional: if
+    this raises, the caller's ``source_dir`` is still on disk.
+    """
     manifest = dest_root / MANIFEST_NAME
     is_new = not manifest.exists()
     timestamp = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -107,10 +151,9 @@ def append_manifest(
             )
             handle.write("| moved at (UTC) | source | dest |\n")
             handle.write("| --- | --- | --- |\n")
-        for source_dir in moved:
-            handle.write(
-                f"| {timestamp} | `{source_dir}` | `{dest_by_source[source_dir]}` |\n"
-            )
+        source_cell = _escape_table_cell(str(source_dir))
+        dest_cell = _escape_table_cell(str(dest_dir))
+        handle.write(f"| {timestamp} | `{source_cell}` | `{dest_cell}` |\n")
 
 
 def main() -> int:
@@ -188,8 +231,7 @@ def main() -> int:
         return 0
 
     dest_root.mkdir(parents=True, exist_ok=True)
-    moved: list[Path] = []
-    dest_by_source: dict[Path, Path] = {}
+    moved = 0
     failures = 0
     for source_dir in to_move:
         target = dest_root / source_dir.name
@@ -203,15 +245,22 @@ def main() -> int:
             shutil.rmtree(target, ignore_errors=True)
             failures += 1
             continue
+        try:
+            append_manifest_entry(dest_root, source_dir, target)
+        except OSError as err:
+            print(f"  FAILED to log provenance for {source_dir}: {err}")
+            print(f"    leaving original in place: {source_dir}")
+            print(f"    removing unlogged copy: {target}")
+            shutil.rmtree(target, ignore_errors=True)
+            failures += 1
+            continue
         shutil.rmtree(source_dir)
-        moved.append(source_dir)
-        dest_by_source[source_dir] = target
+        moved += 1
         print(f"  moved: {source_dir}  ->  {target}")
 
     if moved:
-        append_manifest(dest_root, moved, dest_by_source)
-        kind = codexexportlib.pluralize_directories(len(moved))
-        print(f"\n{len(moved)} {kind} moved and verified")
+        kind = codexexportlib.pluralize_directories(moved)
+        print(f"\n{moved} {kind} moved and verified")
         print(f"logged to {dest_root / MANIFEST_NAME}")
     if failures:
         print(f"{failures} failure(s) -- originals left in place, see above")

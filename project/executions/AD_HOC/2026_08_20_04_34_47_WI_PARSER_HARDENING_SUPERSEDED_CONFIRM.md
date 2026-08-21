@@ -2,14 +2,14 @@
 execution_id: 2026_08_20_04_34_47_WI_PARSER_HARDENING_SUPERSEDED_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_PARSER_HARDENING_SUPERSEDED_CONFIRM)[2026-08-20T02:16:20+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_19_22_41_09_WI_PARSER_HARDENING_SUPERSEDED
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/569
-commit: 
+commit: 528da8970a172e5bb51d81e787d1dd322cb64eb5
 created_at: 2026-08-20T04:34:47+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/569
-session_transcript: "claude-app:494c3b1f-14c8-46bf-a4e3-0b6e8df119e8"
+session_transcript: claude-app:494c3b1f-14c8-46bf-a4e3-0b6e8df119e8
 ---
 
 # Summary

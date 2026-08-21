@@ -1475,3 +1475,31 @@ gap is independent of the write-side idea and could land first.
 **Related:** `experimental/rescue_claude_sessions/findings.md` (full evidence,
 per-bucket counts, and the interleaving analysis);
 `experimental/rescue_claude_sessions/README.md`; PR #561.
+
+## Codex export durable-archive gap has a stopgap; the real fix is still open
+
+**Idea (already scoped):** `WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT`
+(`project/work_items/proposed/`) is the real fix — makes `/lrh-codex-export`
+durable-archive-first by default instead of `${TMPDIR:-/tmp}`, adds per-attempt
+metadata, and covers full migration UX. It `depends_on:
+WI-CODEX-CONVERSATION-EXPORT-SKILL, WI-SESSION-ARCHIVE-SYNC-RECONCILER` and
+bundles a skill rewrite, tests, and docs — not something to wait on for the
+immediate problem of exports already stranded in OS temp storage.
+
+**Stopgap shipped instead:** `experimental/rescue_codex_exports/` — two
+scripts (`find_exports.py` read-only scan/classify, `move_exports.py`
+copy-verify-delete migration) that find `lrh-codex-export-*` directories
+under an arbitrary root and consolidate them into `~/.lrh/private/codex/`,
+the durable location `SKILL.md` Step 2 already documents but the routine
+capture path doesn't use. Covers Required Change #5 of the work item above
+("import/migrate existing... export directories... into the durable
+archive") narrowly, not the rest of its scope. `<dest>/MIGRATION_LOG.md`
+records every directory's origin so nothing moved by this tool loses
+provenance.
+
+**Status:** Stopgap tooling landed; the work item above remains `proposed`
+and unblocked by this — whoever picks it up should know this tool already
+covers its import/migrate requirement and can either reuse or supersede it.
+
+**Related:** `experimental/rescue_codex_exports/README.md`;
+`project/work_items/proposed/WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT.md`.

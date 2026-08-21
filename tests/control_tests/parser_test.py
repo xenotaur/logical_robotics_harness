@@ -72,11 +72,13 @@ Hello.
         self.assertIsNone(parsed.frontmatter["items"])
 
     def test_comment_between_multiple_block_lists(self) -> None:
+        # Bug: col-0 comment inside foo's list broke the inner loop early,
+        # leaving "- b" for the outer loop which raised ValueError.
         parsed = parse_markdown_text(
-            "---\nfoo:\n  - a\n# between keys\nbar:\n  - b\n---\n"
+            "---\nfoo:\n  - a\n# comment\n  - b\nbar:\n  - c\n---\n"
         )
-        self.assertEqual(parsed.frontmatter["foo"], ["a"])
-        self.assertEqual(parsed.frontmatter["bar"], ["b"])
+        self.assertEqual(parsed.frontmatter["foo"], ["a", "b"])
+        self.assertEqual(parsed.frontmatter["bar"], ["c"])
 
 
 if __name__ == "__main__":

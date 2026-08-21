@@ -53,6 +53,7 @@ from __future__ import annotations
 
 import dataclasses
 import pathlib
+import shlex
 import shutil
 import subprocess
 import sys
@@ -242,7 +243,16 @@ def format_success_text(result: PurgeResult) -> str:
         "\nTo push the rewritten history, run manually:",
     ]
     for ref in result.refs:
-        lines.append(f"  git -C {result.mirror_dir} push --force {result.source} {ref}")
+        cmd = [
+            "git",
+            "-C",
+            str(result.mirror_dir),
+            "push",
+            "--force",
+            result.source,
+            ref,
+        ]
+        lines.append("  " + shlex.join(cmd))
     lines.append(_MANUAL_REMINDERS)
     return "\n".join(lines)
 

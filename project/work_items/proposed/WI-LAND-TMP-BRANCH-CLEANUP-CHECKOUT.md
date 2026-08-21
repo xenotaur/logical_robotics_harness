@@ -20,12 +20,12 @@ expected_actions:
   - edit_file
 forbidden_actions:
   - force_push
-  - delete_branch
   - merge_pr
 acceptance:
   - src/lrh/skills/lrh-land/SKILL.md Step 7's main-worktree-lock workaround checks out a branch other than tmp-<slug> (the original PR branch, or a detached HEAD) before running git branch -D tmp-<slug>
   - src/lrh/skills/lrh-land/references/land-workflow.md's Main-worktree-lock rule row reflects the same corrected sequence
-  - The corrected sequence, run as documented, completes without a git branch -D error
+  - The push step in both files uses an explicit remote (git push origin tmp-<slug>:main), not the bare tmp-<slug>:main form, which git parses as a repository argument rather than a refspec
+  - The corrected sequence, run end-to-end in a disposable scratch repository (not this project's own repo/branches), completes without error, including the final git branch -D on that scratch repo's own throwaway tmp-<slug> branch
   - .claude/skills/lrh-land/SKILL.md and .claude/skills/lrh-land/references/land-workflow.md are byte-for-byte identical to their src/lrh/skills/lrh-land counterparts
   - lrh validate reports 0 errors
 required_evidence:
@@ -36,6 +36,10 @@ artifacts_expected:
   - src/lrh/skills/lrh-land/references/land-workflow.md
   - .claude/skills/lrh-land/SKILL.md
   - .claude/skills/lrh-land/references/land-workflow.md
+  - .agents/skills/lrh-land/SKILL.md
+  - .agents/skills/lrh-land/references/land-workflow.md
+  - .gemini/plugins/lrh/skills/lrh-land/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-land/references/land-workflow.md
 ---
 
 ## Summary
@@ -99,6 +103,21 @@ sequence: "`git fetch → checkout -b tmp-<slug> origin/main → apply changes
 → push tmp-<slug>:main → delete tmp-<slug>`" — no checkout-away step
 before the delete.
 
+**Second, adjacent bug found while validating the fix:** the `git push
+tmp-<slug>:main` line itself (already present before this WI; not
+introduced by it) is also broken as documented. Verified directly: a bare
+`<ref>:<ref>` argument with no space, with no remote named `tmp-<slug>`
+configured, is parsed by `git push` as the *repository* argument, not a
+refspec — the command does not do what the surrounding prose describes.
+It needs an explicit remote: `git push origin tmp-<slug>:main`. This sits
+directly upstream of the checkout-away fix (the sequence must actually
+reach the delete step for that fix to matter), and this WI's own
+acceptance criteria claim the corrected sequence "runs as documented"
+successfully — which isn't true without also fixing this line. Folded
+into this WI's scope rather than filed separately, since it's the same
+code block and the same root cause category (an under-tested documented
+git sequence).
+
 **Prior art check:**
 - *Duplication search:* grepped `project/work_items/` and
   `project/design/backlog.md` for "tmp-" and "main-worktree-lock" — no
@@ -112,54 +131,71 @@ before the delete.
 ## Scope
 
 - `src/lrh/skills/lrh-land/SKILL.md` Step 7: add a checkout-away step
-  before `git branch -D tmp-<slug>`.
+  before `git branch -D tmp-<slug>`; fix the push step to name an explicit
+  remote.
 - `src/lrh/skills/lrh-land/references/land-workflow.md`: update the
   `Main-worktree-lock` rule row to reflect the corrected sequence.
-- Mirror both changes to `.claude/skills/lrh-land/`.
+- Mirror both changes to every checked-in skill target this repo renders
+  to for the target-aware installer (`.claude/skills/lrh-land/`,
+  `.agents/skills/lrh-land/`, `.gemini/plugins/lrh/skills/lrh-land/`) via
+  `lrh skills install --local --target all --source current-repo --force`
+  — these are rendered outputs with per-target frontmatter differences,
+  not byte-identical copies, so a raw `cp` to the non-Claude targets would
+  be wrong.
 
 ## Non-Goals
 
 - Does not change when the main-worktree-lock workaround is triggered (the
   "all worktrees have `main` checked out" condition) — only the cleanup
-  step at the end of the workaround itself.
-- Does not change the push step (`git push tmp-<slug>:main`) or anything
-  before it.
+  step at the end of the workaround itself, plus the adjacent push-remote
+  fix described above.
 - Does not address worktree management more broadly — scoped strictly to
   this one documented command sequence.
 
 ## Required Changes
 
 1. Edit `src/lrh/skills/lrh-land/SKILL.md` Step 7's workaround code block:
-   insert a checkout step after `git push tmp-<slug>:main` and before
-   `git branch -D tmp-<slug>` that returns `HEAD` to the original PR
-   branch this Step 7 session started from (or `git checkout --detach` if
-   that branch name isn't available in scope at this point). Add a short
-   note explaining why (Git refuses to delete the currently checked-out
+   change `git push tmp-<slug>:main` to `git push origin tmp-<slug>:main`;
+   insert a checkout step after it and before `git branch -D tmp-<slug>`
+   that returns `HEAD` to the original PR branch this Step 7 session
+   started from (or `git checkout --detach` if that branch name isn't
+   available in scope at this point). Add short notes explaining both
+   fixes (bare `<ref>:<ref>` is parsed as a repository argument without an
+   explicit remote; Git refuses to delete the currently checked-out
    branch).
 2. Edit `src/lrh/skills/lrh-land/references/land-workflow.md`'s
-   `Main-worktree-lock` rule row to include the same checkout-away step in
-   its documented sequence.
-3. Mirror both edited files to `.claude/skills/lrh-land/`.
+   `Main-worktree-lock` rule row to include both fixes in its documented
+   sequence.
+3. Render both edited files to every checked-in skill target via
+   `lrh skills install --local --target all --source current-repo
+   --force`, then verify with `lrh skills check --target claude --local
+   --source current-repo` and `lrh skills status --target {codex,
+   antigravity} --local --source current-repo`.
 
 ## Acceptance Criteria
 
 - Step 7's workaround sequence checks out a branch other than `tmp-<slug>`
   (or detaches `HEAD`) before `git branch -D tmp-<slug>`.
+- The push step in both files uses `git push origin tmp-<slug>:main`, not
+  the bare `tmp-<slug>:main` form.
 - `references/land-workflow.md`'s rule table row reflects the same
   corrected sequence, not the old one.
-- Running the corrected sequence in a scratch repo completes end-to-end
-  without a `git branch -D` "cannot delete branch checked out" error.
-- Both mirrored files (`SKILL.md` and `references/land-workflow.md`) in
-  `.claude/skills/lrh-land/` are byte-for-byte identical to their
-  `src/lrh/skills/lrh-land/` counterparts.
+- Running the corrected sequence end-to-end in a disposable scratch
+  repository (not this project's own repo/branches) completes without
+  error, including the final `git branch -D` on that scratch repo's own
+  throwaway branch.
+- `.claude/skills/lrh-land/`, `.agents/skills/lrh-land/`, and
+  `.gemini/plugins/lrh/skills/lrh-land/` all report up to date against
+  `src/lrh/skills/lrh-land/` via `lrh skills check`/`status`.
 - `lrh validate` reports 0 errors.
 
 ## Validation
 
 - lrh validate
-- diff -q src/lrh/skills/lrh-land/SKILL.md .claude/skills/lrh-land/SKILL.md
-- diff -q src/lrh/skills/lrh-land/references/land-workflow.md .claude/skills/lrh-land/references/land-workflow.md
-- Manual repro: in a scratch repo, run the corrected sequence end-to-end and confirm git branch -D succeeds
+- lrh skills check --target claude --local --source current-repo
+- lrh skills status --target codex --local --source current-repo
+- lrh skills status --target antigravity --local --source current-repo
+- Manual repro: in a disposable scratch repository, run the corrected sequence end-to-end and confirm git push origin tmp-<slug>:main and the final git branch -D both succeed
 
 ## Risk Notes
 
@@ -170,3 +206,17 @@ skill's control flow (e.g. if the original PR branch name wasn't retained
 in a variable/context by the agent executing the skill); mitigate by
 offering `git checkout --detach` as the always-safe fallback alongside the
 preferred "return to the original PR branch" option.
+
+`delete_branch` is intentionally absent from `forbidden_actions`: the only
+branch delete this WI's validation performs is on a disposable scratch
+repository created solely for reproduction, never on this project's own
+repository or branches. Listing it would have blocked an implementing
+agent from running the WI's own required manual-repro validation step.
+
+Multi-target rendering (`.claude/`, `.agents/`, `.gemini/`) via
+`lrh skills install` is a slightly wider surface than a single `cp`, but
+is the correct, existing mechanism for this repo (verified: `.agents/` and
+`.gemini/` outputs use different YAML frontmatter formatting per target,
+so they cannot be produced by copying `src/lrh/skills/` bytes directly) —
+using it is lower risk than a manual copy that would silently desync from
+what those targets actually need.

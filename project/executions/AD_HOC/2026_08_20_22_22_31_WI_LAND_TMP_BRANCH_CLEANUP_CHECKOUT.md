@@ -45,3 +45,34 @@ execution record, to be created when the fix is implemented.
   `references/land-workflow.md`, mirror to `.claude/skills/lrh-land/`).
 - Update `session_transcript` from `pending` to the durable session pointer
   once available.
+
+## Review-response round 1
+
+Three `chatgpt-codex-connector` findings on this PR applied to the WI text:
+
+1. **P1 — missing remote in `git push tmp-<slug>:main`.** Independently
+   verified in a scratch repo: a bare `<ref>:<ref>` argument (no space, no
+   configured remote named `tmp-<slug>`) is parsed by `git push` as the
+   repository argument, not a refspec, so the documented sequence fails
+   before ever reaching the checkout-away step this WI adds. Folded the
+   fix (`git push origin tmp-<slug>:main`) into this WI's scope, required
+   changes, and acceptance criteria — it's the same code block and the
+   same root-cause category, and the original acceptance criterion's
+   claim that the sequence "runs as documented" wasn't true without it.
+2. **P1 — missing Codex/Antigravity mirror targets.** Confirmed this repo
+   renders skills to `.agents/skills/` (Codex) and
+   `.gemini/plugins/lrh/skills/` (Antigravity), not just
+   `.claude/skills/`, via `lrh skills install --local --target all
+   --source current-repo --force` — verified these are rendered outputs
+   (different frontmatter formatting per target), not byte copies. Added
+   both targets to `artifacts_expected`, `Scope`, `Required Changes`, and
+   `Acceptance Criteria`, and switched the required-evidence commands from
+   a bare `diff -q` to `lrh skills check`/`status --source current-repo`.
+3. **P2 — `forbidden_actions` contradicts required validation.**
+   `delete_branch` was listed while the WI's own manual-repro validation
+   requires running `git branch -D` on a scratch branch. Removed it from
+   `forbidden_actions` and added a Risk Notes paragraph clarifying the
+   delete only ever targets a disposable scratch repository, never this
+   project's own branches.
+
+Re-ran `lrh validate` after all changes — 0 errors, 0 warnings.

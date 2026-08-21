@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #578 (commit 89f95593)."
 blocked_reason: null
 blocked: false
 id: WI-SECRETS-REVIEW
 title: Implement lrh secrets review
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

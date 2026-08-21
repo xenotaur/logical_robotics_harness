@@ -2,10 +2,10 @@
 execution_id: 2026_08_20_19_02_00_WI_SECRETS_REVIEW
 prompt_id: PROMPT(WI-SECRETS-REVIEW:WI_SECRETS_REVIEW)[2026-08-20T04:39:21+00:00]
 work_item: WI-SECRETS-REVIEW
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/578
-commit: 
+commit: 89f95593e46b3ec93f87725f2959b72ca9f1726b
 created_at: 2026-08-20T19:02:00+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SECRETS-REVIEW.md

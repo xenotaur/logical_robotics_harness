@@ -33,7 +33,7 @@ Do not capture conversations just because they exist. Capture only the material 
 | Manual copy/paste of selected conversation excerpts into reviewable Markdown | Available | Use a private scratch file, PR description, design draft, work-item draft, evidence note, or execution record as appropriate. |
 | Prompt execution records | Available | Use the prompt workflow and `lrh prompt check-execution` / `lrh prompt record-execution` or the repository helper script when a prompt drives meaningful work. |
 | Sensitivity scanning helper library | Available for local adapters | `lrh.conversations.sensitivity` is used by current conversion commands as a heuristic scan, not as a safety certification. |
-| Codex app task export | Available | Use `/lrh-codex-export [THREAD_ID]` in Codex, or run `lrh conversation export-codex-thread` directly with both `--out` and `--raw-out`; keep `--raw-out` as an absolute private path outside the Git worktree. |
+| Codex app task export | Available | Use `/lrh-codex-export [THREAD_ID]` in Codex, or run `lrh conversation archive-codex-thread --thread-id THREAD_ID` directly for the durable archive default; use `lrh conversation export-codex-thread` only when you need explicit `--out` / `--raw-out` paths. |
 | Codex file export to Markdown | Available | Use `lrh conversation convert-codex-file INPUT.txt --out OUTPUT.md` for explicit local source files. |
 | Codex export inspection | Available | Use `lrh conversation inspect-export EXPORT.md` to verify manifest shape, transcript statistics, and optional source hash without printing transcript body text. |
 | Codex archive viewing | Available | Use `lrh serve --codex-archive-root PATH` to browse explicitly configured local Markdown export roots. |
@@ -69,8 +69,9 @@ Recommended private-export practices:
 
 For Codex exports written as Markdown with the LRH manifest contract, use
 `/lrh-codex-export` when capturing from a live Codex app task. The skill wraps
-`lrh conversation export-codex-thread`, chooses private paths outside the Git
-worktree, runs `lrh conversation inspect-export`, and reports metadata only.
+`lrh conversation archive-codex-thread`, writes into the durable private
+session archive, runs `lrh conversation inspect-export`, and reports metadata
+only.
 Use `lrh serve --codex-archive-root PATH` when humans need a local read-only
 archive index and escaped transcript detail view.
 

@@ -31,7 +31,7 @@ not perform redaction certification, public export, model calls, or automatic
 promotion into project-control state.
 
 For Codex app tasks, use [`/lrh-codex-export`](codex_export.md) as the
-agent-facing workflow wrapper around `lrh conversation export-codex-thread`.
+agent-facing workflow wrapper around `lrh conversation archive-codex-thread`.
 For exact command options and exit behavior, see the
 [`lrh conversation` CLI reference](../reference/cli/conversation.md).
 

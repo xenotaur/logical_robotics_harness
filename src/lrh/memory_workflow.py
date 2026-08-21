@@ -1,13 +1,12 @@
-"""``lrh memory`` CLI: write, list, validate, repair.
+"""``lrh memory`` CLI: write, list, validate, repair, sync.
 
-PROP-LRH-MEMORY-COMMAND Stage 1 (WI-LRH-MEMORY-WRITE-SIDE). Thin CLI wiring
-over the core logic in ``prompt_workflow_memory``, following the same
-pattern as ``lrh sessions`` (``sessions_workflow.py`` over
-``prompt_workflow_sessions``).
+PROP-LRH-MEMORY-COMMAND Stage 1 (WI-LRH-MEMORY-WRITE-SIDE) and Stage 2
+(WI-LRH-MEMORY-ARCHIVE-SIDE). Thin CLI wiring over the core logic in
+``prompt_workflow_memory``, following the same pattern as ``lrh sessions``
+(``sessions_workflow.py`` over ``prompt_workflow_sessions``).
 
-Does not implement ``sync`` (WI-LRH-MEMORY-ARCHIVE-SIDE), ``read``/``search``
-(WI-LRH-MEMORY-READ-SIDE), or ``export``/``import``/``transfer``
-(WI-LRH-MEMORY-PORTABILITY).
+Does not implement ``read``/``search`` (WI-LRH-MEMORY-READ-SIDE), or
+``export``/``import``/``transfer`` (WI-LRH-MEMORY-PORTABILITY).
 """
 
 from __future__ import annotations
@@ -83,6 +82,29 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
     repair_parser.add_argument("--claude-projects-root", default=None)
     repair_parser.add_argument("--dry-run", action="store_true")
 
+    sync_parser = subparsers.add_parser(
+        "sync",
+        help=(
+            "Mirror this project's memory corpus into the durable archive "
+            "root, snapshotting any changed file's prior content first."
+        ),
+    )
+    sync_parser.add_argument("--project-root", default=".")
+    sync_parser.add_argument("--claude-projects-root", default=None)
+    sync_parser.add_argument(
+        "--archive-root",
+        default=None,
+        help=(
+            "local archive root (default: $LRH_SESSION_ARCHIVE_ROOT, else "
+            "~/.local/share/lrh/session-archive)"
+        ),
+    )
+    sync_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="report what would be mirrored without writing anything",
+    )
+
     args = parser.parse_args(argv)
     if args.memory_command is None:
         parser.error("memory requires a subcommand (try: lrh memory list)")
@@ -95,6 +117,8 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
         return _run_validate(args)
     if args.memory_command == "repair":
         return _run_repair(args)
+    if args.memory_command == "sync":
+        return _run_sync(args)
     parser.error("memory requires a subcommand (try: lrh memory list)")
     return 2  # pragma: no cover -- parser.error raises SystemExit
 
@@ -230,4 +254,30 @@ def _run_repair(args: argparse.Namespace) -> int:
         print(f"would repair: {path}")
     else:
         print(f"repaired: {path}")
+    return 0
+
+
+def _run_sync(args: argparse.Namespace) -> int:
+    entries = prompt_workflow_memory.sync_memory(
+        args.project_root,
+        claude_projects_root=args.claude_projects_root,
+        archive_root=args.archive_root,
+        dry_run=args.dry_run,
+    )
+    mirrored = 0
+    unchanged = 0
+    for entry in entries:
+        if entry.copied:
+            mirrored += 1
+            verb = "would mirror" if args.dry_run else "mirrored"
+            print(f"{verb}: {entry.source} -> {entry.dest}")
+            if entry.snapshot is not None:
+                print(f"  snapshot: {entry.snapshot}")
+        else:
+            unchanged += 1
+
+    if args.dry_run:
+        print(f"dry-run: {len(entries)} memory file(s) considered")
+    else:
+        print(f"sync complete: {mirrored} mirrored, {unchanged} unchanged")
     return 0

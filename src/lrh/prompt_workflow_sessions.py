@@ -14,7 +14,10 @@ dedup) -- those are Stage 3 -- nor the weekly/hook-triggered sync -- Stage
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
+import fcntl
+import hashlib
 import json
 import os
 import pathlib
@@ -244,6 +247,100 @@ def mirror_transcript(
             return MirrorResult(source=source, dest=dest, copied=False)
     atomic_write_bytes(dest, source.read_bytes())
     return MirrorResult(source=source, dest=dest, copied=True)
+
+
+def content_hash(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+@dataclasses.dataclass(frozen=True)
+class SnapshotMirrorResult:
+    source: pathlib.Path
+    dest: pathlib.Path
+    copied: bool
+    snapshot: pathlib.Path | None
+
+
+@contextlib.contextmanager
+def _locked_dest(dest: pathlib.Path) -> typing.Iterator[None]:
+    """Hold an exclusive lock for the duration of one dest's read-snapshot-write.
+
+    Without this, two overlapping ``mirror_file_with_snapshot`` calls for the
+    same ``dest`` (e.g. two concurrent ``lrh memory sync`` processes racing a
+    fast-changing source) can each read the same prior content, snapshot it,
+    and overwrite -- silently dropping whichever version landed on ``dest``
+    between the two reads: it is never the one snapshotted (both callers
+    snapshotted the same earlier version) and never the one left current
+    (the later writer's own source overwrites it), violating the "no version
+    is ever unrecoverable" invariant this function exists to provide. A
+    POSIX advisory lock on a sibling lock file serializes the whole
+    read-compare-snapshot-write sequence per destination, the same pattern
+    ``prompt_workflow_memory._locked_index`` uses for the same reason.
+    """
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = dest.parent / f".{dest.name}.lock"
+    lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
+
+
+def mirror_file_with_snapshot(
+    source: pathlib.Path,
+    dest: pathlib.Path,
+    *,
+    history_dir: pathlib.Path,
+    timestamp: str,
+) -> SnapshotMirrorResult:
+    """Mirror ``source`` to ``dest``, snapshotting prior ``dest`` content first.
+
+    A generalization of :func:`mirror_transcript` for sources that are
+    legitimately edited or shrunk, not append-only -- ``mirror_transcript``'s
+    never-shrink invariant assumes the source only grows, which holds for
+    JSONL transcripts but not for memory files (the installed
+    ``consolidate-memory`` skill routinely merges duplicates and prunes
+    stale entries, a legitimate shrink). This compares by content hash
+    instead of size/mtime, and on any change, preserves the file currently
+    at ``dest`` under ``history_dir`` before overwriting it -- so no prior
+    version is ever unrecoverable, but shrinkage is never treated as
+    corruption or blocked.
+
+    Snapshot filenames follow ``<dest-stem>.<timestamp>.<shorthash><dest-suffix>``
+    under ``history_dir`` -- derived from ``dest.stem``/``dest.suffix``, not a
+    hard-coded ``.md``, so a ``.md`` destination doesn't get a doubled
+    extension and a non-``.md`` destination keeps its own extension rather
+    than silently becoming a ``.md`` file. Keyed by the *prior* content's
+    hash so the same snapshot is never written twice for an unchanged prior
+    version. The whole read-compare-snapshot-write sequence runs under
+    :func:`_locked_dest` so two overlapping mirrors of the same ``dest``
+    cannot race each other into dropping an intermediate version.
+    """
+
+    data = source.read_bytes()
+    source_hash = content_hash(data)
+
+    with _locked_dest(dest):
+        snapshot: pathlib.Path | None = None
+        if dest.exists():
+            existing = dest.read_bytes()
+            if content_hash(existing) == source_hash:
+                return SnapshotMirrorResult(
+                    source=source, dest=dest, copied=False, snapshot=None
+                )
+            history_dir.mkdir(parents=True, exist_ok=True)
+            short_hash = content_hash(existing)[:12]
+            snapshot = (
+                history_dir / f"{dest.stem}.{timestamp}.{short_hash}{dest.suffix}"
+            )
+            atomic_write_bytes(snapshot, existing)
+        atomic_write_bytes(dest, data)
+        return SnapshotMirrorResult(
+            source=source, dest=dest, copied=True, snapshot=snapshot
+        )
 
 
 _SESSION_ID_FIELD = "sessionId"

@@ -162,6 +162,89 @@ class MemoryCliTest(unittest.TestCase):
             self.assertEqual(repaired.returncode, 0, msg=repaired.stderr)
             self.assertIn("repaired:", repaired.stdout)
 
+    def test_sync_mirrors_then_no_ops_on_rerun(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+
+            self._run(
+                "write",
+                "feedback-sync-target",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="body\n",
+            )
+
+            first = self._run(
+                "sync",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                "--archive-root",
+                str(archive_root),
+            )
+            self.assertEqual(first.returncode, 0, msg=first.stderr)
+            self.assertIn("sync complete: 2 mirrored, 0 unchanged", first.stdout)
+            self.assertTrue((archive_root / "raw").exists())
+
+            second = self._run(
+                "sync",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                "--archive-root",
+                str(archive_root),
+            )
+            self.assertEqual(second.returncode, 0, msg=second.stderr)
+            self.assertIn("sync complete: 0 mirrored, 2 unchanged", second.stdout)
+
+    def test_sync_dry_run_reports_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+
+            self._run(
+                "write",
+                "feedback-sync-dry",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="body\n",
+            )
+
+            result = self._run(
+                "sync",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                "--archive-root",
+                str(archive_root),
+                "--dry-run",
+            )
+            self.assertEqual(result.returncode, 0, msg=result.stderr)
+            self.assertIn("dry-run:", result.stdout)
+            self.assertFalse(archive_root.exists())
+
 
 if __name__ == "__main__":
     unittest.main()

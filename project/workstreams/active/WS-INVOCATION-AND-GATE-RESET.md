@@ -32,6 +32,7 @@ work_items:
   - WI-GATE-POLICY-CASCADE-STAGE3
   - WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5
   - WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME
+  - WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL
 exit_criteria:
   - Stage 1 landed - manual GitHub bot retrigger removed from all skills, a provisional no-progress loop cap in place, PROP-REVIEW-WAIT-POSTURE rescoped, self_review_preference removed, a disposition recorded for the two stalled-reviewer-detection backlog entries scoped to the gutted files, lrh skills install run for Claude and Codex user-scope and project-scope installs, the retrigger commands verified absent from ~/.claude/skills/, ~/.agents/skills/, this repository's .claude/skills/ mirror, and this repository's .agents/skills/ Codex mirror (not just the source tree), and confirmed_commit re-stamped
   - Stage 2 landed - disable-model-invocation removed from all remaining skills with when_to_use added, /lrh-self-review report-only by default with a platform-enforced recursion guard, the /lrh-confirm-fixes empty-thread fast path gated, a deliberate decision recorded for installer.py's Codex allow_implicit_invocation emission with tests updated, WI-DELIBERATE-MODEL-INVOCATION's two same-change acceptance criteria explicitly amended, the three inlining-is-permanent statements updated, subagent-preload behavior verified, lrh skills install run for Claude and Codex user-scope and project-scope installs, disable-model-invocation verified absent from the relevant installed corpora (not just the source tree), and confirmed_commit re-stamped

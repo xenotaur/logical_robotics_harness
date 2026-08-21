@@ -2,14 +2,14 @@
 execution_id: 2026_08_21_05_05_26_WI_LRH_MEMORY_ARCHIVE_SIDE
 prompt_id: PROMPT(WI-LRH-MEMORY-ARCHIVE-SIDE:WI_LRH_MEMORY_ARCHIVE_SIDE)[2026-08-21T04:45:00+00:00]
 work_item: WI-LRH-MEMORY-ARCHIVE-SIDE
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/583
-commit:
+commit: f37672d4363842bd0b574076d3343e6926f5afc5
 created_at: 2026-08-21T05:05:26+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-MEMORY-ARCHIVE-SIDE.md
-session_transcript: pending
+session_transcript: claude-app:3bfe1290-c27a-4ffe-82f5-e718adbd8319
 ---
 
 # Summary

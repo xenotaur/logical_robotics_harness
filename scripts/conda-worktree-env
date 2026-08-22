@@ -68,6 +68,12 @@ while [[ $# -gt 0 ]]; do
         echo "Error: --python requires a value." >&2
         exit 2
       fi
+      case "$2" in
+        -*)
+          echo "Error: --python requires a value, got option-like '$2'." >&2
+          exit 2
+          ;;
+      esac
       PYTHON_VERSION="$2"
       shift 2
       ;;
@@ -125,8 +131,12 @@ run() {
 }
 
 ENV_EXISTS=0
-if conda env list | awk '{print $1}' | grep -qx "${ENV_NAME}"; then
-  ENV_EXISTS=1
+if [[ "${DRY_RUN}" -eq 1 ]]; then
+  echo "+ conda env list | ... (skipped under --dry-run; assuming '${ENV_NAME}' does not exist for preview purposes)"
+else
+  if conda env list | awk '{print $1}' | grep -Fqx -- "${ENV_NAME}"; then
+    ENV_EXISTS=1
+  fi
 fi
 
 if [[ "${ENV_EXISTS}" -eq 1 && "${RECREATE}" -eq 1 ]]; then
@@ -142,6 +152,16 @@ else
   echo "Creating conda environment '${ENV_NAME}' (python=${PYTHON_VERSION})..."
   run conda create -n "${ENV_NAME}" -y "python=${PYTHON_VERSION}" pip
 fi
+
+echo
+echo "Removing any stale 'logical-robotics-harness' editable install (this"
+echo "package's prior name) from '${ENV_NAME}', if present. A coexisting"
+echo "editable install under that name adds its own src/lrh path, which can"
+echo "leave an old worktree importable even after this checkout's editable"
+echo "lrh install is (re)pointed here -- see environment.yml, which has been"
+echo "observed carrying both names pinned to different snapshots."
+run conda run -n "${ENV_NAME}" --cwd "${REPO_ROOT}" --no-capture-output \
+  python -m pip uninstall -y logical-robotics-harness || true
 
 echo
 echo "Running scripts/develop inside '${ENV_NAME}' to point its editable"

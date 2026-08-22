@@ -54,10 +54,11 @@ purposes, but findings and recommendations below are scoped to the
 
 ## Current documentation inventory
 
-`docs/reference/cli/` (10 files, all Diataxis **Reference**):
-`README.md`, `conversation.md`, `meta.md`, `request.md`, `secrets.md`,
-`serve.md`, `skills.md`, `snapshot.md`, `survey.md`, `validate.md`,
-`work-items.md`. **No `memory.md`. No `sessions.md`.**
+`docs/reference/cli/` (11 tracked files total — `README.md` plus 10
+command reference pages, all Diataxis **Reference**): `README.md`,
+`conversation.md`, `meta.md`, `request.md`, `secrets.md`, `serve.md`,
+`skills.md`, `snapshot.md`, `survey.md`, `validate.md`, `work-items.md`.
+**No `memory.md`. No `sessions.md`.**
 
 `docs/reference/cli/README.md`'s own "Currently relevant docs" list
 (lines ~24-34) enumerates exactly those 10 — `memory` and `sessions`
@@ -120,8 +121,9 @@ describe that flag before the fix lands (see Risks and cautions).
   `memory.md` page; both currently work correctly for the 10 documented
   families (no broken cross-links found in either).
 - No how-to guide currently references `lrh memory` in passing (checked
-  via `grep -rn "lrh memory" docs/how-to/`bin — zero matches), so there
-  is no existing "guide that assumes a concept with no reference to link
+  via `git grep -n "lrh memory" -- 'docs/how-to/*.md'`, tracked files
+  only per `AGENTS.md`'s survey convention — zero matches), so there is
+  no existing "guide that assumes a concept with no reference to link
   to" gap of the kind Step 5's navigation-gap check looks for — the
   command family is simply absent, not half-referenced.
 

@@ -1,15 +1,14 @@
-"""``lrh sessions`` CLI: sync, discover, link.
+"""``lrh sessions`` CLI: sync, discover, link, report.
 
-PROP-LRH-SESSION-ARCHIVE-SYNC Stage 2 (WI-SESSION-ARCHIVE-SYNC-RECONCILER).
-Thin CLI wiring over the core logic in ``prompt_workflow_sessions``; kept as
-a separate module (rather than folded into ``prompt_workflow_sessions.py``
-itself) to avoid a circular import -- ``link`` needs
-``prompt_workflow.write_session_transcript_field`` and
-``prompt_workflow.find_execution_record_by_id``, and ``prompt_workflow.py``
-already imports ``prompt_workflow_sessions`` for ``record-session-alias``.
+PROP-LRH-SESSION-ARCHIVE-SYNC Stage 2 added sync/discover/link. Stage 3 adds
+the metadata-only report command. This module stays as thin CLI wiring over
+the core logic in ``prompt_workflow_sessions`` rather than being folded into
+that module: ``link`` needs ``prompt_workflow.write_session_transcript_field``
+and ``prompt_workflow.find_execution_record_by_id``, while
+``prompt_workflow.py`` already imports ``prompt_workflow_sessions`` for
+``record-session-alias``.
 
-Does not implement ``lrh sessions report`` (Stage 3) or any scheduled/hook
-sync (Stage 4).
+Does not implement any scheduled/hook sync (Stage 4).
 """
 
 from __future__ import annotations
@@ -108,6 +107,36 @@ def run_sessions_cli(argv: list[str], *, prog: str = "lrh sessions") -> int:
     link_parser.add_argument("--child-id", required=True)
     link_parser.add_argument("--project-root", default=".")
 
+    report_parser = subparsers.add_parser(
+        "report",
+        help=(
+            "Report execution-record session pointers that are pending, "
+            "dangling, or missing durable private archive coverage."
+        ),
+    )
+    report_parser.add_argument(
+        "--archive-root",
+        default=None,
+        help=(
+            "local archive root (default: $LRH_SESSION_ARCHIVE_ROOT, else "
+            "~/.local/share/lrh/session-archive)"
+        ),
+    )
+    report_parser.add_argument("--project-root", default=".")
+    report_parser.add_argument(
+        "--since-created-at",
+        default=None,
+        help=(
+            "only include execution records with created_at at or after this "
+            "ISO timestamp"
+        ),
+    )
+    report_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+    )
+
     args = parser.parse_args(argv)
     if args.sessions_command is None:
         parser.error("sessions requires a subcommand (try: lrh sessions discover)")
@@ -118,6 +147,8 @@ def run_sessions_cli(argv: list[str], *, prog: str = "lrh sessions") -> int:
         return _run_discover(args)
     if args.sessions_command == "link":
         return _run_link(args)
+    if args.sessions_command == "report":
+        return _run_report(args)
     parser.error("sessions requires a subcommand (try: lrh sessions discover)")
     return 2  # pragma: no cover -- parser.error raises SystemExit
 
@@ -275,3 +306,46 @@ def _run_link(args: argparse.Namespace) -> int:
         return 1
     print(f"linked: {matches[0].path} -> session_transcript: claude-app:{host_id}")
     return 0
+
+
+def _run_report(args: argparse.Namespace) -> int:
+    try:
+        report = prompt_workflow_sessions.build_session_report(
+            args.project_root,
+            archive_root=args.archive_root,
+            since_created_at=args.since_created_at,
+        )
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
+    if args.format == "json":
+        print(json.dumps(report.to_json_dict(), indent=2, sort_keys=True))
+        return 0
+    _print_report_text(report)
+    return 0
+
+
+def _print_report_text(report: prompt_workflow_sessions.SessionReport) -> None:
+    print("session archive report")
+    print(f"records checked: {report.records_checked}")
+    print(f"pointers checked: {report.pointers_checked}")
+    print(f"archived pointers: {report.archived}")
+    print(f"terminal none pointers: {report.terminal_none}")
+    for label, findings in (
+        ("pending", report.pending),
+        ("dangling", report.dangling),
+        ("unarchived", report.unarchived),
+        ("unsupported", report.unsupported),
+        ("missing", report.missing),
+    ):
+        print(f"{label}: {len(findings)}")
+        for finding in findings:
+            pointer = (
+                f" session_transcript={finding.session_transcript}"
+                if finding.session_transcript
+                else ""
+            )
+            print(
+                f"  - {finding.execution_id} [{finding.status}]"
+                f"{pointer} :: {finding.reason} ({finding.path})"
+            )

@@ -242,6 +242,357 @@ class ArchiveRootTest(unittest.TestCase):
             )
 
 
+class SessionReportTest(unittest.TestCase):
+    def _write_record(
+        self,
+        project_root: pathlib.Path,
+        *,
+        execution_id: str,
+        session_transcript: str | None,
+        status: str = "landed",
+        created_at: str = "2026-01-01T00:00:00+00:00",
+    ) -> pathlib.Path:
+        path = (
+            project_root / "project" / "executions" / "WI-TEST" / f"{execution_id}.md"
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        transcript_line = (
+            ""
+            if session_transcript is None
+            else f"session_transcript: {session_transcript}\n"
+        )
+        path.write_text(
+            "---\n"
+            f"execution_id: {execution_id}\n"
+            "prompt_id: PROMPT(WI-TEST:TEST)[2026-01-01T00:00:00+00:00]\n"
+            "work_item: WI-TEST\n"
+            f"status: {status}\n"
+            "rerun_of:\n"
+            "pr: https://github.com/x/y/pull/1\n"
+            "commit: abc123\n"
+            f"created_at: {created_at}\n"
+            f"{transcript_line}"
+            "---\n\n# Summary\ntest\n",
+            encoding="utf-8",
+        )
+        return path
+
+    def test_report_flags_claude_pointer_missing_from_index(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript="claude-app:host-missing",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 0)
+            self.assertEqual(len(report.dangling), 1)
+            self.assertIn("not present", report.dangling[0].reason)
+
+    def test_report_flags_indexed_claude_session_without_archive(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            prompt_workflow_sessions.record_session_observation(
+                project_root,
+                host_id="host-1",
+                child_id="child-1",
+                updated_at="2026-01-01T00:00:00+00:00",
+            )
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript="claude-app:host-1",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 0)
+            self.assertEqual(len(report.unarchived), 1)
+            self.assertIn("no archived", report.unarchived[0].reason)
+
+    def test_report_counts_archived_claude_session_by_filename(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            prompt_workflow_sessions.record_session_observation(
+                project_root,
+                host_id="host-1",
+                child_id="child-1",
+                updated_at="2026-01-01T00:00:00+00:00",
+            )
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript="claude-app:host-1",
+            )
+            archived = archive_root / "raw" / "slug" / "child-1.jsonl"
+            archived.parent.mkdir(parents=True)
+            archived.write_text('{"secret": "raw transcript body"}\n')
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 1)
+            self.assertEqual(report.findings, ())
+
+    def test_report_counts_successful_codex_attempt(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript="codex-app:thread-1",
+            )
+            attempt = (
+                archive_root
+                / "codex"
+                / "exports"
+                / "2026"
+                / "01"
+                / "attempt"
+                / "attempt.json"
+            )
+            attempt.parent.mkdir(parents=True)
+            attempt.write_text(
+                json.dumps({"status": "succeeded", "thread_id": "thread-1"}),
+                encoding="utf-8",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 1)
+            self.assertEqual(report.findings, ())
+
+    def test_report_counts_imported_codex_attempt_with_thread_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript="codex-app:thread-1",
+            )
+            attempt = (
+                archive_root
+                / "codex"
+                / "imports"
+                / "2026"
+                / "01"
+                / "attempt"
+                / "attempt.json"
+            )
+            attempt.parent.mkdir(parents=True)
+            attempt.write_text(
+                json.dumps({"status": "imported", "thread_id": "thread-1"}),
+                encoding="utf-8",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 1)
+            self.assertEqual(report.findings, ())
+
+    def test_report_ignores_ephemeral_codex_attempts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript="codex-app:thread-1",
+            )
+            attempt = (
+                archive_root
+                / "codex"
+                / "exports"
+                / "2026"
+                / "01"
+                / "attempt"
+                / "attempt.json"
+            )
+            attempt.parent.mkdir(parents=True)
+            attempt.write_text(
+                json.dumps(
+                    {
+                        "status": "succeeded",
+                        "thread_id": "thread-1",
+                        "ephemeral": True,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 0)
+            self.assertEqual(len(report.unarchived), 1)
+
+    def test_report_tracks_pending_and_missing_separately(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root, execution_id="R1", session_transcript="pending"
+            )
+            self._write_record(project_root, execution_id="R2", session_transcript=None)
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(len(report.pending), 1)
+            self.assertEqual(len(report.missing), 1)
+            self.assertEqual(report.pending[0].category, "pending")
+            self.assertEqual(report.missing[0].category, "missing")
+
+    def test_report_surfaces_malformed_session_transcript_scalar(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript=123,  # type: ignore[arg-type]
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.pointers_checked, 1)
+            self.assertEqual(report.missing, ())
+            self.assertEqual(len(report.unsupported), 1)
+            self.assertIn("malformed", report.unsupported[0].reason)
+
+    def test_report_surfaces_malformed_session_transcript_list_entries(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            path = project_root / "project" / "executions" / "WI-TEST" / "MIXED.md"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "---\n"
+                "execution_id: MIXED\n"
+                "prompt_id: PROMPT(WI-TEST:TEST)[2026-01-01T00:00:00+00:00]\n"
+                "work_item: WI-TEST\n"
+                "status: landed\n"
+                "rerun_of:\n"
+                "pr: https://github.com/x/y/pull/1\n"
+                "commit: abc123\n"
+                "created_at: 2026-01-01T00:00:00+00:00\n"
+                "session_transcript:\n"
+                "  - pending\n"
+                "  - \n"
+                "---\n\n# Summary\ntest\n",
+                encoding="utf-8",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.pointers_checked, 2)
+            self.assertEqual(len(report.pending), 1)
+            self.assertEqual(len(report.unsupported), 1)
+            self.assertIn("malformed", report.unsupported[0].reason)
+
+    def test_report_can_filter_by_created_at(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="OLD",
+                session_transcript="pending",
+                created_at="2026-01-01T00:00:00+00:00",
+            )
+            self._write_record(
+                project_root,
+                execution_id="NEW",
+                session_transcript="pending",
+                created_at="2026-02-01T00:00:00+00:00",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root,
+                archive_root=archive_root,
+                since_created_at="2026-02-01T00:00:00+00:00",
+            )
+
+            self.assertEqual(
+                [finding.execution_id for finding in report.pending], ["NEW"]
+            )
+
+    def test_report_since_created_at_excludes_records_without_valid_created_at(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="BAD",
+                session_transcript="pending",
+                created_at="not-a-timestamp",
+            )
+            self._write_record(
+                project_root,
+                execution_id="GOOD",
+                session_transcript="pending",
+                created_at="2026-02-01T00:00:00+00:00",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root,
+                archive_root=archive_root,
+                since_created_at="2026-01-01T00:00:00+00:00",
+            )
+
+            self.assertEqual(
+                [finding.execution_id for finding in report.pending], ["GOOD"]
+            )
+
+    def test_report_created_at_filter_compares_offsets_chronologically(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="AFTER",
+                session_transcript="pending",
+                created_at="2026-02-01T00:00:00-05:00",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root,
+                archive_root=archive_root,
+                since_created_at="2026-02-01T04:00:00+00:00",
+            )
+
+            self.assertEqual(
+                [finding.execution_id for finding in report.pending], ["AFTER"]
+            )
+
+
 class DiscoverTranscriptsTest(unittest.TestCase):
     def test_finds_nested_jsonl_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

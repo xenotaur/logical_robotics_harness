@@ -306,6 +306,135 @@ class SessionsCliTest(unittest.TestCase):
             self.assertNotEqual(completed.returncode, 0)
             self.assertIn("no session in the index", completed.stderr)
 
+    def test_report_json_is_metadata_only(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+            record_path = project_root / "project" / "executions" / "WI-TEST" / "r.md"
+            record_path.parent.mkdir(parents=True)
+            record_path.write_text(
+                "---\n"
+                "execution_id: R\n"
+                "prompt_id: PROMPT(WI-TEST:R)[2026-01-01T00:00:00+00:00]\n"
+                "work_item: WI-TEST\n"
+                "status: landed\n"
+                "rerun_of:\n"
+                "pr: https://github.com/x/y/pull/1\n"
+                "commit: abc123\n"
+                "created_at: 2026-01-01T00:00:00+00:00\n"
+                "session_transcript: claude-app:host-1\n"
+                "---\n\n# Summary\ntest\n",
+                encoding="utf-8",
+            )
+            index_completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "record-session-alias",
+                    "--host-id",
+                    "host-1",
+                    "--child-id",
+                    "child-1",
+                    "--project-root",
+                    str(project_root),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=self._repo_root(),
+            )
+            self.assertEqual(index_completed.returncode, 0, msg=index_completed.stderr)
+            archived = archive_root / "raw" / "slug" / "child-1.jsonl"
+            archived.parent.mkdir(parents=True)
+            archived.write_text("RAW TRANSCRIPT SECRET\n", encoding="utf-8")
+
+            completed = self._run(
+                "report",
+                "--project-root",
+                str(project_root),
+                "--archive-root",
+                str(archive_root),
+                "--format",
+                "json",
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertNotIn("RAW TRANSCRIPT SECRET", completed.stdout)
+            data = json.loads(completed.stdout)
+            self.assertEqual(data["archived"], 1)
+            self.assertEqual(data["dangling"], [])
+            self.assertEqual(data["unarchived"], [])
+
+    def test_report_text_lists_unarchived_without_body_text(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "proj"
+            archive_root = pathlib.Path(tmp) / "archive"
+            record_path = project_root / "project" / "executions" / "WI-TEST" / "r.md"
+            record_path.parent.mkdir(parents=True)
+            record_path.write_text(
+                "---\n"
+                "execution_id: R\n"
+                "prompt_id: PROMPT(WI-TEST:R)[2026-01-01T00:00:00+00:00]\n"
+                "work_item: WI-TEST\n"
+                "status: landed\n"
+                "rerun_of:\n"
+                "pr: https://github.com/x/y/pull/1\n"
+                "commit: abc123\n"
+                "created_at: 2026-01-01T00:00:00+00:00\n"
+                "session_transcript: claude-app:host-1\n"
+                "---\n\n# Summary\ntest\n",
+                encoding="utf-8",
+            )
+            index_completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "lrh.cli.main",
+                    "prompt",
+                    "record-session-alias",
+                    "--host-id",
+                    "host-1",
+                    "--child-id",
+                    "child-1",
+                    "--project-root",
+                    str(project_root),
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                cwd=self._repo_root(),
+            )
+            self.assertEqual(index_completed.returncode, 0, msg=index_completed.stderr)
+
+            completed = self._run(
+                "report",
+                "--project-root",
+                str(project_root),
+                "--archive-root",
+                str(archive_root),
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn("session archive report", completed.stdout)
+            self.assertIn("unarchived: 1", completed.stdout)
+            self.assertIn("R [landed]", completed.stdout)
+
+    def test_report_rejects_invalid_since_created_at(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "proj"
+            completed = self._run(
+                "report",
+                "--project-root",
+                str(project_root),
+                "--since-created-at",
+                "not-a-timestamp",
+            )
+
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("since_created_at must be an ISO timestamp", completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

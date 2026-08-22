@@ -463,6 +463,7 @@ def _import_one_directory(
     copied_export_path = dest / "export.md"
     copied_raw_path = dest / "raw.json"
     attempt_path = dest / "attempt.json"
+    imported_thread_id = _imported_thread_id(export_path, raw_path, status)
     if export_path.exists() and export_path.is_file():
         shutil.copy2(export_path, copied_export_path)
         _chmod_private_file(copied_export_path)
@@ -479,6 +480,7 @@ def _import_one_directory(
             "source_tool": "codex",
             "source_adapter": codex_app_server_export.SOURCE_ADAPTER,
             "source_directory": str(source),
+            **({"thread_id": imported_thread_id} if imported_thread_id else {}),
             "ephemeral": False,
             "output_paths": {
                 "directory": str(dest),
@@ -495,6 +497,22 @@ def _import_one_directory(
         status=status,
         details=details,
     )
+
+
+def _imported_thread_id(
+    export_path: pathlib.Path,
+    raw_path: pathlib.Path,
+    status: str,
+) -> str | None:
+    if status != "imported":
+        return None
+    try:
+        inspection = export_inspector.inspect_export(export_path, source_path=raw_path)
+    except export_inspector.ConversationExportInspectionError:
+        return None
+    if not inspection.valid or inspection.manifest is None:
+        return None
+    return inspection.manifest.source_id
 
 
 def _classify_source_export(

@@ -27,7 +27,7 @@ forbidden_actions:
   - redesign_transfer_public_api
 acceptance:
   - "lrh memory transfer --from <bare-relative-dir> --to <bare-relative-dir> either resolves the path as intended or fails loudly -- never silently reports 0 written / 0 errors when source records existed"
-  - "lrh memory transfer/import require --force (or otherwise surface a clear warning) before overwriting a destination memory whose authored_by matches the incoming record's, and preserve the prior content (e.g. a history/ snapshot) before it is overwritten"
+  - "lrh memory transfer/import require --force (or otherwise surface a clear warning) before overwriting a destination memory whose authored_by matches the incoming record's or is absent (a legacy pre-authored_by record), and preserve the prior content (e.g. a history/ snapshot) before it is overwritten"
   - "write_memory's own same-agent overwrite-on-purpose behavior (a session revising its own memory via repeated lrh memory write) is unchanged -- this fix is scoped to transfer/import's call sites only"
   - "Existing transfer/import behavior for genuine cross-agent conflicts and for an already-existing literal slug is unchanged"
   - "lrh validate reports 0 errors; new regression tests reproduce both original defects and confirm the fix"
@@ -37,6 +37,7 @@ required_evidence:
   - test_output
 artifacts_expected:
   - src/lrh/prompt_workflow_memory.py
+  - src/lrh/memory_workflow.py
   - tests/assist_tests/prompt_workflow_memory_test.py
   - tests/cli_tests/memory_test.py
 ---
@@ -98,8 +99,10 @@ local edit was destroyed irrecoverably.
 
 ### Demand search
 - Work items: None found.
-- Proposals: None found -- `PROP-LRH-MEMORY-COMMAND`'s Open Questions
-  section does not anticipate either failure mode.
+- Proposals: Found -- `PROP-LRH-MEMORY-COMMAND` (adopted; the design this
+  work item's `transfer`/`import` behavior is built under) -- but its Open
+  Questions section does not anticipate either of this WI's two specific
+  failure modes, so it names no remediation for them.
 - Backlog: No matching entries.
 - Recommendation: No action.
 
@@ -109,8 +112,8 @@ local edit was destroyed irrecoverably.
   `--from`/`--to` so a bare relative directory name either resolves as the
   caller intended or fails loudly -- never silently no-ops.
 - Add a safety check before `transfer`/`import` silently overwrite a
-  same-agent destination memory, so a local edit cannot be irrecoverably
-  destroyed with no `--force` and no history.
+  same-agent or legacy (no `authored_by`) destination memory, so a local
+  edit cannot be irrecoverably destroyed with no `--force` and no history.
 - Do not implement the hub-and-spoke consolidation/refresh feature itself
   -- that is separate design work, tracked outside this WI.
 
@@ -137,10 +140,29 @@ local edit was destroyed irrecoverably.
    requiring `--force` there would break normal editing; the guard
    belongs at `transfer`/`import`'s call sites only, not inside
    `_write_memory_into_dir` itself if that would affect `write`.
-3. Add regression tests reproducing both original defects (the exact
-   repro transcripts above) and confirming the fix, in
-   `tests/assist_tests/prompt_workflow_memory_test.py` and
-   `tests/cli_tests/memory_test.py`.
+   The same guard must also cover a destination memory with **no**
+   `authored_by` at all -- `_write_memory_into_dir`'s existing
+   cross-agent check only fires `if existing_authored_by and
+   existing_authored_by != agent` (`prompt_workflow_memory.py:304`), so
+   an absent `authored_by` currently bypasses the check entirely.
+   `PROP-LRH-MEMORY-COMMAND` treats the ~440 pre-schema memories lacking
+   this field as valid, reachable "legacy" records, not malformed ones
+   (`00_proposal.md:79`), so `transfer`/`import` overwriting one
+   unconditionally is the same silent-destruction risk as the same-agent
+   case this WI already targets -- require `--force`/an equivalent signal
+   and a prior-content snapshot there too.
+3. Update `import --force`'s and `transfer --force`'s CLI help text in
+   `src/lrh/memory_workflow.py` (currently: "overwrite even if
+   authored_by differs from the bundled/transferred record" --
+   `memory_workflow.py:147`, `:185`), which becomes inaccurate once
+   `--force` is also required for a same-agent or legacy-record
+   overwrite. Add a test assertion on the updated help text (not just
+   `lrh memory transfer --help`'s manual invocation in Validation) so a
+   future regression is caught automatically.
+4. Add regression tests reproducing both original defects (the exact
+   repro transcripts above), the legacy-record (no `authored_by`) case,
+   and confirming the fix, in `tests/assist_tests/prompt_workflow_memory_test.py`
+   and `tests/cli_tests/memory_test.py`.
 
 ## Non-Goals
 
@@ -155,13 +177,16 @@ local edit was destroyed irrecoverably.
 - `lrh memory transfer --from <bare-relative-dir> --to <bare-relative-dir>`
   either resolves correctly or fails loudly -- never a silent no-op.
 - `transfer`/`import` require `--force` (or an equivalent explicit signal)
-  before a same-agent overwrite, and preserve prior content first.
+  before a same-agent or legacy (no `authored_by`) overwrite, and
+  preserve prior content first.
 - `write_memory`'s own same-agent overwrite-on-purpose behavior is
   unchanged.
 - Existing cross-agent-conflict and existing-literal-slug behavior is
   unchanged.
+- `import --force`'s and `transfer --force`'s CLI help text accurately
+  describes the new overwrite semantics.
 - `lrh validate` reports 0 errors; new regression tests reproduce both
-  original defects and confirm the fix.
+  original defects, the legacy-record case, and confirm the fix.
 
 ## Validation
 

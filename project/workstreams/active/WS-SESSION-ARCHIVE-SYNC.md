@@ -21,6 +21,7 @@ work_items:
   - WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT
   - WI-SESSION-SYNC-NESTED-ARTIFACTS
   - WI-SESSION-ARCHIVE-SYNC-REPORT
+  - WI-SESSION-ARCHIVE-SYNC-SCHEDULED-CLOSEOUT-SYNC
 exit_criteria:
   - All four PROP-LRH-SESSION-ARCHIVE-SYNC stages are delivered as resolved work items (Stage 1 both-identifier capture + minimal project/sessions/ index with branch/PR stitching support; Stage 2 lrh sessions sync + discover/link; Stage 3 index enrichment + report; Stage 4 both required weekly scheduled sync and closeout-triggered sync, plus optional SessionEnd hook)
   - The archive-root-location open question is resolved and recorded (the index-regeneration-frequency open question is non-load-bearing and may be resolved informally during Stage 3 implementation)
@@ -84,10 +85,10 @@ staged, independently reviewable leaves.
 ## Work Items
 
 Stage 1 is filed as `WI-SESSION-ARCHIVE-SYNC-CAPTURE` (resolved), Stage 2
-as `WI-SESSION-ARCHIVE-SYNC-RECONCILER` (resolved), and Stage 3 as
-`WI-SESSION-ARCHIVE-SYNC-REPORT` (proposed). The Stage 4 leaf below remains
-a **provisional** name, to be filed via `/lrh-work-item` as the workstream
-advances. None reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
+as `WI-SESSION-ARCHIVE-SYNC-RECONCILER` (resolved), Stage 3 as
+`WI-SESSION-ARCHIVE-SYNC-REPORT` (resolved), and Stage 4 as
+`WI-SESSION-ARCHIVE-SYNC-SCHEDULED-CLOSEOUT-SYNC` (proposed). None reuses the
+retired `WI-EXEC-SESSIONS-DISCOVERY` id.
 
 - **Stage 1 — `WI-SESSION-ARCHIVE-SYNC-CAPTURE`: both-identifier capture +
   minimal index — resolved.** Merged via
@@ -122,15 +123,17 @@ advances. None reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
   This resolves the Codex-export durable-default question for local archive
   placement while leaving encrypted/off-machine backup policy deferred.
 - **Stage 3 — `WI-SESSION-ARCHIVE-SYNC-REPORT`: index enrichment + `report`
-  — proposed.** Enrich the Stage 1 index (era-general keys, branch/PR fork
+  — resolved.** Enrich the Stage 1 index (era-general keys, branch/PR fork
   stitching per Decision 4, dedup latest-wins as needed for reporting) and add
   `lrh sessions report`.
-- **Stage 4 — scheduling + hook.** Per Decision 6, **both** scheduling paths
-  are mandatory scope: the weekly scheduled `lrh sessions sync` (the guarantee
-  for sessions that never reach closeout) **and** wiring `/lrh-closeout` to
-  invoke `lrh sessions sync` (capture tied to the moment a PR lands). Only the
-  `SessionEnd` hook is optional. Any part touching `/lrh-closeout` carries the
-  same permissive-with-a-gate rule as Stage 1.
+- **Stage 4 —
+  `WI-SESSION-ARCHIVE-SYNC-SCHEDULED-CLOSEOUT-SYNC`: scheduling + hook.** Per
+  Decision 6, **both** scheduling paths are mandatory scope: the weekly
+  scheduled `lrh sessions sync` (the guarantee for sessions that never reach
+  closeout) **and** wiring `/lrh-closeout` to invoke `lrh sessions sync`
+  (capture tied to the moment a PR lands). Only the `SessionEnd` hook is
+  optional. Any part touching `/lrh-closeout` carries the same
+  permissive-with-a-gate rule as Stage 1.
 
 ## Exit Criteria
 

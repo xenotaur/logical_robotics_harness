@@ -2,10 +2,10 @@
 execution_id: 2026_08_22_18_29_09_WI_SESSION_ARCHIVE_SYNC_REPORT
 prompt_id: PROMPT(WI-SESSION-ARCHIVE-SYNC-REPORT:WI_SESSION_ARCHIVE_SYNC_REPORT)[2026-08-22T17:54:43+00:00]
 work_item: WI-SESSION-ARCHIVE-SYNC-REPORT
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/607
-commit: 5685d47088f958760189b0accdddd0ba7b0f7a61
+commit: 2f1a1840f43408327b26c77d2a8dd16ed8394749
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SESSION-ARCHIVE-SYNC-REPORT.md
 session_transcript: codex-app:019fc43f-e2d9-7503-88cb-9d9a8136c111

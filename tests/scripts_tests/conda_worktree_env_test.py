@@ -19,6 +19,8 @@ class CondaWorktreeEnvScriptTest(unittest.TestCase):
         temp_dir: pathlib.Path,
         log_path: pathlib.Path,
         env_list_lines: list[str],
+        pip_show_exit_code: int,
+        create_exit_code: int,
     ) -> pathlib.Path:
         fake_conda = temp_dir / "conda"
         env_list_output = "\n".join(env_list_lines) + "\n" if env_list_lines else ""
@@ -31,6 +33,16 @@ class CondaWorktreeEnvScriptTest(unittest.TestCase):
                 {env_list_output}ENVLIST
                   exit 0
                 fi
+                if [[ "$1" == "create" ]]; then
+                  exit {create_exit_code}
+                fi
+                if [[ "$1" == "run" ]]; then
+                  for arg in "$@"; do
+                    if [[ "$arg" == "show" ]]; then
+                      exit {pip_show_exit_code}
+                    fi
+                  done
+                fi
                 exit 0
                 """),
             encoding="utf-8",
@@ -42,13 +54,23 @@ class CondaWorktreeEnvScriptTest(unittest.TestCase):
         self,
         args: list[str],
         env_list_lines: list[str],
+        pip_show_exit_code: int = 1,
+        create_exit_code: int = 0,
     ) -> tuple[subprocess.CompletedProcess, pathlib.Path]:
+        # pip_show_exit_code defaults to 1 (not installed), matching the
+        # common real-world case: `pip show -q <pkg>` exits nonzero when
+        # the package isn't present, which is what the script's stale-
+        # editable-install check should usually observe.
         with tempfile.TemporaryDirectory() as temp_dir_str:
             temp_dir = pathlib.Path(temp_dir_str)
             log_path = temp_dir / "conda.log"
             log_path.write_text("", encoding="utf-8")
             self._write_fake_conda(
-                temp_dir=temp_dir, log_path=log_path, env_list_lines=env_list_lines
+                temp_dir=temp_dir,
+                log_path=log_path,
+                env_list_lines=env_list_lines,
+                pip_show_exit_code=pip_show_exit_code,
+                create_exit_code=create_exit_code,
             )
             env = os.environ.copy()
             env["PATH"] = f"{temp_dir}:{env['PATH']}"
@@ -69,6 +91,9 @@ class CondaWorktreeEnvScriptTest(unittest.TestCase):
             return result, log_lines
 
     def test_new_env_name_creates_then_installs(self) -> None:
+        # Default pip_show_exit_code=1: no stale 'logical-robotics-harness'
+        # install present, so the uninstall itself must NOT run -- only the
+        # existence check and scripts/develop.
         result, log_lines = self._run(
             ["LrhTestEnvNew"],
             env_list_lines=["# conda environments:", "#", "base   *  /opt/conda"],
@@ -83,16 +108,35 @@ class CondaWorktreeEnvScriptTest(unittest.TestCase):
         self.assertEqual(len(remove_lines), 0)
         self.assertIn("-n LrhTestEnvNew", create_lines[0])
         self.assertIn("python=3.11", create_lines[0])
-        # Both the stale-package uninstall and scripts/develop go through
-        # `conda run` -- assert both happened, in order, after create.
+        # The stale-package existence check and scripts/develop go through
+        # `conda run` -- assert both happened, in order, after create; no
+        # uninstall since the fake package show reports it isn't installed.
         self.assertEqual(len(run_lines), 2)
         self.assertIn("-n LrhTestEnvNew", run_lines[0])
+        self.assertIn("pip show", run_lines[0])
         self.assertIn("logical-robotics-harness", run_lines[0])
+        self.assertNotIn("pip uninstall", " ".join(run_lines))
         self.assertIn("-n LrhTestEnvNew", run_lines[1])
         self.assertIn("scripts/develop", run_lines[1])
         create_index = log_lines.index(create_lines[0])
         run_indices = [log_lines.index(line) for line in run_lines]
         self.assertTrue(all(idx > create_index for idx in run_indices))
+
+    def test_stale_install_present_gets_uninstalled(self) -> None:
+        result, log_lines = self._run(
+            ["LrhTestEnvStale"],
+            env_list_lines=["# conda environments:", "#", "base   *  /opt/conda"],
+            pip_show_exit_code=0,
+        )
+
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        run_lines = [line for line in log_lines if line.startswith("run ")]
+
+        self.assertEqual(len(run_lines), 3)
+        self.assertIn("pip show", run_lines[0])
+        self.assertIn("pip uninstall", run_lines[1])
+        self.assertIn("logical-robotics-harness", run_lines[1])
+        self.assertIn("scripts/develop", run_lines[2])
 
     def test_existing_env_name_reuses_without_create_or_remove(self) -> None:
         result, log_lines = self._run(
@@ -111,6 +155,8 @@ class CondaWorktreeEnvScriptTest(unittest.TestCase):
         self.assertEqual(len(create_lines), 0)
         self.assertEqual(len(remove_lines), 0)
         self.assertEqual(len(run_lines), 2)
+        self.assertIn("pip show", run_lines[0])
+        self.assertIn("scripts/develop", run_lines[1])
 
     def test_recreate_removes_before_creating(self) -> None:
         result, log_lines = self._run(
@@ -177,6 +223,24 @@ class CondaWorktreeEnvScriptTest(unittest.TestCase):
             [],
             msg="--dry-run must not actually invoke the fake conda executable, "
             "including for the environment-existence check",
+        )
+
+    def test_conda_create_failure_aborts_before_develop_runs(self) -> None:
+        # Under `set -euo pipefail`, a nonzero `conda create` exit must abort
+        # the script immediately -- no stale-install check or
+        # scripts/develop invocation should follow.
+        result, log_lines = self._run(
+            ["LrhTestEnvFailingCreate"],
+            env_list_lines=[],
+            create_exit_code=1,
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        run_lines = [line for line in log_lines if line.startswith("run ")]
+        self.assertEqual(
+            run_lines,
+            [],
+            msg="a failed conda create must abort before any conda run call",
         )
 
 

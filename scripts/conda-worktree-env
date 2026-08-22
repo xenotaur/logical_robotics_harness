@@ -160,8 +160,15 @@ echo "editable install under that name adds its own src/lrh path, which can"
 echo "leave an old worktree importable even after this checkout's editable"
 echo "lrh install is (re)pointed here -- see environment.yml, which has been"
 echo "observed carrying both names pinned to different snapshots."
-run conda run -n "${ENV_NAME}" --cwd "${REPO_ROOT}" --no-capture-output \
-  python -m pip uninstall -y logical-robotics-harness || true
+if [[ "${DRY_RUN}" -eq 1 ]]; then
+  echo "+ conda run -n ${ENV_NAME} ... python -m pip uninstall -y logical-robotics-harness (skipped under --dry-run)"
+elif conda run -n "${ENV_NAME}" --cwd "${REPO_ROOT}" --no-capture-output \
+       python -m pip show -q logical-robotics-harness >/dev/null 2>&1; then
+  run conda run -n "${ENV_NAME}" --cwd "${REPO_ROOT}" --no-capture-output \
+    python -m pip uninstall -y logical-robotics-harness
+else
+  echo "'logical-robotics-harness' is not installed in '${ENV_NAME}' -- nothing to remove."
+fi
 
 echo
 echo "Running scripts/develop inside '${ENV_NAME}' to point its editable"

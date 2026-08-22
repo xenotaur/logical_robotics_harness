@@ -213,19 +213,20 @@ def _top_level_transcripts(
     claude_projects_root: pathlib.Path,
 ) -> list[DiscoveredTranscript]:
     discovered: list[DiscoveredTranscript] = []
-    for jsonl_path in sorted(
-        p
-        for p in claude_projects_root.glob("*/*.jsonl")
-        if not p.is_symlink() and p.is_file()
+    for project_dir in sorted(
+        p for p in claude_projects_root.iterdir() if not p.is_symlink() and p.is_dir()
     ):
-        slug = jsonl_path.parent.name
-        discovered.append(
-            DiscoveredTranscript(
-                path=jsonl_path,
-                slug=slug,
-                relative_path=pathlib.Path(jsonl_path.name),
+        slug = project_dir.name
+        for jsonl_path in sorted(
+            p for p in project_dir.glob("*.jsonl") if not p.is_symlink() and p.is_file()
+        ):
+            discovered.append(
+                DiscoveredTranscript(
+                    path=jsonl_path,
+                    slug=slug,
+                    relative_path=pathlib.Path(jsonl_path.name),
+                )
             )
-        )
     return discovered
 
 
@@ -271,9 +272,13 @@ def discover_transcripts(
     known_session_ids = set(session_id_to_slug)
     discovered = list(top_level)
 
-    for project_dir in sorted(p for p in claude_projects_root.iterdir() if p.is_dir()):
+    for project_dir in sorted(
+        p for p in claude_projects_root.iterdir() if not p.is_symlink() and p.is_dir()
+    ):
         local_slug = project_dir.name
-        for session_dir in sorted(p for p in project_dir.iterdir() if p.is_dir()):
+        for session_dir in sorted(
+            p for p in project_dir.iterdir() if not p.is_symlink() and p.is_dir()
+        ):
             session_id = session_dir.name
             if not _is_session_artifact_dir(session_id, known_session_ids):
                 continue

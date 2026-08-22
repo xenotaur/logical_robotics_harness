@@ -283,6 +283,25 @@ class DiscoverTranscriptsTest(unittest.TestCase):
                 [("proj-a", "safe.jsonl")],
             )
 
+    def test_symlinked_project_directories_are_excluded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+            root = tmp_path / "claude-projects"
+            project_dir = root / "proj-a"
+            outside_dir = tmp_path / "outside-project"
+            project_dir.mkdir(parents=True)
+            outside_dir.mkdir()
+            (project_dir / "safe.jsonl").write_text("{}\n")
+            (outside_dir / "external.jsonl").write_text("{}\n")
+            (root / "linked-project").symlink_to(outside_dir, target_is_directory=True)
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                [(item.slug, str(item.relative_path)) for item in found],
+                [("proj-a", "safe.jsonl")],
+            )
+
     def test_missing_root_returns_empty(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             found = prompt_workflow_sessions.discover_transcripts(
@@ -419,6 +438,24 @@ class DiscoverTranscriptsTest(unittest.TestCase):
                     ("proj-a", "child-1.jsonl"),
                     ("proj-a", "child-1/tool-results/result.txt"),
                 ],
+            )
+
+    def test_symlinked_session_directories_are_excluded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            project_dir = root / "proj-a"
+            outside_dir = root / "outside-session"
+            project_dir.mkdir()
+            outside_dir.mkdir()
+            (project_dir / "child-1.jsonl").write_text("{}\n")
+            (outside_dir / "secret.txt").write_text("secret\n")
+            (project_dir / "child-1").symlink_to(outside_dir, target_is_directory=True)
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                [(item.slug, str(item.relative_path)) for item in found],
+                [("proj-a", "child-1.jsonl")],
             )
 
 

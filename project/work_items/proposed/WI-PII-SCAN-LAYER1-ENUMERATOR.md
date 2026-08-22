@@ -72,7 +72,7 @@ Implement `lrh.pii`'s git-plumbing-based full-history path enumerator and the La
 
 ## Required Changes
 
-1. Create `src/lrh/pii/__init__.py` and `src/lrh/pii/enumerate.py` implementing full-history path enumeration via `git log --all --diff-filter=A --name-only` (or equivalent `git rev-list --objects --all`), and, per every path Layer 1 flags, enumeration of every commit that touched that path (`git log --all --follow --name-only -- <path>`) per `PROP-LRH-PII-SCAN` Decision 3's revision — not only each path's add commit.
+1. Create `src/lrh/pii/__init__.py` and `src/lrh/pii/enumerate.py` implementing full-history path enumeration via `git log --all --diff-filter=A --name-only` (or equivalent `git rev-list --objects --all`), and, per every path Layer 1 flags, enumeration of every commit that touched that path (`git log --all --follow --name-only -- <path>`) per `PROP-LRH-PII-SCAN` Decision 3's revision — not only each path's add commit. Expose this per-commit enumeration as a function taking an explicit path set, not hardcoded to "Layer-1-flagged paths only" — `WI-PII-SCAN-LAYER2-CONTENT`'s `content_scan_scope: "all-text"` mode needs the same per-commit enumeration applied to every text path, not just flagged ones (PR #596 review, `chatgpt-codex-connector` P1), so the enumerator's path-set parameter is the seam that makes both callers correct without duplicating the git-plumbing logic.
 2. Create `src/lrh/pii/config.py` implementing `.lrh-pii.toml` auto-discovery at `--project-root`, `[extend] useDefault = true` semantics, and the built-in default rule list (file-extension/path-glob signals and filename-keyword signals) disclosed per `PROP-LRH-PII-SCAN` Decision 4.
 3. Create `src/lrh/pii/layer1.py` implementing the file-type/path/filename heuristic detector against the enumerated path set, using the config from (2).
 4. Add `tests/pii_tests/enumerate_test.py` and `tests/pii_tests/layer1_test.py`, including explicit coverage of rename/merge behavior under `--diff-filter=A` per the proposal's own noted risk.
@@ -87,6 +87,7 @@ Implement `lrh.pii`'s git-plumbing-based full-history path enumerator and the La
 ## Acceptance Criteria
 
 - `src/lrh/pii/enumerate.py` correctly enumerates every path ever added across all refs in a test fixture repo, including every commit touching a Layer-1-flagged path.
+- `src/lrh/pii/enumerate.py`'s per-commit enumeration function accepts an arbitrary path set (not hardcoded to Layer-1-flagged paths), so `WI-PII-SCAN-LAYER2-CONTENT` can request per-commit history for every text path under `content_scan_scope: "all-text"`.
 - `src/lrh/pii/config.py` correctly auto-discovers `.lrh-pii.toml` and extends built-in defaults per the `useDefault` convention.
 - `src/lrh/pii/layer1.py` correctly flags fixture files matching built-in default rules and correctly does not flag fixture files that shouldn't match.
 - `tests/pii_tests/enumerate_test.py` and `tests/pii_tests/layer1_test.py` exist and pass, including a rename/merge fixture case.

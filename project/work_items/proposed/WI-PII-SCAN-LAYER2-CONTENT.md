@@ -73,8 +73,9 @@ Implement `lrh pii scan`'s Layer 2 text-pattern content detection, scoped by def
 
 1. Create `src/lrh/pii/layer2.py` implementing content-pattern detection using `src/lrh/shared/sensitivity_rules.py`'s rule table, run by default only against files `src/lrh/pii/layer1.py` already flagged, fetching content per the per-commit enumeration from `WI-PII-SCAN-LAYER1-ENUMERATOR` (`git show <commit>:<path>`).
 2. Extend `src/lrh/pii/config.py` with the `content_scan_scope` setting (`"flagged"` default, `"all-text"` opt-in) per `PROP-LRH-PII-SCAN` Decision 2's revision.
-3. Integrate `src/lrh/conversations/pdf_import.py`'s existing non-OCR PDF text extraction for PDF files reached by either scan scope; plain-text files are read directly; other binary formats are skipped with a disclosed gap.
-4. Add `tests/pii_tests/layer2_test.py` covering both `content_scan_scope` values, including a fixture proving a flagged-file email match is caught and an ordinary-file (unflagged path) email match is only caught under `"all-text"`.
+3. **When `content_scan_scope` is `"all-text"`, request per-commit enumeration for every text path from `WI-PII-SCAN-LAYER1-ENUMERATOR`'s enumerator (its path-set parameter, not just Layer-1-flagged paths) — not only the working-tree-current content of each file.** Per PR #596 review (`chatgpt-codex-connector` P1): without this, a text file added benign, later modified to add PII, then subsequently cleaned or deleted, has no revision stream for Layer 2 to scan in `"all-text"` mode, contradicting the full-history scope the rest of the design claims.
+4. Integrate `src/lrh/conversations/pdf_import.py`'s existing non-OCR PDF text extraction for PDF files reached by either scan scope; plain-text files are read directly; other binary formats are skipped with a disclosed gap.
+5. Add `tests/pii_tests/layer2_test.py` covering both `content_scan_scope` values, including: a fixture proving a flagged-file email match is caught; a fixture proving an ordinary-file (unflagged path) email match is only caught under `"all-text"`; and a modify-after-add fixture proving that in `"all-text"` mode, PII added to an ordinary text file in a commit *after* its initial (benign) add is detected — not just current-content or add-commit-only detection.
 
 ## Non-Goals
 
@@ -86,6 +87,7 @@ Implement `lrh pii scan`'s Layer 2 text-pattern content detection, scoped by def
 
 - Layer 2 correctly detects rule-table matches inside Layer-1-flagged files' content under the default `content_scan_scope`.
 - Layer 2 correctly extends detection to ordinary (non-flagged) text files only when `content_scan_scope: "all-text"` is set.
+- Under `content_scan_scope: "all-text"`, Layer 2 detects PII added to an ordinary text file in a commit after its initial add, using per-commit enumeration for every text path, not only each file's current working-tree content.
 - PDF text extraction reuses `lrh.conversations.pdf_import` without duplicating its parsing logic.
 - `tests/pii_tests/layer2_test.py` exists and passes.
 - `lrh validate` passes with 0 errors.

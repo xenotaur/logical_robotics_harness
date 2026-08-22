@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_22_03_37_47_WI_LRH_MEMORY_TRANSFER_SAFETY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/597
-commit: e1240034
+commit: c05b5e27
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/597
 session_transcript: claude-app:local_937464f4-d02a-4285-9bbf-f8411ebb09fe

@@ -3,9 +3,9 @@ id: PROP-LRH-CHAIN-DEFAULTS
 type: design_proposal
 title: Persisted, User-Editable Chain-Defaults Profile for LRH Skill Gates
 status: proposed
-implementation_status: not_started
+implementation_status: partial
 created_on: 2026-08-05
-updated_on: 2026-08-07
+updated_on: 2026-08-22
 related_design:
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
@@ -13,7 +13,8 @@ related_design:
   - src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md
   - project/work_items/resolved/WI-SKILLS-LRH-SELF-REVIEW.md
   - project/design/proposals/proposed/lrh-land-execute/00_proposal.md
-implemented_by: []
+implemented_by:
+  - WI-LRH-CHAIN-DEFAULTS-INCREMENT-1
 evidence: []
 supersedes: []
 superseded_by: null
@@ -317,7 +318,7 @@ on that amendment.
 ## Implementation Plan
 
 Large scope, multi-stage: reference the governing workstream
-(`WS-LRH-CHAIN-DEFAULTS`, `project/workstreams/proposed/WS-LRH-CHAIN-DEFAULTS.md`) rather than naming
+(`WS-LRH-CHAIN-DEFAULTS`, `project/workstreams/active/WS-LRH-CHAIN-DEFAULTS.md`) rather than naming
 individual work items here. Expected staging, per the escalation
 precedent in `WI-REVIEW-ROUND-ESCALATION-GATE`:
 

@@ -14,7 +14,8 @@ related_focus: []
 related_roadmap: []
 related_workstreams:
   - WS-SESSION-ARCHIVE-SYNC
-related_design: []
+related_design:
+  - project/design/proposals/adopted/lrh-memory-command/00_proposal.md
 depends_on: []
 blocked_by: []
 expected_actions:
@@ -124,11 +125,25 @@ observed reality during implementation, not assumed from this one sibling.
 - Recommendation: Proceed.
 
 ### Demand search
-- Work items: None found (`grep -r project_slug_for_path project/work_items/`
-  found no prior fix request).
-- Proposals: None found.
-- Backlog: No matching entries.
-- Recommendation: No action.
+- Work items: None found (`git grep -n project_slug_for_path -- project/work_items/`
+  found no prior fix request; the only hits are this WI itself and
+  `WI-LRH-MEMORY-WRITE-SIDE`'s incidental mention of reusing the helper).
+- Proposals: Found context, not a fix request —
+  `project/design/proposals/adopted/lrh-memory-command/00_proposal.md`
+  Decision 8 (line 120) already documents that `project_slug_for_path()`
+  calls `.resolve()` and therefore "follows symlinks anyway," in the course
+  of disqualifying a symlink-based memory-propagation design. That proposal
+  treats the symlink behavior as a known constraint to design around, not
+  as a bug to fix — it does not request or implement the fix this WI scopes.
+  No proposal requests a fix to the underscore-preservation behavior.
+- Backlog: No matching entries (`git grep -n project_slug_for_path --
+  project/design/backlog.md` returns nothing).
+- Recommendation: Proceed. Cite
+  `project/design/proposals/adopted/lrh-memory-command/00_proposal.md`
+  Decision 8 as related context in Problem/Context (done above) since it
+  independently corroborates the symlink-following behavior from a design
+  discussion that predates this WI, but it does not satisfy or duplicate
+  this WI's scope.
 
 ## Scope
 
@@ -213,5 +228,5 @@ observed reality during implementation, not assumed from this one sibling.
   every path containing an underscore anywhere in its segments (directory
   names, not just this repo's own). Any code or test that hardcodes an
   underscore-preserving slug as an expected value will need updating —
-  audit `grep -rn "logical_robotics_harness" tests/` and similar for
+  audit `git grep -n "logical_robotics_harness" -- tests/` and similar for
   slug-shaped string literals, not just the 5 call sites already listed.

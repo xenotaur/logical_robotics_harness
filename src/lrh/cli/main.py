@@ -165,7 +165,10 @@ def main() -> None:
     subparsers.add_parser(
         "sessions",
         add_help=False,
-        help="Session archive reconciler (sync/discover/link).",
+        help=(
+            "Session archive reconciler "
+            "(sync/discover/link/report/closeout-sync/schedule)."
+        ),
     )
 
     subparsers.add_parser(

@@ -7,9 +7,8 @@ the archive reconciler: mirroring raw transcripts into a durable local
 archive, harvesting /export metadata.json for the host<->child<->PR
 mapping on pointers that already dangle, and the discover/link lookups
 that read the resulting archive and index. Stage 3 adds the metadata-only
-lrh sessions report coverage check; it still does not implement index
-*enrichment* (era-general keys, multi-export dedup) or the weekly/
-hook-triggered sync -- those remain later work. It does not change the
+lrh sessions report coverage check. Stage 4 wires sync into closeout and adds
+an inspectable weekly scheduling path. None of these stages changes the
 session_transcript scalar/sequence grammar.
 """
 

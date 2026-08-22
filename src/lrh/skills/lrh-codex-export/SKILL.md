@@ -6,7 +6,13 @@ description: >
   durable private capture of a Codex session. Wraps
   `lrh conversation archive-codex-thread`, then verifies the artifact with
   `lrh conversation inspect-export` and reports metadata only.
-disable-model-invocation: true
+when_to_use: >
+  Invoke only when the user explicitly asks to export, capture, or archive a
+  Codex conversation/thread for later private review. Do not invoke
+  proactively or infer the intent from a passing mention of Codex — by
+  default this skill writes a durable, permanent copy into the user's local
+  session archive (not a self-cleaning temp file), so invocation should
+  always trace to a direct request, not an agent's own judgment call.
 argument-hint: "[THREAD_ID]"
 ---
 
@@ -123,7 +129,25 @@ debug capture. Scratch mode is intentionally not the default:
 SCRATCH_FLAG="--scratch"
 ```
 
-### Step 3 -- Run the export
+### Step 3 -- Confirm before writing
+
+**Mandatory confirm-before-write gate, regardless of invocation route** (see
+`lrh-create-skill/references/frontmatter-guide.md`'s `disable-model-invocation`
+guidance: `when_to_use` narrows the auto-trigger surface, but the actual
+write-protection is an explicit confirm gate inside the skill). This step
+exists because the archive is durable and permanent by default (Step 2) --
+capture is not a reversible, self-cleaning action the way an ephemeral
+`/tmp` write would be.
+
+State the resolved `THREAD_ID` and the destination (durable archive path, or
+explicitly "ephemeral scratch capture" if scratch mode applies) and wait for
+explicit confirmation before proceeding to Step 4. Skip asking only when the
+user's own message in this turn already explicitly requested this export by
+name or thread id -- do not skip based on `CODEX_THREAD_ID` being set alone,
+since an inferred or ambient thread id is exactly the auto-invocation case
+this gate exists to catch.
+
+### Step 4 -- Run the export
 
 Run the durable archive wrapper with a restrictive umask so generated files are
 created user-only:
@@ -156,7 +180,7 @@ to sandbox, permission, or local-state access restrictions, report the failure
 and rerun only through the environment's approval mechanism. Do not fall back to
 scraping local storage files directly.
 
-### Step 4 -- Inspect the export
+### Step 5 -- Inspect the export
 
 Immediately inspect the Markdown artifact against the raw source capture. Use
 the paths printed by `archive-codex-thread`:
@@ -171,7 +195,7 @@ lrh conversation inspect-export \
 Treat a nonzero inspector exit as a failed export verification. Report the
 failure and keep the files private for debugging.
 
-### Step 5 -- Report metadata only
+### Step 6 -- Report metadata only
 
 Summarize the export using only command output and inspector metadata:
 
@@ -187,7 +211,7 @@ Do not paste transcript body text into chat. Do not run line-based previews to
 "spot check" the Markdown; the frontmatter can be followed immediately by
 private transcript content.
 
-### Step 6 -- Close out
+### Step 7 -- Close out
 
 Tell the user whether the export is verified and where the private files live.
 If scratch mode was used, say the files are ephemeral. If the user wants a

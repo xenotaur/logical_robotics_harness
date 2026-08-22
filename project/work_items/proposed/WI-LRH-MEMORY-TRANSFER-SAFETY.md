@@ -30,7 +30,8 @@ acceptance:
   - "lrh memory transfer/import require --force (or otherwise surface a clear warning) before overwriting a destination memory whose authored_by matches the incoming record's or is absent (a legacy pre-authored_by record), and preserve the prior content (e.g. a history/ snapshot) before it is overwritten"
   - "write_memory's own same-agent overwrite-on-purpose behavior (a session revising its own memory via repeated lrh memory write) is unchanged -- this fix is scoped to transfer/import's call sites only"
   - "Existing transfer/import behavior for genuine cross-agent conflicts and for an already-existing literal slug is unchanged"
-  - "lrh validate reports 0 errors; new regression tests reproduce both original defects and confirm the fix"
+  - "import --force's and transfer --force's CLI help text accurately describes the new overwrite semantics"
+  - "lrh validate reports 0 errors; new regression tests reproduce both original defects, the legacy-record case, and confirm the fix"
 required_evidence:
   - manual_review
   - lrh_validate

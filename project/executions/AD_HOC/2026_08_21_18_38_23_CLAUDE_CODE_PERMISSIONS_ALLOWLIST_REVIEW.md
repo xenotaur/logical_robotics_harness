@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_18_38_23_CLAUDE_CODE_PERMISSIONS_ALLOWLIST_REVIEW
 prompt_id: PROMPT(AD_HOC:CLAUDE_CODE_PERMISSIONS_ALLOWLIST_REVIEW)[2026-08-21T18:19:58+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/557
-commit: 4d0cd98c
+commit: fbd62c155cacd7ad3c81253e789ba1afa6023b98
 created_at: 2026-08-21T18:38:23+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/557

@@ -660,6 +660,148 @@ class MemoryCliTest(unittest.TestCase):
             self.assertEqual(result.returncode, 1)
             self.assertIn("error:", result.stderr)
 
+    def test_import_force_help_describes_legacy_and_same_agent(self) -> None:
+        """Regression test for Codex's P2 review comment on
+        WI-LRH-MEMORY-TRANSFER-SAFETY: `import --force`'s help text
+        previously said the flag was needed only when authored_by differs
+        from the incoming record -- stale once the same-agent/legacy
+        overwrite guard also requires it."""
+
+        result = self._run("import", "--help")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("same-agent", result.stdout)
+        self.assertIn("legacy", result.stdout)
+
+    def test_transfer_force_help_describes_legacy_and_same_agent(self) -> None:
+        result = self._run("transfer", "--help")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("same-agent", result.stdout)
+        self.assertIn("legacy", result.stdout)
+
+    def test_transfer_from_bare_nonexistent_slug_fails_loudly(self) -> None:
+        """CLI-level regression test for Bug 1's exact repro transcript:
+        `lrh memory transfer --from spoke1 --to hub` previously reported
+        `import complete: 0 written, 0 errors` with no warning -- a silent
+        no-op, since `spoke1` (no path separator) resolves as a literal
+        project slug that has never existed."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+
+            result = self._run(
+                "transfer",
+                "--from",
+                "spoke1",
+                "--to",
+                "hub",
+                "--name",
+                "feedback-x",
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(result.returncode, 1)
+            self.assertIn("error:", result.stderr)
+            self.assertIn("does not exist", result.stderr)
+            self.assertNotIn("0 written, 0 errors", result.stdout)
+
+    def test_transfer_same_agent_overwrite_cli_repro(self) -> None:
+        """CLI-level regression test for Bug 2's exact repro transcript: a
+        `spoke1`-side local edit must survive a same-agent `transfer` from
+        `hub` without `--force`, and be recoverable from a snapshot once
+        `--force` is used."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            hub_root = pathlib.Path(tmp) / "hub"
+            spoke_root = pathlib.Path(tmp) / "spoke1"
+
+            self._run(
+                "write",
+                "feedback-x",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(hub_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="hub's canonical version\n",
+            )
+            self._run(
+                "write",
+                "feedback-x",
+                "--description",
+                "local edit",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(spoke_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="spoke1's LOCALLY EDITED version, not yet pushed anywhere\n",
+            )
+
+            without_force = self._run(
+                "transfer",
+                "--from",
+                str(hub_root),
+                "--to",
+                str(spoke_root),
+                "--name",
+                "feedback-x",
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(without_force.returncode, 1)
+            self.assertIn("import complete: 0 written, 1 errors", without_force.stdout)
+
+            still_local = self._run(
+                "read",
+                "feedback-x",
+                "--project-root",
+                str(spoke_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertIn("LOCALLY EDITED", still_local.stdout)
+
+            with_force = self._run(
+                "transfer",
+                "--from",
+                str(hub_root),
+                "--to",
+                str(spoke_root),
+                "--name",
+                "feedback-x",
+                "--force",
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertEqual(with_force.returncode, 0, msg=with_force.stderr)
+            self.assertIn("import complete: 1 written, 0 errors", with_force.stdout)
+
+            now_canonical = self._run(
+                "read",
+                "feedback-x",
+                "--project-root",
+                str(spoke_root),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+            self.assertIn("canonical", now_canonical.stdout)
+
+            history_dir = (
+                claude_root / project_slug_for_path(spoke_root) / "memory" / "history"
+            )
+            snapshots = list(history_dir.glob("feedback_x.*.md"))
+            self.assertEqual(len(snapshots), 1)
+            self.assertIn("LOCALLY EDITED", snapshots[0].read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()

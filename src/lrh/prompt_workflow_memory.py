@@ -27,7 +27,7 @@ import typing
 import yaml
 
 from lrh import prompt_workflow_sessions
-from lrh.atomic_write import atomic_write
+from lrh.atomic_write import atomic_write, atomic_write_bytes
 from lrh.prompt_workflow_sessions import project_slug_for_path
 
 MEMORY_DIRNAME = "memory"
@@ -832,6 +832,86 @@ def export_memories(
     return ExportResult(output_path=output_path, count=len(records))
 
 
+def _guard_import_overwrite(
+    memory_dir: pathlib.Path,
+    filename: str,
+    *,
+    agent: str | None,
+    force: bool,
+    dry_run: bool,
+    timestamp: str,
+) -> None:
+    """Guard ``transfer``/``import``'s write path against silently
+    destroying a same-agent or legacy (no ``authored_by``) destination
+    memory -- the same-agent case ``_write_memory_into_dir`` itself
+    intentionally leaves unconditional (so ``write_memory``'s own
+    "revise my own memory" path keeps working), and the legacy case
+    (``existing_authored_by`` absent) currently bypasses that function's
+    cross-agent check entirely (``if existing_authored_by and
+    existing_authored_by != agent`` -- an absent value is falsy, so the
+    check never fires). This guard is deliberately a separate, additional
+    check at ``transfer``/``import``'s own call site, not folded into
+    ``_write_memory_into_dir``, so ``write_memory``'s behavior is
+    unaffected (Required Change #2).
+
+    Raises :class:`MemoryValidationError` when the destination exists,
+    its ``authored_by`` is absent or matches ``agent``, and ``force`` was
+    not given. A genuine cross-agent mismatch is left entirely to
+    ``_write_memory_into_dir``'s own existing check (already requires
+    ``force``, no snapshot -- out of this guard's scope).
+
+    When the overwrite is permitted (``force`` given) and not a
+    ``dry_run``, snapshots the destination's current content into
+    ``<memory_dir>/history/`` first -- keyed by content hash, so an
+    unchanged prior version is never snapshotted twice -- mirroring
+    ``sync``'s own snapshot-before-overwrite invariant
+    (``prompt_workflow_sessions.mirror_file_with_snapshot``). ``dry_run``
+    performs the same accept/reject check but never touches the
+    filesystem, matching ``_write_memory_into_dir``'s own ``dry_run``
+    contract.
+    """
+
+    path = memory_dir / filename
+    if not path.exists():
+        return
+
+    existing_frontmatter, _ = read_frontmatter_and_body(
+        path.read_text(encoding="utf-8")
+    )
+    existing_metadata = existing_frontmatter.get("metadata") or {}
+    existing_authored_by = (
+        existing_metadata.get("authored_by")
+        if isinstance(existing_metadata, dict)
+        else None
+    )
+    if existing_authored_by and existing_authored_by != agent:
+        return  # genuine cross-agent conflict -- _write_memory_into_dir's own job
+
+    if not force:
+        reason = (
+            f"authored_by {existing_authored_by!r}"
+            if existing_authored_by
+            else "no authored_by (a legacy pre-schema record)"
+        )
+        raise MemoryValidationError(
+            f"{filename} already exists ({reason}); transfer/import refuses "
+            "to overwrite it without --force"
+        )
+
+    if dry_run:
+        return
+
+    data = path.read_bytes()
+    short_hash = prompt_workflow_sessions.content_hash(data)[:12]
+    history_dir = memory_dir / "history"
+    history_dir.mkdir(parents=True, exist_ok=True)
+    stem = pathlib.Path(filename).stem
+    suffix = pathlib.Path(filename).suffix
+    snapshot_path = history_dir / f"{stem}.{timestamp}.{short_hash}{suffix}"
+    if not snapshot_path.exists():
+        atomic_write_bytes(snapshot_path, data)
+
+
 def _import_records_into_dir(
     memory_dir: pathlib.Path,
     records: list[typing.Any],
@@ -840,6 +920,7 @@ def _import_records_into_dir(
     force: bool = False,
     dry_run: bool = False,
 ) -> list[ImportEntry]:
+    import_timestamp = _utc_now_compact()
     if names:
         wanted = set(names)
         records = [
@@ -880,6 +961,30 @@ def _import_records_into_dir(
                 raise MemoryValidationError(
                     "bundle record 'metadata.applies_to' must be a list, "
                     f"got {type(applies_to).__name__}"
+                )
+            if isinstance(name, str) and name:
+                # Same-agent/legacy overwrite guard -- transfer/import's own
+                # call site only (Required Change #2); write_memory's direct
+                # path is untouched. _validate_name must run *before* the
+                # guard, not after: the guard builds a filesystem path from
+                # `name` (via filename_for) and reads whatever it finds
+                # there -- an unvalidated bundle `name` containing `../`
+                # segments would let a crafted import record read an
+                # arbitrary file outside the corpus and copy its content
+                # into <memory_dir>/history/ as a side effect, even though
+                # the record is ultimately (and only afterward) rejected
+                # with a clean-looking "not a valid kebab-case slug" error.
+                # Raising here produces the exact same error message
+                # _write_memory_into_dir's own validation would, just
+                # before any filesystem access rather than after.
+                _validate_name(name)
+                _guard_import_overwrite(
+                    memory_dir,
+                    filename_for(name),
+                    agent=agent,
+                    force=force,
+                    dry_run=dry_run,
+                    timestamp=import_timestamp,
                 )
             # Routes through the exact same validated path write_memory()
             # uses -- rejecting anything write itself would reject -- not a
@@ -1001,6 +1106,25 @@ def transfer_memories(
 
     from_dir, from_slug = _resolve_memory_dir(from_, claude_projects_root)
     to_dir, _ = _resolve_memory_dir(to, claude_projects_root)
+    if not from_dir.exists():
+        # `--from` (unlike `--to`) has no legitimate "fresh, not-yet-existing
+        # bucket" case -- there is nothing to move from a corpus that was
+        # never written. A bare relative directory name with no path
+        # separator (e.g. `--from spoke1`) is always resolved as a literal
+        # project slug (see `_resolve_memory_dir`), so a caller who actually
+        # meant a sibling directory gets silently routed to a slug bucket
+        # that has never existed, and previously fell straight through to
+        # exporting/importing zero records -- reported as an innocuous
+        # `0 written, 0 errors` with no indication anything was wrong. Fail
+        # loudly here instead, so that silent no-op is impossible.
+        raise MemoryValidationError(
+            f"--from {from_!r} resolved to slug {from_slug!r} "
+            f"({from_dir}), which does not exist -- nothing to transfer. "
+            "A bare name with no path separator is always treated as a "
+            "literal project slug; if you meant a relative directory, "
+            f"prefix it with './' (e.g. --from ./{from_}) to reference it "
+            "as a path instead."
+        )
     records = _export_records_from_dir(from_dir, from_slug, names=names, agent=agent)
     with tempfile.TemporaryDirectory() as tmp:
         bundle_path = pathlib.Path(tmp) / "transfer-bundle.jsonl"

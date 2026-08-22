@@ -27,7 +27,7 @@ import typing
 import yaml
 
 from lrh import prompt_workflow_sessions
-from lrh.atomic_write import atomic_write
+from lrh.atomic_write import atomic_write, atomic_write_bytes
 from lrh.prompt_workflow_sessions import project_slug_for_path
 
 MEMORY_DIRNAME = "memory"
@@ -198,6 +198,33 @@ def _locked_index(index_path: pathlib.Path) -> typing.Iterator[None]:
 
     index_path.parent.mkdir(parents=True, exist_ok=True)
     lock_path = index_path.parent / f".{index_path.name}.lock"
+    lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
+
+
+@contextlib.contextmanager
+def _locked_memory_path(path: pathlib.Path) -> typing.Iterator[None]:
+    """Hold an exclusive lock for the duration of one memory file's
+    read-snapshot-write sequence -- the same pattern :func:`_locked_index`
+    uses for ``MEMORY.md``, and :func:`prompt_workflow_sessions._locked_dest`
+    uses for ``sync``'s own snapshot-before-overwrite.
+
+    Without this, two concurrent forced ``transfer``/``import`` calls
+    targeting the same destination memory can each read the same prior
+    content, snapshot it, and overwrite -- silently dropping whichever
+    version landed on the destination between the two reads (never
+    snapshotted, never left current). A POSIX advisory lock on a sibling
+    lock file serializes the whole guard-check-then-write sequence per
+    destination path.
+    """
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.parent / f".{path.name}.lock"
     lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
@@ -832,6 +859,129 @@ def export_memories(
     return ExportResult(output_path=output_path, count=len(records))
 
 
+def _guard_import_overwrite(
+    memory_dir: pathlib.Path,
+    filename: str,
+    *,
+    agent: str | None,
+    new_content: str | None,
+    force: bool,
+    dry_run: bool,
+) -> None:
+    """Guard ``transfer``/``import``'s write path against silently
+    destroying a same-agent, legacy (no ``authored_by``), or malformed
+    destination memory -- the same-agent case ``_write_memory_into_dir``
+    itself intentionally leaves unconditional (so ``write_memory``'s own
+    "revise my own memory" path keeps working), and the legacy case
+    (``existing_authored_by`` absent) currently bypasses that function's
+    cross-agent check entirely (``if existing_authored_by and
+    existing_authored_by != agent`` -- an absent value is falsy, so the
+    check never fires). This guard is deliberately a separate, additional
+    check at ``transfer``/``import``'s own call site, not folded into
+    ``_write_memory_into_dir``, so ``write_memory``'s behavior is
+    unaffected (Required Change #2). Caller must hold
+    :func:`_locked_memory_path` for ``memory_dir / filename`` for the
+    duration of this call *and* the subsequent ``_write_memory_into_dir``
+    call -- otherwise two concurrent forced overwrites of the same
+    destination can each snapshot the same prior version and lose an
+    intermediate one.
+
+    Raises :class:`MemoryValidationError` when the destination exists,
+    its ``authored_by`` is absent, unreadable/malformed, or matches
+    ``agent``, and ``force`` was not given. A genuine cross-agent
+    mismatch is left entirely to ``_write_memory_into_dir``'s own
+    existing check (already requires ``force``, no snapshot -- out of
+    this guard's scope).
+
+    A destination whose frontmatter fails to parse (or whose bytes are
+    not valid UTF-8) is treated the same as a legacy record -- not a
+    hard error independent of ``force`` -- since
+    ``_write_memory_into_dir`` itself already tolerates this: when
+    ``force=True`` it skips parsing the destination entirely and
+    overwrites unconditionally. This guard must not regress that; it
+    snapshots the malformed file's raw bytes rather than failing to
+    parse them.
+
+    ``new_content`` is the exact bytes ``_write_memory_into_dir`` is
+    about to write, pre-rendered by the caller (or ``None`` if it could
+    not be computed, e.g. a malformed record whose own validation will
+    reject it downstream anyway) -- when the destination's current
+    content already equals it byte-for-byte, this is a genuine no-op
+    (nothing would change), so no snapshot is taken at all. Without
+    this, an unbounded sequence of identical-content snapshot files
+    accumulates across repeated ``--force`` runs of an unchanged
+    corpus, which ``sync`` itself would go on to recursively archive
+    every round.
+
+    When the overwrite is permitted (``force`` given), content genuinely
+    differs, and this is not a ``dry_run``, snapshots the destination's
+    current content into ``<memory_dir>/history/`` first -- keyed by
+    content hash only (not a timestamp), so the same prior version is
+    never snapshotted twice regardless of how many times it recurs --
+    mirroring ``sync``'s own snapshot-before-overwrite invariant
+    (``prompt_workflow_sessions.mirror_file_with_snapshot``). ``dry_run``
+    performs the same accept/reject check but never touches the
+    filesystem, matching ``_write_memory_into_dir``'s own ``dry_run``
+    contract.
+    """
+
+    path = memory_dir / filename
+    if not path.exists():
+        return
+
+    try:
+        existing_bytes = path.read_bytes()
+    except OSError as exc:
+        raise MemoryValidationError(
+            f"{filename} exists but could not be read: {exc}"
+        ) from exc
+
+    malformed = False
+    existing_authored_by: str | None = None
+    try:
+        existing_frontmatter, _ = read_frontmatter_and_body(
+            existing_bytes.decode("utf-8")
+        )
+        existing_metadata = existing_frontmatter.get("metadata") or {}
+        existing_authored_by = (
+            existing_metadata.get("authored_by")
+            if isinstance(existing_metadata, dict)
+            else None
+        )
+    except (MemoryValidationError, UnicodeDecodeError):
+        malformed = True
+
+    if existing_authored_by and existing_authored_by != agent:
+        return  # genuine cross-agent conflict -- _write_memory_into_dir's own job
+
+    if new_content is not None and existing_bytes == new_content.encode("utf-8"):
+        return  # the write would change nothing -- no snapshot needed
+
+    if not force:
+        if malformed:
+            reason = "malformed or unreadable frontmatter"
+        elif existing_authored_by:
+            reason = f"authored_by {existing_authored_by!r}"
+        else:
+            reason = "no authored_by (a legacy pre-schema record)"
+        raise MemoryValidationError(
+            f"{filename} already exists ({reason}); transfer/import refuses "
+            "to overwrite it without --force"
+        )
+
+    if dry_run:
+        return
+
+    short_hash = prompt_workflow_sessions.content_hash(existing_bytes)[:12]
+    history_dir = memory_dir / "history"
+    history_dir.mkdir(parents=True, exist_ok=True)
+    stem = pathlib.Path(filename).stem
+    suffix = pathlib.Path(filename).suffix
+    snapshot_path = history_dir / f"{stem}.{short_hash}{suffix}"
+    if not snapshot_path.exists():
+        atomic_write_bytes(snapshot_path, existing_bytes)
+
+
 def _import_records_into_dir(
     memory_dir: pathlib.Path,
     records: list[typing.Any],
@@ -881,13 +1031,82 @@ def _import_records_into_dir(
                     "bundle record 'metadata.applies_to' must be a list, "
                     f"got {type(applies_to).__name__}"
                 )
-            # Routes through the exact same validated path write_memory()
-            # uses -- rejecting anything write itself would reject -- not a
-            # second, less-validated write mechanism. ``dry_run`` here runs
-            # every validation/conflict check without touching the
-            # filesystem, so a dry-run preview reports the same
-            # accept/reject outcome a real import would, not merely
-            # "well-formed enough to reach this call."
+            if isinstance(name, str) and name:
+                # Same-agent/legacy/malformed overwrite guard -- transfer/
+                # import's own call site only (Required Change #2);
+                # write_memory's direct path is untouched. _validate_name
+                # must run *before* the guard, not after: the guard builds
+                # a filesystem path from `name` (via filename_for) and
+                # reads whatever it finds there -- an unvalidated bundle
+                # `name` containing `../` segments would let a crafted
+                # import record read an arbitrary file outside the corpus
+                # and copy its content into <memory_dir>/history/ as a
+                # side effect, even though the record is ultimately (and
+                # only afterward) rejected with a clean-looking "not a
+                # valid kebab-case slug" error. Raising here produces the
+                # exact same error message _write_memory_into_dir's own
+                # validation would, just before any filesystem access
+                # rather than after.
+                _validate_name(name)
+                # Pre-render the exact bytes this write would produce, so
+                # the guard can detect a genuine no-op (existing content
+                # already matches) and skip snapshotting it -- without
+                # this, a repeated --force run over an unchanged corpus
+                # accumulates an unbounded sequence of identical-content
+                # snapshot files. A render failure here (e.g. a
+                # malformed record whose own fields are wrong types) is
+                # left as None; the guard then treats the destination as
+                # unconditionally "would change," and
+                # _write_memory_into_dir's own validation below still
+                # rejects the record on its actual merits.
+                try:
+                    normalized_applies_to = (
+                        tuple(applies_to) if applies_to else (agent,)
+                    )
+                    new_content: str | None = _render_memory_file(
+                        name=name,
+                        description=description,
+                        type_=type_,
+                        authored_by=agent,
+                        applies_to=normalized_applies_to,
+                        body=body,
+                    )
+                except (TypeError, AttributeError, yaml.YAMLError):
+                    new_content = None
+                dest_path = memory_dir / filename_for(name)
+                with _locked_memory_path(dest_path):
+                    _guard_import_overwrite(
+                        memory_dir,
+                        filename_for(name),
+                        agent=agent,
+                        new_content=new_content,
+                        force=force,
+                        dry_run=dry_run,
+                    )
+                    # Routes through the exact same validated path
+                    # write_memory() uses -- rejecting anything write
+                    # itself would reject -- not a second, less-validated
+                    # write mechanism. ``dry_run`` here runs every
+                    # validation/conflict check without touching the
+                    # filesystem, so a dry-run preview reports the same
+                    # accept/reject outcome a real import would, not
+                    # merely "well-formed enough to reach this call."
+                    # Held under the same lock as the guard above so the
+                    # whole read-snapshot-write sequence is one atomic
+                    # unit per destination.
+                    _write_memory_into_dir(
+                        memory_dir,
+                        name,
+                        description=description,
+                        type_=type_,
+                        agent=agent,
+                        body=body,
+                        applies_to=applies_to,
+                        force=force,
+                        dry_run=dry_run,
+                    )
+                results.append(ImportEntry(name=name, written=not dry_run, error=None))
+                continue
             _write_memory_into_dir(
                 memory_dir,
                 name,
@@ -1001,6 +1220,25 @@ def transfer_memories(
 
     from_dir, from_slug = _resolve_memory_dir(from_, claude_projects_root)
     to_dir, _ = _resolve_memory_dir(to, claude_projects_root)
+    if not from_dir.exists():
+        # `--from` (unlike `--to`) has no legitimate "fresh, not-yet-existing
+        # bucket" case -- there is nothing to move from a corpus that was
+        # never written. A bare relative directory name with no path
+        # separator (e.g. `--from spoke1`) is always resolved as a literal
+        # project slug (see `_resolve_memory_dir`), so a caller who actually
+        # meant a sibling directory gets silently routed to a slug bucket
+        # that has never existed, and previously fell straight through to
+        # exporting/importing zero records -- reported as an innocuous
+        # `0 written, 0 errors` with no indication anything was wrong. Fail
+        # loudly here instead, so that silent no-op is impossible.
+        raise MemoryValidationError(
+            f"--from {from_!r} resolved to slug {from_slug!r} "
+            f"({from_dir}), which does not exist -- nothing to transfer. "
+            "A bare name with no path separator is always treated as a "
+            "literal project slug; if you meant a relative directory, "
+            f"prefix it with './' (e.g. --from ./{from_}) to reference it "
+            "as a path instead."
+        )
     records = _export_records_from_dir(from_dir, from_slug, names=names, agent=agent)
     with tempfile.TemporaryDirectory() as tmp:
         bundle_path = pathlib.Path(tmp) / "transfer-bundle.jsonl"

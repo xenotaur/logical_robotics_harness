@@ -3,7 +3,7 @@ resolution: null
 blocked_reason: null
 blocked: false
 id: WI-SESSION-ARCHIVE-ROOT-DEFAULT
-title: Resolve archive-root-location default and wire Claude export-zip ingestion
+title: Record the archive-root-location decision and wire Claude export-zip ingestion
 type: operation
 status: proposed
 owner: anthony
@@ -26,12 +26,12 @@ expected_actions:
 forbidden_actions:
   - force_push
   - delete_branch
+  - change_existing_archive_root_default
 acceptance:
-  - An LRH_SESSION_ARCHIVE_ROOT env var is resolved by prompt_workflow_sessions.resolve_archive_root(), falling back to a documented default location that is not under any Google-Drive-synced directory (e.g. ~/Archives/lrh-sessions/) when unset
-  - lrh sessions sync's --exports-dir gains a resolved default derived from the same root, closing the gap recorded in project/design/backlog.md's "lrh sessions sync has no default /export zip location" entry
-  - PROP-LRH-SESSION-ARCHIVE-SYNC's "Archive root location" Open Question is resolved and recorded as a Decision in that proposal, not left open
+  - lrh sessions sync's --exports-dir gains a resolved default derived from resolve_archive_root(), closing the gap recorded in project/design/backlog.md's "lrh sessions sync has no default /export zip location" entry
+  - PROP-LRH-SESSION-ARCHIVE-SYNC's "Archive root location" Open Question is resolved and recorded as a Decision in that proposal, stating that resolve_archive_root()/default_archive_root() already implement it (env var + ~/.local/share/lrh/session-archive default), not left open
   - WS-SESSION-ARCHIVE-SYNC's "archive-root-location open question is resolved and recorded" exit criterion is satisfied
-  - Existing Codex archive-root resolution (resolve_codex_archive_root in codex_archive.py) continues to work unchanged, since it already calls the shared resolver being extended here
+  - The existing LRH_SESSION_ARCHIVE_ROOT default (~/.local/share/lrh/session-archive) is left unchanged; Codex archive-root resolution and memory-sync's raw/<slug>/memory/ path both continue to work unmodified
   - Full existing test suite for prompt_workflow_sessions.py and sessions_workflow.py still passes
   - lrh validate reports 0 errors
 required_evidence:
@@ -39,128 +39,124 @@ required_evidence:
   - lrh_validate
   - test_output
 artifacts_expected:
-  - src/lrh/prompt_workflow_sessions.py
   - src/lrh/sessions_workflow.py
   - project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md
-  - tests/assist_tests/prompt_workflow_sessions_test.py
+  - tests/cli_tests/
 ---
 
-# Resolve archive-root-location default and wire Claude export-zip ingestion
+# Record the archive-root-location decision and wire Claude export-zip ingestion
 
 ## Summary
 
-Give `lrh sessions sync` a real, resolved default for where the durable
-session archive lives, and use that same default to close the long-open gap
-where `--exports-dir` has no default value and Claude `session-export-*.zip`
-harvest is silently skipped when it is omitted.
+`resolve_archive_root()` already implements the archive-root-location
+default `PROP-LRH-SESSION-ARCHIVE-SYNC` still lists as an open question —
+this item closes that question by recording the decision, and separately
+wires `lrh sessions sync --exports-dir`'s still-genuinely-missing default
+from the same resolver.
 
 ## Problem / Context
 
-`PROP-LRH-SESSION-ARCHIVE-SYNC`'s own Open Questions section
+**Correction from PR #608 review (Codex + Copilot, both independently
+confirmed):** an earlier draft of this item claimed no archive-root default
+resolution existed and proposed adding one with a new default
+(`~/Archives/lrh-sessions/`). That was wrong — `default_archive_root()`
+and `resolve_archive_root()` (`src/lrh/prompt_workflow_sessions.py:166-191`)
+already implement exactly this: an `LRH_SESSION_ARCHIVE_ROOT` env var,
+falling back to `~/.local/share/lrh/session-archive`. Both Codex's export
+pipeline (`resolve_codex_archive_root()`, `codex_archive.py:64-72`) and
+memory sync (`prompt_workflow_memory.py:693`) already call this same shared
+resolver. Proposing a *different* default would have split new data from
+the existing archive and directly contradicted this item's own acceptance
+criterion that Codex resolution remain unchanged — this item's scope is
+corrected below to not touch that resolver's behavior at all.
+
+`PROP-LRH-SESSION-ARCHIVE-SYNC`'s Open Questions section
 (`project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md:384-390`)
-defers this explicitly:
+still describes this as deferred, even though the code answers it — the
+proposal text is stale relative to what shipped, not a genuinely open
+design question. This item's real work is recording that answer, not
+inventing one.
 
-> "**Archive root location.** Deferred to a design discussion. The candidate
-> default is a user-level directory such as `~/Archives/lrh-sessions/`, but
-> the choice interacts with the user's backup and file-sync arrangements
-> (notably whether the archive sits inside or outside a synced folder, given
-> past sync-conflict issues) and with the eventual encrypted off-machine
-> tier."
-
-This is not hypothetical risk: on this machine, the user's own
-session-export-zip staging location
-(`~/Downloads/0. Development/Sessions/`) resolves through a symlink to
-`~/Workspace/Promptspace/Working/`, which is itself a Google Drive Desktop
-sync target (confirmed via a live `.tmp.drivedownload/` artifact under
-`~/Workspace/`). This is the exact class of location the LRH and LCATS repos
-were deliberately moved *out of*, per
-`experimental/rescue_claude_sessions/plan.md:9-11`: "The LRH and LCATS
-repositories moved from `~/Workspace/...` to `~/Tempspace/Projects/...` to
-keep Git worktree churn out of Google Drive's managed storage." Leaving the
-session archive itself in a Drive-synced location risks the same corruption
-class that effort exists to clean up.
-
-Downstream of the open archive-root question, `lrh sessions sync`'s
-`--exports-dir` flag has no default and export harvest is skipped entirely
-when omitted (`project/design/backlog.md:1154-1174`, noted 2026-08-07,
-explicitly deferred pending this same resolution):
+The `--exports-dir` gap is real and independent of the above:
+`lrh sessions sync`'s `--exports-dir` flag has no default and export
+harvest is skipped entirely when omitted
+(`project/design/backlog.md:1154-1174`, noted 2026-08-07):
 
 > "there is no established OS-level or LRH convention for where a user's
 > downloaded `session-export-*.zip` files live... A wrong guess (e.g.
 > defaulting to `~/Downloads`) risks silently harvesting unrelated files or
 > missing the real location on a differently configured machine."
 
-The shared resolver this work extends, `resolve_archive_root()` in
-`src/lrh/prompt_workflow_sessions.py`, is already the one piece of
-infrastructure Codex's separate export pipeline reuses
-(`resolve_codex_archive_root()` in `src/lrh/conversations/codex_archive.py`
-calls it directly) — this work strengthens that one shared seam rather than
-introducing a new one.
+This can be wired to a resolved default now, using the archive root that
+already exists, without needing to invent or choose a new one.
 
 ### Duplication search
-- In-repo: No existing default-resolution implementation found for either
-  the archive root or `--exports-dir`; both are genuinely unset today.
+- In-repo: `git grep -n "resolve_archive_root\|default_archive_root\|LRH_SESSION_ARCHIVE_ROOT" -- src/` finds the existing implementation at
+  `src/lrh/prompt_workflow_sessions.py:166-191` — the archive-root-default
+  half of this item is already implemented; only the `--exports-dir` wiring
+  remains.
 - Sibling repos: None identified.
-- External libraries: None identified — this is specific to LRH's own
-  reverse-engineered archive layout.
-- Recommendation: Proceed.
+- External libraries: None identified.
+- Recommendation: Proceed, scoped only to the `--exports-dir` gap and the
+  proposal-text correction.
 
 ### Demand search
 - Work items: None found requesting this directly.
-- Proposals: `PROP-LRH-SESSION-ARCHIVE-SYNC` (proposed) already contains the
-  matching Open Question this item resolves.
+- Proposals: `PROP-LRH-SESSION-ARCHIVE-SYNC` (proposed) contains the
+  now-stale Open Question this item resolves by recording, not re-deciding.
 - Backlog: Direct match — `project/design/backlog.md:1154-1174` ("`lrh
-  sessions sync` has no default `/export` zip location").
-- Recommendation: Resolve `PROP-LRH-SESSION-ARCHIVE-SYNC`'s Open Question as
-  part of this work and close the matching backlog entry, rather than
-  opening a new proposal.
+  sessions sync` has no default `/export` zip location") — this is the part
+  of the item that is genuinely unimplemented.
+- Recommendation: Record the archive-root decision in
+  `PROP-LRH-SESSION-ARCHIVE-SYNC` and close the matching backlog entry as
+  part of this work.
 
 ## Scope
 
-- Add a resolved, documented default for the session archive root, exposed
-  via an `LRH_SESSION_ARCHIVE_ROOT` env var with a non-Drive-synced default
-  location.
-- Wire `lrh sessions sync --exports-dir`'s default from the same resolved
-  root.
-- Record the resolution as a Decision in `PROP-LRH-SESSION-ARCHIVE-SYNC`.
+- Wire `lrh sessions sync --exports-dir`'s default from the existing
+  `resolve_archive_root()`.
+- Record the already-implemented archive-root default as a Decision in
+  `PROP-LRH-SESSION-ARCHIVE-SYNC`, replacing its stale Open Question text.
+- Do **not** change `resolve_archive_root()`'s existing default or add a
+  new env var — both already exist and are correct as shipped.
 
 ## Required Changes
 
-1. In `src/lrh/prompt_workflow_sessions.py`, extend `resolve_archive_root()`
-   (or the call site that currently requires an explicit root) to check
-   `LRH_SESSION_ARCHIVE_ROOT` first, then fall back to a documented default
-   constant outside any known cloud-sync directory.
-2. In `src/lrh/sessions_workflow.py`, give the `--exports-dir` CLI flag a
-   default value derived from the resolved archive root (e.g. an
+1. In `src/lrh/sessions_workflow.py`, give the `--exports-dir` CLI flag a
+   default value derived from `resolve_archive_root()` (e.g. an
    `incoming/` subdirectory under it), rather than requiring it on every
    invocation.
-3. Update `PROP-LRH-SESSION-ARCHIVE-SYNC`'s Open Questions section: replace
-   the deferred "Archive root location" question with a recorded Decision
-   stating the chosen default and env var name.
-4. Confirm `resolve_codex_archive_root()` (`codex_archive.py`) is unaffected
-   by the change (it should pass through unchanged since it already calls
-   the shared resolver).
+2. Update `PROP-LRH-SESSION-ARCHIVE-SYNC`'s Open Questions section: replace
+   the "Archive root location — Deferred to a design discussion" text with
+   a recorded Decision stating that `resolve_archive_root()`/
+   `default_archive_root()` (`prompt_workflow_sessions.py:166-191`) already
+   answer it, citing the env var name and default path.
+3. Close `project/design/backlog.md:1154-1174`'s "`lrh sessions sync` has
+   no default `/export` zip location" entry, noting the `--exports-dir`
+   fix landed here.
 
 ## Non-Goals
 
-- Do not build a `lrh meta config`-based configuration surface for this —
-  that surface does not yet support non-boolean values
-  (`project/design/backlog.md:1170`); env var only for now.
-- Do not migrate the user's already-downloaded zips sitting in the
-  Drive-synced staging folder — that is a one-time operational step,
-  deferred pending a separate decision on whether/when to run it.
+- Do not change `resolve_archive_root()`'s existing default location or
+  introduce a second env var — the existing implementation is correct and
+  already shared by Codex and memory sync.
+- Do not build a `lrh meta config`-based configuration surface — that
+  surface does not yet support non-boolean values
+  (`project/design/backlog.md:1170`).
+- Do not migrate the user's already-downloaded zips sitting in a
+  Drive-synced staging folder — a separate, deferred operational step.
 - Do not add Jules ingestion — tracked separately in
-  `WI-SESSION-SYNC-JULES-INGESTION`, which depends on this item for the
-  shared root.
+  `WI-SESSION-SYNC-JULES-INGESTION`.
 
 ## Acceptance Criteria
 
-- `LRH_SESSION_ARCHIVE_ROOT` is resolved with a documented, non-Drive-synced
-  default when unset.
-- `lrh sessions sync --exports-dir` has a working resolved default.
-- `PROP-LRH-SESSION-ARCHIVE-SYNC`'s Open Question is resolved and recorded.
+- `lrh sessions sync --exports-dir` has a working resolved default derived
+  from `resolve_archive_root()`.
+- `PROP-LRH-SESSION-ARCHIVE-SYNC`'s Open Question is resolved and recorded
+  as answered by existing code, not by a new default.
 - `WS-SESSION-ARCHIVE-SYNC`'s matching exit criterion is satisfied.
-- Existing Codex archive-root resolution is unaffected.
+- `resolve_archive_root()`'s existing default and behavior are unchanged;
+  Codex archive-root resolution and memory sync are unaffected.
 - Full existing test suite passes; `lrh validate` reports 0 errors.
 
 ## Validation
@@ -173,11 +169,9 @@ introducing a new one.
 
 ## Risk Notes
 
-- The chosen default path must not itself accidentally resolve into a
-  Drive-synced or iCloud-synced directory on this or any other contributor's
-  machine — worth a one-line runtime check or comment warning against
-  redefining it into a synced folder.
 - Changing `--exports-dir`'s default behavior could start silently
   harvesting files from a directory that previously had to be named
-  explicitly; document the new default clearly in the command's help text so
-  this isn't a surprise on first run after the change.
+  explicitly; document the new default clearly in the command's help text
+  so this isn't a surprise on first run after the change.
+- Verify no other call site outside `sessions_workflow.py` assumes
+  `--exports-dir` is always explicit before relying on the new default.

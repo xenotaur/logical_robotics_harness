@@ -32,8 +32,8 @@ forbidden_actions:
 acceptance:
   - A new lrh conversation command ingests a Jules session-export zip (jules_session_<id>.zip) and writes its content under the canonical archive root's jules/ subdirectory, mirroring the existing CODEX_ARCHIVE_SUBDIR convention
   - The Jules zip's internal structure is reverse-engineered and documented (in code comments or a short README section) before any parsing logic is written, matching how Claude's and Codex's export formats were each documented before their own ingestion code was written
-  - Ingested Jules sessions get an entry in project/sessions/index.jsonl using a jules:<id> pointer scheme
-  - project/executions/README.md's session_transcript pointer-scheme table is extended to document both the new jules: form and the currently-undocumented but already-valid codex-app: form
+  - Ingestion writes per-attempt metadata (e.g. attempt.json) into the archive alongside imported content, mirroring Codex's import-codex-exports convention, rather than an entry in project/sessions/index.jsonl, whose SessionRecord schema is Claude-specific (host_id-keyed) and out of scope to change here
+  - project/executions/README.md's session_transcript pointer-scheme table is extended to document both the new jules: form and the currently-undocumented but already-valid codex-app: form, for use when a Jules-authored session gets its own execution record
   - Re-ingesting the same zip is detected and skipped (or explicitly updated per a defined rule), never blindly re-copied
   - No shared SessionBackend/adapter interface is introduced; the Jules pipeline is implemented as its own separate command, mirroring the existing Codex pipeline's shape (per Option 4 of the governing design discussion)
   - lrh validate reports 0 errors
@@ -94,8 +94,10 @@ well.
 
 ### Duplication search
 - In-repo: No existing Jules ingestion of any kind found
-  (`grep -rl "jules.*session\|jules.*archive\|jules.*export"` across `src/`
-  and all planning directories returns zero hits).
+  (`git grep -n "jules.*session\|jules.*archive\|jules.*export"` across
+  `src/` and all planning directories returns zero hits — `git grep` used
+  rather than filesystem `grep -rl`, per repo convention, so nested
+  worktree checkouts under `.claude/worktrees/` don't skew the result).
 - Sibling repos: None identified.
 - External libraries: None identified — Jules' export zip format is
   undocumented and reverse-engineering it is part of this item's own scope.
@@ -118,8 +120,10 @@ well.
 - Add a new `lrh conversation` subcommand to ingest a Jules export zip.
 - Write ingested content under the canonical archive root's `jules/`
   subdirectory.
-- Add a `jules:<id>` entry to `project/sessions/index.jsonl` on ingestion.
-- Extend the documented pointer-scheme table with `jules:` and `codex-app:`.
+- Write per-attempt archive metadata on ingestion, mirroring Codex's
+  `attempt.json` convention.
+- Extend the documented `session_transcript:` pointer-scheme table with
+  `jules:` and `codex-app:`.
 
 ## Required Changes
 
@@ -137,8 +141,15 @@ well.
 4. Call `resolve_archive_root()` (extended by
    `WI-SESSION-ARCHIVE-ROOT-DEFAULT`) and append a new `JULES_ARCHIVE_SUBDIR`
    constant, mirroring `CODEX_ARCHIVE_SUBDIR`.
-5. On successful ingestion, write a `jules:<id>` entry into
-   `project/sessions/index.jsonl` following the existing entry schema.
+5. On successful ingestion, write per-attempt metadata (e.g. `attempt.json`)
+   into the archive, mirroring Codex's `import-codex-exports` convention.
+   Do not write an entry into `project/sessions/index.jsonl` — its
+   `SessionRecord` schema is keyed by a plain, Claude-specific `host_id`
+   with no scheme-qualified pointer concept
+   (`src/lrh/prompt_workflow_sessions.py:32-52`); a `jules:<id>` pointer
+   belongs in the `session_transcript:` grammar (Required Change #7), a
+   different registry with a different purpose (execution-record
+   provenance, not archived-session bookkeeping).
 6. Add re-ingestion detection (e.g. content-hash or id-based dedup),
    following the "never silently re-copy" convention already established
    for Claude's `mirror_transcript()`/`mirror_file_with_snapshot()`
@@ -164,8 +175,10 @@ well.
 - New Jules ingestion command exists, documented, and working against real
   sample zips.
 - Ingested sessions land under the canonical archive root's `jules/`
-  subdirectory and get a `project/sessions/index.jsonl` entry.
-- Pointer-scheme table documents both `jules:` and `codex-app:`.
+  subdirectory with per-attempt metadata, not a `project/sessions/
+  index.jsonl` entry.
+- `session_transcript:` pointer-scheme table documents both `jules:` and
+  `codex-app:`.
 - No shared backend abstraction introduced.
 - Full existing test suite passes; `lrh validate` reports 0 errors.
 
@@ -187,3 +200,11 @@ well.
   design through.
 - Depends on `WI-SESSION-ARCHIVE-ROOT-DEFAULT` landing first; do not begin
   implementation against an unresolved archive root.
+- **Correction from PR #608 review (Codex, confirmed):** an earlier draft
+  of this item's acceptance criteria required a `jules:<id>` entry in
+  `project/sessions/index.jsonl`, conflating that Claude-specific,
+  `host_id`-keyed registry with the actually-correct scheme-prefixed
+  `session_transcript:` pointer grammar. Fixed above; if a future need for
+  scheme-qualified session-index entries emerges, that's a distinct,
+  unscoped schema-migration item, not something to fold into Jules
+  ingestion.

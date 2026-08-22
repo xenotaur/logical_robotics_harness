@@ -2,14 +2,14 @@
 execution_id: 2026_08_22_00_00_21_WI_FRONTMATTER_PARSER_CONSOLIDATION
 prompt_id: PROMPT(AD_HOC:WI_FRONTMATTER_PARSER_CONSOLIDATION)[2026-08-21T06:33:55+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/595
-commit: 
+commit: c951e57786d59721ba73093103fb54441a6cd7bc
 created_at: 2026-08-22T00:00:21+00:00
 agent: claude_app
 instruction_source: project/design/proposals/proposed/lrh-frontmatter-parser/00_proposal.md
-session_transcript: "claude-app:494c3b1f-14c8-46bf-a4e3-0b6e8df119e8"
+session_transcript: claude-app:494c3b1f-14c8-46bf-a4e3-0b6e8df119e8
 ---
 
 # Summary

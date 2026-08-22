@@ -86,7 +86,8 @@ lrh memory validate --format json
 
 Buckets: **conforming** (complete, indexed), **legacy** (missing
 `authored_by`, a `repair` candidate), **unindexed** (no `MEMORY.md`
-entry — unreachable by `search`/`list`, a `repair` candidate), and
+entry — unreachable by `list` but still found by `search`, which scans
+memory files directly rather than the index; a `repair` candidate), and
 **malformed** (missing `name`/`description`/`metadata.type`). Always
 exits `0`; the counts and per-bucket file lists are the output to act on.
 
@@ -118,7 +119,7 @@ lrh memory sync --dry-run
   `$LRH_SESSION_ARCHIVE_ROOT`, else `~/.local/share/lrh/session-archive`.
 - `--dry-run`: report what would be mirrored without writing anything.
 
-Only changed files are mirrored (content-hash comparison); an
+Only changed files are mirrored (byte-for-byte comparison); an
 unchanged file is silently skipped. When a destination file *would* be
 overwritten, its prior content is snapshotted first — this
 snapshot-before-overwrite invariant is `sync`'s own safety guarantee
@@ -215,7 +216,7 @@ Move memories between two corpora through a temporary bundle — a thin
 intermediate file.
 
 ```bash
-lrh memory transfer --from /path/to/source-project --to /path/to/dest-project
+lrh memory transfer --from /path/to/source-project --to /path/to/dest-project --agent claude_app
 lrh memory transfer --from source-project-slug --to dest-project-slug --name feedback-x
 lrh memory transfer --from /path/to/source --to /path/to/dest --agent claude_app --dry-run
 ```
@@ -228,7 +229,11 @@ lrh memory transfer --from /path/to/source --to /path/to/dest --agent claude_app
   slug — this holds regardless of whether that slug's directory already
   exists, so a fresh destination corpus (`--to a-new-slug`) works
   correctly rather than silently falling through to a misresolved path.
-- `--name`, `--agent`: same filters as `export`.
+- `--name`, `--agent`: same filters as `export` — and the same
+  requirement: at least one of `--name` or `--agent` is required
+  (`transfer` reads its source through `export`'s own filtered path),
+  so an unfiltered `transfer` fails with `MemoryValidationError`
+  (exit `1`) rather than silently moving an entire corpus.
 - `--force`, `--dry-run`: same semantics as `import`.
 
 Reports the same `wrote:`/`would write:`/`error:` lines and summary as

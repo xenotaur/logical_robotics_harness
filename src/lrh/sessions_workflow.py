@@ -135,30 +135,36 @@ def _run_sync(args: argparse.Namespace) -> int:
     mirrored = 0
     aliases_added = 0
     for transcript in transcripts:
-        project_slug = transcript.parent.name
         if args.dry_run:
-            print(f"would mirror: {transcript} -> {archive_root}/raw/{project_slug}/")
+            print(
+                f"would mirror: {transcript.path} -> "
+                f"{archive_root / 'raw' / transcript.slug / transcript.relative_path}"
+            )
             continue
         result = prompt_workflow_sessions.mirror_transcript(
-            transcript, archive_root, project_slug=project_slug
+            transcript.path,
+            archive_root,
+            project_slug=transcript.slug,
+            relative_path=transcript.relative_path,
         )
         if result.copied:
             mirrored += 1
-            print(f"mirrored: {transcript} -> {result.dest}")
+            print(f"mirrored: {transcript.path} -> {result.dest}")
         # Independent of whether the raw copy changed: fold in any
         # line-level sessionId aliases this transcript reveals for an
         # already-known host, so a forked lineage's aliases (which can
         # appear in no filename anywhere) are not left incomplete.
-        reconciled = prompt_workflow_sessions.reconcile_child_id_aliases(
-            args.project_root, transcript, updated_at=updated_at
-        )
-        if reconciled is not None:
-            host_id, new_aliases = reconciled
-            aliases_added += len(new_aliases)
-            print(
-                f"aliased: {transcript} -> host_id={host_id} "
-                f"(+{len(new_aliases)} child id(s))"
+        if transcript.is_top_level:
+            reconciled = prompt_workflow_sessions.reconcile_child_id_aliases(
+                args.project_root, transcript.path, updated_at=updated_at
             )
+            if reconciled is not None:
+                host_id, new_aliases = reconciled
+                aliases_added += len(new_aliases)
+                print(
+                    f"aliased: {transcript.path} -> host_id={host_id} "
+                    f"(+{len(new_aliases)} child id(s))"
+                )
 
     harvested = 0
     if args.exports_dir:

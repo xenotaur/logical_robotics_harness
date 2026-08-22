@@ -1919,6 +1919,195 @@ class TransferMemoriesTest(unittest.TestCase):
             )
             self.assertFalse(history_dir.exists())
 
+    def test_transfer_force_overwrites_malformed_destination(self) -> None:
+        """Regression test for Codex's and Copilot's review comments on
+        WI-LRH-MEMORY-TRANSFER-SAFETY: a destination whose frontmatter
+        fails to parse (or isn't valid UTF-8) previously blocked the
+        overwrite guard's own parse attempt even with --force -- a
+        regression against _write_memory_into_dir's own pre-existing
+        behavior, which skips parsing the destination entirely when
+        force=True. The malformed file's raw bytes must still be
+        preserved as a snapshot, and the forced overwrite must succeed."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="hub canonical",
+                type_="feedback",
+                agent="claude",
+                body="hub's canonical version\n",
+                claude_projects_root=claude_root,
+            )
+            dest_memory_dir = claude_root / project_slug_for_path(dest_root) / "memory"
+            dest_memory_dir.mkdir(parents=True)
+            malformed_path = dest_memory_dir / "feedback_foo.md"
+            malformed_path.write_bytes(b"not even close to frontmatter \xff\xfe")
+
+            without_force = prompt_workflow_memory.transfer_memories(
+                from_=source_root,
+                to=dest_root,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+            self.assertFalse(without_force[0].written)
+            self.assertIsNotNone(without_force[0].error)
+            self.assertIn("malformed", without_force[0].error)
+
+            with_force = prompt_workflow_memory.transfer_memories(
+                from_=source_root,
+                to=dest_root,
+                names=["feedback-foo"],
+                force=True,
+                claude_projects_root=claude_root,
+            )
+            self.assertTrue(with_force[0].written)
+            overwritten = prompt_workflow_memory.read_memory(
+                dest_root, "feedback-foo", claude_projects_root=claude_root
+            )
+            self.assertIn("canonical", overwritten.body)
+
+            history_dir = dest_memory_dir / "history"
+            snapshots = list(history_dir.glob("feedback_foo.*.md"))
+            self.assertEqual(len(snapshots), 1)
+            self.assertEqual(
+                snapshots[0].read_bytes(),
+                b"not even close to frontmatter \xff\xfe",
+            )
+
+    def test_transfer_repeated_unchanged_force_does_not_grow_history(self) -> None:
+        """Regression test for Codex's review comment: repeating an
+        already-applied --force transfer/import (destination content
+        already matches what would be written) must not create a new
+        snapshot each time -- otherwise an unbounded sequence of
+        identical-content files accumulates across periodic re-syncs,
+        which `sync` would go on to recursively archive every round."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            source_root = pathlib.Path(tmp) / "proj_a"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+
+            prompt_workflow_memory.write_memory(
+                source_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="same content every time\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.write_memory(
+                dest_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="original\n",
+                claude_projects_root=claude_root,
+            )
+            history_dir = (
+                claude_root / project_slug_for_path(dest_root) / "memory" / "history"
+            )
+
+            for _ in range(3):
+                entries = prompt_workflow_memory.transfer_memories(
+                    from_=source_root,
+                    to=dest_root,
+                    names=["feedback-foo"],
+                    force=True,
+                    claude_projects_root=claude_root,
+                )
+                self.assertTrue(entries[0].written)
+
+            # Exactly one real change happened (original -> "same content
+            # every time"), so exactly one snapshot must exist -- not one
+            # per repeated call.
+            snapshots = list(history_dir.glob("feedback_foo.*.md"))
+            self.assertEqual(len(snapshots), 1)
+            self.assertIn("original", snapshots[0].read_text(encoding="utf-8"))
+
+    def test_transfer_concurrent_forced_overwrites_never_drop_a_version(self) -> None:
+        """Regression test for Codex's review comment: two concurrent
+        forced transfers into the same destination must not both read and
+        snapshot the same prior content and then race the final write --
+        that would drop whichever version landed on the destination
+        between their reads (never snapshotted, never left current)."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            dest_root = pathlib.Path(tmp) / "proj_b"
+            source_v2_root = pathlib.Path(tmp) / "proj_v2"
+            source_v3_root = pathlib.Path(tmp) / "proj_v3"
+
+            prompt_workflow_memory.write_memory(
+                dest_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="v1\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.write_memory(
+                source_v2_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="v2\n",
+                claude_projects_root=claude_root,
+            )
+            prompt_workflow_memory.write_memory(
+                source_v3_root,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="v3\n",
+                claude_projects_root=claude_root,
+            )
+
+            def run_transfer(source_root: pathlib.Path) -> None:
+                prompt_workflow_memory.transfer_memories(
+                    from_=source_root,
+                    to=dest_root,
+                    names=["feedback-foo"],
+                    force=True,
+                    claude_projects_root=claude_root,
+                )
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=2) as pool:
+                futures = [
+                    pool.submit(run_transfer, source_v2_root),
+                    pool.submit(run_transfer, source_v3_root),
+                ]
+                for future in futures:
+                    future.result()
+
+            final = prompt_workflow_memory.read_memory(
+                dest_root, "feedback-foo", claude_projects_root=claude_root
+            )
+            self.assertIn(final.body.strip(), ("v2", "v3"))
+
+            history_dir = (
+                claude_root / project_slug_for_path(dest_root) / "memory" / "history"
+            )
+            snapshot_bodies = {
+                p.read_text(encoding="utf-8").strip().splitlines()[-1]
+                for p in history_dir.glob("feedback_foo.*.md")
+            }
+            # v1 (the original) must always be snapshotted. Whichever of
+            # v2/v3 lost the race must also be snapshotted -- never
+            # silently dropped.
+            self.assertIn("v1", snapshot_bodies)
+            loser = "v3" if final.body.strip() == "v2" else "v2"
+            self.assertIn(loser, snapshot_bodies)
+
 
 class ReadMemoryTest(unittest.TestCase):
     def test_read_returns_frontmatter_and_body(self) -> None:

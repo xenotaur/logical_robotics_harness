@@ -45,21 +45,21 @@ def scan_text_for_sensitive_findings(text: str) -> SensitiveScanResult:
     line_starts = _line_starts(text)
     findings: list[SensitiveFinding] = []
 
-    for rule in sensitivity_rules._BASIC_RULES:
+    for rule in sensitivity_rules.BASIC_RULES:
         for match in rule.pattern.finditer(text):
             findings.append(_finding_for_match(rule, match, line_starts, rule.preview))
 
-    for match in sensitivity_rules._SECRET_ASSIGNMENT_PATTERN.finditer(text):
+    for match in sensitivity_rules.SECRET_ASSIGNMENT_PATTERN.finditer(text):
         key = match.group("key")
         preview = f"{key}=<REDACTED>"
         findings.append(
             _finding_for_match(
-                sensitivity_rules._Rule(
+                sensitivity_rules.Rule(
                     rule_id="secret.keyword_assignment",
                     category="secret",
                     severity=sensitivity_rules.SEVERITY_HIGH,
                     confidence=sensitivity_rules.CONFIDENCE_HIGH,
-                    pattern=sensitivity_rules._SECRET_ASSIGNMENT_PATTERN,
+                    pattern=sensitivity_rules.SECRET_ASSIGNMENT_PATTERN,
                     preview=preview,
                 ),
                 match,
@@ -68,17 +68,17 @@ def scan_text_for_sensitive_findings(text: str) -> SensitiveScanResult:
             )
         )
 
-    for match in sensitivity_rules._IP_ADDRESS_PATTERN.finditer(text):
+    for match in sensitivity_rules.IP_ADDRESS_PATTERN.finditer(text):
         candidate = match.group(0)
-        if sensitivity_rules._is_valid_ipv4_address(candidate):
+        if sensitivity_rules.is_valid_ipv4_address(candidate):
             findings.append(
                 _finding_for_match(
-                    sensitivity_rules._Rule(
+                    sensitivity_rules.Rule(
                         rule_id="ip_address.basic",
                         category="ip_address",
                         severity=sensitivity_rules.SEVERITY_MEDIUM,
                         confidence=sensitivity_rules.CONFIDENCE_MEDIUM,
-                        pattern=sensitivity_rules._IP_ADDRESS_PATTERN,
+                        pattern=sensitivity_rules.IP_ADDRESS_PATTERN,
                         preview="<IP_ADDRESS>",
                     ),
                     match,
@@ -87,18 +87,18 @@ def scan_text_for_sensitive_findings(text: str) -> SensitiveScanResult:
                 )
             )
 
-    for match in sensitivity_rules._CREDIT_CARD_CANDIDATE_PATTERN.finditer(text):
+    for match in sensitivity_rules.CREDIT_CARD_CANDIDATE_PATTERN.finditer(text):
         candidate = match.group(0)
-        digits = sensitivity_rules._digits_only(candidate)
-        if 13 <= len(digits) <= 19 and sensitivity_rules._passes_luhn_check(digits):
+        digits = sensitivity_rules.digits_only(candidate)
+        if 13 <= len(digits) <= 19 and sensitivity_rules.passes_luhn_check(digits):
             findings.append(
                 _finding_for_match(
-                    sensitivity_rules._Rule(
+                    sensitivity_rules.Rule(
                         rule_id="credit_card.luhn",
                         category="credit_card",
                         severity=sensitivity_rules.SEVERITY_HIGH,
                         confidence=sensitivity_rules.CONFIDENCE_HIGH,
-                        pattern=sensitivity_rules._CREDIT_CARD_CANDIDATE_PATTERN,
+                        pattern=sensitivity_rules.CREDIT_CARD_CANDIDATE_PATTERN,
                         preview="<CREDIT_CARD>",
                     ),
                     match,
@@ -139,7 +139,7 @@ def _line_number_for_offset(line_starts: tuple[int, ...], offset: int) -> int:
 
 
 def _finding_for_match(
-    rule: sensitivity_rules._Rule,
+    rule: sensitivity_rules.Rule,
     match: re.Match[str],
     line_starts: tuple[int, ...],
     preview: str,

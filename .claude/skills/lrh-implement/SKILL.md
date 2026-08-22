@@ -191,6 +191,22 @@ confirmation gate above.
 
 ```bash
 git checkout main && git pull
+```
+
+**Work item input:** re-check that the work item file exists on the freshly
+pulled `main` — the Step 1 check may be stale if the WI-creation PR had not
+merged yet when this session started:
+
+```bash
+find project/work_items/ -name "<WI-ID>.md"
+```
+
+If not found, stop and warn — the WI-creation PR likely has not merged.
+Branching now would silently drop the work item file from the
+implementation branch. Ask the user to merge it first (see the "Suggested
+next steps" Path 1 in the `/lrh-work-item` reference) before continuing.
+
+```bash
 git checkout -b <branch-name>
 ```
 

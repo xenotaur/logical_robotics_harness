@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from lrh.control import execution_readiness, models, planning_tree, work_item_policy
+from lrh.control.parser import parse_frontmatter_mapping
 
 CONTRIBUTOR_REQUIRED_FIELDS = {"id", "type", "roles", "display_name", "status"}
 CONTRIBUTOR_TYPES = {"human", "agent"}
@@ -537,7 +538,7 @@ def _parse_markdown_frontmatter(
 
     frontmatter_text = raw[4:closing_index]
     try:
-        data = _parse_simple_yaml(frontmatter_text)
+        data = parse_frontmatter_mapping(frontmatter_text)
     except ValueError as exc:
         issues.append(
             _issue(
@@ -549,92 +550,6 @@ def _parse_markdown_frontmatter(
             )
         )
         return None
-
-    if not isinstance(data, dict):
-        issues.append(
-            _issue(
-                project_root,
-                path,
-                "error",
-                "FRONTMATTER_NOT_OBJECT",
-                "frontmatter must parse to a mapping object",
-            )
-        )
-        return None
-
-    return data
-
-
-def _parse_simple_yaml(text: str) -> dict[str, Any]:
-    data: dict[str, Any] = {}
-    current_list_key: str | None = None
-    folded_key: str | None = None
-    folded_lines: list[str] = []
-
-    lines = text.splitlines()
-    for raw_line in lines:
-        line = raw_line.rstrip()
-        stripped = line.strip()
-        if not stripped:
-            continue
-        if stripped.startswith("#"):
-            continue
-
-        if folded_key is not None:
-            if line.startswith("  ") or line.startswith("\t"):
-                folded_lines.append(stripped)
-                continue
-            data[folded_key] = " ".join(folded_lines).strip()
-            folded_key = None
-            folded_lines = []
-
-        if stripped.startswith("- "):
-            if current_list_key is None:
-                raise ValueError("list item found without a list field")
-            data[current_list_key].append(stripped[2:].strip())
-            continue
-
-        if ":" not in stripped:
-            raise ValueError(f"malformed line: {stripped}")
-
-        key, value = stripped.split(":", 1)
-        key = key.strip()
-        value = value.strip()
-        current_list_key = None
-
-        if not key:
-            raise ValueError("empty key in frontmatter")
-
-        if value == "":
-            data[key] = []
-            current_list_key = key
-            continue
-        if value == ">":
-            folded_key = key
-            folded_lines = []
-            continue
-        if value.startswith("[") and value.endswith("]"):
-            inner = value[1:-1].strip()
-            if not inner:
-                data[key] = []
-            else:
-                data[key] = [part.strip() for part in inner.split(",")]
-            continue
-
-        parsed_scalar = value.strip("'\"")
-        if parsed_scalar in {"null", "Null", "NULL", "~"}:
-            data[key] = None
-            continue
-        if parsed_scalar in {"true", "True", "TRUE"}:
-            data[key] = True
-            continue
-        if parsed_scalar in {"false", "False", "FALSE"}:
-            data[key] = False
-            continue
-        data[key] = parsed_scalar
-
-    if folded_key is not None:
-        data[folded_key] = " ".join(folded_lines).strip()
 
     return data
 
@@ -791,6 +706,14 @@ def _validate_workstream_schema(
                     f"{field} must be a list",
                 )
             )
+    _check_list_field_items_are_strings(
+        project_root,
+        artifact.path,
+        artifact.data,
+        WORKSTREAM_LIST_FIELDS,
+        "WORKSTREAM_LIST_FIELD_ITEM_INVALID",
+        issues,
+    )
     _validate_optional_string_field(
         project_root,
         artifact.path,
@@ -1011,6 +934,14 @@ def _validate_design_proposal_schema(
                     f"{field} must be a list",
                 )
             )
+    _check_list_field_items_are_strings(
+        project_root,
+        artifact.path,
+        data,
+        DESIGN_PROPOSAL_LIST_FIELDS,
+        "DESIGN_PROPOSAL_LIST_FIELD_ITEM_INVALID",
+        issues,
+    )
 
     superseded_by = data.get("superseded_by")
     if superseded_by is not None and not isinstance(superseded_by, str):
@@ -1298,6 +1229,14 @@ def _validate_work_item_schema(
                     f"{field} must be a list",
                 )
             )
+    _check_list_field_items_are_strings(
+        project_root,
+        artifact.path,
+        data,
+        WORK_ITEM_LIST_FIELDS,
+        "WORK_ITEM_LIST_FIELD_ITEM_INVALID",
+        issues,
+    )
     _validate_optional_string_field(
         project_root,
         artifact.path,
@@ -1340,6 +1279,39 @@ def _validate_optional_string_field(
             f"{field} must be a string or null",
         )
     )
+
+
+def _check_list_field_items_are_strings(
+    project_root: Path,
+    path: Path,
+    data: dict[str, Any],
+    fields: set[str],
+    issue_code: str,
+    issues: list[ValidationIssue],
+) -> None:
+    """Flag list-valued fields whose items aren't strings.
+
+    A common cause: a prose bullet with an unquoted ``key: value`` shape
+    (e.g. ``- Some sentence: with a colon``) parses as valid YAML, but as a
+    one-entry mapping rather than the plain string the field expects.
+    """
+
+    for field in sorted(fields):
+        value = data.get(field)
+        if not isinstance(value, list):
+            continue
+        if any(not isinstance(item, str) for item in value):
+            issues.append(
+                _issue(
+                    project_root,
+                    path,
+                    "error",
+                    issue_code,
+                    f"{field} must be a list of strings; found a non-string "
+                    "item (a bullet with an unquoted 'key: value' shape "
+                    "parses as a YAML mapping, not text -- quote it)",
+                )
+            )
 
 
 def _validate_work_item_policy_required_fields(

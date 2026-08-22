@@ -26,7 +26,7 @@ forbidden_actions:
   - delete_branch
   - implement_chatgpt_export
 acceptance:
-  - `lrh skills install` accepts `--target claude|codex|all`
+  - '`lrh skills install` accepts `--target claude|codex|all`'
   - Existing no-target behavior remains Claude-compatible
   - User-scope Codex installs write to `~/.agents/skills/`
   - Project-scope Codex installs with `--local` write to `./.agents/skills/`

@@ -1,3 +1,4 @@
+import datetime
 import tempfile
 import unittest
 from pathlib import Path
@@ -70,6 +71,36 @@ Hello.
         # A block list with only comments and no items parses as null (same as empty).
         parsed = parse_markdown_text("---\nitems:\n# comment only\n---\n")
         self.assertIsNone(parsed.frontmatter["items"])
+
+    def test_created_at_parses_as_datetime(self) -> None:
+        # Real YAML resolves an ISO-8601-looking scalar to a datetime, not
+        # a str -- consumers must handle this explicitly (Decision 2).
+        parsed = parse_markdown_text(
+            "---\ncreated_at: 2026-08-02T15:14:34-04:00\n---\n"
+        )
+        self.assertIsInstance(parsed.frontmatter["created_at"], datetime.datetime)
+
+    def test_colon_collapsed_list_item_parses_as_mapping(self) -> None:
+        # An unquoted "key: value"-shaped bullet is valid YAML, but it
+        # collapses into a one-entry mapping rather than the plain string
+        # the author intended -- this is real YAML behavior, not a parser
+        # bug, and callers must detect it (see validator's
+        # _check_list_field_items_are_strings).
+        parsed = parse_markdown_text(
+            "---\nacceptance:\n  - plain bullet\n"
+            "  - after sequencing: this collapses\n---\n"
+        )
+        self.assertEqual(parsed.frontmatter["acceptance"][0], "plain bullet")
+        self.assertEqual(
+            parsed.frontmatter["acceptance"][1], {"after sequencing": "this collapses"}
+        )
+
+    def test_reserved_indicator_scalar_raises_value_error(self) -> None:
+        # A plain scalar cannot start with a reserved indicator character
+        # (backtick) -- this is a hard YAML syntax error, wrapped as
+        # ValueError per PROP-LRH-FRONTMATTER-PARSER Decision 1.
+        with self.assertRaises(ValueError):
+            parse_markdown_text("---\ntitle: `lrh validate` is broken\n---\n")
 
     def test_comment_between_multiple_block_lists(self) -> None:
         # Bug: col-0 comment inside foo's list broke the inner loop early,

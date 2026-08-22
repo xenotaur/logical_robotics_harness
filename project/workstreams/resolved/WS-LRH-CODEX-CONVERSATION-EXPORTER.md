@@ -29,7 +29,7 @@ work_items:
 exit_criteria:
   - Codex conversation export manifest and Markdown artifact contract are implemented with typed helpers and documented schema expectations
   - File-based Codex export adapter creates private, non-authoritative transcript artifacts without depending on undocumented Codex app storage internals
-  - `lrh conversation inspect-export <path> --format text|json` validates manifest shape, source hashes when possible, sensitivity warnings, and stable JSON output
+  - '`lrh conversation inspect-export <path> --format text|json` validates manifest shape, source hashes when possible, sensitivity warnings, and stable JSON output'
   - Tests cover valid exports, malformed exports, hash mismatch handling, sensitivity warning propagation, and JSON/text inspector behavior
   - User-facing conversation docs explain export, inspection, privacy, authority, and promotion boundaries
   - Viewer support is implemented through safe-default `lrh serve` archive viewing

@@ -35,7 +35,7 @@ forbidden_actions:
 acceptance:
   - The chain-defaults profile schema exists at project/config/chain-defaults.yaml (or the location Decision 1 ultimately specifies), storing completion condition, stop-work condition, and self-review preference as repo-level, git-tracked plain YAML
   - The propose-and-confirm flow is wired into /lrh-land and /lrh-execute Step 2, pre-filling stored values while still requiring one live confirming reply per run under always_confirm (the default)
-  - chain_init_confirmation: skip_if_opted_in is implemented per all five numbered requirements in DEC-CHAIN-INIT-SKIP-CONSENT's Decision section -- initiation act preserved, two-step consent, user-local storage (never the shared profile), value-hash binding with invalidation on change, and the mandatory per-run special-conditions check
+  - 'chain_init_confirmation: skip_if_opted_in is implemented per all five numbered requirements in DEC-CHAIN-INIT-SKIP-CONSENT''s Decision section -- initiation act preserved, two-step consent, user-local storage (never the shared profile), value-hash binding with invalidation on change, and the mandatory per-run special-conditions check'
   - Decision 4's profile-update offer (a live instruction that diverges from a stored default is offered back as an update, never silently persisted) is implemented at the chain-authorization gate
   - Decision 5's staleness fallback (a stored default falls back to always_ask if the referenced gate's own skill logic has changed materially since confirmation) is implemented
   - confirm_fixes_batch and any other per-gate autopilot flag are explicitly out of scope for this work item -- Increment 2's responsibility

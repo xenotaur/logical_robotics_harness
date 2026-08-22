@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import dataclasses
+import datetime
 import json
 import pathlib
 import sys
@@ -249,9 +250,11 @@ def _searchable_segments(
 
 def _stringify(value: typing.Any) -> str:
     if isinstance(value, list):
-        return ", ".join(str(item) for item in value)
+        return ", ".join(_stringify(item) for item in value)
     if value is None:
         return ""
+    if isinstance(value, (datetime.date, datetime.datetime)):
+        return value.isoformat()
     return str(value)
 
 

@@ -28,7 +28,7 @@ forbidden_actions:
   - delete_branch
   - apply_fix_frontmatter_without_manual_review
 acceptance:
-  - A shared raw-text lexical detector implements the four confirmed unsafe-plain-scalar patterns (unescaped ': ', unescaped ' #', a scalar starting with a reserved indicator, and a scalar in a string field that would implicit-resolve to a non-string type)
+  - 'A shared raw-text lexical detector implements the four confirmed unsafe-plain-scalar patterns (unescaped '': '', unescaped '' #'', a scalar starting with a reserved indicator, and a scalar in a string field that would implicit-resolve to a non-string type)'
   - lrh validate uses the shared detector to flag unsafe patterns as a new lint category, report-only
   - lrh project doctor gains a --fix-frontmatter flag using the same shared detector, dry-run by default, requiring explicit --apply to write; for a repo with LRH's lenient-parser lineage, the replacement value comes from the historical lenient parser's reading, never from stripping the raw line
   - The migration tool's dry-run has been run and manually reviewed against LRH's own project/ tree, and either applied to this repo's own project/ tree after that review or followed by a concrete, blocking follow-up work item that applies it -- this item is not complete on dry-run-and-review alone

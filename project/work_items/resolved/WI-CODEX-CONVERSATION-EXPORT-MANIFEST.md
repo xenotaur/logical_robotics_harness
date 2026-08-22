@@ -34,12 +34,12 @@ forbidden_actions:
   - implement_lrh_serve_viewer
   - modify_session_transcript_schema
 acceptance:
-  - `ConversationExportManifest` or an equivalent typed helper exists under `src/lrh/conversations/` and models the Codex export manifest contract
+  - '`ConversationExportManifest` or an equivalent typed helper exists under `src/lrh/conversations/` and models the Codex export manifest contract'
   - Manifest helpers preserve private-by-default, non-authoritative defaults and include schema version, source tool/adapter, source hash, export timestamp, adapter version, warning list, sensitivity metadata, and transcript statistics
   - Manifest rendering/parsing or serialization helpers have focused unit tests for valid manifests, malformed or missing required fields, default handling, and stable output
   - Documentation describes the manifest fields and explicitly states that raw Codex exports remain private, non-authoritative context
   - The work item does not implement the file-based Codex adapter, `inspect-export` CLI, viewer support, or `session_transcript` grammar changes
-  - `lrh validate` reports 0 errors
+  - '`lrh validate` reports 0 errors'
 required_evidence:
   - manual_review
   - lrh_validate

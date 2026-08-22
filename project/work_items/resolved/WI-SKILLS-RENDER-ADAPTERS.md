@@ -29,7 +29,7 @@ forbidden_actions:
 acceptance:
   - Claude and Codex install paths render through explicit target adapters
   - Codex installs emit or preserve `agents/openai.yaml` when needed
-  - Claude `disable-model-invocation: true` is translated to Codex manual-only invocation policy
+  - 'Claude `disable-model-invocation: true` is translated to Codex manual-only invocation policy'
   - Unsupported Claude-only metadata is stripped, translated, or reported deliberately
   - lrh validate reports 0 errors
 required_evidence:

@@ -13,7 +13,7 @@ work_items:
   - WI-ANTIGRAVITY-CONVERSATION-EXPORT-CLI
   - WI-ANTIGRAVITY-CONVERSATION-EXPORT-SKILL
 exit_criteria:
-  - ConversationExportManifest is generalized to support source_tool: antigravity and export_inspector.py passes updated manifest checks.
+  - 'ConversationExportManifest is generalized to support source_tool: antigravity and export_inspector.py passes updated manifest checks.'
   - Private real-session JSONL dogfood spike confirms observed Antigravity transcript event payload shapes.
   - Python API in src/lrh/conversations/antigravity_export.py parses Antigravity JSONL logs into Markdown artifacts with valid ConversationExportManifest frontmatter, source_sha256, source_id, and transcript_statistics, passing hermetic unit tests.
   - CLI subcommand lrh conversation export-antigravity-session accepts --transcript-path PATH as primary input, outputs metadata-only status, and passes integration tests.

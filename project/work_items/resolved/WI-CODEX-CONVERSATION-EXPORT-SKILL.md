@@ -33,13 +33,13 @@ forbidden_actions:
   - scrape_codex_storage_internals
   - commit_raw_transcript_data
 acceptance:
-  - `src/lrh/skills/lrh-codex-export/SKILL.md` exists as a thin workflow wrapper around `lrh conversation export-codex-thread`
+  - '`src/lrh/skills/lrh-codex-export/SKILL.md` exists as a thin workflow wrapper around `lrh conversation export-codex-thread`'
   - the skill defaults the thread id from `CODEX_THREAD_ID` when available and asks for an explicit thread id only when required
   - the skill chooses or instructs the user to choose absolute private output paths outside the current Git worktree, especially for `--raw-out`
   - the skill runs `lrh conversation inspect-export` after export and reports metadata only
   - the skill documents that restricted/sandboxed environments may need approval for Codex app-server access to `~/.codex`
   - the skill warns against line-based previews of exported Markdown and directs users to manifest-aware inspection
-  - `lrh validate` reports 0 errors for the new skill/work-item change set
+  - '`lrh validate` reports 0 errors for the new skill/work-item change set'
 required_evidence:
   - lrh_validate
   - manual_review

@@ -119,8 +119,10 @@ lrh memory sync --dry-run
   `$LRH_SESSION_ARCHIVE_ROOT`, else `~/.local/share/lrh/session-archive`.
 - `--dry-run`: report what would be mirrored without writing anything.
 
-Only changed files are mirrored (byte-for-byte comparison); an
-unchanged file is silently skipped. When a destination file *would* be
+Only changed files are mirrored — a real sync compares content by
+SHA-256 hash, `--dry-run` by a direct byte comparison; both agree on
+whether a file changed, and an unchanged file is silently skipped
+either way. When a destination file *would* be
 overwritten, its prior content is snapshotted first — this
 snapshot-before-overwrite invariant is `sync`'s own safety guarantee
 and is not shared by `import`/`transfer` below.

@@ -376,6 +376,37 @@ class SessionReportTest(unittest.TestCase):
             self.assertEqual(report.archived, 1)
             self.assertEqual(report.findings, ())
 
+    def test_report_counts_imported_codex_attempt_with_thread_id(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript="codex-app:thread-1",
+            )
+            attempt = (
+                archive_root
+                / "codex"
+                / "imports"
+                / "2026"
+                / "01"
+                / "attempt"
+                / "attempt.json"
+            )
+            attempt.parent.mkdir(parents=True)
+            attempt.write_text(
+                json.dumps({"status": "imported", "thread_id": "thread-1"}),
+                encoding="utf-8",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 1)
+            self.assertEqual(report.findings, ())
+
     def test_report_tracks_pending_and_missing_separately(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project_root = pathlib.Path(tmp) / "project"
@@ -419,6 +450,35 @@ class SessionReportTest(unittest.TestCase):
 
             self.assertEqual(
                 [finding.execution_id for finding in report.pending], ["NEW"]
+            )
+
+    def test_report_since_created_at_excludes_records_without_valid_created_at(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="BAD",
+                session_transcript="pending",
+                created_at="not-a-timestamp",
+            )
+            self._write_record(
+                project_root,
+                execution_id="GOOD",
+                session_transcript="pending",
+                created_at="2026-02-01T00:00:00+00:00",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root,
+                archive_root=archive_root,
+                since_created_at="2026-01-01T00:00:00+00:00",
+            )
+
+            self.assertEqual(
+                [finding.execution_id for finding in report.pending], ["GOOD"]
             )
 
     def test_report_created_at_filter_compares_offsets_chronologically(self) -> None:

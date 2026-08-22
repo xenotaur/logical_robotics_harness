@@ -6,10 +6,11 @@ later fork stitching). Stage 2 (WI-SESSION-ARCHIVE-SYNC-RECONCILER) adds
 the archive reconciler: mirroring raw transcripts into a durable local
 archive, harvesting /export metadata.json for the host<->child<->PR
 mapping on pointers that already dangle, and the discover/link lookups
-that read the resulting archive and index. It does not implement
-lrh sessions report or index *enrichment* (era-general keys, multi-export
-dedup) -- those are Stage 3 -- nor the weekly/hook-triggered sync -- Stage
-4. It does not change the session_transcript scalar/sequence grammar.
+that read the resulting archive and index. Stage 3 adds the metadata-only
+lrh sessions report coverage check; it still does not implement index
+*enrichment* (era-general keys, multi-export dedup) or the weekly/
+hook-triggered sync -- those remain later work. It does not change the
+session_transcript scalar/sequence grammar.
 """
 
 from __future__ import annotations
@@ -361,7 +362,7 @@ def _record_is_in_report_window(
         return True
     record_created = _parse_iso_datetime(record.created_at)
     if record_created is None:
-        return True
+        return False
     return record_created >= since_created_at
 
 
@@ -426,7 +427,7 @@ def _archived_codex_thread_ids(archive_root: pathlib.Path) -> set[str]:
             continue
         if not isinstance(data, dict):
             continue
-        if data.get("status") != "succeeded":
+        if data.get("status") not in {"succeeded", "imported"}:
             continue
         thread_id = data.get("thread_id")
         if isinstance(thread_id, str) and thread_id:

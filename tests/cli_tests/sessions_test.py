@@ -3,6 +3,7 @@ import contextlib
 import io
 import json
 import pathlib
+import plistlib
 import subprocess
 import sys
 import tempfile
@@ -111,6 +112,88 @@ class SessionsCliTest(unittest.TestCase):
                 completed.stdout,
             )
             self.assertFalse(archive_root.exists())
+
+    def test_closeout_sync_wraps_sync_with_human_visible_outcome(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_projects_root = pathlib.Path(tmp) / "claude-projects"
+            project_dir = claude_projects_root / "-fake-proj"
+            project_dir.mkdir(parents=True)
+            (project_dir / "child-1.jsonl").write_text('{"sessionId": "child-1"}\n')
+            archive_root = pathlib.Path(tmp) / "archive"
+
+            completed = self._run(
+                "closeout-sync",
+                "--claude-projects-root",
+                str(claude_projects_root),
+                "--archive-root",
+                str(archive_root),
+                "--dry-run",
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn("closeout session archive sync", completed.stdout)
+            self.assertIn("dry-run:", completed.stdout)
+            self.assertIn("closeout-sync complete", completed.stdout)
+            self.assertFalse(archive_root.exists())
+
+    def test_schedule_renders_weekly_launchd_plist(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "proj"
+            project_root.mkdir()
+            completed = self._run(
+                "schedule",
+                "--project-root",
+                str(project_root),
+                "--archive-root",
+                "/tmp/lrh-archive",
+                "--lrh-command",
+                "/usr/local/bin/lrh",
+                "--label",
+                "org.example.lrh.sessions",
+                "--weekday",
+                "2",
+                "--hour",
+                "3",
+                "--minute",
+                "4",
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            plist = plistlib.loads(completed.stdout.encode("utf-8"))
+            self.assertEqual(plist["Label"], "org.example.lrh.sessions")
+            self.assertEqual(
+                plist["ProgramArguments"][:2],
+                ["/bin/sh", "-lc"],
+            )
+            command = plist["ProgramArguments"][2]
+            self.assertIn("/usr/local/bin/lrh sessions sync", command)
+            self.assertIn("--project-root", command)
+            self.assertIn(str(project_root.resolve()), command)
+            self.assertIn("--archive-root /tmp/lrh-archive", command)
+            self.assertEqual(
+                plist["StartCalendarInterval"],
+                {"Weekday": 2, "Hour": 3, "Minute": 4},
+            )
+
+    def test_schedule_writes_plist_to_output_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "proj"
+            project_root.mkdir()
+            output = pathlib.Path(tmp) / "LaunchAgents" / "org.example.plist"
+
+            completed = self._run(
+                "schedule",
+                "--project-root",
+                str(project_root),
+                "--output",
+                str(output),
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn(f"wrote: {output}", completed.stdout)
+            plist = plistlib.loads(output.read_bytes())
+            self.assertIn("Label", plist)
+            self.assertEqual(plist["WorkingDirectory"], str(project_root.resolve()))
 
     def test_sync_harvests_export_zip(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

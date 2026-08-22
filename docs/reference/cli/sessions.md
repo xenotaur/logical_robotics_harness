@@ -28,6 +28,75 @@ Archive root resolution is:
 
 `--dry-run` reports planned mirror/harvest actions without writing files.
 
+## `lrh sessions closeout-sync`
+
+```bash
+lrh sessions closeout-sync \
+  [--claude-projects-root ROOT] \
+  [--exports-dir DIR] \
+  [--archive-root ROOT] \
+  [--project-root .] \
+  [--dry-run]
+```
+
+Runs the same archive reconciler as `sync`, but wraps the output with a
+closeout-oriented heading and completion line. `/lrh-closeout` uses this command
+path so the archive refresh is visible in the closeout transcript and failure
+handling remains separate from execution-record edits.
+
+`--dry-run` is safe for checking what closeout would attempt without writing to
+the private archive or `project/sessions/index.jsonl`.
+
+## `lrh sessions schedule`
+
+```bash
+lrh sessions schedule \
+  [--project-root .] \
+  [--claude-projects-root ROOT] \
+  [--exports-dir DIR] \
+  [--archive-root ROOT] \
+  [--lrh-command lrh] \
+  [--label LABEL] \
+  [--weekday 0-7] \
+  [--hour 0-23] \
+  [--minute 0-59] \
+  [--output PATH]
+```
+
+Renders or writes an inspectable weekly launchd plist that runs
+`lrh sessions sync` for the chosen project. It does not install, load, unload,
+or hide a background job; the human remains in control of setup and removal.
+
+Use an absolute `--lrh-command` when launchd will not inherit a shell `PATH`, for
+example:
+
+```bash
+LRH_SESSIONS_LABEL="org.lrh.sessions.$(basename "$PWD")"
+lrh sessions schedule \
+  --project-root "$PWD" \
+  --lrh-command "$(command -v lrh)" \
+  --label "$LRH_SESSIONS_LABEL" \
+  --output "$HOME/Library/LaunchAgents/$LRH_SESSIONS_LABEL.plist"
+```
+
+Inspect before loading:
+
+```bash
+plutil -lint "$HOME/Library/LaunchAgents/$LRH_SESSIONS_LABEL.plist"
+plutil -p "$HOME/Library/LaunchAgents/$LRH_SESSIONS_LABEL.plist"
+```
+
+Load, inspect, and disable with launchd:
+
+```bash
+launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/$LRH_SESSIONS_LABEL.plist"
+launchctl print "gui/$(id -u)/$LRH_SESSIONS_LABEL"
+launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/$LRH_SESSIONS_LABEL.plist"
+```
+
+After scheduled or closeout-triggered sync, use `lrh sessions report` to inspect
+remaining metadata-only coverage gaps.
+
 ## `lrh sessions discover`
 
 ```bash

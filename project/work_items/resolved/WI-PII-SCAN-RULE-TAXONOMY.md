@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #604 (commit 1703c872)."
 blocked_reason: null
 blocked: false
 id: WI-PII-SCAN-RULE-TAXONOMY
 title: Extract sensitivity.py rule taxonomy into a shared module
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

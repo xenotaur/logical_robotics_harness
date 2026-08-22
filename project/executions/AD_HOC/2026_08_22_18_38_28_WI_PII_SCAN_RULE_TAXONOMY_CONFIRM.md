@@ -2,14 +2,14 @@
 execution_id: 2026_08_22_18_38_28_WI_PII_SCAN_RULE_TAXONOMY_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_PII_SCAN_RULE_TAXONOMY_CONFIRM)[2026-08-22T17:52:16+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_22_16_55_43_WI_PII_SCAN_RULE_TAXONOMY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/604
-commit: pending
+commit: 1703c872
 created_at: 2026-08-22T18:38:28+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/604
-session_transcript: "claude-app:cf93c405-ed0f-409d-946f-7451a1cb2f7c"
+session_transcript: claude-app:cf93c405-ed0f-409d-946f-7451a1cb2f7c
 ---
 
 # Summary

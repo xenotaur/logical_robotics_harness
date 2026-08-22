@@ -113,10 +113,10 @@ Related references (not resolvable via `related_design` frontmatter field):
 
 #### Demand search
 
-- **Work items:** `WI-DELIBERATE-MODEL-INVOCATION` (proposed,
-  `WS-EXECUTION-FRAMEWORK`) enables Phase 2's direct sub-skill invocation
-  but does not block Phase 1 — the interim inline pattern covers Phase 1
-  without it.
+- **Work items:** `WI-DELIBERATE-MODEL-INVOCATION` is now resolved and
+  tracked by `WS-INVOCATION-AND-GATE-RESET`; it enabled later direct
+  sub-skill invocation work but did not block this Phase 1 implementation,
+  where the interim inline pattern covered the need.
 - **Proposals:** `PROP-LRH-LAND-EXECUTE` (PR #427, merged 2026-07-28)
   governs this work item's scope.
 - **Recommendation:** No action; the demand is satisfied by this WI.

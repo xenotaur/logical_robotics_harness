@@ -26,14 +26,11 @@ never fires another skill as an implicit side effect of finishing. Per
 `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`'s dated
 2026-08-08 Consequences entry), this invariant is now carried by
 per-skill guidance and gates rather than the `disable-model-invocation`
-flag for most of the chain: `/lrh-implement`, `/lrh-review-response`, and
-`/lrh-closeout` no longer carry the flag — each is enforced instead by its
-own confirm-before-write gate plus a tiered `when_to_use` that narrows
-auto-trigger surface. `/lrh-confirm-fixes` is the one lifecycle-chain link
-that still carries the flag: its empty-thread fast path skips its own
-confirm gate on the way to REVIEW-LANDED review-signal state handling, so
-removing the flag there remains unsafe until that gap is fixed (tracked
-separately). The planning skills meant to be orchestrated
+flag: `/lrh-implement`, `/lrh-review-response`, `/lrh-confirm-fixes`,
+`/lrh-land`, `/lrh-execute`, and `/lrh-closeout` no longer carry the flag.
+Each is enforced instead by its own confirm-before-write or
+chain-authorization gate plus tiered `when_to_use` that narrows the
+auto-trigger surface. The planning skills meant to be orchestrated
 (`/lrh-work-item`, `/lrh-proposal`, `/lrh-workstream`) also do not carry
 it, by the earlier, separately-adopted precedent this WI generalized.
 (Do not assert a fixed count for either set — both drift.)
@@ -61,10 +58,12 @@ chaining. **Resolved:** chain runners (`/lrh-land`, `/lrh-execute`) *inline*
 their sub-workflows rather than invoking them via the `Skill` tool — this is
 now a permanent design preference (self-contained, independently testable
 chain runners), not a workaround for the flag. `/lrh-land` and `/lrh-execute`
-themselves still carry `disable-model-invocation`, unconditionally, pending a
-`DEC-CHAIN-INIT-SKIP-CONSENT` verification gap unrelated to the inlining
-question — see `DEC-DELIBERATE-CHAIN-INITIATION.md`'s dated 2026-08-08
-Consequences entry for the full reasoning.
+themselves no longer rely on `disable-model-invocation`; they carry explicit
+`when_to_use` guidance plus chain-authorization gates, while Codex installs
+carry an explicit `agents/openai.yaml` policy so the Codex-side invocation
+surface is deliberate rather than an accidental side effect of Claude
+frontmatter. See `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` for the
+Stage 2 completion that supersedes the earlier retained-flag posture.
 
 ## Canonical text
 

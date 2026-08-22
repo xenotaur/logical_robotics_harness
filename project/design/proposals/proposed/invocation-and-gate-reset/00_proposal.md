@@ -3,27 +3,62 @@ id: PROP-INVOCATION-AND-GATE-RESET
 type: design_proposal
 title: Invocation and Gate Reset — Retrigger Removal, Flag Removal, and a Unified Gate Policy
 status: proposed
-implementation_status: not_started
+implementation_status: partial
 created_on: 2026-08-09
-updated_on: 2026-08-10
+updated_on: 2026-08-20
 related_design:
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
+  - project/memory/decisions/DEC-SELF-REVIEW-RECURSION-GUARD.md
+  - project/memory/decisions/DEC-GATE-POLICY-CASCADE.md
+  - project/design/proposals/adopted/lrh-gate-policy/00_proposal.md
   - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
-  - project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION.md
+  - project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION.md
   - project/work_items/proposed/WI-LRH-CHAIN-DEFAULTS-INCREMENT-2.md
-  - project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md
+  - project/work_items/resolved/WI-RETRIGGER-REMOVAL-STAGE1.md
+  - project/work_items/resolved/WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL.md
+  - project/work_items/resolved/WI-FRONT-OF-RUN-GATE-COLLAPSE.md
+  - project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE.md
+  - project/work_items/proposed/WI-GATE-POLICY-CASCADE-STAGE3.md
+  - project/work_items/proposed/WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5.md
+  - project/work_items/proposed/WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME.md
   - src/lrh/skills/_shared/chain-defaults.md
   - src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md
-implemented_by: []
-evidence: []
+implemented_by:
+  - WI-RETRIGGER-REMOVAL-STAGE1
+  - WI-DELIBERATE-MODEL-INVOCATION
+  - WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL
+  - WI-FRONT-OF-RUN-GATE-COLLAPSE
+  - WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE
+  - WI-GATE-POLICY-CASCADE-STAGE3
+evidence:
+  - EV-0011
 supersedes: []
 superseded_by: null
 parent: null
 ---
 
 # Invocation and Gate Reset — Retrigger Removal, Flag Removal, and a Unified Gate Policy
+
+## Implementation Status
+
+As of 2026-08-20, this proposal is partially implemented. Stage 1 landed via
+`WI-RETRIGGER-REMOVAL-STAGE1`, Stage 2's scoped flag-removal work landed via
+`WI-DELIBERATE-MODEL-INVOCATION`, the retained bounded CI-wait portion of
+`PROP-REVIEW-WAIT-POSTURE` landed via
+`WI-REVIEW-WAIT-POSTURE-BOUNDED-POLL`, Decision 11's front-of-run collapse
+landed via `WI-FRONT-OF-RUN-GATE-COLLAPSE`, and Stage 2's retained-flag
+completion landed via `WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE`. Stage
+3's gate policy audit/cascade is implemented by
+`WI-GATE-POLICY-CASCADE-STAGE3` and remains pending merge and closeout until
+that work item is resolved.
+
+The remaining executable leaves are now tracked explicitly:
+`WI-GATE-POLICY-CASCADE-STAGE3`,
+`WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5`, and
+`WI-INVOCATION-GATE-RESET-DOGFOOD-RESUME`. Stage 3.5 activation remains
+separate from the Stage 3 policy/cascade change.
 
 ## Summary
 
@@ -408,6 +443,14 @@ This is the rare case where the safety and ergonomic objectives do not trade
 off, and it should be taken.
 
 ### Decision 5: The recursion guard is platform-enforced, not advisory
+
+**Amended by `DEC-SELF-REVIEW-RECURSION-GUARD` (2026-08-19).** `disallowed-tools`
+was empirically tested rather than assumed either way, verified to remove the
+`Skill` tool from both the invoking session and the dispatched subagent, and
+adopted as the primary guard alongside the advisory instruction as a secondary
+layer — closing the gap this decision left open. See that record for the test
+methodology, its residual uncertainty, and the "Options considered" amendment
+below. The rest of this section is retained for the original reasoning.
 
 **Options considered:**
 
@@ -859,10 +902,10 @@ Each of Stages 1 and 2 must therefore include:
   already found, not merely describe the rule: `WS-SKILLS-EXECUTE.md:77`, `:114`,
   `:133` and `WI-SKILLS-LRH-EXECUTE.md:70`, all asserting that
   `WI-DELIBERATE-MODEL-INVOCATION` is "owned by `WS-EXECUTION-FRAMEWORK`" when
-  that workstream's `work_items:` list never contained it. Note that
-  `WS-INVOCATION-AND-GATE-RESET` has *not* taken ownership either — it holds the
-  item as intended-but-unlisted while its Stage 1 predecessor does not exist, so
-  the correction is to state the item is currently unowned, not to reassign it.
+  that workstream's `work_items:` list never contained it. That statement was
+  later superseded by the current source of truth: the work item is resolved
+  under `WS-INVOCATION-AND-GATE-RESET`, and that workstream lists it in
+  `work_items:`. The correction is to point at that resolved ownership.
   Stage 3's DEC record must also carry the taxonomy extension in Decision 6, and
   a sweep should look for the same statement shape elsewhere rather than
   assuming these four are exhaustive.
@@ -966,10 +1009,10 @@ inherited precedent of proving a mechanism narrow before widening it.
   cascade template adopted in Decision 6.
 - `project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md` —
   Decision 3's categorical exclusion, narrowed in form by Decision 7.
-- `project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION.md` — Stage 2
+- `project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION.md` — Stage 2
   completes its remaining scope.
 - `src/lrh/skills/_shared/chain-defaults.md` — the mechanism Decisions 8 and 9
   activate and repair; its `skip_if_opted_in` scope is why Decision 11
   disqualifies activation as a fix for the front-of-run pair.
-- `project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` — implements
+- `project/work_items/resolved/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` — implements
   Decision 11 under Stage 3.

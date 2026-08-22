@@ -29,6 +29,7 @@ Add content here when the title can naturally start with “How to ...” and th
 - [Audit project docs request prompts](audit-project-docs.md) — generate a docs-audit prompt for standard and nested project layouts.
 - [Organize project docs request prompts](organize-project-docs.md) — generate a scoped docs-organization prompt from audit context.
 - [Manage the work-item lifecycle](manage-work-item-lifecycle.md) — audit, ready, prompt, execute, and evidence-close work items conservatively.
+- [Scan, review, and purge secrets](scan-and-purge-secrets.md) — find leaked secrets, triage findings, and rewrite history to remove them with `lrh secrets`.
 - [Register a project with an LRH meta workspace](register-a-project-with-meta.md) — initialize meta state and register project records.
 - [Inspect workspace state](inspect-workspace-state.md) — inspect active meta workspace paths and registered projects.
 - [Use the developer sandbox](use-the-developer-sandbox.md) — run LRH commands against isolated developer state.

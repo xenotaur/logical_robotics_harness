@@ -5,9 +5,10 @@ description: "Dispatch a fresh, cold-context subagent to independently review a 
   \ (default, no argument) reviews the local branch diff against main, for use once\
   \ before a PR's first push; --pr <url> reviews an existing PR as `/lrh-confirm-fixes`\
   \ Step 8's substitute review signal when another manual hosted review-bot retrigger\
-  \ would otherwise have been requested. Ends at a report of findings (and, in diff-mode,\
-  \ applies any fixes directly) plus an execution record \u2014 it does not push,\
-  \ open a PR, resolve GitHub threads, or merge.\n"
+  \ would otherwise have been requested. Ends at a report of findings plus an execution\
+  \ record; diff-mode is report-only by default and applies fixes only with explicit\
+  \ --apply. It does not push, open a PR, resolve GitHub threads, or merge.\n"
+disallowed-tools: Skill
 ---
 
 # lrh-self-review Skill
@@ -52,13 +53,16 @@ found.
 
 ```
 /lrh-self-review
+/lrh-self-review --apply
 /lrh-self-review --pr https://github.com/xenotaur/logical_robotics_harness/pull/419
 ```
 
 Omit `--pr` for diff-mode (default): reviews `git diff main` (working tree
 against `main`'s tip — see Step 1 for why not the three-dot `main...HEAD`
-form) on the current branch. Pass `--pr <url>` for PR-mode: reviews that
-PR's current `HEAD` diff and comment history.
+form) on the current branch. Diff-mode reports findings by default; pass
+`--apply` only when the caller explicitly wants this skill to apply verified
+fixes to the working tree. Pass `--pr <url>` for PR-mode: reviews that PR's
+current `HEAD` diff and comment history. `--apply` is invalid with `--pr`.
 
 ---
 
@@ -79,11 +83,16 @@ Work through these steps in order.
 
 ### Step 1 — Determine mode and target
 
+If both `--apply` and `--pr` were passed, stop and report — PR-mode is
+report-only by design and routes findings back to `/lrh-confirm-fixes`.
+
 **Diff-mode (no `--pr`):**
 
 ```bash
 git rev-parse HEAD
+git add -N .
 git diff main
+git reset
 ```
 
 **Not `git diff main...HEAD`.** At `/lrh-implement` Step 7.5's own call
@@ -96,6 +105,33 @@ without ever reviewing what Step 6 actually did. `git diff main` compares
 `main`'s tip directly against the current working tree — staged and
 unstaged changes both included — which is what Step 7.5 actually needs to
 review.
+
+**`git add -N .` (intent-to-add) before `git diff main` — not optional,
+and the trailing `git reset` is equally not optional.** `git diff`, in
+any dot form, only ever reports changes to files Git is already tracking;
+a brand-new file that has never been `git add`-ed is invisible to it and
+shows up only in `git status`'s "Untracked files" section. If Step 6
+created only new files with no modification to any existing tracked file,
+plain `git diff main` is empty even though real new content exists,
+producing the same false "nothing to review" exit this step exists to
+avoid. `git add -N .` (`--intent-to-add`) marks untracked files as tracked
+for diff purposes only — it does not stage their content — but it marks
+*every* untracked file under the current directory this way, not just the
+ones this diff is reviewing, and those index entries persist until
+something clears them. If the working tree happens to contain other
+unrelated untracked files (scratch files, local config, anything not
+`.gitignore`d), they would also become intent-to-add, and a later `git
+commit -a` — unlike an ordinary untracked file — *would* include them,
+since they are now tracked as of this step. The immediate `git reset`
+(no path) after the diff clears every intent-to-add entry this step
+created, returning the index to exactly its pre-diff state — real
+untracked files go back to being untracked, and nothing this report-only
+step does can leak into what a later `git add <files>` or `git commit -a`
+at Step 8 actually includes. `git reset` only touches the index, never the
+working tree — file content on disk is unaffected either way, so at worst
+(if something was already staged before this step ran, which should not
+happen at Step 7.5's call site since Step 8 is what stages) it becomes
+unstaged again, not lost.
 
 If the diff is empty, stop and report — nothing to review.
 
@@ -135,6 +171,20 @@ the active mode. Give it only:
   files rather than trust prose — including this skill's own prompt
 - Explicit instruction not to assume anything from outside what it finds
   itself (no access to this session's prior context)
+- Explicit instruction not to invoke `/lrh-self-review`, run other LRH
+  skills, or spawn another review agent
+
+This skill's own frontmatter carries `disallowed-tools: Skill` — a
+platform-enforced control verified (see `DEC-SELF-REVIEW-RECURSION-GUARD`) to
+remove the `Skill` tool from both the invoking session and the dispatched
+subagent while this skill is active. It is the primary recursion guard;
+the instruction above not to invoke `/lrh-self-review` or spawn another
+review agent is defense-in-depth, not a substitute for it.
+Codex installations separately carry `agents/openai.yaml` with
+`policy.allow_implicit_invocation: false` for this skill, so removing Claude's
+`disable-model-invocation` frontmatter does not make Codex invoke it
+implicitly either. Step 4's direct re-verification remains load-bearing
+regardless, since the guard bounds recursion, not review quality.
 
 ### Step 4 — Independently re-verify the top finding
 
@@ -149,10 +199,11 @@ reporting it as accepted.
 
 ### Step 5 — Apply fixes or report findings
 
-**Diff-mode:** if the subagent (and your own re-verification) found real
-issues, fix them directly in the working tree. Do not push — that remains
-`/lrh-implement` Step 8's job, which runs next regardless of what this
-step found (Decision 4).
+**Diff-mode:** report findings by default. If the subagent (and your own
+re-verification) found real issues, do not edit the working tree unless
+`--apply` was passed. With `--apply`, fix the verified in-scope issues directly
+in the working tree. Do not push — that remains `/lrh-implement` Step 8's job,
+which runs next regardless of what this step found (Decision 4).
 
 **PR-mode:** do not push fixes as part of this skill's own workflow —
 report findings back to the caller (`/lrh-confirm-fixes` Step 8
@@ -168,10 +219,11 @@ differs by mode: PR-mode always has a primary record to link to; diff-mode
 runs before `/lrh-implement` Step 9 creates one, so `rerun_of` starts
 empty by construction, not as an oversight.
 
-Capture in the record: mode, findings (count and one-line description
-each), whether fixes were applied (diff-mode) or the finding was routed to
-`/lrh-confirm-fixes` (PR-mode), and whether the PR-mode pass was a substitute
-review signal or a follow-up signal for a non-thread finding.
+Capture in the record: mode, findings (count and one-line description each),
+whether diff-mode was report-only or `--apply` was used, whether fixes were
+applied, whether a finding was routed to `/lrh-confirm-fixes` (PR-mode), and
+whether the PR-mode pass was a substitute review signal or a follow-up signal
+for a non-thread finding.
 
 ```bash
 lrh prompt label --slug <slug>-selfreview
@@ -208,7 +260,8 @@ Before reporting completion, verify:
 - [ ] The subagent's top finding was independently re-verified by the
       invoking session directly, not merely accepted or re-delegated to
       another subagent
-- [ ] Diff-mode: fixes applied to the working tree, not pushed
+- [ ] Diff-mode: report-only by default; fixes applied only when `--apply`
+      was explicitly passed, and never pushed by this skill
 - [ ] Diff-mode: `/lrh-implement` Step 8 still runs afterward regardless
       of findings — no skip path exists
 - [ ] PR-mode: no fix was pushed as part of this skill's own workflow
@@ -223,8 +276,9 @@ Before reporting completion, verify:
 - Does not retrigger a GitHub bot review, or build a second, parallel
   review-cap mechanism — `/lrh-confirm-fixes` Step 8 owns the provisional
   no-progress review cap and calls PR-mode as a substitute review signal.
-- Does not push, open a PR, or merge — diff-mode applies fixes to the
-  working tree only; `/lrh-implement` Step 8 does the push.
+- Does not push, open a PR, or merge — diff-mode reports by default; with
+  explicit `--apply`, it applies verified fixes to the working tree only.
+  `/lrh-implement` Step 8 does the push.
 - Does not resolve GitHub review threads — that remains
   `/lrh-confirm-fixes`'s job; PR-mode only reports findings back to it.
 - Does not run on every push — exactly the two trigger points named

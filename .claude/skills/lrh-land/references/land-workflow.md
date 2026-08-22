@@ -16,7 +16,7 @@ prose each run. Source: `PROP-LRH-LAND-EXECUTE` Decision 3.
 | **Primary record selection** | `grep pr: <url>` across `project/executions/`; classify each match as primary/side/ambiguous via the provenance check (§ Primary vs. side-record provenance check below) — **not** a bare filename-suffix exclusion, which misclassifies a primary record whose own topic slug ends in a reserved word |
 | **Found-or-backfill** | Found → body is immutable; CHAIN-NOTE goes in a new `_CLOSEOUT_NOTE` record with `rerun_of:`. Not found → backfill record authored directly; CHAIN-NOTE in that record |
 | **CHAIN-NOTE placement** | Always in the record being *authored* this run; never appended to an already-merged record body |
-| **Main-worktree-lock** | When all worktrees have `main` checked out: `git fetch → checkout -b tmp-<slug> origin/main → apply changes → push tmp-<slug>:main → delete tmp-<slug>` |
+| **Main-worktree-lock** | When all worktrees have `main` checked out: `git fetch → checkout -b tmp-<slug> origin/main → apply changes → push origin tmp-<slug>:main → checkout <pr-branch> (or --detach) → delete tmp-<slug>` — the explicit `origin` is required (a bare `tmp-<slug>:main` argument is parsed as a repository, not a refspec) and the checkout-away step is required because Git refuses to delete the branch `HEAD` currently points to |
 | **Stale-branch safety** | Before reusing a planning-PR branch: `git diff origin/main <branch> --stat` must confirm zero net lines |
 
 **Multi-round review-response naming.** A single `/lrh-land` run can invoke
@@ -419,11 +419,9 @@ Per that work item's Design Decision, chain-runner invocation mechanics stay
 inlined by design (self-contained, independently testable chain runners) —
 removing flags from the lifecycle skills does not trigger an upgrade to
 direct `Skill` tool calls. `PROP-LRH-LAND-EXECUTE` Decision 7's original
-upgrade plan is superseded by that resolution. It would also be unsound as
-written regardless: Step 5's `/lrh-confirm-fixes` retains
-`disable-model-invocation` (a gate gap on its empty-thread fast path, not yet
-fixed), so a direct `Skill` call there fails outright — only Steps 4 and 7
-would ever have been eligible.
+upgrade plan is superseded by that resolution. The inlining rule is a settled
+chain-runner design preference, not a workaround for any one sub-skill's
+frontmatter.
 
 **Step 5's CI-wait mechanism is inherited via this inlining, not separately
 specified here.** `/lrh-land` has no CI-check logic of its own — Step 5
@@ -554,7 +552,7 @@ and re-stamp `confirmed_commit`/`confirmed_at`.
    Any hit forces the full `always_confirm` path for this run, regardless of
    stored `chain_init_confirmation` or valid consent.
 
-## Decision 5 — staleness fallback
+## Decision 5 — gate-definition staleness fallback
 
 **Only applies once `confirmed_commit` is non-null** — the
 propose-and-confirm flow above already routes a null/absent
@@ -570,20 +568,35 @@ if [ "$CONFIRMED_COMMIT" = "null" ] || [ -z "$CONFIRMED_COMMIT" ]; then
   echo "No prior confirmation on record — staleness check does not apply; use the first-encounter path above." >&2
 else
   # Before trusting any stored value (always_confirm pre-fill or
-  # skip_if_opted_in skip), check whether the gate's own skill logic has
-  # changed materially since the profile was last confirmed:
+  # skip_if_opted_in skip), check whether any gate-definition surface has
+  # changed since the profile was last confirmed:
   git diff --quiet "$CONFIRMED_COMMIT" HEAD -- \
+    src/lrh/skills/_shared/chain-defaults.md \
     src/lrh/skills/lrh-land/SKILL.md \
     src/lrh/skills/lrh-land/references/land-workflow.md \
     src/lrh/skills/lrh-execute/SKILL.md \
-    src/lrh/skills/_shared/chain-defaults.md
+    src/lrh/skills/lrh-implement/SKILL.md \
+    src/lrh/skills/lrh-review-response/SKILL.md \
+    src/lrh/skills/lrh-confirm-fixes/SKILL.md \
+    src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md \
+    src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md \
+    src/lrh/skills/lrh-self-review/SKILL.md \
+    src/lrh/skills/lrh-closeout/SKILL.md \
+    src/lrh/skills/lrh-closeout/references/closeout-workflow.md
 fi
 ```
 
-A non-zero exit (files changed) means the stored confirmation predates a
-skill-logic change it was never evaluated against — treat this run as if
-`chain_init_confirmation` were `always_confirm` regardless of the stored
-value, and note this in the gate's presentation ("defaults pre-filled, but
-re-confirming since the skill logic changed since you last confirmed").
-Do not silently rewrite the stored value based on this fallback alone — it
-only affects this run's liveness, not the persisted setting.
+Exit status `1` means a gate-definition surface changed since the stored
+confirmation. Per `DEC-GATE-POLICY-CASCADE`, inspect the diff for changes to
+gate-definition statements: when a gate is reached, what payload is presented,
+what reply or stored consent satisfies it, what special condition forces a live
+gate, what downstream step may rely on it, or what action is forbidden without
+it. If any such statement changed, treat this run as if
+`chain_init_confirmation` were `always_confirm` regardless of the stored value,
+and note this in the gate's presentation ("defaults pre-filled, but
+re-confirming since gate policy changed since you last confirmed"). If the diff
+is only non-semantic churn, document that inspection and continue. Exit status
+greater than `1` means the diff command itself failed; surface the error and do
+not classify it as a semantic gate-definition change. Do not silently rewrite
+the stored value based on this fallback alone — it only affects this run's
+liveness, not the persisted setting.

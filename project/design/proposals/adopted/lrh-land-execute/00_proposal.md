@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Chain-Running Skills — /lrh-land, /lrh-execute, /lrh-next, /lrh-run-tree
 status: adopted
 created_on: 2026-07-28
-updated_on: 2026-08-07
+updated_on: 2026-08-20
 implementation_status: partial
 implemented_by: [WI-SKILLS-LRH-LAND, WI-SKILLS-LRH-EXECUTE]
 supersedes: []
@@ -16,6 +16,7 @@ related_design:
   - project/design/proposals/adopted/workstreams-and-recursive-planning-tree/00_proposal.md
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
+  - project/memory/decisions/DEC-GATE-POLICY-CASCADE.md
   - src/lrh/skills/_shared/lifecycle-chain.md
 ---
 
@@ -74,9 +75,12 @@ confirm gates and the merge gate, and keep the assist/agentic boundary intact
 assist, not agentic). The decision explicitly names `/lrh-execute` and
 `/lrh-land` as downstream reference implementations.
 
-The unresolved prerequisite — which lifecycle skills may be invoked
-programmatically vs. which must have their workflows inlined — is captured in
-`WI-DELIBERATE-MODEL-INVOCATION` (proposed, `WS-EXECUTION-FRAMEWORK`).
+The once-unresolved prerequisite — which lifecycle skills may be invoked
+programmatically vs. which must have their workflows inlined — was resolved by
+`WI-DELIBERATE-MODEL-INVOCATION` and its Stage 2 completion follow-up under
+`WS-INVOCATION-AND-GATE-RESET`. Direct skill invocation remains governed by
+per-skill `when_to_use`, explicit gates, and target-specific invocation policy;
+the `/lrh-land` and `/lrh-execute` workflows keep their inlined-link structure.
 
 ## Prior Art Check
 
@@ -99,8 +103,8 @@ programmatically vs. which must have their workflows inlined — is captured in
 
 ### Demand search
 
-- **Work items:** `WI-DELIBERATE-MODEL-INVOCATION` (proposed) captures the
-  prerequisite `disable-model-invocation` migration this proposal depends on.
+- **Work items:** `WI-DELIBERATE-MODEL-INVOCATION` is resolved and captured the
+  prerequisite `disable-model-invocation` migration this proposal depended on.
   Cross-link, do not subsume.
 - **Proposals:** None found requesting these skills directly.
 - **Backlog:** No matching entries.
@@ -362,7 +366,7 @@ dependency order:
 | Phase | Work item | Description | Depends on |
 |---|---|---|---|
 | 1 | `WI-SKILLS-LRH-LAND` | `/lrh-land` skill | — |
-| Pre-2 | `WI-DELIBERATE-MODEL-INVOCATION` | Enable sub-skill orchestration | Exists (proposed) |
+| Pre-2 | `WI-DELIBERATE-MODEL-INVOCATION` | Enable sub-skill orchestration | Resolved |
 | 2 | `WI-SKILLS-LRH-EXECUTE` | `/lrh-execute` skill | WI-SKILLS-LRH-LAND |
 | 3 | `WI-SKILLS-LRH-NEXT` | `/lrh-next` navigator skill | WI-SKILLS-LRH-EXECUTE |
 | 4 | `WI-SKILLS-LRH-RUN-TREE` | `/lrh-run-tree` orchestrator skill | WI-SKILLS-LRH-NEXT |
@@ -380,7 +384,7 @@ in practice; their WI definitions are thin until `/lrh-execute` is stable.
 - Governing decision:
   `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`
 - Prerequisite work item:
-  `project/work_items/proposed/WI-DELIBERATE-MODEL-INVOCATION.md`
+  `project/work_items/resolved/WI-DELIBERATE-MODEL-INVOCATION.md`
 - Long-term framework:
   `project/design/proposals/proposed/workstream-execution-framework/00_proposal.md`
 - Evidence: LCATS full-lifecycle case study (2026-07-26 to 2026-07-28,

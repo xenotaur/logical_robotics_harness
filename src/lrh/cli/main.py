@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from lrh import (
+    memory_workflow,
     prompt_workflow,
     prompt_workflow_match,
     prompt_workflow_search,
@@ -23,6 +24,7 @@ from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.conversations import (
     codex_app_server_export,
+    codex_archive,
     codex_file_export,
     export_inspector,
     pdf_import,
@@ -30,6 +32,9 @@ from lrh.conversations import (
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
+from lrh.secrets import purge as secrets_purge
+from lrh.secrets import review as secrets_review
+from lrh.secrets import scan as secrets_scan
 from lrh.work_items import audit as work_items_audit
 from lrh.work_items import organize as work_items_organize
 from lrh.work_items import readiness as work_items_readiness
@@ -119,6 +124,16 @@ def main() -> None:
         help="Export a Codex thread through app-server thread/read.",
     )
     conversation_subparsers.add_parser(
+        "archive-codex-thread",
+        add_help=False,
+        help="Export a Codex thread into the durable private archive.",
+    )
+    conversation_subparsers.add_parser(
+        "import-codex-exports",
+        add_help=False,
+        help="Import existing LRH Codex export directories into the archive.",
+    )
+    conversation_subparsers.add_parser(
         "inspect-export",
         add_help=False,
         help="Inspect a Codex conversation export Markdown artifact.",
@@ -157,6 +172,12 @@ def main() -> None:
         "search",
         add_help=False,
         help="Search LRH project records.",
+    )
+
+    subparsers.add_parser(
+        "memory",
+        add_help=False,
+        help="Memory corpus commands (write/list/validate/repair).",
     )
 
     skills_parser = subparsers.add_parser(
@@ -371,6 +392,132 @@ def main() -> None:
         choices=("md", "json"),
         default="md",
         help="output format (default: md)",
+    )
+
+    secrets_parser = subparsers.add_parser(
+        "secrets",
+        help="Secrets-hygiene scan/review/purge commands.",
+    )
+    secrets_subparsers = secrets_parser.add_subparsers(dest="secrets_command")
+    secrets_scan_parser = secrets_subparsers.add_parser(
+        "scan",
+        help="Read-only full-history secrets scan via gitleaks.",
+        epilog=(
+            "Provider coverage is uneven, not uniform: OpenAI/Anthropic/Gemini\n"
+            "keys have structural prefixes gitleaks' default rules catch\n"
+            "reliably; Azure-family keys have no distinguishing prefix and are\n"
+            "only caught via contextual rules (default or repo-supplied\n"
+            ".gitleaks.toml), invisible entirely on a non-suggestive variable\n"
+            "name. .ipynb files store source as JSON-escaped strings, which can\n"
+            "defeat delimiter-based detection regexes regardless of provider."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    secrets_scan_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root to scan (default: current directory)",
+    )
+    secrets_scan_parser.add_argument(
+        "--out-dir",
+        required=True,
+        help=(
+            "directory to write findings.json and replacements.txt into. "
+            "These files contain real secret values -- choose a gitignored "
+            "location, not a directory a later `git add .` would pick up."
+        ),
+    )
+    secrets_scan_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
+    )
+
+    secrets_review_parser = secrets_subparsers.add_parser(
+        "review",
+        help="Decisions-file-gated triage of a scan's findings.",
+        epilog=(
+            "Decisions file (YAML), one entry per secret value:\n"
+            "  <secret-value>:\n"
+            "    decision: keep     # or: ignore\n"
+            '    reason: "why"\n'
+            "--apply writes out-dir/replacements.reviewed.txt, distinct from\n"
+            "scan's draft replacements.txt -- this is the file lrh secrets\n"
+            "purge accepts via its --replacements flag, never the draft."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    secrets_review_parser.add_argument(
+        "--out-dir",
+        required=True,
+        help="directory containing scan's findings.json/replacements.txt",
+    )
+    secrets_review_parser.add_argument(
+        "--decisions",
+        default=None,
+        help="path to the decisions YAML file (see epilog for format)",
+    )
+    secrets_review_parser.add_argument(
+        "--check",
+        action="store_true",
+        help="exit nonzero if any finding lacks a recorded decision",
+    )
+    secrets_review_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="write replacements.reviewed.txt; requires every finding decided",
+    )
+
+    secrets_purge_parser = secrets_subparsers.add_parser(
+        "purge",
+        help="Mirror-clone-scoped git-filter-repo rewrite, verify, never push.",
+        epilog=(
+            "--replacements must be review --apply's replacements.reviewed.txt\n"
+            "output, not scan's draft replacements.txt -- enforced at runtime\n"
+            "via a required first-line marker, not just by filename.\n"
+            "--refs-file is mandatory; purge refuses to run unscoped.\n"
+            "This command never runs `git push` under any flag combination --\n"
+            "on success it prints the push command for a human to run manually,\n"
+            "together with collaborator-notification and host-support-request\n"
+            "reminders."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    secrets_purge_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root, used to default --source (default: cwd)",
+    )
+    secrets_purge_parser.add_argument(
+        "--source",
+        default=None,
+        help="URL or path to mirror-clone (default: --project-root's origin)",
+    )
+    secrets_purge_parser.add_argument(
+        "--refs-file",
+        required=True,
+        help="mandatory: path to a file listing one ref per line to rewrite",
+    )
+    secrets_purge_parser.add_argument(
+        "--replacements",
+        required=True,
+        help="path to review --apply's replacements.reviewed.txt output",
+    )
+    secrets_purge_parser.add_argument(
+        "--mirror-dir",
+        default=None,
+        help="directory for the mirror clone (default: a fresh temp dir)",
+    )
+    secrets_purge_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="validate inputs without cloning or rewriting anything",
+    )
+    secrets_purge_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="mirror-clone, rewrite, and verify (mutually exclusive with --dry-run)",
     )
 
     workstreams_parser = subparsers.add_parser(
@@ -768,10 +915,26 @@ def main() -> None:
                     prog="lrh conversation export-codex-thread",
                 )
             )
+        if args.conversation_command == "archive-codex-thread":
+            raise SystemExit(
+                codex_archive.run_archive_codex_thread_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation archive-codex-thread",
+                )
+            )
+        if args.conversation_command == "import-codex-exports":
+            raise SystemExit(
+                codex_archive.run_import_codex_exports_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation import-codex-exports",
+                )
+            )
         parser.error(
             "conversation requires a subcommand "
             "(try: lrh conversation convert-codex-file, "
+            "lrh conversation archive-codex-thread, "
             "lrh conversation export-codex-thread, "
+            "lrh conversation import-codex-exports, "
             "lrh conversation inspect-export, or lrh conversation convert-pdf)"
         )
 
@@ -804,6 +967,14 @@ def main() -> None:
             sessions_workflow.run_sessions_cli(
                 argv=passthrough_args,
                 prog="lrh sessions",
+            )
+        )
+
+    if args.command == "memory":
+        raise SystemExit(
+            memory_workflow.run_memory_cli(
+                argv=passthrough_args,
+                prog="lrh memory",
             )
         )
 
@@ -934,6 +1105,92 @@ def main() -> None:
                 print(work_items_readiness.format_markdown(report))
             raise SystemExit(0)
         parser.error("work-items requires a subcommand (try: lrh work-items organize)")
+
+    if args.command == "secrets":
+        if args.secrets_command == "scan":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            out_dir = Path(args.out_dir).expanduser().resolve()
+            result = secrets_scan.run_scan(project_root=project_root, out_dir=out_dir)
+            if args.format == "json":
+                print(secrets_scan.format_json(result))
+            else:
+                print(secrets_scan.format_text(result))
+            raise SystemExit(0)
+        if args.secrets_command == "review":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            if args.check and args.apply:
+                parser.error("--check and --apply are mutually exclusive")
+            out_dir = Path(args.out_dir).expanduser().resolve()
+            decisions_path = (
+                Path(args.decisions).expanduser().resolve() if args.decisions else None
+            )
+            try:
+                report = secrets_review.build_report(
+                    out_dir=out_dir, decisions_path=decisions_path
+                )
+            except secrets_review.ReviewInputError as err:
+                if args.apply:
+                    # A failed --apply must never leave a stale, marker-bearing
+                    # replacements.reviewed.txt from an earlier successful
+                    # --apply in this same --out-dir -- invalid input is just
+                    # as much a failure as undecided findings.
+                    secrets_review.invalidate_stale_reviewed(out_dir)
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            undecided = report.undecided()
+            if args.apply:
+                print(secrets_review.format_text(report))
+                if undecided:
+                    secrets_review.invalidate_stale_reviewed(out_dir)
+                    print(
+                        f"\nFAIL: {len(undecided)} finding(s) undecided; "
+                        "cannot --apply until every finding is decided.",
+                        file=sys.stderr,
+                    )
+                    raise SystemExit(1)
+                reviewed_path = secrets_review.write_reviewed_replacements(
+                    report, out_dir
+                )
+                print(f"\nWrote {len(report.kept())} secret(s) to {reviewed_path}")
+                raise SystemExit(0)
+            print(secrets_review.format_text(report))
+            if args.check:
+                raise SystemExit(1 if undecided else 0)
+            raise SystemExit(0)
+        if args.secrets_command == "purge":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            if args.dry_run and args.apply:
+                parser.error("--dry-run and --apply are mutually exclusive")
+            project_root = Path(args.project_root).expanduser().resolve()
+            refs_file = Path(args.refs_file).expanduser().resolve()
+            replacements_path = Path(args.replacements).expanduser().resolve()
+            mirror_dir = (
+                Path(args.mirror_dir).expanduser().resolve()
+                if args.mirror_dir
+                else None
+            )
+            try:
+                output = secrets_purge.run_purge(
+                    project_root=project_root,
+                    source=args.source,
+                    refs_file=refs_file,
+                    replacements_path=replacements_path,
+                    mirror_dir=mirror_dir,
+                    apply=args.apply,
+                )
+            except secrets_purge.PurgeInputError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            print(output)
+            raise SystemExit(0)
+        parser.error(
+            "secrets requires a subcommand "
+            "(try: lrh secrets scan, lrh secrets review, or lrh secrets purge)"
+        )
 
     if args.command == "workstreams":
         if args.workstreams_command == "organize":

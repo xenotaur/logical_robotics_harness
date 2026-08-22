@@ -16,13 +16,16 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import fcntl
+import hashlib
 import json
 import os
 import pathlib
 import re
-import tempfile
 import typing
 import zipfile
+
+from lrh.atomic_write import atomic_write, atomic_write_bytes
 
 
 @dataclasses.dataclass(frozen=True)
@@ -152,55 +155,8 @@ def record_session_observation(
         for key in sorted(records)
     ]
     content = "\n".join(lines) + ("\n" if lines else "")
-    _atomic_write(path, content)
+    atomic_write(path, content)
     return path
-
-
-def _atomic_write(path: pathlib.Path, content: str) -> None:
-    """Write ``content`` to ``path`` without ever leaving a truncated file.
-
-    A plain write_text() truncates the destination before writing; an
-    interruption or I/O error mid-write can leave index.jsonl empty or
-    partially written, silently erasing every previously captured host/
-    child mapping. Writing to a temp file in the same directory and
-    renaming into place is atomic on POSIX (and os.replace is atomic on
-    Windows too), so readers only ever see the old complete content or the
-    new complete content, never a partial write.
-    """
-
-    fd, tmp_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(content)
-        os.replace(tmp_name, path)
-    except BaseException:
-        with contextlib.suppress(FileNotFoundError):
-            os.remove(tmp_name)
-        raise
-
-
-def _atomic_write_bytes(path: pathlib.Path, content: bytes) -> None:
-    """Byte-mode counterpart of ``_atomic_write``, for transcript mirroring.
-
-    Transcript JSONLs are copied verbatim (not re-serialized), so this
-    avoids a text round-trip that could alter encoding-sensitive bytes.
-    Same atomicity guarantee: readers only ever see the old complete
-    content or the new complete content, never a partial write.
-    """
-
-    fd, tmp_name = tempfile.mkstemp(
-        dir=path.parent, prefix=f".{path.name}.", suffix=".tmp"
-    )
-    try:
-        with os.fdopen(fd, "wb") as handle:
-            handle.write(content)
-        os.replace(tmp_name, path)
-    except BaseException:
-        with contextlib.suppress(FileNotFoundError):
-            os.remove(tmp_name)
-        raise
 
 
 # ---------------------------------------------------------------------------
@@ -289,8 +245,102 @@ def mirror_transcript(
             and src_stat.st_mtime <= dest_stat.st_mtime
         ):
             return MirrorResult(source=source, dest=dest, copied=False)
-    _atomic_write_bytes(dest, source.read_bytes())
+    atomic_write_bytes(dest, source.read_bytes())
     return MirrorResult(source=source, dest=dest, copied=True)
+
+
+def content_hash(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+@dataclasses.dataclass(frozen=True)
+class SnapshotMirrorResult:
+    source: pathlib.Path
+    dest: pathlib.Path
+    copied: bool
+    snapshot: pathlib.Path | None
+
+
+@contextlib.contextmanager
+def _locked_dest(dest: pathlib.Path) -> typing.Iterator[None]:
+    """Hold an exclusive lock for the duration of one dest's read-snapshot-write.
+
+    Without this, two overlapping ``mirror_file_with_snapshot`` calls for the
+    same ``dest`` (e.g. two concurrent ``lrh memory sync`` processes racing a
+    fast-changing source) can each read the same prior content, snapshot it,
+    and overwrite -- silently dropping whichever version landed on ``dest``
+    between the two reads: it is never the one snapshotted (both callers
+    snapshotted the same earlier version) and never the one left current
+    (the later writer's own source overwrites it), violating the "no version
+    is ever unrecoverable" invariant this function exists to provide. A
+    POSIX advisory lock on a sibling lock file serializes the whole
+    read-compare-snapshot-write sequence per destination, the same pattern
+    ``prompt_workflow_memory._locked_index`` uses for the same reason.
+    """
+
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = dest.parent / f".{dest.name}.lock"
+    lock_fd = os.open(lock_path, os.O_CREAT | os.O_RDWR)
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        yield
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        os.close(lock_fd)
+
+
+def mirror_file_with_snapshot(
+    source: pathlib.Path,
+    dest: pathlib.Path,
+    *,
+    history_dir: pathlib.Path,
+    timestamp: str,
+) -> SnapshotMirrorResult:
+    """Mirror ``source`` to ``dest``, snapshotting prior ``dest`` content first.
+
+    A generalization of :func:`mirror_transcript` for sources that are
+    legitimately edited or shrunk, not append-only -- ``mirror_transcript``'s
+    never-shrink invariant assumes the source only grows, which holds for
+    JSONL transcripts but not for memory files (the installed
+    ``consolidate-memory`` skill routinely merges duplicates and prunes
+    stale entries, a legitimate shrink). This compares by content hash
+    instead of size/mtime, and on any change, preserves the file currently
+    at ``dest`` under ``history_dir`` before overwriting it -- so no prior
+    version is ever unrecoverable, but shrinkage is never treated as
+    corruption or blocked.
+
+    Snapshot filenames follow ``<dest-stem>.<timestamp>.<shorthash><dest-suffix>``
+    under ``history_dir`` -- derived from ``dest.stem``/``dest.suffix``, not a
+    hard-coded ``.md``, so a ``.md`` destination doesn't get a doubled
+    extension and a non-``.md`` destination keeps its own extension rather
+    than silently becoming a ``.md`` file. Keyed by the *prior* content's
+    hash so the same snapshot is never written twice for an unchanged prior
+    version. The whole read-compare-snapshot-write sequence runs under
+    :func:`_locked_dest` so two overlapping mirrors of the same ``dest``
+    cannot race each other into dropping an intermediate version.
+    """
+
+    data = source.read_bytes()
+    source_hash = content_hash(data)
+
+    with _locked_dest(dest):
+        snapshot: pathlib.Path | None = None
+        if dest.exists():
+            existing = dest.read_bytes()
+            if content_hash(existing) == source_hash:
+                return SnapshotMirrorResult(
+                    source=source, dest=dest, copied=False, snapshot=None
+                )
+            history_dir.mkdir(parents=True, exist_ok=True)
+            short_hash = content_hash(existing)[:12]
+            snapshot = (
+                history_dir / f"{dest.stem}.{timestamp}.{short_hash}{dest.suffix}"
+            )
+            atomic_write_bytes(snapshot, existing)
+        atomic_write_bytes(dest, data)
+        return SnapshotMirrorResult(
+            source=source, dest=dest, copied=True, snapshot=snapshot
+        )
 
 
 _SESSION_ID_FIELD = "sessionId"
@@ -455,7 +505,7 @@ def persist_export_metadata(
     dest = exports_path(archive_root, session_key)
     dest.parent.mkdir(parents=True, exist_ok=True)
     content = json.dumps(metadata, indent=2, sort_keys=True) + "\n"
-    _atomic_write(dest, content)
+    atomic_write(dest, content)
     return dest
 
 

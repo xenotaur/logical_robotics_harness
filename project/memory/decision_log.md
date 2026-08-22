@@ -1,5 +1,20 @@
 # Decision Log
 
+## 2026-08-19: Decision: `disallowed-tools: Skill` Is the Verified, Platform-Enforced `/lrh-self-review` Recursion Guard — promoted to DEC-SELF-REVIEW-RECURSION-GUARD
+
+Promoted directly because it is cited from `lrh-self-review/SKILL.md` and
+amends `PROP-INVOCATION-AND-GATE-RESET` Decision 5, matching the promotion bar
+`precedence_semantics.md` set. Closes the recursion-guard gap
+`WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` (PR #560) left open and
+recorded as reassigned to Stage 3, but which `WI-GATE-POLICY-CASCADE-STAGE3`
+never actually tracked. Adopts `disallowed-tools: Skill` as the primary
+guard after empirically testing (not assuming) that it removes the `Skill`
+tool from both the invoking session and the dispatched subagent, retains the
+existing advisory instruction as defense-in-depth only, and amends Decision
+5's binary "prompt-level instruction or platform mechanism" framing to allow
+both, clearly labeled. See that record for the test methodology, rationale,
+and revisit conditions.
+
 ## 2026-08-07: Decision: Agent Skill Interoperability — Antigravity Integration & Discovery Semantics — promoted to DEC-AGENT-SKILL-INTEROPERABILITY-ANTIGRAVITY
 
 Promoted directly because it is cited from `docs/how-to/use-lrh-with-agent-assistants.md`,

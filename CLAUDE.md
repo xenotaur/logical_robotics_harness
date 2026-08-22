@@ -7,7 +7,7 @@
 - `/lrh-execute` — Implement one work item end-to-end and land it: resolve the target (WI-ID or next-ready WI under a WS-ID), enforce depends_on, chain auth gate, inline /lrh-implement then /lrh-land
 - `/lrh-review-response` — Address open PR review comments using lrh request review_response, with confirmation gate and execution record
 - `/lrh-confirm-fixes` — Pre-merge verification: fresh-eyes check pushed fixes against the current diff, resolve satisfied review threads, surface exceptions, and report a merge-readiness verdict without merging
-- `/lrh-self-review` — Dispatch a cold-context subagent to independently review a diff (before a PR's first push) or a PR (as round-cap-gate.md's post-ceiling substitute for a bot retrigger)
+- `/lrh-self-review` — Dispatch a cold-context subagent to independently review a diff before a PR's first push, or a PR when `/lrh-confirm-fixes` needs a substitute review signal instead of a hosted review-bot retrigger
 - `/lrh-design` — Generate a structured design for a feature, improvement, or system
 - `/lrh-proposal` — Create a new LRH design proposal in project/design/proposals/proposed/
 - `/lrh-workstream` — Create a new LRH workstream planning node in project/workstreams/proposed/

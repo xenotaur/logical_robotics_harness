@@ -31,5 +31,6 @@ Add content here when the reader is asking “why?”, “what does this mean?�
 - [Docs audit workflow](docs-audit-workflow.md) — why LRH splits documentation diagnosis and intervention into two request prompts.
 - [Why work-item validation, audit, readiness, and prompting are separate](work-item-lifecycle-boundaries.md) — explains the lifecycle boundaries that keep planning, execution, and evidence closeout distinct.
 - [Workspace and meta model](workspace-and-meta-model.md) — how workspace catalogs coordinate multiple LRH-compatible repositories without replacing project-local authority.
+- [The secrets-hygiene safety model](secrets-hygiene-safety-model.md) — why `lrh secrets` never lets `scan` feed `purge` directly, and why `purge` never pushes.
 
 Existing rationale in [`../../project/design/`](../../project/design/) and [`../../project/memory/`](../../project/memory/) remains authoritative project-control material. These explanations summarize and teach concepts; they do not replace or supersede the project control plane.

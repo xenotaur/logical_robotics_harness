@@ -18,6 +18,8 @@ related_design:
 work_items:
   - WI-SESSION-ARCHIVE-SYNC-CAPTURE
   - WI-SESSION-ARCHIVE-SYNC-RECONCILER
+  - WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT
+  - WI-SESSION-SYNC-NESTED-ARTIFACTS
 exit_criteria:
   - All four PROP-LRH-SESSION-ARCHIVE-SYNC stages are delivered as resolved work items (Stage 1 both-identifier capture + minimal project/sessions/ index with branch/PR stitching support; Stage 2 lrh sessions sync + discover/link; Stage 3 index enrichment + report; Stage 4 both required weekly scheduled sync and closeout-triggered sync, plus optional SessionEnd hook)
   - The archive-root-location open question is resolved and recorded (the index-regeneration-frequency open question is non-load-bearing and may be resolved informally during Stage 3 implementation)
@@ -109,6 +111,14 @@ workstream advances. None reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
   **complete child-id aliases** — collect aliases by scanning the distinct
   line-level `sessionId` values inside each JSONL, not just filename stems, so
   forked lineages are not left with incomplete alias sets.
+- **Codex durable export default —
+  `WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT`.** Codex app-server exports use the
+  same private session archive root resolver as `lrh sessions sync`
+  (`--archive-root` > `LRH_SESSION_ARCHIVE_ROOT` >
+  `~/.local/share/lrh/session-archive`), with Codex artifacts stored under
+  `codex/exports/YYYY/MM/` and rescued imports under `codex/imports/YYYY/MM/`.
+  This resolves the Codex-export durable-default question for local archive
+  placement while leaving encrypted/off-machine backup policy deferred.
 - **Stage 3 — index enrichment + `report`.** Enrich the Stage 1 index
   (era-general keys, branch/PR fork stitching per Decision 4, dedup
   latest-wins) and add `lrh sessions report`.
@@ -156,10 +166,10 @@ workstream advances. None reuses the retired `WI-EXEC-SESSIONS-DISCOVERY` id.
 
 ## Open Questions
 
-- **Archive-root location.** Interacts with the user's backup and file-sync
-  setup (in vs. outside a synced folder, given past sync-conflict issues) and
-  with the eventual encrypted off-machine tier. Design-discussion item; the
-  design assumes only that the root is configurable.
+- **Archive-root location.** The Codex durable export default uses the same
+  configurable local session archive root as `lrh sessions sync`, with
+  date-bucketed `codex/` children. Backup location and encrypted off-machine
+  archive policy remain deferred to later archive/sync work.
 - **Index-regeneration frequency (non-load-bearing).** Whether
   `project/sessions/` is regenerated on every closeout or only when its
   content would change, to minimize repository churn. The proposal leans

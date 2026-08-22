@@ -95,6 +95,9 @@ def _parse_frontmatter_mapping(text: str) -> dict[str, Any]:
                 if not candidate.strip():
                     index += 1
                     continue
+                if stripped_candidate.startswith("#"):
+                    index += 1
+                    continue
                 if candidate.startswith("  "):
                     raise ValueError(
                         f"unsupported nested mapping for key '{key}': {candidate!r}"

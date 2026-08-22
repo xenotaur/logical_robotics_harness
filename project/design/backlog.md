@@ -1288,17 +1288,35 @@ than the branch (`..._WI_FRONT_OF_RUN_GATE_COLLAPSE.md`). Both times, a
 `grep -rl "^pr: <pr-url>" project/executions/` search (excluding the same
 three suffixes) found the record immediately.
 
+A third shape surfaced 2026-08-17 on PR #561 (`/lrh-review-response` against
+`experimental/rescue_claude_sessions`), and it is not a divergence at all:
+the PR was opened by hand rather than through `/lrh-implement`, so **no**
+primary record exists. The branch-slug search returned empty — correctly this
+time — but produced exactly the same signal as the two miss cases above. That
+generalises the defect: an empty result is not merely easy to overlook, it is
+*uninterpretable*, because "the search missed the record" and "there is no
+record" are indistinguishable without a second query. The run reached the
+right `rerun_of` value on reasoning the search itself could not support, and
+only confirmed it afterwards by running the `pr:`-field fallback (which also
+returned nothing for #561, while returning three records for #556 — proving
+the query sound and the absence real).
+
 **Idea:** Change both skills' `rerun_of` resolution to search by the `pr:`
 field first (or as a fallback when the branch-slug search comes up empty),
 rather than relying solely on branch-slug matching. The `pr:` field is
 already populated on the primary record by the time either skill runs, so
 this doesn't require a new lookup mechanism — just reordering which one runs
-first.
+first. Given the third shape, make the second query **mandatory** rather than
+advisory: a skill should never record an empty `rerun_of` on the strength of
+the branch-slug search alone, since that search cannot distinguish absence
+from failure. Confirming a genuine absence is as much a use of the fallback
+as finding a missed record.
 
 **Status:** Not yet a work item. Surfaced twice on the same PR (its `_REVIEW`
-and `_CONFIRM` records both hit it), so it's a live nuisance, not a
-theoretical one — but it's a small, mechanical fix confined to two `SKILL.md`
-files, better batched with other skill-text maintenance than run solo.
+and `_CONFIRM` records both hit it) and a third time on PR #561, so it's a
+live nuisance, not a theoretical one — but it's a small, mechanical fix
+confined to two `SKILL.md` files, better batched with other skill-text
+maintenance than run solo.
 
 **Related:** `src/lrh/skills/lrh-review-response/SKILL.md` Step 7;
 `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 7;
@@ -1347,8 +1365,8 @@ better batched with other `lrh-workstream` skill maintenance.
 
 **Related:** `src/lrh/skills/lrh-workstream/references/workstream-body-guide.md:96`;
 `src/lrh/skills/lrh-workstream/SKILL.md:107-109`;
-`project/work_items/proposed/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` (Risk Notes);
-`project/workstreams/proposed/WS-INVOCATION-AND-GATE-RESET.md`; PR #536.
+`project/work_items/resolved/WI-FRONT-OF-RUN-GATE-COLLAPSE.md` (Risk Notes);
+`project/workstreams/active/WS-INVOCATION-AND-GATE-RESET.md`; PR #536.
 
 ---
 
@@ -1399,3 +1417,141 @@ of a *missed defect*, not just a missed clean-pass signal.
 `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 2;
 `project/executions/AD_HOC/2026_08_11_00_55_07_RETRIGGER_REMOVAL_STAGE1_WI_CONFIRM.md`
 (Round 2); PR #541.
+
+---
+
+## `lrh memory` command to make cross-agent memory writes well-formed by construction
+
+**Noted:** 2026-08-17, while preparing the memory migration in
+`experimental/rescue_claude_sessions/`. Auditing all 461 memory files under
+`~/.claude/projects/*/memory/` found 19 across 5 project buckets that lack
+Claude's memory frontmatter (`name`, `description`, `metadata.type`). Codex was
+caught writing one live: it created a memory file in Claude's LCATS corpus with
+no frontmatter and no `MEMORY.md` entry, making it unreachable by recall. In
+another bucket it wrote `MEMORY.md` to the bucket root instead of
+`memory/MEMORY.md`, orphaning all three files there. Nothing was overwritten
+and no data was lost — the existing 129-line LCATS index was verified
+byte-identical against a snapshot — but the writes are silently ineffective.
+
+The pattern predates the 2026-08-17 repository relocation: non-conforming
+writes start 2026-08-03, and conforming and non-conforming files appear on the
+same days (Aug 3: 5 vs 4; Aug 13: 25 vs 5), which rules out a format migration
+and indicates two writers with two conventions.
+
+**Idea:** Provide an `lrh memory` command (or equivalent) that agents call
+instead of writing memory files directly, so a malformed memory is not
+representable: validate frontmatter on write; update `MEMORY.md` in the same
+operation so an unindexed memory cannot exist; resolve the corpus path
+internally so "wrong location" cannot happen; record `authored_by` (and
+possibly `applies_to`) so memories can be filtered by agent; and offer a read
+path so agents recall without knowing the layout. The `authored_by` field also
+addresses semantic contamination — the Codex file that landed in LCATS is
+Codex-specific sandbox guidance sitting where a Claude session would read it as
+its own.
+
+**Second gap — memory has no archival path at all (found 2026-08-18).**
+`lrh sessions sync` mirrors `<project-slug>/*.jsonl` only. It archives **zero**
+memory files: after a full sync of 187 transcripts, `find <archive-root> -name
+'*.md'` returned 0 and no `memory/` directory existed anywhere under it. So the
+durable-archive guarantee that covers transcripts does not extend to memory,
+and during this rescue the only backup of 296 memory files was a tarball in
+`/private/tmp`, which macOS reclaims. That was caught only at the point of
+retiring the source corpora, which would otherwise have left them single-copy;
+they were moved to `~/.local/share/claude-session-rescue/` instead.
+
+This is arguably the larger half of the problem: the write-side idea above
+stops malformed memories being created, but nothing today makes memory
+*survivable*. Candidate fix: have `lrh sessions sync` mirror `memory/`
+alongside `*.jsonl` under the same archive root, with the same never-replace-
+with-a-smaller-source invariant. That would also give `authored_by` filtering
+a durable corpus to operate over, and would close the gap without a new
+mechanism — memory is already path-keyed the same way transcripts are.
+
+**Status:** Closed 2026-08-21. Both gaps designed and implemented via
+`PROP-LRH-MEMORY-COMMAND` (`project/design/proposals/adopted/lrh-memory-command/00_proposal.md`)
+and its four implementing work items, all now resolved: `WI-LRH-MEMORY-WRITE-SIDE`
+(`lrh memory write`/`list`/`validate`/`repair`, PR #570), `WI-LRH-MEMORY-ARCHIVE-SIDE`
+(`lrh memory sync`, PR #583), `WI-LRH-MEMORY-READ-SIDE` (`lrh memory read`/`search`,
+PR #594), and `WI-LRH-MEMORY-PORTABILITY` (`lrh memory export`/`import`/`transfer`,
+PR #589).
+
+**Related:** `experimental/rescue_claude_sessions/findings.md` (full evidence,
+per-bucket counts, and the interleaving analysis);
+`experimental/rescue_claude_sessions/README.md`; PR #561.
+
+## Codex export durable-archive gap has a stopgap; the real fix is still open
+
+**Idea (already scoped):** `WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT`
+(`project/work_items/proposed/`) is the real fix — makes `/lrh-codex-export`
+durable-archive-first by default instead of `${TMPDIR:-/tmp}`, adds per-attempt
+metadata, and covers full migration UX. It `depends_on:
+WI-CODEX-CONVERSATION-EXPORT-SKILL, WI-SESSION-ARCHIVE-SYNC-RECONCILER` and
+bundles a skill rewrite, tests, and docs — not something to wait on for the
+immediate problem of exports already stranded in OS temp storage.
+
+**Stopgap shipped instead:** `experimental/rescue_codex_exports/` — two
+scripts (`find_exports.py` read-only scan/classify, `move_exports.py`
+copy-verify-delete migration) that find `lrh-codex-export-*` directories
+under an arbitrary root and consolidate them into `~/.lrh/private/codex/`,
+the durable location `SKILL.md` Step 2 already documents but the routine
+capture path doesn't use. Covers Required Change #5 of the work item above
+("import/migrate existing... export directories... into the durable
+archive") narrowly, not the rest of its scope. `<dest>/MIGRATION_LOG.md`
+records every directory's origin so nothing moved by this tool loses
+provenance.
+
+**Status:** Stopgap tooling landed; the work item above remains `proposed`
+and unblocked by this — whoever picks it up should know this tool already
+covers its import/migrate requirement and can either reuse or supersede it.
+
+**Related:** `experimental/rescue_codex_exports/README.md`;
+`project/work_items/proposed/WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT.md`.
+
+---
+
+## `/lrh-assess` skill — not yet warranted
+
+**Noted:** 2026-08-21, during WS-SKILLS retrospective after all workstream
+items resolved.
+
+**Background:** `WS-SKILLS` (`project/workstreams/resolved/WS-SKILLS.md`)
+described Stage 3 workflow skills as `/lrh-work-item`, `/lrh-workstream`, and
+`/lrh-assess`. The first two were implemented and their work items resolved.
+`/lrh-assess` was never promoted to a work item; the workstream closed without
+it. No work item, backlog entry, or decision record for `/lrh-assess` existed
+anywhere in the control plane as of the date above.
+
+**Original intent:** The WS-SKILLS summary describes LRH's Apple Notes workflow
+steps as "assess → design → create workstream → create work item." The `assess`
+step was the session-opening triage: survey project state, synthesise
+priorities, recommend what to work on next.
+
+**Analysis:**
+
+`/lrh-work-remains` (`.claude/skills/lrh-work-remains/SKILL.md`) reads the
+same signals (open PRs, work items, workstreams, `lrh snapshot current_focus`)
+but is oriented retrospectively — "what's unfinished?" — and is report-only by
+design; it "does not offer to act on any finding." The genuinely missing piece
+would be prospective synthesis: given current state, recommend the
+highest-value next action with rationale.
+
+That prospective question is, however, already largely answered by the
+structured planning artifacts: the active workstream's `stage` +
+`exit_criteria` fields, `lrh work-items readiness --status proposed`, and
+`lrh snapshot current_focus` together deterministically identify the next ready
+item in most sessions. The session-opening question "what's next on this
+workstream?" is answered correctly in two tool calls — a skill for it would add
+maintenance cost (two-file mirror: `src/lrh/skills/` + `.claude/skills/`)
+without a proportionate reduction in friction.
+
+Extending `/lrh-work-remains` with a `--plan` mode was considered and
+rejected: the skill's strict report-only identity is its most important safety
+property; mixing retrospective accounting with prospective action
+recommendations would erode that.
+
+**Decision:** Do not implement `/lrh-assess` as a separate skill. Re-evaluate
+if a pattern emerges where session-start triage is consistently painful despite
+using `/lrh-work-remains` + workstream/work-item reads. If that pattern
+emerges, prefer a `--plan` flag on `/lrh-work-remains` over a new skill only
+if the prospective output is genuinely separable from report-only; otherwise
+implement as a new skill at that time.

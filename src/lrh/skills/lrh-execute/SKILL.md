@@ -8,7 +8,11 @@ description: >
   and close it out. Use when the user wants to go from "implement this
   work item" to "it's merged" in one traceable session, without manually
   chaining /lrh-implement and /lrh-land themselves.
-disable-model-invocation: true
+when_to_use: >
+  Invoke only when the user explicitly asks to execute a specific WI-ID or
+  WS-ID end-to-end through implementation, PR review, merge gate, and closeout.
+  The chain-authorization gate must still run before any implementation,
+  branch, PR, merge, or closeout action.
 argument-hint: "[WI-ID or WS-ID]"
 ---
 
@@ -168,12 +172,48 @@ state and run stop checks; they do not edit files or create a branch.
    - readiness warnings, prior-art warnings, or dependency warnings.
 4. Mint the prompt ID and run idempotence:
 
+   **Before minting, check for an existing record by stable slug** — the
+   same pre-mint check `/lrh-work-item` Step 4 documents. `lrh prompt
+   label` always mints a fresh, uniquely-timestamped prompt ID, so a
+   post-mint `check-execution --prompt-id` check on it can never find a
+   prior record — no prior record was ever recorded under an ID that
+   didn't exist until this call created it. Use the slug-based mode
+   first:
+
+   ```bash
+   lrh prompt check-execution --slug <slug> --work-item <WI-ID> --project-root .
+   ```
+
+   Interpret the exit code: `1` (a `landed`/`in_progress`/unresolved-status
+   match, or unresolved recency) — stop here, go to the global **Step 5 —
+   Run journal** below (not this numbered sub-list's own item "5"), and
+   record a `stopped` journal entry, unless the user explicitly asks for a
+   rerun; `0` with a `failed`/`reverted`/`superseded` match — summarize and
+   continue, keeping the matched `execution_id` for the `--rerun-of` wiring
+   below; `0` with no match — proceed; `3` (the check itself failed) —
+   stop and report, this is not the same as "no prior record"; `2`
+   (malformed input) — stop and report, a usage error.
+
+   **Carry a matched `execution_id` into `--rerun-of` the same way Step 3
+   already overrides `/lrh-implement`'s inlined `record-execution` call
+   with `--pr`.** `/lrh-implement`'s own documented Step 9 invocation
+   doesn't include `--rerun-of` — but the `record-execution` CLI itself
+   does accept the flag. If this check matched a `failed`/`reverted`/
+   `superseded` record (the rerun case), pass `--rerun-of
+   <matched-execution_id>` explicitly when Step 3 reaches its own
+   `record-execution` call, the same way that step already adds `--pr`.
+   If the user authorizes a rerun of a blocking (`1`-exit) match instead,
+   the same applies: carry that match's `execution_id` through to Step 3's
+   `--rerun-of` override.
+
+   Then mint the prompt ID and run the existing post-mint check:
+
    ```bash
    lrh prompt label --slug <slug> --work-item <WI-ID>
    lrh prompt check-execution --prompt-id "<id>" --project-root .
    ```
 
-   If the idempotence check reports a `landed` or `in_progress` record, stop
+   If this second check reports a `landed` or `in_progress` record, stop
    here; then go to Step 5 and record a `stopped` journal entry.
 5. Derive the branch name using `/lrh-implement`'s convention:
    `<github-login>/<type>/<slug>`.
@@ -299,6 +339,12 @@ would stay `proposed` even after the PR merges, silently defeating this
 skill's own advertised end-to-end guarantee. (This is a gap in
 `/lrh-implement/SKILL.md` itself, not unique to inlining it here — see
 `project/design/backlog.md` for the broader fix.)
+
+**If Step 1.5 matched a prior `execution_id` for `--rerun-of` (the rerun
+case), pass it the same way:** `lrh prompt record-execution ... --pr
+<pr-url-from-step-8> --rerun-of <matched-execution_id-from-step-1.5>`.
+Omit the flag entirely when Step 1.5 found no match — an absent
+`--rerun-of` is the correct value for a first attempt, not a gap to fill.
 
 **If `/lrh-implement`'s own steps stop and report** (e.g. an idempotence
 check finds a prior `landed`/`in_progress` record), do not attempt to

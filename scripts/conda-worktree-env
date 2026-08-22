@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/conda-worktree-env <env-name> [options]
+
+Creates (or reuses) a conda environment dedicated to THIS checkout, then
+runs scripts/develop inside it so the editable `lrh` install points at
+this worktree specifically.
+
+Why this exists: an editable pip install (`pip install -e .`) only ever
+points at one source location per (environment, package-name) pair. When
+multiple worktrees of this repo share one conda environment -- including
+the `base` environment -- each one running `scripts/develop` silently
+steals the editable install from whichever worktree ran it last: `pip show
+lrh` then reports a different checkout's path than the one you're standing
+in, and things like `scripts/test` quietly validate the wrong source tree.
+A dedicated environment per worktree removes that collision.
+
+Arguments:
+  <env-name>        Name for the conda environment (required). Choose
+                     something that identifies this worktree, e.g. the
+                     workstream or branch name.
+
+Options:
+  --python VERSION   Python version to create the environment with.
+                     Default: 3.11 (matches pyproject.toml's
+                     requires-python and CI's actions/setup-python version).
+  --recreate         If the environment already exists, remove it first
+                     rather than reusing it.
+  --dry-run          Print the commands that would run, without running them.
+  -h, --help         Show this help and exit.
+
+Does NOT use environment.yml as a source. That file is a raw
+`conda env export` snapshot (see scripts/update) of whichever environment
+happened to be active when someone last ran it, not a maintained spec --
+it has been observed to carry stale, inconsistent package pins (e.g. two
+different dev-snapshot versions of what is now a single package, `lrh`,
+under its current and a prior project name). This script instead builds a
+minimal environment and installs from this repository's actual source of
+truth for reproducible tooling: pyproject.toml's [dev] extra, constrained
+by constraints-dev.txt -- the same files CI installs from
+(.github/workflows/tests.yml, .github/workflows/lint.yml).
+
+Examples:
+  scripts/conda-worktree-env LrhSessionErgonomics
+  scripts/conda-worktree-env LrhSessionErgonomics --recreate
+  scripts/conda-worktree-env LrhSessionErgonomics --python 3.12 --dry-run
+USAGE
+}
+
+ENV_NAME=""
+PYTHON_VERSION="3.11"
+RECREATE=0
+DRY_RUN=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --python)
+      if [[ $# -lt 2 ]]; then
+        echo "Error: --python requires a value." >&2
+        exit 2
+      fi
+      case "$2" in
+        -*)
+          echo "Error: --python requires a value, got option-like '$2'." >&2
+          exit 2
+          ;;
+      esac
+      PYTHON_VERSION="$2"
+      shift 2
+      ;;
+    --recreate)
+      RECREATE=1
+      shift
+      ;;
+    --dry-run)
+      DRY_RUN=1
+      shift
+      ;;
+    -*)
+      echo "Unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+    *)
+      if [[ -n "${ENV_NAME}" ]]; then
+        echo "Unexpected extra argument: $1" >&2
+        usage >&2
+        exit 2
+      fi
+      ENV_NAME="$1"
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "${ENV_NAME}" ]]; then
+  echo "Error: <env-name> is required." >&2
+  usage >&2
+  exit 2
+fi
+
+if ! command -v conda >/dev/null 2>&1; then
+  cat >&2 <<'MSG'
+Error: conda was not found on PATH.
+
+This script is for local/conda-based agent environments. If this session
+does not have conda available (for example, a plain CI runner or a
+container without conda), use the environment-agnostic path instead:
+
+  python -m venv .venv
+  source .venv/bin/activate
+  scripts/develop
+MSG
+  exit 1
+fi
+
+run() {
+  echo "+ $*"
+  if [[ "${DRY_RUN}" -eq 0 ]]; then
+    "$@"
+  fi
+}
+
+ENV_EXISTS=0
+if [[ "${DRY_RUN}" -eq 1 ]]; then
+  echo "+ conda env list | ... (skipped under --dry-run; assuming '${ENV_NAME}' does not exist for preview purposes)"
+else
+  if conda env list | awk '{print $1}' | grep -Fqx -- "${ENV_NAME}"; then
+    ENV_EXISTS=1
+  fi
+fi
+
+if [[ "${ENV_EXISTS}" -eq 1 && "${RECREATE}" -eq 1 ]]; then
+  echo "Environment '${ENV_NAME}' already exists; removing it (--recreate)."
+  run conda env remove -n "${ENV_NAME}" -y
+  ENV_EXISTS=0
+fi
+
+if [[ "${ENV_EXISTS}" -eq 1 ]]; then
+  echo "Reusing existing environment '${ENV_NAME}'."
+  echo "(Pass --recreate to remove and rebuild it from scratch instead.)"
+else
+  echo "Creating conda environment '${ENV_NAME}' (python=${PYTHON_VERSION})..."
+  run conda create -n "${ENV_NAME}" -y "python=${PYTHON_VERSION}" pip
+fi
+
+echo
+echo "Removing any stale 'logical-robotics-harness' editable install (this"
+echo "package's prior name) from '${ENV_NAME}', if present. A coexisting"
+echo "editable install under that name adds its own src/lrh path, which can"
+echo "leave an old worktree importable even after this checkout's editable"
+echo "lrh install is (re)pointed here -- see environment.yml, which has been"
+echo "observed carrying both names pinned to different snapshots."
+run conda run -n "${ENV_NAME}" --cwd "${REPO_ROOT}" --no-capture-output \
+  python -m pip uninstall -y logical-robotics-harness || true
+
+echo
+echo "Running scripts/develop inside '${ENV_NAME}' to point its editable"
+echo "lrh install at this checkout:"
+echo "  ${REPO_ROOT}"
+run conda run -n "${ENV_NAME}" --cwd "${REPO_ROOT}" --no-capture-output \
+  "${REPO_ROOT}/scripts/develop"
+
+if [[ "${DRY_RUN}" -eq 0 ]]; then
+  echo
+  echo "Done. To use this environment in a new shell:"
+  echo "  conda activate ${ENV_NAME}"
+  echo
+  echo "Then verify the editable install points at this checkout:"
+  echo "  pip show lrh"
+  echo "  # 'Editable project location' should read: ${REPO_ROOT}"
+  echo
+  echo "And confirm tool versions match this repository's pins:"
+  echo "  scripts/version tools"
+fi

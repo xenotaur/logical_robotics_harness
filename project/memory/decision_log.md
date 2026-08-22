@@ -15,10 +15,16 @@ than assuming the precedent or the WI's own original prose still applies:
 `lrh-codex-export` remains a single-shot CLI wrapper (`lrh conversation
 archive-codex-thread` / `inspect-export`) with no subagent dispatch, no
 chain-authorization gate, and no merge/closeout step — confirmed via
-`grep` for `Agent|subagent|dispatch|chain|gate|merge|closeout` in the
-skill text: only incidental substring matches, no real hit. None of the
-three gap categories that justified retaining the flag on
+`grep -E "Agent|subagent|dispatch|chain|gate|merge|closeout"` (extended
+regex, since a plain `grep` with no `-E`/`-P` treats `|` as a literal
+character, not alternation) against the skill text: no subagent-dispatch
+or chain-authorization hit. None of the three gap categories that
+justified retaining the flag on
 `lrh-self-review`/`lrh-confirm-fixes`/`lrh-land`/`lrh-execute` apply.
+(The skill's own confirm-before-write gate, added by this same change —
+see below — legitimately matches `gate` in a later re-run of this check;
+that is the skill's own write-protection step, not the recursion/chain
+risk this check screens for.)
 
 One thing did change materially since the WI was drafted: PR #579 flipped
 the skill's default output from an ephemeral `/tmp` capture to a
@@ -37,6 +43,20 @@ propagated to all installed corpora (`.claude/skills/`, `.agents/skills/`,
 alongside the removal — required per PR #571's own review, since the
 Codex-target installer only regenerates that file from
 `disable-model-invocation` while the flag is still present.
+
+**Round 1 review (PR #601) found the write-protection was incomplete.**
+`when_to_use` narrows the auto-trigger surface but is advisory only — per
+`lrh-create-skill/references/frontmatter-guide.md`'s own
+`disable-model-invocation` guidance, the actual write-protection an
+auto-invocation-eligible skill needs is an explicit confirm-before-write
+gate inside the skill, since that fires regardless of invocation route.
+The skill had no such gate. Added one as a new Step 3 (renumbering the
+rest), requiring explicit confirmation before the durable/permanent
+archive write, and skipped only when the user's own message in the
+current turn already explicitly requested the export by name or thread
+id — not merely because `CODEX_THREAD_ID` happened to be set, since an
+ambient/inferred thread id is exactly the auto-invocation case the gate
+exists to catch.
 
 ## 2026-08-19: Decision: `disallowed-tools: Skill` Is the Verified, Platform-Enforced `/lrh-self-review` Recursion Guard — promoted to DEC-SELF-REVIEW-RECURSION-GUARD
 

@@ -4,8 +4,8 @@ prompt_id: PROMPT(AD_HOC:WI_CODEX_EXPORT_INVOCATION_FLAG_REMOVAL_IMPL_SELFREVIEW
 work_item: AD_HOC
 status: landed
 rerun_of:
-pr:
-commit:
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/601
+commit: c662cbe4
 agent: claude_code
 instruction_source: skill:lrh-implement Step 7.5, diff-mode, for WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL
 session_transcript: claude-app:local_dd7df709-1e50-4e78-a5bf-802d06e31d50

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented nested session artifact discovery, preserved nested archive paths, gated alias reconciliation to top-level transcripts, and hardened symlink/session-dir discovery in PR #592 (commit d437c99283f157d8fe441cc35b5e092094480df3)."
 blocked_reason: null
 blocked: false
 id: WI-SESSION-SYNC-NESTED-ARTIFACTS
 title: lrh sessions sync — discover and archive nested session artifacts
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

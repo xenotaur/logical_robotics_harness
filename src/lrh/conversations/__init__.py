@@ -26,6 +26,13 @@ from lrh.conversations.codex_file_export import (
     convert_codex_file,
     render_codex_markdown,
 )
+from lrh.conversations.codex_session import (
+    CODEX_SESSION_TRANSCRIPT_PREFIX,
+    CODEX_THREAD_ID_ENV,
+    CodexSessionIdentity,
+    CodexSessionIdentityError,
+    resolve_codex_session_identity,
+)
 from lrh.conversations.export_inspector import (
     ConversationExportInspection,
     ConversationExportInspectionError,
@@ -58,6 +65,10 @@ __all__ = [
     "CodexFileExport",
     "CodexFileExportError",
     "CodexImportResult",
+    "CodexSessionIdentity",
+    "CodexSessionIdentityError",
+    "CODEX_SESSION_TRANSCRIPT_PREFIX",
+    "CODEX_THREAD_ID_ENV",
     "DEFAULT_AUTHORITY",
     "DEFAULT_PRIVACY",
     "DEFAULT_SOURCE_ADAPTER",
@@ -84,6 +95,7 @@ __all__ = [
     "plan_codex_export_paths",
     "render_codex_markdown",
     "render_thread",
+    "resolve_codex_session_identity",
     "resolve_codex_archive_root",
     "statistics_for_text",
 ]

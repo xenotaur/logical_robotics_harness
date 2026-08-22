@@ -40,6 +40,11 @@ If no argument is supplied, default to `CODEX_THREAD_ID` when it is set. If
 neither an argument nor `CODEX_THREAD_ID` is available, ask the user for the
 Codex thread id before proceeding.
 
+Thread-id resolution uses the same shared resolver contract as
+`lrh conversation current-codex-thread-id` and `/lrh-codex-session`. The id is a
+Codex task/thread pointer, not an export attempt id, archive directory,
+`attempt.json` path, raw JSON path, transcript Markdown path, or timestamp.
+
 ---
 
 ## Reference Knowledge
@@ -47,6 +52,7 @@ Codex thread id before proceeding.
 Use the repository CLI documentation as the command contract:
 
 - `docs/reference/cli/conversation.md` for
+  `lrh conversation current-codex-thread-id`,
   `lrh conversation archive-codex-thread`,
   `lrh conversation export-codex-thread`, and
   `lrh conversation inspect-export`.
@@ -55,6 +61,8 @@ The relevant CLI guarantees are:
 
 - `archive-codex-thread` writes routine captures into LRH's durable private
   session archive under a Codex date-bucketed subtree.
+- `current-codex-thread-id` exposes the shared metadata-only resolver used by
+  this skill when deciding which Codex task/thread to export.
 - `archive-codex-thread --scratch` is the explicit ephemeral dogfood path.
 - every archive export attempt writes `attempt.json` before app-server access
   and updates it with success or failure metadata.
@@ -99,15 +107,19 @@ Work through these steps in order.
 
 ### Step 1 -- Resolve the thread id
 
-If the user supplied an argument, use it as `THREAD_ID`.
-
-If no argument was supplied, check:
+Use the shared metadata-only resolver:
 
 ```bash
-printf '%s\n' "$CODEX_THREAD_ID"
+lrh conversation current-codex-thread-id --field thread-id
 ```
 
-If `CODEX_THREAD_ID` is non-empty, use that value as `THREAD_ID`.
+If the user supplied an argument, pass it as `--thread-id`:
+
+```bash
+lrh conversation current-codex-thread-id \
+  --thread-id "$USER_SUPPLIED_THREAD_ID" \
+  --field thread-id
+```
 
 If no thread id is available, stop and ask the user for the Codex thread id.
 

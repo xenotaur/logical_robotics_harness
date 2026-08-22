@@ -26,6 +26,7 @@ from lrh.conversations import (
     codex_app_server_export,
     codex_archive,
     codex_file_export,
+    codex_session,
     export_inspector,
     pdf_import,
 )
@@ -117,6 +118,11 @@ def main() -> None:
         "convert-codex-file",
         add_help=False,
         help="Convert an explicit local Codex transcript/source file to Markdown.",
+    )
+    conversation_subparsers.add_parser(
+        "current-codex-thread-id",
+        add_help=False,
+        help="Report the current Codex thread id and session pointer.",
     )
     conversation_subparsers.add_parser(
         "export-codex-thread",
@@ -915,6 +921,13 @@ def main() -> None:
                     prog="lrh conversation export-codex-thread",
                 )
             )
+        if args.conversation_command == "current-codex-thread-id":
+            raise SystemExit(
+                codex_session.run_current_codex_thread_id_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation current-codex-thread-id",
+                )
+            )
         if args.conversation_command == "archive-codex-thread":
             raise SystemExit(
                 codex_archive.run_archive_codex_thread_cli(
@@ -934,6 +947,7 @@ def main() -> None:
             "(try: lrh conversation convert-codex-file, "
             "lrh conversation archive-codex-thread, "
             "lrh conversation export-codex-thread, "
+            "lrh conversation current-codex-thread-id, "
             "lrh conversation import-codex-exports, "
             "lrh conversation inspect-export, or lrh conversation convert-pdf)"
         )

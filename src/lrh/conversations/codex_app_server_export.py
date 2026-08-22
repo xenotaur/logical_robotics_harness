@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from lrh.conversations import export_manifest, sensitivity
+from lrh.conversations import codex_session, export_manifest, sensitivity
 
 SOURCE_ADAPTER = "codex_app_server_thread_read"
 ADAPTER_VERSION = 1
@@ -479,7 +479,7 @@ def run_export_codex_thread_cli(
     )
     parser.add_argument(
         "--thread-id",
-        default=os.environ.get("CODEX_THREAD_ID"),
+        default=None,
         help="Codex thread id to export (default: CODEX_THREAD_ID)",
     )
     parser.add_argument("--out", required=True, help="Markdown export output path")
@@ -509,8 +509,10 @@ def run_export_codex_thread_cli(
         ),
     )
     args = parser.parse_args(argv)
-    if not args.thread_id:
-        print("error: --thread-id or CODEX_THREAD_ID is required", file=sys.stderr)
+    try:
+        identity = codex_session.resolve_codex_session_identity(args.thread_id)
+    except codex_session.CodexSessionIdentityError as err:
+        print(f"error: {err}", file=sys.stderr)
         return 2
     if args.timeout_seconds <= 0:
         print("error: --timeout-seconds must be positive", file=sys.stderr)
@@ -518,7 +520,7 @@ def run_export_codex_thread_cli(
 
     try:
         result = export_codex_thread(
-            thread_id=args.thread_id,
+            thread_id=identity.thread_id,
             output_path=Path(args.out),
             raw_output_path=Path(args.raw_out),
             codex_command=args.codex,

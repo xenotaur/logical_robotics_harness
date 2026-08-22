@@ -2,14 +2,14 @@
 execution_id: 2026_08_22_04_16_06_WS_PII_SCAN_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WS_PII_SCAN_SELFREVIEW)[2026-08-22T04:15:58+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_22_03_16_17_WS_PII_SCAN
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/596
-commit: 23a4d5d1
+commit: 8c68bd8d
 created_at: 2026-08-22T04:16:06+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/596
-session_transcript: "claude-app:cf93c405-ed0f-409d-946f-7451a1cb2f7c"
+session_transcript: claude-app:cf93c405-ed0f-409d-946f-7451a1cb2f7c
 ---
 
 # Summary

@@ -2,10 +2,10 @@
 execution_id: 2026_08_21_19_55_42_WI_SESSION_SYNC_NESTED_ARTIFACTS_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_SESSION_SYNC_NESTED_ARTIFACTS_CONFIRM)[2026-08-21T19:18:51+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_21_18_12_36_WI_SESSION_SYNC_NESTED_ARTIFACTS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/592
-commit: 
+commit: d437c99283f157d8fe441cc35b5e092094480df3
 created_at: 2026-08-21T19:55:42+00:00
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/592

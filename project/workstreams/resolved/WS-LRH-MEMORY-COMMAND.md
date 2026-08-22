@@ -2,8 +2,8 @@
 id: WS-LRH-MEMORY-COMMAND
 kind: planning_node
 title: LRH Memory Command Implementation
-status: proposed
-stage: planned
+status: resolved
+stage: closed
 origin: design_review
 summary: >
   Implement the ten-command lrh memory surface specified in

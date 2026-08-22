@@ -18,6 +18,7 @@ work_items:
   - WI-LRH-MEMORY-ARCHIVE-SIDE
   - WI-LRH-MEMORY-READ-SIDE
   - WI-LRH-MEMORY-PORTABILITY
+  - WI-LRH-MEMORY-TRANSFER-SAFETY
 exit_criteria:
   - lrh memory write/list/validate implemented (with the metadata.authored_by/applies_to schema, the malformed/legacy validate distinction, the memory-file-before-index write ordering, and the lrh-closeout SKILL.md migration); WI-LRH-MEMORY-WRITE-SIDE resolved
   - lrh memory sync implemented with the snapshot-before-overwrite invariant; WI-LRH-MEMORY-ARCHIVE-SIDE resolved

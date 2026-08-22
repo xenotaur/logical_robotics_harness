@@ -252,7 +252,55 @@ class DiscoverTranscriptsTest(unittest.TestCase):
             (root / "proj-b" / "s2.jsonl").write_text("{}\n")
             (root / "proj-a" / "not-jsonl.txt").write_text("x")
             found = prompt_workflow_sessions.discover_transcripts(root)
-            self.assertEqual(sorted(p.name for p in found), ["s1.jsonl", "s2.jsonl"])
+            self.assertEqual(
+                sorted(item.path.name for item in found), ["s1.jsonl", "s2.jsonl"]
+            )
+            self.assertEqual(
+                sorted((item.slug, str(item.relative_path)) for item in found),
+                [
+                    ("proj-a", "s1.jsonl"),
+                    ("proj-b", "s2.jsonl"),
+                ],
+            )
+
+    def test_top_level_symlinked_transcripts_are_excluded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+            root = tmp_path / "claude-projects"
+            project_dir = root / "proj-a"
+            outside_dir = tmp_path / "outside"
+            project_dir.mkdir(parents=True)
+            outside_dir.mkdir()
+            external_file = outside_dir / "external.jsonl"
+            external_file.write_text("{}\n")
+            (project_dir / "safe.jsonl").write_text("{}\n")
+            (project_dir / "linked.jsonl").symlink_to(external_file)
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                [(item.slug, str(item.relative_path)) for item in found],
+                [("proj-a", "safe.jsonl")],
+            )
+
+    def test_symlinked_project_directories_are_excluded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = pathlib.Path(tmp)
+            root = tmp_path / "claude-projects"
+            project_dir = root / "proj-a"
+            outside_dir = tmp_path / "outside-project"
+            project_dir.mkdir(parents=True)
+            outside_dir.mkdir()
+            (project_dir / "safe.jsonl").write_text("{}\n")
+            (outside_dir / "external.jsonl").write_text("{}\n")
+            (root / "linked-project").symlink_to(outside_dir, target_is_directory=True)
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                [(item.slug, str(item.relative_path)) for item in found],
+                [("proj-a", "safe.jsonl")],
+            )
 
     def test_missing_root_returns_empty(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -260,6 +308,155 @@ class DiscoverTranscriptsTest(unittest.TestCase):
                 pathlib.Path(tmp) / "does-not-exist"
             )
             self.assertEqual(found, [])
+
+    def test_discovers_nested_files_under_owning_slug(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            project_dir = root / "proj-a"
+            session_dir = project_dir / "child-1"
+            (session_dir / "subagents").mkdir(parents=True)
+            (project_dir / "child-1.jsonl").write_text("{}\n")
+            (session_dir / "subagents" / "sub.jsonl").write_text("{}\n")
+            (session_dir / "subagents" / "sub.meta.json").write_text("{}\n")
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                sorted((item.slug, str(item.relative_path)) for item in found),
+                [
+                    ("proj-a", "child-1.jsonl"),
+                    ("proj-a", "child-1/subagents/sub.jsonl"),
+                    (
+                        "proj-a",
+                        "child-1/subagents/sub.meta.json",
+                    ),
+                ],
+            )
+
+    def test_nested_cross_bucket_uses_owning_top_level_slug(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            owner_dir = root / "live-proj"
+            stale_dir = root / "stale-proj"
+            (owner_dir).mkdir()
+            nested_dir = stale_dir / "child-1" / "tool-results"
+            nested_dir.mkdir(parents=True)
+            (owner_dir / "child-1.jsonl").write_text("{}\n")
+            (nested_dir / "result.txt").write_text("result\n")
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            nested = [
+                item
+                for item in found
+                if item.relative_path == pathlib.Path("child-1/tool-results/result.txt")
+            ]
+            self.assertEqual(len(nested), 1)
+            self.assertEqual(nested[0].slug, "live-proj")
+            self.assertEqual(nested[0].path, nested_dir / "result.txt")
+
+    def test_uuid_orphaned_session_id_directory_is_kept_but_memory_is_excluded(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            project_dir = root / "proj-a"
+            orphan_session_id = "f1e9c968-4f52-45a3-a851-8d28d2eb775d"
+            orphan_dir = project_dir / orphan_session_id / "subagents"
+            memory_dir = project_dir / "memory"
+            cache_dir = project_dir / "cache123"
+            orphan_dir.mkdir(parents=True)
+            memory_dir.mkdir(parents=True)
+            cache_dir.mkdir(parents=True)
+            (orphan_dir / "sub.jsonl").write_text("{}\n")
+            (memory_dir / "not-a-session.jsonl").write_text("{}\n")
+            (cache_dir / "not-a-session.jsonl").write_text("{}\n")
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                [(item.slug, str(item.relative_path)) for item in found],
+                [("proj-a", f"{orphan_session_id}/subagents/sub.jsonl")],
+            )
+
+    def test_hex_like_non_session_directory_is_excluded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            project_dir = root / "proj-a"
+            cache_dir = project_dir / "12345678"
+            cache_dir.mkdir(parents=True)
+            (cache_dir / "not-a-session.jsonl").write_text("{}\n")
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(found, [])
+
+    def test_nested_symlinked_files_are_excluded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            project_dir = root / "proj-a"
+            session_dir = project_dir / "child-1" / "tool-results"
+            external_dir = root / "outside"
+            session_dir.mkdir(parents=True)
+            external_dir.mkdir()
+            (project_dir / "child-1.jsonl").write_text("{}\n")
+            external_file = external_dir / "secret.txt"
+            external_file.write_text("secret\n")
+            (session_dir / "leak.txt").symlink_to(external_file)
+            (session_dir / "result.txt").write_text("result\n")
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                sorted((item.slug, str(item.relative_path)) for item in found),
+                [
+                    ("proj-a", "child-1.jsonl"),
+                    ("proj-a", "child-1/tool-results/result.txt"),
+                ],
+            )
+
+    def test_nested_symlinked_directories_are_not_descended(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            project_dir = root / "proj-a"
+            session_dir = project_dir / "child-1"
+            external_dir = root / "outside"
+            (session_dir / "tool-results").mkdir(parents=True)
+            external_dir.mkdir()
+            (project_dir / "child-1.jsonl").write_text("{}\n")
+            (session_dir / "tool-results" / "result.txt").write_text("result\n")
+            (external_dir / "secret.txt").write_text("secret\n")
+            (session_dir / "linked-dir").symlink_to(
+                external_dir, target_is_directory=True
+            )
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                sorted((item.slug, str(item.relative_path)) for item in found),
+                [
+                    ("proj-a", "child-1.jsonl"),
+                    ("proj-a", "child-1/tool-results/result.txt"),
+                ],
+            )
+
+    def test_symlinked_session_directories_are_excluded(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            project_dir = root / "proj-a"
+            outside_dir = root / "outside-session"
+            project_dir.mkdir()
+            outside_dir.mkdir()
+            (project_dir / "child-1.jsonl").write_text("{}\n")
+            (outside_dir / "secret.txt").write_text("secret\n")
+            (project_dir / "child-1").symlink_to(outside_dir, target_is_directory=True)
+
+            found = prompt_workflow_sessions.discover_transcripts(root)
+
+            self.assertEqual(
+                [(item.slug, str(item.relative_path)) for item in found],
+                [("proj-a", "child-1.jsonl")],
+            )
 
 
 class MirrorTranscriptTest(unittest.TestCase):
@@ -360,6 +557,39 @@ class MirrorTranscriptTest(unittest.TestCase):
             )
             self.assertFalse(second.copied)
             self.assertEqual(second.dest.stat().st_size, 80)
+
+    def test_relative_path_preserves_nested_destination(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            archive_root = pathlib.Path(tmp) / "archive"
+            source = pathlib.Path(tmp) / "source.meta.json"
+            source.write_bytes(b'{"sidecar": true}\n')
+
+            result = prompt_workflow_sessions.mirror_transcript(
+                source,
+                archive_root,
+                project_slug="proj",
+                relative_path=pathlib.Path("child-1") / "subagents" / source.name,
+            )
+
+            self.assertTrue(result.copied)
+            self.assertEqual(
+                result.dest,
+                archive_root / "raw" / "proj" / "child-1" / "subagents" / source.name,
+            )
+            self.assertEqual(result.dest.read_bytes(), source.read_bytes())
+
+    def test_unsafe_relative_path_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            source = pathlib.Path(tmp) / "source.jsonl"
+            source.write_bytes(b"{}\n")
+
+            with self.assertRaises(ValueError):
+                prompt_workflow_sessions.mirror_transcript(
+                    source,
+                    pathlib.Path(tmp) / "archive",
+                    project_slug="proj",
+                    relative_path=pathlib.Path("..") / "escape.jsonl",
+                )
 
 
 class CollectChildIdAliasesTest(unittest.TestCase):

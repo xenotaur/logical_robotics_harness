@@ -1,0 +1,47 @@
+---
+execution_id: 2026_08_21_23_57_06_WI_SESSION_SYNC_NESTED_ARTIFACTS_CONFIRM
+prompt_id: PROMPT(AD_HOC:WI_SESSION_SYNC_NESTED_ARTIFACTS_CONFIRM)[2026-08-21T22:15:26+00:00]
+work_item: AD_HOC
+status: in_progress
+rerun_of: 2026_08_21_18_12_36_WI_SESSION_SYNC_NESTED_ARTIFACTS
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/592
+commit: 
+created_at: 2026-08-21T23:57:06+00:00
+agent: codex_app
+instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/592
+session_transcript: codex-app:019fc43f-e2d9-7503-88cb-9d9a8136c111
+---
+
+# Summary
+
+Second confirm-fixes pass for PR #592 after addressing symlink traversal
+review feedback.
+
+# Result
+
+- Authoritative thread read found two unresolved-but-outdated Copilot review
+  threads after the second review-response patch.
+- Classified both as Clear-satisfied against the current diff:
+  - `copilot-pull-request-reviewer`: top-level transcript discovery must
+    exclude symlinked/non-regular `.jsonl` files.
+  - `copilot-pull-request-reviewer`: nested artifact discovery must not
+    descend into symlinked directories.
+- Resolved both GitHub review threads with `resolveReviewThread`.
+- Thread-resolution verdict: green; no unresolved review threads remained
+  from the reviewed findings at the time of resolution.
+
+# Validation
+
+- `PYTHONPATH=src python -m unittest tests.assist_tests.prompt_workflow_sessions_test tests.cli_tests.sessions_test` - 66 tests OK.
+- `env PATH=/Users/centaur/anaconda3/bin:$PATH scripts/version tools` - after dev-tool reconciliation, Python 3.11.8, Ruff 0.15.12, Black 26.3.1, Pylint 2.16.2.
+- `env PATH=/Users/centaur/anaconda3/bin:$PATH scripts/format --check --diff` - 213 files unchanged after applying Black's mechanical format fix.
+- `env PATH=/Users/centaur/anaconda3/bin:$PATH scripts/lint` - Ruff passed; Black reported 213 files unchanged.
+- `env PYTHONNOUSERSITE=1 PYTHONPATH=/Users/centaur/.codex/worktrees/b1ba/logical_robotics_harness/src PATH=/Users/centaur/anaconda3/bin:$PATH scripts/test` - 1255 tests OK.
+- `PYTHONPATH=src lrh validate` - 0 errors, 0 warnings before this record commit.
+- Provisional PR CI before this record commit: no required-status-check rules
+  on `main`; unfiltered checks were pending except the workflow-file check.
+
+# Follow-up
+
+Re-check CI, unresolved review threads, and review signal against the
+post-confirm-record PR head before presenting the merge gate.

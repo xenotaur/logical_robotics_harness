@@ -30,6 +30,8 @@ import zipfile
 from lrh import prompt_workflow_records
 from lrh.atomic_write import atomic_write, atomic_write_bytes
 
+MALFORMED_SESSION_TRANSCRIPT_PREFIX = "<malformed-session-transcript"
+
 
 @dataclasses.dataclass(frozen=True)
 class SessionRecord:
@@ -214,6 +216,17 @@ def build_session_report(
                     )
                 )
                 continue
+            if value.startswith(MALFORMED_SESSION_TRANSCRIPT_PREFIX):
+                unsupported.append(
+                    _finding(
+                        root,
+                        record,
+                        value,
+                        category="unsupported",
+                        reason=("session_transcript value is malformed or empty"),
+                    )
+                )
+                continue
             scheme, sep, identifier = value.partition(":")
             if not sep or not scheme or not identifier:
                 unsupported.append(
@@ -327,7 +340,16 @@ def _session_transcript_values(frontmatter: dict[str, typing.Any]) -> tuple[str,
             cleaned = raw_value.strip().strip("'\"")
             if cleaned:
                 values.append(cleaned)
+            else:
+                values.append(_malformed_session_transcript_value(raw_value))
+        else:
+            values.append(_malformed_session_transcript_value(raw_value))
     return tuple(values)
+
+
+def _malformed_session_transcript_value(value: typing.Any) -> str:
+    kind = "empty" if isinstance(value, str) else type(value).__name__
+    return f"{MALFORMED_SESSION_TRANSCRIPT_PREFIX}:{kind}>"
 
 
 def _finding(
@@ -426,6 +448,8 @@ def _archived_codex_thread_ids(archive_root: pathlib.Path) -> set[str]:
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             continue
         if not isinstance(data, dict):
+            continue
+        if data.get("ephemeral") is True:
             continue
         if data.get("status") not in {"succeeded", "imported"}:
             continue

@@ -75,8 +75,9 @@ Reports execution-record session pointers that need attention:
 Successful `claude-app:` coverage is determined from the committed
 `project/sessions/index.jsonl` host-to-child mapping plus archived top-level
 JSONL filenames under `<archive-root>/raw/`. Successful `codex-app:` coverage is
-determined from successful durable Codex `attempt.json` markers under
-`<archive-root>/codex/`.
+determined from non-ephemeral Codex `attempt.json` markers under
+`<archive-root>/codex/` with `status: succeeded` or `status: imported` and a
+matching `thread_id`.
 
 The report does not read raw transcript bodies, Codex `raw.json` captures, or
 Markdown transcript bodies. Text output is intended for human closeout/dogfood

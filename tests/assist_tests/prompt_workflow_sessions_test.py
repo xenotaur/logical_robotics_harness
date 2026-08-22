@@ -407,6 +407,43 @@ class SessionReportTest(unittest.TestCase):
             self.assertEqual(report.archived, 1)
             self.assertEqual(report.findings, ())
 
+    def test_report_ignores_ephemeral_codex_attempts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript="codex-app:thread-1",
+            )
+            attempt = (
+                archive_root
+                / "codex"
+                / "exports"
+                / "2026"
+                / "01"
+                / "attempt"
+                / "attempt.json"
+            )
+            attempt.parent.mkdir(parents=True)
+            attempt.write_text(
+                json.dumps(
+                    {
+                        "status": "succeeded",
+                        "thread_id": "thread-1",
+                        "ephemeral": True,
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 0)
+            self.assertEqual(len(report.unarchived), 1)
+
     def test_report_tracks_pending_and_missing_separately(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project_root = pathlib.Path(tmp) / "project"
@@ -424,6 +461,59 @@ class SessionReportTest(unittest.TestCase):
             self.assertEqual(len(report.missing), 1)
             self.assertEqual(report.pending[0].category, "pending")
             self.assertEqual(report.missing[0].category, "missing")
+
+    def test_report_surfaces_malformed_session_transcript_scalar(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript=123,  # type: ignore[arg-type]
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.pointers_checked, 1)
+            self.assertEqual(report.missing, ())
+            self.assertEqual(len(report.unsupported), 1)
+            self.assertIn("malformed", report.unsupported[0].reason)
+
+    def test_report_surfaces_malformed_session_transcript_list_entries(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            path = project_root / "project" / "executions" / "WI-TEST" / "MIXED.md"
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(
+                "---\n"
+                "execution_id: MIXED\n"
+                "prompt_id: PROMPT(WI-TEST:TEST)[2026-01-01T00:00:00+00:00]\n"
+                "work_item: WI-TEST\n"
+                "status: landed\n"
+                "rerun_of:\n"
+                "pr: https://github.com/x/y/pull/1\n"
+                "commit: abc123\n"
+                "created_at: 2026-01-01T00:00:00+00:00\n"
+                "session_transcript:\n"
+                "  - pending\n"
+                "  - \n"
+                "---\n\n# Summary\ntest\n",
+                encoding="utf-8",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.pointers_checked, 2)
+            self.assertEqual(len(report.pending), 1)
+            self.assertEqual(len(report.unsupported), 1)
+            self.assertIn("malformed", report.unsupported[0].reason)
 
     def test_report_can_filter_by_created_at(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

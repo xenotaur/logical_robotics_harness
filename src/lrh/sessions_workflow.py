@@ -1,12 +1,12 @@
 """``lrh sessions`` CLI: sync, discover, link, report.
 
-PROP-LRH-SESSION-ARCHIVE-SYNC Stage 2 (WI-SESSION-ARCHIVE-SYNC-RECONCILER).
-Thin CLI wiring over the core logic in ``prompt_workflow_sessions``; kept as
-a separate module (rather than folded into ``prompt_workflow_sessions.py``
-itself) to avoid a circular import -- ``link`` needs
-``prompt_workflow.write_session_transcript_field`` and
-``prompt_workflow.find_execution_record_by_id``, and ``prompt_workflow.py``
-already imports ``prompt_workflow_sessions`` for ``record-session-alias``.
+PROP-LRH-SESSION-ARCHIVE-SYNC Stage 2 added sync/discover/link. Stage 3 adds
+the metadata-only report command. This module stays as thin CLI wiring over
+the core logic in ``prompt_workflow_sessions`` rather than being folded into
+that module: ``link`` needs ``prompt_workflow.write_session_transcript_field``
+and ``prompt_workflow.find_execution_record_by_id``, while
+``prompt_workflow.py`` already imports ``prompt_workflow_sessions`` for
+``record-session-alias``.
 
 Does not implement any scheduled/hook sync (Stage 4).
 """

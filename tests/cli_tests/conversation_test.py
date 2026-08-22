@@ -113,6 +113,20 @@ class ConversationCliTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 2)
         self.assertIn("--thread-id or CODEX_THREAD_ID is required", completed.stderr)
 
+    def test_conversation_current_codex_thread_id_rejects_embedded_newline(
+        self,
+    ) -> None:
+        completed = self._run_lrh(
+            "conversation",
+            "current-codex-thread-id",
+            "--thread-id",
+            "thread\ncommit: injected",
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("must not contain whitespace", completed.stderr)
+        self.assertEqual(completed.stdout, "")
+
     def test_conversation_current_codex_thread_id_field_output(self) -> None:
         completed = self._run_lrh(
             "conversation",

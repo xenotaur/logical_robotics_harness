@@ -40,6 +40,15 @@ class TestCodexSessionIdentity(unittest.TestCase):
                 environ={"CODEX_THREAD_ID": " \t\n"}
             )
 
+    def test_embedded_whitespace_is_rejected(self) -> None:
+        for raw_thread_id in ("thread\nid", "thread\tid", "thread id"):
+            with self.subTest(raw_thread_id=raw_thread_id):
+                with self.assertRaisesRegex(
+                    codex_session.CodexSessionIdentityError,
+                    "must not contain whitespace",
+                ):
+                    codex_session.resolve_codex_session_identity(raw_thread_id)
+
 
 if __name__ == "__main__":
     unittest.main()

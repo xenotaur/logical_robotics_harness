@@ -116,4 +116,8 @@ def _normalized_optional_thread_id(raw_thread_id: str | None) -> str | None:
     if raw_thread_id is None:
         return None
     normalized = raw_thread_id.strip()
-    return normalized or None
+    if not normalized:
+        return None
+    if any(character.isspace() for character in normalized):
+        raise CodexSessionIdentityError("Codex thread id must not contain whitespace")
+    return normalized

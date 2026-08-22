@@ -90,12 +90,19 @@ agentic package — an agent running skills or templates is assist, not agentic.
    the clearest example on both sides of this line: reached directly, or
    reached without a preceding gate having presented its plan, it still
    demands its own live reply; reached as the second half of `/lrh-land`'s
-   merge-plus-closeout ask (`DEC-SINGLE-ASK-RUN-GATES` rule 5, implemented as
-   unconditional shipped behavior rather than a togglable default), the merge
-   gate's presentation already carries the closeout plan's content, so the one
-   reply that authorizes the merge also satisfies this gate — closeout still
-   writes only after the merge is verified `MERGED`. A deliberately-initiated
-   chain drives to every gate it has not restated this way and stops there.
+   merge-plus-closeout ask (`DEC-SINGLE-ASK-RUN-GATES` rule 5 — the decided,
+   unconditional design, not a togglable default — pending implementation in
+   `/lrh-land` itself, tracked as `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`), the
+   merge gate's presentation is meant to already carry the closeout plan's
+   content once that work item lands, so the one reply that authorizes the
+   merge will also satisfy this gate — closeout still writes only after the
+   merge is verified `MERGED`. **As of this writing, `/lrh-land` Step 6 still
+   presents only the merge command and Step 7 still runs closeout as a
+   separate ask** (`src/lrh/skills/lrh-land/SKILL.md`); until
+   `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3` lands, treat the two as still-separate
+   gates in practice, with this paragraph describing the decided target
+   state. A deliberately-initiated chain drives to every gate it has not
+   actually restated this way and stops there.
 
 2. **Superseded 2026-08-08 — see the dated Consequences entry below.**
    ~~`disable-model-invocation` is preserved; the invariant is "no chain starts

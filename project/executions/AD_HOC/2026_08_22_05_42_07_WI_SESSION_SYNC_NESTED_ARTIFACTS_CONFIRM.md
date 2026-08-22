@@ -1,0 +1,44 @@
+---
+execution_id: 2026_08_22_05_42_07_WI_SESSION_SYNC_NESTED_ARTIFACTS_CONFIRM
+prompt_id: PROMPT(AD_HOC:WI_SESSION_SYNC_NESTED_ARTIFACTS_CONFIRM)[2026-08-22T05:36:19+00:00]
+work_item: AD_HOC
+status: in_progress
+rerun_of: 2026_08_21_18_12_36_WI_SESSION_SYNC_NESTED_ARTIFACTS
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/592
+commit: 
+created_at: 2026-08-22T05:42:07+00:00
+agent: codex_app
+instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/592
+session_transcript: codex-app:019fc43f-e2d9-7503-88cb-9d9a8136c111
+---
+
+# Summary
+
+Confirm-fixes pass for PR #592 after the ancestor symlink review-response
+patch.
+
+# Result
+
+- `lrh request review_response` reported no unresolved review threads.
+- Authoritative `lrh github threads --mode raw --state all` read found all
+  four prior review threads resolved.
+- Thread-resolution verdict: green; no unresolved review threads remained at
+  the time this record was created.
+- Latest implementation change excluded symlinked project buckets and
+  symlinked session-id directories from session archive discovery.
+
+# Validation
+
+- `PYTHONPATH=src python -m unittest tests.assist_tests.prompt_workflow_sessions_test tests.cli_tests.sessions_test` - 68 tests OK.
+- `env PATH=/Users/centaur/anaconda3/bin:$PATH scripts/version tools` - Python 3.11.8, Ruff 0.15.12, Black 26.3.1, Pylint 2.16.2.
+- `env PATH=/Users/centaur/anaconda3/bin:$PATH scripts/format --check --diff` - 213 files unchanged after applying Black's mechanical format fix.
+- `env PATH=/Users/centaur/anaconda3/bin:$PATH scripts/lint` - Ruff passed; Black reported 213 files unchanged.
+- `env PYTHONNOUSERSITE=1 PYTHONPATH=/Users/centaur/.codex/worktrees/b1ba/logical_robotics_harness/src PATH=/Users/centaur/anaconda3/bin:$PATH scripts/test` - 1257 tests OK.
+- `PYTHONPATH=src lrh validate` - 0 errors, 0 warnings before this record commit.
+- Provisional PR CI before this record commit: all checks were pending on the
+  new PR head.
+
+# Follow-up
+
+Re-check CI and review signal against the post-confirm-record PR head before
+presenting the merge gate.

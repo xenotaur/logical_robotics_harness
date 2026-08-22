@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:GATE_POLICY_AUDIT_HOUSEKEEPING)[2026-08-22T19:42:05+00:
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
+pr: 609
 commit: 
 created_at: 2026-08-22T19:42:22+00:00
 ---

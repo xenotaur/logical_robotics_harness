@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #601 (commit 834ac0a9): assessed and removed the orphaned disable-model-invocation flag, added when_to_use guidance and a confirm-before-write gate, committed a persistent Codex openai.yaml, propagated to all corpora."
 blocked_reason: null
 blocked: false
 id: WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL
 title: Remove disable-model-invocation flag from lrh-codex-export
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

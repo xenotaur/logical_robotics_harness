@@ -2,10 +2,10 @@
 execution_id: 2026_08_22_05_04_40_WI_CODEX_EXPORT_INVOCATION_FLAG_REMOVAL_IMPL
 prompt_id: PROMPT(WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL:WI_CODEX_EXPORT_INVOCATION_FLAG_REMOVAL_IMPL)[2026-08-21T23:59:33+00:00]
 work_item: WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/601
-commit: 9d8adaba
+commit: 834ac0a9d780342a0e26e0c0f27ac476f7a2cea2
 agent: claude_code
 instruction_source: project/work_items/proposed/WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL.md
 session_transcript: claude-app:local_dd7df709-1e50-4e78-a5bf-802d06e31d50

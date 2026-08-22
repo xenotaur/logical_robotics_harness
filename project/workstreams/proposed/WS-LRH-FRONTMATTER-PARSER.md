@@ -47,8 +47,8 @@ that motivated this work cannot silently recur.
   migration tool exposed via `lrh project doctor --fix-frontmatter`.
 - Add a raw-text lexical lint guard to `lrh validate` and update
   frontmatter-authoring skill guidance.
-- Close `WI-VALIDATOR-YAML-PARSER` as superseded by
-  `PROP-LRH-FRONTMATTER-PARSER`.
+- Close `WI-VALIDATOR-YAML-PARSER` and `WI-PARSER-HARDENING` as superseded
+  by `PROP-LRH-FRONTMATTER-PARSER`.
 
 ## Prior Art Check
 

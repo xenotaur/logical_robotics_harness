@@ -154,8 +154,9 @@ errors on backtick/multi-colon scalars, silent mid-scalar truncation at
   frontmatter for the same file.
 - The 3 datetime consumers handle `datetime`/`date` values explicitly, with
   tests covering the `.isoformat()` path.
-- The 27 previously-identified files parse correctly; `lrh validate` reports
-  0 errors on the full `project/` tree.
+- Every file with a colon-collapse list item or hard-syntax-error scalar
+  (re-locate at implementation time; do not rely on a cached count) parses
+  correctly; `lrh validate` reports 0 errors on the full `project/` tree.
 - `tests/control_tests/loader_test.py::test_load_project_from_repo_root`
   (the real-project-tree regression guard) passes.
 

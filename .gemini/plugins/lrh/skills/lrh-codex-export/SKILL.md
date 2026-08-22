@@ -7,6 +7,12 @@ description: 'Export the current or specified Codex task through LRH''s Codex ap
   only.
 
   '
+when_to_use: "Invoke only when the user explicitly asks to export, capture, or archive\
+  \ a Codex conversation/thread for later private review. Do not invoke proactively\
+  \ or infer the intent from a passing mention of Codex \u2014 by default this skill\
+  \ writes a durable, permanent copy into the user's local session archive (not a\
+  \ self-cleaning temp file), so invocation should always trace to a direct request,\
+  \ not an agent's own judgment call.\n"
 ---
 
 # lrh-codex-export Skill

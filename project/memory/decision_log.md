@@ -1,5 +1,43 @@
 # Decision Log
 
+## 2026-08-21: Decision: lrh-codex-export's disable-model-invocation Flag Removed, No Platform Guard Needed
+
+Not promoted to a standalone DEC — no other artifact needs to cite it,
+unlike `DEC-SELF-REVIEW-RECURSION-GUARD`. Recorded here per
+`WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL`'s own Required Changes.
+`lrh-codex-export` retained `disable-model-invocation: true` as an orphan
+by omission — added in PR #532, after `WI-DELIBERATE-MODEL-INVOCATION`'s
+scope (13 flagged skills) was already fixed, so it was never evaluated by
+that WI or its Stage 2 completion follow-up. Assessed directly against
+the skill's current text (as rewritten by PR #579, "Make Codex exports
+durable by default," which landed after the WI was first drafted) rather
+than assuming the precedent or the WI's own original prose still applies:
+`lrh-codex-export` remains a single-shot CLI wrapper (`lrh conversation
+archive-codex-thread` / `inspect-export`) with no subagent dispatch, no
+chain-authorization gate, and no merge/closeout step — confirmed via
+`grep` for `Agent|subagent|dispatch|chain|gate|merge|closeout` in the
+skill text: only incidental substring matches, no real hit. None of the
+three gap categories that justified retaining the flag on
+`lrh-self-review`/`lrh-confirm-fixes`/`lrh-land`/`lrh-execute` apply.
+
+One thing did change materially since the WI was drafted: PR #579 flipped
+the skill's default output from an ephemeral `/tmp` capture to a
+**durable, permanent archive** under `~/.local/share/lrh/session-archive`
+(scratch/ephemeral mode is now the explicit opt-in). The worst
+mistaken-invocation outcome is therefore writing a private,
+restrictive-permission file into the user's durable local archive, not a
+self-cleaning temp file — still local-only, still bounded to what the
+invoking user already has access to, still not a cost-bearing loop, but
+less trivially reversible than the original assessment assumed. Flag
+removed; `when_to_use` guidance added narrowing invocation to explicit
+user requests and naming this durable-write consequence explicitly;
+propagated to all installed corpora (`.claude/skills/`, `.agents/skills/`,
+`.gemini/plugins/lrh/skills/`, repo-local and user-scope). A persistent
+`src/lrh/skills/lrh-codex-export/agents/openai.yaml` was committed
+alongside the removal — required per PR #571's own review, since the
+Codex-target installer only regenerates that file from
+`disable-model-invocation` while the flag is still present.
+
 ## 2026-08-19: Decision: `disallowed-tools: Skill` Is the Verified, Platform-Enforced `/lrh-self-review` Recursion Guard — promoted to DEC-SELF-REVIEW-RECURSION-GUARD
 
 Promoted directly because it is cited from `lrh-self-review/SKILL.md` and

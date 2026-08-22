@@ -6,7 +6,13 @@ description: >
   durable private capture of a Codex session. Wraps
   `lrh conversation archive-codex-thread`, then verifies the artifact with
   `lrh conversation inspect-export` and reports metadata only.
-disable-model-invocation: true
+when_to_use: >
+  Invoke only when the user explicitly asks to export, capture, or archive a
+  Codex conversation/thread for later private review. Do not invoke
+  proactively or infer the intent from a passing mention of Codex — by
+  default this skill writes a durable, permanent copy into the user's local
+  session archive (not a self-cleaning temp file), so invocation should
+  always trace to a direct request, not an agent's own judgment call.
 argument-hint: "[THREAD_ID]"
 ---
 

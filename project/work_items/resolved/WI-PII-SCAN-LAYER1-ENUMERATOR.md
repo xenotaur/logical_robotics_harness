@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #616 (commit 923d9c26)."
 blocked_reason: null
 blocked: false
 id: WI-PII-SCAN-LAYER1-ENUMERATOR
 title: Implement git-plumbing path enumerator and Layer 1 file-type/path detector
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

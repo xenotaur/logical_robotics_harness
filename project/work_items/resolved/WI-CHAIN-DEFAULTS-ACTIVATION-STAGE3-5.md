@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #618 (commit 3c0b590f). Wired DEC-GATE-POLICY-CASCADE's human_initiated_invocation_evidence control into skip_if_opted_in eligibility across all five installed mirrors (src, .claude, .agents, .gemini)."
 blocked_reason: null
 blocked: false
 id: WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5
 title: Activate chain-defaults Stage 3.5 under the Stage 3 compensating control
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

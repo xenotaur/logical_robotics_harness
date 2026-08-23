@@ -18,11 +18,11 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - CLI subcommand lrh conversation export-antigravity-session is registered in src/lrh/cli/main.py.
-  - Primary input route is --transcript-path PATH, with --conversation-id, --latest, --app-data-dir as optional discovery flags.
-  - Outputs metadata-only terminal status without dumping raw transcript body.
-  - Generated Markdown artifact passes lrh conversation inspect-export verification.
-  - Passes lrh validate and CLI parser tests.
+  - "CLI subcommand lrh conversation export-antigravity-session is registered in src/lrh/cli/main.py."
+  - "Primary input route is --transcript-path PATH, with --conversation-id, --latest, --app-data-dir as optional discovery flags."
+  - "Outputs metadata-only terminal status without dumping raw transcript body."
+  - "Generated Markdown artifact passes lrh conversation inspect-export verification."
+  - "Passes lrh validate and CLI parser tests."
 ---
 
 # WI-ANTIGRAVITY-CONVERSATION-EXPORT-CLI: Implement lrh conversation export-antigravity-session CLI subcommand
@@ -71,5 +71,5 @@ Antigravity hooks pass explicit `transcriptPath` metadata. Users and scripts nee
 ## Validation
 
 - `lrh conversation export-antigravity-session --help`
-- `pytest tests/conversations_tests/antigravity_export_test.py`
+- `scripts/test tests/conversations_tests/antigravity_export_test.py`
 - `lrh validate`

@@ -86,7 +86,7 @@ the end of the run, ask "Update the stored default to match?" — never
 silently persist a one-off override. Only rewrite the file on explicit yes,
 and re-stamp `confirmed_commit`/`confirmed_at`.
 
-## `skip_if_opted_in` — the five requirements (`DEC-CHAIN-INIT-SKIP-CONSENT`)
+## `skip_if_opted_in` — the five requirements (`DEC-CHAIN-INIT-SKIP-CONSENT`) plus the Stage 3.5 compensating control (`DEC-GATE-POLICY-CASCADE`)
 
 1. **Initiation act preserved** — no special handling needed: the human's own
    `/lrh-land <pr>` / `/lrh-execute <target>` invocation is what starts this
@@ -127,6 +127,31 @@ and re-stamp `confirmed_commit`/`confirmed_at`.
 
    Any hit forces the full `always_confirm` path for this run, regardless of
    stored `chain_init_confirmation` or valid consent.
+6. **`human_initiated_invocation_evidence` (`DEC-GATE-POLICY-CASCADE` Decision
+   4) — additional to requirements 1–5 above, not a replacement for any of
+   them; all must hold together for skip mode to apply.** Before
+   `skip_if_opted_in` may be used for a run, verify and record all of:
+   - the run began from a live user message that explicitly invoked this
+     chain skill and named the target PR, WI, or WS being run;
+   - the resolved run target (from Step 1's resolution) matches that named
+     target exactly;
+   - no model-initiated `Skill()` call or sibling skill handoff is being
+     treated as the human-initiation act for this run;
+   - local skip consent exists and is bound to the exact current
+     `project/config/chain-defaults.yaml` blob hash (requirement 4 above);
+   - no special condition from requirement 5 above fired.
+
+   Missing UI transcript access to confirm the live user message, an
+   ambiguous target, a model-initiated handoff, a missing or mismatched
+   consent hash, or any special-condition hit means this evidence is
+   unavailable for this run. **This does not block the run — it falls back
+   to the `always_confirm` path for this run only**, exactly as an
+   invalid/missing consent already does under requirement 4. This
+   requirement activates the mechanism `skip_if_opted_in` describes above;
+   before it was wired in here, a user who had validly completed the
+   two-step consent (requirements 1–5) would still have had no live check
+   that this specific run was genuinely human-initiated rather than a
+   model-initiated invocation riding stored consent.
 
 ## Decision 5 — gate-definition staleness fallback
 

@@ -253,6 +253,7 @@ material.
 
 ### Step 2 — Chain authorization gate
 
+<!-- GATE-DEFINITION -->
 Per `DEC-DELIBERATE-CHAIN-INITIATION`, this gate must be reached before
 any automated link runs — before `/lrh-implement` in Step 3, not deferred
 to `/lrh-land`'s own later gate in Step 4 (by the time that gate is
@@ -314,6 +315,7 @@ gate, for the landing portion specifically, still fires when reached. When
 conditions may be satisfied by re-confirming the conditions already
 established here, if the human agrees they still apply, rather than
 re-eliciting them from scratch.
+<!-- /GATE-DEFINITION -->
 
 ### Step 3 — Implement (inline `/lrh-implement`)
 

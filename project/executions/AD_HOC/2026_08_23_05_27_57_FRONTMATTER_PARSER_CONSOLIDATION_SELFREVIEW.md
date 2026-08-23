@@ -5,11 +5,11 @@ work_item: AD_HOC
 status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/614
-commit: 4c887141dac1de77c456426419951bd51670660c
+commit: 2f7f228eab72e0fb6624f23d3b6edc1ba0a1913f
 created_at: 2026-08-23T05:27:57+00:00
 agent: claude_app
 instruction_source: 'command lrh-self-review --pr 614, invoked as a substitute review signal in place of a GitHub bot retrigger, per fleet policy'
-session_transcript: claude-app:0c8f3e38-f33d-4bb1-83ba-f7c56dae213a
+session_transcript: claude-app:494c3b1f-14c8-46bf-a4e3-0b6e8df119e8
 ---
 
 # Summary

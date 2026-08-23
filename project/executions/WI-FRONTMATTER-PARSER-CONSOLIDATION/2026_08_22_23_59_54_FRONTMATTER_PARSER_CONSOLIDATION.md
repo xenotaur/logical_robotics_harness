@@ -2,14 +2,14 @@
 execution_id: 2026_08_22_23_59_54_FRONTMATTER_PARSER_CONSOLIDATION
 prompt_id: PROMPT(WI-FRONTMATTER-PARSER-CONSOLIDATION:FRONTMATTER_PARSER_CONSOLIDATION)[2026-08-22T23:58:33+00:00]
 work_item: WI-FRONTMATTER-PARSER-CONSOLIDATION
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/614
-commit: 685a88ccb39e29ce3bd4955f11e11f2bb2d3de1f
+commit: 2f7f228eab72e0fb6624f23d3b6edc1ba0a1913f
 created_at: 2026-08-22T23:59:54+00:00
 agent: claude_app
 instruction_source: 'chat (user ran /lrh-execute WI-FRONTMATTER-PARSER-CONSOLIDATION to implement and land the work item end-to-end)'
-session_transcript: claude-app:0c8f3e38-f33d-4bb1-83ba-f7c56dae213a
+session_transcript: claude-app:494c3b1f-14c8-46bf-a4e3-0b6e8df119e8
 ---
 
 # Summary

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Implemented and merged in PR #614 (commit 2f7f228e)
 blocked_reason: null
 blocked: false
 id: WI-FRONTMATTER-PARSER-CONSOLIDATION
 title: Consolidate LRH frontmatter parsers onto PyYAML
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

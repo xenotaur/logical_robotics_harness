@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #606 (commit 9ebce502) -- fixed silent path misresolution in transfer's --from and added a force+snapshot overwrite guard (same-agent, legacy no-authored_by, and malformed destinations) to transfer/import, with a per-destination lock against concurrent overwrites."
 blocked_reason: null
 blocked: false
 id: WI-LRH-MEMORY-TRANSFER-SAFETY
 title: Fix silent path misresolution and unsafe overwrite in lrh memory transfer/import
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

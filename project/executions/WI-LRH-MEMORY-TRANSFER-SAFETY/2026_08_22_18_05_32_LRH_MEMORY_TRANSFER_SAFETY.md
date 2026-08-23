@@ -2,13 +2,13 @@
 execution_id: 2026_08_22_18_05_32_LRH_MEMORY_TRANSFER_SAFETY
 prompt_id: PROMPT(WI-LRH-MEMORY-TRANSFER-SAFETY:LRH_MEMORY_TRANSFER_SAFETY)[2026-08-22T17:05:59+00:00]
 work_item: WI-LRH-MEMORY-TRANSFER-SAFETY
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/606
-commit: f5a2028e
+commit: 9ebce5029ddeeaf2aa018cd099a034d9f1272d9d
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-MEMORY-TRANSFER-SAFETY.md
-session_transcript: pending
+session_transcript: claude-app:937464f4-d02a-4285-9bbf-f8411ebb09fe
 created_at: 2026-08-22T18:05:32+00:00
 ---
 

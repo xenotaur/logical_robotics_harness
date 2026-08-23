@@ -78,11 +78,11 @@ integration, weekly scheduled sync configuration, a clean post-Stage-1
 `lrh sessions report`, `lrh validate`, and an advanced/adopted
 `PROP-LRH-SESSION-ARCHIVE-SYNC`. A post-Stage-1 report run from the Stage 1
 merge timestamp (`2026-08-06T08:39:36+00:00`) on 2026-08-23 found
-`records_checked 443`, `pointers_checked 436`, `pending 39`, `dangling 87`,
-`unarchived 75`, and `unsupported 0`, so closing the workstream without a
-baseline decision would create a false sense of archive completeness. The
-Stage 3 report item intentionally made gaps visible; this item decides what to
-do with those visible gaps before closeout.
+`records_checked 445`, `pointers_checked 438`, `missing 7`, `pending 39`,
+`dangling 87`, `unarchived 77`, and `unsupported 0`, so closing the workstream
+without a baseline decision would create a false sense of archive completeness.
+The Stage 3 report item intentionally made gaps visible; this item decides what
+to do with those visible gaps before closeout.
 
 ### Duplication search
 

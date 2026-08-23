@@ -23,9 +23,10 @@ resolved workstream without committing transcript content.
 
 Created `project/evidence/EV-0012.md` with the post-Stage-1
 `lrh sessions report` command, timestamp, base commit, counts, and
-representative categories. The baseline records 443 records checked, 436
-pointers checked, 39 pending records, 87 dangling records, 75 unarchived
-records, and 0 unsupported records.
+representative categories. After review-response refresh, the baseline records
+445 records checked, 438 pointers checked, 7 missing-pointer records, 39
+pending records, 87 dangling records, 77 unarchived records, and 0 unsupported
+records.
 
 Updated `project/workstreams/resolved/WS-SESSION-ARCHIVE-SYNC.md` to keep the
 workstream resolved/closed while making the closeout criterion honest: the
@@ -42,11 +43,12 @@ workstream and to expect the committed evidence artifact.
 
 Ran diff-mode `/lrh-self-review`. The review identified an untracked evidence
 file staging risk, expected pre-closeout lifecycle sequencing, and a real gap
-around the weekly scheduled-sync criterion. The content gap was fixed by
-recording that weekly scheduled sync is accepted at repository closeout as a
-documented setup path via `lrh sessions schedule`; host-local launchd
-installation remains human-controlled machine state and is not asserted by the
-repository.
+around the weekly scheduled-sync criterion. The first review-response round
+then refined that decision further: the documented `lrh sessions schedule` path
+satisfies the repository implementation deliverable, but it does not make the
+retention guarantee operational until host-local scheduler installation is
+confirmed. The baseline now tracks that unverified installation as an
+operational blocker/follow-up.
 
 # Validation
 
@@ -60,8 +62,9 @@ repository.
 - `PATH=/Users/centaur/anaconda3/bin:$PATH PYTHONPATH=src lrh validate` — 0
   errors, 0 warnings.
 - `PATH=/Users/centaur/anaconda3/bin:$PATH PYTHONPATH=src python -c ... lrh
-  sessions report ...` — confirmed the recorded count summary matches the
-  evidence artifact.
+  sessions report ...` — confirmed the refreshed count summary matches the
+  evidence artifact: 445 records, 438 pointers, 7 missing, 39 pending, 87
+  dangling, 77 unarchived, and 0 unsupported.
 
 Validation notes: the first `scripts/test` attempt without `PYTHONPATH=src`
 imported LRH from the sibling checkout at

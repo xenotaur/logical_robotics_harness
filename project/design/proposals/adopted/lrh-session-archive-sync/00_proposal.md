@@ -421,23 +421,29 @@ sync/discover/link, durable Codex export defaults, nested artifact handling,
 metadata-only reporting, scheduled sync, closeout sync, and Codex session-id
 resolution.
 
-The weekly scheduled-sync closeout criterion is satisfied at the repository
-level by the documented `lrh sessions schedule` setup path in
-`docs/reference/cli/sessions.md`. The command renders an inspectable launchd
-plist and leaves load/unload decisions to the human, so this closeout does not
-assert that a host-local scheduler job is currently installed on any particular
-machine.
+The weekly scheduled-sync closeout criterion is satisfied for repository
+implementation by the documented `lrh sessions schedule` setup path in
+`docs/reference/cli/sessions.md`, but it is not satisfied as an operational
+retention guarantee until host-local scheduler installation is confirmed on the
+target machine. The command renders an inspectable launchd plist and leaves
+load/unload decisions to the human; this closeout therefore tracks unverified
+host-local installation as an operational blocker/follow-up rather than
+asserting that a scheduler job is already loaded.
 
 `EV-0012` records the closeout baseline for the post-Stage-1 archive report.
-On 2026-08-23, `lrh sessions report --project-root . --since-created-at
-2026-08-06T08:39:36+00:00 --format json` reported 443 records checked, 436
-pointers checked, 39 pending records, 87 dangling records, 75 unarchived
-records, and 0 unsupported records.
+On 2026-08-23, at PR #619 commit
+`233a6a1f75171bb8bcc3c4c19d9abb975d6db4cd`,
+`lrh sessions report --project-root . --since-created-at
+2026-08-06T08:39:36+00:00 --format json` reported 445 records checked, 438
+pointers checked, 7 missing-pointer records, 39 pending records, 87 dangling
+records, 77 unarchived records, and 0 unsupported records.
 
 Those remaining findings are classified as follow-up work rather than erased:
-pending records need backend pointer resolution or terminal `none`
-classification; dangling Claude records need index/alias coverage follow-up;
-unarchived Codex records need durable export/import dogfooding or rescue
-consolidation. The resolved workstream therefore records implementation
-completion, not a false assertion that every historical or post-Stage-1 archive
-coverage gap has already been eliminated.
+missing-pointer and pending records need backend pointer resolution or terminal
+`none` classification; dangling Claude records need index/alias coverage
+follow-up; unarchived Codex records need durable export/import dogfooding or
+rescue consolidation; host-local weekly scheduler installation needs
+confirmation before the retention guarantee is considered operational. The
+resolved workstream therefore records repository implementation completion, not
+a false assertion that every historical or post-Stage-1 archive coverage gap or
+host deployment step has already been eliminated.

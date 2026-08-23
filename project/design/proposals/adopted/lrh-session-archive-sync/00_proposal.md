@@ -2,11 +2,18 @@
 id: PROP-LRH-SESSION-ARCHIVE-SYNC
 type: design_proposal
 title: LRH Session Archive and Sync — Durable Local Transcript Archive, Reconciler, and Session Index
-status: proposed
+status: adopted
 created_on: 2026-07-23
 updated_on: 2026-07-29
-implementation_status: not_started
-implemented_by: []
+implementation_status: implemented
+implemented_by:
+  - WI-SESSION-ARCHIVE-SYNC-CAPTURE
+  - WI-SESSION-ARCHIVE-SYNC-RECONCILER
+  - WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT
+  - WI-SESSION-SYNC-NESTED-ARTIFACTS
+  - WI-SESSION-ARCHIVE-SYNC-REPORT
+  - WI-SESSION-ARCHIVE-SYNC-SCHEDULED-CLOSEOUT-SYNC
+  - WI-CODEX-SESSION-ID-RESOLVER
 supersedes: []
 superseded_by: null
 related_design:

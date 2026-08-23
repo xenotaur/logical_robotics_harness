@@ -2,13 +2,13 @@
 execution_id: 2026_08_22_20_33_28_CONFIRM_GATES_COMMANDS_870922_CONFIRM
 prompt_id: PROMPT(AD_HOC:CONFIRM_GATES_COMMANDS_870922_CONFIRM)[2026-08-22T20:24:51+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_22_19_42_22_GATE_POLICY_AUDIT_HOUSEKEEPING
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/609
 session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/609
-commit: 
+commit: 1a53df7eb88385cc952f949dfe35a921c35a62d9
 created_at: 2026-08-22T20:33:28+00:00
 ---
 

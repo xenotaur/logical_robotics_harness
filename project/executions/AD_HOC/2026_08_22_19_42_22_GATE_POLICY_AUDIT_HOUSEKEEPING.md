@@ -2,10 +2,11 @@
 execution_id: 2026_08_22_19_42_22_GATE_POLICY_AUDIT_HOUSEKEEPING
 prompt_id: PROMPT(AD_HOC:GATE_POLICY_AUDIT_HOUSEKEEPING)[2026-08-22T19:42:05+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/609
-commit: 
+commit: 1a53df7eb88385cc952f949dfe35a921c35a62d9
+session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0
 created_at: 2026-08-22T19:42:22+00:00
 ---
 

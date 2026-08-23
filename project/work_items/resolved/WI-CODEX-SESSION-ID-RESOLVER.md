@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #611 (commit 3f26381e98c69ff2c16d5ed64f2762e283fcacf4)."
 blocked_reason: null
 blocked: false
 id: WI-CODEX-SESSION-ID-RESOLVER
 title: Add Codex session ID resolver skill and CLI helper
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony
@@ -17,7 +17,7 @@ related_roadmap:
 related_workstreams:
   - WS-SESSION-ARCHIVE-SYNC
 related_design:
-  - project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md
+  - project/design/proposals/adopted/lrh-session-archive-sync/00_proposal.md
   - project/design/proposals/adopted/lrh-codex-app-server-conversation-export/00_proposal.md
   - docs/conversations/codex_export.md
   - docs/reference/cli/conversation.md

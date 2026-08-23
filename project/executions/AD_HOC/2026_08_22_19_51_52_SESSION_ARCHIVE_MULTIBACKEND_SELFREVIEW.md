@@ -2,10 +2,11 @@
 execution_id: 2026_08_22_19_51_52_SESSION_ARCHIVE_MULTIBACKEND_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:SESSION_ARCHIVE_MULTIBACKEND_SELFREVIEW)[2026-08-22T19:51:15+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/608
-commit: 
+commit: 0913b412bf426df4c09c4692b8cbf845432f363f
+session_transcript: claude-app:dcf660e9-d89f-41e7-a220-edcede420919
 created_at: 2026-08-22T19:51:52+00:00
 ---
 

@@ -2,10 +2,10 @@
 execution_id: 2026_08_22_17_51_44_CONDA_WORKTREE_ENV_SCRIPT_REVIEW
 prompt_id: PROMPT(AD_HOC:CONDA_WORKTREE_ENV_SCRIPT_REVIEW)[2026-08-22T05:34:07+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_22_04_23_51_CONDA_WORKTREE_ENV_SCRIPT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/600
-commit: ae8a9296
+commit: cabbb9ab21b63ea9b8b1a265f6f81bab9b266ae2
 created_at: 2026-08-22T17:51:44+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/600

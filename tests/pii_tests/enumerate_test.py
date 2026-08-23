@@ -11,7 +11,11 @@ def _run_git(project_root: pathlib.Path, *args: str) -> None:
 
 
 def _init_repo(project_root: pathlib.Path) -> None:
-    _run_git(project_root, "init", "-q")
+    # Explicitly pin the initial branch name so these fixtures (which
+    # later `checkout main` by name) are independent of the local
+    # `init.defaultBranch` config, which some environments still set to
+    # "master" (PR #616 review, `chatgpt-codex-connector` P1).
+    _run_git(project_root, "init", "-q", "-b", "main")
     _run_git(project_root, "config", "user.email", "test@example.com")
     _run_git(project_root, "config", "user.name", "test")
 
@@ -32,7 +36,7 @@ class EnumerateAddedPathsTest(unittest.TestCase):
 
             self.assertEqual(paths, ["a.txt", "statement.pdf"])
 
-    def test_does_not_report_renamed_path_as_a_new_add(self) -> None:
+    def test_reports_both_the_add_name_and_the_rename_destination(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project_root = pathlib.Path(tmp)
             _init_repo(project_root)
@@ -44,7 +48,11 @@ class EnumerateAddedPathsTest(unittest.TestCase):
 
             paths = pii_enumerate.enumerate_added_paths(project_root)
 
-            self.assertEqual(paths, ["statement.pdf"])
+            # The rename destination must be a candidate too: a benign name
+            # renamed to a suspicious one (e.g. notes.txt -> passport.pdf)
+            # would otherwise never reach Layer 1 (PR #616 review,
+            # `chatgpt-codex-connector` P1).
+            self.assertEqual(paths, ["renamed_statement.pdf", "statement.pdf"])
 
     def test_finds_a_path_introduced_only_by_a_merge_commit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -69,7 +77,7 @@ class EnumerateAddedPathsTest(unittest.TestCase):
 
 
 class EnumerateCommitsForPathsTest(unittest.TestCase):
-    def test_follows_rename_across_history(self) -> None:
+    def test_follows_rename_and_reports_the_historical_path_per_commit(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project_root = pathlib.Path(tmp)
             _init_repo(project_root)
@@ -84,7 +92,13 @@ class EnumerateCommitsForPathsTest(unittest.TestCase):
             )
 
             self.assertEqual(len(commits), 2)
-            self.assertTrue(all(c.path == "renamed_statement.pdf" for c in commits))
+            # The add commit predates the rename, so `git show <commit>:<path>`
+            # for it must use the pre-rename name, not the caller's input
+            # path - the post-rename name did not exist yet at that commit
+            # (PR #616 review, `chatgpt-codex-connector` P1).
+            self.assertEqual(
+                {c.path for c in commits}, {"statement.pdf", "renamed_statement.pdf"}
+            )
 
     def test_finds_modification_on_a_non_default_branch(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

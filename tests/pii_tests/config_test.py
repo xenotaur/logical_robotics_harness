@@ -62,6 +62,36 @@ class LoadConfigTest(unittest.TestCase):
             with self.assertRaises(pii_config.PiiConfigError):
                 pii_config.load_config(project_root)
 
+    def test_non_bool_use_default_raises_pii_config_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            (project_root / pii_config.CONFIG_FILENAME).write_text(
+                '[extend]\nuseDefault = "yes"\n'
+            )
+
+            with self.assertRaises(pii_config.PiiConfigError):
+                pii_config.load_config(project_root)
+
+    def test_non_list_path_globs_raises_pii_config_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            (project_root / pii_config.CONFIG_FILENAME).write_text(
+                'path_globs = "*.pdf"\n'
+            )
+
+            with self.assertRaises(pii_config.PiiConfigError):
+                pii_config.load_config(project_root)
+
+    def test_non_string_list_entry_raises_pii_config_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            (project_root / pii_config.CONFIG_FILENAME).write_text(
+                "filename_keywords = [1, 2]\n"
+            )
+
+            with self.assertRaises(pii_config.PiiConfigError):
+                pii_config.load_config(project_root)
+
 
 if __name__ == "__main__":
     unittest.main()

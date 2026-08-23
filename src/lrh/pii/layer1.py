@@ -29,15 +29,25 @@ def flag_path(path: str, config: pii_config.PiiConfig) -> Layer1Finding | None:
     filename keyword, else `None`. Glob checks run first; a path matching
     both a glob and a keyword is reported once, under the glob rule.
 
-    Glob matching is case-insensitive (`fnmatch.fnmatch` is only
-    case-insensitive on platforms where `os.path.normcase` folds case,
-    which is not POSIX - matching a realistic `Statement.PDF` from a
+    Glob matching runs against the full, normalized repo-relative path
+    (not only the basename), so a directory-qualified rule like
+    `private/*.txt` can match - a plain extension glob like `*.pdf` still
+    matches regardless of directory, since `fnmatch`'s `*` matches `/`
+    too (PR #616 review, `chatgpt-codex-connector` P2 /
+    `copilot-pull-request-reviewer`). Filename-keyword matching still runs
+    against the basename only - a keyword like "statement" is about the
+    filename itself, not any directory component that happens to contain
+    it.
+
+    Both glob and keyword matching are case-insensitive (`fnmatch.fnmatch`
+    is only case-insensitive on platforms where `os.path.normcase` folds
+    case, which is not POSIX - matching a realistic `Statement.PDF` from a
     Windows-originated scan requires explicitly lowercasing both sides)."""
-    name = pathlib.PurePosixPath(path).name
-    stem_lower = name.lower()
+    normalized_path = pathlib.PurePosixPath(path).as_posix().lower()
+    name_lower = pathlib.PurePosixPath(path).name.lower()
 
     for glob in config.path_globs:
-        if fnmatch.fnmatch(stem_lower, glob.lower()):
+        if fnmatch.fnmatch(normalized_path, glob.lower()):
             return Layer1Finding(
                 path=path,
                 rule_id=f"path_glob.{glob}",
@@ -46,7 +56,7 @@ def flag_path(path: str, config: pii_config.PiiConfig) -> Layer1Finding | None:
             )
 
     for keyword in config.filename_keywords:
-        if keyword.lower() in stem_lower:
+        if keyword.lower() in name_lower:
             return Layer1Finding(
                 path=path,
                 rule_id=f"filename_keyword.{keyword}",

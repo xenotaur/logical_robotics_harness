@@ -55,19 +55,42 @@ def load_config(project_root: pathlib.Path) -> PiiConfig:
         )
 
     try:
-        data = tomllib.loads(config_path.read_text(encoding="utf-8"))
+        raw_text = config_path.read_text(encoding="utf-8")
+    except OSError as err:
+        raise PiiConfigError(f"{config_path} could not be read: {err}") from err
+
+    try:
+        data = tomllib.loads(raw_text)
     except tomllib.TOMLDecodeError as err:
         raise PiiConfigError(f"{config_path} is not valid TOML: {err}") from err
 
     use_default = data.get("extend", {}).get("useDefault", True)
+    if not isinstance(use_default, bool):
+        raise PiiConfigError(
+            f"{config_path}: [extend].useDefault must be a boolean, "
+            f"got {use_default!r}"
+        )
 
     path_globs = list(DEFAULT_PATH_GLOBS) if use_default else []
-    path_globs.extend(data.get("path_globs", []))
+    path_globs.extend(_require_string_list(data, "path_globs", config_path))
 
     filename_keywords = list(DEFAULT_FILENAME_KEYWORDS) if use_default else []
-    filename_keywords.extend(data.get("filename_keywords", []))
+    filename_keywords.extend(
+        _require_string_list(data, "filename_keywords", config_path)
+    )
 
     return PiiConfig(
         path_globs=tuple(dict.fromkeys(path_globs)),
         filename_keywords=tuple(dict.fromkeys(filename_keywords)),
     )
+
+
+def _require_string_list(
+    data: dict[str, object], key: str, config_path: pathlib.Path
+) -> list[str]:
+    value = data.get(key, [])
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise PiiConfigError(
+            f"{config_path}: {key} must be a list of strings, got {value!r}"
+        )
+    return value

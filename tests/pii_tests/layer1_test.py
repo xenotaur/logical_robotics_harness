@@ -25,6 +25,26 @@ class FlagPathTest(unittest.TestCase):
         self.assertIsNotNone(finding)
         self.assertEqual(finding.rule_id, "path_glob.*.pdf")
 
+    def test_matches_a_directory_qualified_glob_against_the_full_path(self) -> None:
+        config = pii_config.PiiConfig(
+            path_globs=("private/*.txt",),
+            filename_keywords=(),
+        )
+
+        self.assertIsNotNone(layer1.flag_path("private/notes.txt", config))
+        self.assertIsNone(layer1.flag_path("public/notes.txt", config))
+
+    def test_keyword_matching_still_ignores_directory_components(self) -> None:
+        config = pii_config.PiiConfig(
+            path_globs=(),
+            filename_keywords=("statement",),
+        )
+
+        # A directory named "statements" must not itself trigger the
+        # keyword rule for a file that isn't named with the keyword.
+        self.assertIsNone(layer1.flag_path("statements/report.txt", config))
+        self.assertIsNotNone(layer1.flag_path("docs/statement.txt", config))
+
     def test_flags_file_matching_a_filename_keyword_case_insensitively(self) -> None:
         finding = layer1.flag_path("Bank_Statement_2026.txt", self.config)
 

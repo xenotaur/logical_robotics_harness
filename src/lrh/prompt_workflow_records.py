@@ -3,10 +3,25 @@
 from __future__ import annotations
 
 import dataclasses
+import os
 import pathlib
 import typing
 
+# Bolt: Shared ignored dirs for os.walk optimizations
 from lrh.control import parser as control_parser
+
+# Bolt: Shared ignored dirs for os.walk optimizations
+_IGNORED_DIRS = frozenset(
+    {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -98,7 +113,16 @@ def load_execution_records(
 
     execution_root = pathlib.Path(project_root) / output_root
     records: list[ExecutionRecord] = []
-    for path in sorted(execution_root.rglob("*")):
+
+    found_paths = []
+    # Bolt: Replaced rglob with os.walk and directory pruning to avoid traversing
+    # large ignored directories.
+    for dirpath, dirnames, filenames in os.walk(execution_root):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+        for f in filenames:
+            found_paths.append(pathlib.Path(dirpath) / f)
+
+    for path in sorted(found_paths):
         # `.glob("**/*.md")` is case-sensitive regardless of the
         # underlying filesystem's own case-sensitivity -- the identical
         # gap already fixed in

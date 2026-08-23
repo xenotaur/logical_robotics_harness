@@ -46,7 +46,7 @@ artifacts_expected:
   - project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
-  - project/workstreams/proposed/WS-LRH-CHAIN-DEFAULTS.md
+  - project/workstreams/active/WS-LRH-CHAIN-DEFAULTS.md
 ---
 
 # Amend `DEC-DELIBERATE-CHAIN-INITIATION` to narrow the per-run live-reply requirement for opted-in skip mode

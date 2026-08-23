@@ -47,11 +47,14 @@ propagation.
 `/lrh-self-review` diff-mode pass (execution record:
 `2026_08_23_06_02_17_CHAIN_DEFAULTS_ACTIVATION_STAGE3_5_SELFREVIEW`) found
 two non-blocking prose issues in the new text (a circular ordering claim, a
-duplicated clause) -- both fixed before push -- and one pre-existing,
-out-of-scope finding (a fourth mirror at
-`.gemini/plugins/lrh/skills/lrh-land/references/land-workflow.md`, stale
-since PR #577, not named in this WI's `artifacts_expected`) independently
-re-verified and flagged as a follow-up rather than fixed here.
+duplicated clause) -- both fixed before push -- and flagged a fourth mirror
+(`.gemini/plugins/lrh/skills/lrh-land/references/land-workflow.md`, not
+named in this WI's `artifacts_expected`) as pre-existing drift. **That
+pre-existing-drift claim was wrong** -- caught by `chatgpt-codex-connector`'s
+review on the resulting PR #618: `.gemini` and `src` were byte-identical at
+the parent commit, so this diff introduced the drift, not inherited it.
+Fixed in the review-response round: synced `.gemini`'s copy to match; see
+that round's own execution record.
 
 # Validation
 
@@ -66,7 +69,6 @@ re-verified and flagged as a follow-up rather than fixed here.
 
 # Follow-up
 
-- File a follow-up work item for the `.gemini` mirror drift.
 - Report restart requirement: any in-flight `/lrh-land`/`/lrh-execute`
   session must restart to pick up this change, since the propose-and-confirm
   flow is inlined text read at skill-invocation time, not re-read mid-run.

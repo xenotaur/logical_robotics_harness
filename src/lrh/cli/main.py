@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from lrh import (
+    gate_staleness,
     memory_workflow,
     prompt_workflow,
     prompt_workflow_match,
@@ -31,7 +32,6 @@ from lrh.conversations import (
     pdf_import,
 )
 from lrh.design import organize as design_organize
-from lrh import gate_staleness
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
 from lrh.secrets import purge as secrets_purge

@@ -160,6 +160,7 @@ Three reads, in this order:
    Step 8 re-fetches CI against the post-push `HEAD` before the final
    verdict.
 
+<!-- GATE-DEFINITION -->
 **Empty-thread gate.** If the Step 2.2 unresolved-thread list is empty, do not
 silently skip from Step 2 to Step 8. Mint the Step 3 prompt ID, then present a
 short gate before continuing through Steps 6 and 7:
@@ -179,6 +180,7 @@ record, and Step 8 then re-checks CI and review coverage against that
 post-record `HEAD`. This gate is required even when there are no threads to
 resolve, because Step 8 still makes the merge-readiness decision and may
 dispatch a substitute self-review signal.
+<!-- /GATE-DEFINITION -->
 
 ### Step 3 — Fresh-eyes verification
 
@@ -259,6 +261,7 @@ lrh prompt label --slug <slug>
 
 ### Step 4 — Confirm gate (human gate)
 
+<!-- GATE-DEFINITION -->
 Before resolving any thread, show the user a single batch summary:
 
 - PR URL, number of unresolved threads
@@ -276,6 +279,7 @@ Before resolving any thread, show the user a single batch summary:
 per-thread — the exceptions are the report; approving the batch approves the
 Clear-satisfied resolutions as a set. If the user deselects specific threads
 or redirects a classification, adjust and re-show before proceeding.
+<!-- /GATE-DEFINITION -->
 
 ### Step 5 — Execute confirmed resolutions
 

@@ -5,7 +5,7 @@ title: Persisted, User-Editable Chain-Defaults Profile for LRH Skill Gates
 status: proposed
 implementation_status: partial
 created_on: 2026-08-05
-updated_on: 2026-08-22
+updated_on: 2026-08-23
 related_design:
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
@@ -15,6 +15,7 @@ related_design:
   - project/design/proposals/proposed/lrh-land-execute/00_proposal.md
 implemented_by:
   - WI-LRH-CHAIN-DEFAULTS-INCREMENT-1
+  - WI-LRH-CHAIN-DEFAULTS-INCREMENT-3
 evidence: []
 supersedes: []
 superseded_by: null

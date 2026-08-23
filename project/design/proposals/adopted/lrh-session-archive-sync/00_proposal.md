@@ -14,6 +14,7 @@ implemented_by:
   - WI-SESSION-ARCHIVE-SYNC-REPORT
   - WI-SESSION-ARCHIVE-SYNC-SCHEDULED-CLOSEOUT-SYNC
   - WI-CODEX-SESSION-ID-RESOLVER
+  - WI-SESSION-ARCHIVE-SYNC-CLOSEOUT-BASELINE
 supersedes: []
 superseded_by: null
 related_design:
@@ -411,3 +412,32 @@ to record that it is fulfilled through this proposal.
 - Whether the `project/sessions/` index should be regenerated on every closeout
   or only when its content would change, to minimize repository churn. (Leaning
   toward the latter; not load-bearing.)
+
+## Implementation Closeout Baseline
+
+This proposal is adopted and implemented for the LRH command surface and
+capture mechanisms it defined: forward session identity capture, archive
+sync/discover/link, durable Codex export defaults, nested artifact handling,
+metadata-only reporting, scheduled sync, closeout sync, and Codex session-id
+resolution.
+
+The weekly scheduled-sync closeout criterion is satisfied at the repository
+level by the documented `lrh sessions schedule` setup path in
+`docs/reference/cli/sessions.md`. The command renders an inspectable launchd
+plist and leaves load/unload decisions to the human, so this closeout does not
+assert that a host-local scheduler job is currently installed on any particular
+machine.
+
+`EV-0012` records the closeout baseline for the post-Stage-1 archive report.
+On 2026-08-23, `lrh sessions report --project-root . --since-created-at
+2026-08-06T08:39:36+00:00 --format json` reported 443 records checked, 436
+pointers checked, 39 pending records, 87 dangling records, 75 unarchived
+records, and 0 unsupported records.
+
+Those remaining findings are classified as follow-up work rather than erased:
+pending records need backend pointer resolution or terminal `none`
+classification; dangling Claude records need index/alias coverage follow-up;
+unarchived Codex records need durable export/import dogfooding or rescue
+consolidation. The resolved workstream therefore records implementation
+completion, not a false assertion that every historical or post-Stage-1 archive
+coverage gap has already been eliminated.

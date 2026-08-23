@@ -1038,26 +1038,40 @@ def sync_export(
 # discover / link lookups
 # ---------------------------------------------------------------------------
 
-_PROJECT_SLUG_UNSAFE = re.compile(r"[/.]")
+_PROJECT_SLUG_UNSAFE = re.compile(r"[/._]")
 
 
 def project_slug_for_path(path: str | pathlib.Path) -> str:
-    """Claude Code's own project-slug rule: normalize ``/`` and ``.`` to
-    ``-`` in the absolute path, matching how it names
+    """Claude Code's own project-slug rule: normalize ``/``, ``.``, and
+    ``_`` to ``-`` in the absolute path, matching how it names
     ``~/.claude/projects/<slug>/``.
 
-    Verified against every real directory under ``~/.claude/projects/``
-    on this machine: a `.claude/worktrees/...` path segment becomes
-    `-claude-worktrees-...` (the leading dot *is* replaced), while a
-    repository name containing a literal underscore (e.g.
-    ``replication_vector``) is preserved as-is -- underscore is **not**
-    replaced. An earlier revision of this function replaced ``_`` instead
-    of ``.``, which silently broke resolution for every
+    Verified against real, transcript-bearing directories under
+    ``~/.claude/projects/`` on this machine (i.e. buckets containing at
+    least one ``*.jsonl`` session transcript -- proof a genuine Claude
+    Code session created them, not a memory-only artifact that could
+    itself be mis-slugged): a `.claude/worktrees/...` path segment becomes
+    `-claude-worktrees-...` (the leading dot *is* replaced), and a
+    repository directory name containing a literal underscore is *also*
+    replaced with a hyphen -- confirmed independently for two separate
+    repositories whose on-disk directory names contain an underscore
+    (``logical_robotics_harness``, ``replication_vector``): both have
+    their real, transcript-bearing bucket names fully hyphenated, not
+    underscore-preserving. This function does **not** follow symlinks
+    either: it must slug the literal, as-given path, not
+    ``pathlib.Path.resolve()``'s target, since Claude Code's own bucketing
+    does not resolve symlinks (verified via this repository's own two
+    independently-populated buckets for its pre- and post-move path
+    spellings). An earlier revision of this function replaced ``_``
+    instead of ``.``, which silently broke resolution for every
     ``.claude/worktrees/`` path -- this project's own most common working
-    layout.
+    layout; a later revision then also (incorrectly) claimed underscore
+    should be preserved, based on unverified evidence (a memory-only
+    bucket with no session transcript, not proof of Claude Code's actual
+    behavior).
     """
 
-    absolute = str(pathlib.Path(path).expanduser().resolve())
+    absolute = os.path.abspath(os.path.expanduser(str(path)))
     return _PROJECT_SLUG_UNSAFE.sub("-", absolute)
 
 

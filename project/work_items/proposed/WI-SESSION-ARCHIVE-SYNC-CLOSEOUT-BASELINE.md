@@ -45,11 +45,11 @@ forbidden_actions:
   - silently_ignore_archive_gaps
   - trigger_github_review_agents
 acceptance:
-  - A post-Stage-1 `lrh sessions report` baseline is recorded with command, timestamp, counts, and representative gap categories without printing transcript bodies
-  - Remaining post-Stage-1 pending, dangling, and unarchived records are classified as fixed, expected exception, or linked follow-up work
-  - The weekly scheduled-sync exit criterion is resolved explicitly as either documented local setup, confirmed host configuration, or a follow-up/blocker
-  - `PROP-LRH-SESSION-ARCHIVE-SYNC` and `WS-SESSION-ARCHIVE-SYNC` are updated consistently, or a concrete blocker is recorded instead of closing
-  - `lrh validate` reports 0 errors
+  - "A post-Stage-1 `lrh sessions report` baseline is recorded with command, timestamp, counts, and representative gap categories without printing transcript bodies"
+  - "Remaining post-Stage-1 pending, dangling, and unarchived records are classified as fixed, expected exception, or linked follow-up work"
+  - "The weekly scheduled-sync exit criterion is resolved explicitly as either documented local setup, confirmed host configuration, or a follow-up/blocker"
+  - "`PROP-LRH-SESSION-ARCHIVE-SYNC` and `WS-SESSION-ARCHIVE-SYNC` are updated consistently, or a concrete blocker is recorded instead of closing"
+  - "`lrh validate` reports 0 errors"
 required_evidence:
   - manual_review
   - lrh_validate

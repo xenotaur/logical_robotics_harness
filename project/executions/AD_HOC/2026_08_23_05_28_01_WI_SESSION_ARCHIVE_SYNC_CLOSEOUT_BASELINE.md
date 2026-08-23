@@ -2,10 +2,10 @@
 execution_id: 2026_08_23_05_28_01_WI_SESSION_ARCHIVE_SYNC_CLOSEOUT_BASELINE
 prompt_id: PROMPT(AD_HOC:WI_SESSION_ARCHIVE_SYNC_CLOSEOUT_BASELINE)[2026-08-23T05:16:37+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/617
-commit: 
+commit: ee0e2be567b877c8459161a4473977e92c2d202c
 created_at: 2026-08-23T05:28:01+00:00
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SESSION-ARCHIVE-SYNC-CLOSEOUT-BASELINE.md

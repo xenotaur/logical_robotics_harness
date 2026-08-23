@@ -546,7 +546,7 @@ def _parse_markdown_frontmatter(
                 path,
                 "error",
                 "YAML_PARSE_ERROR",
-                f"invalid YAML in frontmatter: {exc}",
+                str(exc),
             )
         )
         return None

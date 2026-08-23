@@ -463,7 +463,9 @@ resolution: null
 
         report = validate_project(root)
 
-        self.assertTrue(any(issue.severity == "error" for issue in report.issues))
+        self.assertTrue(
+            any(issue.code == "YAML_PARSE_ERROR" for issue in report.issues)
+        )
 
 
 class TestExecutionRecordValidation(unittest.TestCase):

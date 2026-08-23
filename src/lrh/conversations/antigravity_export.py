@@ -372,9 +372,7 @@ def _resolve_transcript_path(
             )
         matches = list(
             brain_dir.glob("*/.system_generated/logs/transcript.jsonl")
-        ) + list(
-            brain_dir.glob("*/.system_generated/logs/transcript_full.jsonl")
-        )
+        ) + list(brain_dir.glob("*/.system_generated/logs/transcript_full.jsonl"))
         if not matches:
             raise AntigravityExportError(
                 f"no Antigravity transcript files found in {brain_dir}"
@@ -385,5 +383,4 @@ def _resolve_transcript_path(
     raise AntigravityExportError(
         "one of --transcript-path, --conversation-id, or --latest is required"
     )
-
 

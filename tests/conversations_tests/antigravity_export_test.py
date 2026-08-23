@@ -199,9 +199,7 @@ class TestAntigravityExport(unittest.TestCase):
     def test_cli_convert_antigravity_session_with_conversation_id(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_path = Path(temp_dir)
-            logs_dir = (
-                tmp_path / "brain" / "sess_xyz987" / ".system_generated" / "logs"
-            )
+            logs_dir = tmp_path / "brain" / "sess_xyz987" / ".system_generated" / "logs"
             logs_dir.mkdir(parents=True)
             transcript_file = logs_dir / "transcript.jsonl"
             transcript_file.write_text(
@@ -245,7 +243,9 @@ class TestAntigravityExport(unittest.TestCase):
         stderr_buf = io.StringIO()
         with contextlib.redirect_stderr(stderr_buf):
             with self.assertRaises(SystemExit) as cm:
-                antigravity_export.run_convert_antigravity_session_cli(["--out", "/tmp/out.md"])
+                antigravity_export.run_convert_antigravity_session_cli(
+                    ["--out", "/tmp/out.md"]
+                )
         self.assertEqual(cm.exception.code, 2)
         self.assertIn(
             "one of the arguments --transcript-path --conversation-id --latest is required",
@@ -257,7 +257,13 @@ class TestAntigravityExport(unittest.TestCase):
         with contextlib.redirect_stderr(stderr_buf):
             with self.assertRaises(SystemExit) as cm:
                 antigravity_export.run_convert_antigravity_session_cli(
-                    ["--transcript-path", "/tmp/t.jsonl", "--latest", "--out", "/tmp/o.md"]
+                    [
+                        "--transcript-path",
+                        "/tmp/t.jsonl",
+                        "--latest",
+                        "--out",
+                        "/tmp/o.md",
+                    ]
                 )
         self.assertEqual(cm.exception.code, 2)
         self.assertIn("not allowed with argument", stderr_buf.getvalue())
@@ -265,4 +271,3 @@ class TestAntigravityExport(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

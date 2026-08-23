@@ -3,9 +3,9 @@ execution_id: 2026_08_23_06_13_29_WI_SESSION_ARCHIVE_SYNC_CLOSEOUT_BASELINE_SELF
 prompt_id: PROMPT(AD_HOC:WI_SESSION_ARCHIVE_SYNC_CLOSEOUT_BASELINE_SELFREVIEW)[2026-08-23T06:13:23+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
-pr: 
-commit: 
+rerun_of:
+pr:
+commit:
 created_at: 2026-08-23T06:13:29+00:00
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SESSION-ARCHIVE-SYNC-CLOSEOUT-BASELINE.md

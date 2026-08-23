@@ -1564,9 +1564,8 @@ implement as a new skill at that time.
 stale-candidate noise that did not belong to the just-completed session: many
 old branches, open PRs, unresolved/outdated PR threads, active/proposed work
 items, active workstreams, and `status: in_progress` execution records. A
-fresh tracked-file scan in this checkout found 3 active work items, 41 proposed
-work items, 4 active workstreams, and 209 execution records whose frontmatter
-still says `status: in_progress`.
+fresh tracked-file scan in this checkout confirmed that this is a repo-wide
+artifact hygiene problem rather than a one-session loose end.
 
 **Problem:** `/lrh-work-remains` correctly refuses to auto-classify
 cross-session candidates, but the resulting report leaves a large manual

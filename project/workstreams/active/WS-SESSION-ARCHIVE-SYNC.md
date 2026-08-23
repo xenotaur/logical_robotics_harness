@@ -22,6 +22,10 @@ work_items:
   - WI-SESSION-SYNC-NESTED-ARTIFACTS
   - WI-SESSION-ARCHIVE-SYNC-REPORT
   - WI-SESSION-ARCHIVE-SYNC-SCHEDULED-CLOSEOUT-SYNC
+  - WI-SESSION-ARCHIVE-ROOT-DEFAULT
+  - WI-SESSION-SYNC-JULES-INGESTION
+  - WI-CODEX-EXPORT-RESCUE-CANONICAL-DEST
+  - WI-SESSION-ARCHIVE-DATE-BROWSABILITY
 exit_criteria:
   - All four PROP-LRH-SESSION-ARCHIVE-SYNC stages are delivered as resolved work items (Stage 1 both-identifier capture + minimal project/sessions/ index with branch/PR stitching support; Stage 2 lrh sessions sync + discover/link; Stage 3 index enrichment + report; Stage 4 both required weekly scheduled sync and closeout-triggered sync, plus optional SessionEnd hook)
   - The archive-root-location open question is resolved and recorded (the index-regeneration-frequency open question is non-load-bearing and may be resolved informally during Stage 3 implementation)

@@ -79,11 +79,15 @@ since PR #579. `project/design/backlog.md:1503` still says the governing
 work item "remains `proposed`" (it is `resolved`).
 
 Note also that `~/.lrh/private/` is not the same thing as the *documented*
-`.lrh/private/` local-workspace-mode convention
-(`project/memory/decision_log.md:455-464`, 2026-04-22 decision) — that
-convention describes a per-workspace `<workspace-root>/.lrh/private/`
-directory, not a fixed home-directory path. The rescue script's destination
-only resembles that name; it is not an instance of it.
+local-workspace-mode convention
+(`project/memory/decision_log.md:455-464`, 2026-04-22 decision;
+implemented at `src/lrh/meta/workspace.py`, which creates `.lrh`,
+`projects`, and `private` as three sibling directories directly under a
+workspace root — **`<workspace-root>/private/`, not
+`<workspace-root>/.lrh/private/`** — corrected from an earlier draft of
+this item, which described the nesting wrong). Either way, the rescue
+script's `~/.lrh/private/codex/` destination is not an instance of that
+convention; it only resembles the name.
 
 `import_codex_export_directories()` copies into the archive; it does not
 delete its source (confirmed: no `shutil.rmtree`/`os.remove` call against

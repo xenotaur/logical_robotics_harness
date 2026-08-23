@@ -138,9 +138,11 @@ well.
    Jules exports arrive as pre-made zips with no live queryable endpoint.
 3. Register the new command under the existing `conversation` CLI subtree
    (`src/lrh/cli/main.py:104-139`), alongside the Codex commands.
-4. Call `resolve_archive_root()` (extended by
-   `WI-SESSION-ARCHIVE-ROOT-DEFAULT`) and append a new `JULES_ARCHIVE_SUBDIR`
-   constant, mirroring `CODEX_ARCHIVE_SUBDIR`.
+4. Call the existing `resolve_archive_root()` (unchanged by
+   `WI-SESSION-ARCHIVE-ROOT-DEFAULT`, which only confirms its default via a
+   proposal Decision and docstring update, not a behavior change) and
+   append a new `JULES_ARCHIVE_SUBDIR` constant, mirroring
+   `CODEX_ARCHIVE_SUBDIR`.
 5. On successful ingestion, write per-attempt metadata (e.g. `attempt.json`)
    into the archive, mirroring Codex's `import-codex-exports` convention.
    Do not write an entry into `project/sessions/index.jsonl` — its

@@ -193,6 +193,7 @@ class TestAntigravityExport(unittest.TestCase):
             stdout = stdout_buf.getvalue()
             self.assertIn("Exported Antigravity session transcript", stdout)
             self.assertIn("Source ID: cli_sess_1", stdout)
+            self.assertIn("Source SHA-256:", stdout)
             self.assertIn("Privacy: private", stdout)
 
     def test_cli_convert_antigravity_session_with_conversation_id(self) -> None:
@@ -238,17 +239,30 @@ class TestAntigravityExport(unittest.TestCase):
             self.assertTrue(out_file.exists())
             stdout = stdout_buf.getvalue()
             self.assertIn("Source ID: sess_xyz987", stdout)
+            self.assertIn("Source SHA-256:", stdout)
 
     def test_cli_convert_antigravity_session_missing_required_args(self) -> None:
         stderr_buf = io.StringIO()
         with contextlib.redirect_stderr(stderr_buf):
-            code = antigravity_export.run_convert_antigravity_session_cli([])
-        self.assertEqual(code, 1)
+            with self.assertRaises(SystemExit) as cm:
+                antigravity_export.run_convert_antigravity_session_cli(["--out", "/tmp/out.md"])
+        self.assertEqual(cm.exception.code, 2)
         self.assertIn(
-            "one of --transcript-path, --conversation-id, or --latest is required",
+            "one of the arguments --transcript-path --conversation-id --latest is required",
             stderr_buf.getvalue(),
         )
+
+    def test_cli_convert_antigravity_session_mutually_exclusive_args(self) -> None:
+        stderr_buf = io.StringIO()
+        with contextlib.redirect_stderr(stderr_buf):
+            with self.assertRaises(SystemExit) as cm:
+                antigravity_export.run_convert_antigravity_session_cli(
+                    ["--transcript-path", "/tmp/t.jsonl", "--latest", "--out", "/tmp/o.md"]
+                )
+        self.assertEqual(cm.exception.code, 2)
+        self.assertIn("not allowed with argument", stderr_buf.getvalue())
 
 
 if __name__ == "__main__":
     unittest.main()
+

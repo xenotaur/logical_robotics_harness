@@ -243,13 +243,19 @@ def run_convert_antigravity_session_cli(
             "into a private, non-authoritative Markdown export artifact."
         ),
     )
-    parser.add_argument(
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument(
         "--transcript-path",
         help="explicit path to Antigravity transcript JSONL file",
     )
-    parser.add_argument(
+    input_group.add_argument(
         "--conversation-id",
         help="Antigravity session conversation ID to discover under app-data-dir",
+    )
+    input_group.add_argument(
+        "--latest",
+        action="store_true",
+        help="discover the most recently modified transcript file under app-data-dir",
     )
     parser.add_argument(
         "--app-data-dir",
@@ -257,12 +263,8 @@ def run_convert_antigravity_session_cli(
         help="path to Antigravity application data directory (default: ~/.gemini/antigravity)",
     )
     parser.add_argument(
-        "--latest",
-        action="store_true",
-        help="discover the most recently modified transcript file under app-data-dir",
-    )
-    parser.add_argument(
         "--out",
+        required=True,
         help="Markdown export output path",
     )
     parser.add_argument(
@@ -317,6 +319,7 @@ def run_convert_antigravity_session_cli(
     out_display = str(output_path) if output_path else "(memory only)"
     print(f"Exported Antigravity session transcript: {out_display}")
     print(f"Source ID: {result.manifest.source_id or 'unknown'}")
+    print(f"Source SHA-256: {result.manifest.source_sha256}")
     print(f"Privacy: {result.manifest.privacy}")
     print(f"Sensitivity: {result.manifest.sensitivity}")
     print(f"Warnings: {len(result.manifest.warnings)}")
@@ -367,11 +370,11 @@ def _resolve_transcript_path(
             raise AntigravityExportError(
                 f"Antigravity brain directory does not exist: {brain_dir}"
             )
-        matches = list(brain_dir.glob("*/.system_generated/logs/transcript.jsonl"))
-        if not matches:
-            matches = list(
-                brain_dir.glob("*/.system_generated/logs/transcript_full.jsonl")
-            )
+        matches = list(
+            brain_dir.glob("*/.system_generated/logs/transcript.jsonl")
+        ) + list(
+            brain_dir.glob("*/.system_generated/logs/transcript_full.jsonl")
+        )
         if not matches:
             raise AntigravityExportError(
                 f"no Antigravity transcript files found in {brain_dir}"
@@ -382,4 +385,5 @@ def _resolve_transcript_path(
     raise AntigravityExportError(
         "one of --transcript-path, --conversation-id, or --latest is required"
     )
+
 

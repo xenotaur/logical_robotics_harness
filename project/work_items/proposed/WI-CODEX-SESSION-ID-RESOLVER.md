@@ -37,11 +37,11 @@ forbidden_actions:
   - scrape_codex_storage_internals
 acceptance:
   - A shared resolver returns the same Codex task/thread id source that `/lrh-codex-export` uses when no explicit id is supplied
-  - `/lrh-codex-session` reports the current `codex-app:<id>` session transcript pointer without exporting transcript content
-  - `/lrh-codex-export` references or uses the shared resolver contract instead of carrying independent session-id instructions
+  - '`/lrh-codex-session` reports the current `codex-app:<id>` session transcript pointer without exporting transcript content'
+  - '`/lrh-codex-export` references or uses the shared resolver contract instead of carrying independent session-id instructions'
   - CLI and/or library tests cover `CODEX_THREAD_ID` present, missing, and whitespace-only behavior
   - Docs explain that the returned id is a Codex task/thread pointer, not an export attempt id or transcript artifact path
-  - `lrh validate` passes with 0 errors
+  - '`lrh validate` passes with 0 errors'
 required_evidence:
   - manual_review
   - lrh_validate

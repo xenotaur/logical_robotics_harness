@@ -661,17 +661,20 @@ that contradicts the marked definition, that is a doc-consistency bug to
 fix directly, not evidence this file needs its own markers.
 
 Exit status `1` means a gate-definition region changed (`stale: true` in the
-output — one or more `stale files` entries name which file and why). Treat
-this run as if `chain_init_confirmation` were `always_confirm` regardless of
-the stored value, and note this in the gate's presentation ("defaults
-pre-filled, but re-confirming since gate policy changed since you last
-confirmed"). Exit status `0` (`stale: false`) means every diff since
+output — one or more `stale files` entries name which file and why). A
+watched file added or removed since confirmation counts as stale too (its
+`reason` says so explicitly) — it is a data outcome (exit `1`), not a check
+failure. Treat this run as if `chain_init_confirmation` were `always_confirm`
+regardless of the stored value, and note this in the gate's presentation
+("defaults pre-filled, but re-confirming since gate policy changed since you
+last confirmed"). Exit status `0` (`stale: false`) means every diff since
 confirmation, if any, fell outside all marked regions — continue trusting the
-stored value. Exit status `2` means the check itself failed (a git error, an
-added/removed watched file, or a malformed markers structure — see the
-command's own error text); surface it and do not silently classify it either
-way. Do not silently rewrite the stored value based on this fallback alone —
-it only affects this run's liveness, not the persisted setting.
+stored value. Exit status `2` means the check itself could not run at all —
+an invalid or unresolvable `confirmed_commit`/`--head`, a git error, or a
+malformed markers structure (see the command's own error text) — and is
+distinct from a stale result; surface it and do not silently classify it
+either way. Do not silently rewrite the stored value based on this fallback
+alone — it only affects this run's liveness, not the persisted setting.
 
 **Adding a new gate-bearing file or a new gate to an existing file requires
 adding `<!-- GATE-DEFINITION -->` markers around its defining prose** (and,

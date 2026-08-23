@@ -1172,7 +1172,9 @@ def main() -> None:
                     head=args.head,
                 )
             except gate_staleness.GateStalenessError as err:
-                print(f"error: {err}")
+                # stderr, not stdout: --format json callers expect stdout to
+                # be valid JSON or empty on error, never an "error: ..." line.
+                print(f"error: {err}", file=sys.stderr)
                 raise SystemExit(2) from err
             if args.format == "json":
                 print(gate_staleness.format_json(result))

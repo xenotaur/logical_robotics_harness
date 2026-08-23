@@ -231,6 +231,23 @@ class CheckGateStalenessIntegrationTest(unittest.TestCase):
                     project_root=root, confirmed_commit="null"
                 )
 
+    def test_invalid_confirmed_commit_raises_not_stale(self) -> None:
+        """Regression test: an unresolvable confirmed_commit must raise,
+        never be silently read as 'every watched file was added since
+        confirmation' (copilot-pull-request-reviewer finding on PR #623)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            self._write_skill(root, "Wait for explicit confirmation.", "Introduction")
+            _commit(root, "initial")
+
+            with self.assertRaises(gate_staleness.GateStalenessError):
+                gate_staleness.check_gate_staleness(
+                    project_root=root,
+                    confirmed_commit="deadbeef1234567890abcdef1234567890abcdef",
+                    watched_files=("src/lrh/skills/lrh-confirm-fixes/SKILL.md",),
+                )
+
     def test_unwatched_file_change_does_not_invalidate(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)

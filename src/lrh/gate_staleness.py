@@ -186,7 +186,16 @@ def _run_git(args: list[str], project_root: pathlib.Path) -> str:
 def _show_file_at(
     project_root: pathlib.Path, commit: str, relative_path: str
 ) -> str | None:
-    """Return file content at `commit`, or None if the file didn't exist."""
+    """Return file content at `commit`, or None if the file didn't exist.
+
+    Assumes `commit` itself has already been validated (see
+    `check_gate_staleness`'s upfront `_run_git(["rev-parse", "--verify", ...])`
+    calls) -- a non-zero exit here is therefore attributed to the path, not
+    the commit, and treated as "file absent at this commit" rather than
+    surfaced as an error. Do not call this with an unvalidated commit-ish;
+    doing so would misclassify an invalid commit the same way as a missing
+    file.
+    """
     result = subprocess.run(
         ["git", "show", f"{commit}:{relative_path}"],
         cwd=project_root,
@@ -258,6 +267,14 @@ def check_gate_staleness(
             "record; the first-encounter propose-and-confirm path applies "
             "instead, not this staleness check"
         )
+    # Validate confirmed_commit up front, before any per-file _show_file_at
+    # call: an invalid/unresolvable commit must surface as an error, not be
+    # silently misread as "every watched file was added since confirmation"
+    # (which is what a bare _show_file_at failure on a bad commit would
+    # otherwise look like).
+    _run_git(
+        ["rev-parse", "--verify", f"{confirmed_commit}^{{commit}}"], project_root
+    )
     resolved_head = _run_git(["rev-parse", head], project_root).strip()
     files = tuple(
         check_file_staleness(project_root, confirmed_commit, resolved_head, path)

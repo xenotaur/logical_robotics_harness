@@ -64,7 +64,13 @@ def load_config(project_root: pathlib.Path) -> PiiConfig:
     except tomllib.TOMLDecodeError as err:
         raise PiiConfigError(f"{config_path} is not valid TOML: {err}") from err
 
-    use_default = data.get("extend", {}).get("useDefault", True)
+    extend_table = data.get("extend", {})
+    if not isinstance(extend_table, dict):
+        raise PiiConfigError(
+            f"{config_path}: [extend] must be a table, got {extend_table!r}"
+        )
+
+    use_default = extend_table.get("useDefault", True)
     if not isinstance(use_default, bool):
         raise PiiConfigError(
             f"{config_path}: [extend].useDefault must be a boolean, "

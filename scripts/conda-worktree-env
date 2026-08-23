@@ -162,6 +162,10 @@ echo "lrh install is (re)pointed here -- see environment.yml, which has been"
 echo "observed carrying both names pinned to different snapshots."
 if [[ "${DRY_RUN}" -eq 1 ]]; then
   echo "+ conda run -n ${ENV_NAME} ... python -m pip uninstall -y logical-robotics-harness (skipped under --dry-run)"
+# Known limitation: pip's exit code doesn't cleanly distinguish "package not
+# installed" from other failures (e.g. `conda run` itself failing on a
+# broken environment), so a genuine failure here degrades to a silent skip
+# rather than a hard error -- same as this cleanup step not existing at all.
 elif conda run -n "${ENV_NAME}" --cwd "${REPO_ROOT}" --no-capture-output \
        python -m pip show -q logical-robotics-harness >/dev/null 2>&1; then
   run conda run -n "${ENV_NAME}" --cwd "${REPO_ROOT}" --no-capture-output \

@@ -1,0 +1,173 @@
+---
+resolution: null
+blocked_reason: null
+blocked: false
+id: WI-CHAIN-DEFAULTS-STALENESS-RESTAMP
+title: Re-stamp confirmed_commit on stale-but-reconfirmed chain-defaults values
+type: deliverable
+status: proposed
+owner: anthony
+contributors:
+  - anthony
+assigned_agents: []
+related_focus:
+  - FOCUS-EXECUTION-FRAMEWORK-PLANNING
+related_roadmap:
+  - ROADMAP-PHASE-03
+related_workstreams:
+  - WS-LRH-CHAIN-DEFAULTS
+related_design:
+  - project/memory/decisions/DEC-GATE-POLICY-CASCADE.md
+  - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
+depends_on:
+  - WI-LRH-CHAIN-DEFAULTS-INCREMENT-3
+blocked_by: []
+expected_actions:
+  - edit_file
+forbidden_actions:
+  - force_push
+  - delete_branch
+  - merge_pr
+  - ship_skip_if_opted_in_as_default
+  - bypass_two_step_consent
+acceptance:
+  - The propose-and-confirm flow text explicitly re-stamps confirmed_commit/confirmed_at on any live-answered reconfirmation after a staleness-triggered ask, not only when the reply diverges from stored values
+  - The existing "do not silently rewrite the stored value" caution is preserved and scoped explicitly to the case where no live reply occurs at all
+  - Canonical source (_shared/chain-defaults.md) and its inlined copy (lrh-land/references/land-workflow.md) stay identical
+  - All installed mirrors (.claude/, .agents/, .gemini/) match the canonical source exactly
+  - lrh validate reports 0 errors
+required_evidence:
+  - manual_review
+  - lrh_validate
+artifacts_expected:
+  - src/lrh/skills/_shared/chain-defaults.md
+  - src/lrh/skills/lrh-land/references/land-workflow.md
+  - .claude/skills/lrh-land/references/land-workflow.md
+  - .agents/skills/lrh-land/references/land-workflow.md
+  - .gemini/plugins/lrh/skills/lrh-land/references/land-workflow.md
+---
+
+# Re-stamp `confirmed_commit` on stale-but-reconfirmed chain-defaults values
+
+## Summary
+
+`DEC-GATE-POLICY-CASCADE`'s Decision 5 staleness fallback (implemented by
+`WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`) correctly forces a live
+chain-authorization ask when gate-definition prose has changed since
+`confirmed_commit`. But once the human answers that live ask by
+reconfirming the *same* completion/stop-work condition text (no
+divergence), nothing re-stamps `confirmed_commit`/`confirmed_at` — the
+only documented re-stamp paths are the "first encounter" case
+(`confirmed_commit` null) and the "user's reply diverges from stored
+values" case (the Decision 4 profile-update offer). A matching
+reconfirmation falls into neither path, so the same staleness fallback
+fires again on every subsequent run indefinitely, even though a human has
+now explicitly re-confirmed the values live.
+
+## Problem / Context
+
+Discovered live during a session that had just activated
+`chain_init_confirmation: skip_if_opted_in` with valid two-step consent:
+the very next `/lrh-execute` run correctly hit the staleness fallback,
+since `confirmed_commit` (`66a3f942556641309d7407db140fc8b070f652bd`,
+2026-08-17) predated that same session's entire Stage 3.5 / Increment 3
+gate-policy body of work (a `git diff --stat` between that commit and
+`HEAD` over the watched files showed 591 insertions across 12 files —
+unambiguously substantive, not churn). The current governing text in
+`src/lrh/skills/_shared/chain-defaults.md`'s Decision 5 section states:
+
+> "Do not silently rewrite the stored value based on this fallback alone
+> — it only affects this run's liveness, not the persisted setting."
+
+That caution is correct for a genuinely *silent* fallback (no live
+answer ever given — not currently possible on this exact path, since the
+staleness fallback always forces a live ask, but worth keeping the
+caution precise for any future path that could reach this state without
+a live answer). It is being read, as currently worded, to also cover a
+live reply that *does* answer the gate and happens to match the stored
+text — which was not the intent of the caution and leaves the mechanism
+unable to ever clear a stale `confirmed_commit` through ordinary use.
+
+### Prior Art Check
+
+**Duplication search.** No existing work item covers this general
+mechanism gap. `WI-RETRIGGER-REMOVAL-STAGE1` and
+`WI-DELIBERATE-MODEL-INVOCATION-STAGE2-COMPLETE` both include
+`confirmed_commit` re-stamping only as a one-off acceptance-criterion side
+effect of landing their own PR, not as a standing fix to the
+reconfirmation path. `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3` implemented the
+staleness *detection* mechanism this depends on but did not address what
+happens after a live answer resolves it.
+
+**Demand search.** No existing proposal, backlog entry, or open work item
+requests this specific fix. Recommendation: proceed.
+
+## Scope
+
+Fix the propose-and-confirm flow text — canonical source, its inlined
+copy, and all installed mirrors — so that a live reply resolving a
+staleness-triggered ask always re-stamps `confirmed_commit`/`confirmed_at`
+to the current commit/time, regardless of whether that reply matches or
+diverges from the previously stored values. Preserve the existing "no
+silent rewrite" caution, scoped precisely to the case where no live reply
+occurs.
+
+Out of scope: changing `gate_staleness.py`'s staleness *detection* logic
+(hunk/marker overlap, `DEFAULT_WATCHED_FILES`) — this work item only
+changes what happens after a live answer to a fallback-triggered ask.
+
+## Required Changes
+
+1. Edit `src/lrh/skills/_shared/chain-defaults.md`'s Decision 5 section:
+   when the staleness fallback fires (`exit 1`) and the human gives a
+   live reply to the resulting ask — whether that reply matches or
+   diverges from the stored completion/stop-work text — re-stamp
+   `confirmed_commit: $(git rev-parse HEAD)` and
+   `confirmed_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)`. State explicitly that
+   the "do not silently rewrite" caution applies only when no live reply
+   is given at all, not to every use of the fallback.
+2. Apply the identical edit to `src/lrh/skills/lrh-land/references/land-workflow.md`'s
+   inlined copy, keeping the two byte-identical in the edited section.
+3. Mirror the change into `.claude/skills/`, `.agents/skills/`, and
+   `.gemini/plugins/lrh/skills/`.
+
+## Non-Goals
+
+- Does not change `gate_staleness.py`'s detection logic or its watched-file
+  list.
+- Does not change `chain_init_confirmation`'s default value or ship
+  `skip_if_opted_in` as the default.
+- Does not implement `confirm_fixes_batch`'s autopilot predicate — that is
+  `WI-LRH-CHAIN-DEFAULTS-INCREMENT-2`.
+- Does not weaken the two-step consent contract from
+  `DEC-CHAIN-INIT-SKIP-CONSENT` — a live reply is still required whenever
+  staleness fires; this only fixes what happens to the stored metadata
+  after that reply.
+
+## Acceptance Criteria
+
+- The propose-and-confirm flow text explicitly re-stamps
+  `confirmed_commit`/`confirmed_at` on any live-answered reconfirmation
+  after a staleness-triggered ask, not only on divergence
+- The "do not silently rewrite" caution is preserved and scoped explicitly
+  to the no-live-reply case
+- Canonical source and inlined copy remain identical in the edited section
+- All installed mirrors match the canonical source exactly
+- `lrh validate` reports 0 errors
+
+## Validation
+
+- lrh validate
+- Manual dogfooding: trigger the staleness fallback on a real or
+  simulated stale `confirmed_commit`, reconfirm matching values, verify
+  `confirmed_commit`/`confirmed_at` update, and verify a subsequent run
+  against the same `HEAD` (with no further gate-definition changes) does
+  not re-trigger the staleness fallback
+
+## Risk Notes
+
+The main risk is re-stamping too eagerly — if a future edit accidentally
+treats a *silent* skip (no live reply reached at all) as equivalent to a
+live reconfirmation, `confirmed_commit` could advance past a gate change
+the human never actually saw. The fix must key specifically on "a live
+reply was given," not merely on "the fallback path was entered."

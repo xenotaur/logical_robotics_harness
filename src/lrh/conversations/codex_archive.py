@@ -15,7 +15,11 @@ import tempfile
 import typing
 
 from lrh import prompt_workflow_sessions
-from lrh.conversations import codex_app_server_export, export_inspector
+from lrh.conversations import (
+    codex_app_server_export,
+    codex_session,
+    export_inspector,
+)
 
 ATTEMPT_KIND = "lrh_codex_export_attempt"
 ATTEMPT_SCHEMA_VERSION = 1
@@ -267,7 +271,7 @@ def run_archive_codex_thread_cli(
     )
     parser.add_argument(
         "--thread-id",
-        default=os.environ.get("CODEX_THREAD_ID"),
+        default=None,
         help="Codex thread id to export (default: CODEX_THREAD_ID)",
     )
     parser.add_argument(
@@ -305,8 +309,10 @@ def run_archive_codex_thread_cli(
         help="skip the local heuristic sensitivity scanner",
     )
     args = parser.parse_args(argv)
-    if not args.thread_id:
-        print("error: --thread-id or CODEX_THREAD_ID is required", file=sys.stderr)
+    try:
+        identity = codex_session.resolve_codex_session_identity(args.thread_id)
+    except codex_session.CodexSessionIdentityError as err:
+        print(f"error: {err}", file=sys.stderr)
         return 2
     if args.timeout_seconds <= 0:
         print("error: --timeout-seconds must be positive", file=sys.stderr)
@@ -317,7 +323,7 @@ def run_archive_codex_thread_cli(
 
     try:
         result = archive_codex_thread(
-            thread_id=args.thread_id,
+            thread_id=identity.thread_id,
             archive_root=args.archive_root,
             scratch=args.scratch,
             scratch_root=args.scratch_root,

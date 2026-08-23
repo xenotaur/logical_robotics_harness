@@ -17,7 +17,7 @@ related_roadmap:
 related_workstreams:
   - WS-SESSION-ARCHIVE-SYNC
 related_design:
-  - project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md
+  - project/design/proposals/adopted/lrh-session-archive-sync/00_proposal.md
   - project/design/proposals/proposed/lrh-execution-sessions/00_proposal.md
   - docs/reference/cli/sessions.md
   - src/lrh/skills/lrh-closeout/SKILL.md
@@ -55,10 +55,9 @@ required_evidence:
   - lrh_validate
   - validation_output
 artifacts_expected:
-  - project/workstreams/active/WS-SESSION-ARCHIVE-SYNC.md
   - project/workstreams/resolved/WS-SESSION-ARCHIVE-SYNC.md
-  - project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md
   - project/design/proposals/adopted/lrh-session-archive-sync/00_proposal.md
+  - project/evidence/EV-0012.md
   - project/sessions/index.jsonl
   - project/executions/
 ---
@@ -77,13 +76,13 @@ closeout.
 its exit criteria require more than resolved work items: `/lrh-closeout` sync
 integration, weekly scheduled sync configuration, a clean post-Stage-1
 `lrh sessions report`, `lrh validate`, and an advanced/adopted
-`PROP-LRH-SESSION-ARCHIVE-SYNC`. A current post-Stage-1 report run from the
-Stage 1 merge timestamp (`2026-08-06T08:39:36+00:00`) found
-`records_checked 416`, `pointers_checked 409`, `pending 41`, `dangling 78`,
-`unarchived 78`, and `unsupported 0`, so closing the workstream without a
-baseline decision would create a false sense of archive completeness. The
-Stage 3 report item intentionally made gaps visible; this item decides what to
-do with those visible gaps before closeout.
+`PROP-LRH-SESSION-ARCHIVE-SYNC`. A post-Stage-1 report run from the Stage 1
+merge timestamp (`2026-08-06T08:39:36+00:00`) on 2026-08-23 found
+`records_checked 445`, `pointers_checked 438`, `missing 7`, `pending 39`,
+`dangling 87`, `unarchived 77`, and `unsupported 0`, so closing the workstream
+without a baseline decision would create a false sense of archive completeness.
+The Stage 3 report item intentionally made gaps visible; this item decides what
+to do with those visible gaps before closeout.
 
 ### Duplication search
 
@@ -124,10 +123,10 @@ do with those visible gaps before closeout.
 
 ## Required Changes
 
-1. Run
+1. Run or refresh
    `lrh sessions report --project-root . --since-created-at 2026-08-06T08:39:36+00:00 --format json`
    and summarize counts plus representative categories in a committed
-   metadata-only artifact or closeout note.
+   metadata-only evidence artifact.
 2. Review remaining `pending`, `dangling`, and `unarchived` entries and
    classify each class of gap as fixed during this item, expected historical
    residue, or follow-up work.

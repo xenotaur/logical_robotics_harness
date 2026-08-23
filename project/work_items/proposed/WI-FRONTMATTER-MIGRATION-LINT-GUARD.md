@@ -69,16 +69,22 @@ a later review round on that same PR fixed.
 
 **Concrete live exposure (2026-08-23).** `WI-FRONTMATTER-PARSER-CONSOLIDATION`'s
 automatic PR review (PR #614) confirmed the mid-scalar `" #"`-truncation
-class this WI covers is not hypothetical: at least ~33 tracked execution
-records (e.g.
+class this WI covers is not hypothetical: a re-audit at PR #614's merge
+point found roughly 60 files across `project/` with this pattern (not
+just execution records — resolved work items' `resolution:` and
+workstreams' `summary:` fields carry it too), for example
 `project/executions/AD_HOC/2026_07_18_03_15_20_CONFIRM_FIXES_REQUIRED_CHECKS_FALLBACK.md`,
 whose `instruction_source` silently truncates from "...discovered
-verifying PR #399)" to "...discovered verifying PR" under `yaml.safe_load`)
-now silently lose trailing text on every read via the shared parser, with
-no `lrh validate` error (the truncated form is syntactically valid YAML).
-This was a known, accepted risk of `WI-FRONTMATTER-PARSER-CONSOLIDATION`'s
-phased rollout, not an oversight, but it makes this WI's lint-guard and
-migration-tool work higher-priority than a typical backlog item — the
+verifying PR #399)" to "...discovered verifying PR" under `yaml.safe_load`.
+Re-locate the current count at implementation time rather than trusting
+this or the Problem/Context section's earlier "45 files/50 fields"
+estimate — both are point-in-time snapshots and the real content
+continues to grow. All such files silently lose trailing text on every
+read via the shared parser, with no `lrh validate` error (the truncated
+form is syntactically valid YAML). This was a known, accepted risk of
+`WI-FRONTMATTER-PARSER-CONSOLIDATION`'s phased rollout, not an oversight,
+but it makes this WI's lint-guard and migration-tool work higher-priority
+than a typical backlog item — the
 exposure window is open now, not merely anticipated.
 
 ### Duplication search

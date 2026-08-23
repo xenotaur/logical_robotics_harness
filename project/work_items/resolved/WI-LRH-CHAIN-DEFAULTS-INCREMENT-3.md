@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #623 (commit 2a9b3d76). closeout_with_merge single-ask in /lrh-land, and a semantic marker-scoped staleness watch (src/lrh/gate_staleness.py) replacing the file-granular Decision 5 check."
 blocked_reason: null
 blocked: false
 id: WI-LRH-CHAIN-DEFAULTS-INCREMENT-3
 title: Implement Increment 3 of PROP-LRH-CHAIN-DEFAULTS -- policy-derived profile fields and a semantic staleness watch
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

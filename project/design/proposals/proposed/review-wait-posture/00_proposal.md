@@ -12,7 +12,7 @@ superseded_by: null
 related_design:
   - project/design/proposals/adopted/lrh-self-review/00_proposal.md
   - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
-  - project/workstreams/proposed/WS-LRH-CHAIN-DEFAULTS.md
+  - project/workstreams/active/WS-LRH-CHAIN-DEFAULTS.md
   - src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md
   - src/lrh/skills/lrh-land/references/land-workflow.md
   - project/design/backlog.md

@@ -272,9 +272,7 @@ def check_gate_staleness(
     # silently misread as "every watched file was added since confirmation"
     # (which is what a bare _show_file_at failure on a bad commit would
     # otherwise look like).
-    _run_git(
-        ["rev-parse", "--verify", f"{confirmed_commit}^{{commit}}"], project_root
-    )
+    _run_git(["rev-parse", "--verify", f"{confirmed_commit}^{{commit}}"], project_root)
     resolved_head = _run_git(["rev-parse", head], project_root).strip()
     files = tuple(
         check_file_staleness(project_root, confirmed_commit, resolved_head, path)

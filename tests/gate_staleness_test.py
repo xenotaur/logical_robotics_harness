@@ -104,9 +104,7 @@ class ParseUnifiedDiffHunksTest(unittest.TestCase):
 class HunksTouchMarkedRegionsTest(unittest.TestCase):
     def test_no_overlap(self) -> None:
         hunks = (
-            gate_staleness.DiffHunk(
-                old_start=1, old_count=1, new_start=1, new_count=1
-            ),
+            gate_staleness.DiffHunk(old_start=1, old_count=1, new_start=1, new_count=1),
         )
         regions = (gate_staleness.LineRange(start=10, end=20),)
         touched = gate_staleness.hunks_touch_marked_regions(hunks, regions, regions)
@@ -147,9 +145,7 @@ class CheckGateStalenessIntegrationTest(unittest.TestCase):
     """The exact acceptance-criteria case: typo outside a marker must not
     invalidate; an edit inside a marker must."""
 
-    def _write_skill(
-        self, root: pathlib.Path, body_line: str, typo_line: str
-    ) -> None:
+    def _write_skill(self, root: pathlib.Path, body_line: str, typo_line: str) -> None:
         content = (
             "# Some Skill\n\n"
             f"{typo_line}\n\n"

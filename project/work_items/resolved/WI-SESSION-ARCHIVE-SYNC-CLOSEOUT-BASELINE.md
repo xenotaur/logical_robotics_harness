@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented metadata-only closeout baseline and merged in PR #619 (commit a4b8ec00a460bcfbb2c71389dff7f747334c552c)."
 blocked_reason: null
 blocked: false
 id: WI-SESSION-ARCHIVE-SYNC-CLOSEOUT-BASELINE
 title: Reconcile session archive sync closeout baseline
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

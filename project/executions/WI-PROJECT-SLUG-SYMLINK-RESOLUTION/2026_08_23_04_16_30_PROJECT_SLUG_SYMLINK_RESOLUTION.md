@@ -2,14 +2,14 @@
 execution_id: 2026_08_23_04_16_30_PROJECT_SLUG_SYMLINK_RESOLUTION
 prompt_id: PROMPT(WI-PROJECT-SLUG-SYMLINK-RESOLUTION:PROJECT_SLUG_SYMLINK_RESOLUTION)[2026-08-22T20:31:45+00:00]
 work_item: WI-PROJECT-SLUG-SYMLINK-RESOLUTION
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/615
-commit: 
+commit: e9d45739619f6784ea941fe3f4b6173263031aa5
 created_at: 2026-08-23T04:16:30+00:00
 agent: claude_code
 instruction_source: project/work_items/proposed/WI-PROJECT-SLUG-SYMLINK-RESOLUTION.md
-session_transcript: pending
+session_transcript: claude-app:local_02330303-d423-49f8-9864-aeac6023c0b9
 ---
 
 # Summary

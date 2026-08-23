@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #615 (commit e9d45739)."
 blocked_reason: null
 blocked: false
 id: WI-PROJECT-SLUG-SYMLINK-RESOLUTION
 title: Fix project_slug_for_path to match Claude Code's real bucket naming (symlinks and underscores)
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

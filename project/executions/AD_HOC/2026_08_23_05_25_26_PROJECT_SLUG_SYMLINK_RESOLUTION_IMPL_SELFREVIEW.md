@@ -2,14 +2,14 @@
 execution_id: 2026_08_23_05_25_26_PROJECT_SLUG_SYMLINK_RESOLUTION_IMPL_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:PROJECT_SLUG_SYMLINK_RESOLUTION_IMPL_SELFREVIEW)[2026-08-23T05:25:15+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_23_04_16_30_PROJECT_SLUG_SYMLINK_RESOLUTION
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/615
-commit: 
+commit: e9d45739619f6784ea941fe3f4b6173263031aa5
 created_at: 2026-08-23T05:25:26+00:00
 agent: claude_code
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/615
-session_transcript: pending
+session_transcript: claude-app:local_02330303-d423-49f8-9864-aeac6023c0b9
 ---
 
 # Summary

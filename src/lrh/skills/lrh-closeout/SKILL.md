@@ -256,6 +256,21 @@ stopping at the first that yields a confident value:
 
 ### Step 4 — Confirm gate (human gate)
 
+**When inlined by `/lrh-land` Step 6/7 with a preview already presented:**
+do not ask this gate's question again merely because this step was reached.
+Compare the live assessment above against the preview `/lrh-land` Step 6
+already showed the human and got a reply to. If there is no material
+divergence (same resolution text, same WS exit-criteria answer, no newly
+appeared execution record, no WI/WS state change — a differing merge-commit
+SHA alone is never material, since the preview always expected it to be
+filled in after merge), that upstream approval satisfies this gate
+(`DEC-SINGLE-ASK-RUN-GATES`); continue to Step 5 without a second live
+reply. If any material field differs, ask this gate live with a structured
+diff, exactly as below. This special path applies only when `/lrh-land`
+provided a preview; direct `/lrh-closeout` invocation always uses the
+normal live gate below.
+
+<!-- GATE-DEFINITION -->
 Before touching any files, show the user:
 
 - PR URL, state (`MERGED`), and commit SHA
@@ -289,6 +304,7 @@ the revised plan before asking for final confirmation.
 **Wait for explicit confirmation before touching any files.** If the user
 redirects, updates the resolution text, or asks to skip an action, adjust the
 plan and show it again.
+<!-- /GATE-DEFINITION -->
 
 ### Step 5 — Execute confirmed actions
 

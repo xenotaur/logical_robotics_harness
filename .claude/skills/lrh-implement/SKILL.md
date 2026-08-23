@@ -144,6 +144,7 @@ a short slug if one cannot be cleanly derived from the description.
 
 ### Step 4 — Confirm plan (human gate)
 
+<!-- GATE-DEFINITION -->
 Before touching any files or creating any branches, show the user:
 
 - Task summary (one paragraph)
@@ -186,6 +187,7 @@ This special path applies only when `/lrh-execute` invoked this skill with an
 approved run plan derived from a static `WI-*` file. Direct `/lrh-implement`
 invocation, including free-form ad-hoc descriptions, still uses the normal live
 confirmation gate above.
+<!-- /GATE-DEFINITION -->
 
 ### Step 5 — Create branch from main
 

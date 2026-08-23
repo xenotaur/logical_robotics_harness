@@ -254,6 +254,7 @@ per the carve-out's own status restriction).
 
 ### Step 4 — Confirm gate (human gate)
 
+<!-- GATE-DEFINITION -->
 Before touching any files, show the user:
 
 - PR URL and number of open comments
@@ -264,6 +265,7 @@ Before touching any files, show the user:
 **Wait for explicit confirmation.** If the user redirects ("skip comment X",
 "treat Y as intentional"), record the directive and factor it into Step 5.
 Do not proceed past this gate without approval.
+<!-- /GATE-DEFINITION -->
 
 ### Step 5 — Execute review response protocol
 

@@ -31,6 +31,7 @@ from lrh.conversations import (
     pdf_import,
 )
 from lrh.design import organize as design_organize
+from lrh import gate_staleness
 from lrh.meta import workspace
 from lrh.project import bootstrap, doctor
 from lrh.secrets import purge as secrets_purge
@@ -401,6 +402,42 @@ def main() -> None:
         choices=("md", "json"),
         default="md",
         help="output format (default: md)",
+    )
+
+    chain_defaults_parser = subparsers.add_parser(
+        "chain-defaults",
+        help="Chain-defaults gate-staleness commands.",
+    )
+    chain_defaults_subparsers = chain_defaults_parser.add_subparsers(
+        dest="chain_defaults_command"
+    )
+    chain_defaults_staleness_parser = chain_defaults_subparsers.add_parser(
+        "check-staleness",
+        help=(
+            "Semantic (marker-scoped) gate-definition staleness check for "
+            "stored chain-defaults consent."
+        ),
+    )
+    chain_defaults_staleness_parser.add_argument(
+        "--confirmed-commit",
+        required=True,
+        help="the commit stored consent was last confirmed against",
+    )
+    chain_defaults_staleness_parser.add_argument(
+        "--head",
+        default="HEAD",
+        help="commit-ish to check against (default: HEAD)",
+    )
+    chain_defaults_staleness_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    chain_defaults_staleness_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
     )
 
     secrets_parser = subparsers.add_parser(
@@ -1122,6 +1159,30 @@ def main() -> None:
                 print(work_items_readiness.format_markdown(report))
             raise SystemExit(0)
         parser.error("work-items requires a subcommand (try: lrh work-items organize)")
+
+    if args.command == "chain-defaults":
+        if args.chain_defaults_command == "check-staleness":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            try:
+                result = gate_staleness.check_gate_staleness(
+                    project_root=project_root,
+                    confirmed_commit=args.confirmed_commit,
+                    head=args.head,
+                )
+            except gate_staleness.GateStalenessError as err:
+                print(f"error: {err}")
+                raise SystemExit(2) from err
+            if args.format == "json":
+                print(gate_staleness.format_json(result))
+            else:
+                print(gate_staleness.format_text(result))
+            raise SystemExit(1 if result.stale else 0)
+        parser.error(
+            "chain-defaults requires a subcommand "
+            "(try: lrh chain-defaults check-staleness)"
+        )
 
     if args.command == "secrets":
         if args.secrets_command == "scan":

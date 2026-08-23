@@ -450,6 +450,7 @@ of `PROP-LRH-CHAIN-DEFAULTS`):
 completion_condition: "PR merged, its execution records landed, and any linked work item resolved."
 stop_work_condition: "Any failing CI check, a reviewer finding that isn't Clear-satisfied on re-verification, or an ambiguous/refused merge-authorization reply."
 chain_init_confirmation: always_confirm
+closeout_with_merge: true
 confirmed_commit: null
 confirmed_at: null
 ```
@@ -459,9 +460,17 @@ The two steelmanned default values (`completion_condition`,
 section, verbatim — do not paraphrase them when proposing.
 `chain_init_confirmation` ships `always_confirm` by default;
 reaching `skip_if_opted_in` requires the two-step consent below.
+`closeout_with_merge` records that the merge-plus-closeout single ask
+(`/lrh-land` Step 6) is the shipped, unconditional behavior — per
+`DEC-SINGLE-ASK-RUN-GATES` rule 5 and `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`,
+this is not a user-facing toggle; it is stored so the field exists on the
+same schema Increment 1 established (for staleness-tracking symmetry with
+`chain_init_confirmation`) and so a future decision to make it optional has
+a field to attach to, not because `/lrh-land` branches on its value today.
 `confirmed_commit`/`confirmed_at` record when a human last live-confirmed
 these exact values (Decision 5 staleness fallback below).
 
+<!-- GATE-DEFINITION -->
 ## Propose-and-confirm flow
 
 At the chain-authorization gate, before eliciting conditions from scratch:
@@ -577,51 +586,97 @@ and re-stamp `confirmed_commit`/`confirmed_at`.
    that this specific run was genuinely human-initiated rather than a
    model-initiated invocation riding stored consent.
 
-## Decision 5 — gate-definition staleness fallback
+## Decision 5 — gate-definition staleness fallback (semantic, `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`)
+
+**Redesigned from file-granular to semantic**, per
+`PROP-INVOCATION-AND-GATE-RESET` Decision 9. The original version invalidated
+stored consent on *any* diff to a whole watched file — a typo fix and a gate
+redesign were indistinguishable (over-watch) — and never watched
+`/lrh-land`'s own inlined `/lrh-confirm-fixes`, `/lrh-review-response`, or
+`/lrh-closeout` at all (under-watch), so a real change to any of their gates,
+including this same increment's own `closeout_with_merge` behavior, would not
+have invalidated consent even though it materially changed what the human
+consented to.
+
+The replacement watches gate-*definition* prose specifically: each
+gate-bearing skill file marks the paragraphs that actually define a gate
+(when it's reached, what's presented, what satisfies it, what special
+condition forces it live, what relies on it, what's forbidden without it —
+`PROP-LRH-GATE-POLICY` Decision 6's six categories) with
+`<!-- GATE-DEFINITION -->` / `<!-- /GATE-DEFINITION -->` markers. A diff that
+touches lines outside every marked region (a typo, a comment, reordered
+unrelated prose) does not invalidate consent; a diff that touches even one
+line inside a marked region does. See `src/lrh/gate_staleness.py` for the
+implementation and `tests/gate_staleness_test.py` for the acceptance-criteria
+case (a typo-only edit must not invalidate; a gate-definition edit must).
 
 **Only applies once `confirmed_commit` is non-null** — the
 propose-and-confirm flow above already routes a null/absent
 `confirmed_commit` to the first-encounter path, which skips this section
-entirely. Do not run this section's `git diff` against the literal string
-`"null"` as if it were a commit SHA — that fails hard
-(`fatal: bad revision 'null'`), so guard for it explicitly even if this
-section is read or executed in isolation from the flow above:
+entirely:
 
 ```bash
 CONFIRMED_COMMIT="$(grep '^confirmed_commit:' project/config/chain-defaults.yaml | sed 's/^confirmed_commit: *//; s/^"//; s/"$//')"
 if [ "$CONFIRMED_COMMIT" = "null" ] || [ -z "$CONFIRMED_COMMIT" ]; then
   echo "No prior confirmation on record — staleness check does not apply; use the first-encounter path above." >&2
 else
-  # Before trusting any stored value (always_confirm pre-fill or
-  # skip_if_opted_in skip), check whether any gate-definition surface has
-  # changed since the profile was last confirmed:
-  git diff --quiet "$CONFIRMED_COMMIT" HEAD -- \
-    src/lrh/skills/_shared/chain-defaults.md \
-    src/lrh/skills/lrh-land/SKILL.md \
-    src/lrh/skills/lrh-land/references/land-workflow.md \
-    src/lrh/skills/lrh-execute/SKILL.md \
-    src/lrh/skills/lrh-implement/SKILL.md \
-    src/lrh/skills/lrh-review-response/SKILL.md \
-    src/lrh/skills/lrh-confirm-fixes/SKILL.md \
-    src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md \
-    src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md \
-    src/lrh/skills/lrh-self-review/SKILL.md \
-    src/lrh/skills/lrh-closeout/SKILL.md \
-    src/lrh/skills/lrh-closeout/references/closeout-workflow.md
+  lrh chain-defaults check-staleness --confirmed-commit "$CONFIRMED_COMMIT" --project-root .
 fi
 ```
 
-Exit status `1` means a gate-definition surface changed since the stored
-confirmation. Per `DEC-GATE-POLICY-CASCADE`, inspect the diff for changes to
-gate-definition statements: when a gate is reached, what payload is presented,
-what reply or stored consent satisfies it, what special condition forces a live
-gate, what downstream step may rely on it, or what action is forbidden without
-it. If any such statement changed, treat this run as if
-`chain_init_confirmation` were `always_confirm` regardless of the stored value,
-and note this in the gate's presentation ("defaults pre-filled, but
-re-confirming since gate policy changed since you last confirmed"). If the diff
-is only non-semantic churn, document that inspection and continue. Exit status
-greater than `1` means the diff command itself failed; surface the error and do
-not classify it as a semantic gate-definition change. Do not silently rewrite
-the stored value based on this fallback alone — it only affects this run's
-liveness, not the persisted setting.
+The watched files (`lrh.gate_staleness.DEFAULT_WATCHED_FILES`) are the four
+originally watched files, the three previously under-watched skills
+`/lrh-land` inlines (`/lrh-confirm-fixes`, `/lrh-review-response`,
+`/lrh-closeout`), and three reference files carrying real gate-defining
+prose of their own that predate this increment's watch list but were never
+covered by it either — `/lrh-implement`'s Step 4 plan-confirm gate (inlined
+by `/lrh-execute`, not duplicated in `land-workflow.md`), the substitute
+self-review round-cap gate, and the WS exit-criteria confirmation gate:
+
+```
+src/lrh/skills/_shared/chain-defaults.md
+src/lrh/skills/lrh-land/SKILL.md
+src/lrh/skills/lrh-land/references/land-workflow.md
+src/lrh/skills/lrh-execute/SKILL.md
+src/lrh/skills/lrh-implement/SKILL.md
+src/lrh/skills/lrh-confirm-fixes/SKILL.md
+src/lrh/skills/lrh-confirm-fixes/references/round-cap-gate.md
+src/lrh/skills/lrh-review-response/SKILL.md
+src/lrh/skills/lrh-closeout/SKILL.md
+src/lrh/skills/lrh-closeout/references/closeout-workflow.md
+```
+
+`src/lrh/skills/lrh-confirm-fixes/references/confirm-fixes-workflow.md` and
+`src/lrh/skills/lrh-self-review/SKILL.md` were checked and contain no gate
+*definitions* of their own (`confirm-fixes-workflow.md`'s "Idempotency and
+re-run edge cases" section restates the empty-thread gate in prose — "that
+gate is the human checkpoint that replaced the old ungated fast path" — but
+the normative definition lives solely in `lrh-confirm-fixes/SKILL.md`'s
+marked region, so this file's own edits cannot change what the gate does;
+`lrh-self-review` has no live in-session gate at all — its report-vs-apply
+choice is a flag decided at invocation, not something a stored consent could
+skip) — they are deliberately not watched, not an oversight. If a future
+edit to `confirm-fixes-workflow.md` ever states something about the gate
+that contradicts the marked definition, that is a doc-consistency bug to
+fix directly, not evidence this file needs its own markers.
+
+Exit status `1` means a gate-definition region changed (`stale: true` in the
+output — one or more `stale files` entries name which file and why). Treat
+this run as if `chain_init_confirmation` were `always_confirm` regardless of
+the stored value, and note this in the gate's presentation ("defaults
+pre-filled, but re-confirming since gate policy changed since you last
+confirmed"). Exit status `0` (`stale: false`) means every diff since
+confirmation, if any, fell outside all marked regions — continue trusting the
+stored value. Exit status `2` means the check itself failed (a git error, an
+added/removed watched file, or a malformed markers structure — see the
+command's own error text); surface it and do not silently classify it either
+way. Do not silently rewrite the stored value based on this fallback alone —
+it only affects this run's liveness, not the persisted setting.
+
+**Adding a new gate-bearing file or a new gate to an existing file requires
+adding `<!-- GATE-DEFINITION -->` markers around its defining prose** (and,
+if it's a new file, adding it to `DEFAULT_WATCHED_FILES`) — an unmarked gate
+is invisible to this check by construction, the same failure shape as the
+old under-watch defect, just scoped to one file instead of the whole
+mechanism.
+<!-- /GATE-DEFINITION -->

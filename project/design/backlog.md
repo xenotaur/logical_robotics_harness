@@ -7,6 +7,46 @@ re-deriving context.
 
 ---
 
+## Historical Meta CLI MVP gap: implement `lrh meta register`
+
+**Noted:** 2026-08-23, while reconciling an earlier user-reported
+`lrh meta register` "invalid choice" failure against the current
+repository state. The historical gap was that the Meta CLI MVP's control
+artifacts, docs, and acceptance criteria all described `lrh meta register`
+as part of the first workspace-registry slice, but an earlier CLI snapshot
+had only wired `meta init` and `meta list`. That created a design-to-code
+mismatch at exactly the point where the workspace registry needed its first
+write path.
+
+**Idea:** Implement `lrh meta register` as the explicit registry write
+surface for the meta-control-plane MVP. The command should create a durable
+`projects/<directory_name>/project.toml` record with a stable `project_id`,
+normalized locator fields, duplicate detection with `--force`, and
+setup-state capture that distinguishes LRH-compatible repositories from
+catalog-only entries. The implementation should stay aligned with the
+workspace model in `project/design/meta_control_plane_mvp_spec.md`: the
+workspace registry is authoritative for catalog metadata, while each
+repository's own `project/` directory remains authoritative for project
+state. Tests should cover CLI wiring, registration writes, duplicate
+handling, URL/path normalization, and compatibility with the shared
+workspace-resolution layer used by `meta init`, `meta list`, and `meta where`.
+
+**Status:** Closed. This gap was resolved by the Meta CLI MVP work:
+`project/work_items/resolved/WI-META-CLI-MVP.md` records the 2026-04-22
+implementation of `lrh meta register` end-to-end and the 2026-04-23 follow-on
+refinements for deterministic locator inference, GitHub tree URL handling,
+and shared workspace resolution. Current docs and roadmap material now treat
+`lrh meta register` as implemented behavior rather than deferred design.
+
+**Related:** `project/design/meta_control_plane_mvp_spec.md`;
+`project/roadmap/phase_02_runtime_and_workspace.md`;
+`project/work_items/resolved/WI-META-CLI-MVP.md`;
+`docs/reference/cli/meta.md`;
+`docs/how-to/register-a-project-with-meta.md`;
+`README.md`.
+
+---
+
 ## Generalize conversation export manifests beyond Codex before `/lrh-export`
 
 **Noted:** 2026-08-07, while reviewing Antigravity's draft conversation
@@ -1599,3 +1639,97 @@ requirements, and human confirmation gates.
 `project/design/proposals/adopted/lrh-gate-policy/00_proposal.md`;
 `project/memory/decisions/DEC-GATE-POLICY-CASCADE.md`;
 `project/work_items/proposed/WI-LRH-SEARCH-COUNT-PROVENANCE.md`.
+
+---
+
+## Triage unresolved review threads left on merged PRs
+
+**Noted:** 2026-08-23, during `/lrh-work-remains` after the
+skills-target-aware install workstream had been resolved. The read-only
+review-thread check found that session-touched PRs #504 and #540 had all
+threads resolved, but already-merged PR #539 still had six unresolved review
+threads and already-merged PR #513 still had three unresolved review threads.
+
+**Problem:** LRH currently allows a PR to be merged and closeout records to be
+landed while GitHub review threads remain unresolved. Some unresolved threads
+may be intentionally superseded by follow-up work, some may be stale/outdated
+review UI residue, and some may still describe real defects that should have
+been converted into work items or follow-up PRs. Leaving them untriaged makes
+later `/lrh-work-remains`, `/lrh-review-response`, and closeout archaeology
+noisy: the same unresolved threads can keep reappearing without a durable
+disposition.
+
+**Idea:** Design a small review-thread triage workflow for merged PRs. It
+should classify each unresolved thread as resolved-by-merge, resolved-by-later
+PR, obsolete/outdated UI residue, needs follow-up work item, or needs immediate
+fix. The workflow should record evidence for the disposition without mutating
+GitHub state until a human approves the action, and should decide whether the
+durable record belongs in execution closeout notes, design backlog, work-item
+frontmatter/body, or a dedicated review-thread disposition artifact.
+
+**Status:** Tracked, not yet designed. Start with PR #539 and PR #513 as the
+first dogfood cases because they are already merged, tied to recent
+skills-target-aware/Codex/Antigravity work, and have known unresolved thread
+counts from the 2026-08-23 `/lrh-work-remains` run.
+
+**Related:** PR #539; PR #513; `/lrh-work-remains`;
+`/lrh-review-response`; `/lrh-closeout`;
+`project/design/backlog.md` entry "Stale-candidate triage and cleanup
+workflow".
+
+---
+
+## Dogfood data point: `lrh-codex-export`'s prose confirm-before-write gate is imperfect, safe-direction-biased
+
+**Noted:** 2026-08-23, across ~5 real Codex invocations of
+`/lrh-codex-export` since `WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL`
+(PR #601) replaced `disable-model-invocation: true` with `when_to_use`
+guidance plus an explicit Step 3 "confirm before writing" instruction (skip
+condition: the user's own message this turn already explicitly requested
+the export by name or thread id — not merely because `CODEX_THREAD_ID`
+happened to be set).
+
+**Observation:** 4 of 5 runs behaved exactly as designed. The 5th over-fired:
+Codex asked for confirmation on an explicit, by-name `/lrh-codex-export`
+invocation, where the skill's own skip condition plainly applied and should
+have suppressed the ask. When the user pushed back ("Does the skill require
+you to get that confirmation given that I explicitly invoked it?"), Codex
+self-corrected — citing the skill's own skip-condition text — and proceeded
+without further prompting. No case of the opposite, unsafe failure (silently
+skipping the confirm when it should have asked) has been observed in any of
+the 5 runs.
+
+**Why this is expected, not a regression to chase:** Step 3 is a prose
+instruction interpreted per-invocation, not a platform-enforced mechanism
+like `lrh-self-review`'s `disallowed-tools: Skill` recursion guard (see
+`DEC-SELF-REVIEW-RECURSION-GUARD`). A prose gate can misfire in either
+direction because it depends on the invoking model correctly applying a
+written rule to its own immediate context. The observed failure mode
+(over-asking on a case that should skip) is the safe direction — it costs a
+moment of friction, not a silent unsafe write. The unsafe direction
+(skipping the ask on an implicit/ambiguous invocation) remains untested in
+practice; every dogfood round to date has been some form of explicit
+by-name invocation.
+
+**Idea:** Not proposing a fix — this is "good behavior with a safety-oriented
+asterisk," per explicit user framing, and there is no known way to make a
+model's own prose-instruction-following deterministic short of a
+platform-enforced mechanism (which doesn't exist for this class of gate).
+Worth two things instead: (1) keep this as a durable record of the observed
+failure rate and direction, so a future regression (especially the opposite,
+unsafe direction) has a baseline to compare against; (2) the still-untested
+case — an *implicit*/natural-language invocation where the skip condition
+should NOT apply (i.e., Step 3 should ask) — remains the meaningful gap in
+dogfood coverage, not the over-asking case this entry documents.
+
+**Status:** Tracked as an observation, not an open defect. No action needed
+unless: (a) the unsafe direction (silent skip when it should ask) is
+observed, which would warrant urgent re-review of Step 3's wording; or (b)
+the over-asking rate rises enough to erode the friction-reduction that
+motivated removing `disable-model-invocation` in the first place, in which
+case revisit Step 3's skip-condition wording for clarity.
+
+**Related:** `src/lrh/skills/lrh-codex-export/SKILL.md` Step 3;
+`src/lrh/skills/lrh-codex-export/agents/openai.yaml`;
+`project/work_items/resolved/WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL.md`;
+harness PR #601; agent memory `feedback_flag_removal_needs_confirm_gate.md`.

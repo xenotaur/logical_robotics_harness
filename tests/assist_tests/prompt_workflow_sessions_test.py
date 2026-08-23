@@ -1156,16 +1156,39 @@ class SyncExportTest(unittest.TestCase):
 
 
 class ProjectSlugForPathTest(unittest.TestCase):
-    def test_slashes_and_dots_become_hyphens_underscore_preserved(self) -> None:
-        # Verified against real ~/.claude/projects/ directory names: `/`
-        # and `.` are both replaced with `-`, but `_` is preserved as-is
-        # (e.g. a `replication_vector` repo keeps its underscore intact,
-        # while a `.claude/worktrees/...` segment becomes
-        # `-claude-worktrees-...`).
+    def test_slashes_dots_and_underscores_become_hyphens(self) -> None:
+        # Verified against real, transcript-bearing ~/.claude/projects/
+        # directories (i.e. buckets containing an actual *.jsonl session
+        # transcript, proof a genuine Claude Code session created them):
+        # `/`, `.`, and `_` are all replaced with `-` (e.g. a
+        # `logical_robotics_harness` or `replication_vector` repo's real
+        # bucket is fully hyphenated, and a `.claude/worktrees/...`
+        # segment becomes `-claude-worktrees-...`).
         slug = prompt_workflow_sessions.project_slug_for_path("/a/b_c/d.e")
         self.assertNotIn("/", slug)
-        self.assertIn("_", slug)
-        self.assertTrue(slug.startswith("-a-b_c-d-e"))
+        self.assertNotIn("_", slug)
+        self.assertEqual(slug, "-a-b-c-d-e")
+
+    def test_symlink_slugs_by_its_own_literal_path_not_the_resolved_target(
+        self,
+    ) -> None:
+        # Claude Code's own bucketing does not follow symlinks -- verified
+        # via this repository's own two independently-populated buckets
+        # for its pre- and post-move path spellings (one a symlink to the
+        # other). A symlinked path must slug to its own literal spelling,
+        # never the resolved target's.
+        with tempfile.TemporaryDirectory() as tmp:
+            real_dir = pathlib.Path(tmp) / "real_target"
+            real_dir.mkdir()
+            symlink_path = pathlib.Path(tmp) / "the_symlink"
+            symlink_path.symlink_to(real_dir)
+
+            symlink_slug = prompt_workflow_sessions.project_slug_for_path(symlink_path)
+            real_slug = prompt_workflow_sessions.project_slug_for_path(real_dir)
+
+            self.assertNotEqual(symlink_slug, real_slug)
+            self.assertIn("the-symlink", symlink_slug)
+            self.assertIn("real-target", real_slug)
 
 
 class DiscoverSessionsForProjectTest(unittest.TestCase):

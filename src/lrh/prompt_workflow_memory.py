@@ -1181,7 +1181,7 @@ def _resolve_memory_dir(
     project-root argument) would resolve to ``<path_or_slug>/memory`` --
     entirely outside ``claude_projects_root``. A genuine slug from
     :func:`project_slug_for_path` never contains a path separator (it
-    replaces ``/`` and ``.`` with ``-``), so restricting the literal-slug
+    replaces ``/``, ``.``, and ``_`` with ``-``), so restricting the literal-slug
     branch to separator-free values never misclassifies a real slug as a
     path, and unconditionally accepting it (once separator-free) never
     misclassifies a real path as a slug either.

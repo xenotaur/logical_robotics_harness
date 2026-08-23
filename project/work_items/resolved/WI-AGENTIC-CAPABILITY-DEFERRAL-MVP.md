@@ -24,7 +24,7 @@ forbidden_actions:
   - delete_branch
 acceptance:
   - future `lrh agentic run` / `lrh-agentic run`, agent adapters, PR stabilization loops, and sandbox envelope work are listed
-  - `lrh run` legacy shorthand or aliasing questions are documented for future command-design resolution
+  - '`lrh run` legacy shorthand or aliasing questions are documented for future command-design resolution'
   - all entries are clearly marked deferred / future / requires `lrh[agentic]`
 required_evidence:
   - manual_review

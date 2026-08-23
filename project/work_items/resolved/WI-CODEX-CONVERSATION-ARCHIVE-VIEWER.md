@@ -41,13 +41,13 @@ forbidden_actions:
   - implement_full_conversation_ledger
   - echo_transcript_content_by_default
 acceptance:
-  - `lrh serve` can expose a local-only, read-only view of explicitly configured Codex conversation export archive roots
+  - '`lrh serve` can expose a local-only, read-only view of explicitly configured Codex conversation export archive roots'
   - The viewer consumes the existing `ConversationExportManifest` and `inspect-export` validation contract rather than inventing a second transcript schema
   - The viewer prominently displays privacy, authority, sensitivity, warning counts, validation status, and transcript statistics before showing transcript content
   - Transcript content is escaped and rendered as inert read-only data; the viewer does not browse arbitrary filesystem paths or execute actions
   - Focused tests cover archive-root configuration, local-only defaults, valid and invalid export handling, content escaping, and non-disclosure of private transcript fixtures
   - Documentation explains configuration, privacy/authority boundaries, limitations, and the separation from promotion and `session_transcript` grammar changes
-  - `lrh validate` reports 0 errors
+  - '`lrh validate` reports 0 errors'
 required_evidence:
   - manual_review
   - lrh_validate

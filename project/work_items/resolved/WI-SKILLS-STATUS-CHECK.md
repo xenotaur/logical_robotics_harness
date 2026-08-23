@@ -26,8 +26,8 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - `lrh skills status` reports installed, missing, modified, and target-specific skill states
-  - `lrh skills check` reports unsupported metadata and target drift without writing files
+  - '`lrh skills status` reports installed, missing, modified, and target-specific skill states'
+  - '`lrh skills check` reports unsupported metadata and target drift without writing files'
   - Commands support Claude and Codex targets
   - Human-readable output is covered by focused tests
   - lrh validate reports 0 errors

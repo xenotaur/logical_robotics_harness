@@ -410,6 +410,63 @@ blocked_by: []
 
         self.assertEqual(report.errors, [])
 
+    def test_colon_collapsed_list_item_is_flagged(self) -> None:
+        # A bullet with an unquoted "key: value" shape parses under real
+        # YAML as a one-entry mapping, not the plain string the field
+        # expects -- this must be flagged, not silently accepted.
+        root = self._make_project()
+        self._write(
+            root / "work_items" / "active" / "WI-1.md",
+            """---
+id: WI-1
+title: Task
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+acceptance:
+  - a normal bullet
+  - after we discussed sequencing: this collapses into a mapping
+---
+""",
+        )
+        self._seed_valid_focus(root)
+
+        report = validate_project(root)
+
+        self.assertTrue(
+            any(
+                issue.code == "WORK_ITEM_LIST_FIELD_ITEM_INVALID"
+                for issue in report.issues
+            )
+        )
+
+    def test_hard_yaml_syntax_error_is_flagged(self) -> None:
+        # A plain scalar starting with a reserved indicator character
+        # (backtick) is a hard YAML syntax error, not silently accepted.
+        root = self._make_project()
+        self._write(
+            root / "work_items" / "active" / "WI-1.md",
+            """---
+id: WI-1
+title: `lrh validate` is broken
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+---
+""",
+        )
+        self._seed_valid_focus(root)
+
+        report = validate_project(root)
+
+        self.assertTrue(
+            any(issue.code == "YAML_PARSE_ERROR" for issue in report.issues)
+        )
+
 
 class TestExecutionRecordValidation(unittest.TestCase):
     """Stage 2 of PROP-LRH-EXECUTION-SESSIONS: advisory warnings for the
@@ -490,22 +547,39 @@ class TestExecutionRecordValidation(unittest.TestCase):
 
     def test_colon_near_misses_warn_malformed(self) -> None:
         root = self._make_project()
-        # Contain a colon but are not a genuine <scheme>:<id> pointer.
+        # Contain a colon but are not a genuine <scheme>:<id> pointer. Two
+        # of these remain valid (if malformed) plain scalars under real
+        # YAML; the other two are genuine YAML syntax errors (an unquoted
+        # mid-scalar "text: more text" or a trailing bare colon triggers
+        # "mapping values are not allowed here") and now correctly surface
+        # as a hard parse error instead of a silent malformed-pointer
+        # warning, per PROP-LRH-FRONTMATTER-PARSER Decision 1.
         for name, value in [
             ("rec_no_scheme", ":id"),
-            ("rec_no_id", "backend:"),
             ("rec_path_scheme", "some/path:foo"),
-            ("rec_space_scheme", "not a scheme: text"),
         ]:
             self._write_record(root, name, f"session_transcript: {value}\n")
 
         issues = self._issues_for(root, "EXECUTION_SESSION_TRANSCRIPT")
 
-        self.assertEqual(len(issues), 4)
+        self.assertEqual(len(issues), 2)
         self.assertEqual(
             {issue.code for issue in issues},
             {"EXECUTION_SESSION_TRANSCRIPT_MALFORMED"},
         )
+
+    def test_colon_near_misses_that_are_invalid_yaml_raise_parse_error(self) -> None:
+        root = self._make_project()
+        for name, value in [
+            ("rec_no_id", "backend:"),
+            ("rec_space_scheme", "not a scheme: text"),
+        ]:
+            self._write_record(root, name, f"session_transcript: {value}\n")
+
+        issues = self._issues_for(root, "YAML_PARSE_ERROR")
+
+        self.assertEqual(len(issues), 2)
+        self.assertEqual({issue.severity for issue in issues}, {"error"})
 
     def test_non_string_transcript_warns_malformed(self) -> None:
         root = self._make_project()

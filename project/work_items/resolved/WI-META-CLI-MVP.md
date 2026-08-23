@@ -3,7 +3,7 @@ resolution: completed
 blocked_reason: null
 blocked: false
 id: WI-META-CLI-MVP
-title: Meta CLI MVP: init / register / list
+title: 'Meta CLI MVP: init / register / list'
 type: deliverable
 status: resolved
 priority: high
@@ -23,10 +23,10 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - `lrh meta init` creates the expected workspace directory structure
-  - `lrh meta register` creates a valid project record with a unique project_id
+  - '`lrh meta init` creates the expected workspace directory structure'
+  - '`lrh meta register` creates a valid project record with a unique project_id'
   - duplicate project registration is detected, with optional override via `--force`
-  - `lrh meta list` displays registered projects clearly
+  - '`lrh meta list` displays registered projects clearly'
   - registration and listing work for both LRH repos and repos without LRH `project/` directories
 required_evidence:
   - test_result

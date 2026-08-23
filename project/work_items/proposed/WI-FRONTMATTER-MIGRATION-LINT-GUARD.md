@@ -28,7 +28,7 @@ forbidden_actions:
   - delete_branch
   - apply_fix_frontmatter_without_manual_review
 acceptance:
-  - A shared raw-text lexical detector implements the four confirmed unsafe-plain-scalar patterns (unescaped ': ', unescaped ' #', a scalar starting with a reserved indicator, and a scalar in a string field that would implicit-resolve to a non-string type)
+  - 'A shared raw-text lexical detector implements the four confirmed unsafe-plain-scalar patterns (unescaped '': '', unescaped '' #'', a scalar starting with a reserved indicator, and a scalar in a string field that would implicit-resolve to a non-string type)'
   - lrh validate uses the shared detector to flag unsafe patterns as a new lint category, report-only
   - lrh project doctor gains a --fix-frontmatter flag using the same shared detector, dry-run by default, requiring explicit --apply to write; for a repo with LRH's lenient-parser lineage, the replacement value comes from the historical lenient parser's reading, never from stripping the raw line
   - The migration tool's dry-run has been run and manually reviewed against LRH's own project/ tree, and either applied to this repo's own project/ tree after that review or followed by a concrete, blocking follow-up work item that applies it -- this item is not complete on dry-run-and-review alone
@@ -66,6 +66,26 @@ Decision 2's accepted date/datetime divergence. See the proposal's Design
 Decisions section for the full rationale and the two P2 findings (float
 coverage, detector-list parity between the migration tool and lint guard)
 a later review round on that same PR fixed.
+
+**Concrete live exposure (2026-08-23).** `WI-FRONTMATTER-PARSER-CONSOLIDATION`'s
+automatic PR review (PR #614) confirmed the mid-scalar `" #"`-truncation
+class this WI covers is not hypothetical: a re-audit at PR #614's merge
+point found roughly 60 files across `project/` with this pattern (not
+just execution records — resolved work items' `resolution:` and
+workstreams' `summary:` fields carry it too), for example
+`project/executions/AD_HOC/2026_07_18_03_15_20_CONFIRM_FIXES_REQUIRED_CHECKS_FALLBACK.md`,
+whose `instruction_source` silently truncates from "...discovered
+verifying PR #399)" to "...discovered verifying PR" under `yaml.safe_load`.
+Re-locate the current count at implementation time rather than trusting
+this or the Problem/Context section's earlier "45 files/50 fields"
+estimate — both are point-in-time snapshots and the real content
+continues to grow. All such files silently lose trailing text on every
+read via the shared parser, with no `lrh validate` error (the truncated
+form is syntactically valid YAML). This was a known, accepted risk of
+`WI-FRONTMATTER-PARSER-CONSOLIDATION`'s phased rollout, not an oversight,
+but it makes this WI's lint-guard and migration-tool work higher-priority
+than a typical backlog item — the
+exposure window is open now, not merely anticipated.
 
 ### Duplication search
 - In-repo: None found — no existing `lrh project doctor --fix-frontmatter`

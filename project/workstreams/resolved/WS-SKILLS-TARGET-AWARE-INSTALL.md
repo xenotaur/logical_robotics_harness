@@ -25,7 +25,7 @@ work_items:
   - WI-SKILLS-ANTIGRAVITY-TARGET
   - WI-SKILLS-BODY-PROSE-NEUTRALIZATION
 exit_criteria:
-  - `lrh skills install --target claude|codex|all` implemented with existing Claude behavior preserved by default
+  - '`lrh skills install --target claude|codex|all` implemented with existing Claude behavior preserved by default'
   - Codex user and project installs write to `~/.agents/skills/` and `./.agents/skills/` respectively
   - Target-aware install planning, conflict handling, dry-run, force, and diff behavior covered by tests
   - Source abstraction, repo config, render adapters, and status/check command stages either resolved or explicitly deferred with follow-up work items

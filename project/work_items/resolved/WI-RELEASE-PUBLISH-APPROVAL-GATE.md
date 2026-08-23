@@ -24,7 +24,7 @@ forbidden_actions:
 acceptance:
   - the `pypi` GitHub environment requires manual review before `release.yml`'s `publish-pypi` job runs
   - the `testpypi` GitHub environment intentionally remains unprotected, with the reasoning recorded
-  - `docs/how-to/run-a-release.md` documents that any `vMAJOR.MINOR.PATCH` tag push arms both the TestPyPI rehearsal tag requirement and the real `release.yml` publish path simultaneously, and describes the rehearse-then-approve sequencing this gate enables
+  - '`docs/how-to/run-a-release.md` documents that any `vMAJOR.MINOR.PATCH` tag push arms both the TestPyPI rehearsal tag requirement and the real `release.yml` publish path simultaneously, and describes the rehearse-then-approve sequencing this gate enables'
 required_evidence:
   - manual_review
 artifacts_expected:

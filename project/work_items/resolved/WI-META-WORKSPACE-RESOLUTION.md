@@ -25,10 +25,10 @@ forbidden_actions:
   - delete_branch
 acceptance:
   - shared workspace-context resolution is implemented and used consistently by `lrh meta init`, `lrh meta register`, and `lrh meta list`
-  - precedence is implemented as: explicit CLI flags → `LRH_CONFIG` → `LRH_WORKSPACE` → local auto-discovery → global auto-discovery → built-in defaults
+  - "precedence is implemented as: explicit CLI flags → `LRH_CONFIG` → `LRH_WORKSPACE` → local auto-discovery → global auto-discovery → built-in defaults"
   - global workspace defaults use XDG-style config/state/cache separation
   - local workspace mode remains explicitly supported via `.lrh/config.toml` plus sibling `projects/` and `private/`
-  - `lrh meta init` prompts are TTY-aware and bypassable via `--yes`
+  - '`lrh meta init` prompts are TTY-aware and bypassable via `--yes`'
   - active workspace/config resolution is visible and inspectable in user-facing command behavior
 required_evidence:
   - test_result

@@ -34,12 +34,12 @@ acceptance:
   - src/lrh/skills/lrh-execute/SKILL.md exists with valid frontmatter
   - .claude/skills/lrh-execute/ is a byte-identical copy of src/lrh/skills/lrh-execute/
   - /lrh-execute's chain authorization gate (completion + stop-work conditions, DEC-DELIBERATE-CHAIN-INITIATION) runs before /lrh-implement starts, not deferred to /lrh-land's later gate
-  - Given WI-ID, /lrh-execute enforces depends_on (all entries resolved) before starting; given WS-ID, it finds the next ready WI per PROP-LRH-LAND-EXECUTE's exact selection rule (proposed, depends_on satisfied, prompt_ready: yes in lrh work-items readiness structured output, no in_progress/landed execution record) and stops without proposing creation if none exists
+  - 'Given WI-ID, /lrh-execute enforces depends_on (all entries resolved) before starting; given WS-ID, it finds the next ready WI per PROP-LRH-LAND-EXECUTE''s exact selection rule (proposed, depends_on satisfied, prompt_ready: yes in lrh work-items readiness structured output, no in_progress/landed execution record) and stops without proposing creation if none exists'
   - /lrh-execute invokes the /lrh-implement workflow and hands off to /lrh-land for landing
   - /lrh-execute writes the Decision 8 scratchpad run journal (execute_wi action, distinct from /lrh-land's own land_pr action)
   - /lrh-execute retriggers bot review only through /lrh-land's existing round-cap-gate.md guardrail, never an independent unguarded retrigger path
   - lrh validate passes with 0 errors
-  - CLAUDE.md's ## Skills index has an entry for /lrh-execute
+  - 'CLAUDE.md''s ## Skills index has an entry for /lrh-execute'
 required_evidence:
   - manual_review
   - lrh_validate

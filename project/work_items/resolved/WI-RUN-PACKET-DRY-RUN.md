@@ -33,7 +33,7 @@ acceptance:
   - a dry-run run-packet contract is documented for selected execution-ready work items
   - packet contents include scope, constraints, validation commands, evidence expectations, and human gates
   - dry-run behavior explicitly avoids agent calls and branch mutation
-  - `lrh request run_packet_from_work_item` remains a safe-default artifact-rendering command distinct from future `lrh run --dry-run` semantics
+  - '`lrh request run_packet_from_work_item` remains a safe-default artifact-rendering command distinct from future `lrh run --dry-run` semantics'
   - the work item leaves backend adapters and PR automation out of scope
 required_evidence:
   - manual_review

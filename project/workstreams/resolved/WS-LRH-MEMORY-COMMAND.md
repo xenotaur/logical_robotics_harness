@@ -25,7 +25,7 @@ exit_criteria:
   - lrh memory read/search implemented; WI-LRH-MEMORY-READ-SIDE resolved
   - lrh memory export/import/transfer implemented; WI-LRH-MEMORY-PORTABILITY resolved
   - project/design/backlog.md's "lrh memory command" entry closed or linked
-  - PROP-LRH-MEMORY-COMMAND adopted, with implementation_status: implemented and implemented_by listing all four WIs
+  - 'PROP-LRH-MEMORY-COMMAND adopted, with implementation_status: implemented and implemented_by listing all four WIs'
 ---
 
 # LRH Memory Command Implementation

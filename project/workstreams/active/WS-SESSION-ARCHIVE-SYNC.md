@@ -87,7 +87,7 @@ staged, independently reviewable leaves.
 Stage 1 is filed as `WI-SESSION-ARCHIVE-SYNC-CAPTURE` (resolved), Stage 2
 as `WI-SESSION-ARCHIVE-SYNC-RECONCILER` (resolved), Stage 3 as
 `WI-SESSION-ARCHIVE-SYNC-REPORT` (resolved), and Stage 4 as
-`WI-SESSION-ARCHIVE-SYNC-SCHEDULED-CLOSEOUT-SYNC` (proposed). None reuses the
+`WI-SESSION-ARCHIVE-SYNC-SCHEDULED-CLOSEOUT-SYNC` (resolved). None reuses the
 retired `WI-EXEC-SESSIONS-DISCOVERY` id.
 
 - **Stage 1 — `WI-SESSION-ARCHIVE-SYNC-CAPTURE`: both-identifier capture +

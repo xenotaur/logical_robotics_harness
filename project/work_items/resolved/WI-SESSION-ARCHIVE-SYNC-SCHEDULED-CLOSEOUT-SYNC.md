@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #612 (commit 2711d2997)"
 blocked_reason: null
 blocked: false
 id: WI-SESSION-ARCHIVE-SYNC-SCHEDULED-CLOSEOUT-SYNC
 title: Session archive scheduled and closeout-triggered sync
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

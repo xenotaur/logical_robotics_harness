@@ -2,8 +2,8 @@
 id: WS-LRH-CHAIN-DEFAULTS
 kind: planning_node
 title: Persisted Chain-Defaults Profile for LRH Skill Gates
-status: proposed
-stage: conceived
+status: active
+stage: executing
 origin: follow_up
 summary: >
   Governs delivery of PROP-LRH-CHAIN-DEFAULTS: a repo-level, git-tracked

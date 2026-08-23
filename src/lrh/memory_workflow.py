@@ -144,7 +144,12 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
     import_parser.add_argument(
         "--force",
         action="store_true",
-        help="overwrite even if authored_by differs from the bundled record",
+        help=(
+            "required to overwrite any existing destination memory -- "
+            "same-agent, legacy (no authored_by), or a differing "
+            "authored_by; the prior content is snapshotted first except "
+            "for the differing-authored_by case"
+        ),
     )
     import_parser.add_argument(
         "--dry-run", action="store_true", help="report what would be written"
@@ -182,7 +187,12 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
     transfer_parser.add_argument(
         "--force",
         action="store_true",
-        help="overwrite even if authored_by differs from the transferred record",
+        help=(
+            "required to overwrite any existing destination memory -- "
+            "same-agent, legacy (no authored_by), or a differing "
+            "authored_by; the prior content is snapshotted first except "
+            "for the differing-authored_by case"
+        ),
     )
     transfer_parser.add_argument(
         "--dry-run", action="store_true", help="report what would be transferred"

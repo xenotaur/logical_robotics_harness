@@ -15,7 +15,11 @@ import tempfile
 import typing
 
 from lrh import prompt_workflow_sessions
-from lrh.conversations import codex_app_server_export, export_inspector
+from lrh.conversations import (
+    codex_app_server_export,
+    codex_session,
+    export_inspector,
+)
 
 ATTEMPT_KIND = "lrh_codex_export_attempt"
 ATTEMPT_SCHEMA_VERSION = 1
@@ -267,7 +271,7 @@ def run_archive_codex_thread_cli(
     )
     parser.add_argument(
         "--thread-id",
-        default=os.environ.get("CODEX_THREAD_ID"),
+        default=None,
         help="Codex thread id to export (default: CODEX_THREAD_ID)",
     )
     parser.add_argument(
@@ -305,8 +309,10 @@ def run_archive_codex_thread_cli(
         help="skip the local heuristic sensitivity scanner",
     )
     args = parser.parse_args(argv)
-    if not args.thread_id:
-        print("error: --thread-id or CODEX_THREAD_ID is required", file=sys.stderr)
+    try:
+        identity = codex_session.resolve_codex_session_identity(args.thread_id)
+    except codex_session.CodexSessionIdentityError as err:
+        print(f"error: {err}", file=sys.stderr)
         return 2
     if args.timeout_seconds <= 0:
         print("error: --timeout-seconds must be positive", file=sys.stderr)
@@ -317,7 +323,7 @@ def run_archive_codex_thread_cli(
 
     try:
         result = archive_codex_thread(
-            thread_id=args.thread_id,
+            thread_id=identity.thread_id,
             archive_root=args.archive_root,
             scratch=args.scratch,
             scratch_root=args.scratch_root,
@@ -463,6 +469,7 @@ def _import_one_directory(
     copied_export_path = dest / "export.md"
     copied_raw_path = dest / "raw.json"
     attempt_path = dest / "attempt.json"
+    imported_thread_id = _imported_thread_id(export_path, raw_path, status)
     if export_path.exists() and export_path.is_file():
         shutil.copy2(export_path, copied_export_path)
         _chmod_private_file(copied_export_path)
@@ -479,6 +486,7 @@ def _import_one_directory(
             "source_tool": "codex",
             "source_adapter": codex_app_server_export.SOURCE_ADAPTER,
             "source_directory": str(source),
+            **({"thread_id": imported_thread_id} if imported_thread_id else {}),
             "ephemeral": False,
             "output_paths": {
                 "directory": str(dest),
@@ -495,6 +503,22 @@ def _import_one_directory(
         status=status,
         details=details,
     )
+
+
+def _imported_thread_id(
+    export_path: pathlib.Path,
+    raw_path: pathlib.Path,
+    status: str,
+) -> str | None:
+    if status != "imported":
+        return None
+    try:
+        inspection = export_inspector.inspect_export(export_path, source_path=raw_path)
+    except export_inspector.ConversationExportInspectionError:
+        return None
+    if not inspection.valid or inspection.manifest is None:
+        return None
+    return inspection.manifest.source_id
 
 
 def _classify_source_export(

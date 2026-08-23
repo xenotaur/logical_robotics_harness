@@ -24,14 +24,41 @@ promoted into a separate LRH artifact.
 
 ## Capture the current Codex task
 
+If you only need the LRH closeout pointer and do not want to archive transcript
+content, run:
+
+```text
+/lrh-codex-session
+```
+
+That skill wraps:
+
+```bash
+lrh conversation current-codex-thread-id --field session-transcript
+```
+
+and reports:
+
+```yaml
+session_transcript: codex-app:<thread-id>
+```
+
+The pointer is the Codex task/thread identity used by the export commands. It is
+not an export attempt id, archive directory, `attempt.json` path, raw JSON path,
+Markdown export path, or timestamp. This lets closeout records name the current
+Codex session without creating an early archive attempt.
+
+## Archive the current Codex task
+
 In Codex, run:
 
 ```text
 /lrh-codex-export
 ```
 
-When `CODEX_THREAD_ID` is available, the skill uses it as the thread id. If the
-environment does not expose a thread id, provide one explicitly:
+When `CODEX_THREAD_ID` is available, the skill resolves it through the same
+shared resolver used by `/lrh-codex-session`. If the environment does not expose
+a thread id, provide one explicitly:
 
 ```text
 /lrh-codex-export 019fc43f-e2d9-7503-88cb-9d9a8136c111

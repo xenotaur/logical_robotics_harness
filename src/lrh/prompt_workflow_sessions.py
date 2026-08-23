@@ -6,16 +6,17 @@ later fork stitching). Stage 2 (WI-SESSION-ARCHIVE-SYNC-RECONCILER) adds
 the archive reconciler: mirroring raw transcripts into a durable local
 archive, harvesting /export metadata.json for the host<->child<->PR
 mapping on pointers that already dangle, and the discover/link lookups
-that read the resulting archive and index. It does not implement
-lrh sessions report or index *enrichment* (era-general keys, multi-export
-dedup) -- those are Stage 3 -- nor the weekly/hook-triggered sync -- Stage
-4. It does not change the session_transcript scalar/sequence grammar.
+that read the resulting archive and index. Stage 3 adds the metadata-only
+lrh sessions report coverage check. Stage 4 wires sync into closeout and adds
+an inspectable weekly scheduling path. None of these stages changes the
+session_transcript scalar/sequence grammar.
 """
 
 from __future__ import annotations
 
 import contextlib
 import dataclasses
+import datetime
 import fcntl
 import hashlib
 import json
@@ -25,7 +26,10 @@ import re
 import typing
 import zipfile
 
+from lrh import prompt_workflow_records
 from lrh.atomic_write import atomic_write, atomic_write_bytes
+
+MALFORMED_SESSION_TRANSCRIPT_PREFIX = "<malformed-session-transcript"
 
 
 @dataclasses.dataclass(frozen=True)
@@ -49,6 +53,70 @@ class SessionRecord:
             "branch": self.branch,
             "written_branches": list(self.written_branches),
             "updated_at": self.updated_at,
+        }
+
+
+@dataclasses.dataclass(frozen=True)
+class SessionReportFinding:
+    """One metadata-only session archive report finding."""
+
+    category: str
+    execution_id: str
+    work_item: str
+    status: str
+    path: str
+    session_transcript: str
+    reason: str
+    pr: str | None = None
+
+    def to_json_dict(self) -> dict[str, typing.Any]:
+        return {
+            "category": self.category,
+            "execution_id": self.execution_id,
+            "work_item": self.work_item,
+            "status": self.status,
+            "path": self.path,
+            "session_transcript": self.session_transcript,
+            "reason": self.reason,
+            "pr": self.pr,
+        }
+
+
+@dataclasses.dataclass(frozen=True)
+class SessionReport:
+    """Metadata-only archive coverage report for execution records."""
+
+    records_checked: int
+    pointers_checked: int
+    archived: int
+    terminal_none: int
+    pending: tuple[SessionReportFinding, ...]
+    dangling: tuple[SessionReportFinding, ...]
+    unarchived: tuple[SessionReportFinding, ...]
+    unsupported: tuple[SessionReportFinding, ...]
+    missing: tuple[SessionReportFinding, ...]
+
+    @property
+    def findings(self) -> tuple[SessionReportFinding, ...]:
+        return (
+            *self.pending,
+            *self.dangling,
+            *self.unarchived,
+            *self.unsupported,
+            *self.missing,
+        )
+
+    def to_json_dict(self) -> dict[str, typing.Any]:
+        return {
+            "records_checked": self.records_checked,
+            "pointers_checked": self.pointers_checked,
+            "archived": self.archived,
+            "terminal_none": self.terminal_none,
+            "pending": [finding.to_json_dict() for finding in self.pending],
+            "dangling": [finding.to_json_dict() for finding in self.dangling],
+            "unarchived": [finding.to_json_dict() for finding in self.unarchived],
+            "unsupported": [finding.to_json_dict() for finding in self.unsupported],
+            "missing": [finding.to_json_dict() for finding in self.missing],
         }
 
 
@@ -81,6 +149,313 @@ def load_session_index(
             updated_at=data.get("updated_at"),
         )
     return records
+
+
+def build_session_report(
+    project_root: str | pathlib.Path,
+    *,
+    archive_root: str | pathlib.Path | None = None,
+    since_created_at: str | None = None,
+) -> SessionReport:
+    """Build a deterministic, metadata-only report of session archive coverage.
+
+    The report reads execution-record frontmatter, ``project/sessions`` index
+    rows, Claude archive filenames, and Codex ``attempt.json`` files. It does
+    not read raw transcript JSONL bodies, Codex ``raw.json`` captures, or
+    Markdown transcript bodies.
+    """
+
+    root = pathlib.Path(project_root)
+    resolved_archive_root = resolve_archive_root(archive_root)
+    index = load_session_index(root)
+    archived_child_ids = _archived_claude_child_ids(resolved_archive_root)
+    archived_codex_thread_ids = _archived_codex_thread_ids(resolved_archive_root)
+    since = _since_created_at_datetime(since_created_at)
+    records = [
+        record
+        for record in prompt_workflow_records.load_execution_records(root)
+        if _record_is_in_report_window(record, since)
+    ]
+
+    archived = 0
+    terminal_none = 0
+    pending: list[SessionReportFinding] = []
+    dangling: list[SessionReportFinding] = []
+    unarchived: list[SessionReportFinding] = []
+    unsupported: list[SessionReportFinding] = []
+    missing: list[SessionReportFinding] = []
+    pointers_checked = 0
+
+    for record in records:
+        values = _session_transcript_values(record.frontmatter)
+        if not values:
+            missing.append(
+                _finding(
+                    root,
+                    record,
+                    "",
+                    category="missing",
+                    reason="execution record has no session_transcript field",
+                )
+            )
+            continue
+        for value in values:
+            pointers_checked += 1
+            if value == "none":
+                terminal_none += 1
+                continue
+            if value == "pending":
+                pending.append(
+                    _finding(
+                        root,
+                        record,
+                        value,
+                        category="pending",
+                        reason="session_transcript is still pending",
+                    )
+                )
+                continue
+            if value.startswith(MALFORMED_SESSION_TRANSCRIPT_PREFIX):
+                unsupported.append(
+                    _finding(
+                        root,
+                        record,
+                        value,
+                        category="unsupported",
+                        reason=("session_transcript value is malformed or empty"),
+                    )
+                )
+                continue
+            scheme, sep, identifier = value.partition(":")
+            if not sep or not scheme or not identifier:
+                unsupported.append(
+                    _finding(
+                        root,
+                        record,
+                        value,
+                        category="unsupported",
+                        reason="session_transcript is not a scheme-prefixed pointer",
+                    )
+                )
+                continue
+            if scheme == "claude-app":
+                host_id = identifier.removeprefix("local_")
+                indexed = index.get(host_id)
+                if indexed is None:
+                    dangling.append(
+                        _finding(
+                            root,
+                            record,
+                            value,
+                            category="dangling",
+                            reason=(
+                                "claude-app host id is not present in "
+                                "project/sessions/index.jsonl"
+                            ),
+                        )
+                    )
+                elif any(
+                    child_id in archived_child_ids for child_id in indexed.child_ids
+                ):
+                    archived += 1
+                else:
+                    unarchived.append(
+                        _finding(
+                            root,
+                            record,
+                            value,
+                            category="unarchived",
+                            reason=(
+                                "indexed claude-app session has no archived "
+                                "top-level JSONL transcript"
+                            ),
+                        )
+                    )
+                continue
+            if scheme == "codex-app":
+                if identifier in {"current-task", "current-thread"}:
+                    dangling.append(
+                        _finding(
+                            root,
+                            record,
+                            value,
+                            category="dangling",
+                            reason=(
+                                "codex-app pointer is a placeholder, not a "
+                                "durable thread id"
+                            ),
+                        )
+                    )
+                elif identifier in archived_codex_thread_ids:
+                    archived += 1
+                else:
+                    unarchived.append(
+                        _finding(
+                            root,
+                            record,
+                            value,
+                            category="unarchived",
+                            reason=(
+                                "codex-app thread id has no successful "
+                                "durable archive attempt"
+                            ),
+                        )
+                    )
+                continue
+            unsupported.append(
+                _finding(
+                    root,
+                    record,
+                    value,
+                    category="unsupported",
+                    reason=(
+                        "archive coverage check is not implemented for "
+                        f"scheme {scheme!r}"
+                    ),
+                )
+            )
+
+    return SessionReport(
+        records_checked=len(records),
+        pointers_checked=pointers_checked,
+        archived=archived,
+        terminal_none=terminal_none,
+        pending=tuple(pending),
+        dangling=tuple(dangling),
+        unarchived=tuple(unarchived),
+        unsupported=tuple(unsupported),
+        missing=tuple(missing),
+    )
+
+
+def _session_transcript_values(frontmatter: dict[str, typing.Any]) -> tuple[str, ...]:
+    if "session_transcript" not in frontmatter:
+        return ()
+    value = frontmatter.get("session_transcript")
+    raw_values = value if isinstance(value, list) else [value]
+    values: list[str] = []
+    for raw_value in raw_values:
+        if isinstance(raw_value, str):
+            cleaned = raw_value.strip().strip("'\"")
+            if cleaned:
+                values.append(cleaned)
+            else:
+                values.append(_malformed_session_transcript_value(raw_value))
+        else:
+            values.append(_malformed_session_transcript_value(raw_value))
+    return tuple(values)
+
+
+def _malformed_session_transcript_value(value: typing.Any) -> str:
+    kind = "empty" if isinstance(value, str) else type(value).__name__
+    return f"{MALFORMED_SESSION_TRANSCRIPT_PREFIX}:{kind}>"
+
+
+def _finding(
+    project_root: pathlib.Path,
+    record: prompt_workflow_records.ExecutionRecord,
+    session_transcript: str,
+    *,
+    category: str,
+    reason: str,
+) -> SessionReportFinding:
+    try:
+        path = str(record.path.relative_to(project_root))
+    except ValueError:
+        path = str(record.path)
+    return SessionReportFinding(
+        category=category,
+        execution_id=record.execution_id,
+        work_item=record.work_item,
+        status=record.status,
+        path=path,
+        session_transcript=session_transcript,
+        reason=reason,
+        pr=record.pr or None,
+    )
+
+
+def _record_is_in_report_window(
+    record: prompt_workflow_records.ExecutionRecord,
+    since_created_at: datetime.datetime | None,
+) -> bool:
+    if since_created_at is None:
+        return True
+    record_created = _parse_iso_datetime(record.created_at)
+    if record_created is None:
+        return False
+    return record_created >= since_created_at
+
+
+def _since_created_at_datetime(value: str | None) -> datetime.datetime | None:
+    if value is None:
+        return None
+    parsed = _parse_iso_datetime(value)
+    if parsed is None:
+        raise ValueError("since_created_at must be an ISO timestamp")
+    return parsed
+
+
+def _parse_iso_datetime(value: str) -> datetime.datetime | None:
+    """Parse common ISO forms to UTC for chronological comparisons."""
+
+    stripped = value.strip()
+    if stripped.endswith("Z"):
+        stripped = f"{stripped[:-1]}+00:00"
+    try:
+        parsed = datetime.datetime.fromisoformat(stripped)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=datetime.timezone.utc)
+    return parsed.astimezone(datetime.timezone.utc)
+
+
+def _archived_claude_child_ids(archive_root: pathlib.Path) -> set[str]:
+    raw_root = archive_root / "raw"
+    if not raw_root.exists():
+        return set()
+    child_ids: set[str] = set()
+    for project_dir in sorted(
+        p for p in raw_root.iterdir() if not p.is_symlink() and p.is_dir()
+    ):
+        for transcript in sorted(
+            p for p in project_dir.glob("*.jsonl") if not p.is_symlink() and p.is_file()
+        ):
+            child_ids.add(transcript.stem)
+    return child_ids
+
+
+def _archived_codex_thread_ids(archive_root: pathlib.Path) -> set[str]:
+    codex_root = archive_root / "codex"
+    if not codex_root.exists():
+        return set()
+    thread_ids: set[str] = set()
+    attempt_paths: list[pathlib.Path] = []
+    for dirpath, dirnames, filenames in os.walk(codex_root, followlinks=False):
+        current_dir = pathlib.Path(dirpath)
+        dirnames[:] = [
+            dirname for dirname in dirnames if not (current_dir / dirname).is_symlink()
+        ]
+        if "attempt.json" in filenames:
+            attempt_path = current_dir / "attempt.json"
+            if not attempt_path.is_symlink() and attempt_path.is_file():
+                attempt_paths.append(attempt_path)
+    for attempt_path in sorted(attempt_paths):
+        try:
+            data = json.loads(attempt_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if not isinstance(data, dict):
+            continue
+        if data.get("ephemeral") is True:
+            continue
+        if data.get("status") not in {"succeeded", "imported"}:
+            continue
+        thread_id = data.get("thread_id")
+        if isinstance(thread_id, str) and thread_id:
+            thread_ids.add(thread_id)
+    return thread_ids
 
 
 def _merge(

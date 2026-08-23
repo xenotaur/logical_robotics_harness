@@ -128,6 +128,17 @@ scripts/develop
 
 This is the canonical LRH editable development install entrypoint. It installs the package in editable mode with constrained development dependencies so source changes are reflected without reinstalling while standard development tools are available.
 
+#### `conda-worktree-env`
+Creates (or reuses) a conda environment dedicated to the current checkout, then runs `scripts/develop` inside it.
+
+```bash
+scripts/conda-worktree-env <env-name>
+scripts/conda-worktree-env <env-name> --recreate
+scripts/conda-worktree-env <env-name> --python 3.12 --dry-run
+```
+
+An editable `pip install -e .` only ever points at one source location per (conda environment, package name). When multiple worktrees of this repository share one conda environment, each `scripts/develop` run silently steals the editable `lrh` install from whichever worktree ran it last. This script gives a worktree its own environment so that collision cannot happen. It installs from `pyproject.toml`'s `[dev]` extra constrained by `constraints-dev.txt` -- the same source CI installs from -- rather than from `environment.yml`, which is a raw `scripts/update` export snapshot, not a maintained spec. Requires `conda` on `PATH`; run `scripts/develop` inside a plain `venv` instead if it is unavailable.
+
 #### `update`
 Updates the conda environment specification file.
 

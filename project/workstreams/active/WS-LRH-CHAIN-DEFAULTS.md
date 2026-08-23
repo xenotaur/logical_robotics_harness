@@ -2,8 +2,8 @@
 id: WS-LRH-CHAIN-DEFAULTS
 kind: planning_node
 title: Persisted Chain-Defaults Profile for LRH Skill Gates
-status: proposed
-stage: conceived
+status: active
+stage: executing
 origin: follow_up
 summary: >
   Governs delivery of PROP-LRH-CHAIN-DEFAULTS: a repo-level, git-tracked
@@ -27,11 +27,11 @@ work_items:
   - WI-LRH-CHAIN-DEFAULTS-INCREMENT-3
 exit_criteria:
   - A design-review session has produced concrete, steelmanned default values (completion condition, stop-work condition, self-review preference) with recorded rationale, before any Increment 1 code lands
-  - Increment 1 (chain-level defaults: schema + propose-and-confirm flow wired into /lrh-land and /lrh-execute Step 2) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors
-  - Increment 2 (per-gate autopilot: confirm_fixes_batch flag; closeout_plan is categorically excluded per DEC-DELIBERATE-CHAIN-INITIATION, see PROP-LRH-CHAIN-DEFAULTS Decision 3) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors, using Increment 1 session evidence to justify the gate's "unusual" predicate
-  - Increment 3 (policy-derived profile fields: closeout_with_merge single-ask, plus the semantic staleness watch replacing the file-granular list) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors, after the DEC record from WS-INVOCATION-AND-GATE-RESET Stage 3 narrows PROP-LRH-CHAIN-DEFAULTS Decision 3
+  - 'Increment 1 (chain-level defaults: schema + propose-and-confirm flow wired into /lrh-land and /lrh-execute Step 2) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors'
+  - 'Increment 2 (per-gate autopilot: confirm_fixes_batch flag; closeout_plan is categorically excluded per DEC-DELIBERATE-CHAIN-INITIATION, see PROP-LRH-CHAIN-DEFAULTS Decision 3) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors, using Increment 1 session evidence to justify the gate''s "unusual" predicate'
+  - 'Increment 3 (policy-derived profile fields: closeout_with_merge single-ask, plus the semantic staleness watch replacing the file-granular list) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors, after the DEC record from WS-INVOCATION-AND-GATE-RESET Stage 3 narrows PROP-LRH-CHAIN-DEFAULTS Decision 3'
   - PROP-LRH-CHAIN-DEFAULTS status updated to adopted
-  - CLAUDE.md ## Skills index updated for any new or materially changed skill behavior
+  - 'CLAUDE.md ## Skills index updated for any new or materially changed skill behavior'
 ---
 
 ## Purpose

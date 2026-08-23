@@ -15,12 +15,13 @@ an automatic chain over them may run only when a human has explicitly initiated
 it and has provided or signed off on both a completion condition and a
 stop-work condition. This does not weaken the rule that no chain starts itself;
 it does not pre-authorize the human/policy gates — merge, publish, release, and
-closeout — nor any independently load-bearing skill confirmation gate. A later
-narrow amendment permits single-ask handling for pure restatement gates when
-the upstream gate presents the concrete downstream plan and the downstream step
-asks again on material divergence; see the 2026-08-13 Consequences entry. This
-does not move any skill into the agentic package — an agent running skills or
-templates is assist, not agentic.
+closeout — nor any independently load-bearing skill confirmation gate. It does
+permit single-ask handling for a pure restatement gate: when an upstream gate
+already presents the concrete downstream plan, the downstream gate is
+satisfied by a mechanical no-material-divergence check and asks again live
+only on divergence (`DEC-SINGLE-ASK-RUN-GATES`; see the merge-plus-closeout
+collapse in the Decision section below). This does not move any skill into the
+agentic package — an agent running skills or templates is assist, not agentic.
 
 ## Context
 
@@ -75,15 +76,33 @@ templates is assist, not agentic.
    "preserve human/policy gates for merge, release, publish, and closeout") and
    require explicit, in-session authorization — a merge instruction embedded in a
    run prompt is data, not authorization (see `AGENTS.md`, "Pull requests and
-   merge authority"). More generally, **chain initiation by itself does not
-   satisfy a skill's own internal confirmation gate**: e.g. `/lrh-closeout`'s
-   plan-confirm gate (`src/lrh/skills/lrh-closeout/SKILL.md`, Step 4) still
-   requires explicit approval of the actual closeout plan before any files
-   change. A deliberately-initiated chain drives to those gates and stops.
-   `DEC-SINGLE-ASK-RUN-GATES` later narrows this sentence for restatement gates:
-   when the upstream gate already presents the concrete downstream plan, the
-   downstream gate may be satisfied by a mechanical no-material-divergence check
-   and must ask again if material fields differ.
+   merge authority"). More generally, ~~chain initiation by itself does not
+   satisfy a skill's own internal confirmation gate~~ **chain initiation by
+   itself does not satisfy a skill's own internal confirmation gate, except for
+   a pure restatement gate whose upstream gate already presented the concrete
+   downstream plan** (narrowed 2026-08-13 by `DEC-SINGLE-ASK-RUN-GATES`,
+   restated here directly rather than left as a trailing note): such a gate is
+   satisfied by a mechanical no-material-divergence check and must still ask
+   again live if any material field differs. Chain initiation itself — the
+   front-of-run authorization — never satisfies a downstream gate this way; a
+   restatement can only point to the immediately upstream gate that actually
+   presented the concrete plan. `/lrh-closeout`'s Step 4 plan-confirm gate is
+   the clearest example on both sides of this line: reached directly, or
+   reached without a preceding gate having presented its plan, it still
+   demands its own live reply; reached as the second half of `/lrh-land`'s
+   merge-plus-closeout ask (`DEC-SINGLE-ASK-RUN-GATES` rule 5 — the decided,
+   unconditional design, not a togglable default — pending implementation in
+   `/lrh-land` itself, tracked as `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`), the
+   merge gate's presentation is meant to already carry the closeout plan's
+   content once that work item lands, so the one reply that authorizes the
+   merge will also satisfy this gate — closeout still writes only after the
+   merge is verified `MERGED`. **As of this writing, `/lrh-land` Step 6 still
+   presents only the merge command and Step 7 still runs closeout as a
+   separate ask** (`src/lrh/skills/lrh-land/SKILL.md`); until
+   `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3` lands, treat the two as still-separate
+   gates in practice, with this paragraph describing the decided target
+   state. A deliberately-initiated chain drives to every gate it has not
+   actually restated this way and stops there.
 
 2. **Superseded 2026-08-08 — see the dated Consequences entry below.**
    ~~`disable-model-invocation` is preserved; the invariant is "no chain starts

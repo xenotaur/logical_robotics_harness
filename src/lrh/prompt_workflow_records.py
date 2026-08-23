@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import pathlib
 import typing
 
@@ -61,6 +62,8 @@ def _string_frontmatter_fields(frontmatter: dict[str, typing.Any]) -> dict[str, 
     for key, value in frontmatter.items():
         if isinstance(value, str):
             fields[key] = value
+        elif isinstance(value, (datetime.date, datetime.datetime)):
+            fields[key] = value.isoformat()
     return fields
 
 
@@ -132,4 +135,6 @@ def _frontmatter_string(frontmatter: dict[str, typing.Any], key: str) -> str:
         return value
     if value is None or isinstance(value, list):
         return ""
+    if isinstance(value, (datetime.date, datetime.datetime)):
+        return value.isoformat()
     return str(value)

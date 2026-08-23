@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import yaml
+
 
 @dataclass(frozen=True)
 class ParsedMarkdown:
@@ -26,7 +28,7 @@ def parse_markdown_text(text: str) -> ParsedMarkdown:
         )
 
     frontmatter_text, body = _split_frontmatter_and_body(text)
-    frontmatter = _parse_frontmatter_mapping(frontmatter_text)
+    frontmatter = parse_frontmatter_mapping(frontmatter_text)
     return ParsedMarkdown(frontmatter=frontmatter, body=body)
 
 
@@ -62,96 +64,27 @@ def _split_frontmatter_and_body(text: str) -> tuple[str, str]:
     return frontmatter_text, body
 
 
-def _parse_frontmatter_mapping(text: str) -> dict[str, Any]:
-    data: dict[str, Any] = {}
-    lines = text.splitlines()
-    index = 0
-    while index < len(lines):
-        line = lines[index]
-        if not line.strip() or line.lstrip().startswith("#"):
-            index += 1
-            continue
+def load_yaml_document(text: str) -> Any:
+    """Parse a YAML document, wrapping syntax errors as ``ValueError``."""
 
-        if line.startswith(" "):
-            raise ValueError(f"unexpected indentation in frontmatter: {line!r}")
+    try:
+        return yaml.safe_load(text)
+    except yaml.YAMLError as exc:
+        raise ValueError(f"invalid YAML in frontmatter: {exc}") from exc
 
-        if ":" not in line:
-            raise ValueError(f"invalid frontmatter entry: {line!r}")
 
-        key, raw_value = line.split(":", 1)
-        key = key.strip()
-        value_text = raw_value.strip()
+def parse_frontmatter_mapping(text: str) -> dict[str, Any]:
+    """Parse frontmatter YAML text into a mapping, using PyYAML directly.
 
-        if value_text == "":
-            block_values: list[str] = []
-            index += 1
-            while index < len(lines):
-                candidate = lines[index]
-                stripped_candidate = candidate.lstrip()
-                if stripped_candidate.startswith("- "):
-                    block_values.append(stripped_candidate[2:].strip())
-                    index += 1
-                    continue
-                if not candidate.strip():
-                    index += 1
-                    continue
-                if stripped_candidate.startswith("#"):
-                    index += 1
-                    continue
-                if candidate.startswith("  "):
-                    raise ValueError(
-                        f"unsupported nested mapping for key '{key}': {candidate!r}"
-                    )
-                break
-            data[key] = block_values if block_values else None
-            continue
+    An empty document parses to ``{}`` rather than ``None`` so callers always
+    get a mapping back. Shared by ``control/validator.py`` so both the
+    general validator and the work-item-specific tooling agree on what
+    valid frontmatter is.
+    """
 
-        if value_text == ">":
-            index += 1
-            folded_lines: list[str] = []
-            while index < len(lines) and (
-                not lines[index].strip() or lines[index].startswith("  ")
-            ):
-                raw_folded = lines[index]
-                folded_lines.append(
-                    raw_folded[2:] if raw_folded.startswith("  ") else ""
-                )
-                index += 1
-            data[key] = " ".join(part for part in folded_lines if part).strip()
-            continue
-
-        data[key] = _parse_scalar(value_text)
-        index += 1
-
+    data = load_yaml_document(text)
+    if data is None:
+        return {}
+    if not isinstance(data, dict):
+        raise ValueError("frontmatter must parse to a mapping object")
     return data
-
-
-def _parse_scalar(value: str) -> Any:
-    if value == "[]":
-        return []
-    if value.startswith("[") and value.endswith("]"):
-        inner = value[1:-1].strip()
-        if not inner:
-            return []
-        return [_strip_quotes(part.strip()) for part in inner.split(",")]
-    if value.startswith('"') and value.endswith('"'):
-        return value[1:-1]
-    if value.startswith("'") and value.endswith("'"):
-        return value[1:-1]
-    if value == "null":
-        return None
-    if value == "true":
-        return True
-    if value == "false":
-        return False
-    if value.isdigit() or (value.startswith("-") and value[1:].isdigit()):
-        return int(value)
-    return value
-
-
-def _strip_quotes(value: str) -> str:
-    if value.startswith('"') and value.endswith('"'):
-        return value[1:-1]
-    if value.startswith("'") and value.endswith("'"):
-        return value[1:-1]
-    return value

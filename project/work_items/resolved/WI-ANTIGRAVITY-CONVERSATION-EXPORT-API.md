@@ -24,7 +24,7 @@ expected_actions:
   - run_tests
 forbidden_actions: []
 acceptance:
-  - Generalized ConversationExportManifest for source_tool: antigravity
+  - 'Generalized ConversationExportManifest for source_tool: antigravity'
   - Implemented convert_antigravity_session in src/lrh/conversations/antigravity_export.py
   - Unit tests in tests/conversations_tests/antigravity_export_test.py
 required_evidence:

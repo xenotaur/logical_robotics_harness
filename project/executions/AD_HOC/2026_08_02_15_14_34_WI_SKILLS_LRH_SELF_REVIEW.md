@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/464
 commit: c291b71b8317262f758c6a76beb449df86cf85af
 created_at: 2026-08-02T15:14:34-04:00
 agent: claude_app
-instruction_source: chat (user asked to file the WI via /lrh-work-item, after we discussed sequencing: WI-SKILLS-LRH-SELF-REVIEW should land before a separate follow-up WI adds a Step 2 "review approach" question to /lrh-land and /lrh-execute)
+instruction_source: 'chat (user asked to file the WI via /lrh-work-item, after we discussed sequencing: WI-SKILLS-LRH-SELF-REVIEW should land before a separate follow-up WI adds a Step 2 "review approach" question to /lrh-land and /lrh-execute)'
 session_transcript: claude-app:23a15fdd-6d6c-4d84-a7be-960a54769157
 ---
 

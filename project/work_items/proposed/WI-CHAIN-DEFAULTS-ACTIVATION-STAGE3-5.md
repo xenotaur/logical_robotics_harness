@@ -38,7 +38,7 @@ forbidden_actions:
   - retrigger_bot_review
 acceptance:
   - The Stage 3 DEC's `human_initiated_invocation_evidence` compensating control is present, named, and checked before activation proceeds
-  - chain-defaults activation preserves DEC-CHAIN-INIT-SKIP-CONSENT's two-step consent contract: storing the profile default and granting user-local skip consent remain separate affirmative actions
+  - 'chain-defaults activation preserves DEC-CHAIN-INIT-SKIP-CONSENT''s two-step consent contract: storing the profile default and granting user-local skip consent remain separate affirmative actions'
   - skip_if_opted_in is not shipped as the default configuration
   - confirmed_commit and confirmed_at are stamped to the activation commit only after the human live-confirms the activated profile values
   - Any local skip-consent value is bound to the exact activated profile value and can be revoked or invalidated by the existing staleness path

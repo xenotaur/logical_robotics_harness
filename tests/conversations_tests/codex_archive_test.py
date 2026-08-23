@@ -198,6 +198,7 @@ class TestCodexArchive(unittest.TestCase):
                 self.assertEqual(attempt["operation"], "import")
                 self.assertEqual(attempt["status"], result.status)
                 if result.status == "imported":
+                    self.assertEqual(attempt["thread_id"], "thread-123")
                     self.assertEqual(
                         stat.S_IMODE((result.destination / "export.md").stat().st_mode),
                         0o600,

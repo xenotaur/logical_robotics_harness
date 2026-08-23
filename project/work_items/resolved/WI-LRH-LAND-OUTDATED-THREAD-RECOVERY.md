@@ -29,10 +29,10 @@ forbidden_actions:
 acceptance:
   - A newly-surfaced Unaddressed/Partial/Problematic resolution outdated thread always presents a live three-way gate (fix now / defer / stop) before any recovery action -- never a silent "not a hard stop" path
   - Before presenting the gate, the finding is checked against the run's own Step-2-approved stop-work condition; a match halts-and-reports per that condition instead of presenting the gate, requiring an explicit amendment to continue
-  - "fix now" loops back through /lrh-confirm-fixes for a fresh verdict against the new HEAD before Step 6 is reachable -- pushing the fix alone is never sufficient
-  - "defer" is an explicit, in-session, named-thread override of Step 6's green-verdict invariant, scoped to that one thread only (CI, REVIEW-LANDED, and every other exception must still independently be green or cleared), recorded in Step 6's summary -- not a silent bypass
+  - '"fix now" loops back through /lrh-confirm-fixes for a fresh verdict against the new HEAD before Step 6 is reachable -- pushing the fix alone is never sufficient'
+  - '"defer" is an explicit, in-session, named-thread override of Step 6''s green-verdict invariant, scoped to that one thread only (CI, REVIEW-LANDED, and every other exception must still independently be green or cleared), recorded in Step 6''s summary -- not a silent bypass'
   - Ambiguous and Problematic comment buckets are excluded from the gate entirely -- hard rule, not a per-occurrence question
-  - "The recovery path explicitly passes --include-thread <id> into /lrh-review-response Step 2's own fetch command when invoked inline, not just the protocol generically -- confirm gate, validation, and execution record all run"
+  - '"The recovery path explicitly passes --include-thread <id> into /lrh-review-response Step 2''s own fetch command when invoked inline, not just the protocol generically -- confirm gate, validation, and execution record all run"'
   - /lrh-review-response's own feasibility check can reject the fix; a rejection is treated the same as Problematic comment (surface, stop)
   - A same-land-run re-invocation of /lrh-review-response is a recognized non-blocking condition in its own Step 3, not a caller-side workaround
   - lrh validate reports 0 errors

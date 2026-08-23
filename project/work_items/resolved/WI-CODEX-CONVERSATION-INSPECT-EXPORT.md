@@ -39,13 +39,13 @@ forbidden_actions:
   - commit_private_transcript_fixtures
   - echo_transcript_content_by_default
 acceptance:
-  - `lrh conversation inspect-export <path> --format text|json` exists and validates Codex export Markdown artifacts with `ConversationExportManifest` frontmatter
+  - '`lrh conversation inspect-export <path> --format text|json` exists and validates Codex export Markdown artifacts with `ConversationExportManifest` frontmatter'
   - The inspector recomputes artifact body statistics and flags drift from manifest `transcript` byte, character, and line counts
   - The inspector reports manifest validity, privacy/authority metadata, sensitivity status and warnings, transcript statistics, and source-hash verification status when a source path is supplied
   - JSON output is deterministic and automation-friendly; text output is concise and human-readable; neither output mode includes raw transcript body, snippets, or message text by default
   - Focused tests cover valid exports, malformed or missing manifests, body-statistic drift, hash matches and mismatches, missing or unreadable source handling, sensitivity warning propagation, transcript-content non-disclosure in text and JSON output, CLI command wiring, `--format` choices, invalid export exit behavior, and stable text/JSON output
   - Documentation describes the inspection workflow and keeps viewer support, promotion, and `session_transcript` grammar changes out of scope
-  - `lrh validate` reports 0 errors
+  - '`lrh validate` reports 0 errors'
 required_evidence:
   - manual_review
   - lrh_validate

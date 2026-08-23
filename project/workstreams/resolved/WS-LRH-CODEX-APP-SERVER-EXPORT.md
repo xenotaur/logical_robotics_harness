@@ -21,7 +21,7 @@ work_items:
   - WI-CODEX-CONVERSATION-EXPORT-APP-SERVER
   - WI-CODEX-CONVERSATION-EXPORT-SKILL
 exit_criteria:
-  - `lrh conversation export-codex-thread` can export a real Codex thread through the app-server route into private raw JSON plus manifest-backed Markdown
+  - '`lrh conversation export-codex-thread` can export a real Codex thread through the app-server route into private raw JSON plus manifest-backed Markdown'
   - generated Markdown exports pass `lrh conversation inspect-export` and preserve private, non-authoritative metadata
   - unit tests cover fake app-server handshake, thread-read success, app-server errors, malformed responses, timeout or exit behavior, renderer mappings, warnings, and manifest statistics
   - docs explain CLI usage, privacy boundaries, raw artifact handling, residual trust warnings, and dogfood workflow

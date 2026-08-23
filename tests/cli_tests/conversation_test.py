@@ -11,14 +11,20 @@ class ConversationCliTest(unittest.TestCase):
         return pathlib.Path(__file__).resolve().parents[2]
 
     def _run_lrh(
-        self, *args: str, cwd: pathlib.Path | None = None
+        self,
+        *args: str,
+        cwd: pathlib.Path | None = None,
+        env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess[str]:
+        completed_env = os.environ.copy()
+        if env is not None:
+            completed_env.update(env)
         return subprocess.run(
             [sys.executable, "-m", "lrh.cli.main", *args],
             check=False,
             capture_output=True,
             text=True,
-            env=os.environ.copy(),
+            env=completed_env,
             cwd=cwd or self._repo_root(),
         )
 
@@ -64,8 +70,76 @@ class ConversationCliTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, msg=completed.stderr)
         self.assertIn("archive-codex-thread", completed.stdout)
         self.assertIn("convert-pdf", completed.stdout)
+        self.assertIn("current-codex-thread-id", completed.stdout)
         self.assertIn("import-codex-exports", completed.stdout)
         self.assertIn("inspect-export", completed.stdout)
+
+    def test_conversation_current_codex_thread_id_reports_pointer_only(self) -> None:
+        completed = self._run_lrh(
+            "conversation",
+            "current-codex-thread-id",
+            env={"CODEX_THREAD_ID": " thread-123 "},
+        )
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("Thread ID: thread-123", completed.stdout)
+        self.assertIn("Session transcript: codex-app:thread-123", completed.stdout)
+        self.assertIn("Exported: no", completed.stdout)
+        self.assertNotIn("private detail", completed.stdout)
+
+    def test_conversation_current_codex_thread_id_json_is_metadata_only(self) -> None:
+        completed = self._run_lrh(
+            "conversation",
+            "current-codex-thread-id",
+            "--format",
+            "json",
+            env={"CODEX_THREAD_ID": "thread-json"},
+        )
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn('"thread_id": "thread-json"', completed.stdout)
+        self.assertIn('"session_transcript": "codex-app:thread-json"', completed.stdout)
+        self.assertIn('"exported": false', completed.stdout)
+
+    def test_conversation_current_codex_thread_id_rejects_whitespace_env(
+        self,
+    ) -> None:
+        completed = self._run_lrh(
+            "conversation",
+            "current-codex-thread-id",
+            env={"CODEX_THREAD_ID": "   "},
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("--thread-id or CODEX_THREAD_ID is required", completed.stderr)
+
+    def test_conversation_current_codex_thread_id_rejects_embedded_newline(
+        self,
+    ) -> None:
+        completed = self._run_lrh(
+            "conversation",
+            "current-codex-thread-id",
+            "--thread-id",
+            "thread\ncommit: injected",
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("must not contain whitespace", completed.stderr)
+        self.assertEqual(completed.stdout, "")
+
+    def test_conversation_current_codex_thread_id_field_output(self) -> None:
+        completed = self._run_lrh(
+            "conversation",
+            "current-codex-thread-id",
+            "--field",
+            "session-transcript",
+            "--thread-id",
+            "thread-field",
+            env={"CODEX_THREAD_ID": "thread-env"},
+        )
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertEqual(completed.stdout, "codex-app:thread-field\n")
 
     def test_conversation_archive_codex_thread_help_describes_archive(self) -> None:
         completed = self._run_lrh("conversation", "archive-codex-thread", "--help")

@@ -28,7 +28,7 @@ forbidden_actions:
   - delete_branch
   - merge_pr
 acceptance:
-  - src/lrh/skills/lrh-self-review/SKILL.md exists with valid frontmatter (disable-model-invocation: true, --pr argument)
+  - 'src/lrh/skills/lrh-self-review/SKILL.md exists with valid frontmatter (disable-model-invocation: true, --pr argument)'
   - src/lrh/skills/lrh-self-review/references/self-review-workflow.md exists
   - diff -r src/lrh/skills/lrh-self-review/ .claude/skills/lrh-self-review/ reports no differences
   - CLAUDE.md lists /lrh-self-review in the Skills section

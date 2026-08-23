@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #607 (commit 2f1a1840f43408327b26c77d2a8dd16ed8394749)"
 blocked_reason: null
 blocked: false
 id: WI-SESSION-ARCHIVE-SYNC-REPORT
 title: lrh sessions report and archive index enrichment
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

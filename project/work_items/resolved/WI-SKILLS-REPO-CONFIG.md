@@ -26,7 +26,7 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - `project/agent_skills.yaml` schema and precedence are documented
+  - '`project/agent_skills.yaml` schema and precedence are documented'
   - Configured sources and targets influence install planning
   - CLI flags override repo config where specified
   - Quoted list-element values are parsed correctly or covered by regression tests if a simple parser is reused

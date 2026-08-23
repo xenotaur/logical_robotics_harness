@@ -40,13 +40,13 @@ forbidden_actions:
   - implement_scheduled_or_hook_sync
   - implement_encrypted_off_machine_archive
 acceptance:
-  - `/lrh-codex-export` defaults to a durable private archive root outside the Git worktree rather than `${TMPDIR:-/tmp}`
+  - '`/lrh-codex-export` defaults to a durable private archive root outside the Git worktree rather than `${TMPDIR:-/tmp}`'
   - scratch or dogfood exports require an explicit scratch-mode choice and are reported as ephemeral
   - each export attempt writes durable attempt metadata before running the app-server export and records success or failure outcome
   - existing Promptspace/CodexExports-style LRH Codex export directories can be imported or migrated into the durable private archive without printing transcript bodies
   - empty or partial export directories cannot be mistaken for successful exports
   - docs explain the durable archive default, scratch mode, import/migration workflow, and privacy boundaries
-  - `lrh validate` passes with 0 errors
+  - '`lrh validate` passes with 0 errors'
 required_evidence:
   - manual_review
   - lrh_validate

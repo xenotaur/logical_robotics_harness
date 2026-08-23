@@ -41,6 +41,44 @@ This contract is used by the file-based Codex adapter, inspector, and
 safe-default `lrh serve` archive viewer below. It does not implement any change
 to execution-record `session_transcript` pointer grammar.
 
+## `lrh conversation current-codex-thread-id`
+
+```bash
+lrh conversation current-codex-thread-id
+lrh conversation current-codex-thread-id --field session-transcript
+lrh conversation current-codex-thread-id --format json
+```
+
+Reports the current Codex task/thread id and the matching LRH execution-record
+pointer without exporting, reading, or printing transcript content. This is the
+metadata-only resolver used by `/lrh-codex-session`, `/lrh-codex-export`,
+`export-codex-thread`, and `archive-codex-thread`.
+
+The session pointer form is:
+
+```yaml
+session_transcript: codex-app:<thread-id>
+```
+
+This value is a Codex task/thread pointer. It is not an export attempt id,
+archive directory, `attempt.json` path, raw JSON path, Markdown export path, or
+timestamp. Export attempts can be repeated for the same thread id; the
+`codex-app:<thread-id>` pointer remains the stable execution-record identity
+when Codex exposes the same thread id through `CODEX_THREAD_ID`.
+
+### Options
+
+- `--thread-id ID` — Codex thread id to report. Defaults to `CODEX_THREAD_ID`
+  when the environment variable is set.
+- `--format text|json` — output format. Text is the default.
+- `--field all|thread-id|session-transcript` — single-field text output for
+  scripts and closeout records.
+
+### Exit behavior
+
+The command returns nonzero for missing or whitespace-only thread ids. Terminal
+output is metadata-only and does not include transcript body text.
+
 ## `lrh conversation convert-codex-file`
 
 ```bash
@@ -133,7 +171,8 @@ more specific signal.
 ### Options
 
 - `--thread-id ID` — Codex thread id to export. Defaults to `CODEX_THREAD_ID`
-  when the environment variable is set.
+  when the environment variable is set, using the same resolver as
+  `current-codex-thread-id`.
 - `--out EXPORT.md` — required Markdown export output path.
 - `--raw-out RAW.json` — required private raw JSON capture output path. This
   must be an absolute path outside the current Git worktree; LRH rejects
@@ -190,7 +229,8 @@ default.
 ### Options
 
 - `--thread-id ID` — Codex thread id to export. Defaults to `CODEX_THREAD_ID`
-  when the environment variable is set.
+  when the environment variable is set, using the same resolver as
+  `current-codex-thread-id`.
 - `--archive-root ROOT` — session archive root override.
 - `--scratch` — write to an explicit ephemeral scratch directory instead of the
   durable archive.

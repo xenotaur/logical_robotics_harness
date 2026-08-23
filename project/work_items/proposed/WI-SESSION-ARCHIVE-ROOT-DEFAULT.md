@@ -29,7 +29,7 @@ forbidden_actions:
   - change_existing_archive_root_default
 acceptance:
   - lrh sessions sync's --exports-dir gains a resolved default derived from resolve_archive_root(), closing the gap recorded in project/design/backlog.md's "lrh sessions sync has no default /export zip location" entry
-  - PROP-LRH-SESSION-ARCHIVE-SYNC's "Archive root location" Open Question is resolved and recorded as a Decision in that proposal: the existing resolve_archive_root()/default_archive_root() default (env var + ~/.local/share/lrh/session-archive) is deliberately confirmed as final, not merely left as the unreviewed "starting point" its own docstring currently calls it
+  - 'PROP-LRH-SESSION-ARCHIVE-SYNC''s "Archive root location" Open Question is resolved and recorded as a Decision in that proposal: the existing resolve_archive_root()/default_archive_root() default (env var + ~/.local/share/lrh/session-archive) is deliberately confirmed as final, not merely left as the unreviewed "starting point" its own docstring currently calls it'
   - WS-SESSION-ARCHIVE-SYNC's "archive-root-location open question is resolved and recorded" exit criterion is satisfied
   - The existing LRH_SESSION_ARCHIVE_ROOT default (~/.local/share/lrh/session-archive) is left unchanged; Codex archive-root resolution and memory-sync's raw/<slug>/memory/ path both continue to work unmodified
   - Full existing test suite for prompt_workflow_sessions.py and sessions_workflow.py still passes

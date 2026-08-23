@@ -33,7 +33,7 @@ acceptance:
   - A new lrh conversation command ingests a Jules session-export zip (jules_session_<id>.zip) and writes its content under the canonical archive root's jules/ subdirectory, mirroring the existing CODEX_ARCHIVE_SUBDIR convention
   - The Jules zip's internal structure is reverse-engineered and documented (in code comments or a short README section) before any parsing logic is written, matching how Claude's and Codex's export formats were each documented before their own ingestion code was written
   - Ingestion writes per-attempt metadata (e.g. attempt.json) into the archive alongside imported content, mirroring Codex's import-codex-exports convention, rather than an entry in project/sessions/index.jsonl, whose SessionRecord schema is Claude-specific (host_id-keyed) and out of scope to change here
-  - project/executions/README.md's session_transcript pointer-scheme table is extended to document both the new jules: form and the currently-undocumented but already-valid codex-app: form, for use when a Jules-authored session gets its own execution record
+  - 'project/executions/README.md''s session_transcript pointer-scheme table is extended to document both the new jules: form and the currently-undocumented but already-valid codex-app: form, for use when a Jules-authored session gets its own execution record'
   - Re-ingesting the same zip is detected and skipped (or explicitly updated per a defined rule), never blindly re-copied
   - No shared SessionBackend/adapter interface is introduced; the Jules pipeline is implemented as its own separate command, mirroring the existing Codex pipeline's shape (per Option 4 of the governing design discussion)
   - lrh validate reports 0 errors

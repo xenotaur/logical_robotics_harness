@@ -1555,3 +1555,47 @@ using `/lrh-work-remains` + workstream/work-item reads. If that pattern
 emerges, prefer a `--plan` flag on `/lrh-work-remains` over a new skill only
 if the prospective output is genuinely separable from report-only; otherwise
 implement as a new skill at that time.
+
+---
+
+## Stale-candidate triage and cleanup workflow
+
+**Noted:** 2026-08-23, after a `/lrh-work-remains` session surfaced repo-wide
+stale-candidate noise that did not belong to the just-completed session: many
+old branches, open PRs, unresolved/outdated PR threads, active/proposed work
+items, active workstreams, and `status: in_progress` execution records. A
+fresh tracked-file scan in this checkout confirmed that this is a repo-wide
+artifact hygiene problem rather than a one-session loose end.
+
+**Problem:** `/lrh-work-remains` correctly refuses to auto-classify
+cross-session candidates, but the resulting report leaves a large manual
+follow-up surface. Some candidates are probably legitimate active work; some
+are expected residue from this repository's no-delete-branch-on-merge posture;
+some may be stale closeout/control-plane debt; and some may belong to other
+active sessions or worktrees. Without a designed triage path, every
+end-of-session audit can rediscover the same backlog and either bury real
+follow-up work under expected noise or tempt an agent to clean up repo-wide
+state without enough ownership evidence.
+
+**Idea:** Design a stale-candidate triage workflow that consumes the same
+signals as `/lrh-work-remains` but produces an explicit disposition list:
+keep-active, closeout-needed, branch cleanup candidate, PR triage candidate,
+work-item/workstream reconciliation candidate, or cross-session-owned. The
+workflow should use tracked `git grep` counts for committed artifact state,
+GitHub PR/branch metadata for remote state, `git worktree list` for local
+ownership clues, and work-item/workstream frontmatter for assigned agents and
+blocked state. It should be report-first and gated before mutation; any
+cleanup implementation should probably split into separate work items for
+execution-record closeout reconciliation, branch/PR hygiene, and planning-tree
+artifact reconciliation rather than one sweeping cleanup.
+
+**Status:** Tracked, not yet designed. Do not turn this into an automatic
+cleanup pass inside `/lrh-work-remains`; that skill's report-only boundary is
+the safeguard that exposed the problem clearly. Start with a design proposal or
+thin investigation work item that defines disposition categories, evidence
+requirements, and human confirmation gates.
+
+**Related:** `/lrh-work-remains`;
+`project/design/proposals/adopted/lrh-gate-policy/00_proposal.md`;
+`project/memory/decisions/DEC-GATE-POLICY-CASCADE.md`;
+`project/work_items/proposed/WI-LRH-SEARCH-COUNT-PROVENANCE.md`.

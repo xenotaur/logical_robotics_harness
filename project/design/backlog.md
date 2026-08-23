@@ -1604,8 +1604,10 @@ implement as a new skill at that time.
 stale-candidate noise that did not belong to the just-completed session: many
 old branches, open PRs, unresolved/outdated PR threads, active/proposed work
 items, active workstreams, and `status: in_progress` execution records. A
-fresh tracked-file scan in this checkout confirmed that this is a repo-wide
-artifact hygiene problem rather than a one-session loose end.
+fresh tracked-file scan in this checkout confirmed the committed control-plane
+side of that residue, while the `/lrh-work-remains` report itself supplied the
+GitHub/worktree evidence for the remote/runtime side. Together they showed a
+repo-wide artifact hygiene problem rather than a one-session loose end.
 
 **Problem:** `/lrh-work-remains` correctly refuses to auto-classify
 cross-session candidates, but the resulting report leaves a large manual
@@ -1631,9 +1633,13 @@ artifact reconciliation rather than one sweeping cleanup.
 
 **Status:** Tracked, not yet designed. Do not turn this into an automatic
 cleanup pass inside `/lrh-work-remains`; that skill's report-only boundary is
-the safeguard that exposed the problem clearly. Start with a design proposal or
-thin investigation work item that defines disposition categories, evidence
-requirements, and human confirmation gates.
+the safeguard that exposed the problem clearly. `WI-SKILLS-LRH-WORK-AUDIT`
+already covers batch work-item drift detection and stale `in_progress` /
+orphaned-PR forensics; this backlog entry is broader branch/review-thread/
+closeout triage and should align with that work rather than fork a competing
+design. Start with a design proposal or thin investigation work item that
+defines disposition categories, evidence requirements, and human confirmation
+gates.
 
 **Related:** `/lrh-work-remains`;
 `project/design/proposals/adopted/lrh-gate-policy/00_proposal.md`;
@@ -1679,7 +1685,7 @@ workflow".
 
 ---
 
-## Dogfood data point: `lrh-codex-export`'s prose confirm-before-write gate is imperfect, safe-direction-biased
+## Dogfood data point: `lrh-codex-export` over-asked once on an explicit invocation
 
 **Noted:** 2026-08-23, across ~5 real Codex invocations of
 `/lrh-codex-export` since `WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL`
@@ -1706,21 +1712,22 @@ like `lrh-self-review`'s `disallowed-tools: Skill` recursion guard (see
 direction because it depends on the invoking model correctly applying a
 written rule to its own immediate context. The observed failure mode
 (over-asking on a case that should skip) is the safe direction — it costs a
-moment of friction, not a silent unsafe write. The unsafe direction
-(skipping the ask on an implicit/ambiguous invocation) remains untested in
-practice; every dogfood round to date has been some form of explicit
-by-name invocation.
+moment of friction, not a silent unsafe write. For the current Codex target,
+`src/lrh/skills/lrh-codex-export/agents/openai.yaml` sets
+`policy.allow_implicit_invocation: false`, so an implicit-invocation unsafe
+path is not available in the configuration this entry is describing. Every
+dogfood round to date has been some form of explicit by-name invocation.
 
 **Idea:** Not proposing a fix — this is "good behavior with a safety-oriented
 asterisk," per explicit user framing, and there is no known way to make a
 model's own prose-instruction-following deterministic short of a
 platform-enforced mechanism (which doesn't exist for this class of gate).
 Worth two things instead: (1) keep this as a durable record of the observed
-failure rate and direction, so a future regression (especially the opposite,
-unsafe direction) has a baseline to compare against; (2) the still-untested
-case — an *implicit*/natural-language invocation where the skip condition
-should NOT apply (i.e., Step 3 should ask) — remains the meaningful gap in
-dogfood coverage, not the over-asking case this entry documents.
+failure rate and safe over-ask direction, so a future regression has a
+baseline to compare against; (2) if the Codex target policy ever changes to
+permit implicit invocation, or if another target adopts this skill with a
+different invocation policy, re-evaluate whether Step 3's wording still
+covers that broader surface adequately.
 
 **Status:** Tracked as an observation, not an open defect. No action needed
 unless: (a) the unsafe direction (silent skip when it should ask) is

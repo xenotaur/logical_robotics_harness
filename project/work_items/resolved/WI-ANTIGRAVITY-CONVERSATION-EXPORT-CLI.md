@@ -2,10 +2,10 @@
 id: WI-ANTIGRAVITY-CONVERSATION-EXPORT-CLI
 title: Implement lrh conversation export-antigravity-session CLI subcommand
 type: deliverable
-status: proposed
+status: resolved
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: Implemented export-antigravity-session CLI subcommand in src/lrh/cli/main.py backed by src/lrh/conversations/antigravity_export.py with full test coverage and validation.
 related_workstreams:
   - WS-ANTIGRAVITY-CONVERSATION-EXPORT
 depends_on:

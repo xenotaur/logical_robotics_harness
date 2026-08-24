@@ -2,8 +2,8 @@
 id: WS-LRH-CHAIN-DEFAULTS
 kind: planning_node
 title: Persisted Chain-Defaults Profile for LRH Skill Gates
-status: active
-stage: executing
+status: resolved
+stage: closed
 origin: follow_up
 summary: >
   Governs delivery of PROP-LRH-CHAIN-DEFAULTS: a repo-level, git-tracked
@@ -12,7 +12,7 @@ summary: >
   preference, per-gate autopilot) without weakening the merge or
   chain-initiation gates.
 related_design:
-  - project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md
+  - project/design/proposals/adopted/lrh-chain-defaults/00_proposal.md
   - project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md
   - project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md
   - project/work_items/resolved/WI-REVIEW-ROUND-ESCALATION-GATE.md
@@ -134,7 +134,7 @@ item.
 
 ## Relationship to Design
 
-- Governing proposal: `project/design/proposals/proposed/lrh-chain-defaults/00_proposal.md`
+- Governing proposal: `project/design/proposals/adopted/lrh-chain-defaults/00_proposal.md`
 - Governance decisions: `project/memory/decisions/DEC-DELIBERATE-CHAIN-INITIATION.md`, `project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md`
 - Precedent: `project/work_items/resolved/WI-REVIEW-ROUND-ESCALATION-GATE.md`
 - Sibling workstream: `project/workstreams/proposed/WS-SKILLS-EXECUTE.md`

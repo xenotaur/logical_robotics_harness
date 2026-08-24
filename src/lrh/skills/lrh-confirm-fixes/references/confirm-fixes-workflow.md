@@ -521,8 +521,12 @@ to do, Step 7 writes the `_CONFIRM` execution record, and Step 8 reports
 "already ready to merge" with the post-record `HEAD` SHA. No execution record
 content changes meaningfully, but the record is still created for audit
 continuity (each run's `_CONFIRM` record documents what was checked and when).
-Do not skip the empty-thread gate just because there are no threads; that gate
-is the human checkpoint that replaced the old ungated fast path.
+Do not skip the empty-thread gate's own summary and check just because there
+are no threads; that gate replaced the old ungated fast path. What can now
+change is only whether that gate's *live wait* is satisfied by a human reply
+or by the `confirm_fixes_batch: auto_unless_unusual` autopilot predicate
+(`WI-LRH-CHAIN-DEFAULTS-INCREMENT-2`) — the summary is always shown either
+way, so the run is never silent about what happened.
 
 ### Partial resolution across rounds
 

@@ -451,6 +451,7 @@ completion_condition: "PR merged, its execution records landed, and any linked w
 stop_work_condition: "Any failing CI check, a reviewer finding that isn't Clear-satisfied on re-verification, or an ambiguous/refused merge-authorization reply."
 chain_init_confirmation: always_confirm
 closeout_with_merge: true
+confirm_fixes_batch: always_confirm
 confirmed_commit: null
 confirmed_at: null
 ```
@@ -467,8 +468,21 @@ this is not a user-facing toggle; it is stored so the field exists on the
 same schema Increment 1 established (for staleness-tracking symmetry with
 `chain_init_confirmation`) and so a future decision to make it optional has
 a field to attach to, not because `/lrh-land` branches on its value today.
+`confirm_fixes_batch` ships `always_confirm` by default, same as
+`chain_init_confirmation` — reaching `auto_unless_unusual` is a repo-level
+opt-in edit to this file (a visible, revertible commit; it does not require
+the separate git-config consent below, since that two-step mechanism is
+specific to the chain-initiation gate per `PROP-LRH-CHAIN-DEFAULTS`
+Decision 6, not generalized to every per-gate autopilot flag). See
+`/lrh-confirm-fixes`'s own Step 2 and Step 4 for the gate-owned
+`auto_unless_unusual` predicate (`WI-LRH-CHAIN-DEFAULTS-INCREMENT-2`,
+`src/lrh/confirm_fixes_batch.py`), which this file does not restate.
 `confirmed_commit`/`confirmed_at` record when a human last live-confirmed
-these exact values (Decision 5 staleness fallback below).
+these exact values (Decision 5 staleness fallback below); editing this file
+to change `confirm_fixes_batch` (or any other field) invalidates any
+previously-granted `skip_if_opted_in` git-config consent, since that
+consent is bound to this file's exact blob hash — re-grant it after
+confirming the new values if `skip_if_opted_in` is in use.
 
 <!-- GATE-DEFINITION -->
 ## Propose-and-confirm flow

@@ -58,6 +58,7 @@ false. A new finding is progress because it gives the next run something
 concrete to fix; resolving a previously-unresolved thread is progress because
 the PR moved closer to merge readiness.
 
+<!-- GATE-DEFINITION -->
 ## Threshold and gate
 
 The provisional threshold is **3 consecutive no-progress substitute rounds**.
@@ -75,6 +76,7 @@ of dispatching another substitute pass. Reasonable choices include:
 
 Do not provide a menu item that starts a hosted review-bot round from this
 skill. The manual escape hatch exists outside the skill workflow.
+<!-- /GATE-DEFINITION -->
 
 ## State
 

@@ -2,10 +2,10 @@
 id: WI-ANTIGRAVITY-CONVERSATION-EXPORT-SKILL
 title: Implement native Antigravity export skill package
 type: deliverable
-status: proposed
+status: resolved
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: Implemented native Antigravity export skill package in src/lrh/skills/lrh-antigravity-export/SKILL.md and mirrored to .agents/skills/.
 related_workstreams:
   - WS-ANTIGRAVITY-CONVERSATION-EXPORT
 depends_on:

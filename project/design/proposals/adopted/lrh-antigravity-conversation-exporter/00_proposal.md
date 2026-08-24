@@ -2,10 +2,14 @@
 id: PROP-LRH-ANTIGRAVITY-CONVERSATION-EXPORTER
 type: design_proposal
 title: LRH Antigravity Conversation Exporter Design Proposal
-status: proposed
+status: adopted
 created_on: 2026-08-07
-updated_on: 2026-08-07
-implementation_status: not_started
+updated_on: 2026-08-23
+implementation_status: implemented
+implemented_by:
+  - WI-ANTIGRAVITY-CONVERSATION-EXPORT-API
+  - WI-ANTIGRAVITY-CONVERSATION-EXPORT-CLI
+  - WI-ANTIGRAVITY-CONVERSATION-EXPORT-SKILL
 related_design:
   - project/design/proposals/proposed/lrh-conversations-storage-interop/00_proposal.md
   - project/design/proposals/adopted/lrh-codex-conversation-exporter/00_proposal.md

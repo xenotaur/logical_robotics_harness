@@ -24,7 +24,8 @@ forbidden_actions:
 acceptance:
   - "The Main-worktree-lock rule's tmp_branch_parent capture works correctly when .git is a worktree gitdir-pointer file, not just a normal repo directory"
   - "SKILL.md Step 7's illustrative bash snippet either matches land-workflow.md's documented capture/cleanup procedure, or explicitly defers to it instead of standing as an incomplete literal example"
-  - "Both fixes present, correct, and consistent across src/, .claude/, .agents/, .gemini/ -- byte-identical for .claude/ (raw cp mirror), and for the changed procedural content specifically in .agents/.gemini/ (their SKILL.md frontmatter is installer-normalized and never byte-identical to src/, per the existing, out-of-scope divergence this WI's Non-Goals section already excludes); verified via lrh skills status --scope project --target codex|antigravity --source current-repo reporting up to date, not via a whole-file diff"
+  - "Both fixes present, correct, and consistent across src/, .claude/, .agents/, .gemini/ -- byte-identical for .claude/ (raw cp mirror), and for the changed procedural content specifically in .agents/.gemini/ (their SKILL.md frontmatter is installer-normalized and never byte-identical to src/, per the existing, out-of-scope divergence this WI's Non-Goals section already excludes); verified via two separate lrh skills status --scope project --target <codex|antigravity> --source current-repo runs (one per target -- --target does not accept a piped list) each reporting up to date, not via a whole-file diff"
+  - "lrh validate reports 0 errors"
 ---
 
 ## Summary
@@ -102,11 +103,12 @@ targets.
   `land-workflow.md` documents, either by matching them or by explicitly
   deferring to that file.
 - Both fixes present and correct in `src/`, `.claude/` (byte-identical
-  `diff`), and `.agents/`/`.gemini/` (via `lrh skills status --scope
-  project --target codex|antigravity --source current-repo` reporting up
-  to date — not a whole-file `diff`, since installer-normalized frontmatter
-  in those two targets is never byte-identical to `src/`, per this WI's
-  own Non-Goals).
+  `diff`), and `.agents/`/`.gemini/` (via two separate `lrh skills status
+  --scope project --target <codex|antigravity> --source current-repo`
+  runs, one per target — `--target` takes a single value, not a piped
+  list — each reporting up to date, not a whole-file `diff`, since
+  installer-normalized frontmatter in those two targets is never
+  byte-identical to `src/`, per this WI's own Non-Goals).
 - `lrh validate` reports 0 errors.
 
 ## Validation
@@ -115,8 +117,9 @@ targets.
 - Manual repro: run the capture command in a worktree checkout and confirm
   it succeeds (this work item's own implementation session runs inside a
   worktree, so this is directly testable in place)
-- `diff -r` for `.claude/`; `lrh skills status --scope project --target
-  codex|antigravity --source current-repo` for `.agents/`/`.gemini/`
+- `diff -r` for `.claude/`; two separate `lrh skills status --scope
+  project --target codex --source current-repo` / `--target antigravity`
+  runs for `.agents/`/`.gemini/`
 
 ## Risk Notes
 

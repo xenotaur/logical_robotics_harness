@@ -141,6 +141,7 @@ def convert_antigravity_session(
         out.parent.mkdir(parents=True, exist_ok=True)
         try:
             out.write_text(full_markdown, encoding="utf-8")
+            _chmod_private_file(out)
         except OSError as err:
             raise AntigravityExportError(
                 f"could not write output export file: {out}"
@@ -151,6 +152,13 @@ def convert_antigravity_session(
         manifest=manifest_obj,
         sensitivity_result=scan_res,
     )
+
+
+def _chmod_private_file(path: Path) -> None:
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
 
 
 def resolve_antigravity_archive_root(

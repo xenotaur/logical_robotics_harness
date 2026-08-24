@@ -293,18 +293,17 @@ class TestAntigravityExport(unittest.TestCase):
                     ]
                 )
             self.assertEqual(exit_code, 0)
-            now_utc = datetime.now(timezone.utc)
-            expected_out = (
-                archive_root
-                / "antigravity"
-                / "exports"
-                / now_utc.strftime("%Y")
-                / now_utc.strftime("%m")
-                / "sess-123.md"
+            exported_files = list(
+                (archive_root / "antigravity" / "exports").glob("*/*/sess-123.md")
             )
+            self.assertEqual(len(exported_files), 1)
+            expected_out = exported_files[0]
             self.assertTrue(expected_out.exists())
-            self.assertIn("Exported Antigravity session transcript:", stdout_buf.getvalue())
+            self.assertIn(
+                "Exported Antigravity session transcript:", stdout_buf.getvalue()
+            )
             self.assertIn(str(expected_out), stdout_buf.getvalue())
+            self.assertEqual(expected_out.stat().st_mode & 0o777, 0o600)
 
     def test_resolve_antigravity_archive_root_worktree_rejection(self) -> None:
         git_root = antigravity_export._current_git_worktree_root()

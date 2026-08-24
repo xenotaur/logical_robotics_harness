@@ -340,11 +340,18 @@ def _resolve_transcript_path(
 
     if conversation_id:
         cid = conversation_id.strip()
-        candidate = app_dir / "brain" / cid / ".system_generated" / "logs" / "transcript.jsonl"
+        candidate = (
+            app_dir / "brain" / cid / ".system_generated" / "logs" / "transcript.jsonl"
+        )
         if candidate.exists():
             return candidate
         candidate_full = (
-            app_dir / "brain" / cid / ".system_generated" / "logs" / "transcript_full.jsonl"
+            app_dir
+            / "brain"
+            / cid
+            / ".system_generated"
+            / "logs"
+            / "transcript_full.jsonl"
         )
         if candidate_full.exists():
             return candidate_full
@@ -371,4 +378,3 @@ def _resolve_transcript_path(
     raise AntigravityExportError(
         "one of --transcript-path, --conversation-id, or --latest is required"
     )
-

@@ -2,10 +2,10 @@
 execution_id: 2026_08_24_05_23_07_WI_ANTIGRAVITY_EXPORT_DURABLE_ARCHIVE_DEFAULT
 prompt_id: PROMPT(AD_HOC:WI_ANTIGRAVITY_EXPORT_DURABLE_ARCHIVE_DEFAULT)[2026-08-24T05:23:07+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: null
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/629
-commit: 3e7edd09
+commit: 6ff906b719b122f8f681467657b9d7e75a2a165e
 created_at: 2026-08-24T05:23:07Z
 agent: antigravity
 instruction_source: project/work_items/proposed/WI-ANTIGRAVITY-EXPORT-DURABLE-ARCHIVE-DEFAULT.md

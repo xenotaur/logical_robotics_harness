@@ -4,6 +4,7 @@ from lrh.conversations.antigravity_export import (
     AntigravityExport,
     AntigravityExportError,
     convert_antigravity_session,
+    resolve_antigravity_archive_root,
     run_convert_antigravity_session_cli,
 )
 from lrh.conversations.codex_app_server_export import (
@@ -106,6 +107,7 @@ __all__ = [
     "render_thread",
     "resolve_codex_session_identity",
     "resolve_codex_archive_root",
+    "resolve_antigravity_archive_root",
     "run_convert_antigravity_session_cli",
     "statistics_for_text",
 ]

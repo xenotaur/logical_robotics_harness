@@ -9,35 +9,36 @@ description: >
 when_to_use: >
   Invoke when the user asks to export, capture, or archive an Antigravity
   session transcript log. Supports explicit `--transcript-path`, `--conversation-id`,
-  or `--latest` discovery with mandatory `--out OUTPUT.md`.
-argument-hint: "--out OUTPUT.md [--transcript-path PATH | --conversation-id ID | --latest]"
+  or `--latest` discovery, defaulting to a durable private session archive when `--out` is omitted.
+argument-hint: "[--out OUTPUT.md] [--transcript-path PATH | --conversation-id ID | --latest]"
 ---
 
 # lrh-antigravity-export Skill
 
 This skill provides session transcript export capability via `/lrh-antigravity-export` inside LRH. It wraps the `lrh conversation export-antigravity-session` CLI subcommand, converts raw Antigravity JSONL transcript logs into standardized Markdown export artifacts with frontmatter metadata, and verifies the generated artifact using `lrh conversation inspect-export`.
 
-This workflow operates strictly under LRH privacy and non-authoritative export rules: it writes private Markdown artifacts to local file paths with user-only file permissions (`umask 077` / mode `0600`) without printing raw transcript text to terminal output or modifying repository control-plane state.
+This workflow operates strictly under LRH privacy and non-authoritative export rules: it writes private Markdown artifacts to durable local session archive paths (or explicit `--out` overrides) with user-only file permissions (`umask 077` / mode `0600`) without printing raw transcript text to terminal output or modifying repository control-plane state.
 
 ---
 
 ## Inputs
 
-Provide mandatory `--out OUTPUT.md` along with one of the mutually exclusive discovery flags or transcript path arguments:
+Provide one of the mutually exclusive discovery flags or transcript path arguments (and optional `--out OUTPUT.md`):
 
 ```bash
-# Export using explicit transcript JSONL path
+# Export using durable private archive default
+/lrh-antigravity-export --latest
+
+# Export using explicit transcript path and custom output override
 /lrh-antigravity-export --transcript-path ~/.gemini/antigravity/brain/<id>/.system_generated/logs/transcript.jsonl --out export.md
 
 # Export using conversation ID discovery
-/lrh-antigravity-export --conversation-id <conversation-id> --out export.md
-
-# Export the latest modified session transcript
-/lrh-antigravity-export --latest --out export.md
+/lrh-antigravity-export --conversation-id <conversation-id>
 ```
 
 ### Additional Options
-- `--out PATH`: Required path for the destination Markdown export file.
+- `--out PATH`: Optional path for destination Markdown export file. When omitted, defaults to a durable private session archive path (`<archive_root>/antigravity/exports/<YYYY>/<MM>/<session-id>.md`) derived via `resolve_archive_root()`.
+- `--archive-root PATH`: Optional private session archive root override.
 - `--force`: Overwrite destination file if it already exists.
 - `--no-scan-sensitive`: Skip heuristic sensitive content scanning.
 - `--source-id ID`: Record explicit custom session source identifier in metadata.
@@ -62,11 +63,13 @@ Execute the exporter CLI subcommand with restrictive file creation umask (`umask
 ```bash
 ( umask 077 && lrh conversation export-antigravity-session \
   --transcript-path <transcript_file> \
-  --out <output_path> \
+  [--out <output_path>] \
   [--force] \
   [--source-id <source_id>] \
   [--no-scan-sensitive] )
 ```
+
+If `--out` is omitted, the CLI outputs the durable session archive destination path.
 
 ### Step 3 — Verify Export Artifact
 

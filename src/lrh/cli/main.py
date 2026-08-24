@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from lrh import (
+    confirm_fixes_batch,
     gate_staleness,
     memory_workflow,
     prompt_workflow,
@@ -440,6 +441,50 @@ def main() -> None:
         help="target repository root (default: current directory)",
     )
     chain_defaults_staleness_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
+    )
+
+    confirm_fixes_parser = subparsers.add_parser(
+        "confirm-fixes",
+        help="lrh-confirm-fixes per-gate autopilot commands.",
+    )
+    confirm_fixes_subparsers = confirm_fixes_parser.add_subparsers(
+        dest="confirm_fixes_command"
+    )
+    confirm_fixes_routine_parser = confirm_fixes_subparsers.add_parser(
+        "check-batch-routine",
+        help=(
+            "confirm_fixes_batch autopilot predicate: is this confirm-fixes "
+            "batch routine enough to skip the Step 4 live ask?"
+        ),
+    )
+    confirm_fixes_routine_parser.add_argument(
+        "--bucket",
+        dest="buckets",
+        action="append",
+        default=[],
+        help=(
+            "Step 3 taxonomy bucket for one unresolved thread (repeatable); "
+            "omit entirely for the empty-batch case"
+        ),
+    )
+    confirm_fixes_routine_parser.add_argument(
+        "--ci-failing",
+        action="store_true",
+        help="pass when the Step 2.3 provisional CI read shows a failing check",
+    )
+    confirm_fixes_routine_parser.add_argument(
+        "--prior-exception",
+        action="store_true",
+        help=(
+            "pass when an earlier confirm-fixes round on this same PR already "
+            "surfaced a non-Clear-satisfied finding"
+        ),
+    )
+    confirm_fixes_routine_parser.add_argument(
         "--format",
         choices=("text", "json"),
         default="text",
@@ -1198,6 +1243,26 @@ def main() -> None:
         parser.error(
             "chain-defaults requires a subcommand "
             "(try: lrh chain-defaults check-staleness)"
+        )
+
+    if args.command == "confirm-fixes":
+        if args.confirm_fixes_command == "check-batch-routine":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            result = confirm_fixes_batch.is_routine_batch(
+                tuple(args.buckets),
+                ci_ok=not args.ci_failing,
+                had_prior_exception=args.prior_exception,
+            )
+            if args.format == "json":
+                print(json.dumps({"routine": result.routine, "reason": result.reason}))
+            else:
+                verdict = "routine" if result.routine else "unusual"
+                print(f"{verdict}: {result.reason}")
+            raise SystemExit(0 if result.routine else 1)
+        parser.error(
+            "confirm-fixes requires a subcommand "
+            "(try: lrh confirm-fixes check-batch-routine)"
         )
 
     if args.command == "secrets":

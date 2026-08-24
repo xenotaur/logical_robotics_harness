@@ -1,16 +1,23 @@
 ---
 name: lrh-confirm-fixes
-description: 'Pre-merge verification and thread-resolution pass for an LRH pull request.
-  Independently verifies pushed review fixes against the current HEAD diff (never
-  against the execution record''s claims), resolves the review threads the diff plainly
-  satisfies, surfaces the exceptions (unaddressed, partial, ambiguous, or problematic
-  threads), and ends at a merge-readiness verdict. Ends at a verdict and merge one-liner
-  rather than executing it as part of this skill''s own workflow. Provide the PR URL
-  as the argument, optionally followed by --subagent (dispatch verification to a cold-context
-  subagent) and/or --surface-human (leave human-reviewer threads surfaced-only, never
-  pre-selected for resolution). Omit the PR URL to auto-detect from the current branch.
-
-  '
+description: >
+  Pre-merge verification and thread-resolution pass for an LRH pull request.
+  Independently verifies pushed review fixes against the current HEAD diff
+  (never against the execution record's claims), resolves the review threads
+  the diff plainly satisfies, surfaces the exceptions (unaddressed, partial,
+  ambiguous, or problematic threads), and ends at a merge-readiness verdict.
+  Ends at a verdict and merge one-liner rather than executing it as part of
+  this skill's own workflow. Provide the PR URL as the argument, optionally
+  followed by --subagent (dispatch verification to a cold-context subagent)
+  and/or --surface-human (leave human-reviewer threads surfaced-only, never
+  pre-selected for resolution). Omit the PR URL to auto-detect from the
+  current branch.
+when_to_use: >
+  Invoke only as the pre-merge verification link after review-response work has
+  been applied, or from /lrh-land while landing a specific open PR. Do not use
+  as a general review trigger, and never use it to manually retrigger hosted
+  GitHub review agents.
+argument-hint: "[pr-url] [--subagent] [--surface-human]"
 ---
 
 # lrh-confirm-fixes Skill
@@ -153,6 +160,7 @@ Three reads, in this order:
    Step 8 re-fetches CI against the post-push `HEAD` before the final
    verdict.
 
+<!-- GATE-DEFINITION -->
 **Empty-thread gate.** If the Step 2.2 unresolved-thread list is empty, do not
 silently skip from Step 2 to Step 8. Mint the Step 3 prompt ID, then present a
 short gate before continuing through Steps 6 and 7:
@@ -166,12 +174,34 @@ short gate before continuing through Steps 6 and 7:
   a substitute `/lrh-self-review --pr` pass after the `_CONFIRM` record commit,
   but must not manually retrigger a hosted GitHub review bot
 
-Wait for explicit confirmation before proceeding to Step 6. Step 6 records the
+**This is the empty-batch case of the same `confirm_fixes_batch` autopilot
+check Step 4 runs** (`WI-LRH-CHAIN-DEFAULTS-INCREMENT-2`) — run it here too,
+with no `--bucket` flags at all, rather than treating "nothing to resolve"
+as exempt from the check:
+
+```bash
+lrh confirm-fixes check-batch-routine \
+  $([ "$CI_FAILING" = true ] && echo --ci-failing) \
+  $([ "$HAD_PRIOR_EXCEPTION" = true ] && echo --prior-exception)
+```
+
+If `confirm_fixes_batch` is absent, its file is absent, or it holds
+anything other than `auto_unless_unusual`, treat it as `always_confirm` and
+skip this check — fail safe, same reasoning as Step 4's own copy of this
+rule. If it is `auto_unless_unusual` and the check exits `0`, the
+empty-thread case is routine: skip the live wait and continue directly to
+Step 6 — but the summary above must still have been shown, not silently
+skipped. Exit `1` falls back to the live wait, with the CLI's printed
+reason included in the presentation.
+
+**Wait for explicit confirmation** (unless the autopilot check above just
+resolved this run without one) before proceeding to Step 6. Step 6 records the
 empty-thread green verdict, Step 7 creates and pushes the `_CONFIRM` execution
 record, and Step 8 then re-checks CI and review coverage against that
 post-record `HEAD`. This gate is required even when there are no threads to
 resolve, because Step 8 still makes the merge-readiness decision and may
 dispatch a substitute self-review signal.
+<!-- /GATE-DEFINITION -->
 
 ### Step 3 — Fresh-eyes verification
 
@@ -252,6 +282,7 @@ lrh prompt label --slug <slug>
 
 ### Step 4 — Confirm gate (human gate)
 
+<!-- GATE-DEFINITION -->
 Before resolving any thread, show the user a single batch summary:
 
 - PR URL, number of unresolved threads
@@ -265,10 +296,66 @@ Before resolving any thread, show the user a single batch summary:
 - Provisional CI status (from Step 2)
 - Minted prompt ID
 
-**Wait for explicit confirmation.** This is one gate for the whole batch, not
+**`confirm_fixes_batch` autopilot check — run before deciding whether to
+wait for a reply, never before showing the summary above.** Read
+`confirm_fixes_batch` from `project/config/chain-defaults.yaml`. **If the
+file is absent, or the field is absent or holds any value other than
+`auto_unless_unusual`, treat it as `always_confirm` and skip this check
+entirely** — fail safe. This matters beyond this repo: a bootstrapped,
+older, or standalone client repository this skill is installed into may not
+carry this profile file or key at all, and the reusable skill must have a
+deterministic default rather than no instruction. If it is
+`auto_unless_unusual`, compute the gate-owned predicate
+(`WI-LRH-CHAIN-DEFAULTS-INCREMENT-2`, `src/lrh/confirm_fixes_batch.py`)
+rather than deciding informally:
+
+```bash
+lrh confirm-fixes check-batch-routine \
+  --bucket <bucket-for-thread-1> --bucket <bucket-for-thread-2> ... \
+  $([ "$CI_FAILING" = true ] && echo --ci-failing) \
+  $([ "$HAD_PRIOR_EXCEPTION" = true ] && echo --prior-exception)
+```
+
+Pass one `--bucket` per thread in the authoritative (`isResolved == false`)
+list from Step 2.2 — never the narrower `lrh request review_response`
+filter, which real evidence showed can undercount by excluding
+outdated-but-unresolved threads (`WI-LRH-CHAIN-DEFAULTS-INCREMENT-2`'s own
+execution record cites the specific PRs). **Use the exact Step 3 taxonomy
+value as-is** (`Clear-satisfied`, `Unaddressed`, `Partial`, `Ambiguous`,
+`Problematic resolution`, `Problematic comment`, or their `snake_case`
+machine-token equivalents) — the CLI normalizes case, spaces, and hyphens
+internally, so either form works; do not invent a different spelling.
+Omit `--bucket` entirely for the empty-thread case. Derive `--ci-failing`
+from Step 2.3's provisional CI read (any required check currently
+`FAILURE`). Derive `--prior-exception` by checking whether any earlier
+`_CONFIRM` execution record for this same PR recorded a non-Clear-satisfied
+bucket or a not-Green Step 6 verdict — a PR mid-escalation still gets a
+live ask on this round even if this round looks clean in isolation. Use a
+tracked-only, worktree-safe search, never a plain filesystem `grep -r`:
+sibling `.claude/worktrees/<other-checkout>/` directories are real,
+untracked directories on disk in this repository's own layout, and a
+filesystem `grep -r` run from a parent directory would walk into another
+worktree's copy of `project/executions/` and misclassify this flag from
+unrelated state:
+
+```bash
+git grep -l "pr: <pr-url>" -- project/executions/
+```
+
+Exit `0` means routine: skip the live wait and continue to Step 5
+immediately — but the summary above must still have been shown; this is
+never silent about what it auto-approved, the same transparency principle
+`skip_if_opted_in` follows for the chain-authorization gate. Exit `1` means
+unusual: fall back to the live wait below, and state the CLI's printed
+reason in the presentation so the human sees why this round didn't
+auto-proceed.
+
+**Wait for explicit confirmation** (unless the autopilot check above just
+resolved this run without one). This is one gate for the whole batch, not
 per-thread — the exceptions are the report; approving the batch approves the
 Clear-satisfied resolutions as a set. If the user deselects specific threads
 or redirects a classification, adjust and re-show before proceeding.
+<!-- /GATE-DEFINITION -->
 
 ### Step 5 — Execute confirmed resolutions
 

@@ -124,7 +124,10 @@ def is_routine_batch(
     if unroutine_hits:
         return BatchRoutineResult(
             routine=False,
-            reason=f"batch contains non-Clear-satisfied bucket(s): {', '.join(unroutine_hits)}",
+            reason=(
+                f"batch contains non-Clear-satisfied bucket(s): "
+                f"{', '.join(unroutine_hits)}"
+            ),
         )
     unknown = sorted(
         {

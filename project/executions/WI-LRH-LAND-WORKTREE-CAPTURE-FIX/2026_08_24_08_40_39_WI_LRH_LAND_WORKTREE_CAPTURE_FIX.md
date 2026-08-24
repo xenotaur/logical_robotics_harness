@@ -2,13 +2,13 @@
 execution_id: 2026_08_24_08_40_39_WI_LRH_LAND_WORKTREE_CAPTURE_FIX
 prompt_id: PROMPT(WI-LRH-LAND-WORKTREE-CAPTURE-FIX:WI_LRH_LAND_WORKTREE_CAPTURE_FIX)[2026-08-24T08:14:37+00:00]
 work_item: WI-LRH-LAND-WORKTREE-CAPTURE-FIX
-status: in_progress
+status: landed
 rerun_of: 
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-LAND-WORKTREE-CAPTURE-FIX.md
 session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/634
-commit: 6541b959
+commit: d60414bc03b517b713e561450fd3892a97eaf8a6
 created_at: 2026-08-24T08:40:39+00:00
 ---
 

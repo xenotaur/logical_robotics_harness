@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #634 (commit d60414bc). Fixed the worktree-unsafe .git/ capture path via $(git rev-parse --git-dir), and reworded SKILL.md's stale Step 7 snippet to defer to land-workflow.md's documented procedure."
 blocked_reason: null
 blocked: false
 id: WI-LRH-LAND-WORKTREE-CAPTURE-FIX
 title: Fix worktree-unsafe .git/ capture path and stale SKILL.md snippet in /lrh-land
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

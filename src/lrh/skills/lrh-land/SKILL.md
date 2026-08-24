@@ -481,6 +481,7 @@ stop-work condition, not a silent retry — report it and wait for direction.
 
 ### Step 7 — Execute the previewed closeout
 
+<!-- GATE-DEFINITION -->
 Once `state == MERGED` is confirmed, execute the closeout **without a
 second ask** — the human already approved both halves together in Step 6.
 
@@ -501,6 +502,7 @@ in a way that rule already requires a fresh `/lrh-closeout` Step 4 ask for,
 that fresh ask covers the revised closeout push too — the anti-pattern
 above governs only the plain, no-divergence path, not a case this step
 separately says needs its own live confirmation.
+<!-- /GATE-DEFINITION -->
 
 **Switch to main before closeout** (main-worktree-lock workaround from
 `references/land-workflow.md` rule 4). At this point the session is still on

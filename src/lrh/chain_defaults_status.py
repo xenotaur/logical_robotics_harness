@@ -98,7 +98,12 @@ def read_consent_hash(project_root: pathlib.Path) -> str | None:
 
 
 def hash_object(project_root: pathlib.Path, relative_path: str) -> str:
-    """Return the git blob hash of a tracked file's current on-disk content."""
+    """Return the git blob hash of the file's current on-disk content.
+
+    `git hash-object` hashes whatever is on disk regardless of whether the
+    path is tracked -- this does not require the file to already be tracked
+    by git.
+    """
     result = _run_git(["hash-object", relative_path], project_root)
     if result.returncode != 0:
         raise ChainDefaultsStatusError(
@@ -196,7 +201,7 @@ def format_json(status: ChainDefaultsStatus) -> str:
                     "stale": status.staleness.stale,
                     "files": [
                         {"path": f.path, "stale": f.stale, "reason": f.reason}
-                        for f in status.staleness.stale_files
+                        for f in status.staleness.files
                     ],
                 }
                 if status.staleness is not None

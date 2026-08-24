@@ -1,3 +1,4 @@
+import json
 import pathlib
 import subprocess
 import tempfile
@@ -190,7 +191,11 @@ class FormatTest(unittest.TestCase):
         text = chain_defaults_status.format_text(status)
         self.assertIn("does not exist", text)
 
-    def test_format_json_round_trips_stale_files(self) -> None:
+    def test_format_json_includes_all_files_not_just_stale(self) -> None:
+        """Regression test: format_json must report every watched file with
+        its own stale flag, matching gate_staleness.format_json()'s shape --
+        not just the stale subset (copilot-pull-request-reviewer finding on
+        PR #636)."""
         staleness = gate_staleness.StalenessResult(
             confirmed_commit="abc123",
             head="def456",
@@ -198,6 +203,9 @@ class FormatTest(unittest.TestCase):
             files=(
                 gate_staleness.FileStaleness(
                     "src/lrh/skills/lrh-land/SKILL.md", stale=True, reason="touched"
+                ),
+                gate_staleness.FileStaleness(
+                    "src/lrh/skills/lrh-execute/SKILL.md", stale=False, reason="no change"
                 ),
             ),
         )
@@ -211,9 +219,11 @@ class FormatTest(unittest.TestCase):
             staleness=staleness,
             staleness_error=None,
         )
-        text = chain_defaults_status.format_json(status)
-        self.assertIn("lrh-land/SKILL.md", text)
-        self.assertIn('"stale": true', text)
+        parsed = json.loads(chain_defaults_status.format_json(status))
+        self.assertEqual(len(parsed["staleness"]["files"]), 2)
+        by_path = {f["path"]: f for f in parsed["staleness"]["files"]}
+        self.assertTrue(by_path["src/lrh/skills/lrh-land/SKILL.md"]["stale"])
+        self.assertFalse(by_path["src/lrh/skills/lrh-execute/SKILL.md"]["stale"])
 
 
 if __name__ == "__main__":

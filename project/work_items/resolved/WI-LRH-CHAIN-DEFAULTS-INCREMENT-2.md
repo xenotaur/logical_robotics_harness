@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #626 (commit 0bc05e02). confirm_fixes_batch per-gate autopilot for /lrh-confirm-fixes, grounded in a 36-round evidence survey."
 blocked_reason: null
 blocked: false
 id: WI-LRH-CHAIN-DEFAULTS-INCREMENT-2
 title: Implement Increment 2 of PROP-LRH-CHAIN-DEFAULTS -- confirm_fixes_batch per-gate autopilot
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

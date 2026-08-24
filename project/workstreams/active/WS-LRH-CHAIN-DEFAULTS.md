@@ -25,6 +25,7 @@ work_items:
   - WI-LRH-CHAIN-DEFAULTS-INCREMENT-1
   - WI-LRH-CHAIN-DEFAULTS-INCREMENT-2
   - WI-LRH-CHAIN-DEFAULTS-INCREMENT-3
+  - WI-CHAIN-DEFAULTS-STALENESS-RESTAMP
 exit_criteria:
   - A design-review session has produced concrete, steelmanned default values (completion condition, stop-work condition, self-review preference) with recorded rationale, before any Increment 1 code lands
   - 'Increment 1 (chain-level defaults: schema + propose-and-confirm flow wired into /lrh-land and /lrh-execute Step 2) implemented, lrh validate 0 errors, installed in both src/ and .claude/ mirrors'

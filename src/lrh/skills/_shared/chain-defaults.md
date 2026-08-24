@@ -255,16 +255,58 @@ output — one or more `stale files` entries name which file and why). A
 watched file added or removed since confirmation counts as stale too (its
 `reason` says so explicitly) — it is a data outcome (exit `1`), not a check
 failure. Treat this run as if `chain_init_confirmation` were `always_confirm`
-regardless of the stored value, and note this in the gate's presentation
-("defaults pre-filled, but re-confirming since gate policy changed since you
-last confirmed"). Exit status `0` (`stale: false`) means every diff since
+regardless of the stored value, and **present the command's own `stale
+files` list verbatim as part of the gate** — not a generic substitute
+notice. Per this project's own gate-policy principle ("a gate should ask
+once with the actual decision payload visible," `AGENTS.md`'s Gate policy
+section), reconfirming completion/stop-work condition text alone does not
+constitute informed consent to a gate-*semantics* change the human was
+never shown; the `stale files` entries (file + reason, e.g. "diff touches
+a GATE-DEFINITION region") are exactly that missing payload and cost
+nothing extra to surface, since the check already computed them. A bare
+"defaults pre-filled, but re-confirming since gate policy changed since
+you last confirmed" note, with no `stale files` detail attached, is not
+sufficient framing for the ask on its own. Exit status `0` (`stale:
+false`) means every diff since
 confirmation, if any, fell outside all marked regions — continue trusting the
 stored value. Exit status `2` means the check itself could not run at all —
 an invalid or unresolvable `confirmed_commit`/`--head`, a git error, or a
 malformed markers structure (see the command's own error text) — and is
 distinct from a stale result; surface it and do not silently classify it
-either way. Do not silently rewrite the stored value based on this fallback
-alone — it only affects this run's liveness, not the persisted setting.
+either way.
+
+**Re-stamp condition: the live reply and the persisted text agree, and the
+`stale files` payload was actually shown.** `confirmed_commit`/
+`confirmed_at` record when a human last live-confirmed *the values that
+are actually stored* (see the field description above), having been shown
+what changed (the requirement just above) — not merely "a live reply
+happened":
+
+- **Reply matches the stored text (no divergence):** write
+  `confirmed_commit: $(git rev-parse HEAD)` and
+  `confirmed_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)`. This is not a no-op:
+  the human explicitly re-affirmed the current gate text, and that
+  affirmation is exactly what `confirmed_commit` exists to record —
+  previously nothing re-stamped here, which is the bug this section fixes.
+- **Reply diverges and the human says yes to the Decision 4 profile-update
+  offer:** the stored `completion_condition`/`stop_work_condition` are
+  rewritten to the new wording, and — per the pre-existing Decision 4 text
+  above — `confirmed_commit`/`confirmed_at` re-stamp together with that
+  rewrite. The two actions are one unit: both happen, or neither does.
+- **Reply diverges and the human says no (or the offer is never reached
+  this run):** do **not** re-stamp. The text still on disk is not what the
+  human just said — re-stamping here would misrepresent an unchanged,
+  un-ratified value as freshly confirmed, exactly the failure mode Risk
+  Notes warns against, just reached via a declined profile-update instead
+  of a silent skip.
+
+Do not silently rewrite the stored value based on the fallback's `exit 1`
+signal *alone* — the "do not silently rewrite" caution applies to both the
+no-live-reply case (not reachable via the path described above, since this
+fallback always forces a live ask before this point, but the caution stays
+precise for any future path that could reach staleness without one) and
+the diverge-and-decline case just above; it does not apply once a live
+reply has been given and left the persisted text matching that reply.
 
 **Adding a new gate-bearing file or a new gate to an existing file requires
 adding `<!-- GATE-DEFINITION -->` markers around its defining prose** (and,

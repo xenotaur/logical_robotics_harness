@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import argparse
 import dataclasses
 import hashlib
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
@@ -226,3 +228,157 @@ def _render_antigravity_transcript(steps: Sequence[dict[str, object]]) -> str:
                 lines.append("")
 
     return "\n".join(lines)
+
+
+def run_convert_antigravity_session_cli(
+    argv: Sequence[str] | None = None,
+    *,
+    prog: str | None = None,
+) -> int:
+    """CLI entry point for converting Google Antigravity session transcripts."""
+    parser = argparse.ArgumentParser(
+        prog=prog or "lrh conversation export-antigravity-session",
+        description=(
+            "Convert a local Google Antigravity session transcript log (JSONL) "
+            "into a private, non-authoritative Markdown export artifact."
+        ),
+    )
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument(
+        "--transcript-path",
+        help="explicit path to Antigravity transcript JSONL file",
+    )
+    input_group.add_argument(
+        "--conversation-id",
+        help="Antigravity session conversation ID to discover under app-data-dir",
+    )
+    input_group.add_argument(
+        "--latest",
+        action="store_true",
+        help="discover the most recently modified transcript file under app-data-dir",
+    )
+    parser.add_argument(
+        "--app-data-dir",
+        default="~/.gemini/antigravity",
+        help=(
+            "path to Antigravity application data directory "
+            "(default: ~/.gemini/antigravity)"
+        ),
+    )
+    parser.add_argument(
+        "--out",
+        required=True,
+        help="Markdown export output path",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="overwrite existing output file if present",
+    )
+    parser.add_argument(
+        "--source-id",
+        help="optional explicit session conversation ID to record in metadata",
+    )
+    parser.add_argument(
+        "--no-scan-sensitive",
+        action="store_true",
+        help="skip heuristic sensitive content scanner",
+    )
+
+    args = parser.parse_args(argv)
+
+    try:
+        transcript_file = _resolve_transcript_path(
+            transcript_path=args.transcript_path,
+            conversation_id=args.conversation_id,
+            app_data_dir=Path(args.app_data_dir),
+            latest=args.latest,
+        )
+    except (AntigravityExportError, OSError) as err:
+        print(f"error: {err}", file=sys.stderr)
+        return 1
+
+    output_path = Path(args.out).expanduser() if args.out else None
+
+    try:
+        result = convert_antigravity_session(
+            transcript_file,
+            output_path=output_path,
+            force=args.force,
+            scan_sensitive=not args.no_scan_sensitive,
+            source_id=args.source_id,
+        )
+    except (AntigravityExportError, FileExistsError, OSError) as err:
+        print(f"error: {err}", file=sys.stderr)
+        return 1
+
+    if result.sensitivity_result is not None and result.sensitivity_result.findings:
+        finding_count = len(result.sensitivity_result.findings)
+        print(
+            "warning: potential sensitive content detected "
+            f"({finding_count} finding(s))",
+            file=sys.stderr,
+        )
+
+    out_display = str(output_path) if output_path else "(memory only)"
+    print(f"Exported Antigravity session transcript: {out_display}")
+    print(f"Source ID: {result.manifest.source_id or 'unknown'}")
+    print(f"Source SHA-256: {result.manifest.source_sha256}")
+    print(f"Privacy: {result.manifest.privacy}")
+    print(f"Sensitivity: {result.manifest.sensitivity}")
+    print(f"Warnings: {len(result.manifest.warnings)}")
+    return 0
+
+
+def _resolve_transcript_path(
+    *,
+    transcript_path: str | None,
+    conversation_id: str | None,
+    app_data_dir: Path,
+    latest: bool,
+) -> Path:
+    if transcript_path:
+        return Path(transcript_path).expanduser()
+
+    app_dir = app_data_dir.expanduser()
+
+    if conversation_id:
+        cid = conversation_id.strip()
+        candidate = (
+            app_dir / "brain" / cid / ".system_generated" / "logs" / "transcript.jsonl"
+        )
+        if candidate.exists():
+            return candidate
+        candidate_full = (
+            app_dir
+            / "brain"
+            / cid
+            / ".system_generated"
+            / "logs"
+            / "transcript_full.jsonl"
+        )
+        if candidate_full.exists():
+            return candidate_full
+        raise AntigravityExportError(
+            f"no transcript file found for conversation id '{cid}' in {app_dir}"
+        )
+
+    if latest:
+        brain_dir = app_dir / "brain"
+        if not brain_dir.exists():
+            raise AntigravityExportError(
+                f"Antigravity brain directory does not exist: {brain_dir}"
+            )
+        matches = list(
+            brain_dir.glob("*/.system_generated/logs/transcript.jsonl")
+        ) + list(brain_dir.glob("*/.system_generated/logs/transcript_full.jsonl"))
+        if not matches:
+            raise AntigravityExportError(
+                f"no Antigravity transcript files found in {brain_dir}"
+            )
+        matches.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        return matches[0]
+
+    raise AntigravityExportError(
+        "one of --transcript-path, --conversation-id, or --latest is required"
+    )

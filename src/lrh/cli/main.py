@@ -24,6 +24,7 @@ from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
 from lrh.control import format_report, validate_project
 from lrh.conversations import (
+    antigravity_export,
     codex_app_server_export,
     codex_archive,
     codex_file_export,
@@ -144,6 +145,11 @@ def main() -> None:
         "inspect-export",
         add_help=False,
         help="Inspect a Codex conversation export Markdown artifact.",
+    )
+    conversation_subparsers.add_parser(
+        "export-antigravity-session",
+        add_help=False,
+        help="Convert a Google Antigravity session transcript log into Markdown.",
     )
 
     subparsers.add_parser(
@@ -982,9 +988,17 @@ def main() -> None:
                     prog="lrh conversation import-codex-exports",
                 )
             )
+        if args.conversation_command == "export-antigravity-session":
+            raise SystemExit(
+                antigravity_export.run_convert_antigravity_session_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation export-antigravity-session",
+                )
+            )
         parser.error(
             "conversation requires a subcommand "
-            "(try: lrh conversation convert-codex-file, "
+            "(try: lrh conversation export-antigravity-session, "
+            "lrh conversation convert-codex-file, "
             "lrh conversation archive-codex-thread, "
             "lrh conversation export-codex-thread, "
             "lrh conversation current-codex-thread-id, "

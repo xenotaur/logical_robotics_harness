@@ -1,5 +1,11 @@
 """Conversation import and analysis helpers."""
 
+from lrh.conversations.antigravity_export import (
+    AntigravityExport,
+    AntigravityExportError,
+    convert_antigravity_session,
+    run_convert_antigravity_session_cli,
+)
 from lrh.conversations.codex_app_server_export import (
     CodexAppServerExport,
     CodexAppServerExportError,
@@ -57,6 +63,8 @@ from lrh.conversations.export_manifest import (
 
 __all__ = [
     "ADAPTER_VERSION",
+    "AntigravityExport",
+    "AntigravityExportError",
     "CodexAppServerExport",
     "CodexAppServerExportError",
     "CodexArchiveError",
@@ -88,6 +96,7 @@ __all__ = [
     "build_codex_manifest",
     "build_raw_capture",
     "archive_codex_thread",
+    "convert_antigravity_session",
     "convert_codex_file",
     "export_codex_thread",
     "import_codex_export_directories",
@@ -97,5 +106,6 @@ __all__ = [
     "render_thread",
     "resolve_codex_session_identity",
     "resolve_codex_archive_root",
+    "run_convert_antigravity_session_cli",
     "statistics_for_text",
 ]

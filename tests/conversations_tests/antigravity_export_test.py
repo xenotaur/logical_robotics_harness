@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -82,7 +84,8 @@ class TestAntigravityExport(unittest.TestCase):
 
     def test_convert_antigravity_session_file_not_found(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            missing = Path(temp_dir) / "non_existent.jsonl"
+            tmp_path = Path(temp_dir)
+            missing = tmp_path / "non_existent.jsonl"
             with self.assertRaisesRegex(
                 antigravity_export.AntigravityExportError, "does not exist"
             ):
@@ -151,6 +154,120 @@ class TestAntigravityExport(unittest.TestCase):
 
             res = antigravity_export.convert_antigravity_session(source_file)
             self.assertEqual(res.manifest.source_id, "sess_abc123")
+
+    def test_cli_convert_antigravity_session_with_transcript_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = _write_transcript(
+                tmp_path,
+                [
+                    {
+                        "step_index": 0,
+                        "source": "USER",
+                        "type": "USER_INPUT",
+                        "content": "test message",
+                    }
+                ],
+            )
+            out_file = tmp_path / "cli_export.md"
+
+            stdout_buf = io.StringIO()
+            stderr_buf = io.StringIO()
+            with (
+                contextlib.redirect_stdout(stdout_buf),
+                contextlib.redirect_stderr(stderr_buf),
+            ):
+                code = antigravity_export.run_convert_antigravity_session_cli(
+                    [
+                        "--transcript-path",
+                        str(source_file),
+                        "--out",
+                        str(out_file),
+                        "--source-id",
+                        "cli_sess_1",
+                    ]
+                )
+
+            self.assertEqual(code, 0)
+            self.assertTrue(out_file.exists())
+            stdout = stdout_buf.getvalue()
+            self.assertIn("Exported Antigravity session transcript", stdout)
+            self.assertIn("Source ID: cli_sess_1", stdout)
+            self.assertIn("Source SHA-256:", stdout)
+            self.assertIn("Privacy: private", stdout)
+
+    def test_cli_convert_antigravity_session_with_conversation_id(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            logs_dir = tmp_path / "brain" / "sess_xyz987" / ".system_generated" / "logs"
+            logs_dir.mkdir(parents=True)
+            transcript_file = logs_dir / "transcript.jsonl"
+            transcript_file.write_text(
+                json.dumps(
+                    {
+                        "step_index": 0,
+                        "source": "USER",
+                        "type": "USER_INPUT",
+                        "content": "hello via conversation id",
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            out_file = tmp_path / "cid_export.md"
+
+            stdout_buf = io.StringIO()
+            stderr_buf = io.StringIO()
+            with (
+                contextlib.redirect_stdout(stdout_buf),
+                contextlib.redirect_stderr(stderr_buf),
+            ):
+                code = antigravity_export.run_convert_antigravity_session_cli(
+                    [
+                        "--conversation-id",
+                        "sess_xyz987",
+                        "--app-data-dir",
+                        str(tmp_path),
+                        "--out",
+                        str(out_file),
+                    ]
+                )
+
+            self.assertEqual(code, 0)
+            self.assertTrue(out_file.exists())
+            stdout = stdout_buf.getvalue()
+            self.assertIn("Source ID: sess_xyz987", stdout)
+            self.assertIn("Source SHA-256:", stdout)
+
+    def test_cli_convert_antigravity_session_missing_required_args(self) -> None:
+        stderr_buf = io.StringIO()
+        with contextlib.redirect_stderr(stderr_buf):
+            with self.assertRaises(SystemExit) as cm:
+                antigravity_export.run_convert_antigravity_session_cli(
+                    ["--out", "/tmp/out.md"]
+                )
+        self.assertEqual(cm.exception.code, 2)
+        self.assertIn(
+            "one of the arguments --transcript-path "
+            "--conversation-id --latest is required",
+            stderr_buf.getvalue(),
+        )
+
+    def test_cli_convert_antigravity_session_mutually_exclusive_args(self) -> None:
+        stderr_buf = io.StringIO()
+        with contextlib.redirect_stderr(stderr_buf):
+            with self.assertRaises(SystemExit) as cm:
+                antigravity_export.run_convert_antigravity_session_cli(
+                    [
+                        "--transcript-path",
+                        "/tmp/t.jsonl",
+                        "--latest",
+                        "--out",
+                        "/tmp/o.md",
+                    ]
+                )
+        self.assertEqual(cm.exception.code, 2)
+        self.assertIn("not allowed with argument", stderr_buf.getvalue())
 
 
 if __name__ == "__main__":

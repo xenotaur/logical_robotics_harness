@@ -54,7 +54,6 @@ class IsRoutineBatchTest(unittest.TestCase):
         self.assertFalse(result.routine)
         self.assertIn("problematic_resolution", result.reason)
 
-
     def test_empty_batch_is_routine(self) -> None:
         result = confirm_fixes_batch.is_routine_batch(
             (), ci_ok=True, had_prior_exception=False

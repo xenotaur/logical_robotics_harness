@@ -7,7 +7,6 @@ import io
 import json
 import tempfile
 import unittest
-from datetime import datetime, timezone
 from pathlib import Path
 
 from lrh.conversations import antigravity_export, export_inspector

@@ -35,10 +35,12 @@ forbidden_actions:
   - commit_raw_transcript_data
 acceptance:
   - "`export-antigravity-session` CLI subcommand defaults to a durable private session archive path (`<archive_root>/antigravity/exports/<YYYY>/<MM>/<session-id>.md`) derived via `resolve_archive_root()` when `--out` is omitted"
+  - "Default archive path resolution rejects roots pointing inside the current git worktree to prevent accidental transcript commits (mirroring `_reject_archive_root_inside_current_git_worktree()`)"
+  - "When `--transcript-path` is outside `brain/<id>/...` and `--source-id` is omitted, the exporter uses a deterministic safe session ID fallback (e.g. `source_sha256[:12]`)"
   - "`--out PATH` remains supported as an optional explicit destination override"
   - "`src/lrh/skills/lrh-antigravity-export/SKILL.md` and `.agents/skills/lrh-antigravity-export/SKILL.md` document `--out` as optional with the durable archive default"
   - "`lrh conversation inspect-export` verification steps remain supported for both default and overridden output paths"
-  - "Unit tests in `tests/conversations_tests/antigravity_export_test.py` cover durable archive default resolution and `--out` overrides"
+  - "Unit tests in `tests/conversations_tests/antigravity_export_test.py` cover durable archive default resolution, git worktree containment guard, deterministic session ID fallback, and `--out` overrides"
   - "`lrh validate` passes with 0 errors and 0 warnings"
 required_evidence:
   - manual_review
@@ -74,8 +76,10 @@ Establishing a durable-archive default for Antigravity exports aligns Antigravit
 ### Included
 - Update `run_convert_antigravity_session_cli` in `src/lrh/conversations/antigravity_export.py` to make `--out` optional.
 - Integrate `resolve_archive_root()` to generate default output paths under `<archive_root>/antigravity/exports/<YYYY>/<MM>/<session-id>.md`.
+- Enforce git worktree containment check on default archive roots to prevent writing private exports into git worktrees (mirroring Codex's `_reject_archive_root_inside_current_git_worktree()`).
+- Implement deterministic safe fallback session ID (e.g. `source_sha256[:12]`) when `--transcript-path` is outside `brain/<id>/...` and `--source-id` is omitted.
 - Update `src/lrh/skills/lrh-antigravity-export/SKILL.md` and `.agents/skills/lrh-antigravity-export/SKILL.md` to present `--out` as optional.
-- Add CLI unit test coverage for default durable path resolution and `--out` overrides in `tests/conversations_tests/antigravity_export_test.py`.
+- Add CLI unit test coverage for default durable path resolution, worktree containment rejection, fallback session IDs, and `--out` overrides in `tests/conversations_tests/antigravity_export_test.py`.
 
 ### Non-Goals
 - Building a unifying multi-backend `/lrh-export` command (blocked until all backend durable defaults land).
@@ -86,6 +90,8 @@ Establishing a durable-archive default for Antigravity exports aligns Antigravit
 ### Component 1: Exporter Engine & CLI Wiring (`src/lrh/conversations/antigravity_export.py`)
 - Import `resolve_archive_root` from `lrh.prompt_workflow_sessions`.
 - Update CLI argument parser to make `--out` optional (`required=False`, `default=None`).
+- Add worktree containment check to reject default archive paths located inside current git worktree.
+- Add fallback session ID derivation (e.g. `source_sha256[:12]`) when `--source-id` is missing and `--transcript-path` is outside `brain/<id>/...`.
 - If `out` is `None`, resolve output path as `resolve_archive_root() / "antigravity" / "exports" / YYYY / MM / f"{session_id}.md"`.
 
 ### Component 2: Native Skill Package (`src/lrh/skills/lrh-antigravity-export/SKILL.md` & `.agents/skills/`)
@@ -94,16 +100,20 @@ Establishing a durable-archive default for Antigravity exports aligns Antigravit
 
 ### Component 3: Unit Tests (`tests/conversations_tests/antigravity_export_test.py`)
 - Add test verifying `export-antigravity-session` without `--out` writes to `<archive_root>/antigravity/exports/<YYYY>/<MM>/<session_id>.md`.
+- Add test verifying worktree containment rejection.
+- Add test verifying fallback session ID resolution for arbitrary transcript paths.
 - Add test verifying explicit `--out` overrides the default path.
 
 ## Acceptance Criteria
 
 1. `export-antigravity-session` CLI subcommand defaults to a durable private session archive path (`<archive_root>/antigravity/exports/<YYYY>/<MM>/<session-id>.md`) derived via `resolve_archive_root()` when `--out` is omitted.
-2. `--out PATH` remains supported as an optional explicit destination override.
-3. `src/lrh/skills/lrh-antigravity-export/SKILL.md` and `.agents/skills/lrh-antigravity-export/SKILL.md` document `--out` as optional with the durable archive default.
-4. `lrh conversation inspect-export` verification steps remain supported for both default and overridden output paths.
-5. Unit tests in `tests/conversations_tests/antigravity_export_test.py` cover durable archive default resolution and `--out` overrides.
-6. `lrh validate` passes with 0 errors and 0 warnings.
+2. Default archive path resolution rejects roots pointing inside the current git worktree to prevent accidental transcript commits (mirroring `_reject_archive_root_inside_current_git_worktree()`).
+3. When `--transcript-path` is outside `brain/<id>/...` and `--source-id` is omitted, the exporter uses a deterministic safe session ID fallback (e.g. `source_sha256[:12]`).
+4. `--out PATH` remains supported as an optional explicit destination override.
+5. `src/lrh/skills/lrh-antigravity-export/SKILL.md` and `.agents/skills/lrh-antigravity-export/SKILL.md` document `--out` as optional with the durable archive default.
+6. `lrh conversation inspect-export` verification steps remain supported for both default and overridden output paths.
+7. Unit tests in `tests/conversations_tests/antigravity_export_test.py` cover durable archive default resolution, git worktree containment guard, deterministic session ID fallback, and `--out` overrides.
+8. `lrh validate` passes with 0 errors and 0 warnings.
 
 ## Validation
 

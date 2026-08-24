@@ -248,7 +248,8 @@ class TestAntigravityExport(unittest.TestCase):
                 )
         self.assertEqual(cm.exception.code, 2)
         self.assertIn(
-            "one of the arguments --transcript-path --conversation-id --latest is required",
+            "one of the arguments --transcript-path "
+            "--conversation-id --latest is required",
             stderr_buf.getvalue(),
         )
 

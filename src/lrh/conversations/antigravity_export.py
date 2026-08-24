@@ -260,7 +260,10 @@ def run_convert_antigravity_session_cli(
     parser.add_argument(
         "--app-data-dir",
         default="~/.gemini/antigravity",
-        help="path to Antigravity application data directory (default: ~/.gemini/antigravity)",
+        help=(
+            "path to Antigravity application data directory "
+            "(default: ~/.gemini/antigravity)"
+        ),
     )
     parser.add_argument(
         "--out",
@@ -312,7 +315,8 @@ def run_convert_antigravity_session_cli(
     if result.sensitivity_result is not None and result.sensitivity_result.findings:
         finding_count = len(result.sensitivity_result.findings)
         print(
-            f"warning: potential sensitive content detected ({finding_count} finding(s))",
+            "warning: potential sensitive content detected "
+            f"({finding_count} finding(s))",
             file=sys.stderr,
         )
 

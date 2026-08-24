@@ -1,17 +1,11 @@
 ---
 name: lrh-land
-description: >
-  Land an open PR end-to-end: chain authorization gate, review-response,
-  confirm-fixes, merge gate, and closeout, with all five glue-logic rules
-  from PROP-LRH-LAND-EXECUTE Decision 3 encoded as explicit algorithmic
-  steps. Use when the user wants to drive an open PR through the complete
-  terminal lifecycle chain in a single traceable session.
-when_to_use: >
-  Invoke only when the user explicitly asks to land a specific open PR, or
-  when /lrh-execute reaches its landing phase for the PR it just opened. The
-  chain-authorization gate must still run before review-response, confirm-fixes,
-  merge, or closeout actions.
-argument-hint: "[pr-url]"
+description: 'Land an open PR end-to-end: chain authorization gate, review-response,
+  confirm-fixes, merge gate, and closeout, with all five glue-logic rules from PROP-LRH-LAND-EXECUTE
+  Decision 3 encoded as explicit algorithmic steps. Use when the user wants to drive
+  an open PR through the complete terminal lifecycle chain in a single traceable session.
+
+  '
 ---
 
 # lrh-land Skill
@@ -484,15 +478,23 @@ stop-work condition, not a silent retry — report it and wait for direction.
 Once `state == MERGED` is confirmed, execute the closeout **without a
 second ask** — the human already approved both halves together in Step 6.
 
-**Anti-pattern: do not re-confirm the closeout push.** This includes the
+**Anti-pattern: do not re-confirm the closeout push — except when the
+material-divergence rule below actually fires.** This includes the
 `git push origin tmp-<slug>:main` in the main-worktree-lock workaround below
 — it is a direct write to `main`, and that can feel like the kind of action
-that deserves its own live confirmation. It does not: Step 6's single ask
-already covers it. If you find yourself about to ask "confirm pushing this
-closeout commit to main?" (or similarly worded), stop — that is the exact
-failure `DEC-SINGLE-ASK-RUN-GATES` exists to prevent, and inventing a
-justification for a second ask in the moment (e.g. treating it as a separate
-standing rule) is itself the anti-pattern. Proceed without asking.
+that deserves its own live confirmation. In the ordinary, no-divergence
+case it does not: Step 6's single ask already covers it. If you find
+yourself about to ask "confirm pushing this closeout commit to main?" (or
+similarly worded) purely because the action is a main push, stop — that is
+the exact failure `DEC-SINGLE-ASK-RUN-GATES` exists to prevent, and
+inventing a justification for a second ask in the moment (e.g. treating it
+as a separate standing rule) is itself the anti-pattern. Proceed without
+asking. This does **not** override the "material divergence" rule later in
+this step: if the real Step 1–3 assessment diverges from the Step 6 preview
+in a way that rule already requires a fresh `/lrh-closeout` Step 4 ask for,
+that fresh ask covers the revised closeout push too — the anti-pattern
+above governs only the plain, no-divergence path, not a case this step
+separately says needs its own live confirmation.
 
 **Switch to main before closeout** (main-worktree-lock workaround from
 `references/land-workflow.md` rule 4). At this point the session is still on
@@ -556,6 +558,18 @@ Step 6 preview) and compare against the Step 6 preview:
   to a fresh live ask at `/lrh-closeout` Step 4 as written, and surface the
   specific field that changed as an alert about a new condition — never a
   silent re-ask of the question already answered.
+- **Exception — the no-primary backfill record itself is not material.**
+  On the no-primary path, the backfill record created just above always
+  postdates the Step 6 preview by construction — Step 6's Half B is built
+  before that record exists, so it can never be "in the preview" in the
+  literal sense. Comparing it against the preview's contents the same way
+  as any other newly appeared record would defeat the single-ask path for
+  exactly the case this backfill mechanism exists to support. Treat this
+  one deterministic record — the backfill record this same Step 7 just
+  created, landing with the resolution/session-transcript values already
+  stated in the Step 6 preview's plan — as expected, not material. Any
+  *other* execution record appearing beyond this one still fires the
+  material-divergence rule above as written.
 - If Step 6's classification withheld WS closeout for lack of a distinct
   exit-criteria affirmation (see Step 6's merge-reply classification), do
   not execute it here either — report it as an unconfirmed offer, the same

@@ -69,7 +69,9 @@ class ChainDefaultsStatus:
     staleness_error: str | None
 
 
-def _run_git(args: list[str], project_root: pathlib.Path) -> subprocess.CompletedProcess:
+def _run_git(
+    args: list[str], project_root: pathlib.Path
+) -> subprocess.CompletedProcess:
     try:
         return subprocess.run(
             ["git", *args],
@@ -91,7 +93,9 @@ def read_consent_hash(project_root: pathlib.Path) -> str | None:
     shared across independent clones -- see the module docstring and
     `chain-defaults.md`'s per-clone scope note.
     """
-    result = _run_git(["config", "--local", "--get", CONSENT_HASH_CONFIG_KEY], project_root)
+    result = _run_git(
+        ["config", "--local", "--get", CONSENT_HASH_CONFIG_KEY], project_root
+    )
     if result.returncode != 0:
         return None
     return result.stdout.strip() or None
@@ -150,12 +154,16 @@ def compute_status(
     fields = {name: profile.get(name) for name in HUMAN_DECIDABLE_FIELDS}
     read_only_fields = {READ_ONLY_FIELD: profile.get(READ_ONLY_FIELD)}
 
-    current_hash = hash_object(project_root, CHAIN_DEFAULTS_PATH) if profile_exists else ""
+    current_hash = (
+        hash_object(project_root, CHAIN_DEFAULTS_PATH) if profile_exists else ""
+    )
     stored_hash = read_consent_hash(project_root)
     consent = ConsentStatus(
         stored_hash=stored_hash,
         current_hash=current_hash,
-        valid=bool(profile_exists and stored_hash is not None and stored_hash == current_hash),
+        valid=bool(
+            profile_exists and stored_hash is not None and stored_hash == current_hash
+        ),
     )
 
     confirmed_commit = profile.get("confirmed_commit")
@@ -171,7 +179,9 @@ def compute_status(
         except gate_staleness.GateStalenessError as err:
             staleness_error = str(err)
     else:
-        staleness_error = "confirmed_commit is null/absent -- no prior confirmation on record"
+        staleness_error = (
+            "confirmed_commit is null/absent -- no prior confirmation on record"
+        )
 
     return ChainDefaultsStatus(
         profile_exists=profile_exists,

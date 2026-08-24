@@ -81,7 +81,8 @@ class ComputeStatusTest(unittest.TestCase):
             status = chain_defaults_status.compute_status(project_root=root)
             self.assertFalse(status.profile_exists)
             self.assertEqual(
-                status.fields, {name: None for name in chain_defaults_status.HUMAN_DECIDABLE_FIELDS}
+                status.fields,
+                {name: None for name in chain_defaults_status.HUMAN_DECIDABLE_FIELDS},
             )
             self.assertIsNone(status.consent.stored_hash)
             self.assertFalse(status.consent.valid)
@@ -109,8 +110,12 @@ class ComputeStatusTest(unittest.TestCase):
             status = chain_defaults_status.compute_status(project_root=root)
             self.assertIsNotNone(status.staleness)
             self.assertIsNone(status.staleness_error)
-            self.assertEqual(status.fields["chain_init_confirmation"], "skip_if_opted_in")
-            self.assertEqual(status.read_only_fields[chain_defaults_status.READ_ONLY_FIELD], True)
+            self.assertEqual(
+                status.fields["chain_init_confirmation"], "skip_if_opted_in"
+            )
+            self.assertEqual(
+                status.read_only_fields[chain_defaults_status.READ_ONLY_FIELD], True
+            )
 
     def test_consent_hash_match_is_valid(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -167,7 +172,8 @@ class ComputeStatusTest(unittest.TestCase):
             # consent scenario.
             _write_profile(root, confirmed_commit=first_commit)
             (root / chain_defaults_status.CHAIN_DEFAULTS_PATH).write_text(
-                _PROFILE_TEMPLATE.format(confirmed_commit=first_commit) + "extra: true\n"
+                _PROFILE_TEMPLATE.format(confirmed_commit=first_commit)
+                + "extra: true\n"
             )
             _commit(root, "re-stamp")
 
@@ -180,7 +186,9 @@ class FormatTest(unittest.TestCase):
     def test_format_text_missing_profile(self) -> None:
         status = chain_defaults_status.ChainDefaultsStatus(
             profile_exists=False,
-            fields={name: None for name in chain_defaults_status.HUMAN_DECIDABLE_FIELDS},
+            fields={
+                name: None for name in chain_defaults_status.HUMAN_DECIDABLE_FIELDS
+            },
             read_only_fields={chain_defaults_status.READ_ONLY_FIELD: None},
             consent=chain_defaults_status.ConsentStatus(
                 stored_hash=None, current_hash="", valid=False
@@ -205,7 +213,9 @@ class FormatTest(unittest.TestCase):
                     "src/lrh/skills/lrh-land/SKILL.md", stale=True, reason="touched"
                 ),
                 gate_staleness.FileStaleness(
-                    "src/lrh/skills/lrh-execute/SKILL.md", stale=False, reason="no change"
+                    "src/lrh/skills/lrh-execute/SKILL.md",
+                    stale=False,
+                    reason="no change",
                 ),
             ),
         )

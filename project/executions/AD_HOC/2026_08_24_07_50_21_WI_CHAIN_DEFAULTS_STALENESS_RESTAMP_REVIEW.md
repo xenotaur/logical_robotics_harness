@@ -2,13 +2,13 @@
 execution_id: 2026_08_24_07_50_21_WI_CHAIN_DEFAULTS_STALENESS_RESTAMP_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_CHAIN_DEFAULTS_STALENESS_RESTAMP_REVIEW)[2026-08-24T07:50:16+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/632
 session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/632
-commit: 
+commit: 81e519b57a1e4a095be670466a559bae9418c29b
 created_at: 2026-08-24T07:50:21+00:00
 ---
 

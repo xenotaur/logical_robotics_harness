@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #632 (commit 81e519b5). Re-stamps confirmed_commit/confirmed_at on live-answered staleness reconfirmations that agree with the persisted text (exact match or accepted divergence), never on a declined or unreached divergence; also requires the gate's presentation to surface the check-staleness stale-files payload verbatim."
 blocked_reason: null
 blocked: false
 id: WI-CHAIN-DEFAULTS-STALENESS-RESTAMP
 title: Re-stamp confirmed_commit on stale-but-reconfirmed chain-defaults values
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

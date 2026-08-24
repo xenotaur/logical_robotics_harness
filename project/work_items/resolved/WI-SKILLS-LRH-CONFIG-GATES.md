@@ -1,11 +1,15 @@
 ---
-resolution: null
+resolution: >
+  Implemented lrh chain-defaults status (src/lrh/chain_defaults_status.py,
+  tested) and the /lrh-config-gates skill (src/lrh/skills/lrh-config-gates/,
+  mirrored to .claude/.agents/.gemini). Merged via PR #636
+  (efbcbd9cf6389aff550afadfbf52556670a7d500).
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-CONFIG-GATES
 title: Implement /lrh-config-gates skill for inspecting and setting chain-defaults gate policy
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

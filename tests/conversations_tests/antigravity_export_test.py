@@ -269,6 +269,59 @@ class TestAntigravityExport(unittest.TestCase):
         self.assertEqual(cm.exception.code, 2)
         self.assertIn("not allowed with argument", stderr_buf.getvalue())
 
+    def test_cli_convert_antigravity_session_durable_default_out(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            archive_root = tmp / "archive"
+            app_dir = tmp / "app"
+            brain_dir = app_dir / "brain" / "sess-123" / ".system_generated" / "logs"
+            brain_dir.mkdir(parents=True)
+            transcript_path = brain_dir / "transcript.jsonl"
+            transcript_path.write_text(
+                '{"source": "USER", "type": "USER_INPUT", "content": "hello"}\n',
+                encoding="utf-8",
+            )
+            stdout_buf = io.StringIO()
+            with contextlib.redirect_stdout(stdout_buf):
+                exit_code = antigravity_export.run_convert_antigravity_session_cli(
+                    [
+                        "--transcript-path",
+                        str(transcript_path),
+                        "--archive-root",
+                        str(archive_root),
+                    ]
+                )
+            self.assertEqual(exit_code, 0)
+            exported_files = list(
+                (archive_root / "antigravity" / "exports").glob("*/*/sess-123.md")
+            )
+            self.assertEqual(len(exported_files), 1)
+            expected_out = exported_files[0]
+            self.assertTrue(expected_out.exists())
+            self.assertIn(
+                "Exported Antigravity session transcript:", stdout_buf.getvalue()
+            )
+            self.assertIn(str(expected_out), stdout_buf.getvalue())
+            self.assertEqual(expected_out.stat().st_mode & 0o777, 0o600)
+
+    def test_resolve_antigravity_archive_root_worktree_rejection(self) -> None:
+        git_root = antigravity_export._current_git_worktree_root()
+        if git_root is not None:
+            with self.assertRaises(antigravity_export.AntigravityExportError) as cm:
+                antigravity_export.resolve_antigravity_archive_root(git_root / "sub")
+            self.assertIn("outside the current Git worktree", str(cm.exception))
+
+    def test_derive_source_id_fallback_for_arbitrary_path(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            arbitrary_file = Path(tmpdir) / "some_transcript.jsonl"
+            arbitrary_file.write_text(
+                '{"source": "USER", "type": "USER_INPUT", "content": "test"}\n',
+                encoding="utf-8",
+            )
+            derived = antigravity_export._derive_source_id(arbitrary_file)
+            self.assertEqual(len(derived), 12)
+            self.assertTrue(all(c in "0123456789abcdef" for c in derived))
+
 
 if __name__ == "__main__":
     unittest.main()

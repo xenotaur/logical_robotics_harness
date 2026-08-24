@@ -11,9 +11,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
+from lrh import prompt_workflow_sessions
 from lrh.conversations import export_manifest, sensitivity
 
 DEFAULT_ADAPTER_NAME = "antigravity_transcript_jsonl"
+ANTIGRAVITY_ARCHIVE_SUBDIR = "antigravity"
+EXPORTS_SUBDIR = "exports"
 
 
 class AntigravityExportError(ValueError):
@@ -124,7 +127,7 @@ def convert_antigravity_session(
         privacy=export_manifest.DEFAULT_PRIVACY,
         authority=export_manifest.DEFAULT_AUTHORITY,
         sensitivity=sensitivity_status,
-        source_id=source_id or _derive_source_id(path),
+        source_id=source_id or _derive_source_id(path, source_sha256=source_sha256),
         adapter_version=export_manifest.ADAPTER_VERSION,
         warnings=tuple(warnings),
     )
@@ -138,6 +141,7 @@ def convert_antigravity_session(
         out.parent.mkdir(parents=True, exist_ok=True)
         try:
             out.write_text(full_markdown, encoding="utf-8")
+            _chmod_private_file(out)
         except OSError as err:
             raise AntigravityExportError(
                 f"could not write output export file: {out}"
@@ -150,13 +154,61 @@ def convert_antigravity_session(
     )
 
 
-def _derive_source_id(path: Path) -> str | None:
+def _chmod_private_file(path: Path) -> None:
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def resolve_antigravity_archive_root(
+    archive_root: str | Path | None = None,
+) -> Path:
+    """Resolve the Antigravity export archive root under the session archive."""
+    root = prompt_workflow_sessions.resolve_archive_root(archive_root)
+    antigravity_root = root / ANTIGRAVITY_ARCHIVE_SUBDIR
+    _reject_archive_root_inside_current_git_worktree(antigravity_root)
+    return antigravity_root
+
+
+def _reject_archive_root_inside_current_git_worktree(path: Path) -> None:
+    git_root = _current_git_worktree_root()
+    if git_root is None:
+        return
+    try:
+        archive_path = path.resolve(strict=False)
+    except OSError:
+        archive_path = path.absolute()
+    if archive_path == git_root or git_root in archive_path.parents:
+        raise AntigravityExportError(
+            "archive root must be outside the current Git worktree"
+        )
+
+
+def _current_git_worktree_root() -> Path | None:
+    try:
+        current = Path.cwd().resolve(strict=False)
+    except OSError:
+        current = Path.cwd().absolute()
+    for candidate in (current, *current.parents):
+        if (candidate / ".git").exists():
+            return candidate
+    return None
+
+
+def _derive_source_id(path: Path, source_sha256: str | None = None) -> str:
     """Derive session conversation ID from Antigravity path structure if possible."""
     parts = path.parts
     for i, part in enumerate(parts):
         if part == "brain" and i + 1 < len(parts):
             return parts[i + 1]
-    return None
+    if source_sha256:
+        return source_sha256[:12]
+    try:
+        raw_bytes = path.read_bytes()
+        return hashlib.sha256(raw_bytes).hexdigest()[:12]
+    except OSError:
+        return "unknown-session"
 
 
 def _count_turns(steps: Sequence[dict[str, object]]) -> int:
@@ -267,8 +319,13 @@ def run_convert_antigravity_session_cli(
     )
     parser.add_argument(
         "--out",
-        required=True,
-        help="Markdown export output path",
+        required=False,
+        default=None,
+        help="Markdown export output path (default: durable session archive)",
+    )
+    parser.add_argument(
+        "--archive-root",
+        help="optional private session archive root override",
     )
     parser.add_argument(
         "--force",
@@ -298,7 +355,25 @@ def run_convert_antigravity_session_cli(
         print(f"error: {err}", file=sys.stderr)
         return 1
 
-    output_path = Path(args.out).expanduser() if args.out else None
+    if args.out:
+        output_path = Path(args.out).expanduser()
+    else:
+        try:
+            archive_root = resolve_antigravity_archive_root(args.archive_root)
+        except (AntigravityExportError, OSError) as err:
+            print(f"error: {err}", file=sys.stderr)
+            return 1
+        now_utc = datetime.now(timezone.utc)
+        year = now_utc.strftime("%Y")
+        month = now_utc.strftime("%m")
+        try:
+            raw_bytes = transcript_file.read_bytes()
+            sha = hashlib.sha256(raw_bytes).hexdigest()
+        except OSError:
+            sha = None
+        sid = args.source_id or _derive_source_id(transcript_file, source_sha256=sha)
+        safe_sid = "".join(c if c.isalnum() or c in "-_" else "_" for c in sid)
+        output_path = archive_root / EXPORTS_SUBDIR / year / month / f"{safe_sid}.md"
 
     try:
         result = convert_antigravity_session(

@@ -18,8 +18,11 @@ created_at: 2026-08-24T21:38:19+00:00
 
 # Result
 
-2 findings from `copilot-pull-request-reviewer`, both present, valid, and
-feasible:
+3 findings, all present, valid, and feasible (2 from
+`copilot-pull-request-reviewer` triaged in the first pass at the pushed
+`HEAD`; the P1 finding from `chatgpt-codex-connector` surfaced on a
+subsequent re-fetch of the authoritative `isResolved == false` thread
+list, after the first two fixes were already pushed):
 
 1. `format_json()` serialized `staleness.files` using
    `status.staleness.stale_files` (only stale entries), diverging from
@@ -31,9 +34,29 @@ feasible:
 2. `hash_object()`'s docstring said it returns the hash of a "tracked"
    file, but `git hash-object` hashes on-disk content regardless of
    tracked status. Fixed: reworded the docstring to state this explicitly.
+3. **(chatgpt-codex-connector, P1)** The `/lrh-config-gates` skill's own
+   Step 4 consent-grant command, Step 3's file-edit instruction, and Step
+   5's git operations all used bare relative paths / a bare `git`
+   invocation, ignoring the skill's own `--project-root` input -- when
+   invoked with `--project-root` pointing elsewhere, Step 1's status read
+   would inspect the selected repository correctly, but the consent grant
+   would hash and write to the *current directory's* clone instead,
+   silently authorizing skip mode in the wrong clone while leaving the
+   requested clone unchanged. Verified directly against the skill text
+   before fixing (`AGENTS.md:24-27`'s "operate on the resolved target, not
+   an assumed cwd" principle, cited by the finding). Fixed: reworded
+   Steps 3-5 in `src/lrh/skills/lrh-config-gates/SKILL.md` to consistently
+   use `git -C <project-root>` and `<project-root>/project/config/
+   chain-defaults.yaml`, and corrected the validate command to `lrh
+   validate --project-dir <project-root>/project` (verified `lrh validate
+   --help` -- the flag is `--project-dir`, not `--project-root`).
 
-Both fixed directly in `src/lrh/chain_defaults_status.py` and
-`tests/chain_defaults_status_test.py`.
+All 3 fixed directly in `src/lrh/chain_defaults_status.py`,
+`tests/chain_defaults_status_test.py`, and
+`src/lrh/skills/lrh-config-gates/SKILL.md`; the `SKILL.md` fix was
+re-mirrored to `.claude/`, `.agents/`, `.gemini/` (unrelated
+installer-regenerated files reverted again via `git show HEAD:<path> >
+<path>`, same known `--force` side effect as this session's earlier PRs).
 
 # Validation
 
@@ -56,8 +79,15 @@ Both fixed directly in `src/lrh/chain_defaults_status.py` and
   change; `PYTHONPATH=src python3 -m pytest tests/` (full suite, 1426
   passed) is the correct in-repo check and was already run for this PR.
 - Identity verified before triage: `gh pr view` `headRefOid` matched local
-  `HEAD` (`124ff26a...`) exactly.
+  `HEAD` (`124ff26a...`) exactly, and re-verified again before the
+  `chatgpt-codex-connector` finding's triage against the newer `HEAD`.
+- `lrh validate --project-dir "$(pwd)/project"`: 0 errors, 0 warnings,
+  confirming the corrected flag name/usage in the fixed `SKILL.md` text
+  actually works.
+- `lrh skills status --scope project --local --target <claude|codex|
+  antigravity> --source current-repo`: `lrh-config-gates` up to date on
+  all three after the `SKILL.md` fix and re-mirror.
 
 # Follow-up
 
-None deferred -- both findings fixed in this round.
+None deferred -- all 3 findings fixed in this round.

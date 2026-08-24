@@ -131,14 +131,21 @@ permissive reading -- inferring action-authorization from an ambiguous
 reply is a documented anti-pattern in this project's own session history.
 <!-- /GATE-DEFINITION -->
 
-Once confirmed, edit `project/config/chain-defaults.yaml` with only the
-confirmed field changes (leave `confirmed_commit`/`confirmed_at` and
-`closeout_with_merge` untouched here -- this step never re-stamps
-confirmation state or touches the read-only field). Then:
+Once confirmed, edit `<project-root>/project/config/chain-defaults.yaml`
+with only the confirmed field changes (leave `confirmed_commit`/
+`confirmed_at` and `closeout_with_merge` untouched here -- this step never
+re-stamps confirmation state or touches the read-only field). **Always
+edit the file under `<project-root>`, never a bare relative path** --
+`<project-root>` may differ from the current directory, and editing the
+wrong clone's file both misses the intended change and can leave a stale
+edit behind in whatever directory happens to be current. Then:
 
 ```bash
-lrh validate
+lrh validate --project-dir <project-root>/project
 ```
+
+(`lrh validate` takes `--project-dir`, not `--project-root` -- point it at
+`<project-root>/project`, not the bare repo root.)
 
 Fix any error before proceeding to Step 5's commit.
 
@@ -171,8 +178,17 @@ If yes:
   granted here transferred to a different checkout.
 - The command to be run:
   ```bash
-  git config --local lrh.chainDefaults.skipConsentHash "$(git hash-object project/config/chain-defaults.yaml)"
+  git -C <project-root> config --local lrh.chainDefaults.skipConsentHash "$(git -C <project-root> hash-object project/config/chain-defaults.yaml)"
   ```
+  **Always run this with `git -C <project-root>`, never a bare `git`
+  invocation from the current directory.** `<project-root>` may differ
+  from the current directory (it is an explicit skill input, per Step 1);
+  a bare `git config --local` and `git hash-object` operate on whatever
+  clone the current directory happens to be in, which can silently grant
+  consent in the wrong clone while leaving the requested `<project-root>`
+  clone's consent untouched -- a real P1 finding on this skill's own
+  filing PR (`AGENTS.md:24-27`'s "operate on the resolved target, not an
+  assumed cwd" principle).
 - This binds consent to the **current on-disk file's content** at the
   moment the command runs. If Step 3 just edited the file in this same
   session, that edit is already reflected -- but if the file changes again
@@ -184,40 +200,43 @@ Wait for explicit confirmation before running the command.
 <!-- /GATE-DEFINITION -->
 
 Run the confirmed command, then re-read status
-(`lrh chain-defaults status --format json`) and confirm `consent.valid` is
-now `true` before reporting success. If it is not (e.g. the file changed
-between the confirm and the command), report the mismatch plainly rather
-than claiming success -- this is the same class of self-caught error this
-session hit and corrected live while granting consent for
-`WI-SKILLS-LRH-CONFIG-GATES` itself.
+(`lrh chain-defaults status --project-root <project-root> --format json`)
+and confirm `consent.valid` is now `true` before reporting success. If it
+is not (e.g. the file changed between the confirm and the command), report
+the mismatch plainly rather than claiming success -- this is the same
+class of self-caught error this session hit and corrected live while
+granting consent for `WI-SKILLS-LRH-CONFIG-GATES` itself.
 
 ### Step 5 — Commit and push (if Step 3 made changes)
 
 Skip this step if Step 3 made no changes (a consent grant alone, from Step
 4, is a local-only git-config write with nothing to commit).
 
-Determine the current branch:
+Determine the current branch, scoped to `<project-root>` like every other
+git operation in this skill:
 
 ```bash
-git branch --show-current
+git -C <project-root> branch --show-current
 ```
 
 **If on a feature branch already tied to an open PR:** commit and push as
 an additional commit to that branch, same as any other config change
-mid-PR.
+mid-PR -- `git -C <project-root> add ...`, `git -C <project-root> commit
+...`, `git -C <project-root> push`.
 
 **If on `main` (or no open PR context):** pushing directly to `main`
 always requires its own explicit confirmation, even for a small change --
 this is a standing project constraint, not specific to this skill. Use the
 main-worktree-lock tmp-branch workaround this codebase's other skills use
-when the primary worktree has `main` checked out elsewhere:
+when the primary worktree has `main` checked out elsewhere, every command
+scoped to `<project-root>`:
 
 ```bash
-git fetch origin main --quiet
-git checkout -b tmp-config-gates-<slug> origin/main
-# edit + commit here
-git push origin tmp-config-gates-<slug>:main
-git checkout <original-branch>
+git -C <project-root> fetch origin main --quiet
+git -C <project-root> checkout -b tmp-config-gates-<slug> origin/main
+# edit + commit here, still under <project-root>
+git -C <project-root> push origin tmp-config-gates-<slug>:main
+git -C <project-root> checkout <original-branch>
 ```
 
 State the exact commit(s) about to be pushed and wait for explicit

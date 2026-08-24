@@ -4,8 +4,8 @@ prompt_id: PROMPT(AD_HOC:WI_ANTIGRAVITY_EXPORT_DURABLE_ARCHIVE_DEFAULT)[2026-08-
 work_item: AD_HOC
 status: in_progress
 rerun_of: null
-pr: null
-commit: null
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/629
+commit: 3e7edd09
 created_at: 2026-08-24T05:23:07Z
 agent: antigravity
 instruction_source: project/work_items/proposed/WI-ANTIGRAVITY-EXPORT-DURABLE-ARCHIVE-DEFAULT.md
@@ -19,7 +19,7 @@ Created proposed work item `WI-ANTIGRAVITY-EXPORT-DURABLE-ARCHIVE-DEFAULT` to gi
 # Result
 
 - Created `project/work_items/proposed/WI-ANTIGRAVITY-EXPORT-DURABLE-ARCHIVE-DEFAULT.md`.
-- Opened PR for review.
+- Opened PR #629 for review.
 
 # Validation
 

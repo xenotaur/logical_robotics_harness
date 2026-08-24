@@ -507,15 +507,23 @@ separately says needs its own live confirmation.
 `references/land-workflow.md` rule 4). At this point the session is still on
 the merged PR branch. Closeout commits control-plane files to `main`. If
 another worktree already has `main` checked out, apply the temporary-branch
-workaround explicitly:
+workaround explicitly — **follow `references/land-workflow.md`'s
+Main-worktree-lock rule and its Main-Worktree-Lock Troubleshooting section
+for the exact commands**, not the shortened form below. The full procedure
+includes capturing the branch point to a file (never a shell variable, and
+never a hardcoded `.git/` path — `.git` is a file, not a directory, inside
+a worktree checkout) for the non-fast-forward recovery path, and a narrow
+exception for the final `git branch -D` step when it hits this project's
+own `permissions.deny` list. This sketch shows only the mainline shape,
+not a copy-pasteable complete procedure:
 
 ```bash
 git fetch
 git checkout -b tmp-<slug> origin/main
-# ... execute the closeout edits and commits on this branch ...
+# ... capture the branch point, execute the closeout edits and commits ...
 git push origin tmp-<slug>:main
 git checkout <pr-branch>   # or: git checkout --detach
-git branch -D tmp-<slug>
+git branch -D tmp-<slug>   # see land-workflow.md's deny-list exception if this is denied
 ```
 
 **The checkout-away step is not optional.** Git refuses to delete the

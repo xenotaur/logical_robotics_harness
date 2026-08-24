@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from lrh import (
+    chain_defaults_status,
     confirm_fixes_batch,
     gate_staleness,
     memory_workflow,
@@ -413,7 +414,7 @@ def main() -> None:
 
     chain_defaults_parser = subparsers.add_parser(
         "chain-defaults",
-        help="Chain-defaults gate-staleness commands.",
+        help="Chain-defaults gate-staleness and status commands.",
     )
     chain_defaults_subparsers = chain_defaults_parser.add_subparsers(
         dest="chain_defaults_command"
@@ -441,6 +442,30 @@ def main() -> None:
         help="target repository root (default: current directory)",
     )
     chain_defaults_staleness_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
+    )
+    chain_defaults_status_parser = chain_defaults_subparsers.add_parser(
+        "status",
+        help=(
+            "Single-read status view: the 4 human-decidable chain-defaults "
+            "fields, closeout_with_merge shown read-only, skip-consent hash "
+            "validity, and staleness -- all in one structured read."
+        ),
+    )
+    chain_defaults_status_parser.add_argument(
+        "--head",
+        default="HEAD",
+        help="commit-ish to check staleness against (default: HEAD)",
+    )
+    chain_defaults_status_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    chain_defaults_status_parser.add_argument(
         "--format",
         choices=("text", "json"),
         default="text",
@@ -1240,9 +1265,25 @@ def main() -> None:
             else:
                 print(gate_staleness.format_text(result))
             raise SystemExit(1 if result.stale else 0)
+        if args.chain_defaults_command == "status":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            try:
+                status = chain_defaults_status.compute_status(
+                    project_root=project_root, head=args.head
+                )
+            except chain_defaults_status.ChainDefaultsStatusError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            if args.format == "json":
+                print(chain_defaults_status.format_json(status))
+            else:
+                print(chain_defaults_status.format_text(status))
+            raise SystemExit(0)
         parser.error(
             "chain-defaults requires a subcommand "
-            "(try: lrh chain-defaults check-staleness)"
+            "(try: lrh chain-defaults status or check-staleness)"
         )
 
     if args.command == "confirm-fixes":

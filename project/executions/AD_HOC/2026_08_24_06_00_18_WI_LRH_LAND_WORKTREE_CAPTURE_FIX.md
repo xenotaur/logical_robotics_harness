@@ -24,10 +24,20 @@ Step 7's illustrative bash snippet is now stale relative to
 # Result
 
 Wrote `project/work_items/proposed/WI-LRH-LAND-WORKTREE-CAPTURE-FIX.md`
-(type `operation`, no related workstream, no dependencies). Duplication
-search (`grep -rl "git-dir\|lrh-tmp-branch-parent\|worktree.*capture"
-project/work_items/ project/design/backlog.md`) and demand search both
-came back clean before proposing. Opened PR #631.
+(type `operation`, no related workstream, no dependencies). Opened PR #631.
+
+**Correction (review round 1):** the duplication search was originally run
+and cited with filesystem `grep -rl`, not the worktree-safe `git grep` this
+repo's own convention requires for survey evidence recorded in a committed
+artifact -- caught by both `chatgpt-codex-connector` (P1) and
+`copilot-pull-request-reviewer` on this PR's first review round. Rerun as
+`git grep -nE "git-dir|lrh-tmp-branch-parent|worktree.*capture" --
+project/work_items project/design/backlog.md`: matches only within this
+work item's own file (self-referential from its own title/body), no prior
+independent match. The "no duplicates" conclusion holds; only the cited
+command and the WI body's own duplication-search text were wrong, fixed in
+the same round. Demand search remains clean -- no existing WI/proposal/
+backlog entry requests this fix.
 
 # Validation
 

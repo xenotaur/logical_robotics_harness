@@ -24,7 +24,7 @@ forbidden_actions:
 acceptance:
   - "The Main-worktree-lock rule's tmp_branch_parent capture works correctly when .git is a worktree gitdir-pointer file, not just a normal repo directory"
   - "SKILL.md Step 7's illustrative bash snippet either matches land-workflow.md's documented capture/cleanup procedure, or explicitly defers to it instead of standing as an incomplete literal example"
-  - "Both fixes mirrored byte-identical across src/, .claude/, .agents/, .gemini/"
+  - "Both fixes present, correct, and consistent across src/, .claude/, .agents/, .gemini/ -- byte-identical for .claude/ (raw cp mirror), and for the changed procedural content specifically in .agents/.gemini/ (their SKILL.md frontmatter is installer-normalized and never byte-identical to src/, per the existing, out-of-scope divergence this WI's Non-Goals section already excludes); verified via lrh skills status --scope project --target codex|antigravity --source current-repo reporting up to date, not via a whole-file diff"
 ---
 
 ## Summary
@@ -50,8 +50,12 @@ operation in practice. A capture path that breaks inside a worktree
 directly contradicts that: the fix has to work precisely in the case it
 exists to handle.
 
-**Duplication search:** `grep -rl "git-dir\|lrh-tmp-branch-parent\|worktree.*capture" project/work_items/ project/design/backlog.md` returned no
-matches. No existing work item or backlog entry covers this.
+**Duplication search:** `git grep -nE "git-dir|lrh-tmp-branch-parent|worktree.*capture" -- project/work_items project/design/backlog.md`
+(tracked-only, worktree-safe — not the filesystem `grep -rl` this repo's
+own convention flags as non-reproducible for repo-wide survey evidence)
+returns matches only within this work item's own file, self-referential
+from its own title and body text. No prior, independent work item or
+backlog entry covers this.
 
 **Demand search:** No existing work item, proposal, or backlog entry
 requests this fix. Freshly discovered during PR #628's own closeout
@@ -97,8 +101,12 @@ targets.
 - `SKILL.md` Step 7's snippet no longer omits the capture/cleanup steps
   `land-workflow.md` documents, either by matching them or by explicitly
   deferring to that file.
-- `diff` shows byte-identical parity for both changed files across
-  `src/`, `.claude/`, `.agents/`, `.gemini/`.
+- Both fixes present and correct in `src/`, `.claude/` (byte-identical
+  `diff`), and `.agents/`/`.gemini/` (via `lrh skills status --scope
+  project --target codex|antigravity --source current-repo` reporting up
+  to date — not a whole-file `diff`, since installer-normalized frontmatter
+  in those two targets is never byte-identical to `src/`, per this WI's
+  own Non-Goals).
 - `lrh validate` reports 0 errors.
 
 ## Validation
@@ -107,7 +115,8 @@ targets.
 - Manual repro: run the capture command in a worktree checkout and confirm
   it succeeds (this work item's own implementation session runs inside a
   worktree, so this is directly testable in place)
-- `diff -r` across all four mirror locations for both changed files
+- `diff -r` for `.claude/`; `lrh skills status --scope project --target
+  codex|antigravity --source current-repo` for `.agents/`/`.gemini/`
 
 ## Risk Notes
 

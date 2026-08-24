@@ -31,8 +31,9 @@ forbidden_actions:
   - ship_skip_if_opted_in_as_default
   - bypass_two_step_consent
 acceptance:
-  - The propose-and-confirm flow text explicitly re-stamps confirmed_commit/confirmed_at on any live-answered reconfirmation after a staleness-triggered ask, not only when the reply diverges from stored values
-  - The existing "do not silently rewrite the stored value" caution is preserved and scoped explicitly to the case where no live reply occurs at all
+  - The propose-and-confirm flow text explicitly re-stamps confirmed_commit/confirmed_at whenever a live reply and the persisted completion/stop-work text end up agreeing (match, or an accepted divergence) -- never on a declined or unreached divergence
+  - The existing "do not silently rewrite the stored value" caution is preserved and scoped explicitly to the no-live-reply case and the diverge-and-decline case
+  - The gate's presentation surfaces the check-staleness command's own stale-files list verbatim, not a generic substitute notice
   - Canonical source (_shared/chain-defaults.md) and its inlined copy (lrh-land/references/land-workflow.md) stay identical
   - All installed mirrors (.claude/, .agents/, .gemini/) match the canonical source exactly
   - lrh validate reports 0 errors
@@ -106,11 +107,16 @@ requests this specific fix. Recommendation: proceed.
 
 Fix the propose-and-confirm flow text — canonical source, its inlined
 copy, and all installed mirrors — so that a live reply resolving a
-staleness-triggered ask always re-stamps `confirmed_commit`/`confirmed_at`
-to the current commit/time, regardless of whether that reply matches or
-diverges from the previously stored values. Preserve the existing "no
-silent rewrite" caution, scoped precisely to the case where no live reply
-occurs.
+staleness-triggered ask re-stamps `confirmed_commit`/`confirmed_at` to the
+current commit/time whenever the reply and the values that end up
+persisted to disk agree: an exact reconfirmation, or a divergence the
+human explicitly accepted via the existing Decision 4 profile-update
+offer. Do **not** re-stamp when the reply diverges and the human declines
+that offer (or the offer is never reached) — the persisted text in that
+case is not what the human just said, and re-stamping would misrepresent
+an unratified value as freshly confirmed. Preserve the existing "no silent
+rewrite" caution, scoped to both the no-live-reply case and this
+diverge-and-decline case.
 
 Out of scope: changing `gate_staleness.py`'s staleness *detection* logic
 (hunk/marker overlap, `DEFAULT_WATCHED_FILES`) — this work item only
@@ -120,12 +126,18 @@ changes what happens after a live answer to a fallback-triggered ask.
 
 1. Edit `src/lrh/skills/_shared/chain-defaults.md`'s Decision 5 section:
    when the staleness fallback fires (`exit 1`) and the human gives a
-   live reply to the resulting ask — whether that reply matches or
-   diverges from the stored completion/stop-work text — re-stamp
+   live reply to the resulting ask, re-stamp
    `confirmed_commit: $(git rev-parse HEAD)` and
-   `confirmed_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)`. State explicitly that
-   the "do not silently rewrite" caution applies only when no live reply
-   is given at all, not to every use of the fallback.
+   `confirmed_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)` only when the reply and
+   the persisted completion/stop-work text end up agreeing — an exact
+   match, or a divergence accepted via the Decision 4 profile-update
+   offer. State explicitly that the "do not silently rewrite" caution
+   applies both when no live reply is given at all and when a divergent
+   reply's profile-update offer is declined or never reached. Also
+   require the gate's presentation to surface the `check-staleness`
+   command's own `stale files` list verbatim (not a generic "gate policy
+   changed" substitute), per this project's gate-policy principle that a
+   gate must show the actual decision payload.
 2. Apply the identical edit to `src/lrh/skills/lrh-land/references/land-workflow.md`'s
    inlined copy, keeping the two byte-identical in the edited section.
 3. Mirror the change into `.claude/skills/`, `.agents/skills/`, and
@@ -147,10 +159,14 @@ changes what happens after a live answer to a fallback-triggered ask.
 ## Acceptance Criteria
 
 - The propose-and-confirm flow text explicitly re-stamps
-  `confirmed_commit`/`confirmed_at` on any live-answered reconfirmation
-  after a staleness-triggered ask, not only on divergence
+  `confirmed_commit`/`confirmed_at` whenever a live reply and the
+  persisted completion/stop-work text end up agreeing (an exact match, or
+  a divergence explicitly accepted via the Decision 4 profile-update
+  offer) -- never on a declined or unreached divergence
 - The "do not silently rewrite" caution is preserved and scoped explicitly
-  to the no-live-reply case
+  to the no-live-reply case and the diverge-and-decline case
+- The gate's presentation surfaces the `check-staleness` command's own
+  `stale files` list verbatim, not a generic substitute notice
 - Canonical source and inlined copy remain identical in the edited section
 - All installed mirrors match the canonical source exactly
 - `lrh validate` reports 0 errors

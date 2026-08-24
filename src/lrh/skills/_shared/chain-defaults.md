@@ -255,9 +255,19 @@ output — one or more `stale files` entries name which file and why). A
 watched file added or removed since confirmation counts as stale too (its
 `reason` says so explicitly) — it is a data outcome (exit `1`), not a check
 failure. Treat this run as if `chain_init_confirmation` were `always_confirm`
-regardless of the stored value, and note this in the gate's presentation
-("defaults pre-filled, but re-confirming since gate policy changed since you
-last confirmed"). Exit status `0` (`stale: false`) means every diff since
+regardless of the stored value, and **present the command's own `stale
+files` list verbatim as part of the gate** — not a generic substitute
+notice. Per this project's own gate-policy principle ("a gate should ask
+once with the actual decision payload visible," `AGENTS.md`'s Gate policy
+section), reconfirming completion/stop-work condition text alone does not
+constitute informed consent to a gate-*semantics* change the human was
+never shown; the `stale files` entries (file + reason, e.g. "diff touches
+a GATE-DEFINITION region") are exactly that missing payload and cost
+nothing extra to surface, since the check already computed them. A bare
+"defaults pre-filled, but re-confirming since gate policy changed since
+you last confirmed" note, with no `stale files` detail attached, is not
+sufficient framing for the ask on its own. Exit status `0` (`stale:
+false`) means every diff since
 confirmation, if any, fell outside all marked regions — continue trusting the
 stored value. Exit status `2` means the check itself could not run at all —
 an invalid or unresolvable `confirmed_commit`/`--head`, a git error, or a
@@ -265,12 +275,12 @@ malformed markers structure (see the command's own error text) — and is
 distinct from a stale result; surface it and do not silently classify it
 either way.
 
-**Re-stamp on a live-answered reconfirmation whose result matches what
-ends up on disk, not only on the no-divergence case.** `confirmed_commit`/
+**Re-stamp condition: the live reply and the persisted text agree, and the
+`stale files` payload was actually shown.** `confirmed_commit`/
 `confirmed_at` record when a human last live-confirmed *the values that
-are actually stored* (see the field description above) — so the re-stamp
-condition is "the live reply and the persisted text now agree," not
-merely "a live reply happened":
+are actually stored* (see the field description above), having been shown
+what changed (the requirement just above) — not merely "a live reply
+happened":
 
 - **Reply matches the stored text (no divergence):** write
   `confirmed_commit: $(git rev-parse HEAD)` and

@@ -1237,16 +1237,20 @@ class TestDiffSkill(unittest.TestCase):
     def test_diff_removed_file(self) -> None:
         skills_dir = self._make_skills_dir()
         installer.install_skills(skills_dir=skills_dir)
-        skill_name = installer._skill_names()[0]
-        skill_dir = skills_dir / skill_name
-        pkg_root = importlib.resources.files(installer._SKILLS_PACKAGE).joinpath(
-            skill_name
-        )
-        pkg_files = installer._collect_pkg_files(pkg_root)
-        other_file = next(rel for rel in pkg_files if rel != "SKILL.md")
-        (skill_dir / other_file).unlink()
-        diff_text = installer.diff_skill(skill_name, skills_dir)
-        self.assertIn(f"{other_file}: removed", diff_text)
+        for skill_name in installer._skill_names():
+            pkg_root = importlib.resources.files(installer._SKILLS_PACKAGE).joinpath(
+                skill_name
+            )
+            pkg_files = installer._collect_pkg_files(pkg_root)
+            non_skill_md = [rel for rel in pkg_files if rel != "SKILL.md"]
+            if non_skill_md:
+                other_file = non_skill_md[0]
+                skill_dir = skills_dir / skill_name
+                (skill_dir / other_file).unlink()
+                diff_text = installer.diff_skill(skill_name, skills_dir)
+                self.assertIn(f"{other_file}: removed", diff_text)
+                return
+        self.fail("No skill found with non-SKILL.md files")
 
     def test_diff_binary_file(self) -> None:
         skills_dir = self._make_skills_dir()

@@ -7,7 +7,54 @@ import unittest
 from lrh import confirm_fixes_batch
 
 
+class NormalizeBucketLabelTest(unittest.TestCase):
+    def test_already_canonical_is_unchanged(self) -> None:
+        self.assertEqual(
+            confirm_fixes_batch.normalize_bucket_label("clear_satisfied"),
+            "clear_satisfied",
+        )
+
+    def test_display_label_with_hyphen(self) -> None:
+        self.assertEqual(
+            confirm_fixes_batch.normalize_bucket_label("Clear-satisfied"),
+            "clear_satisfied",
+        )
+
+    def test_display_label_with_space(self) -> None:
+        self.assertEqual(
+            confirm_fixes_batch.normalize_bucket_label("Problematic resolution"),
+            "problematic_resolution",
+        )
+
+    def test_display_label_with_space_and_mixed_case(self) -> None:
+        self.assertEqual(
+            confirm_fixes_batch.normalize_bucket_label("Problematic Comment"),
+            "problematic_comment",
+        )
+
+
 class IsRoutineBatchTest(unittest.TestCase):
+    def test_accepts_display_labels_not_just_machine_tokens(self) -> None:
+        # The exact bug found during this module's own review round:
+        # --bucket "Clear-satisfied" (the Step 3 table's display label)
+        # must not silently fall back to "unusual" as an unrecognized token.
+        result = confirm_fixes_batch.is_routine_batch(
+            ("Clear-satisfied", "Clear-satisfied"),
+            ci_ok=True,
+            had_prior_exception=False,
+        )
+        self.assertTrue(result.routine)
+
+    def test_display_label_unroutine_bucket_still_detected(self) -> None:
+        result = confirm_fixes_batch.is_routine_batch(
+            ("Clear-satisfied", "Problematic resolution"),
+            ci_ok=True,
+            had_prior_exception=False,
+        )
+        self.assertFalse(result.routine)
+        self.assertIn("problematic_resolution", result.reason)
+
+
     def test_empty_batch_is_routine(self) -> None:
         result = confirm_fixes_batch.is_routine_batch(
             (), ci_ok=True, had_prior_exception=False

@@ -44,6 +44,23 @@ _UNROUTINE_BUCKETS = frozenset(
 _ROUTINE_BUCKET = "clear_satisfied"
 
 
+def normalize_bucket_label(label: str) -> str:
+    """Normalize a Step 3 taxonomy label to its canonical machine token.
+
+    `/lrh-confirm-fixes` Step 3's own table displays buckets as
+    ``Clear-satisfied``, ``Problematic resolution``, etc. -- the
+    human-facing taxonomy, not the machine token this module expects
+    (``clear_satisfied``, ``problematic_resolution``). Without
+    normalization, a caller passing the display label verbatim (a real
+    risk found in this module's own review round -- ``--bucket
+    Clear-satisfied`` silently exits 1 as "unrecognized," falling back to
+    the live gate for what may be a genuinely routine batch) would defeat
+    the autopilot every time. Case-insensitive; treats ``-`` and ` ` as
+    equivalent to ``_``.
+    """
+    return label.strip().lower().replace("-", "_").replace(" ", "_")
+
+
 @dataclasses.dataclass(frozen=True)
 class BatchRoutineResult:
     """Outcome of the routine-batch predicate, with a human-readable reason."""
@@ -67,7 +84,11 @@ def is_routine_batch(
             real evidence (PRs #549, #577, #598) showed can undercount by
             excluding outdated-but-unresolved threads. An empty tuple is the
             "nothing to resolve" case and is itself routine, provided the
-            other two conditions hold.
+            other two conditions hold. Accepts either the machine token
+            (``clear_satisfied``) or the Step 3 table's display label
+            (``Clear-satisfied``) -- normalized internally via
+            :func:`normalize_bucket_label` -- so a caller need not worry
+            about which form it was given.
         ci_ok: whether the Step 2.3 provisional CI read shows no failing
             check. A red CI is treated as unusual even if every thread is
             Clear-satisfied -- presenting an auto-approved batch summary
@@ -96,6 +117,7 @@ def is_routine_batch(
             routine=False,
             reason="provisional CI shows a failing check",
         )
+    bucket_labels = tuple(normalize_bucket_label(label) for label in bucket_labels)
     unroutine_hits = sorted(
         {label for label in bucket_labels if label in _UNROUTINE_BUCKETS}
     )

@@ -185,13 +185,14 @@ lrh confirm-fixes check-batch-routine \
   $([ "$HAD_PRIOR_EXCEPTION" = true ] && echo --prior-exception)
 ```
 
-If `confirm_fixes_batch` is `always_confirm` (default), skip this check and
-wait for explicit confirmation as below, same as always. If it is
-`auto_unless_unusual` and the check exits `0`, the empty-thread case is
-routine: skip the live wait and continue directly to Step 6 — but the
-summary above must still have been shown, not silently skipped. Exit `1`
-falls back to the live wait, with the CLI's printed reason included in the
-presentation.
+If `confirm_fixes_batch` is absent, its file is absent, or it holds
+anything other than `auto_unless_unusual`, treat it as `always_confirm` and
+skip this check — fail safe, same reasoning as Step 4's own copy of this
+rule. If it is `auto_unless_unusual` and the check exits `0`, the
+empty-thread case is routine: skip the live wait and continue directly to
+Step 6 — but the summary above must still have been shown, not silently
+skipped. Exit `1` falls back to the live wait, with the CLI's printed
+reason included in the presentation.
 
 **Wait for explicit confirmation** (unless the autopilot check above just
 resolved this run without one) before proceeding to Step 6. Step 6 records the
@@ -297,11 +298,16 @@ Before resolving any thread, show the user a single batch summary:
 
 **`confirm_fixes_batch` autopilot check — run before deciding whether to
 wait for a reply, never before showing the summary above.** Read
-`confirm_fixes_batch` from `project/config/chain-defaults.yaml`. If it is
-`always_confirm` (the shipped default), skip this check entirely and wait
-for explicit confirmation as below. If it is `auto_unless_unusual`, compute
-the gate-owned predicate (`WI-LRH-CHAIN-DEFAULTS-INCREMENT-2`,
-`src/lrh/confirm_fixes_batch.py`) rather than deciding informally:
+`confirm_fixes_batch` from `project/config/chain-defaults.yaml`. **If the
+file is absent, or the field is absent or holds any value other than
+`auto_unless_unusual`, treat it as `always_confirm` and skip this check
+entirely** — fail safe. This matters beyond this repo: a bootstrapped,
+older, or standalone client repository this skill is installed into may not
+carry this profile file or key at all, and the reusable skill must have a
+deterministic default rather than no instruction. If it is
+`auto_unless_unusual`, compute the gate-owned predicate
+(`WI-LRH-CHAIN-DEFAULTS-INCREMENT-2`, `src/lrh/confirm_fixes_batch.py`)
+rather than deciding informally:
 
 ```bash
 lrh confirm-fixes check-batch-routine \
@@ -313,14 +319,28 @@ lrh confirm-fixes check-batch-routine \
 Pass one `--bucket` per thread in the authoritative (`isResolved == false`)
 list from Step 2.2 — never the narrower `lrh request review_response`
 filter, which real evidence showed can undercount by excluding
-outdated-but-unresolved threads (see the WI's execution record for the
-specific PRs). Omit `--bucket` entirely for the empty-thread case. Derive
-`--ci-failing` from Step 2.3's provisional CI read (any required check
-currently `FAILURE`). Derive `--prior-exception` by checking whether any
-earlier `_CONFIRM` execution record for this same PR (`grep -rl "pr:
-<pr-url>" project/executions/`) recorded a non-Clear-satisfied bucket or a
-not-Green Step 6 verdict — a PR mid-escalation still gets a live ask on this
-round even if this round looks clean in isolation.
+outdated-but-unresolved threads (`WI-LRH-CHAIN-DEFAULTS-INCREMENT-2`'s own
+execution record cites the specific PRs). **Use the exact Step 3 taxonomy
+value as-is** (`Clear-satisfied`, `Unaddressed`, `Partial`, `Ambiguous`,
+`Problematic resolution`, `Problematic comment`, or their `snake_case`
+machine-token equivalents) — the CLI normalizes case, spaces, and hyphens
+internally, so either form works; do not invent a different spelling.
+Omit `--bucket` entirely for the empty-thread case. Derive `--ci-failing`
+from Step 2.3's provisional CI read (any required check currently
+`FAILURE`). Derive `--prior-exception` by checking whether any earlier
+`_CONFIRM` execution record for this same PR recorded a non-Clear-satisfied
+bucket or a not-Green Step 6 verdict — a PR mid-escalation still gets a
+live ask on this round even if this round looks clean in isolation. Use a
+tracked-only, worktree-safe search, never a plain filesystem `grep -r`:
+sibling `.claude/worktrees/<other-checkout>/` directories are real,
+untracked directories on disk in this repository's own layout, and a
+filesystem `grep -r` run from a parent directory would walk into another
+worktree's copy of `project/executions/` and misclassify this flag from
+unrelated state:
+
+```bash
+git grep -l "pr: <pr-url>" -- project/executions/
+```
 
 Exit `0` means routine: skip the live wait and continue to Step 5
 immediately — but the summary above must still have been shown; this is

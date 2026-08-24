@@ -4,8 +4,8 @@ prompt_id: PROMPT(WI-SKILLS-LRH-CONFIG-GATES:WI_SKILLS_LRH_CONFIG_GATES)[2026-08
 work_item: WI-SKILLS-LRH-CONFIG-GATES
 status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/636
+commit: da5774ec18775c2a954bf3baebc9f9c374f48f00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-LRH-CONFIG-GATES.md
 session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0

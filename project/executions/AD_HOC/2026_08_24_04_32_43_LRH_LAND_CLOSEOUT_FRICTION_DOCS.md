@@ -2,13 +2,13 @@
 execution_id: 2026_08_24_04_32_43_LRH_LAND_CLOSEOUT_FRICTION_DOCS
 prompt_id: PROMPT(AD_HOC:LRH_LAND_CLOSEOUT_FRICTION_DOCS)[2026-08-24T03:55:36+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 agent: claude_app
 instruction_source: user-directed ad-hoc task (Recommendation A from a two-gate-friction analysis conducted during WI-LRH-CHAIN-DEFAULTS-INCREMENT-2's closeout)
-session_transcript: pending
+session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/628
-commit: 
+commit: df73c42edd9edbf44558a98aa7d06ce6965c49d0
 created_at: 2026-08-24T04:32:43+00:00
 ---
 

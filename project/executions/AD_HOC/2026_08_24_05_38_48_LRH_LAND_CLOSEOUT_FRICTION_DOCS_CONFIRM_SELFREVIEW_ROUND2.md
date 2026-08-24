@@ -2,13 +2,13 @@
 execution_id: 2026_08_24_05_38_48_LRH_LAND_CLOSEOUT_FRICTION_DOCS_CONFIRM_SELFREVIEW_ROUND2
 prompt_id: PROMPT(AD_HOC:LRH_LAND_CLOSEOUT_FRICTION_DOCS_CONFIRM_SELFREVIEW_ROUND2)[2026-08-24T05:38:43+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_24_04_32_43_LRH_LAND_CLOSEOUT_FRICTION_DOCS
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/628
 session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/628
-commit: ec29bf1f
+commit: df73c42edd9edbf44558a98aa7d06ce6965c49d0
 created_at: 2026-08-24T05:38:48+00:00
 ---
 

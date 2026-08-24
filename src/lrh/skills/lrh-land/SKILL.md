@@ -484,6 +484,16 @@ stop-work condition, not a silent retry — report it and wait for direction.
 Once `state == MERGED` is confirmed, execute the closeout **without a
 second ask** — the human already approved both halves together in Step 6.
 
+**Anti-pattern: do not re-confirm the closeout push.** This includes the
+`git push origin tmp-<slug>:main` in the main-worktree-lock workaround below
+— it is a direct write to `main`, and that can feel like the kind of action
+that deserves its own live confirmation. It does not: Step 6's single ask
+already covers it. If you find yourself about to ask "confirm pushing this
+closeout commit to main?" (or similarly worded), stop — that is the exact
+failure `DEC-SINGLE-ASK-RUN-GATES` exists to prevent, and inventing a
+justification for a second ask in the moment (e.g. treating it as a separate
+standing rule) is itself the anti-pattern. Proceed without asking.
+
 **Switch to main before closeout** (main-worktree-lock workaround from
 `references/land-workflow.md` rule 4). At this point the session is still on
 the merged PR branch. Closeout commits control-plane files to `main`. If

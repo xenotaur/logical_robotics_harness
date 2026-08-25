@@ -34,7 +34,7 @@ class ScriptsLogRedirectionTest(unittest.TestCase):
         self.assertIn("Testing lrh", proc.stdout)
 
     def test_scripts_test_log_mode(self) -> None:
-        """Test scripts/test --log redirects output to tmp/logs/ and prints compact summary."""
+        """Test scripts/test --log redirects output and prints a compact summary."""
         test_file = "tests/control_plane_tests/precedence_test.py"
         proc = subprocess.run(
             [str(self.scripts_dir / "test"), "--log", test_file],
@@ -65,7 +65,7 @@ class ScriptsLogRedirectionTest(unittest.TestCase):
         self.assertIn("Log: file://", proc.stdout)
 
     def test_scripts_validate_log_mode(self) -> None:
-        """Test scripts/validate --log redirects output to tmp/logs/ and prints compact summary."""
+        """Test scripts/validate --log redirects output and prints a compact summary."""
         proc = subprocess.run(
             [str(self.scripts_dir / "validate"), "--log"],
             cwd=self.repo_root,

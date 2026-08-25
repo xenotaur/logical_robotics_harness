@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: landed
 blocked_reason: null
 blocked: false
 id: WI-DUAL-CLEAN-LOG-HYGIENE-AND-TAG-FLOOD-PREVENTION
 title: Implement Dual-Clean log redirection and Markdown fencing hygiene
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

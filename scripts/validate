@@ -1,7 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Validating LRH project metadata ..."
+log_redirect="${LRH_LOG_REDIRECT:-0}"
+args=()
+
+for arg in "$@"; do
+    if [ "$arg" = "--log" ]; then
+        log_redirect=1
+    else
+        args+=("$arg")
+    fi
+done
 
 # Check that lrh CLI is available
 if ! command -v lrh >/dev/null 2>&1; then
@@ -15,8 +24,28 @@ if ! command -v lrh >/dev/null 2>&1; then
     exit 1
 fi
 
-set -x
-lrh validate
+if [ "$log_redirect" -eq 1 ]; then
+    mkdir -p tmp/logs
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    logfile="tmp/logs/validate_${timestamp}.log"
+    echo "Validating LRH project metadata (logging to ${logfile}) ..."
 
-{ set +x; } 2>/dev/null
-echo
+    set +e
+    lrh validate "${args[@]}" > "$logfile" 2>&1
+    exit_code=$?
+    set -e
+
+    abs_log="$(pwd)/${logfile}"
+    if [ "$exit_code" -eq 0 ]; then
+        echo "[PASS] lrh validate completed successfully | Log: file://${abs_log}"
+    else
+        echo "[FAIL] lrh validate failed (exit code ${exit_code}) | Log: file://${abs_log}"
+    fi
+    exit "$exit_code"
+else
+    echo "Validating LRH project metadata ..."
+    set -x
+    lrh validate "${args[@]}"
+    { set +x; } 2>/dev/null
+    echo
+fi

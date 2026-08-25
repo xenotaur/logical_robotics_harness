@@ -24,9 +24,9 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - scripts/test writes execution logs to tmp/logs/ and outputs a compact status line
-  - scripts/validate writes execution logs to tmp/logs/ and outputs a compact status line
-  - .claude/skills/lrh-execute/SKILL.md and .claude/skills/lrh-self-review/SKILL.md include log hygiene code-fencing rules
+  - scripts/test streams standard output by default, and redirects to tmp/logs/ with a compact 1-line summary when passed --log or when LRH_LOG_REDIRECT=1 is set
+  - scripts/validate streams standard output by default, and redirects to tmp/logs/ with a compact 1-line summary when passed --log or when LRH_LOG_REDIRECT=1 is set
+  - .claude/skills/lrh-execute/SKILL.md and .claude/skills/lrh-self-review/SKILL.md include log hygiene code-fencing rules and --log invocation instructions
   - lrh validate passes with 0 errors
 required_evidence:
   - lrh_validate
@@ -41,7 +41,7 @@ artifacts_expected:
 
 ## Summary
 
-Implement the Dual-Clean Pattern in LRH helper scripts (`scripts/test`, `scripts/validate`) and skill templates (`.claude/skills/`) to eliminate `<SYSTEM_MESSAGE>` XML/HTML tag cascades in agent UI renderers (such as Antigravity) without hiding diagnostic logs or adding platform-specific coupling to core Python modules.
+Implement the Dual-Clean Pattern in LRH helper scripts (`scripts/test`, `scripts/validate`) and skill templates (`.claude/skills/`) to eliminate XML/HTML tag cascades in agent UI renderers without altering standard interactive terminal behavior for human maintainers or breaking tool interfaces.
 
 ## Problem / Context
 
@@ -65,23 +65,23 @@ Crucially, suppressing test output (`pytest -q`) degrades diagnostic visibility 
 
 ## Scope
 
-- Update `scripts/test` and `scripts/validate` to redirect raw subprocess stdout/stderr to `tmp/logs/` while echoing a compact 1-line summary and log path to stdout.
-- Update `.claude/skills/lrh-execute/SKILL.md` and `.claude/skills/lrh-self-review/SKILL.md` to add a Formatting & Log Hygiene section directing agents to fence raw log quotes and XML tag references inside Markdown code blocks.
+- Update `scripts/test` and `scripts/validate` to support an opt-in `--log` flag and `LRH_LOG_REDIRECT=1` environment variable. By default, scripts preserve 100% standard streaming stdout/stderr for human maintainers. When `--log` or `LRH_LOG_REDIRECT=1` is passed, raw subprocess stdout/stderr is redirected to `tmp/logs/` while echoing a compact 1-line summary and log path to stdout.
+- Update `.claude/skills/lrh-execute/SKILL.md` and `.claude/skills/lrh-self-review/SKILL.md` to add a Formatting & Log Hygiene section directing agents to fence raw log quotes and XML tag references inside Markdown code blocks (` ``` `), and to invoke validation scripts with `--log`.
 
 ## Required Changes
 
 ### `scripts/test`
-- Create `tmp/logs/` if missing.
-- Redirect stdout and stderr from `python -m unittest` to `tmp/logs/test_<timestamp>.log`.
-- On success, echo concise pass status and log location.
-- On failure, echo concise fail status, exit code, and log location for inspection via `view_file`.
+- Preserve default streaming output to standard output when run interactively.
+- Add `--log` flag (and check `LRH_LOG_REDIRECT=1`) to redirect stdout/stderr from `python -m unittest` to `tmp/logs/test_<timestamp>.log`.
+- In `--log` mode, echo a concise status line containing test count, pass/fail result, and log file path while strictly preserving the subprocess exit code (`exit_code=$?`).
 
 ### `scripts/validate`
-- Redirect `lrh validate` stdout/stderr to `tmp/logs/validate_<timestamp>.log`.
-- Output concise status line and log path.
+- Preserve default streaming output to standard output.
+- Add `--log` flag (and check `LRH_LOG_REDIRECT=1`) to redirect `lrh validate` stdout/stderr to `tmp/logs/validate_<timestamp>.log` and output a concise status line, preserving exit code.
 
-### `.claude/skills/lrh-execute/SKILL.md` & `.claude/skills/lrh-self-review/SKILL.md`
-- Add explicit Formatting & Log Hygiene guidelines instructing agents to wrap all XML/HTML tag literals and raw log quotes in fenced code blocks (` ``` `).
+### `.claude/skills/`
+- Update `.claude/skills/lrh-implement/references/canonical-validation.md` and related skill files to specify running `scripts/test --log` and `scripts/validate --log` during agent-driven validation steps.
+- Add explicit Markdown Log Hygiene guidelines instructing agents to wrap all XML/HTML tag literals and log excerpts in fenced code blocks (` ``` `).
 
 ## Non-Goals
 
@@ -91,9 +91,10 @@ Crucially, suppressing test output (`pytest -q`) degrades diagnostic visibility 
 
 ## Acceptance Criteria
 
-- `scripts/test` writes full execution logs to `tmp/logs/` and outputs a compact status line.
-- `scripts/validate` writes full execution logs to `tmp/logs/` and outputs a compact status line.
-- `.claude/skills/lrh-execute/SKILL.md` and `.claude/skills/lrh-self-review/SKILL.md` contain explicit Markdown code-fencing rules for tag literals and log output.
+- `scripts/test` streams standard output by default, and redirects to `tmp/logs/` with a compact 1-line summary when passed `--log` or when `LRH_LOG_REDIRECT=1` is set.
+- `scripts/validate` streams standard output by default, and redirects to `tmp/logs/` with a compact 1-line summary when passed `--log` or when `LRH_LOG_REDIRECT=1` is set.
+- Subprocess exit codes are strictly preserved in both default and `--log` modes.
+- `.claude/skills/lrh-execute/SKILL.md` and `.claude/skills/lrh-self-review/SKILL.md` contain explicit Markdown code-fencing rules and `--log` invocation instructions.
 - `lrh validate` reports 0 errors.
 
 ## Validation

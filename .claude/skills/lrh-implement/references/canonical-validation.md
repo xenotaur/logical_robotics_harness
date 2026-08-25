@@ -12,7 +12,7 @@ execution record.
 scripts/version tools          # confirm tool versions
 scripts/format --check --diff  # check formatting (does not modify files)
 scripts/lint                   # run ruff and black formatting check
-scripts/test                   # run the full test suite
+scripts/test --log             # run test suite with log capture
 ```
 
 Run in this order. Fix any failure before proceeding to the next command.
@@ -47,12 +47,14 @@ suppress rules without understanding why they fired.
 
 ### `scripts/test`
 
-Runs `python -m unittest discover -s tests -p '*_test.py'`. Exits non-zero
-if any test fails.
+Runs `python -m unittest discover -s tests -p '*_test.py'`. When invoked with
+`--log` (or `LRH_LOG_REDIRECT=1`), raw subprocess output is saved to `tmp/logs/`
+and a compact 1-line summary is printed to standard output. Exits non-zero if any test fails.
 
-On failure: fix the underlying issue — do not skip or mark tests as expected
-failures unless the test itself is the bug and a separate work item is opened
-for the fix.
+On failure: use `view_file` to inspect the complete failure traceback in
+`tmp/logs/test_<timestamp>.log`. Fix the underlying issue — do not skip or mark
+tests as expected failures unless the test itself is the bug. Wrap all log quotes and
+XML tag references inside Markdown code blocks (` ``` `).
 
 ---
 

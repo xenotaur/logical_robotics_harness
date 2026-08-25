@@ -1,24 +1,69 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Testing lrh ..."
+PYTHON="${PYTHON:-python3}"
+log_redirect="${LRH_LOG_REDIRECT:-0}"
+args=()
 
-if [ "$#" -eq 0 ]; then
-    set -x
-    python -m unittest discover -s tests -p "*_test.py"
-elif [ -d "$1" ]; then
-    set -x
-    python -m unittest discover -s "$1" -p "*_test.py"
-elif [ -f "$1" ]; then
-    module="${1%.py}"
-    module="${module#./}"
-    module="${module//\//.}"
-    set -x
-    python -m unittest "$module"
+for arg in "$@"; do
+    if [ "$arg" = "--log" ]; then
+        log_redirect=1
+    else
+        args+=("$arg")
+    fi
+done
+
+run_unittest() {
+    if [ "${#args[@]}" -eq 0 ]; then
+        "$PYTHON" -m unittest discover -s tests -p "*_test.py"
+    elif [ -d "${args[0]}" ]; then
+        "$PYTHON" -m unittest discover -s "${args[0]}" -p "*_test.py"
+    elif [ -f "${args[0]}" ]; then
+        local module="${args[0]%.py}"
+        module="${module#./}"
+        module="${module//\//.}"
+        "$PYTHON" -m unittest "$module"
+    else
+        "$PYTHON" -m unittest "${args[@]}"
+    fi
+}
+
+if [ "$log_redirect" -eq 1 ]; then
+    mkdir -p tmp/logs
+    timestamp=$(date +%Y%m%d_%H%M%S)
+    logfile="tmp/logs/test_${timestamp}.log"
+    echo "Testing lrh (logging to ${logfile}) ..."
+
+    set +e
+    run_unittest > "$logfile" 2>&1
+    exit_code=$?
+    set -e
+
+    abs_log="$(pwd)/${logfile}"
+    if [ "$exit_code" -eq 0 ]; then
+        echo "[PASS] Tests completed successfully | Log: file://${abs_log}"
+    else
+        echo "[FAIL] Test suite failed (exit code ${exit_code}) | Log: file://${abs_log}"
+    fi
+    exit "$exit_code"
 else
-    set -x
-    python -m unittest "$@"
+    echo "Testing lrh ..."
+    if [ "${#args[@]}" -eq 0 ]; then
+        set -x
+        "$PYTHON" -m unittest discover -s tests -p "*_test.py"
+    elif [ -d "${args[0]}" ]; then
+        set -x
+        "$PYTHON" -m unittest discover -s "${args[0]}" -p "*_test.py"
+    elif [ -f "${args[0]}" ]; then
+        module="${args[0]%.py}"
+        module="${module#./}"
+        module="${module//\//.}"
+        set -x
+        "$PYTHON" -m unittest "$module"
+    else
+        set -x
+        "$PYTHON" -m unittest "${args[@]}"
+    fi
+    { set +x; } 2>/dev/null
+    echo
 fi
-
-{ set +x; } 2>/dev/null
-echo

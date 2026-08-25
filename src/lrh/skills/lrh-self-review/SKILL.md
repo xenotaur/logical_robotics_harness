@@ -259,6 +259,15 @@ Report to the caller/user:
 
 ---
 
+## Formatting & Log Hygiene
+
+When reviewing diffs or quoting subagent findings:
+1. **Pass `--log` when re-verifying**: Run `scripts/test --log` and `scripts/validate --log` during manual re-verification passes to capture raw subprocess output in `tmp/logs/` and prevent agent UI tag floods.
+2. **Inspect failure tracebacks losslessly**: If re-verification fails, use `view_file` on `tmp/logs/test_<timestamp>.log` or `tmp/logs/validate_<timestamp>.log` to read full failure tracebacks.
+3. **Fence tag literals and log excerpts**: Always wrap raw log excerpts and XML/HTML tag references (such as `<SYSTEM_MESSAGE>`) in fenced Markdown code blocks (` ``` `).
+
+---
+
 ## Quality Checklist
 
 Before reporting completion, verify:

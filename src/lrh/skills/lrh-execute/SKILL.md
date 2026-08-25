@@ -433,6 +433,15 @@ Report to the user:
 
 ---
 
+## Formatting & Log Hygiene
+
+When running commands or quoting logs during execution:
+1. **Pass `--log` to validation scripts**: Run `scripts/test --log` and `scripts/validate --log` to capture raw subprocess output in `tmp/logs/` and prevent agent UI tag floods.
+2. **Inspect failure tracebacks losslessly**: If a test or validation fails, use `view_file` on `tmp/logs/test_<timestamp>.log` or `tmp/logs/validate_<timestamp>.log` to read full failure details.
+3. **Fence tag literals and log excerpts**: Always wrap raw log excerpts and XML/HTML tag references (such as `<SYSTEM_MESSAGE>`) in fenced Markdown code blocks (` ``` `).
+
+---
+
 ## Quality Checklist
 
 Before reporting completion, verify:

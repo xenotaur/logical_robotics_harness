@@ -1839,3 +1839,52 @@ confirm gate, with an explicit request to track it so it isn't lost.
 sections); `project/work_items/resolved/WI-LRH-MEMORY-TRANSFER-SAFETY.md`;
 `project/audits/docs/docs-audit-2026-08-21.md`; PR #605 (phase 1), PR
 #606 (the real fix), PR #644 (phase 2, where this was found).
+## `/lrh-execute` catches an open WI-creation PR too late to save the human a wasted confirmation cycle
+
+**Noted:** 2026-08-28, while landing `WI-PROJECT-SLUG-SYMLINK-RESOLUTION`
+(PR #603 planning, PR #615 implementation) in a single session.
+`/lrh-execute` was invoked against a WI-ID whose own creation PR (#603) was
+still open. Step 1's readiness check (`lrh work-items readiness <WI-ID>`)
+read the WI file from the local working tree, which still had it (the
+session was sitting on the WI-creation branch), and reported
+`prompt_ready: yes` with no warnings -- a false-confidence result, since
+the file did not exist on `origin/main` at all. Only caught by manually
+running `git status`/`gh pr view` outside any skill-enforced check.
+
+`PR #602` (merged, commit `741bd46c`) has since fixed the underlying
+silent-omission bug, but at `/lrh-implement` Step 5 (right before
+`git checkout -b <branch-name>`), which `/lrh-execute` Step 3 inlines. By
+that point in an `/lrh-execute` run, Step 1's readiness check, the
+prior-art check, prompt-ID minting, the idempotence check, branch-name
+derivation, and -- most significantly -- the Step 2 chain-authorization
+gate (a full human confirmation of the run plan) have all already
+happened. The bug can no longer actually corrupt anything, but a doomed
+run still costs a human confirmation cycle before failing.
+
+**Idea:** Add an earlier, redundant-but-faster-failing precondition check
+to `/lrh-execute` Step 1 (both the `WI-ID` and `WS-ID` branches) that
+detects an open PR introducing the target WI and stops before Step 1.5/
+Step 2 run at all. Reuse/adapt `/lrh-land`'s existing primary-record
+provenance-check algorithm (`references/land-workflow.md`) for the
+matching logic rather than re-deriving one from scratch -- that section
+documents three prior failed attempts at a similar WI/slug-matching
+problem before a working algorithm landed, so expect the same difficulty
+here.
+
+**Status:** Tracked as `WI-EXECUTE-EARLY-CREATION-PR-CHECK` (proposed);
+not yet implemented. Discovered during this entry's own PR landing
+(a rebase conflict against the freshly-merged entry above) to be adjacent
+to, but not a duplicate of, "Agents suggesting premature WI/proposal/
+workstream implementation" above: that entry fixes the *reporting/
+suggestion* layer (don't even suggest `/lrh-implement` while the filing PR
+is open), while this one adds an *enforcement* check inside `/lrh-execute`
+itself (stop cheaply if the suggestion is followed anyway). Both are worth
+landing; neither supersedes the other.
+
+**Related:** `src/lrh/skills/lrh-execute/SKILL.md` Step 1;
+`src/lrh/skills/lrh-implement/SKILL.md` Step 5;
+`src/lrh/skills/lrh-land/references/land-workflow.md` (provenance-check
+algorithm); `project/work_items/proposed/WI-EXECUTE-EARLY-CREATION-PR-CHECK.md`;
+harness PR #602; `project/work_items/resolved/WI-PROJECT-SLUG-SYMLINK-RESOLUTION.md`;
+`WI-SKILLS-LRH-NEXT-STEP-REPORTING` (the adjacent reporting-layer entry
+immediately above).

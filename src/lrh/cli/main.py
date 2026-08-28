@@ -24,7 +24,7 @@ from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
-from lrh.control import format_report, validate_project
+from lrh.control import format_report, frontmatter_migration, validate_project
 from lrh.conversations import (
     antigravity_export,
     codex_app_server_export,
@@ -321,6 +321,20 @@ def main() -> None:
         "--strict",
         action="store_true",
         help="return non-zero when warnings are present",
+    )
+    project_doctor_parser.add_argument(
+        "--fix-frontmatter",
+        action="store_true",
+        help=(
+            "one-time migration: re-quote unsafe frontmatter plain scalars "
+            "flagged by the FRONTMATTER_LINT_UNSAFE_SCALAR lint category. "
+            "Dry-run by default; pass --apply to write."
+        ),
+    )
+    project_doctor_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="with --fix-frontmatter, write the fixes instead of previewing them",
     )
 
     work_items_parser = subparsers.add_parser(
@@ -1162,6 +1176,37 @@ def main() -> None:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
 
             project_root = Path(args.project_root).expanduser().resolve()
+
+            if args.fix_frontmatter:
+                # Scoped to project_root/"project" (the control-plane tree
+                # lrh validate also scans), not the whole repo root --
+                # project_root here is the repo root by "lrh project
+                # doctor" convention (see diagnose_project), and rewriting
+                # markdown outside project/ (skill mirrors under
+                # .claude/skills/, .agents/skills/, docs/, etc.) is out of
+                # this WI's stated scope and would desync the skill-mirror
+                # copies this same WI keeps in sync.
+                results = frontmatter_migration.fix_project(
+                    project_root / "project", apply=args.apply
+                )
+                total_fixes = sum(len(r.fixes) for r in results)
+                mode = "APPLIED" if args.apply else "DRY RUN"
+                for result in results:
+                    rel = result.path.relative_to(project_root)
+                    print(f"{mode}: {rel} ({len(result.fixes)} field(s))")
+                    for fix in result.fixes:
+                        print(
+                            f"  line {fix.line} [{fix.category}] {fix.field}: "
+                            f"{fix.before.strip()} -> {fix.after.strip()}"
+                        )
+                print(
+                    f"\n{mode}: {len(results)} file(s), {total_fixes} field(s)"
+                    + ("" if args.apply else " -- pass --apply to write")
+                )
+                raise SystemExit(0)
+            if args.apply:
+                parser.error("--apply requires --fix-frontmatter")
+
             diagnosis = doctor.diagnose_project(project_root)
             if args.json:
                 print(doctor.format_json_report(diagnosis))

@@ -1,12 +1,13 @@
 # Chain-Defaults Propose-and-Confirm Flow — Canonical Text
 
 <!-- CANONICAL SOURCE: src/lrh/skills/_shared/chain-defaults.md
-     This text is INLINED at each consuming site listed below, not mirrored
-     into references/. If you change this flow, update every site in the
-     table. See project/design/backlog.md's "Validator drift-check for
-     synced skill references" entry — this file's inlined copies are the
-     same class of synced-reference drift risk that entry already tracks,
-     though it does not name this file specifically (it predates it). -->
+     This text is INLINED at each consuming site listed below — including,
+     for /lrh-land, into references/land-workflow.md, not just SKILL.md
+     itself. If you change this flow, update every site in the table. See
+     project/design/backlog.md's "Validator drift-check for synced skill
+     references" entry — this file's inlined copies are the same class of
+     synced-reference drift risk that entry already tracks, though it does
+     not name this file specifically (it predates it). -->
 
 This file defines Increment 1 of `PROP-LRH-CHAIN-DEFAULTS`: the
 propose-and-confirm flow every chain-authorization gate (`/lrh-land` Step 2,

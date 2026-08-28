@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #508 (commit ea0de37)
+resolution: 'Implemented and merged in PR #508 (commit ea0de37)'
 blocked_reason: null
 blocked: false
 id: WI-LAND-PRIMARY-RECORD-SUFFIX-COLLISION

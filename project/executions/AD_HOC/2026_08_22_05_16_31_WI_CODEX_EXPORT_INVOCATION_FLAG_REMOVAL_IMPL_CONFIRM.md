@@ -7,7 +7,7 @@ rerun_of: 2026_08_22_05_04_40_WI_CODEX_EXPORT_INVOCATION_FLAG_REMOVAL_IMPL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/601
 commit: 834ac0a9d780342a0e26e0c0f27ac476f7a2cea2
 agent: claude_code
-instruction_source: skill:lrh-confirm-fixes inlined via /lrh-land for PR #601
+instruction_source: 'skill:lrh-confirm-fixes inlined via /lrh-land for PR #601'
 session_transcript: claude-app:local_dd7df709-1e50-4e78-a5bf-802d06e31d50
 created_at: 2026-08-22T05:16:31+00:00
 ---

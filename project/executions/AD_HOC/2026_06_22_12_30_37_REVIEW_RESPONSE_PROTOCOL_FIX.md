@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/313
-commit: 2300612
+commit: '2300612'
 created_at: 2026-06-22T12:30:37-04:00
 ---
 

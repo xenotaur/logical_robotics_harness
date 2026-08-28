@@ -1,5 +1,5 @@
 ---
-resolution: Stage 1 assistant docs-only package convention delivered and merged in PR #418 (commit 6e432f3).
+resolution: 'Stage 1 assistant docs-only package convention delivered and merged in PR #418 (commit 6e432f3).'
 blocked_reason: null
 blocked: false
 id: WI-LRH-ASSISTANTS-STAGE-1

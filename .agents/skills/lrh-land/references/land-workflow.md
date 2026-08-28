@@ -452,7 +452,7 @@ out of scope for the CI-wait work this note describes, deferred to Stage
 
 <!-- INLINED from src/lrh/skills/_shared/chain-defaults.md — update both if this changes. -->
 
-## Profile file
+### Profile file
 
 `project/config/chain-defaults.yaml`, repo-level and git-tracked (Decision 1
 of `PROP-LRH-CHAIN-DEFAULTS`):
@@ -496,7 +496,7 @@ consent is bound to this file's exact blob hash — re-grant it after
 confirming the new values if `skip_if_opted_in` is in use.
 
 <!-- GATE-DEFINITION -->
-## Propose-and-confirm flow
+### Propose-and-confirm flow
 
 At the chain-authorization gate, before eliciting conditions from scratch:
 
@@ -544,7 +544,7 @@ the end of the run, ask "Update the stored default to match?" — never
 silently persist a one-off override. Only rewrite the file on explicit yes,
 and re-stamp `confirmed_commit`/`confirmed_at`.
 
-## `skip_if_opted_in` — the five requirements (`DEC-CHAIN-INIT-SKIP-CONSENT`) plus the Stage 3.5 compensating control (`DEC-GATE-POLICY-CASCADE`)
+### `skip_if_opted_in` — the five requirements (`DEC-CHAIN-INIT-SKIP-CONSENT`) plus the Stage 3.5 compensating control (`DEC-GATE-POLICY-CASCADE`)
 
 1. **Initiation act preserved** — no special handling needed: the human's own
    `/lrh-land <pr>` / `/lrh-execute <target>` invocation is what starts this
@@ -611,7 +611,7 @@ and re-stamp `confirmed_commit`/`confirmed_at`.
    that this specific run was genuinely human-initiated rather than a
    model-initiated invocation riding stored consent.
 
-## Decision 5 — gate-definition staleness fallback (semantic, `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`)
+### Decision 5 — gate-definition staleness fallback (semantic, `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`)
 
 **Redesigned from file-granular to semantic**, per
 `PROP-INVOCATION-AND-GATE-RESET` Decision 9. The original version invalidated

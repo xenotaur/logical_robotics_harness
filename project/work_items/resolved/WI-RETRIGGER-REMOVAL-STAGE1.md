@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #545 at b8d9ca1548fb32eb32ef42108e5f1c9cab40cf5d; post-merge skill propagation and forbidden-string verification completed.
+resolution: 'Implemented and merged in PR #545 at b8d9ca1548fb32eb32ef42108e5f1c9cab40cf5d; post-merge skill propagation and forbidden-string verification completed.'
 blocked_reason: null
 blocked: false
 id: WI-RETRIGGER-REMOVAL-STAGE1

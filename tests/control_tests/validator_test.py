@@ -685,5 +685,99 @@ class TestExecutionRecordValidation(unittest.TestCase):
         self.assertEqual([i for i in report.issues if i.code == "YAML_PARSE_ERROR"], [])
 
 
+class TestFrontmatterLintCategory(unittest.TestCase):
+    def _make_project(self) -> Path:
+        root = Path(tempfile.mkdtemp())
+        (root / "contributors" / "agents").mkdir(parents=True)
+        (root / "work_items" / "active").mkdir(parents=True)
+        (root / "focus").mkdir(parents=True)
+        (root / "focus" / "current_focus.md").write_text(
+            "---\nid: FOCUS-1\ntitle: Focus\nstatus: active\n---\n",
+            encoding="utf-8",
+        )
+        return root
+
+    def _write(self, path: Path, content: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    def test_unescaped_hash_is_a_warning_not_an_error(self) -> None:
+        root = self._make_project()
+        self._write(
+            root / "work_items" / "active" / "WI-1.md",
+            """---
+id: WI-1
+title: Task
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+instruction_source: fixed the bug #402
+---
+""",
+        )
+
+        report = validate_project(root)
+
+        codes_by_severity = {issue.severity: issue.code for issue in report.issues}
+        self.assertNotIn("error", codes_by_severity)
+        self.assertTrue(
+            any(
+                issue.code == "FRONTMATTER_LINT_UNSAFE_SCALAR"
+                for issue in report.warnings
+            )
+        )
+
+    def test_clean_file_has_no_lint_findings(self) -> None:
+        root = self._make_project()
+        self._write(
+            root / "work_items" / "active" / "WI-1.md",
+            """---
+id: WI-1
+title: Task
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+---
+""",
+        )
+
+        report = validate_project(root)
+
+        self.assertEqual(
+            [i for i in report.issues if i.code == "FRONTMATTER_LINT_UNSAFE_SCALAR"],
+            [],
+        )
+
+    def test_work_items_only_mode_still_runs_the_lint(self) -> None:
+        root = self._make_project()
+        self._write(
+            root / "work_items" / "active" / "WI-1.md",
+            """---
+id: WI-1
+title: Task
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+instruction_source: fixed the bug #402
+---
+""",
+        )
+
+        report = validate_project(root, work_items_only=True)
+
+        self.assertTrue(
+            any(
+                issue.code == "FRONTMATTER_LINT_UNSAFE_SCALAR"
+                for issue in report.warnings
+            )
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

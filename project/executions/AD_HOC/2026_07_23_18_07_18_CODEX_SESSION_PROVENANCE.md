@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/411
 commit: eaea01065e75eff002944d50aa6ea3774d34a789
 created_at: 2026-07-23T18:07:18-04:00
 agent: claude_app
-instruction_source: ad_hoc conversation — multi-agent session provenance design discussion following PRs #409 and #410
+instruction_source: 'ad_hoc conversation — multi-agent session provenance design discussion following PRs #409 and #410'
 session_transcript: claude-app:4c3d03d6-6ebd-418a-86b2-6f4041feb9db
 ---
 

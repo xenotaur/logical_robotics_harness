@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/463
 commit: 33768286920ee896c725380de8fee36e6a6283d2
 created_at: 2026-08-02T11:19:11-04:00
 agent: claude_app
-instruction_source: ad_hoc — lrh-land review-response step (inline) for PR #463
+instruction_source: 'ad_hoc — lrh-land review-response step (inline) for PR #463'
 session_transcript: claude-app:b7a0de88-bdee-468c-b053-5afbdd7146ad
 ---
 

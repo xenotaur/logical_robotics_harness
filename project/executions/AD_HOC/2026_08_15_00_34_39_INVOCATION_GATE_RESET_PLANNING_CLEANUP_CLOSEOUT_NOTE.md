@@ -7,7 +7,7 @@ rerun_of: 2026_08_14_23_06_11_INVOCATION_GATE_RESET_PLANNING_CLEANUP
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/556
 commit: 299404f59b8482286f248ea2b8010508b9801528
 agent: codex_app
-instruction_source: command:lrh-land PR #556 closeout
+instruction_source: 'command:lrh-land PR #556 closeout'
 session_transcript: pending
 created_at: 2026-08-15T00:34:39+00:00
 ---

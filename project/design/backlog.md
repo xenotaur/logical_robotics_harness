@@ -1749,19 +1749,22 @@ harness PR #601; agent memory `feedback_flag_removal_needs_confirm_gate.md`.
 `/lrh-implement`/`/lrh-execute <WI-ID>` as a "next step" immediately after
 filing a work item, while that item's own filing PR sat open and
 unreviewed -- despite the correct sequencing already being documented in
-`/lrh-work-item`'s own reference doc (`lrh-work-item-workflow.md:99-123`,
+`/lrh-work-item`'s own reference doc
+(`src/lrh/skills/lrh-work-item/references/lrh-work-item-workflow.md:99-123`,
 "Path 1 -- PR lifecycle" vs. Path 2). The failure wasn't missing
 information -- it was paraphrasing past that material in a later,
 unstructured "what's next" answer, disconnected from the skill invocation
 that had the details loaded.
 
 The gap is structural, not a one-off: `/lrh-proposal`
-(`SKILL.md:373-380`), `/lrh-workstream` (`SKILL.md:357-364`), and
-`/lrh-work-remains` (`SKILL.md:92-96`, whose entire purpose is preventing
-exactly this class of conversational-recall drift) all share the same
-"report a freely-composed next step" shape, with no rule connecting
-"filing PR still open" to "don't suggest implementing yet." PR #602
-(merged 2026-08-28) fixed a related but distinct problem -- a downstream
+(`src/lrh/skills/lrh-proposal/SKILL.md:373-380`), `/lrh-workstream`
+(`src/lrh/skills/lrh-workstream/SKILL.md:357-364`), and
+`/lrh-work-remains` (`src/lrh/skills/lrh-work-remains/SKILL.md:92-96`,
+whose entire purpose is preventing exactly this class of
+conversational-recall drift) all share the same "report a
+freely-composed next step" shape, with no rule connecting "filing PR
+still open" to "don't suggest implementing yet." PR #602 (merged
+2026-08-28) fixed a related but distinct problem -- a downstream
 execution-safety consequence in `/lrh-implement` Step 5 if the premature
 action is actually run -- not the reporting-accuracy problem of
 suggesting it in the first place.
@@ -1769,9 +1772,12 @@ suggesting it in the first place.
 **Idea:** `WI-SKILLS-LRH-NEXT-STEP-REPORTING` was filed to fix this, with
 a deliberately investigation-first scope: rather than pre-selecting a fix,
 the executing session must first produce a repo-grounded decision matrix
-covering at least (a) a documentation-only `AGENTS.md` rule cited from
-each affected skill's reporting step, and (b) a mechanical CLI-computed
-next-step command (in the same architectural style as
+(as its own standalone artifact, before any implementation commit --
+not the `/lrh-implement` Step 9 execution record, which postdates the
+implementation commit) covering at least (a) a documentation-only
+`AGENTS.md` rule cited from each affected skill's reporting step, and (b)
+a mechanical CLI-computed next-step command (in the same architectural
+style as
 `gate_staleness.py`/`confirm_fixes_batch.py`/`chain_defaults_status.py`)
 that a skill calls and reports verbatim rather than composing freely.
 
@@ -1785,4 +1791,51 @@ session was mid-task on unrelated work.
 `src/lrh/skills/lrh-workstream/SKILL.md:357-364`;
 `src/lrh/skills/lrh-work-remains/SKILL.md:92-96`;
 `src/lrh/skills/lrh-work-remains/references/remains-checklist.md:9-25`;
+`src/lrh/skills/lrh-work-item/references/prior-art-check.md:22-47`;
+`src/lrh/skills/lrh-implement/SKILL.md:293-326`;
 harness PR #602; agent memory `feedback_wi_next_step_reporting.md`.
+
+---
+
+## `docs/reference/cli/memory.md` is stale relative to `WI-LRH-MEMORY-TRANSFER-SAFETY`'s real fix
+
+**Noted:** 2026-08-28, while implementing `/lrh-doc-organize` phase 2
+(PR #644, the `lrh memory` how-to guides) against
+`project/audits/docs/docs-audit-2026-08-21.md`.
+
+**Gap:** `docs/reference/cli/memory.md` (added by phase 1, PR #605) was
+written before `WI-LRH-MEMORY-TRANSFER-SAFETY` landed its real fix
+(PR #606, commit `9ebce502`). Two parts of that page are now stale:
+
+1. The `import`/`transfer` sections' "Known gap" note still describes
+   the *old*, unfixed behavior (unconditional, unsnapshotted same-agent
+   overwrite). Actual current behavior: `--force` is required for
+   *any* existing-destination overwrite (same-agent, legacy no-
+   `authored_by`, or malformed — not just genuine cross-agent), and the
+   destination's prior content is snapshotted to `<corpus>/history/`
+   first (keyed by content hash) before every case except a genuine
+   cross-agent mismatch.
+2. The two links to `WI-LRH-MEMORY-TRANSFER-SAFETY` point at
+   `project/work_items/proposed/...`, but the WI is now in
+   `project/work_items/resolved/...` — both links are broken.
+
+Not fixed as part of PR #644: this is a currency update triggered by a
+merged WI landing, which is `/lrh-doc-work`'s job, not
+`/lrh-doc-organize`'s (a structural-layout skill, one phase per PR,
+scoped to the audit's own phased plan — fixing this here would be
+scope creep against that constraint). PR #644's own new how-to guide
+(`docs/how-to/move-memories-between-projects.md`) documents the
+*current*, correct behavior directly, so the inaccuracy is isolated to
+the phase-1 reference page.
+
+**Idea:** Run `/lrh-doc-work WI-LRH-MEMORY-TRANSFER-SAFETY` to update
+`docs/reference/cli/memory.md`'s "Known gap" sections and fix both
+`WI-LRH-MEMORY-TRANSFER-SAFETY` link paths.
+
+**Status:** Open. Flagged explicitly by the user during PR #644's
+confirm gate, with an explicit request to track it so it isn't lost.
+
+**Related:** `docs/reference/cli/memory.md` (both `import`/`transfer`
+sections); `project/work_items/resolved/WI-LRH-MEMORY-TRANSFER-SAFETY.md`;
+`project/audits/docs/docs-audit-2026-08-21.md`; PR #605 (phase 1), PR
+#606 (the real fix), PR #644 (phase 2, where this was found).

@@ -2,14 +2,14 @@
 execution_id: 2026_08_28_06_41_08_SCRIPTS_LOG_REDIRECTION_TEST_LINE_LENGTH
 prompt_id: PROMPT(AD_HOC:SCRIPTS_LOG_REDIRECTION_TEST_LINE_LENGTH)[2026-08-28T06:41:03+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/640
+commit: 19abad1f4c49a79af5d1555032cf71db1fce0f07
 created_at: 2026-08-28T06:41:08+00:00
 agent: claude_app
 instruction_source: ad_hoc
-session_transcript: pending
+session_transcript: claude-app:23a15fdd-6d6c-4d84-a7be-960a54769157
 ---
 
 # Summary

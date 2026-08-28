@@ -2,8 +2,8 @@
 id: WS-LRH-FRONTMATTER-PARSER
 kind: planning_node
 title: LRH Frontmatter Parser Consolidation and Content Safety
-status: proposed
-stage: designed
+status: resolved
+stage: closed
 origin: design_review
 summary: Consolidate LRH's two hand-rolled frontmatter YAML parsers onto PyYAML, migrate unsafe existing content, and add a lint guard to prevent recurrence, per PROP-LRH-FRONTMATTER-PARSER.
 related_focus: []

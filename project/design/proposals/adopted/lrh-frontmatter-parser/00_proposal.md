@@ -2,11 +2,13 @@
 id: PROP-LRH-FRONTMATTER-PARSER
 type: design_proposal
 title: Frontmatter YAML Parser Consolidation and Content Safety
-status: proposed
+status: adopted
 created_on: 2026-08-08
 updated_on: 2026-08-08
-implementation_status: not_started
-implemented_by: []
+implementation_status: implemented
+implemented_by:
+  - WI-FRONTMATTER-PARSER-CONSOLIDATION
+  - WI-FRONTMATTER-MIGRATION-LINT-GUARD
 supersedes: []
 superseded_by: null
 related_design:

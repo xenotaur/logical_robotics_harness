@@ -2,10 +2,10 @@
 execution_id: 2026_08_28_07_06_12_FRONTMATTER_MIGRATION_LINT_GUARD
 prompt_id: PROMPT(WI-FRONTMATTER-MIGRATION-LINT-GUARD:FRONTMATTER_MIGRATION_LINT_GUARD)[2026-08-28T06:29:44+00:00]
 work_item: WI-FRONTMATTER-MIGRATION-LINT-GUARD
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/642
-commit: 02b0a327324ed121ac561f3c2fe5c34889320581
+commit: 4088ca025362737d1e61c0d8d86cef4bf572b766
 created_at: 2026-08-28T07:06:12+00:00
 agent: claude_app
 instruction_source: 'chat (user ran /lrh-execute WI-FRONTMATTER-MIGRATION-LINT-GUARD to implement and land the work item end-to-end)'
@@ -78,5 +78,14 @@ frontmatter-authoring skills with "always quote free text" guidance.
   fixed; a plain-scalar line-fold continuation gap in the detector — no
   such construct currently exists in `project/`, left as a known,
   documented limitation).
+- The automatic bot review (Copilot + Codex) found 4 more issues after
+  the PR opened, all fixed: a trailing-whitespace-stripping bug, a P1
+  destructive-rewrite risk on genuine YAML mapping list items, a
+  null-detection scoping gap, and a `--work-items` early-return skipping
+  the lint pass. A follow-up proactive PR-mode self-review then caught
+  one more real bug the P1 fix itself left open (an uncaught crash on a
+  multi-key mapping list item, which would abort a real `--apply` run
+  mid-batch) -- see
+  `project/executions/AD_HOC/2026_08_28_08_01_25_FRONTMATTER_MIGRATION_LINT_GUARD_PRMODE_SELFREVIEW.md`.
 - The `WS-LRH-FRONTMATTER-PARSER` workstream can close once this WI
   lands, since it was the workstream's other and final open work item.

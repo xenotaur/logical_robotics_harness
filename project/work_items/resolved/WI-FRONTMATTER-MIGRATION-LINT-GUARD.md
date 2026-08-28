@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #642 (commit 4088ca02)"
 blocked_reason: null
 blocked: false
 id: WI-FRONTMATTER-MIGRATION-LINT-GUARD
 title: Add frontmatter migration tool and lint guard
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

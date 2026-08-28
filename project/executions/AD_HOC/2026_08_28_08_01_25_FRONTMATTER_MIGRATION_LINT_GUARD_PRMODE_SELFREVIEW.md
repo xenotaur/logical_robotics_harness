@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/642
-commit: fcbddd7400d095cd24fd7b14d76e0539c749e000
+commit: 4088ca025362737d1e61c0d8d86cef4bf572b766
 created_at: 2026-08-28T08:01:25+00:00
 agent: claude_app
 instruction_source: 'command lrh-self-review --pr 642, run after the automatic bot-review round''s findings were fixed, before asking for merge authorization -- proactive follow-up given the P1 finding involved destructive rewrites'

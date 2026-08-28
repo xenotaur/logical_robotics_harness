@@ -14,6 +14,15 @@ class TestUnescapedColon(unittest.TestCase):
         self.assertEqual(findings[0].field, "acceptance")
         self.assertEqual(findings[0].line, 2)
 
+    def test_list_item_in_unknown_field_not_flagged(self) -> None:
+        # "- key: value" under a field this module doesn't know is meant
+        # to hold plain strings is just as likely to be a genuine YAML
+        # mapping entry (e.g. someone else's "steps:" list) as it is
+        # colon-collapsed prose -- never rewrite a shape that could be
+        # real structure.
+        text = "steps:\n  - name: test\n"
+        self.assertEqual(frontmatter_lint.iter_unsafe_scalars(text), [])
+
     def test_scalar_field_mid_value_colon(self) -> None:
         text = "title: Some Title: With Colon\n"
         findings = frontmatter_lint.iter_unsafe_scalars(text)
@@ -84,10 +93,22 @@ class TestImplicitNonStringType(unittest.TestCase):
         text = "created_at: 2026-07-18T03:15:20-04:00\n"
         self.assertEqual(frontmatter_lint.iter_unsafe_scalars(text), [])
 
-    def test_null_value_not_flagged(self) -> None:
-        # Many fields (blocked_reason, resolution) are legitimately null.
-        text = "resolution: null\n"
-        self.assertEqual(frontmatter_lint.iter_unsafe_scalars(text), [])
+    def test_null_value_not_flagged_by_default(self) -> None:
+        # Most KNOWN_STRING_FIELDS members legitimately use null (owner,
+        # commit, pr, rerun_of, blocked_reason, resolution, ...).
+        for field in ("resolution", "blocked_reason", "rerun_of", "owner", "commit"):
+            with self.subTest(field=field):
+                text = f"{field}: null\n"
+                self.assertEqual(frontmatter_lint.iter_unsafe_scalars(text), [])
+
+    def test_null_value_flagged_for_non_nullable_string_fields(self) -> None:
+        # A literal "null" in a field that should never actually be null
+        # (e.g. title) almost certainly means the author typed literal
+        # text, not an intentional absence.
+        text = "title: null\n"
+        findings = frontmatter_lint.iter_unsafe_scalars(text)
+        self.assertEqual(len(findings), 1)
+        self.assertEqual(findings[0].category, frontmatter_lint.CATEGORY_IMPLICIT_TYPE)
 
     def test_bool_value_flagged(self) -> None:
         text = "resolution: true\n"

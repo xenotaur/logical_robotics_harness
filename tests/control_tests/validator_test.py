@@ -752,6 +752,32 @@ resolution: null
             [],
         )
 
+    def test_work_items_only_mode_still_runs_the_lint(self) -> None:
+        root = self._make_project()
+        self._write(
+            root / "work_items" / "active" / "WI-1.md",
+            """---
+id: WI-1
+title: Task
+type: deliverable
+status: active
+blocked: false
+blocked_reason: null
+resolution: null
+instruction_source: fixed the bug #402
+---
+""",
+        )
+
+        report = validate_project(root, work_items_only=True)
+
+        self.assertTrue(
+            any(
+                issue.code == "FRONTMATTER_LINT_UNSAFE_SCALAR"
+                for issue in report.warnings
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

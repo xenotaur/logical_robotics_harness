@@ -92,6 +92,18 @@ KNOWN_STRING_FIELDS = frozenset(
     }
 )
 
+# Fields deliberately opted IN to null-detection: KNOWN_STRING_FIELDS
+# members that are always required to have real content, never
+# legitimately absent -- so a value that resolves to null (the literal
+# word "null", "~", or an empty scalar) almost certainly means the author
+# typed literal text like "null" that got silently swallowed, not an
+# intentional absence. This is opt-in rather than an exempt-list, because
+# a real repo-wide audit found null legitimately valid for most other
+# KNOWN_STRING_FIELDS members (owner, commit, pr, rerun_of,
+# blocked_reason, resolution, ...) -- an opt-out design would have kept
+# missing new ones as they turned up.
+STRICT_NON_NULL_STRING_FIELDS = frozenset({"id", "title"})
+
 # c-indicator characters (YAML 1.1/1.2 spec) that cannot start a plain
 # scalar in block context. ``-``, ``?``, and ``:`` are omitted: they're
 # only reserved when immediately followed by whitespace (block-sequence
@@ -170,7 +182,9 @@ def iter_unsafe_scalars(frontmatter_text: str) -> list[UnsafeScalarFinding]:
             candidate = line.lstrip()
             if candidate.startswith("- ") and current_field is not None:
                 value_text = candidate[2:]
-                finding = _check_value(current_field, value_text, index + 1, line)
+                finding = _check_value(
+                    current_field, value_text, index + 1, line, is_list_item=True
+                )
                 if finding is not None:
                     findings.append(finding)
             # Any other indented continuation (block-scalar body lines,
@@ -199,7 +213,12 @@ def iter_unsafe_scalars(frontmatter_text: str) -> list[UnsafeScalarFinding]:
 
 
 def _check_value(
-    field: str, value_text: str, line_number: int, raw_line: str
+    field: str,
+    value_text: str,
+    line_number: int,
+    raw_line: str,
+    *,
+    is_list_item: bool = False,
 ) -> UnsafeScalarFinding | None:
     if not value_text:
         return None
@@ -225,13 +244,22 @@ def _check_value(
         )
 
     if re.search(r":(\s|$)", value_text):
-        return UnsafeScalarFinding(
-            line=line_number,
-            field=field,
-            category=CATEGORY_UNESCAPED_COLON,
-            detail=CATEGORY_DESCRIPTIONS[CATEGORY_UNESCAPED_COLON],
-            raw_line=raw_line,
-        )
+        # A list item shaped like "- key: value" is syntactically a valid
+        # one-entry YAML mapping -- for a field this module doesn't know
+        # is supposed to hold plain strings, that's just as likely to be
+        # genuine mapping content (e.g. a "steps: - name: test" list in
+        # someone else's control-plane schema) as it is to be prose with
+        # an accidental colon. Only flag it as unsafe within fields this
+        # module already knows are meant to be plain-string lists --
+        # never rewrite a shape it can't distinguish from real structure.
+        if not is_list_item or field in KNOWN_STRING_FIELDS:
+            return UnsafeScalarFinding(
+                line=line_number,
+                field=field,
+                category=CATEGORY_UNESCAPED_COLON,
+                detail=CATEGORY_DESCRIPTIONS[CATEGORY_UNESCAPED_COLON],
+                raw_line=raw_line,
+            )
 
     if re.search(r"\s#", value_text):
         return UnsafeScalarFinding(
@@ -242,7 +270,9 @@ def _check_value(
             raw_line=raw_line,
         )
 
-    if field in KNOWN_STRING_FIELDS and _resolves_to_nonstring_type(value_text):
+    if field in KNOWN_STRING_FIELDS and _resolves_to_nonstring_type(
+        value_text, check_null=field in STRICT_NON_NULL_STRING_FIELDS
+    ):
         return UnsafeScalarFinding(
             line=line_number,
             field=field,
@@ -254,11 +284,17 @@ def _check_value(
     return None
 
 
-def _resolves_to_nonstring_type(value_text: str) -> bool:
+def _resolves_to_nonstring_type(value_text: str, *, check_null: bool) -> bool:
     try:
         resolved: Any = yaml.safe_load(value_text)
     except yaml.YAMLError:
         # A genuine syntax error is caught by the other categories, or by
         # yaml.safe_load itself downstream -- not this check's job.
         return False
-    return resolved is not None and not isinstance(resolved, str)
+    if resolved is None:
+        # Most KNOWN_STRING_FIELDS members legitimately use null (owner,
+        # commit, pr, rerun_of, blocked_reason, resolution, ...), so only
+        # flag a literal null resolution for fields opted into
+        # STRICT_NON_NULL_STRING_FIELDS above.
+        return check_null
+    return not isinstance(resolved, str)

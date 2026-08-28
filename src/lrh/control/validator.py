@@ -290,6 +290,7 @@ def validate_project(
         )
 
     if work_items_only:
+        _validate_frontmatter_lint(project_root, work_item_files, issues)
         return ValidationReport(issues=issues)
 
     workstream_files = _discover_workstream_files(project_root / "workstreams")
@@ -454,30 +455,38 @@ def validate_project(
             continue
         _validate_execution_record(project_root, artifact, issues)
 
-    _validate_frontmatter_lint(project_root, issues)
+    _validate_frontmatter_lint(
+        project_root, sorted(project_root.glob("**/*.md")), issues
+    )
 
     return ValidationReport(issues=issues)
 
 
 def _validate_frontmatter_lint(
     project_root: Path,
+    paths: list[Path],
     issues: list[ValidationIssue],
 ) -> None:
     """Report-only frontmatter lint pass, independent of typed-artifact
     parsing above.
 
     Runs the shared ``frontmatter_lint`` detector (the same one
-    ``lrh project doctor --fix-frontmatter`` uses) across every Markdown
-    file in the project tree with a frontmatter block, regardless of
-    whether it parsed successfully elsewhere in this function -- the whole
-    point of this category is to catch content that *does* parse (so
-    nothing else here flags it) but changes meaning silently under real
-    YAML. Warnings only: this is advisory, never a reason to fail
-    validation on its own, per ``WI-FRONTMATTER-MIGRATION-LINT-GUARD``'s
-    Required Change 2.
+    ``lrh project doctor --fix-frontmatter`` uses) across the given
+    Markdown files with a frontmatter block, regardless of whether each
+    one parsed successfully elsewhere in this function -- the whole point
+    of this category is to catch content that *does* parse (so nothing
+    else here flags it) but changes meaning silently under real YAML.
+    Warnings only: this is advisory, never a reason to fail validation on
+    its own, per ``WI-FRONTMATTER-MIGRATION-LINT-GUARD``'s Required
+    Change 2.
+
+    Callers pass the specific file set for their scope (e.g. just
+    ``work_item_files`` for ``--work-items``) rather than this function
+    globbing the whole tree itself, so a scoped validation mode still
+    gets lint coverage for the files it actually validates.
     """
 
-    for path in sorted(project_root.glob("**/*.md")):
+    for path in paths:
         try:
             text = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):

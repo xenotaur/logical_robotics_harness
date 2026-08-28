@@ -191,6 +191,29 @@ confirmation gate above.
 
 ```bash
 git checkout main && git pull
+```
+
+**Work item input:** re-check that the work item file exists on the freshly
+pulled `main` — the Step 1 check may be stale if the WI-creation PR had not
+merged yet when this session started:
+
+```bash
+find project/work_items/ -name "<WI-ID>.md"
+```
+
+If not found, stop and warn — the WI-creation PR likely has not merged.
+Branching now would silently drop the work item file from the
+implementation branch. Ask the user to merge it first (see the "Suggested
+next steps" Path 1 in the `/lrh-work-item` reference) before continuing.
+
+**If the user reports the merge happened and asks to continue in this same
+session, do not proceed straight to branching.** The `git pull` above ran
+before the merge, so local `main` is still stale — re-run both commands
+from the top of this step (`git checkout main && git pull`, then the
+existence check) before creating the branch. Skipping the re-pull
+reproduces the exact silent-omission failure this check exists to catch.
+
+```bash
 git checkout -b <branch-name>
 ```
 

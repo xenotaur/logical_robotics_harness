@@ -1740,3 +1740,46 @@ case revisit Step 3's skip-condition wording for clarity.
 `src/lrh/skills/lrh-codex-export/agents/openai.yaml`;
 `project/work_items/resolved/WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL.md`;
 harness PR #601; agent memory `feedback_flag_removal_needs_confirm_gate.md`.
+
+## `docs/reference/cli/memory.md` is stale relative to `WI-LRH-MEMORY-TRANSFER-SAFETY`'s real fix
+
+**Noted:** 2026-08-28, while implementing `/lrh-doc-organize` phase 2
+(PR #644, the `lrh memory` how-to guides) against
+`project/audits/docs/docs-audit-2026-08-21.md`.
+
+**Gap:** `docs/reference/cli/memory.md` (added by phase 1, PR #605) was
+written before `WI-LRH-MEMORY-TRANSFER-SAFETY` landed its real fix
+(PR #606, commit `9ebce502`). Two parts of that page are now stale:
+
+1. The `import`/`transfer` sections' "Known gap" note still describes
+   the *old*, unfixed behavior (unconditional, unsnapshotted same-agent
+   overwrite). Actual current behavior: `--force` is required for
+   *any* existing-destination overwrite (same-agent, legacy no-
+   `authored_by`, or malformed — not just genuine cross-agent), and the
+   destination's prior content is snapshotted to `<corpus>/history/`
+   first (keyed by content hash) before every case except a genuine
+   cross-agent mismatch.
+2. The two links to `WI-LRH-MEMORY-TRANSFER-SAFETY` point at
+   `project/work_items/proposed/...`, but the WI is now in
+   `project/work_items/resolved/...` — both links are broken.
+
+Not fixed as part of PR #644: this is a currency update triggered by a
+merged WI landing, which is `/lrh-doc-work`'s job, not
+`/lrh-doc-organize`'s (a structural-layout skill, one phase per PR,
+scoped to the audit's own phased plan — fixing this here would be
+scope creep against that constraint). PR #644's own new how-to guide
+(`docs/how-to/move-memories-between-projects.md`) documents the
+*current*, correct behavior directly, so the inaccuracy is isolated to
+the phase-1 reference page.
+
+**Idea:** Run `/lrh-doc-work WI-LRH-MEMORY-TRANSFER-SAFETY` to update
+`docs/reference/cli/memory.md`'s "Known gap" sections and fix both
+`WI-LRH-MEMORY-TRANSFER-SAFETY` link paths.
+
+**Status:** Open. Flagged explicitly by the user during PR #644's
+confirm gate, with an explicit request to track it so it isn't lost.
+
+**Related:** `docs/reference/cli/memory.md` (both `import`/`transfer`
+sections); `project/work_items/resolved/WI-LRH-MEMORY-TRANSFER-SAFETY.md`;
+`project/audits/docs/docs-audit-2026-08-21.md`; PR #605 (phase 1), PR
+#606 (the real fix), PR #644 (phase 2, where this was found).

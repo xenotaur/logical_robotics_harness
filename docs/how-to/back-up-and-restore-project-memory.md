@@ -78,19 +78,35 @@ mirrored: .../memory/cache_notes.md -> .../raw/-home-user-myproject/memory/cache
 sync complete: 1 mirrored, 1 unchanged
 ```
 
-The snapshot filename is `<stem>.<timestamp>.<content-hash>.<suffix>` under
-`<archive-root>/history/<project-slug>/memory/` — keyed by the *prior*
-content's hash, so the same version is never snapshotted twice no matter
-how many times it recurs.
+The snapshot filename is `<stem>.<timestamp>.<short-hash>.<suffix>` under
+`<archive-root>/history/<project-slug>/memory/` (a 12-character prefix of
+the prior content's SHA-256, not the full digest). The filename includes
+the timestamp, not just the hash — a value that recurs later (an
+`A → B → A` cycle) is snapshotted again under a fresh timestamp, since the
+per-sync check only skips writing when *this run's* prior content is
+byte-identical to what's already at the destination, not against every
+past snapshot's content.
 
 ## Step 4 — Restore from the archive
 
 There is no `lrh memory restore` command — recovery is a plain file copy
 from the archive root back into the project's own memory directory
 (`~/.claude/projects/<project-slug>/memory/`, or wherever
-`--claude-projects-root` points):
+`--claude-projects-root` points). If the corpus directory was lost
+entirely — the scenario this guide exists for — restore the whole
+directory recursively rather than one file at a time, since `cp` does
+not create missing parent directories on its own:
 
 ```bash
+cp -r /home/user/.local/share/lrh/session-archive/raw/-home-user-myproject/memory \
+      /home/user/.claude/projects/-home-user-myproject/memory
+```
+
+For a single file into an existing corpus, `mkdir -p` the destination
+directory first if it doesn't already exist, then copy the one file:
+
+```bash
+mkdir -p /home/user/.claude/projects/-home-user-myproject/memory
 cp /home/user/.local/share/lrh/session-archive/raw/-home-user-myproject/memory/cache_notes.md \
    /home/user/.claude/projects/-home-user-myproject/memory/cache_notes.md
 ```

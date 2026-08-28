@@ -120,10 +120,13 @@ snapshotted, since it predates this same-agent/legacy safety guard and is
 handled by `write`'s own pre-existing cross-agent check.
 
 For the same-agent/legacy/malformed case specifically, if the incoming
-content is already byte-identical to the destination, the write is a
-no-op regardless of `--force` — nothing changes, and no snapshot is
-taken. A genuine cross-agent overwrite has no such no-op check — with
-`--force`, it always rewrites the destination unconditionally.
+content is already byte-identical to the destination, `--force` and a
+snapshot are *not* required — but the write still proceeds and is still
+reported as `wrote:`/`written`; only the force-requirement and the
+snapshot are skipped, since there is nothing to snapshot a change away
+from. A genuine cross-agent overwrite has no such special case — with
+`--force`, it always rewrites the destination unconditionally, whether
+or not the content actually changed.
 
 ## Related reference and how-to guidance
 

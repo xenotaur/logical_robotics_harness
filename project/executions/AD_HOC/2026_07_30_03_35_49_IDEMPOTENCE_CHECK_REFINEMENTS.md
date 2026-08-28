@@ -7,7 +7,7 @@ rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/441
 commit: 3643127cb4d31493fc7e45e295a998f08f1d0000
 agent: claude_app
-instruction_source: project/design/backlog.md "Idempotence-check refinements deferred from PR #438"
+instruction_source: 'project/design/backlog.md "Idempotence-check refinements deferred from PR #438"'
 session_transcript: claude-app:3fcab22f-9ebe-4392-bf31-2103fce507f2
 created_at: 2026-07-30T03:35:49-04:00
 ---

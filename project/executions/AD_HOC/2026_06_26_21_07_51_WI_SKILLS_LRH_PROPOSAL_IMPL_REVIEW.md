@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 2026_06_26_13_44_20_WI_SKILLS_LRH_PROPOSAL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/329
-commit: 4189549
+commit: '4189549'
 created_at: 2026-06-26T21:07:51-04:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/329

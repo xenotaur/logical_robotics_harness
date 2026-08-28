@@ -7,7 +7,7 @@ rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/566
 commit: 8789d225
 agent: claude_code
-instruction_source: lrh request review_response for PR #566, round 1
+instruction_source: 'lrh request review_response for PR #566, round 1'
 session_transcript: claude-app:local_dd7df709-1e50-4e78-a5bf-802d06e31d50
 created_at: 2026-08-19T20:20:15+00:00
 ---

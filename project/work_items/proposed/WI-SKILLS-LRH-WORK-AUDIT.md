@@ -29,7 +29,7 @@ acceptance:
   - src/lrh/skills/lrh-work-audit/SKILL.md exists with valid frontmatter
   - .claude/skills/lrh-work-audit/ directory tree is an exact mirror of src/lrh/skills/lrh-work-audit/
   - SKILL.md contains a cross-reference comment pointing to src/lrh/assist/templates/request/audit_work_items.md
-  - CLAUDE.md ## Skills section has a /lrh-work-audit entry
+  - 'CLAUDE.md ## Skills section has a /lrh-work-audit entry'
   - lrh validate passes with 0 errors
   - diff -r src/lrh/skills/lrh-work-audit/ .claude/skills/lrh-work-audit/ is clean
 required_evidence:

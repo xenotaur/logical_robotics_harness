@@ -27,9 +27,21 @@ def parse_markdown_text(text: str) -> ParsedMarkdown:
             "markdown file must begin with YAML frontmatter delimiter '---'"
         )
 
-    frontmatter_text, body = _split_frontmatter_and_body(text)
+    frontmatter_text, body = split_frontmatter_and_body(text)
     frontmatter = parse_frontmatter_mapping(frontmatter_text)
     return ParsedMarkdown(frontmatter=frontmatter, body=body)
+
+
+def split_frontmatter_and_body(text: str) -> tuple[str, str]:
+    """Split raw Markdown text into its frontmatter text and body, without
+    parsing the frontmatter as YAML.
+
+    Public so callers that need the raw frontmatter text before it's known
+    to be valid YAML (e.g. the frontmatter lint/migration tooling in
+    ``control/frontmatter_lint.py`` and ``control/frontmatter_migration.py``)
+    don't have to reach for the private delimiter-finding logic.
+    """
+    return _split_frontmatter_and_body(text)
 
 
 def _split_frontmatter_and_body(text: str) -> tuple[str, str]:

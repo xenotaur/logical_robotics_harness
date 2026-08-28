@@ -7,7 +7,7 @@ rerun_of: 2026_08_20_04_35_54_WI_CODEX_EXPORT_INVOCATION_FLAG_REMOVAL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/571
 commit: 4a7dbecf
 agent: claude_code
-instruction_source: skill:lrh-confirm-fixes Step 8 substitute review signal for PR #571
+instruction_source: 'skill:lrh-confirm-fixes Step 8 substitute review signal for PR #571'
 session_transcript: pending
 created_at: 2026-08-21T18:10:09+00:00
 ---

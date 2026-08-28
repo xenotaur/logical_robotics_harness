@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #507 (commit 7d44941) as DEC-CHAIN-INIT-SKIP-CONSENT
+resolution: 'Implemented and merged in PR #507 (commit 7d44941) as DEC-CHAIN-INIT-SKIP-CONSENT'
 blocked_reason: null
 blocked: false
 id: WI-DEC-CHAIN-INIT-SKIP-AMENDMENT

@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #577 (commit 194d0262e660d91297c7ff8b4c59b761218aefa1)
+resolution: 'Implemented and merged in PR #577 (commit 194d0262e660d91297c7ff8b4c59b761218aefa1)'
 blocked_reason: null
 blocked: false
 id: WI-GATE-POLICY-CASCADE-STAGE3

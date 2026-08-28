@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #320 (a4618e5)
+resolution: 'Implemented and merged in PR #320 (a4618e5)'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-REVIEW-RESPONSE

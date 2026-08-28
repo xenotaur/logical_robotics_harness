@@ -22,7 +22,7 @@ depends_on:
 blocked_by: []
 blocked: false
 blocked_reason: null
-resolution: Landed durable-archive-first defaults for export-antigravity-session in PR #633 (1e56f99eaa8c1e35f79b2d6be9b79acb16e40c42)
+resolution: 'Landed durable-archive-first defaults for export-antigravity-session in PR #633 (1e56f99eaa8c1e35f79b2d6be9b79acb16e40c42)'
 expected_actions:
   - edit_file
   - add_cli_command

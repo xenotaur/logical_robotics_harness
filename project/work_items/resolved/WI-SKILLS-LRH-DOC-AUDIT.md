@@ -1,5 +1,5 @@
 ---
-resolution: Implemented /lrh-doc-audit skill in PR #336 (commit 2cca26a); SKILL.md, diataxis-criteria.md, audit-requirements.md created in src/ and mirrored to .claude/; cross-reference added to audit_docs.md; CLAUDE.md updated
+resolution: 'Implemented /lrh-doc-audit skill in PR #336 (commit 2cca26a); SKILL.md, diataxis-criteria.md, audit-requirements.md created in src/ and mirrored to .claude/; cross-reference added to audit_docs.md; CLAUDE.md updated'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-DOC-AUDIT
@@ -31,7 +31,7 @@ acceptance:
   - .claude/skills/lrh-doc-audit/SKILL.md exists with valid frontmatter
   - .claude/skills/lrh-doc-audit/ is an exact copy of src/lrh/skills/lrh-doc-audit/
   - src/lrh/assist/templates/request/audit_docs.md carries a cross-reference comment
-  - CLAUDE.md ## Skills has a /lrh-doc-audit entry
+  - 'CLAUDE.md ## Skills has a /lrh-doc-audit entry'
   - lrh validate passes with 0 errors
 required_evidence:
   - manual_review

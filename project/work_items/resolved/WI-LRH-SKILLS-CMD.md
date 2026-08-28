@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #380 (commit 761684e)
+resolution: 'Implemented and merged in PR #380 (commit 761684e)'
 blocked_reason: null
 blocked: false
 id: WI-LRH-SKILLS-CMD

@@ -22,6 +22,7 @@ Add content here when the reader already knows which command they need and wants
 ## Currently relevant docs
 
 - [`validate`](validate.md) — validate LRH project control files.
+- [`doctor`](doctor.md) — diagnose LRH project bootstrap readiness, or run the one-time `--fix-frontmatter` content migration.
 - [`snapshot`](snapshot.md) — generate Markdown context packets from project control files.
 - [`survey`](survey.md) — survey Python source trees for assist planning workflows.
 - [`request`](request.md) — render request prompts and inspect request-template resolution, including `audit_docs` and `organize_docs`.

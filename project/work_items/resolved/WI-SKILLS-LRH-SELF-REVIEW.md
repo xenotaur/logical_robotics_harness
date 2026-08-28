@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #467 (commit cdd1134)
+resolution: 'Implemented and merged in PR #467 (commit cdd1134)'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-SELF-REVIEW

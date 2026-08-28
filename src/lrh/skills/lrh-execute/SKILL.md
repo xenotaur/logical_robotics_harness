@@ -439,6 +439,14 @@ When running commands or quoting logs during execution:
 1. **Pass `--log` to validation scripts**: Run `scripts/test --log` and `scripts/validate --log` to capture raw subprocess output in `tmp/logs/` and prevent agent UI tag floods.
 2. **Inspect failure tracebacks losslessly**: If a test or validation fails, use `view_file` on `tmp/logs/test_<timestamp>.log` or `tmp/logs/validate_<timestamp>.log` to read full failure details.
 3. **Fence tag literals and log excerpts**: Always wrap raw log excerpts and XML/HTML tag references (such as `<SYSTEM_MESSAGE>`) in fenced Markdown code blocks (` ``` `).
+4. **Always quote free-text frontmatter scalar values.** Any frontmatter
+   this skill writes directly (the run journal, or planning-artifact edits
+   made while resolving a `WS-ID` to a target `WI-ID`) must never carry
+   bare prose after `key:` or `- ` — quote it, the same rule
+   `/lrh-implement` and `/lrh-land`'s own inlined steps (Step 3/4 above)
+   already follow when they write frontmatter on this skill's behalf.
+   `lrh validate`'s `FRONTMATTER_LINT_UNSAFE_SCALAR` warning catches this
+   after the fact (`WI-FRONTMATTER-MIGRATION-LINT-GUARD`).
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-resolution: Implemented /lrh-doc-work skill in PR #338 (commit cd12f8c); SKILL.md (12-step flow with prompt-ID mint at Step 3, resolved-only enforcement for WI/WS inputs, gh pr diff in Step 4, generic work-reference placeholder in stub/stale templates), diataxis-criteria.md, doc-work-scope.md created in src/ and mirrored to .claude/; CLAUDE.md updated
+resolution: 'Implemented /lrh-doc-work skill in PR #338 (commit cd12f8c); SKILL.md (12-step flow with prompt-ID mint at Step 3, resolved-only enforcement for WI/WS inputs, gh pr diff in Step 4, generic work-reference placeholder in stub/stale templates), diataxis-criteria.md, doc-work-scope.md created in src/ and mirrored to .claude/; CLAUDE.md updated'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-DOC-WORK
@@ -29,7 +29,7 @@ forbidden_actions:
 acceptance:
   - .claude/skills/lrh-doc-work/SKILL.md exists with valid frontmatter
   - .claude/skills/lrh-doc-work/ is an exact copy of src/lrh/skills/lrh-doc-work/
-  - CLAUDE.md ## Skills has a /lrh-doc-work entry
+  - 'CLAUDE.md ## Skills has a /lrh-doc-work entry'
   - lrh validate passes with 0 errors
 required_evidence:
   - manual_review

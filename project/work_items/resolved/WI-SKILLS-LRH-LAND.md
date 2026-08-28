@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #434 (commit 5f5d2bcb)
+resolution: 'Implemented and merged in PR #434 (commit 5f5d2bcb)'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-LAND
@@ -38,7 +38,7 @@ acceptance:
   - SKILL.md Step 6 (merge gate) states explicitly that the human executes the merge, not the agent
   - SKILL.md Step 4 (review-response) includes the REVIEW-LANDED check (empty comment list is not a clean review)
   - WI-SKILLS-LRH-LAND added to WS-SKILLS-EXECUTE.md work_items frontmatter list
-  - /lrh-land entry added to CLAUDE.md ## Skills
+  - '/lrh-land entry added to CLAUDE.md ## Skills'
   - lrh validate reports 0 errors
 required_evidence:
   - manual_review

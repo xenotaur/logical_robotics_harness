@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #521 (commit 02e49461). Rebased mid-flight onto a substantially advanced main and migrated to the when_to_use frontmatter pattern per WI-DELIBERATE-MODEL-INVOCATION.
+resolution: 'Implemented and merged in PR #521 (commit 02e49461). Rebased mid-flight onto a substantially advanced main and migrated to the when_to_use frontmatter pattern per WI-DELIBERATE-MODEL-INVOCATION.'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-WORK-REMAINS
@@ -29,7 +29,7 @@ acceptance:
   - .claude/skills/lrh-work-remains/SKILL.md exists with valid frontmatter (name, description, when_to_use)
   - .claude/skills/lrh-work-remains/ is an exact copy of src/lrh/skills/lrh-work-remains/
   - references/remains-checklist.md preserves the 18-item checklist verbatim (see this WI's "Checklist" section)
-  - CLAUDE.md ## Skills has a /lrh-work-remains entry
+  - 'CLAUDE.md ## Skills has a /lrh-work-remains entry'
   - lrh validate passes with 0 errors
 required_evidence:
   - manual_review

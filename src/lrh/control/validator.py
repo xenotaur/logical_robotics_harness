@@ -6,8 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from lrh.control import execution_readiness, models, planning_tree, work_item_policy
-from lrh.control.parser import parse_frontmatter_mapping
+from lrh.control import (
+    execution_readiness,
+    frontmatter_lint,
+    models,
+    planning_tree,
+    work_item_policy,
+)
+from lrh.control.parser import parse_frontmatter_mapping, split_frontmatter_and_body
 
 CONTRIBUTOR_REQUIRED_FIELDS = {"id", "type", "roles", "display_name", "status"}
 CONTRIBUTOR_TYPES = {"human", "agent"}
@@ -448,7 +454,52 @@ def validate_project(
             continue
         _validate_execution_record(project_root, artifact, issues)
 
+    _validate_frontmatter_lint(project_root, issues)
+
     return ValidationReport(issues=issues)
+
+
+def _validate_frontmatter_lint(
+    project_root: Path,
+    issues: list[ValidationIssue],
+) -> None:
+    """Report-only frontmatter lint pass, independent of typed-artifact
+    parsing above.
+
+    Runs the shared ``frontmatter_lint`` detector (the same one
+    ``lrh project doctor --fix-frontmatter`` uses) across every Markdown
+    file in the project tree with a frontmatter block, regardless of
+    whether it parsed successfully elsewhere in this function -- the whole
+    point of this category is to catch content that *does* parse (so
+    nothing else here flags it) but changes meaning silently under real
+    YAML. Warnings only: this is advisory, never a reason to fail
+    validation on its own, per ``WI-FRONTMATTER-MIGRATION-LINT-GUARD``'s
+    Required Change 2.
+    """
+
+    for path in sorted(project_root.glob("**/*.md")):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            continue
+        if not text.startswith("---\n"):
+            continue
+        try:
+            frontmatter_text, _ = split_frontmatter_and_body(text)
+        except ValueError:
+            continue
+
+        for finding in frontmatter_lint.iter_unsafe_scalars(frontmatter_text):
+            issues.append(
+                _issue(
+                    project_root,
+                    path,
+                    "warning",
+                    "FRONTMATTER_LINT_UNSAFE_SCALAR",
+                    f"line {finding.line}, field '{finding.field}': "
+                    f"{finding.detail}",
+                )
+            )
 
 
 def _discover_workstream_files(workstreams_dir: Path) -> list[Path]:

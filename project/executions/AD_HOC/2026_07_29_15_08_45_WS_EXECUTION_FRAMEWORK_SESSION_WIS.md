@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/437
 commit: 1ef90a2205ad2375178e6366dd73a5d1046ed013
 created_at: 2026-07-29T15:08:45-04:00
 agent: claude_app
-instruction_source: ad_hoc conversation — reconcile PR #435 against the landed PROP-LRH-SESSION-ARCHIVE-SYNC; salvage the workstream hygiene half
+instruction_source: 'ad_hoc conversation — reconcile PR #435 against the landed PROP-LRH-SESSION-ARCHIVE-SYNC; salvage the workstream hygiene half'
 session_transcript: claude-app:f1e9c968-f61d-4618-979c-29f8b08bfb0c
 ---
 

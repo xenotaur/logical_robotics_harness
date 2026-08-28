@@ -29,7 +29,7 @@ forbidden_actions:
   - delete_source_before_verification
 acceptance:
   - experimental/rescue_codex_exports/README.md's ownership table no longer calls ~/.lrh/private/codex/ "the durable archive itself", and instead notes that lrh conversation import-codex-exports is the production consolidation path
-  - project/design/backlog.md's rescue_codex_exports entry no longer states WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT "remains proposed" (it is resolved, PR #579) and links this item as the follow-up that closes the loop
+  - 'project/design/backlog.md''s rescue_codex_exports entry no longer states WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT "remains proposed" (it is resolved, PR #579) and links this item as the follow-up that closes the loop'
   - Every directory currently under ~/.lrh/private/codex/ (verified via that directory's own MIGRATION_LOG.md) has been imported into the canonical archive's codex/imports/<YYYY>/<MM>/ tree via lrh conversation import-codex-exports, with attempt.json and validation status present for each, and no transcript body text printed during the run
   - Source directories under ~/.lrh/private/codex/ are left in place until each imported copy is spot-verified against its source, since import-codex-exports copies rather than deletes
   - lrh validate reports 0 errors

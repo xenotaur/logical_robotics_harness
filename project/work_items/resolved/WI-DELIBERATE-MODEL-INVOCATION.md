@@ -1,5 +1,5 @@
 ---
-resolution: Removed disable-model-invocation from the 9 tier-1/2/3 skills with tiered when_to_use guidance (PR #533, commit 271b2c63). The four retained-flag skills are out of this WI's scope by its own acceptance criteria and remain tracked as separate follow-up gaps.
+resolution: 'Removed disable-model-invocation from the 9 tier-1/2/3 skills with tiered when_to_use guidance (PR #533, commit 271b2c63). The four retained-flag skills are out of this WI''s scope by its own acceptance criteria and remain tracked as separate follow-up gaps.'
 blocked_reason: null
 blocked: false
 id: WI-DELIBERATE-MODEL-INVOCATION

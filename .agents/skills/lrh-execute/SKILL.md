@@ -247,6 +247,7 @@ material.
 
 ### Step 2 — Chain authorization gate
 
+<!-- GATE-DEFINITION -->
 Per `DEC-DELIBERATE-CHAIN-INITIATION`, this gate must be reached before
 any automated link runs — before `/lrh-implement` in Step 3, not deferred
 to `/lrh-land`'s own later gate in Step 4 (by the time that gate is
@@ -308,6 +309,7 @@ gate, for the landing portion specifically, still fires when reached. When
 conditions may be satisfied by re-confirming the conditions already
 established here, if the human agrees they still apply, rather than
 re-eliciting them from scratch.
+<!-- /GATE-DEFINITION -->
 
 ### Step 3 — Implement (inline `/lrh-implement`)
 
@@ -422,6 +424,23 @@ Report to the user:
 - Execution record path and prompt ID (from Step 3).
 - CHAIN-NOTE summary (from Step 4's closeout).
 - Any friction or stops encountered during the run.
+
+---
+
+## Formatting & Log Hygiene
+
+When running commands or quoting logs during execution:
+1. **Pass `--log` to validation scripts**: Run `scripts/test --log` and `scripts/validate --log` to capture raw subprocess output in `tmp/logs/` and prevent agent UI tag floods.
+2. **Inspect failure tracebacks losslessly**: If a test or validation fails, use `view_file` on `tmp/logs/test_<timestamp>.log` or `tmp/logs/validate_<timestamp>.log` to read full failure details.
+3. **Fence tag literals and log excerpts**: Always wrap raw log excerpts and XML/HTML tag references (such as `<SYSTEM_MESSAGE>`) in fenced Markdown code blocks (` ``` `).
+4. **Always quote free-text frontmatter scalar values.** Any frontmatter
+   this skill writes directly (the run journal, or planning-artifact edits
+   made while resolving a `WS-ID` to a target `WI-ID`) must never carry
+   bare prose after `key:` or `- ` — quote it, the same rule
+   `/lrh-implement` and `/lrh-land`'s own inlined steps (Step 3/4 above)
+   already follow when they write frontmatter on this skill's behalf.
+   `lrh validate`'s `FRONTMATTER_LINT_UNSAFE_SCALAR` warning catches this
+   after the fact (`WI-FRONTMATTER-MIGRATION-LINT-GUARD`).
 
 ---
 

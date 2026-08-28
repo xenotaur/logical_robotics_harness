@@ -31,11 +31,17 @@ DEFAULT_FILENAME_KEYWORDS = (
     "medical",
 )
 
+CONTENT_SCAN_SCOPE_FLAGGED = "flagged"
+CONTENT_SCAN_SCOPE_ALL_TEXT = "all-text"
+_VALID_CONTENT_SCAN_SCOPES = (CONTENT_SCAN_SCOPE_FLAGGED, CONTENT_SCAN_SCOPE_ALL_TEXT)
+DEFAULT_CONTENT_SCAN_SCOPE = CONTENT_SCAN_SCOPE_FLAGGED
+
 
 @dataclasses.dataclass(frozen=True)
 class PiiConfig:
     path_globs: tuple[str, ...]
     filename_keywords: tuple[str, ...]
+    content_scan_scope: str = DEFAULT_CONTENT_SCAN_SCOPE
 
 
 class PiiConfigError(Exception):
@@ -52,6 +58,7 @@ def load_config(project_root: pathlib.Path) -> PiiConfig:
         return PiiConfig(
             path_globs=DEFAULT_PATH_GLOBS,
             filename_keywords=DEFAULT_FILENAME_KEYWORDS,
+            content_scan_scope=DEFAULT_CONTENT_SCAN_SCOPE,
         )
 
     try:
@@ -85,9 +92,17 @@ def load_config(project_root: pathlib.Path) -> PiiConfig:
         _require_string_list(data, "filename_keywords", config_path)
     )
 
+    content_scan_scope = data.get("content_scan_scope", DEFAULT_CONTENT_SCAN_SCOPE)
+    if content_scan_scope not in _VALID_CONTENT_SCAN_SCOPES:
+        raise PiiConfigError(
+            f"{config_path}: content_scan_scope must be one of "
+            f"{_VALID_CONTENT_SCAN_SCOPES}, got {content_scan_scope!r}"
+        )
+
     return PiiConfig(
         path_globs=tuple(dict.fromkeys(path_globs)),
         filename_keywords=tuple(dict.fromkeys(filename_keywords)),
+        content_scan_scope=content_scan_scope,
     )
 
 

@@ -14,6 +14,9 @@ class LoadConfigTest(unittest.TestCase):
             self.assertEqual(
                 config.filename_keywords, pii_config.DEFAULT_FILENAME_KEYWORDS
             )
+            self.assertEqual(
+                config.content_scan_scope, pii_config.CONTENT_SCAN_SCOPE_FLAGGED
+            )
 
     def test_extends_defaults_when_use_default_is_true(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -95,6 +98,29 @@ class LoadConfigTest(unittest.TestCase):
             project_root = pathlib.Path(tmp)
             (project_root / pii_config.CONFIG_FILENAME).write_text(
                 "filename_keywords = [1, 2]\n"
+            )
+
+            with self.assertRaises(pii_config.PiiConfigError):
+                pii_config.load_config(project_root)
+
+    def test_content_scan_scope_all_text_is_honored(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            (project_root / pii_config.CONFIG_FILENAME).write_text(
+                'content_scan_scope = "all-text"\n'
+            )
+
+            config = pii_config.load_config(project_root)
+
+            self.assertEqual(
+                config.content_scan_scope, pii_config.CONTENT_SCAN_SCOPE_ALL_TEXT
+            )
+
+    def test_invalid_content_scan_scope_raises_pii_config_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            (project_root / pii_config.CONFIG_FILENAME).write_text(
+                'content_scan_scope = "everything"\n'
             )
 
             with self.assertRaises(pii_config.PiiConfigError):

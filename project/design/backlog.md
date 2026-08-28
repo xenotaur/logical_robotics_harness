@@ -1740,3 +1740,49 @@ case revisit Step 3's skip-condition wording for clarity.
 `src/lrh/skills/lrh-codex-export/agents/openai.yaml`;
 `project/work_items/resolved/WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL.md`;
 harness PR #601; agent memory `feedback_flag_removal_needs_confirm_gate.md`.
+
+---
+
+## Agents suggesting premature WI/proposal/workstream implementation while the filing PR is still unmerged
+
+**Noted:** 2026-08-28, after an agent repeatedly reported
+`/lrh-implement`/`/lrh-execute <WI-ID>` as a "next step" immediately after
+filing a work item, while that item's own filing PR sat open and
+unreviewed -- despite the correct sequencing already being documented in
+`/lrh-work-item`'s own reference doc (`lrh-work-item-workflow.md:99-123`,
+"Path 1 -- PR lifecycle" vs. Path 2). The failure wasn't missing
+information -- it was paraphrasing past that material in a later,
+unstructured "what's next" answer, disconnected from the skill invocation
+that had the details loaded.
+
+The gap is structural, not a one-off: `/lrh-proposal`
+(`SKILL.md:373-380`), `/lrh-workstream` (`SKILL.md:357-364`), and
+`/lrh-work-remains` (`SKILL.md:92-96`, whose entire purpose is preventing
+exactly this class of conversational-recall drift) all share the same
+"report a freely-composed next step" shape, with no rule connecting
+"filing PR still open" to "don't suggest implementing yet." PR #602
+(merged 2026-08-28) fixed a related but distinct problem -- a downstream
+execution-safety consequence in `/lrh-implement` Step 5 if the premature
+action is actually run -- not the reporting-accuracy problem of
+suggesting it in the first place.
+
+**Idea:** `WI-SKILLS-LRH-NEXT-STEP-REPORTING` was filed to fix this, with
+a deliberately investigation-first scope: rather than pre-selecting a fix,
+the executing session must first produce a repo-grounded decision matrix
+covering at least (a) a documentation-only `AGENTS.md` rule cited from
+each affected skill's reporting step, and (b) a mechanical CLI-computed
+next-step command (in the same architectural style as
+`gate_staleness.py`/`confirm_fixes_batch.py`/`chain_defaults_status.py`)
+that a skill calls and reports verbatim rather than composing freely.
+
+**Status:** Open. WI filed and PR opened; not yet implemented. A handoff
+prompt was rendered for a fresh session to pick this up, since the filing
+session was mid-task on unrelated work.
+
+**Related:** `project/work_items/proposed/WI-SKILLS-LRH-NEXT-STEP-REPORTING.md`;
+`src/lrh/skills/lrh-work-item/references/lrh-work-item-workflow.md:99-123`;
+`src/lrh/skills/lrh-proposal/SKILL.md:373-380`;
+`src/lrh/skills/lrh-workstream/SKILL.md:357-364`;
+`src/lrh/skills/lrh-work-remains/SKILL.md:92-96`;
+`src/lrh/skills/lrh-work-remains/references/remains-checklist.md:9-25`;
+harness PR #602; agent memory `feedback_wi_next_step_reporting.md`.

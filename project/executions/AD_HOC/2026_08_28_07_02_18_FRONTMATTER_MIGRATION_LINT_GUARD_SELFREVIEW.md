@@ -2,10 +2,10 @@
 execution_id: 2026_08_28_07_02_18_FRONTMATTER_MIGRATION_LINT_GUARD_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:FRONTMATTER_MIGRATION_LINT_GUARD_SELFREVIEW)[2026-08-28T07:02:12+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/642
+commit: 02b0a327324ed121ac561f3c2fe5c34889320581
 created_at: 2026-08-28T07:02:18+00:00
 agent: claude_app
 instruction_source: 'command lrh-self-review (diff-mode), run before xenotaur/feat/wi-frontmatter-migration-lint-guards first PR push, per fleet policy'

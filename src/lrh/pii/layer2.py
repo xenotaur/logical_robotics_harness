@@ -24,6 +24,22 @@ rather than a second, parallel PDF parser. Plain text is decoded directly.
 Any other content - other binary formats, an encrypted or non-text-layer
 PDF, undecodable bytes - is skipped; this is a disclosed detection gap
 (no OCR, no binary-format text extraction), not a bug to route around.
+
+A path/commit pair is scanned at most once even when `all_paths` contains
+both sides of a rename: `enumerate_commits_for_paths` follows the
+destination back through the source (and vice versa via `--follow`), so
+requesting both names for a renamed file returns the same underlying
+commits twice, under each name (PR #646 review, `chatgpt-codex-connector`).
+`content_findings_for_paths` deduplicates by `(commit, path)` before
+scanning so a finding isn't counted twice for one real occurrence.
+
+A `git show` failure is treated as an unscannable blob (deleted-at-that-
+commit, the common case) only when git's own stderr says the path is
+absent from that commit. Any other failure - repository corruption, a
+missing promisor blob in a partial clone, or any other read error -
+raises `Layer2ContentReadError` instead of being silently skipped, since
+swallowing it would let a full-history scan appear clean while actually
+missing content (PR #646 review, `chatgpt-codex-connector`).
 """
 
 from __future__ import annotations
@@ -49,17 +65,36 @@ class Layer2Finding:
     line_number: int | None
 
 
+class Layer2ContentReadError(Exception):
+    """Raised when `git show` fails for a reason other than the path being
+    absent from that commit (e.g. repository corruption, a missing
+    promisor blob in a partial clone)."""
+
+
+_MISSING_PATH_STDERR_MARKERS = (
+    "does not exist in",
+    "exists on disk, but not in",
+)
+
+
 def _read_content_at_commit(
     project_root: pathlib.Path, commit: str, path: str
 ) -> bytes | None:
     """Return the raw bytes for `path` as it existed at `commit`, or `None`
-    if the blob can't be read (e.g. the path was deleted at that commit)."""
+    if the path was absent from the tree at that commit (e.g. deleted).
+    Any other `git show` failure raises `Layer2ContentReadError` rather
+    than being treated as an unscannable-but-harmless case."""
     result = subprocess.run(
         ["git", "-C", str(project_root), "show", f"{commit}:{path}"],
         capture_output=True,
     )
     if result.returncode != 0:
-        return None
+        stderr_text = result.stderr.decode("utf-8", errors="replace")
+        if any(marker in stderr_text for marker in _MISSING_PATH_STDERR_MARKERS):
+            return None
+        raise Layer2ContentReadError(
+            f"git show {commit}:{path} failed unexpectedly: {stderr_text.strip()}"
+        )
     return result.stdout
 
 
@@ -92,7 +127,11 @@ def content_findings_for_paths(
         if config.content_scan_scope == pii_config.CONTENT_SCAN_SCOPE_ALL_TEXT
         else flagged_paths
     )
-    path_commits = pii_enumerate.enumerate_commits_for_paths(project_root, target_paths)
+    path_commits = list(
+        dict.fromkeys(
+            pii_enumerate.enumerate_commits_for_paths(project_root, target_paths)
+        )
+    )
 
     findings: list[Layer2Finding] = []
     for path_commit in path_commits:

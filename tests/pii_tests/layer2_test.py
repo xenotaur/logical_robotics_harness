@@ -2,6 +2,7 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from lrh.pii import config as pii_config
 from lrh.pii import layer2 as pii_layer2
@@ -175,6 +176,78 @@ class ContentFindingsForPathsTest(unittest.TestCase):
             )
 
             self.assertEqual(findings, [])
+
+    def test_renamed_file_content_is_not_double_counted(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            _init_repo(project_root)
+            _commit_file(project_root, "a.txt", "frank@example.com", "add a")
+            _run_git(project_root, "mv", "a.txt", "b.txt")
+            _run_git(project_root, "commit", "-q", "-m", "rename a to b")
+
+            # Requesting both the pre- and post-rename name (as
+            # enumerate_added_paths() normally returns for a rename) makes
+            # enumerate_commits_for_paths() report the add commit under
+            # (a.txt, add_commit) twice - once via each query. The rename
+            # commit itself is a genuinely separate, real historical
+            # revision (its tree contains b.txt's content), so it produces
+            # its own finding, not a duplicate. Without deduplication this
+            # scenario yields 3 findings (the add commit double-counted);
+            # deduplicating by (commit, path) collapses it to the correct
+            # 2 - one per real revision (PR #646 review,
+            # chatgpt-codex-connector).
+            findings = pii_layer2.content_findings_for_paths(
+                project_root,
+                flagged_paths=[],
+                all_paths=["a.txt", "b.txt"],
+                config=_config(pii_config.CONTENT_SCAN_SCOPE_ALL_TEXT),
+            )
+
+            self.assertEqual(len(findings), 2)
+
+
+class ReadContentAtCommitTest(unittest.TestCase):
+    def test_returns_none_for_a_path_deleted_at_that_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            _init_repo(project_root)
+            _commit_file(project_root, "a.txt", "hello", "add a")
+            _run_git(project_root, "rm", "-q", "a.txt")
+            _run_git(project_root, "commit", "-q", "-m", "remove a")
+            head = subprocess.run(
+                ["git", "-C", str(project_root), "rev-parse", "HEAD"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+
+            content = pii_layer2._read_content_at_commit(project_root, head, "a.txt")
+
+            self.assertIsNone(content)
+
+    def test_unexpected_git_show_failure_raises_instead_of_skipping(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            _init_repo(project_root)
+            _commit_file(project_root, "a.txt", "hello", "add a")
+            head = subprocess.run(
+                ["git", "-C", str(project_root), "rev-parse", "HEAD"],
+                check=True,
+                capture_output=True,
+                text=True,
+            ).stdout.strip()
+
+            fake_result = subprocess.CompletedProcess(
+                args=[],
+                returncode=128,
+                stdout=b"",
+                stderr=b"fatal: bad object deadbeef",
+            )
+            with mock.patch.object(
+                pii_layer2.subprocess, "run", return_value=fake_result
+            ):
+                with self.assertRaises(pii_layer2.Layer2ContentReadError):
+                    pii_layer2._read_content_at_commit(project_root, head, "a.txt")
 
 
 if __name__ == "__main__":

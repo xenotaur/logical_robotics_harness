@@ -4,8 +4,8 @@ prompt_id: PROMPT(AD_HOC:PR512_REVIEW_FOLLOWUP_SELFREVIEW)[2026-08-28T06:34:03+0
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/639
+commit: 38b19737
 created_at: 2026-08-28T06:34:08+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/512

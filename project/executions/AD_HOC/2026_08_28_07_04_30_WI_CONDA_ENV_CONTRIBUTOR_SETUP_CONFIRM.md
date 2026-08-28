@@ -2,10 +2,10 @@
 execution_id: 2026_08_28_07_04_30_WI_CONDA_ENV_CONTRIBUTOR_SETUP_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_CONDA_ENV_CONTRIBUTOR_SETUP_CONFIRM)[2026-08-28T07:03:51+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_28_06_52_30_WI_CONDA_ENV_CONTRIBUTOR_SETUP
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/641
-commit: dc8e920c
+commit: 2374647c5b078fea8df8036be4f626f34b3b7aab
 created_at: 2026-08-28T07:04:30+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/641

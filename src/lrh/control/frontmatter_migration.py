@@ -79,7 +79,11 @@ def _extract_value_text(raw_line: str, *, is_list_item: bool) -> str:
         assert stripped.startswith("- ")
         return stripped[2:]
     _key, _sep, rest = raw_line.partition(":")
-    return rest.strip()
+    # Only strip the separator whitespace on the left (between ":" and the
+    # value); preserve the rest verbatim, including any trailing
+    # whitespace, so the "preserves content exactly" contract holds even
+    # for the rare case of meaningful trailing spaces.
+    return rest.lstrip()
 
 
 def plan_fixes(frontmatter_text: str) -> tuple[str, list[FixedField]]:

@@ -21,6 +21,16 @@ class TestPlanFixes(unittest.TestCase):
         data = yaml.safe_load(new_text)
         self.assertEqual(data["instruction_source"], "discovered verifying PR #531")
 
+    def test_mapping_line_preserves_trailing_whitespace(self) -> None:
+        # A flagged mapping-line value with meaningful trailing whitespace
+        # must round-trip exactly -- only the separator whitespace after
+        # ":" is stripped, never trailing whitespace inside the value.
+        text = "instruction_source: fixed the bug #402   \n"
+        new_text, fixes = frontmatter_migration.plan_fixes(text)
+        self.assertEqual(len(fixes), 1)
+        data = yaml.safe_load(new_text)
+        self.assertEqual(data["instruction_source"], "fixed the bug #402   ")
+
     def test_colon_collapse_list_item_stays_a_string(self) -> None:
         text = "acceptance:\n  - a bullet: with a colon\n"
         new_text, fixes = frontmatter_migration.plan_fixes(text)

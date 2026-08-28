@@ -1178,8 +1178,16 @@ def main() -> None:
             project_root = Path(args.project_root).expanduser().resolve()
 
             if args.fix_frontmatter:
+                # Scoped to project_root/"project" (the control-plane tree
+                # lrh validate also scans), not the whole repo root --
+                # project_root here is the repo root by "lrh project
+                # doctor" convention (see diagnose_project), and rewriting
+                # markdown outside project/ (skill mirrors under
+                # .claude/skills/, .agents/skills/, docs/, etc.) is out of
+                # this WI's stated scope and would desync the skill-mirror
+                # copies this same WI keeps in sync.
                 results = frontmatter_migration.fix_project(
-                    project_root, apply=args.apply
+                    project_root / "project", apply=args.apply
                 )
                 total_fixes = sum(len(r.fixes) for r in results)
                 mode = "APPLIED" if args.apply else "DRY RUN"

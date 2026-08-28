@@ -24,11 +24,11 @@ forbidden_actions:
   - delete_branch
   - modify_lrh_implement
 acceptance:
-  - /lrh-execute Step 1, given a WI-ID, detects an open PR that would introduce that WI (not yet on origin/main) and stops with a clear "land PR #N first" message before Step 1.5/Step 2 run
-  - The same detection applies to a WI candidate resolved from a WS-ID's work_items list
-  - The matching logic is deliberately reused/adapted from /lrh-land's existing primary-record provenance-check algorithm rather than re-derived from scratch, with the execution record documenting which parts were reused vs. adapted
-  - No change to /lrh-implement's own Step 5 check from PR #602 -- this is a strictly earlier, redundant check
-  - lrh validate passes with 0 errors; existing /lrh-execute test/behavior coverage still passes
+  - "/lrh-execute Step 1, given a WI-ID, detects an open PR that would introduce that WI (not yet on origin/main) and stops with a clear \"land the introducing PR first\" message before Step 1.5/Step 2 run"
+  - "For a WS-ID, a candidate WI whose creation PR is still open is skipped as ineligible and evaluation continues down the ordered work_items list, rather than aborting the whole run -- only a direct WI-ID input hard-stops"
+  - "The matching logic is deliberately reused/adapted from /lrh-land's existing primary-record provenance-check algorithm rather than re-derived from scratch, with the execution record documenting which parts were reused vs. adapted"
+  - "No change to /lrh-implement's own Step 5 check landed by the prior fix -- this is a strictly earlier, redundant check"
+  - "lrh validate passes with 0 errors; existing /lrh-execute test/behavior coverage still passes"
 required_evidence:
   - manual_review
   - lrh_validate
@@ -113,9 +113,17 @@ always stops before any real work happens, just later than ideal).
    slug matches the WI and whose `pr:` field is still open, or by searching
    open PRs whose diff/body references the WI-ID. If found, stop and report
    "land PR #<N> first" before proceeding to Step 1.5/Step 2.
-2. Apply the same check to Step 1's `WS-ID` branch, since a candidate WI
-   resolved from a workstream's `work_items:` list can have the same
-   problem.
+2. Apply the same check to Step 1's `WS-ID` branch, but **not** as a hard
+   stop there: a candidate WI whose creation PR is still open is simply
+   ineligible, the same as a candidate that fails `depends_on` or
+   readiness today. Skip it and continue evaluating the ordered
+   `work_items:` list for the next candidate, per `/lrh-execute`'s
+   existing "next ready WI" selection rule (`PROP-LRH-LAND-EXECUTE`'s
+   "Chosen scope") -- aborting the whole run on the first blocked
+   candidate would incorrectly prevent selecting a later, fully-ready
+   candidate. Only the direct `WI-ID` input case hard-stops, since there
+   the human named that specific WI and no alternative candidate exists
+   to fall back to.
 3. Study `src/lrh/skills/lrh-land/references/land-workflow.md`'s "Primary
    vs. side-record provenance check" section before designing the matching
    logic here -- that section documents three prior failed attempts at a
@@ -141,10 +149,12 @@ always stops before any real work happens, just later than ideal).
 
 ## Acceptance Criteria
 
-- `/lrh-execute` Step 1, given a `WI-ID`, detects whether an open PR would
-  introduce that WI and stops with a clear message before Step 1.5/Step 2
-  run.
-- The same detection applies to a WI candidate resolved from a `WS-ID`.
+- `/lrh-execute` Step 1, given a `WI-ID` directly, detects whether an open
+  PR would introduce that WI and hard-stops with a clear message before
+  Step 1.5/Step 2 run.
+- For a `WS-ID`, a candidate WI whose creation PR is still open is skipped
+  as ineligible (not a hard stop) and evaluation continues down the
+  ordered `work_items:` list to the next candidate.
 - The matching logic is documented as reused/adapted from `/lrh-land`'s
   provenance-check algorithm, not re-derived from scratch.
 - No change to `/lrh-implement`'s own Step 5 check.

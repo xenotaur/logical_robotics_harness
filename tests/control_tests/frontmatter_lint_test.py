@@ -23,6 +23,15 @@ class TestUnescapedColon(unittest.TestCase):
         text = "steps:\n  - name: test\n"
         self.assertEqual(frontmatter_lint.iter_unsafe_scalars(text), [])
 
+    def test_nested_mapping_list_item_not_flagged_even_in_known_field(self) -> None:
+        # A multi-key mapping entry (a continuation line indented to align
+        # with the first key) is real structure, not a colon-collapsed
+        # scalar -- must never be flagged or rewritten, even under a
+        # KNOWN_STRING_FIELDS member, since rewriting only the first line
+        # would orphan the continuation and produce invalid YAML.
+        text = "acceptance:\n  - criterion: something\n    detail: else\n"
+        self.assertEqual(frontmatter_lint.iter_unsafe_scalars(text), [])
+
     def test_scalar_field_mid_value_colon(self) -> None:
         text = "title: Some Title: With Colon\n"
         findings = frontmatter_lint.iter_unsafe_scalars(text)

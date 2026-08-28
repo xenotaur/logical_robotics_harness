@@ -21,6 +21,16 @@ class TestPlanFixes(unittest.TestCase):
         data = yaml.safe_load(new_text)
         self.assertEqual(data["instruction_source"], "discovered verifying PR #531")
 
+    def test_nested_mapping_list_item_untouched_no_crash(self) -> None:
+        # A genuine multi-key mapping entry under a KNOWN_STRING_FIELDS
+        # field must be left alone, not partially rewritten in a way that
+        # would orphan its continuation line and produce invalid YAML.
+        text = "acceptance:\n  - criterion: something\n    detail: else\n"
+        new_text, fixes = frontmatter_migration.plan_fixes(text)
+        self.assertEqual(new_text, text)
+        self.assertEqual(fixes, [])
+        yaml.safe_load(new_text)  # must still be valid, unmodified YAML
+
     def test_mapping_line_preserves_trailing_whitespace(self) -> None:
         # A flagged mapping-line value with meaningful trailing whitespace
         # must round-trip exactly -- only the separator whitespace after

@@ -180,7 +180,12 @@ def iter_unsafe_scalars(frontmatter_text: str) -> list[UnsafeScalarFinding]:
 
         if line.startswith((" ", "\t")):
             candidate = line.lstrip()
-            if candidate.startswith("- ") and current_field is not None:
+            dash_indent = len(line) - len(candidate)
+            if (
+                candidate.startswith("- ")
+                and current_field is not None
+                and not _has_nested_continuation(lines, index, dash_indent)
+            ):
                 value_text = candidate[2:]
                 finding = _check_value(
                     current_field, value_text, index + 1, line, is_list_item=True
@@ -210,6 +215,34 @@ def iter_unsafe_scalars(frontmatter_text: str) -> list[UnsafeScalarFinding]:
         index += 1
 
     return findings
+
+
+def _has_nested_continuation(lines: list[str], index: int, dash_indent: int) -> bool:
+    """True if the list item at ``lines[index]`` has real nested structure
+    (a continuation line indented to align with or past the item's own
+    content, e.g. a second key of a multi-key mapping entry) rather than
+    being a flat, single-line scalar.
+
+    A ``- key: value`` item followed by a line like ``    other: value``
+    indented to the first key's column is a genuine multi-key YAML
+    mapping entry, not a colon-collapsed plain scalar -- rewriting only
+    the first line as a quoted string would orphan the continuation and
+    produce invalid YAML (or worse, valid-but-wrong YAML). Never flag or
+    rewrite such an item, regardless of the owning field.
+    """
+
+    next_index = index + 1
+    if next_index >= len(lines):
+        return False
+    next_line = lines[next_index]
+    if not next_line.strip() or next_line.strip().startswith("#"):
+        return False
+    next_indent = len(next_line) - len(next_line.lstrip())
+    # A sibling list item ("- " at the same indent) or a dedent back to a
+    # shallower level ends this item's content -- not a continuation. Only
+    # a strictly deeper indent than the dash itself, on a non-"- "-led
+    # line, is unambiguous nested structure.
+    return next_indent > dash_indent and not next_line.lstrip().startswith("- ")
 
 
 def _check_value(

@@ -32,7 +32,7 @@ required_evidence:
   - manual_review
   - lrh_validate
 artifacts_expected:
-  - a decision-matrix write-up (location TBD by the executing session -- e.g. project/design/ or the execution record body)
+  - a decision-matrix write-up as its own standalone artifact, committed before any implementation commit (location TBD by the executing session -- e.g. project/design/ -- but not the /lrh-implement Step 9 execution record, which postdates the implementation commit)
   - AGENTS.md and/or new src/lrh/*.py CLI module, depending on which option the matrix selects
   - src/lrh/skills/lrh-work-item/SKILL.md
   - src/lrh/skills/lrh-proposal/SKILL.md
@@ -60,21 +60,29 @@ A session repeatedly reported `/lrh-implement`/`/lrh-execute <WI-ID>` as a
 "next step" immediately after filing a WI, while its own filing PR sat
 open and unreviewed -- despite the correct sequencing already being
 documented in `/lrh-work-item`'s own reference doc
-(`lrh-work-item-workflow.md:99-123`, "Path 1 -- PR lifecycle" vs. Path 2,
-which states plainly that merging does not resolve the work item). The
-failure wasn't missing information -- it was paraphrasing past that
-material in a later, unstructured "what's next" answer, disconnected from
-the skill invocation that had the details loaded.
+(`src/lrh/skills/lrh-work-item/references/lrh-work-item-workflow.md:99-123`,
+"Path 1 -- PR lifecycle" vs. Path 2, which states plainly that merging
+does not resolve the work item). The failure wasn't missing information
+-- it was paraphrasing past that material in a later, unstructured
+"what's next" answer, disconnected from the skill invocation that had the
+details loaded.
 
-This is structural, not a one-off: `/lrh-proposal` (`SKILL.md:373-380`)
-and `/lrh-workstream` (`SKILL.md:357-364`) have the identical "Report to
-the user -> Suggested next steps" terminal shape as `/lrh-work-item`.
-`/lrh-work-remains` -- whose entire purpose is preventing exactly this
-class of conversational-recall drift -- has the same gap in its own Step
-4 ("state the single most logical next step",
-`lrh-work-remains/SKILL.md:92-96`), with no rule connecting checklist
-item 5 ("Open PRs not yet merged") to item 14 ("Open work items") when
-both are true for the same item (`remains-checklist.md:9-25`).
+This is structural, not a one-off: `/lrh-proposal`
+(`src/lrh/skills/lrh-proposal/SKILL.md:373-380`) and `/lrh-workstream`
+(`src/lrh/skills/lrh-workstream/SKILL.md:357-364`) have the identical
+"Report to the user -> Suggested next steps" terminal shape as
+`/lrh-work-item`. `/lrh-work-remains` -- whose entire purpose is
+preventing exactly this class of conversational-recall drift -- has the
+same gap in its own Step 4 ("state the single most logical next step",
+`src/lrh/skills/lrh-work-remains/SKILL.md:92-96`), with no rule
+connecting checklist item 5 ("Open PRs not yet merged") to item 14 ("Open
+work items") when both are true for the same item
+(`src/lrh/skills/lrh-work-remains/references/remains-checklist.md:9-25`).
+Note: this codebase installs each `SKILL.md`/reference file identically
+into `src/`, `.claude/skills/`, `.agents/skills/`, and
+`.gemini/plugins/lrh/skills/` -- every citation in this work item points
+at the `src/` copy specifically, since that is the canonical source of
+truth the installed mirrors are generated from.
 
 **Related prior art, already landed, does not obviate this work:** PR #602
 (merged 2026-08-28, `Document and enforce WI-creation-PR-merge ordering
@@ -83,11 +91,13 @@ of the same root confusion -- if `/lrh-implement` is actually run before
 its WI's filing PR merges, the WI file previously got silently dropped
 from the implementation branch; PR #602 added a re-check in
 `/lrh-implement` Step 5 to stop/warn instead. It touched only
-`lrh-implement/SKILL.md`, `lrh-implement/references/lrh-implement-
-workflow.md`, and `lrh-work-item/references/lrh-work-item-workflow.md`
+`src/lrh/skills/lrh-implement/SKILL.md`,
+`src/lrh/skills/lrh-implement/references/lrh-implement-workflow.md`, and
+`src/lrh/skills/lrh-work-item/references/lrh-work-item-workflow.md`
 (`gh pr view 602 --json files`) -- it never touched `AGENTS.md`,
-`lrh-work-item/SKILL.md`'s own Step 11 reporting text, `lrh-proposal`,
-`lrh-workstream`, or `lrh-work-remains`. It is a downstream safety net if
+`src/lrh/skills/lrh-work-item/SKILL.md`'s own Step 11 reporting text,
+`lrh-proposal`, `lrh-workstream`, or `lrh-work-remains`. It is a
+downstream safety net if
 someone acts on a bad suggestion; it does not stop the bad suggestion
 itself. This work item must read PR #602 and its execution records
 (`project/executions/AD_HOC/2026_08_22_20_24_16_LRH_WORK_ITEM_ORDERING_
@@ -96,11 +106,28 @@ duplicating or contradicting it.
 
 ### Prior Art Check
 
-**Duplication search.** `git grep -liE "next-step-reporting|next step reporting" --
+**Duplication search.** At filing time, `git grep -liE "next-step-reporting|next step reporting" --
 project/work_items project/design/backlog.md project/design/proposals`
-returned no matches at filing time. **The executing session must re-run
-this search** -- given the pace of concurrent sessions in this repo, a
-match may have landed since.
+returned no matches -- but this search was narrower than the canonical
+procedure requires (`src/lrh/skills/lrh-work-item/references/prior-art-check.md:22-40`,
+which also covers `src/`, `project/workstreams/`, `.claude/skills/`, and
+`.agents/skills/`). **The executing session must re-run the full canonical
+search**, not this narrower one:
+
+```bash
+git grep -liE "next-step-reporting|next step reporting" -- src/ project/design/proposals/ project/workstreams/ project/work_items/ .claude/skills/ .agents/skills/ 2>/dev/null | grep -vF "project/work_items/proposed/WI-SKILLS-LRH-NEXT-STEP-REPORTING.md" || true
+```
+
+**This work item's own file must be excluded from that rerun**, per the
+canonical procedure's own self-exclusion rule
+(`src/lrh/skills/lrh-work-item/references/prior-art-check.md:42-47`,
+"If checking an artifact that already exists on disk... exclude that
+artifact's own file from the results").
+By the time the executing session runs this search, this WI will already
+be merged onto `main` and will trivially match its own title/slug
+terms -- without the exclusion, the rerun is guaranteed to find a "match"
+regardless of whether any other concurrent session filed a genuine
+duplicate, defeating the entire purpose of re-running it.
 
 **Demand search.** A user-flagged, recurring reporting mistake, analyzed
 across two conversational passes (the second explicitly rejecting the
@@ -138,11 +165,19 @@ filing so the gap isn't lost if this WI isn't picked up immediately.
 
 1. Read PR #602 and its execution records in full before doing anything
    else.
-2. Re-run the duplication/demand prior-art search against current `main`.
-3. Produce and record the decision matrix (location is the executing
-   session's call -- e.g. a `project/design/` note, or directly in this
-   WI's own execution record body -- but it must exist as a readable
-   artifact before implementation commits land).
+2. Re-run the full canonical duplication/demand prior-art search (see
+   Prior Art Check above) against current `main`, excluding this work
+   item's own file from the results per the canonical procedure's
+   self-exclusion rule.
+3. Produce and record the decision matrix as its own standalone artifact
+   -- e.g. a `project/design/` note, or a dedicated file committed as the
+   first commit on the implementation branch -- **not** the
+   `/lrh-implement` Step 9 execution record. That record is created only
+   after Step 8's implementation commit
+   (`src/lrh/skills/lrh-implement/SKILL.md:293-326`), so it cannot
+   satisfy a before-any-implementation-commit requirement; an executor
+   who chose it as the location would have to depart from the standard
+   `/lrh-implement` workflow to comply.
 4. Implement the selected option.
 5. If the selected option touches any `SKILL.md` file, mirror it to
    `.claude/`, `.agents/`, `.gemini/`.

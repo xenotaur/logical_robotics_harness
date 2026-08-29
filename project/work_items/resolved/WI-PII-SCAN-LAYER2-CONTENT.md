@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #646 (commit f3331f9d)."
 blocked_reason: null
 blocked: false
 id: WI-PII-SCAN-LAYER2-CONTENT
 title: Implement Layer 2 scoped content-pattern detection
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

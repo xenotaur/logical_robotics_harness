@@ -2,10 +2,10 @@
 execution_id: 2026_08_28_08_02_08_WI_PII_SCAN_LAYER2_CONTENT
 prompt_id: PROMPT(WI-PII-SCAN-LAYER2-CONTENT:WI_PII_SCAN_LAYER2_CONTENT)[2026-08-28T06:49:23+00:00]
 work_item: WI-PII-SCAN-LAYER2-CONTENT
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/646
-commit: pending
+commit: f3331f9d22c6aa7f9a0203da33249fb73c370f0f
 created_at: 2026-08-28T08:02:08+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-PII-SCAN-LAYER2-CONTENT.md

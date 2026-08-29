@@ -2,6 +2,7 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from lrh import gate_staleness
 
@@ -261,6 +262,170 @@ class CheckGateStalenessIntegrationTest(unittest.TestCase):
                 watched_files=("src/lrh/skills/lrh-confirm-fixes/SKILL.md",),
             )
             self.assertFalse(result.stale)
+
+
+class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
+    """`resolve_watch_targets`/`check_gate_staleness` for a client repo with
+    no `src/lrh/skills/` tree -- LRH installed as a package. Fixtures here
+    deliberately do NOT create `src/lrh/skills/`, and the untracked-target
+    fixture deliberately does NOT commit the installed path into the repo,
+    since a fixture that does would hide the exact gap the PR #648 review
+    caught in an earlier draft of this work item."""
+
+    def _write_gate_file(
+        self, path: pathlib.Path, body_line: str = "Wait for explicit confirmation."
+    ) -> None:
+        content = (
+            "# Some Skill\n\n"
+            "<!-- GATE-DEFINITION -->\n"
+            "### Step 4 -- Confirm gate\n\n"
+            f"{body_line}\n"
+            "<!-- /GATE-DEFINITION -->\n\n"
+            "## Quality Checklist\n"
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content)
+
+    def test_project_local_git_tracked_target_detects_staleness(self) -> None:
+        one_name = gate_staleness.CANONICAL_SKILL_NAMES[0]
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "project").mkdir()
+            (root / "project" / "agent_skills.yaml").write_text(
+                "targets:\n  - claude\nscope: project\n"
+            )
+            self._write_gate_file(root / ".claude" / "skills" / one_name)
+            confirmed_commit = _commit(root, "initial")
+
+            self._write_gate_file(
+                root / ".claude" / "skills" / one_name,
+                "Proceed automatically without asking.",
+            )
+            _commit(root, "change gate behavior in installed target")
+
+            result = gate_staleness.check_gate_staleness(
+                project_root=root, confirmed_commit=confirmed_commit
+            )
+            self.assertTrue(result.stale)
+            stale_paths = {f.path for f in result.stale_files}
+            self.assertIn(f".claude/skills/{one_name}", stale_paths)
+
+    def test_project_local_git_tracked_target_typo_not_stale(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "project").mkdir()
+            (root / "project" / "agent_skills.yaml").write_text(
+                "targets:\n  - claude\nscope: project\n"
+            )
+            for name in gate_staleness.CANONICAL_SKILL_NAMES:
+                self._write_gate_file(root / ".claude" / "skills" / name)
+            confirmed_commit = _commit(root, "initial")
+            (root / "README.md").write_text("unrelated change\n")
+            _commit(root, "unrelated change")
+
+            result = gate_staleness.check_gate_staleness(
+                project_root=root, confirmed_commit=confirmed_commit
+            )
+            self.assertFalse(result.stale)
+
+    def test_untracked_target_missing_fingerprint_fails_closed(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            tempfile.TemporaryDirectory() as home,
+        ):
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "README.md").write_text("placeholder\n")
+            confirmed_commit = _commit(root, "initial")
+
+            fake_home = pathlib.Path(home)
+            (fake_home / ".claude" / "skills").mkdir(parents=True)
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                result = gate_staleness.check_gate_staleness(
+                    project_root=root, confirmed_commit=confirmed_commit
+                )
+            self.assertTrue(result.stale)
+            for stale_file in result.stale_files:
+                self.assertIn("fingerprint", stale_file.reason)
+
+    def test_untracked_target_matching_fingerprint_not_stale(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            tempfile.TemporaryDirectory() as home,
+        ):
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "README.md").write_text("placeholder\n")
+            confirmed_commit = _commit(root, "initial")
+
+            fake_home = pathlib.Path(home)
+            for name in gate_staleness.CANONICAL_SKILL_NAMES:
+                self._write_gate_file(fake_home / ".claude" / "skills" / name)
+
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                targets = gate_staleness.resolve_watch_targets(root)
+                gate_staleness.record_fingerprints(root, targets)
+
+                result = gate_staleness.check_gate_staleness(
+                    project_root=root, confirmed_commit=confirmed_commit
+                )
+            self.assertFalse(result.stale)
+
+    def test_untracked_target_changed_content_is_stale(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            tempfile.TemporaryDirectory() as home,
+        ):
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "README.md").write_text("placeholder\n")
+            confirmed_commit = _commit(root, "initial")
+
+            fake_home = pathlib.Path(home)
+            for name in gate_staleness.CANONICAL_SKILL_NAMES:
+                self._write_gate_file(fake_home / ".claude" / "skills" / name)
+
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                targets = gate_staleness.resolve_watch_targets(root)
+                gate_staleness.record_fingerprints(root, targets)
+
+                one_name = gate_staleness.CANONICAL_SKILL_NAMES[0]
+                self._write_gate_file(
+                    fake_home / ".claude" / "skills" / one_name,
+                    "Proceed automatically without asking.",
+                )
+
+                result = gate_staleness.check_gate_staleness(
+                    project_root=root, confirmed_commit=confirmed_commit
+                )
+            self.assertTrue(result.stale)
+            stale_names = {f.path for f in result.stale_files}
+            self.assertEqual(stale_names, {one_name})
+
+    def test_unresolvable_target_fails_closed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "project").mkdir()
+            # Malformed config (an invalid `targets:` value): install-plan
+            # resolution must raise -- via `installer._config_target` --
+            # and the whole watch set must fail closed via the
+            # `kind="unresolved"` branch specifically, not merely happen to
+            # fail closed some other way (e.g. a missing fingerprint file).
+            (root / "project" / "agent_skills.yaml").write_text(
+                "targets:\n  - not-a-valid-target\n"
+            )
+            confirmed_commit = _commit(root, "initial")
+
+            result = gate_staleness.check_gate_staleness(
+                project_root=root, confirmed_commit=confirmed_commit
+            )
+            self.assertTrue(result.stale)
+            self.assertEqual(len(result.stale_files), len(result.files))
+            for stale_file in result.stale_files:
+                self.assertIn("could not be resolved", stale_file.reason)
 
 
 if __name__ == "__main__":

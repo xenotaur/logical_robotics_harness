@@ -287,7 +287,7 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
         path.write_text(content)
 
     def test_project_local_git_tracked_target_detects_staleness(self) -> None:
-        one_name = gate_staleness.CANONICAL_SKILL_NAMES[0]
+        one_name = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             _init_repo(root)
@@ -319,7 +319,7 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
             (root / "project" / "agent_skills.yaml").write_text(
                 "targets:\n  - claude\nscope: project\n"
             )
-            for name in gate_staleness.CANONICAL_SKILL_NAMES:
+            for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES:
                 self._write_gate_file(root / ".claude" / "skills" / name)
             confirmed_commit = _commit(root, "initial")
             (root / "README.md").write_text("unrelated change\n")
@@ -361,7 +361,7 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
             confirmed_commit = _commit(root, "initial")
 
             fake_home = pathlib.Path(home)
-            for name in gate_staleness.CANONICAL_SKILL_NAMES:
+            for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES:
                 self._write_gate_file(fake_home / ".claude" / "skills" / name)
 
             with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
@@ -384,14 +384,14 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
             confirmed_commit = _commit(root, "initial")
 
             fake_home = pathlib.Path(home)
-            for name in gate_staleness.CANONICAL_SKILL_NAMES:
+            for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES:
                 self._write_gate_file(fake_home / ".claude" / "skills" / name)
 
             with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
                 targets = gate_staleness.resolve_watch_targets(root)
                 gate_staleness.record_fingerprints(root, targets)
 
-                one_name = gate_staleness.CANONICAL_SKILL_NAMES[0]
+                one_name = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
                 self._write_gate_file(
                     fake_home / ".claude" / "skills" / one_name,
                     "Proceed automatically without asking.",
@@ -426,6 +426,79 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
             self.assertEqual(len(result.stale_files), len(result.files))
             for stale_file in result.stale_files:
                 self.assertIn("could not be resolved", stale_file.reason)
+
+    def test_underscore_prefixed_source_never_watched_for_installed_target(
+        self,
+    ) -> None:
+        """`_shared/chain-defaults.md` must never appear in the resolved
+        installed-target watch set: `installer.py`'s own `skill_names()`
+        excludes every `_`-prefixed directory from a real install, so
+        watching it there would make the check unable to ever pass."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "project").mkdir()
+            (root / "project" / "agent_skills.yaml").write_text(
+                "targets:\n  - claude\nscope: project\n"
+            )
+            (root / "README.md").write_text("placeholder\n")
+            _commit(root, "initial")
+
+            targets = gate_staleness.resolve_watch_targets(root)
+            names = {t.canonical_name for t in targets}
+            self.assertNotIn("_shared/chain-defaults.md", names)
+
+    def test_record_fingerprints_succeeds_against_realistic_install_fixture(
+        self,
+    ) -> None:
+        """A fixture matching what the real installer actually produces
+        (no `_shared/` directory at all, since `skill_names()` never copies
+        it) must let `record_fingerprints` complete for every other
+        canonical skill -- not raise on the very first (excluded) entry."""
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            tempfile.TemporaryDirectory() as home,
+        ):
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "README.md").write_text("placeholder\n")
+            _commit(root, "initial")
+
+            fake_home = pathlib.Path(home)
+            for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES:
+                self._write_gate_file(fake_home / ".claude" / "skills" / name)
+
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                targets = gate_staleness.resolve_watch_targets(root)
+                fingerprints = gate_staleness.record_fingerprints(root, targets)
+
+            self.assertEqual(
+                set(fingerprints), set(gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES)
+            )
+
+    def test_record_fingerprints_raises_on_missing_target_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            missing_path = root / "nowhere.md"
+            target = gate_staleness.WatchTarget(
+                canonical_name="some/skill.md",
+                kind="fingerprint",
+                absolute_path=missing_path,
+            )
+            with self.assertRaises(gate_staleness.GateStalenessError) as ctx:
+                gate_staleness.record_fingerprints(root, (target,))
+            self.assertIn("some/skill.md", str(ctx.exception))
+
+
+class ResolveWatchTargetsHarnessSelfCheckTest(unittest.TestCase):
+    def test_mismatched_canonical_names_length_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            (root / "src" / "lrh" / "skills").mkdir(parents=True)
+            with self.assertRaises(gate_staleness.GateStalenessError):
+                gate_staleness.resolve_watch_targets(
+                    root, canonical_names=("only-one-name.md",)
+                )
 
 
 if __name__ == "__main__":

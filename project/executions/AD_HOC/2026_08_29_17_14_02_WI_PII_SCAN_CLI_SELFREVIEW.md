@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/654
-commit: pending
+commit: f8eab566
 created_at: 2026-08-29T17:14:02+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/654

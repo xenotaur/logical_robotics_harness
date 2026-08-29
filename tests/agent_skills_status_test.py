@@ -91,6 +91,31 @@ class ComputeStatusTest(unittest.TestCase):
             agent_skills_status.AgentSkillsStatusError, installer.SkillSourceError
         )
 
+    def test_non_utf8_config_raises_agent_skills_status_error(self) -> None:
+        """Regression test: load_agent_skills_config's own unwrapped
+        UnicodeDecodeError must be normalized to AgentSkillsStatusError,
+        not left to reach the caller as a raw traceback
+        (chatgpt-codex-connector finding on PR #652)."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            path = root / "project" / "agent_skills.yaml"
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b"\xff\xfe\x00sources: [current-repo]\n")
+            with self.assertRaises(agent_skills_status.AgentSkillsStatusError):
+                agent_skills_status.compute_status(project_root=root)
+
+    def test_unreadable_config_raises_agent_skills_status_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _write_config(root, "sources:\n  - current-repo\n")
+            path = root / "project" / "agent_skills.yaml"
+            path.chmod(0o000)
+            try:
+                with self.assertRaises(agent_skills_status.AgentSkillsStatusError):
+                    agent_skills_status.compute_status(project_root=root)
+            finally:
+                path.chmod(0o644)
+
 
 class FormatTest(unittest.TestCase):
     def test_format_text_missing_config(self) -> None:

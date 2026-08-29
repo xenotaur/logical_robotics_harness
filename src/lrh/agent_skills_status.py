@@ -62,7 +62,11 @@ def _read_raw_overwrite(project_root: pathlib.Path) -> bool | str | None:
     path = project_root / "project" / "agent_skills.yaml"
     if not path.exists():
         return None
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as err:
+        raise AgentSkillsStatusError(f"could not read {path}: {err}") from err
+    data = yaml.safe_load(text)
     if not isinstance(data, dict):
         return None
     install = data.get("install")
@@ -79,10 +83,20 @@ def compute_status(project_root: pathlib.Path) -> AgentSkillsStatus:
     -- the same error `load_agent_skills_config`/
     `resolve_agent_skills_install_plan` already raise, not a new error
     type, since this module computes nothing those functions don't
-    already validate.
+    already validate. Also normalizes `load_agent_skills_config`'s own
+    unwrapped `OSError`/`UnicodeDecodeError` (an unreadable or non-UTF-8
+    profile) into the same error type, since neither function catches
+    those -- only `yaml.YAMLError` -- and an uncaught traceback would
+    otherwise reach the CLI instead of the documented `error: ...` / exit
+    2 contract.
     """
-    config = installer.load_agent_skills_config(project_root)
-    plan = installer.resolve_agent_skills_install_plan(project_root=project_root)
+    try:
+        config = installer.load_agent_skills_config(project_root)
+        plan = installer.resolve_agent_skills_install_plan(project_root=project_root)
+    except (OSError, UnicodeDecodeError) as err:
+        raise AgentSkillsStatusError(
+            f"could not read agent skills config under {project_root}: {err}"
+        ) from err
 
     sources = FieldStatus(
         value=str(plan.source),

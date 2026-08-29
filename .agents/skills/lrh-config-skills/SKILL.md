@@ -123,7 +123,22 @@ lrh validate --project-dir <project-root>/project
 (`lrh validate` takes `--project-dir`, not `--project-root` -- point it
 at `<project-root>/project`, not the bare repo root.)
 
-Fix any error before proceeding to Step 4's commit.
+**`lrh validate` does not load or check `project/agent_skills.yaml` at
+all** -- it validates work items and other control artifacts
+(`src/lrh/control/validator.py`), never the agent-skills config. A
+malformed edit here (e.g. `sources` written as a bare string instead of
+a one-item list) would pass `lrh validate` with 0 errors and only fail
+later, at the next `lrh skills install`. Re-run the actual status read
+to confirm the file this skill just wrote still parses and resolves as
+intended, before committing:
+
+```bash
+lrh agent-skills status --project-root <project-root> --format json
+```
+
+If this raises an error, the edit was malformed -- fix it and re-run
+both checks before proceeding to Step 4's commit. If it succeeds, confirm
+the printed effective values match what was just confirmed in Step 3.
 
 ### Step 4 — Commit and push
 
@@ -137,18 +152,34 @@ git -C <project-root> branch --show-current
 an additional commit to that branch -- `git -C <project-root> add ...`,
 `git -C <project-root> commit ...`, `git -C <project-root> push`.
 
-**If on `main` (or no open PR context):** pushing directly to `main`
-always requires its own explicit confirmation, even for a small change --
-this is a standing project constraint, not specific to this skill. Use
-the main-worktree-lock tmp-branch workaround this codebase's other skills
-use when the primary worktree has `main` checked out elsewhere, every
-command scoped to `<project-root>`:
+**If on the default branch (or no open PR context):** pushing directly to
+it always requires its own explicit confirmation, even for a small
+change -- this is a standing project constraint, not specific to this
+skill. **Do not assume `origin`/`main`** -- unlike `/lrh-land`, this
+skill is explicitly meant to run against an arbitrary `<project-root>`
+(any client repo `lrh` is installed into), which may use a different
+remote name or default branch (`master`, `trunk`, etc.). Derive both
+first:
 
 ```bash
-git -C <project-root> fetch origin main --quiet
-git -C <project-root> checkout -b tmp-config-skills-<slug> origin/main
+REMOTE=$(git -C <project-root> remote | grep -qx origin && echo origin || git -C <project-root> remote | head -1)
+DEFAULT_BRANCH=$(git -C <project-root> symbolic-ref "refs/remotes/$REMOTE/HEAD" 2>/dev/null | sed "s@^refs/remotes/$REMOTE/@@")
+```
+
+If `$REMOTE` or `$DEFAULT_BRANCH` comes back empty (no remote configured,
+or the remote's `HEAD` symref was never set locally -- `git remote set-
+head "$REMOTE" --auto` fixes the latter), stop and ask the user which
+remote/branch to target rather than guessing `origin`/`main`. Otherwise,
+use the main-worktree-lock tmp-branch workaround this codebase's other
+skills use when the primary worktree has the default branch checked out
+elsewhere, every command scoped to `<project-root>` and using the
+derived values:
+
+```bash
+git -C <project-root> fetch "$REMOTE" "$DEFAULT_BRANCH" --quiet
+git -C <project-root> checkout -b tmp-config-skills-<slug> "$REMOTE/$DEFAULT_BRANCH"
 # edit + commit here, still under <project-root>
-git -C <project-root> push origin tmp-config-skills-<slug>:main
+git -C <project-root> push "$REMOTE" "tmp-config-skills-<slug>:$DEFAULT_BRANCH"
 git -C <project-root> checkout <original-branch>
 ```
 

@@ -40,11 +40,20 @@ missing promisor blob in a partial clone, or any other read error -
 raises `Layer2ContentReadError` instead of being silently skipped, since
 swallowing it would let a full-history scan appear clean while actually
 missing content (PR #646 review, `chatgpt-codex-connector`).
+
+`Layer2Finding.content_digest` is `sha256` of the *matched substring only*
+(via the underlying `SensitiveFinding`'s offsets into the already-decoded
+`text`), not the whole file - `WI-PII-SCAN-ALLOWLIST-OUTPUT`'s
+content-bound allowlist fingerprint needs to change when this specific
+value changes, not whenever anything else in the file changes. The
+matched substring itself is never stored or returned - only its digest -
+so no raw sensitive text is retained on the `Layer2Finding`.
 """
 
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import pathlib
 import subprocess
 
@@ -63,6 +72,7 @@ class Layer2Finding:
     confidence: str
     redacted_preview: str
     line_number: int | None
+    content_digest: str
 
 
 class Layer2ContentReadError(Exception):
@@ -155,6 +165,15 @@ def content_findings_for_paths(
                     confidence=finding.confidence,
                     redacted_preview=finding.redacted_preview,
                     line_number=finding.line_number,
+                    content_digest=_matched_substring_digest(text, finding),
                 )
             )
     return findings
+
+
+def _matched_substring_digest(text: str, finding: sensitivity.SensitiveFinding) -> str:
+    if finding.start_offset is not None and finding.end_offset is not None:
+        matched_text = text[finding.start_offset : finding.end_offset]
+    else:
+        matched_text = finding.redacted_preview
+    return hashlib.sha256(matched_text.encode("utf-8")).hexdigest()

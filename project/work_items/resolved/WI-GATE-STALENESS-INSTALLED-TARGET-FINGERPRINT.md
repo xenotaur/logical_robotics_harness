@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: Fixed gate-staleness detection to correctly resolve and watch installed skill targets (git-tracked and untracked/fingerprinted, single or multiple configured targets), failing closed on any unresolvable case. Merged in PR #649 (commit cf41c766). Follow-up: wire record_fingerprints into a real consent-grant call site once one exists; consider marker-scoped fingerprinting.
 blocked_reason: null
 blocked: false
 id: WI-GATE-STALENESS-INSTALLED-TARGET-FINGERPRINT
 title: Fix gate-staleness detection to work once LRH is installed outside this repo
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

@@ -2,14 +2,14 @@
 execution_id: 2026_08_29_07_48_38_WI_GATE_STALENESS_INSTALLED_TARGET_FINGERPRINT_IMPL_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_GATE_STALENESS_INSTALLED_TARGET_FINGERPRINT_IMPL_REVIEW)[2026-08-29T07:47:57+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_29_06_10_00_FIX_GATE_STALENESS_INSTALLED_TARGET
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/649
-commit:
+commit: cf41c76686a4992bfeebb819aca93dd83e2b8570
 created_at: 2026-08-29T07:48:38+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/649
-session_transcript: pending
+session_transcript: claude-app:23a15fdd-6d6c-4d84-a7be-960a54769157
 ---
 
 # Summary

@@ -247,8 +247,7 @@ a cross-project refresh workflow; see
 
 ## Related how-to guidance
 
-No how-to guide exists yet for `lrh memory`. See the
-[docs audit](../../../project/audits/docs/docs-audit-2026-08-21.md) for
-the identified gap and phased plan (a backup/restore guide for `sync`,
-and a move-memories-between-projects guide for
-`export`/`import`/`transfer`).
+- [Back up and restore project memory](../../how-to/back-up-and-restore-project-memory.md) —
+  the `sync` workflow.
+- [Move memories between projects](../../how-to/move-memories-between-projects.md) —
+  the `export`/`import`/`transfer` workflow.

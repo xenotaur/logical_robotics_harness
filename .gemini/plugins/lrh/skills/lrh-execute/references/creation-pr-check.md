@@ -38,7 +38,7 @@ The actual fact this check needs is simple and unambiguous: **does the
 `WI-ID`'s file exist on `origin/main`, in any status bucket?**
 
 ```bash
-git fetch origin main -q
+git fetch -q origin main
 git ls-tree -r --name-only origin/main -- project/work_items/ \
   | grep -qx "project/work_items/[a-z]*/<WI-ID>.md"
 ```

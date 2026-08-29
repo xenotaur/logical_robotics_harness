@@ -107,7 +107,7 @@ otherwise report a clean `prompt_ready: yes` for a WI that doesn't exist
 on `main` at all):
 
 ```bash
-git fetch origin main -q
+git fetch -q origin main
 git ls-tree -r --name-only origin/main -- project/work_items/ \
   | grep -qx "project/work_items/[a-z]*/<WI-ID>.md"
 ```

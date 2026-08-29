@@ -1,11 +1,15 @@
 ---
-resolution: null
+resolution: >
+  Implemented lrh agent-skills status (src/lrh/agent_skills_status.py,
+  tested) and the /lrh-config-skills skill (src/lrh/skills/lrh-config-skills/,
+  mirrored to .claude/.agents/.gemini). Merged via PR #652
+  (0261845b7c42a9997f3f94ebcb849b37473a8278).
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-CONFIG-SKILLS
 title: Implement /lrh-config-skills skill for inspecting and setting agent_skills.yaml install policy
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

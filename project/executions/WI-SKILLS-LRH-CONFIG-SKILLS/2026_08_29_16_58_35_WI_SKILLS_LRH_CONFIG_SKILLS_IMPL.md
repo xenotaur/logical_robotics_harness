@@ -2,10 +2,10 @@
 execution_id: 2026_08_29_16_58_35_WI_SKILLS_LRH_CONFIG_SKILLS_IMPL
 prompt_id: PROMPT(WI-SKILLS-LRH-CONFIG-SKILLS:WI_SKILLS_LRH_CONFIG_SKILLS_IMPL)[2026-08-29T16:50:13+00:00]
 work_item: WI-SKILLS-LRH-CONFIG-SKILLS
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/652
-commit: ec2b05c56688bc2de7f6c87eb966616ea847a980
+commit: 0261845b7c42a9997f3f94ebcb849b37473a8278
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-LRH-CONFIG-SKILLS.md
 session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0

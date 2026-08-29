@@ -2,10 +2,10 @@
 execution_id: 2026_08_29_17_08_51_WI_SKILLS_LRH_CONFIG_SKILLS_IMPL_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_LRH_CONFIG_SKILLS_IMPL_REVIEW)[2026-08-29T17:08:45+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/652
-commit: 
+commit: 0261845b7c42a9997f3f94ebcb849b37473a8278
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/652
 session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0

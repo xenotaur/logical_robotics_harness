@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from lrh import (
+    agent_skills_status,
     chain_defaults_status,
     confirm_fixes_batch,
     gate_staleness,
@@ -424,6 +425,33 @@ def main() -> None:
         choices=("md", "json"),
         default="md",
         help="output format (default: md)",
+    )
+
+    agent_skills_parser = subparsers.add_parser(
+        "agent-skills",
+        help="project/agent_skills.yaml status commands.",
+    )
+    agent_skills_subparsers = agent_skills_parser.add_subparsers(
+        dest="agent_skills_command"
+    )
+    agent_skills_status_parser = agent_skills_subparsers.add_parser(
+        "status",
+        help=(
+            "Status view: whether project/agent_skills.yaml exists; the "
+            "effective value and provenance of sources, targets, and "
+            "scope; and install.overwrite's raw configured value."
+        ),
+    )
+    agent_skills_status_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    agent_skills_status_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
     )
 
     chain_defaults_parser = subparsers.add_parser(
@@ -1288,6 +1316,25 @@ def main() -> None:
                 print(work_items_readiness.format_markdown(report))
             raise SystemExit(0)
         parser.error("work-items requires a subcommand (try: lrh work-items organize)")
+
+    if args.command == "agent-skills":
+        if args.agent_skills_command == "status":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            try:
+                status = agent_skills_status.compute_status(project_root=project_root)
+            except agent_skills_status.AgentSkillsStatusError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            if args.format == "json":
+                print(agent_skills_status.format_json(status))
+            else:
+                print(agent_skills_status.format_text(status))
+            raise SystemExit(0)
+        parser.error(
+            "agent-skills requires a subcommand (try: lrh agent-skills status)"
+        )
 
     if args.command == "chain-defaults":
         if args.chain_defaults_command == "check-staleness":

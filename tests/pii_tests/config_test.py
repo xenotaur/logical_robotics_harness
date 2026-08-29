@@ -126,6 +126,25 @@ class LoadConfigTest(unittest.TestCase):
             with self.assertRaises(pii_config.PiiConfigError):
                 pii_config.load_config(project_root)
 
+    def test_config_path_overrides_project_root_auto_discovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            custom_config = project_root / "custom.toml"
+            custom_config.write_text('path_globs = ["*.docx"]\n')
+
+            config = pii_config.load_config(project_root, config_path=custom_config)
+
+            self.assertIn("*.docx", config.path_globs)
+
+    def test_config_path_missing_falls_back_to_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            missing_config = project_root / "does-not-exist.toml"
+
+            config = pii_config.load_config(project_root, config_path=missing_config)
+
+            self.assertEqual(config.path_globs, pii_config.DEFAULT_PATH_GLOBS)
+
 
 if __name__ == "__main__":
     unittest.main()

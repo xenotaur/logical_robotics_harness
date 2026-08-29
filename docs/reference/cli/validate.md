@@ -27,6 +27,7 @@ python -m lrh.cli.main validate --project-dir project
 - The command accepts a project control directory path, not a repository-root flag.
 - `--work-items` is intentionally narrower than whole-project validation.
 - The command currently emits a text report; there is no `--json` option for `lrh validate`.
+- `FRONTMATTER_LINT_UNSAFE_SCALAR` is a report-only warning category that flags unquoted frontmatter plain scalars that either crash real YAML parsing or silently change meaning under it: an unquoted colon-collapse, an unquoted mid-scalar `#` comment, a reserved-indicator-leading scalar, or one of a small set of fields (currently `id` and `title`) whose value would implicitly resolve to `null`, a bool, an int, a float, or a date. Other known string fields where an actual `null` is valid (e.g. `owner`, `commit`, `pr`) are intentionally not flagged. It never fails validation on its own and never rewrites anything — see [`lrh project doctor --fix-frontmatter`](doctor.md) for the corresponding one-time content-migration tool.
 
 ## Related how-to pages
 

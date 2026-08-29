@@ -4,8 +4,8 @@ prompt_id: PROMPT(WI-SKILLS-LRH-CONFIG-SKILLS:WI_SKILLS_LRH_CONFIG_SKILLS_IMPL)[
 work_item: WI-SKILLS-LRH-CONFIG-SKILLS
 status: in_progress
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/652
+commit: ec2b05c56688bc2de7f6c87eb966616ea847a980
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-LRH-CONFIG-SKILLS.md
 session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0

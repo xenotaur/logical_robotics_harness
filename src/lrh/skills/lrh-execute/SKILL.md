@@ -63,6 +63,12 @@ Load before running any step:
    whatever the selected agent skills directory resolves it to.
 2. **`/lrh-land/SKILL.md`** and its `references/land-workflow.md` —
    inlined at Step 4, resolved the same way.
+3. **`references/creation-pr-check.md`** — the Step 1 creation-PR check
+   this skill adds ahead of readiness: full rationale, the hard-stop vs.
+   skip-and-continue distinction between the `WI-ID` and `WS-ID`
+   branches, and the best-effort PR-naming enrichment adapted from
+   `/lrh-land`'s primary-record provenance-check algorithm. Read before
+   Step 1.
 
 The WS-ID → ready-WI selection rule (Step 1) and the run journal shape
 (Step 5) are quoted in full inline below, not loaded from
@@ -95,7 +101,29 @@ find project/work_items/ -name "<dependency-WI-ID>.md"
 Every entry must have `status: resolved`. If any entry is not resolved
 (or its file can't be found at all — report that distinctly, not as
 "not resolved"), stop and report which one, and do not proceed to Step 2.
-Also run the readiness check here, before the chain is authorized:
+
+**Creation-PR check** (`WI-EXECUTE-EARLY-CREATION-PR-CHECK`): before
+running the readiness check below, verify the target `WI-ID`'s own file
+exists on `origin/main` — not just the local working tree, which can
+still have it from an unmerged WI-creation branch (see
+`references/creation-pr-check.md` for the full rationale and algorithm;
+this is the exact false-confidence gap that check exists to close, since
+a local checkout sitting on the not-yet-merged creation branch would
+otherwise report a clean `prompt_ready: yes` for a WI that doesn't exist
+on `main` at all):
+
+```bash
+git fetch origin main -q
+git ls-tree -r --name-only origin/main -- project/work_items/ \
+  | grep -qx "project/work_items/[a-z]*/<WI-ID>.md"
+```
+
+If this fails (no match), **stop and report** — do not proceed to the
+readiness check or Step 1.5. This is a hard, unconditional gate
+regardless of whether the specific introducing PR can be identified (see
+the reference doc for the best-effort PR-naming enrichment, and why it
+must never weaken this gate). Only then run the readiness check, before
+the chain is authorized:
 
 ```bash
 lrh work-items readiness <WI-ID> --format md
@@ -132,8 +160,14 @@ lrh work-items readiness <candidate-WI-ID> --format md
 Check its `prompt_ready` field specifically (not the command's exit
 code), and check `status: proposed`, `depends_on` satisfied (same
 lookup as the `WI-ID` case above — `find project/work_items/ -name
-"<dependency-WI-ID>.md"` per entry, every entry `resolved`), and no
-`in_progress`/`landed` execution record:
+"<dependency-WI-ID>.md"` per entry, every entry `resolved`), the same
+creation-PR check as the `WI-ID` case above (`git ls-tree -r --name-only
+origin/main -- project/work_items/` for this candidate's own file) — but
+here a missing file makes the candidate **ineligible, not a run-aborting
+hard stop**: skip it and continue to the next candidate in list order,
+the same as a candidate that fails `depends_on` or readiness today (see
+`references/creation-pr-check.md`) — and no `in_progress`/`landed`
+execution record:
 
 ```bash
 grep -rh "^status: \(in_progress\|landed\)" project/executions/<candidate-WI-ID>/ 2>/dev/null

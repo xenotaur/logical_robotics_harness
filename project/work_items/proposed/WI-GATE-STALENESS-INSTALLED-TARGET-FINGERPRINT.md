@@ -31,11 +31,11 @@ forbidden_actions:
   - merge_pr
   - ship_skip_if_opted_in_as_default
 acceptance:
-  - check_gate_staleness detects a material gate-definition change even when src/lrh/skills/ doesn't exist in the checkout (the documented installed-client-repo case), verified against at least one installed target
-  - The fix fingerprints the actually-installed skill content per target rather than assuming a fixed harness-repo-relative path list
-  - DEFAULT_WATCHED_FILES's hardcoded src/lrh/skills/... list (src/lrh/gate_staleness.py:34-45) either becomes target-aware or is replaced by a target-resolution step reusing src/lrh/skills/installer.py's existing target logic
-  - git diff / git show calls no longer silently classify "path absent at both commits" as stale=False when that absence is because the target wasn't checked, vs. a genuine no-change -- the two cases must be distinguishable
-  - New/updated unit tests cover the installed-target case explicitly, not just the harness-repo self-check
+  - check_gate_staleness detects a material gate-definition change even when src/lrh/skills/ doesn't exist in the checkout, for both a project-local git-tracked installed target and a user-scope/untracked installed target
+  - For a project-local git-tracked installed target, the fix watches the resolved installed-target paths via the existing marker-scoped git-based comparison, reusing installer.py's target-resolution logic
+  - For a user-scope or otherwise untracked installed target (outside any git working tree, e.g. installer.py's Path.home()-based default), the fix persists a content/version fingerprint at consent-grant time and compares current file content against it directly -- not via git history, which cannot work for an untracked path
+  - When the installed target can't be resolved, or a required fingerprint is missing/unreadable, the check fails closed (reports stale, never silently stale=False) -- this is distinguishable from a genuine no-change result
+  - New/updated unit tests cover both the project-local git-tracked case and the user-scope/untracked case explicitly, with a fixture that does not itself commit the installed path (which would hide the untracked-target gap, as the PR #648 review caught in an earlier draft)
   - lrh validate reports 0 errors
 required_evidence:
   - manual_review
@@ -135,16 +135,33 @@ scope: any other staleness-check redesign, and any change to
    `src/lrh/skills/installer.py`'s existing per-target path resolution)
    before deciding which paths to watch, instead of hardcoding
    `src/lrh/skills/...` unconditionally.
-2. When no `src/lrh/skills/` tree exists, fall back to watching the
-   resolved installed-target paths (e.g. `.claude/skills/lrh-land/SKILL.md`)
-   for the same gate-bearing skills, using the same marker-scoped
-   (`GATE-DEFINITION`) semantic comparison `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`
-   already established.
-3. Distinguish "path never existed at either commit because the wrong
-   target was checked" from "path existed at both commits with no change"
-   — the former must not silently resolve to `stale=False`; it should
-   either resolve the correct target first, or surface as an error/warning
-   rather than a false negative.
+2. When no `src/lrh/skills/` tree exists, resolve the installed target
+   (reusing `installer.py`'s resolution) and branch on whether that target
+   lives inside a git-tracked checkout under `project_root`:
+   - **Project-local installed target inside a git checkout** (e.g. a
+     client repo's own `.claude/skills/lrh-land/SKILL.md`, committed to
+     that repo): watch the resolved installed-target paths using the same
+     marker-scoped (`GATE-DEFINITION`) semantic `git show`-based
+     comparison `WI-LRH-CHAIN-DEFAULTS-INCREMENT-3` already established.
+   - **User-scope or otherwise untracked install target** (the documented
+     default install location, e.g. `~/.claude/skills/`, which is outside
+     any git working tree and has no history to diff against
+     `confirmed_commit` — confirmed via `installer.py`'s
+     `_default_skills_dir`, which resolves under `Path.home()`): a
+     `git show`-based comparison cannot work here at all, regardless of
+     which path is watched. Persist a content/version fingerprint (e.g. a
+     hash of the installed gate-bearing files' current content) at the
+     moment `skip_if_opted_in` consent is granted, and compare current
+     file content against that stored fingerprint on each check — not
+     against git history.
+3. **Fail closed, never silently pass, when neither comparison is
+   possible** — if the installed target can't be resolved, or a stored
+   fingerprint is missing/unreadable for an untracked target, the check
+   must report `stale=True` (or an explicit error the caller treats as
+   staleness), never `stale=False`. Distinguish this from "path existed at
+   both commits with no change" — a genuine no-change result and an
+   unable-to-verify result must never share the same silent
+   `stale=False` outcome.
 4. Add unit tests exercising the installed-target case explicitly (a
    fixture checkout with no `src/lrh/skills/` tree, only an installed
    target directory, containing a `GATE-DEFINITION`-marked change between
@@ -168,35 +185,49 @@ scope: any other staleness-check redesign, and any change to
 
 ## Acceptance Criteria
 
-- `check_gate_staleness` detects a material gate-definition change even
-  when `src/lrh/skills/` doesn't exist in the checkout, verified against
-  at least one installed target
-- The fix fingerprints the actually-installed skill content per target
-  rather than assuming a fixed harness-repo-relative path list
-- `DEFAULT_WATCHED_FILES`'s hardcoded list either becomes target-aware or
-  is replaced by a target-resolution step reusing `installer.py`'s
-  existing target logic
-- "Path absent because the wrong target was checked" is distinguishable
-  from "no change" — no silent false negative
-- New/updated unit tests cover the installed-target case explicitly
+- `check_gate_staleness` detects a material gate-definition change for
+  both a project-local git-tracked installed target and a user-scope/
+  untracked installed target
+- The git-tracked case reuses the existing marker-scoped `git show`-based
+  comparison against the resolved installed-target paths
+- The untracked case (e.g. the default `~/.claude/skills/` install,
+  outside any git working tree) compares current file content against a
+  content/version fingerprint persisted at consent-grant time — not via
+  git history, which cannot work there
+- An unresolvable target or missing/unreadable fingerprint fails closed
+  (`stale=True`, never a silent `stale=False`) — distinguishable from a
+  genuine no-change result
+- New/updated unit tests cover both cases explicitly, with a fixture that
+  does not itself commit the installed path
 - `lrh validate` reports 0 errors
 
 ## Validation
 
 - lrh validate
-- New unit tests for the installed-target fingerprinting path, alongside
-  the existing harness-repo self-check tests in `tests/gate_staleness_test.py`
-- Manual verification: simulate an installed client-repo checkout (no
-  `src/lrh/skills/` tree) and confirm a `GATE-DEFINITION`-region change to
-  the installed target's `SKILL.md` is correctly detected as stale
+- New unit tests for both the project-local git-tracked and the
+  user-scope/untracked installed-target cases, alongside the existing
+  harness-repo self-check tests in `tests/gate_staleness_test.py`
+- Manual verification, both cases: (a) a project-local installed client
+  checkout (no `src/lrh/skills/` tree, but the installed target is
+  git-tracked) correctly detects a `GATE-DEFINITION`-region change as
+  stale; (b) a user-scope install (target outside any git working tree)
+  correctly fails closed or detects staleness via the persisted
+  fingerprint — never silently reports `stale=False`
 
 ## Risk Notes
 
 The primary risk is fixing this narrowly enough that it doesn't
 accidentally weaken the existing harness-repo self-check (this repo itself
 always has `src/lrh/skills/`, so the fix must not regress detection there
-while adding the installed-target path). Any implementation should be
-checked in both directions: the harness repo's own staleness check still
-works exactly as before, and an installed-target checkout with no
-`src/lrh/skills/` tree now correctly detects staleness instead of silently
-reporting none.
+while adding the installed-target paths). A second, distinct risk — caught
+during this work item's own review (PR #648) — is that a test fixture
+which commits the installed path into a git repo can hide the untracked
+(user-scope) gap entirely, since that fixture never exercises the
+"target has no git history at all" case the default install actually
+produces. Any implementation should be checked in three directions: the
+harness repo's own staleness check still works exactly as before; a
+project-local, git-tracked installed-target checkout now correctly
+detects staleness instead of silently reporting none; and a user-scope,
+untracked installed target — verified with a fixture that does *not*
+commit the installed path — either fails closed or correctly detects
+staleness via the persisted fingerprint.

@@ -402,7 +402,7 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
                 )
             self.assertTrue(result.stale)
             stale_names = {f.path for f in result.stale_files}
-            self.assertEqual(stale_names, {one_name})
+            self.assertEqual(stale_names, {f"claude:{one_name}"})
 
     def test_unresolvable_target_fails_closed(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -473,7 +473,11 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
                 fingerprints = gate_staleness.record_fingerprints(root, targets)
 
             self.assertEqual(
-                set(fingerprints), set(gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES)
+                set(fingerprints),
+                {
+                    f"claude:{name}"
+                    for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES
+                },
             )
 
     def test_record_fingerprints_raises_on_missing_target_file(self) -> None:
@@ -488,6 +492,48 @@ class ResolveWatchTargetsInstalledTargetTest(unittest.TestCase):
             with self.assertRaises(gate_staleness.GateStalenessError) as ctx:
                 gate_staleness.record_fingerprints(root, (target,))
             self.assertIn("some/skill.md", str(ctx.exception))
+
+    def test_multi_target_config_watches_every_configured_target(self) -> None:
+        """A `targets: [claude, codex]` config must watch BOTH installed
+        copies independently -- a divergence in the codex copy alone must
+        not be masked by an unchanged claude copy (or vice versa)."""
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            tempfile.TemporaryDirectory() as home,
+        ):
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "project").mkdir()
+            (root / "project" / "agent_skills.yaml").write_text(
+                "targets:\n  - claude\n  - codex\n"
+            )
+            (root / "README.md").write_text("placeholder\n")
+            confirmed_commit = _commit(root, "initial")
+
+            fake_home = pathlib.Path(home)
+            for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES:
+                self._write_gate_file(fake_home / ".claude" / "skills" / name)
+                self._write_gate_file(fake_home / ".agents" / "skills" / name)
+
+            with mock.patch.object(pathlib.Path, "home", return_value=fake_home):
+                targets = gate_staleness.resolve_watch_targets(root)
+                qualifiers = {t.canonical_name.split(":", 1)[0] for t in targets}
+                self.assertEqual(qualifiers, {"claude", "codex"})
+
+                gate_staleness.record_fingerprints(root, targets)
+
+                one_name = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
+                self._write_gate_file(
+                    fake_home / ".agents" / "skills" / one_name,
+                    "Proceed automatically without asking.",
+                )
+
+                result = gate_staleness.check_gate_staleness(
+                    project_root=root, confirmed_commit=confirmed_commit
+                )
+            self.assertTrue(result.stale)
+            stale_names = {f.path for f in result.stale_files}
+            self.assertEqual(stale_names, {f"codex:{one_name}"})
 
 
 class ResolveWatchTargetsHarnessSelfCheckTest(unittest.TestCase):

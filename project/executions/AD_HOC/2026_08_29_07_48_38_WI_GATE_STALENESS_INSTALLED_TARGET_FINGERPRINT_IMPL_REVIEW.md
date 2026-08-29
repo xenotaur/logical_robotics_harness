@@ -69,9 +69,43 @@ pairs).
   behavior, not a regression from before this PR (which was actively
   wrong for installed targets, not merely not-yet-usable).
 
+## Round 2 (same round, additional automatic-review findings on the
+same commit -- 4 new threads appeared after the first triage above)
+
+- **Codex P1** (`discussion_r3885914683`): duplicate of the `_shared/`
+  exclusion finding already fixed above.
+- **Codex P1** (`discussion_r3885914685`): duplicate of the unwired
+  `record_fingerprints` finding already triaged above (not fixed, tracked
+  as Follow-up).
+- **Codex P1** (`discussion_r3885914686`): "Watch every configured
+  installation target" -- `resolve_watch_targets` picked only one
+  installed target (`claude_targets[0] if claude_targets else
+  install_targets[0]`) even when `project/agent_skills.yaml` configures
+  more than one (e.g. `targets: [claude, codex]`), so a material change to
+  a non-selected target's installed copy would go undetected. Valid,
+  independently re-verified by reading the exact line before fixing.
+  Fixed: `resolve_watch_targets` now resolves and watches every configured
+  `InstallTarget`, qualifying each `canonical_name` with its target (e.g.
+  `"claude:lrh-land/SKILL.md"`) so per-target fingerprints and reports
+  never collide. Added a regression test covering a `claude,codex`
+  multi-target config where only the codex copy changes.
+- **Codex P2** (`discussion_r3885914689`): "Fingerprint only
+  gate-definition regions" -- whole-file content hashing for an untracked
+  target over-triggers `stale=True` on non-gate content (e.g. a
+  documentation typo), unlike the git-tracked marker-scoped comparison.
+  Valid, but not fixed here: the WI's own Required Change #2 and
+  Acceptance Criteria explicitly specify "a content/version fingerprint
+  (e.g. a hash of the installed gate-bearing files' current content)" --
+  whole-file hashing is the documented design, not an oversight. It is
+  also the safe direction to over-trigger in (false positive, never a
+  silent false negative), unlike every other finding in this round.
+  Tracked as a Follow-up rather than fixed, since narrowing it to
+  marker-scoped regions would be a design change beyond this PR's stated
+  scope.
+
 # Validation
 
-- `python3 -m unittest tests.gate_staleness_test tests.chain_defaults_status_test -v`: 40/40 pass
+- `python3 -m unittest tests.gate_staleness_test tests.chain_defaults_status_test -v`: 41/41 pass
 - `scripts/format --check --diff`, `scripts/lint`: clean
 - `lrh validate`: 0 errors (1 pre-existing, unrelated warning on the WI
   file's own frontmatter)
@@ -81,3 +115,7 @@ pairs).
 - Wire `record_fingerprints` into a real `skip_if_opted_in`
   consent-grant call site once one exists in this repo (per Codex's
   second P1 above and the primary record's own Follow-up).
+- Consider deriving the untracked-target fingerprint from only the
+  `GATE-DEFINITION`-marked regions instead of whole-file content, to match
+  the git-tracked case's semantics and reduce unnecessary reconfirmations
+  (Codex P2 above) -- a design change, not folded into this PR.

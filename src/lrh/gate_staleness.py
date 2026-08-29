@@ -351,20 +351,26 @@ def resolve_watch_targets(
     `zip`.
 
     Otherwise this is a client repo with LRH installed as a package: resolve
-    the actually-installed skill target by reusing
-    `lrh.skills.installer`'s own install-planning logic, and watch the
-    resolved paths there instead -- using `INSTALLED_CANONICAL_SKILL_NAMES`
-    by default (never `_`-prefixed directories, which the installer itself
+    every *configured* installed skill target by reusing
+    `lrh.skills.installer`'s own install-planning logic (a config can name
+    more than one -- e.g. `targets: [claude, codex]` -- and each installed
+    copy can drift independently; watching only one would let another
+    configured target's material change go undetected), and watch the
+    resolved paths for each -- using `INSTALLED_CANONICAL_SKILL_NAMES` by
+    default (never `_`-prefixed directories, which the installer itself
     never copies) unless `canonical_names` overrides it explicitly. Each
     resolved path is classified as `"git"` (inside `project_root`'s working
     tree -- e.g. a project-local installed target committed to that repo)
     or `"fingerprint"` (outside it -- e.g. the documented default user-scope
     install under `Path.home()`, which has no git history to diff against
-    at all).
+    at all). `canonical_name` is qualified with the target's own name (e.g.
+    `"claude:lrh-land/SKILL.md"`) so two targets' fingerprints for the same
+    skill name never collide in `FINGERPRINT_PATH` or in a report.
 
-    If the installed target itself can't be resolved, every canonical skill
-    is returned as `"unresolved"` -- `check_gate_staleness`'s fail-closed
-    requirement, not a caller error.
+    If the installed target(s) can't be resolved, every canonical skill
+    (unqualified -- no specific target was ever determined) is returned as
+    `"unresolved"` -- `check_gate_staleness`'s fail-closed requirement, not
+    a caller error.
     """
     if (project_root / "src" / "lrh" / "skills").is_dir():
         names = (
@@ -399,40 +405,40 @@ def resolve_watch_targets(
         install_targets = installer.resolve_install_targets(
             target=plan.target, local=plan.local, project_root=project_root
         )
-        claude_targets = [
-            t for t in install_targets if t.target is installer.SkillTarget.CLAUDE
-        ]
-        chosen = claude_targets[0] if claude_targets else install_targets[0]
+        if not install_targets:
+            raise installer.SkillSourceError("no install targets resolved")
     except (installer.SkillSourceError, ValueError, IndexError, OSError):
-        chosen = None
+        install_targets = None
 
-    if chosen is None:
+    if install_targets is None:
         return tuple(
             WatchTarget(canonical_name=name, kind="unresolved") for name in names
         )
 
     resolved: list[WatchTarget] = []
-    for name in names:
-        absolute_path = chosen.skills_dir / name
-        try:
-            relative_path = absolute_path.relative_to(project_root)
-        except ValueError:
-            resolved.append(
-                WatchTarget(
-                    canonical_name=name,
-                    kind="fingerprint",
-                    absolute_path=absolute_path,
+    for install_target in install_targets:
+        for name in names:
+            qualified_name = f"{install_target.target.value}:{name}"
+            absolute_path = install_target.skills_dir / name
+            try:
+                relative_path = absolute_path.relative_to(project_root)
+            except ValueError:
+                resolved.append(
+                    WatchTarget(
+                        canonical_name=qualified_name,
+                        kind="fingerprint",
+                        absolute_path=absolute_path,
+                    )
                 )
-            )
-        else:
-            resolved.append(
-                WatchTarget(
-                    canonical_name=name,
-                    kind="git",
-                    relative_path=str(relative_path),
-                    strict_absence=True,
+            else:
+                resolved.append(
+                    WatchTarget(
+                        canonical_name=qualified_name,
+                        kind="git",
+                        relative_path=str(relative_path),
+                        strict_absence=True,
+                    )
                 )
-            )
     return tuple(resolved)
 
 

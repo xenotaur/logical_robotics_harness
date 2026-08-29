@@ -2,10 +2,10 @@
 execution_id: 2026_08_29_07_58_37_DOC_ORGANIZE_PHASE_2_2026_08_23_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:DOC_ORGANIZE_PHASE_2_2026_08_23_SELFREVIEW)[2026-08-29T07:58:30+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_28_07_24_35_DOC_ORGANIZE_PHASE_2_2026_08_23
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/644
-commit: f98160ecee7a57c946e7eaeeb249f7e964e00bf5
+commit: 03ed9acc43ecda40bac175570fc9681028c3c7f4
 created_at: 2026-08-29T07:58:37+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/644

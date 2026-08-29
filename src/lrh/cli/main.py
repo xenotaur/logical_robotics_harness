@@ -1332,7 +1332,9 @@ def main() -> None:
             else:
                 print(agent_skills_status.format_text(status))
             raise SystemExit(0)
-        parser.error("agent-skills requires a subcommand (try: lrh agent-skills status)")
+        parser.error(
+            "agent-skills requires a subcommand (try: lrh agent-skills status)"
+        )
 
     if args.command == "chain-defaults":
         if args.chain_defaults_command == "check-staleness":

@@ -116,7 +116,9 @@ class FormatTest(unittest.TestCase):
         )
         parsed = json.loads(agent_skills_status.format_json(status))
         self.assertTrue(parsed["profile_exists"])
-        self.assertEqual(parsed["sources"], {"value": "current-repo", "from_config": True})
+        self.assertEqual(
+            parsed["sources"], {"value": "current-repo", "from_config": True}
+        )
         self.assertEqual(parsed["install_overwrite"], "skip")
 
 

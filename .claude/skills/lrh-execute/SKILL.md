@@ -153,6 +153,26 @@ order** — do not evaluate WIs from any other workstream, and do not
 guess an ordering the workstream file doesn't state. For each candidate,
 in order:
 
+**Creation-PR check first, before readiness** — same reason as the
+`WI-ID` case above: `lrh work-items readiness` reads whatever file is in
+the local working tree, so running it before this check would still
+produce the exact false-confidence result this fix exists to close, just
+one candidate later than the direct-`WI-ID` case:
+
+```bash
+git ls-tree -r --name-only origin/main -- project/work_items/ \
+  | grep -qx "project/work_items/[a-z]*/<candidate-WI-ID>.md"
+```
+
+If this fails (no match), this candidate is **ineligible, not a
+run-aborting hard stop** — unlike the direct `WI-ID` case, skip it and
+continue to the next candidate in list order, the same as a candidate
+that fails `depends_on` or readiness today (see
+`references/creation-pr-check.md`). Do not run readiness for a candidate
+that fails this check.
+
+Only for a candidate that passes, run readiness:
+
 ```bash
 lrh work-items readiness <candidate-WI-ID> --format md
 ```
@@ -160,14 +180,8 @@ lrh work-items readiness <candidate-WI-ID> --format md
 Check its `prompt_ready` field specifically (not the command's exit
 code), and check `status: proposed`, `depends_on` satisfied (same
 lookup as the `WI-ID` case above — `find project/work_items/ -name
-"<dependency-WI-ID>.md"` per entry, every entry `resolved`), the same
-creation-PR check as the `WI-ID` case above (`git ls-tree -r --name-only
-origin/main -- project/work_items/` for this candidate's own file) — but
-here a missing file makes the candidate **ineligible, not a run-aborting
-hard stop**: skip it and continue to the next candidate in list order,
-the same as a candidate that fails `depends_on` or readiness today (see
-`references/creation-pr-check.md`) — and no `in_progress`/`landed`
-execution record:
+"<dependency-WI-ID>.md"` per entry, every entry `resolved`), and no
+`in_progress`/`landed` execution record:
 
 ```bash
 grep -rh "^status: \(in_progress\|landed\)" project/executions/<candidate-WI-ID>/ 2>/dev/null

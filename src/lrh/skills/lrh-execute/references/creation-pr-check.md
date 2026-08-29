@@ -79,9 +79,16 @@ literal `project/work_items/<bucket>/<WI-ID>.md` path. That anchor is used
 instead of a fuzzy slug-derived glob:
 
 ```bash
-candidates=$(grep -rl "^instruction_source: project/work_items/.*/<WI-ID>\.md$" \
-  project/executions/AD_HOC/*.md 2>/dev/null)
+candidates=$(git grep -l "^instruction_source: project/work_items/.*/<WI-ID>\.md$" \
+  -- project/executions/AD_HOC/ 2>/dev/null)
 ```
+
+Use `git grep`, not filesystem `grep -r`/`-rl` — a filesystem recursive
+search also walks untracked scratch files and nested `.claude/worktrees/`
+checkouts. A stray untracked record sharing the same `instruction_source`
+and an open `pr:` field could falsely identify that PR, or make a unique
+tracked result look ambiguous. `git grep` searches only tracked content,
+closing that gap (`AGENTS.md:74-79`).
 
 For each candidate, read its `pr:` field and check whether that PR is still
 `OPEN`:

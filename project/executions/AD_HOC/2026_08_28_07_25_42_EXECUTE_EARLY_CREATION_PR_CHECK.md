@@ -2,10 +2,10 @@
 execution_id: 2026_08_28_07_25_42_EXECUTE_EARLY_CREATION_PR_CHECK
 prompt_id: PROMPT(AD_HOC:EXECUTE_EARLY_CREATION_PR_CHECK)[2026-08-28T07:22:58+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/645
-commit: 
+commit: 283ff370e2dd2755d97620265e14aece26b66b85
 created_at: 2026-08-28T07:25:42+00:00
 agent: claude_code
 instruction_source: project/work_items/proposed/WI-EXECUTE-EARLY-CREATION-PR-CHECK.md

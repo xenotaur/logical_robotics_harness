@@ -14,10 +14,29 @@ and `content_digest` (the git blob SHA at that commit - the file's whole
 content is what Layer 1 flagged) that Layer 2 findings already carry
 (a hash of the matched substring only - see `lrh.pii.layer2`).
 
-`still_in_working_tree` is a cheap proxy, not a fresh re-scan of `HEAD`:
-`enumerate_commits_for_paths` includes `HEAD` among the commits it walks
-(via `--all`), so a finding whose own `commit` equals the current `HEAD`
-SHA is, by construction, still present in the working tree.
+`still_in_working_tree` is computed from `HEAD`'s *current* content, not
+from `finding.commit == HEAD` - that equality is neither necessary nor
+sufficient: a finding's own commit not being `HEAD` doesn't mean its
+content is gone (an unrelated later commit could leave the flagged file
+untouched), and `commit == HEAD` doesn't guarantee the flagged content is
+still there either (PR #650 review, `chatgpt-codex-connector` P1).
+Instead, a finding is still present if the file's content at `HEAD` is
+byte-identical to its content at `finding.commit` - a Layer 1 finding's
+`content_digest` already *is* that commit's blob SHA, so it's compared to
+`HEAD`'s blob SHA directly; a Layer 2 finding's `content_digest` is only a
+substring hash, so its full-file blob SHA at `finding.commit` is fetched
+separately for the same byte-identical comparison. This is a
+conservative check - unchanged file content trivially still contains the
+flagged value, but a file that changed elsewhere while still containing
+the same flagged value is reported as no longer present (a disclosed
+false-negative bias, not a mark of certainty either way).
+
+Raises `Layer1BlobReadError` for a `git rev-parse <commit>:<path>`
+failure that isn't the path being absent from that commit - the same
+missing-path-vs-unexpected-failure distinction `lrh.pii.layer2` already
+makes for its own git reads, so a repository-corruption or partial-clone
+read failure surfaces instead of being silently treated as "not found"
+(PR #650 review, `copilot-pull-request-reviewer`).
 """
 
 from __future__ import annotations
@@ -32,8 +51,9 @@ from lrh.pii import enumerate as pii_enumerate
 from lrh.pii import layer1 as pii_layer1
 from lrh.pii import layer2 as pii_layer2
 
-MATCHED_LAYER_1 = "layer1"
-MATCHED_LAYER_2 = "layer2"
+# PROP-LRH-PII-SCAN Decision 7's documented output contract.
+MATCHED_LAYER_1 = "path"
+MATCHED_LAYER_2 = "content"
 
 _LAYER1_CATEGORY = "misplaced_document"
 _LAYER1_SEVERITY = "high"
@@ -60,6 +80,19 @@ class Finding:
     matched_layer: str
 
 
+class Layer1BlobReadError(Exception):
+    """Raised when `git rev-parse <commit>:<path>` fails for a reason other
+    than the path being absent from that commit (e.g. repository
+    corruption, a missing promisor blob in a partial clone)."""
+
+
+_MISSING_PATH_STDERR_MARKERS = (
+    "does not exist in",
+    "exists on disk, but not in",
+    "invalid object name",
+)
+
+
 def _current_head(project_root: pathlib.Path) -> str:
     result = subprocess.run(
         ["git", "-C", str(project_root), "rev-parse", "HEAD"],
@@ -72,15 +105,43 @@ def _current_head(project_root: pathlib.Path) -> str:
 
 def _blob_sha(project_root: pathlib.Path, commit: str, path: str) -> str | None:
     """Return the git blob object SHA for `path` at `commit`, or `None` if
-    it can't be resolved (e.g. the path is absent from that commit)."""
+    the path is absent from that commit's tree. Any other failure raises
+    `Layer1BlobReadError` rather than being treated as an ordinary miss."""
     result = subprocess.run(
         ["git", "-C", str(project_root), "rev-parse", f"{commit}:{path}"],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
-        return None
+        if any(marker in result.stderr for marker in _MISSING_PATH_STDERR_MARKERS):
+            return None
+        stderr_text = result.stderr.strip()
+        raise Layer1BlobReadError(
+            f"git rev-parse {commit}:{path} failed unexpectedly: {stderr_text}"
+        )
     return result.stdout.strip()
+
+
+def _still_in_working_tree(
+    project_root: pathlib.Path,
+    head: str,
+    commit: str,
+    path: str,
+    content_digest: str,
+    matched_layer: str,
+) -> bool:
+    """True iff `path`'s content at `head` is byte-identical to its content
+    at `commit` - see the module docstring for why commit-ID equality
+    alone is neither necessary nor sufficient."""
+    head_digest = _blob_sha(project_root, head, path)
+    if head_digest is None:
+        return False
+    finding_commit_digest = (
+        content_digest
+        if matched_layer == MATCHED_LAYER_1
+        else _blob_sha(project_root, commit, path)
+    )
+    return head_digest == finding_commit_digest
 
 
 def build_findings(
@@ -120,7 +181,14 @@ def build_findings(
                     confidence=_LAYER1_CONFIDENCE,
                     commit=path_commit.commit,
                     content_digest=digest,
-                    still_in_working_tree=(path_commit.commit == head),
+                    still_in_working_tree=_still_in_working_tree(
+                        project_root,
+                        head,
+                        path_commit.commit,
+                        finding.path,
+                        digest,
+                        MATCHED_LAYER_1,
+                    ),
                     matched_layer=MATCHED_LAYER_1,
                 )
             )
@@ -135,7 +203,14 @@ def build_findings(
                 confidence=finding.confidence,
                 commit=finding.commit,
                 content_digest=finding.content_digest,
-                still_in_working_tree=(finding.commit == head),
+                still_in_working_tree=_still_in_working_tree(
+                    project_root,
+                    head,
+                    finding.commit,
+                    finding.path,
+                    finding.content_digest,
+                    MATCHED_LAYER_2,
+                ),
                 matched_layer=MATCHED_LAYER_2,
             )
         )

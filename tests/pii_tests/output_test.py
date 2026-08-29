@@ -3,6 +3,7 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from lrh.pii import allowlist as pii_allowlist
 from lrh.pii import config as pii_config
@@ -102,6 +103,45 @@ class BuildFindingsTest(unittest.TestCase):
                 ].still_in_working_tree
             )
 
+    def test_still_in_working_tree_true_when_unrelated_commit_moved_head(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            _init_repo(project_root)
+            _commit_file(project_root, "statement.pdf", "bank data", "add statement")
+            statement_commit = _head(project_root)
+            # An unrelated later commit moves HEAD without touching
+            # statement.pdf - commit-ID equality with HEAD would wrongly
+            # report this finding as no longer present, even though its
+            # content is untouched (PR #650 review, chatgpt-codex-connector
+            # P1).
+            _commit_file(project_root, "other.txt", "unrelated", "unrelated commit")
+
+            layer1_findings = pii_layer1.flag_paths(["statement.pdf"], _config())
+            findings = pii_output.build_findings(project_root, layer1_findings, [])
+
+            self.assertEqual(len(findings), 1)
+            self.assertEqual(findings[0].commit, statement_commit)
+            self.assertTrue(findings[0].still_in_working_tree)
+
+    def test_still_in_working_tree_false_when_content_later_changed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            _init_repo(project_root)
+            _commit_file(project_root, "notes.txt", "mia@example.com", "add mia")
+            first_commit = _head(project_root)
+            _commit_file(project_root, "notes.txt", "cleaned", "remove mia")
+
+            layer2_findings = pii_layer2.content_findings_for_paths(
+                project_root,
+                flagged_paths=[],
+                all_paths=["notes.txt"],
+                config=_config(pii_config.CONTENT_SCAN_SCOPE_ALL_TEXT),
+            )
+            findings = pii_output.build_findings(project_root, [], layer2_findings)
+
+            first_finding = [f for f in findings if f.commit == first_commit][0]
+            self.assertFalse(first_finding.still_in_working_tree)
+
     def test_layer1_finding_keeps_pre_rename_commits_not_only_post_rename(
         self,
     ) -> None:
@@ -153,6 +193,42 @@ class BuildFindingsTest(unittest.TestCase):
             self.assertEqual(finding.commit, head)
             self.assertEqual(finding.content_digest, layer2_findings[0].content_digest)
             self.assertTrue(finding.still_in_working_tree)
+
+    def test_matched_layer_values_match_the_documented_contract(self) -> None:
+        # PROP-LRH-PII-SCAN Decision 7: matched_layer is "path" or
+        # "content", not an internal module-name label (PR #650 review,
+        # chatgpt-codex-connector P2).
+        self.assertEqual(pii_output.MATCHED_LAYER_1, "path")
+        self.assertEqual(pii_output.MATCHED_LAYER_2, "content")
+
+
+class BlobShaTest(unittest.TestCase):
+    def test_returns_none_for_a_path_absent_at_that_commit(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            _init_repo(project_root)
+            _commit_file(project_root, "a.txt", "hello", "add a")
+            head = _head(project_root)
+
+            digest = pii_output._blob_sha(project_root, head, "never-existed.txt")
+
+            self.assertIsNone(digest)
+
+    def test_unexpected_git_failure_raises_instead_of_returning_none(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            _init_repo(project_root)
+            _commit_file(project_root, "a.txt", "hello", "add a")
+            head = _head(project_root)
+
+            fake_result = subprocess.CompletedProcess(
+                args=[], returncode=128, stdout="", stderr="fatal: bad object deadbeef"
+            )
+            with mock.patch.object(
+                pii_output.subprocess, "run", return_value=fake_result
+            ):
+                with self.assertRaises(pii_output.Layer1BlobReadError):
+                    pii_output._blob_sha(project_root, head, "a.txt")
 
 
 class FilterAllowlistedTest(unittest.TestCase):

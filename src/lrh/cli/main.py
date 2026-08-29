@@ -437,9 +437,9 @@ def main() -> None:
     agent_skills_status_parser = agent_skills_subparsers.add_parser(
         "status",
         help=(
-            "Single-read status view: whether project/agent_skills.yaml "
-            "exists, sources/targets/scope's effective value and "
-            "provenance, and install.overwrite's raw configured value."
+            "Status view: whether project/agent_skills.yaml exists; the "
+            "effective value and provenance of sources, targets, and "
+            "scope; and install.overwrite's raw configured value."
         ),
     )
     agent_skills_status_parser.add_argument(

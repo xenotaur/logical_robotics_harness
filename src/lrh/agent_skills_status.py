@@ -1,8 +1,8 @@
 """Single-read status view over `project/agent_skills.yaml`.
 
 Backs `lrh agent-skills status` / the `/lrh-config-skills` skill: reports
-whether the config file exists and the effective, CLI-over-config-over-
-default resolved value of each field -- reusing
+whether the config file exists and the effective,
+CLI-over-config-over-default resolved value of each field -- reusing
 `lrh.skills.installer`'s existing `load_agent_skills_config`/
 `resolve_agent_skills_install_plan` functions rather than re-implementing
 that precedence logic (`WI-SKILLS-LRH-CONFIG-SKILLS`).
@@ -11,12 +11,13 @@ that precedence logic (`WI-SKILLS-LRH-CONFIG-SKILLS`).
 defaults (`docs/reference/schemas/agent-skills-config.md`) and are fully
 exposed by the two reused functions above. `install.overwrite` has no
 documented default, and neither `AgentSkillsConfig` nor
-`AgentSkillsInstallPlan` carries a field for it -- `installer._validate_
-config_install_policy` validates and discards the value rather than
-exposing it. This module does not extend `installer.py`'s data model to
-add one (that would touch `lrh skills install`'s own internal loading
-logic, out of this WI's scope); it reads the raw YAML value directly
-instead, reporting `None` ("not set") when the file or key is absent.
+`AgentSkillsInstallPlan` carries a field for it --
+`installer._validate_config_install_policy` validates and discards the
+value rather than exposing it. This module does not extend
+`installer.py`'s data model to add one (that would touch `lrh skills
+install`'s own internal loading logic, out of this WI's scope); it reads
+the raw YAML value directly instead, reporting `None` ("not set") when
+the file or key is absent.
 """
 
 from __future__ import annotations

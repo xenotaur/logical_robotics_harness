@@ -7,7 +7,7 @@ description: 'Inspect and set project/agent_skills.yaml install policy (sources,
   -- all in one read, via `lrh agent-skills status` -- before asking anything. May
   create project/agent_skills.yaml from scratch when absent, since no other mechanism
   in the codebase ever creates it. Use instead of manually reading the raw YAML and
-  re-deriving CLI-over-config-over- default precedence by hand.
+  re-deriving CLI-over-config-over-default precedence by hand.
 
   '
 when_to_use: 'Invoke when the user wants to inspect or change this repository''s lrh

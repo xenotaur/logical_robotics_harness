@@ -2,14 +2,14 @@
 execution_id: 2026_08_29_08_28_16_WI_PII_SCAN_ALLOWLIST_OUTPUT
 prompt_id: PROMPT(WI-PII-SCAN-ALLOWLIST-OUTPUT:WI_PII_SCAN_ALLOWLIST_OUTPUT)[2026-08-29T07:45:26+00:00]
 work_item: WI-PII-SCAN-ALLOWLIST-OUTPUT
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/650
-commit: c8dae0f3
+commit: a5404d88f2ff7795fceb344a31ff02a61e91aa36
 created_at: 2026-08-29T08:28:16+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-PII-SCAN-ALLOWLIST-OUTPUT.md
-session_transcript: "claude-app:cf93c405-ed0f-409d-946f-7451a1cb2f7c"
+session_transcript: claude-app:cf93c405-ed0f-409d-946f-7451a1cb2f7c
 ---
 
 # Summary

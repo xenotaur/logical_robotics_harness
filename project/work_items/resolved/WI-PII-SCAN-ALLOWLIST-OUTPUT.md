@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #650 (commit a5404d88)."
 blocked_reason: null
 blocked: false
 id: WI-PII-SCAN-ALLOWLIST-OUTPUT
 title: Implement content-bound allowlist and pii_findings.json output
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

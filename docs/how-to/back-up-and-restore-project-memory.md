@@ -98,6 +98,7 @@ directory recursively rather than one file at a time, since `cp` does
 not create missing parent directories on its own:
 
 ```bash
+mkdir -p /home/user/.claude/projects/-home-user-myproject
 cp -r /home/user/.local/share/lrh/session-archive/raw/-home-user-myproject/memory \
       /home/user/.claude/projects/-home-user-myproject/memory
 ```

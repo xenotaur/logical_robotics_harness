@@ -54,6 +54,51 @@ def _minimal_pdf(content_stream: bytes) -> bytes:
 
 
 class ContentFindingsForPathsTest(unittest.TestCase):
+    def test_content_digest_differs_for_different_matched_values(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            _init_repo(project_root)
+            _commit_file(project_root, "notes.txt", "gina@example.com", "add gina")
+            _run_git(project_root, "mv", "notes.txt", "moved_notes.txt")
+            _commit_file(
+                project_root, "moved_notes.txt", "harry@example.com", "swap to harry"
+            )
+
+            findings = pii_layer2.content_findings_for_paths(
+                project_root,
+                flagged_paths=[],
+                all_paths=["notes.txt", "moved_notes.txt"],
+                config=_config(pii_config.CONTENT_SCAN_SCOPE_ALL_TEXT),
+            )
+
+            # Two different email values at the same rule (and, after the
+            # rename, the same reportable path) must not collide on the
+            # same content-bound digest - that's the whole point of
+            # binding the digest to the matched substring, not just the
+            # location (WI-PII-SCAN-ALLOWLIST-OUTPUT).
+            digests = {f.content_digest for f in findings}
+            self.assertEqual(len(findings), 2)
+            self.assertEqual(len(digests), 2)
+
+    def test_content_digest_is_identical_for_the_same_matched_value(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            _init_repo(project_root)
+            _commit_file(project_root, "notes.txt", "irene@example.com", "add irene")
+            _commit_file(
+                project_root, "notes.txt", "irene@example.com\nmore", "unrelated edit"
+            )
+
+            findings = pii_layer2.content_findings_for_paths(
+                project_root,
+                flagged_paths=[],
+                all_paths=["notes.txt"],
+                config=_config(pii_config.CONTENT_SCAN_SCOPE_ALL_TEXT),
+            )
+
+            self.assertEqual(len(findings), 2)
+            self.assertEqual(findings[0].content_digest, findings[1].content_digest)
+
     def test_flagged_file_content_match_is_detected_under_default_scope(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project_root = pathlib.Path(tmp)

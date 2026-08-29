@@ -192,8 +192,9 @@ lrh memory import --input bundle.jsonl --dry-run
 
 - `--input` (required): bundle input path.
 - `--name`: repeatable; restrict import to these memory names.
-- `--force`: overwrite even if `authored_by` differs from the bundled
-  record.
+- `--force`: required to overwrite any existing destination memory —
+  same-agent, legacy (no `authored_by`), or a differing `authored_by`.
+  See "Overwrite safety" below.
 - `--dry-run`: report what would be written, without touching the
   filesystem.
 
@@ -201,15 +202,15 @@ Prints one `wrote:`/`would write:`/`error:` line per record, then a
 summary line (`import complete: N written, M errors`, or the `dry-run:`
 equivalent). Exits `1` if any record errored, else `0`.
 
-**Known gap — same-agent overwrite is unconditional and unsnapshotted.**
-Unlike `sync`'s snapshot-before-overwrite guarantee, `import` (and
-`transfer` below) will silently overwrite a destination memory with no
-`--force` and no prior-content snapshot whenever the incoming record's
-`authored_by` matches the destination's — only a *cross-agent* mismatch
-is guarded. A local edit made directly at the destination since the
-bundle was created can be irrecoverably lost. This is a known,
-currently open issue — see
-[`WI-LRH-MEMORY-TRANSFER-SAFETY`](../../../project/work_items/proposed/WI-LRH-MEMORY-TRANSFER-SAFETY.md).
+**Overwrite safety.** `--force` is required to overwrite *any* existing
+destination memory — same-agent, legacy (no `authored_by`), or a
+differing `authored_by` (a genuine cross-agent conflict). For every case
+except the differing-`authored_by` one, the destination's prior content
+is snapshotted first, into `<memory_dir>/history/<name>.<short-hash>.md`
+(deduplicated by content hash, no timestamp — the same version is never
+snapshotted twice). See
+[`WI-LRH-MEMORY-TRANSFER-SAFETY`](../../../project/work_items/resolved/WI-LRH-MEMORY-TRANSFER-SAFETY.md)
+for the history of this guard.
 
 ## `lrh memory transfer`
 
@@ -231,6 +232,11 @@ lrh memory transfer --from /path/to/source --to /path/to/dest --agent claude_app
   slug — this holds regardless of whether that slug's directory already
   exists, so a fresh destination corpus (`--to a-new-slug`) works
   correctly rather than silently falling through to a misresolved path.
+  Unlike `--to`, `--from` has no legitimate "doesn't exist yet" case: if
+  it resolves to a corpus directory that doesn't exist, `transfer` fails
+  loudly with `MemoryValidationError` (exit `1`) rather than silently
+  reporting `0 written, 0 errors` — the error names the resolved slug
+  and suggests a `./` prefix if a relative path was intended.
 - `--name`, `--agent`: same filters as `export` — and the same
   requirement: at least one of `--name` or `--agent` is required
   (`transfer` reads its source through `export`'s own filtered path),
@@ -239,11 +245,13 @@ lrh memory transfer --from /path/to/source --to /path/to/dest --agent claude_app
 - `--force`, `--dry-run`: same semantics as `import`.
 
 Reports the same `wrote:`/`would write:`/`error:` lines and summary as
-`import`. **Shares `import`'s known same-agent overwrite gap above** —
+`import`, and shares `import`'s overwrite-safety guarantee above —
 `transfer`'s whole purpose is moving memories between corpora that are
-not both "the current project," so this gap is especially relevant to
-a cross-project refresh workflow; see
-[`WI-LRH-MEMORY-TRANSFER-SAFETY`](../../../project/work_items/proposed/WI-LRH-MEMORY-TRANSFER-SAFETY.md).
+not both "the current project," so a cross-project refresh workflow
+relies on that guard specifically; see
+[`WI-LRH-MEMORY-TRANSFER-SAFETY`](../../../project/work_items/resolved/WI-LRH-MEMORY-TRANSFER-SAFETY.md)
+for the history of this guard and the earlier bare-relative-slug
+resolution bug fixed alongside it.
 
 ## Related how-to guidance
 

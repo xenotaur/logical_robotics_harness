@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #651 (commit e540c888)."
 blocked_reason: null
 blocked: false
 id: WI-EXECUTE-EARLY-CREATION-PR-CHECK
 title: Stop /lrh-execute before chain authorization when the target WI's creation PR is still open
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

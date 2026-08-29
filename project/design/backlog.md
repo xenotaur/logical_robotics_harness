@@ -1872,19 +1872,20 @@ problem before a working algorithm landed, so expect the same difficulty
 here.
 
 **Status:** Tracked as `WI-EXECUTE-EARLY-CREATION-PR-CHECK` (proposed);
-not yet implemented. Discovered during this entry's own PR landing
-(a rebase conflict against the freshly-merged entry above) to be adjacent
+not yet implemented. Discovered during this entry's own PR landing (a
+rebase conflict against a separately-landed backlog entry) to be adjacent
 to, but not a duplicate of, "Agents suggesting premature WI/proposal/
-workstream implementation" above: that entry fixes the *reporting/
-suggestion* layer (don't even suggest `/lrh-implement` while the filing PR
-is open), while this one adds an *enforcement* check inside `/lrh-execute`
-itself (stop cheaply if the suggestion is followed anyway). Both are worth
-landing; neither supersedes the other.
+workstream implementation" (above, earlier in this file): that entry
+fixes the *reporting/suggestion* layer (don't even suggest
+`/lrh-implement` while the filing PR is open), while this one adds an
+*enforcement* check inside `/lrh-execute` itself (stop cheaply if the
+suggestion is followed anyway). Both are worth landing; neither supersedes
+the other.
 
 **Related:** `src/lrh/skills/lrh-execute/SKILL.md` Step 1;
 `src/lrh/skills/lrh-implement/SKILL.md` Step 5;
 `src/lrh/skills/lrh-land/references/land-workflow.md` (provenance-check
 algorithm); `project/work_items/proposed/WI-EXECUTE-EARLY-CREATION-PR-CHECK.md`;
 harness PR #602; `project/work_items/resolved/WI-PROJECT-SLUG-SYMLINK-RESOLUTION.md`;
-`WI-SKILLS-LRH-NEXT-STEP-REPORTING` (the adjacent reporting-layer entry
-immediately above).
+`WI-SKILLS-LRH-NEXT-STEP-REPORTING` (the adjacent reporting-layer entry,
+earlier in this file).

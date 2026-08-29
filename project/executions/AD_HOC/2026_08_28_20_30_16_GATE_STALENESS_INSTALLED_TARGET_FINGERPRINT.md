@@ -2,10 +2,10 @@
 execution_id: 2026_08_28_20_30_16_GATE_STALENESS_INSTALLED_TARGET_FINGERPRINT
 prompt_id: PROMPT(AD_HOC:GATE_STALENESS_INSTALLED_TARGET_FINGERPRINT)[2026-08-28T18:13:51+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/648
-commit: bcb0f600
+commit: 7b5c8a409d67953435d9cda3cfb707ea603f8df0
 created_at: 2026-08-28T20:30:16+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/512

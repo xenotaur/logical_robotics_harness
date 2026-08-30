@@ -35,7 +35,7 @@ acceptance:
   - For a project-local git-tracked installed target, the fix watches the resolved installed-target paths via the existing marker-scoped git-based comparison, reusing installer.py's target-resolution logic
   - For a user-scope or otherwise untracked installed target (outside any git working tree, e.g. installer.py's Path.home()-based default), the fix persists a content/version fingerprint at consent-grant time and compares current file content against it directly -- not via git history, which cannot work for an untracked path
   - When the installed target can't be resolved, or a required fingerprint is missing/unreadable, the check fails closed (reports stale, never silently stale=False) -- this is distinguishable from a genuine no-change result
-  - New/updated unit tests cover both the project-local git-tracked case and the user-scope/untracked case explicitly, with a fixture that does not itself commit the installed path (which would hide the untracked-target gap, as the PR #648 review caught in an earlier draft)
+  - "New/updated unit tests cover both the project-local git-tracked case and the user-scope/untracked case explicitly, with a fixture that does not itself commit the installed path (which would hide the untracked-target gap, as the PR #648 review caught in an earlier draft)"
   - lrh validate reports 0 errors
 required_evidence:
   - manual_review

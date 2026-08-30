@@ -28,6 +28,7 @@ class ScanResult:
     findings_count: int
     allowlisted_count: int
     findings_path: pathlib.Path
+    findings: tuple[pii_output.Finding, ...]
 
 
 def run_scan(
@@ -59,15 +60,21 @@ def run_scan(
         findings_count=len(remaining),
         allowlisted_count=len(findings) - len(remaining),
         findings_path=findings_path,
+        findings=tuple(remaining),
     )
 
 
 def format_text(result: ScanResult) -> str:
-    lines = [f"Wrote {result.findings_count} finding(s) to {result.findings_path}."]
+    """Full text report: written-to location, allowlist suppression
+    count, then the per-finding detail `pii_output.render_text_summary`
+    already knows how to render - not just the bare count, which forced
+    users to open the JSON to see what was actually found (PR #654
+    review, `chatgpt-codex-connector`)."""
+    lines = [f"Findings written to {result.findings_path}."]
     if result.allowlisted_count:
         lines.append(f"{result.allowlisted_count} allowlisted finding(s) suppressed.")
     lines.append("")
-    lines.append(pii_output.DISCLOSURE_TEXT)
+    lines.append(pii_output.render_text_summary(list(result.findings)))
     return "\n".join(lines)
 
 

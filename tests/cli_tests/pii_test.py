@@ -7,6 +7,7 @@ import unittest.mock
 from lrh.cli import main as cli_main
 from lrh.pii import config as pii_config
 from lrh.pii import layer2 as pii_layer2
+from lrh.pii import output as pii_output
 from lrh.pii import scan as pii_scan
 
 
@@ -49,6 +50,7 @@ class TestLrhPiiScanCli(unittest.TestCase):
             findings_count=0,
             allowlisted_count=0,
             findings_path=pathlib.Path("/tmp/out/pii_findings.json"),
+            findings=(),
         )
         with unittest.mock.patch(
             "lrh.cli.main.pii_scan.run_scan", return_value=fake_result
@@ -81,6 +83,7 @@ class TestLrhPiiScanCli(unittest.TestCase):
             findings_count=0,
             allowlisted_count=0,
             findings_path=pathlib.Path("/tmp/out/pii_findings.json"),
+            findings=(),
         )
         with unittest.mock.patch(
             "lrh.cli.main.pii_scan.run_scan", return_value=fake_result
@@ -135,6 +138,52 @@ class TestLrhPiiScanCli(unittest.TestCase):
             with unittest.mock.patch(
                 "sys.argv",
                 ["lrh", "pii", "scan", "--out-dir", "/tmp/out"],
+            ):
+                with self.assertRaises(SystemExit) as exc:
+                    cli_main.main()
+        self.assertEqual(exc.exception.code, 2)
+
+    def test_lrh_pii_scan_reports_layer1_blob_read_error_cleanly(self) -> None:
+        with unittest.mock.patch(
+            "lrh.cli.main.pii_scan.run_scan",
+            side_effect=pii_output.Layer1BlobReadError("git rev-parse failed"),
+        ):
+            with unittest.mock.patch(
+                "sys.argv",
+                ["lrh", "pii", "scan", "--out-dir", "/tmp/out"],
+            ):
+                with self.assertRaises(SystemExit) as exc:
+                    cli_main.main()
+        self.assertEqual(exc.exception.code, 2)
+
+    def test_lrh_pii_scan_reports_os_error_cleanly(self) -> None:
+        with unittest.mock.patch(
+            "lrh.cli.main.pii_scan.run_scan",
+            side_effect=OSError("Permission denied: /tmp/out"),
+        ):
+            with unittest.mock.patch(
+                "sys.argv",
+                ["lrh", "pii", "scan", "--out-dir", "/tmp/out"],
+            ):
+                with self.assertRaises(SystemExit) as exc:
+                    cli_main.main()
+        self.assertEqual(exc.exception.code, 2)
+
+    def test_lrh_pii_scan_reports_missing_explicit_config_cleanly(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with unittest.mock.patch(
+                "sys.argv",
+                [
+                    "lrh",
+                    "pii",
+                    "scan",
+                    "--project-root",
+                    tmp,
+                    "--out-dir",
+                    "/tmp/out",
+                    "--config",
+                    str(pathlib.Path(tmp) / "does-not-exist.toml"),
+                ],
             ):
                 with self.assertRaises(SystemExit) as exc:
                     cli_main.main()

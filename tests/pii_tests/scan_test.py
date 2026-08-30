@@ -5,6 +5,7 @@ import tempfile
 import unittest
 
 from lrh.pii import allowlist as pii_allowlist
+from lrh.pii import output as pii_output
 from lrh.pii import scan as pii_scan
 
 
@@ -102,24 +103,43 @@ class RunScanTest(unittest.TestCase):
             self.assertEqual(json.loads(result.findings_path.read_text()), [])
 
 
+def _fake_finding(path: str = "a.txt") -> pii_output.Finding:
+    return pii_output.Finding(
+        path=path,
+        rule_id="email.basic",
+        category="email",
+        severity="medium",
+        confidence="high",
+        commit="deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+        content_digest="abc123",
+        still_in_working_tree=True,
+        matched_layer=pii_output.MATCHED_LAYER_2,
+    )
+
+
 class FormatTest(unittest.TestCase):
-    def test_format_text_includes_disclosure_and_counts(self) -> None:
+    def test_format_text_includes_disclosure_counts_and_finding_details(self) -> None:
         result = pii_scan.ScanResult(
             findings_count=2,
             allowlisted_count=1,
             findings_path=pathlib.Path("/tmp/pii_findings.json"),
+            findings=(_fake_finding("a.txt"), _fake_finding("b.txt")),
         )
 
         text = pii_scan.format_text(result)
 
         self.assertIn("2 finding(s)", text)
         self.assertIn("1 allowlisted finding(s)", text)
+        self.assertIn("a.txt", text)
+        self.assertIn("b.txt", text)
+        self.assertIn(pii_output.DISCLOSURE_TEXT, text)
 
     def test_format_json_matches_expected_keys(self) -> None:
         result = pii_scan.ScanResult(
             findings_count=0,
             allowlisted_count=0,
             findings_path=pathlib.Path("/tmp/pii_findings.json"),
+            findings=(),
         )
 
         rendered = json.loads(pii_scan.format_json(result))

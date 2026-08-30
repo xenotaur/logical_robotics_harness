@@ -39,6 +39,7 @@ from lrh.design import organize as design_organize
 from lrh.meta import workspace
 from lrh.pii import config as pii_config
 from lrh.pii import layer2 as pii_layer2
+from lrh.pii import output as pii_output
 from lrh.pii import scan as pii_scan
 from lrh.project import bootstrap, doctor
 from lrh.secrets import purge as secrets_purge
@@ -1418,12 +1419,18 @@ def main() -> None:
             except pii_layer2.Layer2ContentReadError as err:
                 print(f"error: {err}", file=sys.stderr)
                 raise SystemExit(2) from err
+            except pii_output.Layer1BlobReadError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
             except subprocess.CalledProcessError as err:
                 print(
                     f"error: git command failed ({' '.join(err.cmd)}); is "
                     "--project-root a git repository?",
                     file=sys.stderr,
                 )
+                raise SystemExit(2) from err
+            except OSError as err:
+                print(f"error: {err}", file=sys.stderr)
                 raise SystemExit(2) from err
             if args.format == "json":
                 print(pii_scan.format_json(result))

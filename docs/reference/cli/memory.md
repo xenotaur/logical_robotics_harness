@@ -192,9 +192,11 @@ lrh memory import --input bundle.jsonl --dry-run
 
 - `--input` (required): bundle input path.
 - `--name`: repeatable; restrict import to these memory names.
-- `--force`: required to overwrite any existing destination memory —
-  same-agent, legacy (no `authored_by`), or a differing `authored_by`.
-  See "Overwrite safety" below.
+- `--force`: required to overwrite an existing destination memory whose
+  content actually differs — same-agent, legacy (no `authored_by`), or
+  a differing `authored_by`. An incoming record that's already
+  byte-identical to the destination is written through regardless
+  (an idempotent re-import). See "Overwrite safety" below.
 - `--dry-run`: report what would be written, without touching the
   filesystem.
 
@@ -202,13 +204,19 @@ Prints one `wrote:`/`would write:`/`error:` line per record, then a
 summary line (`import complete: N written, M errors`, or the `dry-run:`
 equivalent). Exits `1` if any record errored, else `0`.
 
-**Overwrite safety.** `--force` is required to overwrite *any* existing
-destination memory — same-agent, legacy (no `authored_by`), or a
-differing `authored_by` (a genuine cross-agent conflict). For every case
-except the differing-`authored_by` one, the destination's prior content
-is snapshotted first, into `<memory_dir>/history/<name>.<short-hash>.md`
-(deduplicated by content hash, no timestamp — the same version is never
-snapshotted twice). See
+**Overwrite safety.** `--force` is required to overwrite an existing
+destination memory whose content actually differs — same-agent, legacy
+(no `authored_by`), or a differing `authored_by` (a genuine cross-agent
+conflict). An incoming record that's already byte-identical to the
+destination is written through with no `--force` and no snapshot (an
+idempotent re-import is not an overwrite). For every other case except
+the differing-`authored_by` one, the destination's prior content is
+snapshotted first, into
+`<memory_dir>/history/<filename-stem>.<short-hash>.md` (deduplicated by
+content hash, no timestamp — the same version is never snapshotted
+twice). Note that `<filename-stem>` is the on-disk form, not the
+kebab-case memory name — hyphens become underscores (`feedback-x` →
+`feedback_x.md`), same as every other memory file. See
 [`WI-LRH-MEMORY-TRANSFER-SAFETY`](../../../project/work_items/resolved/WI-LRH-MEMORY-TRANSFER-SAFETY.md)
 for the history of this guard.
 

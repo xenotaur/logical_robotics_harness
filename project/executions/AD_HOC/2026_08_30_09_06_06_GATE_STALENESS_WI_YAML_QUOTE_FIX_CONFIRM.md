@@ -2,10 +2,10 @@
 execution_id: 2026_08_30_09_06_06_GATE_STALENESS_WI_YAML_QUOTE_FIX_CONFIRM
 prompt_id: PROMPT(AD_HOC:GATE_STALENESS_WI_YAML_QUOTE_FIX_CONFIRM)[2026-08-30T09:06:01+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_30_08_53_03_GATE_STALENESS_WI_YAML_QUOTE_FIX
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/655
-commit: 
+commit: 1079313ab386ff0f01bdb2bf6fe88741d4cd2d1e
 created_at: 2026-08-30T09:06:06+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/655

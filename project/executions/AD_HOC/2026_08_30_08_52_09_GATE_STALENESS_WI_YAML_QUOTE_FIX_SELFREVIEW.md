@@ -2,13 +2,13 @@
 execution_id: 2026_08_30_08_52_09_GATE_STALENESS_WI_YAML_QUOTE_FIX_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:GATE_STALENESS_WI_YAML_QUOTE_FIX_SELFREVIEW)[2026-08-30T08:52:06+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 agent: claude_app
 instruction_source: ad_hoc conversation — fix FRONTMATTER_LINT_UNSAFE_SCALAR on WI-GATE-STALENESS-INSTALLED-TARGET-FINGERPRINT.md's acceptance field
-session_transcript: pending
-pr: 
-commit: 
+session_transcript: claude-app:4ba135af-db45-4065-aa9c-a4ec9ad99ffa
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/655
+commit: 1079313ab386ff0f01bdb2bf6fe88741d4cd2d1e
 created_at: 2026-08-30T08:52:09+00:00
 ---
 

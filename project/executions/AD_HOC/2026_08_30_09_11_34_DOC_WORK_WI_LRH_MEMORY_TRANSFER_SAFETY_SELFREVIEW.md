@@ -2,10 +2,10 @@
 execution_id: 2026_08_30_09_11_34_DOC_WORK_WI_LRH_MEMORY_TRANSFER_SAFETY_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:DOC_WORK_WI_LRH_MEMORY_TRANSFER_SAFETY_SELFREVIEW)[2026-08-30T09:11:27+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_08_29_17_00_22_DOC_WORK_WI_LRH_MEMORY_TRANSFER_SAFETY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/653
-commit: 5fd1d31bb1eb4d6ab7a10b95c05329b790f31cae
+commit: e2c5aa26fe5b1ff8fbf10efb0ad7d8d892847606
 created_at: 2026-08-30T09:11:34+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/653

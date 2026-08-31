@@ -4,6 +4,12 @@
 for `lrh skills install`. When present, it supplies project defaults for the
 canonical skill source, install target, and install scope.
 
+To inspect the currently resolved values without hand-parsing this file, or
+to create/edit `sources`, `targets`, and `scope` through a confirmed
+gate, use [`lrh agent-skills status`](../cli/agent-skills.md) or the `/lrh-config-skills`
+LRH skill. `install.overwrite` is not editable through either — it stays a
+manual edit to this file, per the non-destructive-only rule below.
+
 ## Precedence
 
 Install planning uses this precedence, from highest to lowest:

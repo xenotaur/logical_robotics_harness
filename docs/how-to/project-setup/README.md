@@ -5,5 +5,6 @@ Project setup playbooks capture reusable, human-facing setup and validation guid
 ## Playbooks
 
 - [CI setup and debugging](ci.md) — assess, repair, and harden continuous integration across heterogeneous repositories using canonical commands, reproducible tool versions, workflow guardrails, and evidence-backed debugging.
+- [Setting up a conda environment](conda-environment.md) — bootstrap a personal conda (or venv) development environment for this repository, and why there's no committed `environment.yml` to build from.
 - [Claude Code permission allowlist](claude-code-permissions.md) — what the project-level `.claude/settings.json` pre-approves, what it deliberately still gates, and how to extend it.
 - [PII and sensitive-content philosophy](pii.md) — decide whether and how to check a repository for PII or misplaced sensitive documents, why detection stays audit-only and opt-in, and how remediation differs from credential handling.

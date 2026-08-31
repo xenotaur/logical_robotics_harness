@@ -50,3 +50,7 @@ LRH supports users ranging from someone who only wants generated prompts, to ski
 - Does not call any cloud service to inspect repository content.
 - Does not remove, rewrite, or purge anything — findings are reported, never acted on automatically.
 - Does not replace judgment about what's acceptable in a given repository — that stays with the repository's owner.
+
+## Related reference
+
+- [`lrh pii`](../../reference/cli/pii.md) — exact `lrh pii scan` command syntax, flags, output schema, and the allowlist fingerprint format.

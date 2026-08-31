@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 2026_08_29_17_13_27_WI_PII_SCAN_CLI
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/654
-commit: pending
+commit: 56457ba4
 created_at: 2026-08-31T02:04:34+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/654

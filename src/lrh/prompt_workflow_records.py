@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import os
 import pathlib
 import typing
 
@@ -101,7 +102,27 @@ def load_execution_records(
 
     execution_root = pathlib.Path(project_root) / output_root
     records: list[ExecutionRecord] = []
-    for path in sorted(execution_root.rglob("*")):
+
+    # ⚡ Bolt: Use os.walk with directory pruning instead of pathlib.rglob
+    # to avoid traversing large ignored directories (like node_modules, .venv).
+    # This reduces worst-case traversal time from O(total files) to O(relevant files).
+    _ignored = {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        "node_modules",
+        ".mypy_cache",
+        ".pytest_cache",
+    }
+    paths: list[pathlib.Path] = []
+    if execution_root.exists() and execution_root.is_dir():
+        for dirpath, dirnames, filenames in os.walk(execution_root):
+            dirnames[:] = [d for d in dirnames if d not in _ignored]
+            for f in filenames:
+                paths.append(pathlib.Path(dirpath) / f)
+
+    for path in sorted(paths):
         # `.glob("**/*.md")` is case-sensitive regardless of the
         # underlying filesystem's own case-sensitivity -- the identical
         # gap already fixed in

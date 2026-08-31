@@ -48,13 +48,26 @@ class PiiConfigError(Exception):
     """Raised for a malformed `.lrh-pii.toml`."""
 
 
-def load_config(project_root: pathlib.Path) -> PiiConfig:
-    """Auto-discover `.lrh-pii.toml` at `project_root` and extend the
-    built-in defaults per its `[extend] useDefault` setting (default
-    `true`). Returns the built-in defaults unmodified if no config file
-    exists."""
-    config_path = project_root / CONFIG_FILENAME
+def load_config(
+    project_root: pathlib.Path, config_path: pathlib.Path | None = None
+) -> PiiConfig:
+    """Load `.lrh-pii.toml` and extend the built-in defaults per its
+    `[extend] useDefault` setting (default `true`). Returns the built-in
+    defaults unmodified if no config file exists at the auto-discovered
+    location. `config_path` overrides auto-discovery at
+    `project_root / CONFIG_FILENAME` with an explicit path (`lrh pii scan
+    --config`) - useful for a config file that isn't committed at the
+    project root itself. Unlike an absent auto-discovered file, an
+    explicit `config_path` that doesn't exist raises `PiiConfigError`:
+    the user asked for that specific file, and silently falling back to
+    defaults would let a misspelled or deleted path pass as a clean scan
+    of the user's intended rules (PR #654 review, `chatgpt-codex-connector`)."""
+    explicit_config_path = config_path is not None
+    if config_path is None:
+        config_path = project_root / CONFIG_FILENAME
     if not config_path.exists():
+        if explicit_config_path:
+            raise PiiConfigError(f"{config_path} does not exist")
         return PiiConfig(
             path_globs=DEFAULT_PATH_GLOBS,
             filename_keywords=DEFAULT_FILENAME_KEYWORDS,

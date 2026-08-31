@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -37,6 +38,10 @@ from lrh.conversations import (
 )
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
+from lrh.pii import config as pii_config
+from lrh.pii import layer2 as pii_layer2
+from lrh.pii import output as pii_output
+from lrh.pii import scan as pii_scan
 from lrh.project import bootstrap, doctor
 from lrh.secrets import purge as secrets_purge
 from lrh.secrets import review as secrets_review
@@ -552,6 +557,48 @@ def main() -> None:
         ),
     )
     confirm_fixes_routine_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
+    )
+
+    pii_parser = subparsers.add_parser(
+        "pii",
+        help="PII/misplaced-document detection commands.",
+    )
+    pii_subparsers = pii_parser.add_subparsers(dest="pii_command")
+    pii_scan_parser = pii_subparsers.add_parser(
+        "scan",
+        help="Read-only full-history PII/misplaced-document scan.",
+        epilog=(
+            "A local, deterministic heuristic scanner: no OCR, no ML/NLP\n"
+            "content classification, no cloud DLP calls. Layer 1 flags\n"
+            "suspicious file types/paths/names; Layer 2 scans content for\n"
+            "PII/secret patterns, scoped to Layer 1's flagged files by\n"
+            "default (see .lrh-pii.toml's content_scan_scope to widen this)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pii_scan_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root to scan (default: current directory)",
+    )
+    pii_scan_parser.add_argument(
+        "--out-dir",
+        required=True,
+        help="directory to write pii_findings.json into",
+    )
+    pii_scan_parser.add_argument(
+        "--config",
+        default=None,
+        help=(
+            "path to a .lrh-pii.toml config file, overriding auto-discovery "
+            "at --project-root"
+        ),
+    )
+    pii_scan_parser.add_argument(
         "--format",
         choices=("text", "json"),
         default="text",
@@ -1397,6 +1444,47 @@ def main() -> None:
             "confirm-fixes requires a subcommand "
             "(try: lrh confirm-fixes check-batch-routine)"
         )
+
+    if args.command == "pii":
+        if args.pii_command == "scan":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            out_dir = Path(args.out_dir).expanduser().resolve()
+            config_path = (
+                Path(args.config).expanduser().resolve() if args.config else None
+            )
+            try:
+                result = pii_scan.run_scan(
+                    project_root=project_root,
+                    out_dir=out_dir,
+                    config_path=config_path,
+                )
+            except pii_config.PiiConfigError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            except pii_layer2.Layer2ContentReadError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            except pii_output.Layer1BlobReadError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            except subprocess.CalledProcessError as err:
+                print(
+                    f"error: git command failed ({' '.join(err.cmd)}); is "
+                    "--project-root a git repository?",
+                    file=sys.stderr,
+                )
+                raise SystemExit(2) from err
+            except OSError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            if args.format == "json":
+                print(pii_scan.format_json(result))
+            else:
+                print(pii_scan.format_text(result))
+            raise SystemExit(0)
+        parser.error("pii requires a subcommand (try: lrh pii scan)")
 
     if args.command == "secrets":
         if args.secrets_command == "scan":

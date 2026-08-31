@@ -126,6 +126,28 @@ class LoadConfigTest(unittest.TestCase):
             with self.assertRaises(pii_config.PiiConfigError):
                 pii_config.load_config(project_root)
 
+    def test_config_path_overrides_project_root_auto_discovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            custom_config = project_root / "custom.toml"
+            custom_config.write_text('path_globs = ["*.docx"]\n')
+
+            config = pii_config.load_config(project_root, config_path=custom_config)
+
+            self.assertIn("*.docx", config.path_globs)
+
+    def test_missing_explicit_config_path_raises_pii_config_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            missing_config = project_root / "does-not-exist.toml"
+
+            # An explicit --config path that doesn't exist must never
+            # silently fall back to defaults - that would let a
+            # misspelled/deleted path pass as a clean scan of the user's
+            # intended rules (PR #654 review, chatgpt-codex-connector).
+            with self.assertRaises(pii_config.PiiConfigError):
+                pii_config.load_config(project_root, config_path=missing_config)
+
 
 if __name__ == "__main__":
     unittest.main()

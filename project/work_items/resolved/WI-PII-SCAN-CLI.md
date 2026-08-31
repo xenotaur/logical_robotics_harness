@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #654 (commit 469580cb)."
 blocked_reason: null
 blocked: false
 id: WI-PII-SCAN-CLI
 title: Wire lrh pii scan into the LRH CLI
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

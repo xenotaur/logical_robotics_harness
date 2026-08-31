@@ -2,11 +2,16 @@
 id: PROP-LRH-PII-SCAN
 type: design_proposal
 title: "lrh pii scan — Repo-Wide PII and Misplaced-Document Detection for LRH-Managed Repos"
-status: proposed
+status: adopted
 created_on: 2026-08-21
-updated_on: 2026-08-21
-implementation_status: not_started
-implemented_by: []
+updated_on: 2026-08-31
+implementation_status: implemented
+implemented_by:
+  - WI-PII-SCAN-RULE-TAXONOMY
+  - WI-PII-SCAN-LAYER1-ENUMERATOR
+  - WI-PII-SCAN-LAYER2-CONTENT
+  - WI-PII-SCAN-ALLOWLIST-OUTPUT
+  - WI-PII-SCAN-CLI
 supersedes: []
 superseded_by: null
 related_design:

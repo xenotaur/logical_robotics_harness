@@ -2,8 +2,8 @@
 id: WS-PII-SCAN
 kind: planning_node
 title: "lrh pii scan — Detection Engine Implementation"
-status: proposed
-stage: planned
+status: resolved
+stage: closed
 origin: design_review
 summary: Implement lrh pii scan per PROP-LRH-PII-SCAN — two-layer PII/misplaced-document detection (file-type/path heuristics, then scoped content-pattern checks) across full git history via lightweight git plumbing, with repo-configurable rules and a content-bound allowlist.
 related_focus: []

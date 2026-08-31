@@ -15,7 +15,7 @@ lrh chain-defaults check-staleness --confirmed-commit <sha> [options]
 | Subcommand | Behavior |
 |---|---|
 | `status` | Single-read status view: the 4 human-decidable fields, `closeout_with_merge` shown read-only, skip-consent hash validity, and staleness — all in one structured read. |
-| `check-staleness` | Semantic (marker-scoped) gate-definition staleness check for stored chain-defaults consent, against an explicit `--confirmed-commit`. |
+| `check-staleness` | Gate-definition staleness check for stored chain-defaults consent, against an explicit `--confirmed-commit`. |
 
 Both subcommands are read-only — neither writes `chain-defaults.yaml` or
 git config.
@@ -42,9 +42,11 @@ Reports:
   the file's current blob hash (`current_hash`), and whether they match
   (`valid`). Consent is scoped per git clone: shared across every
   worktree of the same clone, never shared across independent clones.
-- **Staleness** — whether any `GATE-DEFINITION`-marked region in a
-  watched gate-bearing skill file has changed since `confirmed_commit`,
-  and the specific stale files if so.
+- **Staleness** — whether any watched gate-bearing skill file has
+  changed since `confirmed_commit` in a way that counts as stale, and
+  the specific stale files if so. See `check-staleness` below for how
+  "counts as stale" differs between git-diffable and user-scope
+  installed targets.
 
 ### Example
 
@@ -78,12 +80,26 @@ lrh chain-defaults check-staleness --confirmed-commit <sha> [--head HEAD] [--pro
 | `--project-root` | Target repository root (default: current directory). |
 | `--format` | `text` (default) or `json`. |
 
-Diffs each gate-bearing skill file between `--confirmed-commit` and
-`--head`, scoped to lines inside `<!-- GATE-DEFINITION -->` /
-`<!-- /GATE-DEFINITION -->` markers — a change outside any marked region
-(a typo fix, a comment, reordered prose) does not count as stale. Exits
-`0` if fresh, `1` if stale, `2` if the check itself failed (e.g. an
-unresolvable `--confirmed-commit`).
+Resolves each gate-bearing skill to where it actually lives, then checks
+one of two ways depending on that resolution:
+
+- **In this harness repo itself** (or a client repo with its own
+  `src/lrh/skills/` tree), or **a project-local installed target
+  committed to a client repo's git history** — diffs the file between
+  `--confirmed-commit` and `--head`, scoped to lines inside
+  `<!-- GATE-DEFINITION -->` / `<!-- /GATE-DEFINITION -->` markers. A
+  change outside any marked region (a typo fix, a comment, reordered
+  prose) does not count as stale.
+- **A user-scope installed target with no git history to diff against**
+  (e.g. the default `~/.claude/skills/...` install) — compares the
+  file's current content against a persisted whole-file fingerprint
+  recorded at consent-grant time (`project/config/chain-defaults-fingerprints.json`).
+  Marker scoping does not apply here: **any** content change to the
+  file, including a typo or reordered prose, makes it stale.
+
+If an installed target can't be resolved at all, it is always reported
+stale (fail-closed). Exits `0` if fresh, `1` if stale, `2` if the check
+itself failed (e.g. an unresolvable `--confirmed-commit`).
 
 ## Related
 

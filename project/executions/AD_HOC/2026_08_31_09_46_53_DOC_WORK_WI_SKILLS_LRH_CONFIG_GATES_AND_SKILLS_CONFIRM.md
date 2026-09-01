@@ -2,10 +2,10 @@
 execution_id: 2026_08_31_09_46_53_DOC_WORK_WI_SKILLS_LRH_CONFIG_GATES_AND_SKILLS_CONFIRM
 prompt_id: PROMPT(AD_HOC:DOC_WORK_WI_SKILLS_LRH_CONFIG_GATES_AND_SKILLS_CONFIRM)[2026-08-31T09:46:20+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/657
-commit: 
+commit: 7a51aa63713e424296a7945aab4d4814717ca269
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/657
 session_transcript: claude-app:81eca1c8-36fa-493d-b0e5-08c0501ec1d0

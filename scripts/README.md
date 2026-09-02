@@ -450,4 +450,4 @@ Make sure you have the following tools installed for full functionality:
 - **Publish:** Production publishing uses PyPI Trusted Publishing/OIDC through GitHub Actions; local `twine` publishing remains disabled by default
 - **Format/Lint:** Installed by `scripts/develop` (includes Black and Ruff)
 - **Coverage:** Installed by `scripts/develop` as part of the dev extra
-- **Environment:** conda (for environment export)
+- **Environment:** conda (optional — for `scripts/conda-worktree-env` or a personal contributor environment; see [docs/how-to/project-setup/conda-environment.md](../docs/how-to/project-setup/conda-environment.md))

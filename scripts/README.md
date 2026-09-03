@@ -137,16 +137,7 @@ scripts/conda-worktree-env <env-name> --recreate
 scripts/conda-worktree-env <env-name> --python 3.12 --dry-run
 ```
 
-An editable `pip install -e .` only ever points at one source location per (conda environment, package name). When multiple worktrees of this repository share one conda environment, each `scripts/develop` run silently steals the editable `lrh` install from whichever worktree ran it last. This script gives a worktree its own environment so that collision cannot happen. It installs from `pyproject.toml`'s `[dev]` extra constrained by `constraints-dev.txt` -- the same source CI installs from -- rather than from `environment.yml`, which is a raw `scripts/update` export snapshot, not a maintained spec. Requires `conda` on `PATH`; run `scripts/develop` inside a plain `venv` instead if it is unavailable.
-
-#### `update`
-Updates the conda environment specification file.
-
-```bash
-scripts/update
-```
-
-**Output:** Updates `environment.yml` with current conda environment dependencies (excludes name and prefix).
+An editable `pip install -e .` only ever points at one source location per (conda environment, package name). When multiple worktrees of this repository share one conda environment, each `scripts/develop` run silently steals the editable `lrh` install from whichever worktree ran it last. This script gives a worktree its own environment so that collision cannot happen. It installs from `pyproject.toml`'s `[dev]` extra constrained by `constraints-dev.txt` -- the same source CI installs from. Requires `conda` on `PATH`; run `scripts/develop` inside a plain `venv` instead if it is unavailable. For a one-off contributor conda environment (not a per-worktree one), see [docs/how-to/project-setup/conda-environment.md](../docs/how-to/project-setup/conda-environment.md).
 
 #### `version`
 Provides LRH version and release workflow helpers.
@@ -438,7 +429,6 @@ scripts/release-smoke  # Clean, build, check, and smoke-test release artifacts
 
 ### Environment Management
 ```bash
-scripts/update     # Update environment.yml when dependencies change
 scripts/version    # Check installed tool versions
 ```
 
@@ -460,4 +450,4 @@ Make sure you have the following tools installed for full functionality:
 - **Publish:** Production publishing uses PyPI Trusted Publishing/OIDC through GitHub Actions; local `twine` publishing remains disabled by default
 - **Format/Lint:** Installed by `scripts/develop` (includes Black and Ruff)
 - **Coverage:** Installed by `scripts/develop` as part of the dev extra
-- **Environment:** conda (for environment export)
+- **Environment:** conda (optional — for `scripts/conda-worktree-env` or a personal contributor environment; see [docs/how-to/project-setup/conda-environment.md](../docs/how-to/project-setup/conda-environment.md))

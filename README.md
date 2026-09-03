@@ -325,7 +325,7 @@ lrh validate
 
 ### Environment notes
 
-- **Local (venv/Conda):** install dev dependencies with constraints and run script entry points from repository root.
+- **Local (venv/Conda):** install dev dependencies with constraints and run script entry points from repository root. New contributors setting up a personal conda environment: see [docs/how-to/project-setup/conda-environment.md](docs/how-to/project-setup/conda-environment.md).
 - **GitHub Actions:** should run the same script entry points so CI status maps directly to local checks.
 - **Codex Cloud:** use repository scripts for validation and include command output in change summaries.
 - **Claude Code and comparable agents:** follow the same script-first workflow and provide concrete command evidence for any reproducibility claims.

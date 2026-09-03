@@ -138,6 +138,50 @@ human contributor should actually do.
 4. If `environment.yml` is retired, remove it and `scripts/update`
    together, and update any doc that references either.
 
+## Design Decision
+
+Recorded via `/lrh-design`, run in this item's implementation session
+against the current repo state (verified 2026-08-30):
+
+- **`environment.yml`'s fate: retired**, not regenerated. Removed
+  together with `scripts/update`. Nothing in CI or the documented setup
+  path (`scripts/develop`/`scripts/conda-worktree-env`) ever read
+  `environment.yml`, and `scripts/conda-worktree-env`'s own help text
+  already independently disclaimed it using the same dual-pin evidence
+  cited in this item's Problem/Context. Regenerating it would keep a
+  second, unenforced spec around with no structural guardrail against
+  the exact drift that produced the dual `lrh`/`logical-robotics-harness`
+  pin in the first place -- `pyproject.toml`'s `[dev]` extra plus
+  `constraints-dev.txt` is already the accurate, CI-matching source of
+  truth.
+- **Documentation placement: both README.md and a new how-to page.**
+  README's "Environment notes" section (`README.md:328`) keeps a one-line
+  pointer; the actual steps, the venv-vs-conda note, and the "why no
+  `environment.yml`" explanation live in
+  `docs/how-to/project-setup/conda-environment.md`, matching this
+  repo's existing README-as-index / `docs/how-to/` playbook pattern (see
+  the CI bullet's relationship to `docs/how-to/project-setup/ci.md`).
+- **Conda vs. venv: no decisive technical reason favors conda.** This
+  repo's `[dev]` extra (`black`, `build`, `coverage`, `ruff`, `twine`)
+  has zero compiled/native dependencies, so a plain venv works
+  identically. The new doc documents conda as the recommended path
+  because it is a common contributor convention, states venv as an
+  equally valid alternative, and does not claim conda is technically
+  required.
+
+**Reconciliation with `PROP-DEV-TOOLCHAIN-ENV-RESOLUTION`'s adopted
+Option C:** this decision does not touch environment *resolution* --
+which interpreter/env canonical scripts run in, the question Option C
+already settled (LRH-native version guardrails mandatory everywhere;
+Taurworks activation optional/detected, never a hard dependency). This
+item is scoped entirely to a human contributor's initial environment
+*bootstrap* (how they first create a working conda/venv environment
+before any canonical script runs in it) and to retiring a stale,
+inert artifact -- a strictly earlier and orthogonal step to what Option C
+governs. No Taurworks detection/interface contract is implemented or
+referenced by the new documentation, and nothing here contradicts,
+duplicates, or re-decides Option C's adopted resolution mechanism.
+
 ## Non-Goals
 
 - Does not touch `scripts/conda-worktree-env` itself -- that's a

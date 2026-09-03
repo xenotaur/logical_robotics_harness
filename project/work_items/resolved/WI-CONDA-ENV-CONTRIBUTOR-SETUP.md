@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #656 (commit bbc5ff46073fe28f325fa1e643c21c0a0ce8183f).'
 blocked_reason: null
 blocked: false
 id: WI-CONDA-ENV-CONTRIBUTOR-SETUP
 title: Design new-contributor conda environment setup and resolve environment.yml drift
 type: investigation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

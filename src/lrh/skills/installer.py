@@ -5,6 +5,7 @@ from __future__ import annotations
 import difflib
 import importlib.resources
 import importlib.resources.abc
+import json
 import shutil
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -13,8 +14,6 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import yaml
-
-import json
 
 _SKILLS_PACKAGE = "lrh.skills"
 _AGENT_SKILLS_CONFIG = Path("project") / "agent_skills.yaml"

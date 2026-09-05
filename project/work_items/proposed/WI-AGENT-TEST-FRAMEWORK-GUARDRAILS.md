@@ -22,7 +22,6 @@ artifacts_expected:
   - pyproject.toml
   - src/lrh/skills/lrh-implement/references/canonical-validation.md
   - .claude/skills/lrh-implement/references/canonical-validation.md
-  - tests/conversations_tests/antigravity_export_test.py
 forbidden_actions:
   - force_push
   - delete_branch
@@ -30,7 +29,6 @@ acceptance:
   - AGENTS.md includes explicit Testing and Validation Mandate section requiring standard library unittest and canonical script wrappers.
   - pyproject.toml configures Ruff flake8-tidy-imports (banned-api) for pytest with message citing STYLE.md Rule 5.
   - Both src/lrh/skills/ and .claude/skills/ copies of canonical-validation.md reference unittest.TestCase requirement and pass diff -r sync check.
-  - tests/conversations_tests/antigravity_export_test.py is converted from pytest to unittest.TestCase to pass ruff banned-api check.
   - lrh validate reports 0 errors.
 ---
 
@@ -42,10 +40,10 @@ Establish a two-layer closed-loop guidance system ("coming and going") to enforc
 
 ## Problem / Context
 
-Previous agent sessions wrote tests using `import pytest`, pytest fixtures (`tmp_path`), and standalone `def test_*` functions. Because `pytest` was installed in local virtualenvs, `pytest tests/` passed locally, but `python -m unittest discover` (which `scripts/test` and CI run) silently ignored un-classed test functions or failed on missing `pytest` dependencies in CI environments.
+Previous agent sessions wrote tests using `import pytest`, pytest fixtures (`tmp_path`), and standalone `def test_*` functions (such as in PR #526). Because `pytest` was installed in local virtualenvs, `pytest tests/` passed locally, but `python -m unittest discover` (which `scripts/test` and CI run) silently ignored un-classed test functions or failed on missing `pytest` dependencies in CI environments. While PR #528 resolved the immediate test breakage on `main` by converting `tests/conversations_tests/antigravity_export_test.py` to `unittest.TestCase`, systemic guardrails are required to prevent recurrence across future sessions.
 
 ### Duplication search
-- In-repo: No existing `banned-api` configuration in `pyproject.toml` or `scripts/lint`. Related design doc: `project/design/dev_toolchain_reconciliation.md`.
+- In-repo: PR #528 fixed the specific broken test on `main`. No existing `banned-api` configuration in `pyproject.toml` or `scripts/lint`. Related design doc: `project/design/dev_toolchain_reconciliation.md`.
 - Sibling repos: None identified.
 - External libraries: Ruff native `flake8-tidy-imports` (`TID253`) provides `banned-api` configuration in `pyproject.toml`.
 - Recommendation: Proceed with work item creation.
@@ -62,7 +60,6 @@ Previous agent sessions wrote tests using `import pytest`, pytest fixtures (`tmp
 - Update `AGENTS.md` with explicit Testing and Validation Mandate section.
 - Update `pyproject.toml` to select `TID` in Ruff and add `banned-api` configuration for `pytest` pointing to `STYLE.md Rule 5`.
 - Update both `src/lrh/skills/lrh-implement/references/canonical-validation.md` and `.claude/skills/lrh-implement/references/canonical-validation.md` to reference `unittest.TestCase` requirements and maintain byte-for-byte synchronization.
-- Convert `tests/conversations_tests/antigravity_export_test.py` to `unittest.TestCase` to comply with the banned `pytest` API rule.
 
 ### Excluded
 - Re-architecting unrelated test files or adding external test dependencies.
@@ -79,9 +76,6 @@ Previous agent sessions wrote tests using `import pytest`, pytest fixtures (`tmp
 ### Skill Reference Docs
 - Update `src/lrh/skills/lrh-implement/references/canonical-validation.md` and `.claude/skills/lrh-implement/references/canonical-validation.md` to clarify test discovery rules and `unittest.TestCase` requirements under `scripts/test`.
 
-### Test Files
-- Refactor `tests/conversations_tests/antigravity_export_test.py` to inherit from `unittest.TestCase` and replace `import pytest` with standard library constructs.
-
 ## Non-Goals
 - Adding third-party testing dependencies.
 
@@ -90,7 +84,6 @@ Previous agent sessions wrote tests using `import pytest`, pytest fixtures (`tmp
 - `AGENTS.md` includes explicit Testing and Validation Mandate section requiring standard library `unittest` and canonical script wrappers.
 - `pyproject.toml` configures Ruff `flake8-tidy-imports` (`banned-api`) for `pytest` with message citing `STYLE.md Rule 5`.
 - Both `src/lrh/skills/` and `.claude/skills/` copies of `canonical-validation.md` reference `unittest.TestCase` requirement and pass `diff -r` sync check.
-- `tests/conversations_tests/antigravity_export_test.py` is converted from `pytest` to `unittest.TestCase` to pass `ruff` banned-api check.
 - `lrh validate` reports 0 errors.
 
 ## Validation

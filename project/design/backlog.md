@@ -1723,11 +1723,11 @@ asterisk," per explicit user framing, and there is no known way to make a
 model's own prose-instruction-following deterministic short of a
 platform-enforced mechanism (which doesn't exist for this class of gate).
 Worth two things instead: (1) keep this as a durable record of the observed
-failure rate and safe over-ask direction, so a future regression has a
-baseline to compare against; (2) if the Codex target policy ever changes to
-permit implicit invocation, or if another target adopts this skill with a
-different invocation policy, re-evaluate whether Step 3's wording still
-covers that broader surface adequately.
+failure rate and direction, so a future regression (especially the opposite,
+unsafe direction) has a baseline to compare against; (2) the still-untested
+case — an *implicit*/natural-language invocation where the skip condition
+should NOT apply (i.e., Step 3 should ask) — remains the meaningful gap in
+dogfood coverage, not the over-asking case this entry documents.
 
 **Status:** Tracked as an observation, not an open defect. No action needed
 unless: (a) the unsafe direction (silent skip when it should ask) is

@@ -25,7 +25,7 @@ artifacts, backed by the existing generalized `ConversationExportManifest` and
 heuristic sensitivity scanning. The exporter is delivered across three modular
 tranches: (1) a core Python API in `src/lrh/conversations/claude_export.py`,
 (2) a CLI subcommand `lrh conversation export-claude-session` in `src/lrh/cli/main.py`,
-and (3) a Claude Code skill package in `src/lrh/skills/lrh-claude-export/`.
+and (3) a Claude Code skill package in `src/lrh/skills/lrh-export-claude/`.
 
 ## Background / Motivation
 
@@ -58,7 +58,7 @@ same defensive-parsing discipline already proven in `antigravity_export.py`.
 ## Prior Art Check
 
 ### Duplication search
-- In-repo: No `lrh-claude-export` skill directory anywhere (`.claude/skills/`,
+- In-repo: No `lrh-export-claude` skill directory anywhere (`.claude/skills/`,
   `.agents/skills/`, `.gemini/plugins/lrh/skills/`, `src/lrh/skills/` all checked).
   No `export-claude-session` CLI subcommand in `src/lrh/cli/main.py:115-158`. No
   `src/lrh/conversations/claude_export.py`. No `docs/reference/cli/conversation.md`
@@ -200,11 +200,41 @@ API/CLI/Skill, plus a #633 follow-up). **Chosen: the same 3-tranche staging**, e
 tranche its own future work item:
 1. Core Python API — `src/lrh/conversations/claude_export.py`
 2. CLI subcommand — `lrh conversation export-claude-session` in `src/lrh/cli/main.py`
-3. Skill package — `src/lrh/skills/lrh-claude-export/SKILL.md`
+3. Skill package — `src/lrh/skills/lrh-export-claude/SKILL.md`
 
 No dogfood-verification-gate prerequisite work item is needed, unlike Antigravity's
 original build, because that verification was already performed empirically within
 this design/proposal session (see Decision 1).
+
+### Decision 9: Skill naming — `lrh-export-claude`, not `lrh-claude-export`
+
+Options considered:
+- **`lrh-claude-export`** — matches the two already-shipped siblings,
+  `lrh-antigravity-export` and `lrh-codex-export`.
+- **`lrh-export-claude`** — shares a prefix with the long-deferred umbrella
+  dispatcher `/lrh-export`.
+
+**Chosen: `lrh-export-claude`.** `/lrh-export` has been the documented name for
+a future target-aware dispatcher since 2026-08-07 — never a per-vendor command —
+per `project/design/backlog.md`'s "Generalize conversation export manifests
+beyond Codex before `/lrh-export`" entry ("Status: Tracked, not yet designed")
+and `PROP-LRH-CODEX-APP-SERVER-CONVERSATION-EXPORT`'s Implementation Plan item 3
+("the umbrella skill can then dispatch to Claude `/export` or LRH Codex export
+according to target"). The CLI layer already uses this prefix shape for the
+subcommands that actually export a live session — `export-antigravity-session`,
+`export-codex-thread`, and this proposal's own `export-claude-session`
+(Decision 8) — so `lrh-export-claude` also brings the skill layer into line with
+the CLI layer's existing convention.
+
+This skill has not shipped, so adopting the prefix form costs nothing today.
+The two already-shipped siblings, `lrh-antigravity-export` and `lrh-codex-export`,
+are deliberately **not** renamed as part of this proposal: both names are quoted
+verbatim inside multiple `status: resolved`/`adopted` documents (the adopted
+Codex app-server proposal itself, `WS-LRH-CODEX-APP-SERVER-EXPORT`, and five
+resolved work items), and per this project's own lifecycle convention — adopted
+documents are not retroactively rewritten — renaming them is deferred to the
+`/lrh-export` umbrella's own future design work, where the full-family naming
+decision belongs.
 
 ## Non-Goals
 
@@ -232,7 +262,7 @@ Medium scope, three tranches, each its own work item, in delivery order:
    (`lrh conversation export-claude-session` in `src/lrh/cli/main.py`), plus the
    corresponding `docs/reference/cli/conversation.md` entry.
 3. `WI-CLAUDE-CONVERSATION-EXPORT-SKILL` — skill package
-   (`src/lrh/skills/lrh-claude-export/SKILL.md`), following `lrh-codex-export/SKILL.md`'s
+   (`src/lrh/skills/lrh-export-claude/SKILL.md`), following `lrh-codex-export/SKILL.md`'s
    confirm-before-write-gate and metadata-only-report pattern.
 
 ## Cross-References

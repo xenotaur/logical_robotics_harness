@@ -31,7 +31,7 @@ and (3) a Claude Code skill package in `src/lrh/skills/lrh-export-claude/`.
 
 Claude Code's built-in `/export` slash command is unavailable in the Claude Desktop
 app's Code-tab session surface — confirmed live via the butterbar message
-`` `/export` is not available for this session`` — making it a non-starter for
+`"/export" is not available for this session` — making it a non-starter for
 continuing to rely on it as the archival path for AI-assisted development sessions.
 
 LRH has already solved the equivalent problem twice: `/lrh-antigravity-export`
@@ -96,20 +96,23 @@ equivalent to Codex's `thread/read` for retroactively reading a *finished* sessi
 full history — `claude -p --resume` sends a *new* prompt and returns a fresh,
 LLM-generated answer, not a verbatim structured dump of prior turns. That
 disqualifies it as the primary mechanism: it cannot produce a literal, hash-verifiable
-capture, which both sibling skills treat as load-bearing (`lrh-codex-export/SKILL.md:201-205`
+capture, which both sibling skills treat as load-bearing
+(`src/lrh/skills/lrh-codex-export/SKILL.md:201-205`
 runs `inspect-export --source $RAW_PATH` specifically to verify `Source hash: match`
 against raw ground truth). Direct file parse is the only route that preserves
 verbatim tool-call payloads and produces a real hash to verify against, and it
-requires no live process, network call, or `attempt.json` crash-safety bookkeeping
-(`codex_archive.py`'s RPC-failure mitigation becomes unnecessary — a local file read
-is atomic).
+requires no live process or network call the way `codex_archive.py`'s RPC-failure
+mitigation (`attempt.json` crash-safety bookkeeping) exists to handle — though a
+local file read is not itself guaranteed atomic while the session is still being
+written: the implementation must defensively handle a partially-written trailing
+line/record rather than assume the read always observes a complete final record.
 
 This was verified empirically, live, in the design session that produced this
 proposal, rather than deferred as a follow-up spike (contrast with the Antigravity
 proposal, which required a dedicated "dogfood verification gate" before locking
 renderer mapping functions): this exact conversation's own live-growing transcript
-was located on disk mid-session at
-`~/.claude/projects/-Users-centaur-...-lrh-memory-command-design-46789b/a565041e-57bc-4b6c-a948-91c6556d1627.jsonl`,
+was located on disk mid-session at a path of the shape
+`~/.claude/projects/<encoded-working-directory>/<session-id>.jsonl`,
 confirming Claude Desktop *does* write to the documented CLI storage path, not a
 separate undocumented location, despite the docs' own caveat that "the desktop app...
 [maintains its] own session history." Subagent transcripts were also confirmed live

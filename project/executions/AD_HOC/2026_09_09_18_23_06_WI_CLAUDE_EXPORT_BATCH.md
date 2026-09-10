@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/661
-commit: 93e7d160
+commit: 
 created_at: 2026-09-09T18:23:06+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CLAUDE-CONVERSATION-EXPORT-API.md

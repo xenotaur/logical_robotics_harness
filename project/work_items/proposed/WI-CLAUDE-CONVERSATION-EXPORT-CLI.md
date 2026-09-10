@@ -76,7 +76,7 @@ Implement Tranche 2 of `PROP-LRH-CLAUDE-CONVERSATION-EXPORTER`: register the `ex
 3. Implement discovery flags `--transcript-path` / `--session-id` / `--latest`, mutually exclusive, per the proposal's Design Decision 3.
 4. Implement `--app-data-dir` (default `${CLAUDE_CONFIG_DIR:-~/.claude}`), `--out`, `--archive-root`, `--force`, `--source-id`, `--no-scan-sensitive`, `--include-system-attachments`, `--include-subagents`.
 5. `--session-id` resolves by globbing `<app-data-dir>/projects/*/<id>.jsonl`; more than one match is an error requiring `--transcript-path` to disambiguate, not a silent first-match pick.
-6. Add a `## `lrh conversation export-claude-session`` section to `docs/reference/cli/conversation.md`, matching the depth of the existing Codex/Antigravity sections.
+6. Add a `##`-level `lrh conversation export-claude-session` section to `docs/reference/cli/conversation.md`, matching the depth of the existing Codex/Antigravity sections.
 7. Add CLI-level tests under `tests/conversations_tests/claude_export_test.py` (or a dedicated CLI test module) covering `--help`, discovery flag mutual exclusivity, and the `--session-id` collision error.
 
 ## Non-Goals

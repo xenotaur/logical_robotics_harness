@@ -22,7 +22,7 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - "docs/reference/cli/conversation.md contains a `## `lrh conversation export-antigravity-session`` section"
+  - "docs/reference/cli/conversation.md contains a ##-level lrh conversation export-antigravity-session section"
   - "The new section documents command syntax, all flags (--transcript-path, --conversation-id, --latest, --app-data-dir, --out, --archive-root, --force, --source-id, --no-scan-sensitive), and exit behavior, matching the depth of the existing Codex sections"
   - "lrh validate reports 0 errors"
 required_evidence:
@@ -36,7 +36,7 @@ artifacts_expected:
 
 ## Summary
 
-Add the missing `## `lrh conversation export-antigravity-session`` section to `docs/reference/cli/conversation.md`, closing a pre-existing documentation-parity gap.
+Add the missing `##`-level `lrh conversation export-antigravity-session` section to `docs/reference/cli/conversation.md`, closing a pre-existing documentation-parity gap.
 
 ## Problem / Context
 
@@ -57,11 +57,11 @@ Add the missing `## `lrh conversation export-antigravity-session`` section to `d
 ## Scope
 
 - Add one new `##` section to `docs/reference/cli/conversation.md` documenting `lrh conversation export-antigravity-session`.
-- Mirror the structure and depth of the existing `## `lrh conversation convert-codex-file`` section: command syntax, behavior description, `### Options`, `### Exit behavior`.
+- Mirror the structure and depth of the existing `##`-level `lrh conversation convert-codex-file` section: command syntax, behavior description, `### Options`, `### Exit behavior`.
 
 ## Required Changes
 
-1. Add a `## `lrh conversation export-antigravity-session`` section to `docs/reference/cli/conversation.md`, placed in the same reading order as the CLI subparser registration order in `src/lrh/cli/main.py:115-161`.
+1. Add a `##`-level `lrh conversation export-antigravity-session` section to `docs/reference/cli/conversation.md`, placed in the same reading order as the CLI subparser registration order in `src/lrh/cli/main.py:115-161`.
 2. Document all flags implemented in `src/lrh/conversations/antigravity_export.py`'s `run_convert_antigravity_session_cli`: `--transcript-path`, `--conversation-id`, `--latest` (mutually exclusive discovery group), `--app-data-dir` (default `~/.gemini/antigravity`), `--out`, `--archive-root`, `--force`, `--source-id`, `--no-scan-sensitive`.
 3. Document the durable-archive-default behavior (when `--out` is omitted, the CLI resolves a durable session archive path) and metadata-only terminal output, matching the actual behavior in `antigravity_export.py:358-405`.
 
@@ -72,7 +72,7 @@ Add the missing `## `lrh conversation export-antigravity-session`` section to `d
 
 ## Acceptance Criteria
 
-- `docs/reference/cli/conversation.md` contains a `## `lrh conversation export-antigravity-session`` section.
+- `docs/reference/cli/conversation.md` contains a `##`-level `lrh conversation export-antigravity-session` section.
 - The section documents all flags and matches the depth of the existing Codex sections.
 - `lrh validate` reports 0 errors.
 

@@ -101,6 +101,11 @@ After editing, run `lrh validate` to confirm the reference is valid.
 There are two independent next-step paths, on different axes. They are not
 alternatives — a work item usually needs both.
 
+Path 1 must merge before Path 2 can safely start `/lrh-implement`: that
+skill's Step 5 branches from `main` via `git checkout main && git pull`, so
+if the work item file only exists on the still-open creation branch, the
+implementation branch is created without it.
+
 ### Path 1 — PR lifecycle (the branch Step 9 just pushed)
 
 Step 9 opens a PR containing the new work item file, and Step 10 pushes an

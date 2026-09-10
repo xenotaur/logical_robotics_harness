@@ -115,6 +115,76 @@ class ProjectDoctorCliTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 1, msg=completed.stderr)
             self.assertIn('"findings"', completed.stdout)
 
+    def _write(self, path: pathlib.Path, content: str) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+    def test_fix_frontmatter_dry_run_does_not_write(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            target = root / "project" / "work_items" / "proposed" / "WI-X.md"
+            original = "---\ncommit: 7926567\n---\n\nbody\n"
+            self._write(target, original)
+
+            completed = self._run(
+                ["project", "doctor", "--project-root", str(root), "--fix-frontmatter"],
+                cwd=self._repo_root(),
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn("DRY RUN", completed.stdout)
+            self.assertIn("pass --apply to write", completed.stdout)
+            self.assertEqual(target.read_text(encoding="utf-8"), original)
+
+    def test_fix_frontmatter_apply_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            target = root / "project" / "work_items" / "proposed" / "WI-X.md"
+            self._write(target, "---\ncommit: 7926567\n---\n\nbody\n")
+
+            completed = self._run(
+                [
+                    "project",
+                    "doctor",
+                    "--project-root",
+                    str(root),
+                    "--fix-frontmatter",
+                    "--apply",
+                ],
+                cwd=self._repo_root(),
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn("APPLIED", completed.stdout)
+            self.assertIn("commit: '7926567'", target.read_text(encoding="utf-8"))
+
+    def test_fix_frontmatter_only_scans_project_subdirectory(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            outside_target = root / "docs" / "README.md"
+            unsafe = "---\ncommit: 7926567\n---\n\nbody\n"
+            self._write(outside_target, unsafe)
+
+            completed = self._run(
+                ["project", "doctor", "--project-root", str(root), "--fix-frontmatter"],
+                cwd=self._repo_root(),
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn("DRY RUN: 0 file(s), 0 field(s)", completed.stdout)
+            self.assertEqual(outside_target.read_text(encoding="utf-8"), unsafe)
+
+    def test_apply_without_fix_frontmatter_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = pathlib.Path(temp_dir)
+            completed = self._run(
+                ["project", "doctor", "--project-root", str(root), "--apply"],
+                cwd=self._repo_root(),
+            )
+
+            self.assertEqual(completed.returncode, 2, msg=completed.stderr)
+            self.assertIn("--apply requires --fix-frontmatter", completed.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

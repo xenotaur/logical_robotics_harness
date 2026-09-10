@@ -31,27 +31,47 @@ DEFAULT_FILENAME_KEYWORDS = (
     "medical",
 )
 
+CONTENT_SCAN_SCOPE_FLAGGED = "flagged"
+CONTENT_SCAN_SCOPE_ALL_TEXT = "all-text"
+_VALID_CONTENT_SCAN_SCOPES = (CONTENT_SCAN_SCOPE_FLAGGED, CONTENT_SCAN_SCOPE_ALL_TEXT)
+DEFAULT_CONTENT_SCAN_SCOPE = CONTENT_SCAN_SCOPE_FLAGGED
+
 
 @dataclasses.dataclass(frozen=True)
 class PiiConfig:
     path_globs: tuple[str, ...]
     filename_keywords: tuple[str, ...]
+    content_scan_scope: str = DEFAULT_CONTENT_SCAN_SCOPE
 
 
 class PiiConfigError(Exception):
     """Raised for a malformed `.lrh-pii.toml`."""
 
 
-def load_config(project_root: pathlib.Path) -> PiiConfig:
-    """Auto-discover `.lrh-pii.toml` at `project_root` and extend the
-    built-in defaults per its `[extend] useDefault` setting (default
-    `true`). Returns the built-in defaults unmodified if no config file
-    exists."""
-    config_path = project_root / CONFIG_FILENAME
+def load_config(
+    project_root: pathlib.Path, config_path: pathlib.Path | None = None
+) -> PiiConfig:
+    """Load `.lrh-pii.toml` and extend the built-in defaults per its
+    `[extend] useDefault` setting (default `true`). Returns the built-in
+    defaults unmodified if no config file exists at the auto-discovered
+    location. `config_path` overrides auto-discovery at
+    `project_root / CONFIG_FILENAME` with an explicit path (`lrh pii scan
+    --config`) - useful for a config file that isn't committed at the
+    project root itself. Unlike an absent auto-discovered file, an
+    explicit `config_path` that doesn't exist raises `PiiConfigError`:
+    the user asked for that specific file, and silently falling back to
+    defaults would let a misspelled or deleted path pass as a clean scan
+    of the user's intended rules (PR #654 review, `chatgpt-codex-connector`)."""
+    explicit_config_path = config_path is not None
+    if config_path is None:
+        config_path = project_root / CONFIG_FILENAME
     if not config_path.exists():
+        if explicit_config_path:
+            raise PiiConfigError(f"{config_path} does not exist")
         return PiiConfig(
             path_globs=DEFAULT_PATH_GLOBS,
             filename_keywords=DEFAULT_FILENAME_KEYWORDS,
+            content_scan_scope=DEFAULT_CONTENT_SCAN_SCOPE,
         )
 
     try:
@@ -85,9 +105,17 @@ def load_config(project_root: pathlib.Path) -> PiiConfig:
         _require_string_list(data, "filename_keywords", config_path)
     )
 
+    content_scan_scope = data.get("content_scan_scope", DEFAULT_CONTENT_SCAN_SCOPE)
+    if content_scan_scope not in _VALID_CONTENT_SCAN_SCOPES:
+        raise PiiConfigError(
+            f"{config_path}: content_scan_scope must be one of "
+            f"{_VALID_CONTENT_SCAN_SCOPES}, got {content_scan_scope!r}"
+        )
+
     return PiiConfig(
         path_globs=tuple(dict.fromkeys(path_globs)),
         filename_keywords=tuple(dict.fromkeys(filename_keywords)),
+        content_scan_scope=content_scan_scope,
     )
 
 

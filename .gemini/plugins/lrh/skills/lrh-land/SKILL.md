@@ -135,11 +135,14 @@ that isn't true.
 Elicit from the user (or, under a validated `skip_if_opted_in` skip, display
 without asking):
 1. **Completion condition** — what "done" means for this run (pre-filled
-   from the stored profile, or "PR merged and work item resolved" on first
-   encounter before any profile exists)
+   from the stored profile, or the steelmanned default — "PR merged, its
+   execution records landed, and any linked work item resolved." — on
+   first encounter before any profile exists)
 2. **Stop-work condition** — what forces a halt-and-report (pre-filled
-   from the stored profile, or "any failing test or unexpected reviewer
-   finding" on first encounter)
+   from the stored profile, or the steelmanned default — "Any failing CI
+   check, a reviewer finding that isn't Clear-satisfied on
+   re-verification, or an ambiguous/refused merge-authorization reply."
+   — on first encounter)
 
 Wait for explicit approval of both conditions, unless the skip path above
 applied. Do not proceed past this step without either the user confirming

@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/450
 commit: 9d42c5013aa5d829352d3f1c5e852bcdb71e467f
 created_at: 2026-07-31T20:01:01+00:00
 agent: claude_app
-instruction_source: ad_hoc conversation — user asked to fix the stale @copilot review example in WI-REVIEW-ROUND-ESCALATION-GATE.md, flagged but not fixed at the end of the PR #446 land
+instruction_source: 'ad_hoc conversation — user asked to fix the stale @copilot review example in WI-REVIEW-ROUND-ESCALATION-GATE.md, flagged but not fixed at the end of the PR #446 land'
 session_transcript: claude-app:9e68ac13-8d87-42d3-bbd2-3997bd762717
 ---
 

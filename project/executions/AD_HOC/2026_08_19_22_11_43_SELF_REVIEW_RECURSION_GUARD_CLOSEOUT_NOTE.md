@@ -7,7 +7,7 @@ rerun_of: 2026_08_19_17_32_17_SELF_REVIEW_RECURSION_GUARD
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/566
 commit: d5b401f331db5201303b8dcdaced9be06aee84e6
 agent: claude_code
-instruction_source: command:lrh-land PR #566 closeout
+instruction_source: 'command:lrh-land PR #566 closeout'
 session_transcript: claude-app:local_dd7df709-1e50-4e78-a5bf-802d06e31d50
 created_at: 2026-08-19T22:11:43+00:00
 ---

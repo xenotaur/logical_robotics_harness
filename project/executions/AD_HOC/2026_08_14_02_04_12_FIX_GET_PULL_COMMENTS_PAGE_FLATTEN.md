@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/555
 commit: b906baa2
 created_at: 2026-08-14T02:04:12+00:00
 agent: claude_app
-instruction_source: ad_hoc conversation — Codex-review-caught follow-up bug flagged during PR #553 (WI-REVIEW-RESPONSE-ISSUE-COMMENTS), out of scope for that PR's non-goals
+instruction_source: 'ad_hoc conversation — Codex-review-caught follow-up bug flagged during PR #553 (WI-REVIEW-RESPONSE-ISSUE-COMMENTS), out of scope for that PR''s non-goals'
 session_transcript: pending
 ---
 

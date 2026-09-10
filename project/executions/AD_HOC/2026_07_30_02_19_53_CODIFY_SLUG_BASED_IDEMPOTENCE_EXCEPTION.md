@@ -7,7 +7,7 @@ rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/440
 commit: b9b710f4b36f68d004cda4ce68ad943abbddaee5
 agent: claude_app
-instruction_source: follow-up item #3 from harness PR #438's final report (project/design/backlog.md "Filename-slug idempotence search drives blocking, contrary to PROMPTS.md")
+instruction_source: 'follow-up item #3 from harness PR #438''s final report (project/design/backlog.md "Filename-slug idempotence search drives blocking, contrary to PROMPTS.md")'
 session_transcript: claude-app:3fcab22f-9ebe-4392-bf31-2103fce507f2
 created_at: 2026-07-30T02:19:53-04:00
 ---

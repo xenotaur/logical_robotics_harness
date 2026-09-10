@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/436
 commit: 6393c790e92e314b9ddb9f0c0cdf85775746d6e8
 created_at: 2026-07-29T14:48:40-04:00
 agent: claude_app
-instruction_source: ad_hoc design session — /lrh-design then /lrh-proposal for a session/PR/execution-record archive-and-sync system, plus PR #436 review response
+instruction_source: 'ad_hoc design session — /lrh-design then /lrh-proposal for a session/PR/execution-record archive-and-sync system, plus PR #436 review response'
 session_transcript: claude-app:b7a0de88-bdee-468c-b053-5afbdd7146ad
 ---
 

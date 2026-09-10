@@ -19,7 +19,7 @@ work_items:
   - WI-SKILLS-CLOSEOUT-UX-FIX
 exit_criteria:
   - /lrh-closeout skill exists at .claude/skills/lrh-closeout/ and src/lrh/skills/lrh-closeout/ and passes lrh validate with 0 errors
-  - CLAUDE.md ## Skills index updated with /lrh-closeout entry
+  - 'CLAUDE.md ## Skills index updated with /lrh-closeout entry'
   - WI-SKILLS-LRH-CLOSEOUT resolved in project/work_items/resolved/
   - lrh prompt update-execution CLI command implemented and documented
   - skill's Step 5 upgraded to use lrh prompt update-execution (edit-in-place replaced)

@@ -18,7 +18,7 @@ work_items:
 exit_criteria:
   - /lrh-confirm-fixes skill exists at .claude/skills/lrh-confirm-fixes/ and src/lrh/skills/lrh-confirm-fixes/ and passes lrh validate with 0 errors
   - diff -r src/lrh/skills/lrh-confirm-fixes/ .claude/skills/lrh-confirm-fixes/ reports no differences
-  - CLAUDE.md ## Skills index updated with /lrh-confirm-fixes entry
+  - 'CLAUDE.md ## Skills index updated with /lrh-confirm-fixes entry'
   - /lrh-review-response lifecycle diagram and Step 7 report updated with the /lrh-confirm-fixes handoff pointer (both skill trees)
   - /lrh-review-response rerun_of exclusion glob updated to also exclude _CONFIRM.md (both skill trees)
   - WI-SKILLS-LRH-CONFIRM-FIXES resolved in project/work_items/resolved/

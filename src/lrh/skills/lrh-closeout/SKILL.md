@@ -371,6 +371,16 @@ Edit the frontmatter in-place:
 - `status: proposed` → `status: resolved`
 - `resolution:` → set to the confirmed resolution text
 
+**Always quote free-text frontmatter scalar values when writing
+`resolution:`.** Never write bare prose directly after `key:` — an
+unquoted colon (e.g. `resolution: Fixed X: did Y`) or an unquoted ` #`
+(e.g. `resolution: Implemented in PR #614`) changes meaning or truncates
+silently under real YAML. Wrap the value in quotes instead, e.g.
+`resolution: 'Implemented and merged in PR #614'`. `lrh validate`'s
+`FRONTMATTER_LINT_UNSAFE_SCALAR` warning catches this after the fact
+(`WI-FRONTMATTER-MIGRATION-LINT-GUARD`), but writing it quoted the first
+time avoids the warning entirely.
+
 Then move the file:
 ```bash
 mv project/work_items/proposed/<WI-ID>.md project/work_items/resolved/<WI-ID>.md

@@ -7,7 +7,7 @@ rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/566
 commit: d5d470c1
 agent: claude_code
-instruction_source: skill:lrh-confirm-fixes inlined via /lrh-land for PR #566
+instruction_source: 'skill:lrh-confirm-fixes inlined via /lrh-land for PR #566'
 session_transcript: claude-app:local_dd7df709-1e50-4e78-a5bf-802d06e31d50
 created_at: 2026-08-19T20:24:53+00:00
 ---

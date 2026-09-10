@@ -6,10 +6,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import subprocess
 import sys
 from pathlib import Path
 
 from lrh import (
+    agent_skills_status,
     chain_defaults_status,
     confirm_fixes_batch,
     gate_staleness,
@@ -24,7 +26,7 @@ from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
-from lrh.control import format_report, validate_project
+from lrh.control import format_report, frontmatter_migration, validate_project
 from lrh.conversations import (
     antigravity_export,
     codex_app_server_export,
@@ -36,6 +38,10 @@ from lrh.conversations import (
 )
 from lrh.design import organize as design_organize
 from lrh.meta import workspace
+from lrh.pii import config as pii_config
+from lrh.pii import layer2 as pii_layer2
+from lrh.pii import output as pii_output
+from lrh.pii import scan as pii_scan
 from lrh.project import bootstrap, doctor
 from lrh.secrets import purge as secrets_purge
 from lrh.secrets import review as secrets_review
@@ -322,6 +328,20 @@ def main() -> None:
         action="store_true",
         help="return non-zero when warnings are present",
     )
+    project_doctor_parser.add_argument(
+        "--fix-frontmatter",
+        action="store_true",
+        help=(
+            "one-time migration: re-quote unsafe frontmatter plain scalars "
+            "flagged by the FRONTMATTER_LINT_UNSAFE_SCALAR lint category. "
+            "Dry-run by default; pass --apply to write."
+        ),
+    )
+    project_doctor_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="with --fix-frontmatter, write the fixes instead of previewing them",
+    )
 
     work_items_parser = subparsers.add_parser(
         "work-items",
@@ -410,6 +430,33 @@ def main() -> None:
         choices=("md", "json"),
         default="md",
         help="output format (default: md)",
+    )
+
+    agent_skills_parser = subparsers.add_parser(
+        "agent-skills",
+        help="project/agent_skills.yaml status commands.",
+    )
+    agent_skills_subparsers = agent_skills_parser.add_subparsers(
+        dest="agent_skills_command"
+    )
+    agent_skills_status_parser = agent_skills_subparsers.add_parser(
+        "status",
+        help=(
+            "Status view: whether project/agent_skills.yaml exists; the "
+            "effective value and provenance of sources, targets, and "
+            "scope; and install.overwrite's raw configured value."
+        ),
+    )
+    agent_skills_status_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    agent_skills_status_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
     )
 
     chain_defaults_parser = subparsers.add_parser(
@@ -510,6 +557,48 @@ def main() -> None:
         ),
     )
     confirm_fixes_routine_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
+    )
+
+    pii_parser = subparsers.add_parser(
+        "pii",
+        help="PII/misplaced-document detection commands.",
+    )
+    pii_subparsers = pii_parser.add_subparsers(dest="pii_command")
+    pii_scan_parser = pii_subparsers.add_parser(
+        "scan",
+        help="Read-only full-history PII/misplaced-document scan.",
+        epilog=(
+            "A local, deterministic heuristic scanner: no OCR, no ML/NLP\n"
+            "content classification, no cloud DLP calls. Layer 1 flags\n"
+            "suspicious file types/paths/names; Layer 2 scans content for\n"
+            "PII/secret patterns, scoped to Layer 1's flagged files by\n"
+            "default (see .lrh-pii.toml's content_scan_scope to widen this)."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    pii_scan_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root to scan (default: current directory)",
+    )
+    pii_scan_parser.add_argument(
+        "--out-dir",
+        required=True,
+        help="directory to write pii_findings.json into",
+    )
+    pii_scan_parser.add_argument(
+        "--config",
+        default=None,
+        help=(
+            "path to a .lrh-pii.toml config file, overriding auto-discovery "
+            "at --project-root"
+        ),
+    )
+    pii_scan_parser.add_argument(
         "--format",
         choices=("text", "json"),
         default="text",
@@ -1162,6 +1251,37 @@ def main() -> None:
                 parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
 
             project_root = Path(args.project_root).expanduser().resolve()
+
+            if args.fix_frontmatter:
+                # Scoped to project_root/"project" (the control-plane tree
+                # lrh validate also scans), not the whole repo root --
+                # project_root here is the repo root by "lrh project
+                # doctor" convention (see diagnose_project), and rewriting
+                # markdown outside project/ (skill mirrors under
+                # .claude/skills/, .agents/skills/, docs/, etc.) is out of
+                # this WI's stated scope and would desync the skill-mirror
+                # copies this same WI keeps in sync.
+                results = frontmatter_migration.fix_project(
+                    project_root / "project", apply=args.apply
+                )
+                total_fixes = sum(len(r.fixes) for r in results)
+                mode = "APPLIED" if args.apply else "DRY RUN"
+                for result in results:
+                    rel = result.path.relative_to(project_root)
+                    print(f"{mode}: {rel} ({len(result.fixes)} field(s))")
+                    for fix in result.fixes:
+                        print(
+                            f"  line {fix.line} [{fix.category}] {fix.field}: "
+                            f"{fix.before.strip()} -> {fix.after.strip()}"
+                        )
+                print(
+                    f"\n{mode}: {len(results)} file(s), {total_fixes} field(s)"
+                    + ("" if args.apply else " -- pass --apply to write")
+                )
+                raise SystemExit(0)
+            if args.apply:
+                parser.error("--apply requires --fix-frontmatter")
+
             diagnosis = doctor.diagnose_project(project_root)
             if args.json:
                 print(doctor.format_json_report(diagnosis))
@@ -1244,6 +1364,25 @@ def main() -> None:
             raise SystemExit(0)
         parser.error("work-items requires a subcommand (try: lrh work-items organize)")
 
+    if args.command == "agent-skills":
+        if args.agent_skills_command == "status":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            try:
+                status = agent_skills_status.compute_status(project_root=project_root)
+            except agent_skills_status.AgentSkillsStatusError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            if args.format == "json":
+                print(agent_skills_status.format_json(status))
+            else:
+                print(agent_skills_status.format_text(status))
+            raise SystemExit(0)
+        parser.error(
+            "agent-skills requires a subcommand (try: lrh agent-skills status)"
+        )
+
     if args.command == "chain-defaults":
         if args.chain_defaults_command == "check-staleness":
             if passthrough_args:
@@ -1305,6 +1444,47 @@ def main() -> None:
             "confirm-fixes requires a subcommand "
             "(try: lrh confirm-fixes check-batch-routine)"
         )
+
+    if args.command == "pii":
+        if args.pii_command == "scan":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            out_dir = Path(args.out_dir).expanduser().resolve()
+            config_path = (
+                Path(args.config).expanduser().resolve() if args.config else None
+            )
+            try:
+                result = pii_scan.run_scan(
+                    project_root=project_root,
+                    out_dir=out_dir,
+                    config_path=config_path,
+                )
+            except pii_config.PiiConfigError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            except pii_layer2.Layer2ContentReadError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            except pii_output.Layer1BlobReadError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            except subprocess.CalledProcessError as err:
+                print(
+                    f"error: git command failed ({' '.join(err.cmd)}); is "
+                    "--project-root a git repository?",
+                    file=sys.stderr,
+                )
+                raise SystemExit(2) from err
+            except OSError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            if args.format == "json":
+                print(pii_scan.format_json(result))
+            else:
+                print(pii_scan.format_text(result))
+            raise SystemExit(0)
+        parser.error("pii requires a subcommand (try: lrh pii scan)")
 
     if args.command == "secrets":
         if args.secrets_command == "scan":

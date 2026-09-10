@@ -18,7 +18,7 @@ work_items:
 exit_criteria:
   - all three skills exist at .claude/skills/ and pass lrh validate with 0 errors
   - all three skills have distributable package copies at src/lrh/skills/
-  - CLAUDE.md ## Skills index updated for all three skills
+  - 'CLAUDE.md ## Skills index updated for all three skills'
   - each skill has a corresponding resolved work item in project/work_items/resolved/
   - lrh setup installs all three skills to ~/.claude/skills/
 ---

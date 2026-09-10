@@ -1,5 +1,5 @@
 ---
-resolution: Implemented prior-art check wiring for lrh-design, lrh-proposal, and lrh-workstream in PR #359 (commit 5034ef4b)
+resolution: 'Implemented prior-art check wiring for lrh-design, lrh-proposal, and lrh-workstream in PR #359 (commit 5034ef4b)'
 blocked_reason: null
 blocked: false
 id: WI-PAC-DESIGN-SKILLS

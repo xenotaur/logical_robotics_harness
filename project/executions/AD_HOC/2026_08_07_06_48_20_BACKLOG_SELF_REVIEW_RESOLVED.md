@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/506
 commit: 0defdd95f64e99dc305a3e7cf826dac2ac2627c7
 created_at: 2026-08-07T06:48:20+00:00
 agent: claude_app
-instruction_source: chat (user request to fix backlog.md's "Self-review-first tier..." entry after PR #501 flagged it as a remaining stale-metadata follow-up)
+instruction_source: 'chat (user request to fix backlog.md''s "Self-review-first tier..." entry after PR #501 flagged it as a remaining stale-metadata follow-up)'
 session_transcript: claude-app:f7e2dee6-84cf-4396-bc1e-fc9c23261c9c
 ---
 

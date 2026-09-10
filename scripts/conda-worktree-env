@@ -34,15 +34,14 @@ Options:
   --dry-run          Print the commands that would run, without running them.
   -h, --help         Show this help and exit.
 
-Does NOT use environment.yml as a source. That file is a raw
-`conda env export` snapshot (see scripts/update) of whichever environment
-happened to be active when someone last ran it, not a maintained spec --
-it has been observed to carry stale, inconsistent package pins (e.g. two
-different dev-snapshot versions of what is now a single package, `lrh`,
-under its current and a prior project name). This script instead builds a
-minimal environment and installs from this repository's actual source of
-truth for reproducible tooling: pyproject.toml's [dev] extra, constrained
-by constraints-dev.txt -- the same files CI installs from
+Does NOT use environment.yml as a source -- that raw `conda env export`
+snapshot file was removed from this repository after it was found to
+carry stale, inconsistent package pins (e.g. two different dev-snapshot
+versions of what is now a single package, `lrh`, under its current and a
+prior project name). This script instead builds a minimal environment and
+installs from this repository's actual source of truth for reproducible
+tooling: pyproject.toml's [dev] extra, constrained by constraints-dev.txt
+-- the same files CI installs from
 (.github/workflows/tests.yml, .github/workflows/lint.yml).
 
 Examples:
@@ -158,8 +157,9 @@ echo "Removing any stale 'logical-robotics-harness' editable install (this"
 echo "package's prior name) from '${ENV_NAME}', if present. A coexisting"
 echo "editable install under that name adds its own src/lrh path, which can"
 echo "leave an old worktree importable even after this checkout's editable"
-echo "lrh install is (re)pointed here -- see environment.yml, which has been"
-echo "observed carrying both names pinned to different snapshots."
+echo "lrh install is (re)pointed here -- this repo's now-removed"
+echo "environment.yml was observed carrying both names pinned to different"
+echo "snapshots, the same symptom this cleanup step guards against."
 if [[ "${DRY_RUN}" -eq 1 ]]; then
   echo "+ conda run -n ${ENV_NAME} ... python -m pip uninstall -y logical-robotics-harness (skipped under --dry-run)"
 # Known limitation: pip's exit code doesn't cleanly distinguish "package not

@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/500
 commit: 8d06b983614602ee2849fa934fc00e328c6c3d6e
 created_at: 2026-08-07T03:41:02+00:00
 agent: claude_app
-instruction_source: ad_hoc — lrh-land confirm-fixes step (inline) for PR #500
+instruction_source: 'ad_hoc — lrh-land confirm-fixes step (inline) for PR #500'
 session_transcript: claude-app:89d77fcc-6765-497c-a356-992be4e39b3f
 ---
 

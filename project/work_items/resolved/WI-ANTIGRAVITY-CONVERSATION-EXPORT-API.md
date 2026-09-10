@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #526 (commit e72089b72b8a7c68d4314722ea683a1c6389e717).
+resolution: 'Implemented and merged in PR #526 (commit e72089b72b8a7c68d4314722ea683a1c6389e717).'
 blocked_reason: null
 blocked: false
 id: WI-ANTIGRAVITY-CONVERSATION-EXPORT-API

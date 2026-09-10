@@ -14,10 +14,13 @@ See ``WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`` and
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
+import os
 import pathlib
 import re
 import subprocess
+import typing
 
 _MARKER_START = "<!-- GATE-DEFINITION -->"
 _MARKER_END = "<!-- /GATE-DEFINITION -->"
@@ -26,6 +29,8 @@ _HUNK_HEADER_RE = re.compile(
     r"^@@ -(?P<old_start>\d+)(?:,(?P<old_count>\d+))? "
     r"\+(?P<new_start>\d+)(?:,(?P<new_count>\d+))? @@"
 )
+
+_HARNESS_SKILLS_PREFIX = "src/lrh/skills/"
 
 #: Gate-bearing skill files `/lrh-land` inlines, watched semantically.
 #: `_shared/chain-defaults.md` is included since it is the canonical source
@@ -43,6 +48,35 @@ DEFAULT_WATCHED_FILES: tuple[str, ...] = (
     "src/lrh/skills/lrh-closeout/SKILL.md",
     "src/lrh/skills/lrh-closeout/references/closeout-workflow.md",
 )
+
+#: Same gate-bearing skills as `DEFAULT_WATCHED_FILES`, named relative to a
+#: skills directory root (no `src/lrh/skills/` prefix) -- used to resolve
+#: watch paths against an *installed* skills directory, which never has that
+#: harness-repo-relative prefix.
+CANONICAL_SKILL_NAMES: tuple[str, ...] = tuple(
+    path[len(_HARNESS_SKILLS_PREFIX) :] for path in DEFAULT_WATCHED_FILES
+)
+
+#: `CANONICAL_SKILL_NAMES`, minus any entry whose top-level directory starts
+#: with `_`. `installer.py`'s own `skill_names()` unconditionally excludes
+#: such directories from every real install (see
+#: `SkillSource.skill_names`), so `_shared/chain-defaults.md` never actually
+#: exists at any installed target -- watching it there would make every
+#: installed-target check fail closed permanently (git case) or make
+#: `record_fingerprints` unable to ever complete (fingerprint case). Its
+#: gate-definition text is still covered indirectly: the inlined copies that
+#: *do* get installed (e.g. `lrh-land/references/land-workflow.md`) carry
+#: the same text, per `DEFAULT_WATCHED_FILES`'s own docstring above.
+INSTALLED_CANONICAL_SKILL_NAMES: tuple[str, ...] = tuple(
+    name for name in CANONICAL_SKILL_NAMES if not name.split("/", 1)[0].startswith("_")
+)
+
+#: Where persisted content fingerprints for untracked (e.g. user-scope)
+#: installed targets are stored, relative to `project_root`. Written by
+#: `record_fingerprints` at consent-grant time; read by `check_gate_staleness`
+#: for any watch target that resolves outside `project_root`'s working tree,
+#: where no git history exists to diff against `confirmed_commit`.
+FINGERPRINT_PATH = "project/config/chain-defaults-fingerprints.json"
 
 
 class GateStalenessError(RuntimeError):
@@ -68,6 +102,33 @@ class FileStaleness:
     path: str
     stale: bool
     reason: str
+
+
+@dataclasses.dataclass(frozen=True)
+class WatchTarget:
+    """A gate-bearing skill, resolved to where it actually lives.
+
+    `kind` is one of:
+
+    - ``"git"`` -- lives inside `project_root`'s working tree (either this
+      harness repo's own `src/lrh/skills/` tree, or a project-local
+      installed target committed to a client repo). Compared via the
+      existing marker-scoped `git show` diff against `confirmed_commit`.
+    - ``"fingerprint"`` -- resolved to a path outside `project_root`'s
+      working tree (e.g. a user-scope install under `Path.home()`), where
+      no git history exists to diff. Compared against a persisted content
+      fingerprint instead.
+    - ``"unresolved"`` -- the installed target itself could not be
+      resolved (no `src/lrh/skills/` tree and skill-install resolution
+      failed or found nothing). Always reported stale -- see
+      `check_gate_staleness`'s fail-closed requirement.
+    """
+
+    canonical_name: str
+    kind: typing.Literal["git", "fingerprint", "unresolved"]
+    relative_path: str | None = None
+    absolute_path: pathlib.Path | None = None
+    strict_absence: bool = False
 
 
 @dataclasses.dataclass(frozen=True)
@@ -213,12 +274,33 @@ def check_file_staleness(
     confirmed_commit: str,
     head: str,
     relative_path: str,
+    *,
+    fail_closed_if_absent: bool = False,
 ) -> FileStaleness:
-    """Check one gate-bearing file for a semantic (marker-scoped) change."""
+    """Check one gate-bearing file for a semantic (marker-scoped) change.
+
+    `fail_closed_if_absent` distinguishes two different meanings of "absent
+    at both commits": for the harness repo's own hardcoded self-check (the
+    default), a path that was never tracked simply isn't part of this
+    check -- `stale=False` is correct and must not regress. For a path
+    resolved from an *installed* target (see `resolve_watch_targets`), the
+    resolution already asserted this path should exist there; genuine
+    absence means the check can't verify anything, so it must fail closed
+    (`stale=True`) instead of silently agreeing with a no-change result.
+    """
     old_content = _show_file_at(project_root, confirmed_commit, relative_path)
     new_content = _show_file_at(project_root, head, relative_path)
 
     if old_content is None and new_content is None:
+        if fail_closed_if_absent:
+            return FileStaleness(
+                relative_path,
+                stale=True,
+                reason=(
+                    "resolved installed-target path absent at both commits "
+                    "-- unable to verify, failing closed"
+                ),
+            )
         return FileStaleness(
             relative_path, stale=False, reason="absent at both commits"
         )
@@ -254,13 +336,258 @@ def check_file_staleness(
     )
 
 
+def resolve_watch_targets(
+    project_root: pathlib.Path,
+    canonical_names: tuple[str, ...] | None = None,
+) -> tuple[WatchTarget, ...]:
+    """Resolve each canonical gate-bearing skill to where it actually lives.
+
+    If `project_root` has its own `src/lrh/skills/` tree, this *is* the
+    harness repo (or a repo vendoring its source): watch the hardcoded
+    harness-relative paths exactly as before (`DEFAULT_WATCHED_FILES`),
+    unchanged, so the self-check never regresses. `canonical_names`, if
+    given explicitly, must pair 1:1 with `DEFAULT_WATCHED_FILES` in this
+    branch -- a length mismatch raises rather than silently truncating via
+    `zip`.
+
+    Otherwise this is a client repo with LRH installed as a package: resolve
+    every *configured* installed skill target by reusing
+    `lrh.skills.installer`'s own install-planning logic (a config can name
+    more than one -- e.g. `targets: [claude, codex]` -- and each installed
+    copy can drift independently; watching only one would let another
+    configured target's material change go undetected), and watch the
+    resolved paths for each -- using `INSTALLED_CANONICAL_SKILL_NAMES` by
+    default (never `_`-prefixed directories, which the installer itself
+    never copies) unless `canonical_names` overrides it explicitly. Each
+    resolved path is classified as `"git"` (inside `project_root`'s working
+    tree -- e.g. a project-local installed target committed to that repo)
+    or `"fingerprint"` (outside it -- e.g. the documented default user-scope
+    install under `Path.home()`, which has no git history to diff against
+    at all). `canonical_name` is qualified with the target's own name (e.g.
+    `"claude:lrh-land/SKILL.md"`) so two targets' fingerprints for the same
+    skill name never collide in `FINGERPRINT_PATH` or in a report.
+
+    If the installed target(s) can't be resolved, every canonical skill
+    (unqualified -- no specific target was ever determined) is returned as
+    `"unresolved"` -- `check_gate_staleness`'s fail-closed requirement, not
+    a caller error.
+    """
+    if (project_root / "src" / "lrh" / "skills").is_dir():
+        names = (
+            canonical_names if canonical_names is not None else CANONICAL_SKILL_NAMES
+        )
+        if len(names) != len(DEFAULT_WATCHED_FILES):
+            raise GateStalenessError(
+                f"canonical_names has {len(names)} entries but "
+                f"DEFAULT_WATCHED_FILES has {len(DEFAULT_WATCHED_FILES)} -- "
+                "they must pair 1:1, not be silently zip-truncated"
+            )
+        return tuple(
+            WatchTarget(canonical_name=name, kind="git", relative_path=path)
+            for name, path in zip(names, DEFAULT_WATCHED_FILES)
+        )
+
+    names = (
+        canonical_names
+        if canonical_names is not None
+        else INSTALLED_CANONICAL_SKILL_NAMES
+    )
+
+    try:
+        from lrh.skills import installer
+    except ImportError:
+        return tuple(
+            WatchTarget(canonical_name=name, kind="unresolved") for name in names
+        )
+
+    try:
+        plan = installer.resolve_agent_skills_install_plan(project_root=project_root)
+        install_targets = installer.resolve_install_targets(
+            target=plan.target, local=plan.local, project_root=project_root
+        )
+        if not install_targets:
+            raise installer.SkillSourceError("no install targets resolved")
+    except (installer.SkillSourceError, ValueError, IndexError, OSError):
+        install_targets = None
+
+    if install_targets is None:
+        return tuple(
+            WatchTarget(canonical_name=name, kind="unresolved") for name in names
+        )
+
+    resolved: list[WatchTarget] = []
+    for install_target in install_targets:
+        for name in names:
+            qualified_name = f"{install_target.target.value}:{name}"
+            absolute_path = install_target.skills_dir / name
+            try:
+                relative_path = absolute_path.relative_to(project_root)
+            except ValueError:
+                resolved.append(
+                    WatchTarget(
+                        canonical_name=qualified_name,
+                        kind="fingerprint",
+                        absolute_path=absolute_path,
+                    )
+                )
+            else:
+                resolved.append(
+                    WatchTarget(
+                        canonical_name=qualified_name,
+                        kind="git",
+                        relative_path=str(relative_path),
+                        strict_absence=True,
+                    )
+                )
+    return tuple(resolved)
+
+
+def compute_fingerprint(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
+
+
+def load_fingerprints(project_root: pathlib.Path) -> dict[str, str] | None:
+    """Load persisted content fingerprints, or None if unavailable.
+
+    Returns None (never raises) on a missing, unreadable, or malformed
+    file -- `check_gate_staleness` treats a None return as "no fingerprint
+    on record for any untracked target" and fails every such target closed,
+    rather than surfacing this as a hard error.
+    """
+    path = project_root / FINGERPRINT_PATH
+    if not path.exists():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    return {str(key): str(value) for key, value in data.items()}
+
+
+def record_fingerprints(
+    project_root: pathlib.Path,
+    targets: tuple[WatchTarget, ...],
+) -> dict[str, str]:
+    """Compute and persist current-content fingerprints for untracked targets.
+
+    Intended to run at `skip_if_opted_in` consent-grant time, alongside
+    stamping `confirmed_commit`, for every target `resolve_watch_targets`
+    classified `"fingerprint"` (outside `project_root`'s working tree).
+    Raises if a target file is missing -- a consent grant must not silently
+    record an empty/partial fingerprint set.
+    """
+    fingerprints: dict[str, str] = {}
+    for target in targets:
+        if target.kind != "fingerprint":
+            continue
+        if target.absolute_path is None or not target.absolute_path.is_file():
+            raise GateStalenessError(
+                f"cannot fingerprint missing installed target: "
+                f"{target.canonical_name} ({target.absolute_path})"
+            )
+        fingerprints[target.canonical_name] = compute_fingerprint(
+            target.absolute_path.read_bytes()
+        )
+    path = project_root / FINGERPRINT_PATH
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(fingerprints, indent=2, sort_keys=True) + "\n"
+    # Atomic write: a temp file in the same directory (so the rename is on
+    # the same filesystem), then os.replace -- a process interrupted
+    # mid-write must never leave a partial/corrupt fingerprint file behind,
+    # since `load_fingerprints` treats any unreadable file as "no
+    # fingerprint on record" and fails every untracked target closed.
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(payload, encoding="utf-8")
+    os.replace(tmp_path, path)
+    return fingerprints
+
+
+def check_target_staleness(
+    project_root: pathlib.Path,
+    confirmed_commit: str,
+    head: str,
+    target: WatchTarget,
+    fingerprints: dict[str, str] | None,
+) -> FileStaleness:
+    """Check one resolved `WatchTarget` for staleness, by whichever means
+    its `kind` supports."""
+    if target.kind == "unresolved":
+        return FileStaleness(
+            target.canonical_name,
+            stale=True,
+            reason="installed target could not be resolved -- failing closed",
+        )
+    if target.kind == "git":
+        if target.relative_path is None:
+            raise GateStalenessError(
+                f"WatchTarget {target.canonical_name!r} has kind='git' but "
+                "no relative_path -- malformed WatchTarget"
+            )
+        return check_file_staleness(
+            project_root,
+            confirmed_commit,
+            head,
+            target.relative_path,
+            fail_closed_if_absent=target.strict_absence,
+        )
+    # kind == "fingerprint"
+    if target.absolute_path is None:
+        raise GateStalenessError(
+            f"WatchTarget {target.canonical_name!r} has kind='fingerprint' "
+            "but no absolute_path -- malformed WatchTarget"
+        )
+    if fingerprints is None or target.canonical_name not in fingerprints:
+        return FileStaleness(
+            target.canonical_name,
+            stale=True,
+            reason=(
+                "no persisted content fingerprint on record for this "
+                "untracked installed target -- failing closed"
+            ),
+        )
+    if not target.absolute_path.is_file():
+        return FileStaleness(
+            target.canonical_name,
+            stale=True,
+            reason="installed target file missing -- failing closed",
+        )
+    current = compute_fingerprint(target.absolute_path.read_bytes())
+    stored = fingerprints[target.canonical_name]
+    if current != stored:
+        return FileStaleness(
+            target.canonical_name,
+            stale=True,
+            reason="installed file content differs from persisted fingerprint",
+        )
+    return FileStaleness(
+        target.canonical_name,
+        stale=False,
+        reason="installed file content matches persisted fingerprint",
+    )
+
+
 def check_gate_staleness(
     project_root: pathlib.Path,
     confirmed_commit: str,
     head: str = "HEAD",
-    watched_files: tuple[str, ...] = DEFAULT_WATCHED_FILES,
+    watched_files: tuple[str, ...] | None = None,
 ) -> StalenessResult:
-    """Check every watched gate-bearing file for semantic staleness."""
+    """Check every watched gate-bearing file for semantic staleness.
+
+    `watched_files`, when given explicitly, is checked exactly as before --
+    a fixed tuple of paths relative to `project_root`, compared via git
+    history only (the harness repo's own self-check, and any caller that
+    already knows its watch paths are git-tracked within `project_root`).
+
+    When omitted (the default), the watch set is resolved dynamically via
+    `resolve_watch_targets`, which is target-aware: it watches this
+    harness repo's own paths when present, or the actually-installed skill
+    target's paths otherwise -- via git history when that target lives
+    inside `project_root`'s working tree, or via a persisted content
+    fingerprint when it doesn't.
+    """
     if not confirmed_commit or confirmed_commit == "null":
         raise GateStalenessError(
             "confirmed_commit is null/empty -- no prior confirmation on "
@@ -274,10 +601,22 @@ def check_gate_staleness(
     # otherwise look like).
     _run_git(["rev-parse", "--verify", f"{confirmed_commit}^{{commit}}"], project_root)
     resolved_head = _run_git(["rev-parse", head], project_root).strip()
-    files = tuple(
-        check_file_staleness(project_root, confirmed_commit, resolved_head, path)
-        for path in watched_files
-    )
+
+    if watched_files is not None:
+        files = tuple(
+            check_file_staleness(project_root, confirmed_commit, resolved_head, path)
+            for path in watched_files
+        )
+    else:
+        targets = resolve_watch_targets(project_root)
+        fingerprints = load_fingerprints(project_root)
+        files = tuple(
+            check_target_staleness(
+                project_root, confirmed_commit, resolved_head, target, fingerprints
+            )
+            for target in targets
+        )
+
     return StalenessResult(
         confirmed_commit=confirmed_commit,
         head=resolved_head,

@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged via PR #498 (commit bc4994c0730b5baa5897b14cc43d9c00bf7e9ce9). Both-identifier capture landed in /lrh-implement Step 9 and /lrh-closeout Step 5, plus the minimal project/sessions/index.jsonl identity index.
+resolution: 'Implemented and merged via PR #498 (commit bc4994c0730b5baa5897b14cc43d9c00bf7e9ce9). Both-identifier capture landed in /lrh-implement Step 9 and /lrh-closeout Step 5, plus the minimal project/sessions/index.jsonl identity index.'
 blocked_reason: null
 blocked: false
 id: WI-SESSION-ARCHIVE-SYNC-CAPTURE

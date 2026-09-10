@@ -5,7 +5,7 @@ work_item: WI-SKILLS-LRH-PROPOSAL
 status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/329
-commit: 4189549
+commit: '4189549'
 created_at: 2026-06-26T13:44:20-04:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-LRH-PROPOSAL.md

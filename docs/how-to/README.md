@@ -36,3 +36,5 @@ Add content here when the title can naturally start with “How to ...” and th
 - [Keep skills up to date](keep-skills-up-to-date.md) — check for and apply updates to installed Claude Code skills.
 - [How to run a release](run-a-release.md) — validate, tag, smoke-test, and publish LRH releases.
 - [Project setup playbooks](project-setup/README.md) — reusable setup and hardening guidance for heterogeneous project repositories.
+- [Back up and restore project memory](back-up-and-restore-project-memory.md) — mirror an agent's memory corpus into a durable archive with `lrh memory sync`, and restore from it.
+- [Move memories between projects](move-memories-between-projects.md) — copy memories between two projects' corpora with `lrh memory export`/`import`/`transfer`.

@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/410
 commit: 3d58813c4ec964ccef695f1e741881e2d57ad669
 created_at: 2026-07-23T03:01:03-04:00
 agent: claude_app
-instruction_source: ad_hoc conversation — session_transcript backfill (part 2 of 2; companion documentation PR #409)
+instruction_source: 'ad_hoc conversation — session_transcript backfill (part 2 of 2; companion documentation PR #409)'
 session_transcript: claude-app:4c3d03d6-6ebd-418a-86b2-6f4041feb9db
 ---
 

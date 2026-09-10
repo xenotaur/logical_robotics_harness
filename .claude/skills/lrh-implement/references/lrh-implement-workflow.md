@@ -11,6 +11,11 @@ completes. Read this before Step 10 (report and offer closeout).
 /lrh-work-item WI-<ID>              ← create planning artifact
     │
     ▼
+Merge the WI-creation PR             ← REQUIRED before this skill starts:
+    │                                  Step 5 branches from `main`, so an
+    │                                  unmerged creation PR means the work
+    │                                  item file is silently absent
+    ▼
 lrh work-items readiness <WI-ID>    ← check prompt-readiness
 lrh request ready-work-item <ID>    ← refine if thin
     │

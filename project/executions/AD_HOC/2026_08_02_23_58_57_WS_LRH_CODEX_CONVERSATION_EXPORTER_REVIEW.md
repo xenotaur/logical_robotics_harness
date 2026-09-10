@@ -7,7 +7,7 @@ rerun_of: 2026_08_02_23_47_42_WS_LRH_CODEX_CONVERSATION_EXPORTER_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/471
 commit: d56b1ff3e5215a1d5e8982a2cb372fe86f9f0af4
 agent: codex_app
-instruction_source: fresh independent self-review on PR #471 head cf7e2df25fe2a977729db9c469eb6c9e235f0f3c
+instruction_source: 'fresh independent self-review on PR #471 head cf7e2df25fe2a977729db9c469eb6c9e235f0f3c'
 session_transcript: pending
 created_at: 2026-08-02T23:58:57+00:00
 ---

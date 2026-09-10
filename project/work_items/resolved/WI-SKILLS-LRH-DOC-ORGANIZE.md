@@ -1,5 +1,5 @@
 ---
-resolution: Implemented /lrh-doc-organize skill in PR #337 (commit dda610e); SKILL.md (11-step flow with prompt-ID mint at Step 3), diataxis-criteria.md, organize-constraints.md, organize-workflow.md created in src/ and mirrored to .claude/; cross-reference added to organize_docs.md; CLAUDE.md updated
+resolution: 'Implemented /lrh-doc-organize skill in PR #337 (commit dda610e); SKILL.md (11-step flow with prompt-ID mint at Step 3), diataxis-criteria.md, organize-constraints.md, organize-workflow.md created in src/ and mirrored to .claude/; cross-reference added to organize_docs.md; CLAUDE.md updated'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-DOC-ORGANIZE
@@ -30,7 +30,7 @@ acceptance:
   - .claude/skills/lrh-doc-organize/SKILL.md exists with valid frontmatter
   - .claude/skills/lrh-doc-organize/ is an exact copy of src/lrh/skills/lrh-doc-organize/
   - src/lrh/assist/templates/request/organize_docs.md carries a cross-reference comment
-  - CLAUDE.md ## Skills has a /lrh-doc-organize entry
+  - 'CLAUDE.md ## Skills has a /lrh-doc-organize entry'
   - lrh validate passes with 0 errors
 required_evidence:
   - manual_review

@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/420
 commit: 7a78247a9891e046e9dfd42394556c67e77949d0
 created_at: 2026-07-25T01:33:44-04:00
 agent: claude_app
-instruction_source: ad_hoc conversation — refresh WI-EXEC-SESSIONS-SCHEMA acceptance criteria for the backend-agnostic session pointer grammar (follows PR #411)
+instruction_source: 'ad_hoc conversation — refresh WI-EXEC-SESSIONS-SCHEMA acceptance criteria for the backend-agnostic session pointer grammar (follows PR #411)'
 session_transcript: claude-app:4c3d03d6-6ebd-418a-86b2-6f4041feb9db
 ---
 

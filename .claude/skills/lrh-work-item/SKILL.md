@@ -311,6 +311,18 @@ parser only extracts bullets; a code block produces an empty list and the
 item will fail `lrh work-items readiness` with "missing Validation commands"
 even though the section exists.
 
+**Always quote free-text frontmatter scalar values.** Never write bare
+prose directly after `key:` or `- ` — an unquoted colon collapses a list
+item into a one-entry mapping, an unquoted ` #` truncates everything after
+it as a comment, a leading reserved character (backtick, `@`, `%`, ...)
+is a hard syntax error, and text that reads as a bool/null/number/date
+silently loses its string type. Wrap the value in quotes instead, e.g.
+`resolution: 'Implemented and merged in PR #614'`, not
+`resolution: Implemented and merged in PR #614`. `lrh validate`'s
+`FRONTMATTER_LINT_UNSAFE_SCALAR` warning catches this after the fact
+(`WI-FRONTMATTER-MIGRATION-LINT-GUARD`), but writing it quoted the first
+time avoids the warning entirely.
+
 ### 8. Validate
 
 Run:

@@ -1740,3 +1740,152 @@ case revisit Step 3's skip-condition wording for clarity.
 `src/lrh/skills/lrh-codex-export/agents/openai.yaml`;
 `project/work_items/resolved/WI-CODEX-EXPORT-INVOCATION-FLAG-REMOVAL.md`;
 harness PR #601; agent memory `feedback_flag_removal_needs_confirm_gate.md`.
+
+---
+
+## Agents suggesting premature WI/proposal/workstream implementation while the filing PR is still unmerged
+
+**Noted:** 2026-08-28, after an agent repeatedly reported
+`/lrh-implement`/`/lrh-execute <WI-ID>` as a "next step" immediately after
+filing a work item, while that item's own filing PR sat open and
+unreviewed -- despite the correct sequencing already being documented in
+`/lrh-work-item`'s own reference doc
+(`src/lrh/skills/lrh-work-item/references/lrh-work-item-workflow.md:99-123`,
+"Path 1 -- PR lifecycle" vs. Path 2). The failure wasn't missing
+information -- it was paraphrasing past that material in a later,
+unstructured "what's next" answer, disconnected from the skill invocation
+that had the details loaded.
+
+The gap is structural, not a one-off: `/lrh-proposal`
+(`src/lrh/skills/lrh-proposal/SKILL.md:373-380`), `/lrh-workstream`
+(`src/lrh/skills/lrh-workstream/SKILL.md:357-364`), and
+`/lrh-work-remains` (`src/lrh/skills/lrh-work-remains/SKILL.md:92-96`,
+whose entire purpose is preventing exactly this class of
+conversational-recall drift) all share the same "report a
+freely-composed next step" shape, with no rule connecting "filing PR
+still open" to "don't suggest implementing yet." PR #602 (merged
+2026-08-28) fixed a related but distinct problem -- a downstream
+execution-safety consequence in `/lrh-implement` Step 5 if the premature
+action is actually run -- not the reporting-accuracy problem of
+suggesting it in the first place.
+
+**Idea:** `WI-SKILLS-LRH-NEXT-STEP-REPORTING` was filed to fix this, with
+a deliberately investigation-first scope: rather than pre-selecting a fix,
+the executing session must first produce a repo-grounded decision matrix
+(as its own standalone artifact, before any implementation commit --
+not the `/lrh-implement` Step 9 execution record, which postdates the
+implementation commit) covering at least (a) a documentation-only
+`AGENTS.md` rule cited from each affected skill's reporting step, and (b)
+a mechanical CLI-computed next-step command (in the same architectural
+style as
+`gate_staleness.py`/`confirm_fixes_batch.py`/`chain_defaults_status.py`)
+that a skill calls and reports verbatim rather than composing freely.
+
+**Status:** Open. WI filed and PR opened; not yet implemented. A handoff
+prompt was rendered for a fresh session to pick this up, since the filing
+session was mid-task on unrelated work.
+
+**Related:** `project/work_items/proposed/WI-SKILLS-LRH-NEXT-STEP-REPORTING.md`;
+`src/lrh/skills/lrh-work-item/references/lrh-work-item-workflow.md:99-123`;
+`src/lrh/skills/lrh-proposal/SKILL.md:373-380`;
+`src/lrh/skills/lrh-workstream/SKILL.md:357-364`;
+`src/lrh/skills/lrh-work-remains/SKILL.md:92-96`;
+`src/lrh/skills/lrh-work-remains/references/remains-checklist.md:9-25`;
+`src/lrh/skills/lrh-work-item/references/prior-art-check.md:22-47`;
+`src/lrh/skills/lrh-implement/SKILL.md:293-326`;
+harness PR #602; agent memory `feedback_wi_next_step_reporting.md`.
+
+---
+
+## `docs/reference/cli/memory.md` is stale relative to `WI-LRH-MEMORY-TRANSFER-SAFETY`'s real fix
+
+**Noted:** 2026-08-28, while implementing `/lrh-doc-organize` phase 2
+(PR #644, the `lrh memory` how-to guides) against
+`project/audits/docs/docs-audit-2026-08-21.md`.
+
+**Gap:** `docs/reference/cli/memory.md` (added by phase 1, PR #605) was
+written before `WI-LRH-MEMORY-TRANSFER-SAFETY` landed its real fix
+(PR #606, commit `9ebce502`). Two parts of that page are now stale:
+
+1. The `import`/`transfer` sections' "Known gap" note still describes
+   the *old*, unfixed behavior (unconditional, unsnapshotted same-agent
+   overwrite). Actual current behavior: `--force` is required for
+   *any* existing-destination overwrite (same-agent, legacy no-
+   `authored_by`, or malformed — not just genuine cross-agent), and the
+   destination's prior content is snapshotted to `<corpus>/history/`
+   first (keyed by content hash) before every case except a genuine
+   cross-agent mismatch.
+2. The two links to `WI-LRH-MEMORY-TRANSFER-SAFETY` point at
+   `project/work_items/proposed/...`, but the WI is now in
+   `project/work_items/resolved/...` — both links are broken.
+
+Not fixed as part of PR #644: this is a currency update triggered by a
+merged WI landing, which is `/lrh-doc-work`'s job, not
+`/lrh-doc-organize`'s (a structural-layout skill, one phase per PR,
+scoped to the audit's own phased plan — fixing this here would be
+scope creep against that constraint). PR #644's own new how-to guide
+(`docs/how-to/move-memories-between-projects.md`) documents the
+*current*, correct behavior directly, so the inaccuracy is isolated to
+the phase-1 reference page.
+
+**Idea:** Run `/lrh-doc-work WI-LRH-MEMORY-TRANSFER-SAFETY` to update
+`docs/reference/cli/memory.md`'s "Known gap" sections and fix both
+`WI-LRH-MEMORY-TRANSFER-SAFETY` link paths.
+
+**Status:** Open. Flagged explicitly by the user during PR #644's
+confirm gate, with an explicit request to track it so it isn't lost.
+
+**Related:** `docs/reference/cli/memory.md` (both `import`/`transfer`
+sections); `project/work_items/resolved/WI-LRH-MEMORY-TRANSFER-SAFETY.md`;
+`project/audits/docs/docs-audit-2026-08-21.md`; PR #605 (phase 1), PR
+#606 (the real fix), PR #644 (phase 2, where this was found).
+## `/lrh-execute` catches an open WI-creation PR too late to save the human a wasted confirmation cycle
+
+**Noted:** 2026-08-28, while landing `WI-PROJECT-SLUG-SYMLINK-RESOLUTION`
+(PR #603 planning, PR #615 implementation) in a single session.
+`/lrh-execute` was invoked against a WI-ID whose own creation PR (#603) was
+still open. Step 1's readiness check (`lrh work-items readiness <WI-ID>`)
+read the WI file from the local working tree, which still had it (the
+session was sitting on the WI-creation branch), and reported
+`prompt_ready: yes` with no warnings -- a false-confidence result, since
+the file did not exist on `origin/main` at all. Only caught by manually
+running `git status`/`gh pr view` outside any skill-enforced check.
+
+`PR #602` (merged, commit `741bd46c`) has since fixed the underlying
+silent-omission bug, but at `/lrh-implement` Step 5 (right before
+`git checkout -b <branch-name>`), which `/lrh-execute` Step 3 inlines. By
+that point in an `/lrh-execute` run, Step 1's readiness check, the
+prior-art check, prompt-ID minting, the idempotence check, branch-name
+derivation, and -- most significantly -- the Step 2 chain-authorization
+gate (a full human confirmation of the run plan) have all already
+happened. The bug can no longer actually corrupt anything, but a doomed
+run still costs a human confirmation cycle before failing.
+
+**Idea:** Add an earlier, redundant-but-faster-failing precondition check
+to `/lrh-execute` Step 1 (both the `WI-ID` and `WS-ID` branches) that
+detects an open PR introducing the target WI and stops before Step 1.5/
+Step 2 run at all. Reuse/adapt `/lrh-land`'s existing primary-record
+provenance-check algorithm (`references/land-workflow.md`) for the
+matching logic rather than re-deriving one from scratch -- that section
+documents three prior failed attempts at a similar WI/slug-matching
+problem before a working algorithm landed, so expect the same difficulty
+here.
+
+**Status:** Tracked as `WI-EXECUTE-EARLY-CREATION-PR-CHECK` (proposed);
+not yet implemented. Discovered during this entry's own PR landing (a
+rebase conflict against a separately-landed backlog entry) to be adjacent
+to, but not a duplicate of, "Agents suggesting premature WI/proposal/
+workstream implementation" (above, earlier in this file): that entry
+fixes the *reporting/suggestion* layer (don't even suggest
+`/lrh-implement` while the filing PR is open), while this one adds an
+*enforcement* check inside `/lrh-execute` itself (stop cheaply if the
+suggestion is followed anyway). Both are worth landing; neither supersedes
+the other.
+
+**Related:** `src/lrh/skills/lrh-execute/SKILL.md` Step 1;
+`src/lrh/skills/lrh-implement/SKILL.md` Step 5;
+`src/lrh/skills/lrh-land/references/land-workflow.md` (provenance-check
+algorithm); `project/work_items/proposed/WI-EXECUTE-EARLY-CREATION-PR-CHECK.md`;
+harness PR #602; `project/work_items/resolved/WI-PROJECT-SLUG-SYMLINK-RESOLUTION.md`;
+`WI-SKILLS-LRH-NEXT-STEP-REPORTING` (the adjacent reporting-layer entry,
+earlier in this file).

@@ -140,5 +140,5 @@ PR #624 exposed that the generated Gemini/Antigravity skill copies were stale re
 
 - Archive-destination validation must handle non-existing paths and symlinked path components without accidentally allowing a repository-backed private archive.
 - Preflight cannot prevent every later I/O failure, but it should catch deterministic misconfiguration before control-plane edits are made.
-- Target skill copies are generated outputs; hand edits can hide canonical drift unless the implementation verifies them against `src/lrh/skills`.
+- Target skill copies are generated outputs; hand edits can hide canonical drift unless the implementation verifies them against `src/lrh/skills` source.
 - The fix should not make normal private defaults unusable for users whose archive root is outside the checkout.

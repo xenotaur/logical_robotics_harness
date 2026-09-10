@@ -2,7 +2,14 @@
 
 `project/agent_skills.yaml` is an optional repository-local configuration file
 for `lrh skills install`. When present, it supplies project defaults for the
-canonical skill source, install target, and install scope.
+canonical skill sources, install targets, and install scope.
+
+[`lrh agent-skills status`](../cli/agent-skills.md) reports the currently
+resolved values without hand-parsing this file — it is read-only and never
+writes to it. To create the file or edit `sources`, `targets`, or `scope`
+through a confirmed gate, use the `/lrh-config-skills` LRH skill instead.
+`install.overwrite` is not editable through either — it stays a manual edit
+to this file, per the non-destructive-only rule below.
 
 ## Precedence
 

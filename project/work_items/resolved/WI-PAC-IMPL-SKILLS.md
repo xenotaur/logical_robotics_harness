@@ -1,5 +1,5 @@
 ---
-resolution: Implemented prior-art check wiring for lrh-work-item and lrh-implement in PR #360 (commit ddd0b841)
+resolution: 'Implemented prior-art check wiring for lrh-work-item and lrh-implement in PR #360 (commit ddd0b841)'
 blocked_reason: null
 blocked: false
 id: WI-PAC-IMPL-SKILLS

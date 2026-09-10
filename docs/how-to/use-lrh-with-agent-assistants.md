@@ -9,7 +9,12 @@ LRH maintains a single canonical skill source (`src/lrh/skills/`) that can be re
 ## Prerequisites
 
 - LRH installed so the `lrh` command is available.
-- An LRH-managed project repository (or a repository configured with `project/agent_skills.yaml`).
+- An LRH-managed project repository (or a repository configured with
+  `project/agent_skills.yaml`). Use the `/lrh-config-skills` LRH skill to
+  set this file up without hand-editing YAML (`lrh agent-skills status`
+  inspects the current resolved defaults but does not write the file) —
+  see the
+  [agent skills config schema](../reference/schemas/agent-skills-config.md).
 
 ## Agent Assistant Setup & Usage Patterns
 

@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #495 (commit 4a873fbf4db6b6c0b0fcac12910cf30d26a024be)
+resolution: 'Implemented and merged in PR #495 (commit 4a873fbf4db6b6c0b0fcac12910cf30d26a024be)'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-STATUS-CHECK

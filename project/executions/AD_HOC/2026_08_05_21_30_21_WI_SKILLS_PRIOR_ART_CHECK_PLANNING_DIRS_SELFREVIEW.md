@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 2026_08_05_21_16_09_WI_SKILLS_PRIOR_ART_CHECK_PLANNING_DIRS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/493
-commit: 3355716
+commit: '3355716'
 created_at: 2026-08-05T21:30:21+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/493

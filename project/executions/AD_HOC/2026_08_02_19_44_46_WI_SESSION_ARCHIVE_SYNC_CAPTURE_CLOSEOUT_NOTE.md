@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/465
 commit: 56c7118e7b86520a77ec8cda400520fc6a40f0f2
 created_at: 2026-08-02T19:44:46+00:00
 agent: claude_app
-instruction_source: ad_hoc — /lrh-land closeout step for PR #465
+instruction_source: 'ad_hoc — /lrh-land closeout step for PR #465'
 session_transcript: claude-app:b7a0de88-bdee-468c-b053-5afbdd7146ad
 ---
 

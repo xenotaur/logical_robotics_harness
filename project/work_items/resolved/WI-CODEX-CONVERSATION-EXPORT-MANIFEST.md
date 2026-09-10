@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #476 (commit d4301e2bff808ea9c7464a756cc3f91be41677a2).
+resolution: 'Implemented and merged in PR #476 (commit d4301e2bff808ea9c7464a756cc3f91be41677a2).'
 blocked_reason: null
 blocked: false
 id: WI-CODEX-CONVERSATION-EXPORT-MANIFEST

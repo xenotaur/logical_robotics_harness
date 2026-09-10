@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #404 (commit 599c26f1)
+resolution: 'Implemented and merged in PR #404 (commit 599c26f1)'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-INSTALL-DIFF

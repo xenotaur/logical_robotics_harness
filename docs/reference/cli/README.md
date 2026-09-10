@@ -22,6 +22,7 @@ Add content here when the reader already knows which command they need and wants
 ## Currently relevant docs
 
 - [`validate`](validate.md) — validate LRH project control files.
+- [`doctor`](doctor.md) — diagnose LRH project bootstrap readiness, or run the one-time `--fix-frontmatter` content migration.
 - [`snapshot`](snapshot.md) — generate Markdown context packets from project control files.
 - [`survey`](survey.md) — survey Python source trees for assist planning workflows.
 - [`request`](request.md) — render request prompts and inspect request-template resolution, including `audit_docs` and `organize_docs`.
@@ -30,6 +31,9 @@ Add content here when the reader already knows which command they need and wants
 - [`serve`](serve.md) — start the safe-default local read-only server skeleton.
 - [`work-items`](work-items.md) — validate, audit, and diagnose prompt-readiness for work-item files.
 - [`secrets`](secrets.md) — scan, review, and purge leaked secrets from a repository's git history.
+- [`pii`](pii.md) — scan a repository's full git history for misplaced documents and PII-shaped content.
 - [`meta`](meta.md) — manage LRH meta workspaces and project registry records.
 - [`skills`](skills.md) — install and inspect LRH agent skills for Claude, Codex, and Antigravity targets.
 - [`memory`](memory.md) — write, list, validate, repair, sync, read, search, export, import, and transfer Claude Code's per-project memory corpus.
+- [`chain-defaults`](chain-defaults.md) — report chain-authorization gate policy, skip-consent validity, and gate-definition staleness.
+- [`agent-skills`](agent-skills.md) — report `project/agent_skills.yaml`'s resolved install-policy state.

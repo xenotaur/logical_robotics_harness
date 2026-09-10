@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #512 (commit b11841c)
+resolution: 'Implemented and merged in PR #512 (commit b11841c)'
 blocked_reason: null
 blocked: false
 id: WI-LRH-CHAIN-DEFAULTS-INCREMENT-1

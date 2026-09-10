@@ -1,5 +1,5 @@
 ---
-resolution: Resolved by PR #497 -- added --include-thread flag to lrh request review_response, with unit test coverage. Merged as commit 9f8a92f56a8a007f9f51e8865aa5f27ca6f0d3e0.
+resolution: 'Resolved by PR #497 -- added --include-thread flag to lrh request review_response, with unit test coverage. Merged as commit 9f8a92f56a8a007f9f51e8865aa5f27ca6f0d3e0.'
 blocked_reason: null
 blocked: false
 id: WI-REVIEW-RESPONSE-INCLUDE-THREAD

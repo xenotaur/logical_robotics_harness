@@ -14,6 +14,9 @@ class LoadConfigTest(unittest.TestCase):
             self.assertEqual(
                 config.filename_keywords, pii_config.DEFAULT_FILENAME_KEYWORDS
             )
+            self.assertEqual(
+                config.content_scan_scope, pii_config.CONTENT_SCAN_SCOPE_FLAGGED
+            )
 
     def test_extends_defaults_when_use_default_is_true(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -99,6 +102,51 @@ class LoadConfigTest(unittest.TestCase):
 
             with self.assertRaises(pii_config.PiiConfigError):
                 pii_config.load_config(project_root)
+
+    def test_content_scan_scope_all_text_is_honored(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            (project_root / pii_config.CONFIG_FILENAME).write_text(
+                'content_scan_scope = "all-text"\n'
+            )
+
+            config = pii_config.load_config(project_root)
+
+            self.assertEqual(
+                config.content_scan_scope, pii_config.CONTENT_SCAN_SCOPE_ALL_TEXT
+            )
+
+    def test_invalid_content_scan_scope_raises_pii_config_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            (project_root / pii_config.CONFIG_FILENAME).write_text(
+                'content_scan_scope = "everything"\n'
+            )
+
+            with self.assertRaises(pii_config.PiiConfigError):
+                pii_config.load_config(project_root)
+
+    def test_config_path_overrides_project_root_auto_discovery(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            custom_config = project_root / "custom.toml"
+            custom_config.write_text('path_globs = ["*.docx"]\n')
+
+            config = pii_config.load_config(project_root, config_path=custom_config)
+
+            self.assertIn("*.docx", config.path_globs)
+
+    def test_missing_explicit_config_path_raises_pii_config_error(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp)
+            missing_config = project_root / "does-not-exist.toml"
+
+            # An explicit --config path that doesn't exist must never
+            # silently fall back to defaults - that would let a
+            # misspelled/deleted path pass as a clean scan of the user's
+            # intended rules (PR #654 review, chatgpt-codex-connector).
+            with self.assertRaises(pii_config.PiiConfigError):
+                pii_config.load_config(project_root, config_path=missing_config)
 
 
 if __name__ == "__main__":

@@ -1566,6 +1566,51 @@ covers its import/migrate requirement and can either reuse or supersede it.
 
 ---
 
+## Reduce Codex export friction across session setup, installation, and guidance
+
+**Noted:** 2026-09-10, while dogfooding `/lrh-codex-export` in Codex. Two
+avoidable setup issues appeared before the export could be verified: the
+active `lrh` executable was an older installed build that did not expose the
+already-implemented `current-codex-thread-id` command, and the Codex session
+sandbox did not permit writes to LRH's default durable archive under
+`~/.local/share/lrh/session-archive`. A separate session also showed that the
+Codex desktop UI's **Copy Deeplink** action can provide the missing thread ID
+as `codex://threads/<UUID>` when `CODEX_THREAD_ID` is not injected.
+
+**Idea:** Treat this as a small cross-boundary friction-reduction effort:
+
+1. **Session configuration (user/app-owned):** document or standardize adding
+   `~/.local/share/lrh/session-archive` (or its parent
+   `~/.local/share/lrh`) to the Codex session's writable directories, so the
+   durable private archive does not require repeated approval. Keep the
+   archive outside the Git worktree and preserve restrictive permissions.
+2. **Installation freshness (environment-owned):** ensure environment
+   bootstrap runs `scripts/develop` and the active `lrh` executable points at
+   the current checkout. Optionally diagnose a stale installation when a
+   command present in the checkout is absent from the installed CLI.
+3. **Documentation and skill guidance (LRH-owned):** add Copy Deeplink as a
+   supported explicit-thread-ID fallback, explain extraction of the UUID from
+   `codex://threads/<UUID>`, and retain the prohibition on scraping
+   undocumented Codex storage. Consider a clearly diagnosed fallback to an
+   available `CODEX_THREAD_ID` when the resolver command is unavailable.
+
+**Status:** Deferred — the first item depends on Codex session configuration
+outside this repository, the second belongs in environment/bootstrap
+maintenance, and the third is a small documentation/skill change. Do not
+change LRH's durable archive default to `/tmp`; that would trade away the
+durability this workflow is intended to provide. Revisit as a focused
+follow-up to the Codex export work, with separate acceptance evidence for
+session writability, installation freshness, and deeplink-based recovery.
+
+**Related:** `src/lrh/cli/main.py` (the resolver is already registered);
+`src/lrh/skills/lrh-codex-export/SKILL.md`;
+`docs/conversations/codex_export.md`;
+`docs/reference/cli/conversation.md`;
+`scripts/develop`;
+`project/work_items/proposed/WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT.md`.
+
+---
+
 ## `/lrh-assess` skill — not yet warranted
 
 **Noted:** 2026-08-21, during WS-SKILLS retrospective after all workstream

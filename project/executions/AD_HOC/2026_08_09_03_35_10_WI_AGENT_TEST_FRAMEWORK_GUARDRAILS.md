@@ -2,10 +2,10 @@
 execution_id: 2026_08_09_03_35_10_WI_AGENT_TEST_FRAMEWORK_GUARDRAILS
 prompt_id: PROMPT(AD_HOC:WI_AGENT_TEST_FRAMEWORK_GUARDRAILS)[2026-08-08T22:14:30+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: null
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/530
-commit: d0c9fc6
+commit: 3813f234c6
 created_at: 2026-08-09T03:35:10+00:00
 agent: gemini_3_6_flash
 instruction_source: project/work_items/proposed/WI-AGENT-TEST-FRAMEWORK-GUARDRAILS.md

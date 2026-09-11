@@ -254,6 +254,25 @@ class TestClaudeExport(unittest.TestCase):
 
             self.assertEqual(res.manifest.transcript_statistics.turn_count, 2)
 
+    def test_count_turns_counts_list_form_human_content(self) -> None:
+        # A user record whose content is a list is not exclusively a
+        # tool_result carrier -- it also covers a genuine human turn that
+        # includes a non-tool_result block (e.g. pasted text or an image).
+        # This proves the `any(...)` branch in `_is_genuine_human_turn`
+        # correctly counts such a record, not just the plain-string and
+        # tool_result-only-list cases covered elsewhere.
+        steps = [
+            {
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [{"type": "text", "text": "Please retry that."}],
+                },
+            }
+        ]
+
+        self.assertEqual(claude_export._count_turns(steps), 1)
+
     def test_convert_claude_session_subagents_referenced_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_path = Path(temp_dir)

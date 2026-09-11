@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/665
 commit: afd247e5
 created_at: 2026-09-11T07:54:55+00:00
 agent: claude_app
-instruction_source: ad-hoc task -- fix _count_turns() overcounting tool_result-only user records as human turns, per finding surfaced in WI-CLAUDE-CONVERSATION-EXPORT-API's PR #664 self-review
+instruction_source: "ad-hoc task -- fix _count_turns() overcounting tool_result-only user records as human turns, per finding surfaced in WI-CLAUDE-CONVERSATION-EXPORT-API's PR #664 self-review"
 session_transcript: pending
 ---
 

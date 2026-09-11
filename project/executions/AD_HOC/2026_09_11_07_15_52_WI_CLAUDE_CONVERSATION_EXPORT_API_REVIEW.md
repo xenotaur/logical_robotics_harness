@@ -2,10 +2,10 @@
 execution_id: 2026_09_11_07_15_52_WI_CLAUDE_CONVERSATION_EXPORT_API_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_CLAUDE_CONVERSATION_EXPORT_API_REVIEW)[2026-09-11T07:06:39+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_11_07_05_15_WI_CLAUDE_CONVERSATION_EXPORT_API_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/664
-commit: 46846e0b
+commit: 51ac75b790054db8ae40c05f91e837a477758b11
 created_at: 2026-09-11T07:15:52+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/664

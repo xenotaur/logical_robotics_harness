@@ -2,10 +2,10 @@
 execution_id: 2026_09_11_06_42_58_WI_CLAUDE_CONVERSATION_EXPORT_API
 prompt_id: PROMPT(WI-CLAUDE-CONVERSATION-EXPORT-API:WI_CLAUDE_CONVERSATION_EXPORT_API)[2026-09-11T06:20:43+00:00]
 work_item: WI-CLAUDE-CONVERSATION-EXPORT-API
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/664
-commit: 
+commit: 51ac75b790054db8ae40c05f91e837a477758b11
 created_at: 2026-09-11T06:42:58+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CLAUDE-CONVERSATION-EXPORT-API.md

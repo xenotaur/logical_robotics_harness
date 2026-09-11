@@ -2,7 +2,7 @@
 id: WI-AGENT-TEST-FRAMEWORK-GUARDRAILS
 title: Enforce unittest and canonical scripts via AGENTS.md and Ruff banned-api
 type: operation
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []
@@ -14,7 +14,7 @@ depends_on: []
 blocked_by: []
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: merged
 expected_actions: []
 required_evidence: []
 artifacts_expected:

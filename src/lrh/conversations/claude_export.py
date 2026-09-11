@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import glob
 import hashlib
 import json
 from datetime import datetime, timezone
@@ -209,7 +210,9 @@ def _resolve_transcript_path(
 
     if session_id:
         sid = session_id.strip()
-        matches = sorted(projects_dir.glob(f"*/{sid}.jsonl"))
+        if not sid or "/" in sid or "\\" in sid:
+            raise ClaudeExportError(f"invalid session id: {session_id!r}")
+        matches = sorted(projects_dir.glob(f"*/{glob.escape(sid)}.jsonl"))
         if not matches:
             raise ClaudeExportError(
                 f"no transcript file found for session id '{sid}' under {projects_dir}"
@@ -434,9 +437,11 @@ def _render_content_blocks(content: object) -> list[str]:
             lines.append(f"### Tool Call: `{name}`")
             lines.append("")
             if tool_input:
-                lines.append("```json")
-                lines.append(json.dumps(tool_input, indent=2, default=str))
-                lines.append("```")
+                lines.extend(
+                    _fenced_code_block(
+                        json.dumps(tool_input, indent=2, default=str), language="json"
+                    )
+                )
                 lines.append("")
 
         elif block_type == "tool_result":
@@ -445,15 +450,33 @@ def _render_content_blocks(content: object) -> list[str]:
             label = "Tool Result (error)" if is_error else "Tool Result"
             lines.append(f"### {label}")
             lines.append("")
-            lines.append("```")
-            lines.append(result_text)
-            lines.append("```")
+            lines.extend(_fenced_code_block(result_text))
             lines.append("")
         # Unknown block types are silently skipped.
 
     while lines and lines[-1] == "":
         lines.pop()
     return lines
+
+
+def _fenced_code_block(content: str, *, language: str = "") -> list[str]:
+    """Wrap content in a Markdown code fence long enough not to be closed early.
+
+    A fixed triple-backtick fence can be closed prematurely by a backtick run
+    already present in the content (e.g. a command's own Markdown output).
+    Using a fence one backtick longer than the longest run in the content
+    guarantees the fence cannot collide with it.
+    """
+    longest_run = 0
+    current_run = 0
+    for char in content:
+        if char == "`":
+            current_run += 1
+            longest_run = max(longest_run, current_run)
+        else:
+            current_run = 0
+    fence = "`" * max(3, longest_run + 1)
+    return [f"{fence}{language}", content, fence]
 
 
 def _render_tool_result_content(content: object) -> str:
@@ -478,8 +501,8 @@ def _render_attachment(step: Mapping[str, object]) -> list[str]:
     return [
         f"### System Attachment ({attachment_type})",
         "",
-        "```json",
-        json.dumps(attachment, indent=2, default=str),
-        "```",
+        *_fenced_code_block(
+            json.dumps(attachment, indent=2, default=str), language="json"
+        ),
         "",
     ]

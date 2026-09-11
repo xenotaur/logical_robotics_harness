@@ -316,6 +316,105 @@ class TestClaudeExport(unittest.TestCase):
         )
         self.assertIn(export_manifest.KIND_CLAUDE, export_manifest.SUPPORTED_KINDS)
 
+    def test_resolve_transcript_path_session_id_rejects_glob_metacharacters(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            project_dir = tmp_path / "projects" / "proj"
+            project_dir.mkdir(parents=True)
+            (project_dir / "real-session.jsonl").write_text("{}\n", encoding="utf-8")
+
+            # A session id of "*" must not glob-match an unrelated transcript.
+            with self.assertRaisesRegex(
+                claude_export.ClaudeExportError, "no transcript file found"
+            ):
+                claude_export._resolve_transcript_path(
+                    transcript_path=None,
+                    session_id="*",
+                    app_data_dir=tmp_path,
+                    latest=False,
+                )
+
+    def test_resolve_transcript_path_session_id_rejects_path_separator(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            with self.assertRaisesRegex(
+                claude_export.ClaudeExportError, "invalid session id"
+            ):
+                claude_export._resolve_transcript_path(
+                    transcript_path=None,
+                    session_id="../escape",
+                    app_data_dir=tmp_path,
+                    latest=False,
+                )
+
+    def test_resolve_transcript_path_session_id_with_literal_glob_characters(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            project_dir = tmp_path / "projects" / "proj"
+            project_dir.mkdir(parents=True)
+            sid = "sess[1]"
+            (project_dir / f"{sid}.jsonl").write_text("{}\n", encoding="utf-8")
+
+            resolved = claude_export._resolve_transcript_path(
+                transcript_path=None,
+                session_id=sid,
+                app_data_dir=tmp_path,
+                latest=False,
+            )
+            self.assertEqual(resolved, project_dir / f"{sid}.jsonl")
+
+    def test_tool_result_containing_backticks_does_not_break_fence(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(
+                source_file,
+                [
+                    {
+                        "type": "user",
+                        "message": {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": "toolu_1",
+                                    "content": "```python\nprint('hi')\n```",
+                                    "is_error": False,
+                                }
+                            ],
+                        },
+                    },
+                ],
+            )
+
+            res = claude_export.convert_claude_session(source_file)
+            self.assertIn("print('hi')", res.markdown)
+            # The wrapping fence must be longer than the content's own
+            # embedded triple-backtick run, so the content's "```python"/
+            # "```" lines stay nested data rather than closing the block
+            # early. The whole original content must therefore appear
+            # intact, verbatim, between the (4-backtick) wrapping fences.
+            self.assertIn(
+                "````\n```python\nprint('hi')\n```\n````",
+                res.markdown,
+            )
+
+    def test_fenced_code_block_uses_minimum_three_backticks(self) -> None:
+        block = claude_export._fenced_code_block("no backticks here")
+        self.assertEqual(block[0], "```")
+        self.assertEqual(block[2], "```")
+
+    def test_fenced_code_block_extends_past_embedded_run(self) -> None:
+        content = "before ```` after"
+        block = claude_export._fenced_code_block(content)
+        fence = block[0]
+        self.assertEqual(fence, "`" * 5)
+        self.assertNotIn(fence, content)
+
 
 if __name__ == "__main__":
     unittest.main()

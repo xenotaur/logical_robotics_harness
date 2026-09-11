@@ -62,4 +62,8 @@ Step 6 thread-resolution verdict: **green**.
 - Step 8 (readiness report) still needs to: re-fetch CI against the
   post-push `HEAD` after this record is committed, and re-run
   REVIEW-LANDED against this `_CONFIRM` commit.
-- `commit:` is `pending` until this record is committed.
+- ~~`commit:` is `pending` until this record is committed.~~ Filled in
+  (`fd2626d5`, then a further follow-up commit moved `HEAD` again to
+  `d5356cfb` for the CI/REVIEW-LANDED re-check) — this note was stale as
+  soon as the field was backfilled; caught by a substitute self-review
+  pass on this same `_CONFIRM` commit.

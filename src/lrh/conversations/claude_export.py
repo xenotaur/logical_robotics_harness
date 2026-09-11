@@ -332,9 +332,36 @@ def _load_jsonl_steps(path: Path) -> tuple[list[dict], list[str]]:
     return steps, [f"{path.name}: {warning}" for warning in warnings]
 
 
+def _is_genuine_human_turn(step: Mapping[str, object]) -> bool:
+    """Return True if a type=="user" step carries human-authored content.
+
+    A tool_result reply is also delivered as a type=="user" record, with
+    message.content a list containing a {"type": "tool_result", ...} block
+    rather than actual human-typed text. Such records are not human turns.
+    """
+    message = step.get("message")
+    if not isinstance(message, Mapping):
+        return False
+    content = message.get("content")
+    if isinstance(content, str):
+        return True
+    if isinstance(content, list):
+        return any(
+            not (isinstance(block, Mapping) and block.get("type") == "tool_result")
+            for block in content
+        )
+    return False
+
+
 def _count_turns(steps: Sequence[Mapping[str, object]]) -> int:
-    """Count user turns in step payload."""
-    return sum(1 for step in steps if step.get("type") == "user" and "message" in step)
+    """Count genuine human user turns in step payload."""
+    return sum(
+        1
+        for step in steps
+        if step.get("type") == "user"
+        and "message" in step
+        and _is_genuine_human_turn(step)
+    )
 
 
 def _count_messages(steps: Sequence[Mapping[str, object]]) -> int:

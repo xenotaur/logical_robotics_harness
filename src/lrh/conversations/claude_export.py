@@ -6,6 +6,7 @@ import dataclasses
 import glob
 import hashlib
 import json
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -69,12 +70,13 @@ def convert_claude_session(
 
     subagents = _find_subagent_transcripts(path)
 
-    rendered_body = _render_claude_transcript(
+    rendered_body, subagent_warnings = _render_claude_transcript(
         steps,
         include_system_attachments=include_system_attachments,
         subagents=subagents,
         include_subagents=include_subagents,
     )
+    warnings.extend(subagent_warnings)
     body = rendered_body if rendered_body.endswith("\n") else f"{rendered_body}\n"
 
     scan_res: sensitivity.SensitiveScanResult | None = None
@@ -127,12 +129,12 @@ def convert_claude_session(
 
     if output_path is not None:
         out = output_path.expanduser()
+        _reject_source_output_collision(path, out)
         if out.exists() and not force:
             raise FileExistsError(f"output path already exists: {out}")
         out.parent.mkdir(parents=True, exist_ok=True)
         try:
-            out.write_text(full_markdown, encoding="utf-8")
-            _chmod_private_file(out)
+            _write_private_text(out, full_markdown)
         except OSError as err:
             raise ClaudeExportError(
                 f"could not write output export file: {out}"
@@ -145,11 +147,46 @@ def convert_claude_session(
     )
 
 
-def _chmod_private_file(path: Path) -> None:
+def _write_private_text(path: Path, content: str) -> None:
+    """Write text to path with user-only (0600) permissions from creation.
+
+    Writing via ``Path.write_text`` and chmod-ing afterward leaves a window,
+    under a permissive umask (e.g. 022), where the file is briefly created
+    with broader default permissions before the chmod call narrows them —
+    and if the chmod call itself silently fails, that exposure is permanent.
+    Passing an explicit 0o600 mode to ``os.open`` avoids the window: POSIX
+    applies ``mode & ~umask``, and no typical umask can widen 0o600's
+    already-owner-only bits, so the file is never observably more open than
+    0o600 at any point after creation.
+    """
+    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+        fchmod = getattr(os, "fchmod", None)
+        if fchmod is not None:
+            try:
+                fchmod(handle.fileno(), 0o600)
+            except OSError:
+                pass
+        handle.write(content)
+
+
+def _reject_source_output_collision(source: Path, destination: Path) -> None:
+    if destination.exists():
+        try:
+            if source.samefile(destination):
+                raise ClaudeExportError(
+                    "transcript source and output path must refer to different files"
+                )
+        except OSError:
+            pass
     try:
-        path.chmod(0o600)
+        same_path = source.resolve(strict=True) == destination.resolve(strict=False)
     except OSError:
-        pass
+        same_path = source.absolute() == destination.absolute()
+    if same_path:
+        raise ClaudeExportError(
+            "transcript source and output path must refer to different files"
+        )
 
 
 def resolve_claude_archive_root(archive_root: str | Path | None = None) -> Path:
@@ -284,15 +321,15 @@ def _parse_jsonl_lines(raw_text: str) -> tuple[list[dict], list[str]]:
     return steps, warnings
 
 
-def _load_jsonl_steps(path: Path) -> list[dict]:
-    """Best-effort load of step objects from a subagent transcript file."""
+def _load_jsonl_steps(path: Path) -> tuple[list[dict], list[str]]:
+    """Load step objects and filename-qualified warnings from a subagent transcript."""
 
     try:
         raw_text = path.read_text(encoding="utf-8")
-    except (OSError, UnicodeDecodeError):
-        return []
-    steps, _warnings = _parse_jsonl_lines(raw_text)
-    return steps
+    except (OSError, UnicodeDecodeError) as err:
+        return [], [f"{path.name}: could not read subagent transcript: {err}"]
+    steps, warnings = _parse_jsonl_lines(raw_text)
+    return steps, [f"{path.name}: {warning}" for warning in warnings]
 
 
 def _count_turns(steps: Sequence[Mapping[str, object]]) -> int:
@@ -315,8 +352,14 @@ def _render_claude_transcript(
     include_system_attachments: bool,
     subagents: Sequence[tuple[Path, dict]],
     include_subagents: bool,
-) -> str:
-    """Render Claude Code JSONL step objects into readable Markdown."""
+) -> tuple[str, list[str]]:
+    """Render Claude Code JSONL step objects into readable Markdown.
+
+    Returns the rendered Markdown body and any filename-qualified warnings
+    collected while loading inlined subagent transcripts (only populated
+    when ``include_subagents`` is True; referenced-only subagents are never
+    parsed, so they never contribute warnings).
+    """
 
     title: str | None = None
     for step in steps:
@@ -329,6 +372,7 @@ def _render_claude_transcript(
         f"# {title}" if title else "# Claude Code Session Transcript",
         "",
     ]
+    subagent_warnings: list[str] = []
 
     for step in steps:
         step_type = step.get("type")
@@ -373,13 +417,15 @@ def _render_claude_transcript(
             for jsonl_file, _meta in subagents:
                 lines.append(f"### Subagent transcript: {jsonl_file.stem}")
                 lines.append("")
-                sub_steps = _load_jsonl_steps(jsonl_file)
-                sub_body = _render_claude_transcript(
+                sub_steps, sub_load_warnings = _load_jsonl_steps(jsonl_file)
+                subagent_warnings.extend(sub_load_warnings)
+                sub_body, sub_render_warnings = _render_claude_transcript(
                     sub_steps,
                     include_system_attachments=include_system_attachments,
                     subagents=(),
                     include_subagents=False,
                 )
+                subagent_warnings.extend(sub_render_warnings)
                 # Drop the sub-transcript's own top-level heading; it is
                 # nested under this "### Subagent transcript" heading instead.
                 sub_lines = sub_body.splitlines()
@@ -391,7 +437,7 @@ def _render_claude_transcript(
     while lines and lines[-1] == "":
         lines.pop()
 
-    return "\n".join(lines)
+    return "\n".join(lines), subagent_warnings
 
 
 def _render_message_block(role_label: str, step: Mapping[str, object]) -> list[str]:

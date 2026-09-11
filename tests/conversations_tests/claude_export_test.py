@@ -415,6 +415,86 @@ class TestClaudeExport(unittest.TestCase):
         self.assertEqual(fence, "`" * 5)
         self.assertNotIn(fence, content)
 
+    def test_convert_claude_session_rejects_source_output_alias_even_with_force(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(source_file, [_user_record("hi")])
+            original_content = source_file.read_text(encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                claude_export.ClaudeExportError, "must refer to different files"
+            ):
+                claude_export.convert_claude_session(
+                    source_file, output_path=source_file, force=True
+                )
+
+            # The source file must be completely untouched.
+            self.assertEqual(source_file.read_text(encoding="utf-8"), original_content)
+
+    def test_convert_claude_session_output_file_created_private_from_start(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(source_file, [_user_record("hi")])
+            out_file = tmp_path / "export.md"
+
+            claude_export.convert_claude_session(source_file, output_path=out_file)
+
+            self.assertEqual(out_file.stat().st_mode & 0o777, 0o600)
+
+    def test_convert_claude_session_propagates_subagent_warnings_when_included(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess-parent.jsonl"
+            _write_jsonl(source_file, [_user_record("dispatch a subagent")])
+
+            subagents_dir = tmp_path / "sess-parent" / "subagents"
+            subagents_dir.mkdir(parents=True)
+            sub_jsonl = subagents_dir / "agent-broken.jsonl"
+            sub_jsonl.write_text(
+                json.dumps(_user_record("valid step")) + "\nnot valid json {{{\n",
+                encoding="utf-8",
+            )
+
+            res = claude_export.convert_claude_session(
+                source_file, include_subagents=True
+            )
+            self.assertTrue(
+                any(
+                    "agent-broken.jsonl" in warning and "invalid JSON" in warning
+                    for warning in res.manifest.warnings
+                ),
+                res.manifest.warnings,
+            )
+
+    def test_convert_claude_session_no_subagent_warnings_when_not_included(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess-parent.jsonl"
+            _write_jsonl(source_file, [_user_record("dispatch a subagent")])
+
+            subagents_dir = tmp_path / "sess-parent" / "subagents"
+            subagents_dir.mkdir(parents=True)
+            sub_jsonl = subagents_dir / "agent-broken.jsonl"
+            sub_jsonl.write_text(
+                json.dumps(_user_record("valid step")) + "\nnot valid json {{{\n",
+                encoding="utf-8",
+            )
+
+            # Referenced-only mode never parses subagent transcripts, so it
+            # must never surface their warnings either.
+            res = claude_export.convert_claude_session(source_file)
+            self.assertEqual(res.manifest.warnings, ())
+
 
 if __name__ == "__main__":
     unittest.main()

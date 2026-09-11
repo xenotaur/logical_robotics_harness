@@ -119,9 +119,7 @@ class ConversationCliTest(unittest.TestCase):
 
             self.assertEqual(completed.returncode, 0, msg=completed.stderr)
             self.assertTrue(output_path.exists())
-            self.assertIn(
-                "Exported Claude Code session transcript", completed.stdout
-            )
+            self.assertIn("Exported Claude Code session transcript", completed.stdout)
             self.assertIn(
                 "hello from the registered CLI dispatch",
                 output_path.read_text(encoding="utf-8"),

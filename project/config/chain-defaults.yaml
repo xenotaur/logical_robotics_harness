@@ -10,5 +10,5 @@ stop_work_condition: "Any failing CI check, a reviewer finding that isn't Clear-
 chain_init_confirmation: skip_if_opted_in
 closeout_with_merge: true
 confirm_fixes_batch: auto_unless_unusual
-confirmed_commit: 871e93a3a14a82fe57100370bbf56a99fe794fe4
-confirmed_at: 2026-09-09T20:04:23Z
+confirmed_commit: 234a495e5842c34c5d65606718446213e28e8d57
+confirmed_at: 2026-09-10T20:49:32Z

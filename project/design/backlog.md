@@ -76,8 +76,25 @@ metadata-only inspection, and archive-viewer safety boundaries.
 `/lrh-export` or non-Codex export adapters on top of a Codex-only manifest
 contract.
 
+**Naming (added 2026-09-09, during `PROP-LRH-CLAUDE-CONVERSATION-EXPORTER`
+design):** when this umbrella is finally designed, its own work should also
+rename the shipped per-vendor skills to share its `/lrh-export` prefix —
+`lrh-antigravity-export` → `lrh-export-antigravity` and
+`lrh-codex-export` → `lrh-export-codex` — so the whole family reads as one
+command with variants (`/lrh-export`, `/lrh-export-antigravity`,
+`/lrh-export-codex`, `/lrh-export-claude`), matching the `export-<vendor>-*`
+prefix the `lrh conversation` CLI subcommands already use
+(`export-antigravity-session`, `export-codex-thread`, `export-claude-session`).
+Do not do this rename as a standalone cosmetic PR before the umbrella itself
+is designed — both already-shipped names are quoted verbatim in multiple
+`status: resolved`/`adopted` documents, so the rename should land together
+with the umbrella's own functional work, not ahead of it. The not-yet-shipped
+Claude exporter skill already adopted the prefix name (`lrh-export-claude`)
+up front, since nothing there was live yet to break.
+
 **Related:** PR #510; PR #514; `src/lrh/conversations/export_manifest.py`;
 `docs/reference/cli/conversation.md`;
+`project/design/proposals/proposed/lrh-claude-conversation-exporter/00_proposal.md`;
 `project/design/proposals/proposed/lrh-codex-app-server-conversation-export/00_proposal.md`;
 `project/work_items/resolved/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md`.
 

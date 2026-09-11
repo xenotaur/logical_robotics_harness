@@ -619,6 +619,49 @@ class TestClaudeExportCli(unittest.TestCase):
             self.assertTrue(expected_out.exists())
             self.assertEqual(expected_out.stat().st_mode & 0o777, 0o600)
 
+    def test_cli_out_unresolvable_home_reports_clean_error(self) -> None:
+        # A named-user tilde that cannot be resolved makes Path.expanduser()
+        # raise RuntimeError; the CLI must report this as its documented
+        # concise nonzero error, not an unhandled traceback.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(source_file, [_user_record("hi")])
+
+            stderr_buf = io.StringIO()
+            with contextlib.redirect_stderr(stderr_buf):
+                code = claude_export.run_convert_claude_session_cli(
+                    [
+                        "--transcript-path",
+                        str(source_file),
+                        "--out",
+                        "~this-user-definitely-does-not-exist-xyz123/export.md",
+                    ]
+                )
+            self.assertEqual(code, 1)
+            self.assertIn("could not resolve --out path", stderr_buf.getvalue())
+
+    def test_cli_transcript_path_unresolvable_home_reports_clean_error(self) -> None:
+        stderr_buf = io.StringIO()
+        with contextlib.redirect_stderr(stderr_buf):
+            code = claude_export.run_convert_claude_session_cli(
+                [
+                    "--transcript-path",
+                    "~this-user-definitely-does-not-exist-xyz123/sess.jsonl",
+                ]
+            )
+        self.assertEqual(code, 1)
+        self.assertIn("could not resolve transcript path", stderr_buf.getvalue())
+
+    def test_expand_user_path_wraps_runtime_error(self) -> None:
+        with self.assertRaisesRegex(
+            claude_export.ClaudeExportError, "could not resolve test path"
+        ):
+            claude_export._expand_user_path(
+                Path("~this-user-definitely-does-not-exist-xyz123/x"),
+                description="test path",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

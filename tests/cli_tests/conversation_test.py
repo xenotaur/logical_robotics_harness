@@ -1,3 +1,4 @@
+import json
 import os
 import pathlib
 import subprocess
@@ -73,6 +74,58 @@ class ConversationCliTest(unittest.TestCase):
         self.assertIn("current-codex-thread-id", completed.stdout)
         self.assertIn("import-codex-exports", completed.stdout)
         self.assertIn("inspect-export", completed.stdout)
+
+    def test_conversation_help_lists_export_claude_session(self) -> None:
+        completed = self._run_lrh("conversation", "--help")
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("export-claude-session", completed.stdout)
+
+    def test_export_claude_session_help_describes_scope(self) -> None:
+        completed = self._run_lrh("conversation", "export-claude-session", "--help")
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("--transcript-path", completed.stdout)
+        self.assertIn("--session-id", completed.stdout)
+        self.assertIn("--latest", completed.stdout)
+
+    def test_export_claude_session_converts_real_transcript(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = pathlib.Path(temp_dir)
+            transcript_path = temp_path / "session.jsonl"
+            transcript_path.write_text(
+                json.dumps(
+                    {
+                        "type": "user",
+                        "message": {
+                            "role": "user",
+                            "content": "hello from the registered CLI dispatch",
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            output_path = temp_path / "export.md"
+
+            completed = self._run_lrh(
+                "conversation",
+                "export-claude-session",
+                "--transcript-path",
+                str(transcript_path),
+                "--out",
+                str(output_path),
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertTrue(output_path.exists())
+            self.assertIn(
+                "Exported Claude Code session transcript", completed.stdout
+            )
+            self.assertIn(
+                "hello from the registered CLI dispatch",
+                output_path.read_text(encoding="utf-8"),
+            )
 
     def test_conversation_current_codex_thread_id_reports_pointer_only(self) -> None:
         completed = self._run_lrh(

@@ -48,7 +48,7 @@ def convert_claude_session(
 ) -> ClaudeExport:
     """Convert a Claude Code session JSONL transcript into a private Markdown export."""
 
-    path = transcript_path.expanduser()
+    path = _expand_user_path(transcript_path, description="transcript path")
     if not path.exists():
         raise ClaudeExportError(f"transcript file does not exist: {path}")
     if not path.is_file():
@@ -130,7 +130,7 @@ def convert_claude_session(
     full_markdown = f"{manifest_obj.to_frontmatter()}\n{body}"
 
     if output_path is not None:
-        out = output_path.expanduser()
+        out = _expand_user_path(output_path, description="output path")
         _reject_source_output_collision(path, out)
         if out.exists() and not force:
             raise FileExistsError(f"output path already exists: {out}")
@@ -191,6 +191,21 @@ def _reject_source_output_collision(source: Path, destination: Path) -> None:
         )
 
 
+def _expand_user_path(path: Path, *, description: str) -> Path:
+    """Expand ``~`` in a path, converting an unresolvable-home failure into
+    a clean ``ClaudeExportError`` instead of an unhandled ``RuntimeError``.
+
+    ``Path.expanduser()`` raises ``RuntimeError`` when the home directory
+    for a named user (e.g. ``~missing-user/export.md``) cannot be resolved
+    on the current platform — that failure otherwise surfaces as a raw
+    Python traceback instead of this module's documented concise error.
+    """
+    try:
+        return path.expanduser()
+    except RuntimeError as err:
+        raise ClaudeExportError(f"could not resolve {description}: {err}") from err
+
+
 def resolve_claude_archive_root(archive_root: str | Path | None = None) -> Path:
     """Resolve the Claude export archive root under the session archive."""
     root = prompt_workflow_sessions.resolve_archive_root(archive_root)
@@ -242,9 +257,9 @@ def _resolve_transcript_path(
     """Resolve a Claude Code transcript path by explicit path, session id, or latest."""
 
     if transcript_path:
-        return Path(transcript_path).expanduser()
+        return _expand_user_path(Path(transcript_path), description="transcript path")
 
-    app_dir = app_data_dir.expanduser()
+    app_dir = _expand_user_path(app_data_dir, description="app data directory")
     projects_dir = app_dir / "projects"
 
     if session_id:
@@ -374,7 +389,11 @@ def run_convert_claude_session_cli(
         return 1
 
     if args.out:
-        output_path = Path(args.out).expanduser()
+        try:
+            output_path = _expand_user_path(Path(args.out), description="--out path")
+        except ClaudeExportError as err:
+            print(f"error: {err}", file=sys.stderr)
+            return 1
     else:
         try:
             archive_root = resolve_claude_archive_root(args.archive_root)

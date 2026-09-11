@@ -1,5 +1,5 @@
 ---
-resolution: Implemented and merged in PR #664 (commit 07fbc9c5). Core Python API (claude_export.py) with record-classification rendering, subagent handling, and manifest support; two review rounds fixed 8 findings total including a P1 private-file-permissions race and a data-loss guard. One non-blocking follow-up (turn_count overcounting) tracked as a separate task.
+resolution: "Implemented and merged in PR #664 (commit 07fbc9c5). Core Python API (claude_export.py) with record-classification rendering, subagent handling, and manifest support; two review rounds fixed 8 findings total including a P1 private-file-permissions race and a data-loss guard. One non-blocking follow-up (turn_count overcounting) tracked as a separate task."
 blocked_reason: null
 blocked: false
 id: WI-CLAUDE-CONVERSATION-EXPORT-API

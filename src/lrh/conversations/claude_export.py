@@ -237,7 +237,7 @@ def _resolve_transcript_path(
     app_data_dir: Path,
     latest: bool,
 ) -> Path:
-    """Resolve a Claude Code session transcript path by explicit path, session id, or latest."""
+    """Resolve a Claude Code transcript path by explicit path, session id, or latest."""
 
     if transcript_path:
         return Path(transcript_path).expanduser()

@@ -12,8 +12,8 @@ from pathlib import Path
 from lrh.conversations import antigravity_export, export_inspector
 
 
-def _write_transcript(tmp_path: Path, lines: list[dict | str]) -> Path:
-    transcript_file = tmp_path / "transcript.jsonl"
+def _write_transcript(target_dir: Path, lines: list[dict | str]) -> Path:
+    transcript_file = target_dir / "transcript.jsonl"
     content_lines: list[str] = []
     for item in lines:
         if isinstance(item, str):

@@ -5,7 +5,7 @@ work_item: WI-AGENT-TEST-FRAMEWORK-GUARDRAILS
 status: in_progress
 rerun_of: null
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/663
-commit: 0976c9aa
+commit: null
 created_at: 2026-09-11T06:10:57+00:00
 agent: gemini_3_8_flash
 instruction_source: project/work_items/proposed/WI-AGENT-TEST-FRAMEWORK-GUARDRAILS.md

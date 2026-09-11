@@ -11,11 +11,17 @@ from lrh.conversations.frontmatter import yaml_mapping
 
 KIND = "lrh_codex_conversation_export"
 KIND_ANTIGRAVITY = "lrh_antigravity_conversation_export"
-SUPPORTED_KINDS = (KIND, KIND_ANTIGRAVITY, "lrh_conversation_export")
+KIND_CLAUDE = "lrh_claude_conversation_export"
+SUPPORTED_KINDS = (KIND, KIND_ANTIGRAVITY, KIND_CLAUDE, "lrh_conversation_export")
 SCHEMA_VERSION = 1
 SOURCE_TOOL_CODEX = "codex"
 SOURCE_TOOL_ANTIGRAVITY = "antigravity"
-SUPPORTED_SOURCE_TOOLS = (SOURCE_TOOL_CODEX, SOURCE_TOOL_ANTIGRAVITY)
+SOURCE_TOOL_CLAUDE_CODE = "claude_code"
+SUPPORTED_SOURCE_TOOLS = (
+    SOURCE_TOOL_CODEX,
+    SOURCE_TOOL_ANTIGRAVITY,
+    SOURCE_TOOL_CLAUDE_CODE,
+)
 DEFAULT_SOURCE_ADAPTER = "codex_manual_export"
 DEFAULT_PRIVACY = "private"
 DEFAULT_AUTHORITY = "non_authoritative_context"

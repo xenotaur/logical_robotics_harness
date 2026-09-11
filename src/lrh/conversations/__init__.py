@@ -7,6 +7,12 @@ from lrh.conversations.antigravity_export import (
     resolve_antigravity_archive_root,
     run_convert_antigravity_session_cli,
 )
+from lrh.conversations.claude_export import (
+    ClaudeExport,
+    ClaudeExportError,
+    convert_claude_session,
+    resolve_claude_archive_root,
+)
 from lrh.conversations.codex_app_server_export import (
     CodexAppServerExport,
     CodexAppServerExportError,
@@ -71,6 +77,8 @@ __all__ = [
     "CodexArchiveError",
     "CodexArchiveExportResult",
     "CodexArchivePaths",
+    "ClaudeExport",
+    "ClaudeExportError",
     "CodexFileExport",
     "CodexFileExportError",
     "CodexImportResult",
@@ -98,6 +106,7 @@ __all__ = [
     "build_raw_capture",
     "archive_codex_thread",
     "convert_antigravity_session",
+    "convert_claude_session",
     "convert_codex_file",
     "export_codex_thread",
     "import_codex_export_directories",
@@ -108,6 +117,7 @@ __all__ = [
     "resolve_codex_session_identity",
     "resolve_codex_archive_root",
     "resolve_antigravity_archive_root",
+    "resolve_claude_archive_root",
     "run_convert_antigravity_session_cli",
     "statistics_for_text",
 ]

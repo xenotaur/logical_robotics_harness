@@ -3,7 +3,7 @@ execution_id: 2026_09_11_07_40_08_REDUCE_CODEX_EXPORT_FRICTION_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:REDUCE_CODEX_EXPORT_FRICTION_SELFREVIEW)[2026-09-11T07:39:53+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
+rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/662
 commit: 8f06fc45
 agent: codex_app
@@ -43,7 +43,3 @@ corrected commit was published to PR #662 at `8f06fc45`.
 # Follow-up
 
 Run confirm-fixes again against the corrected head before merge readiness.
-
-# Follow-up
-
-TODO: List deferred work.

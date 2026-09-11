@@ -1562,7 +1562,7 @@ and unblocked by this — whoever picks it up should know this tool already
 covers its import/migrate requirement and can either reuse or supersede it.
 
 **Related:** `experimental/rescue_codex_exports/README.md`;
-`project/work_items/proposed/WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT.md`.
+`project/work_items/resolved/WI-CODEX-EXPORT-DURABLE-ARCHIVE-DEFAULT.md`.
 
 ---
 

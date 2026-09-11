@@ -170,6 +170,12 @@ During task-phase validation, run `scripts/version tools` first and proceed with
 If versions are missing or mismatched, report a setup/cache issue and reconcile environment/cache before formatter debugging.
 If canonical validation fails with missing-install/import errors (for example `ModuleNotFoundError: lrh`), report a setup/bootstrap mismatch rather than a code regression.
 
+## Testing and Validation Mandate
+
+- **Use `unittest` exclusively**: All unit test cases MUST subclass `unittest.TestCase` (`STYLE.md Rule 5`). Standalone test functions and `pytest` fixtures (e.g. `tmp_path`) are strictly prohibited; `python -m unittest discover` silently ignores un-classed test functions (`Ran 0 tests`), causing unexecuted tests to mask failures.
+- **Run validation via canonical scripts**: Always run tests, linting, and formatting using `scripts/test`, `scripts/lint`, and `scripts/format --check --diff`. Never run raw `pytest tests/` or direct formatter invocations directly. Running tools directly uses whatever environment is active, bypassing repository-pinned configurations and hiding test-runner and linter incompatibilities in CI.
+- **Use standard library fixtures**: Use `tempfile.TemporaryDirectory`, `unittest.mock`, and standard library utilities for test isolation rather than external test-framework fixtures.
+
 ## Testing policy note
 
 Keep unit tests fast, deterministic, and hermetic: avoid `pip`/installer calls, package-index/network access, Git remotes, and heavyweight subprocesses in the normal unit suite. Prefer real in-process objects and temp directories, but stub/fake/mock external boundaries when needed. Put real install/build/package checks in `tests/smoke/*_smoke.py` and run them via `scripts/smoke`.

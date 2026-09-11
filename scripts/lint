@@ -86,6 +86,12 @@ if ! "${FORMAT_SCRIPT}" --check --diff "${targets[@]}"; then
     echo "Run scripts/lint --fix to apply formatting fixes."
 fi
 
+echo "Checking test framework guardrails (STYLE.md Rule 5)..."
+guardrails_failed=0
+if ! python -m lrh.control.test_guardrails tests; then
+    guardrails_failed=1
+fi
+
 # ------------------------
 # EXTRA CHECKS
 # ------------------------
@@ -107,6 +113,6 @@ fi
 # ------------------------
 # FINAL STATUS
 # ------------------------
-if [[ "$ruff_failed" -ne 0 || "$black_failed" -ne 0 || "$pylint_failed" -ne 0 || "$pyright_failed" -ne 0 ]]; then
+if [[ "$ruff_failed" -ne 0 || "$black_failed" -ne 0 || "$guardrails_failed" -ne 0 || "$pylint_failed" -ne 0 || "$pyright_failed" -ne 0 ]]; then
     exit 1
 fi

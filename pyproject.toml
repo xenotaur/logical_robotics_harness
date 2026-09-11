@@ -80,4 +80,7 @@ target-version = "py311"
 required-version = "==0.15.12"
 
 [tool.ruff.lint]
-select = ["E", "F", "I"]
+select = ["E", "F", "I", "TID"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"pytest".msg = "STYLE.md Rule 5: Use standard library unittest.TestCase subclasses; pytest is prohibited."

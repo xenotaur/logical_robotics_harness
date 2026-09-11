@@ -51,6 +51,8 @@ Runs `python -m unittest discover -s tests -p '*_test.py'`. When invoked with
 `--log` (or `LRH_LOG_REDIRECT=1`), raw subprocess output is saved to `tmp/logs/`
 and a compact 1-line summary is printed to standard output. Exits non-zero if any test fails.
 
+**Test discovery requirement**: `unittest discover` only detects tests defined as methods inside `unittest.TestCase` subclasses. Standalone test functions or `pytest` fixture-based tests are silently ignored (`Ran 0 tests in 0.000s`) or trigger import errors when `pytest` is not present in CI. All test cases must subclass `unittest.TestCase` (`STYLE.md Rule 5`). Never invoke raw `pytest tests/`.
+
 On failure: use `view_file` to inspect the complete failure traceback in
 `tmp/logs/test_<timestamp>.log`. Fix the underlying issue — do not skip or mark
 tests as expected failures unless the test itself is the bug. Wrap all log quotes and

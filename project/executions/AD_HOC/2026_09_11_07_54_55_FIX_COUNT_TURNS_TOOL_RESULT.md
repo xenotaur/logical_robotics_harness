@@ -2,14 +2,14 @@
 execution_id: 2026_09_11_07_54_55_FIX_COUNT_TURNS_TOOL_RESULT
 prompt_id: PROMPT(AD_HOC:FIX_COUNT_TURNS_TOOL_RESULT)[2026-09-11T07:54:16+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/665
-commit: afd247e5
+commit: 6e96b35e3f25bcf5c0b8146f25fcd0166ad45240
 created_at: 2026-09-11T07:54:55+00:00
 agent: claude_app
 instruction_source: "ad-hoc task -- fix _count_turns() overcounting tool_result-only user records as human turns, per finding surfaced in WI-CLAUDE-CONVERSATION-EXPORT-API's PR #664 self-review"
-session_transcript: pending
+session_transcript: claude-app:f889d98c-2429-44d5-832a-d7c633588c68
 ---
 
 # Summary

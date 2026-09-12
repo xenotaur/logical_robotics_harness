@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import os
 import pathlib
 import typing
 
@@ -93,6 +94,9 @@ def parse_execution_record(path: pathlib.Path) -> ExecutionRecord | None:
     )
 
 
+_IGNORED_DIRS = {".git", ".venv", "node_modules", "__pycache__"}
+
+
 def load_execution_records(
     project_root: str | pathlib.Path,
     output_root: str | pathlib.Path = "project/executions",
@@ -101,7 +105,20 @@ def load_execution_records(
 
     execution_root = pathlib.Path(project_root) / output_root
     records: list[ExecutionRecord] = []
-    for path in sorted(execution_root.rglob("*")):
+
+    # ⚡ Bolt Optimization: Use os.walk with directory pruning instead of
+    # pathlib.rglob. rglob traverses all directories blindly, causing severe
+    # performance penalties when encountering large dependency folders (.venv,
+    # node_modules) inside the output root.
+    paths_to_process = []
+    for dirpath, dirnames, filenames in os.walk(execution_root, topdown=True):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+        for f in filenames:
+            # Case-insensitive check, analogous to pathlib.Path.rglob's behavior
+            if f.lower().endswith(".md"):
+                paths_to_process.append(pathlib.Path(dirpath) / f)
+
+    for path in sorted(paths_to_process):
         # `.glob("**/*.md")` is case-sensitive regardless of the
         # underlying filesystem's own case-sensitivity -- the identical
         # gap already fixed in
@@ -112,7 +129,7 @@ def load_execution_records(
         # would otherwise be silently invisible to `--prompt-id` lookup,
         # `update-execution`, and exploratory search, even though the
         # sibling `--slug` lookup already finds it correctly.
-        if not path.is_file() or path.suffix.lower() != ".md":
+        if not path.is_file():
             continue
         record = parse_execution_record(path)
         if record is not None:

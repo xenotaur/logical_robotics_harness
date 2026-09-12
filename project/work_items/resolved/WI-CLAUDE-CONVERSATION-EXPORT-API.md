@@ -81,6 +81,20 @@ Claude Code's own `/export` slash command is unavailable in the Claude Desktop a
 9. Export new public names (`ClaudeExport`, `ClaudeExportError`, `convert_claude_session`, `resolve_claude_archive_root`) from `src/lrh/conversations/__init__.py`.
 10. Add unit tests under `tests/conversations_tests/claude_export_test.py` covering rendering, discovery, and manifest construction.
 
+**Correction (supersedes item 7's `turn_count` description):** `turn_count`
+no longer counts every `type=="user"` record carrying `message`, as
+originally specified above. A `tool_result` reply is also delivered as a
+`type=="user"` record whose `message.content` is a list containing a
+`{"type": "tool_result", ...}` block, not human-typed text; counting it
+overcounted real human turns whenever a session included tool calls.
+`_count_turns()` in `src/lrh/conversations/claude_export.py` now counts only
+`type=="user"` records whose `message.content` is a plain string, or a list
+containing at least one non-`tool_result` block. Fixed in PR #665
+(`fix(claude-export): exclude tool_result-only records from turn_count`),
+flagged during this work item's own PR #664 self-review as non-blocking at
+the time since it is a cosmetic/statistics-only field with no control-flow
+impact.
+
 ## Non-Goals
 
 - Does not implement the CLI subcommand — that is `WI-CLAUDE-CONVERSATION-EXPORT-CLI`.

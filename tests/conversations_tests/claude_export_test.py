@@ -30,6 +30,23 @@ def _assistant_text_record(text: str) -> dict:
     }
 
 
+def _tool_result_user_record(tool_use_id: str, content: str) -> dict:
+    return {
+        "type": "user",
+        "message": {
+            "role": "user",
+            "content": [
+                {
+                    "type": "tool_result",
+                    "tool_use_id": tool_use_id,
+                    "content": content,
+                    "is_error": False,
+                }
+            ],
+        },
+    }
+
+
 class TestClaudeExport(unittest.TestCase):
     def test_convert_claude_session_basic(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -205,6 +222,58 @@ class TestClaudeExport(unittest.TestCase):
             self.assertIn('"command": "ls"', res.markdown)
             self.assertIn("Tool Result", res.markdown)
             self.assertIn("README.md", res.markdown)
+            self.assertEqual(res.manifest.transcript_statistics.turn_count, 0)
+
+    def test_turn_count_excludes_tool_result_only_user_records(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(
+                source_file,
+                [
+                    _user_record("List the files."),
+                    {
+                        "type": "assistant",
+                        "message": {
+                            "role": "assistant",
+                            "content": [
+                                {
+                                    "type": "tool_use",
+                                    "id": "toolu_1",
+                                    "name": "Bash",
+                                    "input": {"command": "ls"},
+                                }
+                            ],
+                        },
+                    },
+                    _tool_result_user_record("toolu_1", "README.md\n"),
+                    _assistant_text_record("Here they are."),
+                    _user_record("Thanks, that's all."),
+                ],
+            )
+
+            res = claude_export.convert_claude_session(source_file)
+
+            self.assertEqual(res.manifest.transcript_statistics.turn_count, 2)
+
+    def test_count_turns_counts_list_form_human_content(self) -> None:
+        # A user record whose content is a list is not exclusively a
+        # tool_result carrier -- it also covers a genuine human turn that
+        # includes a non-tool_result block (e.g. pasted text or an image).
+        # This proves the `any(...)` branch in `_is_genuine_human_turn`
+        # correctly counts such a record, not just the plain-string and
+        # tool_result-only-list cases covered elsewhere.
+        steps = [
+            {
+                "type": "user",
+                "message": {
+                    "role": "user",
+                    "content": [{"type": "text", "text": "Please retry that."}],
+                },
+            }
+        ]
+
+        self.assertEqual(claude_export._count_turns(steps), 1)
 
     def test_convert_claude_session_subagents_referenced_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

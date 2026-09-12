@@ -190,6 +190,16 @@ plumbing is reused without modification: `sensitivity.py` heuristic scan,
 the `umask 077` / `chmod 0600` private-file pattern, and `export_inspector.py`
 source-hash verification.
 
+**Correction (superseding the `turn_count` sentence above):** `turn_count` no
+longer counts every `type=="user"` record carrying `message`. A `tool_result`
+reply is also delivered as a `type=="user"` record whose `message.content` is
+a list containing a `{"type": "tool_result", ...}` block, not human-typed
+text; counting it overcounted real human turns whenever a session included
+tool calls. `_count_turns()` in `src/lrh/conversations/claude_export.py` now
+counts only `type=="user"` records whose `message.content` is a plain string,
+or a list containing at least one non-`tool_result` block. See PR #665
+(`fix(claude-export): exclude tool_result-only records from turn_count`).
+
 ### Decision 7: Archive layout
 
 **Chosen:** `<archive_root>/claude/exports/<YYYY>/<MM>/<session-id>.md`, matching

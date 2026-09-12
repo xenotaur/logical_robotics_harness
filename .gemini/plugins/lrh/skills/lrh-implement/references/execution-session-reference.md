@@ -249,14 +249,16 @@ hand-edited.
   the host id and PR are still worth recording either way (see
   `references/closeout-workflow.md`'s "Session identity capture" section).
 
-### `lrh sessions` — the Stage 2 archive reconciler
+### `lrh sessions` — archive reconciler, report, and retention hooks
 
-Per `PROP-LRH-SESSION-ARCHIVE-SYNC` Stage 2
+Per `PROP-LRH-SESSION-ARCHIVE-SYNC`, Stage 2
 (`WI-SESSION-ARCHIVE-SYNC-RECONCILER`): Stage 1 above closes the *forward*
 half of the identity gap (new sessions capture both ids going forward).
 `lrh sessions sync`/`discover`/`link` close the *retroactive* half — a
 durable local archive for transcripts that already exist, plus harvesting
-`/export` zip `metadata.json` for pointers that already dangle.
+`/export` zip `metadata.json` for pointers that already dangle. Stage 3 adds
+metadata-only `report`; Stage 4 adds closeout-triggered sync and a weekly
+schedule-generation path.
 
 ```bash
 lrh sessions sync \
@@ -316,7 +318,26 @@ id is unknown to the index, or — should a data anomaly ever alias the same
 child id under two host ids — if the resolution is ambiguous; it never
 guesses.
 
-Does not implement `lrh sessions report` (Stage 3) or index *enrichment*
-(era-general keys beyond `claude-app:`, multi-export dedup) — Stage 3
-builds on this same index, `sync` only writes to it. Does not implement
-the weekly scheduled sync or `SessionEnd` hook (Stage 4).
+```bash
+lrh sessions report [--archive-root <path>] [--project-root .] [--since-created-at <iso>] [--format text|json]
+```
+
+Reports pending, dangling, unarchived, unsupported, and missing
+`session_transcript` pointers without reading raw transcript bodies.
+
+```bash
+lrh sessions closeout-sync [sync-options] [--dry-run]
+```
+
+Runs the closeout-triggered sync wrapper. `/lrh-closeout` calls this command
+path after confirmed control-plane updates and before validation so the private
+archive is refreshed as part of normal landing workflow.
+
+```bash
+lrh sessions schedule [--project-root .] [--output <plist>] [--lrh-command <path>] [--weekday 0-7] [--hour 0-23] [--minute 0-59]
+```
+
+Renders or writes an inspectable weekly launchd plist for `lrh sessions sync`.
+It does not install or load the job; humans use launchd tooling to inspect,
+load, and disable the generated plist. The `SessionEnd` hook remains optional
+and is not required for the retention guarantee.

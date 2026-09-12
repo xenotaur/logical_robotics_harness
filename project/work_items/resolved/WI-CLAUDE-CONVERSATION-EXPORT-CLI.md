@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented in PR #666: registered the export-claude-session CLI subcommand under lrh conversation, backed by the Tranche 1 API, with docs and tests."
 blocked_reason: null
 blocked: false
 id: WI-CLAUDE-CONVERSATION-EXPORT-CLI
 title: Implement lrh conversation export-claude-session CLI subcommand
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

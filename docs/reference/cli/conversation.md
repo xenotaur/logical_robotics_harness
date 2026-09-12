@@ -392,3 +392,82 @@ On success it prints a concise deterministic summary, including output path,
 page count when available, metadata status, and warning count. When frontmatter
 is written, the summary includes privacy and sensitivity status. Extraction
 warnings and potential sensitivity findings are printed as warnings.
+
+## `lrh conversation export-claude-session`
+
+```bash
+lrh conversation export-claude-session --latest
+lrh conversation export-claude-session --transcript-path PATH --out OUTPUT.md
+lrh conversation export-claude-session --session-id SESSION_ID
+```
+
+Converts a local Claude Code session transcript log (JSONL) into a private,
+non-authoritative Markdown export artifact, mirroring
+`export-antigravity-session`'s design: a direct local-file read, not a live
+API call, since Claude Code exposes no documented RPC boundary for reading a
+finished session's full history. Claude Code's own documentation describes
+its JSONL transcript format as internal and version-dependent, so this
+command applies the same defensive-parsing discipline as the Antigravity
+adapter: malformed lines are collected as warnings rather than treated as
+fatal errors.
+
+The command is local and private-by-default:
+
+- it writes one Markdown file at `--out`, or a durable session-archive path
+  when `--out` is omitted;
+- generated frontmatter defaults to `privacy: private` and
+  `authority: non_authoritative_context`;
+- the source SHA-256, export timestamp, adapter version, warning list,
+  sensitivity metadata, and transcript statistics are preserved in the
+  frontmatter;
+- the output file is created with user-only (`0600`) permissions from the
+  first write, not chmod-ed afterward;
+- passing the transcript itself as `--out` is rejected, even with `--force`;
+- sensitivity scanning is heuristic and does not certify that output is safe
+  to publish.
+
+### Session discovery
+
+Exactly one of the following is required:
+
+- `--transcript-path PATH` — an explicit path to a session transcript JSONL
+  file.
+- `--session-id SESSION_ID` — discover the transcript by globbing
+  `<app-data-dir>/projects/*/<SESSION_ID>.jsonl`. More than one match is an
+  error requiring `--transcript-path` to disambiguate, not a silent
+  first-match pick; the session id itself must not contain a path separator
+  or glob metacharacter (both are rejected/escaped before matching).
+- `--latest` — discover the most recently modified transcript file under
+  `<app-data-dir>/projects/*/*.jsonl`.
+
+### Options
+
+- `--app-data-dir APP_DATA_DIR` — path to Claude Code's application data
+  directory (default: `$CLAUDE_CONFIG_DIR`, or `~/.claude` if unset).
+- `--out OUTPUT.md` — Markdown export output path (default: durable session
+  archive, under `<archive_root>/claude/exports/<YYYY>/<MM>/<session-id>.md`).
+- `--archive-root PATH` — optional private session archive root override.
+- `--force` — overwrite an existing output file. This never allows the
+  source transcript and output to be the same file.
+- `--source-id ID` — optional explicit session identifier to record in
+  `source_id` (defaults to the transcript filename stem).
+- `--no-scan-sensitive` — skip the local heuristic sensitivity scanner and
+  mark transcript frontmatter as `sensitivity: unscanned`.
+- `--include-system-attachments` — include internal system-context
+  attachment records (`deferred_tools_delta`, `agent_listing_delta`,
+  `mcp_instructions_delta`, `skill_listing`) in the export; skipped by
+  default since they are not part of the visible conversation.
+- `--include-subagents` — inline full subagent transcripts (from sibling
+  `<session-id>/subagents/agent-*.jsonl` files) instead of only referencing
+  them by id and description.
+
+### Exit behavior
+
+The command returns nonzero for missing, non-file, or non-UTF-8 transcript
+inputs; an invalid or ambiguous `--session-id`; existing outputs when
+`--force` is not supplied; source/output path collisions (even with
+`--force`); and output write failures.
+
+On success it prints a concise deterministic summary with the output path,
+source ID, source SHA-256, privacy, sensitivity status, and warning count.
+Potential sensitive findings are also reported as warnings on stderr.

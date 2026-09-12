@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -494,6 +496,171 @@ class TestClaudeExport(unittest.TestCase):
             # must never surface their warnings either.
             res = claude_export.convert_claude_session(source_file)
             self.assertEqual(res.manifest.warnings, ())
+
+
+class TestClaudeExportCli(unittest.TestCase):
+    def test_cli_help(self) -> None:
+        stdout_buf = io.StringIO()
+        with contextlib.redirect_stdout(stdout_buf):
+            with self.assertRaises(SystemExit) as cm:
+                claude_export.run_convert_claude_session_cli(["--help"])
+        self.assertEqual(cm.exception.code, 0)
+        stdout = stdout_buf.getvalue()
+        self.assertIn("--transcript-path", stdout)
+        self.assertIn("--session-id", stdout)
+        self.assertIn("--latest", stdout)
+        self.assertIn("--include-subagents", stdout)
+
+    def test_cli_missing_required_args(self) -> None:
+        stderr_buf = io.StringIO()
+        with contextlib.redirect_stderr(stderr_buf):
+            with self.assertRaises(SystemExit) as cm:
+                claude_export.run_convert_claude_session_cli(["--out", "/tmp/out.md"])
+        self.assertEqual(cm.exception.code, 2)
+        self.assertIn(
+            "one of the arguments --transcript-path --session-id --latest "
+            "is required",
+            stderr_buf.getvalue(),
+        )
+
+    def test_cli_mutually_exclusive_args(self) -> None:
+        stderr_buf = io.StringIO()
+        with contextlib.redirect_stderr(stderr_buf):
+            with self.assertRaises(SystemExit) as cm:
+                claude_export.run_convert_claude_session_cli(
+                    [
+                        "--transcript-path",
+                        "/tmp/t.jsonl",
+                        "--latest",
+                        "--out",
+                        "/tmp/o.md",
+                    ]
+                )
+        self.assertEqual(cm.exception.code, 2)
+        self.assertIn("not allowed with argument", stderr_buf.getvalue())
+
+    def test_cli_with_transcript_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(source_file, [_user_record("hello from cli")])
+            out_file = tmp_path / "cli_export.md"
+
+            stdout_buf = io.StringIO()
+            with contextlib.redirect_stdout(stdout_buf):
+                code = claude_export.run_convert_claude_session_cli(
+                    [
+                        "--transcript-path",
+                        str(source_file),
+                        "--out",
+                        str(out_file),
+                        "--source-id",
+                        "cli_sess_1",
+                    ]
+                )
+
+            self.assertEqual(code, 0)
+            self.assertTrue(out_file.exists())
+            stdout = stdout_buf.getvalue()
+            self.assertIn("Exported Claude Code session transcript", stdout)
+            self.assertIn("Source ID: cli_sess_1", stdout)
+            self.assertIn("Source SHA-256:", stdout)
+            self.assertIn("Privacy: private", stdout)
+
+    def test_cli_session_id_collision_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            for project in ("proj-a", "proj-b"):
+                project_dir = tmp_path / "projects" / project
+                project_dir.mkdir(parents=True)
+                _write_jsonl(project_dir / "sess-dup.jsonl", [_user_record("hi")])
+
+            stderr_buf = io.StringIO()
+            with contextlib.redirect_stderr(stderr_buf):
+                code = claude_export.run_convert_claude_session_cli(
+                    [
+                        "--session-id",
+                        "sess-dup",
+                        "--app-data-dir",
+                        str(tmp_path),
+                        "--out",
+                        str(tmp_path / "out.md"),
+                    ]
+                )
+            self.assertEqual(code, 1)
+            self.assertIn("multiple transcript files found", stderr_buf.getvalue())
+
+    def test_cli_durable_default_out(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            archive_root = tmp / "archive"
+            app_dir = tmp / "app"
+            project_dir = app_dir / "projects" / "-Users-x-proj"
+            project_dir.mkdir(parents=True)
+            transcript_path = project_dir / "sess-123.jsonl"
+            _write_jsonl(transcript_path, [_user_record("hello")])
+
+            stdout_buf = io.StringIO()
+            with contextlib.redirect_stdout(stdout_buf):
+                exit_code = claude_export.run_convert_claude_session_cli(
+                    [
+                        "--transcript-path",
+                        str(transcript_path),
+                        "--archive-root",
+                        str(archive_root),
+                    ]
+                )
+            self.assertEqual(exit_code, 0)
+            exported_files = list(
+                (archive_root / "claude" / "exports").glob("*/*/sess-123.md")
+            )
+            self.assertEqual(len(exported_files), 1)
+            expected_out = exported_files[0]
+            self.assertTrue(expected_out.exists())
+            self.assertEqual(expected_out.stat().st_mode & 0o777, 0o600)
+
+    def test_cli_out_unresolvable_home_reports_clean_error(self) -> None:
+        # A named-user tilde that cannot be resolved makes Path.expanduser()
+        # raise RuntimeError; the CLI must report this as its documented
+        # concise nonzero error, not an unhandled traceback.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(source_file, [_user_record("hi")])
+
+            stderr_buf = io.StringIO()
+            with contextlib.redirect_stderr(stderr_buf):
+                code = claude_export.run_convert_claude_session_cli(
+                    [
+                        "--transcript-path",
+                        str(source_file),
+                        "--out",
+                        "~this-user-definitely-does-not-exist-xyz123/export.md",
+                    ]
+                )
+            self.assertEqual(code, 1)
+            self.assertIn("could not resolve --out path", stderr_buf.getvalue())
+
+    def test_cli_transcript_path_unresolvable_home_reports_clean_error(self) -> None:
+        stderr_buf = io.StringIO()
+        with contextlib.redirect_stderr(stderr_buf):
+            code = claude_export.run_convert_claude_session_cli(
+                [
+                    "--transcript-path",
+                    "~this-user-definitely-does-not-exist-xyz123/sess.jsonl",
+                ]
+            )
+        self.assertEqual(code, 1)
+        self.assertIn("could not resolve transcript path", stderr_buf.getvalue())
+
+    def test_expand_user_path_wraps_runtime_error(self) -> None:
+        with self.assertRaisesRegex(
+            claude_export.ClaudeExportError, "could not resolve test path"
+        ):
+            claude_export._expand_user_path(
+                Path("~this-user-definitely-does-not-exist-xyz123/x"),
+                description="test path",
+            )
 
 
 if __name__ == "__main__":

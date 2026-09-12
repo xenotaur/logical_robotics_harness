@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import argparse
 import dataclasses
 import glob
 import hashlib
 import json
 import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Mapping, Sequence
@@ -46,7 +48,7 @@ def convert_claude_session(
 ) -> ClaudeExport:
     """Convert a Claude Code session JSONL transcript into a private Markdown export."""
 
-    path = transcript_path.expanduser()
+    path = _expand_user_path(transcript_path, description="transcript path")
     if not path.exists():
         raise ClaudeExportError(f"transcript file does not exist: {path}")
     if not path.is_file():
@@ -128,7 +130,7 @@ def convert_claude_session(
     full_markdown = f"{manifest_obj.to_frontmatter()}\n{body}"
 
     if output_path is not None:
-        out = output_path.expanduser()
+        out = _expand_user_path(output_path, description="output path")
         _reject_source_output_collision(path, out)
         if out.exists() and not force:
             raise FileExistsError(f"output path already exists: {out}")
@@ -189,6 +191,21 @@ def _reject_source_output_collision(source: Path, destination: Path) -> None:
         )
 
 
+def _expand_user_path(path: Path, *, description: str) -> Path:
+    """Expand ``~`` in a path, converting an unresolvable-home failure into
+    a clean ``ClaudeExportError`` instead of an unhandled ``RuntimeError``.
+
+    ``Path.expanduser()`` raises ``RuntimeError`` when the home directory
+    for a named user (e.g. ``~missing-user/export.md``) cannot be resolved
+    on the current platform — that failure otherwise surfaces as a raw
+    Python traceback instead of this module's documented concise error.
+    """
+    try:
+        return path.expanduser()
+    except RuntimeError as err:
+        raise ClaudeExportError(f"could not resolve {description}: {err}") from err
+
+
 def resolve_claude_archive_root(archive_root: str | Path | None = None) -> Path:
     """Resolve the Claude export archive root under the session archive."""
     root = prompt_workflow_sessions.resolve_archive_root(archive_root)
@@ -240,9 +257,9 @@ def _resolve_transcript_path(
     """Resolve a Claude Code transcript path by explicit path, session id, or latest."""
 
     if transcript_path:
-        return Path(transcript_path).expanduser()
+        return _expand_user_path(Path(transcript_path), description="transcript path")
 
-    app_dir = app_data_dir.expanduser()
+    app_dir = _expand_user_path(app_data_dir, description="app data directory")
     projects_dir = app_dir / "projects"
 
     if session_id:
@@ -276,6 +293,155 @@ def _resolve_transcript_path(
         return matches[0]
 
     raise ClaudeExportError("one of transcript_path, session_id, or latest is required")
+
+
+def _default_app_data_dir() -> str:
+    """Return the default Claude Code application data directory.
+
+    Honors ``CLAUDE_CONFIG_DIR`` (Claude Code's own override for relocating
+    session storage off ``~/.claude``) the same way the CLI documentation
+    describes; falls back to ``~/.claude`` when unset.
+    """
+    return os.environ.get("CLAUDE_CONFIG_DIR") or "~/.claude"
+
+
+def run_convert_claude_session_cli(
+    argv: Sequence[str] | None = None,
+    *,
+    prog: str | None = None,
+) -> int:
+    """CLI entry point for converting Claude Code session transcripts."""
+    parser = argparse.ArgumentParser(
+        prog=prog or "lrh conversation export-claude-session",
+        description=(
+            "Convert a local Claude Code session transcript log (JSONL) into "
+            "a private, non-authoritative Markdown export artifact."
+        ),
+    )
+    input_group = parser.add_mutually_exclusive_group(required=True)
+    input_group.add_argument(
+        "--transcript-path",
+        help="explicit path to a Claude Code session transcript JSONL file",
+    )
+    input_group.add_argument(
+        "--session-id",
+        help="Claude Code session id to discover under app-data-dir/projects/*/",
+    )
+    input_group.add_argument(
+        "--latest",
+        action="store_true",
+        help="discover the most recently modified transcript file under app-data-dir",
+    )
+    parser.add_argument(
+        "--app-data-dir",
+        default=_default_app_data_dir(),
+        help=(
+            "path to Claude Code's application data directory "
+            "(default: $CLAUDE_CONFIG_DIR, or ~/.claude if unset)"
+        ),
+    )
+    parser.add_argument(
+        "--out",
+        required=False,
+        default=None,
+        help="Markdown export output path (default: durable session archive)",
+    )
+    parser.add_argument(
+        "--archive-root",
+        help="optional private session archive root override",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="overwrite existing output file if present",
+    )
+    parser.add_argument(
+        "--source-id",
+        help="optional explicit session id to record in metadata",
+    )
+    parser.add_argument(
+        "--no-scan-sensitive",
+        action="store_true",
+        help="skip heuristic sensitive content scanner",
+    )
+    parser.add_argument(
+        "--include-system-attachments",
+        action="store_true",
+        help="include internal system-context attachment records in the export",
+    )
+    parser.add_argument(
+        "--include-subagents",
+        action="store_true",
+        help="inline full subagent transcripts instead of only referencing them",
+    )
+
+    args = parser.parse_args(argv)
+
+    try:
+        transcript_file = _resolve_transcript_path(
+            transcript_path=args.transcript_path,
+            session_id=args.session_id,
+            app_data_dir=Path(args.app_data_dir),
+            latest=args.latest,
+        )
+    except (ClaudeExportError, OSError) as err:
+        print(f"error: {err}", file=sys.stderr)
+        return 1
+
+    if args.out:
+        try:
+            output_path = _expand_user_path(Path(args.out), description="--out path")
+        except ClaudeExportError as err:
+            print(f"error: {err}", file=sys.stderr)
+            return 1
+    else:
+        try:
+            archive_root = resolve_claude_archive_root(args.archive_root)
+        except (ClaudeExportError, OSError) as err:
+            print(f"error: {err}", file=sys.stderr)
+            return 1
+        now_utc = datetime.now(timezone.utc)
+        year = now_utc.strftime("%Y")
+        month = now_utc.strftime("%m")
+        try:
+            raw_bytes = transcript_file.read_bytes()
+            sha = hashlib.sha256(raw_bytes).hexdigest()
+        except OSError:
+            sha = None
+        sid = args.source_id or _derive_source_id(transcript_file, source_sha256=sha)
+        safe_sid = "".join(c if c.isalnum() or c in "-_" else "_" for c in sid)
+        output_path = archive_root / EXPORTS_SUBDIR / year / month / f"{safe_sid}.md"
+
+    try:
+        result = convert_claude_session(
+            transcript_file,
+            output_path=output_path,
+            force=args.force,
+            scan_sensitive=not args.no_scan_sensitive,
+            source_id=args.source_id,
+            include_system_attachments=args.include_system_attachments,
+            include_subagents=args.include_subagents,
+        )
+    except (ClaudeExportError, FileExistsError, OSError) as err:
+        print(f"error: {err}", file=sys.stderr)
+        return 1
+
+    if result.sensitivity_result is not None and result.sensitivity_result.findings:
+        finding_count = len(result.sensitivity_result.findings)
+        print(
+            "warning: potential sensitive content detected "
+            f"({finding_count} finding(s))",
+            file=sys.stderr,
+        )
+
+    out_display = str(output_path) if output_path else "(memory only)"
+    print(f"Exported Claude Code session transcript: {out_display}")
+    print(f"Source ID: {result.manifest.source_id or 'unknown'}")
+    print(f"Source SHA-256: {result.manifest.source_sha256}")
+    print(f"Privacy: {result.manifest.privacy}")
+    print(f"Sensitivity: {result.manifest.sensitivity}")
+    print(f"Warnings: {len(result.manifest.warnings)}")
+    return 0
 
 
 def _find_subagent_transcripts(transcript_path: Path) -> list[tuple[Path, dict]]:

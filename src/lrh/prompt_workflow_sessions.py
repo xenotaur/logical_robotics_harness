@@ -544,13 +544,49 @@ _SESSION_ID_DIR = re.compile(
 )
 
 
+class ArchiveRootResolutionError(ValueError):
+    """Raised when an archive root override, env var value, or the default
+    home-relative path cannot be resolved."""
+
+
 def default_archive_root() -> pathlib.Path:
     """Default local archive root when neither an override nor the env var
     is set. The proposal's archive-root-location open question is not
     resolved by this default -- it is only a starting point, and both
-    ``--archive-root`` and ``LRH_SESSION_ARCHIVE_ROOT`` take precedence."""
+    ``--archive-root`` and ``LRH_SESSION_ARCHIVE_ROOT`` take precedence.
 
-    return pathlib.Path.home() / ".local" / "share" / "lrh" / "session-archive"
+    ``Path.home()`` raises ``RuntimeError`` on the same unresolvable-home
+    conditions ``Path.expanduser()`` does (e.g. ``HOME`` unset and no passwd
+    entry); that failure is converted into a clean
+    :class:`ArchiveRootResolutionError` for consistency with the override
+    and env var paths below, instead of surfacing as an unhandled traceback.
+    """
+
+    try:
+        home = pathlib.Path.home()
+    except RuntimeError as err:
+        raise ArchiveRootResolutionError(
+            f"could not resolve home directory for default archive root: {err}"
+        ) from err
+    return home / ".local" / "share" / "lrh" / "session-archive"
+
+
+def _expand_user_path(path: pathlib.Path, *, description: str) -> pathlib.Path:
+    """Expand ``~`` in a path, converting an unresolvable-home failure into a
+    clean :class:`ArchiveRootResolutionError` instead of an unhandled
+    ``RuntimeError``.
+
+    ``Path.expanduser()`` raises ``RuntimeError`` when the home directory
+    cannot be resolved on the current platform (e.g. ``HOME`` unset and no
+    passwd entry) -- that failure otherwise surfaces as a raw Python
+    traceback instead of a documented, catchable CLI error.
+    """
+    try:
+        return path.expanduser()
+    except RuntimeError as err:
+        raise ArchiveRootResolutionError(
+            f"could not resolve {description}: {err}"
+        ) from err
 
 
 def resolve_archive_root(
@@ -559,10 +595,13 @@ def resolve_archive_root(
     """Resolve the archive root: ``override`` > env var > default."""
 
     if override:
-        return pathlib.Path(override).expanduser()
+        return _expand_user_path(pathlib.Path(override), description="archive root")
     env_value = os.environ.get(ARCHIVE_ROOT_ENV_VAR)
     if env_value:
-        return pathlib.Path(env_value).expanduser()
+        return _expand_user_path(
+            pathlib.Path(env_value),
+            description=f"{ARCHIVE_ROOT_ENV_VAR} value",
+        )
     return default_archive_root()
 
 

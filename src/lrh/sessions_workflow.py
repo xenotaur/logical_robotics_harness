@@ -257,7 +257,11 @@ def _run_sync(args: argparse.Namespace) -> int:
         if args.claude_projects_root
         else _default_claude_projects_root()
     )
-    archive_root = prompt_workflow_sessions.resolve_archive_root(args.archive_root)
+    try:
+        archive_root = prompt_workflow_sessions.resolve_archive_root(args.archive_root)
+    except prompt_workflow_sessions.ArchiveRootResolutionError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
     updated_at = _utc_now_iso()
 
     transcripts = prompt_workflow_sessions.discover_transcripts(claude_projects_root)

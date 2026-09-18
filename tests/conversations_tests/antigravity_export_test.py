@@ -304,6 +304,30 @@ class TestAntigravityExport(unittest.TestCase):
             self.assertIn(str(expected_out), stdout_buf.getvalue())
             self.assertEqual(expected_out.stat().st_mode & 0o777, 0o600)
 
+    def test_cli_archive_root_unresolvable_home_reports_clean_error(self) -> None:
+        # A named-user tilde that cannot be resolved for --archive-root makes
+        # prompt_workflow_sessions.resolve_archive_root() raise
+        # ArchiveRootResolutionError; the CLI must report this as its
+        # documented concise nonzero error, not an unhandled traceback.
+        with tempfile.TemporaryDirectory() as tmpdir:
+            transcript_path = Path(tmpdir) / "transcript.jsonl"
+            transcript_path.write_text(
+                '{"source": "USER", "type": "USER_INPUT", "content": "hi"}\n',
+                encoding="utf-8",
+            )
+            stderr_buf = io.StringIO()
+            with contextlib.redirect_stderr(stderr_buf):
+                exit_code = antigravity_export.run_convert_antigravity_session_cli(
+                    [
+                        "--transcript-path",
+                        str(transcript_path),
+                        "--archive-root",
+                        "~this-user-definitely-does-not-exist-xyz123/archive",
+                    ]
+                )
+            self.assertEqual(exit_code, 1)
+            self.assertIn("could not resolve archive root", stderr_buf.getvalue())
+
     def test_resolve_antigravity_archive_root_worktree_rejection(self) -> None:
         git_root = antigravity_export._current_git_worktree_root()
         if git_root is not None:

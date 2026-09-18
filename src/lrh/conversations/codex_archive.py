@@ -335,6 +335,7 @@ def run_archive_codex_thread_cli(
         OSError,
         CodexArchiveError,
         codex_app_server_export.CodexAppServerExportError,
+        prompt_workflow_sessions.ArchiveRootResolutionError,
     ) as err:
         print(f"error: {err}", file=sys.stderr)
         return 1
@@ -413,7 +414,11 @@ def run_import_codex_exports_cli(
             dry_run=args.dry_run,
             force=args.force,
         )
-    except (OSError, CodexArchiveError) as err:
+    except (
+        OSError,
+        CodexArchiveError,
+        prompt_workflow_sessions.ArchiveRootResolutionError,
+    ) as err:
         print(f"error: {err}", file=sys.stderr)
         return 1
 

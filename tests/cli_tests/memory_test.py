@@ -211,6 +211,43 @@ class MemoryCliTest(unittest.TestCase):
             self.assertEqual(second.returncode, 0, msg=second.stderr)
             self.assertIn("sync complete: 0 mirrored, 2 unchanged", second.stdout)
 
+    def test_sync_archive_root_unresolvable_home_reports_clean_error(self) -> None:
+        # A named-user tilde that cannot be resolved for --archive-root makes
+        # prompt_workflow_sessions.resolve_archive_root() raise
+        # ArchiveRootResolutionError; the CLI must report this as its
+        # documented concise nonzero error, not an unhandled traceback.
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+
+            self._run(
+                "write",
+                "feedback-sync-error-target",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="body\n",
+            )
+
+            completed = self._run(
+                "sync",
+                "--project-root",
+                str(project_root),
+                "--claude-projects-root",
+                str(claude_root),
+                "--archive-root",
+                "~this-user-definitely-does-not-exist-xyz123/archive",
+            )
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("could not resolve archive root", completed.stderr)
+
     def test_sync_dry_run_reports_without_writing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             claude_root = pathlib.Path(tmp) / "claude-projects"

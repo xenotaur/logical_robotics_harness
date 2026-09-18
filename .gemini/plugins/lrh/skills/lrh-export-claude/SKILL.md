@@ -56,7 +56,10 @@ ambient environment variable to default to.
   When omitted, defaults to a durable private session archive path
   (`<archive_root>/claude/exports/<YYYY>/<MM>/<session-id>.md`).
 - `--app-data-dir PATH` — path to Claude Code's application data directory
-  (default: `$CLAUDE_CONFIG_DIR`, or `~/.claude` if unset).
+  (default: `$CLAUDE_CONFIG_DIR`, or `~/.claude` if unset). Used by Step 1's
+  own `--session-id`/`--latest` discovery, not forwarded to the exporter
+  CLI, since Step 4 always invokes it with an already-resolved
+  `--transcript-path`.
 - `--archive-root PATH` — optional private session archive root override.
 - `--force` — overwrite the destination file if it already exists. This
   never allows the source transcript and output to be the same file, even
@@ -129,17 +132,33 @@ Work through these steps in order.
 
 ### Step 1 — Resolve transcript input
 
+**Always resolve to a concrete `<transcript_file>` path in this step,
+even for `--session-id`/`--latest`** — the exporter's own terminal
+output never echoes the resolved transcript path back (it prints only
+the destination, source ID, source SHA-256, privacy, sensitivity, and
+warning count), so Step 5's `inspect-export --source <transcript_file>`
+verification has no value to use unless this step resolves and retains
+it directly.
+
+First resolve `<app_data_dir>`: `--app-data-dir` when supplied by the
+user, else `$CLAUDE_CONFIG_DIR`, else `~/.claude`.
+
 Determine the input route:
 
 1. **Explicit transcript path**: if `--transcript-path PATH` is given,
-   verify the file exists on disk.
-2. **Session ID**: if `--session-id ID` is given, pass it directly —
-   `export-claude-session` discovers the transcript by globbing
-   `<app-data-dir>/projects/*/<ID>.jsonl` and errors on more than one
-   match rather than silently picking one.
-3. **Latest session**: if `--latest` is given, pass it directly —
-   `export-claude-session` discovers the most recently modified
-   transcript file under `<app-data-dir>/projects/*/*.jsonl`.
+   verify the file exists on disk. `<transcript_file>` is that path.
+2. **Session ID**: if `--session-id ID` is given, resolve it yourself by
+   globbing `<app_data_dir>/projects/*/<ID>.jsonl`. Zero matches or more
+   than one match is an error — report it and ask for an explicit
+   `--transcript-path` to disambiguate rather than guessing. Exactly one
+   match becomes `<transcript_file>`.
+3. **Latest session**: if `--latest` is given, resolve it yourself as
+   the most recently modified file under `<app_data_dir>/projects/*/*.jsonl`.
+   That becomes `<transcript_file>`.
+
+This mirrors the exporter's own resolution rules exactly (same glob
+shape, same ambiguity handling) so the two never disagree about which
+file was selected.
 
 If none of the three was supplied and none can be inferred from the
 user's own message this turn, ask which one to use before proceeding.
@@ -179,10 +198,15 @@ catch.
 Run the exporter with a restrictive umask so generated files are created
 user-only:
 
+Use the `<transcript_file>` resolved in Step 1 — always pass it as
+`--transcript-path`, even when the user's original request used
+`--session-id` or `--latest`, so the exact file this step exports is the
+exact file Step 5 verifies against:
+
 ```bash
 ( umask 077
   lrh conversation export-claude-session \
-    [--transcript-path PATH | --session-id ID | --latest] \
+    --transcript-path <transcript_file> \
     [--out OUTPUT.md] \
     [--archive-root PATH] \
     [--force] \

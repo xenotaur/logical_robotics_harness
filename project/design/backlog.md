@@ -1951,3 +1951,31 @@ algorithm); `project/work_items/proposed/WI-EXECUTE-EARLY-CREATION-PR-CHECK.md`;
 harness PR #602; `project/work_items/resolved/WI-PROJECT-SLUG-SYMLINK-RESOLUTION.md`;
 `WI-SKILLS-LRH-NEXT-STEP-REPORTING` (the adjacent reporting-layer entry,
 earlier in this file).
+
+---
+
+## `CLAUDE.md` `## Skills` index missing `/lrh-antigravity-export` and `/lrh-codex-export`
+
+**Noted:** 2026-09-18, during `/lrh-execute WI-CLAUDE-CONVERSATION-EXPORT-SKILL`'s
+prior-art research. That WI's own Required Changes text says to add a
+`/lrh-export-claude` entry to `CLAUDE.md`'s `## Skills` index "following
+the existing `/lrh-antigravity-export` and `/lrh-codex-export` entry
+format" — but neither sibling skill actually has an entry there. Both are
+documented elsewhere (`docs/conversations/codex_export.md`,
+`docs/conversations/README.md`, `docs/conversations/conversation-capture-
+options.md`), just never added to `CLAUDE.md`'s own index alongside the
+other `/lrh-*` skills.
+
+**Idea:** Add `/lrh-antigravity-export` and `/lrh-codex-export` entries to
+`CLAUDE.md`'s `## Skills` index, one line each in the same style as the
+existing entries (skill name, one-line description of scope/trigger).
+Small, mechanical fix — likely foldable into the next work item that
+touches this index, rather than warranting its own WI.
+
+**Status:** Not yet filed as a work item. `WI-CLAUDE-CONVERSATION-EXPORT-SKILL`
+adds only its own new `/lrh-export-claude` entry, not a backfill of the
+two pre-existing gaps — that stays a separate, smaller cleanup.
+
+**Related:** `CLAUDE.md` `## Skills`; `src/lrh/skills/lrh-antigravity-export/SKILL.md`;
+`src/lrh/skills/lrh-codex-export/SKILL.md`;
+`project/work_items/proposed/WI-CLAUDE-CONVERSATION-EXPORT-SKILL.md`.

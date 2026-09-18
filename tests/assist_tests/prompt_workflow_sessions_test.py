@@ -270,6 +270,26 @@ class ArchiveRootTest(unittest.TestCase):
             ):
                 prompt_workflow_sessions.resolve_archive_root()
 
+    def test_default_unresolvable_home_reports_clean_error(self) -> None:
+        # default_archive_root() calls Path.home() directly, which raises
+        # the same RuntimeError as Path.expanduser() on an unresolvable
+        # home directory; that must also become a clean, catchable error.
+        with unittest.mock.patch.object(
+            pathlib.Path, "home", side_effect=RuntimeError("no home directory")
+        ):
+            with self.assertRaisesRegex(
+                prompt_workflow_sessions.ArchiveRootResolutionError,
+                "could not resolve home directory for default archive root",
+            ):
+                prompt_workflow_sessions.default_archive_root()
+
+            with unittest.mock.patch.dict("os.environ", {}, clear=True):
+                with self.assertRaisesRegex(
+                    prompt_workflow_sessions.ArchiveRootResolutionError,
+                    "could not resolve home directory for default archive root",
+                ):
+                    prompt_workflow_sessions.resolve_archive_root()
+
 
 class SessionReportTest(unittest.TestCase):
     def _write_record(

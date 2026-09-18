@@ -14,7 +14,7 @@ import argparse
 import json
 import sys
 
-from lrh import prompt_workflow_memory
+from lrh import prompt_workflow_memory, prompt_workflow_sessions
 
 
 def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
@@ -389,12 +389,16 @@ def _run_repair(args: argparse.Namespace) -> int:
 
 
 def _run_sync(args: argparse.Namespace) -> int:
-    entries = prompt_workflow_memory.sync_memory(
-        args.project_root,
-        claude_projects_root=args.claude_projects_root,
-        archive_root=args.archive_root,
-        dry_run=args.dry_run,
-    )
+    try:
+        entries = prompt_workflow_memory.sync_memory(
+            args.project_root,
+            claude_projects_root=args.claude_projects_root,
+            archive_root=args.archive_root,
+            dry_run=args.dry_run,
+        )
+    except prompt_workflow_sessions.ArchiveRootResolutionError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
     mirrored = 0
     unchanged = 0
     for entry in entries:

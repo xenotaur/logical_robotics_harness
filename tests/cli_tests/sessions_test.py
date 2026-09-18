@@ -56,6 +56,25 @@ class SessionsCliTest(unittest.TestCase):
                 (archive_root / "raw" / "-fake-proj" / "child-1.jsonl").exists()
             )
 
+    def test_sync_archive_root_unresolvable_home_reports_clean_error(self) -> None:
+        # A named-user tilde that cannot be resolved for --archive-root makes
+        # prompt_workflow_sessions.resolve_archive_root() raise
+        # ArchiveRootResolutionError; the CLI must report this as its
+        # documented concise nonzero error, not an unhandled traceback.
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_projects_root = pathlib.Path(tmp) / "claude-projects"
+            claude_projects_root.mkdir()
+
+            completed = self._run(
+                "sync",
+                "--claude-projects-root",
+                str(claude_projects_root),
+                "--archive-root",
+                "~this-user-definitely-does-not-exist-xyz123/archive",
+            )
+            self.assertEqual(completed.returncode, 1)
+            self.assertIn("could not resolve archive root", completed.stderr)
+
     def test_sync_dry_run_writes_nothing(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             claude_projects_root = pathlib.Path(tmp) / "claude-projects"

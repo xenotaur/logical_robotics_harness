@@ -544,17 +544,31 @@ _SESSION_ID_DIR = re.compile(
 )
 
 
+class ArchiveRootResolutionError(ValueError):
+    """Raised when an archive root override, env var value, or the default
+    home-relative path cannot be resolved."""
+
+
 def default_archive_root() -> pathlib.Path:
     """Default local archive root when neither an override nor the env var
     is set. The proposal's archive-root-location open question is not
     resolved by this default -- it is only a starting point, and both
-    ``--archive-root`` and ``LRH_SESSION_ARCHIVE_ROOT`` take precedence."""
+    ``--archive-root`` and ``LRH_SESSION_ARCHIVE_ROOT`` take precedence.
 
-    return pathlib.Path.home() / ".local" / "share" / "lrh" / "session-archive"
+    ``Path.home()`` raises ``RuntimeError`` on the same unresolvable-home
+    conditions ``Path.expanduser()`` does (e.g. ``HOME`` unset and no passwd
+    entry); that failure is converted into a clean
+    :class:`ArchiveRootResolutionError` for consistency with the override
+    and env var paths below, instead of surfacing as an unhandled traceback.
+    """
 
-
-class ArchiveRootResolutionError(ValueError):
-    """Raised when an archive root override or env var value cannot be resolved."""
+    try:
+        home = pathlib.Path.home()
+    except RuntimeError as err:
+        raise ArchiveRootResolutionError(
+            f"could not resolve home directory for default archive root: {err}"
+        ) from err
+    return home / ".local" / "share" / "lrh" / "session-archive"
 
 
 def _expand_user_path(path: pathlib.Path, *, description: str) -> pathlib.Path:

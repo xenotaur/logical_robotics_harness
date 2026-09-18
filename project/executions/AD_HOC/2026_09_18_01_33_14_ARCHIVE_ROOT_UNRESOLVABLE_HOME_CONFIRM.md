@@ -2,10 +2,10 @@
 execution_id: 2026_09_18_01_33_14_ARCHIVE_ROOT_UNRESOLVABLE_HOME_CONFIRM
 prompt_id: PROMPT(AD_HOC:ARCHIVE_ROOT_UNRESOLVABLE_HOME_CONFIRM)[2026-09-18T01:32:47+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/668
-commit: 
+commit: 53f5257e1cf68b4d698ef686b6fc38166717c5ff
 created_at: 2026-09-18T01:33:14+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/668

@@ -397,7 +397,11 @@ def run_convert_claude_session_cli(
     else:
         try:
             archive_root = resolve_claude_archive_root(args.archive_root)
-        except (ClaudeExportError, OSError) as err:
+        except (
+            ClaudeExportError,
+            prompt_workflow_sessions.ArchiveRootResolutionError,
+            OSError,
+        ) as err:
             print(f"error: {err}", file=sys.stderr)
             return 1
         now_utc = datetime.now(timezone.utc)

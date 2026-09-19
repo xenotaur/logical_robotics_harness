@@ -229,6 +229,47 @@ class TestCodexArchive(unittest.TestCase):
             finally:
                 os.chdir(original_cwd)
 
+    @patch("sys.stderr", new_callable=io.StringIO)
+    def test_archive_cli_archive_root_unresolvable_home_reports_clean_error(
+        self, mock_stderr: io.StringIO
+    ) -> None:
+        # A named-user tilde that cannot be resolved for --archive-root makes
+        # prompt_workflow_sessions.resolve_archive_root() raise
+        # ArchiveRootResolutionError; the CLI must report this as its
+        # documented concise nonzero error, not an unhandled traceback.
+        # plan_codex_export_paths() resolves the archive root before the
+        # codex subprocess is ever invoked, so no fake server is needed.
+        exit_code = codex_archive.run_archive_codex_thread_cli(
+            [
+                "--thread-id",
+                "thread-123",
+                "--archive-root",
+                "~this-user-definitely-does-not-exist-xyz123/archive",
+            ],
+            prog="lrh conversation archive-codex-thread",
+        )
+        self.assertEqual(exit_code, 1)
+        self.assertIn("could not resolve archive root", mock_stderr.getvalue())
+
+    @patch("sys.stderr", new_callable=io.StringIO)
+    def test_import_cli_archive_root_unresolvable_home_reports_clean_error(
+        self, mock_stderr: io.StringIO
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source = Path(temp_dir) / "lrh-codex-export-20260820T010203Z.valid"
+            source.mkdir()
+            (source / "export.md").write_text("placeholder", encoding="utf-8")
+            exit_code = codex_archive.run_import_codex_exports_cli(
+                [
+                    str(source),
+                    "--archive-root",
+                    "~this-user-definitely-does-not-exist-xyz123/archive",
+                ],
+                prog="lrh conversation import-codex-exports",
+            )
+        self.assertEqual(exit_code, 1)
+        self.assertIn("could not resolve archive root", mock_stderr.getvalue())
+
     @patch("sys.stdout", new_callable=io.StringIO)
     def test_import_cli_is_metadata_only(self, mock_stdout: io.StringIO) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

@@ -722,6 +722,29 @@ class TestClaudeExportCli(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("could not resolve transcript path", stderr_buf.getvalue())
 
+    def test_cli_archive_root_unresolvable_home_reports_clean_error(self) -> None:
+        # A named-user tilde that cannot be resolved for --archive-root makes
+        # prompt_workflow_sessions.resolve_archive_root() raise
+        # ArchiveRootResolutionError; the CLI must report this as its
+        # documented concise nonzero error, not an unhandled traceback.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(source_file, [_user_record("hi")])
+
+            stderr_buf = io.StringIO()
+            with contextlib.redirect_stderr(stderr_buf):
+                code = claude_export.run_convert_claude_session_cli(
+                    [
+                        "--transcript-path",
+                        str(source_file),
+                        "--archive-root",
+                        "~this-user-definitely-does-not-exist-xyz123/archive",
+                    ]
+                )
+            self.assertEqual(code, 1)
+            self.assertIn("could not resolve archive root", stderr_buf.getvalue())
+
     def test_expand_user_path_wraps_runtime_error(self) -> None:
         with self.assertRaisesRegex(
             claude_export.ClaudeExportError, "could not resolve test path"

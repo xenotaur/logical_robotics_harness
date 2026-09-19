@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented in PR #669: registered the /lrh-export-claude skill with a mandatory confirm-before-write gate and metadata-only reporting. This was the final tranche of PROP-LRH-CLAUDE-CONVERSATION-EXPORTER -- the exporter feature (API, CLI, Skill) is now complete."
 blocked_reason: null
 blocked: false
 id: WI-CLAUDE-CONVERSATION-EXPORT-SKILL
 title: Implement lrh-export-claude agent skill
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

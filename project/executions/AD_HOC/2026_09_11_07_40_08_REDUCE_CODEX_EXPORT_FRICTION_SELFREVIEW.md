@@ -2,10 +2,10 @@
 execution_id: 2026_09_11_07_40_08_REDUCE_CODEX_EXPORT_FRICTION_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:REDUCE_CODEX_EXPORT_FRICTION_SELFREVIEW)[2026-09-11T07:39:53+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/662
-commit: 8f06fc45
+commit: 98bdb66d809ea9ff6862adb1afd4385e7e995e88
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/662
 session_transcript: codex-app:01a08cb3-0b15-7433-9691-1cb876d8b808

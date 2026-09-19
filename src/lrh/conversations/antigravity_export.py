@@ -360,7 +360,11 @@ def run_convert_antigravity_session_cli(
     else:
         try:
             archive_root = resolve_antigravity_archive_root(args.archive_root)
-        except (AntigravityExportError, OSError) as err:
+        except (
+            AntigravityExportError,
+            prompt_workflow_sessions.ArchiveRootResolutionError,
+            OSError,
+        ) as err:
             print(f"error: {err}", file=sys.stderr)
             return 1
         now_utc = datetime.now(timezone.utc)

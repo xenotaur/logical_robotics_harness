@@ -417,7 +417,8 @@ The command is local and private-by-default:
   sensitivity metadata, and transcript statistics are preserved in the
   frontmatter;
 - the output file's permissions are restricted to user-only (`0600`) after
-  the write completes;
+  the write completes, on a best-effort basis (a platform or filesystem
+  that doesn't support `chmod` does not fail the export);
 - sensitivity scanning is heuristic and does not certify that output is safe
   to publish.
 
@@ -433,7 +434,9 @@ Exactly one of the following is required:
   doesn't exist; an error if neither exists.
 - `--latest` — discover the most recently modified transcript file
   (`transcript.jsonl` or `transcript_full.jsonl`) under
-  `<app-data-dir>/brain/*/.system_generated/logs/`.
+  `<app-data-dir>/brain/*/.system_generated/logs/`. Ties on modification
+  time are broken silently (no ambiguity error) by picking whichever
+  matching path sorts first.
 
 ### Options
 
@@ -453,8 +456,10 @@ Exactly one of the following is required:
 ### Exit behavior
 
 The command returns nonzero for a missing, non-file, non-UTF-8, or
-otherwise unreadable transcript input; an invalid or ambiguous
-`--conversation-id`/`--latest` discovery result; an existing output when
+otherwise unreadable transcript input; a `--conversation-id` that
+resolves to no transcript file; a `--latest` discovery with no
+transcript files found at all (not for ties, which are resolved
+silently — see Session discovery above); an existing output when
 `--force` is not supplied; and output write failures.
 
 On success it prints a concise deterministic summary with the output path,

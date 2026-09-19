@@ -393,6 +393,74 @@ page count when available, metadata status, and warning count. When frontmatter
 is written, the summary includes privacy and sensitivity status. Extraction
 warnings and potential sensitivity findings are printed as warnings.
 
+## `lrh conversation export-antigravity-session`
+
+```bash
+lrh conversation export-antigravity-session --latest
+lrh conversation export-antigravity-session --transcript-path PATH --out OUTPUT.md
+lrh conversation export-antigravity-session --conversation-id CONVERSATION_ID
+```
+
+Converts a local Google Antigravity session transcript log (JSONL) into a
+private, non-authoritative Markdown export artifact: a direct local-file
+read, not a live API call, mirroring the same defensive-parsing discipline
+as the other conversation adapters — malformed lines are collected as
+warnings rather than treated as fatal errors.
+
+The command is local and private-by-default:
+
+- it writes one Markdown file at `--out`, or a durable session-archive path
+  when `--out` is omitted;
+- generated frontmatter defaults to `privacy: private` and
+  `authority: non_authoritative_context`;
+- the source SHA-256, export timestamp, adapter version, warning list,
+  sensitivity metadata, and transcript statistics are preserved in the
+  frontmatter;
+- the output file's permissions are restricted to user-only (`0600`) after
+  the write completes;
+- sensitivity scanning is heuristic and does not certify that output is safe
+  to publish.
+
+### Session discovery
+
+Exactly one of the following is required:
+
+- `--transcript-path PATH` — an explicit path to a session transcript JSONL
+  file.
+- `--conversation-id CONVERSATION_ID` — discover the transcript at
+  `<app-data-dir>/brain/<CONVERSATION_ID>/.system_generated/logs/transcript.jsonl`,
+  falling back to `transcript_full.jsonl` in the same directory if the first
+  doesn't exist; an error if neither exists.
+- `--latest` — discover the most recently modified transcript file
+  (`transcript.jsonl` or `transcript_full.jsonl`) under
+  `<app-data-dir>/brain/*/.system_generated/logs/`.
+
+### Options
+
+- `--app-data-dir APP_DATA_DIR` — path to Antigravity's application data
+  directory (default: `~/.gemini/antigravity`).
+- `--out OUTPUT.md` — Markdown export output path (default: durable session
+  archive, under `<archive_root>/antigravity/exports/<YYYY>/<MM>/<source-id>.md`).
+- `--archive-root PATH` — optional private session archive root override.
+- `--force` — overwrite an existing output file.
+- `--source-id ID` — optional explicit session identifier to record in
+  `source_id` (defaults to the conversation ID segment of the transcript
+  path when derivable from its `brain/<id>/...` structure, else a
+  12-character SHA-256 prefix of the transcript content).
+- `--no-scan-sensitive` — skip the local heuristic sensitivity scanner and
+  mark transcript frontmatter as `sensitivity: unscanned`.
+
+### Exit behavior
+
+The command returns nonzero for a missing, non-file, non-UTF-8, or
+otherwise unreadable transcript input; an invalid or ambiguous
+`--conversation-id`/`--latest` discovery result; an existing output when
+`--force` is not supplied; and output write failures.
+
+On success it prints a concise deterministic summary with the output path,
+source ID, source SHA-256, privacy, sensitivity status, and warning count.
+Potential sensitive findings are also reported as warnings on stderr.
+
 ## `lrh conversation export-claude-session`
 
 ```bash

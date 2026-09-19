@@ -422,6 +422,10 @@ The command is local and private-by-default:
 - sensitivity scanning is heuristic and does not certify that output is safe
   to publish.
 
+Unlike `convert-codex-file` and `export-claude-session`, this command does not
+check whether `--out` is the same file as the source transcript. Passing the
+transcript itself as `--out` together with `--force` overwrites the source.
+
 ### Session discovery
 
 Exactly one of the following is required:
@@ -435,16 +439,19 @@ Exactly one of the following is required:
 - `--latest` — discover the most recently modified transcript file
   (`transcript.jsonl` or `transcript_full.jsonl`) under
   `<app-data-dir>/brain/*/.system_generated/logs/`. Ties on modification
-  time are broken silently (no ambiguity error) by picking whichever
-  matching path sorts first.
+  time are broken silently (no ambiguity error) in favor of an arbitrary
+  one of the tied files.
 
 ### Options
 
 - `--app-data-dir APP_DATA_DIR` — path to Antigravity's application data
   directory (default: `~/.gemini/antigravity`).
 - `--out OUTPUT.md` — Markdown export output path (default: durable session
-  archive, under `<archive_root>/antigravity/exports/<YYYY>/<MM>/<source-id>.md`).
+  archive, under `<archive_root>/antigravity/exports/<YYYY>/<MM>/<source-id>.md`,
+  where `<YYYY>/<MM>` is the UTC export date and any character in
+  `<source-id>` other than a letter, digit, `-`, or `_` becomes `_`).
 - `--archive-root PATH` — optional private session archive root override.
+  The resolved archive root must be outside the current Git worktree.
 - `--force` — overwrite an existing output file.
 - `--source-id ID` — optional explicit session identifier to record in
   `source_id` (defaults to the conversation ID segment of the transcript
@@ -457,10 +464,12 @@ Exactly one of the following is required:
 
 The command returns nonzero for a missing, non-file, non-UTF-8, or
 otherwise unreadable transcript input; a `--conversation-id` that
-resolves to no transcript file; a `--latest` discovery with no
-transcript files found at all (not for ties, which are resolved
-silently — see Session discovery above); an existing output when
-`--force` is not supplied; and output write failures.
+resolves to no transcript file; a `--latest` discovery where
+`<app-data-dir>/brain` does not exist or contains no transcript files (not
+for ties, which are resolved silently — see Session discovery above); an
+archive root that resolves inside the current Git worktree when `--out` is
+omitted; an existing output when `--force` is not supplied; and output write
+failures.
 
 On success it prints a concise deterministic summary with the output path,
 source ID, source SHA-256, privacy, sensitivity status, and warning count.

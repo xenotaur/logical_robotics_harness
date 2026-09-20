@@ -49,24 +49,16 @@ https://github.com/xenotaur/logical_robotics_harness/pull/673.
 - `lrh validate` — 0 errors, 0 warnings (was 1 warning).
 - Strict round-trip (`ruamel.yaml` safe mode and PyYAML): original text
   reproduced exactly; other frontmatter keys unchanged.
-- `PYTHONPATH=src python3 -m pytest tests/ -q` — 1601 passed.
+- `PYTHONPATH=src scripts/test` — `Ran 1601 tests`, `OK`, exit 0.
+- `scripts/lint` (ruff, black, and the STYLE.md Rule 5 test-framework
+  guardrail) — all passed, exit 0.
+- `scripts/format --check --diff` — 254 files unchanged, exit 0.
+- Recorded after review: this record originally cited a raw
+  `python -m pytest tests/ -q` run (also 1601 passed), which does not
+  follow AGENTS.md's "Testing and Validation Mandate"; the canonical
+  results above supersede it. `PYTHONPATH=src` is needed because the bare
+  `lrh`/editable install in this worktree resolves to a different checkout.
 
 # Follow-up
 
 - Continue with `/lrh-land` for PR #673.
-
-# Summary
-
-TODO: Briefly summarize the intended prompt-driven work.
-
-# Result
-
-TODO: Fill in what happened.
-
-# Validation
-
-TODO: List tests or checks run.
-
-# Follow-up
-
-TODO: List deferred work.

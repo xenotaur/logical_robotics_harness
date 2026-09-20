@@ -94,7 +94,7 @@ up front, since nothing there was live yet to break.
 
 **Related:** PR #510; PR #514; `src/lrh/conversations/export_manifest.py`;
 `docs/reference/cli/conversation.md`;
-`project/design/proposals/proposed/lrh-claude-conversation-exporter/00_proposal.md`;
+`project/design/proposals/adopted/lrh-claude-conversation-exporter/00_proposal.md`;
 `project/design/proposals/proposed/lrh-codex-app-server-conversation-export/00_proposal.md`;
 `project/work_items/resolved/WI-CODEX-CONVERSATION-EXPORT-APP-SERVER.md`.
 

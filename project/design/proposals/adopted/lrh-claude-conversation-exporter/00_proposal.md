@@ -2,11 +2,14 @@
 id: PROP-LRH-CLAUDE-CONVERSATION-EXPORTER
 type: design_proposal
 title: LRH Claude Code Conversation Exporter Design Proposal
-status: proposed
+status: adopted
 created_on: 2026-09-09
-updated_on: 2026-09-09
-implementation_status: not_started
-implemented_by: []
+updated_on: 2026-09-20
+implementation_status: implemented
+implemented_by:
+  - WI-CLAUDE-CONVERSATION-EXPORT-API
+  - WI-CLAUDE-CONVERSATION-EXPORT-CLI
+  - WI-CLAUDE-CONVERSATION-EXPORT-SKILL
 supersedes: []
 superseded_by: null
 related_design:

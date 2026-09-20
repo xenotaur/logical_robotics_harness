@@ -29,6 +29,7 @@ forbidden_actions:
   - write_to_real_claude_projects_in_tests
 acceptance:
   - Design question settled and documented with evidence from real Claude Code behavior (worktree maps to main repo via git common dir, or otherwise)
+  - If the outcome maps worktrees to the main-repo corpus, the adopted lrh-memory-command proposal's Decision 8 (separate worktree corpora with curated transfer) is explicitly amended or superseded
   - lrh memory write from a worktree cwd resolves to the canonical dir, or fails/warns loudly when the target differs from it
   - A test reproduces the cwd-in-worktree slug mismatch, using --claude-projects-root against a temp dir
   - A recovery command detects orphaned worktree-suffixed memory dirs and merges them into the canonical dir non-destructively (cp -n semantics, index updated, originals left in place)
@@ -42,6 +43,8 @@ artifacts_expected:
   - src/lrh/prompt_workflow_memory.py
   - src/lrh/memory_workflow.py
   - tests/assist_tests/prompt_workflow_memory_test.py
+  - docs/reference/cli/memory.md
+  - project/design/proposals/adopted/lrh-memory-command/00_proposal.md
 ---
 
 ## Summary
@@ -109,7 +112,11 @@ Unverified (investigate, do not assert):
    behavior before deciding.
 2. Fix `lrh memory write` (and sibling memory commands sharing the
    resolver) accordingly.
-3. Provide detection and non-destructive merge of orphaned worktree-suffixed
+3. If the decision changes corpus identity for worktrees, amend or supersede
+   Decision 8 of the adopted `lrh-memory-command` proposal, which currently
+   chooses separate worktree corpora with curated `transfer`; the control
+   plane must not prescribe contradictory behavior.
+4. Provide detection and non-destructive merge of orphaned worktree-suffixed
    memory dirs into the canonical one.
 
 ## Required Changes
@@ -120,8 +127,12 @@ Unverified (investigate, do not assert):
 3. Add a recovery command (with `--dry-run`) that detects orphan dirs and
    merges with `cp -n` semantics, updates the index, and leaves originals
    in place; report files of unknown provenance rather than acting on them.
-4. Add tests, including one reproducing the cwd-in-worktree mismatch.
-5. Update memory command docs.
+4. Add tests, including one reproducing the cwd-in-worktree mismatch. Tests
+   must subclass `unittest.TestCase` and use `tempfile.TemporaryDirectory`
+   (`AGENTS.md`, `STYLE.md` Rule 5).
+5. Update memory command docs (`docs/reference/cli/memory.md`).
+6. Amend or supersede Decision 8 of the adopted proposal if the outcome
+   maps worktrees to the main-repo corpus.
 
 ## Non-Goals
 
@@ -136,6 +147,8 @@ Unverified (investigate, do not assert):
 - The canonical-dir design question is settled and documented with evidence.
 - `lrh memory write` from a worktree cwd resolves to the canonical dir, or
   fails/warns loudly when the target differs.
+- If worktrees map to the main-repo corpus, Decision 8 of the adopted
+  proposal is amended or superseded.
 - A test reproduces the cwd-in-worktree slug mismatch against a temp
   projects root.
 - A recovery command merges orphaned worktree-suffixed memory dirs
@@ -146,8 +159,10 @@ Unverified (investigate, do not assert):
 
 ## Validation
 
-- PYTHONPATH=src python3 -m pytest tests/assist_tests/prompt_workflow_memory_test.py tests/assist_tests/prompt_workflow_sessions_test.py
-- PYTHONPATH=src python3 -m lrh.cli.main validate
+- scripts/format --check --diff
+- scripts/lint
+- scripts/test
+- lrh validate
 
 ## Risk Notes
 

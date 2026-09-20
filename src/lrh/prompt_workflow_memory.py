@@ -21,6 +21,7 @@ import json
 import os
 import pathlib
 import re
+import subprocess
 import tempfile
 import typing
 
@@ -62,8 +63,61 @@ def memory_dir_for_project(
         if claude_projects_root
         else default_claude_projects_root()
     )
-    slug = project_slug_for_path(project_root)
+    slug = project_slug_for_path(canonical_project_root(project_root))
     return root / slug / MEMORY_DIRNAME
+
+
+def canonical_project_root(project_root: str | pathlib.Path) -> pathlib.Path:
+    """Map a linked git worktree to its main checkout; otherwise return
+    ``project_root`` unchanged.
+
+    Claude Code keys a session's *transcript* bucket on the literal cwd
+    (a worktree gets a ``--claude-worktrees-<name>`` suffixed slug) but
+    keys its auto-memory corpus on the main repository, so a memory
+    written to the worktree's own slug lands where no future session
+    reads it. Detection compares ``git rev-parse --git-dir`` with
+    ``--git-common-dir``: they differ only in a linked worktree. A
+    non-git directory, a missing ``git``, a bare repository, or a
+    submodule (git-dir equals git-common-dir) all fall through to the
+    unmodified path. The result is git's own spelling of the main
+    checkout path -- it does not follow symlinks itself, but git may
+    already have resolved one.
+    """
+
+    root = pathlib.Path(project_root).expanduser()
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(root), "rev-parse", "--git-dir", "--git-common-dir"],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=10,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return root
+    lines = completed.stdout.splitlines()
+    if completed.returncode != 0 or len(lines) != 2:
+        return root
+    # ``root / <git output>`` deliberately relies on pathlib discarding
+    # ``root`` when git prints an absolute path (the linked-worktree case).
+    git_dir = os.path.realpath(root / lines[0])
+    common_dir = os.path.realpath(root / lines[1])
+    if git_dir == common_dir or os.path.basename(common_dir) != ".git":
+        return root
+    return pathlib.Path(os.path.dirname(common_dir))
+
+
+def worktree_mapping_note(project_root: str | pathlib.Path) -> str | None:
+    """Return a one-line explanation when ``project_root`` is mapped to a
+    different (main-checkout) corpus, else ``None``."""
+
+    canonical = canonical_project_root(project_root)
+    if project_slug_for_path(canonical) == project_slug_for_path(project_root):
+        return None
+    return (
+        f"note: {pathlib.Path(project_root).resolve()} is a linked git worktree; "
+        f"using the memory corpus of its main checkout {canonical}"
+    )
 
 
 def filename_for(name: str) -> str:
@@ -473,6 +527,24 @@ def _indexed_filenames(index_path: pathlib.Path) -> set[str]:
     return filenames
 
 
+def _structural_problem(frontmatter: dict[str, typing.Any]) -> str | None:
+    """Return why ``frontmatter`` is structurally malformed (missing
+    ``name``/``description``/``metadata.type``, or an invalid type), or
+    ``None`` when it conforms. Shared by :func:`validate_corpus` and
+    :func:`recover_orphan_memories` so recovery never introduces a file the
+    corpus validator would immediately classify as malformed."""
+
+    metadata = frontmatter.get("metadata")
+    type_ = metadata.get("type") if isinstance(metadata, dict) else None
+    if not frontmatter.get("name"):
+        return "missing name"
+    if not frontmatter.get("description"):
+        return "missing description"
+    if type_ not in VALID_TYPES:
+        return f"missing or invalid metadata.type ({type_!r})"
+    return None
+
+
 def validate_corpus(
     project_root: str | pathlib.Path,
     claude_projects_root: str | pathlib.Path | None = None,
@@ -527,11 +599,8 @@ def validate_corpus(
             malformed.append(path.name)
             continue
 
-        name = frontmatter.get("name")
-        description = frontmatter.get("description")
         metadata = frontmatter.get("metadata")
-        type_ = metadata.get("type") if isinstance(metadata, dict) else None
-        if not name or not description or type_ not in VALID_TYPES:
+        if _structural_problem(frontmatter) is not None:
             malformed.append(path.name)
             continue
 
@@ -711,7 +780,7 @@ def sync_memory(
             "an archive root outside the memory corpus"
         )
 
-    project_slug = project_slug_for_path(project_root)
+    project_slug = project_slug_for_path(canonical_project_root(project_root))
     resolved_timestamp = timestamp or _utc_now_compact()
 
     entries: list[SyncEntry] = []
@@ -850,7 +919,7 @@ def export_memories(
     ``agent`` filter -- see :func:`_require_export_filter`."""
 
     memory_dir = memory_dir_for_project(project_root, claude_projects_root)
-    project_slug = project_slug_for_path(project_root)
+    project_slug = project_slug_for_path(canonical_project_root(project_root))
     records = _export_records_from_dir(
         memory_dir, project_slug, names=names, agent=agent
     )
@@ -1452,3 +1521,212 @@ def search_memories(
         agent=agent,
         type_=type_,
     )
+
+
+# ---------------------------------------------------------------------------
+# Orphan recovery: worktree-suffixed corpora -> canonical corpus
+# ---------------------------------------------------------------------------
+
+_WORKTREE_SLUG_MARKER = "--claude-worktrees-"
+
+
+@dataclasses.dataclass(frozen=True)
+class OrphanEntry:
+    """One orphaned memory file and what recovery did (or would do) with it.
+
+    ``action`` is one of ``copied`` / ``would_copy`` (new in the canonical
+    corpus), ``identical`` (already present, same bytes), ``conflict``
+    (present with different bytes -- never overwritten),
+    ``unattributed`` (no ``metadata.authored_by``: provenance unknown, so
+    reported only unless explicitly included), or ``malformed``.
+    """
+
+    source_dir: pathlib.Path
+    filename: str
+    action: str
+    detail: str = ""
+
+
+def find_orphan_memory_dirs(
+    project_root: str | pathlib.Path,
+    claude_projects_root: str | pathlib.Path | None = None,
+) -> list[pathlib.Path]:
+    """List worktree-suffixed ``memory/`` directories belonging to this
+    project's canonical corpus.
+
+    A directory matches when its name, with underscores normalised to
+    hyphens (older ``lrh`` builds preserved them -- see
+    WI-PROJECT-SLUG-SYMLINK-RESOLUTION), starts with
+    ``<canonical-slug>--claude-worktrees-``. Only Claude Code's own
+    ``.claude/worktrees/`` layout is recognised.
+    """
+
+    root = (
+        pathlib.Path(claude_projects_root).expanduser()
+        if claude_projects_root
+        else default_claude_projects_root()
+    )
+    canonical_slug = project_slug_for_path(canonical_project_root(project_root))
+    prefix = canonical_slug + _WORKTREE_SLUG_MARKER
+    if not root.is_dir():
+        return []
+    found = []
+    for child in sorted(root.iterdir()):
+        if child.name.replace("_", "-").startswith(prefix):
+            memory_dir = child / MEMORY_DIRNAME
+            # Like ``read``/``search``, never follow a symlinked bucket or
+            # corpus directory: it could point outside the projects root.
+            if child.is_symlink() or memory_dir.is_symlink():
+                continue
+            if memory_dir.is_dir():
+                found.append(memory_dir)
+    return found
+
+
+def recover_orphan_memories(
+    project_root: str | pathlib.Path,
+    *,
+    claude_projects_root: str | pathlib.Path | None = None,
+    apply: bool = False,
+    include_unattributed: bool = False,
+) -> list[OrphanEntry]:
+    """Copy orphaned worktree-suffixed memories into the canonical corpus.
+
+    Non-destructive by construction: ``cp -n`` semantics (an existing
+    canonical file is never overwritten -- a differing one is reported as
+    a ``conflict``), originals are left in place, and the canonical
+    ``MEMORY.md`` gains an entry for each file copied -- and, on ``apply``,
+    for a byte-identical canonical file that was never indexed (appended
+    only, never rewriting an existing line; heals a run interrupted between
+    the copy and the index write). Dry-run unless ``apply``.
+    """
+
+    canonical_dir = memory_dir_for_project(project_root, claude_projects_root)
+    entries: list[OrphanEntry] = []
+    for source_dir in find_orphan_memory_dirs(project_root, claude_projects_root):
+        for source in sorted(source_dir.glob("*.md")):
+            if source.name == INDEX_FILENAME:
+                continue
+            entries.append(
+                _recover_one(
+                    source_dir,
+                    source,
+                    canonical_dir,
+                    apply=apply,
+                    include_unattributed=include_unattributed,
+                )
+            )
+    return entries
+
+
+def _recover_one(
+    source_dir: pathlib.Path,
+    source: pathlib.Path,
+    canonical_dir: pathlib.Path,
+    *,
+    apply: bool,
+    include_unattributed: bool,
+) -> OrphanEntry:
+    if source.is_symlink():
+        return OrphanEntry(
+            source_dir, source.name, "malformed", "symlink; not followed"
+        )
+    try:
+        content = source.read_bytes()
+        frontmatter, _ = read_frontmatter_and_body(content.decode("utf-8"))
+    except (OSError, MemoryValidationError, UnicodeDecodeError) as error:
+        return OrphanEntry(source_dir, source.name, "malformed", str(error))
+    problem = _structural_problem(frontmatter)
+    if problem is not None:
+        return OrphanEntry(source_dir, source.name, "malformed", problem)
+
+    metadata = frontmatter.get("metadata")
+    authored_by = metadata.get("authored_by") if isinstance(metadata, dict) else None
+    if not authored_by and not include_unattributed:
+        return OrphanEntry(
+            source_dir,
+            source.name,
+            "unattributed",
+            "no metadata.authored_by; pass --include-unattributed to copy",
+        )
+
+    dest = canonical_dir / source.name
+    name = str(frontmatter.get("name") or source.stem.replace("_", "-"))
+    description = str(frontmatter.get("description") or "")
+
+    def _existing_state() -> OrphanEntry | None:
+        if not dest.exists():
+            return None
+        try:
+            if dest.read_bytes() == content:
+                return OrphanEntry(source_dir, source.name, "identical")
+        except OSError as error:
+            return OrphanEntry(
+                source_dir,
+                source.name,
+                "conflict",
+                f"canonical path unreadable ({error}); left untouched",
+            )
+        return OrphanEntry(
+            source_dir,
+            source.name,
+            "conflict",
+            "canonical file differs; left untouched",
+        )
+
+    def _index() -> None:
+        _ensure_index_entry(
+            canonical_dir / INDEX_FILENAME,
+            filename=source.name,
+            name=name,
+            description=description,
+        )
+
+    existing = _existing_state()
+    if existing is not None:
+        if apply and existing.action == "identical":
+            # Heal a run interrupted between the copy and the index write:
+            # the file is already there, but nothing links to it. Append
+            # only -- never rewrite an existing (possibly hand-edited) line.
+            if source.name not in _indexed_filenames(canonical_dir / INDEX_FILENAME):
+                _index()
+        return existing
+    if not apply:
+        return OrphanEntry(source_dir, source.name, "would_copy")
+
+    # ``os.link`` fails atomically if ``dest`` already exists, so a concurrent
+    # ``write`` landing after the checks above is never overwritten -- unlike
+    # a lock, this needs no cooperation from the other writer (``write``
+    # does not take ``_locked_memory_path``).
+    canonical_dir.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=canonical_dir, prefix=f".{source.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+        try:
+            os.link(tmp_name, dest)
+        except FileExistsError:
+            return _existing_state() or OrphanEntry(
+                source_dir,
+                source.name,
+                "conflict",
+                "canonical path already exists; left untouched",
+            )
+        except OSError as error:
+            # ``os.link`` is the only atomic no-clobber primitive used here,
+            # so an unsupported/failed link (FAT/exFAT, some network mounts,
+            # a link limit) is reported per entry rather than falling back
+            # to a non-atomic create that could leave a partial file.
+            return OrphanEntry(
+                source_dir,
+                source.name,
+                "conflict",
+                f"could not link into canonical corpus ({error}); left untouched",
+            )
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(tmp_name)
+    _index()
+    return OrphanEntry(source_dir, source.name, "copied")

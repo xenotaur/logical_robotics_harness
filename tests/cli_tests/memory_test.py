@@ -1,3 +1,4 @@
+import os
 import pathlib
 import subprocess
 import sys
@@ -838,6 +839,82 @@ class MemoryCliTest(unittest.TestCase):
             snapshots = list(history_dir.glob("feedback_x.*.md"))
             self.assertEqual(len(snapshots), 1)
             self.assertIn("LOCALLY EDITED", snapshots[0].read_text(encoding="utf-8"))
+
+    def test_write_from_worktree_uses_canonical_dir_and_prints_note(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = pathlib.Path(os.path.realpath(tmp))
+            claude_root = base / "claude-projects"
+            repo = base / "proj"
+            repo.mkdir()
+            git = ["git", "-c", "user.email=t@example.com", "-c", "user.name=T"]
+            subprocess.run([*git, "init", "-q", "-b", "main"], cwd=repo, check=True)
+            subprocess.run(
+                [*git, "commit", "-q", "--allow-empty", "-m", "i"], cwd=repo, check=True
+            )
+            worktree = repo / ".claude" / "worktrees" / "wt"
+            subprocess.run(
+                [*git, "worktree", "add", "-q", "-b", "wtb", str(worktree)],
+                cwd=repo,
+                check=True,
+            )
+
+            completed = self._run(
+                "write",
+                "feedback-wt-cli",
+                "--description",
+                "d",
+                "--type",
+                "feedback",
+                "--agent",
+                "claude",
+                "--project-root",
+                str(worktree),
+                "--claude-projects-root",
+                str(claude_root),
+                input_text="body\n",
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            expected = claude_root / project_slug_for_path(repo) / "memory"
+            self.assertIn(f"wrote: {expected}", completed.stdout)
+            self.assertIn("linked git worktree", completed.stderr)
+            self.assertNotIn("--claude-worktrees-", completed.stdout)
+
+    def test_recover_orphans_dry_run_then_apply(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            base = pathlib.Path(os.path.realpath(tmp))
+            claude_root = base / "claude-projects"
+            project = base / "proj"
+            project.mkdir()
+            slug = project_slug_for_path(project)
+            orphan = claude_root / f"{slug}--claude-worktrees-wt" / "memory"
+            orphan.mkdir(parents=True)
+            (orphan / "feedback_one.md").write_text(
+                "---\nname: feedback-one\ndescription: d\nmetadata:\n"
+                "  type: feedback\n  authored_by: claude\n---\n\nbody\n",
+                encoding="utf-8",
+            )
+            args = (
+                "recover-orphans",
+                "--project-root",
+                str(project),
+                "--claude-projects-root",
+                str(claude_root),
+            )
+
+            dry = self._run(*args)
+            self.assertEqual(dry.returncode, 0, dry.stderr)
+            self.assertIn("would_copy:", dry.stdout)
+            self.assertIn("dry-run", dry.stdout)
+            self.assertFalse((claude_root / slug / "memory").exists())
+
+            applied = self._run(*args, "--apply")
+            self.assertEqual(applied.returncode, 0, applied.stderr)
+            self.assertIn("copied:", applied.stdout)
+            self.assertTrue(
+                (claude_root / slug / "memory" / "feedback_one.md").exists()
+            )
+            self.assertTrue((orphan / "feedback_one.md").exists())
 
 
 if __name__ == "__main__":

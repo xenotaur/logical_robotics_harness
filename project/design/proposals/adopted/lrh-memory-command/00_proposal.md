@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Memory Command — Validated Cross-Agent Writes and Durable Archival for Claude Code Memory
 status: adopted
 created_on: 2026-08-18
-updated_on: 2026-08-21
+updated_on: 2026-09-20
 implementation_status: implemented
 implemented_by:
   - WI-LRH-MEMORY-WRITE-SIDE
@@ -24,7 +24,7 @@ related_design:
 
 ## Summary
 
-This proposal establishes an `lrh memory` command family that makes malformed writes to Claude Code's per-project memory corpus (`~/.claude/projects/<slug>/memory/*.md`) structurally impossible, and closes the separate gap that no durable archive covers memory at all. It defines a write-side surface (`lrh memory write`/`list`/`validate`) that validates frontmatter, writes the memory file and its `MEMORY.md` index entry as an ordered pair designed to fail toward a detectable, repairable state rather than a silent one (Decision 4), resolves the corpus path internally, and records `metadata.authored_by`; a read-side surface (`lrh memory read`/`search`) for inspecting a corpus without knowing its layout; a portability surface (`lrh memory export`/`import`/`transfer`) that moves curated memories between corpora — the concrete need being that every new workstream subdirectory or worktree starts with a wholly separate, empty memory corpus by construction, verified empirically below; and an archive-side surface (`lrh memory sync`) that mirrors the corpus into the same durable archive `lrh sessions sync` already maintains for transcripts, using a snapshot-before-overwrite invariant suited to edited (not append-only) files. The full ten-command surface — including `lrh memory repair`, a conservative, structural-only fix-up command for memories already on disk — is specified in this proposal; v1 implementation is staged by risk (see Implementation Plan), not all ten at once.
+This proposal establishes an `lrh memory` command family that makes malformed writes to Claude Code's per-project memory corpus (`~/.claude/projects/<slug>/memory/*.md`) structurally impossible, and closes the separate gap that no durable archive covers memory at all. It defines a write-side surface (`lrh memory write`/`list`/`validate`) that validates frontmatter, writes the memory file and its `MEMORY.md` index entry as an ordered pair designed to fail toward a detectable, repairable state rather than a silent one (Decision 4), resolves the corpus path internally, and records `metadata.authored_by`; a read-side surface (`lrh memory read`/`search`) for inspecting a corpus without knowing its layout; a portability surface (`lrh memory export`/`import`/`transfer`) that moves curated memories between corpora — the concrete need being that every new workstream subdirectory or worktree starts with a wholly separate, empty memory corpus by construction, verified empirically below; and an archive-side surface (`lrh memory sync`) that mirrors the corpus into the same durable archive `lrh sessions sync` already maintains for transcripts, using a snapshot-before-overwrite invariant suited to edited (not append-only) files. The full eleven-command surface (ten in the original design; `recover-orphans` was added by the Decision 8 amendment below) — including `lrh memory repair`, a conservative, structural-only fix-up command for memories already on disk — is specified in this proposal; v1 implementation is staged by risk (see Implementation Plan), not all ten at once.
 
 ## Background / Motivation
 
@@ -126,6 +126,16 @@ The third gap in Background/Motivation (fresh workstream/worktree buckets start 
 
 **Chosen: curated file-based export/import/transfer**, with automatic invocation deferred as a follow-on question (see Open Questions) rather than committed in this proposal. It is the only option that is simultaneously precedented in this codebase, compatible with the 200-line context-budget constraint by construction, and layered on top of — rather than bypassing — the write-side validation Decisions 2 and 3 already establish.
 
+#### Amendment to Decision 8 (2026-09-20, WI-LRH-MEMORY-WORKTREE-CANONICAL-DIR) — linked worktrees share the main checkout's corpus
+
+Decision 8 above (and Background/Motivation's "third gap") treated a git worktree as a *fresh, empty corpus by construction* to be populated by curated `transfer`. Real behavior contradicts that premise for linked worktrees: Claude Code keys a session's *transcript* bucket on the literal working directory (a worktree session's transcripts live under `...--claude-worktrees-<name>`), but its *auto-memory* directory — the one future sessions actually read, and the one a session's own system prompt names — is the **main checkout's**, with no worktree suffix. Under this proposal's original path resolution, `lrh memory write` from a worktree therefore wrote into a worktree-suffixed corpus no session ever reads, while still printing an ordinary "wrote:/indexed:" result. This was reproduced at least twice (the PR #668 session; the `lrh-memory-command-design-46789b` session, which orphaned 8 memories across two directories).
+
+**Superseded in part:** for a *linked git worktree*, the canonical corpus is now the main checkout's, resolved by `canonical_project_root()` (`git rev-parse --git-dir` vs `--git-common-dir`) inside `memory_dir_for_project()`, so every memory subcommand that resolves the current project inherits it. Worktrees are no longer "memory-blind by construction," and no `transfer` is needed to keep a worktree session's memories visible. **Unchanged:** the rest of Decision 8 — curated `export`/`import`/`transfer`, the rejection of symlinked corpora, and the deferral of automatic transfer — still governs the other case it was written for, ordinary workstream *subdirectories* (which are not linked worktrees and still get their own path-keyed bucket), and `transfer` still resolves its `--from`/`--to` literally so a worktree-suffixed corpus stays addressable. The 200-line context-budget concern that motivated rejecting unconditional sharing does not apply here: a worktree is the same repository and the same project, not a separate scope.
+
+**Recovery:** `lrh memory recover-orphans` copies memories already stranded in worktree-suffixed corpora into the canonical one, non-destructively (`cp -n` semantics, originals kept, unattributed files reported and skipped by default).
+
+**Provenance of the underscore-slug orphan (dir B), checked against the real `~/.claude/projects/` state:** the `...logical_robotics_harness--claude-worktrees-lrh-memory-command-design-46789b` directory (underscore preserved) holds files dated 2026-08-22/23 — before commit `e5096c6f` (2026-08-23, which made `project_slug_for_path()` replace underscores, matching Claude Code's real hyphenated bucket naming) — but also files dated 2026-09-10 and 2026-09-11, *after* it. So the hypothesis that an older `lrh` build wrote it is confirmed in kind (an underscore-preserving slug function is the only writer that can produce that name, since Claude Code itself hyphenates), while the September files show such a build was still in use weeks after the fix, consistent with a bare `lrh` resolving to a different, older checkout (see the "worktree editable install" memory). It does not indicate a regression in current code, which the slug tests cover.
+
 ### Decision 9: Retroactive fix-up — `repair`
 
 Options considered:
@@ -168,7 +178,7 @@ Known open questions:
 
 ## Implementation Plan
 
-This proposal specifies the full ten-command surface, but v1 does not implement all ten at once — staged by risk and by dependency, pending resolution of the Open Questions above:
+This proposal specifies the full eleven-command surface (ten as originally designed, plus `recover-orphans` from the Decision 8 amendment), but v1 does not implement all ten at once — staged by risk and by dependency, pending resolution of the Open Questions above:
 
 - **Stage 1 — WI-A (write-side):** `lrh memory write`/`list`/`validate`, the `authored_by`/`applies_to` schema addition (recorded as a short `project/memory/decisions/DEC-*` entry alongside this work, following the precedent of `WI-GATE-POLICY-CASCADE-STAGE3`'s comparable schema/policy decisions), extraction of the shared atomic-write helper, and migrating `src/lrh/skills/lrh-closeout/SKILL.md:403-406`'s direct-write instruction to call `lrh memory write` instead — otherwise this canonical LRH workflow keeps bypassing the new validation entirely, defeating the proposal's purpose for its most frequent real caller.
 - **Stage 1a — fast follow-up on WI-A:** `lrh memory repair` (Decision 9), once `write`'s validated path exists for it to wrap. Named as a fast follow-up rather than folded into WI-A itself so the write-side work item stays scoped to what the original findings audit required; `repair` is the retroactive-cleanup complement to it, not a precondition.
@@ -181,7 +191,7 @@ Stage 1's two work items, once drafted, should offer to close/link `project/desi
 
 ## API Sketch
 
-Concrete CLI shape for all ten commands, derived from the Design Decisions above plus the flag conventions already established by `lrh sessions` (`src/lrh/sessions_workflow.py`) and `lrh search` (`src/lrh/prompt_workflow_search.py`). Flags marked "(precedent)" are lifted directly from an existing command rather than invented for this proposal; flags with no such marker are new, decided by the Design Decision cited.
+Concrete CLI shape for the ten original commands (`recover-orphans`, added by the Decision 8 amendment, is specified in `docs/reference/cli/memory.md`), derived from the Design Decisions above plus the flag conventions already established by `lrh sessions` (`src/lrh/sessions_workflow.py`) and `lrh search` (`src/lrh/prompt_workflow_search.py`). Flags marked "(precedent)" are lifted directly from an existing command rather than invented for this proposal; flags with no such marker are new, decided by the Design Decision cited.
 
 ### `lrh memory write`
 ```

@@ -1,5 +1,5 @@
-"""``lrh memory`` CLI: write, list, validate, repair, sync, read, search,
-export, import, transfer.
+"""``lrh memory`` CLI: write, list, validate, repair, recover-orphans, sync, read,
+search, export, import, transfer.
 
 PROP-LRH-MEMORY-COMMAND Stage 1 (WI-LRH-MEMORY-WRITE-SIDE), Stage 2
 (WI-LRH-MEMORY-ARCHIVE-SIDE), Stage 3 (WI-LRH-MEMORY-READ-SIDE), and Stage 4
@@ -50,6 +50,25 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
         action="store_true",
         help="overwrite even if authored_by differs from --agent",
     )
+
+    recover_parser = subparsers.add_parser(
+        "recover-orphans",
+        help=(
+            "Copy memories orphaned in worktree-suffixed corpora into this "
+            "project's canonical corpus (dry-run unless --apply)."
+        ),
+    )
+    recover_parser.add_argument("--project-root", default=".")
+    recover_parser.add_argument("--claude-projects-root", default=None)
+    recover_parser.add_argument(
+        "--apply", action="store_true", help="write; default is a dry-run report"
+    )
+    recover_parser.add_argument(
+        "--include-unattributed",
+        action="store_true",
+        help="also copy files with no metadata.authored_by (default: report only)",
+    )
+    recover_parser.add_argument("--format", choices=("text", "json"), default="text")
 
     list_parser = subparsers.add_parser("list", help="List the MEMORY.md index.")
     list_parser.add_argument("--project-root", default=".")
@@ -232,6 +251,8 @@ def run_memory_cli(argv: list[str], *, prog: str = "lrh memory") -> int:
 
     if args.memory_command == "write":
         return _run_write(args)
+    if args.memory_command == "recover-orphans":
+        return _run_recover_orphans(args)
     if args.memory_command == "list":
         return _run_list(args)
     if args.memory_command == "validate":
@@ -283,11 +304,48 @@ def _run_write(args: argparse.Namespace) -> int:
         print(f"error: {error}", file=sys.stderr)
         return 1
 
+    note = prompt_workflow_memory.worktree_mapping_note(args.project_root)
+    if note:
+        print(note, file=sys.stderr)
     print(f"wrote: {result.memory_path}")
     if result.index_updated:
         print(f"indexed: {result.index_path}")
     else:
         print(f"index already current: {result.index_path}")
+    return 0
+
+
+def _run_recover_orphans(args: argparse.Namespace) -> int:
+    entries = prompt_workflow_memory.recover_orphan_memories(
+        args.project_root,
+        claude_projects_root=args.claude_projects_root,
+        apply=args.apply,
+        include_unattributed=args.include_unattributed,
+    )
+    if args.format == "json":
+        print(
+            json.dumps(
+                [
+                    {
+                        "source_dir": str(e.source_dir),
+                        "filename": e.filename,
+                        "action": e.action,
+                        "detail": e.detail,
+                    }
+                    for e in entries
+                ],
+                indent=2,
+            )
+        )
+        return 0
+    if not entries:
+        print("no orphaned worktree memories found")
+        return 0
+    for entry in entries:
+        suffix = f" ({entry.detail})" if entry.detail else ""
+        print(f"{entry.action}: {entry.source_dir / entry.filename}{suffix}")
+    if not args.apply:
+        print("dry-run: nothing written (pass --apply to copy)")
     return 0
 
 

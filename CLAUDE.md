@@ -22,4 +22,5 @@
 - `/lrh-config-skills` — Inspect and set project/agent_skills.yaml install policy (sources, targets, scope); install.overwrite is shown read-only; may create the file from scratch since nothing else does
 - `/lrh-antigravity-export` — Export the current or specified Google Antigravity session transcript into a private, non-authoritative Markdown export artifact, verified via `lrh conversation inspect-export`
 - `/lrh-codex-export` — Export the current or specified Codex task/thread into a durable private Markdown archive via `lrh conversation archive-codex-thread`; invoke only on an explicit user request, never proactively
+- `/lrh-codex-session` — Report the current or specified Codex task/thread identity as an LRH `session_transcript: codex-app:<id>` pointer without exporting any transcript content; use when a closeout or execution record needs the pointer but no archive was requested
 - `/lrh-export-claude` — Export the current or specified Claude Code session transcript into a private, non-authoritative Markdown export artifact, with a mandatory confirm-before-write gate and metadata-only terminal reporting

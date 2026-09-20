@@ -35,8 +35,15 @@ Added three work items under `project/work_items/proposed/`, all
   current session, a typed invocation counts as explicit, and Step 5 accepts
   `match_source_grew`. Depends on the other two.
 
-The Antigravity investigation is still pending and may amend the first item or
-add a fourth.
+Antigravity investigation (read-only, sizes and hashes only, no conversation
+content read): a live conversation's `transcript.jsonl` (44,262 bytes) and
+`transcript_full.jsonl` (52,222 bytes) each grew by roughly 1-2 KB after two
+more messages, and the original bytes still hashed exactly to the baseline
+digests, so the logs are append-only and a whole-file hash goes stale. The
+first work item was amended to cover both the Claude and Antigravity
+exporters. Not tested: chunk rollover on a long conversation, and a real
+export/inspect round trip against Antigravity (no export of the conversation
+was made).
 
 # Validation
 
@@ -46,5 +53,5 @@ add a fourth.
 
 # Follow-up
 
-- Keep PR #682 as a draft until the Antigravity investigation finishes.
+- Keep PR #682 as a draft until the user decides to submit it.
 - Then land this record via `lrh prompt update-execution` at closeout.

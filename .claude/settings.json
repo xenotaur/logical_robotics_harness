@@ -15,6 +15,7 @@
       "Bash(git pull)",
       "Bash(git pull *)",
       "Bash(git checkout -b *)",
+      "Bash(git checkout --detach *)",
       "Bash(git checkout main)",
       "Bash(git fetch *)",
       "Bash(git add *)",

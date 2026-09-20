@@ -75,7 +75,10 @@ directory, a bare repository, and a submodule are never remapped.
 Detection compares `git rev-parse --git-dir` with `--git-common-dir`, so it
 needs `git` on `PATH`; without it the path is used as given. `transfer`
 keeps its literal path-or-slug semantics, so it can still address a
-worktree-suffixed corpus explicitly.
+worktree-suffixed corpus explicitly. `sync` and `export` derive their
+archive path and `exported_from_slug` provenance from the main checkout as
+well, so a worktree session never creates a second, worktree-suffixed
+archive or false export origin.
 
 ## `lrh memory recover-orphans`
 
@@ -103,7 +106,12 @@ lrh memory recover-orphans --apply --include-unattributed --format json
   an entry only for files actually copied.
 - Files with no `metadata.authored_by` (unknown provenance) are reported
   as `unattributed` and skipped unless `--include-unattributed`.
-  Unparseable files are reported as `malformed` and skipped.
+  Files that fail the same structural checks `validate` applies (missing
+  `name`, `description`, or a valid `metadata.type`) and unparseable
+  files are reported as `malformed` and skipped. Symlinked bucket or
+  `memory/` directories are ignored, and a symlinked memory file is
+  reported as `malformed` (`symlink; not followed`), matching `read` and
+  `search`.
 - `--format json` emits `source_dir`, `filename`, `action`, and `detail`
   per file. Actions: `would_copy`, `copied`, `identical`, `conflict`,
   `unattributed`, `malformed`.

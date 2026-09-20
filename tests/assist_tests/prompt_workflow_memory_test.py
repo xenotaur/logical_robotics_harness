@@ -2756,5 +2756,145 @@ class RecoverOrphanMemoriesTest(unittest.TestCase):
             self.assertTrue((canonical_dir / "feedback_one.md").exists())
 
 
+class WorktreeDownstreamIdentityTest(unittest.TestCase):
+    """sync/export must derive their slug from the canonical root too, or a
+    worktree session archives the main corpus under a second slug."""
+
+    def test_sync_from_worktree_archives_under_the_canonical_slug(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            archive_root = pathlib.Path(tmp) / "archive"
+            repo, worktree = _make_repo_with_worktree(pathlib.Path(tmp))
+            prompt_workflow_memory.write_memory(
+                worktree,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+
+            prompt_workflow_memory.sync_memory(
+                worktree, claude_projects_root=claude_root, archive_root=archive_root
+            )
+
+            canonical = archive_root / "raw" / project_slug_for_path(repo) / "memory"
+            self.assertTrue((canonical / "feedback_foo.md").exists())
+            self.assertEqual(
+                [p.name for p in (archive_root / "raw").iterdir()],
+                [project_slug_for_path(repo)],
+            )
+
+    def test_export_from_worktree_records_the_canonical_slug(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            repo, worktree = _make_repo_with_worktree(pathlib.Path(tmp))
+            prompt_workflow_memory.write_memory(
+                worktree,
+                "feedback-foo",
+                description="d",
+                type_="feedback",
+                agent="claude",
+                body="body\n",
+                claude_projects_root=claude_root,
+            )
+            output = pathlib.Path(tmp) / "bundle.jsonl"
+
+            prompt_workflow_memory.export_memories(
+                worktree,
+                output=output,
+                names=["feedback-foo"],
+                claude_projects_root=claude_root,
+            )
+
+            record = json.loads(output.read_text(encoding="utf-8").splitlines()[0])
+            self.assertEqual(record["exported_from_slug"], project_slug_for_path(repo))
+
+
+class RecoverOrphanSafetyTest(unittest.TestCase):
+    def _setup(self, tmp: str) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+        base = pathlib.Path(os.path.realpath(tmp))
+        claude_root = base / "claude-projects"
+        project = base / "proj"
+        project.mkdir()
+        canonical_dir = claude_root / project_slug_for_path(project) / "memory"
+        canonical_dir.mkdir(parents=True)
+        orphan = (
+            claude_root
+            / f"{project_slug_for_path(project)}--claude-worktrees-wt"
+            / "memory"
+        )
+        return claude_root, project, orphan
+
+    def test_symlinked_memory_dir_is_not_followed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan = self._setup(tmp)
+            outside = pathlib.Path(tmp) / "outside"
+            _write_orphan_memory(outside, "feedback_secret.md")
+            orphan.parent.mkdir(parents=True)
+            orphan.symlink_to(outside)
+
+            self.assertEqual(
+                prompt_workflow_memory.find_orphan_memory_dirs(project, claude_root),
+                [],
+            )
+
+    def test_symlinked_bucket_dir_is_not_followed(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan = self._setup(tmp)
+            outside = pathlib.Path(tmp) / "outside-bucket"
+            _write_orphan_memory(outside / "memory", "feedback_secret.md")
+            orphan.parent.symlink_to(outside)
+
+            self.assertEqual(
+                prompt_workflow_memory.find_orphan_memory_dirs(project, claude_root),
+                [],
+            )
+
+    def test_symlinked_memory_file_is_reported_and_not_copied(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan = self._setup(tmp)
+            outside = _write_orphan_memory(
+                pathlib.Path(tmp) / "outside", "feedback_secret.md"
+            )
+            orphan.mkdir(parents=True)
+            (orphan / "feedback_link.md").symlink_to(outside)
+
+            entries = prompt_workflow_memory.recover_orphan_memories(
+                project, claude_projects_root=claude_root, apply=True
+            )
+
+            self.assertEqual([e.action for e in entries], ["malformed"])
+            self.assertIn("symlink", entries[0].detail)
+            canonical_dir = claude_root / project_slug_for_path(project) / "memory"
+            self.assertFalse((canonical_dir / "feedback_link.md").exists())
+
+    def test_structurally_invalid_attributed_file_is_not_copied(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan = self._setup(tmp)
+            orphan.mkdir(parents=True)
+            (orphan / "feedback_nodesc.md").write_text(
+                "---\nname: feedback-nodesc\nmetadata:\n  type: feedback\n"
+                "  authored_by: claude\n---\n\nbody\n",
+                encoding="utf-8",
+            )
+            (orphan / "feedback_badtype.md").write_text(
+                "---\nname: feedback-badtype\ndescription: d\nmetadata:\n"
+                "  type: nonsense\n  authored_by: claude\n---\n\nbody\n",
+                encoding="utf-8",
+            )
+
+            entries = prompt_workflow_memory.recover_orphan_memories(
+                project, claude_projects_root=claude_root, apply=True
+            )
+
+            self.assertEqual([e.action for e in entries], ["malformed", "malformed"])
+            canonical_dir = claude_root / project_slug_for_path(project) / "memory"
+            self.assertEqual(list(canonical_dir.glob("*.md")), [])
+            report = prompt_workflow_memory.validate_corpus(project, claude_root)
+            self.assertEqual(report.malformed, ())
+
+
 if __name__ == "__main__":
     unittest.main()

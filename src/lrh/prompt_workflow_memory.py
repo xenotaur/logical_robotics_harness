@@ -527,6 +527,24 @@ def _indexed_filenames(index_path: pathlib.Path) -> set[str]:
     return filenames
 
 
+def _structural_problem(frontmatter: dict[str, typing.Any]) -> str | None:
+    """Return why ``frontmatter`` is structurally malformed (missing
+    ``name``/``description``/``metadata.type``, or an invalid type), or
+    ``None`` when it conforms. Shared by :func:`validate_corpus` and
+    :func:`recover_orphan_memories` so recovery never introduces a file the
+    corpus validator would immediately classify as malformed."""
+
+    metadata = frontmatter.get("metadata")
+    type_ = metadata.get("type") if isinstance(metadata, dict) else None
+    if not frontmatter.get("name"):
+        return "missing name"
+    if not frontmatter.get("description"):
+        return "missing description"
+    if type_ not in VALID_TYPES:
+        return f"missing or invalid metadata.type ({type_!r})"
+    return None
+
+
 def validate_corpus(
     project_root: str | pathlib.Path,
     claude_projects_root: str | pathlib.Path | None = None,
@@ -581,11 +599,8 @@ def validate_corpus(
             malformed.append(path.name)
             continue
 
-        name = frontmatter.get("name")
-        description = frontmatter.get("description")
         metadata = frontmatter.get("metadata")
-        type_ = metadata.get("type") if isinstance(metadata, dict) else None
-        if not name or not description or type_ not in VALID_TYPES:
+        if _structural_problem(frontmatter) is not None:
             malformed.append(path.name)
             continue
 
@@ -765,7 +780,7 @@ def sync_memory(
             "an archive root outside the memory corpus"
         )
 
-    project_slug = project_slug_for_path(project_root)
+    project_slug = project_slug_for_path(canonical_project_root(project_root))
     resolved_timestamp = timestamp or _utc_now_compact()
 
     entries: list[SyncEntry] = []
@@ -904,7 +919,7 @@ def export_memories(
     ``agent`` filter -- see :func:`_require_export_filter`."""
 
     memory_dir = memory_dir_for_project(project_root, claude_projects_root)
-    project_slug = project_slug_for_path(project_root)
+    project_slug = project_slug_for_path(canonical_project_root(project_root))
     records = _export_records_from_dir(
         memory_dir, project_slug, names=names, agent=agent
     )
@@ -1559,6 +1574,10 @@ def find_orphan_memory_dirs(
     for child in sorted(root.iterdir()):
         if child.name.replace("_", "-").startswith(prefix):
             memory_dir = child / MEMORY_DIRNAME
+            # Like ``read``/``search``, never follow a symlinked bucket or
+            # corpus directory: it could point outside the projects root.
+            if child.is_symlink() or memory_dir.is_symlink():
+                continue
             if memory_dir.is_dir():
                 found.append(memory_dir)
     return found
@@ -1606,11 +1625,18 @@ def _recover_one(
     apply: bool,
     include_unattributed: bool,
 ) -> OrphanEntry:
+    if source.is_symlink():
+        return OrphanEntry(
+            source_dir, source.name, "malformed", "symlink; not followed"
+        )
     content = source.read_bytes()
     try:
         frontmatter, _ = read_frontmatter_and_body(content.decode("utf-8"))
     except (MemoryValidationError, UnicodeDecodeError) as error:
         return OrphanEntry(source_dir, source.name, "malformed", str(error))
+    problem = _structural_problem(frontmatter)
+    if problem is not None:
+        return OrphanEntry(source_dir, source.name, "malformed", problem)
 
     metadata = frontmatter.get("metadata")
     authored_by = metadata.get("authored_by") if isinstance(metadata, dict) else None

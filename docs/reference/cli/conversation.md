@@ -402,8 +402,10 @@ lrh conversation export-antigravity-session --conversation-id CONVERSATION_ID
 ```
 
 Converts a local Google Antigravity session transcript log (JSONL) into a
-private, non-authoritative Markdown export artifact. Malformed lines are
-collected as warnings rather than treated as fatal errors.
+private, non-authoritative Markdown export artifact: a direct local-file
+read, not a live API call, mirroring the same defensive-parsing discipline
+as the other conversation adapters — malformed lines are collected as
+warnings rather than treated as fatal errors.
 
 The command is local and private-by-default:
 
@@ -414,27 +416,65 @@ The command is local and private-by-default:
 - the source SHA-256, export timestamp, adapter version, warning list,
   sensitivity metadata, and transcript statistics are preserved in the
   frontmatter;
+- the output file's permissions are restricted to user-only (`0600`) after
+  the write completes, on a best-effort basis (a platform or filesystem
+  that doesn't support `chmod` does not fail the export);
 - passing the transcript itself (or a symlink, hardlink, or path alias of it)
   as `--out` is rejected, even with `--force`;
 - sensitivity scanning is heuristic and does not certify that output is safe
   to publish.
 
+### Session discovery
+
+Exactly one of the following is required:
+
+- `--transcript-path PATH` — an explicit path to a session transcript JSONL
+  file.
+- `--conversation-id CONVERSATION_ID` — discover the transcript at
+  `<app-data-dir>/brain/<CONVERSATION_ID>/.system_generated/logs/transcript.jsonl`,
+  falling back to `transcript_full.jsonl` in the same directory if the first
+  doesn't exist; an error if neither exists.
+- `--latest` — discover the most recently modified transcript file
+  (`transcript.jsonl` or `transcript_full.jsonl`) under
+  `<app-data-dir>/brain/*/.system_generated/logs/`. Ties on modification
+  time are broken silently (no ambiguity error) in favor of an arbitrary
+  one of the tied files.
+
 ### Options
 
-- `--transcript-path PATH`, `--conversation-id ID`, `--latest` — mutually
-  exclusive transcript selectors; `--app-data-dir` sets the discovery root.
-- `--out OUTPUT.md` — output path (default: durable session archive).
+- `--app-data-dir APP_DATA_DIR` — path to Antigravity's application data
+  directory (default: `~/.gemini/antigravity`).
+- `--out OUTPUT.md` — Markdown export output path (default: durable session
+  archive, under `<archive_root>/antigravity/exports/<YYYY>/<MM>/<source-id>.md`,
+  where `<YYYY>/<MM>` is the UTC export date and any character in
+  `<source-id>` other than a letter, digit, `-`, or `_` becomes `_`).
+- `--archive-root PATH` — optional private session archive root override.
+  It only takes effect when `--out` is omitted (it is ignored otherwise),
+  and the resolved archive root must be outside the current Git worktree.
 - `--force` — overwrite an existing output file. This never allows the source
   and output to be the same file.
-- `--source-id ID` — optional identifier to record in `source_id`.
-- `--no-scan-sensitive` — skip the heuristic sensitivity scanner.
+- `--source-id ID` — optional explicit session identifier to record in
+  `source_id` (defaults to the conversation ID segment of the transcript
+  path when derivable from its `brain/<id>/...` structure, else a
+  12-character SHA-256 prefix of the transcript content).
+- `--no-scan-sensitive` — skip the local heuristic sensitivity scanner and
+  mark transcript frontmatter as `sensitivity: unscanned`.
 
 ### Exit behavior
 
-The command returns nonzero for missing, non-file, or non-UTF-8 transcript
-inputs; existing outputs when `--force` is not supplied; source/output path
-collisions (even with `--force`), reported as `error: ...` on stderr; and
+The command returns nonzero for a missing, non-file, non-UTF-8, or
+otherwise unreadable transcript input; a `--conversation-id` that
+resolves to no transcript file; a `--latest` discovery where
+`<app-data-dir>/brain` does not exist or contains no transcript files (not
+for ties, which are resolved silently — see Session discovery above); an
+archive root that cannot be resolved, or that resolves inside the current
+Git worktree, when `--out` is omitted; an existing output when `--force` is not supplied; a source/output path
+collision (even with `--force`), reported as `error: ...` on stderr; and
 output write failures.
+
+On success it prints a concise deterministic summary with the output path,
+source ID, source SHA-256, privacy, sensitivity status, and warning count.
+Potential sensitive findings are also reported as warnings on stderr.
 
 ## `lrh conversation export-claude-session`
 

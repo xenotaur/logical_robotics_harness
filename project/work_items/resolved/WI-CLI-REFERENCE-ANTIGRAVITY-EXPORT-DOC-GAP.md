@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented in PR #671: added the missing export-antigravity-session section to docs/reference/cli/conversation.md, verified claim by claim against the adapter code, closing a documentation-parity gap dating from PR #625."
 blocked_reason: null
 blocked: false
 id: WI-CLI-REFERENCE-ANTIGRAVITY-EXPORT-DOC-GAP
 title: Document lrh conversation export-antigravity-session in the CLI reference
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

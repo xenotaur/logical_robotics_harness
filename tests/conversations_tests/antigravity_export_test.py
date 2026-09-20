@@ -5,9 +5,11 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from lrh.conversations import antigravity_export, export_inspector
 
@@ -134,9 +136,38 @@ class TestAntigravityExport(unittest.TestCase):
                         antigravity_export.convert_antigravity_session(
                             source_file, output_path=alias, force=True
                         )
-                    self.assertEqual(
-                        source_file.read_text(encoding="utf-8"), original
+                    self.assertEqual(source_file.read_text(encoding="utf-8"), original)
+
+    def test_convert_antigravity_session_rejects_link_created_after_check(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = _write_transcript(
+                tmp_path,
+                [{"source": "USER", "type": "USER_INPUT", "content": "hi"}],
+            )
+            original = source_file.read_text(encoding="utf-8")
+            out_file = tmp_path / "export.md"
+
+            # Simulate the race: the collision check passes (output absent),
+            # then a hardlink to the source appears before the write opens it.
+            def racing_check(source: Path, destination: Path) -> None:
+                os.link(source, destination)
+
+            with mock.patch.object(
+                antigravity_export,
+                "_reject_source_output_collision",
+                side_effect=racing_check,
+            ):
+                with self.assertRaisesRegex(
+                    antigravity_export.AntigravityExportError,
+                    "must refer to different files",
+                ):
+                    antigravity_export.convert_antigravity_session(
+                        source_file, output_path=out_file, force=True
                     )
+            self.assertEqual(source_file.read_text(encoding="utf-8"), original)
 
     def test_cli_rejects_source_as_out_with_clean_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -146,8 +177,9 @@ class TestAntigravityExport(unittest.TestCase):
             )
             original = source_file.read_text(encoding="utf-8")
             stderr = io.StringIO()
-            with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(
-                io.StringIO()
+            with (
+                contextlib.redirect_stderr(stderr),
+                contextlib.redirect_stdout(io.StringIO()),
             ):
                 code = antigravity_export.run_convert_antigravity_session_cli(
                     [

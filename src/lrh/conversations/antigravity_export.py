@@ -6,6 +6,7 @@ import argparse
 import dataclasses
 import hashlib
 import json
+import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,6 +18,9 @@ from lrh.conversations import export_manifest, sensitivity
 DEFAULT_ADAPTER_NAME = "antigravity_transcript_jsonl"
 ANTIGRAVITY_ARCHIVE_SUBDIR = "antigravity"
 EXPORTS_SUBDIR = "exports"
+
+
+_COLLISION_MESSAGE = "transcript source and output path must refer to different files"
 
 
 class AntigravityExportError(ValueError):
@@ -141,8 +145,7 @@ def convert_antigravity_session(
             raise FileExistsError(f"output path already exists: {out}")
         out.parent.mkdir(parents=True, exist_ok=True)
         try:
-            out.write_text(full_markdown, encoding="utf-8")
-            _chmod_private_file(out)
+            _write_private_text(out, full_markdown, source=path)
         except OSError as err:
             raise AntigravityExportError(
                 f"could not write output export file: {out}"
@@ -156,7 +159,7 @@ def convert_antigravity_session(
 
 
 def _reject_source_output_collision(source: Path, destination: Path) -> None:
-    message = "transcript source and output path must refer to different files"
+    message = _COLLISION_MESSAGE
     if destination.exists():
         try:
             if source.samefile(destination):
@@ -171,11 +174,33 @@ def _reject_source_output_collision(source: Path, destination: Path) -> None:
         raise AntigravityExportError(message)
 
 
-def _chmod_private_file(path: Path) -> None:
+def _write_private_text(path: Path, content: str, *, source: Path) -> None:
+    """Write ``content`` to ``path`` (0600 on creation), never truncating ``source``.
+
+    The path-based collision check is not atomic with the write, so identity is
+    re-checked on the opened descriptor before truncating: opening without
+    ``O_TRUNC`` leaves the file intact if it turns out to be the source.
+    """
+    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT, 0o600)
+    try:
+        if _is_same_file(os.fstat(fd), source):
+            raise AntigravityExportError(_COLLISION_MESSAGE)
+        os.ftruncate(fd, 0)
+        with os.fdopen(fd, "w", encoding="utf-8", closefd=False) as handle:
+            handle.write(content)
+    finally:
+        os.close(fd)
     try:
         path.chmod(0o600)
     except OSError:
         pass
+
+
+def _is_same_file(fd_stat: os.stat_result, source: Path) -> bool:
+    try:
+        return os.path.samestat(fd_stat, source.stat())
+    except OSError:
+        return False
 
 
 def resolve_antigravity_archive_root(

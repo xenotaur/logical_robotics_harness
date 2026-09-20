@@ -35,7 +35,7 @@ directory is this repository itself, not a parent directory — see
   it is grouped with the write commands below instead.
 - **Routine write commands LRH skills run under their own human confirm
   gates** — `git fetch`, `git add`, `git commit`, `git push`,
-  `git checkout -b`, `git pull`, `gh pr view/list/create/diff`, and the
+  `git checkout -b`, `git checkout --detach`, `git pull`, `gh pr view/list/create/diff`, and the
   `lrh` subcommands (`validate`, `prompt`, `skills`, `work-items`,
   `request`, `snapshot`, `survey`). Every LRH skill that reaches these
   commands does so only after its own Step 4-style confirm gate has
@@ -56,8 +56,8 @@ directory is this repository itself, not a parent directory — see
 ## What is deliberately still denied
 
 `.claude/settings.json`'s `permissions.deny` list names the destructive or
-irreversible operations that must keep prompting even though a
-similarly-named safe command is allowed above. `deny` entries take
+irreversible operations that are hard-blocked (`deny` never prompts) even
+though a similarly-named safe command is allowed above. `deny` entries take
 precedence over `allow` entries, so these fire even though the broader
 `git push *` / `find *` allow rules above would otherwise match them too:
 
@@ -76,7 +76,13 @@ precedence over `allow` entries, so these fire even though the broader
 - `git reset --hard`
 - `git checkout .` / `git checkout -- <path>` / `git restore` (discards
   uncommitted changes)
-- `git branch -D` / `-d` (deletes a branch)
+- `git branch -D` / `-d` (deletes a branch). `-d` is grouped with `-D`
+  because the wildcard matcher cannot bind `-d` to its safe use: a rule
+  like `git branch -d tmp-*` would also match `git branch -d tmp-a -f`,
+  which git treats as a force delete. `/lrh-land`'s closeout avoids needing
+  either by pushing from a detached `HEAD` (`git checkout --detach
+  origin/main` ... `git push origin HEAD:main`) instead of a temporary
+  branch, so no branch is created and none needs deleting.
 - `git clean`
 - `find ... -delete` / `-exec` / `-execdir` / `-ok` / `-okdir` /
   `-fprint` / `-fprintf` — `find`'s read-only reputation only holds for

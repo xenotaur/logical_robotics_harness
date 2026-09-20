@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 2026_09_19_00_23_24_WI_CLI_REFERENCE_ANTIGRAVITY_EXPORT_DOC_GAP
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/671
-commit: 
+commit: 0b8b52ba744ce20f916b9db0b72009c883cd4d40
 created_at: 2026-09-19T15:51:06+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/671

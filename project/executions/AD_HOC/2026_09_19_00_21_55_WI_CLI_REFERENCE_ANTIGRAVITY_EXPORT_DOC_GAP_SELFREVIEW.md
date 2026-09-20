@@ -2,10 +2,10 @@
 execution_id: 2026_09_19_00_21_55_WI_CLI_REFERENCE_ANTIGRAVITY_EXPORT_DOC_GAP_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_CLI_REFERENCE_ANTIGRAVITY_EXPORT_DOC_GAP_SELFREVIEW)[2026-09-19T00:21:48+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: 
-commit: 
+commit: 0b8b52ba744ce20f916b9db0b72009c883cd4d40
 created_at: 2026-09-19T00:21:55+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CLI-REFERENCE-ANTIGRAVITY-EXPORT-DOC-GAP.md

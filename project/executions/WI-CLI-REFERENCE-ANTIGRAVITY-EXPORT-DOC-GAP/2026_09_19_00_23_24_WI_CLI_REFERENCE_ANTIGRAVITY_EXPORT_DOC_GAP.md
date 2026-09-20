@@ -2,10 +2,10 @@
 execution_id: 2026_09_19_00_23_24_WI_CLI_REFERENCE_ANTIGRAVITY_EXPORT_DOC_GAP
 prompt_id: PROMPT(WI-CLI-REFERENCE-ANTIGRAVITY-EXPORT-DOC-GAP:WI_CLI_REFERENCE_ANTIGRAVITY_EXPORT_DOC_GAP)[2026-09-19T00:21:40+00:00]
 work_item: WI-CLI-REFERENCE-ANTIGRAVITY-EXPORT-DOC-GAP
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/671
-commit: 
+commit: 0b8b52ba744ce20f916b9db0b72009c883cd4d40
 created_at: 2026-09-19T00:23:24+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CLI-REFERENCE-ANTIGRAVITY-EXPORT-DOC-GAP.md

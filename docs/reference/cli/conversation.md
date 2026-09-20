@@ -393,6 +393,49 @@ page count when available, metadata status, and warning count. When frontmatter
 is written, the summary includes privacy and sensitivity status. Extraction
 warnings and potential sensitivity findings are printed as warnings.
 
+## `lrh conversation export-antigravity-session`
+
+```bash
+lrh conversation export-antigravity-session --latest
+lrh conversation export-antigravity-session --transcript-path PATH --out OUTPUT.md
+lrh conversation export-antigravity-session --conversation-id CONVERSATION_ID
+```
+
+Converts a local Google Antigravity session transcript log (JSONL) into a
+private, non-authoritative Markdown export artifact. Malformed lines are
+collected as warnings rather than treated as fatal errors.
+
+The command is local and private-by-default:
+
+- it writes one Markdown file at `--out`, or a durable session-archive path
+  when `--out` is omitted;
+- generated frontmatter defaults to `privacy: private` and
+  `authority: non_authoritative_context`;
+- the source SHA-256, export timestamp, adapter version, warning list,
+  sensitivity metadata, and transcript statistics are preserved in the
+  frontmatter;
+- passing the transcript itself (or a symlink, hardlink, or path alias of it)
+  as `--out` is rejected, even with `--force`;
+- sensitivity scanning is heuristic and does not certify that output is safe
+  to publish.
+
+### Options
+
+- `--transcript-path PATH`, `--conversation-id ID`, `--latest` — mutually
+  exclusive transcript selectors; `--app-data-dir` sets the discovery root.
+- `--out OUTPUT.md` — output path (default: durable session archive).
+- `--force` — overwrite an existing output file. This never allows the source
+  and output to be the same file.
+- `--source-id ID` — optional identifier to record in `source_id`.
+- `--no-scan-sensitive` — skip the heuristic sensitivity scanner.
+
+### Exit behavior
+
+The command returns nonzero for missing, non-file, or non-UTF-8 transcript
+inputs; existing outputs when `--force` is not supplied; source/output path
+collisions (even with `--force`), reported as `error: ...` on stderr; and
+output write failures.
+
 ## `lrh conversation export-claude-session`
 
 ```bash

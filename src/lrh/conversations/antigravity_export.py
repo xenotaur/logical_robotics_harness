@@ -136,6 +136,7 @@ def convert_antigravity_session(
 
     if output_path is not None:
         out = output_path.expanduser()
+        _reject_source_output_collision(path, out)
         if out.exists() and not force:
             raise FileExistsError(f"output path already exists: {out}")
         out.parent.mkdir(parents=True, exist_ok=True)
@@ -152,6 +153,22 @@ def convert_antigravity_session(
         manifest=manifest_obj,
         sensitivity_result=scan_res,
     )
+
+
+def _reject_source_output_collision(source: Path, destination: Path) -> None:
+    message = "transcript source and output path must refer to different files"
+    if destination.exists():
+        try:
+            if source.samefile(destination):
+                raise AntigravityExportError(message)
+        except OSError:
+            pass
+    try:
+        same_path = source.resolve(strict=True) == destination.resolve(strict=False)
+    except OSError:
+        same_path = source.absolute() == destination.absolute()
+    if same_path:
+        raise AntigravityExportError(message)
 
 
 def _chmod_private_file(path: Path) -> None:

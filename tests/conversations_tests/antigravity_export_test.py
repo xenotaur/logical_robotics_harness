@@ -91,6 +91,78 @@ class TestAntigravityExport(unittest.TestCase):
             ):
                 antigravity_export.convert_antigravity_session(missing)
 
+    def test_convert_antigravity_session_rejects_same_path_even_with_force(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_file = _write_transcript(
+                Path(temp_dir),
+                [{"source": "USER", "type": "USER_INPUT", "content": "hi"}],
+            )
+            original = source_file.read_text(encoding="utf-8")
+            with self.assertRaisesRegex(
+                antigravity_export.AntigravityExportError,
+                "must refer to different files",
+            ):
+                antigravity_export.convert_antigravity_session(
+                    source_file, output_path=source_file, force=True
+                )
+            self.assertEqual(source_file.read_text(encoding="utf-8"), original)
+
+    def test_convert_antigravity_session_rejects_alias_paths_even_with_force(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = _write_transcript(
+                tmp_path,
+                [{"source": "USER", "type": "USER_INPUT", "content": "hi"}],
+            )
+            original = source_file.read_text(encoding="utf-8")
+            symlink = tmp_path / "link.md"
+            hardlink = tmp_path / "hard.md"
+            symlink.symlink_to(source_file)
+            hardlink.hardlink_to(source_file)
+            dotted = tmp_path / "sub" / ".." / source_file.name
+            (tmp_path / "sub").mkdir()
+            for alias in (symlink, hardlink, dotted):
+                with self.subTest(alias=alias.name):
+                    with self.assertRaisesRegex(
+                        antigravity_export.AntigravityExportError,
+                        "must refer to different files",
+                    ):
+                        antigravity_export.convert_antigravity_session(
+                            source_file, output_path=alias, force=True
+                        )
+                    self.assertEqual(
+                        source_file.read_text(encoding="utf-8"), original
+                    )
+
+    def test_cli_rejects_source_as_out_with_clean_error(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_file = _write_transcript(
+                Path(temp_dir),
+                [{"source": "USER", "type": "USER_INPUT", "content": "hi"}],
+            )
+            original = source_file.read_text(encoding="utf-8")
+            stderr = io.StringIO()
+            with contextlib.redirect_stderr(stderr), contextlib.redirect_stdout(
+                io.StringIO()
+            ):
+                code = antigravity_export.run_convert_antigravity_session_cli(
+                    [
+                        "--transcript-path",
+                        str(source_file),
+                        "--out",
+                        str(source_file),
+                        "--force",
+                    ]
+                )
+            self.assertEqual(code, 1)
+            self.assertIn("error: ", stderr.getvalue())
+            self.assertIn("must refer to different files", stderr.getvalue())
+            self.assertEqual(source_file.read_text(encoding="utf-8"), original)
+
     def test_convert_antigravity_session_output_collision(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_path = Path(temp_dir)

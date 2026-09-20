@@ -522,20 +522,29 @@ branch is created, so no `git branch -D`/`-d` (blocked by this project's
 not a copy-pasteable complete procedure:
 
 ```bash
+# Now, before inlining closeout:
 git fetch
 git checkout --detach origin/main
-# ... capture the branch point, execute the closeout edits and commits ...
+# ... capture the branch point; stay detached while the inlined closeout
+# workflow below makes its edits and commits ...
+
+# Only AFTER the inlined closeout has committed:
 git push origin HEAD:main
 git checkout <pr-branch>
 ```
 
-**Check out away only after the push succeeds.** Until then the closeout
-commit(s) are reachable only from the detached `HEAD` and the reflog. Check
-out `<pr-branch>` — the merged PR's branch, already known from Step 1's
-`headRefName` — to return to a normal working state.
+**Stay detached through the inlined closeout; push and check out away only
+afterward.** The closeout commit(s) are made by the inlined `/lrh-closeout`
+workflow below, so pushing or checking out `<pr-branch>` before it commits
+would send only the pre-closeout state to `main` and land the closeout
+commit on the PR branch instead. Until the push succeeds, those commit(s)
+are reachable only from the detached `HEAD` and the reflog. Once it does,
+check out `<pr-branch>` — the merged PR's branch, already known from Step
+1's `headRefName` — to return to a normal working state.
 
 Do not assume the workaround will be applied automatically — it must be
-executed here in Step 7 before inlining the closeout workflow.
+executed here in Step 7 before inlining the closeout workflow (the detach
+now; the push and checkout-away only after that workflow commits).
 
 **No-primary path (backfill):** If Step 1 found no primary record, the
 inlined closeout workflow will not create one — it only discovers and updates

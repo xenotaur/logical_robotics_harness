@@ -2,10 +2,10 @@
 execution_id: 2026_08_28_07_32_36_WI_PII_SCAN_LAYER2_CONTENT_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_PII_SCAN_LAYER2_CONTENT_SELFREVIEW)[2026-08-28T07:32:29+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: pending
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/646
+commit: f3331f9d22c6aa7f9a0203da33249fb73c370f0f
 created_at: 2026-08-28T07:32:36+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-PII-SCAN-LAYER2-CONTENT.md

@@ -2,14 +2,14 @@
 execution_id: 2026_09_20_03_13_44_WI_LRH_MEMORY_WORKTREE_CANONICAL_DIR_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_MEMORY_WORKTREE_CANONICAL_DIR_SELFREVIEW)[2026-09-20T03:13:44+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/681
-commit: 
+commit: 7a9711df67e7bc994f5b5754b5a2ffece63d4f60
 created_at: 2026-09-20T03:13:44+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/681
-session_transcript: pending
+session_transcript: claude-app:239809db-0aff-4cae-b00b-76078ee01394
 ---
 
 # Summary

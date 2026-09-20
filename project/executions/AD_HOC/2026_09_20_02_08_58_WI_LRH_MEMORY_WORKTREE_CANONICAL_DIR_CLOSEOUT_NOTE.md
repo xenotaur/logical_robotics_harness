@@ -9,7 +9,7 @@ commit: ee64b37dded8159ebebbfd23037f2b7986b1809d
 session_transcript: claude-app:239809db-0aff-4cae-b00b-76078ee01394
 created_at: 2026-09-20T02:08:58+00:00
 agent: claude_app
-instruction_source: /lrh-land https://github.com/xenotaur/logical_robotics_harness/pull/674
+instruction_source: project/work_items/resolved/WI-LRH-MEMORY-WORKTREE-CANONICAL-DIR.md
 ---
 
 # Summary

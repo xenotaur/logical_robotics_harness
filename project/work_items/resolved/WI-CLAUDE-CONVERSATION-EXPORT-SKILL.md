@@ -13,7 +13,7 @@ related_focus: []
 related_roadmap: []
 related_workstreams: []
 related_design:
-  - project/design/proposals/proposed/lrh-claude-conversation-exporter/00_proposal.md
+  - project/design/proposals/adopted/lrh-claude-conversation-exporter/00_proposal.md
 depends_on:
   - WI-CLAUDE-CONVERSATION-EXPORT-CLI
 blocked_by: []

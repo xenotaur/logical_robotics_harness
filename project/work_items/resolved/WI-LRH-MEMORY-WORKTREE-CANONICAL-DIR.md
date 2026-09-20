@@ -2,10 +2,10 @@
 id: WI-LRH-MEMORY-WORKTREE-CANONICAL-DIR
 title: Resolve lrh memory write to the canonical memory dir for worktree sessions, and recover orphaned memories
 type: investigation
-status: proposed
+status: resolved
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: "Implemented and merged in PR #681 (commit 7a9711df)."
 owner: anthony
 contributors:
   - anthony

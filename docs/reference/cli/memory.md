@@ -7,10 +7,10 @@
 `~/.claude/projects/<project-slug>/memory/` (or `--claude-projects-root`).
 Every write goes through the same validated path (`write`, `import`,
 and `transfer` all converge on one internal writer), so a memory file
-is well-formed by construction rather than by convention. Ten
+is well-formed by construction rather than by convention. Eleven
 subcommands cover four stages: write-side (`write`, `list`, `validate`,
-`repair`), archive-side (`sync`), read-side (`read`, `search`), and
-portability (`export`, `import`, `transfer`).
+`repair`, `recover-orphans`), archive-side (`sync`), read-side (`read`,
+`search`), and portability (`export`, `import`, `transfer`).
 
 ## Organization
 
@@ -19,6 +19,7 @@ lrh memory write <name> --description ... --type ... --agent ...
 lrh memory list
 lrh memory validate
 lrh memory repair <name> --set FIELD=VALUE
+lrh memory recover-orphans
 lrh memory sync
 lrh memory read <name>
 lrh memory search <query>
@@ -27,7 +28,7 @@ lrh memory import --input <bundle>
 lrh memory transfer --from <path-or-slug> --to <path-or-slug>
 ```
 
-All ten subcommands accept `--project-root` (default `.`) except
+All eleven subcommands accept `--project-root` (default `.`) except
 `transfer`, which instead resolves both endpoints from `--from`/`--to`
 (see below). All accept `--claude-projects-root` to override the
 default `~/.claude/projects`.
@@ -58,6 +59,54 @@ The memory file is written before its `MEMORY.md` index entry, so an
 interruption between the two always fails toward an unindexed-but-
 complete file — the state `validate` reports as `unindexed` and
 `repair` fixes by re-running this same write path.
+
+### Linked git worktrees share the main checkout's corpus
+
+When `--project-root` (default `.`) is inside a linked git worktree, every
+subcommand that takes it (all except `transfer`'s `--from`/`--to`)
+resolves the corpus of the worktree's **main checkout** instead of a
+worktree-suffixed one. Claude Code names a worktree session's transcript
+bucket after the literal working directory (`...--claude-worktrees-<name>`)
+but keys its auto-memory on the main repository, so a corpus keyed on the
+worktree path is one no future session reads. `write` prints a
+`note: ... is a linked git worktree; using the memory corpus of its main
+checkout ...` line to stderr when this mapping applies. A non-git
+directory, a bare repository, and a submodule are never remapped.
+Detection compares `git rev-parse --git-dir` with `--git-common-dir`, so it
+needs `git` on `PATH`; without it the path is used as given. `transfer`
+keeps its literal path-or-slug semantics, so it can still address a
+worktree-suffixed corpus explicitly.
+
+## `lrh memory recover-orphans`
+
+Copy memories that were written to a worktree-suffixed corpus (before the
+mapping above, or by an older `lrh` build) into the project's canonical
+corpus.
+
+```bash
+lrh memory recover-orphans
+lrh memory recover-orphans --apply
+lrh memory recover-orphans --apply --include-unattributed --format json
+```
+
+- Scans `--claude-projects-root` for `<canonical-slug>--claude-worktrees-*`
+  directories that contain a `memory/` directory. Underscores in the
+  directory name are treated as hyphens, so buckets written by builds that
+  predate the underscore fix (`WI-PROJECT-SLUG-SYMLINK-RESOLUTION`) are
+  found too. Only Claude Code's own `.claude/worktrees/` layout is
+  recognised.
+- Dry-run unless `--apply`: prints one `<action>: <path>` line per file
+  and writes nothing.
+- Non-destructive: `cp -n` semantics. An existing canonical file is never
+  overwritten (a differing one is reported as `conflict`, a byte-identical
+  one as `identical`), originals are left in place, and `MEMORY.md` gains
+  an entry only for files actually copied.
+- Files with no `metadata.authored_by` (unknown provenance) are reported
+  as `unattributed` and skipped unless `--include-unattributed`.
+  Unparseable files are reported as `malformed` and skipped.
+- `--format json` emits `source_dir`, `filename`, `action`, and `detail`
+  per file. Actions: `would_copy`, `copied`, `identical`, `conflict`,
+  `unattributed`, `malformed`.
 
 ## `lrh memory list`
 

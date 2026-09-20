@@ -2987,13 +2987,13 @@ class RecoverOrphanFallbackTest(unittest.TestCase):
         canonical_dir = claude_root / project_slug_for_path(project) / "memory"
         return claude_root, project, orphan, canonical_dir
 
-    def test_falls_back_to_exclusive_create_when_hard_links_are_unsupported(
+    def test_unsupported_hard_links_are_reported_per_entry_and_leave_no_file(
         self,
     ) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             claude_root, project, orphan, canonical_dir = self._setup(tmp)
-            _write_orphan_memory(orphan, "feedback_one.md", description="d1")
-            _write_orphan_memory(orphan, "feedback_two.md", description="d2")
+            _write_orphan_memory(orphan, "feedback_one.md")
+            _write_orphan_memory(orphan, "feedback_two.md")
 
             def no_links(src: str, dst: str) -> None:
                 raise PermissionError(1, "Operation not permitted")
@@ -3003,41 +3003,20 @@ class RecoverOrphanFallbackTest(unittest.TestCase):
                     project, claude_projects_root=claude_root, apply=True
                 )
 
-            self.assertEqual([e.action for e in entries], ["copied", "copied"])
-            self.assertTrue((canonical_dir / "feedback_one.md").exists())
-            self.assertTrue((canonical_dir / "feedback_two.md").exists())
-            index = (canonical_dir / "MEMORY.md").read_text(encoding="utf-8")
-            self.assertIn("(feedback_one.md)", index)
-            self.assertIn("(feedback_two.md)", index)
+            self.assertEqual([e.action for e in entries], ["conflict", "conflict"])
+            self.assertIn("could not link", entries[0].detail)
+            self.assertEqual(
+                sorted(
+                    p.name
+                    for p in canonical_dir.iterdir()
+                    if not p.name.startswith(".")
+                ),
+                [],
+            )
             self.assertEqual(
                 [p.name for p in canonical_dir.iterdir() if p.name.endswith(".tmp")],
                 [],
             )
-
-    def test_unwritable_canonical_dir_is_reported_and_run_continues(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            claude_root, project, orphan, canonical_dir = self._setup(tmp)
-            _write_orphan_memory(orphan, "feedback_one.md")
-            _write_orphan_memory(orphan, "feedback_two.md")
-
-            def no_links(src: str, dst: str) -> None:
-                raise PermissionError(1, "Operation not permitted")
-
-            real_open = open
-
-            def failing_open(file, mode="r", *args, **kwargs):
-                if "x" in mode:
-                    raise PermissionError(13, "Permission denied")
-                return real_open(file, mode, *args, **kwargs)
-
-            with unittest.mock.patch.object(os, "link", no_links):
-                with unittest.mock.patch("builtins.open", failing_open):
-                    entries = prompt_workflow_memory.recover_orphan_memories(
-                        project, claude_projects_root=claude_root, apply=True
-                    )
-
-            self.assertEqual([e.action for e in entries], ["conflict", "conflict"])
-            self.assertEqual(list(canonical_dir.glob("*.md")), [])
 
     def test_apply_indexes_an_identical_but_unindexed_file(self) -> None:
         """Heals a run interrupted between the copy and the index write."""
@@ -3061,6 +3040,25 @@ class RecoverOrphanFallbackTest(unittest.TestCase):
             self.assertEqual([e.action for e in applied], ["identical"])
             index = (canonical_dir / "MEMORY.md").read_text(encoding="utf-8")
             self.assertIn("(feedback_one.md)", index)
+
+    def test_healing_never_rewrites_an_existing_hand_edited_index_line(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan, canonical_dir = self._setup(tmp)
+            _write_orphan_memory(orphan, "feedback_one.md", description="d1")
+            _write_orphan_memory(canonical_dir, "feedback_one.md", description="d1")
+            curated = "- [My curated title](feedback_one.md) — a hand-written hook\n"
+            (canonical_dir / "MEMORY.md").write_text(
+                "# Memory Index\n" + curated, encoding="utf-8"
+            )
+
+            prompt_workflow_memory.recover_orphan_memories(
+                project, claude_projects_root=claude_root, apply=True
+            )
+
+            self.assertEqual(
+                (canonical_dir / "MEMORY.md").read_text(encoding="utf-8"),
+                "# Memory Index\n" + curated,
+            )
 
 
 if __name__ == "__main__":

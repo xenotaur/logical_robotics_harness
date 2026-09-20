@@ -1595,8 +1595,10 @@ def recover_orphan_memories(
     Non-destructive by construction: ``cp -n`` semantics (an existing
     canonical file is never overwritten -- a differing one is reported as
     a ``conflict``), originals are left in place, and the canonical
-    ``MEMORY.md`` gains an entry only for files actually copied. Dry-run
-    unless ``apply``.
+    ``MEMORY.md`` gains an entry for each file copied -- and, on ``apply``,
+    for a byte-identical canonical file that was never indexed (healing a
+    run interrupted between the copy and the index write). Dry-run unless
+    ``apply``.
     """
 
     canonical_dir = memory_dir_for_project(project_root, claude_projects_root)
@@ -1672,8 +1674,20 @@ def _recover_one(
             "canonical file differs; left untouched",
         )
 
+    def _index() -> None:
+        _ensure_index_entry(
+            canonical_dir / INDEX_FILENAME,
+            filename=source.name,
+            name=name,
+            description=description,
+        )
+
     existing = _existing_state()
     if existing is not None:
+        if apply and existing.action == "identical":
+            # Heal a run interrupted between the copy and the index write:
+            # the file is already there, but nothing links to it.
+            _index()
         return existing
     if not apply:
         return OrphanEntry(source_dir, source.name, "would_copy")
@@ -1698,13 +1712,29 @@ def _recover_one(
                 "conflict",
                 "canonical path already exists; left untouched",
             )
+        except OSError:
+            # No hard-link support (FAT/exFAT, some network mounts) or a link
+            # limit: fall back to an exclusive create, which is also an
+            # atomic no-clobber.
+            try:
+                with open(dest, "xb") as handle:
+                    handle.write(content)
+            except FileExistsError:
+                return _existing_state() or OrphanEntry(
+                    source_dir,
+                    source.name,
+                    "conflict",
+                    "canonical path already exists; left untouched",
+                )
+            except OSError as error:
+                return OrphanEntry(
+                    source_dir,
+                    source.name,
+                    "conflict",
+                    f"could not write canonical file ({error}); left untouched",
+                )
     finally:
         with contextlib.suppress(FileNotFoundError):
             os.unlink(tmp_name)
-    _ensure_index_entry(
-        canonical_dir / INDEX_FILENAME,
-        filename=source.name,
-        name=name,
-        description=description,
-    )
+    _index()
     return OrphanEntry(source_dir, source.name, "copied")

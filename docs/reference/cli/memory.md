@@ -103,7 +103,12 @@ lrh memory recover-orphans --apply --include-unattributed --format json
 - Non-destructive: `cp -n` semantics. An existing canonical file is never
   overwritten (a differing one is reported as `conflict`, a byte-identical
   one as `identical`), originals are left in place, and `MEMORY.md` gains
-  an entry only for files actually copied.
+  an entry for each file copied. With `--apply`, a byte-identical canonical
+  file that has no index entry is indexed too, so a run interrupted between
+  the copy and the index write heals on rerun. The copy is an atomic
+  no-clobber (`os.link`, falling back to an exclusive create), so a
+  concurrent `write` is never overwritten; a per-file I/O failure is
+  reported as `conflict`/`malformed` and the run continues.
 - Files with no `metadata.authored_by` (unknown provenance) are reported
   as `unattributed` and skipped unless `--include-unattributed`.
   Files that fail the same structural checks `validate` applies (missing

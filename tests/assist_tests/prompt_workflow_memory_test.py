@@ -2689,14 +2689,17 @@ class RecoverOrphanMemoriesTest(unittest.TestCase):
                 / "memory"
             )
             _write_orphan_memory(orphan, "feedback_one.md")
-            _write_orphan_memory(canonical_dir, "feedback_one.md")
+            existing = _write_orphan_memory(canonical_dir, "feedback_one.md")
+            before = existing.read_bytes()
+            before_inode = existing.stat().st_ino
 
             entries = prompt_workflow_memory.recover_orphan_memories(
                 project, claude_projects_root=claude_root, apply=True
             )
 
             self.assertEqual([e.action for e in entries], ["identical"])
-            self.assertFalse((canonical_dir / "MEMORY.md").exists())
+            self.assertEqual(existing.read_bytes(), before)
+            self.assertEqual(existing.stat().st_ino, before_inode)
 
     def test_unattributed_files_reported_and_skipped_unless_included(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -2966,6 +2969,98 @@ class RecoverOrphanRobustnessTest(unittest.TestCase):
             self.assertEqual(
                 [p.name for p in canonical_dir.iterdir() if p.name.endswith(".tmp")], []
             )
+
+
+class RecoverOrphanFallbackTest(unittest.TestCase):
+    def _setup(
+        self, tmp: str
+    ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path, pathlib.Path]:
+        base = pathlib.Path(os.path.realpath(tmp))
+        claude_root = base / "claude-projects"
+        project = base / "proj"
+        project.mkdir()
+        orphan = (
+            claude_root
+            / f"{project_slug_for_path(project)}--claude-worktrees-wt"
+            / "memory"
+        )
+        canonical_dir = claude_root / project_slug_for_path(project) / "memory"
+        return claude_root, project, orphan, canonical_dir
+
+    def test_falls_back_to_exclusive_create_when_hard_links_are_unsupported(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan, canonical_dir = self._setup(tmp)
+            _write_orphan_memory(orphan, "feedback_one.md", description="d1")
+            _write_orphan_memory(orphan, "feedback_two.md", description="d2")
+
+            def no_links(src: str, dst: str) -> None:
+                raise PermissionError(1, "Operation not permitted")
+
+            with unittest.mock.patch.object(os, "link", no_links):
+                entries = prompt_workflow_memory.recover_orphan_memories(
+                    project, claude_projects_root=claude_root, apply=True
+                )
+
+            self.assertEqual([e.action for e in entries], ["copied", "copied"])
+            self.assertTrue((canonical_dir / "feedback_one.md").exists())
+            self.assertTrue((canonical_dir / "feedback_two.md").exists())
+            index = (canonical_dir / "MEMORY.md").read_text(encoding="utf-8")
+            self.assertIn("(feedback_one.md)", index)
+            self.assertIn("(feedback_two.md)", index)
+            self.assertEqual(
+                [p.name for p in canonical_dir.iterdir() if p.name.endswith(".tmp")],
+                [],
+            )
+
+    def test_unwritable_canonical_dir_is_reported_and_run_continues(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan, canonical_dir = self._setup(tmp)
+            _write_orphan_memory(orphan, "feedback_one.md")
+            _write_orphan_memory(orphan, "feedback_two.md")
+
+            def no_links(src: str, dst: str) -> None:
+                raise PermissionError(1, "Operation not permitted")
+
+            real_open = open
+
+            def failing_open(file, mode="r", *args, **kwargs):
+                if "x" in mode:
+                    raise PermissionError(13, "Permission denied")
+                return real_open(file, mode, *args, **kwargs)
+
+            with unittest.mock.patch.object(os, "link", no_links):
+                with unittest.mock.patch("builtins.open", failing_open):
+                    entries = prompt_workflow_memory.recover_orphan_memories(
+                        project, claude_projects_root=claude_root, apply=True
+                    )
+
+            self.assertEqual([e.action for e in entries], ["conflict", "conflict"])
+            self.assertEqual(list(canonical_dir.glob("*.md")), [])
+
+    def test_apply_indexes_an_identical_but_unindexed_file(self) -> None:
+        """Heals a run interrupted between the copy and the index write."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan, canonical_dir = self._setup(tmp)
+            _write_orphan_memory(orphan, "feedback_one.md", description="d1")
+            _write_orphan_memory(canonical_dir, "feedback_one.md", description="d1")
+            self.assertFalse((canonical_dir / "MEMORY.md").exists())
+
+            dry = prompt_workflow_memory.recover_orphan_memories(
+                project, claude_projects_root=claude_root
+            )
+            self.assertEqual([e.action for e in dry], ["identical"])
+            self.assertFalse((canonical_dir / "MEMORY.md").exists())
+
+            applied = prompt_workflow_memory.recover_orphan_memories(
+                project, claude_projects_root=claude_root, apply=True
+            )
+
+            self.assertEqual([e.action for e in applied], ["identical"])
+            index = (canonical_dir / "MEMORY.md").read_text(encoding="utf-8")
+            self.assertIn("(feedback_one.md)", index)
 
 
 if __name__ == "__main__":

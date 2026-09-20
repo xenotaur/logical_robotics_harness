@@ -5,6 +5,7 @@ import pathlib
 import subprocess
 import tempfile
 import unittest
+import unittest.mock
 
 from lrh import prompt_workflow_memory
 from lrh.prompt_workflow_sessions import project_slug_for_path
@@ -2894,6 +2895,77 @@ class RecoverOrphanSafetyTest(unittest.TestCase):
             self.assertEqual(list(canonical_dir.glob("*.md")), [])
             report = prompt_workflow_memory.validate_corpus(project, claude_root)
             self.assertEqual(report.malformed, ())
+
+
+class RecoverOrphanRobustnessTest(unittest.TestCase):
+    def _setup(self, tmp: str) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:
+        base = pathlib.Path(os.path.realpath(tmp))
+        claude_root = base / "claude-projects"
+        project = base / "proj"
+        project.mkdir()
+        orphan = (
+            claude_root
+            / f"{project_slug_for_path(project)}--claude-worktrees-wt"
+            / "memory"
+        )
+        return claude_root, project, orphan
+
+    def test_unreadable_source_entry_is_reported_and_run_continues(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan = self._setup(tmp)
+            _write_orphan_memory(orphan, "feedback_good.md")
+            (orphan / "a_dir.md").mkdir()
+
+            entries = prompt_workflow_memory.recover_orphan_memories(
+                project, claude_projects_root=claude_root, apply=True
+            )
+
+            self.assertEqual(
+                sorted((e.filename, e.action) for e in entries),
+                [("a_dir.md", "malformed"), ("feedback_good.md", "copied")],
+            )
+
+    def test_unreadable_canonical_path_is_a_conflict_not_a_crash(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan = self._setup(tmp)
+            _write_orphan_memory(orphan, "feedback_one.md")
+            canonical_dir = claude_root / project_slug_for_path(project) / "memory"
+            (canonical_dir / "feedback_one.md").mkdir(parents=True)
+
+            entries = prompt_workflow_memory.recover_orphan_memories(
+                project, claude_projects_root=claude_root, apply=True
+            )
+
+            self.assertEqual([e.action for e in entries], ["conflict"])
+
+    def test_copy_never_overwrites_a_file_that_appears_after_the_checks(self) -> None:
+        """A concurrent ``write`` landing between recovery's existence check
+        and its copy must survive: the copy is an atomic no-clobber link."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root, project, orphan = self._setup(tmp)
+            _write_orphan_memory(orphan, "feedback_one.md", description="orphan")
+            canonical_dir = claude_root / project_slug_for_path(project) / "memory"
+            canonical_dir.mkdir(parents=True)
+            racing = canonical_dir / "feedback_one.md"
+            real_link = os.link
+
+            def link_after_racing_write(src: str, dst: str) -> None:
+                racing.write_text("written concurrently\n", encoding="utf-8")
+                real_link(src, dst)
+
+            with unittest.mock.patch.object(os, "link", link_after_racing_write):
+                entries = prompt_workflow_memory.recover_orphan_memories(
+                    project, claude_projects_root=claude_root, apply=True
+                )
+
+            self.assertEqual([e.action for e in entries], ["conflict"])
+            self.assertEqual(
+                racing.read_text(encoding="utf-8"), "written concurrently\n"
+            )
+            self.assertEqual(
+                [p.name for p in canonical_dir.iterdir() if p.name.endswith(".tmp")], []
+            )
 
 
 if __name__ == "__main__":

@@ -1629,10 +1629,10 @@ def _recover_one(
         return OrphanEntry(
             source_dir, source.name, "malformed", "symlink; not followed"
         )
-    content = source.read_bytes()
     try:
+        content = source.read_bytes()
         frontmatter, _ = read_frontmatter_and_body(content.decode("utf-8"))
-    except (MemoryValidationError, UnicodeDecodeError) as error:
+    except (OSError, MemoryValidationError, UnicodeDecodeError) as error:
         return OrphanEntry(source_dir, source.name, "malformed", str(error))
     problem = _structural_problem(frontmatter)
     if problem is not None:
@@ -1653,16 +1653,24 @@ def _recover_one(
     description = str(frontmatter.get("description") or "")
 
     def _existing_state() -> OrphanEntry | None:
-        if dest.exists():
+        if not dest.exists():
+            return None
+        try:
             if dest.read_bytes() == content:
                 return OrphanEntry(source_dir, source.name, "identical")
+        except OSError as error:
             return OrphanEntry(
                 source_dir,
                 source.name,
                 "conflict",
-                "canonical file differs; left untouched",
+                f"canonical path unreadable ({error}); left untouched",
             )
-        return None
+        return OrphanEntry(
+            source_dir,
+            source.name,
+            "conflict",
+            "canonical file differs; left untouched",
+        )
 
     existing = _existing_state()
     if existing is not None:
@@ -1670,11 +1678,29 @@ def _recover_one(
     if not apply:
         return OrphanEntry(source_dir, source.name, "would_copy")
 
-    with _locked_memory_path(dest):
-        existing = _existing_state()
-        if existing is not None:
-            return existing
-        atomic_write_bytes(dest, content)
+    # ``os.link`` fails atomically if ``dest`` already exists, so a concurrent
+    # ``write`` landing after the checks above is never overwritten -- unlike
+    # a lock, this needs no cooperation from the other writer (``write``
+    # does not take ``_locked_memory_path``).
+    canonical_dir.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(
+        dir=canonical_dir, prefix=f".{source.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+        try:
+            os.link(tmp_name, dest)
+        except FileExistsError:
+            return _existing_state() or OrphanEntry(
+                source_dir,
+                source.name,
+                "conflict",
+                "canonical path already exists; left untouched",
+            )
+    finally:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(tmp_name)
     _ensure_index_entry(
         canonical_dir / INDEX_FILENAME,
         filename=source.name,

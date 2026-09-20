@@ -2,7 +2,7 @@
 execution_id: 2026_09_20_02_08_43_ADOPT_PROP_LRH_CLAUDE_CONVERSATION_EXPORTER_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:ADOPT_PROP_LRH_CLAUDE_CONVERSATION_EXPORTER_SELFREVIEW)[2026-09-20T02:08:38+00:00]
 work_item: AD_HOC
-status: landed
+status: in_progress
 rerun_of: 
 pr: 
 commit: 

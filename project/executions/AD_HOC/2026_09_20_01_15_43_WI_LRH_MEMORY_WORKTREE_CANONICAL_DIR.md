@@ -7,7 +7,7 @@ rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/674
 commit: 
 created_at: 2026-09-20T01:15:43+00:00
-agent: claude-code
+agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-MEMORY-WORKTREE-CANONICAL-DIR.md
 session_transcript: pending
 ---

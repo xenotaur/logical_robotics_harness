@@ -2,10 +2,10 @@
 execution_id: 2026_09_20_01_06_31_QUOTE_GATE_STALENESS_WI_RESOLUTION
 prompt_id: PROMPT(AD_HOC:QUOTE_GATE_STALENESS_WI_RESOLUTION)[2026-09-20T01:02:30+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/673
-commit: 
+commit: a0a3a576cc23b3729e99f002655e3867ccd3f6ea
 created_at: 2026-09-20T01:06:31+00:00
 agent: claude_app
 instruction_source: ad-hoc — quote the unsafe resolution scalar flagged by lrh validate

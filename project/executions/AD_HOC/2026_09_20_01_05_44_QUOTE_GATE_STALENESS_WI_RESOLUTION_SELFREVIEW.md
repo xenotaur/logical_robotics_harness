@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 
 pr: 
-commit: 
+commit: a0a3a576cc23b3729e99f002655e3867ccd3f6ea
 created_at: 2026-09-20T01:05:44+00:00
 agent: claude_app
 instruction_source: ad-hoc — quote the unsafe resolution scalar flagged by lrh validate

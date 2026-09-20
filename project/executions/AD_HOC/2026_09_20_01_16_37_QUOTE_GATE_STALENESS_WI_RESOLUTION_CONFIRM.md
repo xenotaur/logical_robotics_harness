@@ -2,10 +2,10 @@
 execution_id: 2026_09_20_01_16_37_QUOTE_GATE_STALENESS_WI_RESOLUTION_CONFIRM
 prompt_id: PROMPT(AD_HOC:QUOTE_GATE_STALENESS_WI_RESOLUTION_CONFIRM)[2026-09-20T01:16:20+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_20_01_06_31_QUOTE_GATE_STALENESS_WI_RESOLUTION
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/673
-commit: 
+commit: a0a3a576cc23b3729e99f002655e3867ccd3f6ea
 created_at: 2026-09-20T01:16:37+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/673

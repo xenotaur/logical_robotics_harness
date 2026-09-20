@@ -41,9 +41,19 @@ content read): a live conversation's `transcript.jsonl` (44,262 bytes) and
 more messages, and the original bytes still hashed exactly to the baseline
 digests, so the logs are append-only and a whole-file hash goes stale. The
 first work item was amended to cover both the Claude and Antigravity
-exporters. Not tested: chunk rollover on a long conversation, and a real
-export/inspect round trip against Antigravity (no export of the conversation
-was made).
+exporters.
+
+Stage 2 round trip (CLI from this session, scratch export at mode 0600,
+deleted afterwards; only metadata was printed): `export-antigravity-session
+--conversation-id` read `transcript.jsonl` and recorded source sha256
+`33a16920…`. `inspect-export --source` immediately afterwards reported
+`Valid: yes`, `Source hash: match`. After one more message in the
+conversation it reported `Valid: no`, `Source hash: mismatch` (whole-file hash
+now `667c253b…`, file 46,462 bytes), while the first 44,262 bytes still hashed
+to the earlier baseline `59a4b00b…`. This reproduces the Claude failure on
+Antigravity and shows prefix verification with a recorded `source_byte_count`
+would have reported `match_source_grew`. The inspector's exit code was not
+captured. Not tested: chunk rollover on a long conversation.
 
 # Validation
 

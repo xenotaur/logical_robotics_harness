@@ -2,10 +2,10 @@
 execution_id: 2026_09_21_19_05_36_WI_CLAUDE_EXPORT_LIVE_SESSION_BATCH_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_CLAUDE_EXPORT_LIVE_SESSION_BATCH_SELFREVIEW)[2026-09-21T19:04:30+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_20_20_06_58_WI_CLAUDE_EXPORT_LIVE_SESSION_BATCH
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/682
-commit: 
+commit: eab347c4804dbf2dce80d10591fff3c024c65679
 created_at: 2026-09-21T19:05:36+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/682

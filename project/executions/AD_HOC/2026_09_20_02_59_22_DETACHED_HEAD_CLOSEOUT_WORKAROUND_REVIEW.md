@@ -2,11 +2,14 @@
 execution_id: 2026_09_20_02_59_22_DETACHED_HEAD_CLOSEOUT_WORKAROUND_REVIEW
 prompt_id: PROMPT(AD_HOC:DETACHED_HEAD_CLOSEOUT_WORKAROUND_REVIEW)[2026-09-20T02:56:09+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/680
-commit: 
+commit: 5cbe64764b54ffe7c1999d853cf44deff055504e
+session_transcript: claude-app:d03a859f-6ee5-4503-a936-f2443179379a
 created_at: 2026-09-20T02:59:22+00:00
+agent: claude_app
+instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/680
 ---
 
 # Summary

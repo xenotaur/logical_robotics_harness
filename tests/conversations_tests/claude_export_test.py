@@ -87,6 +87,33 @@ class TestClaudeExport(unittest.TestCase):
             self.assertTrue(inspection.manifest_valid)
             self.assertEqual(inspection.source_hash.status, "match")
 
+    def test_records_source_byte_count_and_verifies_grown_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess-grow.jsonl"
+            _write_jsonl(
+                source_file, [_user_record("hi"), _assistant_text_record("yo")]
+            )
+            out_file = tmp_path / "export.md"
+
+            res = claude_export.convert_claude_session(
+                source_file,
+                output_path=out_file,
+                exported_at="2026-09-11T00:00:00Z",
+            )
+
+            self.assertEqual(res.manifest.source_byte_count, source_file.stat().st_size)
+            self.assertIn("source_byte_count:", out_file.read_text(encoding="utf-8"))
+
+            with source_file.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(_user_record("later")) + "\n")
+
+            inspection = export_inspector.inspect_export(
+                out_file, source_path=source_file
+            )
+            self.assertTrue(inspection.valid)
+            self.assertEqual(inspection.source_hash.status, "match_source_grew")
+
     def test_convert_claude_session_file_not_found(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             missing = Path(temp_dir) / "missing.jsonl"

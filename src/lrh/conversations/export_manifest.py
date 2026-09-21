@@ -105,6 +105,7 @@ class ConversationExportManifest:
     authority: str = DEFAULT_AUTHORITY
     sensitivity: str = SENSITIVITY_UNSCANNED
     source_id: str | None = None
+    source_byte_count: int | None = None
     adapter_version: int = ADAPTER_VERSION
     warnings: tuple[str, ...] = ()
 
@@ -122,6 +123,7 @@ class ConversationExportManifest:
         _require_non_negative_int(self.adapter_version, "adapter_version")
         if self.source_id is not None:
             _require_non_empty_string(self.source_id, "source_id")
+        _require_optional_non_negative_int(self.source_byte_count, "source_byte_count")
         for warning in self.warnings:
             _require_non_empty_string(warning, "warnings")
 
@@ -146,6 +148,12 @@ class ConversationExportManifest:
         mapping.update(
             {
                 "source_sha256": self.source_sha256,
+            }
+        )
+        if self.source_byte_count is not None:
+            mapping["source_byte_count"] = self.source_byte_count
+        mapping.update(
+            {
                 "exported_at": self.exported_at,
                 "adapter_version": self.adapter_version,
                 "warnings": list(self.warnings),
@@ -176,6 +184,7 @@ class ConversationExportManifest:
             sensitivity_scan=_required_mapping(mapping, "sensitivity_scan"),
             source_id=_optional_str(mapping, "source_id"),
             source_sha256=_required_str(mapping, "source_sha256"),
+            source_byte_count=_optional_int(mapping, "source_byte_count"),
             exported_at=_required_str(mapping, "exported_at"),
             adapter_version=_required_int(mapping, "adapter_version"),
             warnings=_string_tuple(_required_value(mapping, "warnings"), "warnings"),

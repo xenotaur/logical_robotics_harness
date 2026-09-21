@@ -15,6 +15,8 @@ import yaml
 
 from lrh.conversations import export_manifest
 
+SOURCE_GREW_STATUS = "match_source_grew"
+
 
 class ConversationExportInspectionError(ValueError):
     """Raised when an export artifact cannot be inspected as a file."""
@@ -46,6 +48,8 @@ class SourceHashVerification:
     expected_sha256: str | None
     actual_sha256: str | None = None
     source_path: str | None = None
+    expected_byte_count: int | None = None
+    actual_byte_count: int | None = None
 
     def to_mapping(self) -> dict[str, object]:
         return {
@@ -53,6 +57,8 @@ class SourceHashVerification:
             "expected_sha256": self.expected_sha256,
             "actual_sha256": self.actual_sha256,
             "source_path": self.source_path,
+            "expected_byte_count": self.expected_byte_count,
+            "actual_byte_count": self.actual_byte_count,
         }
 
 
@@ -227,6 +233,17 @@ def format_text(inspection: ConversationExportInspection) -> str:
         lines.append(f"  expected: {source_hash.expected_sha256}")
     if source_hash.actual_sha256 is not None:
         lines.append(f"  actual: {source_hash.actual_sha256}")
+    if (
+        source_hash.status == SOURCE_GREW_STATUS
+        and source_hash.expected_byte_count is not None
+        and source_hash.actual_byte_count is not None
+    ):
+        grown = source_hash.actual_byte_count - source_hash.expected_byte_count
+        lines.append(
+            f"  source grew by {grown} bytes since export "
+            f"(recorded {source_hash.expected_byte_count}, "
+            f"now {source_hash.actual_byte_count})"
+        )
     if inspection.errors:
         lines.append("Errors:")
         for error in inspection.errors:
@@ -379,11 +396,20 @@ def _verify_source_hash(
             "source_not_file", expected, source_path=str(source)
         )
     try:
-        actual = hashlib.sha256(source.read_bytes()).hexdigest()
+        raw_bytes = source.read_bytes()
     except OSError:
         return SourceHashVerification(
             "source_unreadable", expected, source_path=str(source)
         )
+    actual_byte_count = len(raw_bytes)
+    expected_byte_count = None if manifest is None else manifest.source_byte_count
+    # A source that grew after export is compared on its recorded prefix only.
+    # The reported actual hash is then the hash of that prefix, i.e. the value
+    # that was compared against the recorded digest.
+    compared = raw_bytes
+    if expected_byte_count is not None and actual_byte_count > expected_byte_count:
+        compared = raw_bytes[:expected_byte_count]
+    actual = hashlib.sha256(compared).hexdigest()
     if expected is None:
         return SourceHashVerification(
             "not_available",
@@ -391,9 +417,19 @@ def _verify_source_hash(
             actual_sha256=actual,
             source_path=str(source),
         )
+    if expected_byte_count is not None and actual_byte_count < expected_byte_count:
+        status = "mismatch"
+    elif actual != expected:
+        status = "mismatch"
+    elif compared is not raw_bytes:
+        status = SOURCE_GREW_STATUS
+    else:
+        status = "match"
     return SourceHashVerification(
-        "match" if actual == expected else "mismatch",
+        status,
         expected,
         actual_sha256=actual,
         source_path=str(source),
+        expected_byte_count=expected_byte_count,
+        actual_byte_count=actual_byte_count,
     )

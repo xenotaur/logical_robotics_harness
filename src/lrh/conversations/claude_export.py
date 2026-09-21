@@ -112,6 +112,7 @@ def convert_claude_session(
 
     manifest_obj = export_manifest.ConversationExportManifest(
         source_sha256=source_sha256,
+        source_byte_count=len(raw_bytes),
         exported_at=now_iso,
         transcript_statistics=stats,
         sensitivity_scan=scan_metadata,

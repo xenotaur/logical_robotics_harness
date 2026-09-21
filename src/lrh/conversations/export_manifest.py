@@ -105,9 +105,10 @@ class ConversationExportManifest:
     authority: str = DEFAULT_AUTHORITY
     sensitivity: str = SENSITIVITY_UNSCANNED
     source_id: str | None = None
-    source_byte_count: int | None = None
     adapter_version: int = ADAPTER_VERSION
     warnings: tuple[str, ...] = ()
+    # Appended last so existing positional callers keep binding the same fields.
+    source_byte_count: int | None = None
 
     def __post_init__(self) -> None:
         _require_in(self.kind, SUPPORTED_KINDS, "kind")

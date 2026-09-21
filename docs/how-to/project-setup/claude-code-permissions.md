@@ -84,8 +84,9 @@ precedence over `allow` entries, so these fire even though the broader
   origin/main` ... `git push origin HEAD:main`) instead of a temporary
   branch, so no branch is created and none needs deleting.
   The final `git checkout <pr-branch>` is deliberately not allowlisted
-  (branch names vary), so it may prompt; `git checkout --detach` is the
-  fallback.
+  (branch names vary), so it may prompt and the prompt should be approved.
+  If declined, `git checkout --detach origin/main` is a fallback that still
+  leaves a detached HEAD (at main's tip), not a branch.
 - `git clean`
 - `find ... -delete` / `-exec` / `-execdir` / `-ok` / `-okdir` /
   `-fprint` / `-fprintf` — `find`'s read-only reputation only holds for

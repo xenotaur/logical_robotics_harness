@@ -8,6 +8,8 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/680
 commit: 5cbe64764b54ffe7c1999d853cf44deff055504e
 session_transcript: claude-app:d03a859f-6ee5-4503-a936-f2443179379a
 created_at: 2026-09-20T02:59:22+00:00
+agent: claude_app
+instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/680
 ---
 
 # Summary

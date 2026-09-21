@@ -531,7 +531,9 @@ git checkout --detach origin/main
 # Only AFTER the inlined closeout has committed:
 git push origin HEAD:main
 git checkout <pr-branch>   # not in the settings.json allow list, so it may
-                           # prompt; `git checkout --detach` is the fallback
+                           # prompt; approve it. If declined, the fallback
+                           # `git checkout --detach origin/main` still leaves
+                           # a detached HEAD (at main's tip), not a branch
 ```
 
 **Stay detached through the inlined closeout; push and check out away only

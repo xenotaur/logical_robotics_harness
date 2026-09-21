@@ -2,14 +2,14 @@
 execution_id: 2026_09_21_20_50_02_WI_LRH_LAND_WORDING_AND_CLOSEOUT_PR_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_LRH_LAND_WORDING_AND_CLOSEOUT_PR_CONFIRM)[2026-09-21T20:43:55+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_20_21_23_57_WI_LRH_LAND_WORDING_AND_CLOSEOUT_PR
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/684
-commit: 
+commit: e261d8031db86cf9ba831ad82fe147cf6e51f131
 created_at: 2026-09-21T20:50:02+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/684
-session_transcript: pending
+session_transcript: claude-app:3dbbfead-a543-43e4-b5ab-d9d5e8597169
 ---
 
 # Summary

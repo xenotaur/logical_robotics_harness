@@ -49,11 +49,16 @@ deleted afterwards; only metadata was printed): `export-antigravity-session
 `33a16920…`. `inspect-export --source` immediately afterwards reported
 `Valid: yes`, `Source hash: match`. After one more message in the
 conversation it reported `Valid: no`, `Source hash: mismatch` (whole-file hash
-now `667c253b…`, file 46,462 bytes), while the first 44,262 bytes still hashed
-to the earlier baseline `59a4b00b…`. This reproduces the Claude failure on
-Antigravity and shows prefix verification with a recorded `source_byte_count`
-would have reported `match_source_grew`. The inspector's exit code was not
-captured. Not tested: chunk rollover on a long conversation.
+`667c253b…`, file 46,462 bytes). A review finding pointed out that the
+44,262-byte baseline prefix did not by itself cover the export-time bytes, so
+a read-only search over prefix lengths of the live file was run: exactly one
+length, 45,952 bytes (ending on a line boundary), hashes to the export's
+recorded `33a16920…`. The export-time bytes are therefore an exact prefix of
+the file as it later grew, which shows prefix verification with a recorded
+`source_byte_count` would have reported `match_source_grew`. Because the
+exporter did not record the byte count, that length had to be recovered by
+search. The inspector's exit code was not captured. Only `transcript.jsonl`
+was tested end to end. Not tested: chunk rollover on a long conversation.
 
 # Validation
 

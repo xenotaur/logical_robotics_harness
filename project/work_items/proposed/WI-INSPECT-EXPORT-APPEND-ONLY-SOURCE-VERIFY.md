@@ -73,15 +73,21 @@ step, and a later check showed the live file had grown by 146,624 bytes while th
 append. The skill's own documented default, `--latest`, exports the current session, so
 this is the normal case, not an edge case.
 
-Antigravity has the same defect, confirmed by a read-only test on a live conversation
-(no conversation content read; sizes and hashes only). Baseline: `transcript.jsonl`
-44,262 bytes and `transcript_full.jsonl` 52,222 bytes, each with one chunk file. After
-two more messages in the conversation, both logs had grown by roughly 1-2 KB, and the
-first 44,262 and 52,222 bytes still hashed exactly to the baseline digests, so growth was
-a pure append and the whole-file hash changed. `antigravity_export.py` reads the bytes
-once (`path.read_bytes()`), hashes them, and builds the manifest, exactly as the Claude
-exporter does, so its exports of a live conversation would report `mismatch` the same way.
-Not tested: chunk rollover for a long conversation (only a single chunk existed).
+Antigravity has the same defect, confirmed on a live conversation. Sizes and hashes only
+were used; no conversation content was read. Baseline: `transcript.jsonl` 44,262 bytes and
+`transcript_full.jsonl` 52,222 bytes, each with one chunk file. After two more messages both
+logs had grown by roughly 1-2 KB, and the first 44,262 and 52,222 bytes still hashed exactly
+to the baseline digests. A real `export-antigravity-session` then read `transcript.jsonl`
+and recorded source sha256 `33a16920...`. Searching prefix lengths of the live file found
+exactly one, 45,952 bytes (ending on a line boundary), whose sha256 equals that recorded
+digest, so the export-time bytes are an exact prefix of the file as it later grew (to 46,462
+bytes at the next inspection). An inspection made after one more message reported `Source hash:
+mismatch` against the whole file. The exporter does not record how many bytes it hashed, so
+that 45,952 length had to be recovered by search; recording it is what this item adds.
+`antigravity_export.py` reads the bytes once (`path.read_bytes()`), hashes them, and builds
+the manifest, exactly as the Claude exporter does. Only `transcript.jsonl` was tested end to
+end; `transcript_full.jsonl` was checked only against its baseline prefix. Not tested: chunk
+rollover for a long conversation (only a single chunk existed).
 
 Why the Codex exporter differs: Codex writes a frozen raw JSON capture at export time,
 hashes that capture, and points the inspector at it, so its source cannot drift. The

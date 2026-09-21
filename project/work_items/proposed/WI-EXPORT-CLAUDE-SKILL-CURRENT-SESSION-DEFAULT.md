@@ -141,6 +141,7 @@ first and check `git status` afterwards.
 ## Validation
 
 - `lrh skills check --target claude --local`
+- `lrh skills check --target antigravity --local`
 - `lrh skills status --target codex --local`
 - `PYTHONPATH=src scripts/test`
 - `scripts/lint`

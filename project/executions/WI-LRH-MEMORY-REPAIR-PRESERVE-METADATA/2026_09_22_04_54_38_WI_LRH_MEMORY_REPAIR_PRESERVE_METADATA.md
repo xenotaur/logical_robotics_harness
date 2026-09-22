@@ -2,14 +2,14 @@
 execution_id: 2026_09_22_04_54_38_WI_LRH_MEMORY_REPAIR_PRESERVE_METADATA
 prompt_id: PROMPT(WI-LRH-MEMORY-REPAIR-PRESERVE-METADATA:WI_LRH_MEMORY_REPAIR_PRESERVE_METADATA)[2026-09-22T03:51:33+00:00]
 work_item: WI-LRH-MEMORY-REPAIR-PRESERVE-METADATA
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/702
-commit: 
+commit: 50aeda701fa93d104047b7a98892a654723f9831
 created_at: 2026-09-22T04:54:38+00:00
 agent: claude_app
 instruction_source: project/work_items/resolved/WI-LRH-MEMORY-REPAIR-PRESERVE-METADATA.md
-session_transcript: pending
+session_transcript: claude-app:239809db-0aff-4cae-b00b-76078ee01394
 ---
 
 # Summary

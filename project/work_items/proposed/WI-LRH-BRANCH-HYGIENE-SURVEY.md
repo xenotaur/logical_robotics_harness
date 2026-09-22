@@ -20,6 +20,9 @@ acceptance:
   - Squash-merged branches are detected by comparing the local tip to the merged PR head (git ancestry alone is not used).
   - An optional output mode writes reviewable delete commands to a file; the command itself never runs them.
   - The default branch and any worktree paths are discovered, not hard-coded.
+  - The discovered default branch is never classified merged-or-empty and never receives a generated delete command, even when it is the branch checked out at survey time.
+  - Every branch name emitted into a generated command is shell-quoted with an option terminator (e.g. `git branch -D -- <quoted-name>`), verified against a ref name containing shell metacharacters.
+  - Each branch is assigned exactly one class by documented, deterministic precedence when multiple classes could apply, and in-worktree/open-PR/ambiguous branches are always report-only regardless of any other class they also match.
   - Behavior is covered by unittest tests using temporary git repositories and a stubbed gh runner.
 required_evidence: [test_output, lrh_validate]
 artifacts_expected:
@@ -83,13 +86,26 @@ stale-candidate triage and says cleanup should split into separate work items
 2. Implement the survey with these classes: merged or empty (ancestor of the
    default branch), squash-merged (local tip equals the head of a merged PR),
    in a worktree, open PR, unique work, and review-first (never pushed, no PR).
+   Define and document deterministic class precedence for a branch that could
+   match more than one (e.g. in-worktree and squash-merged): in-worktree,
+   open-PR, and ambiguous/unknown branches are always report-only, regardless
+   of any other class they also match.
 3. Discover the default branch (for example `git symbolic-ref
    refs/remotes/origin/HEAD`) and worktrees (`git worktree list --porcelain`)
-   instead of hard-coding either.
+   instead of hard-coding either. Explicitly exclude the discovered default
+   branch from the merged-or-empty class and from every delete-command mode —
+   a feature-branch checkout makes the default branch an ancestor of `HEAD`,
+   so an unguarded "merged or empty" test would otherwise recommend deleting it.
 4. Add an optional mode that writes `git branch -d` and `git branch -D` commands
    (squash-merged branches need `-D`) to a file, with review-first branches
-   emitted commented out. The tool never executes them.
-5. Add unittest coverage and a CLI reference page under `docs/reference/cli/`.
+   emitted commented out. The tool never executes them. Every branch name in a
+   generated command must be shell-quoted with an option terminator (e.g.
+   `git branch -D -- <quoted-name>`) — valid git ref names can contain shell
+   metacharacters, so unquoted interpolation risks executing arbitrary shell
+   syntax when a human runs the file.
+5. Add unittest coverage — including a ref name containing shell
+   metacharacters, and the default-branch and class-precedence cases above —
+   and a CLI reference page under `docs/reference/cli/`.
 
 ## Non-Goals
 
@@ -108,6 +124,14 @@ stale-candidate triage and says cleanup should split into separate work items
 - An optional output mode writes reviewable delete commands to a file; the command
   itself never runs them.
 - The default branch and any worktree paths are discovered, not hard-coded.
+- The discovered default branch is never classified merged-or-empty and never
+  receives a generated delete command, even when it is the branch checked out at
+  survey time.
+- Every branch name emitted into a generated command is shell-quoted with an
+  option terminator, verified against a ref name containing shell metacharacters.
+- Each branch is assigned exactly one class by documented, deterministic
+  precedence when multiple classes could apply, and in-worktree/open-PR/ambiguous
+  branches are always report-only regardless of any other class they also match.
 - Behavior is covered by unittest tests using temporary git repositories and a
   stubbed gh runner.
 
@@ -118,11 +142,19 @@ stale-candidate triage and says cleanup should split into separate work items
 - scripts/format --check --diff
 - lrh validate
 - Run the new command's --help and a survey against a scratch repository
+- Run the new command with the default branch checked out and confirm no delete
+  command is generated for it
 
 ## Risk Notes
 
 - A wrong classification could suggest deleting live work, so ambiguous or unknown
   cases must default to review-first rather than a delete command.
+- An unguarded "merged or empty" test matches the default branch itself, since it
+  is always an ancestor of the branch currently checked out; the default branch
+  must be excluded explicitly, not left to the ancestry check alone.
+- Generated commands interpolate branch names into shell syntax; a ref name
+  containing shell metacharacters (e.g. `refs/heads/$(touch PWN)`) can execute
+  arbitrary commands if not shell-quoted with an option terminator.
 - `gh pr list` needs a very large `--limit` to avoid silently missing older PRs
   (see `src/lrh/prompt_workflow_slug.py:417-425`).
 - Branch and worktree ownership cannot be inferred reliably from git state alone,

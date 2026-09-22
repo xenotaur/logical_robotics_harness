@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #692 (commit 0da9ceee)"
 blocked_reason: null
 blocked: false
 id: WI-INSPECT-EXPORT-APPEND-ONLY-SOURCE-VERIFY
 title: Verify append-only export sources by recorded prefix in inspect-export (Claude and Antigravity)
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

@@ -32,7 +32,7 @@ acceptance:
   - "`codex_file_export.convert_codex_file` does the same and raises `CodexFileExportError`"
   - "Each adapter has a race test (collision check patched to create a hardlink to the source) mirroring the antigravity test"
   - "Output files are still created 0600 from the first write; existing collision and force tests still pass"
-  - "Full test suite, ruff, black and `lrh validate` pass"
+  - "`scripts/test`, `scripts/lint`, `scripts/format --check --diff`, and `lrh validate` pass"
 required_evidence:
   - test_output
   - lrh_validate
@@ -83,14 +83,14 @@ Both adapters reject a source/output collision with a path-based check (`_reject
 2. `codex_file_export.convert_codex_file` does the same and raises `CodexFileExportError`.
 3. Each adapter has a race test mirroring the antigravity test.
 4. Output files are still created 0600 from the first write; existing collision and force tests still pass.
-5. Full test suite, ruff, black and `lrh validate` pass.
+5. `scripts/test`, `scripts/lint`, `scripts/format --check --diff`, and `lrh validate` pass.
 
 ## Validation
 
-- `PYTHONPATH=src python -m pytest tests/conversations_tests -q`
-- `PYTHONPATH=src python -m pytest -q`
-- `ruff check src tests`
-- `black --check src tests`
+- `scripts/version tools`
+- `scripts/test`
+- `scripts/lint`
+- `scripts/format --check --diff`
 - `PYTHONPATH=src lrh validate`
 
 ## Risk Notes

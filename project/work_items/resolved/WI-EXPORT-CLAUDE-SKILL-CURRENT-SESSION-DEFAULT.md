@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #703 (commit 34f05fa0)"
 blocked_reason: null
 blocked: false
 id: WI-EXPORT-CLAUDE-SKILL-CURRENT-SESSION-DEFAULT
 title: Make /lrh-export-claude default to the current session and accept grown-source verification
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

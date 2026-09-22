@@ -2,10 +2,10 @@
 execution_id: 2026_09_22_04_11_36_EXECUTE_WS_ID_FETCH_GAP
 prompt_id: PROMPT(AD_HOC:EXECUTE_WS_ID_FETCH_GAP)[2026-09-22T04:00:13+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/697
-commit: 
+commit: f2089e5ce48b93eda5f02cb09e9594a4c340818a
 created_at: 2026-09-22T04:11:36+00:00
 agent: claude_code
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/697

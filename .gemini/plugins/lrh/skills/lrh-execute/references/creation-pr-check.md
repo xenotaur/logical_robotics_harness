@@ -43,6 +43,12 @@ git ls-tree -r --name-only origin/main -- project/work_items/ \
   | grep -qx "project/work_items/[a-z]*/<WI-ID>.md"
 ```
 
+(`SKILL.md` Step 1 runs this fetch once, ahead of both the `WI-ID` and
+`WS-ID` branches — not per candidate — so a `WS-ID` run's own `git
+ls-tree` calls read the same freshly-fetched ref without repeating the
+fetch. A stale ref only ever lags behind reality: it can miss a file that
+landed since the last fetch, never invent one that doesn't exist.)
+
 This is deliberately **not** modeled on `/lrh-land`'s primary-record
 provenance-check algorithm (`references/land-workflow.md` § Primary vs.
 side-record provenance check) — that algorithm exists to disambiguate

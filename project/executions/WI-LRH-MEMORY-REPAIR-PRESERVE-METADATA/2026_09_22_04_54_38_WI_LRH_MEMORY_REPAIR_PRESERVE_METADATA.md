@@ -4,7 +4,7 @@ prompt_id: PROMPT(WI-LRH-MEMORY-REPAIR-PRESERVE-METADATA:WI_LRH_MEMORY_REPAIR_PR
 work_item: WI-LRH-MEMORY-REPAIR-PRESERVE-METADATA
 status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/702
 commit: 
 created_at: 2026-09-22T04:54:38+00:00
 agent: claude_app

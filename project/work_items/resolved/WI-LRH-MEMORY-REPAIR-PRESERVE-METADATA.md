@@ -2,10 +2,10 @@
 id: WI-LRH-MEMORY-REPAIR-PRESERVE-METADATA
 title: Make lrh memory repair preserve unknown frontmatter keys
 type: deliverable
-status: proposed
+status: resolved
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: "Implemented and merged in PR #702 (commit 50aeda70)."
 owner: anthony
 contributors:
   - anthony

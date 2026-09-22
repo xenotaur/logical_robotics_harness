@@ -100,8 +100,10 @@ Prior art check:
 ## Acceptance Criteria
 
 - The assessment and its recommendation.
-- Either the implemented simple gate, or a proposed follow-up work item with
-  the reason.
+- Either the implemented simple gate, or — when the change is not simple —
+  the recommendation reported as a finding, with a follow-up work item
+  proposed only if the human and the implementing session judge one
+  warranted.
 - A scope judgment reported to the human.
 - Mirrors and validation clean when a change is made.
 

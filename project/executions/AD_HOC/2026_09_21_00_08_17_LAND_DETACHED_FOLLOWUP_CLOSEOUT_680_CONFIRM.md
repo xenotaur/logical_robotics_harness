@@ -2,10 +2,10 @@
 execution_id: 2026_09_21_00_08_17_LAND_DETACHED_FOLLOWUP_CLOSEOUT_680_CONFIRM
 prompt_id: PROMPT(AD_HOC:LAND_DETACHED_FOLLOWUP_CLOSEOUT_680_CONFIRM)[2026-09-21T00:08:07+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/683
-commit: 
+commit: 4c75392208c62dcff3b6c7339521db7a38242705
 created_at: 2026-09-21T00:08:17+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/683

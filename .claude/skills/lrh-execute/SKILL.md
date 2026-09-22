@@ -89,6 +89,18 @@ followed by a second, restated plan gate.
 
 ### Step 1 — Resolve the target work item
 
+**Fetch once, before either branch below.** Both the `WI-ID` and `WS-ID`
+cases run a creation-PR existence check (`WI-EXECUTE-EARLY-CREATION-PR-CHECK`)
+against the local `origin/main` ref via `git ls-tree`, which is only as
+fresh as the last fetch. Refresh it once here so neither branch can read a
+stale ref — a stale ref only ever lags behind reality, so the failure mode
+is a false-negative "not found yet" on a candidate that actually landed
+moments ago, never a false positive:
+
+```bash
+git fetch -q origin main
+```
+
 **Given `WI-ID`:** enforce `depends_on` — read the work item's
 frontmatter. Each entry is a bare `WI-*` ID with no embedded status;
 locate that WI's own file the same way the `WS-ID` case below locates a
@@ -110,10 +122,10 @@ still have it from an unmerged WI-creation branch (see
 this is the exact false-confidence gap that check exists to close, since
 a local checkout sitting on the not-yet-merged creation branch would
 otherwise report a clean `prompt_ready: yes` for a WI that doesn't exist
-on `main` at all):
+on `main` at all — the fetch that keeps this ref current already ran once,
+above, before this branch split):
 
 ```bash
-git fetch -q origin main
 git ls-tree -r --name-only origin/main -- project/work_items/ \
   | grep -qx "project/work_items/[a-z]*/<WI-ID>.md"
 ```

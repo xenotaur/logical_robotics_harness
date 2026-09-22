@@ -113,6 +113,54 @@ class TestResolveCurrentClaudeSessionIdentity(unittest.TestCase):
                     app_data_dir=app_dir,
                 )
 
+    def test_isolated_environ_config_dir_is_honored_when_app_data_dir_omitted(
+        self,
+    ) -> None:
+        # CLAUDE_CONFIG_DIR must be read from the supplied `environ`, not
+        # the real process environment, when app_data_dir is omitted.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app_dir = Path(temp_dir)
+            project_dir = app_dir / "projects" / "-some-project"
+            project_dir.mkdir(parents=True)
+            transcript = project_dir / "sess-abc.jsonl"
+            transcript.write_text("{}\n", encoding="utf-8")
+
+            with patch.dict("os.environ", {"CLAUDE_CONFIG_DIR": "/not/used"}):
+                identity = claude_session.resolve_current_claude_session_identity(
+                    environ={
+                        "CLAUDE_CODE_SESSION_ID": "sess-abc",
+                        "CLAUDE_CONFIG_DIR": str(app_dir),
+                    },
+                )
+
+            self.assertEqual(identity.transcript_path, transcript)
+
+    def test_unresolvable_named_user_home_reports_clean_error(self) -> None:
+        with self.assertRaisesRegex(
+            claude_session.ClaudeSessionIdentityError,
+            "could not resolve app data directory",
+        ):
+            claude_session.resolve_current_claude_session_identity(
+                environ={"CLAUDE_CODE_SESSION_ID": "sess-abc"},
+                app_data_dir=Path("~missing-user-xyz/.claude"),
+            )
+
+    def test_directory_named_like_a_transcript_is_not_matched(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            app_dir = Path(temp_dir)
+            project_dir = app_dir / "projects" / "-some-project"
+            project_dir.mkdir(parents=True)
+            (project_dir / "sess-abc.jsonl").mkdir()
+
+            with self.assertRaisesRegex(
+                claude_session.ClaudeSessionIdentityError,
+                "no transcript file found for session id 'sess-abc'",
+            ):
+                claude_session.resolve_current_claude_session_identity(
+                    environ={"CLAUDE_CODE_SESSION_ID": "sess-abc"},
+                    app_data_dir=app_dir,
+                )
+
     def test_never_reads_transcript_content(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             app_dir = Path(temp_dir)

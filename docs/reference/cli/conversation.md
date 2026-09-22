@@ -541,11 +541,15 @@ found.
 
 The transcript path is resolved the same way `export-claude-session
 --session-id` finds it: by globbing `<app-data-dir>/projects/*/<session-id>.jsonl`
-(honouring `CLAUDE_CONFIG_DIR`/`--app-data-dir`). Zero or more than one match
-is an error, not a silent guess. An unset or empty `CLAUDE_CODE_HOST_SESSION_ID`
-does not fail the command — the session id and transcript path can still be
-resolved on their own — it only leaves `session_transcript` (and the text
-output's `Session transcript:` line) reported as `unknown`.
+(honouring `CLAUDE_CONFIG_DIR`/`--app-data-dir`, with `CLAUDE_CONFIG_DIR`
+read from the same isolated environment as the session id when the caller
+supplies one). Matches are filtered to actual files, so a directory that
+happens to be named `<session-id>.jsonl` is never mistaken for a transcript.
+Zero or more than one file match is an error, not a silent guess. An unset
+or empty `CLAUDE_CODE_HOST_SESSION_ID` does not fail the command — the
+session id and transcript path can still be resolved on their own — it only
+leaves `session_transcript` (and the text output's `Session transcript:`
+line) reported as `unknown`.
 
 ### Options
 
@@ -559,8 +563,10 @@ output's `Session transcript:` line) reported as `unknown`.
 
 The command returns `0` on success and `2` when the session cannot be
 resolved: `CLAUDE_CODE_SESSION_ID` unset, empty, or containing whitespace;
-an embedded path separator; or a transcript glob that matches zero or more
-than one file. It never falls back to `--latest`-style discovery.
+an embedded path separator; a transcript glob that matches zero or more
+than one file; or an app-data directory naming an unresolvable named-user
+home (e.g. `~missing-user/.claude`). It never falls back to
+`--latest`-style discovery.
 
 ## `lrh conversation export-claude-session`
 
@@ -616,9 +622,13 @@ Exactly one of the following is required:
 - `--latest` — discover the most recently modified transcript file under
   `<app-data-dir>/projects/<current-project>/*.jsonl`, scoped by default to
   the invoking working directory's own Claude project (see
-  `--all-projects`). Ties (equal modification times) are resolved silently,
-  by whichever match `sort()` happens to order first — not documented
-  further.
+  `--all-projects`). The working directory used for scoping is the shell's
+  logical `$PWD` when it names the same directory as the physical working
+  directory, else the OS-resolved physical path — this matters for a
+  symlinked checkout (for example, macOS's `/tmp`), where Claude Code's own
+  project-bucket naming preserves the literal, unresolved path. Ties (equal
+  modification times) are resolved silently, by whichever match `sort()`
+  happens to order first — not documented further.
 
 ### Options
 

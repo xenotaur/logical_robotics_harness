@@ -69,7 +69,9 @@ def resolve_current_claude_session_identity(
         )
 
     resolved_app_data_dir = (
-        Path(default_app_data_dir()) if app_data_dir is None else app_data_dir
+        Path(env.get("CLAUDE_CONFIG_DIR") or "~/.claude")
+        if app_data_dir is None
+        else app_data_dir
     )
     transcript_path = resolve_transcript_path_by_session_id(
         session_id, resolved_app_data_dir
@@ -90,9 +92,18 @@ def resolve_transcript_path_by_session_id(session_id: str, app_data_dir: Path) -
     never falls back to any other discovery mode.
     """
 
-    app_dir = app_data_dir.expanduser()
+    try:
+        app_dir = app_data_dir.expanduser()
+    except RuntimeError as err:
+        raise ClaudeSessionIdentityError(
+            f"could not resolve app data directory: {err}"
+        ) from err
     projects_dir = app_dir / "projects"
-    matches = sorted(projects_dir.glob(f"*/{glob_module.escape(session_id)}.jsonl"))
+    matches = sorted(
+        match
+        for match in projects_dir.glob(f"*/{glob_module.escape(session_id)}.jsonl")
+        if match.is_file()
+    )
     if not matches:
         raise ClaudeSessionIdentityError(
             f"no transcript file found for session id '{session_id}' under "

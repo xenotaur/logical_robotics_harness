@@ -248,6 +248,33 @@ def _derive_source_id(path: Path, source_sha256: str | None = None) -> str:
     return "unknown-session"
 
 
+def _logical_cwd() -> str:
+    """Return the shell's logical working directory when it validates
+    against the actual one, else the OS-resolved physical working directory.
+
+    ``os.getcwd()`` returns the *physical* path, resolving any symlink
+    components away -- but ``project_slug_for_path`` intentionally preserves
+    the *literal* path, since Claude Code's own project-bucket naming does
+    the same (a symlinked checkout, e.g. macOS's ``/tmp``, gets its own
+    bucket distinct from its resolved target). Using ``os.getcwd()`` alone
+    to scope ``--latest`` can therefore search the wrong bucket, or one that
+    does not exist. ``$PWD`` is the shell's own logical path, but it is
+    untrusted input -- validated with ``os.path.samefile()`` against the
+    physical cwd before being trusted, so a stale or unrelated ``$PWD`` (a
+    subshell that never updated it, or a value set by something else) cannot
+    silently redirect the search.
+    """
+    physical = os.getcwd()
+    pwd = os.environ.get("PWD")
+    if pwd:
+        try:
+            if os.path.samefile(pwd, physical):
+                return pwd
+        except OSError:
+            pass
+    return physical
+
+
 def _resolve_transcript_path(
     *,
     transcript_path: str | None,
@@ -301,7 +328,7 @@ def _resolve_transcript_path(
             pattern = "*/*.jsonl"
         else:
             project_slug = prompt_workflow_sessions.project_slug_for_path(
-                os.getcwd() if cwd is None else cwd
+                _logical_cwd() if cwd is None else cwd
             )
             search_dir = projects_dir / project_slug
             pattern = "*.jsonl"

@@ -614,6 +614,36 @@ class TestClaudeExport(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn(f"Source transcript: {source_file}", stdout_buf.getvalue())
 
+    def test_logical_cwd_prefers_pwd_when_it_validates(self) -> None:
+        # $PWD can preserve a symlink component os.getcwd() resolves away
+        # (e.g. macOS's /tmp -> /private/tmp); use it when it names the
+        # same directory as the physical cwd.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with (
+                unittest.mock.patch("os.getcwd", return_value=temp_dir),
+                unittest.mock.patch.dict("os.environ", {"PWD": temp_dir}, clear=False),
+            ):
+                self.assertEqual(claude_export._logical_cwd(), temp_dir)
+
+    def test_logical_cwd_ignores_stale_or_unrelated_pwd(self) -> None:
+        with tempfile.TemporaryDirectory() as real_dir:
+            with tempfile.TemporaryDirectory() as unrelated_dir:
+                with (
+                    unittest.mock.patch("os.getcwd", return_value=real_dir),
+                    unittest.mock.patch.dict(
+                        "os.environ", {"PWD": unrelated_dir}, clear=False
+                    ),
+                ):
+                    self.assertEqual(claude_export._logical_cwd(), real_dir)
+
+    def test_logical_cwd_falls_back_to_physical_when_pwd_unset(self) -> None:
+        with tempfile.TemporaryDirectory() as real_dir:
+            with (
+                unittest.mock.patch("os.getcwd", return_value=real_dir),
+                unittest.mock.patch.dict("os.environ", {}, clear=True),
+            ):
+                self.assertEqual(claude_export._logical_cwd(), real_dir)
+
     def test_resolve_claude_archive_root_worktree_rejection(self) -> None:
         git_root = claude_export._current_git_worktree_root()
         if git_root is not None:

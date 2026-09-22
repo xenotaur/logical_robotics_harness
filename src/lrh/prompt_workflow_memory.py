@@ -155,14 +155,13 @@ def _validate_new_write_fields(
         )
 
 
-def read_frontmatter_and_body(text: str) -> tuple[dict[str, typing.Any], str]:
-    """Split a memory Markdown file into its YAML frontmatter and body.
-
-    Uses ``yaml.safe_load`` (not the constrained ``lrh.control.parser``
-    parser, which rejects the nested ``metadata:`` mapping this schema
-    requires) so ``metadata.type``/``metadata.authored_by``/
-    ``metadata.applies_to`` parse correctly.
-    """
+def _split_frontmatter_text_and_body(text: str) -> tuple[str, str]:
+    """Split a memory Markdown file into its raw (unparsed) frontmatter
+    text and its body, on the ``---`` delimiters. Shared by
+    :func:`read_frontmatter_and_body` (which parses the frontmatter text as
+    YAML) and :func:`repair_memory` (which also needs the raw text, to
+    preserve unknown lines byte-for-byte -- see
+    :func:`_extract_preserved_frontmatter_lines`)."""
 
     if not text.startswith("---\n"):
         raise MemoryValidationError(
@@ -182,6 +181,19 @@ def read_frontmatter_and_body(text: str) -> tuple[dict[str, typing.Any], str]:
     # body on write), so a verbatim consumer like the planned `lrh memory
     # read` would print an extra blank line no caller ever wrote.
     body = text[body_start + 1 :].lstrip("\n") if body_start != -1 else ""
+    return frontmatter_text, body
+
+
+def read_frontmatter_and_body(text: str) -> tuple[dict[str, typing.Any], str]:
+    """Split a memory Markdown file into its YAML frontmatter and body.
+
+    Uses ``yaml.safe_load`` (not the constrained ``lrh.control.parser``
+    parser, which rejects the nested ``metadata:`` mapping this schema
+    requires) so ``metadata.type``/``metadata.authored_by``/
+    ``metadata.applies_to`` parse correctly.
+    """
+
+    frontmatter_text, body = _split_frontmatter_text_and_body(text)
     try:
         frontmatter = yaml.safe_load(frontmatter_text)
     except yaml.YAMLError as error:
@@ -189,6 +201,303 @@ def read_frontmatter_and_body(text: str) -> tuple[dict[str, typing.Any], str]:
     if not isinstance(frontmatter, dict):
         raise MemoryValidationError("frontmatter must be a YAML mapping")
     return frontmatter, body
+
+
+_CANONICAL_TOP_LEVEL_KEYS = frozenset({"name", "description", "metadata"})
+_CANONICAL_METADATA_KEYS = frozenset({"type", "authored_by", "applies_to"})
+_PRESERVED_METADATA_INDENT = "  "
+
+
+def _unquote_yaml_key(key: str) -> str:
+    """Strip a single matching pair of surrounding quotes from a raw key
+    token, so a quoted canonical key (``"description"``, ``'authored_by'``)
+    is recognized as canonical instead of being treated as an unknown key.
+
+    Without this, a source file that quotes a canonical key would have it
+    preserved as a *second*, textually-distinct line carrying the same
+    YAML key -- ``description: new`` (from ``--set``) followed later by
+    the untouched ``"description": old`` -- and since YAML resolves a
+    duplicate key by keeping the last one, the preserved, stale quoted
+    line would silently win over the value ``repair`` was asked to set,
+    with no error at all.
+
+    Deliberately simple (a single strip, not full YAML string-escape
+    unescaping): this only has to recognize a quoted *canonical* key well
+    enough to exclude it from preservation, not round-trip an arbitrary
+    quoted scalar. A key that still doesn't match a canonical name after
+    unquoting is preserved as-is, quotes included.
+    """
+
+    if len(key) >= 2 and key[0] == key[-1] and key[0] in ("'", '"'):
+        return key[1:-1]
+    return key
+
+
+class _UnsupportedPreservedKey(MemoryValidationError):
+    """An unknown frontmatter key's value is not a single-line scalar, or
+    ``metadata:`` itself carries inline flow content -- see
+    :func:`_extract_preserved_frontmatter_lines`."""
+
+
+def _extract_preserved_frontmatter_lines(
+    frontmatter_text: str,
+) -> tuple[list[str], list[str]]:
+    """Split a raw (pre-parse) frontmatter block's unknown keys out of the
+    canonical ones (``name``/``description``/``metadata``, and inside
+    ``metadata``: ``type``/``authored_by``/``applies_to``).
+
+    Returns ``(preserved_top_level_lines, preserved_metadata_lines)`` --
+    kept as two *separate* lists, not one merged list, because they must
+    be re-emitted at different nesting depths in the output: a top-level
+    unknown key belongs after the whole ``metadata:`` block, while a
+    ``metadata``-nested unknown key belongs *inside* it. Concatenating
+    them into one undifferentiated list (an earlier version of this
+    function did) can interleave a top-level line between the
+    metadata-nested lines and the metadata mapping they belong to,
+    producing frontmatter that no longer parses as YAML at all.
+
+    Each preserved *value* is captured verbatim, not re-serialized, so an
+    unquoted scalar (an ISO timestamp, for example) survives byte-for-byte
+    instead of being rewritten by a YAML parse-then-dump round trip
+    (``yaml.safe_load`` parses an unquoted ``2026-08-19T04:27:39.225Z``
+    into a ``datetime``, and ``safe_dump`` then emits it as
+    ``2026-08-19 04:27:39.225000+00:00`` -- a different string). A
+    metadata-nested preserved *line*, however, is re-indented to
+    ``_PRESERVED_METADATA_INDENT`` regardless of its source indentation --
+    only the value's own text is byte-fidelity-sensitive, not how many
+    leading spaces introduce the key. Splicing a preserved line in at
+    whatever indentation the source happened to use (four spaces, tabs)
+    would otherwise place it at a different depth than the freshly
+    generated canonical metadata lines it's spliced next to, corrupting
+    the result -- YAML reads the mismatched indentation as a continuation
+    of the preceding line rather than a sibling key.
+
+    A canonical key name is recognized even when the source quotes it
+    (``"description"``, ``'authored_by'`` -- see :func:`_unquote_yaml_key`):
+    otherwise a quoted canonical key would be preserved as an untouched,
+    stale duplicate of a key ``repair`` was asked to change via ``--set``,
+    and YAML's own duplicate-key resolution (last occurrence wins) would
+    silently make that stale value win over the intended one.
+
+    Scoped to *top-level* keys and to keys nested exactly one level under
+    ``metadata:`` -- this module's own schema never nests deeper. Each
+    preserved key's own line (whatever it holds -- a plain scalar, a
+    null, or a single-line flow collection like ``tags: [a, b]``, all of
+    which every real Claude-Code-auto-memory key observed --
+    ``node_type``, ``originSessionId``, ``modified`` -- and this module's
+    own writer produce) is captured and preserved verbatim as-is. Only a
+    value that *continues onto further lines* -- a block sequence
+    (``tags:`` followed by ``- a``/``- b`` on their own lines), a block
+    scalar (``|``/``>``), or any other multi-line form -- cannot be
+    safely re-nested at the correct depth by a line-based split, and
+    repair is conservative by design (Decision 9): it raises
+    :class:`_UnsupportedPreservedKey` for that case rather than guess and
+    risk silently dropping or misplacing content. Likewise, ``metadata:``
+    written with inline flow-*mapping* content on its own line (e.g.
+    ``metadata: {type: x, extra: y}``) is rejected the same way, since
+    its extra keys cannot be reliably separated from the canonical ones
+    without a real YAML parse -- the very round trip this function exists
+    to avoid for value fidelity. A non-mapping ``metadata:`` scalar (e.g.
+    the malformed ``metadata: broken`` :func:`repair_memory` separately
+    recovers from) is not rejected here -- it simply has no extra keys to
+    preserve.
+    """
+
+    lines = frontmatter_text.split("\n")
+    preserved_top_level: list[str] = []
+    preserved_metadata: list[str] = []
+    seen_top_level_keys: set[str] = set()
+    seen_metadata_keys: set[str] = set()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            i += 1
+            continue
+        if line[:1].isspace():
+            # A continuation line encountered before any top-level key has
+            # started (should not happen in a well-formed document) --
+            # nothing to attach it to; drop it rather than misfile it.
+            i += 1
+            continue
+        key_match = re.match(r"^(\S[^:]*):(.*)$", line)
+        if key_match is None:
+            # Not a recognizable ``key: value`` line at this indent (e.g. a
+            # continuation of a folded/multi-line scalar) -- keep attached
+            # to whichever key most recently started; nothing to extract
+            # from it on its own.
+            i += 1
+            continue
+        key = key_match.group(1).strip()
+        canonical_key = _unquote_yaml_key(key)
+        inline_value = key_match.group(2).strip()
+        block_start = i
+        i = _consume_frontmatter_block(lines, i + 1, key_indent=0)
+        block_lines = lines[block_start:i]
+        if canonical_key == "metadata":
+            if inline_value.startswith("{"):
+                # Flow-style mapping (e.g. `metadata: {type: x, extra: y}`)
+                # -- its extra keys can't be reliably separated from the
+                # canonical ones without a real YAML parse. A non-mapping
+                # scalar value (e.g. `metadata: broken`, already-malformed
+                # input `repair_memory` is designed to recover from
+                # separately) has no extra keys to preserve either way, so
+                # it is not rejected here -- there is simply nothing to do.
+                raise _UnsupportedPreservedKey(
+                    "repair cannot preserve extra keys from a 'metadata:' "
+                    "line written with inline flow content "
+                    f"({line!r}); rewrite it as a block mapping first"
+                )
+            j = 1
+            while j < len(block_lines):
+                nested_match = re.match(r"^\s+(\S[^:]*):(.*)$", block_lines[j])
+                if nested_match is None:
+                    j += 1
+                    continue
+                nested_key = nested_match.group(1).strip()
+                nested_canonical_key = _unquote_yaml_key(nested_key)
+                nested_indent = len(block_lines[j]) - len(block_lines[j].lstrip())
+                nested_start = j
+                j = _consume_frontmatter_block(
+                    block_lines, j + 1, key_indent=nested_indent
+                )
+                nested_block = block_lines[nested_start:j]
+                if nested_canonical_key in _CANONICAL_METADATA_KEYS:
+                    continue
+                if len(nested_block) != 1:
+                    raise _UnsupportedPreservedKey(
+                        f"repair cannot preserve metadata.{nested_key!r}: "
+                        "its value spans multiple lines "
+                        "(a block sequence or multi-line scalar), which a "
+                        "line-based preservation cannot safely re-nest"
+                    )
+                # A missing inline value on `nested_block[0]` is not
+                # rejected here -- `weird:` alone (with no continuation
+                # line, already guaranteed by the length-1 check above) is
+                # ordinary YAML for a null scalar, not an unrepresentable
+                # nested block; the line is preserved verbatim either way.
+                if nested_canonical_key in seen_metadata_keys:
+                    # A duplicate key in the source is itself malformed
+                    # YAML semantics (a parser silently keeps only the
+                    # last occurrence) -- splicing both lines through
+                    # verbatim would reproduce that same silent collapse
+                    # in the output with no warning. Every other
+                    # unrepresentable shape this function encounters is
+                    # rejected rather than guessed at; a duplicate key is
+                    # no different. Compared by the unquoted form, so a
+                    # quoted and an unquoted spelling of the same key
+                    # still count as a duplicate.
+                    raise _UnsupportedPreservedKey(
+                        f"repair cannot preserve metadata.{nested_key!r}: "
+                        "it appears more than once in the source "
+                        "frontmatter, which is already ambiguous YAML"
+                    )
+                seen_metadata_keys.add(nested_canonical_key)
+                # Re-indented to the generated metadata block's own indent,
+                # not left at the source's original indentation: the
+                # canonical metadata keys are always rendered at
+                # `_PRESERVED_METADATA_INDENT`, and splicing a preserved
+                # line in with a *different* indent (a source file that
+                # used four spaces, or tabs, under `metadata:`) produces
+                # frontmatter where the preserved line reads as a
+                # continuation of whichever generated line precedes it,
+                # rather than a sibling key -- corrupt, unparseable
+                # output. Re-indenting the key/value pair itself (never
+                # touching its content) is a purely structural, lossless
+                # adjustment; it does not affect byte-fidelity of the
+                # value, only how many leading spaces introduce it.
+                preserved_metadata.append(
+                    _PRESERVED_METADATA_INDENT + nested_block[0].lstrip()
+                )
+        elif canonical_key not in _CANONICAL_TOP_LEVEL_KEYS:
+            if len(block_lines) != 1:
+                raise _UnsupportedPreservedKey(
+                    f"repair cannot preserve top-level key {key!r}: its "
+                    "value spans multiple lines (a block sequence or "
+                    "multi-line scalar), which a line-based preservation "
+                    "cannot safely re-nest"
+                )
+            # A missing `inline_value` is not rejected here for the same
+            # reason as the metadata-nested case above (`custom:` alone is
+            # a valid null scalar, not an unrepresentable nested block).
+            if canonical_key in seen_top_level_keys:
+                raise _UnsupportedPreservedKey(
+                    f"repair cannot preserve top-level key {key!r}: it "
+                    "appears more than once in the source frontmatter, "
+                    "which is already ambiguous YAML"
+                )
+            seen_top_level_keys.add(canonical_key)
+            # Top-level keys need no re-indentation: both the generated
+            # canonical keys and every preserved top-level key sit at
+            # indent 0.
+            preserved_top_level.append(block_lines[0])
+    return preserved_top_level, preserved_metadata
+
+
+def _consume_frontmatter_block(
+    lines: typing.Sequence[str], start: int, *, key_indent: int
+) -> int:
+    """Return the index just past the lines that continue a ``key:`` line
+    written at ``key_indent``, starting the scan at ``start`` (the line
+    right after the key's own line).
+
+    A continuation is either (a) a line indented *more* than the key --
+    the conventional nested-content/continuation case -- or (b) a line at
+    *exactly* the key's own indentation whose stripped text starts with
+    ``- `` or is exactly ``-`` -- a YAML block sequence written at the
+    same indentation as its key (``tags:\\n- a\\n- b``), the idiomatic and
+    most common block-sequence style, and one PyYAML's own ``safe_dump``
+    itself produces (see :func:`_render_memory_file`). Without case (b), a
+    sibling-indented sequence looks identical, line by line, to a bare
+    ``key:`` followed by unrelated content -- exactly the shape of a
+    genuine null-valued scalar (``custom:`` alone) -- so failing to
+    recognize it as *this key's own* content would let its items fall
+    through as unrecognized lines and be silently dropped instead of
+    correctly flagged (via the caller's length check) as an
+    unrepresentable multi-line value.
+
+    A blank or comment line is looked *past*, never consumed outright:
+    PyYAML tolerates either inside a block sequence (``tags:\\n\\n- a\\n- b``
+    and ``tags:\\n# note\\n- a\\n- b`` both parse the same as without the
+    interruption), so neither can itself decide whether the block
+    continues -- only what follows it can. Consuming such a line
+    unconditionally (an earlier version of this function did, for blank
+    lines only) would inflate a genuinely single-line key's block by one
+    line whenever it happened to be followed by a blank/comment line
+    before the next real key, misclassifying it as unsupported; *not*
+    looking past one at all would instead terminate a real block
+    sequence's scan the moment a blank or comment line appeared inside
+    it, silently dropping the sequence items that come after -- exactly
+    the class of data loss this function exists to prevent (a comment
+    line reproduces the same failure mode a blank line does, just via a
+    different trigger, since both are structurally invisible to YAML).
+    Looking ahead past any run of blank/comment lines to find the next
+    substantive line, and only advancing past them when that line
+    actually continues the block, avoids both failure modes.
+    """
+
+    i = start
+    while i < len(lines):
+        peek = i
+        while peek < len(lines) and (
+            not lines[peek].strip() or lines[peek].strip().startswith("#")
+        ):
+            peek += 1
+        if peek >= len(lines):
+            break
+        candidate = lines[peek]
+        candidate_indent = len(candidate) - len(candidate.lstrip())
+        if candidate_indent > key_indent:
+            i = peek + 1
+            continue
+        if candidate_indent == key_indent and (
+            candidate.lstrip() == "-" or candidate.lstrip().startswith("- ")
+        ):
+            i = peek + 1
+            continue
+        break
+    return i
 
 
 def _render_memory_file(
@@ -199,6 +508,8 @@ def _render_memory_file(
     authored_by: str,
     applies_to: typing.Sequence[str],
     body: str,
+    preserved_top_level_lines: typing.Sequence[str] = (),
+    preserved_metadata_lines: typing.Sequence[str] = (),
 ) -> str:
     """Render frontmatter through ``yaml.safe_dump``, not hand-built strings.
 
@@ -210,21 +521,48 @@ def _render_memory_file(
     it quotes/escapes every scalar it needs to and leaves the rest bare,
     the same guarantee :func:`read_frontmatter_and_body`'s
     ``yaml.safe_load`` counts on to parse it back correctly.
+
+    ``preserved_top_level_lines``/``preserved_metadata_lines`` (from
+    :func:`_extract_preserved_frontmatter_lines`) are appended verbatim,
+    never re-serialized, so their exact text (including any timestamp a
+    YAML round trip would otherwise reformat) survives unchanged. They
+    are rendered at *different* nesting depths -- the top-level and
+    ``metadata`` dicts are ``yaml.safe_dump``-ed separately and then
+    combined, specifically so a metadata-nested preserved line can be
+    spliced inside the ``metadata:`` block rather than appended after it
+    finishes; concatenating both preserved groups into one flat, appended
+    block (an earlier version of this function did) can place a
+    metadata-nested line after an unrelated top-level line, producing
+    frontmatter that no longer parses as YAML at all. Canonical fields
+    always take precedence: a preserved line can never carry ``name``,
+    ``description``, or a ``metadata.{type,authored_by,applies_to}`` key,
+    since those keys are excluded before this function ever sees them.
     """
 
     applies_to_list = list(applies_to) if applies_to else [authored_by]
-    frontmatter = {
-        "name": name,
-        "description": description,
-        "metadata": {
+    top_level_text = yaml.safe_dump(
+        {"name": name, "description": description},
+        default_flow_style=False,
+        sort_keys=False,
+        allow_unicode=True,
+    )
+    metadata_text = yaml.safe_dump(
+        {
             "type": type_,
             "authored_by": authored_by,
             "applies_to": applies_to_list,
         },
-    }
-    frontmatter_text = yaml.safe_dump(
-        frontmatter, default_flow_style=False, sort_keys=False, allow_unicode=True
+        default_flow_style=False,
+        sort_keys=False,
+        allow_unicode=True,
     )
+    metadata_lines = ["  " + line for line in metadata_text.rstrip("\n").split("\n")]
+    metadata_lines.extend(preserved_metadata_lines)
+    frontmatter_lines = (
+        top_level_text.rstrip("\n").split("\n") + ["metadata:"] + metadata_lines
+    )
+    frontmatter_lines.extend(preserved_top_level_lines)
+    frontmatter_text = "\n".join(frontmatter_lines) + "\n"
     return "---\n" + frontmatter_text + "---\n\n" + body.strip("\n") + "\n"
 
 
@@ -340,6 +678,8 @@ def _write_memory_into_dir(
     applies_to: typing.Sequence[str] | None = None,
     force: bool = False,
     dry_run: bool = False,
+    preserved_top_level_lines: typing.Sequence[str] = (),
+    preserved_metadata_lines: typing.Sequence[str] = (),
 ) -> WriteResult:
     """Core of :func:`write_memory`, taking an already-resolved ``memory_dir``.
 
@@ -401,6 +741,8 @@ def _write_memory_into_dir(
         authored_by=agent,
         applies_to=applies_to,
         body=body,
+        preserved_top_level_lines=preserved_top_level_lines,
+        preserved_metadata_lines=preserved_metadata_lines,
     )
     # Memory-file rename first -- see the crash-consistency note above.
     atomic_write(memory_path, content)
@@ -424,6 +766,8 @@ def write_memory(
     applies_to: typing.Sequence[str] | None = None,
     claude_projects_root: str | pathlib.Path | None = None,
     force: bool = False,
+    preserved_top_level_lines: typing.Sequence[str] = (),
+    preserved_metadata_lines: typing.Sequence[str] = (),
 ) -> WriteResult:
     """Validate and write one memory file, then update its ``MEMORY.md`` entry."""
 
@@ -437,6 +781,8 @@ def write_memory(
         body=body,
         applies_to=applies_to,
         force=force,
+        preserved_top_level_lines=preserved_top_level_lines,
+        preserved_metadata_lines=preserved_metadata_lines,
     )
 
 
@@ -639,6 +985,15 @@ def repair_memory(
     structural fix is not a re-authoring. Routes through
     :func:`write_memory`'s own validated path (not a separate write
     mechanism), per the same discipline already applied to ``import``.
+
+    Also preserves any frontmatter key outside this module's own schema
+    (``name``/``description``/``metadata.{type,authored_by,applies_to}``),
+    such as Claude Code auto-memory's ``node_type``/``originSessionId``/
+    ``modified`` -- byte-for-byte, not merely semantically, since a
+    parse-then-``yaml.safe_dump`` round trip reformats an unquoted
+    timestamp. See :func:`_extract_preserved_frontmatter_lines`. A
+    preserved key can never shadow a canonical one: canonical fields are
+    excluded from extraction before this function ever sees them.
     """
 
     slug = name[: -len(".md")] if name.endswith(".md") else name
@@ -659,8 +1014,11 @@ def repair_memory(
             "as a stale duplicate. Repair is structural-field-only by design."
         )
 
-    frontmatter, body = read_frontmatter_and_body(
-        memory_path.read_text(encoding="utf-8")
+    original_text = memory_path.read_text(encoding="utf-8")
+    frontmatter, body = read_frontmatter_and_body(original_text)
+    raw_frontmatter_text, _ = _split_frontmatter_text_and_body(original_text)
+    preserved_top_level_lines, preserved_metadata_lines = (
+        _extract_preserved_frontmatter_lines(raw_frontmatter_text)
     )
     raw_metadata = frontmatter.get("metadata")
     # A malformed repair target's `metadata` key can itself be a
@@ -714,6 +1072,8 @@ def repair_memory(
         body=body,
         claude_projects_root=claude_projects_root,
         force=True,
+        preserved_top_level_lines=preserved_top_level_lines,
+        preserved_metadata_lines=preserved_metadata_lines,
     )
     return result.memory_path
 

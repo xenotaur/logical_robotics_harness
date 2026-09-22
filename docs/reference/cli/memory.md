@@ -169,6 +169,21 @@ lrh memory repair feedback-x --set metadata.authored_by=claude_app --dry-run
 - `--set FIELD=VALUE`: repeatable; sets one frontmatter field per flag.
 - `--dry-run`: report what would be repaired without writing.
 
+**Preserves unknown frontmatter keys.** Any key outside this schema
+(`name`/`description`/`metadata.{type,authored_by,applies_to}`) — for
+example Claude Code auto-memory's own `node_type`, `originSessionId`,
+and `modified` on a memory it wrote before this command's schema
+existed — is carried through byte-for-byte, not merely semantically: an
+unquoted ISO timestamp survives exactly as written, rather than being
+reformatted by a YAML parse-then-dump round trip. A preserved key can
+never shadow or override a canonical field. A memory with only
+canonical keys repairs to the same output as before this guarantee
+existed. A preserved key's value must fit on its own line (a scalar, a
+null, or a single-line flow collection); a value that spans further
+lines (a block sequence or block scalar), a `metadata:` line written
+with inline flow-mapping content, or a key duplicated in the source
+fails with a clear error instead of guessing.
+
 ## `lrh memory sync`
 
 Mirror this project's memory corpus into the durable archive root,

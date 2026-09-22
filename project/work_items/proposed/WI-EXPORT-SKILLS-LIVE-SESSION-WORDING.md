@@ -25,11 +25,12 @@ forbidden_actions:
   - weaken_human_gate
   - print_transcript_text
 acceptance:
-  - lrh-export-claude and lrh-antigravity-export instruct that for a live (still-growing) session the export and inspect-export commands run in a single shell call, and state that verification is only valid as of the moment the export ran (re-inspecting later against a growing transcript can report a source hash mismatch)
+  - lrh-export-claude and lrh-antigravity-export state that inspect-export's `match_source_grew` status (exit 0) means the source grew after the export but its recorded prefix still matches, that this is expected for a still-growing live session, and that a true `mismatch` (an earlier byte changed, or the source shrank) is the only failure signal to act on
   - lrh-export-claude, lrh-antigravity-export and lrh-codex-export each document an "lrh not on PATH" fallback (PYTHONPATH=src python3 -m lrh.cli.main conversation ...) and note that a worktree's editable install may point at another checkout
-  - Each skill states what to do when the destination already exists (same-session re-export needs --force) and, in the skills that have a confirm-before-write step, the confirm text states that --force overwrites the existing file; no new gate is added and no confirm-before-write semantics change
+  - "lrh-export-claude and lrh-antigravity-export state what to do when the destination already exists (same-session re-export needs --force), and their confirm-before-write text states that --force overwrites the existing file; no new gate is added and no confirm-before-write semantics change"
+  - "lrh-codex-export does not receive the --force/overwrite note: its Step 4 always calls archive-codex-thread, which has no --force option and always allocates a fresh, uniquely-suffixed export directory rather than overwriting (src/lrh/conversations/codex_archive.py's _reserve_export_directory); the wording pass states this explicitly instead of applying an inapplicable criterion"
   - Each skill's reporting step states that a sensitivity status of potential means review before sharing, not that the export failed, and that unscanned means no scan was run
-  - The lrh-codex-export skill does not receive the live-session single-call instruction, because it verifies against a frozen raw capture; the wording pass notes this explicitly
+  - The lrh-codex-export skill does not receive the `match_source_grew` wording, because it verifies against a frozen raw capture with no live-growth case; the wording pass notes this explicitly
   - The missing .gemini/plugins/lrh/skills/lrh-antigravity-export mirror is reported as a finding, with the reason found or stated as unknown, and is not silently added or ignored
   - docs/reference/cli/conversation.md is updated only where its wording must match the skills
   - .claude/skills mirrors are byte-identical to src/lrh/skills; .agents/skills and .gemini/plugins/lrh/skills are regenerated via lrh skills install without overwriting unrelated locally modified skills
@@ -91,14 +92,32 @@ Mirror finding: `.claude/skills` matches the source for all three skills;
 `.agents/skills` matches only for `lrh-antigravity-export`; and
 `.gemini/plugins/lrh/skills` has no `lrh-antigravity-export` at all.
 
+**Superseded scope.** This work item originally proposed a companion item,
+`WI-CONVERSATION-EXPORT-SOURCE-PREFIX-VERIFICATION`, to fix the live-transcript
+hash race in code. While this PR was under review, a separate, parallel effort
+landed exactly that fix on `main`: `WI-INSPECT-EXPORT-APPEND-ONLY-SOURCE-VERIFY`
+(resolved, PR #692, commit `0da9ceee`) added an optional `source_byte_count` to
+the manifest, has both the Claude and Antigravity exporters record it, and gives
+`inspect-export` a `match_source_grew` status (exit 0) for a grown but
+prefix-matching source, while still reporting `mismatch` for an earlier-byte
+change or a whole-file mismatch with no recorded byte count. The companion item
+was dropped as a duplicate (review findings, PR #689). This wording item's
+point (a) now describes that shipped `match_source_grew` behavior directly,
+rather than the single-call workaround originally proposed, since the code fix
+makes the workaround unnecessary for a routine live-session export (a single
+call remains useful only to avoid a large, but not necessarily append-only,
+gap between export and inspect). See also `WI-EXPORT-CLAUDE-SKILL-CURRENT-SESSION-DEFAULT`
+(proposed, depends on the resolved item above), which covers the Claude skill's
+own Step 5 treatment of `match_source_grew` as part of a broader current-session
+default; this item's wording only needs to be consistent with it, not duplicate it.
+
 Prior art check:
 
-- **Duplication:** none. The resolved export work items
-  (`WI-CLAUDE-CONVERSATION-EXPORT-SKILL`, `WI-ANTIGRAVITY-CONVERSATION-EXPORT-SKILL`,
-  the durable-archive-default items and
-  `WI-CLI-REFERENCE-ANTIGRAVITY-EXPORT-DOC-GAP`) built the current behavior and
-  do not address these points.
-- **Demand:** no existing work item requests this.
+- **Duplication:** the live-transcript verification *mechanism* is already
+  built (see above); this item's remaining scope (PATH fallback, destination-exists
+  wording scoped correctly per skill, sensitivity-status wording, the mirror
+  finding) is not covered by any existing or resolved work item.
+- **Demand:** no existing work item requests the remaining scope.
 
 ## Scope
 
@@ -108,11 +127,15 @@ Prior art check:
 
 ## Required Changes
 
-- Add the single-call and as-of-export wording to the Claude and Antigravity
-  skills only; the Codex source is a frozen raw capture.
+- Describe the shipped `match_source_grew` verification behavior in the
+  Claude and Antigravity skills' reporting steps, and state that a live-session
+  export is a snapshot as of the moment it ran; the Codex source is a frozen
+  raw capture and does not receive this wording.
 - Add the PATH fallback line to all three skills.
-- Add the destination-exists and `--force` overwrite note to all three, inside
-  the existing confirm step where one exists.
+- Add the destination-exists and `--force` overwrite note to `lrh-export-claude`
+  and `lrh-antigravity-export` only, inside their confirm-before-write step;
+  state in `lrh-codex-export` that no such note applies, since
+  `archive-codex-thread` always allocates a fresh directory.
 - Add the sensitivity-status explanation to each reporting step.
 - Report the missing `.gemini` Antigravity mirror as a finding.
 - Sync mirrors byte-identically for `.claude/` and regenerate the others.
@@ -121,8 +144,10 @@ Prior art check:
 
 - No new gate and no change to confirm-before-write semantics (the Antigravity
   gate question is `WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT`).
-- No exporter or inspector code change (that is
-  `WI-CONVERSATION-EXPORT-SOURCE-PREFIX-VERIFICATION`).
+- No exporter or inspector code change; that verification mechanism is
+  already shipped (`WI-INSPECT-EXPORT-APPEND-ONLY-SOURCE-VERIFY`, resolved).
+- No change to `lrh-export-claude`'s discovery-flag or current-session
+  defaults; that is `WI-EXPORT-CLAUDE-SKILL-CURRENT-SESSION-DEFAULT`.
 - Never print or preview transcript text.
 
 ## Acceptance Criteria

@@ -30,7 +30,7 @@ acceptance:
   - A written assessment compares lrh-antigravity-export with lrh-export-claude and lrh-codex-export on the confirm-before-write step, the proactive-invocation guard in when_to_use, the concrete-path resolution rule, and the privacy risk of an unconfirmed durable write, citing file and line for each
   - The assessment ends in an explicit recommendation (add a gate, or leave as is with rationale)
   - If the recommendation is to add a gate and the change is simple, it is implemented in the same PR, matching the Claude and Codex export skills' Step 3 wording, and the assessment states why the scope stayed reasonable
-  - If the change is not simple, or the scope grows beyond what the human and the agent in the implementing session judge reasonable, the gate is not implemented and a follow-up work item is proposed for the human to decide
+  - If the change is not simple, or the scope grows beyond what the human and the agent in the implementing session judge reasonable, the gate is not implemented in this PR; the implementing session and the human then judge together whether a separate follow-up work item is warranted or the recommendation is simply reported as a finding
   - Whichever way it resolves, the implementing session reports its scope judgment to the human before finishing
   - If a gate is added, .claude/skills is byte-identical to src/lrh/skills, .agents/skills and .gemini/plugins/lrh/skills are regenerated via lrh skills install, and the added gate follows whatever marker and watched-file convention the existing export-skill gates use
   - No transcript text is printed or committed

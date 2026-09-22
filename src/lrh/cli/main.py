@@ -25,6 +25,7 @@ from lrh import (
 from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
+from lrh.cli import branches as branches_cli
 from lrh.cli import github as github_cli
 from lrh.control import format_report, frontmatter_migration, validate_project
 from lrh.conversations import (
@@ -175,6 +176,12 @@ def main() -> None:
         "github",
         add_help=False,
         help="Query GitHub pull request comments/threads.",
+    )
+
+    subparsers.add_parser(
+        "branches",
+        add_help=False,
+        help="Report-only local branch hygiene survey (never deletes anything).",
     )
 
     subparsers.add_parser(
@@ -1084,6 +1091,14 @@ def main() -> None:
             github_cli.run_github_cli(
                 argv=passthrough_args,
                 prog="lrh github",
+            )
+        )
+
+    if args.command == "branches":
+        raise SystemExit(
+            branches_cli.run_branches_cli(
+                argv=passthrough_args,
+                prog="lrh branches",
             )
         )
 

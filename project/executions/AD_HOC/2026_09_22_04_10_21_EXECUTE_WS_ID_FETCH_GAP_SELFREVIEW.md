@@ -4,11 +4,11 @@ prompt_id: PROMPT(AD_HOC:EXECUTE_WS_ID_FETCH_GAP_SELFREVIEW)[2026-09-22T04:10:14
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/697
 commit: 
 created_at: 2026-09-22T04:10:21+00:00
 agent: claude_code
-instruction_source: pending -- ad-hoc task, no work item; describe in the PR body once opened
+instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/697
 session_transcript: claude-app:local_02330303-d423-49f8-9864-aeac6023c0b9
 ---
 

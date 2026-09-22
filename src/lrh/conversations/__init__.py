@@ -13,6 +13,14 @@ from lrh.conversations.claude_export import (
     convert_claude_session,
     resolve_claude_archive_root,
 )
+from lrh.conversations.claude_session import (
+    CLAUDE_HOST_SESSION_ID_ENV,
+    CLAUDE_SESSION_ID_ENV,
+    CLAUDE_SESSION_TRANSCRIPT_PREFIX,
+    ClaudeSessionIdentity,
+    ClaudeSessionIdentityError,
+    resolve_current_claude_session_identity,
+)
 from lrh.conversations.codex_app_server_export import (
     CodexAppServerExport,
     CodexAppServerExportError,
@@ -79,6 +87,11 @@ __all__ = [
     "CodexArchivePaths",
     "ClaudeExport",
     "ClaudeExportError",
+    "ClaudeSessionIdentity",
+    "ClaudeSessionIdentityError",
+    "CLAUDE_HOST_SESSION_ID_ENV",
+    "CLAUDE_SESSION_ID_ENV",
+    "CLAUDE_SESSION_TRANSCRIPT_PREFIX",
     "CodexFileExport",
     "CodexFileExportError",
     "CodexImportResult",
@@ -115,6 +128,7 @@ __all__ = [
     "render_codex_markdown",
     "render_thread",
     "resolve_codex_session_identity",
+    "resolve_current_claude_session_identity",
     "resolve_codex_archive_root",
     "resolve_antigravity_archive_root",
     "resolve_claude_archive_root",

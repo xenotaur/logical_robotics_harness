@@ -2,10 +2,10 @@
 execution_id: 2026_09_21_21_30_39_WI_INSPECT_EXPORT_APPEND_ONLY_SOURCE_VERIFY
 prompt_id: PROMPT(WI-INSPECT-EXPORT-APPEND-ONLY-SOURCE-VERIFY:WI_INSPECT_EXPORT_APPEND_ONLY_SOURCE_VERIFY)[2026-09-21T19:26:47+00:00]
 work_item: WI-INSPECT-EXPORT-APPEND-ONLY-SOURCE-VERIFY
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/692
-commit: 
+commit: 0da9ceee1df28f1510f0afcaa6c2d1c78d8d32f2
 created_at: 2026-09-21T21:30:39+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-INSPECT-EXPORT-APPEND-ONLY-SOURCE-VERIFY.md

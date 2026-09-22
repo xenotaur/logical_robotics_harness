@@ -2,10 +2,10 @@
 execution_id: 2026_09_21_22_17_53_WI_INSPECT_EXPORT_APPEND_ONLY_SOURCE_VERIFY_CONFIRM_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_INSPECT_EXPORT_APPEND_ONLY_SOURCE_VERIFY_CONFIRM_SELFREVIEW)[2026-09-21T22:16:44+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_21_21_30_39_WI_INSPECT_EXPORT_APPEND_ONLY_SOURCE_VERIFY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/692
-commit: 
+commit: 0da9ceee1df28f1510f0afcaa6c2d1c78d8d32f2
 created_at: 2026-09-21T22:17:53+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/692

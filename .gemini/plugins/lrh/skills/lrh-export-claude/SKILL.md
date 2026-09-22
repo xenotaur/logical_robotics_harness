@@ -77,7 +77,9 @@ resolves it, so a bare invocation no longer needs to ask.
 - `--archive-root PATH` — optional private session archive root override.
 - `--force` — overwrite the destination file if it already exists. This
   never allows the source transcript and output to be the same file, even
-  with `--force`.
+  with `--force`. Always asks for confirmation before Step 4 when present
+  — the one flag Step 3 treats as dangerous, regardless of whether the
+  invocation is otherwise typed or model-initiated.
 - `--source-id ID` — optional explicit session identifier to record in
   metadata (defaults to the transcript filename stem).
 - `--no-scan-sensitive` — skip the local heuristic sensitivity scanner and
@@ -251,17 +253,37 @@ same two things: the resolved session (path, session id, "current", or
 the route is "current" or "latest". They differ only in whether they
 wait for a reply.
 
-**How this invocation arrived decides which branch applies:**
+**First, check for a dangerous flag — this overrides the invocation-source
+branch below, even for a typed invocation.** Currently this list has one
+entry: `--force`. If the invocation includes `--force`, state the resolved
+session and destination, state explicitly that an existing file at that
+destination would be overwritten, and wait for explicit confirmation
+before proceeding to Step 4 — regardless of whether the invocation was
+user-typed. This is a static check on the flag's presence, not a live
+filesystem check for whether a file actually exists there: predicting the
+exact default destination would mean duplicating the exporter's own
+path-and-sanitization formula (`claude_export.py:488-498`) inside this
+skill, and a future drift between the two would silently produce a wrong
+answer — the same class of bug two other findings in this skill's own
+review caught. Asking on every `--force`, even the rare case where nothing
+would actually be overwritten, is the safe direction to be imprecise in.
+This list is intentionally short and explicit; a future dangerous flag
+gets added here by name, not inferred.
+
+**Otherwise, how this invocation arrived decides which branch applies:**
 
 - **User-typed invocation.** The current turn is the literal slash
   command — it arrives as `<command-message>`/`<command-name>` tags (or
   the equivalent explicit textual invocation the current platform
   surfaces) naming `/lrh-export-claude`, typed by the user this turn. A
   human typing the command is the explicit request by construction (per
-  the decision recorded 2026-09-20). State the resolved session and
-  destination as information — including the durable-archive note — and
-  proceed directly to Step 4 without waiting for a reply. Do not also ask
-  about the discovery route or `--out`; nothing here is a question.
+  the decision recorded 2026-09-20), regardless of what flags accompany
+  it or how the message is phrased — "Yes, please execute
+  `/lrh-export-claude`" counts exactly the same as a bare
+  `/lrh-export-claude`. State the resolved session and destination as
+  information — including the durable-archive note — and proceed
+  directly to Step 4 without waiting for a reply. Do not also ask about
+  the discovery route or `--out`; nothing here is a question.
 - **Model-initiated invocation.** Any other route into this skill — a
   proactive offer, or a call chained from another skill or workflow, with
   no literal user-typed slash command this turn. State the same resolved

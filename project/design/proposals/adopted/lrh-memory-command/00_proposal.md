@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Memory Command — Validated Cross-Agent Writes and Durable Archival for Claude Code Memory
 status: adopted
 created_on: 2026-08-18
-updated_on: 2026-09-20
+updated_on: 2026-09-22
 implementation_status: implemented
 implemented_by:
   - WI-LRH-MEMORY-WRITE-SIDE
@@ -143,6 +143,10 @@ Options considered:
 - Add `lrh memory repair`, a conservative, structural-only fix-up command scoped to frontmatter and index fields, modeled directly on the "detect, then conservatively repair" split this codebase already uses three times over: `lrh work-items validate`/`lrh work-items organize` (whose own help text reads "Conservatively repair work-item frontmatter and status buckets, including legacy layouts" — `src/lrh/cli/main.py:293-296`), and the equivalent `organize` commands for workstreams and design proposals (`src/lrh/cli/main.py:383,413`).
 
 **Chosen: add `repair`.** It closes the gap the original Non-Goals draft named directly — cleanup of the 19 already-known non-conforming files (`experimental/rescue_claude_sessions/findings.md`) had no tool to act on `validate`'s findings. Scoping it to structural fields only, never body content, follows the "conservatively" framing already established for `organize` rather than inventing a looser repair semantics. Implementation must route through `write`'s own validated path (read the existing file, apply the field patch, call `write`'s logic) rather than writing bytes directly — the same discipline already applied to `import` in Decision 8, so `repair` cannot become a second, less-validated way to produce a memory file.
+
+#### Amendment to Decision 9 (2026-09-22, WI-LRH-MEMORY-REPAIR-PRESERVE-METADATA) — preserve unknown frontmatter keys
+
+"Structural-only, never body content" as originally scoped still let `repair` silently drop any frontmatter key outside its own schema, because its route through `write_memory`'s validated path rebuilt the frontmatter from `_render_memory_file`'s fixed field set. This bit real files: 14 memories in the canonical corpus were written by Claude Code's own auto-memory (not `lrh memory write`) and carry its `node_type`/`originSessionId`/`modified` keys; backfilling their missing `metadata.authored_by` with `repair` would have discarded all three, and a naive fix (re-serializing the whole frontmatter through `yaml.safe_dump`) would still corrupt an unquoted timestamp (`2026-08-19T04:27:39.225Z` becomes `2026-08-19 04:27:39.225000+00:00` on a parse-then-dump round trip). **Superseded in part:** `repair` now extracts every non-canonical top-level and `metadata`-nested key from the original file's raw frontmatter text and re-emits those lines verbatim, after the canonical block, so they survive byte-for-byte and can never shadow a canonical field. This does not change `repair`'s "structural-only, never body content" framing — it completes it, since dropping an unrelated key silently is itself a body-adjacent side effect the original framing did not intend.
 
 This raises one question Decision 3 didn't need to answer, because nothing previously edited another agent's memory after the fact: does repairing a memory change who it's attributed to? **Resolved: `repair` preserves the original `authored_by` unless the caller explicitly overrides it.** Repairing a Codex-authored memory's frontmatter as Claude is a structural fix, not a re-authoring — the content and its original authorship claim are unchanged, only its conformance is. An explicit `--set metadata.authored_by=<new-agent>` remains possible for the rarer case where re-attribution is genuinely intended, but that is an opt-in override, never the default effect of running `repair`.
 

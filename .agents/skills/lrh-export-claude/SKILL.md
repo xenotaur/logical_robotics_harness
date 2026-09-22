@@ -55,11 +55,11 @@ resolves it, so a bare invocation no longer needs to ask.
   never asked about — see Step 3.
 - `--app-data-dir PATH` — path to Claude Code's application data directory
   (default: `$CLAUDE_CONFIG_DIR`, or `~/.claude` if unset). Used by Step 1's
-  own metadata-only resolution (the current-session default, or an
-  explicit `--session-id`). Also forwarded to Step 4's exporter call for
-  the current-session default and `--latest` routes, which resolve
-  against it directly — see Step 4. Not needed for `--transcript-path` or
-  `--session-id`, since those are already resolved to an exact file by
+  own metadata-only resolution for every route. Also forwarded to Step 4's
+  exporter call, but only for the current-session default (or explicit
+  `--current`) route, which resolves against it directly — see Step 4. Not
+  needed for `--transcript-path`, `--session-id`, or `--latest`, since all
+  three are already resolved to an exact file by
   Step 1.
 - `--archive-root PATH` — optional private session archive root override.
 - `--force` — overwrite the destination file if it already exists. This
@@ -157,7 +157,8 @@ user, else `$CLAUDE_CONFIG_DIR`, else `~/.claude`.
 
 Determine the input route:
 
-1. **No discovery flag (the default)**: run
+1. **No discovery flag (the default), or explicit `--current`**: both mean
+   the same thing — run
    `lrh conversation current-claude-session-id --app-data-dir <app_data_dir> --format json`.
    On success, its `session_id` and `transcript_path` fields are what
    Step 3 states; the actual export in Step 4 uses `--current`, which
@@ -177,19 +178,33 @@ Determine the input route:
    `--transcript-path` to disambiguate rather than guessing. Exactly one
    match becomes `<transcript_file>`, passed through as `--transcript-path`
    in Step 4.
-4. **Latest session**: if `--latest` is given, do not pre-resolve it
-   yourself. `export-claude-session --latest` is scoped by default to the
-   current working directory's own Claude project (see
-   `docs/reference/cli/conversation.md`), which this skill has no reason
-   to duplicate — Step 4 passes `--latest` straight through, and reads
-   back which file it actually picked from the `Source transcript:` line
-   the export prints.
+4. **Latest session**: if `--latest` is given, resolve it yourself,
+   read-only, so Step 3 can state a real destination before Step 4 runs
+   (the default `--out` filename is derived from the resolved session's
+   id, which Step 3 must be able to show). `export-claude-session --latest`
+   is scoped by default to the invoking working directory's own Claude
+   project — mirror that scoping rather than searching every project:
+   compute `<project_slug>` by taking the absolute path of the current
+   working directory and replacing every `/`, `.`, and `_` with `-`
+   (Claude Code's own project-bucket naming rule), then glob
+   `<app_data_dir>/projects/<project_slug>/*.jsonl`. Zero matches is an
+   error — report it (mention `--all-projects` exists on the CLI itself
+   as a manual fallback, not exposed by this skill). Sort by modification
+   time and take the most recent; ties break arbitrarily, matching the
+   CLI's own undocumented tie behavior. That becomes `<transcript_file>`,
+   passed through as `--transcript-path` in Step 4 — the same treatment
+   as route 3, and for the same reason: Step 3 needs a concrete file
+   before it can state what will be written.
 
-For routes 1 and 4, the exact file exported is only known once Step 4
-runs — Step 5's verification uses the `Source transcript:` line from
-Step 4's own output, not a value resolved here. For routes 2 and 3, this
-step's own resolved `<transcript_file>` is exact and is what Step 4
-exports, so it is also what Step 5 verifies against.
+Every route now resolves a concrete file (or, for route 1, a concrete
+session id) before Step 3, so Step 3 always has a real destination to
+state. Step 4 passes `--transcript-path <transcript_file>` for routes
+2–4; for route 1 it passes `--current` instead of reusing this step's
+resolved path directly, since `--current` is the exporter's own
+purpose-built flag for "the current session" and needs no path handed to
+it. Whichever route ran, Step 5's verification always uses the
+`Source transcript:` line Step 4's own output prints, not a value
+resolved here.
 
 A live session's transcript is still being written. **Note this
 explicitly wherever the session is stated to the user (Step 3) and in
@@ -251,12 +266,13 @@ wait for a reply.
 Run the exporter with a restrictive umask so generated files are created
 user-only. Pass exactly the discovery flag Step 1 determined:
 
-- Route 1 (no flag supplied): `--current`, plus `--app-data-dir
-  <app_data_dir>` — this route defers its actual resolution to this
-  command, exactly like Step 1's own `current-claude-session-id` call, so
-  the same `<app_data_dir>` from Step 1 must be forwarded, or a
-  non-default `--app-data-dir` the user supplied would silently resolve
-  against the exporter's own default instead.
+- Route 1 (no flag, or explicit `--current`): `--current`, plus
+  `--app-data-dir <app_data_dir>` — this route defers its actual
+  resolution to this command, exactly like Step 1's own
+  `current-claude-session-id` call, so the same `<app_data_dir>` from
+  Step 1 must be forwarded, or a non-default `--app-data-dir` the user
+  supplied would silently resolve against the exporter's own default
+  instead.
 - Route 2 (`--transcript-path`): `--transcript-path <transcript_file>`
   resolved in Step 1. `--app-data-dir` is not needed — the path is
   already exact.
@@ -264,24 +280,29 @@ user-only. Pass exactly the discovery flag Step 1 determined:
   in Step 1 — passed as an explicit path, not the bare `--session-id`
   flag, so the exact file this step exports is the exact file already
   disambiguated. `--app-data-dir` is not needed for the same reason.
-- Route 4 (`--latest`): `--latest`, unresolved, plus `--app-data-dir
-  <app_data_dir>` — same reason as Route 1: this route also defers
-  resolution to this command, so the directory it searches under must be
-  the one Step 3 already told the user about, not silently the exporter's
-  own default.
+- Route 4 (`--latest`): `--transcript-path <transcript_file>` resolved in
+  Step 1 — the same treatment as route 3, for the same reason: the exact
+  file Step 3 already stated is the exact file this step exports.
+  `--app-data-dir` is not needed here either.
+
+Only route 1 needs `--app-data-dir` forwarded to this command; routes 2–4
+always pass an already-exact `--transcript-path` instead. Pick the one
+line below matching the route Step 1 determined — this is not a single
+command with optional parts, since a real shell would parse `(...|...)`
+as syntax, not a placeholder:
 
 ```bash
+# Route 1 — no flag, or explicit --current
 ( umask 077
-  lrh conversation export-claude-session \
-    (--current | --transcript-path <transcript_file> | --latest) \
-    [--app-data-dir <app_data_dir>] \
-    [--out OUTPUT.md] \
-    [--archive-root PATH] \
-    [--force] \
-    [--source-id ID] \
-    [--no-scan-sensitive] \
-    [--include-system-attachments] \
-    [--include-subagents] )
+  lrh conversation export-claude-session --current --app-data-dir <app_data_dir> \
+    [--out OUTPUT.md] [--archive-root PATH] [--force] [--source-id ID] \
+    [--no-scan-sensitive] [--include-system-attachments] [--include-subagents] )
+
+# Routes 2-4 — --transcript-path, --session-id, or --latest
+( umask 077
+  lrh conversation export-claude-session --transcript-path <transcript_file> \
+    [--out OUTPUT.md] [--archive-root PATH] [--force] [--source-id ID] \
+    [--no-scan-sensitive] [--include-system-attachments] [--include-subagents] )
 ```
 
 If `--out` is omitted, the CLI prints the durable session archive

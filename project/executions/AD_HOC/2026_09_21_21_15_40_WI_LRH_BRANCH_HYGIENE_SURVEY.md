@@ -2,14 +2,14 @@
 execution_id: 2026_09_21_21_15_40_WI_LRH_BRANCH_HYGIENE_SURVEY
 prompt_id: PROMPT(AD_HOC:WI_LRH_BRANCH_HYGIENE_SURVEY)[2026-09-21T21:13:17+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/690
-commit: 
+commit: aff129e2f0d84338240f5f981974d455c6f4cc5e
 created_at: 2026-09-21T21:15:40+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-BRANCH-HYGIENE-SURVEY.md
-session_transcript: pending
+session_transcript: claude-app:8ee165ab-2feb-41e3-bad5-feddfd7a49e7
 ---
 
 # Summary

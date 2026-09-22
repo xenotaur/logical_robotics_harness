@@ -2,14 +2,14 @@
 execution_id: 2026_09_21_22_10_51_WI_LRH_MEMORY_REPAIR_PRESERVE_METADATA_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_LRH_MEMORY_REPAIR_PRESERVE_METADATA_CONFIRM)[2026-09-21T22:10:51+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_21_19_13_04_WI_LRH_MEMORY_REPAIR_PRESERVE_METADATA
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/687
-commit: 
+commit: 7ea4c20e1975c2a4b39e5af68777069057405045
 created_at: 2026-09-21T22:10:51+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/687
-session_transcript: pending
+session_transcript: claude-app:239809db-0aff-4cae-b00b-76078ee01394
 ---
 
 # Summary

@@ -2,14 +2,14 @@
 execution_id: 2026_09_22_04_43_00_WI_EXPORT_SKILLS_LIVE_SESSION_FIXES_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_EXPORT_SKILLS_LIVE_SESSION_FIXES_CONFIRM)[2026-09-22T04:42:13+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_21_20_06_19_WI_EXPORT_SKILLS_LIVE_SESSION_FIXES
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/689
-commit: 
+commit: b34db7b94587edf14f5981c7256da0fb887ab1e2
 created_at: 2026-09-22T04:43:00+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/689
-session_transcript: pending
+session_transcript: claude-app:3dbbfead-a543-43e4-b5ab-d9d5e8597169
 ---
 
 # Summary

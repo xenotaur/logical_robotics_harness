@@ -1,3 +1,4 @@
+import dataclasses
 import unittest
 from datetime import datetime, timezone
 
@@ -122,6 +123,39 @@ class TestConversationExportManifest(unittest.TestCase):
             ConversationExportManifestError, "missing required field: source_sha256"
         ):
             ConversationExportManifest.from_mapping(mapping)
+
+    def test_source_byte_count_is_optional_and_omitted_when_unset(self) -> None:
+        without = ConversationExportManifest.from_mapping(_valid_mapping())
+        self.assertIsNone(without.source_byte_count)
+        self.assertNotIn("source_byte_count", without.to_mapping())
+        self.assertNotIn("source_byte_count", without.to_frontmatter())
+
+    def test_source_byte_count_round_trips_when_present(self) -> None:
+        mapping = _valid_mapping()
+        mapping["source_byte_count"] = 1234
+        manifest = ConversationExportManifest.from_mapping(mapping)
+
+        self.assertEqual(manifest.source_byte_count, 1234)
+        self.assertEqual(manifest.to_mapping()["source_byte_count"], 1234)
+        self.assertEqual(manifest.schema_version, 1)
+        reloaded = ConversationExportManifest.from_mapping(manifest.to_mapping())
+        self.assertEqual(reloaded.source_byte_count, 1234)
+
+    def test_source_byte_count_is_the_last_constructor_field(self) -> None:
+        # The manifest is a public dataclass; the optional field must not shift
+        # the positional order that existing callers rely on.
+        fields = dataclasses.fields(ConversationExportManifest)
+        names = [field.name for field in fields]
+        self.assertEqual(
+            names[-3:], ["adapter_version", "warnings", "source_byte_count"]
+        )
+
+    def test_rejects_invalid_source_byte_count(self) -> None:
+        for bad in (-1, True, "12", 1.5):
+            mapping = _valid_mapping()
+            mapping["source_byte_count"] = bad
+            with self.assertRaises(ConversationExportManifestError, msg=repr(bad)):
+                ConversationExportManifest.from_mapping(mapping)
 
     def test_rejects_invalid_source_hash(self) -> None:
         with self.assertRaisesRegex(ConversationExportManifestError, "source_sha256"):

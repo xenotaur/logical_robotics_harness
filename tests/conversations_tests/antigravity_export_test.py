@@ -84,6 +84,53 @@ class TestAntigravityExport(unittest.TestCase):
             self.assertTrue(inspection.manifest_valid)
             self.assertEqual(inspection.source_hash.status, "match")
 
+    def test_records_source_byte_count_and_verifies_grown_source(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = _write_transcript(
+                tmp_path,
+                [
+                    {
+                        "step_index": 0,
+                        "source": "USER_EXPLICIT",
+                        "type": "USER_INPUT",
+                        "status": "DONE",
+                        "content": "hi",
+                    }
+                ],
+            )
+            out_file = tmp_path / "export.md"
+
+            res = antigravity_export.convert_antigravity_session(
+                source_file,
+                output_path=out_file,
+                source_id="grow_session",
+                exported_at="2026-08-08T12:00:00Z",
+            )
+
+            self.assertEqual(res.manifest.source_byte_count, source_file.stat().st_size)
+            self.assertIn("source_byte_count:", out_file.read_text(encoding="utf-8"))
+
+            with source_file.open("a", encoding="utf-8") as handle:
+                handle.write(
+                    json.dumps(
+                        {
+                            "step_index": 1,
+                            "source": "USER_EXPLICIT",
+                            "type": "USER_INPUT",
+                            "status": "DONE",
+                            "content": "later",
+                        }
+                    )
+                    + "\n"
+                )
+
+            inspection = export_inspector.inspect_export(
+                out_file, source_path=source_file
+            )
+            self.assertTrue(inspection.valid)
+            self.assertEqual(inspection.source_hash.status, "match_source_grew")
+
     def test_convert_antigravity_session_file_not_found(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_path = Path(temp_dir)

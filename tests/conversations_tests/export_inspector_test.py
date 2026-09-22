@@ -117,6 +117,133 @@ class TestConversationExportInspector(unittest.TestCase):
             self.assertFalse(inspection.valid)
             self.assertEqual(inspection.source_hash.status, "mismatch")
 
+    def test_recorded_byte_count_unchanged_source_is_match(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path, export_path = _write_export(
+                temp_dir, "hello", record_byte_count=True
+            )
+
+            inspection = export_inspector.inspect_export(
+                export_path, source_path=source_path
+            )
+
+            self.assertTrue(inspection.valid)
+            self.assertEqual(inspection.source_hash.status, "match")
+            self.assertEqual(inspection.source_hash.expected_byte_count, 5)
+            self.assertEqual(inspection.source_hash.actual_byte_count, 5)
+
+    def test_appended_source_is_match_source_grew_and_valid(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path, export_path = _write_export(
+                temp_dir, "hello", record_byte_count=True
+            )
+            with source_path.open("a", encoding="utf-8") as handle:
+                handle.write(" and more")
+
+            inspection = export_inspector.inspect_export(
+                export_path, source_path=source_path
+            )
+
+            self.assertTrue(inspection.valid)
+            self.assertEqual(inspection.errors, ())
+            self.assertEqual(inspection.source_hash.status, "match_source_grew")
+            self.assertEqual(inspection.source_hash.expected_byte_count, 5)
+            self.assertEqual(inspection.source_hash.actual_byte_count, 14)
+            self.assertEqual(
+                inspection.source_hash.actual_sha256,
+                inspection.source_hash.expected_sha256,
+            )
+
+    def test_altered_earlier_byte_in_longer_source_is_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path, export_path = _write_export(
+                temp_dir, "hello", record_byte_count=True
+            )
+            source_path.write_text("jello and more", encoding="utf-8")
+
+            inspection = export_inspector.inspect_export(
+                export_path, source_path=source_path
+            )
+
+            self.assertFalse(inspection.valid)
+            self.assertEqual(inspection.source_hash.status, "mismatch")
+            self.assertIn("source_hash: mismatch", inspection.errors)
+
+    def test_source_shorter_than_recorded_is_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path, export_path = _write_export(
+                temp_dir, "hello", record_byte_count=True
+            )
+            source_path.write_text("hel", encoding="utf-8")
+
+            inspection = export_inspector.inspect_export(
+                export_path, source_path=source_path
+            )
+
+            self.assertFalse(inspection.valid)
+            self.assertEqual(inspection.source_hash.status, "mismatch")
+
+    def test_grown_source_without_recorded_byte_count_is_mismatch(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path, export_path = _write_export(temp_dir, "hello")
+            with source_path.open("a", encoding="utf-8") as handle:
+                handle.write(" and more")
+
+            inspection = export_inspector.inspect_export(
+                export_path, source_path=source_path
+            )
+
+            self.assertFalse(inspection.valid)
+            self.assertEqual(inspection.source_hash.status, "mismatch")
+            self.assertIsNone(inspection.source_hash.expected_byte_count)
+
+    @patch("sys.stdout", new_callable=io.StringIO)
+    def test_cli_reports_grown_source_text_and_exits_zero(
+        self,
+        mock_stdout: io.StringIO,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path, export_path = _write_export(
+                temp_dir, "hello", record_byte_count=True
+            )
+            with source_path.open("a", encoding="utf-8") as handle:
+                handle.write(" and more")
+
+            result = export_inspector.run_inspect_export_cli(
+                [str(export_path), "--source", str(source_path)],
+                prog="lrh conversation inspect-export",
+            )
+
+            self.assertEqual(result, 0)
+            output = mock_stdout.getvalue()
+            self.assertIn("Valid: yes\n", output)
+            self.assertIn("Source hash: match_source_grew\n", output)
+            self.assertIn("source grew by 9 bytes since export", output)
+            self.assertNotIn("hello", output)
+
+    @patch("sys.stdout", new_callable=io.StringIO)
+    def test_cli_json_includes_byte_counts(
+        self,
+        mock_stdout: io.StringIO,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            source_path, export_path = _write_export(
+                temp_dir, "hello", record_byte_count=True
+            )
+            with source_path.open("a", encoding="utf-8") as handle:
+                handle.write(" and more")
+
+            result = export_inspector.run_inspect_export_cli(
+                [str(export_path), "--source", str(source_path), "--format", "json"],
+                prog="lrh conversation inspect-export",
+            )
+
+            self.assertEqual(result, 0)
+            loaded = json.loads(mock_stdout.getvalue())
+            self.assertEqual(loaded["source_hash"]["status"], "match_source_grew")
+            self.assertEqual(loaded["source_hash"]["expected_byte_count"], 5)
+            self.assertEqual(loaded["source_hash"]["actual_byte_count"], 14)
+
     def test_missing_source_is_distinct_from_not_supplied(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             _source_path, export_path = _write_export(temp_dir, "hello")
@@ -232,7 +359,9 @@ class TestConversationExportInspector(unittest.TestCase):
         self.assertIn("error: export does not exist", mock_stderr.getvalue())
 
 
-def _write_export(temp_dir: str, transcript: str) -> tuple[Path, Path]:
+def _write_export(
+    temp_dir: str, transcript: str, *, record_byte_count: bool = False
+) -> tuple[Path, Path]:
     root = Path(temp_dir)
     source_path = root / "codex.txt"
     export_path = root / "export.md"
@@ -242,6 +371,16 @@ def _write_export(temp_dir: str, transcript: str) -> tuple[Path, Path]:
         output_path=export_path,
         exported_at=EXPORTED_AT,
     )
+    if record_byte_count:
+        # The Codex exporter does not record source_byte_count, so add the field
+        # the way an append-only exporter would, next to source_sha256.
+        lines = export_path.read_text(encoding="utf-8").splitlines(keepends=True)
+        out: list[str] = []
+        for line in lines:
+            out.append(line)
+            if line.startswith("source_sha256:"):
+                out.append(f"source_byte_count: {len(transcript.encode('utf-8'))}\n")
+        export_path.write_text("".join(out), encoding="utf-8")
     return source_path, export_path
 
 

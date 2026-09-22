@@ -31,6 +31,13 @@ Required provenance fields are:
 `source_id` is optional and should be present when the exporting adapter has a
 stable Codex session or thread identifier.
 
+`source_byte_count` is optional, a non-negative integer, and emitted only when
+set. It records how many source bytes were hashed to produce `source_sha256`.
+The Claude and Antigravity exporters record it because their source is a live
+transcript log that keeps growing after the export; the Codex exporters hash a
+frozen raw capture and do not set it. Manifests without it, and the schema
+version (still `1`), are unaffected.
+
 Raw Codex exports remain private, non-authoritative context. They are not
 imported into the `project/` control plane and do not become evidence,
 decisions, work items, or status until a separate reviewed promotion step
@@ -302,7 +309,9 @@ accidentally echoing private conversation content.
 - `--format text|json` — output format. `text` is concise and human-readable;
   `json` is deterministic and automation-friendly.
 - `--source SOURCE` — optional original source file. When supplied, the
-  inspector compares its SHA-256 digest to manifest `source_sha256`.
+  inspector compares its SHA-256 digest to manifest `source_sha256`. When the
+  manifest also records `source_byte_count` and the source is now longer, only
+  that recorded prefix is hashed (see "Source growth" below).
 
 ### Reported Signals
 
@@ -310,8 +319,32 @@ accidentally echoing private conversation content.
 - privacy and authority boundaries;
 - sensitivity status, sensitivity-scan metadata, and warning count;
 - manifest transcript statistics and recomputed artifact body statistics;
-- source-hash status: `not_supplied`, `match`, `mismatch`, `source_missing`,
-  `source_not_file`, `source_unreadable`, or `not_available`.
+- source-hash status: `not_supplied`, `match`, `match_source_grew`, `mismatch`,
+  `source_missing`, `source_not_file`, `source_unreadable`, or `not_available`.
+  JSON output also carries `expected_byte_count` and `actual_byte_count` (null
+  when the manifest recorded no byte count or the source was not read).
+
+### Source growth
+
+A Claude or Antigravity transcript is an append-only log that is usually still
+being written when it is exported, so the whole file hashes differently later
+even though the exported bytes are intact. When the manifest records
+`source_byte_count` N and the source is longer than N, the inspector hashes the
+first N bytes:
+
+- equal to `source_sha256`: status `match_source_grew`. The artifact is valid
+  and the command exits `0`. Text output adds a line stating how many bytes the
+  source has grown since export, and the reported `actual` hash is the hash of
+  that recorded prefix (the value that was compared).
+- different: `mismatch`, because an earlier byte changed.
+
+A source shorter than N is `mismatch`. A source exactly N bytes long is compared
+whole, as before. A manifest with no `source_byte_count` (older exports, and
+Codex) is always compared whole, so a grown source is `mismatch` for those.
+
+This assumes the source only ever grows by appending. If a transcript is
+rewritten in place (for example by compaction), the prefix hash differs and the
+result is still `mismatch`, which is the safe outcome.
 
 Valid file-export artifacts can contain one renderer-added trailing newline in
 the Markdown body; the inspector accounts for that when comparing byte and
@@ -322,7 +355,8 @@ character counts. Additional body changes are reported as
 
 The command returns:
 
-- `0` when the artifact is valid and any supplied source hash matches;
+- `0` when the artifact is valid and any supplied source hash matches or
+  matches on its recorded prefix (`match_source_grew`);
 - `1` when the artifact was read but validation fails, including malformed
   manifests, body-statistic drift, hash mismatches, or missing/non-file supplied
   sources;

@@ -17,9 +17,10 @@ when_to_use: "Invoke only when the user explicitly asks to export, capture, or a
   \ explicit request \u2014 it states the resolved session and destination and proceeds\
   \ without a separate confirmation; a model-initiated invocation (offered proactively,\
   \ or chained from another skill or workflow) still requires an explicit confirmation\
-  \ before writing. Also supports explicit `--transcript-path`, `--session-id`, or\
-  \ `--latest` discovery, defaulting to a durable private session archive when `--out`\
-  \ is omitted.\n"
+  \ before writing. `--force` is the one exception: it always waits for confirmation,\
+  \ even for a typed invocation, since it can overwrite an existing export. Also supports\
+  \ explicit `--transcript-path`, `--session-id`, or `--latest` discovery, defaulting\
+  \ to a durable private session archive when `--out` is omitted.\n"
 ---
 
 # lrh-export-claude Skill

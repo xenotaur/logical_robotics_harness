@@ -60,6 +60,14 @@ interruption between the two always fails toward an unindexed-but-
 complete file — the state `validate` reports as `unindexed` and
 `repair` fixes by re-running this same write path.
 
+**Preserves unknown frontmatter keys on overwrite.** Overwriting an
+existing memory (a same-agent revision, or `--force`) preserves any
+frontmatter key outside this command's own schema — the same guarantee
+`repair` has. `import`/`transfer` carry a bundled record's unknown
+metadata through as well, on both a new-file write and an overwrite; on
+overwrite, the incoming record's value wins for a key both sides share,
+but a destination-only key is kept.
+
 ### Linked git worktrees share the main checkout's corpus
 
 When `--project-root` (default `.`) is inside a linked git worktree, every
@@ -140,7 +148,8 @@ lrh memory list --format json
 
 ## `lrh memory validate`
 
-Audit a memory corpus, classifying every file into one of four buckets.
+Audit a memory corpus, classifying every file into one of four buckets,
+plus one independent cross-cutting check.
 
 ```bash
 lrh memory validate
@@ -155,6 +164,15 @@ entry — unreachable by `list` but still found by `search`, which scans
 memory files directly rather than the index; a `repair` candidate), and
 **malformed** (missing `name`/`description`/`metadata.type`). Always
 exits `0`; the counts and per-bucket file lists are the output to act on.
+
+**`name_mismatch`** is independent of the four buckets above — a file can
+be `conforming` by every other measure and still appear here. It lists a
+file whose `name:` field doesn't map back to its own on-disk filename
+(e.g. a `name:` missing the type prefix the filename carries). Left
+unfixed, `repair` on such a file used to silently write a second,
+differently-named file instead of correcting the original; `repair` now
+always writes back to the file it opened, correcting the `name:` field
+to match in the process.
 
 ## `lrh memory repair`
 
@@ -183,6 +201,15 @@ null, or a single-line flow collection); a value that spans further
 lines (a block sequence or block scalar), a `metadata:` line written
 with inline flow-mapping content, or a key duplicated in the source
 fails with a clear error instead of guessing.
+
+**Always writes back to the file it read.** The destination path is
+derived from the `name` argument used to locate the file, never from
+the frontmatter's own `name:` field — a memory whose `name:` omits a
+type prefix its filename carries (`lrh memory validate`'s
+`name_mismatch` bucket) is still repaired in place, and its `name:`
+field is corrected to match. This is not the renaming `--set
+name=<...>` refuses above: nothing lets the caller choose an unrelated
+new name.
 
 ## `lrh memory sync`
 

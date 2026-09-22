@@ -1157,6 +1157,31 @@ class ExtractPreservedFrontmatterLinesTest(unittest.TestCase):
         with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
             prompt_workflow_memory._extract_preserved_frontmatter_lines(text)
 
+    def test_rejects_a_quoted_and_unquoted_duplicate_of_a_non_canonical_key(
+        self,
+    ) -> None:
+        """Duplicate detection compares keys by their unquoted form, so a
+        quoted and an unquoted spelling of the same non-canonical key still
+        count as a duplicate (not just two identically-spelled unquoted
+        keys)."""
+
+        text = (
+            'name: x\ndescription: d\ncustom: first\n"custom": second\n'
+            "metadata:\n  type: feedback\n"
+        )
+        with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+            prompt_workflow_memory._extract_preserved_frontmatter_lines(text)
+
+    def test_rejects_a_quoted_and_unquoted_duplicate_of_a_metadata_nested_key(
+        self,
+    ) -> None:
+        text = (
+            "name: x\ndescription: d\nmetadata:\n  type: feedback\n"
+            "  custom: first\n  'custom': second\n"
+        )
+        with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+            prompt_workflow_memory._extract_preserved_frontmatter_lines(text)
+
     def test_preserves_a_null_scalar_followed_by_a_blank_line(self) -> None:
         """A genuinely single-line null scalar followed by a blank line
         before the next key must not be misclassified as multi-line --

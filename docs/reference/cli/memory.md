@@ -66,7 +66,12 @@ frontmatter key outside this command's own schema — the same guarantee
 `repair` has. `import`/`transfer` carry a bundled record's unknown
 metadata through as well, on both a new-file write and an overwrite; on
 overwrite, the incoming record's value wins for a key both sides share,
-but a destination-only key is kept.
+but a destination-only key is kept. A destination that's readable but has
+an extra this module can't safely re-nest (a block sequence, for
+example) fails the overwrite loudly rather than silently dropping it — a
+truly unreadable or malformed destination degrades to "nothing to
+preserve" instead, the same tolerance `--force` already has for that
+case.
 
 ### Linked git worktrees share the main checkout's corpus
 
@@ -326,6 +331,17 @@ kebab-case memory name — hyphens become underscores (`feedback-x` →
 `feedback_x.md`), same as every other memory file. See
 [`WI-LRH-MEMORY-TRANSFER-SAFETY`](../../../project/work_items/resolved/WI-LRH-MEMORY-TRANSFER-SAFETY.md)
 for the history of this guard.
+
+**A bundle is untrusted input.** A record's `preserved_top_level_lines`/
+`preserved_metadata_lines` (unknown frontmatter keys carried from the
+source) are rejected — the whole record errors, nothing is written — if
+any line names a canonical key (`name`/`description`/`metadata.
+{type,authored_by,applies_to}`, which YAML would otherwise resolve as a
+silently-overriding duplicate) or contains an embedded newline. A bundle
+written before this preservation existed, which instead carried extras
+inside the full `metadata` dict, is still read correctly: its extras are
+recovered from `metadata` when the newer fields are absent from the
+record entirely.
 
 ## `lrh memory transfer`
 

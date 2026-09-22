@@ -532,6 +532,83 @@ def _merge_preserved_lines(
     return list(merged.values())
 
 
+def _legacy_metadata_extra_lines(metadata: dict[str, typing.Any]) -> list[str]:
+    """Synthesize ``preserved_metadata_lines``-shaped entries from a
+    pre-fix bundle record's full ``metadata`` dict, for every key outside
+    this module's own schema.
+
+    Only reached for a record with no ``preserved_metadata_lines`` field
+    at all (see the call site) -- a bundle written by this module's own
+    ``_export_records_from_dir`` before it was changed to carry extras
+    separately. Re-serializing here (rather than the raw-line-preservation
+    every other path in this module insists on) is safe specifically
+    because it's the only source that can reach this function: such a
+    bundle's own ``_write_bundle`` call already required every value to be
+    JSON-safe at write time (this function's whole reason for existing is
+    that ``json.dumps`` cannot serialize a ``datetime``, so no real legacy
+    bundle can contain one) -- there is no byte-fidelity-sensitive value
+    this path could ever be asked to reconstruct.
+    """
+
+    extra = {
+        key: value
+        for key, value in metadata.items()
+        if key not in _CANONICAL_METADATA_KEYS
+    }
+    if not extra:
+        return []
+    lines: list[str] = []
+    for key, value in extra.items():
+        rendered = yaml.safe_dump(
+            {key: value}, default_flow_style=False, sort_keys=False, allow_unicode=True
+        ).rstrip("\n")
+        lines.extend(_PRESERVED_METADATA_INDENT + line for line in rendered.split("\n"))
+    return lines
+
+
+def _validate_untrusted_preserved_lines(
+    lines: typing.Sequence[str], canonical_keys: frozenset[str], *, field_name: str
+) -> None:
+    """Reject a bundle-supplied ``preserved_*_lines`` list that could
+    corrupt or spoof canonical frontmatter when spliced into
+    :func:`_render_memory_file`'s output.
+
+    Unlike a preserved line :func:`_extract_preserved_frontmatter_lines`
+    derives by re-parsing a real file's own text -- which structurally
+    excludes canonical keys and can never contain a newline mid-line -- a
+    bundle field is untrusted input from wherever ``--input`` points.
+    Two things must be rejected outright rather than silently accepted:
+
+    - A line naming a canonical key (``name``/``description``, or
+      ``type``/``authored_by``/``applies_to`` for the metadata list,
+      compared by :func:`_unquote_yaml_key`). Splicing it in produces a
+      *second* occurrence of that key; YAML resolves a duplicate key by
+      keeping the last one, so a bundle record could silently override
+      the canonical value this import path already validated and
+      intended to write.
+    - A line containing an embedded newline. One JSON string element is
+      supposed to render as exactly one physical line; a newline inside
+      it would let a single "preserved line" forge additional frontmatter
+      lines of its own.
+    """
+
+    for line in lines:
+        if "\n" in line or "\r" in line:
+            raise MemoryValidationError(
+                f"bundle record {field_name!r} contains a line with an "
+                "embedded newline, which could forge additional "
+                f"frontmatter structure: {line!r}"
+            )
+        match = re.match(r"^\s*(\S[^:]*):", line)
+        if match and _unquote_yaml_key(match.group(1).strip()) in canonical_keys:
+            raise MemoryValidationError(
+                f"bundle record {field_name!r} contains a line naming the "
+                f"canonical key {match.group(1).strip()!r}, which could "
+                "silently override the value this import already sets: "
+                f"{line!r}"
+            )
+
+
 def _render_memory_file(
     *,
     name: str,
@@ -792,6 +869,14 @@ def _write_memory_into_dir(
             preserved_top_level_lines, preserved_metadata_lines = (
                 _extract_preserved_frontmatter_lines(existing_frontmatter_text)
             )
+        except _UnsupportedPreservedKey:
+            # Not a malformed/unreadable destination -- it parsed fine,
+            # but has an extra key this line-based mechanism can't safely
+            # represent (a block sequence, for example). Silently
+            # proceeding without it would drop real content; every other
+            # unrepresentable-shape case in this module fails loudly
+            # rather than guessing (Decision 9), and this is no different.
+            raise
         except (UnicodeDecodeError, MemoryValidationError):
             pass
 
@@ -1578,6 +1663,17 @@ def _import_records_into_dir(
         body = record.get("body") or ""
         incoming_top_level_lines = record.get("preserved_top_level_lines") or []
         incoming_metadata_lines = record.get("preserved_metadata_lines") or []
+        if "preserved_metadata_lines" not in record:
+            # A bundle written before this fix (its own `_write_bundle`
+            # call would have crashed outright on a non-JSON-safe extra
+            # such as a `datetime`, so any *real* legacy bundle's extras
+            # are already guaranteed JSON-safe) carried unknown metadata
+            # keys inside the full `metadata` dict instead of a separate
+            # field. Without this fallback, such a record would silently
+            # lose those extras on import -- the exact field is *absent*
+            # here (not present-and-empty, which is a genuine "nothing to
+            # preserve" from a bundle already written in the new format).
+            incoming_metadata_lines = _legacy_metadata_extra_lines(metadata)
         try:
             if not isinstance(incoming_top_level_lines, list) or not all(
                 isinstance(line, str) for line in incoming_top_level_lines
@@ -1593,6 +1689,32 @@ def _import_records_into_dir(
                     "bundle record 'preserved_metadata_lines' must be a "
                     f"list of strings, got {type(incoming_metadata_lines).__name__}"
                 )
+            # A bundle is untrusted input (it can come from anywhere a
+            # user points `--input` at), unlike a preserved line derived
+            # from re-parsing a real file's own text via
+            # _extract_preserved_frontmatter_lines, which structurally
+            # cannot produce a canonical-key collision or an embedded
+            # newline. Neither guarantee holds for a hand-crafted or
+            # corrupted bundle record: a line naming a canonical key (e.g.
+            # `authored_by: injected`) would be spliced in as a *second*
+            # occurrence of that key, and YAML resolves a duplicate key by
+            # keeping the last one -- letting bundle content silently
+            # override the canonical `authored_by`/`type`/`applies_to`/
+            # `name`/`description` this import path already validated and
+            # intended to set. An embedded newline would let one "line"
+            # forge additional frontmatter structure entirely. Reject both
+            # explicitly, the same way every other untrusted-bundle-field
+            # check in this loop does.
+            _validate_untrusted_preserved_lines(
+                incoming_top_level_lines,
+                _CANONICAL_TOP_LEVEL_KEYS,
+                field_name="preserved_top_level_lines",
+            )
+            _validate_untrusted_preserved_lines(
+                incoming_metadata_lines,
+                _CANONICAL_METADATA_KEYS,
+                field_name="preserved_metadata_lines",
+            )
             if applies_to is not None and not isinstance(applies_to, (list, tuple)):
                 # A string applies_to would not raise inside
                 # _write_memory_into_dir -- `tuple("not-a-list")` silently
@@ -1659,6 +1781,13 @@ def _import_records_into_dir(
                                     dest_frontmatter_text
                                 )
                             )
+                        except _UnsupportedPreservedKey:
+                            # Same reasoning as _write_memory_into_dir's
+                            # own auto-derive: a readable destination with
+                            # an unrepresentable extra shape must fail
+                            # loudly, not be silently overwritten as if it
+                            # had nothing to preserve.
+                            raise
                         except (UnicodeDecodeError, MemoryValidationError):
                             pass
                     merged_top_level_lines = _merge_preserved_lines(

@@ -1808,6 +1808,139 @@ class ExportMemoriesTest(unittest.TestCase):
 
 
 class ImportMemoriesTest(unittest.TestCase):
+    def test_rejects_a_preserved_line_naming_a_canonical_metadata_key(self) -> None:
+        """Regression (found by review on PR #714): a bundle is untrusted
+        input, unlike a preserved line derived from re-parsing a real
+        file. A crafted `preserved_metadata_lines` entry naming a
+        canonical key (`authored_by`) would be spliced in as a second
+        occurrence of that key -- YAML keeps the last one, silently
+        overriding the canonical value this import path already
+        validated and set. Must be rejected as a clean per-record error,
+        not silently accepted."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            dest_root = pathlib.Path(tmp) / "proj"
+            bundle = pathlib.Path(tmp) / "bundle.jsonl"
+            record = {
+                "name": "feedback-x",
+                "description": "d",
+                "metadata": {
+                    "type": "feedback",
+                    "authored_by": "claude_app",
+                    "applies_to": ["claude_app"],
+                },
+                "body": "body\n",
+                "preserved_top_level_lines": [],
+                "preserved_metadata_lines": ["  authored_by: injected"],
+            }
+            bundle.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+            entries = prompt_workflow_memory.import_memories(
+                dest_root, input=bundle, claude_projects_root=claude_root
+            )
+
+            self.assertFalse(entries[0].written)
+            self.assertIn("authored_by", entries[0].error)
+            memory_dir = claude_root / project_slug_for_path(dest_root) / "memory"
+            self.assertFalse((memory_dir / "feedback_x.md").exists())
+
+    def test_rejects_a_preserved_line_with_an_embedded_newline(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            dest_root = pathlib.Path(tmp) / "proj"
+            bundle = pathlib.Path(tmp) / "bundle.jsonl"
+            record = {
+                "name": "feedback-x",
+                "description": "d",
+                "metadata": {
+                    "type": "feedback",
+                    "authored_by": "claude_app",
+                    "applies_to": ["claude_app"],
+                },
+                "body": "body\n",
+                "preserved_top_level_lines": ["custom: a\nname: forged"],
+                "preserved_metadata_lines": [],
+            }
+            bundle.write_text(json.dumps(record) + "\n", encoding="utf-8")
+
+            entries = prompt_workflow_memory.import_memories(
+                dest_root, input=bundle, claude_projects_root=claude_root
+            )
+
+            self.assertFalse(entries[0].written)
+            self.assertIn("newline", entries[0].error)
+
+    def test_write_overwrite_fails_loudly_on_an_unrepresentable_destination_extra(
+        self,
+    ) -> None:
+        """Regression (found by review on PR #714): a genuinely readable
+        destination with an extra this module can't safely re-nest (a
+        block sequence) must fail the overwrite loudly, not silently
+        drop the key -- the auto-derive's except clause was too broad and
+        also swallowed _UnsupportedPreservedKey, not just a truly
+        malformed/unreadable destination."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            slug = project_slug_for_path(project_root)
+            memory_dir = claude_root / slug / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "feedback_x.md").write_text(
+                "---\nname: feedback-x\ndescription: original\nmetadata:\n"
+                "  type: feedback\n  authored_by: claude_app\n  tags:\n"
+                "  - a\n  - b\n---\n\nbody\n",
+                encoding="utf-8",
+            )
+
+            with self.assertRaises(prompt_workflow_memory.MemoryValidationError):
+                prompt_workflow_memory.write_memory(
+                    project_root,
+                    "feedback-x",
+                    description="revised",
+                    type_="feedback",
+                    agent="claude_app",
+                    body="revised\n",
+                    claude_projects_root=claude_root,
+                )
+
+    def test_import_preserves_extras_from_a_legacy_bundle_format(self) -> None:
+        """Regression (found by review on PR #714): a bundle written
+        before preserved_*_lines existed carried unknown metadata inside
+        the full `metadata` dict. Without an explicit fallback for a
+        record where the new field is entirely absent (not just empty),
+        those extras would be silently dropped on import."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            dest_root = pathlib.Path(tmp) / "proj"
+            bundle = pathlib.Path(tmp) / "bundle.jsonl"
+            old_record = {
+                "name": "feedback-x",
+                "description": "d",
+                "metadata": {
+                    "type": "feedback",
+                    "authored_by": "claude_app",
+                    "applies_to": ["claude_app"],
+                    "node_type": "memory",
+                },
+                "body": "body\n",
+                "exported_from_slug": "somewhere",
+            }
+            bundle.write_text(json.dumps(old_record) + "\n", encoding="utf-8")
+
+            entries = prompt_workflow_memory.import_memories(
+                dest_root, input=bundle, claude_projects_root=claude_root
+            )
+
+            self.assertTrue(entries[0].written)
+            memory_dir = claude_root / project_slug_for_path(dest_root) / "memory"
+            frontmatter, _ = prompt_workflow_memory.read_frontmatter_and_body(
+                (memory_dir / "feedback_x.md").read_text(encoding="utf-8")
+            )
+            self.assertEqual(frontmatter["metadata"]["node_type"], "memory")
+
     def test_export_no_longer_crashes_on_a_timestamp_metadata_value(self) -> None:
         """Regression: exporting a memory whose extra metadata includes a
         YAML timestamp (`modified: ...`, parsed by yaml.safe_load into a

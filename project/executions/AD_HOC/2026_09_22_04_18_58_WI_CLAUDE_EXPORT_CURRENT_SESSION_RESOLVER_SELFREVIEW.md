@@ -2,10 +2,10 @@
 execution_id: 2026_09_22_04_18_58_WI_CLAUDE_EXPORT_CURRENT_SESSION_RESOLVER_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_CLAUDE_EXPORT_CURRENT_SESSION_RESOLVER_SELFREVIEW)[2026-09-22T04:18:22+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/698
-commit: 
+commit: ac58ec58ef6f067409450ea963ec80ab631ed157
 created_at: 2026-09-22T04:18:58+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CLAUDE-EXPORT-CURRENT-SESSION-RESOLVER.md

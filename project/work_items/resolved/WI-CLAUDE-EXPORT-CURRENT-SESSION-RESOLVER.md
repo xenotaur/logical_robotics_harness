@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Implemented and merged in PR #698 (commit ac58ec58)"
 blocked_reason: null
 blocked: false
 id: WI-CLAUDE-EXPORT-CURRENT-SESSION-RESOLVER
 title: Add a current-session resolver, --current, and a scoped --latest to the Claude exporter
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

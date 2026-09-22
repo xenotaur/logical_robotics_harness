@@ -30,6 +30,7 @@ from lrh.control import format_report, frontmatter_migration, validate_project
 from lrh.conversations import (
     antigravity_export,
     claude_export,
+    claude_session,
     codex_app_server_export,
     codex_archive,
     codex_file_export,
@@ -164,6 +165,11 @@ def main() -> None:
         "export-claude-session",
         add_help=False,
         help="Convert a Claude Code session transcript log into Markdown.",
+    )
+    conversation_subparsers.add_parser(
+        "current-claude-session-id",
+        add_help=False,
+        help="Report the current Claude Code session id and transcript path.",
     )
 
     subparsers.add_parser(
@@ -1167,10 +1173,18 @@ def main() -> None:
                     prog="lrh conversation export-claude-session",
                 )
             )
+        if args.conversation_command == "current-claude-session-id":
+            raise SystemExit(
+                claude_session.run_current_claude_session_id_cli(
+                    argv=passthrough_args,
+                    prog="lrh conversation current-claude-session-id",
+                )
+            )
         parser.error(
             "conversation requires a subcommand "
             "(try: lrh conversation export-antigravity-session, "
             "lrh conversation export-claude-session, "
+            "lrh conversation current-claude-session-id, "
             "lrh conversation convert-codex-file, "
             "lrh conversation archive-codex-thread, "
             "lrh conversation export-codex-thread, "

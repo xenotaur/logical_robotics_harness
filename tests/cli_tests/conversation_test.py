@@ -208,6 +208,173 @@ class ConversationCliTest(unittest.TestCase):
         self.assertIn("--dry-run", completed.stdout)
         self.assertIn("--archive-root", completed.stdout)
 
+    def test_conversation_help_lists_current_claude_session_id(self) -> None:
+        completed = self._run_lrh("conversation", "--help")
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("current-claude-session-id", completed.stdout)
+
+    def test_export_claude_session_help_lists_current_and_all_projects(
+        self,
+    ) -> None:
+        completed = self._run_lrh("conversation", "export-claude-session", "--help")
+
+        self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+        self.assertIn("--current", completed.stdout)
+        self.assertIn("--all-projects", completed.stdout)
+
+    def test_conversation_current_claude_session_id_reports_all_fields(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = pathlib.Path(temp_dir)
+            project_dir = temp_path / "projects" / "-some-project"
+            project_dir.mkdir(parents=True)
+            transcript = project_dir / "sess-cli.jsonl"
+            transcript.write_text("{}\n", encoding="utf-8")
+
+            completed = self._run_lrh(
+                "conversation",
+                "current-claude-session-id",
+                "--app-data-dir",
+                str(temp_path),
+                env={
+                    "CLAUDE_CODE_SESSION_ID": "sess-cli",
+                    "CLAUDE_CODE_HOST_SESSION_ID": "local_cli-host-id",
+                },
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn("Session ID: sess-cli", completed.stdout)
+            self.assertIn(
+                "Session transcript: claude-app:cli-host-id", completed.stdout
+            )
+            self.assertIn(f"Transcript path: {transcript}", completed.stdout)
+            self.assertIn("Exported: no", completed.stdout)
+
+    def test_conversation_current_claude_session_id_json_is_metadata_only(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = pathlib.Path(temp_dir)
+            project_dir = temp_path / "projects" / "-some-project"
+            project_dir.mkdir(parents=True)
+            (project_dir / "sess-json.jsonl").write_text(
+                "PRIVATE CONTENT\n", encoding="utf-8"
+            )
+
+            completed = self._run_lrh(
+                "conversation",
+                "current-claude-session-id",
+                "--app-data-dir",
+                str(temp_path),
+                "--format",
+                "json",
+                env={
+                    "CLAUDE_CODE_SESSION_ID": "sess-json",
+                    "CLAUDE_CODE_HOST_SESSION_ID": "",
+                },
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertIn('"session_id": "sess-json"', completed.stdout)
+            self.assertIn('"exported": false', completed.stdout)
+            self.assertNotIn("PRIVATE CONTENT", completed.stdout)
+
+    def test_conversation_current_claude_session_id_rejects_unset_env(
+        self,
+    ) -> None:
+        completed = self._run_lrh(
+            "conversation",
+            "current-claude-session-id",
+            env={"CLAUDE_CODE_SESSION_ID": ""},
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("CLAUDE_CODE_SESSION_ID is not set", completed.stderr)
+
+    def test_conversation_current_claude_session_id_field_output(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = pathlib.Path(temp_dir)
+            project_dir = temp_path / "projects" / "-some-project"
+            project_dir.mkdir(parents=True)
+            transcript = project_dir / "sess-field.jsonl"
+            transcript.write_text("{}\n", encoding="utf-8")
+
+            completed = self._run_lrh(
+                "conversation",
+                "current-claude-session-id",
+                "--app-data-dir",
+                str(temp_path),
+                "--field",
+                "transcript-path",
+                env={
+                    "CLAUDE_CODE_SESSION_ID": "sess-field",
+                    "CLAUDE_CODE_HOST_SESSION_ID": "",
+                },
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertEqual(completed.stdout, f"{transcript}\n")
+
+    def test_export_claude_session_current_exports_the_right_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = pathlib.Path(temp_dir)
+            project_dir = temp_path / "projects" / "-some-project"
+            project_dir.mkdir(parents=True)
+            transcript = project_dir / "sess-current.jsonl"
+            transcript.write_text(
+                json.dumps(
+                    {
+                        "type": "user",
+                        "message": {
+                            "role": "user",
+                            "content": "content from the current session",
+                        },
+                    }
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            output_path = temp_path / "export.md"
+
+            completed = self._run_lrh(
+                "conversation",
+                "export-claude-session",
+                "--current",
+                "--app-data-dir",
+                str(temp_path),
+                "--out",
+                str(output_path),
+                env={
+                    "CLAUDE_CODE_SESSION_ID": "sess-current",
+                    "CLAUDE_CODE_HOST_SESSION_ID": "",
+                },
+            )
+
+            self.assertEqual(completed.returncode, 0, msg=completed.stderr)
+            self.assertTrue(output_path.exists())
+            self.assertIn(f"Source transcript: {transcript}", completed.stdout)
+            self.assertIn(
+                "content from the current session",
+                output_path.read_text(encoding="utf-8"),
+            )
+
+    def test_export_claude_session_current_is_mutually_exclusive_with_latest(
+        self,
+    ) -> None:
+        completed = self._run_lrh(
+            "conversation",
+            "export-claude-session",
+            "--current",
+            "--latest",
+            "--out",
+            "/tmp/should-not-be-written.md",
+        )
+
+        self.assertEqual(completed.returncode, 2)
+        self.assertIn("not allowed with argument", completed.stderr)
+
     def test_convert_pdf_writes_private_non_authoritative_markdown(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_path = pathlib.Path(temp_dir)

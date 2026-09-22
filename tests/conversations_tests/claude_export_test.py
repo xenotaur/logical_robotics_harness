@@ -7,6 +7,7 @@ import io
 import json
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from lrh.conversations import claude_export, export_inspector, export_manifest
@@ -376,7 +377,9 @@ class TestClaudeExport(unittest.TestCase):
                     latest=False,
                 )
 
-    def test_resolve_transcript_path_latest(self) -> None:
+    def test_resolve_transcript_path_latest_all_projects(self) -> None:
+        # --all-projects restores the pre-scoping "newest across every
+        # project" behaviour this test originally exercised.
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_path = Path(temp_dir)
             project_dir = tmp_path / "projects" / "proj"
@@ -397,8 +400,249 @@ class TestClaudeExport(unittest.TestCase):
                 session_id=None,
                 app_data_dir=tmp_path,
                 latest=True,
+                all_projects=True,
             )
             self.assertEqual(resolved, newer)
+
+    def test_resolve_transcript_path_latest_scoped_to_cwd_by_default(self) -> None:
+        # A bare --latest is scoped to the working directory's own project,
+        # even when another project's file is newer.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            import os
+            import time
+
+            tmp_path = Path(temp_dir)
+            cwd = "/Users/example/current-project"
+            from lrh import prompt_workflow_sessions
+
+            current_project_dir = (
+                tmp_path
+                / "projects"
+                / prompt_workflow_sessions.project_slug_for_path(cwd)
+            )
+            other_project_dir = tmp_path / "projects" / "other-project"
+            current_project_dir.mkdir(parents=True)
+            other_project_dir.mkdir(parents=True)
+
+            current_older = current_project_dir / "mine.jsonl"
+            other_newer = other_project_dir / "not-mine.jsonl"
+            current_older.write_text("{}\n", encoding="utf-8")
+            other_newer.write_text("{}\n", encoding="utf-8")
+            now = time.time()
+            os.utime(current_older, (now - 100, now - 100))
+            os.utime(other_newer, (now, now))
+
+            resolved = claude_export._resolve_transcript_path(
+                transcript_path=None,
+                session_id=None,
+                app_data_dir=tmp_path,
+                latest=True,
+                cwd=cwd,
+            )
+            self.assertEqual(resolved, current_older)
+
+    def test_resolve_transcript_path_latest_all_projects_overrides_scoping(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            import os
+            import time
+
+            tmp_path = Path(temp_dir)
+            cwd = "/Users/example/current-project"
+            from lrh import prompt_workflow_sessions
+
+            current_project_dir = (
+                tmp_path
+                / "projects"
+                / prompt_workflow_sessions.project_slug_for_path(cwd)
+            )
+            other_project_dir = tmp_path / "projects" / "other-project"
+            current_project_dir.mkdir(parents=True)
+            other_project_dir.mkdir(parents=True)
+
+            current_older = current_project_dir / "mine.jsonl"
+            other_newer = other_project_dir / "not-mine.jsonl"
+            current_older.write_text("{}\n", encoding="utf-8")
+            other_newer.write_text("{}\n", encoding="utf-8")
+            now = time.time()
+            os.utime(current_older, (now - 100, now - 100))
+            os.utime(other_newer, (now, now))
+
+            resolved = claude_export._resolve_transcript_path(
+                transcript_path=None,
+                session_id=None,
+                app_data_dir=tmp_path,
+                latest=True,
+                all_projects=True,
+                cwd=cwd,
+            )
+            self.assertEqual(resolved, other_newer)
+
+    def test_resolve_transcript_path_current_resolves_session(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            project_dir = tmp_path / "projects" / "proj"
+            project_dir.mkdir(parents=True)
+            transcript = project_dir / "sess-cur.jsonl"
+            transcript.write_text("{}\n", encoding="utf-8")
+
+            with unittest.mock.patch.dict(
+                "os.environ", {"CLAUDE_CODE_SESSION_ID": "sess-cur"}, clear=True
+            ):
+                resolved = claude_export._resolve_transcript_path(
+                    transcript_path=None,
+                    session_id=None,
+                    app_data_dir=tmp_path,
+                    latest=False,
+                    current=True,
+                )
+            self.assertEqual(resolved, transcript)
+
+    def test_resolve_transcript_path_current_never_falls_back_to_latest(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            project_dir = tmp_path / "projects" / "proj"
+            project_dir.mkdir(parents=True)
+            # A file --latest would happily pick if current-session
+            # resolution were allowed to fall back to it.
+            (project_dir / "someone-elses-session.jsonl").write_text(
+                "{}\n", encoding="utf-8"
+            )
+
+            with unittest.mock.patch.dict("os.environ", {}, clear=True):
+                with self.assertRaisesRegex(
+                    claude_export.ClaudeExportError,
+                    "CLAUDE_CODE_SESSION_ID is not set",
+                ):
+                    claude_export._resolve_transcript_path(
+                        transcript_path=None,
+                        session_id=None,
+                        app_data_dir=tmp_path,
+                        latest=True,
+                        current=True,
+                    )
+
+    def test_cli_current_is_mutually_exclusive_with_other_discovery_flags(
+        self,
+    ) -> None:
+        stderr_buf = io.StringIO()
+        with self.assertRaises(SystemExit) as cm:
+            with contextlib.redirect_stderr(stderr_buf):
+                claude_export.run_convert_claude_session_cli(
+                    [
+                        "--current",
+                        "--latest",
+                        "--out",
+                        "/tmp/o.md",
+                    ]
+                )
+        self.assertEqual(cm.exception.code, 2)
+        self.assertIn("not allowed with argument", stderr_buf.getvalue())
+
+    def test_cli_all_projects_without_latest_is_rejected(self) -> None:
+        stderr_buf = io.StringIO()
+        with self.assertRaises(SystemExit) as cm:
+            with contextlib.redirect_stderr(stderr_buf):
+                claude_export.run_convert_claude_session_cli(
+                    [
+                        "--current",
+                        "--all-projects",
+                        "--out",
+                        "/tmp/o.md",
+                    ]
+                )
+        self.assertEqual(cm.exception.code, 2)
+        self.assertIn(
+            "--all-projects only applies with --latest", stderr_buf.getvalue()
+        )
+
+    def test_cli_current_exports_the_right_file_and_prints_source_transcript(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            project_dir = tmp_path / "projects" / "proj"
+            project_dir.mkdir(parents=True)
+            transcript = project_dir / "sess-cur.jsonl"
+            _write_jsonl(transcript, [_user_record("current session content")])
+            out_file = tmp_path / "out.md"
+
+            stdout_buf = io.StringIO()
+            with unittest.mock.patch.dict(
+                "os.environ", {"CLAUDE_CODE_SESSION_ID": "sess-cur"}, clear=True
+            ):
+                with contextlib.redirect_stdout(stdout_buf):
+                    code = claude_export.run_convert_claude_session_cli(
+                        [
+                            "--current",
+                            "--app-data-dir",
+                            str(tmp_path),
+                            "--out",
+                            str(out_file),
+                        ]
+                    )
+
+            self.assertEqual(code, 0)
+            self.assertTrue(out_file.exists())
+            stdout = stdout_buf.getvalue()
+            self.assertIn(f"Source transcript: {transcript}", stdout)
+            self.assertIn(
+                "current session content", out_file.read_text(encoding="utf-8")
+            )
+
+    def test_cli_source_transcript_line_present_for_transcript_path(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(source_file, [_user_record("hello")])
+            out_file = tmp_path / "out.md"
+
+            stdout_buf = io.StringIO()
+            with contextlib.redirect_stdout(stdout_buf):
+                code = claude_export.run_convert_claude_session_cli(
+                    [
+                        "--transcript-path",
+                        str(source_file),
+                        "--out",
+                        str(out_file),
+                    ]
+                )
+
+            self.assertEqual(code, 0)
+            self.assertIn(f"Source transcript: {source_file}", stdout_buf.getvalue())
+
+    def test_logical_cwd_prefers_pwd_when_it_validates(self) -> None:
+        # $PWD can preserve a symlink component os.getcwd() resolves away
+        # (e.g. macOS's /tmp -> /private/tmp); use it when it names the
+        # same directory as the physical cwd.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with (
+                unittest.mock.patch("os.getcwd", return_value=temp_dir),
+                unittest.mock.patch.dict("os.environ", {"PWD": temp_dir}, clear=False),
+            ):
+                self.assertEqual(claude_export._logical_cwd(), temp_dir)
+
+    def test_logical_cwd_ignores_stale_or_unrelated_pwd(self) -> None:
+        with tempfile.TemporaryDirectory() as real_dir:
+            with tempfile.TemporaryDirectory() as unrelated_dir:
+                with (
+                    unittest.mock.patch("os.getcwd", return_value=real_dir),
+                    unittest.mock.patch.dict(
+                        "os.environ", {"PWD": unrelated_dir}, clear=False
+                    ),
+                ):
+                    self.assertEqual(claude_export._logical_cwd(), real_dir)
+
+    def test_logical_cwd_falls_back_to_physical_when_pwd_unset(self) -> None:
+        with tempfile.TemporaryDirectory() as real_dir:
+            with (
+                unittest.mock.patch("os.getcwd", return_value=real_dir),
+                unittest.mock.patch.dict("os.environ", {}, clear=True),
+            ):
+                self.assertEqual(claude_export._logical_cwd(), real_dir)
 
     def test_resolve_claude_archive_root_worktree_rejection(self) -> None:
         git_root = claude_export._current_git_worktree_root()
@@ -614,8 +858,8 @@ class TestClaudeExportCli(unittest.TestCase):
                 claude_export.run_convert_claude_session_cli(["--out", "/tmp/out.md"])
         self.assertEqual(cm.exception.code, 2)
         self.assertIn(
-            "one of the arguments --transcript-path --session-id --latest "
-            "is required",
+            "one of the arguments --transcript-path --session-id --current "
+            "--latest is required",
             stderr_buf.getvalue(),
         )
 

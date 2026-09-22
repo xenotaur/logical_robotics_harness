@@ -510,10 +510,69 @@ On success it prints a concise deterministic summary with the output path,
 source ID, source SHA-256, privacy, sensitivity status, and warning count.
 Potential sensitive findings are also reported as warnings on stderr.
 
+## `lrh conversation current-claude-session-id`
+
+```bash
+lrh conversation current-claude-session-id
+lrh conversation current-claude-session-id --field transcript-path
+lrh conversation current-claude-session-id --format json
+```
+
+Reports the current Claude Code session's id, host pointer, and resolved
+transcript path without exporting, reading, or printing transcript content.
+This is the metadata-only resolver `export-claude-session --current` uses
+internally, and the one callers should use to learn the current session's
+transcript path instead of re-deriving the glob rule in prose.
+
+It reads `CLAUDE_CODE_SESSION_ID` (required) and, if set,
+`CLAUDE_CODE_HOST_SESSION_ID` (its `local_` prefix stripped) to derive the
+session pointer:
+
+```yaml
+session_transcript: claude-app:<host-uuid-stem>
+```
+
+`CLAUDE_CODE_SESSION_ID` and `CLAUDE_CODE_HOST_SESSION_ID` are set by the
+Claude Code desktop app in every session window observed so far; their
+availability under a plain CLI invocation, an IDE integration, or a headless
+run has not been verified, and this command fails clearly rather than
+guessing when either the session id is unset or the transcript cannot be
+found.
+
+The transcript path is resolved the same way `export-claude-session
+--session-id` finds it: by globbing `<app-data-dir>/projects/*/<session-id>.jsonl`
+(honouring `CLAUDE_CONFIG_DIR`/`--app-data-dir`, with `CLAUDE_CONFIG_DIR`
+read from the same isolated environment as the session id when the caller
+supplies one). Matches are filtered to actual files, so a directory that
+happens to be named `<session-id>.jsonl` is never mistaken for a transcript.
+Zero or more than one file match is an error, not a silent guess. An unset
+or empty `CLAUDE_CODE_HOST_SESSION_ID` does not fail the command — the
+session id and transcript path can still be resolved on their own — it only
+leaves `session_transcript` (and the text output's `Session transcript:`
+line) reported as `unknown`.
+
+### Options
+
+- `--app-data-dir APP_DATA_DIR` — path to Claude Code's application data
+  directory (default: `$CLAUDE_CONFIG_DIR`, or `~/.claude` if unset).
+- `--format text|json` — output format. Text is the default.
+- `--field all|session-id|session-transcript|transcript-path` — single-field
+  text output for scripts and closeout records.
+
+### Exit behavior
+
+The command returns `0` on success and `2` when the session cannot be
+resolved: `CLAUDE_CODE_SESSION_ID` unset, empty, or containing whitespace;
+an embedded path separator; a transcript glob that matches zero or more
+than one file; or an app-data directory naming an unresolvable named-user
+home (e.g. `~missing-user/.claude`). It never falls back to
+`--latest`-style discovery.
+
 ## `lrh conversation export-claude-session`
 
 ```bash
 lrh conversation export-claude-session --latest
+lrh conversation export-claude-session --current
 lrh conversation export-claude-session --transcript-path PATH --out OUTPUT.md
 lrh conversation export-claude-session --session-id SESSION_ID
 ```
@@ -554,13 +613,32 @@ Exactly one of the following is required:
   error requiring `--transcript-path` to disambiguate, not a silent
   first-match pick; the session id itself must not contain a path separator
   or glob metacharacter (both are rejected/escaped before matching).
+- `--current` — export the current Claude Code session, resolved the same
+  way `current-claude-session-id` resolves it (from `CLAUDE_CODE_SESSION_ID`).
+  Unlike `--latest`, this never falls back to any other discovery mode: if
+  the current session cannot be resolved, the command fails with the same
+  clear error `current-claude-session-id` would report, rather than
+  exporting a different session.
 - `--latest` — discover the most recently modified transcript file under
-  `<app-data-dir>/projects/*/*.jsonl`.
+  `<app-data-dir>/projects/<current-project>/*.jsonl`, scoped by default to
+  the invoking working directory's own Claude project (see
+  `--all-projects`). The working directory used for scoping is the shell's
+  logical `$PWD` when it names the same directory as the physical working
+  directory, else the OS-resolved physical path — this matters for a
+  symlinked checkout (for example, macOS's `/tmp`), where Claude Code's own
+  project-bucket naming preserves the literal, unresolved path. Ties (equal
+  modification times) are resolved silently, by whichever match `sort()`
+  happens to order first — not documented further.
 
 ### Options
 
 - `--app-data-dir APP_DATA_DIR` — path to Claude Code's application data
   directory (default: `$CLAUDE_CONFIG_DIR`, or `~/.claude` if unset).
+- `--all-projects` — with `--latest`, search
+  `<app-data-dir>/projects/*/*.jsonl` across every Claude project instead of
+  scoping to the invoking working directory's own project. Restores the
+  whole-projects behaviour `--latest` had before project scoping. Rejected
+  (exit `2`) when passed without `--latest`, since it has no effect there.
 - `--out OUTPUT.md` — Markdown export output path (default: durable session
   archive, under `<archive_root>/claude/exports/<YYYY>/<MM>/<session-id>.md`).
 - `--archive-root PATH` — optional private session archive root override.
@@ -581,10 +659,13 @@ Exactly one of the following is required:
 ### Exit behavior
 
 The command returns nonzero for missing, non-file, or non-UTF-8 transcript
-inputs; an invalid or ambiguous `--session-id`; existing outputs when
+inputs; an invalid or ambiguous `--session-id`; a `--current` session that
+cannot be resolved (never falls back to `--latest`); existing outputs when
 `--force` is not supplied; source/output path collisions (even with
 `--force`); and output write failures.
 
-On success it prints a concise deterministic summary with the output path,
-source ID, source SHA-256, privacy, sensitivity status, and warning count.
-Potential sensitive findings are also reported as warnings on stderr.
+On success it prints a concise deterministic summary: the output path, a
+`Source transcript:` line with the resolved transcript path (so callers can
+read it instead of re-deriving the discovery rule themselves), source ID,
+source SHA-256, privacy, sensitivity status, and warning count. Potential
+sensitive findings are also reported as warnings on stderr.

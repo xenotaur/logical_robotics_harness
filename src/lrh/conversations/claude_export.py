@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Mapping, Sequence
 
 from lrh import prompt_workflow_sessions
-from lrh.conversations import export_manifest, sensitivity
+from lrh.conversations import claude_session, export_manifest, sensitivity
 
 DEFAULT_ADAPTER_NAME = "claude_transcript_jsonl"
 ADAPTER_VERSION = 1
@@ -248,20 +248,62 @@ def _derive_source_id(path: Path, source_sha256: str | None = None) -> str:
     return "unknown-session"
 
 
+def _logical_cwd() -> str:
+    """Return the shell's logical working directory when it validates
+    against the actual one, else the OS-resolved physical working directory.
+
+    ``os.getcwd()`` returns the *physical* path, resolving any symlink
+    components away -- but ``project_slug_for_path`` intentionally preserves
+    the *literal* path, since Claude Code's own project-bucket naming does
+    the same (a symlinked checkout, e.g. macOS's ``/tmp``, gets its own
+    bucket distinct from its resolved target). Using ``os.getcwd()`` alone
+    to scope ``--latest`` can therefore search the wrong bucket, or one that
+    does not exist. ``$PWD`` is the shell's own logical path, but it is
+    untrusted input -- validated with ``os.path.samefile()`` against the
+    physical cwd before being trusted, so a stale or unrelated ``$PWD`` (a
+    subshell that never updated it, or a value set by something else) cannot
+    silently redirect the search.
+    """
+    physical = os.getcwd()
+    pwd = os.environ.get("PWD")
+    if pwd:
+        try:
+            if os.path.samefile(pwd, physical):
+                return pwd
+        except OSError:
+            pass
+    return physical
+
+
 def _resolve_transcript_path(
     *,
     transcript_path: str | None,
     session_id: str | None,
     app_data_dir: Path,
     latest: bool,
+    current: bool = False,
+    all_projects: bool = False,
+    cwd: str | Path | None = None,
 ) -> Path:
-    """Resolve a Claude Code transcript path by explicit path, session id, or latest."""
+    """Resolve a Claude Code transcript path by explicit path, session id,
+    the current session, or the most recently modified transcript."""
 
     if transcript_path:
         return _expand_user_path(Path(transcript_path), description="transcript path")
 
     app_dir = _expand_user_path(app_data_dir, description="app data directory")
     projects_dir = app_dir / "projects"
+
+    if current:
+        # Metadata-only resolution, same as `current-claude-session-id`. Any
+        # failure here must not silently fall back to --latest.
+        try:
+            identity = claude_session.resolve_current_claude_session_identity(
+                app_data_dir=app_dir
+            )
+        except claude_session.ClaudeSessionIdentityError as err:
+            raise ClaudeExportError(str(err)) from err
+        return identity.transcript_path
 
     if session_id:
         sid = session_id.strip()
@@ -281,19 +323,32 @@ def _resolve_transcript_path(
         return matches[0]
 
     if latest:
-        if not projects_dir.exists():
-            raise ClaudeExportError(
-                f"Claude projects directory does not exist: {projects_dir}"
+        if all_projects:
+            search_dir = projects_dir
+            pattern = "*/*.jsonl"
+        else:
+            project_slug = prompt_workflow_sessions.project_slug_for_path(
+                _logical_cwd() if cwd is None else cwd
             )
-        matches = list(projects_dir.glob("*/*.jsonl"))
+            search_dir = projects_dir / project_slug
+            pattern = "*.jsonl"
+        if not search_dir.exists():
+            raise ClaudeExportError(
+                f"Claude projects directory does not exist: {search_dir}"
+            )
+        matches = list(search_dir.glob(pattern))
         if not matches:
             raise ClaudeExportError(
-                f"no Claude session transcript files found in {projects_dir}"
+                f"no Claude session transcript files found in {search_dir}"
             )
+        # Ties break silently, by whichever match sort() and reverse=True
+        # happen to order first for equal mtimes; not documented further.
         matches.sort(key=lambda candidate: candidate.stat().st_mtime, reverse=True)
         return matches[0]
 
-    raise ClaudeExportError("one of transcript_path, session_id, or latest is required")
+    raise ClaudeExportError(
+        "one of transcript_path, session_id, current, or latest is required"
+    )
 
 
 def _default_app_data_dir() -> str:
@@ -329,9 +384,29 @@ def run_convert_claude_session_cli(
         help="Claude Code session id to discover under app-data-dir/projects/*/",
     )
     input_group.add_argument(
+        "--current",
+        action="store_true",
+        help=(
+            "export the current Claude Code session (resolved from "
+            "CLAUDE_CODE_SESSION_ID); never falls back to --latest"
+        ),
+    )
+    input_group.add_argument(
         "--latest",
         action="store_true",
-        help="discover the most recently modified transcript file under app-data-dir",
+        help=(
+            "discover the most recently modified transcript file under "
+            "app-data-dir, scoped to the current working directory's "
+            "project by default (see --all-projects)"
+        ),
+    )
+    parser.add_argument(
+        "--all-projects",
+        action="store_true",
+        help=(
+            "with --latest, search across all Claude projects instead of "
+            "scoping to the current working directory's project"
+        ),
     )
     parser.add_argument(
         "--app-data-dir",
@@ -378,12 +453,17 @@ def run_convert_claude_session_cli(
 
     args = parser.parse_args(argv)
 
+    if args.all_projects and not args.latest:
+        parser.error("--all-projects only applies with --latest")
+
     try:
         transcript_file = _resolve_transcript_path(
             transcript_path=args.transcript_path,
             session_id=args.session_id,
             app_data_dir=Path(args.app_data_dir),
             latest=args.latest,
+            current=args.current,
+            all_projects=args.all_projects,
         )
     except (ClaudeExportError, OSError) as err:
         print(f"error: {err}", file=sys.stderr)
@@ -441,6 +521,7 @@ def run_convert_claude_session_cli(
 
     out_display = str(output_path) if output_path else "(memory only)"
     print(f"Exported Claude Code session transcript: {out_display}")
+    print(f"Source transcript: {transcript_file}")
     print(f"Source ID: {result.manifest.source_id or 'unknown'}")
     print(f"Source SHA-256: {result.manifest.source_sha256}")
     print(f"Privacy: {result.manifest.privacy}")

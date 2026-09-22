@@ -676,6 +676,72 @@ class RepairMemoryTest(unittest.TestCase):
             self.assertEqual(report_after.unindexed, ())
             self.assertIn("feedback_orphan.md", report_after.conforming)
 
+    def test_repair_reindents_a_preserved_key_from_a_differently_indented_source(
+        self,
+    ) -> None:
+        """Regression (found by review on PR #702): a source file whose
+        metadata block uses four-space indentation (still valid YAML) must
+        not corrupt the output. The preserved line was previously spliced
+        in at its *original* indentation, landing beneath the freshly
+        generated two-space `applies_to` sequence item and producing
+        frontmatter that failed to re-parse."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            slug = project_slug_for_path(project_root)
+            memory_dir = claude_root / slug / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "legacy.md").write_text(
+                "---\nname: legacy\ndescription: d\nmetadata:\n"
+                "    type: feedback\n    node_type: memory\n---\n\nbody\n",
+                encoding="utf-8",
+            )
+
+            path = prompt_workflow_memory.repair_memory(
+                project_root,
+                "legacy",
+                sets={"metadata.authored_by": "claude_app"},
+                claude_projects_root=claude_root,
+            )
+            content = path.read_text(encoding="utf-8")
+
+            frontmatter, _ = prompt_workflow_memory.read_frontmatter_and_body(content)
+            self.assertEqual(frontmatter["metadata"]["node_type"], "memory")
+            self.assertEqual(frontmatter["metadata"]["authored_by"], "claude_app")
+            self.assertIn("\n  node_type: memory\n", content)
+
+    def test_repair_recognizes_a_quoted_canonical_key(self) -> None:
+        """Regression (found by review on PR #702): a quoted canonical key
+        (`"description": old`) was not recognized as canonical, so it was
+        preserved as a stale duplicate that silently won over `--set
+        description=new` on re-parse (YAML keeps the last occurrence of a
+        duplicate key)."""
+
+        with tempfile.TemporaryDirectory() as tmp:
+            claude_root = pathlib.Path(tmp) / "claude-projects"
+            project_root = pathlib.Path(tmp) / "proj"
+            slug = project_slug_for_path(project_root)
+            memory_dir = claude_root / slug / "memory"
+            memory_dir.mkdir(parents=True)
+            (memory_dir / "legacy.md").write_text(
+                '---\nname: legacy\n"description": old\nmetadata:\n'
+                "  type: feedback\n  authored_by: codex\n---\n\nbody\n",
+                encoding="utf-8",
+            )
+
+            path = prompt_workflow_memory.repair_memory(
+                project_root,
+                "legacy",
+                sets={"description": "new"},
+                claude_projects_root=claude_root,
+            )
+            content = path.read_text(encoding="utf-8")
+
+            frontmatter, _ = prompt_workflow_memory.read_frontmatter_and_body(content)
+            self.assertEqual(frontmatter["description"], "new")
+            self.assertNotIn('"description"', content)
+
     def test_repair_preserves_claude_code_auto_memory_metadata(self) -> None:
         """Regression for WI-LRH-MEMORY-REPAIR-PRESERVE-METADATA: repair must
         not drop unknown frontmatter keys when backfilling authored_by on a
@@ -870,7 +936,52 @@ class RepairMemoryTest(unittest.TestCase):
             )
 
 
+class UnquoteYamlKeyTest(unittest.TestCase):
+    def test_strips_matching_double_quotes(self) -> None:
+        self.assertEqual(
+            prompt_workflow_memory._unquote_yaml_key('"description"'), "description"
+        )
+
+    def test_strips_matching_single_quotes(self) -> None:
+        self.assertEqual(
+            prompt_workflow_memory._unquote_yaml_key("'authored_by'"), "authored_by"
+        )
+
+    def test_leaves_an_unquoted_key_unchanged(self) -> None:
+        self.assertEqual(prompt_workflow_memory._unquote_yaml_key("name"), "name")
+
+    def test_leaves_a_mismatched_quote_unchanged(self) -> None:
+        self.assertEqual(prompt_workflow_memory._unquote_yaml_key("\"name'"), "\"name'")
+
+
 class ExtractPreservedFrontmatterLinesTest(unittest.TestCase):
+    def test_recognizes_a_quoted_canonical_top_level_key(self) -> None:
+        text = 'name: x\n"description": d\nmetadata:\n  type: feedback\n'
+        top_level, metadata = (
+            prompt_workflow_memory._extract_preserved_frontmatter_lines(text)
+        )
+        self.assertEqual(top_level, [])
+        self.assertEqual(metadata, [])
+
+    def test_recognizes_a_quoted_canonical_metadata_key(self) -> None:
+        text = "name: x\ndescription: d\nmetadata:\n  'type': feedback\n"
+        top_level, metadata = (
+            prompt_workflow_memory._extract_preserved_frontmatter_lines(text)
+        )
+        self.assertEqual(top_level, [])
+        self.assertEqual(metadata, [])
+
+    def test_reindents_a_metadata_nested_key_from_four_spaces(self) -> None:
+        text = (
+            "name: x\ndescription: d\nmetadata:\n"
+            "    type: feedback\n    node_type: memory\n"
+        )
+        top_level, metadata = (
+            prompt_workflow_memory._extract_preserved_frontmatter_lines(text)
+        )
+        self.assertEqual(top_level, [])
+        self.assertEqual(metadata, ["  node_type: memory"])
+
     def test_no_unknown_keys_returns_empty(self) -> None:
         text = (
             "name: x\ndescription: d\nmetadata:\n"

@@ -205,6 +205,32 @@ def read_frontmatter_and_body(text: str) -> tuple[dict[str, typing.Any], str]:
 
 _CANONICAL_TOP_LEVEL_KEYS = frozenset({"name", "description", "metadata"})
 _CANONICAL_METADATA_KEYS = frozenset({"type", "authored_by", "applies_to"})
+_PRESERVED_METADATA_INDENT = "  "
+
+
+def _unquote_yaml_key(key: str) -> str:
+    """Strip a single matching pair of surrounding quotes from a raw key
+    token, so a quoted canonical key (``"description"``, ``'authored_by'``)
+    is recognized as canonical instead of being treated as an unknown key.
+
+    Without this, a source file that quotes a canonical key would have it
+    preserved as a *second*, textually-distinct line carrying the same
+    YAML key -- ``description: new`` (from ``--set``) followed later by
+    the untouched ``"description": old`` -- and since YAML resolves a
+    duplicate key by keeping the last one, the preserved, stale quoted
+    line would silently win over the value ``repair`` was asked to set,
+    with no error at all.
+
+    Deliberately simple (a single strip, not full YAML string-escape
+    unescaping): this only has to recognize a quoted *canonical* key well
+    enough to exclude it from preservation, not round-trip an arbitrary
+    quoted scalar. A key that still doesn't match a canonical name after
+    unquoting is preserved as-is, quotes included.
+    """
+
+    if len(key) >= 2 and key[0] == key[-1] and key[0] in ("'", '"'):
+        return key[1:-1]
+    return key
 
 
 class _UnsupportedPreservedKey(MemoryValidationError):
@@ -230,12 +256,28 @@ def _extract_preserved_frontmatter_lines(
     metadata-nested lines and the metadata mapping they belong to,
     producing frontmatter that no longer parses as YAML at all.
 
-    Lines are captured verbatim, not re-serialized, so an unquoted scalar
-    (an ISO timestamp, for example) survives byte-for-byte instead of
-    being rewritten by a YAML parse-then-dump round trip (``yaml.safe_load``
-    parses an unquoted ``2026-08-19T04:27:39.225Z`` into a ``datetime``,
-    and ``safe_dump`` then emits it as
-    ``2026-08-19 04:27:39.225000+00:00`` -- a different string).
+    Each preserved *value* is captured verbatim, not re-serialized, so an
+    unquoted scalar (an ISO timestamp, for example) survives byte-for-byte
+    instead of being rewritten by a YAML parse-then-dump round trip
+    (``yaml.safe_load`` parses an unquoted ``2026-08-19T04:27:39.225Z``
+    into a ``datetime``, and ``safe_dump`` then emits it as
+    ``2026-08-19 04:27:39.225000+00:00`` -- a different string). A
+    metadata-nested preserved *line*, however, is re-indented to
+    ``_PRESERVED_METADATA_INDENT`` regardless of its source indentation --
+    only the value's own text is byte-fidelity-sensitive, not how many
+    leading spaces introduce the key. Splicing a preserved line in at
+    whatever indentation the source happened to use (four spaces, tabs)
+    would otherwise place it at a different depth than the freshly
+    generated canonical metadata lines it's spliced next to, corrupting
+    the result -- YAML reads the mismatched indentation as a continuation
+    of the preceding line rather than a sibling key.
+
+    A canonical key name is recognized even when the source quotes it
+    (``"description"``, ``'authored_by'`` -- see :func:`_unquote_yaml_key`):
+    otherwise a quoted canonical key would be preserved as an untouched,
+    stale duplicate of a key ``repair`` was asked to change via ``--set``,
+    and YAML's own duplicate-key resolution (last occurrence wins) would
+    silently make that stale value win over the intended one.
 
     Scoped to *top-level* keys and to keys nested exactly one level under
     ``metadata:`` -- this module's own schema never nests deeper. Each
@@ -288,11 +330,12 @@ def _extract_preserved_frontmatter_lines(
             i += 1
             continue
         key = key_match.group(1).strip()
+        canonical_key = _unquote_yaml_key(key)
         inline_value = key_match.group(2).strip()
         block_start = i
         i = _consume_frontmatter_block(lines, i + 1, key_indent=0)
         block_lines = lines[block_start:i]
-        if key == "metadata":
+        if canonical_key == "metadata":
             if inline_value.startswith("{"):
                 # Flow-style mapping (e.g. `metadata: {type: x, extra: y}`)
                 # -- its extra keys can't be reliably separated from the
@@ -313,13 +356,14 @@ def _extract_preserved_frontmatter_lines(
                     j += 1
                     continue
                 nested_key = nested_match.group(1).strip()
+                nested_canonical_key = _unquote_yaml_key(nested_key)
                 nested_indent = len(block_lines[j]) - len(block_lines[j].lstrip())
                 nested_start = j
                 j = _consume_frontmatter_block(
                     block_lines, j + 1, key_indent=nested_indent
                 )
                 nested_block = block_lines[nested_start:j]
-                if nested_key in _CANONICAL_METADATA_KEYS:
+                if nested_canonical_key in _CANONICAL_METADATA_KEYS:
                     continue
                 if len(nested_block) != 1:
                     raise _UnsupportedPreservedKey(
@@ -333,7 +377,7 @@ def _extract_preserved_frontmatter_lines(
                 # line, already guaranteed by the length-1 check above) is
                 # ordinary YAML for a null scalar, not an unrepresentable
                 # nested block; the line is preserved verbatim either way.
-                if nested_key in seen_metadata_keys:
+                if nested_canonical_key in seen_metadata_keys:
                     # A duplicate key in the source is itself malformed
                     # YAML semantics (a parser silently keeps only the
                     # last occurrence) -- splicing both lines through
@@ -341,15 +385,32 @@ def _extract_preserved_frontmatter_lines(
                     # in the output with no warning. Every other
                     # unrepresentable shape this function encounters is
                     # rejected rather than guessed at; a duplicate key is
-                    # no different.
+                    # no different. Compared by the unquoted form, so a
+                    # quoted and an unquoted spelling of the same key
+                    # still count as a duplicate.
                     raise _UnsupportedPreservedKey(
                         f"repair cannot preserve metadata.{nested_key!r}: "
                         "it appears more than once in the source "
                         "frontmatter, which is already ambiguous YAML"
                     )
-                seen_metadata_keys.add(nested_key)
-                preserved_metadata.append(nested_block[0])
-        elif key not in _CANONICAL_TOP_LEVEL_KEYS:
+                seen_metadata_keys.add(nested_canonical_key)
+                # Re-indented to the generated metadata block's own indent,
+                # not left at the source's original indentation: the
+                # canonical metadata keys are always rendered at
+                # `_PRESERVED_METADATA_INDENT`, and splicing a preserved
+                # line in with a *different* indent (a source file that
+                # used four spaces, or tabs, under `metadata:`) produces
+                # frontmatter where the preserved line reads as a
+                # continuation of whichever generated line precedes it,
+                # rather than a sibling key -- corrupt, unparseable
+                # output. Re-indenting the key/value pair itself (never
+                # touching its content) is a purely structural, lossless
+                # adjustment; it does not affect byte-fidelity of the
+                # value, only how many leading spaces introduce it.
+                preserved_metadata.append(
+                    _PRESERVED_METADATA_INDENT + nested_block[0].lstrip()
+                )
+        elif canonical_key not in _CANONICAL_TOP_LEVEL_KEYS:
             if len(block_lines) != 1:
                 raise _UnsupportedPreservedKey(
                     f"repair cannot preserve top-level key {key!r}: its "
@@ -360,13 +421,16 @@ def _extract_preserved_frontmatter_lines(
             # A missing `inline_value` is not rejected here for the same
             # reason as the metadata-nested case above (`custom:` alone is
             # a valid null scalar, not an unrepresentable nested block).
-            if key in seen_top_level_keys:
+            if canonical_key in seen_top_level_keys:
                 raise _UnsupportedPreservedKey(
                     f"repair cannot preserve top-level key {key!r}: it "
                     "appears more than once in the source frontmatter, "
                     "which is already ambiguous YAML"
                 )
-            seen_top_level_keys.add(key)
+            seen_top_level_keys.add(canonical_key)
+            # Top-level keys need no re-indentation: both the generated
+            # canonical keys and every preserved top-level key sit at
+            # indent 0.
             preserved_top_level.append(block_lines[0])
     return preserved_top_level, preserved_metadata
 

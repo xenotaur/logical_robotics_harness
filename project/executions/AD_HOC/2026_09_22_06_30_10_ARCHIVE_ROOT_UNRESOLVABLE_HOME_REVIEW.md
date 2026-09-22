@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/668
-commit: 3f8c1f259a09dcef0900e1de88649b94f89121aa
+commit: 53f5257e1cf68b4d698ef686b6fc38166717c5ff
 created_at: 2026-09-22T06:30:10+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/668
@@ -54,9 +54,12 @@ Pushed directly to the open PR branch.
 
 # Validation
 
-- `PYTHONPATH=src python3 -m pytest tests/` -- 1601 passed
 - `scripts/format --check --diff` -- clean
 - `scripts/lint` -- clean (ruff + black + test-framework guardrails)
+- `PYTHONPATH=src python3 -m pytest tests/` -- 1601 passed (non-canonical
+  raw pytest invocation used at the time instead of `scripts/test`; noted
+  here for accuracy since this is a backfilled historical record, not a
+  recommendation to repeat)
 
 # Follow-up
 

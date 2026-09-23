@@ -249,6 +249,11 @@ stopping at the first that yields a confident value:
    to paste. If the user already has a `local_<uuid>` from another source,
    such as an older note or a `claude://…/local_<uuid>` session link, accept
    it the same way.
+   `list_sessions` excludes the session it is called from, so when
+   closeout may be running in the authoring session, also offer the current
+   session from `get_session` (`"self"`) as a candidate. If the user picks
+   it here, still withhold the child-id alias at Step 5: path 3 never pairs
+   one.
 
 4. **Sentinels — `none` vs `pending` (distinct, not interchangeable).**
    - `none`: the backend produced **no retrievable transcript** (e.g. a
@@ -345,11 +350,12 @@ resolve. There is no analogous alias mechanism for non-Claude backends; do
 not pass any non-Claude-backend pointer value as `--host-id`.
 
 **Omit `--child-id` entirely** (do not pass the flag) for records resolved
-via path 2 (`list_sessions` by PR) or path 3 (picked from the session list) — pairing a
-cross-session host id with the *current* window's child id would record a
-false alias. The command and its underlying merge both treat a missing
-child id as "nothing to add here," not as an error, so the host id and PR
-are still captured on those paths; only the alias is withheld. See
+via path 2 (`list_sessions` by PR) or path 3 (picked from the session
+list) — pairing a cross-session host id with the *current* window's child
+id would record a false alias. The command and its underlying merge both
+treat a missing child id as "nothing to add here," not as an error, so the
+host id and PR are still captured on those paths; only the alias is
+withheld. See
 `references/closeout-workflow.md`'s "Session identity capture" section.
 
 **Work items** (for each WI marked `resolve and move`):
@@ -449,8 +455,9 @@ Report to the user:
   with the durable pointer for that record's own backend before archiving the
   session. For Claude.app records, that pointer is `claude-app:<host-uuid-stem>`
   (from `$CLAUDE_CODE_HOST_SESSION_ID` or the session-management
-  `list_sessions`/`get_session` tools, with `local_` stripped). For Codex app or Codex Cloud records, use the corresponding
-  `codex-app:` or `codex-cloud:` pointer when available. Do **not** add this
+  `list_sessions`/`get_session` tools, with `local_` stripped). For Codex
+  app or Codex Cloud records, use the corresponding `codex-app:` or
+  `codex-cloud:` pointer when available. Do **not** add this
   reminder for `none` — that value is terminal.
 - Offer the backend-appropriate local transcript archival/export workflow when
   one is available.

@@ -29,7 +29,10 @@ machine-local store. `--project-root` only selects which
 `project/sessions/index.jsonl` receives child-id aliases and harvested
 identity rows. Aliases are only added for host ids already present in that
 index, so transcripts from unrelated projects are copied into the archive but
-never indexed into this repository.
+never indexed into this repository. The `--exports-dir` harvest is **not**
+scoped this way. It indexes every `session-export-*.zip` it finds,
+whichever project the zip came from. Point it only at a directory holding
+this project's exports.
 
 The `session-export-*.zip` bundles that `--exports-dir` reads are produced by
 the Claude desktop app, not the Claude Code CLI. Their `metadata.json` is the

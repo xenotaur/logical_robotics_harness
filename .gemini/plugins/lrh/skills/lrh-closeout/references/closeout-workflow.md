@@ -266,7 +266,9 @@ Resolve in this order; stop at the first that yields a confident value:
    and last activity, and let the user pick one; strip `local_` from its
    `sessionId`. The desktop app no longer exposes View > Copy URL. A
    `local_<uuid>` the user already has from another source is accepted the
-   same way.
+   same way. Because `list_sessions` excludes the calling session, also
+   offer the current session from `get_session` (`"self"`) as a candidate.
+   A session picked this way still gets no child-id alias.
 
 ### `none` vs `pending` sentinels
 

@@ -337,10 +337,19 @@ real.**
   cross-project store keyed `raw/<project-slug>/`, and its invariant ("no
   agent session that changed this repository is ever lost") is best served
   by over-capturing.
-- Cross-project transcripts are **copied but never indexed** into the wrong
-  repo: `reconcile_child_id_aliases` only extends hosts already in *this*
-  project's index (`prompt_workflow_sessions.py:897`). The privacy boundary
-  therefore holds.
+- Cross-project **transcripts** are **copied but never indexed** into the
+  wrong repo: `reconcile_child_id_aliases` only extends hosts already in
+  *this* project's index (`prompt_workflow_sessions.py:897`). For raw
+  transcripts, the privacy boundary therefore holds.
+- **The zip harvest has no such boundary.** `sync_export`
+  (`prompt_workflow_sessions.py:1030`) upserts every `session-export-*.zip`
+  in `--exports-dir` into *this* repo's tracked `project/sessions/index.jsonl`
+  with no project or `cwd` check; it does not even harvest `cwd` (A2). Run
+  with `--exports-dir ~/Downloads`, another project's session title,
+  branch, and PR URLs would be committed into this repository's index. The
+  harvest is rarely fed today (Finding 1), but the gap is real. It is
+  added to `WI-SESSION-EXPORT-HARVEST-FIELDS` in §7. (Found by the
+  substitute self-review during PR #716's landing.)
 - The disclosure gaps:
   - Nowhere a human approves the run (`/lrh-closeout` Step 4 gate, the
     `/lrh-land` Step 6 preview, `docs/reference/cli/sessions.md`) was it
@@ -550,7 +559,7 @@ proposals only.
 |---|---|---|
 | `WI-SESSION-INDEX-JSONL-IDENTITY-EXTRACTION` | R1 source 2: extract `pr-link`, title, and `gitBranch` from raw JSONL in `sync` for known hosts, including archived raw copies | — |
 | ~~`WI-CLOSEOUT-SESSION-IDENTITY-TITLE-BRANCH`~~ | R1 source 1. **Subsumed by `WI-SKILLS-LRH-CLAUDE-SESSION`**, whose caller migration adds `--title`/`--branch`. | — |
-| `WI-SESSION-EXPORT-HARVEST-FIELDS` | A2: harvest `writtenBranches`/`cwd`; index `prNumber` as a fallback; optionally verify the current zip schema (§6.2) | — |
+| `WI-SESSION-EXPORT-HARVEST-FIELDS` | A2: harvest `writtenBranches`/`cwd`; index `prNumber` as a fallback; **skip (or report) any zip whose `cwd`/project does not match `--project-root`**, so another project's identity is never written into this repo's index (Finding 5); optionally verify the current zip schema (§6.2) | — |
 | `WI-SKILLS-INSTALL-MANIFEST` | R4a: separate `stale` from `modified`; upgrade without `--force` | — |
 | `WI-SKILLS-CLI-CAPABILITY-SKEW` | R4b + R4c: capability declaration, editable-install-aware `lrh version`, closeout-sync footer, `project doctor` | `WI-SKILLS-INSTALL-MANIFEST` |
 | `WI-CLOSEOUT-ARCHIVE-SCOPE-DISCLOSURE` | R5: gate/preview text, plus the sync summary line | — |

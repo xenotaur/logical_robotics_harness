@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:WI_SKILLS_LRH_CLAUDE_SESSION)[2026-09-23T00:59:48+00:00
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/716
 commit: 
 created_at: 2026-09-23T01:36:10+00:00
 agent: claude_app
@@ -32,8 +32,8 @@ It comes from `project/audits/2026-09-22-session-sync-export-ecosystem-audit.md`
   - The item was written on the existing audit branch
     `claude/lrh-session-sync-audit-9d2ef3`, alongside the audit commit
     `cea3ace0`, rather than on a fresh `xenotaur/feat/...` branch.
-  - Nothing has been pushed and no PR has been opened yet, so `pr:` and
-    `commit:` are empty.
+  - The branch was pushed and opened as PR #716 after the user approved.
+    `commit:` stays empty until merge.
 - There was no workstream update. The related `WS-SESSION-ARCHIVE-SYNC` is
   resolved and closed.
 
@@ -50,7 +50,7 @@ It comes from `project/audits/2026-09-22-session-sync-export-ecosystem-audit.md`
 
 # Follow-up
 
-- Push the branch and open the PR, then fill in `pr:` and `commit:`.
+- Land PR #716; `commit:` is filled in at closeout.
 - Resolve `session_transcript` at closeout.
 - Implement the item via `/lrh-implement WI-SKILLS-LRH-CLAUDE-SESSION` or
-  `/lrh-execute`.
+  `/lrh-execute`, but only after PR #716 lands, per the user's instruction.

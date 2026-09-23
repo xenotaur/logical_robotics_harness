@@ -18,6 +18,7 @@ depends_on: []
 blocked_by: []
 expected_actions:
   - edit_file
+  - run_tests
 forbidden_actions:
   - force_push
   - delete_branch

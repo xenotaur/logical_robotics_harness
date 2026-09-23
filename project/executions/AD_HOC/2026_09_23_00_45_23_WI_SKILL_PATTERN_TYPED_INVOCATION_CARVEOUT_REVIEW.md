@@ -2,10 +2,10 @@
 execution_id: 2026_09_23_00_45_23_WI_SKILL_PATTERN_TYPED_INVOCATION_CARVEOUT_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILL_PATTERN_TYPED_INVOCATION_CARVEOUT_REVIEW)[2026-09-23T00:00:26+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_22_14_58_52_WI_SKILL_PATTERN_TYPED_INVOCATION_CARVEOUT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/713
-commit:
+commit: 6864b3b853c9012fdaefa38eb56e2e1434773eaf
 created_at: 2026-09-23T00:45:23+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/713

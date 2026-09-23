@@ -253,17 +253,22 @@ Resolve in this order; stop at the first that yields a confident value:
    the env var, strip `local_`, propose `claude-app:<host-uuid-stem>`.
    **Confirm before storing:** the env var reflects the *current* session
    window, and the host id **rotates on resume/continue**, so on a long or
-   resumed session it can differ from the session that authored the work. If
-   the user's View > Copy URL disagrees, the browser URL wins (case 3).
+   resumed session it can differ from the session that authored the work.
+   Show the session's title and branch from the session-management
+   `get_session` tool (`"self"`) alongside the id so the user can recognize
+   it; if they say it is not the authoring session, continue to path 2 or 3.
 2. **Cross-session — `list_sessions` by PR number.** When closing out on
    `main` from a different session than did the work, the env var is the wrong
    session. Match the target session by `prNumber` via the session-management
    `list_sessions` tool (returns `sessionId`, `prNumber`, `branch`); take its
    `sessionId`, strip `local_`. Confirm if more than one session references
    the PR.
-3. **Manual — View > Copy URL.** Ask the user to paste the browser URL
-   (`local_<uuid>` from `claude.ai/.../local_<uuid>`); strip `local_`. The
-   browser URL is authoritative over the env var when they differ.
+3. **Manual — pick from the session list.** Call `list_sessions` (with
+   `include_archived: true` if needed), show candidates by title, branch, PR,
+   and last activity, and let the user pick one; strip `local_` from its
+   `sessionId`. The desktop app no longer exposes View > Copy URL. A
+   `local_<uuid>` the user already has from another source is accepted the
+   same way.
 
 ### `none` vs `pending` sentinels
 
@@ -279,8 +284,8 @@ Grammar" decision-log entry):
 Use `none`, not `pending`, whenever a backend simply has no session URL to
 resolve, so a finished record never looks like unfinished work.
 
-When the user later provides a `pending` session id (env var or View > Copy
-URL), update with:
+When the user later provides a `pending` session id (env var, or a session
+picked from `list_sessions`), update with:
 
 ```bash
 lrh prompt update-execution \
@@ -311,8 +316,8 @@ resolved the host id.
 **Only pair the child id on resolution-order path 1.** Only when
 `$CLAUDE_CODE_HOST_SESSION_ID` was read directly in Step 3 and confirmed by
 the user does `$CLAUDE_CODE_SESSION_ID` in this same window belong to that
-same session. On path 2 (`list_sessions` by PR number) or path 3 (pasted
-View > Copy URL), the resolved host id belongs to a *different* window than
+same session. On path 2 (`list_sessions` by PR number) or path 3 (picked
+from the session list), the resolved host id belongs to a *different* window than
 the one running closeout right now — recording the current window's child
 id against that host id would create a false alias. **Omit `--child-id`
 entirely** (do not pass the flag, and do not pass an empty string) in those

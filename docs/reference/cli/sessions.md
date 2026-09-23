@@ -17,8 +17,33 @@ lrh sessions sync \
 ```
 
 Mirrors Claude Code JSONL transcripts into the private archive and optionally
-harvests `/export` zip `metadata.json` identity fields into
+harvests `session-export-*.zip` `metadata.json` identity fields into
 `project/sessions/index.jsonl`.
+
+**Scan scope is machine-wide, not project-scoped.** Without
+`--claude-projects-root`, `sync` walks every project bucket under
+`~/.claude/projects/` and mirrors transcripts from all of them into
+`<archive-root>/raw/<project-slug>/`, whichever repository `--project-root`
+names. This is intentional: the archive is a cross-project, private,
+machine-local store. `--project-root` only selects which
+`project/sessions/index.jsonl` receives child-id aliases and harvested
+identity rows. Aliases are only added for host ids already present in that
+index, so transcripts from unrelated projects are copied into the archive but
+never indexed into this repository.
+
+The `session-export-*.zip` bundles that `--exports-dir` reads are produced by
+the Claude desktop app, not the Claude Code CLI. Their `metadata.json` is the
+app's own per-session record: host `sessionId`, `cliSessionId`, `prs[]`,
+`branch`, `title`, and `writtenBranches`. These zips were historically made by
+typing `/export` in a desktop Code-tab session. As of desktop app 2.7032.0,
+that in-session `/export` reports "not available for this session", and no
+visible menu item replaces it. The app still contains the zip builder, which
+writes to `~/Downloads`, but today it can only be reached through an agent's
+session-management `export_transcript` tool. In practice, then, this harvest
+path is retroactive-only and rarely fed. Forward identity capture through
+`lrh prompt record-session-alias` at `/lrh-implement` and `/lrh-closeout` is
+the primary path. `/lrh-export-claude` Markdown exports are a separate
+artifact, and this harvest does not read them.
 
 Archive root resolution is:
 

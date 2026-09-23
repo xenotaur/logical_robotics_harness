@@ -151,9 +151,11 @@ Resolve a transcript value for the backend that authored the primary
 execution record:
 
 - For `agent: claude_app` (or absent/legacy assumed Claude), use
-  `$CLAUDE_CODE_HOST_SESSION_ID`, `lrh sessions list` filtered by PR number
-  if available, or a pasted Claude.app session URL to produce
-  `claude-app:<host-uuid-stem>`.
+  `$CLAUDE_CODE_HOST_SESSION_ID`, the session-management `list_sessions`
+  tool matched by `prNumber` if available, or a session the user picks from
+  `list_sessions` to produce `claude-app:<host-uuid-stem>` (same resolution order as
+  `/lrh-closeout` Step 3). Do not substitute `lrh sessions discover`: it
+  returns child ids from JSONL filenames, not host ids.
 - For `agent: codex_app`, use `codex-app:<task-or-thread-id>` when a durable
   Codex app task/thread identifier is available; otherwise keep `pending`.
 - For `agent: codex_cloud`, use `codex-cloud:<task-id>` when available.

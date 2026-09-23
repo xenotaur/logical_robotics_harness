@@ -147,6 +147,10 @@ only the `lrh-export-claude` skill and `CLAUDE.md`).
 ## Validation
 
 - `scripts/version tools`
+- `scripts/format --check --diff`
+- `scripts/lint`
+- `scripts/test`
 - `lrh validate`
-- `lrh skills check --target claude --local`
-- `lrh skills status --target codex --local`
+- `lrh skills check --target claude --local --source current-repo`
+- `lrh skills check --target codex --local --source current-repo`
+- `lrh skills check --target antigravity --local --source current-repo`

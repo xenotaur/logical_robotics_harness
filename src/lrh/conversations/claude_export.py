@@ -665,7 +665,10 @@ def _render_claude_transcript(
             continue
 
         if step_type == "user":
-            lines.extend(_render_message_block("User", step))
+            if _is_genuine_human_turn(step):
+                lines.extend(_render_message_block("User", step))
+            else:
+                lines.extend(_render_tool_result_turn(step))
         elif step_type == "assistant":
             lines.extend(_render_message_block("Assistant", step))
         # Unknown/unrecognized record types are silently skipped for
@@ -727,6 +730,24 @@ def _render_message_block(role_label: str, step: Mapping[str, object]) -> list[s
     if not body_lines:
         return []
     return [f"## {role_label}", ""] + body_lines + [""]
+
+
+def _render_tool_result_turn(step: Mapping[str, object]) -> list[str]:
+    """Render a type=="user" step that only delivers tool results.
+
+    Not a genuine human turn, so it is rendered without the "## User"
+    wrapper _render_message_block uses -- each tool_result block already
+    gets its own "### Tool Result" heading from _render_content_blocks,
+    which is enough to distinguish it without duplicating that heading
+    under a redundant "## Tool Result" wrapper.
+    """
+    message = step.get("message")
+    if not isinstance(message, Mapping):
+        return []
+    body_lines = _render_content_blocks(message.get("content"))
+    if not body_lines:
+        return []
+    return body_lines + [""]
 
 
 def _render_content_blocks(content: object) -> list[str]:

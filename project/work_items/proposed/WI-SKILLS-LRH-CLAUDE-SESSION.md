@@ -39,7 +39,7 @@ forbidden_actions:
   - edit_gate_definition_blocks
 acceptance:
   - "src/lrh/skills/lrh-claude-session/SKILL.md exists and reports `session_transcript: claude-app:<host-uuid-stem>` for the current window without reading, exporting, or printing transcript content"
-  - "For the current window the skill resolves via `lrh conversation current-claude-session-id`, and falls back to reading CLAUDE_CODE_HOST_SESSION_ID directly (stripping local_) when the installed CLI lacks that subcommand"
+  - "For the current window the skill resolves via `lrh conversation current-claude-session-id`, falls back to reading CLAUDE_CODE_HOST_SESSION_ID directly (stripping local_) only when the installed CLI lacks that subcommand, and surfaces every other resolver failure instead of falling back"
   - "Where the session-management get_session tool is available the skill also reports title and branch; for another session it resolves via list_sessions by PR number, then branch or title, then a user pick from the list"
   - "/lrh-closeout Step 3, /lrh-land Step 3, and /lrh-implement's alias-capture step call /lrh-claude-session instead of restating the resolution order, and pass --title and --branch to record-session-alias where resolved"
   - "Claude, Codex, and Antigravity rendered targets are regenerated for every touched skill, CLAUDE.md indexes /lrh-claude-session, and lrh chain-defaults status reports stale: False"
@@ -56,8 +56,26 @@ artifacts_expected:
   - src/lrh/skills/lrh-implement/SKILL.md
   - src/lrh/skills/lrh-implement/references/execution-session-reference.md
   - .claude/skills/lrh-claude-session/SKILL.md
+  - .claude/skills/lrh-claude-session/agents/openai.yaml
+  - .claude/skills/lrh-closeout/SKILL.md
+  - .claude/skills/lrh-closeout/references/closeout-workflow.md
+  - .claude/skills/lrh-land/SKILL.md
+  - .claude/skills/lrh-implement/SKILL.md
+  - .claude/skills/lrh-implement/references/execution-session-reference.md
   - .agents/skills/lrh-claude-session/SKILL.md
+  - .agents/skills/lrh-claude-session/agents/openai.yaml
+  - .agents/skills/lrh-closeout/SKILL.md
+  - .agents/skills/lrh-closeout/references/closeout-workflow.md
+  - .agents/skills/lrh-land/SKILL.md
+  - .agents/skills/lrh-implement/SKILL.md
+  - .agents/skills/lrh-implement/references/execution-session-reference.md
   - .gemini/plugins/lrh/skills/lrh-claude-session/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-claude-session/agents/openai.yaml
+  - .gemini/plugins/lrh/skills/lrh-closeout/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-closeout/references/closeout-workflow.md
+  - .gemini/plugins/lrh/skills/lrh-land/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-implement/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-implement/references/execution-session-reference.md
   - CLAUDE.md
   - docs/reference/cli/conversation.md
 ---
@@ -133,9 +151,16 @@ Two caveats for the implementer:
    `lrh-codex-session`. It should:
    - accept an optional argument: a session id or a PR number/URL;
    - **current window:** run `lrh conversation current-claude-session-id
-     --format json`. If that subcommand is missing or fails, read
-     `CLAUDE_CODE_HOST_SESSION_ID`/`CLAUDE_CODE_SESSION_ID` directly and
-     strip `local_`;
+     --format json`. Fall back to reading
+     `CLAUDE_CODE_HOST_SESSION_ID`/`CLAUDE_CODE_SESSION_ID` directly
+     (stripping `local_`) **only** when the subcommand itself is
+     unavailable: `lrh` not found, or argparse rejecting
+     `current-claude-session-id` as an invalid choice on an older installed
+     CLI. Any other non-zero exit is a real resolution failure. That covers
+     an unset session id, whitespace in it, and zero or several matching
+     transcripts (see `docs/reference/cli/conversation.md`). Surface it to
+     the user and do not record a pointer from the env var, because the
+     skill's safety contract must be no weaker than the CLI it wraps;
    - **enrichment:** where the session-management `get_session` tool exists,
      call it with `"self"` and report title and branch;
    - **other session:** use `list_sessions` matched by `prNumber`, then
@@ -186,8 +211,10 @@ Two caveats for the implementer:
   `session_transcript: claude-app:<host-uuid-stem>` for the current window
   and never reads, exports, or prints transcript content.
 - Current-window resolution uses `lrh conversation
-  current-claude-session-id`, and falls back to the env vars when the
-  installed CLI lacks it.
+  current-claude-session-id`. It falls back to the env vars only when the
+  installed CLI lacks that subcommand, and surfaces every other resolver
+  failure (unset or ambiguous id, zero or several transcripts) instead of
+  falling back.
 - With `get_session`/`list_sessions` available, the skill reports title
   and branch, and resolves another session by PR, then branch or title,
   then a user pick.
@@ -206,7 +233,7 @@ Two caveats for the implementer:
 - `lrh skills status --target codex --local --source current-repo`
 - `lrh skills status --target antigravity --local --source current-repo`
 - `lrh chain-defaults status`
-- `grep -rn "Copy URL" src/lrh/skills` (only "no longer exposes" notes remain)
+- `git grep -n "Copy URL" -- src/lrh/skills PROMPTS.md` (only "no longer exposes" notes remain)
 
 ## Risk Notes
 

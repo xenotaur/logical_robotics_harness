@@ -2,10 +2,10 @@
 execution_id: 2026_09_23_01_36_34_WI_CLAUDE_EXPORT_MARKDOWN_USER_TURN_MISLABEL_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_CLAUDE_EXPORT_MARKDOWN_USER_TURN_MISLABEL_REVIEW)[2026-09-23T01:28:15+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_23_01_19_46_WI_CLAUDE_EXPORT_MARKDOWN_USER_TURN_MISLABEL
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/715
-commit:
+commit: 1991604fe298773fe4a03ea0b43c299400cdfbd7
 created_at: 2026-09-23T01:36:34+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/715

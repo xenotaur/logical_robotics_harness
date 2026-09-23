@@ -39,7 +39,7 @@ forbidden_actions:
   - edit_gate_definition_blocks
 acceptance:
   - "src/lrh/skills/lrh-claude-session/SKILL.md exists and reports `session_transcript: claude-app:<host-uuid-stem>` for the current window without reading, exporting, or printing transcript content"
-  - "For the current window the skill resolves via `lrh conversation current-claude-session-id`, falls back to reading CLAUDE_CODE_HOST_SESSION_ID directly (stripping local_) only when the installed CLI lacks that subcommand, and surfaces every other resolver failure instead of falling back"
+  - "For the current window the skill resolves via `lrh conversation current-claude-session-id`, falls back to reading CLAUDE_CODE_HOST_SESSION_ID directly (stripping local_) only when the installed CLI lacks that subcommand, uses only the host id (never CLAUDE_CODE_SESSION_ID) as the pointer, and on any other resolver failure or an `unknown` host pointer records no pointer and reports `pending`"
   - "Where the session-management get_session tool is available the skill also reports title and branch; for another session it resolves via list_sessions by PR number, then branch or title, then a user pick from the list"
   - "/lrh-closeout Step 3, /lrh-land Step 3, and /lrh-implement's alias-capture step call /lrh-claude-session instead of restating the resolution order, and pass --title and --branch to record-session-alias where resolved"
   - "Claude, Codex, and Antigravity rendered targets are regenerated for every touched skill, CLAUDE.md indexes /lrh-claude-session, and lrh chain-defaults status reports stale: False"
@@ -151,16 +151,28 @@ Two caveats for the implementer:
    `lrh-codex-session`. It should:
    - accept an optional argument: a session id or a PR number/URL;
    - **current window:** run `lrh conversation current-claude-session-id
-     --format json`. Fall back to reading
-     `CLAUDE_CODE_HOST_SESSION_ID`/`CLAUDE_CODE_SESSION_ID` directly
-     (stripping `local_`) **only** when the subcommand itself is
-     unavailable: `lrh` not found, or argparse rejecting
-     `current-claude-session-id` as an invalid choice on an older installed
-     CLI. Any other non-zero exit is a real resolution failure. That covers
-     an unset session id, whitespace in it, and zero or several matching
-     transcripts (see `docs/reference/cli/conversation.md`). Surface it to
-     the user and do not record a pointer from the env var, because the
-     skill's safety contract must be no weaker than the CLI it wraps;
+     --format json`. The pointer comes **only** from the host id
+     (`CLAUDE_CODE_HOST_SESSION_ID`, `local_` stripped).
+     `CLAUDE_CODE_SESSION_ID` is the child id: it is used solely as the
+     alias for `record-session-alias --child-id`, and never as the pointer.
+     - **Fallback:** read those env vars directly **only** when the
+       subcommand itself is unavailable, meaning `lrh` is not found or an
+       older installed CLI's argparse rejects `current-claude-session-id` as
+       an invalid choice.
+     - **Other failures:** any other non-zero exit is a real resolution
+       failure. That covers an unset session id, whitespace in it, and zero
+       or several matching transcripts (see
+       `docs/reference/cli/conversation.md`). Surface it to the user, record
+       no pointer, and report `session_transcript: pending`. Do not fall
+       back to the env var.
+     - **Exit 0 without a host id:** if the resolver succeeds but reports
+       `session_transcript` as `unknown` (host id unset), record no pointer
+       and report `pending`, the same as a failure.
+     - **Why:** those failure modes concern the child id and transcript
+       path, not the host id. Blocking the pointer on them is a deliberate
+       conservative choice: the skill's safety contract must be no weaker
+       than the CLI it wraps. An implementer who wants to relax it should
+       raise that explicitly rather than widen the fallback silently;
    - **enrichment:** where the session-management `get_session` tool exists,
      call it with `"self"` and report title and branch;
    - **other session:** use `list_sessions` matched by `prNumber`, then
@@ -212,9 +224,11 @@ Two caveats for the implementer:
   and never reads, exports, or prints transcript content.
 - Current-window resolution uses `lrh conversation
   current-claude-session-id`. It falls back to the env vars only when the
-  installed CLI lacks that subcommand, and surfaces every other resolver
-  failure (unset or ambiguous id, zero or several transcripts) instead of
-  falling back.
+  installed CLI lacks that subcommand. Only the host id ever becomes the
+  pointer. Any other resolver failure (unset or ambiguous id, zero or
+  several transcripts) is surfaced instead of falling back. On such a
+  failure, or when the resolver reports `session_transcript: unknown`, the
+  skill records no pointer and reports `pending`.
 - With `get_session`/`list_sessions` available, the skill reports title
   and branch, and resolves another session by PR, then branch or title,
   then a user pick.
@@ -238,8 +252,11 @@ Two caveats for the implementer:
 ## Risk Notes
 
 - The session-management tools (`get_session`, `list_sessions`) exist only
-  in the Claude desktop app. In CLI-only sessions the skill must degrade to
-  the env var alone and say that title and branch are unavailable.
+  in the Claude desktop app. In CLI-only sessions the skill still resolves
+  the current window through the resolver, under the same restricted
+  fallback as above. It simply reports that title and branch are
+  unavailable, and that cross-session lookup needs the user to supply a
+  host id.
 - The Codex renderer flags `argument-hint` as having no Codex equivalent.
   Keep the same frontmatter shape `lrh-codex-session` uses, so the Codex
   target is no worse than today.
@@ -248,5 +265,8 @@ Two caveats for the implementer:
   upstream text. Review the diff rather than assuming it is scoped to this
   item.
 - Routing the resolution order through a skill makes closeout depend on the
-  new skill being installed. The callers should keep a one-line inline
-  fallback (the env var) for machines where it is missing.
+  new skill being installed. For machines where it is missing, the callers
+  should keep a one-line inline fallback. That fallback must run the same
+  `lrh conversation current-claude-session-id` resolver under the same
+  restricted rule (raw env var only when the subcommand is unavailable),
+  not a direct env-var read.

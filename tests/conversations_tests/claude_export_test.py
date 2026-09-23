@@ -252,6 +252,109 @@ class TestClaudeExport(unittest.TestCase):
             self.assertIn("README.md", res.markdown)
             self.assertEqual(res.manifest.transcript_statistics.turn_count, 0)
 
+    def test_tool_result_only_user_record_does_not_render_as_user_section(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(
+                source_file,
+                [
+                    _user_record("List the files."),
+                    {
+                        "type": "assistant",
+                        "message": {
+                            "role": "assistant",
+                            "content": [
+                                {
+                                    "type": "tool_use",
+                                    "id": "toolu_1",
+                                    "name": "Bash",
+                                    "input": {"command": "ls"},
+                                }
+                            ],
+                        },
+                    },
+                    _tool_result_user_record("toolu_1", "README.md\n"),
+                ],
+            )
+
+            res = claude_export.convert_claude_session(source_file)
+
+            # The genuine human turn still renders under "## User" ...
+            self.assertIn("## User", res.markdown)
+            self.assertIn("List the files.", res.markdown)
+            # ... but the tool_result-delivery turn does not: only one
+            # "## User" section exists (the genuine one), even though two
+            # type=="user" steps are present in the transcript.
+            self.assertEqual(res.markdown.count("## User"), 1)
+            self.assertIn("### Tool Result", res.markdown)
+            self.assertIn("README.md", res.markdown)
+
+    def test_mixed_tool_result_and_text_list_still_renders_as_user_section(
+        self,
+    ) -> None:
+        # A user record whose content list mixes a tool_result block with a
+        # non-tool_result block (e.g. pasted text alongside a tool result)
+        # is a genuine human turn per _is_genuine_human_turn's any() logic
+        # -- it must still render under "## User", not be misrouted to
+        # _render_tool_result_turn just because a tool_result is present.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(
+                source_file,
+                [
+                    {
+                        "type": "user",
+                        "message": {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": "toolu_1",
+                                    "content": "README.md\n",
+                                    "is_error": False,
+                                },
+                                {"type": "text", "text": "Also, please retry."},
+                            ],
+                        },
+                    },
+                ],
+            )
+
+            res = claude_export.convert_claude_session(source_file)
+
+            self.assertIn("## User", res.markdown)
+            self.assertIn("Also, please retry.", res.markdown)
+            self.assertIn("### Tool Result", res.markdown)
+            self.assertEqual(res.manifest.transcript_statistics.turn_count, 1)
+
+    def test_empty_content_and_missing_message_user_records_render_nothing(
+        self,
+    ) -> None:
+        # Neither an empty-list-content user record nor one with no
+        # "message" key at all should crash or produce a stray heading --
+        # both the genuine-turn and tool-result-turn render paths return []
+        # for these inputs.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess.jsonl"
+            _write_jsonl(
+                source_file,
+                [
+                    {"type": "user", "message": {"role": "user", "content": []}},
+                    {"type": "user"},
+                    _user_record("Real message."),
+                ],
+            )
+
+            res = claude_export.convert_claude_session(source_file)
+
+            self.assertEqual(res.markdown.count("## User"), 1)
+            self.assertIn("Real message.", res.markdown)
+
     def test_turn_count_excludes_tool_result_only_user_records(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             tmp_path = Path(temp_dir)
@@ -342,6 +445,56 @@ class TestClaudeExport(unittest.TestCase):
             )
             self.assertIn("Subagent transcript: agent-abc", res.markdown)
             self.assertIn("sub task detail", res.markdown)
+
+    def test_tool_result_distinction_applies_to_inlined_subagent_transcript(
+        self,
+    ) -> None:
+        # The genuine-human-vs-tool-result distinction is implemented once,
+        # inside _render_claude_transcript's shared loop -- this proves the
+        # recursive subagent-inlining call site (which invokes that same
+        # function) inherits it automatically, rather than assuming so.
+        with tempfile.TemporaryDirectory() as temp_dir:
+            tmp_path = Path(temp_dir)
+            source_file = tmp_path / "sess-parent.jsonl"
+            _write_jsonl(source_file, [_user_record("dispatch a subagent")])
+
+            subagents_dir = tmp_path / "sess-parent" / "subagents"
+            subagents_dir.mkdir(parents=True)
+            sub_jsonl = subagents_dir / "agent-abc.jsonl"
+            _write_jsonl(
+                sub_jsonl,
+                [
+                    _user_record("sub task detail"),
+                    {
+                        "type": "assistant",
+                        "message": {
+                            "role": "assistant",
+                            "content": [
+                                {
+                                    "type": "tool_use",
+                                    "id": "toolu_sub",
+                                    "name": "Bash",
+                                    "input": {"command": "ls"},
+                                }
+                            ],
+                        },
+                    },
+                    _tool_result_user_record("toolu_sub", "sub-result.txt\n"),
+                ],
+            )
+
+            res = claude_export.convert_claude_session(
+                source_file, include_subagents=True
+            )
+
+            self.assertIn("Subagent transcript: agent-abc", res.markdown)
+            self.assertIn("sub task detail", res.markdown)
+            self.assertIn("### Tool Result", res.markdown)
+            self.assertIn("sub-result.txt", res.markdown)
+            # Two genuine human turns total (parent's dispatch + subagent's
+            # own "sub task detail"); the subagent's tool_result-delivery
+            # step contributes no additional "## User" section.
+            self.assertEqual(res.markdown.count("## User"), 2)
 
     def test_resolve_transcript_path_by_session_id(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:

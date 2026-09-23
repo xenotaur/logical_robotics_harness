@@ -25,6 +25,15 @@ refined the picture. Finding 1 and §6.2 have been rewritten. New findings
 A8 and A9 are added. The View > Copy URL fallback in the skills has been
 replaced (§8).
 
+**Second revision.** The first version said the index was fed "almost only"
+by `/lrh-closeout`, and that its 20 `branch` values dated from early index
+history. Both claims were wrong. `/lrh-implement` also calls
+`record-session-alias` at record creation, passing `--pr` and `--branch`,
+and that is where the `branch` values come from. What is actually missing is
+`--title` in both callers, plus `--branch` in closeout. The summary, §3,
+Finding 1, and §7 are corrected. §7 now also points at the filed
+`WI-SKILLS-LRH-CLAUDE-SESSION`.
+
 ## 1) Summary
 
 - The ecosystem has **two artifact families** and **one identity index**:
@@ -34,9 +43,10 @@ replaced (§8).
   3. `project/sessions/index.jsonl`, which records host↔child↔PR identity.
 
   Keeping the two artifact families separate is correct. The real gap is in
-  the index: **it is fed almost only by `/lrh-closeout`'s
-  `record-session-alias`, which never passes `--title` or `--branch`.** On
-  this machine, 0 of 30 index rows have a title.
+  the index. **It is fed by `record-session-alias` from `/lrh-implement`
+  (host, child, PR, branch) and `/lrh-closeout` (host, child, PR). Neither
+  caller passes `--title`.** On this machine, 0 of 30 index rows have a
+  title.
 - The downstream report assumed that title, branch, and PR data "aren't in
   the transcript content". **That is wrong.** Current Claude Code JSONL
   transcripts carry `pr-link` (`prNumber`, `prUrl`, `prRepository`),
@@ -152,7 +162,7 @@ Not done:
 
 | Skill | Invokes | When |
 |---|---|---|
-| `/lrh-implement` | `lrh prompt record-session-alias` (host + child, at record creation) | Every execution-record creation on Claude.app |
+| `/lrh-implement` | `lrh prompt record-session-alias --host-id --child-id --pr --branch` at record creation (**no `--title`**) | Every execution-record creation on Claude.app |
 | `/lrh-closeout` | Step 3: env var (confirmed with `get_session("self")`), `list_sessions` by PR, or a session picked from `list_sessions` (the Copy URL path is replaced; see A8). Step 5: `lrh prompt update-execution`, `lrh prompt record-session-alias --host-id --child-id --pr` (**no `--title`/`--branch`**), then **always** `lrh sessions closeout-sync --project-root .` | Every closeout |
 | `/lrh-land` | Step 3: same resolution as closeout (was a phantom `lrh sessions list`, now fixed). The Step 6 preview shows the `closeout-sync` command. Inlines `/lrh-closeout`. | Every land |
 | `/lrh-execute` | inlines `/lrh-implement` → `/lrh-land` | — |
@@ -167,8 +177,8 @@ Not done:
  live desktop session ──env CLAUDE_CODE_{HOST_,}SESSION_ID──┐
  desktop list_sessions/get_session (host id, title, branch, │
                                    prNumber)                ├─► record-session-alias ─┐
-   (/lrh-implement, /lrh-closeout Step 3→5)  ───────────────┘   (title/branch never    │
-                                                                 passed today)         ▼
+   (/lrh-implement, /lrh-closeout Step 3→5)  ───────────────┘   (title never passed;   │
+                                                                 branch by implement)  ▼
  ~/.claude/projects/**/*.jsonl ──► sessions sync ──► <archive>/raw/<slug>/…   project/sessions/index.jsonl
    (pr-link, ai-title,             │  (all projects)        │                          ▲   │
     gitBranch… present             ├─ reconcile_child_id_aliases (sessionId only) ────┘   │
@@ -231,14 +241,14 @@ wrongly said a per-session Export menu still existed.)
   - `get_session("self")` and `list_sessions` return the host id, title,
     branch, and PR number: the same identity the zip's `metadata.json`
     carried, without writing a transcript anywhere.
-- **Residual gap, which is real:** title and branch are never captured on
-  the forward path, because closeout does not pass `--title` or `--branch`.
-  `written_branches` is captured by nothing. Index census on this machine:
-  30 rows; `prs` 30, `child_ids` 30, `branch` 20, `title` **0**,
-  `written_branches` **0**. The 20 populated `branch` values date from the
-  index's early history (the `branch` field first appears with
-  `bc4994c0`/#498). The current closeout skill text has no step that
-  populates `branch`.
+- **Residual gap, which is real:** title is never captured on the forward
+  path. Neither `/lrh-implement` nor `/lrh-closeout` passes `--title`.
+  `branch` is captured only by `/lrh-implement` at record creation, so
+  sessions first indexed at closeout (cross-session, via path 2 or 3) get no
+  branch. `written_branches` is captured by nothing. Index census on this
+  machine: 30 rows; `prs` 30, `child_ids` 30, `branch` 20, `title` **0**,
+  `written_branches` **0**. The 20 populated `branch` values come from
+  `/lrh-implement`'s `--branch <branch-name-from-step-5>`.
 
 ### Finding 2: "`/lrh-export-claude` was meant to replace native `/export` but produces an incompatible artifact"
 
@@ -409,7 +419,8 @@ Unify what they *mean* to the control plane instead:
 - **R1: one identity pipeline, three sources in priority order**, all
   writing through `record_session_observation`:
   1. **Live desktop metadata** at `/lrh-implement` record creation and at
-     `/lrh-closeout` Step 5. On path 1, pass `--title`/`--branch` from
+     `/lrh-closeout` Step 5. Add `--title` in both callers, and `--branch`
+     in closeout. On path 1, take them from
      `get_session("self")` or the current transcript. On path 2, pass them
      from the `list_sessions` row. This is a skill-text change plus nothing
      new in the CLI.
@@ -496,7 +507,7 @@ Yes, as three coordinated changes, in this order:
 
 - **R6:** add a correction note to `PROP-LRH-SESSION-ARCHIVE-SYNC`:
   - the zip's actual producer and location;
-  - forward capture omits title and branch;
+  - forward capture omits title everywhere, and omits branch at closeout;
   - the unbuilt Decision 2/3 pieces (A4), moved to explicit follow-ups;
   - JSONL now carries PR, title, and branch, which updates the Motivation's
     "the session-listing tools return the host id but not the child id"
@@ -529,19 +540,23 @@ Yes, as three coordinated changes, in this order:
   resolver (Finding 3's skew) by falling back to reading the env var
   directly.
 
-## 7) Proposed follow-up work items (not created by this audit)
+## 7) Proposed follow-up work items
+
+Only `WI-SKILLS-LRH-CLAUDE-SESSION` has been filed so far; it is at
+`project/work_items/proposed/WI-SKILLS-LRH-CLAUDE-SESSION.md`. The rest are
+proposals only.
 
 | Proposed ID | Covers | Depends on |
 |---|---|---|
 | `WI-SESSION-INDEX-JSONL-IDENTITY-EXTRACTION` | R1 source 2: extract `pr-link`, title, and `gitBranch` from raw JSONL in `sync` for known hosts, including archived raw copies | — |
-| `WI-CLOSEOUT-SESSION-IDENTITY-TITLE-BRANCH` | R1 source 1: pass `--title`/`--branch` in `/lrh-closeout` and `/lrh-implement` | — |
+| ~~`WI-CLOSEOUT-SESSION-IDENTITY-TITLE-BRANCH`~~ | R1 source 1. **Subsumed by `WI-SKILLS-LRH-CLAUDE-SESSION`**, whose caller migration adds `--title`/`--branch`. | — |
 | `WI-SESSION-EXPORT-HARVEST-FIELDS` | A2: harvest `writtenBranches`/`cwd`; index `prNumber` as a fallback; optionally verify the current zip schema (§6.2) | — |
 | `WI-SKILLS-INSTALL-MANIFEST` | R4a: separate `stale` from `modified`; upgrade without `--force` | — |
 | `WI-SKILLS-CLI-CAPABILITY-SKEW` | R4b + R4c: capability declaration, editable-install-aware `lrh version`, closeout-sync footer, `project doctor` | `WI-SKILLS-INSTALL-MANIFEST` |
 | `WI-CLOSEOUT-ARCHIVE-SCOPE-DISCLOSURE` | R5: gate/preview text, plus the sync summary line | — |
 | `WI-SESSION-REPORT-EXPORT-COVERAGE` | R2 + R3 | — |
 | Rescope `WI-SESSION-ARCHIVE-ROOT-DEFAULT` | A6: drop the `--exports-dir` default half; fix its `related_design` path | — |
-| `WI-SKILLS-LRH-CLAUDE-SESSION` | R7 / A9: `/lrh-claude-session` skill; migrate closeout/land/implement Step 3 to call it | — (the CLI resolver is already landed) |
+| `WI-SKILLS-LRH-CLAUDE-SESSION` (**filed**) | R7 / A9 + R1 source 1: `/lrh-claude-session` skill; migrate closeout/land/implement to call it and pass `--title`/`--branch` | — (the CLI resolver is already landed) |
 
 `WI-SESSION-ARCHIVE-CLOSEOUT-SAFETY` (existing) already covers A5 and the
 regeneration of the Codex/Antigravity generated targets.

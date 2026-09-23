@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #717 (commit c45420dce5431b5f5425ab2ea5eab7d0cd13eee1)'
 blocked_reason: null
 blocked: false
 id: WI-CLAUDE-EXPORT-MARKDOWN-USER-TURN-MISLABEL
 title: Distinguish genuine human turns from tool-result turns in Claude export Markdown headers
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

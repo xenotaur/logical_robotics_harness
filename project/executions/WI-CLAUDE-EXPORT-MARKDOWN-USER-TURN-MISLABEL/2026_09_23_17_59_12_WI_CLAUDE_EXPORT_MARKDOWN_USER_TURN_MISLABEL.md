@@ -2,10 +2,10 @@
 execution_id: 2026_09_23_17_59_12_WI_CLAUDE_EXPORT_MARKDOWN_USER_TURN_MISLABEL
 prompt_id: PROMPT(WI-CLAUDE-EXPORT-MARKDOWN-USER-TURN-MISLABEL:WI_CLAUDE_EXPORT_MARKDOWN_USER_TURN_MISLABEL)[2026-09-23T17:48:40+00:00]
 work_item: WI-CLAUDE-EXPORT-MARKDOWN-USER-TURN-MISLABEL
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/717
-commit:
+commit: c45420dce5431b5f5425ab2ea5eab7d0cd13eee1
 created_at: 2026-09-23T17:59:12+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CLAUDE-EXPORT-MARKDOWN-USER-TURN-MISLABEL.md

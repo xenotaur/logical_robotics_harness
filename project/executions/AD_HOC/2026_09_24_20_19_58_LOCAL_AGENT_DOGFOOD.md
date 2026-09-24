@@ -4,8 +4,8 @@ prompt_id: "PROMPT(AD_HOC:LOCAL_AGENT_DOGFOOD)[2026-09-24T20:19:58+00:00]"
 work_item: AD_HOC
 status: in_progress
 rerun_of: null
-pr: null
-commit: null
+pr: "https://github.com/xenotaur/logical_robotics_harness/pull/719"
+commit: "468d782190a68027f5b97fe715e100a986b846b2"
 created_at: "2026-09-24T20:19:58+00:00"
 agent: "codex_app"
 instruction_source: "project/design/proposals/proposed/local-agent-dogfood/00_proposal.md"
@@ -53,6 +53,10 @@ for absence in exact-ID mode).
   all references exist and both leaves remain proposed/unblocked as required.
 - Reviewed the package's scope and dependency semantics against the inspected
   canonical design, prototype policy, and existing runtime/safety proposals.
+- Created PR #719 as a draft and verified that its requested-reviewer and
+  requested-team lists are empty. No review request or ready-for-review action
+  was made. The commit field identifies the initial package commit; this record
+  receives its PR link in a follow-up documentation commit.
 
 This documentation-only package does not warrant runtime tests. No formatter,
 linter, or test pass is claimed from the incomplete tool-version probe.

@@ -10,6 +10,8 @@ related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
 related_roadmap:
   - ROADMAP-PHASE-03
+children:
+  - WS-LOCAL-AGENT-DOGFOOD
 work_items:
   - WI-LRH-CORE-STATE-APIS-MVP
   - WI-WORKSTREAM-PLANNING-TREE-RELATIONSHIPS-MVP
@@ -95,6 +97,11 @@ branch mutation, PR creation, CI-fix loops, review-fix loops, merge, and publish
 until contracts, policy gates, evidence expectations, and optional packaging are clear.
 
 ## Relevant context
+
+Proposed child experiment: `WS-LOCAL-AGENT-DOGFOOD` captures an isolated,
+read-only local-model briefing/investigation lane for design review. Its leaves
+remain proposed; this relationship does not activate runtime work or change the
+production execution sequence below.
 
 Canonical living design/context package:
 

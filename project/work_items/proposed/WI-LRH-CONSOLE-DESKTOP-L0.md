@@ -52,7 +52,9 @@ acceptance:
 artifacts_expected:
 - "apps/desktop/ (Tauri shell, native supervisor, bundled settings/state pages)"
 - "docs/how-to/lrh-console-local-dogfood.md"
-- "Supervisor/capability tests and actual macOS dogfood evidence"
+- "apps/desktop/src-tauri/tests/supervisor_test.rs"
+- "apps/desktop/src-tauri/tests/capability_boundaries_test.rs"
+- "project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md"
 ---
 
 # LRH Console L0 desktop shell
@@ -140,9 +142,16 @@ preserve the read-only boundary. The new dependency-map UI follows in L1.
    default-browser fallback with an explanation. Retain a safe route on handoff.
 8. Add `docs/how-to/lrh-console-local-dogfood.md` with explicit setup, build/run,
    lifecycle expectations, recovery, limitations, and exact validation commands.
-   Add automated supervisor/capability tests and a macOS manual checklist. Record
-   five real use sessions with failures/friction and a recommendation for L1/L3.
+   Add automated tests at `apps/desktop/src-tauri/tests/supervisor_test.rs` and
+   `apps/desktop/src-tauri/tests/capability_boundaries_test.rs`, plus a macOS manual
+   checklist. Record five real use sessions, failures/friction, actual test
+   commands/results, and a recommendation for L1/L3 in
+   `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` using the evidence schema.
    Keep normal Python installation/Serve independent of Node/Rust requirements.
+
+The listed test and evidence paths are planned outputs of this implementation
+item, not files delivered by the planning PR. If implementation refines their
+locations, update `artifacts_expected` and this section together before closeout.
 
 ## Non-Goals
 

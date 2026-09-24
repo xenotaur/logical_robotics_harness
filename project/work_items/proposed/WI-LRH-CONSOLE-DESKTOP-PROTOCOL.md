@@ -53,7 +53,9 @@ artifacts_expected:
 - "src/lrh/desktop_protocol.py (proposed module boundary)"
 - "src/lrh/serve.py and existing Serve CLI integration"
 - "docs/reference/desktop-server-protocol.md"
-- "Protocol unit tests and bounded process integration evidence"
+- "tests/cli_tests/desktop_protocol_test.py"
+- "tests/smoke/desktop_protocol_smoke.py"
+- "project/evidence/EV-LRH-CONSOLE-DESKTOP-PROTOCOL.md"
 ---
 
 # Desktop startup and lifecycle protocol for LRH Serve
@@ -122,12 +124,19 @@ are at `8603b6514329ea242294da420aa448d2fc959fd1`.
 5. Preserve current CLI output/foreground behavior outside desktop mode, normal
    project diagnostics, read-only routes, and HTTP security headers. Runtime
    ready does not mean the project validates or tasks may execute.
-6. Add unit tests in the repository's `unittest.TestCase` conventions and bounded
-   process integration coverage for malformed/incompatible input, invalid paths,
+6. Add `tests/cli_tests/desktop_protocol_test.py` using the repository's
+   `unittest.TestCase` conventions and `tests/smoke/desktop_protocol_smoke.py` for
+   bounded real-process integration coverage of malformed/incompatible input, invalid paths,
    readiness/failure ordering, port discovery, disconnect/EOF, and graceful stop.
-   Put heavyweight checks under the existing smoke conventions if needed. Supply
-   exact commands in the protocol document, plus a minimal supervisor example or
-   test driver demonstrating the contract without a Tauri build.
+   Keep real-process checks under the existing smoke conventions. Record actual
+   commands, versions, results, and platform limits in
+   `project/evidence/EV-LRH-CONSOLE-DESKTOP-PROTOCOL.md` using the evidence schema.
+   Supply exact commands in the protocol document, plus a minimal supervisor
+   example or test driver demonstrating the contract without a Tauri build.
+
+The listed test and evidence paths are planned outputs of this implementation
+item, not files delivered by the planning PR. If implementation refines their
+locations, update `artifacts_expected` and this section together before closeout.
 
 ## Non-Goals
 

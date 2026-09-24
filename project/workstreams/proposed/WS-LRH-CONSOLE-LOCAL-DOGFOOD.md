@@ -16,7 +16,11 @@ related_design:
 work_items:
 - "WI-LRH-CONSOLE-DESKTOP-PROTOCOL"
 - "WI-LRH-CONSOLE-DESKTOP-L0"
-execution_records: []
+execution_records:
+- "2026_09_24_21_02_46_LRH_CONSOLE_LOCAL_DOGFOOD"
+- "2026_09_24_21_02_46_WS_LRH_CONSOLE_LOCAL_DOGFOOD"
+- "2026_09_24_21_02_47_WI_LRH_CONSOLE_DESKTOP_PROTOCOL"
+- "2026_09_24_21_02_47_WI_LRH_CONSOLE_DESKTOP_L0"
 evidence: []
 exit_criteria:
 - "Local L0-L4 slices have reviewed implementation/evidence, or an explicit reviewed scope revision records deferral."
@@ -95,6 +99,10 @@ existing execution framework, without changing that workstream's ownership.
 Only these two leaves are created initially. L1's snapshot/view schema and
 renderer, then L2–L4, will receive bounded items after the preceding evidence gates.
 A partial L0 implementation cannot close this local dogfood workstream.
+
+The four `execution_records` links above identify this package's AD_HOC planning
+creation records under `project/executions/AD_HOC/`. They document creation of the
+proposal, workstream, and leaves; they are not runtime implementation evidence.
 
 ## Sequence and decision gates
 

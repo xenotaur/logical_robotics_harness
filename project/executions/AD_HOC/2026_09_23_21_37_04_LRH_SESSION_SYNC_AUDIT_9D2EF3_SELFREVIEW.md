@@ -2,14 +2,14 @@
 execution_id: 2026_09_23_21_37_04_LRH_SESSION_SYNC_AUDIT_9D2EF3_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LRH_SESSION_SYNC_AUDIT_9D2EF3_SELFREVIEW)[2026-09-23T21:33:39+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/716
-commit: 
+commit: 64c5ce2c739d36611aa0e81896dca65369c678d7
 created_at: 2026-09-23T21:37:04+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/716
-session_transcript: pending
+session_transcript: claude-app:76d4f44b-1d4f-43ee-96c3-4d6ef17392d1
 ---
 
 # Summary

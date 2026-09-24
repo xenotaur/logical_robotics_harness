@@ -41,7 +41,7 @@ acceptance:
   - "src/lrh/skills/lrh-claude-session/SKILL.md exists and reports `session_transcript: claude-app:<host-uuid-stem>` for the current window without reading, exporting, or printing transcript content"
   - "For the current window the skill resolves via `lrh conversation current-claude-session-id`, falls back to reading CLAUDE_CODE_HOST_SESSION_ID directly (stripping local_) only when the installed CLI lacks that subcommand, uses only the host id (never CLAUDE_CODE_SESSION_ID) as the pointer, and on any other resolver failure or an `unknown` host pointer records no pointer and reports `pending`"
   - "Where the session-management get_session tool is available the skill also reports title and branch; for another session it resolves via list_sessions by PR number, then branch or title, then a user pick from the list"
-  - "/lrh-closeout Step 3, /lrh-land Step 3, and /lrh-implement's alias-capture step call /lrh-claude-session instead of restating the resolution order, and pass --title and --branch to record-session-alias where resolved"
+  - "/lrh-closeout Step 3, /lrh-land Step 3, and /lrh-implement's alias-capture step call /lrh-claude-session instead of restating the resolution order; the two record-session-alias call sites (/lrh-closeout Step 5 and /lrh-implement) pass --title and --branch where resolved"
   - "Claude, Codex, and Antigravity rendered targets are regenerated for every touched skill, CLAUDE.md indexes /lrh-claude-session, and lrh chain-defaults status reports stale: False"
   - "lrh validate reports 0 errors"
 required_evidence:
@@ -105,8 +105,11 @@ current-claude-session-id` (`WI-CLAUDE-EXPORT-CURRENT-SESSION-RESOLVER`, PR
 #698). Its Non-Goals explicitly deferred moving `/lrh-closeout` Step 3 onto
 the resolver as "a natural follow-up", but that follow-up was never filed.
 
-Separately, none of the three callers passes `--title` to
-`record-session-alias`, and `/lrh-closeout` also omits `--branch`. As a
+Separately, `record-session-alias` has exactly two call sites:
+`/lrh-implement`'s alias capture and `/lrh-closeout` Step 5.
+`/lrh-land` reaches it only through the `/lrh-closeout` workflow it runs
+inline. Neither call site passes `--title`, and `/lrh-closeout` also omits
+`--branch`. As a
 result, 0 of 30 rows in `project/sessions/index.jsonl` have a title. A
 single resolver skill that also reports title and branch fixes both
 problems in one place.
@@ -233,8 +236,10 @@ Two caveats for the implementer:
   and branch, and resolves another session by PR, then branch or title,
   then a user pick.
 - `/lrh-closeout` Step 3, `/lrh-land` Step 3, and `/lrh-implement` call the
-  skill rather than restating the resolution order, and pass `--title` and
-  `--branch` to `record-session-alias` where resolved.
+  skill rather than restating the resolution order.
+- The two `record-session-alias` call sites, `/lrh-closeout` Step 5 and
+  `/lrh-implement`, pass `--title` and `--branch` where resolved.
+  `/lrh-land` has no call site of its own; it inherits closeout's.
 - Rendered targets are regenerated for every touched skill. `CLAUDE.md`
   indexes the new skill. `lrh chain-defaults status` reports `stale: False`.
 - `lrh validate` reports 0 errors.

@@ -252,7 +252,8 @@ stopping at the first that yields a confident value:
    to paste. If the user already has a `local_<uuid>` from another source,
    such as an older note or a `claude://…/local_<uuid>` session link, accept
    it the same way.
-   `list_sessions` excludes the session it is called from, so when
+   `list_sessions` excludes the session it is called from (per that
+   tool's own contract), so when
    closeout may be running in the authoring session, also offer the current
    session from `get_session` (`"self"`) as a candidate. If the user picks
    it here, still withhold the child-id alias at Step 5: path 3 never pairs

@@ -2,14 +2,14 @@
 execution_id: "2026_09_24_21_02_47_WI_LRH_CONSOLE_DESKTOP_L0"
 prompt_id: "PROMPT(AD_HOC:WI_LRH_CONSOLE_DESKTOP_L0)[2026-09-24T21:00:45+00:00]"
 work_item: "AD_HOC"
-status: "in_progress"
+status: landed
 rerun_of: null
-pr: "https://github.com/xenotaur/logical_robotics_harness/pull/721"
-commit: null
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/721
+commit: a24172c520f9109f3dcc0a4aa8d542198ee2d2c3
 created_at: "2026-09-24T21:02:47+00:00"
 agent: "codex_cloud"
 instruction_source: "project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-L0.md"
-session_transcript: "pending"
+session_transcript: pending
 ---
 
 # Summary

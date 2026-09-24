@@ -2,14 +2,14 @@
 execution_id: 2026_09_24_21_20_28_LRH_CONSOLE_LOCAL_DOGFOOD_CONFIRM
 prompt_id: PROMPT(AD_HOC:LRH_CONSOLE_LOCAL_DOGFOOD_CONFIRM)[2026-09-24T21:19:26+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_24_21_02_46_LRH_CONSOLE_LOCAL_DOGFOOD
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/721
-commit:
+commit: a24172c520f9109f3dcc0a4aa8d542198ee2d2c3
 created_at: 2026-09-24T21:20:28+00:00
 agent: "codex_cloud"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/721"
-session_transcript: "pending"
+session_transcript: pending
 ---
 
 # Summary

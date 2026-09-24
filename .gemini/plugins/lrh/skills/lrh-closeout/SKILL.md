@@ -265,6 +265,11 @@ Before touching any files, show the user:
 - For any WI being resolved: the `resolution:` text to be written. If the
   user has not already stated it, ask: "What should the `resolution:` note
   say for `<WI-ID>`?" (one-line summary; e.g., `"Implemented and merged in PR #342 (commit abc1234)"`)
+- The closeout-triggered archive-sync command that will run after confirmed
+  control-plane edits and before validation:
+  `lrh sessions closeout-sync --project-root .`. Include any explicit
+  `--archive-root`, `--claude-projects-root`, or `--exports-dir` values if
+  the user provided them for this closeout.
 
 **WS exit criteria confirmation:** for any WS where closeout is being offered,
 display the full `exit_criteria:` list (already shown at Step 2, repeated here
@@ -379,6 +384,31 @@ Then move the entire proposal directory:
 mv project/design/proposals/proposed/<slug>/ project/design/proposals/adopted/<slug>/
 ```
 
+**Closeout-triggered session archive sync** (always run after confirmed
+control-plane actions and before validation):
+
+```bash
+lrh sessions closeout-sync --project-root .
+```
+
+If this closeout needs an explicit archive root, Claude projects root, or export
+zip directory, pass the corresponding flags:
+
+```bash
+lrh sessions closeout-sync \
+  --project-root . \
+  --archive-root <private-archive-root> \
+  --claude-projects-root <claude-projects-root> \
+  --exports-dir <export-zip-directory>
+```
+
+The command prints a human-visible outcome and may update the private local
+archive and `project/sessions/index.jsonl`; it must not print raw transcript
+bodies. If it exits non-zero, stop and report the error before committing. Do
+not silently skip it unless the user explicitly asked for a dry-run or disabled
+archive sync for this closeout. For a dry-run, use `--dry-run` and record that
+no archive writes were attempted.
+
 ### Step 6 — Validate
 
 ```bash
@@ -433,6 +463,8 @@ git commit -m "chore(closeout): <summary of actions> (PR #N)"
 Report to the user:
 
 - Each action taken (file edited, file moved, validation result)
+- The closeout-triggered archive sync result, including whether it was a real
+  run or `--dry-run`
 - Commit SHA on `main`
 - If any `session_transcript` is still `pending`: remind the user to update it
   with the durable pointer for that record's own backend before archiving the
@@ -470,6 +502,9 @@ Before reporting completion, verify:
 - [ ] Session transcript value resolved (or `pending` confirmed)
 - [ ] User confirmed at Step 4 before any files were touched
 - [ ] Each file read before editing; no partial edits
+- [ ] `lrh sessions closeout-sync --project-root .` ran after confirmed
+      actions and before validation, or an explicit user-approved dry-run/skip
+      was recorded
 - [ ] `mv` used for WI/WS/proposal moves (not `cp`)
 - [ ] `lrh validate` reports 0 errors before commit
 - [ ] Committed to `main` (not a feature branch)

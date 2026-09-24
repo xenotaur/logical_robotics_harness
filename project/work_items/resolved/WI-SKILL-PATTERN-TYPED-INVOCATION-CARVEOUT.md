@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #718 (commit a0f954a8823578e6741c215b58832cc2c15e6e94)'
 blocked_reason: null
 blocked: false
 id: WI-SKILL-PATTERN-TYPED-INVOCATION-CARVEOUT
 title: Document the typed-invocation carve-out to the confirm-before-write gate
 type: deliverable
-status: proposed
+status: resolved
 owner: null
 contributors: []
 assigned_agents: []

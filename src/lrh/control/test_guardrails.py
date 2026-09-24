@@ -3,9 +3,22 @@
 from __future__ import annotations
 
 import ast
+import os
 import pathlib
 import sys
 from typing import Sequence
+
+_IGNORED_DIRS = frozenset(
+    {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
+)
 
 PYTEST_FIXTURE_NAMES = frozenset(
     {"tmp_path", "monkeypatch", "capsys", "capfd", "caplog", "pytestconfig"}
@@ -123,7 +136,13 @@ def scan_test_files(
         if target.is_file() and target.name.endswith("_test.py"):
             all_violations.extend(check_test_file(target))
         elif target.is_dir():
-            for test_file in sorted(target.rglob("*_test.py")):
+            test_files: list[pathlib.Path] = []
+            for dirpath, dirnames, filenames in os.walk(target, topdown=True):
+                dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+                for f in filenames:
+                    if f.endswith("_test.py"):
+                        test_files.append(pathlib.Path(dirpath) / f)
+            for test_file in sorted(test_files):
                 all_violations.extend(check_test_file(test_file))
 
     return all_violations

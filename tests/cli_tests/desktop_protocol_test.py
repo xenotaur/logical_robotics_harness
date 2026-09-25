@@ -55,6 +55,18 @@ class _NotFoundHandler(http.server.BaseHTTPRequestHandler):
         return
 
 
+class _ListStatusHandler(http.server.BaseHTTPRequestHandler):
+    def do_GET(self) -> None:
+        body = b"[]"
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, format: str, *args: object) -> None:
+        return
+
+
 class _Session:
     """Run ``desktop_protocol.run_session`` on in-process pipes."""
 
@@ -368,11 +380,16 @@ class DesktopProtocolSessionTest(unittest.TestCase):
         session.send(_control("reload", request_id="a"))
         session.send(_start_request(str(self.repo)))
         session.send(_control("shutdown", protocol_version=2))
+        session.send(_control("shutdown", protocol_version=True))
 
         unknown = session.receive()
         self.assertEqual(unknown["error"]["code"], "unknown_message_type")
         self.assertEqual(unknown["request_id"], "a")
         self.assertEqual(session.receive()["error"]["code"], "already_started")
+        self.assertEqual(
+            session.receive()["error"]["code"], "unsupported_protocol_version"
+        )
+        # JSON true must not be accepted as version 1.
         self.assertEqual(
             session.receive()["error"]["code"], "unsupported_protocol_version"
         )
@@ -555,6 +572,22 @@ class DesktopProtocolStartupFailureTest(unittest.TestCase):
             return server
 
         session = _Session(self, server_factory=wrong_server_factory)
+
+        session.send(_start_request(str(self.repo)))
+
+        self._assert_failed(session, "startup_self_check_failed", launch_id="launch-1")
+        with self.assertRaises(OSError):
+            _get_status(created[0].server_address[1])
+
+    def test_non_object_status_payload_fails_self_check_and_closes(self) -> None:
+        created: list[http.server.HTTPServer] = []
+
+        def list_server_factory(project_root: pathlib.Path) -> Any:
+            server = serve.ThreadingHTTPServer(("127.0.0.1", 0), _ListStatusHandler)
+            created.append(server)
+            return server
+
+        session = _Session(self, server_factory=list_server_factory)
 
         session.send(_start_request(str(self.repo)))
 

@@ -134,11 +134,17 @@ version 1.
 The supervisor must accept `ready` only if **all** of these hold, and otherwise
 stop the child and report an incompatible or mismatched backend:
 
-1. `protocol` and `protocol_version` are supported.
+1. `protocol` matches, and `protocol_version` is a supported JSON integer.
+   A JSON `true` is not version 1.
 2. `launch_id` equals the one it sent for the current launch.
 3. `workspace.requested_project_root` equals exactly the path it sent, and the
-   canonical (`realpath`) form of that path equals `workspace.project_root` or,
-   when a `project/` control directory was configured, `workspace.project_dir`.
+   reported root and control directory agree with the canonical (`realpath`)
+   form of that path:
+   - For a repository root, `workspace.project_root` equals it and
+     `workspace.project_dir` is `<root>/project` (or the root itself for a
+     bare control directory).
+   - For a `project/` control directory, `workspace.project_dir` equals it
+     and `workspace.project_root` is its parent.
 4. `endpoint.host` is a loopback address and `endpoint.port` is 1–65535.
 
 Only then may it load `endpoint.url`. A responding port, a matching process
@@ -284,7 +290,9 @@ the current state or endpoint. During startup, a `ready` or `failed` from the
 current handle whose `launch_id` does not match is a failed launch
 (`launch_id_mismatch`): stop that child rather than waiting past it.
 
-**Exit handling.** Always wait on the child handle. An exit while `running` is
+**Exit handling.** Always wait on the child handle, and check it before
+treating a server as running: Start must not return a previous handshake for
+a child that has already exited. An exit while `running` is
 an unexpected stop: show failed with the exit code and a bounded stderr tail
 (the reference keeps 64 KiB). An exit while `stopping` completes the stop. An
 exit before `ready` is a startup failure, whether or not `failed` was received.

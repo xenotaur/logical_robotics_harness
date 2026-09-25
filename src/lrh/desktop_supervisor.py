@@ -136,7 +136,7 @@ def verify_ready(
     if message.get("protocol") != desktop_protocol.PROTOCOL_NAME:
         raise SupervisorError("incompatible_backend", "unexpected protocol name")
     version = message.get("protocol_version")
-    if version not in desktop_protocol.SUPPORTED_PROTOCOL_VERSIONS:
+    if not desktop_protocol.is_supported_version(version):
         raise SupervisorError(
             "incompatible_backend",
             f"unsupported protocol_version {version!r}",
@@ -156,12 +156,15 @@ def verify_ready(
                 "actual": workspace.get("requested_project_root"),
             },
         )
-    expected = str(sent_project_root.resolve())
-    if expected not in (workspace.get("project_root"), workspace.get("project_dir")):
+    if not _workspace_matches(sent_project_root.resolve(), workspace):
         raise SupervisorError(
             "workspace_mismatch",
             "backend reports a different effective workspace",
-            {"expected": expected, "actual": workspace.get("project_root")},
+            {
+                "expected": str(sent_project_root.resolve()),
+                "actual": workspace.get("project_root"),
+                "actual_project_dir": workspace.get("project_dir"),
+            },
         )
     endpoint = message.get("endpoint")
     if not isinstance(endpoint, dict):
@@ -184,6 +187,27 @@ def verify_ready(
         host=host,
         port=port,
         url=f"http://{url_host}:{port}/",
+    )
+
+
+def _workspace_matches(expected: Path, workspace: dict[str, Any]) -> bool:
+    """Require the reported root and control directory to agree with each other.
+
+    ``expected`` is the canonical configured path: either a repository root
+    (whose control directory is ``<root>/project`` or the root itself) or a
+    ``project/`` control directory (whose repository root is its parent).
+    """
+
+    root = workspace.get("project_root")
+    project_dir = workspace.get("project_dir")
+    if not isinstance(root, str) or not isinstance(project_dir, str):
+        return False
+    if root == str(expected):
+        return project_dir in (str(expected / "project"), str(expected))
+    return (
+        expected.name == "project"
+        and project_dir == str(expected)
+        and root == str(expected.parent)
     )
 
 
@@ -303,6 +327,16 @@ class OwnedServer:
             self.handshake = verify_ready(item, self.launch_id, self.project_root)
             self.state = STATE_RUNNING
             return self.handshake
+
+    def is_running(self) -> bool:
+        """True only while the handshake holds and the child handle is alive."""
+
+        if self.state != STATE_RUNNING or self.process is None:
+            return False
+        if self.process.poll() is not None:
+            self.state = STATE_FAILED
+            return False
+        return True
 
     def ping(self, timeout: float = 5.0) -> dict[str, Any]:
         """Round-trip a ``ping`` over the private channel."""
@@ -500,9 +534,10 @@ class DesktopSupervisor:
         """Idempotent: return the running handshake instead of relaunching."""
 
         with self._lock:
-            if self.current is not None and self.current.state == STATE_RUNNING:
+            if self.current is not None and self.current.is_running():
                 assert self.current.handshake is not None
                 return self.current.handshake
+            # Reap a child that exited on its own before relaunching.
             self._stop_locked()
             self.current = OwnedServer(
                 self.command_prefix, self.project_root, env=self.env

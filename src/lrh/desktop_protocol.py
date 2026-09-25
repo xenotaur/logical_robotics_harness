@@ -207,6 +207,16 @@ def _echo_path(path: str) -> str:
     return path
 
 
+def is_supported_version(version: object) -> bool:
+    """Return True only for an exact supported integer (never a JSON bool)."""
+
+    return (
+        isinstance(version, int)
+        and not isinstance(version, bool)
+        and version in SUPPORTED_PROTOCOL_VERSIONS
+    )
+
+
 def extract_launch_id(message: dict[str, Any]) -> str | None:
     """Return the message's launch ID when it is well formed, else None."""
 
@@ -235,11 +245,7 @@ def parse_start_request(message: dict[str, Any]) -> StartRequest:
             "the first message must have type 'start'",
         )
     version = message.get("protocol_version")
-    if (
-        not isinstance(version, int)
-        or isinstance(version, bool)
-        or version not in SUPPORTED_PROTOCOL_VERSIONS
-    ):
+    if not is_supported_version(version):
         raise ProtocolError(
             "unsupported_protocol_version",
             f"protocol_version {_echo(version)} is not supported",
@@ -534,6 +540,10 @@ def _self_check(host: str, port: int, timeout: float) -> None:
         raise ProtocolError(
             "startup_self_check_failed", "status route returned invalid JSON"
         ) from err
+    if not isinstance(payload, dict):
+        raise ProtocolError(
+            "startup_self_check_failed", "status route did not return an object"
+        )
     if payload.get("service") != "lrh serve" or payload.get("port") != port:
         raise ProtocolError(
             "startup_self_check_failed",
@@ -814,7 +824,7 @@ def _control_message_error(
         return ProtocolError(
             "unsupported_protocol", f"expected protocol {PROTOCOL_NAME!r}"
         )
-    if message.get("protocol_version") != PROTOCOL_VERSION:
+    if not is_supported_version(message.get("protocol_version")):
         return ProtocolError(
             "unsupported_protocol_version",
             "control messages must use the negotiated protocol_version",

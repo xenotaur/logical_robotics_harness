@@ -1,6 +1,7 @@
 import pathlib
 import tempfile
 import unittest
+import unittest.mock
 from typing import Any
 
 from lrh import desktop_supervisor
@@ -78,6 +79,7 @@ class VerifyReadyTest(unittest.TestCase):
         other_root.mkdir()
         cases = {
             "incompatible_backend": _ready(self.root, protocol_version=2),
+            "incompatible_backend (bool)": _ready(self.root, protocol_version=True),
             "launch_id_mismatch": _ready(self.root, launch_id="launch-0"),
             "workspace_mismatch": {
                 **_ready(self.root),
@@ -95,7 +97,31 @@ class VerifyReadyTest(unittest.TestCase):
             with self.subTest(code=code):
                 with self.assertRaises(desktop_supervisor.SupervisorError) as ctx:
                     desktop_supervisor.verify_ready(message, "launch-1", self.root)
-                self.assertEqual(ctx.exception.code, code)
+                self.assertEqual(ctx.exception.code, code.split(" ")[0])
+
+    def test_control_dir_root_must_be_its_parent(self) -> None:
+        control_dir = self.root / "project"
+        unrelated = self.root / "unrelated"
+        message = _ready(self.root)
+        message["workspace"] = {
+            "requested_project_root": str(control_dir),
+            "project_root": str(unrelated.resolve()),
+            "project_dir": str(control_dir.resolve()),
+        }
+
+        with self.assertRaises(desktop_supervisor.SupervisorError) as ctx:
+            desktop_supervisor.verify_ready(message, "launch-1", control_dir)
+
+        self.assertEqual(ctx.exception.code, "workspace_mismatch")
+
+    def test_repo_root_requires_matching_control_dir(self) -> None:
+        message = _ready(self.root)
+        message["workspace"]["project_dir"] = "/elsewhere/project"
+
+        with self.assertRaises(desktop_supervisor.SupervisorError) as ctx:
+            desktop_supervisor.verify_ready(message, "launch-1", self.root)
+
+        self.assertEqual(ctx.exception.code, "workspace_mismatch")
 
 
 class MessageBuilderTest(unittest.TestCase):
@@ -142,6 +168,15 @@ class OwnedServerTest(unittest.TestCase):
         self.assertEqual(
             owned.command, ["/opt/lrh/bin/lrh", "serve", "--desktop-protocol"]
         )
+
+    def test_exited_child_is_not_running(self) -> None:
+        owned = desktop_supervisor.OwnedServer(["lrh"], pathlib.Path("/work/repo"))
+        owned.state = desktop_supervisor.STATE_RUNNING
+        owned.process = unittest.mock.Mock()
+        owned.process.poll.return_value = 1
+
+        self.assertFalse(owned.is_running())
+        self.assertEqual(owned.state, desktop_supervisor.STATE_FAILED)
 
     def test_stop_before_start_is_a_no_op(self) -> None:
         owned = desktop_supervisor.OwnedServer(["lrh"], pathlib.Path("/work/repo"))

@@ -20,10 +20,10 @@ artifacts:
   - tests/cli_tests/desktop_supervisor_test.py
   - tests/smoke/desktop_protocol_smoke.py
 metrics:
-  unit_tests_total: 1770
-  desktop_protocol_unit_tests: 42
-  desktop_supervisor_unit_tests: 10
-  desktop_protocol_smoke_tests: 20
+  unit_tests_total: 1774
+  desktop_protocol_unit_tests: 43
+  desktop_supervisor_unit_tests: 13
+  desktop_protocol_smoke_tests: 21
   spawn_to_ready_median_seconds: 0.198
   shutdown_to_exit_median_seconds: 0.289
   stdin_close_to_exit_median_seconds: 0.285
@@ -67,9 +67,9 @@ and put first on `PATH`.
 | `scripts/version tools` | Ruff 0.15.12, Black 26.3.1, Python 3.11.8; LRH CLI and metadata agree. |
 | `scripts/format --check --diff` | 261 files unchanged. |
 | `scripts/lint` | Ruff: all checks passed; Black clean; test guardrails passed (exit 0). |
-| `scripts/test --log` | `Ran 1770 tests in 121.892s`, `OK`. |
+| `scripts/test --log` | `Ran 1774 tests in 117.417s`, `OK`. Re-run after the PR review fixes. |
 | `lrh validate` | `Validation completed: 0 error(s), 0 warning(s)`. |
-| `python -m unittest tests.smoke.desktop_protocol_smoke` | `Ran 20 tests in 11.917s`, `OK`. An earlier 17-test revision passed three consecutive reruns. The final desktop suites (72 tests) produced zero `ResourceWarning`s under `-W always::ResourceWarning`. |
+| `python -m unittest tests.smoke.desktop_protocol_smoke` | `Ran 21 tests in 12.718s`, `OK`. An earlier 17-test revision passed three consecutive reruns. The final desktop suites (77 tests) produced zero `ResourceWarning`s under `-W always::ResourceWarning`. |
 | `scripts/smoke` | Run on the 17-test revision: 29 tests, 1 failure, in the pre-existing `prompt_cli_install_smoke` (see below). All desktop protocol smoke tests passed within that run. |
 
 `scripts/smoke` failure, unrelated to this change: `prompt_cli_install_smoke`
@@ -138,6 +138,19 @@ were fixed before the PR was opened:
 6. The doc now notes that existing Meta selector routes can show other
    registered projects, and that a blocked stdout write is bounded only by
    escalation.
+
+## PR review round
+
+Codex and Copilot raised 5 threads on PR #727; all were fixed with
+regression tests.
+
+- A dead child after `ready` could leave `DesktopSupervisor.start()` returning
+  a stale handshake. The supervisor now checks the child handle, and the smoke
+  test covers kill-then-start relaunch.
+- Root and control-directory identity fields must now agree with each other.
+- A JSON boolean `protocol_version` is rejected, both in `ready` and in child
+  control messages.
+- A non-object status payload fails the self-check and closes the server.
 
 ## Supervisor example (observed)
 

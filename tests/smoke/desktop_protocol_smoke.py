@@ -551,6 +551,23 @@ class DesktopProtocolSmokeTest(unittest.TestCase):
         self.assertEqual(stop_result.exit_code, 0)
         self.assertEqual(first_owned.stale_events, [])
 
+    def test_start_after_child_crash_relaunches(self) -> None:
+        supervisor = desktop_supervisor.DesktopSupervisor(
+            _lrh_command(), self.workspace, env=_child_env()
+        )
+        self.addCleanup(supervisor.stop)
+        first = supervisor.start()
+        crashed = supervisor.current
+        assert crashed is not None and crashed.process is not None
+
+        crashed.process.kill()
+        crashed.process.wait(_PROCESS_TIMEOUT_SECONDS)
+        second = supervisor.start()
+
+        self.assertNotEqual(first.launch_id, second.launch_id)
+        self.assertIsNot(supervisor.current, crashed)
+        self.assertEqual(_http_status(second.port), 200)
+
     def test_unrelated_server_is_untouched_by_owned_lifecycle(self) -> None:
         unrelated, unrelated_port = self._start_unrelated_server()
 

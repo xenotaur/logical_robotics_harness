@@ -2,10 +2,10 @@
 id: WI-LRH-MEMORY-WRITE-OVERWRITE-PRESERVE-METADATA
 title: Fix key-loss and filename-derivation bugs in lrh memory write/import/transfer/repair
 type: deliverable
-status: proposed
+status: resolved
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: "Implemented and merged via PR #714 (commit dedaa7d95ab74aee27a69146a8c83c8432f90125)."
 owner: anthony
 contributors:
   - anthony

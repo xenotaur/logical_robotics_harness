@@ -2,14 +2,14 @@
 execution_id: 2026_09_22_15_22_38_WI_LRH_MEMORY_WRITE_OVERWRITE_PRESERVE_METADATA
 prompt_id: PROMPT(WI-LRH-MEMORY-WRITE-OVERWRITE-PRESERVE-METADATA:WI_LRH_MEMORY_WRITE_OVERWRITE_PRESERVE_METADATA)[2026-09-22T14:57:46+00:00]
 work_item: WI-LRH-MEMORY-WRITE-OVERWRITE-PRESERVE-METADATA
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/714
-commit: 
+commit: dedaa7d95ab74aee27a69146a8c83c8432f90125
 created_at: 2026-09-22T15:22:38+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-LRH-MEMORY-WRITE-OVERWRITE-PRESERVE-METADATA.md
-session_transcript: pending
+session_transcript: claude-app:239809db-0aff-4cae-b00b-76078ee01394
 ---
 
 # Summary

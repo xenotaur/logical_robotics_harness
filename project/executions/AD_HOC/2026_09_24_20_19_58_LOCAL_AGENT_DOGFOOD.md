@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of: null
 pr: "https://github.com/xenotaur/logical_robotics_harness/pull/719"
-commit: "468d782190a68027f5b97fe715e100a986b846b2"
+commit: null
 created_at: "2026-09-24T20:19:58+00:00"
 agent: "codex_app"
 instruction_source: "project/design/proposals/proposed/local-agent-dogfood/00_proposal.md"

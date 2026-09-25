@@ -21,8 +21,7 @@ related_design:
   - project/design/execution_framework_mvp.md
 depends_on:
   - WI-LOCAL-AGENT-001
-blocked_by:
-  - WI-LOCAL-AGENT-001
+blocked_by: []
 expected_actions:
   - create_file
   - edit_file

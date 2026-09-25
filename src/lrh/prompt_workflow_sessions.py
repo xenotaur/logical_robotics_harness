@@ -4,12 +4,12 @@ Stage 1 of PROP-LRH-SESSION-ARCHIVE-SYNC added identity capture (host id,
 child id aliases, title, PRs, branch/written_branches fields reserved for
 later fork stitching). Stage 2 (WI-SESSION-ARCHIVE-SYNC-RECONCILER) adds
 the archive reconciler: mirroring raw transcripts into a durable local
-archive, harvesting /export metadata.json for the host<->child<->PR
-mapping on pointers that already dangle, and the discover/link lookups
-that read the resulting archive and index. Stage 3 adds the metadata-only
-lrh sessions report coverage check. Stage 4 wires sync into closeout and adds
-an inspectable weekly scheduling path. None of these stages changes the
-session_transcript scalar/sequence grammar.
+archive, harvesting desktop-app session-export-*.zip metadata.json for
+the host<->child<->PR mapping on pointers that already dangle, and the
+discover/link lookups that read the resulting archive and index. Stage 3
+adds the metadata-only lrh sessions report coverage check. Stage 4 wires
+sync into closeout and adds an inspectable weekly scheduling path. None of
+these stages changes the session_transcript scalar/sequence grammar.
 """
 
 from __future__ import annotations
@@ -945,7 +945,8 @@ def reconcile_child_id_aliases(
 
 
 # ---------------------------------------------------------------------------
-# /export zip metadata harvest (identity fields only -- never bodies/logs)
+# session-export-*.zip metadata harvest (identity fields only -- never
+# bodies/logs)
 # ---------------------------------------------------------------------------
 
 # Exactly the identity fields the governing proposal's archive layout
@@ -967,9 +968,9 @@ class ExportMetadataError(Exception):
 
 
 def harvest_export_metadata(export_zip: pathlib.Path) -> dict[str, typing.Any]:
-    """Read only the permitted identity fields from an ``/export`` zip's
-    ``metadata.json`` -- never the transcript body or the bundled ``logs/``,
-    which is not opened or listed at all."""
+    """Read only the permitted identity fields from a desktop-app
+    ``session-export-*.zip``'s ``metadata.json`` -- never the transcript
+    body or the bundled ``logs/``, which is not opened or listed at all."""
 
     try:
         with zipfile.ZipFile(export_zip) as archive:
@@ -1034,8 +1035,8 @@ def sync_export(
     *,
     updated_at: str,
 ) -> SessionRecord | None:
-    """Harvest one ``/export`` zip, persist its sanitized metadata copy,
-    then upsert the resulting host<->child<->PR mapping into the index.
+    """Harvest one ``session-export-*.zip``, persist its sanitized metadata
+    copy, then upsert the resulting host<->child<->PR mapping into the index.
 
     Returns ``None`` (with the persisted copy still written) when the
     metadata has no usable host id -- there is nothing to key an index

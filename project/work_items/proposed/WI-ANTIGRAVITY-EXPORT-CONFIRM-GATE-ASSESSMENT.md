@@ -3,7 +3,7 @@ resolution: null
 blocked_reason: null
 blocked: false
 id: WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT
-title: Assess and, if simple, add a confirm-before-write gate to lrh-antigravity-export
+title: "Assess and, if simple, add a confirm-before-write gate to lrh-export-antigravity"
 type: evaluation
 status: proposed
 owner: anthony
@@ -30,7 +30,7 @@ forbidden_actions:
   - weaken_human_gate
   - print_transcript_text
 acceptance:
-  - A written assessment compares lrh-antigravity-export with lrh-export-claude and lrh-codex-export on the confirm-before-write step, the proactive-invocation guard in when_to_use, the concrete-path resolution rule, and the privacy risk of an unconfirmed durable write, citing file and line for each
+  - A written assessment compares lrh-export-antigravity with lrh-export-claude and lrh-export-codex on the confirm-before-write step, the proactive-invocation guard in when_to_use, the concrete-path resolution rule, and the privacy risk of an unconfirmed durable write, citing file and line for each
   - The assessment ends in an explicit recommendation (add a gate, or leave as is with rationale)
   - If the recommendation is to add a gate and the change is simple, it is implemented in the same PR, matching the Claude and Codex export skills' Step 3 wording, and the assessment states why the scope stayed reasonable
   - If the change is not simple, or the scope grows beyond what the human and the agent in the implementing session judge reasonable, the gate is not implemented in this PR; the implementing session and the human then judge together whether a separate follow-up work item is warranted or the recommendation is simply reported as a finding
@@ -43,9 +43,10 @@ required_evidence:
   - lrh_validate
   - test_output
 artifacts_expected:
-  - src/lrh/skills/lrh-antigravity-export/SKILL.md
-  - .claude/skills/lrh-antigravity-export/
-  - .agents/skills/lrh-antigravity-export/
+  - src/lrh/skills/lrh-export-antigravity/SKILL.md
+  - .claude/skills/lrh-export-antigravity/
+  - .agents/skills/lrh-export-antigravity/
+  - .gemini/plugins/lrh/skills/lrh-export-antigravity/
   - the assessment text, recorded in the implementing PR's execution record
 ---
 
@@ -56,11 +57,15 @@ artifacts_expected:
 > `lrh-export-antigravity` and leaves a deprecated stub under the old name.
 > Apply the gate to `lrh-export-antigravity`, not to the stub.
 
-Decide whether `lrh-antigravity-export` needs a confirm-before-write gate like
+Decide whether `lrh-export-antigravity` needs a confirm-before-write gate like
 the Claude and Codex export skills have, and add it in the same PR if the
 change is simple.
 
 ## Problem / Context
+
+The observations below were made before the rename and use the old skill
+names: `lrh-codex-export` is now `lrh-export-codex`, and
+`lrh-antigravity-export` is now `lrh-export-antigravity`.
 
 `lrh-export-claude` has a mandatory confirm-before-write step (Step 3) and a
 `when_to_use` that forbids proactive invocation, because the export writes a
@@ -87,7 +92,7 @@ Prior art check:
 
 ## Scope
 
-- One skill, `lrh-antigravity-export`, and its mirrors.
+- One skill, `lrh-export-antigravity`, and its mirrors.
 - An assessment, plus the gate if the recommendation calls for it and the change
   is simple.
 
@@ -121,7 +126,7 @@ Prior art check:
 - scripts/lint
 - scripts/format --check --diff
 - lrh validate
-- diff -r src/lrh/skills/lrh-antigravity-export .claude/skills/lrh-antigravity-export
+- diff -r src/lrh/skills/lrh-export-antigravity .claude/skills/lrh-export-antigravity
 
 ## Risk Notes
 

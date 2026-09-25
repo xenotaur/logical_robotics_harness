@@ -41,6 +41,7 @@ acceptance:
   - "The resolver is implemented in src/lrh/conversations/antigravity_session.py with hermetic unit tests that cover the resolved, ambiguous and unresolvable cases"
   - "src/lrh/skills/lrh-session-id-antigravity/SKILL.md, modelled on lrh-session-id-codex, wraps the resolver, reports pending when the current conversation cannot be determined, and is installed to all three targets without --force"
   - "docs/reference/cli/conversation.md documents the new subcommand, the pointer format is added wherever the codex-app and claude-app formats are documented, and CLAUDE.md lists /lrh-session-id-antigravity"
+  - "lrh sessions report (build_session_report in src/lrh/prompt_workflow_sessions.py) recognizes the new Antigravity pointer scheme instead of classifying it as unsupported, with tests covering it"
   - "If the investigation recommended deferring, this item is abandoned with that reason instead of implemented"
   - "lrh validate reports 0 errors and scripts/test, scripts/lint and scripts/format --check --diff pass"
 required_evidence:
@@ -50,6 +51,7 @@ required_evidence:
 artifacts_expected:
   - src/lrh/conversations/antigravity_session.py
   - tests/conversations_tests/antigravity_session_test.py
+  - src/lrh/prompt_workflow_sessions.py
   - src/lrh/cli/main.py
   - src/lrh/skills/lrh-session-id-antigravity/SKILL.md
   - src/lrh/skills/lrh-session-id-antigravity/agents/openai.yaml
@@ -126,6 +128,12 @@ choose another name.
    - `project/executions/README.md`
    - `docs/reference/cli/conversation.md`
 6. Add `/lrh-session-id-antigravity` to `CLAUDE.md`.
+7. Update `build_session_report` in `src/lrh/prompt_workflow_sessions.py`.
+   Today it handles only the `claude-app` and `codex-app` schemes and reports
+   every other pointer as `unsupported`.
+   - Recognize the new Antigravity scheme and classify it on the evidence
+     available, the way the other two schemes are classified.
+   - Add tests for it alongside the existing session-report tests.
 
 ## Non-Goals
 
@@ -144,6 +152,8 @@ choose another name.
 - `lrh-session-id-antigravity` wraps the resolver, reports `pending` when the
   conversation is unresolved, and is installed to all three targets.
 - The CLI reference, the pointer-format docs and `CLAUDE.md` are updated.
+- `lrh sessions report` recognizes Antigravity pointers rather than reporting
+  them as unsupported.
 - If the investigation deferred this work, this item is abandoned with that
   reason.
 - `lrh validate` reports 0 errors, and tests, lint and format checks pass.

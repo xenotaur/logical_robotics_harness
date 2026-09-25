@@ -22,6 +22,7 @@ related_design:
 depends_on: []
 blocked_by: []
 expected_actions:
+  - run_tests
   - create_file
   - edit_file
   - write_docs
@@ -39,6 +40,7 @@ acceptance:
   - "Every current skill, doc and proposed work item that names /lrh-codex-session, including the Codex export skill and WI-SKILLS-LRH-CLAUDE-SESSION's template reference, uses /lrh-session-id-codex; adopted and resolved documents are unchanged"
   - "All three install targets contain lrh-session-id-codex and the stub, installed skill by skill without --force, and CLAUDE.md lists /lrh-session-id-codex"
   - "lrh validate reports 0 errors and scripts/test, scripts/lint and scripts/format --check --diff pass"
+  - "On the Antigravity target, where AntigravitySkillRenderer strips disable-model-invocation with no equivalent, each stub's description tells the model not to select it and names the replacement; the implementer also checks whether Antigravity supports an invocation-control field and, if so, maps disable-model-invocation onto it in the renderer"
 required_evidence:
   - manual_review
   - lrh_validate
@@ -126,6 +128,26 @@ locally-modified skill in the target.
    - `WI-SKILLS-LRH-CLAUDE-SESSION`.
 
    Leave adopted and resolved documents and execution records unchanged.
+
+### Stub protection on the Antigravity target
+
+`disable-model-invocation: true` protects a stub differently on each target:
+
+- **Claude:** honored as written.
+- **Codex:** the Codex renderer turns it into
+  `policy.allow_implicit_invocation: false` in `agents/openai.yaml`.
+- **Antigravity:** `AntigravitySkillRenderer`
+  (`src/lrh/skills/installer.py`) strips the key and writes nothing in its
+  place.
+
+For the Antigravity target:
+
+1. Make each stub's `description` tell the model not to select it and
+   name the replacement.
+2. Check whether Antigravity supports any invocation-control field. If it
+   does, map `disable-model-invocation` onto it in the renderer.
+
+See `PROP-LRH-EXPORT-SESSION-ID-SKILL-FAMILIES` Decision 3.
 
 ## Non-Goals
 

@@ -189,6 +189,24 @@ Each old name stays as a stub `SKILL.md`. The stub:
 - sets `disable-model-invocation: true`, so only a typed command reaches it
   and the model always picks the new name.
 
+That protection is enforced differently on each install target:
+
+| Target | How `disable-model-invocation: true` is enforced |
+|---|---|
+| Claude (`.claude/skills/`) | Honored as written. |
+| Codex (`.agents/skills/`) | `CodexSkillRenderer` strips the key and writes `policy.allow_implicit_invocation: false` into `agents/openai.yaml`. Equivalent protection. |
+| Antigravity (`.gemini/plugins/lrh/skills/`) | `AntigravitySkillRenderer` strips the key and writes nothing in its place. **No equivalent protection.** |
+
+For Antigravity:
+- **Mitigation.** The stub's `description` must itself say not to select it
+  (for example, "Deprecated alias; do not select. Use /lrh-export-<vendor>."),
+  so model-driven selection prefers the replacement.
+- **Check first.** The rename work items must check whether Antigravity
+  supports any invocation-control field. If it does, map
+  `disable-model-invocation` onto it in the renderer.
+- **Residual risk is low.** A stub selected by mistake only hands off to its
+  replacement, so the behavior is the same either way.
+
 A reinstall overwrites any stale full copy downstream with the stub. Removing
 the stubs is a later follow-up (see Open Questions).
 
@@ -290,14 +308,14 @@ order:
    - Depends on item 5.
    - Add the Antigravity resolver CLI and `lrh-session-id-antigravity`.
 7. **`WI-LRH-EXPORT-DISPATCHER`**
-   - Depends on item 1.
+   - Depends on items 1 and 4 (whether the Antigravity variant has a confirm gate).
    - Add the `/lrh-export` dispatcher.
 8. **`WI-LRH-SESSION-ID-DISPATCHER`**
    - Depends on items 2 and 3.
    - Add the `/lrh-session-id` dispatcher. Antigravity reports unsupported
      until item 6 ships.
 9. **`WI-EXPORT-SESSION-ID-DOCS`**
-   - Depends on items 7 and 8.
+   - Depends on items 4, 6, 7 and 8.
    - A how-to per vendor under `docs/conversations/`.
    - A reference page listing both skill families.
    - Fix the stale backlog entry, the `proposals/README.md` bucket link, and

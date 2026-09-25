@@ -126,14 +126,15 @@ Listed in delivery order. Each item's `depends_on:` enforces the order.
    - Depends on item 5.
 7. `WI-LRH-EXPORT-DISPATCHER`
    - Add the `/lrh-export` dispatcher.
-   - Depends on item 1.
+   - Depends on items 1 and 4. Item 4 settles whether the Antigravity variant
+     has a confirm gate.
 8. `WI-LRH-SESSION-ID-DISPATCHER`
    - Add the `/lrh-session-id` dispatcher.
    - Depends on items 2 and 3.
 9. `WI-EXPORT-SESSION-ID-DOCS`
    - Per-vendor how-tos, a reference page for both families, and the stale
      docs fixes.
-   - Depends on items 7 and 8.
+   - Depends on items 4, 6, 7 and 8, so it documents settled behavior.
 
 Items 1, 2, 3 and 5 have no dependencies on each other and can run in
 parallel. Item 1 first waits for `WI-EXPORT-SKILLS-LIVE-SESSION-WORDING`,

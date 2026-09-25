@@ -21,8 +21,11 @@ related_design:
 depends_on:
   - WI-LRH-EXPORT-DISPATCHER
   - WI-LRH-SESSION-ID-DISPATCHER
+  - WI-ANTIGRAVITY-SESSION-ID-RESOLVER
+  - WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT
 blocked_by: []
 expected_actions:
+  - run_tests
   - create_file
   - edit_file
   - write_docs
@@ -101,6 +104,16 @@ Findings from the 2026-09-24 audit:
 - Backlog: "Generalize conversation export manifests beyond Codex before
   `/lrh-export`". This item marks it resolved.
 - Recommendation: Resolve the backlog entry as part of this item.
+
+This item also depends on two others, so it documents settled behavior
+instead of inventing it:
+
+- `WI-ANTIGRAVITY-SESSION-ID-RESOLVER`. It may end as implemented or as
+  abandoned; either way, its result decides whether the Antigravity how-to
+  documents a session-ID skill and pointer format, or states they are
+  deferred.
+- `WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT`. Its outcome decides the
+  confirm-gate column for Antigravity in the reference page.
 
 ## Scope
 

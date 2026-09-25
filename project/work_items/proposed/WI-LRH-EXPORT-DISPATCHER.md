@@ -20,8 +20,10 @@ related_design:
   - project/design/proposals/proposed/lrh-export-session-id-skill-families/00_proposal.md
 depends_on:
   - WI-EXPORT-SKILL-FAMILY-RENAME
+  - WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT
 blocked_by: []
 expected_actions:
+  - run_tests
   - create_file
   - edit_file
 forbidden_actions:
@@ -34,6 +36,7 @@ forbidden_actions:
 acceptance:
   - "src/lrh/skills/lrh-export/SKILL.md selects the vendor from an explicit first argument (claude, codex or antigravity) first, then from CLAUDE_CODE_SESSION_ID or CODEX_THREAD_ID (plus an Antigravity signal only if WI-ANTIGRAVITY-SESSION-ID-INVESTIGATION found one), and asks the user when no signal is present or several are"
   - "After selecting the vendor, the dispatcher runs the variant skill's own steps inline, passing the remaining arguments through unchanged; it adds no write step, archive default or confirm gate of its own, and the variant's confirm gate still fires"
+  - "WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT has resolved before this item ships; if it left lrh-export-antigravity without a confirm-before-write gate, the implementer surfaces that to the human before shipping instead of routing an ungated durable write through /lrh-export"
   - "The dispatcher's when_to_use restricts invocation to an explicit user request to export, matching its variants, and never triggers proactively"
   - "The skill is installed to all three targets without --force, and CLAUDE.md lists /lrh-export"
   - "lrh validate reports 0 errors and scripts/test, scripts/lint and scripts/format --check --diff pass"
@@ -94,6 +97,13 @@ vendor: a wrong guess writes a permanent archive copy of the wrong session.
 - Recommendation: No action. `WI-EXPORT-SESSION-ID-DOCS` resolves the backlog
   entry.
 
+The dispatcher also depends on `WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT`.
+That assessment may leave `lrh-export-antigravity` without a confirm-before-write
+gate. If it does, the dispatcher's promise that "the variant's confirm gate
+still fires" would be false for Antigravity. The implementer must then raise
+this with the human before shipping, rather than silently routing an ungated
+durable write through `/lrh-export`.
+
 ## Scope
 
 - Add the dispatcher skill, installed to all three targets, and add it to
@@ -133,6 +143,8 @@ vendor: a wrong guess writes a permanent archive copy of the wrong session.
   then by asking. It asks when signals conflict.
 - It runs the variant inline with arguments passed through and adds no gate
   or write step of its own. The variant's confirm gate still fires.
+- The Antigravity confirm-gate assessment has resolved. If it left the
+  Antigravity variant ungated, that was raised with the human before shipping.
 - `when_to_use` limits it to explicit export requests.
 - It is installed to all three targets and listed in `CLAUDE.md`.
 - `lrh validate` reports 0 errors, and tests, lint and format checks pass.

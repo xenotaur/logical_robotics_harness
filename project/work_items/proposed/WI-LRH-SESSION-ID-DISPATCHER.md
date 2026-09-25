@@ -23,6 +23,7 @@ depends_on:
   - WI-SKILLS-LRH-CLAUDE-SESSION
 blocked_by: []
 expected_actions:
+  - run_tests
   - create_file
   - edit_file
 forbidden_actions:

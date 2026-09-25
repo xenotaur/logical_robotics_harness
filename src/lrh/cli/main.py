@@ -13,6 +13,7 @@ from pathlib import Path
 from lrh import (
     agent_skills_status,
     chain_defaults_status,
+    closeout_pr_verifier,
     confirm_fixes_batch,
     gate_staleness,
     memory_workflow,
@@ -569,6 +570,54 @@ def main() -> None:
         ),
     )
     confirm_fixes_routine_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
+    )
+
+    closeout_parser = subparsers.add_parser(
+        "closeout",
+        help="lrh-closeout support commands.",
+    )
+    closeout_subparsers = closeout_parser.add_subparsers(dest="closeout_command")
+    closeout_verify_pr_parser = closeout_subparsers.add_parser(
+        "verify-pr",
+        help=(
+            "Verify a /lrh-land closeout PR conforms to the plan a human "
+            "approved at Step 6 -- read-only; never merges, pushes, edits "
+            "files, or changes settings."
+        ),
+    )
+    closeout_verify_pr_parser.add_argument("pr_url", help="the closeout PR's URL")
+    closeout_verify_pr_parser.add_argument(
+        "--expected-head",
+        required=True,
+        help="the head SHA the caller states it pushed to this PR",
+    )
+    closeout_verify_pr_parser.add_argument(
+        "--expected-commit",
+        default=None,
+        help=(
+            "the original PR's merge commit SHA (not this closeout PR's own "
+            "head) -- the only value execution records' commit: placeholder "
+            "may be filled with; omit if that merge hasn't happened yet"
+        ),
+    )
+    closeout_verify_pr_parser.add_argument(
+        "--plan-file",
+        required=True,
+        help=(
+            "JSON file with an execution_records mapping of path to expected "
+            "frontmatter fields, per the Step 6 preview"
+        ),
+    )
+    closeout_verify_pr_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    closeout_verify_pr_parser.add_argument(
         "--format",
         choices=("text", "json"),
         default="text",
@@ -1472,6 +1521,29 @@ def main() -> None:
             "confirm-fixes requires a subcommand "
             "(try: lrh confirm-fixes check-batch-routine)"
         )
+
+    if args.command == "closeout":
+        if args.closeout_command == "verify-pr":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            try:
+                result = closeout_pr_verifier.run_verify_pr_cli(
+                    pr_url=args.pr_url,
+                    expected_head=args.expected_head,
+                    expected_commit=args.expected_commit,
+                    plan_file=args.plan_file,
+                    project_root=project_root,
+                )
+            except closeout_pr_verifier.VerificationRunError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            if args.format == "json":
+                print(closeout_pr_verifier.format_json(result))
+            else:
+                print(closeout_pr_verifier.format_text(result))
+            raise SystemExit(0 if result.conforms else 1)
+        parser.error("closeout requires a subcommand (try: lrh closeout verify-pr)")
 
     if args.command == "pii":
         if args.pii_command == "scan":

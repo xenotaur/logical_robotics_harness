@@ -51,9 +51,11 @@ acceptance:
 - "Canonical validation and protocol failure-path tests pass with actual evidence and documented platform limits."
 artifacts_expected:
 - "src/lrh/desktop_protocol.py (proposed module boundary)"
+- "src/lrh/desktop_supervisor.py (minimal reference supervisor and runnable example)"
 - "src/lrh/serve.py and existing Serve CLI integration"
 - "docs/reference/desktop-server-protocol.md"
 - "tests/cli_tests/desktop_protocol_test.py"
+- "tests/cli_tests/desktop_supervisor_test.py"
 - "tests/smoke/desktop_protocol_smoke.py"
 - "project/evidence/EV-LRH-CONSOLE-DESKTOP-PROTOCOL.md"
 ---
@@ -133,6 +135,10 @@ are at `8603b6514329ea242294da420aa448d2fc959fd1`.
    `project/evidence/EV-LRH-CONSOLE-DESKTOP-PROTOCOL.md` using the evidence schema.
    Supply exact commands in the protocol document, plus a minimal supervisor
    example or test driver demonstrating the contract without a Tauri build.
+   Implementation placed that reference supervisor in
+   `src/lrh/desktop_supervisor.py` (runnable as `python -m lrh.desktop_supervisor`)
+   with hermetic checks in `tests/cli_tests/desktop_supervisor_test.py`; the smoke
+   suite drives real processes through it.
 
 The listed test and evidence paths are planned outputs of this implementation
 item, not files delivered by the planning PR. If implementation refines their

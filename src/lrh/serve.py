@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from lrh import core_state
+from lrh import core_state, desktop_protocol
 from lrh.assist import run_packet, run_report, work_item_prompt_core
 from lrh.control import loader as control_loader
 from lrh.conversations import export_inspector
@@ -3125,6 +3125,27 @@ def build_parser(prog: str) -> argparse.ArgumentParser:
         action="store_true",
         help="validate and print deterministic JSON configuration without serving",
     )
+    parser.add_argument(
+        "--desktop-protocol",
+        action="store_true",
+        help=(
+            "run under a desktop supervisor: read a versioned JSON start "
+            "request on stdin, bind 127.0.0.1 on an OS-assigned port, and "
+            "report ready/failed as JSON on stdout (see "
+            "docs/reference/desktop-server-protocol.md); cannot be combined "
+            "with other serve options"
+        ),
+    )
+    parser.add_argument(
+        "--desktop-start-timeout",
+        type=float,
+        default=None,
+        metavar="SECONDS",
+        help=(
+            "with --desktop-protocol, seconds to wait for the start request "
+            f"(default: {desktop_protocol.DEFAULT_START_REQUEST_TIMEOUT_SECONDS:g})"
+        ),
+    )
     return parser
 
 
@@ -3138,9 +3159,83 @@ def config_from_args(args: argparse.Namespace) -> ServeConfig:
     )
 
 
+# Serve options that desktop-protocol mode refuses, keyed by argparse dest.
+_DESKTOP_PROTOCOL_CONFLICTS = {
+    "host": "--host",
+    "port": "--port",
+    "project_root": "--project-root",
+    "codex_archive_root": "--codex-archive-root",
+    "allow_nonlocal_host": "--allow-nonlocal-host",
+    "show_config": "--show-config",
+}
+
+
+def _desktop_protocol_conflicts(prog: str, argv: list[str] | None) -> list[str]:
+    """Return conflicting serve options given explicitly, even at defaults."""
+
+    # Re-parse with None defaults so explicitly supplied default values (for
+    # example ``--port 8765``) are still detected. None is used rather than
+    # argparse.SUPPRESS because argparse type-converts string defaults.
+    probe = build_parser(prog)
+    probe.set_defaults(**{dest: None for dest in _DESKTOP_PROTOCOL_CONFLICTS})
+    explicit = probe.parse_args(argv)
+    return [
+        flag
+        for dest, flag in _DESKTOP_PROTOCOL_CONFLICTS.items()
+        if getattr(explicit, dest) is not None
+    ]
+
+
+def _desktop_server_factory(project_root: Path) -> ThreadingHTTPServer:
+    """Create a loopback server on an OS-assigned port for desktop mode."""
+
+    return create_http_server(
+        ServeConfig(
+            host=desktop_protocol.LOOPBACK_HOST,
+            port=0,
+            project_root=project_root,
+        )
+    )
+
+
+def _run_desktop_protocol_cli(
+    parser: argparse.ArgumentParser,
+    args: argparse.Namespace,
+    argv: list[str] | None,
+) -> int:
+    conflicts = _desktop_protocol_conflicts(parser.prog, argv)
+    if conflicts:
+        parser.error(
+            "--desktop-protocol takes its workspace from the start request and "
+            "always binds 127.0.0.1 on an OS-assigned port; remove "
+            + ", ".join(conflicts)
+        )
+    timeout = args.desktop_start_timeout
+    if timeout is None:
+        timeout = desktop_protocol.DEFAULT_START_REQUEST_TIMEOUT_SECONDS
+    if not (
+        desktop_protocol.MIN_START_REQUEST_TIMEOUT_SECONDS
+        <= timeout
+        <= desktop_protocol.MAX_START_REQUEST_TIMEOUT_SECONDS
+    ):
+        parser.error(
+            "--desktop-start-timeout must be between "
+            f"{desktop_protocol.MIN_START_REQUEST_TIMEOUT_SECONDS:g} and "
+            f"{desktop_protocol.MAX_START_REQUEST_TIMEOUT_SECONDS:g} seconds"
+        )
+    return desktop_protocol.run_desktop_protocol(
+        _desktop_server_factory,
+        start_request_timeout=timeout,
+    )
+
+
 def run_serve_cli(argv: list[str] | None = None, prog: str = "lrh serve") -> int:
     parser = build_parser(prog)
     args = parser.parse_args(argv)
+    if args.desktop_protocol:
+        return _run_desktop_protocol_cli(parser, args, argv)
+    if args.desktop_start_timeout is not None:
+        parser.error("--desktop-start-timeout requires --desktop-protocol")
     config = config_from_args(args)
     try:
         validate_host(config)

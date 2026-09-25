@@ -13,6 +13,7 @@ lrh serve --project-root /path/to/repo
 lrh serve --codex-archive-root private/codex-conversations
 lrh serve --show-config
 python -m lrh.cli.main serve --show-config
+lrh serve --desktop-protocol
 ```
 
 ## Important options and arguments
@@ -25,6 +26,13 @@ python -m lrh.cli.main serve --show-config
   more than once. Relative paths are resolved under `--project-root`.
 - `--allow-nonlocal-host`: explicitly allow binding beyond localhost.
 - `--show-config`: validate and print deterministic JSON configuration without serving.
+- `--desktop-protocol`: run under a desktop supervisor. Reads a versioned JSON
+  start request on stdin, binds `127.0.0.1` on an OS-assigned port, and reports
+  ready/failed and lifecycle events as JSON lines on stdout; human logs go to
+  stderr. Cannot be combined with the options above. See the
+  [desktop server protocol](../desktop-server-protocol.md).
+- `--desktop-start-timeout SECONDS`: with `--desktop-protocol`, how long to wait
+  for the start request (default 10, range 0.1–120).
 - `-h`, `--help`: print command help.
 
 ## Current behavior and limitations
@@ -32,6 +40,9 @@ python -m lrh.cli.main serve --show-config
 - This command is intentionally safe-default and read-only.
 - Non-local host binding requires explicit opt-in with `--allow-nonlocal-host`.
 - `--show-config` is a non-serving diagnostics mode.
+- Without `--desktop-protocol`, the command runs in the foreground, prints one
+  human-readable `listening on` line to stdout, and stops on Ctrl+C. Desktop
+  mode does not change that behavior or any HTTP route or header.
 - The local viewer/workbench is not an autonomous runner.
 - Codex archive viewing is opt-in. Without `--codex-archive-root`, the
   conversation archive routes report no exports and do not browse local files.

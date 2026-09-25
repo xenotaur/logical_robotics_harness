@@ -38,7 +38,7 @@ acceptance:
   - 'Repeated export from identical source content produces deterministic bundle bytes'
   - 'Automated tests cover package and filesystem sources, skill selection, rendering, deterministic ZIP output, invalid source content, and symlink/path-safety behavior'
   - 'ChatGPT usage documentation covers upload, @-invocation, automatic selection, updates, and capability limitations'
-  - 'At least one instruction-centric LRH skill is manually dogfooded successfully in ChatGPT online'
+  - 'At least one instruction-centric LRH skill is manually dogfooded successfully in ChatGPT online, with the implementation execution record naming the exported skill, upload result, invocation mode, observed outcome, and any capability limitation encountered'
   - 'scripts/test and lrh validate complete successfully'
 required_evidence:
   - manual_review
@@ -53,6 +53,7 @@ artifacts_expected:
   - tests/cli_tests/skills_test.py
   - docs/reference/cli/skills.md
   - docs/how-to/use-lrh-with-agent-assistants.md
+  - 'project/executions/WI-SKILLS-CHATGPT-EXPORT/<implementation-execution-record>.md containing durable ChatGPT dogfood evidence'
 ---
 
 ## Summary
@@ -125,7 +126,7 @@ limitations rather than mechanically rewriting the workflow.
 1. Add an `export` subcommand to the existing `lrh skills` CLI:
    - `lrh skills export --target chatgpt --out <directory>`;
    - reuse existing `--source` semantics;
-   - optionally support repeatable `--skill <name>` selection;
+   - support repeatable `--skill <name>` selection;
    - when no skill selector is supplied, export all public skills from the
      selected source;
    - do not expose `--local` or `--scope` on export because hosted
@@ -207,8 +208,11 @@ limitations rather than mechanically rewriting the workflow.
    - update `docs/reference/cli/skills.md`.
 
 10. Dogfood at least one instruction-centric skill such as `lrh-design`,
-    `lrh-proposal`, or `lrh-work-item` in ChatGPT online and record the
-    result as implementation evidence.
+    `lrh-proposal`, or `lrh-work-item` in ChatGPT online. Record durable
+    evidence in the implementation execution record, including the exported
+    skill name, whether ChatGPT accepted the upload, whether invocation was
+    explicit (`@skill-name`) or automatic, the observed workflow outcome, and
+    any unavailable-capability limitation encountered.
 
 ## Non-Goals
 
@@ -243,7 +247,9 @@ limitations rather than mechanically rewriting the workflow.
 - Documentation explains export, upload, `@` invocation, automatic
   activation, updating, and capability boundaries.
 - At least one exported instruction-centric LRH skill is successfully uploaded
-  and exercised in ChatGPT online.
+  and exercised in ChatGPT online, and the implementation execution record
+  captures the skill name, upload result, invocation mode, observed outcome,
+  and any capability limitation encountered.
 - `scripts/format --check --diff`, `scripts/lint`, `scripts/test`, and
   `lrh validate` complete successfully.
 

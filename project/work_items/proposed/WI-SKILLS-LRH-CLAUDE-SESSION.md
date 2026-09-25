@@ -3,7 +3,7 @@ resolution: null
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-CLAUDE-SESSION
-title: Add a metadata-only /lrh-claude-session skill and route Claude session-pointer resolution through it
+title: "Add a metadata-only /lrh-session-id-claude skill and route Claude session-pointer resolution through it"
 type: deliverable
 status: proposed
 owner: anthony
@@ -16,7 +16,9 @@ related_roadmap:
   - ROADMAP-PHASE-03
 related_workstreams:
   - WS-SESSION-ARCHIVE-SYNC
+  - WS-LRH-EXPORT-SESSION-ID-SKILL-FAMILIES
 related_design:
+  - project/design/proposals/proposed/lrh-export-session-id-skill-families/00_proposal.md
   - project/audits/2026-09-22-session-sync-export-ecosystem-audit.md
   - project/design/proposals/adopted/lrh-session-archive-sync/00_proposal.md
   - project/design/proposals/adopted/lrh-claude-conversation-exporter/00_proposal.md
@@ -37,40 +39,41 @@ forbidden_actions:
   - commit_raw_transcript_data
   - change_session_transcript_schema
   - edit_gate_definition_blocks
+  - skills_install_force
 acceptance:
-  - "src/lrh/skills/lrh-claude-session/SKILL.md exists and reports `session_transcript: claude-app:<host-uuid-stem>` for the current window without reading, exporting, or printing transcript content"
+  - "src/lrh/skills/lrh-session-id-claude/SKILL.md exists and reports `session_transcript: claude-app:<host-uuid-stem>` for the current window without reading, exporting, or printing transcript content"
   - "For the current window the skill resolves via `lrh conversation current-claude-session-id`, falls back to reading CLAUDE_CODE_HOST_SESSION_ID directly (stripping local_) only when the installed CLI lacks that subcommand, uses only the host id (never CLAUDE_CODE_SESSION_ID) as the pointer, and on any other resolver failure or an `unknown` host pointer records no pointer and reports `pending`"
   - "Where the session-management get_session tool is available the skill also reports title and branch; for another session it resolves via list_sessions by PR number, then branch or title, then a user pick from the list"
-  - "/lrh-closeout Step 3, /lrh-land Step 3, and /lrh-implement's alias-capture step call /lrh-claude-session instead of restating the resolution order; the two record-session-alias call sites (/lrh-closeout Step 5 and /lrh-implement) pass --title and --branch where resolved"
-  - "Claude, Codex, and Antigravity rendered targets are regenerated for every touched skill, CLAUDE.md indexes /lrh-claude-session, and lrh chain-defaults status reports stale: False"
+  - "/lrh-closeout Step 3, /lrh-land Step 3, and /lrh-implement's alias-capture step call /lrh-session-id-claude instead of restating the resolution order; the two record-session-alias call sites (/lrh-closeout Step 5 and /lrh-implement) pass --title and --branch where resolved"
+  - "Claude, Codex, and Antigravity rendered targets are regenerated for every touched skill, CLAUDE.md indexes /lrh-session-id-claude, and lrh chain-defaults status reports stale: False"
   - "lrh validate reports 0 errors"
 required_evidence:
   - manual_review
   - lrh_validate
 artifacts_expected:
-  - src/lrh/skills/lrh-claude-session/SKILL.md
-  - src/lrh/skills/lrh-claude-session/agents/openai.yaml
+  - src/lrh/skills/lrh-session-id-claude/SKILL.md
+  - src/lrh/skills/lrh-session-id-claude/agents/openai.yaml
   - src/lrh/skills/lrh-closeout/SKILL.md
   - src/lrh/skills/lrh-closeout/references/closeout-workflow.md
   - src/lrh/skills/lrh-land/SKILL.md
   - src/lrh/skills/lrh-implement/SKILL.md
   - src/lrh/skills/lrh-implement/references/execution-session-reference.md
-  - .claude/skills/lrh-claude-session/SKILL.md
-  - .claude/skills/lrh-claude-session/agents/openai.yaml
+  - .claude/skills/lrh-session-id-claude/SKILL.md
+  - .claude/skills/lrh-session-id-claude/agents/openai.yaml
   - .claude/skills/lrh-closeout/SKILL.md
   - .claude/skills/lrh-closeout/references/closeout-workflow.md
   - .claude/skills/lrh-land/SKILL.md
   - .claude/skills/lrh-implement/SKILL.md
   - .claude/skills/lrh-implement/references/execution-session-reference.md
-  - .agents/skills/lrh-claude-session/SKILL.md
-  - .agents/skills/lrh-claude-session/agents/openai.yaml
+  - .agents/skills/lrh-session-id-claude/SKILL.md
+  - .agents/skills/lrh-session-id-claude/agents/openai.yaml
   - .agents/skills/lrh-closeout/SKILL.md
   - .agents/skills/lrh-closeout/references/closeout-workflow.md
   - .agents/skills/lrh-land/SKILL.md
   - .agents/skills/lrh-implement/SKILL.md
   - .agents/skills/lrh-implement/references/execution-session-reference.md
-  - .gemini/plugins/lrh/skills/lrh-claude-session/SKILL.md
-  - .gemini/plugins/lrh/skills/lrh-claude-session/agents/openai.yaml
+  - .gemini/plugins/lrh/skills/lrh-session-id-claude/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-session-id-claude/agents/openai.yaml
   - .gemini/plugins/lrh/skills/lrh-closeout/SKILL.md
   - .gemini/plugins/lrh/skills/lrh-closeout/references/closeout-workflow.md
   - .gemini/plugins/lrh/skills/lrh-land/SKILL.md
@@ -80,11 +83,17 @@ artifacts_expected:
   - docs/reference/cli/conversation.md
 ---
 
-# WI-SKILLS-LRH-CLAUDE-SESSION: Add a metadata-only /lrh-claude-session skill
+# WI-SKILLS-LRH-CLAUDE-SESSION: Add a metadata-only /lrh-session-id-claude skill
 
 ## Summary
 
-Add a `/lrh-claude-session` skill, parallel to `/lrh-codex-session`, that
+> **Renamed 2026-09-24:** this skill was originally planned as
+> `/lrh-claude-session`. It now ships as `/lrh-session-id-claude`, following the
+> `lrh-<verb>-<vendor>` scheme in `PROP-LRH-EXPORT-SESSION-ID-SKILL-FAMILIES`
+> Decision 1 (delivered by `WS-LRH-EXPORT-SESSION-ID-SKILL-FAMILIES`). The work
+> item ID is unchanged.
+
+Add a `/lrh-session-id-claude` skill, parallel to `/lrh-codex-session`, that
 reports the Claude.app `session_transcript: claude-app:<host-uuid-stem>`
 pointer plus the identity fields `record-session-alias` needs, without
 exporting anything. Then make `/lrh-closeout`, `/lrh-land`, and
@@ -141,7 +150,7 @@ Two caveats for the implementer:
 
 ## Scope
 
-- Create the `/lrh-claude-session` skill (canonical plus rendered targets)
+- Create the `/lrh-session-id-claude` skill (canonical plus rendered targets)
   and index it in `CLAUDE.md`.
 - Route Claude host-id resolution in `/lrh-closeout` Step 3, `/lrh-land`
   Step 3, and `/lrh-implement`'s alias capture through the skill.
@@ -150,7 +159,7 @@ Two caveats for the implementer:
 
 ## Required Changes
 
-1. Create `src/lrh/skills/lrh-claude-session/SKILL.md`, modelled on
+1. Create `src/lrh/skills/lrh-session-id-claude/SKILL.md`, modelled on
    `lrh-codex-session`. It should:
    - accept an optional argument: a session id or a PR number/URL;
    - **current window:** run `lrh conversation current-claude-session-id
@@ -187,22 +196,28 @@ Two caveats for the implementer:
    - include Safety Rules mirroring `/lrh-codex-session`: no transcript
      reads, no exports, never call `export_transcript`, and never use
      JSONL-filename (child) ids as the pointer.
-2. Add `src/lrh/skills/lrh-claude-session/agents/openai.yaml` matching
+2. Add `src/lrh/skills/lrh-session-id-claude/agents/openai.yaml` matching
    `lrh-codex-session`.
 3. `src/lrh/skills/lrh-closeout/SKILL.md` Step 3 (Claude.app branch) and
    `references/closeout-workflow.md` "Resolution order": replace the
-   restated paths with "run `/lrh-claude-session`", keeping the confirmation
+   restated paths with "run `/lrh-session-id-claude`", keeping the confirmation
    and the path-1-only child-alias rule. Step 5: pass `--title`/`--branch`
    when resolved. Do not edit inside `<!-- GATE-DEFINITION -->` blocks.
 4. `src/lrh/skills/lrh-land/SKILL.md` Step 3: point the `claude_app` bullet
-   at `/lrh-claude-session`.
+   at `/lrh-session-id-claude`.
 5. `src/lrh/skills/lrh-implement/SKILL.md` alias capture and
    `references/execution-session-reference.md`: obtain the host id, title,
-   and branch from `/lrh-claude-session` and add `--title`.
+   and branch from `/lrh-session-id-claude` and add `--title`.
 6. Regenerate `.claude/skills/`, `.agents/skills/`, and
    `.gemini/plugins/lrh/skills/` for the new skill and every touched skill
-   (`lrh skills install --local --target <t> --source current-repo`).
-7. Add a `/lrh-claude-session` line to `CLAUDE.md`'s Skills index. Add a
+   Install **one skill at a time**, using the one-skill-at-a-time render path used by the rename items: `installer._copy_skill_from_source` with a `SkillSource` from `installer.resolve_skill_source(...)`, per target.
+   - **Why not plain install:** `lrh skills install --local --target <t> --source current-repo`
+     skips any already-installed skill whose copy differs from its source
+     ("local modifications"), and a dry run already skips `lrh-closeout`,
+     `lrh-land` and `lrh-implement` on the Codex and Antigravity targets.
+   - **Why not `--force`:** it overwrites every modified skill in the
+     target, not just the ones this item touches.
+7. Add a `/lrh-session-id-claude` line to `CLAUDE.md`'s Skills index. Add a
    cross-reference from the `current-claude-session-id` section of
    `docs/reference/cli/conversation.md`.
 
@@ -222,7 +237,7 @@ Two caveats for the implementer:
 
 ## Acceptance Criteria
 
-- `src/lrh/skills/lrh-claude-session/SKILL.md` reports
+- `src/lrh/skills/lrh-session-id-claude/SKILL.md` reports
   `session_transcript: claude-app:<host-uuid-stem>` for the current window
   and never reads, exports, or prints transcript content.
 - Current-window resolution uses `lrh conversation

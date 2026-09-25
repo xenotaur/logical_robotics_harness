@@ -2,14 +2,14 @@
 execution_id: 2026_09_25_07_19_36_FIX_STALE_SESSION_HELP_STRINGS
 prompt_id: PROMPT(AD_HOC:FIX_STALE_SESSION_HELP_STRINGS)[2026-09-25T02:15:06+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/723
-commit: 
+commit: 38861c85e59acb0509e291ad367c8a63ce5a4e5b
 created_at: 2026-09-25T07:19:36+00:00
 agent: claude_app
 instruction_source: "Ad-hoc: replace stale /export and pasted-URL wording in session CLI help, docstrings, and skill references (follow-up from PR #716)"
-session_transcript: pending
+session_transcript: claude-app:76d4f44b-1d4f-43ee-96c3-4d6ef17392d1
 ---
 
 # Summary

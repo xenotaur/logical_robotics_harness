@@ -2,14 +2,14 @@
 execution_id: "2026_09_24_20_19_58_LOCAL_AGENT_DOGFOOD"
 prompt_id: "PROMPT(AD_HOC:LOCAL_AGENT_DOGFOOD)[2026-09-24T20:19:58+00:00]"
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: null
-pr: "https://github.com/xenotaur/logical_robotics_harness/pull/719"
-commit: null
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/719
+commit: 117bd0946986fa4f16c06ac26166633a10681b7e
 created_at: "2026-09-24T20:19:58+00:00"
 agent: "codex_app"
 instruction_source: "project/design/proposals/proposed/local-agent-dogfood/00_proposal.md"
-session_transcript: "pending"
+session_transcript: pending
 ---
 
 # Summary

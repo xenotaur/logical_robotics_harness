@@ -170,8 +170,9 @@ claude-app:<host-uuid-stem>
 Desktop-app Claude Code sessions have **two** identifiers:
 
 - **Host session id** — `local_<uuid>`: the durable app-level key. This is
-  what View > Copy URL yields and what the session-management tools (e.g.
-  `list_sessions`) return.
+  the `sessionId` that the session-management tools (`list_sessions`,
+  `get_session`) return. The desktop app no longer shows it through
+  View > Copy URL.
 - **Child SDK session id** — the UUID stem of the transcript file at
   `~/.claude/projects/<project-slug>/<child-uuid>.jsonl`. On resumed or
   continued sessions this differs from the host id.
@@ -220,7 +221,7 @@ lrh prompt record-session-alias \
 - `--host-id`: required; the same stem used in `session_transcript`
   (`local_` already stripped).
 - `--child-id`: **omit** when the host id was resolved cross-session — via
-  `list_sessions` by PR number, or a pasted browser URL — rather than
+  `list_sessions` by PR number, or picked from the session list — rather than
   directly from `$CLAUDE_CODE_HOST_SESSION_ID` in the current window.
   Pairing a cross-session host id with the *current* window's
   `$CLAUDE_CODE_SESSION_ID` would record a false alias: that child id
@@ -256,7 +257,8 @@ Per `PROP-LRH-SESSION-ARCHIVE-SYNC` Stage 2
 half of the identity gap (new sessions capture both ids going forward).
 `lrh sessions sync`/`discover`/`link` close the *retroactive* half — a
 durable local archive for transcripts that already exist, plus harvesting
-`/export` zip `metadata.json` for pointers that already dangle.
+desktop-app `session-export-*.zip` `metadata.json` for pointers that already
+dangle.
 
 ```bash
 lrh sessions sync \

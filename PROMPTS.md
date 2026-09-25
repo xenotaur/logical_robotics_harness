@@ -119,12 +119,16 @@ values and grammar; summarized here for the Claude.app case:
   Claude.app, a description or path to the Taurcode meta-prompt (e.g.
   `taurcode:lrh-review-response-protocol-fix`).
 - `session_transcript` references the session as `claude-app:<host-uuid-stem>`
-  — the **host** session id (`local_<uuid>` from View > Copy URL or the
-  `$CLAUDE_CODE_HOST_SESSION_ID` env var, `local_` prefix stripped), not the
-  child SDK id that names the local JSONL file. Use `session_transcript:
-  pending` when the id is not yet known. `/lrh-closeout` attempts to resolve
-  it (env var with confirmation, then `list_sessions` by PR number, then a
-  View > Copy URL prompt) and updates it to the `claude-app:<host-uuid-stem>`
+  — the **host** session id (`local_<uuid>` from the
+  `$CLAUDE_CODE_HOST_SESSION_ID` env var, or the `sessionId` returned by the
+  session-management `get_session`/`list_sessions` tools, `local_` prefix
+  stripped), not the child SDK id that names the local JSONL file. The Claude
+  desktop app no longer exposes View > Copy URL, so there is no browser URL
+  to copy. Use `session_transcript: pending` when the id is not yet known.
+  `/lrh-closeout` attempts to resolve it (env var confirmed with the
+  session's `get_session` title and branch, then `list_sessions` by PR
+  number, then asking the user to pick a session from `list_sessions`) and
+  updates it to the `claude-app:<host-uuid-stem>`
   form when one of these yields a confident id — it is not automatic in
   every case, and the record can still be left `pending` for a human to
   resolve later.

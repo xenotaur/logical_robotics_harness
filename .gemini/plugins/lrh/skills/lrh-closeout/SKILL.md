@@ -55,7 +55,8 @@ Load this before running any step:
    transitions, `pending`/`none` conventions), WI resolution protocol
    (`mv` commands, frontmatter fields), WS closeout protocol, proposal
    adoption protocol, and session-transcript resolution (host-id env var →
-   `list_sessions` → View > Copy URL, `claude-app:<host-uuid-stem>` format,
+   `list_sessions` by PR → pick from the session list,
+   `claude-app:<host-uuid-stem>` format,
    `pending`/`none` sentinels). Read this before Step 2 and Step 5.
 
 ---
@@ -211,10 +212,15 @@ stopping at the first that yields a confident value:
    now, and the host id **rotates when a session is resumed or continued**.
    On a long or resumed session it can therefore differ from the session that
    actually authored the work. So: show the value and ask the user to confirm
-   it, e.g. "In-session host id is `claude-app:<stem>` — is this the session
-   for this work?" If the user's **View > Copy URL** disagrees with the env
-   var, the browser URL wins (case 3). When they agree, store the env-var
-   value.
+   it. Where the session-management `get_session` tool is available, call it
+   with `"self"` and show the session's title and branch alongside the id, so
+   the user can recognize the session. For example: "In-session host id is
+   `claude-app:<stem>` (session "<title>", branch `<branch>`). Is this the
+   session for this work?" If the user says no, continue to path 2 or 3. When
+   they confirm, store the env-var value.
+   (`lrh conversation current-claude-session-id --field session-transcript`
+   prints the same pointer from the same env var, where the installed CLI has
+   it.)
 
    **This is the only path that may also capture a child-id alias.** Once
    confirmed, `$CLAUDE_CODE_SESSION_ID` (still set in this same window) names
@@ -233,11 +239,22 @@ stopping at the first that yields a confident value:
    `claude-app:<host-uuid-stem>`. Confirm the match with the user if more than
    one session references the PR.
 
-3. **Manual — View > Copy URL.** If neither above yields a confident id, ask:
-   "Paste View > Copy URL for the session (e.g. `local_6f9b846e-...` from
-   `claude.ai/.../local_<uuid>`), or confirm `none`/`pending`." Store the
-   pasted id as `claude-app:<uuid>` (strip any `local_` prefix; UUID stem
-   only). The browser URL is authoritative over the env var when they differ.
+3. **Manual — pick from the session list.** If neither of the paths above
+   yields a confident id, call `list_sessions` (with `include_archived: true`
+   if the authoring session may be archived). Show the likely candidates by
+   title, branch, PR, and last activity, and ask the user to pick one, or to
+   confirm `none`/`pending`. Store the chosen `sessionId` as
+   `claude-app:<uuid>` (strip any `local_` prefix; UUID stem only). The Claude
+   desktop app no longer exposes View > Copy URL, so there is no browser URL
+   to paste. If the user already has a `local_<uuid>` from another source,
+   such as an older note or a `claude://…/local_<uuid>` session link, accept
+   it the same way.
+   `list_sessions` excludes the session it is called from (per that
+   tool's own contract), so when
+   closeout may be running in the authoring session, also offer the current
+   session from `get_session` (`"self"`) as a candidate. If the user picks
+   it here, still withhold the child-id alias at Step 5: path 3 never pairs
+   one.
 
 4. **Sentinels — `none` vs `pending` (distinct, not interchangeable).**
    - `none`: the backend produced **no retrievable transcript** (e.g. a
@@ -334,11 +351,12 @@ resolve. There is no analogous alias mechanism for non-Claude backends; do
 not pass any non-Claude-backend pointer value as `--host-id`.
 
 **Omit `--child-id` entirely** (do not pass the flag) for records resolved
-via path 2 (`list_sessions` by PR) or path 3 (pasted URL) — pairing a
-cross-session host id with the *current* window's child id would record a
-false alias. The command and its underlying merge both treat a missing
-child id as "nothing to add here," not as an error, so the host id and PR
-are still captured on those paths; only the alias is withheld. See
+via path 2 (`list_sessions` by PR) or path 3 (picked from the session
+list) — pairing a cross-session host id with the *current* window's child
+id would record a false alias. The command and its underlying merge both
+treat a missing child id as "nothing to add here," not as an error, so the
+host id and PR are still captured on those paths; only the alias is
+withheld. See
 `references/closeout-workflow.md`'s "Session identity capture" section.
 
 **Work items** (for each WI marked `resolve and move`):
@@ -437,9 +455,10 @@ Report to the user:
 - If any `session_transcript` is still `pending`: remind the user to update it
   with the durable pointer for that record's own backend before archiving the
   session. For Claude.app records, that pointer is `claude-app:<host-uuid-stem>`
-  (from `$CLAUDE_CODE_HOST_SESSION_ID` or View > Copy URL, with `local_`
-  stripped). For Codex app or Codex Cloud records, use the corresponding
-  `codex-app:` or `codex-cloud:` pointer when available. Do **not** add this
+  (from `$CLAUDE_CODE_HOST_SESSION_ID` or the session-management
+  `list_sessions`/`get_session` tools, with `local_` stripped). For Codex
+  app or Codex Cloud records, use the corresponding `codex-app:` or
+  `codex-cloud:` pointer when available. Do **not** add this
   reminder for `none` — that value is terminal.
 - Offer the backend-appropriate local transcript archival/export workflow when
   one is available.

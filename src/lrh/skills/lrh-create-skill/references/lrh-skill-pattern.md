@@ -153,6 +153,53 @@ Do not write files before this gate passes.
 
 ---
 
+## Typed-invocation carve-out (opt-in, not a default)
+
+A literal, user-typed slash-command invocation is itself the explicit
+human decision this gate exists to require. A skill **may** treat such an
+invocation as satisfying the gate on its own — stating the proposed
+structure as information and proceeding directly to the write, without a
+further wait — instead of always pausing for a separate confirming reply.
+
+**This is opt-in per skill, never implied by the general pattern above.**
+A skill must explicitly implement the typed/model-initiated distinction
+itself — detection, both branches, and the ambiguous fallback below — to
+use this carve-out. A skill that says nothing about it keeps the plain,
+unconditional gate: always confirm, regardless of invocation route. See
+`lrh-export-claude/SKILL.md` Step 3 for the worked reference
+implementation this carve-out is modeled on.
+
+**Detection.** A typed invocation surfaces as `<command-message>`/
+`<command-name>` tags (or the equivalent explicit textual invocation
+signal the current platform provides) naming the skill, in the same
+turn — a human typing the command is the explicit request by
+construction, regardless of what flags accompany it or how the message is
+phrased (e.g. "Yes, please execute `/skill-name`" counts the same as a
+bare `/skill-name`). Any other route into the skill — a proactive offer,
+or a call chained from another skill or workflow, with no literal
+user-typed slash command this turn — is model-initiated and still waits
+for confirmation, exactly as the plain gate does.
+
+**When this signal cannot be confidently read, treat the invocation as
+model-initiated — never guess typed.** The write this gate protects is
+exactly the case a false "typed" classification would wrongly skip; when
+in doubt, wait for the reply.
+
+**A skill using this carve-out may still name specific "dangerous" flags
+or parameters that always require confirmation, regardless of
+typed/model status.** State this as a short, explicit, named list —
+never a computed judgment (e.g. checking whether a destination file
+already exists). `lrh-export-claude`'s `--force` flag is the worked
+example: it always confirms even on a typed invocation, because
+predicting the exact effect of `--force` would mean duplicating the
+exporter's own path-and-sanitization logic inside the skill's prose — a
+demonstrated defect class in this project, since a future drift between
+the duplicated logic and the real implementation would silently produce a
+wrong answer. A short, explicit list of dangerous flags avoids that
+duplication entirely.
+
+---
+
 ## LRH-specific additions
 
 When a skill produces LRH control-plane artifacts (work items, workstreams,

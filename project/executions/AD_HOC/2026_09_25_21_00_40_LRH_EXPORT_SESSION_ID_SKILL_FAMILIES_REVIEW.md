@@ -2,10 +2,10 @@
 execution_id: 2026_09_25_21_00_40_LRH_EXPORT_SESSION_ID_SKILL_FAMILIES_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_EXPORT_SESSION_ID_SKILL_FAMILIES_REVIEW)[2026-09-25T20:59:33+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_25_20_54_17_LRH_EXPORT_SESSION_ID_SKILL_FAMILIES_REVIEW
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/722
-commit: 
+commit: 55ad03dbbf3b9cf0d71ff3249c5edb4a9b0c03a4
 created_at: 2026-09-25T21:00:40+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/722

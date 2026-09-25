@@ -390,6 +390,7 @@ def _run_validate(args: argparse.Namespace) -> int:
                     "unindexed": list(report.unindexed),
                     "legacy": list(report.legacy),
                     "conforming": list(report.conforming),
+                    "name_mismatch": list(report.name_mismatch),
                 },
                 indent=2,
             )
@@ -399,7 +400,8 @@ def _run_validate(args: argparse.Namespace) -> int:
         f"conforming: {len(report.conforming)}  "
         f"legacy: {len(report.legacy)}  "
         f"unindexed: {len(report.unindexed)}  "
-        f"malformed: {len(report.malformed)}"
+        f"malformed: {len(report.malformed)}  "
+        f"name_mismatch: {len(report.name_mismatch)}"
     )
     if report.unindexed:
         print(
@@ -414,6 +416,14 @@ def _run_validate(args: argparse.Namespace) -> int:
     if report.malformed:
         print("malformed (missing name/description/metadata.type):")
         for name in report.malformed:
+            print(f"  {name}")
+    if report.name_mismatch:
+        print(
+            "name_mismatch (name: field does not map back to this file's own "
+            "filename -- repair on it would write a second, differently-named "
+            "file; fix the name: field directly instead):"
+        )
+        for name in report.name_mismatch:
             print(f"  {name}")
     return 0
 

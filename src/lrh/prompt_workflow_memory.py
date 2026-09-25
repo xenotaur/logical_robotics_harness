@@ -500,6 +500,115 @@ def _consume_frontmatter_block(
     return i
 
 
+def _merge_preserved_lines(
+    base: typing.Sequence[str], overlay: typing.Sequence[str]
+) -> list[str]:
+    """Merge two lists of preserved frontmatter lines (from
+    :func:`_extract_preserved_frontmatter_lines`) by key, ``overlay``
+    winning on a key collision.
+
+    Used by :func:`_import_records_into_dir` to reconcile a destination
+    memory's own existing extras (``base``) with the incoming bundle
+    record's extras (``overlay``) on an overwrite: the incoming record
+    reflects the source corpus's state for any key both sides carry, but a
+    destination-only key -- one the incoming record's source file never
+    had -- is kept rather than silently dropped just because this
+    particular transfer didn't carry it.
+
+    Each line is expected in the single-line ``key: value`` form
+    :func:`_extract_preserved_frontmatter_lines` always produces. Key
+    identity is compared by the unquoted key name
+    (:func:`_unquote_yaml_key`), matching how canonical-field shadowing is
+    already resolved elsewhere in this module. A line that doesn't match
+    the expected shape is kept verbatim, keyed on its own full text, so it
+    is never silently dropped even though it can't be deduplicated.
+    """
+
+    merged: dict[str, str] = {}
+    for line in (*base, *overlay):
+        match = re.match(r"^\s*(\S[^:]*):", line)
+        key = _unquote_yaml_key(match.group(1).strip()) if match else line
+        merged[key] = line
+    return list(merged.values())
+
+
+def _legacy_metadata_extra_lines(metadata: dict[str, typing.Any]) -> list[str]:
+    """Synthesize ``preserved_metadata_lines``-shaped entries from a
+    pre-fix bundle record's full ``metadata`` dict, for every key outside
+    this module's own schema.
+
+    Only reached for a record with no ``preserved_metadata_lines`` field
+    at all (see the call site) -- a bundle written by this module's own
+    ``_export_records_from_dir`` before it was changed to carry extras
+    separately. Re-serializing here (rather than the raw-line-preservation
+    every other path in this module insists on) is safe specifically
+    because it's the only source that can reach this function: such a
+    bundle's own ``_write_bundle`` call already required every value to be
+    JSON-safe at write time (this function's whole reason for existing is
+    that ``json.dumps`` cannot serialize a ``datetime``, so no real legacy
+    bundle can contain one) -- there is no byte-fidelity-sensitive value
+    this path could ever be asked to reconstruct.
+    """
+
+    extra = {
+        key: value
+        for key, value in metadata.items()
+        if key not in _CANONICAL_METADATA_KEYS
+    }
+    if not extra:
+        return []
+    lines: list[str] = []
+    for key, value in extra.items():
+        rendered = yaml.safe_dump(
+            {key: value}, default_flow_style=False, sort_keys=False, allow_unicode=True
+        ).rstrip("\n")
+        lines.extend(_PRESERVED_METADATA_INDENT + line for line in rendered.split("\n"))
+    return lines
+
+
+def _validate_untrusted_preserved_lines(
+    lines: typing.Sequence[str], canonical_keys: frozenset[str], *, field_name: str
+) -> None:
+    """Reject a bundle-supplied ``preserved_*_lines`` list that could
+    corrupt or spoof canonical frontmatter when spliced into
+    :func:`_render_memory_file`'s output.
+
+    Unlike a preserved line :func:`_extract_preserved_frontmatter_lines`
+    derives by re-parsing a real file's own text -- which structurally
+    excludes canonical keys and can never contain a newline mid-line -- a
+    bundle field is untrusted input from wherever ``--input`` points.
+    Two things must be rejected outright rather than silently accepted:
+
+    - A line naming a canonical key (``name``/``description``, or
+      ``type``/``authored_by``/``applies_to`` for the metadata list,
+      compared by :func:`_unquote_yaml_key`). Splicing it in produces a
+      *second* occurrence of that key; YAML resolves a duplicate key by
+      keeping the last one, so a bundle record could silently override
+      the canonical value this import path already validated and
+      intended to write.
+    - A line containing an embedded newline. One JSON string element is
+      supposed to render as exactly one physical line; a newline inside
+      it would let a single "preserved line" forge additional frontmatter
+      lines of its own.
+    """
+
+    for line in lines:
+        if "\n" in line or "\r" in line:
+            raise MemoryValidationError(
+                f"bundle record {field_name!r} contains a line with an "
+                "embedded newline, which could forge additional "
+                f"frontmatter structure: {line!r}"
+            )
+        match = re.match(r"^\s*(\S[^:]*):", line)
+        if match and _unquote_yaml_key(match.group(1).strip()) in canonical_keys:
+            raise MemoryValidationError(
+                f"bundle record {field_name!r} contains a line naming the "
+                f"canonical key {match.group(1).strip()!r}, which could "
+                "silently override the value this import already sets: "
+                f"{line!r}"
+            )
+
+
 def _render_memory_file(
     *,
     name: str,
@@ -713,9 +822,15 @@ def _write_memory_into_dir(
     index_path = memory_dir / INDEX_FILENAME
 
     if memory_path.exists() and not force:
-        existing_frontmatter, _ = read_frontmatter_and_body(
-            memory_path.read_text(encoding="utf-8")
-        )
+        # The cross-agent authored_by check is skipped entirely under
+        # ``force`` -- pre-existing, documented behavior (matches
+        # :func:`_guard_import_overwrite`'s own tolerance for a
+        # malformed/non-UTF-8 destination under ``--force``): ``force``
+        # means "overwrite unconditionally, without needing this file to
+        # even parse." This must still hold, so this read/parse -- and the
+        # check that depends on it -- stays force-gated.
+        existing_text = memory_path.read_text(encoding="utf-8")
+        existing_frontmatter, _ = read_frontmatter_and_body(existing_text)
         existing_metadata = existing_frontmatter.get("metadata") or {}
         existing_authored_by = (
             existing_metadata.get("authored_by")
@@ -727,6 +842,43 @@ def _write_memory_into_dir(
                 f"{filename} is authored_by {existing_authored_by!r}; "
                 f"refusing to overwrite as {agent!r} without --force"
             )
+
+    if (
+        memory_path.exists()
+        and not preserved_top_level_lines
+        and not preserved_metadata_lines
+    ):
+        # The caller didn't already compute preserved lines of its own
+        # (e.g. `repair`, or `_import_records_into_dir`'s reconciled
+        # merge) -- this is a plain overwrite through `write`'s own direct
+        # path (CLI or API), which has no concept of "extra frontmatter
+        # keys" in its own arguments. Auto-derive from the file about to
+        # be overwritten, so an ordinary `write` on an existing memory
+        # preserves its unknown keys by default, matching `repair`'s own
+        # guarantee, rather than silently dropping them the way this
+        # function did before. Attempted regardless of ``force`` --
+        # skipping it whenever ``force`` is set would defeat preservation
+        # for exactly the common case of a forced, otherwise-legitimate
+        # revision; on a read/parse failure (a malformed or non-UTF-8
+        # destination, the one case ``force`` genuinely must tolerate
+        # without inspecting the file) there's simply nothing to preserve.
+        try:
+            existing_frontmatter_text, _ = _split_frontmatter_text_and_body(
+                memory_path.read_text(encoding="utf-8")
+            )
+            preserved_top_level_lines, preserved_metadata_lines = (
+                _extract_preserved_frontmatter_lines(existing_frontmatter_text)
+            )
+        except _UnsupportedPreservedKey:
+            # Not a malformed/unreadable destination -- it parsed fine,
+            # but has an extra key this line-based mechanism can't safely
+            # represent (a block sequence, for example). Silently
+            # proceeding without it would drop real content; every other
+            # unrepresentable-shape case in this module fails loudly
+            # rather than guessing (Decision 9), and this is no different.
+            raise
+        except (UnicodeDecodeError, MemoryValidationError):
+            pass
 
     if dry_run:
         return WriteResult(
@@ -860,6 +1012,7 @@ class ValidationReport:
     unindexed: tuple[str, ...]
     legacy: tuple[str, ...]
     conforming: tuple[str, ...]
+    name_mismatch: tuple[str, ...] = ()
 
 
 def _indexed_filenames(index_path: pathlib.Path) -> set[str]:
@@ -935,6 +1088,7 @@ def validate_corpus(
         return ValidationReport(malformed=(), unindexed=(), legacy=(), conforming=())
 
     indexed = _indexed_filenames(memory_dir / INDEX_FILENAME)
+    name_mismatch: list[str] = []
 
     for path in sorted(memory_dir.glob("*.md")):
         if path.name == INDEX_FILENAME:
@@ -944,6 +1098,23 @@ def validate_corpus(
         except MemoryValidationError:
             malformed.append(path.name)
             continue
+
+        # Independent of the malformed/unindexed/legacy/conforming split
+        # below -- a file can be perfectly conforming by every other
+        # measure and still have a `name:` field that doesn't map back to
+        # its own filename (e.g. `name: closeout-direct-main-push-...`
+        # missing the `feedback-` prefix its filename carries). Left
+        # undetected, this is exactly what let `repair` silently write a
+        # second, differently-named file instead of fixing the original
+        # (see WI-LRH-MEMORY-WRITE-OVERWRITE-PRESERVE-METADATA) -- this
+        # check surfaces it before that can happen again, from any cause.
+        own_name = frontmatter.get("name")
+        if (
+            isinstance(own_name, str)
+            and own_name
+            and filename_for(own_name) != path.name
+        ):
+            name_mismatch.append(path.name)
 
         metadata = frontmatter.get("metadata")
         if _structural_problem(frontmatter) is not None:
@@ -965,6 +1136,7 @@ def validate_corpus(
     return ValidationReport(
         malformed=tuple(malformed),
         unindexed=tuple(unindexed),
+        name_mismatch=tuple(name_mismatch),
         legacy=tuple(legacy),
         conforming=tuple(conforming),
     )
@@ -1028,7 +1200,22 @@ def repair_memory(
     # this kind of malformed state, treat a non-mapping metadata as
     # empty and let --set populate it, rather than crashing.
     metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
-    merged_name = frontmatter.get("name", slug)
+    # Deliberately `slug` (derived from the caller-supplied `name`, which
+    # is what resolved `memory_path` above), never
+    # `frontmatter.get("name")`. An earlier version of this function wrote
+    # back under the frontmatter's own recorded `name:` field instead --
+    # when that field didn't match the file's own on-disk filename (a
+    # pre-existing data-quality issue this repair does not otherwise
+    # touch), `write_memory` below would re-derive a *different*
+    # destination filename from it and silently create a second,
+    # differently-named file, leaving the original untouched and unfixed.
+    # Using `slug` guarantees the write always lands back on the exact
+    # file this function opened; as a side effect, it also corrects a
+    # mismatched `name:` field to match reality, which is itself a
+    # legitimate structural repair, not the renaming `--set name=<...>`
+    # refuses above (nothing here lets the caller choose an unrelated new
+    # name).
+    merged_name = slug
     merged_description = frontmatter.get("description", "")
 
     for key, value in sets.items():
@@ -1223,12 +1410,38 @@ def _export_records_from_dir(
     records: list[dict[str, typing.Any]] = []
     for entry in entries:
         path = memory_dir / entry.filename
-        frontmatter, body = read_frontmatter_and_body(path.read_text(encoding="utf-8"))
+        raw_text = path.read_text(encoding="utf-8")
+        frontmatter, body = read_frontmatter_and_body(raw_text)
+        raw_metadata = frontmatter.get("metadata")
+        # ``metadata`` here carries only the canonical fields
+        # (type/authored_by/applies_to), never the full parsed frontmatter
+        # dict -- an unknown key's *value* can be a type ``json.dumps``
+        # cannot serialize (``yaml.safe_load`` parses an unquoted
+        # ``modified: 2026-08-19T04:27:39.225Z`` into a ``datetime``, which
+        # raises ``TypeError`` from ``_write_bundle`` below), and even a
+        # JSON-safe extra would still lose byte-fidelity the same way a
+        # ``repair`` round trip would. Unknown keys are instead carried as
+        # raw text lines (see :func:`_extract_preserved_frontmatter_lines`),
+        # the same byte-preserving mechanism ``repair`` uses -- a plain
+        # ``str``, always JSON-safe, that :func:`_import_records_into_dir`
+        # splices back in at the correct depth via ``_render_memory_file``.
+        metadata = raw_metadata if isinstance(raw_metadata, dict) else {}
+        canonical_metadata = {
+            key: metadata.get(key)
+            for key in _CANONICAL_METADATA_KEYS
+            if key in metadata
+        }
+        raw_frontmatter_text, _ = _split_frontmatter_text_and_body(raw_text)
+        preserved_top_level_lines, preserved_metadata_lines = (
+            _extract_preserved_frontmatter_lines(raw_frontmatter_text)
+        )
         records.append(
             {
                 "name": frontmatter.get("name"),
                 "description": frontmatter.get("description"),
-                "metadata": frontmatter.get("metadata"),
+                "metadata": canonical_metadata,
+                "preserved_top_level_lines": preserved_top_level_lines,
+                "preserved_metadata_lines": preserved_metadata_lines,
                 "body": body,
                 "exported_from_slug": project_slug,
             }
@@ -1448,7 +1661,60 @@ def _import_records_into_dir(
         type_ = metadata.get("type")
         description = record.get("description")
         body = record.get("body") or ""
+        incoming_top_level_lines = record.get("preserved_top_level_lines") or []
+        incoming_metadata_lines = record.get("preserved_metadata_lines") or []
+        if "preserved_metadata_lines" not in record:
+            # A bundle written before this fix (its own `_write_bundle`
+            # call would have crashed outright on a non-JSON-safe extra
+            # such as a `datetime`, so any *real* legacy bundle's extras
+            # are already guaranteed JSON-safe) carried unknown metadata
+            # keys inside the full `metadata` dict instead of a separate
+            # field. Without this fallback, such a record would silently
+            # lose those extras on import -- the exact field is *absent*
+            # here (not present-and-empty, which is a genuine "nothing to
+            # preserve" from a bundle already written in the new format).
+            incoming_metadata_lines = _legacy_metadata_extra_lines(metadata)
         try:
+            if not isinstance(incoming_top_level_lines, list) or not all(
+                isinstance(line, str) for line in incoming_top_level_lines
+            ):
+                raise MemoryValidationError(
+                    "bundle record 'preserved_top_level_lines' must be a "
+                    f"list of strings, got {type(incoming_top_level_lines).__name__}"
+                )
+            if not isinstance(incoming_metadata_lines, list) or not all(
+                isinstance(line, str) for line in incoming_metadata_lines
+            ):
+                raise MemoryValidationError(
+                    "bundle record 'preserved_metadata_lines' must be a "
+                    f"list of strings, got {type(incoming_metadata_lines).__name__}"
+                )
+            # A bundle is untrusted input (it can come from anywhere a
+            # user points `--input` at), unlike a preserved line derived
+            # from re-parsing a real file's own text via
+            # _extract_preserved_frontmatter_lines, which structurally
+            # cannot produce a canonical-key collision or an embedded
+            # newline. Neither guarantee holds for a hand-crafted or
+            # corrupted bundle record: a line naming a canonical key (e.g.
+            # `authored_by: injected`) would be spliced in as a *second*
+            # occurrence of that key, and YAML resolves a duplicate key by
+            # keeping the last one -- letting bundle content silently
+            # override the canonical `authored_by`/`type`/`applies_to`/
+            # `name`/`description` this import path already validated and
+            # intended to set. An embedded newline would let one "line"
+            # forge additional frontmatter structure entirely. Reject both
+            # explicitly, the same way every other untrusted-bundle-field
+            # check in this loop does.
+            _validate_untrusted_preserved_lines(
+                incoming_top_level_lines,
+                _CANONICAL_TOP_LEVEL_KEYS,
+                field_name="preserved_top_level_lines",
+            )
+            _validate_untrusted_preserved_lines(
+                incoming_metadata_lines,
+                _CANONICAL_METADATA_KEYS,
+                field_name="preserved_metadata_lines",
+            )
             if applies_to is not None and not isinstance(applies_to, (list, tuple)):
                 # A string applies_to would not raise inside
                 # _write_memory_into_dir -- `tuple("not-a-list")` silently
@@ -1477,33 +1743,86 @@ def _import_records_into_dir(
                 # validation would, just before any filesystem access
                 # rather than after.
                 _validate_name(name)
-                # Pre-render the exact bytes this write would produce, so
-                # the guard can detect a genuine no-op (existing content
-                # already matches) and skip snapshotting it -- without
-                # this, a repeated --force run over an unchanged corpus
-                # accumulates an unbounded sequence of identical-content
-                # snapshot files. A render failure here (e.g. a
-                # malformed record whose own fields are wrong types) is
-                # left as None; the guard then treats the destination as
-                # unconditionally "would change," and
-                # _write_memory_into_dir's own validation below still
-                # rejects the record on its actual merits.
-                try:
-                    normalized_applies_to = (
-                        tuple(applies_to) if applies_to else (agent,)
-                    )
-                    new_content: str | None = _render_memory_file(
-                        name=name,
-                        description=description,
-                        type_=type_,
-                        authored_by=agent,
-                        applies_to=normalized_applies_to,
-                        body=body,
-                    )
-                except (TypeError, AttributeError, yaml.YAMLError):
-                    new_content = None
                 dest_path = memory_dir / filename_for(name)
                 with _locked_memory_path(dest_path):
+                    # Reconcile the destination's own existing extras (if
+                    # the file already exists -- a new-file import has
+                    # nothing to reconcile against) with the incoming
+                    # bundle record's extras, incoming winning on a shared
+                    # key (Required Change #2's reconciliation policy) --
+                    # read inside the lock, so this can't race a concurrent
+                    # writer's own read-modify-write of the same file.
+                    dest_top_level_lines: list[str] = []
+                    dest_metadata_lines: list[str] = []
+                    if dest_path.exists():
+                        # Attempted regardless of ``force`` -- a forced
+                        # overwrite is the common case for import/transfer
+                        # (``_guard_import_overwrite`` already requires it
+                        # for most overwrites), and skipping reconciliation
+                        # whenever ``force`` is set would defeat this
+                        # feature for exactly the case it exists for. Same
+                        # "a malformed/non-UTF-8 destination is not a hard
+                        # error independent of force" tolerance documented
+                        # on _guard_import_overwrite: that guard (called
+                        # below) is the authoritative classifier for a
+                        # malformed destination -- it raises its own clean
+                        # MemoryValidationError without --force, or
+                        # snapshots the raw bytes and allows the overwrite
+                        # with it. This reconciliation attempt must not
+                        # pre-empt that with an uglier, uncaught decode/
+                        # parse error of its own; on any read/parse
+                        # failure here there's simply nothing to preserve.
+                        try:
+                            dest_frontmatter_text, _ = _split_frontmatter_text_and_body(
+                                dest_path.read_text(encoding="utf-8")
+                            )
+                            dest_top_level_lines, dest_metadata_lines = (
+                                _extract_preserved_frontmatter_lines(
+                                    dest_frontmatter_text
+                                )
+                            )
+                        except _UnsupportedPreservedKey:
+                            # Same reasoning as _write_memory_into_dir's
+                            # own auto-derive: a readable destination with
+                            # an unrepresentable extra shape must fail
+                            # loudly, not be silently overwritten as if it
+                            # had nothing to preserve.
+                            raise
+                        except (UnicodeDecodeError, MemoryValidationError):
+                            pass
+                    merged_top_level_lines = _merge_preserved_lines(
+                        dest_top_level_lines, incoming_top_level_lines
+                    )
+                    merged_metadata_lines = _merge_preserved_lines(
+                        dest_metadata_lines, incoming_metadata_lines
+                    )
+                    # Pre-render the exact bytes this write would produce,
+                    # so the guard can detect a genuine no-op (existing
+                    # content already matches) and skip snapshotting it --
+                    # without this, a repeated --force run over an
+                    # unchanged corpus accumulates an unbounded sequence of
+                    # identical-content snapshot files. A render failure
+                    # here (e.g. a malformed record whose own fields are
+                    # wrong types) is left as None; the guard then treats
+                    # the destination as unconditionally "would change,"
+                    # and _write_memory_into_dir's own validation below
+                    # still rejects the record on its actual merits.
+                    try:
+                        normalized_applies_to = (
+                            tuple(applies_to) if applies_to else (agent,)
+                        )
+                        new_content: str | None = _render_memory_file(
+                            name=name,
+                            description=description,
+                            type_=type_,
+                            authored_by=agent,
+                            applies_to=normalized_applies_to,
+                            body=body,
+                            preserved_top_level_lines=merged_top_level_lines,
+                            preserved_metadata_lines=merged_metadata_lines,
+                        )
+                    except (TypeError, AttributeError, yaml.YAMLError):
+                        new_content = None
                     _guard_import_overwrite(
                         memory_dir,
                         filename_for(name),
@@ -1526,6 +1845,8 @@ def _import_records_into_dir(
                     _write_memory_into_dir(
                         memory_dir,
                         name,
+                        preserved_top_level_lines=merged_top_level_lines,
+                        preserved_metadata_lines=merged_metadata_lines,
                         description=description,
                         type_=type_,
                         agent=agent,

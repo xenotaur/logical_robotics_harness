@@ -111,6 +111,8 @@ Listed in delivery order. Each item's `depends_on:` enforces the order.
 2. `WI-SESSION-ID-CODEX-SKILL-RENAME`
    - Rename `lrh-codex-session` to `lrh-session-id-codex` and add a
      deprecated stub.
+   - Depends on `WI-EXPORT-SKILLS-LIVE-SESSION-WORDING`, because it edits the
+     Codex export skill.
    - Update the skills that reference it.
 3. `WI-SKILLS-LRH-CLAUDE-SESSION` (existing, retitled)
    - Add `lrh-session-id-claude` and route Claude session-pointer resolution
@@ -139,8 +141,8 @@ Listed in delivery order. Each item's `depends_on:` enforces the order.
      (item 6), because the resolver may end abandoned.
 
 Items 1, 2, 3 and 5 have no dependencies on each other and can run in
-parallel. Item 1 first waits for `WI-EXPORT-SKILLS-LIVE-SESSION-WORDING`,
-which is outside this workstream. That gives the export skill files a single
+parallel. Items 1 and 2 first wait for
+`WI-EXPORT-SKILLS-LIVE-SESSION-WORDING`, which is outside this workstream. That gives the export skill files a single
 edit order: the wording fix, then the rename (item 1), then the Antigravity
 confirm gate (item 4).
 

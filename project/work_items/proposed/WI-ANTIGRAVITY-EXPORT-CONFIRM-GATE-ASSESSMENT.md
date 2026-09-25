@@ -29,13 +29,14 @@ forbidden_actions:
   - merge_pr
   - weaken_human_gate
   - print_transcript_text
+  - skills_install_force
 acceptance:
   - A written assessment compares lrh-export-antigravity with lrh-export-claude and lrh-export-codex on the confirm-before-write step, the proactive-invocation guard in when_to_use, the concrete-path resolution rule, and the privacy risk of an unconfirmed durable write, citing file and line for each
   - The assessment ends in an explicit recommendation (add a gate, or leave as is with rationale)
   - If the recommendation is to add a gate and the change is simple, it is implemented in the same PR, matching the Claude and Codex export skills' Step 3 wording, and the assessment states why the scope stayed reasonable
   - If the change is not simple, or the scope grows beyond what the human and the agent in the implementing session judge reasonable, the gate is not implemented in this PR; the implementing session and the human then judge together whether a separate follow-up work item is warranted or the recommendation is simply reported as a finding
   - Whichever way it resolves, the implementing session reports its scope judgment to the human before finishing
-  - If a gate is added, .claude/skills is byte-identical to src/lrh/skills, .agents/skills and .gemini/plugins/lrh/skills are regenerated via lrh skills install, and the added gate follows whatever marker and watched-file convention the existing export-skill gates use
+  - If a gate is added, .claude/skills is byte-identical to src/lrh/skills, .agents/skills and .gemini/plugins/lrh/skills are regenerated for lrh-export-antigravity alone, one skill at a time (installer._copy_skill_from_source with a SkillSource from installer.resolve_skill_source), never via a plain or --force lrh skills install (plain install skips an already-installed, differing skill; --force overwrites every locally-modified skill in the target), and the added gate follows whatever marker and watched-file convention the existing export-skill gates use
   - No transcript text is printed or committed
   - scripts/test, scripts/lint, scripts/format --check --diff and lrh validate are all clean
 required_evidence:

@@ -173,10 +173,12 @@ Facts the implementer needs:
    - `docs/reference/cli/conversation.md`
    - skill-name references in `experimental/save_codex_threads/plan.md` and
      `experimental/rescue_codex_exports/README.md`
-   - proposed work items that name them (for example
-     `WI-EXPORT-SKILLS-LIVE-SESSION-WORDING`,
-     `WI-CODEX-EXPORT-RESCUE-CANONICAL-DEST`,
-     `WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT`)
+   - work items that name them and are still `proposed` when this item
+     runs (for example `WI-CODEX-EXPORT-RESCUE-CANONICAL-DEST`). Do not
+     edit `WI-EXPORT-SKILLS-LIVE-SESSION-WORDING`: it is a dependency of
+     this item, so it is already resolved.
+     `WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT` already uses the new
+     name.
 
    Leave these unchanged:
    - `adopted` and `resolved` documents

@@ -323,9 +323,10 @@ order:
    - Fix the stale backlog entry, the `proposals/README.md` bucket link, and
      `inspect-export`'s help text.
 
-`WI-EXPORT-SKILLS-LIVE-SESSION-WORDING` edits the same skill files as item 1.
-Land it strictly before or strictly after item 1, never while item 1 is in
-flight.
+`WI-EXPORT-SKILLS-LIVE-SESSION-WORDING` edits the same skill files as items 1
+and 2. It lands **before** both: each depends on it. The export skill files
+therefore have one edit order: the wording fix, then the renames (items 1
+and 2), then the Antigravity confirm gate (item 4).
 
 ## Cross-References
 

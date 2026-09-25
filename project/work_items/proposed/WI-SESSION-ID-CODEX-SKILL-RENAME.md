@@ -19,7 +19,8 @@ related_workstreams:
 related_design:
   - project/design/proposals/proposed/lrh-export-session-id-skill-families/00_proposal.md
   - project/work_items/resolved/WI-CODEX-SESSION-ID-RESOLVER.md
-depends_on: []
+depends_on:
+  - WI-EXPORT-SKILLS-LIVE-SESSION-WORDING
 blocked_by: []
 expected_actions:
   - run_tests
@@ -100,6 +101,11 @@ locally-modified skill in the target.
 - Proposals: `PROP-LRH-EXPORT-SESSION-ID-SKILL-FAMILIES` Decisions 1 and 3.
 - Backlog: No matching entries.
 - Recommendation: No action.
+
+This item depends on `WI-EXPORT-SKILLS-LIVE-SESSION-WORDING`, because it
+edits the Codex export skill (its `/lrh-codex-session` reference), which is
+one of the files the wording fix edits. That keeps a single edit order for
+the export skill files.
 
 ## Scope
 

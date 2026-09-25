@@ -39,6 +39,7 @@ forbidden_actions:
   - commit_raw_transcript_data
   - change_session_transcript_schema
   - edit_gate_definition_blocks
+  - skills_install_force
 acceptance:
   - "src/lrh/skills/lrh-session-id-claude/SKILL.md exists and reports `session_transcript: claude-app:<host-uuid-stem>` for the current window without reading, exporting, or printing transcript content"
   - "For the current window the skill resolves via `lrh conversation current-claude-session-id`, falls back to reading CLAUDE_CODE_HOST_SESSION_ID directly (stripping local_) only when the installed CLI lacks that subcommand, uses only the host id (never CLAUDE_CODE_SESSION_ID) as the pointer, and on any other resolver failure or an `unknown` host pointer records no pointer and reports `pending`"
@@ -209,7 +210,13 @@ Two caveats for the implementer:
    and branch from `/lrh-session-id-claude` and add `--title`.
 6. Regenerate `.claude/skills/`, `.agents/skills/`, and
    `.gemini/plugins/lrh/skills/` for the new skill and every touched skill
-   (`lrh skills install --local --target <t> --source current-repo`).
+   Install **one skill at a time**, using the one-skill-at-a-time render path used by the rename items: `installer._copy_skill_from_source` with a `SkillSource` from `installer.resolve_skill_source(...)`, per target.
+   - **Why not plain install:** `lrh skills install --local --target <t> --source current-repo`
+     skips any already-installed skill whose copy differs from its source
+     ("local modifications"), and a dry run already skips `lrh-closeout`,
+     `lrh-land` and `lrh-implement` on the Codex and Antigravity targets.
+   - **Why not `--force`:** it overwrites every modified skill in the
+     target, not just the ones this item touches.
 7. Add a `/lrh-session-id-claude` line to `CLAUDE.md`'s Skills index. Add a
    cross-reference from the `current-claude-session-id` section of
    `docs/reference/cli/conversation.md`.

@@ -37,6 +37,7 @@ acceptance:
   - "The document picks a session_transcript pointer format for Antigravity (the candidate is antigravity-app:<conversation-id>), or explains why no stable pointer is possible"
   - "The document specifies how a resolver should behave when the current conversation cannot be determined (for example, fall back to --latest with a warning, ask the user, or record pending)"
   - "The document ends with an explicit recommendation: proceed with WI-ANTIGRAVITY-SESSION-ID-RESOLVER as scoped, proceed with a changed scope, or defer it with the reason recorded"
+  - "If no live Antigravity session is available to the implementing agent, the document records that as a finding, lists the candidate sources as unverified, and recommends deferring WI-ANTIGRAVITY-SESSION-ID-RESOLVER; this counts as meeting the acceptance criteria, so the item can still resolve"
   - "No transcript text is printed or committed, and lrh validate reports 0 errors"
 required_evidence:
   - manual_review
@@ -156,4 +157,7 @@ an execution record's provenance. So this investigation comes first, and
 - Environment variable values may contain tokens. Record names only.
 - The investigation needs a real Antigravity session. If none is available to
   the implementing agent, record that and stop, rather than inferring
-  behavior.
+  behavior. This is still a valid way to resolve the item (see Acceptance
+  Criteria): record the candidates as unverified and recommend deferring the
+  resolver. `WI-EXPORT-SESSION-ID-DOCS` depends on this item, so it must be
+  able to reach `resolved`.

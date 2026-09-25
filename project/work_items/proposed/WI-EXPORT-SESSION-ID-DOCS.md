@@ -44,6 +44,7 @@ acceptance:
 required_evidence:
   - manual_review
   - lrh_validate
+  - test_output
 artifacts_expected:
   - docs/conversations/README.md
   - docs/conversations/codex_export.md

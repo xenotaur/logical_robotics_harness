@@ -12,10 +12,13 @@ contributors:
 assigned_agents: []
 related_focus: []
 related_roadmap: []
-related_workstreams: []
-related_design: []
+related_workstreams:
+  - WS-LRH-EXPORT-SESSION-ID-SKILL-FAMILIES
+related_design:
+  - project/design/proposals/proposed/lrh-export-session-id-skill-families/00_proposal.md
 depends_on:
   - WI-EXPORT-SKILLS-LIVE-SESSION-WORDING
+  - WI-EXPORT-SKILL-FAMILY-RENAME
 blocked_by: []
 expected_actions:
   - edit_file
@@ -47,6 +50,11 @@ artifacts_expected:
 ---
 
 ## Summary
+
+> **Sequencing note, 2026-09-24:** this item now depends on
+> `WI-EXPORT-SKILL-FAMILY-RENAME`, which renames `lrh-antigravity-export` to
+> `lrh-export-antigravity` and leaves a deprecated stub under the old name.
+> Apply the gate to `lrh-export-antigravity`, not to the stub.
 
 Decide whether `lrh-antigravity-export` needs a confirm-before-write gate like
 the Claude and Codex export skills have, and add it in the same PR if the

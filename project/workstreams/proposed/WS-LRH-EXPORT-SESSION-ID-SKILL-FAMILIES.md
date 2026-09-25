@@ -106,6 +106,8 @@ Listed in delivery order. Each item's `depends_on:` enforces the order.
      `lrh-antigravity-export` to `lrh-export-antigravity`.
    - Add deprecated stubs for both old names.
    - Install the Antigravity exporter to the Antigravity target.
+   - Depends on `WI-EXPORT-SKILLS-LIVE-SESSION-WORDING`, which edits the
+     same skill files.
 2. `WI-SESSION-ID-CODEX-SKILL-RENAME`
    - Rename `lrh-codex-session` to `lrh-session-id-codex` and add a
      deprecated stub.
@@ -134,8 +136,10 @@ Listed in delivery order. Each item's `depends_on:` enforces the order.
    - Depends on items 7 and 8.
 
 Items 1, 2, 3 and 5 have no dependencies on each other and can run in
-parallel. Item 1 and `WI-EXPORT-SKILLS-LIVE-SESSION-WORDING` both edit the
-export skill files, so land one before starting the other.
+parallel. Item 1 first waits for `WI-EXPORT-SKILLS-LIVE-SESSION-WORDING`,
+which is outside this workstream. That gives the export skill files a single
+edit order: the wording fix, then the rename (item 1), then the Antigravity
+confirm gate (item 4).
 
 ## Exit Criteria
 

@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: in_progress
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/720
-commit: 6b3c08738ec361dc9ac0625ce487e8734409b4f7
+commit:
 created_at: 2026-09-24T20:29:00+00:00
 agent: chatgpt
 instruction_source: project/work_items/proposed/WI-SKILLS-CHATGPT-EXPORT.md

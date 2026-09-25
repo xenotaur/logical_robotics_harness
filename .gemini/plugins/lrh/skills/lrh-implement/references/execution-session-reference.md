@@ -257,7 +257,8 @@ Per `PROP-LRH-SESSION-ARCHIVE-SYNC` Stage 2
 half of the identity gap (new sessions capture both ids going forward).
 `lrh sessions sync`/`discover`/`link` close the *retroactive* half — a
 durable local archive for transcripts that already exist, plus harvesting
-`/export` zip `metadata.json` for pointers that already dangle.
+desktop-app `session-export-*.zip` `metadata.json` for pointers that already
+dangle.
 
 ```bash
 lrh sessions sync \

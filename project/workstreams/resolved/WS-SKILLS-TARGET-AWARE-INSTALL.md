@@ -137,6 +137,12 @@ the hosted upload/registration contract is researched and confirmed. If that
 research becomes actionable, file a separate proposal or extend this workstream
 with an explicit work item.
 
+**Post-close follow-up (2026-09-24):** the hosted ChatGPT Skills contract is
+now sufficiently documented to clear that research dependency. The follow-up
+is intentionally *not* added to this resolved workstream: `WI-SKILLS-CHATGPT-EXPORT`
+links directly to the adopted proposal and implements the previously deferred
+hosted-export stage while this workstream remains closed.
+
 ## Exit Criteria
 
 - `lrh skills install` accepts `--target claude|codex|all`.
@@ -161,8 +167,9 @@ with an explicit work item.
 ## Non-Goals
 
 - Does not make `.claude/skills/` or `.agents/skills/` authoritative sources.
-- Does not implement ChatGPT Skills export until the hosted API/upload contract
-  is researched.
+- Historical scope boundary: this closed workstream did not implement ChatGPT
+  Skills export. The research blocker was cleared after closeout; follow-up
+  implementation is tracked separately by `WI-SKILLS-CHATGPT-EXPORT`.
 - Does not rewrite every LRH skill body as part of the first target-aware
   install work item.
 - Does not build a marketplace, registry, plugin manager, or remote skill
@@ -192,5 +199,5 @@ with an explicit work item.
   body-prose neutralization, and which are better handled by render adapters?
 - How much of `project/agent_skills.yaml` should be accepted in the first repo
   config work item versus held for later extensibility?
-- What public or private contract is sufficient to unblock ChatGPT Skills
-  export design?
+- ChatGPT Skills export unblock criterion — resolved after closeout by the
+  public hosted upload/bundle documentation cited from `WI-SKILLS-CHATGPT-EXPORT`.

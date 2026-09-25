@@ -40,6 +40,7 @@ acceptance:
   - "src/lrh/skills/lrh-codex-export/SKILL.md and src/lrh/skills/lrh-antigravity-export/SKILL.md are deprecated stubs: disable-model-invocation is true, the description names the replacement, and the body tells the agent to run the replacement with the same arguments"
   - "All three install targets (.claude/skills, .agents/skills, .gemini/plugins/lrh/skills) contain both new skills and both stubs, installed skill by skill without lrh skills install --force, and lrh-export-antigravity is present in .gemini/plugins/lrh/skills"
   - "CLAUDE.md lists /lrh-export-codex and /lrh-export-antigravity; current docs and proposed work items that name the old skills use the new names; adopted and resolved documents are unchanged"
+  - "Other skills' references to /lrh-codex-export (src/lrh/skills/lrh-codex-session/SKILL.md, or lrh-session-id-codex/SKILL.md if WI-SESSION-ID-CODEX-SKILL-RENAME landed first) use /lrh-export-codex, including their three installed copies, so no skill routes through a deprecated stub"
   - "The lrh-codex-export-<timestamp> export-directory prefix in src/lrh/conversations/codex_archive.py, its tests and experimental/rescue_codex_exports is unchanged"
   - "lrh validate reports 0 errors and scripts/test, scripts/lint and scripts/format --check --diff pass"
   - "On the Antigravity target, where AntigravitySkillRenderer strips disable-model-invocation with no equivalent, each stub's description tells the model not to select it and names the replacement; the implementer also checks whether Antigravity supports an invocation-control field and, if so, maps disable-model-invocation onto it in the renderer"
@@ -59,6 +60,7 @@ artifacts_expected:
   - .agents/skills/lrh-export-antigravity/
   - .gemini/plugins/lrh/skills/lrh-export-codex/
   - .gemini/plugins/lrh/skills/lrh-export-antigravity/
+  - src/lrh/skills/lrh-codex-session/SKILL.md (or src/lrh/skills/lrh-session-id-codex/SKILL.md, whichever exists)
   - CLAUDE.md
   - docs/conversations/README.md
   - docs/conversations/codex_export.md
@@ -157,6 +159,14 @@ Facts the implementer needs:
      with the new names;
    - do not list the stubs, or list them only as deprecated.
 5. Update the old names to the new ones in:
+   - other skills that reference them. Today only
+     `src/lrh/skills/lrh-codex-session/SKILL.md` refers to
+     `/lrh-codex-export` (lines 50, 62, 113). It is
+     `lrh-session-id-codex/SKILL.md` if
+     `WI-SESSION-ID-CODEX-SKILL-RENAME` landed first. Update it and re-install
+     its three copies. Re-run
+     `grep -rln 'lrh-codex-export\|lrh-antigravity-export' src/lrh/skills`
+     before finishing, to catch any new references.
    - `docs/conversations/README.md`
    - `docs/conversations/codex_export.md`
    - `docs/conversations/conversation-capture-options.md`
@@ -231,6 +241,9 @@ See `PROP-LRH-EXPORT-SESSION-ID-SKILL-FAMILIES` Decision 3.
 
 ## Risk Notes
 
+- This item and `WI-SESSION-ID-CODEX-SKILL-RENAME` edit each other's skills
+  (see Required Change 5). Whichever lands second must rebase onto the other,
+  and edit the other skill under its current name.
 - A stub accidentally left model-invocable would compete with the new name
   for automatic triggering. `disable-model-invocation: true` is required.
 - A blanket search-and-replace would also rewrite the

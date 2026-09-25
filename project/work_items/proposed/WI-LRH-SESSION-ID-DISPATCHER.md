@@ -42,6 +42,7 @@ acceptance:
 required_evidence:
   - manual_review
   - lrh_validate
+  - test_output
 artifacts_expected:
   - src/lrh/skills/lrh-session-id/SKILL.md
   - src/lrh/skills/lrh-session-id/agents/openai.yaml

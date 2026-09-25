@@ -21,7 +21,7 @@ related_design:
 depends_on:
   - WI-LRH-EXPORT-DISPATCHER
   - WI-LRH-SESSION-ID-DISPATCHER
-  - WI-ANTIGRAVITY-SESSION-ID-RESOLVER
+  - WI-ANTIGRAVITY-SESSION-ID-INVESTIGATION
   - WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT
 blocked_by: []
 expected_actions:
@@ -108,10 +108,17 @@ Findings from the 2026-09-24 audit:
 This item also depends on two others, so it documents settled behavior
 instead of inventing it:
 
-- `WI-ANTIGRAVITY-SESSION-ID-RESOLVER`. It may end as implemented or as
-  abandoned; either way, its result decides whether the Antigravity how-to
-  documents a session-ID skill and pointer format, or states they are
-  deferred.
+- `WI-ANTIGRAVITY-SESSION-ID-INVESTIGATION`, not the resolver.
+  - **Why not the resolver:** it may legitimately end *abandoned*, and
+    `/lrh-execute` requires every `depends_on` entry to be
+    `status: resolved`, so depending on it could block this item forever.
+  - **What the investigation settles:** its appendix fixes the pointer
+    format, and whether the Antigravity session-ID skill is proceeding or
+    deferred.
+  - **What this item documents:** that outcome. If the resolver is still
+    in flight, the skill and its pointer are marked "planned" in the docs.
+    `WI-ANTIGRAVITY-SESSION-ID-RESOLVER` updates the reference page when it
+    ships.
 - `WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT`. Its outcome decides the
   confirm-gate column for Antigravity in the reference page.
 

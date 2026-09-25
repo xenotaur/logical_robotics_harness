@@ -134,7 +134,9 @@ Listed in delivery order. Each item's `depends_on:` enforces the order.
 9. `WI-EXPORT-SESSION-ID-DOCS`
    - Per-vendor how-tos, a reference page for both families, and the stale
      docs fixes.
-   - Depends on items 4, 6, 7 and 8, so it documents settled behavior.
+   - Depends on items 4, 5, 7 and 8, so it documents settled behavior.
+     It depends on the investigation (item 5) rather than the resolver
+     (item 6), because the resolver may end abandoned.
 
 Items 1, 2, 3 and 5 have no dependencies on each other and can run in
 parallel. Item 1 first waits for `WI-EXPORT-SKILLS-LIVE-SESSION-WORDING`,

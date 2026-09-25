@@ -128,7 +128,10 @@ choose another name.
    - `project/executions/README.md`
    - `docs/reference/cli/conversation.md`
 6. Add `/lrh-session-id-antigravity` to `CLAUDE.md`.
-7. Update `build_session_report` in `src/lrh/prompt_workflow_sessions.py`.
+7. If `docs/reference/export-and-session-id-skills.md` already exists (from
+   `WI-EXPORT-SESSION-ID-DOCS`), update its Antigravity rows from "planned"
+   to the shipped skill and pointer.
+8. Update `build_session_report` in `src/lrh/prompt_workflow_sessions.py`.
    Today it handles only the `claude-app` and `codex-app` schemes and reports
    every other pointer as `unsupported`.
    - Recognize the new Antigravity scheme and classify it on the evidence

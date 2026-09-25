@@ -315,7 +315,9 @@ order:
    - Add the `/lrh-session-id` dispatcher. Antigravity reports unsupported
      until item 6 ships.
 9. **`WI-EXPORT-SESSION-ID-DOCS`**
-   - Depends on items 4, 6, 7 and 8.
+   - Depends on items 4, 5, 7 and 8. It depends on the investigation (item
+     5) rather than the resolver (item 6), because the resolver may end
+     abandoned.
    - A how-to per vendor under `docs/conversations/`.
    - A reference page listing both skill families.
    - Fix the stale backlog entry, the `proposals/README.md` bucket link, and

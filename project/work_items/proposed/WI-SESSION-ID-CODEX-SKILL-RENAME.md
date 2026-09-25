@@ -37,13 +37,14 @@ forbidden_actions:
 acceptance:
   - "src/lrh/skills/lrh-session-id-codex/ (SKILL.md and agents/openai.yaml) exists with the full content of lrh-codex-session, with the frontmatter name and self-references updated and behavior otherwise unchanged"
   - "src/lrh/skills/lrh-codex-session/SKILL.md is a deprecated stub: disable-model-invocation is true, the description names /lrh-session-id-codex, and the body hands off with the same arguments"
-  - "Every current skill, doc and proposed work item that names /lrh-codex-session, including the Codex export skill and WI-SKILLS-LRH-CLAUDE-SESSION's template reference, uses /lrh-session-id-codex; adopted and resolved documents are unchanged"
+  - "Every current skill, doc and proposed work item that names /lrh-codex-session, including the Codex export skill (src/lrh/skills/lrh-codex-export/SKILL.md, or lrh-export-codex/SKILL.md if WI-EXPORT-SKILL-FAMILY-RENAME landed first, plus its three installed copies) and WI-SKILLS-LRH-CLAUDE-SESSION's template reference, uses /lrh-session-id-codex; adopted and resolved documents are unchanged"
   - "All three install targets contain lrh-session-id-codex and the stub, installed skill by skill without --force, and CLAUDE.md lists /lrh-session-id-codex"
   - "lrh validate reports 0 errors and scripts/test, scripts/lint and scripts/format --check --diff pass"
   - "On the Antigravity target, where AntigravitySkillRenderer strips disable-model-invocation with no equivalent, each stub's description tells the model not to select it and names the replacement; the implementer also checks whether Antigravity supports an invocation-control field and, if so, maps disable-model-invocation onto it in the renderer"
 required_evidence:
   - manual_review
   - lrh_validate
+  - test_output
 artifacts_expected:
   - src/lrh/skills/lrh-session-id-codex/SKILL.md
   - src/lrh/skills/lrh-session-id-codex/agents/openai.yaml
@@ -51,6 +52,7 @@ artifacts_expected:
   - .claude/skills/lrh-session-id-codex/
   - .agents/skills/lrh-session-id-codex/
   - .gemini/plugins/lrh/skills/lrh-session-id-codex/
+  - src/lrh/skills/lrh-codex-export/SKILL.md (or src/lrh/skills/lrh-export-codex/SKILL.md, whichever exists)
   - CLAUDE.md
   - docs/conversations/codex_export.md
   - docs/reference/cli/conversation.md
@@ -180,6 +182,11 @@ See `PROP-LRH-EXPORT-SESSION-ID-SKILL-FAMILIES` Decision 3.
 
 ## Risk Notes
 
-- This item and `WI-EXPORT-SKILL-FAMILY-RENAME` both edit the Codex export
-  skill. Whichever lands second must rebase onto the other and edit the
-  skill under its current name.
+- This item and `WI-EXPORT-SKILL-FAMILY-RENAME` edit each other's skills.
+  This item updates `/lrh-codex-session` references in the Codex export
+  skill; that one updates `/lrh-codex-export` references in this skill.
+  - Whichever lands second must rebase onto the other, and edit the other
+    skill under its current name.
+  - Before finishing, re-run
+    `grep -rln 'lrh-codex-session\|lrh-codex-export' src/lrh/skills` so no
+    skill is left routing through a deprecated stub.

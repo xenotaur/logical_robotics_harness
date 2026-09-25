@@ -21,6 +21,7 @@ related_design:
 depends_on:
   - WI-SESSION-ID-CODEX-SKILL-RENAME
   - WI-SKILLS-LRH-CLAUDE-SESSION
+  - WI-ANTIGRAVITY-SESSION-ID-INVESTIGATION
 blocked_by: []
 expected_actions:
   - run_tests
@@ -111,6 +112,10 @@ dispatcher, instead of through the per-vendor skills, is left to a follow-up.
      `/lrh-export`;
    - carry out `lrh-session-id-<vendor>`'s steps inline, passing remaining
      arguments through;
+   - check at run time whether `lrh-session-id-<vendor>` is installed,
+     rather than hard-coding Antigravity as unsupported. Once
+     `WI-ANTIGRAVITY-SESSION-ID-RESOLVER` ships, the variant is picked up
+     without editing the dispatcher;
    - when the variant does not exist, report the vendor as unsupported and
      `session_transcript: pending`;
    - include safety rules: no transcript reads, no exports, never call

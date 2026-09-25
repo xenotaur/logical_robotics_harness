@@ -152,8 +152,9 @@ reporting. The dispatcher adds no write step and no gate of its own. The
 `/lrh-export` dispatcher uses the same invocation rule as its variants: it
 runs only on an explicit user request and is never started proactively,
 because every variant writes a permanent archive copy. `/lrh-session-id` is
-metadata-only, so like `lrh-codex-session` it may be called from
-`/lrh-closeout`, `/lrh-land` and `/lrh-implement`.
+metadata-only, so it may be called from `/lrh-closeout`, `/lrh-land` and
+`/lrh-implement`. Nothing in its invocation rule forbids that; the same is
+true of `lrh-codex-session`, although no skill calls it that way today.
 
 The dispatcher picks the vendor in this order:
 1. **Explicit argument.** `/lrh-export codex ...` or `/lrh-session-id claude`.
@@ -279,7 +280,10 @@ session.
   around this instead.
 - Does not change how `/lrh-closeout`, `/lrh-land` or `/lrh-implement` use
   session pointers, except to call the renamed skills. Their routing through
-  the session-ID skills is already scoped in `WI-SKILLS-LRH-CLAUDE-SESSION`.
+  the session-ID skills is scoped only for Claude, in
+`WI-SKILLS-LRH-CLAUDE-SESSION`. Routing Codex (and later Antigravity)
+pointer resolution through `/lrh-session-id-<vendor>` or the dispatcher is an
+unplanned follow-up, not covered by this proposal.
 
 ## Implementation Plan
 
@@ -308,10 +312,12 @@ order:
    - Depends on item 5.
    - Add the Antigravity resolver CLI and `lrh-session-id-antigravity`.
 7. **`WI-LRH-EXPORT-DISPATCHER`**
-   - Depends on items 1 and 4 (whether the Antigravity variant has a confirm gate).
+   - Depends on items 1, 4 and 5. Item 4 settles whether the Antigravity
+     variant has a confirm gate. Item 5 settles whether an Antigravity
+     environment signal exists.
    - Add the `/lrh-export` dispatcher.
 8. **`WI-LRH-SESSION-ID-DISPATCHER`**
-   - Depends on items 2 and 3.
+   - Depends on items 2, 3 and 5.
    - Add the `/lrh-session-id` dispatcher. Antigravity reports unsupported
      until item 6 ships.
 9. **`WI-EXPORT-SESSION-ID-DOCS`**

@@ -128,11 +128,12 @@ Listed in delivery order. Each item's `depends_on:` enforces the order.
    - Depends on item 5.
 7. `WI-LRH-EXPORT-DISPATCHER`
    - Add the `/lrh-export` dispatcher.
-   - Depends on items 1 and 4. Item 4 settles whether the Antigravity variant
-     has a confirm gate.
+   - Depends on items 1, 4 and 5. Item 4 settles whether the Antigravity
+     variant has a confirm gate. Item 5 settles whether an Antigravity
+     environment signal exists.
 8. `WI-LRH-SESSION-ID-DISPATCHER`
    - Add the `/lrh-session-id` dispatcher.
-   - Depends on items 2 and 3.
+   - Depends on items 2, 3 and 5.
 9. `WI-EXPORT-SESSION-ID-DOCS`
    - Per-vendor how-tos, a reference page for both families, and the stale
      docs fixes.

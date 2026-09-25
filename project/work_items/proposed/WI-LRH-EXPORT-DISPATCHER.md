@@ -21,6 +21,7 @@ related_design:
 depends_on:
   - WI-EXPORT-SKILL-FAMILY-RENAME
   - WI-ANTIGRAVITY-EXPORT-CONFIRM-GATE-ASSESSMENT
+  - WI-ANTIGRAVITY-SESSION-ID-INVESTIGATION
 blocked_by: []
 expected_actions:
   - run_tests
@@ -104,6 +105,10 @@ gate. If it does, the dispatcher's promise that "the variant's confirm gate
 still fires" would be false for Antigravity. The implementer must then raise
 this with the human before shipping, rather than silently routing an ungated
 durable write through `/lrh-export`.
+
+It also depends on `WI-ANTIGRAVITY-SESSION-ID-INVESTIGATION`. That item's
+appendix settles whether an Antigravity environment signal exists, and the
+vendor-detection order below needs that answer before this item starts.
 
 ## Scope
 

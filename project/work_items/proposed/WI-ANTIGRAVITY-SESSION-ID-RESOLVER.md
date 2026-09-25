@@ -142,7 +142,11 @@ choose another name.
 
 - Does not change `export-antigravity-session` or `lrh-export-antigravity`.
 - Does not add the `/lrh-session-id` dispatcher. That is
-  `WI-LRH-SESSION-ID-DISPATCHER`.
+  `WI-LRH-SESSION-ID-DISPATCHER`. That dispatcher looks up the installed
+  variant at run time, so no dispatcher edit should be needed. However, if
+  either dispatcher has already shipped when this item lands, this item must
+  make sure its Antigravity vendor-detection signal matches the one the
+  investigation chose, and update the dispatcher if it does not.
 - Does not change `/lrh-closeout`'s pointer handling beyond documenting the
   new format.
 

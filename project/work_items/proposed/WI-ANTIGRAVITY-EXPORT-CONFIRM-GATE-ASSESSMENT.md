@@ -23,6 +23,7 @@ blocked_by: []
 expected_actions:
   - edit_file
   - create_report
+  - run_tests
 forbidden_actions:
   - force_push
   - delete_branch

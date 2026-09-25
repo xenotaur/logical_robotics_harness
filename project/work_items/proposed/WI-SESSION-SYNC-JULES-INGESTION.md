@@ -19,6 +19,7 @@ related_workstreams:
 related_design:
   - project/design/proposals/proposed/lrh-session-archive-sync/00_proposal.md
   - project/design/proposals/proposed/contributor-identity-contract/00_proposal.md
+  - project/design/proposals/proposed/lrh-conversations-storage-interop/02_export_manifest_taxonomy.md
 depends_on:
   - WI-SESSION-ARCHIVE-ROOT-DEFAULT
 blocked_by: []
@@ -132,10 +133,18 @@ well.
    findings before writing any parser.
 2. Add a new module under `src/lrh/conversations/` (e.g.
    `jules_archive.py`) implementing zip ingestion, modeled on Codex's
-   *import*-shaped commands (`import-codex-exports` /
-   `convert-codex-file` in `src/lrh/conversations/codex_archive.py`) rather
-   than its live-thread-archiving command (`archive-codex-thread`), since
-   Jules exports arrive as pre-made zips with no live queryable endpoint.
+   `import-codex-exports` command (`src/lrh/conversations/codex_archive.py`)
+   rather than its live-thread-archiving command (`archive-codex-thread`),
+   since Jules exports arrive as pre-made zips with no live queryable
+   endpoint. **Note (per `PROP-LRH-CONVERSATIONS-EXPORT-MANIFEST-TAXONOMY`
+   Decision 4):** `import-codex-exports` and `convert-codex-file`
+   (`src/lrh/conversations/codex_file_export.py`) are not interchangeable
+   precedents — only `import-codex-exports` writes the unvalidated
+   `attempt.json`-style archive-ingestion record this item's output should
+   follow; `convert-codex-file` instead produces a fully
+   `export_manifest.ConversationExportManifest`-validated export, which is
+   the wrong family for this item's archival-bookkeeping purpose. Do not
+   treat the two as equivalent models.
 3. Register the new command under the existing `conversation` CLI subtree
    (`src/lrh/cli/main.py:104-139`), alongside the Codex commands.
 4. Call the existing `resolve_archive_root()` (unchanged by
@@ -145,7 +154,13 @@ well.
    `CODEX_ARCHIVE_SUBDIR`.
 5. On successful ingestion, write per-attempt metadata (e.g. `attempt.json`)
    into the archive, mirroring Codex's `import-codex-exports` convention.
-   Do not write an entry into `project/sessions/index.jsonl` — its
+   If `PROP-LRH-CONVERSATIONS-EXPORT-MANIFEST-TAXONOMY`'s Family 2
+   "Archive Ingestion Record" contract has landed by the time this item is
+   implemented, conform to it (validated `kind`/`source_tool`/attempt-key
+   shape) instead of an ad hoc dict; if it has not yet landed, write the
+   same ad hoc shape `codex_archive.py` uses today and flag the gap rather
+   than inventing a third unvalidated format. Do not write an entry into
+   `project/sessions/index.jsonl` — its
    `SessionRecord` schema is keyed by a plain, Claude-specific `host_id`
    with no scheme-qualified pointer concept
    (`src/lrh/prompt_workflow_sessions.py:32-52`); a `jules:<id>` pointer
@@ -210,3 +225,12 @@ well.
   scheme-qualified session-index entries emerges, that's a distinct,
   unscoped schema-migration item, not something to fold into Jules
   ingestion.
+- **Added per `PROP-LRH-CONVERSATIONS-EXPORT-MANIFEST-TAXONOMY`:** this
+  item's Required Change #2 originally cited `import-codex-exports` and
+  `convert-codex-file` as interchangeable precedents for the new Jules
+  ingestion module; they are not — only the former matches this item's
+  archival-bookkeeping purpose (see Required Change #2's note). Separately,
+  that proposal leaves open whether its proposed Family 2 "Archive
+  Ingestion Record" contract gets built before or after this item starts;
+  if still undecided when implementation begins, check its Open Questions
+  section and coordinate rather than assuming either answer.

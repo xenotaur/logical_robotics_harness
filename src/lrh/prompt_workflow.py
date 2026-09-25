@@ -300,9 +300,9 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
         default=None,
         help=(
             "Child SDK session id alias for this host id. Omit when the "
-            "host id was resolved cross-session (list_sessions by PR, or a "
-            "pasted URL) -- pairing it with the current window's child id "
-            "would record a false alias."
+            "host id was resolved cross-session (e.g. from list_sessions, "
+            "matched by PR or picked by the user) -- pairing it with the "
+            "current window's child id would record a false alias."
         ),
     )
     session_parser.add_argument("--title", default=None)

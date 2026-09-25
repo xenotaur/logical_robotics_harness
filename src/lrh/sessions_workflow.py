@@ -41,8 +41,10 @@ def run_sessions_cli(argv: list[str], *, prog: str = "lrh sessions") -> int:
         "sync",
         help=(
             "Mirror local Claude Code transcripts into a durable archive and, "
-            "if --exports-dir is given, harvest /export metadata.json "
-            "identity fields into project/sessions/index.jsonl."
+            "if --exports-dir is given, harvest identity fields from "
+            "desktop-app session-export-*.zip metadata.json into "
+            "project/sessions/index.jsonl (the harvest is not "
+            "project-scoped)."
         ),
     )
     sync_parser.add_argument(

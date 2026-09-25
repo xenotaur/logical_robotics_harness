@@ -161,6 +161,15 @@ ChatGPT Skills is correctly out of scope as a **local filesystem install target*
 
 This proposal sharpens that deferral: because ChatGPT Skills only reached GA on 2026-07-09, its actual upload/registration API contract is not yet publicly documented in enough depth to design against. Stage 7 (`lrh skills export --target chatgpt`) should be tracked as **blocked on research**, not as a routine "next stage" that simply hasn't been reached yet — the distinction matters for sequencing: don't schedule engineering time against it until the contract is confirmed.
 
+**2026-09-24 follow-up — research blocker cleared.** The contract required by
+this decision is now publicly documented by OpenAI: ChatGPT accepts uploaded
+Skills, supports explicit `@skill-name` selection, and the Skills/API guidance
+documents portable skill-directory / ZIP bundle structure. The planning work
+item `WI-SKILLS-CHATGPT-EXPORT` records the implementation scope and cites the
+current OpenAI Help Center and developer documentation used to clear the
+blocker. The original deferral above remains as historical rationale; it no
+longer blocks scheduling the export work item.
+
 ## Non-Goals
 
 - Does not make `lrh request` templates the canonical source for skills — they remain separate artifact types (a request template is a prompt rendered for a particular run; a skill is a reusable operational procedure selected or invoked by an agent).
@@ -187,7 +196,7 @@ Given the scope (Codex target support, repo config, render adapters, check/statu
 4. **Render adapters** — `ClaudeSkillRenderer`/`CodexSkillRenderer` split, with the Codex adapter targeting `agents/openai.yaml` per Decision 2, plus canonical/target validation layers (`lrh skills check`).
 5. **Status/check commands** — `lrh skills check`, `lrh skills status`.
 6. **Body-prose neutralization** (follow-on, separately scoped per Decision 4) — rewrite existing skill bodies to be agent-neutral.
-7. **ChatGPT export** — blocked on research per Decision 8; not scheduled until the upload/registration contract is confirmed.
+7. **ChatGPT export** — research prerequisite cleared on 2026-09-24; implement through `WI-SKILLS-CHATGPT-EXPORT` using the hosted-export boundary described in Decision 8's follow-up.
 
 ## Cross-References
 
@@ -199,6 +208,6 @@ Given the scope (Codex target support, repo config, render adapters, check/statu
 
 ## Open Questions
 
-- ChatGPT Skills' actual upload/registration API contract — not yet researchable from public docs as of this proposal's drafting; blocks Stage 7 scoping (Decision 8).
+- ChatGPT Skills upload/registration contract — resolved by the 2026-09-24 Decision 8 follow-up; implementation scope is captured in `WI-SKILLS-CHATGPT-EXPORT`.
 - Whether Codex's `agents/openai.yaml` should be treated as canonical-source content (versioned alongside `SKILL.md`) or purely target-generated — deferred to the render-adapter work item (Decision 2 covers the mechanism, not the authoring workflow).
 - Exact test budget per stage (unit/integration/regression counts) — the source design's Testing Strategy section is a reasonable checklist but wasn't sized against work-item scope; left for each implementing work item to size individually rather than fixed here.

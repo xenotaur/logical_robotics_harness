@@ -42,7 +42,11 @@ does not implement storage code, a chat UI, an MCP server, a GitHub App, model
 provider integration, HTTP behavior, or run execution behavior. The companion
 [`01_chatgpt_pdf_import.md`](01_chatgpt_pdf_import.md) design note records an
 early manual capture path for converting ChatGPT browser Save as PDF exports
-into private-by-default, non-authoritative Markdown transcripts.
+into private-by-default, non-authoritative Markdown transcripts. The companion
+[`02_export_manifest_taxonomy.md`](02_export_manifest_taxonomy.md) design note
+records a three-family taxonomy for conversation-export/transcript metadata
+shapes and resolves the long-open backlog gate on generalizing
+`ConversationExportManifest` beyond Codex.
 
 ## Motivation
 

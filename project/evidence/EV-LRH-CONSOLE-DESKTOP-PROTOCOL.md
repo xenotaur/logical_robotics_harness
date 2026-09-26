@@ -20,8 +20,8 @@ artifacts:
   - tests/cli_tests/desktop_supervisor_test.py
   - tests/smoke/desktop_protocol_smoke.py
 metrics:
-  unit_tests_total: 1781
-  desktop_protocol_unit_tests: 48
+  unit_tests_total: 1783
+  desktop_protocol_unit_tests: 50
   desktop_supervisor_unit_tests: 15
   desktop_protocol_smoke_tests: 21
   spawn_to_ready_median_seconds: 0.198
@@ -67,9 +67,9 @@ and put first on `PATH`.
 | `scripts/version tools` | Ruff 0.15.12, Black 26.3.1, Python 3.11.8; LRH CLI and metadata agree. |
 | `scripts/format --check --diff` | 261 files unchanged. |
 | `scripts/lint` | Ruff: all checks passed; Black clean; test guardrails passed (exit 0). |
-| `scripts/test --log` | `Ran 1781 tests in 117.406s`, `OK`. Re-run after the fourth review round. |
+| `scripts/test --log` | `Ran 1783 tests in 116.080s`, `OK`. Re-run after the fifth review round. |
 | `lrh validate` | `Validation completed: 0 error(s), 0 warning(s)`. |
-| `python -m unittest tests.smoke.desktop_protocol_smoke` | `Ran 21 tests in 12.577s`, `OK`. An earlier 17-test revision passed three consecutive reruns. The final desktop suites (84 tests) produced zero `ResourceWarning`s under `-W always::ResourceWarning`. |
+| `python -m unittest tests.smoke.desktop_protocol_smoke` | `Ran 21 tests in 12.591s`, `OK`. An earlier 17-test revision passed three consecutive reruns. The final desktop suites (86 tests) produced zero `ResourceWarning`s under `-W always::ResourceWarning`. |
 | `scripts/smoke` | Run on the round-2 code: 33 tests, 1 failure, in the pre-existing `prompt_cli_install_smoke` (see below). All 21 desktop protocol smoke tests passed within that run. |
 
 `scripts/smoke` failure, unrelated to this change: `prompt_cli_install_smoke`
@@ -180,6 +180,15 @@ Filesystem errors in `resolve_workspace` now map to `invalid_workspace`. Any
 other unexpected error after a `start` is read now reports `internal_error`
 with the correlated launch ID. A real child given
 `"/" + "a" * 300` now returns `invalid_workspace` for launch `L`.
+
+A further cold review found that the correlation covered only parse and
+resolve. An unexpected error from the server factory or the self-check still
+escaped `run_session` uncorrelated. This was reproduced in-process: the error
+escaped and nothing was written. One handler now covers the whole pre-ready
+section, from reading `start` to sending `ready`. It stops a started server
+and reports `internal_error` with the request's launch ID. Two tests cover a
+broken factory and a failing self-check, including that the socket is closed
+afterwards.
 
 ## Supervisor example (observed)
 

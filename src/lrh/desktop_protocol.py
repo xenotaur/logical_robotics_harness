@@ -684,55 +684,73 @@ def run_session(
 
     assert isinstance(item, dict)
     correlated_launch_id = extract_launch_id(item)
+    server: ServerHandle | None = None
+    serve_thread: threading.Thread | None = None
+    serving = False
     try:
-        request = parse_start_request(item)
-        workspace = resolve_workspace(request.requested_project_root)
-    except ProtocolError as err:
-        return fail(correlated_launch_id, err, EXIT_STARTUP_FAILED)
-    except Exception as err:  # noqa: BLE001 - keep the failure correlated
+        try:
+            request = parse_start_request(item)
+            workspace = resolve_workspace(request.requested_project_root)
+        except ProtocolError as err:
+            return fail(correlated_launch_id, err, EXIT_STARTUP_FAILED)
+
+        launch_id = request.launch_id
+        try:
+            server = server_factory(workspace.project_root)
+        except (OSError, ValueError) as err:
+            return fail(
+                launch_id,
+                ProtocolError("bind_failed", f"could not bind loopback server: {err}"),
+                EXIT_STARTUP_FAILED,
+            )
+        host, port = server.server_address[:2]
+        host = str(host)
+        port = int(port)
+        serve_thread = threading.Thread(
+            target=server.serve_forever,
+            kwargs={"poll_interval": min(0.5, max(0.05, poll_interval))},
+            name="lrh-desktop-serve",
+            daemon=True,
+        )
+        serve_thread.start()
+        serving = True
+
+        if host != LOOPBACK_HOST:
+            _stop_server(server, serve_thread, stop_timeout)
+            return fail(
+                launch_id,
+                ProtocolError(
+                    "bind_failed", f"server bound to non-loopback host {host!r}"
+                ),
+                EXIT_STARTUP_FAILED,
+            )
+        try:
+            _self_check(host, port, self_check_timeout)
+        except ProtocolError as err:
+            _stop_server(server, serve_thread, stop_timeout)
+            return fail(launch_id, err, EXIT_STARTUP_FAILED)
+
+        if not writer.send(ready_message(launch_id, workspace, host, port)):
+            _stop_server(server, serve_thread, stop_timeout)
+            return SessionResult(
+                EXIT_PARENT_LOST, REASON_PARENT_CHANNEL_CLOSED, launch_id
+            )
+    except Exception as err:  # noqa: BLE001 - keep pre-ready failures correlated
+        # ready has not been sent, so this is still a startup failure: stop
+        # anything already started and report it with the request's launch ID.
         _log(log_stream, f"internal error: {type(err).__name__}: {err}")
+        if server is not None and serve_thread is not None and serving:
+            _stop_server(server, serve_thread, stop_timeout)
+        elif server is not None:
+            try:
+                server.server_close()
+            except OSError:
+                pass
         return fail(
             correlated_launch_id,
             ProtocolError("internal_error", "internal error"),
             EXIT_INTERNAL_ERROR,
         )
-
-    launch_id = request.launch_id
-    try:
-        server = server_factory(workspace.project_root)
-    except (OSError, ValueError) as err:
-        return fail(
-            launch_id,
-            ProtocolError("bind_failed", f"could not bind loopback server: {err}"),
-            EXIT_STARTUP_FAILED,
-        )
-    host, port = server.server_address[:2]
-    host = str(host)
-    port = int(port)
-    serve_thread = threading.Thread(
-        target=server.serve_forever,
-        kwargs={"poll_interval": min(0.5, max(0.05, poll_interval))},
-        name="lrh-desktop-serve",
-        daemon=True,
-    )
-    serve_thread.start()
-
-    if host != LOOPBACK_HOST:
-        _stop_server(server, serve_thread, stop_timeout)
-        return fail(
-            launch_id,
-            ProtocolError("bind_failed", f"server bound to non-loopback host {host!r}"),
-            EXIT_STARTUP_FAILED,
-        )
-    try:
-        _self_check(host, port, self_check_timeout)
-    except ProtocolError as err:
-        _stop_server(server, serve_thread, stop_timeout)
-        return fail(launch_id, err, EXIT_STARTUP_FAILED)
-
-    if not writer.send(ready_message(launch_id, workspace, host, port)):
-        _stop_server(server, serve_thread, stop_timeout)
-        return SessionResult(EXIT_PARENT_LOST, REASON_PARENT_CHANNEL_CLOSED, launch_id)
     _log(
         log_stream,
         f"ready launch_id={launch_id} endpoint=http://{host}:{port}/ "

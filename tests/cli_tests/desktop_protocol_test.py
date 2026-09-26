@@ -605,6 +605,46 @@ class DesktopProtocolStartupFailureTest(unittest.TestCase):
                 launch_id="launch-1",
             )
 
+    def test_unexpected_factory_error_keeps_launch_id(self) -> None:
+        def broken_factory(project_root: pathlib.Path) -> Any:
+            raise RuntimeError("factory broke")
+
+        session = _Session(self, server_factory=broken_factory)
+
+        session.send(_start_request(str(self.repo)))
+
+        self._assert_failed(
+            session,
+            "internal_error",
+            exit_code=desktop_protocol.EXIT_INTERNAL_ERROR,
+            launch_id="launch-1",
+        )
+
+    def test_unexpected_self_check_error_stops_server_and_keeps_launch_id(
+        self,
+    ) -> None:
+        created: list[Any] = []
+
+        def recording_factory(project_root: pathlib.Path) -> Any:
+            server = serve._desktop_server_factory(project_root)
+            created.append(server)
+            return server
+
+        session = _Session(self, server_factory=recording_factory)
+
+        with unittest.mock.patch.object(
+            desktop_protocol, "_self_check", side_effect=RuntimeError("probe broke")
+        ):
+            session.send(_start_request(str(self.repo)))
+            self._assert_failed(
+                session,
+                "internal_error",
+                exit_code=desktop_protocol.EXIT_INTERNAL_ERROR,
+                launch_id="launch-1",
+            )
+        with self.assertRaises(OSError):
+            _get_status(created[0].server_address[1])
+
     def test_non_project_workspace_fails(self) -> None:
         session = _Session(self)
 

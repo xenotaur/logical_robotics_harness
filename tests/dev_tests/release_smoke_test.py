@@ -5,6 +5,7 @@ import unittest
 from unittest import mock
 
 from lrh.dev import release_smoke
+from tests import testing_support
 
 
 class ReleaseSmokeHelpersTest(unittest.TestCase):
@@ -27,11 +28,12 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
 
     def test_run_raises_clear_error_for_missing_command(self) -> None:
         with mock.patch("subprocess.run", side_effect=FileNotFoundError):
-            with self.assertRaisesRegex(
-                release_smoke.ReleaseSmokeError,
-                "required command not found",
-            ):
-                release_smoke._run(["missing-command"])
+            with testing_support.suppress_output():
+                with self.assertRaisesRegex(
+                    release_smoke.ReleaseSmokeError,
+                    "required command not found",
+                ):
+                    release_smoke._run(["missing-command"])
 
     def test_run_uses_current_repo_root_when_cwd_not_provided(self) -> None:
         fake_root = pathlib.Path("/tmp/fake-root")
@@ -46,7 +48,8 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
             original_repo_root = release_smoke.REPO_ROOT
             release_smoke.REPO_ROOT = fake_root
             try:
-                release_smoke._run(["echo", "ok"])
+                with testing_support.suppress_output():
+                    release_smoke._run(["echo", "ok"])
             finally:
                 release_smoke.REPO_ROOT = original_repo_root
 
@@ -450,7 +453,10 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 ) as check_visibility,
                 mock.patch("shutil.rmtree") as rmtree,
             ):
-                exit_code = release_smoke.run_release_smoke("v0.2.1", preserve=False)
+                with testing_support.suppress_output():
+                    exit_code = release_smoke.run_release_smoke(
+                        "v0.2.1", preserve=False
+                    )
 
         self.assertEqual(exit_code, 0)
         self.assertIn(
@@ -628,7 +634,10 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 ),
                 mock.patch("builtins.print") as print_mock,
             ):
-                release_smoke.run_release_smoke("v0.2.1", preserve=True, diagnose=True)
+                with testing_support.suppress_output():
+                    release_smoke.run_release_smoke(
+                        "v0.2.1", preserve=True, diagnose=True
+                    )
 
         collect_diagnostics.assert_called_once_with(
             fake_venv, fake_python, command_environ=mock.ANY
@@ -691,7 +700,8 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 ),
                 mock.patch("builtins.print") as print_mock,
             ):
-                exit_code = release_smoke.run_release_smoke("v0.2.1", preserve=True)
+                with testing_support.suppress_output():
+                    exit_code = release_smoke.run_release_smoke("v0.2.1", preserve=True)
 
         self.assertEqual(exit_code, 0)
         self.assertIn(
@@ -748,9 +758,10 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke.ReleaseSmokeError,
                     "--diagnose --preserve",
                 ) as context:
-                    release_smoke.run_release_smoke(
-                        "v0.2.1", preserve=True, strict_isolation=True
-                    )
+                    with testing_support.suppress_output():
+                        release_smoke.run_release_smoke(
+                            "v0.2.1", preserve=True, strict_isolation=True
+                        )
 
         self.assertIn("Strict isolation mode fails", str(context.exception))
         self.assertNotIn(
@@ -806,9 +817,10 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     return_value=self._visibility(visible=False),
                 ),
             ):
-                exit_code = release_smoke.run_release_smoke(
-                    "v0.2.1", preserve=True, strict_isolation=True
-                )
+                with testing_support.suppress_output():
+                    exit_code = release_smoke.run_release_smoke(
+                        "v0.2.1", preserve=True, strict_isolation=True
+                    )
 
         self.assertEqual(exit_code, 0)
         self.assertIn(
@@ -868,12 +880,13 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 mock.patch("builtins.print") as print_mock,
             ):
                 with self.assertRaises(release_smoke.ReleaseSmokeError):
-                    release_smoke.run_release_smoke(
-                        "v0.2.1",
-                        preserve=True,
-                        diagnose=True,
-                        strict_isolation=True,
-                    )
+                    with testing_support.suppress_output():
+                        release_smoke.run_release_smoke(
+                            "v0.2.1",
+                            preserve=True,
+                            diagnose=True,
+                            strict_isolation=True,
+                        )
 
         collect_diagnostics.assert_called_once_with(
             fake_venv, fake_python, command_environ=mock.ANY
@@ -923,7 +936,8 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                 ),
                 mock.patch("shutil.rmtree") as rmtree,
             ):
-                release_smoke.run_release_smoke("", preserve=True)
+                with testing_support.suppress_output():
+                    release_smoke.run_release_smoke("", preserve=True)
 
         rmtree.assert_not_called()
         self.assertIn([str(fake_venv / "bin" / "lrh"), "--version"], commands)
@@ -956,7 +970,8 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke.ReleaseSmokeError,
                     "installed console script is missing",
                 ):
-                    release_smoke.run_release_smoke("v0.2.1", preserve=True)
+                    with testing_support.suppress_output():
+                        release_smoke.run_release_smoke("v0.2.1", preserve=True)
 
 
 if __name__ == "__main__":

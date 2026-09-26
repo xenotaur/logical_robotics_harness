@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import pathlib
 import socket
@@ -13,21 +11,19 @@ import urllib.request
 from lrh import serve
 from lrh.cli import main as cli_main
 from lrh.conversations import codex_file_export
+from tests import testing_support
 
 
 class TestLrhServeCli(unittest.TestCase):
     def test_lrh_serve_help_documents_safe_defaults(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-
         with unittest.mock.patch("sys.argv", ["lrh", "serve", "--help"]):
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 with self.assertRaises(SystemExit) as err_ctx:
                     cli_main.main()
 
         self.assertEqual(err_ctx.exception.code, 0)
-        self.assertEqual(stderr.getvalue(), "")
-        output = stdout.getvalue()
+        self.assertEqual(captured.stderr.getvalue(), "")
+        output = captured.stdout.getvalue()
         self.assertIn("safe-default LRH local read-only viewer", output)
         self.assertIn("--host", output)
         self.assertIn("--port", output)
@@ -66,15 +62,12 @@ class TestLrhServeCli(unittest.TestCase):
         )
 
     def test_show_config_reports_no_write_or_agent_capabilities(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             exit_code = serve.run_serve_cli(["--show-config"])
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
-        payload = json.loads(stdout.getvalue())
+        self.assertEqual(captured.stderr.getvalue(), "")
+        payload = json.loads(captured.stdout.getvalue())
         self.assertEqual(payload["host"], "127.0.0.1")
         self.assertEqual(payload["codex_archive_root_count"], 0)
         self.assertEqual(payload["codex_archive_root_names"], [])
@@ -85,20 +78,16 @@ class TestLrhServeCli(unittest.TestCase):
         self.assertFalse(payload["capabilities"]["arbitrary_file_serving"])
 
     def test_unsafe_host_requires_explicit_opt_in(self) -> None:
-        stderr = io.StringIO()
-
-        with contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output(capture_stderr=True) as captured:
             with self.assertRaises(SystemExit) as err_ctx:
                 serve.run_serve_cli(["--host", "0.0.0.0", "--show-config"])
 
         self.assertEqual(err_ctx.exception.code, 2)
-        self.assertIn("refusing to bind to '0.0.0.0'", stderr.getvalue())
-        self.assertIn("--allow-nonlocal-host", stderr.getvalue())
+        self.assertIn("refusing to bind to '0.0.0.0'", captured.stderr.getvalue())
+        self.assertIn("--allow-nonlocal-host", captured.stderr.getvalue())
 
     def test_unsafe_host_can_be_explicitly_opted_in_for_configuration(self) -> None:
-        stdout = io.StringIO()
-
-        with contextlib.redirect_stdout(stdout):
+        with testing_support.capture_output(capture_stderr=False) as captured:
             exit_code = serve.run_serve_cli(
                 [
                     "--host",
@@ -109,7 +98,7 @@ class TestLrhServeCli(unittest.TestCase):
             )
 
         self.assertEqual(exit_code, 0)
-        payload = json.loads(stdout.getvalue())
+        payload = json.loads(captured.stdout.getvalue())
         self.assertEqual(payload["host"], "0.0.0.0")
 
     def test_ipv6_loopback_uses_ipv6_server_class(self) -> None:

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
-import io
 import json
 import os
 import tempfile
@@ -12,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from lrh.conversations import antigravity_export, export_inspector
+from tests import testing_support
 
 
 def _write_transcript(target_dir: Path, lines: list[dict | str]) -> Path:
@@ -223,11 +222,7 @@ class TestAntigravityExport(unittest.TestCase):
                 [{"source": "USER", "type": "USER_INPUT", "content": "hi"}],
             )
             original = source_file.read_text(encoding="utf-8")
-            stderr = io.StringIO()
-            with (
-                contextlib.redirect_stderr(stderr),
-                contextlib.redirect_stdout(io.StringIO()),
-            ):
+            with testing_support.capture_output() as captured:
                 code = antigravity_export.run_convert_antigravity_session_cli(
                     [
                         "--transcript-path",
@@ -238,8 +233,8 @@ class TestAntigravityExport(unittest.TestCase):
                     ]
                 )
             self.assertEqual(code, 1)
-            self.assertIn("error: ", stderr.getvalue())
-            self.assertIn("must refer to different files", stderr.getvalue())
+            self.assertIn("error: ", captured.stderr.getvalue())
+            self.assertIn("must refer to different files", captured.stderr.getvalue())
             self.assertEqual(source_file.read_text(encoding="utf-8"), original)
 
     def test_convert_antigravity_session_output_collision(self) -> None:
@@ -322,12 +317,7 @@ class TestAntigravityExport(unittest.TestCase):
             )
             out_file = tmp_path / "cli_export.md"
 
-            stdout_buf = io.StringIO()
-            stderr_buf = io.StringIO()
-            with (
-                contextlib.redirect_stdout(stdout_buf),
-                contextlib.redirect_stderr(stderr_buf),
-            ):
+            with testing_support.capture_output() as captured:
                 code = antigravity_export.run_convert_antigravity_session_cli(
                     [
                         "--transcript-path",
@@ -341,7 +331,7 @@ class TestAntigravityExport(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertTrue(out_file.exists())
-            stdout = stdout_buf.getvalue()
+            stdout = captured.stdout.getvalue()
             self.assertIn("Exported Antigravity session transcript", stdout)
             self.assertIn("Source ID: cli_sess_1", stdout)
             self.assertIn("Source SHA-256:", stdout)
@@ -367,12 +357,7 @@ class TestAntigravityExport(unittest.TestCase):
             )
             out_file = tmp_path / "cid_export.md"
 
-            stdout_buf = io.StringIO()
-            stderr_buf = io.StringIO()
-            with (
-                contextlib.redirect_stdout(stdout_buf),
-                contextlib.redirect_stderr(stderr_buf),
-            ):
+            with testing_support.capture_output() as captured:
                 code = antigravity_export.run_convert_antigravity_session_cli(
                     [
                         "--conversation-id",
@@ -386,13 +371,12 @@ class TestAntigravityExport(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertTrue(out_file.exists())
-            stdout = stdout_buf.getvalue()
+            stdout = captured.stdout.getvalue()
             self.assertIn("Source ID: sess_xyz987", stdout)
             self.assertIn("Source SHA-256:", stdout)
 
     def test_cli_convert_antigravity_session_missing_required_args(self) -> None:
-        stderr_buf = io.StringIO()
-        with contextlib.redirect_stderr(stderr_buf):
+        with testing_support.capture_output() as captured:
             with self.assertRaises(SystemExit) as cm:
                 antigravity_export.run_convert_antigravity_session_cli(
                     ["--out", "/tmp/out.md"]
@@ -401,12 +385,11 @@ class TestAntigravityExport(unittest.TestCase):
         self.assertIn(
             "one of the arguments --transcript-path "
             "--conversation-id --latest is required",
-            stderr_buf.getvalue(),
+            captured.stderr.getvalue(),
         )
 
     def test_cli_convert_antigravity_session_mutually_exclusive_args(self) -> None:
-        stderr_buf = io.StringIO()
-        with contextlib.redirect_stderr(stderr_buf):
+        with testing_support.capture_output() as captured:
             with self.assertRaises(SystemExit) as cm:
                 antigravity_export.run_convert_antigravity_session_cli(
                     [
@@ -418,7 +401,7 @@ class TestAntigravityExport(unittest.TestCase):
                     ]
                 )
         self.assertEqual(cm.exception.code, 2)
-        self.assertIn("not allowed with argument", stderr_buf.getvalue())
+        self.assertIn("not allowed with argument", captured.stderr.getvalue())
 
     def test_cli_convert_antigravity_session_durable_default_out(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -432,8 +415,7 @@ class TestAntigravityExport(unittest.TestCase):
                 '{"source": "USER", "type": "USER_INPUT", "content": "hello"}\n',
                 encoding="utf-8",
             )
-            stdout_buf = io.StringIO()
-            with contextlib.redirect_stdout(stdout_buf):
+            with testing_support.capture_output(capture_stderr=False) as captured:
                 exit_code = antigravity_export.run_convert_antigravity_session_cli(
                     [
                         "--transcript-path",
@@ -450,9 +432,10 @@ class TestAntigravityExport(unittest.TestCase):
             expected_out = exported_files[0]
             self.assertTrue(expected_out.exists())
             self.assertIn(
-                "Exported Antigravity session transcript:", stdout_buf.getvalue()
+                "Exported Antigravity session transcript:",
+                captured.stdout.getvalue(),
             )
-            self.assertIn(str(expected_out), stdout_buf.getvalue())
+            self.assertIn(str(expected_out), captured.stdout.getvalue())
             self.assertEqual(expected_out.stat().st_mode & 0o777, 0o600)
 
     def test_cli_archive_root_unresolvable_home_reports_clean_error(self) -> None:
@@ -466,8 +449,7 @@ class TestAntigravityExport(unittest.TestCase):
                 '{"source": "USER", "type": "USER_INPUT", "content": "hi"}\n',
                 encoding="utf-8",
             )
-            stderr_buf = io.StringIO()
-            with contextlib.redirect_stderr(stderr_buf):
+            with testing_support.capture_output() as captured:
                 exit_code = antigravity_export.run_convert_antigravity_session_cli(
                     [
                         "--transcript-path",
@@ -477,7 +459,7 @@ class TestAntigravityExport(unittest.TestCase):
                     ]
                 )
             self.assertEqual(exit_code, 1)
-            self.assertIn("could not resolve archive root", stderr_buf.getvalue())
+            self.assertIn("could not resolve archive root", captured.stderr.getvalue())
 
     def test_resolve_antigravity_archive_root_worktree_rejection(self) -> None:
         git_root = antigravity_export._current_git_worktree_root()

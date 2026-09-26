@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import contextlib
-import io
 import json
 import tempfile
 import unittest
@@ -11,6 +9,7 @@ import unittest.mock
 from pathlib import Path
 
 from lrh.conversations import claude_export, export_inspector, export_manifest
+from tests import testing_support
 
 
 def _write_jsonl(path: Path, records: list[dict]) -> None:
@@ -681,9 +680,8 @@ class TestClaudeExport(unittest.TestCase):
     def test_cli_current_is_mutually_exclusive_with_other_discovery_flags(
         self,
     ) -> None:
-        stderr_buf = io.StringIO()
         with self.assertRaises(SystemExit) as cm:
-            with contextlib.redirect_stderr(stderr_buf):
+            with testing_support.capture_output() as captured:
                 claude_export.run_convert_claude_session_cli(
                     [
                         "--current",
@@ -693,12 +691,11 @@ class TestClaudeExport(unittest.TestCase):
                     ]
                 )
         self.assertEqual(cm.exception.code, 2)
-        self.assertIn("not allowed with argument", stderr_buf.getvalue())
+        self.assertIn("not allowed with argument", captured.stderr.getvalue())
 
     def test_cli_all_projects_without_latest_is_rejected(self) -> None:
-        stderr_buf = io.StringIO()
         with self.assertRaises(SystemExit) as cm:
-            with contextlib.redirect_stderr(stderr_buf):
+            with testing_support.capture_output() as captured:
                 claude_export.run_convert_claude_session_cli(
                     [
                         "--current",
@@ -709,7 +706,7 @@ class TestClaudeExport(unittest.TestCase):
                 )
         self.assertEqual(cm.exception.code, 2)
         self.assertIn(
-            "--all-projects only applies with --latest", stderr_buf.getvalue()
+            "--all-projects only applies with --latest", captured.stderr.getvalue()
         )
 
     def test_cli_current_exports_the_right_file_and_prints_source_transcript(
@@ -723,11 +720,10 @@ class TestClaudeExport(unittest.TestCase):
             _write_jsonl(transcript, [_user_record("current session content")])
             out_file = tmp_path / "out.md"
 
-            stdout_buf = io.StringIO()
             with unittest.mock.patch.dict(
                 "os.environ", {"CLAUDE_CODE_SESSION_ID": "sess-cur"}, clear=True
             ):
-                with contextlib.redirect_stdout(stdout_buf):
+                with testing_support.capture_output(capture_stderr=False) as captured:
                     code = claude_export.run_convert_claude_session_cli(
                         [
                             "--current",
@@ -740,7 +736,7 @@ class TestClaudeExport(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertTrue(out_file.exists())
-            stdout = stdout_buf.getvalue()
+            stdout = captured.stdout.getvalue()
             self.assertIn(f"Source transcript: {transcript}", stdout)
             self.assertIn(
                 "current session content", out_file.read_text(encoding="utf-8")
@@ -753,8 +749,7 @@ class TestClaudeExport(unittest.TestCase):
             _write_jsonl(source_file, [_user_record("hello")])
             out_file = tmp_path / "out.md"
 
-            stdout_buf = io.StringIO()
-            with contextlib.redirect_stdout(stdout_buf):
+            with testing_support.capture_output(capture_stderr=False) as captured:
                 code = claude_export.run_convert_claude_session_cli(
                     [
                         "--transcript-path",
@@ -765,7 +760,9 @@ class TestClaudeExport(unittest.TestCase):
                 )
 
             self.assertEqual(code, 0)
-            self.assertIn(f"Source transcript: {source_file}", stdout_buf.getvalue())
+            self.assertIn(
+                f"Source transcript: {source_file}", captured.stdout.getvalue()
+            )
 
     def test_logical_cwd_prefers_pwd_when_it_validates(self) -> None:
         # $PWD can preserve a symlink component os.getcwd() resolves away
@@ -993,32 +990,29 @@ class TestClaudeExport(unittest.TestCase):
 
 class TestClaudeExportCli(unittest.TestCase):
     def test_cli_help(self) -> None:
-        stdout_buf = io.StringIO()
-        with contextlib.redirect_stdout(stdout_buf):
+        with testing_support.capture_output(capture_stderr=False) as captured:
             with self.assertRaises(SystemExit) as cm:
                 claude_export.run_convert_claude_session_cli(["--help"])
         self.assertEqual(cm.exception.code, 0)
-        stdout = stdout_buf.getvalue()
+        stdout = captured.stdout.getvalue()
         self.assertIn("--transcript-path", stdout)
         self.assertIn("--session-id", stdout)
         self.assertIn("--latest", stdout)
         self.assertIn("--include-subagents", stdout)
 
     def test_cli_missing_required_args(self) -> None:
-        stderr_buf = io.StringIO()
-        with contextlib.redirect_stderr(stderr_buf):
+        with testing_support.capture_output() as captured:
             with self.assertRaises(SystemExit) as cm:
                 claude_export.run_convert_claude_session_cli(["--out", "/tmp/out.md"])
         self.assertEqual(cm.exception.code, 2)
         self.assertIn(
             "one of the arguments --transcript-path --session-id --current "
             "--latest is required",
-            stderr_buf.getvalue(),
+            captured.stderr.getvalue(),
         )
 
     def test_cli_mutually_exclusive_args(self) -> None:
-        stderr_buf = io.StringIO()
-        with contextlib.redirect_stderr(stderr_buf):
+        with testing_support.capture_output() as captured:
             with self.assertRaises(SystemExit) as cm:
                 claude_export.run_convert_claude_session_cli(
                     [
@@ -1030,7 +1024,7 @@ class TestClaudeExportCli(unittest.TestCase):
                     ]
                 )
         self.assertEqual(cm.exception.code, 2)
-        self.assertIn("not allowed with argument", stderr_buf.getvalue())
+        self.assertIn("not allowed with argument", captured.stderr.getvalue())
 
     def test_cli_with_transcript_path(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1039,8 +1033,7 @@ class TestClaudeExportCli(unittest.TestCase):
             _write_jsonl(source_file, [_user_record("hello from cli")])
             out_file = tmp_path / "cli_export.md"
 
-            stdout_buf = io.StringIO()
-            with contextlib.redirect_stdout(stdout_buf):
+            with testing_support.capture_output(capture_stderr=False) as captured:
                 code = claude_export.run_convert_claude_session_cli(
                     [
                         "--transcript-path",
@@ -1054,7 +1047,7 @@ class TestClaudeExportCli(unittest.TestCase):
 
             self.assertEqual(code, 0)
             self.assertTrue(out_file.exists())
-            stdout = stdout_buf.getvalue()
+            stdout = captured.stdout.getvalue()
             self.assertIn("Exported Claude Code session transcript", stdout)
             self.assertIn("Source ID: cli_sess_1", stdout)
             self.assertIn("Source SHA-256:", stdout)
@@ -1068,8 +1061,7 @@ class TestClaudeExportCli(unittest.TestCase):
                 project_dir.mkdir(parents=True)
                 _write_jsonl(project_dir / "sess-dup.jsonl", [_user_record("hi")])
 
-            stderr_buf = io.StringIO()
-            with contextlib.redirect_stderr(stderr_buf):
+            with testing_support.capture_output() as captured:
                 code = claude_export.run_convert_claude_session_cli(
                     [
                         "--session-id",
@@ -1081,7 +1073,7 @@ class TestClaudeExportCli(unittest.TestCase):
                     ]
                 )
             self.assertEqual(code, 1)
-            self.assertIn("multiple transcript files found", stderr_buf.getvalue())
+            self.assertIn("multiple transcript files found", captured.stderr.getvalue())
 
     def test_cli_durable_default_out(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -1093,8 +1085,7 @@ class TestClaudeExportCli(unittest.TestCase):
             transcript_path = project_dir / "sess-123.jsonl"
             _write_jsonl(transcript_path, [_user_record("hello")])
 
-            stdout_buf = io.StringIO()
-            with contextlib.redirect_stdout(stdout_buf):
+            with testing_support.suppress_output():
                 exit_code = claude_export.run_convert_claude_session_cli(
                     [
                         "--transcript-path",
@@ -1121,8 +1112,7 @@ class TestClaudeExportCli(unittest.TestCase):
             source_file = tmp_path / "sess.jsonl"
             _write_jsonl(source_file, [_user_record("hi")])
 
-            stderr_buf = io.StringIO()
-            with contextlib.redirect_stderr(stderr_buf):
+            with testing_support.capture_output() as captured:
                 code = claude_export.run_convert_claude_session_cli(
                     [
                         "--transcript-path",
@@ -1132,11 +1122,10 @@ class TestClaudeExportCli(unittest.TestCase):
                     ]
                 )
             self.assertEqual(code, 1)
-            self.assertIn("could not resolve --out path", stderr_buf.getvalue())
+            self.assertIn("could not resolve --out path", captured.stderr.getvalue())
 
     def test_cli_transcript_path_unresolvable_home_reports_clean_error(self) -> None:
-        stderr_buf = io.StringIO()
-        with contextlib.redirect_stderr(stderr_buf):
+        with testing_support.capture_output() as captured:
             code = claude_export.run_convert_claude_session_cli(
                 [
                     "--transcript-path",
@@ -1144,7 +1133,7 @@ class TestClaudeExportCli(unittest.TestCase):
                 ]
             )
         self.assertEqual(code, 1)
-        self.assertIn("could not resolve transcript path", stderr_buf.getvalue())
+        self.assertIn("could not resolve transcript path", captured.stderr.getvalue())
 
     def test_cli_archive_root_unresolvable_home_reports_clean_error(self) -> None:
         # A named-user tilde that cannot be resolved for --archive-root makes
@@ -1156,8 +1145,7 @@ class TestClaudeExportCli(unittest.TestCase):
             source_file = tmp_path / "sess.jsonl"
             _write_jsonl(source_file, [_user_record("hi")])
 
-            stderr_buf = io.StringIO()
-            with contextlib.redirect_stderr(stderr_buf):
+            with testing_support.capture_output() as captured:
                 code = claude_export.run_convert_claude_session_cli(
                     [
                         "--transcript-path",
@@ -1167,7 +1155,7 @@ class TestClaudeExportCli(unittest.TestCase):
                     ]
                 )
             self.assertEqual(code, 1)
-            self.assertIn("could not resolve archive root", stderr_buf.getvalue())
+            self.assertIn("could not resolve archive root", captured.stderr.getvalue())
 
     def test_expand_user_path_wraps_runtime_error(self) -> None:
         with self.assertRaisesRegex(

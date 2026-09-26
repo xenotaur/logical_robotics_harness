@@ -6,10 +6,12 @@ from unittest import mock
 
 from lrh.pii import config as pii_config
 from lrh.pii import layer2 as pii_layer2
+from tests import testing_support
 
 
 def _run_git(project_root: pathlib.Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(project_root), *args], check=True)
+    with testing_support.suppress_output(suppress_file_descriptors=True):
+        subprocess.run(["git", "-C", str(project_root), *args], check=True)
 
 
 def _init_repo(project_root: pathlib.Path) -> None:

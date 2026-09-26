@@ -1,4 +1,41 @@
-"""AST-based guardrails verifying test files comply with STYLE.md Rule 5 (unittest)."""
+"""AST-based guardrails verifying test files comply with STYLE.md Rule 5
+(unittest) and the Output Hygiene section (WI-TEST-OUTPUT-SUPPRESSION-AUDIT).
+
+Output Hygiene check scope, deliberately narrow (see that work item's Risk
+Notes): this only flags an uncaptured `subprocess.run`/`check_call`/`call`
+invocation -- calling one of those three methods on a name literally bound
+to `subprocess` (i.e. `import subprocess; subprocess.run(...)`), with none
+of `capture_output`/`stdout`/`stderr` among its keyword arguments, and not
+lexically nested inside a `with testing_support.suppress_output(...,
+suppress_file_descriptors=True):` block (matched by name only, not by
+verifying the import actually resolves to `tests.testing_support`).
+
+That specific form -- `suppress_output` with `suppress_file_descriptors=True`
+-- is required, not merely `suppress_output()` or `capture_output()`: a
+real child process writes to the file descriptors it inherited from the
+parent, bypassing Python's `sys.stdout`/`sys.stderr` objects entirely, so
+only the `os.dup2`-based fd redirect those two helpers *don't* use by
+default actually silences it (verified empirically during this work item's
+self-review: a plain `capture_output()`/`suppress_output()` wrap left a
+real subprocess's print output on the real terminal). A caller that needs
+to assert on in-process output still uses plain `capture_output()` -- this
+check never flags anything but a real subprocess call, so that usage is
+unaffected.
+
+Known limitations, accepted for this first pass rather than generalized
+further:
+- Does not flag unwrapped in-process calls to CLI/library entry points
+  (e.g. `cli_main.main()`) -- that is a much broader, harder-to-bound
+  heuristic (see the work item's Risk Notes on why this was deferred).
+- Does not verify the `subprocess`/`testing_support` names actually refer
+  to those modules (e.g. a local variable shadowing `subprocess` would
+  produce a false positive; not observed in this repo's test tree).
+- A `capture_output=False` (or `stdout=None`) keyword is still treated as
+  "captured" -- this check only looks for the *keyword's presence*, not
+  its value, to keep the check purely syntactic and dependency-free.
+- Only covers `subprocess.run`/`.check_call`/`.call`, not `Popen` or
+  other lower-level subprocess APIs.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +47,9 @@ from typing import Sequence
 PYTEST_FIXTURE_NAMES = frozenset(
     {"tmp_path", "monkeypatch", "capsys", "capfd", "caplog", "pytestconfig"}
 )
+
+SUBPROCESS_OUTPUT_METHODS = frozenset({"run", "check_call", "call"})
+OUTPUT_CAPTURE_KEYWORDS = frozenset({"capture_output", "stdout", "stderr"})
 
 
 class TestGuardrailViolation:
@@ -24,9 +64,110 @@ class TestGuardrailViolation:
         return f"{self.path}:{self.line}: {self.message}"
 
 
+def _is_uncaptured_subprocess_call(node: ast.Call) -> str | None:
+    """Return the subprocess method name if `node` is an uncaptured
+    `subprocess.run`/`.check_call`/`.call` invocation, else None."""
+    func = node.func
+    if not (isinstance(func, ast.Attribute) and func.attr in SUBPROCESS_OUTPUT_METHODS):
+        return None
+    if not (isinstance(func.value, ast.Name) and func.value.id == "subprocess"):
+        return None
+    if any(kw.arg in OUTPUT_CAPTURE_KEYWORDS for kw in node.keywords):
+        return None
+    return func.attr
+
+
+def _call_has_true_keyword(call: ast.Call, keyword_name: str) -> bool:
+    """True if `call` passes `keyword_name=True` as a literal keyword."""
+    return any(
+        kw.arg == keyword_name
+        and isinstance(kw.value, ast.Constant)
+        and kw.value.value is True
+        for kw in call.keywords
+    )
+
+
+def _with_provides_fd_level_suppression(with_node: ast.With | ast.AsyncWith) -> bool:
+    """True if any context manager in `with_node` is a call to
+    `testing_support.suppress_output(..., suppress_file_descriptors=True)`
+    -- the only form that actually redirects a real subprocess's inherited
+    file descriptors. `capture_output()` and a bare `suppress_output()`
+    only redirect Python's own `sys.stdout`/`sys.stderr` objects via
+    `contextlib.redirect_stdout`/`redirect_stderr`; a child process writes
+    straight to the fds it inherited from the parent, bypassing those
+    objects entirely, so neither actually silences a real subprocess
+    (matched by name only, not by verifying the import resolves to
+    `tests.testing_support`)."""
+    for item in with_node.items:
+        expr = item.context_expr
+        if not isinstance(expr, ast.Call):
+            continue
+        func = expr.func
+        if isinstance(func, ast.Attribute):
+            name = func.attr
+        elif isinstance(func, ast.Name):
+            name = func.id
+        else:
+            continue
+        if name == "suppress_output" and _call_has_true_keyword(
+            expr, "suppress_file_descriptors"
+        ):
+            return True
+    return False
+
+
+def _check_output_hygiene(
+    node: ast.AST,
+    path: pathlib.Path,
+    *,
+    captured: bool,
+    violations: list[TestGuardrailViolation],
+) -> None:
+    """Recursively flag uncaptured subprocess calls (Output Hygiene check).
+
+    `captured` tracks whether the node currently being visited is lexically
+    nested inside a `with testing_support.suppress_output()/capture_output()`
+    block -- see the module docstring for the exact scope and limits.
+    """
+    if isinstance(node, (ast.With, ast.AsyncWith)):
+        body_captured = captured or _with_provides_fd_level_suppression(node)
+        for item in node.items:
+            _check_output_hygiene(
+                item.context_expr, path, captured=captured, violations=violations
+            )
+        for child in node.body:
+            _check_output_hygiene(
+                child, path, captured=body_captured, violations=violations
+            )
+        return
+
+    if isinstance(node, ast.Call):
+        method = _is_uncaptured_subprocess_call(node)
+        if method is not None and not captured:
+            violations.append(
+                TestGuardrailViolation(
+                    path,
+                    node.lineno,
+                    f"Uncaptured subprocess.{method}(...) call. Wrap it in "
+                    "`with tests.testing_support.suppress_output("
+                    "suppress_file_descriptors=True):` (a bare "
+                    "suppress_output()/capture_output() does not redirect "
+                    "a real child process's inherited file descriptors), "
+                    "or pass capture_output=True, per STYLE.md's Output "
+                    "Hygiene section -- otherwise its output leaks into "
+                    "scripts/test.",
+                )
+            )
+
+    for child in ast.iter_child_nodes(node):
+        _check_output_hygiene(child, path, captured=captured, violations=violations)
+
+
 def check_test_ast(tree: ast.AST, path: pathlib.Path) -> list[TestGuardrailViolation]:
     """Check an AST tree for test framework violations."""
     violations: list[TestGuardrailViolation] = []
+
+    _check_output_hygiene(tree, path, captured=False, violations=violations)
 
     for node in tree.body if isinstance(tree, ast.Module) else []:
         # Check 1: Top-level test_* functions

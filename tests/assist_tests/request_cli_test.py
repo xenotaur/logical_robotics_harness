@@ -1,5 +1,4 @@
 import contextlib
-import io
 import os
 import pathlib
 import tempfile
@@ -7,6 +6,7 @@ import unittest
 import unittest.mock
 
 from lrh.assist import request_cli
+from tests import testing_support
 
 
 class TestRequestCli(unittest.TestCase):
@@ -20,107 +20,105 @@ class TestRequestCli(unittest.TestCase):
         self.assertIn("run-report-from-work-item", help_text)
 
     def test_canonical_request_name_uses_catalog_template_mapping(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             exit_code = request_cli.run_request_cli(
                 ["improve-coverage", "src/lrh/example.py"],
                 prog="lrh request",
             )
 
         self.assertEqual(exit_code, 0)
-        self.assertIn("TARGET MODULE:", stdout.getvalue())
-        self.assertIn("src/lrh/example.py", stdout.getvalue())
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("TARGET MODULE:", captured.stdout.getvalue())
+        self.assertIn("src/lrh/example.py", captured.stdout.getvalue())
+        self.assertEqual(captured.stderr.getvalue(), "")
 
     def test_canonical_request_name_preserves_name_in_validation_errors(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             exit_code = request_cli.run_request_cli(
                 ["improve-coverage"],
                 prog="lrh request",
             )
 
         self.assertEqual(exit_code, 2)
-        self.assertIn("improve-coverage requires a target", stderr.getvalue())
-        self.assertNotIn("improve_coverage requires", stderr.getvalue())
-        self.assertEqual(stdout.getvalue(), "")
+        self.assertIn("improve-coverage requires a target", captured.stderr.getvalue())
+        self.assertNotIn("improve_coverage requires", captured.stderr.getvalue())
+        self.assertEqual(captured.stdout.getvalue(), "")
 
     def test_catalog_describe_structured_run_packet_has_no_template_path(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             exit_code = request_cli.run_request_cli(
                 ["describe", "run-packet-from-work-item"],
                 prog="lrh request",
             )
 
         self.assertEqual(exit_code, 0)
-        self.assertIn("implementation: structured_run_packet", stdout.getvalue())
-        self.assertIn("template: none (structured renderer)", stdout.getvalue())
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn(
+            "implementation: structured_run_packet",
+            captured.stdout.getvalue(),
+        )
+        self.assertIn(
+            "template: none (structured renderer)",
+            captured.stdout.getvalue(),
+        )
+        self.assertEqual(captured.stderr.getvalue(), "")
 
     def test_catalog_describe_structured_run_report_has_no_template_path(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             exit_code = request_cli.run_request_cli(
                 ["describe", "run-report-from-work-item"],
                 prog="lrh request",
             )
 
         self.assertEqual(exit_code, 0)
-        self.assertIn("implementation: structured_run_report", stdout.getvalue())
-        self.assertIn("template: none (structured renderer)", stdout.getvalue())
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn(
+            "implementation: structured_run_report",
+            captured.stdout.getvalue(),
+        )
+        self.assertIn(
+            "template: none (structured renderer)",
+            captured.stdout.getvalue(),
+        )
+        self.assertEqual(captured.stderr.getvalue(), "")
 
     def test_templates_where_resolves_catalog_name(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             exit_code = request_cli.run_request_cli(
                 ["templates", "where", "improve-coverage"],
                 prog="lrh request",
             )
 
         self.assertEqual(exit_code, 0)
-        self.assertIn("request/improve_coverage.md", stdout.getvalue())
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("request/improve_coverage.md", captured.stdout.getvalue())
+        self.assertEqual(captured.stderr.getvalue(), "")
 
     def test_templates_where_structured_run_packet_does_not_require_template(
         self,
     ) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             exit_code = request_cli.run_request_cli(
                 ["templates", "where", "run-packet-from-work-item"],
                 prog="lrh request",
             )
 
         self.assertEqual(exit_code, 0)
-        self.assertIn("run-packet-from-work-item", stdout.getvalue())
-        self.assertIn("structured renderer", stdout.getvalue())
-        self.assertIn("no request template", stdout.getvalue())
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("run-packet-from-work-item", captured.stdout.getvalue())
+        self.assertIn("structured renderer", captured.stdout.getvalue())
+        self.assertIn("no request template", captured.stdout.getvalue())
+        self.assertEqual(captured.stderr.getvalue(), "")
 
     def test_templates_where_structured_run_report_does_not_require_template(
         self,
     ) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             exit_code = request_cli.run_request_cli(
                 ["templates", "where", "run-report-from-work-item"],
                 prog="lrh request",
             )
 
         self.assertEqual(exit_code, 0)
-        self.assertIn("run-report-from-work-item", stdout.getvalue())
-        self.assertIn("structured renderer", stdout.getvalue())
-        self.assertIn("no request template", stdout.getvalue())
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("run-report-from-work-item", captured.stdout.getvalue())
+        self.assertIn("structured renderer", captured.stdout.getvalue())
+        self.assertIn("no request template", captured.stdout.getvalue())
+        self.assertEqual(captured.stderr.getvalue(), "")
 
     def test_template_dir_flag_uses_explicit_override(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -133,9 +131,7 @@ class TestRequestCli(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "improve_coverage",
@@ -147,8 +143,8 @@ class TestRequestCli(unittest.TestCase):
                 )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stdout.getvalue(), "cli example\n")
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stdout.getvalue(), "cli example\n")
+        self.assertEqual(captured.stderr.getvalue(), "")
 
     def test_run_packet_from_work_item_command_writes_output_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -182,12 +178,7 @@ class TestRequestCli(unittest.TestCase):
             old_cwd = pathlib.Path.cwd()
             try:
                 os.chdir(root)
-                stdout = io.StringIO()
-                stderr = io.StringIO()
-                with (
-                    contextlib.redirect_stdout(stdout),
-                    contextlib.redirect_stderr(stderr),
-                ):
+                with testing_support.capture_output() as captured:
                     exit_code = request_cli.run_request_cli(
                         [
                             "run-packet-from-work-item",
@@ -203,8 +194,8 @@ class TestRequestCli(unittest.TestCase):
             rendered = out_file.read_text(encoding="utf-8") if out_file_exists else ""
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stdout.getvalue(), "")
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stdout.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertTrue(out_file_exists)
         self.assertIn("# Dry-Run Run Packet: WI-READY", rendered)
         self.assertIn(
@@ -244,12 +235,7 @@ class TestRequestCli(unittest.TestCase):
             old_cwd = pathlib.Path.cwd()
             try:
                 os.chdir(root)
-                stdout = io.StringIO()
-                stderr = io.StringIO()
-                with (
-                    contextlib.redirect_stdout(stdout),
-                    contextlib.redirect_stderr(stderr),
-                ):
+                with testing_support.capture_output() as captured:
                     exit_code = request_cli.run_request_cli(
                         ["run-packet-from-work-item", "WI-READY"],
                         prog="lrh request",
@@ -258,9 +244,9 @@ class TestRequestCli(unittest.TestCase):
                 os.chdir(old_cwd)
 
         self.assertEqual(exit_code, 0)
-        self.assertIn("# Dry-Run Run Packet: WI-READY", stdout.getvalue())
-        self.assertIn("Preview a packet.", stdout.getvalue())
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertIn("# Dry-Run Run Packet: WI-READY", captured.stdout.getvalue())
+        self.assertIn("Preview a packet.", captured.stdout.getvalue())
+        self.assertEqual(captured.stderr.getvalue(), "")
 
     def test_run_packet_from_work_item_no_match_uses_run_packet_guidance(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -269,12 +255,7 @@ class TestRequestCli(unittest.TestCase):
             old_cwd = pathlib.Path.cwd()
             try:
                 os.chdir(root)
-                stdout = io.StringIO()
-                stderr = io.StringIO()
-                with (
-                    contextlib.redirect_stdout(stdout),
-                    contextlib.redirect_stderr(stderr),
-                ):
+                with testing_support.capture_output() as captured:
                     exit_code = request_cli.run_request_cli(
                         ["run-packet-from-work-item", "WI-MISSING"],
                         prog="lrh request",
@@ -283,10 +264,13 @@ class TestRequestCli(unittest.TestCase):
                 os.chdir(old_cwd)
 
         self.assertEqual(exit_code, 2)
-        self.assertEqual(stdout.getvalue(), "")
-        self.assertIn("lrh request run-packet-from-work-item", stderr.getvalue())
-        self.assertIn("--work-item", stderr.getvalue())
-        self.assertNotIn("codex_prompt_from_work_item", stderr.getvalue())
+        self.assertEqual(captured.stdout.getvalue(), "")
+        self.assertIn(
+            "lrh request run-packet-from-work-item",
+            captured.stderr.getvalue(),
+        )
+        self.assertIn("--work-item", captured.stderr.getvalue())
+        self.assertNotIn("codex_prompt_from_work_item", captured.stderr.getvalue())
 
     def test_run_packet_from_work_item_command_rejects_non_ready_item(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -308,12 +292,7 @@ class TestRequestCli(unittest.TestCase):
             old_cwd = pathlib.Path.cwd()
             try:
                 os.chdir(root)
-                stdout = io.StringIO()
-                stderr = io.StringIO()
-                with (
-                    contextlib.redirect_stdout(stdout),
-                    contextlib.redirect_stderr(stderr),
-                ):
+                with testing_support.capture_output() as captured:
                     exit_code = request_cli.run_request_cli(
                         ["run_packet_from_work_item", "WI-NOPE"],
                         prog="lrh request",
@@ -322,9 +301,9 @@ class TestRequestCli(unittest.TestCase):
                 os.chdir(old_cwd)
 
         self.assertEqual(exit_code, 2)
-        self.assertEqual(stdout.getvalue(), "")
-        self.assertIn("not execution-ready", stderr.getvalue())
-        self.assertIn("EXECUTION_READINESS_NOT_READY", stderr.getvalue())
+        self.assertEqual(captured.stdout.getvalue(), "")
+        self.assertIn("not execution-ready", captured.stderr.getvalue())
+        self.assertIn("EXECUTION_READINESS_NOT_READY", captured.stderr.getvalue())
 
     def test_run_report_from_work_item_command_writes_output_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -362,12 +341,7 @@ class TestRequestCli(unittest.TestCase):
             old_cwd = pathlib.Path.cwd()
             try:
                 os.chdir(root)
-                stdout = io.StringIO()
-                stderr = io.StringIO()
-                with (
-                    contextlib.redirect_stdout(stdout),
-                    contextlib.redirect_stderr(stderr),
-                ):
+                with testing_support.capture_output() as captured:
                     exit_code = request_cli.run_request_cli(
                         [
                             "run-report-from-work-item",
@@ -397,8 +371,8 @@ class TestRequestCli(unittest.TestCase):
             rendered_report = out_file.read_text(encoding="utf-8")
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stdout.getvalue(), "")
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stdout.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertIn("# Run Report: WI-READY", rendered_report)
         self.assertIn("logs/test.txt", rendered_report)
 
@@ -433,12 +407,7 @@ class TestRequestCli(unittest.TestCase):
             old_cwd = pathlib.Path.cwd()
             try:
                 os.chdir(root)
-                stdout = io.StringIO()
-                stderr = io.StringIO()
-                with (
-                    contextlib.redirect_stdout(stdout),
-                    contextlib.redirect_stderr(stderr),
-                ):
+                with testing_support.capture_output() as captured:
                     exit_code = request_cli.run_request_cli(
                         [
                             "run_report_from_work_item",
@@ -452,8 +421,8 @@ class TestRequestCli(unittest.TestCase):
                 os.chdir(old_cwd)
 
         self.assertEqual(exit_code, 0)
-        self.assertIn("# Run Report: WI-READY", stdout.getvalue())
-        self.assertIn("EVIDENCE_REFERENCES_MISSING", stderr.getvalue())
+        self.assertIn("# Run Report: WI-READY", captured.stdout.getvalue())
+        self.assertIn("EVIDENCE_REFERENCES_MISSING", captured.stderr.getvalue())
 
     def test_codex_prompt_from_work_item_command_writes_output_file(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -485,9 +454,7 @@ class TestRequestCli(unittest.TestCase):
             )
             style_file.write_text("# Style\n", encoding="utf-8")
 
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "codex-prompt-from-work-item",
@@ -504,8 +471,8 @@ class TestRequestCli(unittest.TestCase):
                 )
 
             self.assertEqual(exit_code, 0)
-            self.assertEqual(stdout.getvalue(), "")
-            self.assertEqual(stderr.getvalue(), "")
+            self.assertEqual(captured.stdout.getvalue(), "")
+            self.assertEqual(captured.stderr.getvalue(), "")
             self.assertTrue(out_file.is_file())
             rendered = out_file.read_text(encoding="utf-8")
             self.assertIn("Prompt ID: `PROMPT(AD_HOC:EXAMPLE_IMPLEMENTATION)", rendered)
@@ -540,9 +507,7 @@ class TestRequestCli(unittest.TestCase):
             )
             style_file.write_text("# Style\n", encoding="utf-8")
 
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "codex-prompt-from-work-item",
@@ -557,11 +522,12 @@ class TestRequestCli(unittest.TestCase):
                 )
 
             self.assertEqual(exit_code, 0)
-            self.assertEqual(stderr.getvalue(), "")
+            self.assertEqual(captured.stderr.getvalue(), "")
             self.assertIn(
-                "Prompt ID: `PROMPT(AD_HOC:EXAMPLE_IMPLEMENTATION)", stdout.getvalue()
+                "Prompt ID: `PROMPT(AD_HOC:EXAMPLE_IMPLEMENTATION)",
+                captured.stdout.getvalue(),
             )
-            self.assertIn("Approved work item:", stdout.getvalue())
+            self.assertIn("Approved work item:", captured.stdout.getvalue())
 
     def test_prompt_from_work_item_generic_invocation_accepts_positional_target(
         self,
@@ -594,9 +560,7 @@ class TestRequestCli(unittest.TestCase):
             )
             style_file.write_text("# Style\n", encoding="utf-8")
 
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "prompt-from-work-item",
@@ -610,11 +574,12 @@ class TestRequestCli(unittest.TestCase):
                 )
 
             self.assertEqual(exit_code, 0)
-            self.assertEqual(stderr.getvalue(), "")
+            self.assertEqual(captured.stderr.getvalue(), "")
             self.assertIn(
-                "Prompt ID: `PROMPT(WI-EXAMPLE:REQUEST_CATALOG_TEST)", stdout.getvalue()
+                "Prompt ID: `PROMPT(WI-EXAMPLE:REQUEST_CATALOG_TEST)",
+                captured.stdout.getvalue(),
             )
-            self.assertIn("Approved work item:", stdout.getvalue())
+            self.assertIn("Approved work item:", captured.stdout.getvalue())
 
     def test_malformed_work_item_returns_handled_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -635,9 +600,7 @@ class TestRequestCli(unittest.TestCase):
             )
             style_file.write_text("# Style\n", encoding="utf-8")
 
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "codex_prompt_from_work_item",
@@ -650,8 +613,11 @@ class TestRequestCli(unittest.TestCase):
                 )
 
             self.assertEqual(exit_code, 2)
-            self.assertIn("work item frontmatter field 'title'", stderr.getvalue())
-            self.assertEqual("", stdout.getvalue())
+            self.assertIn(
+                "work item frontmatter field 'title'",
+                captured.stderr.getvalue(),
+            )
+            self.assertEqual("", captured.stdout.getvalue())
 
     def test_invalid_slug_returns_handled_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -681,9 +647,7 @@ class TestRequestCli(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "codex-prompt-from-work-item",
@@ -700,9 +664,9 @@ class TestRequestCli(unittest.TestCase):
             self.assertEqual(exit_code, 2)
             self.assertIn(
                 "--slug must include at least one letter or number",
-                stderr.getvalue(),
+                captured.stderr.getvalue(),
             )
-            self.assertEqual("", stdout.getvalue())
+            self.assertEqual("", captured.stdout.getvalue())
             self.assertFalse(out_file.exists())
 
     def test_non_boolean_blocked_field_returns_handled_error(self) -> None:
@@ -726,9 +690,7 @@ class TestRequestCli(unittest.TestCase):
             )
             style_file.write_text("# Style\n", encoding="utf-8")
 
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "codex_prompt_from_work_item",
@@ -743,9 +705,9 @@ class TestRequestCli(unittest.TestCase):
             self.assertEqual(exit_code, 2)
             self.assertIn(
                 "work item frontmatter field 'blocked' must be a bool",
-                stderr.getvalue(),
+                captured.stderr.getvalue(),
             )
-            self.assertEqual("", stdout.getvalue())
+            self.assertEqual("", captured.stdout.getvalue())
 
     def test_output_write_error_returns_handled_error(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -778,9 +740,7 @@ class TestRequestCli(unittest.TestCase):
             )
             style_file.write_text("# Style\n", encoding="utf-8")
 
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "codex-prompt-from-work-item",
@@ -797,48 +757,45 @@ class TestRequestCli(unittest.TestCase):
                 )
 
             self.assertEqual(exit_code, 2)
-            self.assertIn("error:", stderr.getvalue())
-            self.assertIn("Is a directory", stderr.getvalue())
-            self.assertEqual("", stdout.getvalue())
+            self.assertIn("error:", captured.stderr.getvalue())
+            self.assertIn("Is a directory", captured.stderr.getvalue())
+            self.assertEqual("", captured.stdout.getvalue())
 
     def test_review_response_requires_target_url(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             exit_code = request_cli.run_request_cli(
                 ["review_response"], prog="lrh request"
             )
 
         self.assertEqual(exit_code, 2)
-        self.assertIn("review_response requires a target PR URL", stderr.getvalue())
-        self.assertEqual("", stdout.getvalue())
+        self.assertIn(
+            "review_response requires a target PR URL",
+            captured.stderr.getvalue(),
+        )
+        self.assertEqual("", captured.stdout.getvalue())
 
     def test_review_response_fetch_error_returns_nonzero(self) -> None:
         import unittest.mock as mock
 
-        stdout = io.StringIO()
-        stderr = io.StringIO()
         with mock.patch(
             "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
             side_effect=OSError("github api failed"),
         ):
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     ["review_response", "https://github.com/octo/repo/pull/7"],
                     prog="lrh request",
                 )
 
         self.assertEqual(exit_code, 2)
-        self.assertIn("github api failed", stderr.getvalue())
-        self.assertEqual("", stdout.getvalue())
+        self.assertIn("github api failed", captured.stderr.getvalue())
+        self.assertEqual("", captured.stdout.getvalue())
 
     def test_review_response_no_unresolved_threads_prints_nothing_to_resolve(
         self,
     ) -> None:
         import unittest.mock as mock
 
-        stdout = io.StringIO()
-        stderr = io.StringIO()
         with mock.patch(
             "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
             return_value={
@@ -847,16 +804,16 @@ class TestRequestCli(unittest.TestCase):
                 }
             },
         ):
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     ["review_response", "https://github.com/octo/repo/pull/7"],
                     prog="lrh request",
                 )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertEqual(
-            stdout.getvalue(),
+            captured.stdout.getvalue(),
             "Nothing to resolve: no unresolved review threads found for octo/repo#7\n",
         )
 
@@ -865,8 +822,6 @@ class TestRequestCli(unittest.TestCase):
     ) -> None:
         import unittest.mock as mock
 
-        stdout = io.StringIO()
-        stderr = io.StringIO()
         with mock.patch(
             "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
             return_value={
@@ -875,7 +830,7 @@ class TestRequestCli(unittest.TestCase):
                 }
             },
         ):
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "review_response",
@@ -886,15 +841,13 @@ class TestRequestCli(unittest.TestCase):
                 )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
-        self.assertIn("third-party input from PR reviewers", stdout.getvalue())
-        self.assertIn("PR: octo/repo#7", stdout.getvalue())
+        self.assertEqual(captured.stderr.getvalue(), "")
+        self.assertIn("third-party input from PR reviewers", captured.stdout.getvalue())
+        self.assertIn("PR: octo/repo#7", captured.stdout.getvalue())
 
     def test_review_response_include_thread_surfaces_outdated_thread(self) -> None:
         import unittest.mock as mock
 
-        stdout = io.StringIO()
-        stderr = io.StringIO()
         with mock.patch(
             "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
             return_value={
@@ -924,7 +877,7 @@ class TestRequestCli(unittest.TestCase):
                 }
             },
         ):
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "review_response",
@@ -936,14 +889,12 @@ class TestRequestCli(unittest.TestCase):
                 )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
-        self.assertIn("Still needs a fix.", stdout.getvalue())
+        self.assertEqual(captured.stderr.getvalue(), "")
+        self.assertIn("Still needs a fix.", captured.stdout.getvalue())
 
     def test_review_response_include_thread_unknown_id_is_error(self) -> None:
         import unittest.mock as mock
 
-        stdout = io.StringIO()
-        stderr = io.StringIO()
         with mock.patch(
             "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
             return_value={
@@ -952,7 +903,7 @@ class TestRequestCli(unittest.TestCase):
                 }
             },
         ):
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "review_response",
@@ -964,47 +915,45 @@ class TestRequestCli(unittest.TestCase):
                 )
 
         self.assertEqual(exit_code, 2)
-        self.assertIn("not found", stderr.getvalue())
-        self.assertEqual("", stdout.getvalue())
+        self.assertIn("not found", captured.stderr.getvalue())
+        self.assertEqual("", captured.stdout.getvalue())
 
     def test_review_response_missing_pull_request_is_error(self) -> None:
         import unittest.mock as mock
 
-        stdout = io.StringIO()
-        stderr = io.StringIO()
         with mock.patch(
             "lrh.assist.request_service.pull_reviews.get_pull_review_threads",
             side_effect=ValueError(
                 "error: pull request not found or inaccessible: octo/repo#999"
             ),
         ):
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     ["review_response", "https://github.com/octo/repo/pull/999"],
                     prog="lrh request",
                 )
 
         self.assertEqual(exit_code, 2)
-        self.assertIn("pull request not found or inaccessible", stderr.getvalue())
-        self.assertEqual("", stdout.getvalue())
+        self.assertIn(
+            "pull request not found or inaccessible",
+            captured.stderr.getvalue(),
+        )
+        self.assertEqual("", captured.stdout.getvalue())
 
     def test_templates_list_includes_package_templates(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-
         with _isolated_template_environment():
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     ["templates", "list"],
                     prog="lrh request",
                 )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertIn(
             "review_response\tpackage\tpackage fallback\t"
             "lrh.assist.templates/request/review_response.md",
-            stdout.getvalue(),
+            captured.stdout.getvalue(),
         )
 
     def test_templates_list_includes_override_templates(self) -> None:
@@ -1013,10 +962,8 @@ class TestRequestCli(unittest.TestCase):
             template_path = template_root / "request" / "custom.md"
             template_path.parent.mkdir(parents=True)
             template_path.write_text("custom\n", encoding="utf-8")
-            stdout = io.StringIO()
-            stderr = io.StringIO()
 
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "templates",
@@ -1028,10 +975,10 @@ class TestRequestCli(unittest.TestCase):
                 )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertIn(
             f"custom\texplicit\tfilesystem override\t{template_path}",
-            stdout.getvalue(),
+            captured.stdout.getvalue(),
         )
 
     def test_templates_where_reports_explicit_override_source(self) -> None:
@@ -1040,10 +987,8 @@ class TestRequestCli(unittest.TestCase):
             template_path = template_root / "request" / "review_response.md"
             template_path.parent.mkdir(parents=True)
             template_path.write_text("override\n", encoding="utf-8")
-            stdout = io.StringIO()
-            stderr = io.StringIO()
 
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "templates",
@@ -1056,9 +1001,9 @@ class TestRequestCli(unittest.TestCase):
                 )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertEqual(
-            stdout.getvalue(),
+            captured.stdout.getvalue(),
             "request/review_response.md\texplicit\tfilesystem override\t"
             f"{template_path}\n",
         )
@@ -1069,27 +1014,22 @@ class TestRequestCli(unittest.TestCase):
             template_path = template_root / "request" / "review_response.md"
             template_path.parent.mkdir(parents=True)
             template_path.write_text("env\n", encoding="utf-8")
-            stdout = io.StringIO()
-            stderr = io.StringIO()
 
             with unittest.mock.patch.dict(
                 os.environ,
                 {"LRH_TEMPLATE_DIR": str(template_root)},
                 clear=True,
             ):
-                with (
-                    contextlib.redirect_stdout(stdout),
-                    contextlib.redirect_stderr(stderr),
-                ):
+                with testing_support.capture_output() as captured:
                     exit_code = request_cli.run_request_cli(
                         ["templates", "where", "review_response"],
                         prog="lrh request",
                     )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertEqual(
-            stdout.getvalue(),
+            captured.stdout.getvalue(),
             "request/review_response.md\tenvironment\tfilesystem override\t"
             f"{template_path}\n",
         )
@@ -1103,17 +1043,12 @@ class TestRequestCli(unittest.TestCase):
             )
             template_path.parent.mkdir(parents=True)
             template_path.write_text("project\n", encoding="utf-8")
-            stdout = io.StringIO()
-            stderr = io.StringIO()
             old_cwd = pathlib.Path.cwd()
 
             try:
                 os.chdir(project_root)
                 with unittest.mock.patch.dict(os.environ, {}, clear=True):
-                    with (
-                        contextlib.redirect_stdout(stdout),
-                        contextlib.redirect_stderr(stderr),
-                    ):
+                    with testing_support.capture_output() as captured:
                         exit_code = request_cli.run_request_cli(
                             ["templates", "where", "review_response"],
                             prog="lrh request",
@@ -1122,9 +1057,9 @@ class TestRequestCli(unittest.TestCase):
                 os.chdir(old_cwd)
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertEqual(
-            stdout.getvalue(),
+            captured.stdout.getvalue(),
             "request/review_response.md\tproject\tfilesystem override\t"
             f"{template_path.resolve()}\n",
         )
@@ -1138,99 +1073,82 @@ class TestRequestCli(unittest.TestCase):
             )
             template_path.parent.mkdir(parents=True)
             template_path.write_text("user\n", encoding="utf-8")
-            stdout = io.StringIO()
-            stderr = io.StringIO()
 
             with unittest.mock.patch.dict(
                 os.environ,
                 {"XDG_CONFIG_HOME": str(config_home)},
                 clear=True,
             ):
-                with (
-                    contextlib.redirect_stdout(stdout),
-                    contextlib.redirect_stderr(stderr),
-                ):
+                with testing_support.capture_output() as captured:
                     exit_code = request_cli.run_request_cli(
                         ["templates", "where", "review_response"],
                         prog="lrh request",
                     )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertEqual(
-            stdout.getvalue(),
+            captured.stdout.getvalue(),
             "request/review_response.md\tuser\tfilesystem override\t"
             f"{template_path}\n",
         )
 
     def test_templates_where_reports_package_fallback_source(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-
         with _isolated_template_environment():
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     ["templates", "where", "review_response"],
                     prog="lrh request",
                 )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertEqual(
-            stdout.getvalue(),
+            captured.stdout.getvalue(),
             "request/review_response.md\tpackage\tpackage fallback\t"
             "lrh.assist.templates/request/review_response.md\n",
         )
 
     def test_templates_where_accepts_base_name_with_markdown_suffix(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-
         with _isolated_template_environment():
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     ["templates", "where", "review_response.md"],
                     prog="lrh request",
                 )
 
         self.assertEqual(exit_code, 0)
-        self.assertEqual(stderr.getvalue(), "")
+        self.assertEqual(captured.stderr.getvalue(), "")
         self.assertEqual(
-            stdout.getvalue(),
+            captured.stdout.getvalue(),
             "request/review_response.md\tpackage\tpackage fallback\t"
             "lrh.assist.templates/request/review_response.md\n",
         )
 
     def test_templates_where_missing_template_is_clear(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-
         with _isolated_template_environment():
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     ["templates", "where", "does_not_exist"],
                     prog="lrh request",
                 )
 
         self.assertEqual(exit_code, 2)
-        self.assertEqual(stdout.getvalue(), "")
+        self.assertEqual(captured.stdout.getvalue(), "")
         self.assertIn(
-            "Template not found: request/does_not_exist.md", stderr.getvalue()
+            "Template not found: request/does_not_exist.md", captured.stderr.getvalue()
         )
 
     def test_templates_where_rejects_unsafe_logical_name(self) -> None:
-        stdout = io.StringIO()
-        stderr = io.StringIO()
-
-        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             exit_code = request_cli.run_request_cli(
                 ["templates", "where", "../review_response"],
                 prog="lrh request",
             )
 
         self.assertEqual(exit_code, 2)
-        self.assertEqual(stdout.getvalue(), "")
-        self.assertIn("Unsafe template logical name", stderr.getvalue())
+        self.assertEqual(captured.stdout.getvalue(), "")
+        self.assertIn("Unsafe template logical name", captured.stderr.getvalue())
 
 
 @contextlib.contextmanager
@@ -1293,14 +1211,9 @@ def _isolated_template_environment():
             )
 
             old_cwd = pathlib.Path.cwd()
-            stdout = io.StringIO()
-            stderr = io.StringIO()
             try:
                 os.chdir(root)
-                with (
-                    contextlib.redirect_stdout(stdout),
-                    contextlib.redirect_stderr(stderr),
-                ):
+                with testing_support.capture_output() as captured:
                     exit_code = request_cli.run_request_cli(
                         ["ready-work-item", "WI-THIN"],
                         prog="lrh request",
@@ -1309,11 +1222,14 @@ def _isolated_template_environment():
                 os.chdir(old_cwd)
 
             self.assertEqual(exit_code, 0)
-            self.assertEqual(stderr.getvalue(), "")
-            self.assertIn("# Ready Work Item Refinement Request", stdout.getvalue())
-            self.assertIn("missing Scope section", stdout.getvalue())
-            self.assertIn("ROADMAP-PHASE-03", stdout.getvalue())
-            self.assertIn("- `## Open Questions`", stdout.getvalue())
+            self.assertEqual(captured.stderr.getvalue(), "")
+            self.assertIn(
+                "# Ready Work Item Refinement Request",
+                captured.stdout.getvalue(),
+            )
+            self.assertIn("missing Scope section", captured.stdout.getvalue())
+            self.assertIn("ROADMAP-PHASE-03", captured.stdout.getvalue())
+            self.assertIn("- `## Open Questions`", captured.stdout.getvalue())
 
     def test_prompt_from_work_item_still_reports_thin_item_not_ready(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -1335,9 +1251,7 @@ def _isolated_template_environment():
             )
             style.write_text("# Style\n", encoding="utf-8")
 
-            stdout = io.StringIO()
-            stderr = io.StringIO()
-            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 exit_code = request_cli.run_request_cli(
                     [
                         "prompt-from-work-item",
@@ -1351,9 +1265,9 @@ def _isolated_template_environment():
                 )
 
             self.assertEqual(exit_code, 0)
-            self.assertEqual(stderr.getvalue(), "")
-            self.assertIn("# Work Item Not Ready", stdout.getvalue())
-            self.assertIn("missing Scope section", stdout.getvalue())
+            self.assertEqual(captured.stderr.getvalue(), "")
+            self.assertIn("# Work Item Not Ready", captured.stdout.getvalue())
+            self.assertIn("missing Scope section", captured.stdout.getvalue())
 
 
 if __name__ == "__main__":

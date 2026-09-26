@@ -13,6 +13,7 @@ from typing import Any
 
 from lrh import desktop_protocol, serve
 from lrh.cli import main as cli_main
+from tests import testing_support
 
 _WAIT_SECONDS = 10.0
 
@@ -720,22 +721,19 @@ class DesktopProtocolStartupFailureTest(unittest.TestCase):
 
 class DesktopProtocolCliTest(unittest.TestCase):
     def _run_cli_error(self, argv: list[str]) -> str:
-        stderr = io.StringIO()
-        with contextlib.redirect_stderr(stderr):
+        with testing_support.capture_output() as captured:
             with self.assertRaises(SystemExit) as ctx:
                 serve.run_serve_cli(argv)
         self.assertEqual(ctx.exception.code, 2)
-        return stderr.getvalue()
+        return captured.stderr.getvalue()
 
     def test_help_documents_desktop_protocol_flag(self) -> None:
-        stdout = io.StringIO()
-
         with unittest.mock.patch("sys.argv", ["lrh", "serve", "--help"]):
-            with contextlib.redirect_stdout(stdout):
+            with testing_support.capture_output(capture_stderr=False) as captured:
                 with self.assertRaises(SystemExit):
                     cli_main.main()
 
-        output = " ".join(stdout.getvalue().split())
+        output = " ".join(captured.stdout.getvalue().split())
         self.assertIn("--desktop-protocol", output)
         self.assertIn("--desktop-start-timeout", output)
         # argparse may wrap the doc path at its hyphens; match a stable prefix.

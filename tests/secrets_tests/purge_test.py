@@ -8,6 +8,7 @@ from unittest import mock
 
 from lrh.secrets import purge
 from lrh.secrets.review import MARKER_LINE
+from tests import testing_support
 
 
 class LoadRefsTest(unittest.TestCase):
@@ -133,7 +134,8 @@ class DefaultSourceTest(unittest.TestCase):
     def test_no_origin_remote_raises_purge_input_error_not_traceback(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = pathlib.Path(tmp)
-            subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), check=True)
+            with testing_support.suppress_output(suppress_file_descriptors=True):
+                subprocess.run(["git", "init", "-q"], cwd=str(tmp_path), check=True)
             with self.assertRaises(purge.PurgeInputError):
                 purge.default_source(tmp_path)
 
@@ -257,15 +259,16 @@ class RunPurgeApplyTest(unittest.TestCase):
     def test_apply_failed_verification_hard_exits_no_push_command(
         self, mock_check_available, mock_clone, mock_run_filter_repo, mock_verify
     ) -> None:
-        with self.assertRaises(SystemExit) as ctx:
-            purge.run_purge(
-                project_root=self.tmp_path,
-                source="git@example.com:x",
-                refs_file=self.refs_file,
-                replacements_path=self.replacements_path,
-                mirror_dir=self.mirror_dir,
-                apply=True,
-            )
+        with testing_support.suppress_output():
+            with self.assertRaises(SystemExit) as ctx:
+                purge.run_purge(
+                    project_root=self.tmp_path,
+                    source="git@example.com:x",
+                    refs_file=self.refs_file,
+                    replacements_path=self.replacements_path,
+                    mirror_dir=self.mirror_dir,
+                    apply=True,
+                )
         self.assertEqual(ctx.exception.code, 1)
 
 

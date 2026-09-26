@@ -349,15 +349,19 @@ lrh prompt record-session-alias \
   --host-id <host-uuid-stem-confirmed-in-step-3> \
   --child-id <child-id-reported-as-pairable-in-step-3> \
   --title "<title-from-step-3>" \
-  --branch <branch-from-step-3> \
+  --branch <pr-head-branch> \
   --pr <pr-url> \
   --project-root .
 ```
 
-Take `--title` and `--branch` from what `/lrh-session-id-claude` reported
-at Step 3, and omit either flag when it was reported unavailable. (The
-index's `title` and `branch` are latest-value-wins; passing them here is
-what keeps sessions first indexed at closeout from having none.)
+Take `--title` from what `/lrh-session-id-claude` reported at Step 3, and
+`--branch` from the PR's head branch (`gh pr view <pr-url> --json
+headRefName`), not from the app-recorded branch, which can be stale when a
+session switched branches inside its worktree. Omit `--title` when it was
+reported unavailable. (The index's `title` and `branch` are
+latest-value-wins; passing them here is what keeps sessions first indexed at
+closeout from having none, and using the PR's head branch keeps closeout
+from overwriting a correct branch with a stale one.)
 
 **Skip this step entirely** for records resolved via Step 3's `codex_app`,
 `codex_cloud`, `manual`, or other-non-Claude-backend branches. The

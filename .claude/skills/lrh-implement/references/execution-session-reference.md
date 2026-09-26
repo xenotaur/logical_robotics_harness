@@ -254,8 +254,8 @@ hand-edited.
   (same window), omit the flag entirely on paths 2/3 (cross-session), since
   the host id and PR are still worth recording either way (see
   `references/closeout-workflow.md`'s "Session identity capture" section).
-  Pass the `--title` and `--branch` that `/lrh-session-id-claude` reported
-  on every path.
+  Pass the `--title` that `/lrh-session-id-claude` reported, and the PR's
+  head branch as `--branch`, on every path.
 
 ### `lrh sessions` — archive reconciler, report, and retention hooks
 

@@ -142,6 +142,15 @@ session's title and branch alongside the pointer, so the user can recognize
 the session. If the caller or user says it is not the right session, go to
 Step 2.
 
+**The app's `branch` is the session's *recorded* branch, not necessarily the
+current one.** `get_session` and `list_sessions` report the branch the
+desktop app associated with the session, which is typically the worktree
+branch it started on. If the session later switched branches inside its
+worktree, that value is stale, and the same applies to its `prNumber`. Use it
+to *recognize* a session, but callers recording `--branch` should prefer the
+authoritative branch for the work they are recording: the branch they
+created, or the PR's head branch (`gh pr view <pr> --json headRefName`).
+
 ### Step 2 -- Resolve another session (argument given, or current window rejected)
 
 These paths use the Claude desktop app's session-management tools. In a
@@ -179,7 +188,7 @@ Report one block, suitable for callers to read field by field:
 Session ID (host): <host-uuid-stem | none>
 session_transcript: claude-app:<host-uuid-stem>   # or: pending
 Title: <title | unavailable>
-Branch: <branch | unavailable>
+Branch (as recorded by the app): <branch | unavailable>
 PR: <pr-url-or-number | none>
 Child-id alias: <child-uuid, pairable> | not pairable (<reason>)
 Resolved via: resolver | env-var fallback (subcommand unavailable) | get_session | list_sessions by PR | list_sessions by branch/title | user pick
@@ -212,7 +221,8 @@ lrh prompt record-session-alias \
 ```
 
 Omit `--title` or `--branch` when they were unavailable. Never pass an
-empty `--child-id` value.
+empty `--child-id` value. For `--branch`, prefer the authoritative branch of
+the work being recorded (see Step 1) over the app-recorded branch.
 
 ### Step 4 -- Close out
 

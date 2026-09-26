@@ -331,9 +331,11 @@ list), the resolved host id belongs to a *different* window than the one
 running closeout right now — recording the current window's child
 id against that host id would create a false alias. **Omit `--child-id`
 entirely** (do not pass the flag, and do not pass an empty string) in those
-two cases; the command still records the host id and PR. Pass `--title` and
-`--branch` whenever `/lrh-session-id-claude` reported them, on every path,
-and omit either one it reported as unavailable.
+two cases; the command still records the host id and PR. On every path,
+pass `--title` whenever `/lrh-session-id-claude` reported one, and pass
+`--branch` as the PR's head branch (`gh pr view <pr-url> --json
+headRefName`), not the app-recorded branch, which can be stale when a
+session switched branches inside its worktree.
 
 ```bash
 # Path 1 (same window): pair host + child.
@@ -341,7 +343,7 @@ lrh prompt record-session-alias \
   --host-id <host-uuid-stem-from-step-3> \
   --child-id <child-id-reported-as-pairable-in-step-3> \
   --title "<title-from-step-3>" \
-  --branch <branch-from-step-3> \
+  --branch <pr-head-branch> \
   --pr <pr-url> \
   --project-root .
 
@@ -349,7 +351,7 @@ lrh prompt record-session-alias \
 lrh prompt record-session-alias \
   --host-id <host-uuid-stem-from-step-3> \
   --title "<title-from-step-3>" \
-  --branch <branch-from-step-3> \
+  --branch <pr-head-branch> \
   --pr <pr-url> \
   --project-root .
 ```

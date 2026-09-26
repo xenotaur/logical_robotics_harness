@@ -156,13 +156,13 @@ propose-and-confirm flow doc) rather than silently persisting the override.
 Resolve a transcript value for the backend that authored the primary
 execution record:
 
-- For `agent: claude_app` (or absent/legacy assumed Claude), follow
-  `/lrh-closeout` Step 3's resolution order to produce
-  `claude-app:<host-uuid-stem>`. That order is:
-  1. `$CLAUDE_CODE_HOST_SESSION_ID`, confirmed with the session's
-     `get_session` title and branch;
-  2. the session-management `list_sessions` tool matched by `prNumber`;
-  3. a session the user picks from `list_sessions`.
+- For `agent: claude_app` (or absent/legacy assumed Claude), run
+  `/lrh-session-id-claude` to produce `claude-app:<host-uuid-stem>`, the same
+  resolution `/lrh-closeout` Step 3 uses: the current window (confirmed with
+  its `get_session` title and branch), then `list_sessions` matched by
+  `prNumber`, then the PR's branch or title (`/lrh-session-id-claude
+  <pr-url>`), then a session the user picks. A `pending` result from the
+  skill stays `pending`.
 
   Do not substitute `lrh sessions discover`: it returns child ids from
   JSONL filenames, not host ids.

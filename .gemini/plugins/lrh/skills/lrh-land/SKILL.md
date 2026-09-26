@@ -155,13 +155,13 @@ propose-and-confirm flow doc) rather than silently persisting the override.
 Resolve a transcript value for the backend that authored the primary
 execution record:
 
-- For `agent: claude_app` (or absent/legacy assumed Claude), follow
-  `/lrh-closeout` Step 3's resolution order to produce
-  `claude-app:<host-uuid-stem>`. That order is:
-  1. `$CLAUDE_CODE_HOST_SESSION_ID`, confirmed with the session's
-     `get_session` title and branch;
-  2. the session-management `list_sessions` tool matched by `prNumber`;
-  3. a session the user picks from `list_sessions`.
+- For `agent: claude_app` (or absent/legacy assumed Claude), run
+  `/lrh-session-id-claude` to produce `claude-app:<host-uuid-stem>`, the same
+  resolution `/lrh-closeout` Step 3 uses: the current window (confirmed with
+  its `get_session` title and branch), then `list_sessions` matched by
+  `prNumber`, then the PR's branch or title (`/lrh-session-id-claude
+  <pr-url>`), then a session the user picks. A `pending` result from the
+  skill stays `pending`.
 
   Do not substitute `lrh sessions discover`: it returns child ids from
   JSONL filenames, not host ids.
@@ -495,7 +495,7 @@ second ask** — the human already approved both halves together in Step 6.
 
 **Anti-pattern: do not re-confirm the closeout push — except when the
 material-divergence rule below actually fires.** This includes the
-`git push origin tmp-<slug>:main` in the main-worktree-lock workaround below
+`git push origin HEAD:main` in the main-worktree-lock workaround below
 — it is a direct write to `main`, and that can feel like the kind of action
 that deserves its own live confirmation. In the ordinary, no-divergence
 case it does not: Step 6's single ask already covers it. If you find
@@ -515,37 +515,44 @@ separately says needs its own live confirmation.
 **Switch to main before closeout** (main-worktree-lock workaround from
 `references/land-workflow.md` rule 4). At this point the session is still on
 the merged PR branch. Closeout commits control-plane files to `main`. If
-another worktree already has `main` checked out, apply the temporary-branch
+another worktree already has `main` checked out, apply the detached-HEAD
 workaround explicitly — **follow `references/land-workflow.md`'s
 Main-worktree-lock rule and its Main-Worktree-Lock Troubleshooting section
 for the exact commands**, not the shortened form below. The full procedure
 includes capturing the branch point to a file (never a shell variable, and
 never a hardcoded `.git/` path — `.git` is a file, not a directory, inside
-a worktree checkout) for the non-fast-forward recovery path, and a narrow
-exception for the final `git branch -D` step when it hits this project's
-own `permissions.deny` list. This sketch shows only the mainline shape,
+a worktree checkout) for the non-fast-forward recovery path. No temporary
+branch is created, so no `git branch -D`/`-d` (blocked by this project's
+`permissions.deny`) is needed. This sketch shows only the mainline shape,
 not a copy-pasteable complete procedure:
 
 ```bash
+# Now, before inlining closeout:
 git fetch
-git checkout -b tmp-<slug> origin/main
-# ... capture the branch point, execute the closeout edits and commits ...
-git push origin tmp-<slug>:main
-git checkout <pr-branch>   # or: git checkout --detach
-git branch -D tmp-<slug>   # see land-workflow.md's deny-list exception if this is denied
+git checkout --detach origin/main
+# ... capture the branch point; stay detached while the inlined closeout
+# workflow below makes its edits and commits ...
+
+# Only AFTER the inlined closeout has committed:
+git push origin HEAD:main
+git checkout <pr-branch>   # not in the settings.json allow list, so it may
+                           # prompt; approve it. If declined, the fallback
+                           # `git checkout --detach origin/main` still leaves
+                           # a detached HEAD (at main's tip), not a branch
 ```
 
-**The checkout-away step is not optional.** Git refuses to delete the
-branch `HEAD` currently points to, even with `-D` — so without it, the
-final `git branch -D tmp-<slug>` always fails, right after
-`git push origin tmp-<slug>:main` has already landed the closeout commit(s) on
-`main`. Check out `<pr-branch>` — the merged PR's branch, already known
-from Step 1's `headRefName` — to return to a normal working state; if that
-branch is unavailable for some reason, `git checkout --detach` is an
-always-safe fallback that still frees `tmp-<slug>` for deletion.
+**Stay detached through the inlined closeout; push and check out away only
+afterward.** The closeout commit(s) are made by the inlined `/lrh-closeout`
+workflow below, so pushing or checking out `<pr-branch>` before it commits
+would send only the pre-closeout state to `main` and land the closeout
+commit on the PR branch instead. Until the push succeeds, those commit(s)
+are reachable only from the detached `HEAD` and the reflog. Once it does,
+check out `<pr-branch>` — the merged PR's branch, already known from Step
+1's `headRefName` — to return to a normal working state.
 
 Do not assume the workaround will be applied automatically — it must be
-executed here in Step 7 before inlining the closeout workflow.
+executed here in Step 7 before inlining the closeout workflow (the detach
+now; the push and checkout-away only after that workflow commits).
 
 **No-primary path (backfill):** If Step 1 found no primary record, the
 inlined closeout workflow will not create one — it only discovers and updates
@@ -687,7 +694,7 @@ Before reporting completion, verify:
       not material; any other divergence (resolution text, WS exit-criteria
       answer, a newly appeared execution record) fired a fresh live ask at
       `/lrh-closeout` Step 4 rather than being silently absorbed
-- [ ] Switched to main (or applied main-worktree-lock workaround) before inlining closeout
+- [ ] Switched to main (or applied the detached-HEAD main-worktree-lock workaround) before inlining closeout
 - [ ] Backfill record created explicitly (if no-primary path) before invoking closeout
 - [ ] CHAIN-NOTE placed correctly (new `_CLOSEOUT_NOTE` if primary found;
       in the authored record if backfill path)

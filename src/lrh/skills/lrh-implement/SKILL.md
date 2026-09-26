@@ -328,26 +328,36 @@ already-open PR.
 **For Claude.app sessions, capture the child session-id alias when available.**
 This step runs live in the current window, so — unlike `/lrh-closeout`, which
 can run in a different session entirely after merge — there is no cross-session
-ambiguity here for Claude.app: `$CLAUDE_CODE_HOST_SESSION_ID` and
-`$CLAUDE_CODE_SESSION_ID` both name the session doing this work right now. If
-both are set, record the pairing (see
+ambiguity here for Claude.app: the current window *is* the session doing this
+work. Run `/lrh-session-id-claude` with no argument to resolve it. It reports
+the host id, the child id (pairable here), and the session's title from
+`get_session`. Then record the pairing (see
 `references/execution-session-reference.md`'s "Session identity capture"
 section for full detail):
 
 ```bash
 lrh prompt record-session-alias \
-  --host-id "$(echo "$CLAUDE_CODE_HOST_SESSION_ID" | sed 's/^local_//')" \
-  --child-id "$CLAUDE_CODE_SESSION_ID" \
+  --host-id <host-uuid-stem-from-lrh-session-id-claude> \
+  --child-id <child-id-from-lrh-session-id-claude> \
+  --title "<title-from-lrh-session-id-claude>" \
   --pr <pr-url-from-step-8> \
   --branch <branch-name-from-step-5> \
   --project-root .
 ```
 
+Omit `--title` if the skill reported it unavailable (e.g. no
+session-management tools in a CLI-only session).
+
 This writes to `project/sessions/index.jsonl`, not the execution record —
 `session_transcript` stays `pending` here exactly as before; this capture is
 independent of it. Commit this file alongside the execution record in the same
-commit. If `$CLAUDE_CODE_HOST_SESSION_ID` is unset, skip this Claude-only alias
-capture entirely and use the selected backend's transcript convention instead.
+commit. If the skill reports no host id (`session_transcript: pending`), skip
+this Claude-only alias capture entirely and use the selected backend's
+transcript convention instead. If `/lrh-session-id-claude` is not installed,
+use `lrh conversation current-claude-session-id --format json` (reading
+`$CLAUDE_CODE_HOST_SESSION_ID` directly only when that subcommand is
+unavailable: `lrh` not found, or it reports an invalid choice) and omit
+`--title`.
 
 ### Step 10 — Report and offer closeout
 

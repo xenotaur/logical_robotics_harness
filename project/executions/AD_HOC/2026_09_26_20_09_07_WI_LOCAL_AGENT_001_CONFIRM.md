@@ -2,14 +2,14 @@
 execution_id: 2026_09_26_20_09_07_WI_LOCAL_AGENT_001_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_LOCAL_AGENT_001_CONFIRM)[2026-09-26T07:06:34+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_26_05_19_23_WI_LOCAL_AGENT_001
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/735
-commit: 
+commit: 85f2792784c2fffb2e2a89279a4df2c1ca9b9806
 created_at: 2026-09-26T20:09:07+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/735
-session_transcript: pending
+session_transcript: claude-app:ae03b82e-f234-4666-ab7a-2c5a12a5f340
 ---
 
 # Summary

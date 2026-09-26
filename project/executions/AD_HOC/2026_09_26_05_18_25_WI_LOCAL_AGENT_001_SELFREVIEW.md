@@ -2,14 +2,14 @@
 execution_id: 2026_09_26_05_18_25_WI_LOCAL_AGENT_001_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_LOCAL_AGENT_001_SELFREVIEW)[2026-09-26T05:18:25+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/735
+commit: 85f2792784c2fffb2e2a89279a4df2c1ca9b9806
 created_at: 2026-09-26T05:18:25+00:00
 agent: claude_app
 instruction_source: lrh-implement Step 7.5 diff-mode self-review for PROMPT(WI-LOCAL-AGENT-001:WI_LOCAL_AGENT_001)[2026-09-26T02:47:36+00:00]
-session_transcript: pending
+session_transcript: claude-app:ae03b82e-f234-4666-ab7a-2c5a12a5f340
 ---
 
 # Summary

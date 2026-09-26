@@ -83,6 +83,16 @@ design/control-plane effort for reusing LRH's CI and toolchain reconciliation
 lessons. It should remain playbook- and prompt-design work for now, not CI workflow implementation or
 a universal template effort.
 
+## Adjacent experimental lane
+
+The local-agent dogfood workstream
+(`project/workstreams/active/WS-LOCAL-AGENT-DOGFOOD.md`) is an approved, isolated
+stage-0 experiment: a tool-less, single-call local-model briefing prototype under
+`experimental/local_agent/`, evaluated with a pre-registered pilot. It does not
+change this focus's priority on Layer 2 durable run state. The Non-Goals below
+govern the production and default layers. This lane adds no execution backend,
+package code, project-state writes, or runtime authority.
+
 ## Human and policy gates
 
 Execution-framework planning must preserve explicit human/policy gates for:

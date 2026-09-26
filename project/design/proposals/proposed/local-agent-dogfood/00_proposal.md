@@ -4,7 +4,7 @@ type: design_proposal
 title: "Local Agent Dogfood and a Durable Session Boundary"
 status: proposed
 created_on: "2026-09-24"
-updated_on: "2026-09-24"
+updated_on: "2026-09-25"
 implementation_status: not_started
 implemented_by: []
 supersedes: []
@@ -35,9 +35,11 @@ deterministic policy and a constrained executor enforce permissions.
 This is a **draft planning package for joint iteration**, not an adopted API or
 authorization to run an agent. Only two initial implementation leaves are filed:
 `WI-LOCAL-AGENT-001` and `WI-LOCAL-AGENT-002`, coordinated by
-`WS-LOCAL-AGENT-DOGFOOD` under `WS-EXECUTION-FRAMEWORK`. Neither is active.
-No runtime code, dependencies, assistant scheduling, or serving mutations are
-introduced by this package.
+`WS-LOCAL-AGENT-DOGFOOD` under `WS-EXECUTION-FRAMEWORK`. The stage-0 lane was
+later approved and `WI-LOCAL-AGENT-001` activated; see
+[Stage-0 Lane Approval](#stage-0-lane-approval). `WI-LOCAL-AGENT-002` is not
+active. No runtime code, dependencies, assistant scheduling, or serving
+mutations are introduced by this package.
 
 ## Background / Motivation
 
@@ -67,10 +69,10 @@ snapshot. Recheck these contracts when activating a leaf.
 | `project/design/execution_framework_mvp.md:3-29,53-85` | Canonical architecture prioritizes manual contracts and safe-default surfaces. This proposal requests a separately approved experimental lane; it does not silently revise that priority. |
 | `project/design/proposals/proposed/workstream-execution-framework/04_layer4_agent_runtime.md:15-34,77-85` | Existing proposed `RuntimeBackend` wraps Claude/manual/fake backends and explicitly excludes custom loops, a new permission system, and non-Claude backends. A local runner is a proposed extension; production adoption requires reconciling those non-goals. |
 | `project/design/proposals/proposed/workstream-execution-framework/06_layer6_mcp_bridges.md:15-28` | Existing bridges expose external tools to LRH. The proposed agent-facing MCP adapter exposes LRH sessions to external agents: a complementary direction, with a separate trust boundary. |
-| `project/design/proposals/proposed/constitutional-sandbox-envelope/00_proposal.md:127-182` | Layered constitutional review, capability policy, and sandboxing are already proposed. Extend that design before adding execution, rather than introducing a competing safety subsystem. |
+| `project/design/proposals/proposed/constitutional-sandbox-envelope/00_proposal.md:127-184` | Layered constitutional review, capability policy, and sandboxing are already proposed. Extend that design before adding execution, rather than introducing a competing safety subsystem. |
 | `src/lrh/assist/snapshot_cli.py:53-68`; `src/lrh/assist/run_packet.py:25-68` | Work-item snapshots and non-mutating, readiness-checked run packets already exist. Reuse their semantics and preserve their diagnostics; never manufacture readiness to get a packet. |
 | `src/lrh/prompt_workflow_sessions.py:1-12,35-55` | Session identity and archive reconciliation exist. Host/child transcript identity is not an action-execution session contract. Link these identities later without replacing their meaning. |
-| `project/workstreams/active/WS-LRH-ASSISTANTS.md:39-46,82-100` | Assistant roles have a staged plan and explicit archive/execution-tree gates. This experiment is a runner feasibility lane, not delivery of those assistant stages or permission to bypass their gates. |
+| `project/workstreams/active/WS-LRH-ASSISTANTS.md:41-49,84-101` | Assistant roles have a staged plan and explicit archive/execution-tree gates. This experiment is a runner feasibility lane, not delivery of those assistant stages or permission to bypass their gates. |
 | `experimental/README.md:3-17` | Temporary code belongs outside the package and default tests; private captures stay out of Git; promotion requires separate reviewed work. Follow this policy. |
 | `project/design/backlog.md:1614-1659` | A separate `/lrh-assess` skill was judged unwarranted. Measure against deterministic readiness/context before inventing another assessment workflow. |
 
@@ -344,7 +346,52 @@ Pin and version model artifacts and retain rollback. MIT licensing for harness
 code does not relicense model weights, datasets, or third-party dependencies;
 check their terms before distribution.
 
+## Stage-0 Lane Approval
+
+Recorded 2026-09-25 by the owner after a read-only readiness review. This
+section approves a narrow slice of the proposal; the proposal as a whole remains
+`proposed`.
+
+**Approved:**
+
+- The isolated experimental lane for stage 0 only: tool-less, single-call local
+  briefing under `experimental/local_agent/`, outside the package and default
+  test discovery, with no project-state writes.
+- Activation of `WI-LOCAL-AGENT-001` and `WS-LOCAL-AGENT-DOGFOOD`.
+- Pre-registration of hardware, model digest, budgets, storage, task corpus, and
+  criteria in `experiments/01_local_agent_briefing/` before any live run.
+
+**Not approved:** stage 1 (`WI-LOCAL-AGENT-002`), later stages, the native
+Session API and MCP binding (Decision 5), the constitutional execution contract
+(Decision 6), and any production runtime or backend adoption. Each needs its own
+decision.
+
+**Evidence rule (refines Decision 4):** raw transcripts, context packets, exact
+prompts, and raw model responses stay in the private store. Parsed briefing
+records that a human has scored may be committed as experiment evidence. Each
+one carries its scores and claim annotations, passes a sensitivity scan and PR
+review, and is labelled as a model output record rather than project state.
+Committed records live under `experiments/`, outside `project/`.
+
+**Decision rule (refines Decision 7):** the owner pre-declares both a binding
+floor and advisory targets before live runs. Failing the floor means stop or
+revise. Targets are reported as met or unmet and inform, but do not decide, the
+owner's stop/revise/proceed choice. Each miss is classified as context-limited,
+model-limited, or task-limited. Context-limited misses are evidence for
+evaluating stage 1, consistent with `WI-LOCAL-AGENT-002`'s activation condition.
+
+**Local-only inference:** the model adapter requires a loopback endpoint and the
+pinned local model digest, rejects remote or cloud-tagged models, and records
+these checks per run. Disabling the inference service's cloud features is
+optional defense in depth.
+
 ## Open Questions for Joint Review
+
+For stage 0, the lane, static-context briefing, and assistant-gate questions
+below are answered by the [Stage-0 Lane Approval](#stage-0-lane-approval). The
+hardware, model, corpus, storage, and target choices will be pre-registered in
+`experiments/01_local_agent_briefing/` before live runs. The questions stay
+open for later stages.
 
 - Which Mac/RAM configuration and locally installed model should define the first
   pilot? What are the predeclared latency and human-effort targets?

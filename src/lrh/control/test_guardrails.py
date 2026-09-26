@@ -149,10 +149,13 @@ def _check_output_hygiene(
                     path,
                     node.lineno,
                     f"Uncaptured subprocess.{method}(...) call. Wrap it in "
-                    "`with tests.testing_support.suppress_output():` (or "
-                    "capture_output() to assert on the output), or pass "
-                    "capture_output=True, per STYLE.md's Output Hygiene "
-                    "section -- otherwise its output leaks into scripts/test.",
+                    "`with tests.testing_support.suppress_output("
+                    "suppress_file_descriptors=True):` (a bare "
+                    "suppress_output()/capture_output() does not redirect "
+                    "a real child process's inherited file descriptors), "
+                    "or pass capture_output=True, per STYLE.md's Output "
+                    "Hygiene section -- otherwise its output leaks into "
+                    "scripts/test.",
                 )
             )
 

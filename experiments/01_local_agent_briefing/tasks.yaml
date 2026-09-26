@@ -1,0 +1,101 @@
+# Pre-registered task corpus for experiment 01 (WI-LOCAL-AGENT-001).
+# Each task briefs one work item from tracked content at a pinned commit.
+# Resolved items are pinned to the commit before their implementing PR merged,
+# so the packet shows the item as it looked while open; the merged PR is the
+# ground truth. Do not edit pins or the split after live runs begin.
+schema_version: 1
+question: "Brief me on this work item."
+repos:
+  LRH:
+    url: https://github.com/xenotaur/logical_robotics_harness
+    project_dir: "."
+  LCATS:
+    url: https://github.com/xenotaur/LCATS
+    project_dir: "lcats"
+tasks:
+  # ---- tuning split (prompt iterations allowed here, at most 3) ----
+  - id: T01
+    split: tuning
+    repo: LRH
+    commit: 9919582ba0dab29407198d54e381fe433b93ff46
+    work_item: WI-SKILLS-DOC-RELATED-DESIGN-REPOINT
+    task_type: readiness
+    expectation: "Ready small metadata operation; three files, one adopted proposal path."
+  - id: T02
+    split: tuning
+    repo: LRH
+    commit: 9919582ba0dab29407198d54e381fe433b93ff46
+    work_item: WI-DOCS-CLI-OPTION-TABLES
+    task_type: evidence_gaps
+    expectation: "Not prompt-ready; must name missing sections and not invent scope."
+  - id: T03
+    split: tuning
+    repo: LRH
+    commit: 9919582ba0dab29407198d54e381fe433b93ff46
+    work_item: WI-INTERPRETATION-VALIDATION
+    task_type: dependency
+    expectation: "Dependency WI-PRECEDENCE-RESOLVER is resolved; evaluation-type item."
+  - id: T04
+    split: tuning
+    repo: LRH
+    commit: ef8df315b290d5d2ab805f109713ce1b48f8e88e
+    work_item: WI-WORK-ITEMS-READINESS-CLI-MVP
+    task_type: narrow_change
+    ground_truth: "PR #268 (merge 8e2e00ee54d661d881bce9114758b86ff539b9e8)"
+  - id: T05
+    split: tuning
+    repo: LRH
+    commit: b6474a1704ecd93678ec98b69335b7e5929348fc
+    work_item: WI-SELF-REVIEW-UNTRACKED-FILE-DIFF
+    task_type: narrow_change
+    ground_truth: "PR #576 (merge ae710248c0f407f2e672cdf0d2a45232ba507ffd)"
+  - id: T06
+    split: tuning
+    repo: LCATS
+    commit: 73ea40e7e9b9de750be3f270af5bb4999fd85df2
+    work_item: WI-PERSIST-0004
+    task_type: evidence_gaps
+    expectation: "Very thin; must keep 'design, not implement' and ask for scope."
+  - id: T07
+    split: tuning
+    repo: LCATS
+    commit: 73ea40e7e9b9de750be3f270af5bb4999fd85df2
+    work_item: WI-GENRE-0077
+    task_type: find_sources
+    expectation: "Dependency WI-GENRE-0075 resolved; points at validated results and genre_sidecar."
+  - id: T08
+    split: tuning
+    repo: LCATS
+    commit: a639fe837274380ac106d5e9c7e1dfb5865630dc
+    work_item: WI-RUNLOG-0081
+    task_type: narrow_change
+    ground_truth: "LCATS PR #400 (squash 8db9b10f2f35d9a8f5fca44ffd98e46401c388a5)"
+  # ---- held-out split (run once, with the frozen prompt) ----
+  - id: T09
+    split: held_out
+    repo: LRH
+    commit: 9919582ba0dab29407198d54e381fe433b93ff46
+    work_item: WI-ASSIST-SOURCETREE-SURVEYOR-EXPANSION
+    task_type: evidence_gaps
+    expectation: "Dependency resolved but item not prompt-ready; asks what 'audit precursor' means."
+  - id: T10
+    split: held_out
+    repo: LRH
+    commit: a35f8ba81ee71910441438e612195ce216354252
+    work_item: WI-CLAUDE-EXPORT-MARKDOWN-USER-TURN-MISLABEL
+    task_type: find_sources
+    ground_truth: "PR #717 (merge c45420dce5431b5f5425ab2ea5eab7d0cd13eee1)"
+  - id: T11
+    split: held_out
+    repo: LCATS
+    commit: 73ea40e7e9b9de750be3f270af5bb4999fd85df2
+    work_item: WI-EVENT-0079
+    task_type: readiness_trap
+    expectation: "Prompt-ready per LRH, but dependency WI-EVENT-0078 is still proposed; must not call it ready to start."
+  - id: T12
+    split: held_out
+    repo: LCATS
+    commit: 87ca5efbd174543654dd6ea47f268f55d01160cb
+    work_item: WI-ASSESS-0050
+    task_type: narrow_change
+    ground_truth: "LCATS PR #242 (squash 98b4cf6702b2e5ea0aab5d28543c9c443f836d83)"

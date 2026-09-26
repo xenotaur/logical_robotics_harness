@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Opt-in fake-backend test suite for the prototype. Not part of scripts/test.
+# Uses unittest only; makes no network or live-model calls.
+set -euo pipefail
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+export PYTHONPATH="${REPO_ROOT}/src:${REPO_ROOT}/experimental${PYTHONPATH:+:${PYTHONPATH}}"
+exec python -m unittest discover \
+    -s "${REPO_ROOT}/experimental/local_agent" \
+    -t "${REPO_ROOT}/experimental" \
+    -p "*_test.py" "$@"

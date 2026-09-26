@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Run the stage-0 briefing prototype with this checkout's src/ and experimental/.
+set -euo pipefail
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+export PYTHONPATH="${REPO_ROOT}/src:${REPO_ROOT}/experimental${PYTHONPATH:+:${PYTHONPATH}}"
+exec python -m local_agent "$@"

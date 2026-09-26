@@ -2,10 +2,10 @@
 execution_id: 2026_09_26_22_03_46_WI_TEST_OUTPUT_SUPPRESSION_AUDIT_CLOSEOUT_NOTE
 prompt_id: PROMPT(AD_HOC:WI_TEST_OUTPUT_SUPPRESSION_AUDIT_CLOSEOUT_NOTE)[2026-09-26T22:03:46+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_26_08_01_30_WI_TEST_OUTPUT_SUPPRESSION_AUDIT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/736
-commit: 
+commit: 8848457565966a00a022cbc3ec902b8056d83232
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/736
 session_transcript: claude-app:42f65eea-a5d0-4b14-b12d-fdac79928916

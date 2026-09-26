@@ -3,7 +3,7 @@ execution_id: 2026_09_25_21_58_39_WI_LRH_MEMORY_WRITE_OVERWRITE_PRESERVE_METADAT
 prompt_id: PROMPT(AD_HOC:WI_LRH_MEMORY_WRITE_OVERWRITE_PRESERVE_METADATA_CLOSEOUT_NOTE)[2026-09-25T21:58:33+00:00]
 work_item: AD_HOC
 status: landed
-rerun_of: 
+rerun_of: 2026_09_22_15_22_38_WI_LRH_MEMORY_WRITE_OVERWRITE_PRESERVE_METADATA
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/714
 commit: dedaa7d95ab74aee27a69146a8c83c8432f90125
 created_at: 2026-09-25T21:58:39+00:00
@@ -14,7 +14,9 @@ session_transcript: claude-app:239809db-0aff-4cae-b00b-76078ee01394
 
 # Summary
 
-CHAIN-NOTE: closeout for PR #714 (WI-LRH-MEMORY-WRITE-OVERWRITE-PRESERVE-METADATA). PR merged as `dedaa7d95ab74aee27a69146a8c83c8432f90125`; landing its three execution records and resolving the work item.
+CHAIN-NOTE: `cycles=1; stops=1; gates=[merge]; friction=ci-never-triggered; note="GitHub never dispatched Actions for the _CONFIRM commit (1f7eab9) after 3+ days; halted and reported to the human before resolving via an empty retrigger commit (df01129), which fired CI normally and unstuck mergeStateStatus."`
+
+Closeout for PR #714 (WI-LRH-MEMORY-WRITE-OVERWRITE-PRESERVE-METADATA). PR merged as `dedaa7d95ab74aee27a69146a8c83c8432f90125`; landing its three execution records and resolving the work item.
 
 # Result
 

@@ -117,6 +117,13 @@ optional agentic packaging after contracts and policy gates are stable. Implemen
 initially preserve logical boundaries inside the existing `src/lrh/` package layout rather than force
 premature package churn.
 
+Isolated experiments sit outside both zones. Code under `experimental/` is not part of the package or
+default test discovery (`experimental/README.md`). It may call a local model when an approved work
+item allows it: for example, the tool-less stage-0 briefing lane in `WS-LOCAL-AGENT-DOGFOOD`. Such
+experiments produce evidence only. They grant no runtime authority, write no project state, and do
+not change the recommended package sequence below. Adopting any local runner in production still
+follows the Layer 4 runtime design and the constitutional sandbox envelope.
+
 
 ## Implementation package boundary
 

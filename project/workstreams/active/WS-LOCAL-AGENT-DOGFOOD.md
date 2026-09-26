@@ -2,8 +2,8 @@
 id: WS-LOCAL-AGENT-DOGFOOD
 kind: planning_node
 title: "Local Agent Dogfood"
-status: proposed
-stage: assessed
+status: active
+stage: executing
 origin: design_review
 summary: "Measure useful local-agent workflows through isolated briefing and repository-investigation prototypes before expanding runtime authority."
 parent_id: WS-EXECUTION-FRAMEWORK
@@ -32,8 +32,10 @@ exit_criteria:
 
 Find out whether a modest local model can reduce human effort on routine LRH and
 LCATS work. Coordinate useful experiments while preserving the parent execution
-framework's safe-default behavior. `stage: assessed` records a proposed direction;
-the design is still under joint review and is not locked or selected for execution.
+framework's safe-default behavior. On 2026-09-25 the owner approved the stage-0
+lane only and activated `WI-LOCAL-AGENT-001`; `stage: executing` reflects that
+leaf. The long-term design remains a proposal under joint review, and stage 1 is
+not selected.
 
 ## Scope
 
@@ -93,7 +95,10 @@ suite or a model-generated success claim.
 
 ## Dependencies and Review Gates
 
-Merging this planning package does not activate either leaf. Adoption/selection
-must explicitly allow the experimental lane while preserving canonical production
-sequencing. References to existing focus/roadmap provide traceability, not a change
-to current focus. No existing assistant blocker is cleared by this workstream.
+Merging this planning package did not activate either leaf. The stage-0 lane
+approval is recorded in the proposal's "Stage-0 Lane Approval" section, and the
+canonical focus and execution-framework documents now describe this lane as
+adjacent evidence work that preserves production sequencing. `WI-LOCAL-AGENT-002`
+remains proposed and needs its own human decision after stage-0 findings.
+References to existing focus/roadmap provide traceability, not a change to
+current focus. No existing assistant blocker is cleared by this workstream.

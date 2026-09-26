@@ -2,7 +2,7 @@
 id: WI-LOCAL-AGENT-001
 title: "Build and evaluate a local work-item briefing prototype"
 type: deliverable
-status: proposed
+status: active
 owner: anthony
 contributors:
   - anthony
@@ -49,6 +49,7 @@ required_evidence:
 artifacts_expected:
   - experimental/local_agent/
   - experiments/README.md
+  - experiments/01_local_agent_briefing/
   - "Numbered local-agent briefing experiment with sanitized findings and provenance."
 ---
 
@@ -75,6 +76,17 @@ art at commit `8603b6514329ea242294da420aa448d2fc959fd1`. Reuse
 loader or assessment skill. The new demand is a measured local-language briefing
 plus portable run evidence, not another readiness authority. Refresh this check
 and the applicable runtime/assistant gates before activation.
+
+**Activation refresh (2026-09-25, main `43e4375d`):** the cited snapshot and
+run-packet contracts are unchanged since `8603b65`. The reusable seams are
+`evaluate_readiness` (`src/lrh/work_items/readiness.py:47`), execution-readiness
+diagnostics from `render_run_packet_from_work_item`
+(`src/lrh/assist/run_packet.py:25-68`), and related-context resolution from
+`render_ready_work_item_request` (`src/lrh/assist/ready_work_item.py:73-90,137`).
+No canonical sequencing decision forbids this lane; the focus, execution
+framework, and experimental-directory reconciliations landed with activation.
+Assistant-stage gates are unaffected because this leaf performs no assistant
+role work.
 
 ## Scope
 
@@ -110,8 +122,9 @@ cannot modify repository files or project state. These are different authorities
 5. Document a durable `experiments/` convention and use the next available numbered
    directory. Record task definitions or reproducible references, source/code
    commits, setup, exact invocation commands, scoring rubric, sanitized per-task
-   results, failures, limitations, and human decision. Keep private artifacts in
-   the durable user-data store, not disposable temporary directories.
+   results, scored model outputs, failures, limitations, and human decision.
+   Keep private artifacts in the durable user-data store, not disposable
+   temporary directories.
 6. Add opt-in `unittest.TestCase` tests under the prototype tree, with a documented
    test runner. Use a fake backend for context bounds, preserved diagnostics,
    provenance/export, timeout/error handling, and interrupted recording. Do not
@@ -167,10 +180,19 @@ can exaggerate time savings; preserve held-out tasks and compare total effort.
 
 ## Dependencies / Order
 
-Proposed, not active. Requires approval of the design's isolated experimental
-lane and the pre-run choices above. No hard dependency on an unfinished production
-runtime is implied because this leaf adds no execution authority. Any contrary
-canonical sequencing decision must be reconciled before activation.
+Active. The owner approved the stage-0 experimental lane and activated this
+leaf on 2026-09-25; the approval scope and evaluation rules are recorded in the
+parent proposal's "Stage-0 Lane Approval" section. Pre-run choices (hardware,
+model digest, budgets, storage, corpus, and criteria) must be pre-registered in
+`experiments/01_local_agent_briefing/` before any live run. No hard dependency
+on an unfinished production runtime is implied because this leaf adds no
+execution authority. The canonical focus and execution-framework documents
+record this lane as adjacent evidence work that does not change production
+sequencing.
+
+The implementation lands in more than one PR. Only the PR carrying the pilot
+results and the human decision resolves this item; earlier closeouts record
+partial progress.
 
 `WI-LOCAL-AGENT-002` depends on this leaf and a separate human advancement decision;
 resolving this leaf does not start it automatically.

@@ -55,7 +55,8 @@ def _adapter(transport: FakeTransport, **kwargs: object) -> model.OllamaModel:
 class OpenerTest(unittest.TestCase):
     def test_opener_ignores_proxy_environment(self) -> None:
         proxy_env = {"http_proxy": "http://proxy.invalid:3128"}
-        with mock.patch.dict(os.environ, proxy_env):
+        # clear=True so other *_proxy variables on the host cannot merge in.
+        with mock.patch.dict(os.environ, proxy_env, clear=True):
             default = urllib.request.build_opener()
             opener = model.build_opener()
 
@@ -95,6 +96,32 @@ class OllamaLocalOnlyTest(unittest.TestCase):
             with self.assertRaises(model.BackendError) as caught:
                 model.OllamaModel(base_url=url, transport=FakeTransport({}))
             self.assertEqual(caught.exception.kind, model.KIND_MISSING_PREREQUISITE)
+
+    def test_userinfo_in_endpoint_refused(self) -> None:
+        with self.assertRaisesRegex(model.BackendError, "credentials"):
+            model.OllamaModel(
+                base_url="http://user:secret@127.0.0.1:11434",
+                transport=FakeTransport({}),
+            )
+
+    def test_layer_digest_only_for_preregistered_model(self) -> None:
+        pinned = model.OllamaModel(transport=FakeTransport({}))
+        self.assertEqual(
+            pinned.describe()["model_layer_digest"],
+            settings.DEFAULT_MODEL_LAYER_DIGEST,
+        )
+        fallback = model.OllamaModel(
+            model="qwen3:8b", manifest_digest=DIGEST, transport=FakeTransport({})
+        )
+        self.assertIsNone(fallback.describe()["model_layer_digest"])
+
+    def test_total_wall_time_overrun_is_timeout(self) -> None:
+        ticks = iter([0.0, 301.0])
+        adapter = _adapter(FakeTransport(_healthy()), clock=lambda: next(ticks))
+        request = model.ModelRequest("p", {"type": "object"}, settings.Budgets())
+        with self.assertRaises(model.BackendError) as caught:
+            adapter.generate(request)
+        self.assertEqual(caught.exception.kind, model.KIND_TIMEOUT)
 
     def test_cloud_tagged_model_refused(self) -> None:
         with self.assertRaisesRegex(model.BackendError, "cloud"):

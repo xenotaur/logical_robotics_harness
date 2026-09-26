@@ -118,6 +118,14 @@ class RunnerTest(unittest.TestCase):
         run = self._run(model.FakeModel([_response('{"summary": "cut', "length")]))
         self.assertEqual(run["outcome"], runner.OUTCOME_BUDGET_EXHAUSTED)
 
+    def test_returned_output_tokens_over_budget(self) -> None:
+        response = model.ModelResponse(
+            json.dumps(VALID_BRIEFING), "stop", 100, 5000, {}
+        )
+        run = self._run(model.FakeModel([response]))
+        self.assertEqual(run["outcome"], runner.OUTCOME_BUDGET_EXHAUSTED)
+        self.assertIn("5000", run["outcome_detail"])
+
     def test_input_over_budget_never_calls_model(self) -> None:
         adapter = model.FakeModel([_response(json.dumps(VALID_BRIEFING))])
         run = self._run(adapter, budgets=settings.Budgets(max_estimated_input_tokens=5))

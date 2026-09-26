@@ -204,11 +204,14 @@ class Store:
         return sorted(entry.name for entry in runs.iterdir() if entry.is_dir())
 
     def recover_run(self, run_id: str) -> dict[str, object]:
-        """Mark a run whose log ended without an outcome as incomplete.
+        """Reconcile a run whose manifest lacks a terminal outcome.
 
-        A truncated final event is preserved as evidence (the tail bytes are
-        moved to ``events.truncated_tail``) rather than silently dropped, and
-        the run is never treated as successful.
+        If the event log holds a valid terminal ``outcome`` event (the process
+        stopped after logging it but before updating ``run.json``), that
+        outcome is restored. Otherwise the run is marked ``incomplete``. A
+        truncated final event is preserved as evidence (moved to
+        ``events.truncated_tail``) rather than silently dropped, and is never
+        treated as success.
         """
         path = self.run_dir(run_id) / "events.jsonl"
         events, truncated = read_events(path)
@@ -219,7 +222,19 @@ class Store:
             kept_text = keep + "\n" if keep else ""
             _write_private(self.run_dir(run_id) / "events.truncated_tail", tail)
             _write_private(path, kept_text)
-        if manifest.get("outcome") is None:
+        logged = [event for event in events if event.get("type") == "outcome"]
+        if manifest.get("outcome") is None and logged:
+            manifest = self.update_run(
+                run_id,
+                outcome=logged[-1].get("outcome"),
+                outcome_detail=logged[-1].get("detail"),
+                recovered_from_event_log=True,
+                recovered_truncated_tail=truncated,
+            )
+            self.append_event(
+                run_id, "recovered", truncated_tail=truncated, restored_outcome=True
+            )
+        elif manifest.get("outcome") is None:
             manifest = self.update_run(
                 run_id,
                 outcome="incomplete",

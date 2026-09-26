@@ -108,6 +108,15 @@ class ExportTest(unittest.TestCase):
         with self.assertRaisesRegex(export.ExportError, "withheld"):
             self._export(run_id, include_output=True)
 
+    def test_packet_altered_after_run_is_refused(self) -> None:
+        run_id = self._run(BRIEFING)
+        manifest_file = self.store.packet_dir(self.sha) / "manifest.json"
+        altered = json.loads(manifest_file.read_text(encoding="utf-8"))
+        altered["source_commit"] = "0" * 40
+        manifest_file.write_text(json.dumps(altered), encoding="utf-8")
+        with self.assertRaisesRegex(export.ExportError, "no longer matches"):
+            self._export(run_id)
+
     def test_home_paths_rewritten(self) -> None:
         run_id = self._run(BRIEFING)
         exported = self._export(run_id)

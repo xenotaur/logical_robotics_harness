@@ -34,7 +34,8 @@ conda activate <EnvName>
 scripts/version tools
 ```
 
-The `run` and `test` wrappers put this checkout's `src/` and `experimental/` on
+The prototype needs Python ≥ 3.11.4, for the safe tar extraction filters. The
+`run` and `test` wrappers put this checkout's `src/` and `experimental/` on
 `PYTHONPATH` themselves. Live runs need Ollama started by hand, for example:
 
 ```bash

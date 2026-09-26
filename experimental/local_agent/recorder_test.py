@@ -58,6 +58,18 @@ class StoreTest(unittest.TestCase):
         self.assertFalse(truncated)
         self.assertEqual(events[-1]["type"], "recovered")
 
+    def test_recover_restores_durable_outcome_event(self) -> None:
+        run_id = self.store.start_run({"outcome": None})
+        self.store.append_event(run_id, "attempt_started")
+        # Crash window: the outcome event is fsynced, run.json never updated.
+        self.store.append_event(
+            run_id, "outcome", outcome="timeout", detail="generate: slow"
+        )
+        manifest = self.store.recover_run(run_id)
+        self.assertEqual(manifest["outcome"], "timeout")
+        self.assertEqual(manifest["outcome_detail"], "generate: slow")
+        self.assertTrue(manifest["recovered_from_event_log"])
+
     def test_recover_leaves_completed_run_unchanged(self) -> None:
         run_id = self.store.start_run({"outcome": None})
         self.store.update_run(run_id, outcome="completed")

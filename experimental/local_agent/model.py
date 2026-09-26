@@ -124,6 +124,11 @@ def urllib_transport(
 
 def check_loopback_url(base_url: str) -> None:
     parsed = urllib.parse.urlparse(base_url)
+    if parsed.username is not None or parsed.password is not None:
+        raise BackendError(
+            KIND_MISSING_PREREQUISITE,
+            "endpoint must not embed credentials (user info) in the URL",
+        )
     if parsed.scheme != "http" or parsed.hostname not in _LOOPBACK_HOSTS:
         raise BackendError(
             KIND_MISSING_PREREQUISITE,
@@ -151,6 +156,13 @@ class OllamaModel:
         self._base_url = base_url.rstrip("/")
         self._model = model
         self._digest = manifest_digest.removeprefix("sha256:")
+        # The weight-layer pin is only known for the pre-registered model; a
+        # fallback or custom model records none rather than a false value.
+        self._layer_digest: str | None = None
+        if model == settings.DEFAULT_MODEL and self._digest == (
+            settings.DEFAULT_MODEL_MANIFEST_DIGEST
+        ):
+            self._layer_digest = settings.DEFAULT_MODEL_LAYER_DIGEST
         self._transport = transport
         self._clock = clock
         self._server_version: str | None = None
@@ -161,7 +173,7 @@ class OllamaModel:
             "base_url": self._base_url,
             "model": self._model,
             "manifest_digest": self._digest,
-            "model_layer_digest": settings.DEFAULT_MODEL_LAYER_DIGEST,
+            "model_layer_digest": self._layer_digest,
             "server_version": self._server_version,
             "local_only": True,
         }
@@ -260,6 +272,13 @@ class OllamaModel:
         started = self._clock()
         result = self._call("POST", "/api/chat", body, budgets.wall_time_seconds)
         elapsed = self._clock() - started
+        # The socket timeout is not a total wall-clock bound; enforce it here.
+        if elapsed > budgets.wall_time_seconds:
+            raise BackendError(
+                KIND_TIMEOUT,
+                f"/api/chat took {elapsed:.1f}s, over the "
+                f"{budgets.wall_time_seconds:.0f}s wall-time budget",
+            )
         message = result.get("message") or {}
         return ModelResponse(
             text=str(message.get("content", "")),

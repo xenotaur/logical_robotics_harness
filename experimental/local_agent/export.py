@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import pathlib
 
-from local_agent import briefing, recorder
+from local_agent import briefing, context, recorder
 from lrh.conversations import sensitivity
 
 EXPORT_SCHEMA_VERSION = "1"
@@ -54,6 +54,20 @@ def _home_relative(value: object, home: str) -> object:
     if isinstance(value, list):
         return [_home_relative(item, home) for item in value]
     return value
+
+
+def _verified_packet_manifest(
+    store: recorder.Store, run: dict[str, object]
+) -> dict[str, object]:
+    """Load the run's packet manifest, refusing it if it changed after the run."""
+    expected = str(run["packet_sha256"])
+    manifest, text = store.load_packet(expected)
+    if context.packet_sha256(manifest, text) != expected:
+        raise ExportError(
+            f"stored packet {expected[:12]} no longer matches the hash this run "
+            "used; refusing to export altered provenance"
+        )
+    return manifest
 
 
 def inspect_run(store: recorder.Store, run_id: str) -> str:
@@ -113,7 +127,7 @@ def export_run(
     home_dir = home if home is not None else str(pathlib.Path.home())
     run = store.load_run(run_id)
     events, truncated = store.events(run_id)
-    packet_manifest, _ = store.load_packet(str(run["packet_sha256"]))
+    packet_manifest = _verified_packet_manifest(store, run)
     evaluation = store.read_json(run_id, "evaluation.json")
     if evaluation is not None:
         evaluation_scan = sensitivity.scan_text_for_sensitive_findings(

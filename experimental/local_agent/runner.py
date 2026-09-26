@@ -135,6 +135,16 @@ def run_briefing(
             return finish(
                 OUTCOME_BUDGET_EXHAUSTED, "output hit the token limit", usage=usage
             )
+        if (
+            response.output_tokens is not None
+            and response.output_tokens > budgets.max_output_tokens
+        ):
+            return finish(
+                OUTCOME_BUDGET_EXHAUSTED,
+                f"output used {response.output_tokens} tokens, over "
+                f"{budgets.max_output_tokens}",
+                usage=usage,
+            )
         try:
             parsed = briefing.parse_briefing(response.text)
         except briefing.InvalidBriefingError as error:

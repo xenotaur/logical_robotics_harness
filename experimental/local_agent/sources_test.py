@@ -1,6 +1,7 @@
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
 from local_agent import sources, testing_support
 
@@ -75,6 +76,16 @@ class SourcesTest(unittest.TestCase):
         )
         self.assertEqual(sources.split_lines(""), [])
         self.assertEqual(sources.split_lines("x\n"), ["x\n"])
+
+    def test_materialize_refuses_without_safe_tar_filters(self) -> None:
+        with mock.patch.object(sources.tarfile, "data_filter", create=True):
+            del sources.tarfile.data_filter
+            with tempfile.TemporaryDirectory() as out:
+                with self.assertRaisesRegex(sources.SourceError, "3.11.4"):
+                    sources.materialize_project_tree(
+                        self.repo, self.commit, ".", pathlib.Path(out)
+                    )
+        self.assertTrue(hasattr(sources.tarfile, "data_filter"))
 
     def test_materialize_extracts_only_tracked_tree(self) -> None:
         (self.repo / "project/untracked.md").write_text("x\n", encoding="utf-8")

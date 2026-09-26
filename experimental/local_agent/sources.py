@@ -170,6 +170,11 @@ def materialize_project_tree(
     """
     tree_path = _join(project_dir, "project")
     archive = _git(repo, "archive", "--format=tar", commit, "--", tree_path)
+    if not hasattr(tarfile, "data_filter"):
+        # Never fall back to unfiltered extraction of archive members.
+        raise SourceError(
+            "safe tar extraction filters require Python >= 3.11.4; upgrade Python"
+        )
     with tarfile.open(fileobj=io.BytesIO(archive), mode="r:") as tar:
         tar.extractall(destination, filter="data")
     if project_dir in ("", "."):

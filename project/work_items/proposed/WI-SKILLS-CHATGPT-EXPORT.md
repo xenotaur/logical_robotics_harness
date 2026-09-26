@@ -37,6 +37,7 @@ acceptance:
   - 'ChatGPT rendering removes unsupported agent-specific metadata without modifying canonical skill sources or local Claude, Codex, or Antigravity installs'
   - 'Repeated export from identical source content produces deterministic bundle bytes'
   - 'Automated tests cover package and filesystem sources, skill selection, rendering, deterministic ZIP output, invalid source content, and symlink/path-safety behavior'
+  - 'Manual-only canonical skills are never silently exported as automatically selectable: the default all-skills export excludes them, explicit --skill export emits a manual-only compatibility notice (or an equivalent ChatGPT explicit-only control if one is documented), and tests cover both paths'
   - 'ChatGPT usage documentation covers upload, @-invocation, automatic selection, updates, and capability limitations'
   - 'At least one instruction-centric LRH skill is manually dogfooded successfully in ChatGPT online, with the implementation execution record naming the exported skill, upload result, invocation mode, observed outcome, and any capability limitation encountered'
   - 'scripts/test and lrh validate complete successfully'
@@ -128,7 +129,9 @@ limitations rather than mechanically rewriting the workflow.
    - reuse existing `--source` semantics;
    - support repeatable `--skill <name>` selection;
    - when no skill selector is supplied, export all public skills from the
-     selected source;
+     selected source except manual-only skills (see Required Change 3);
+     a manual-only skill is exported only when explicitly named with
+     `--skill`;
    - do not expose `--local` or `--scope` on export because hosted
      artifacts have no local install scope.
 
@@ -148,7 +151,16 @@ limitations rather than mechanically rewriting the workflow.
    - remove Claude-, Codex-, or Antigravity-specific frontmatter or generated
      metadata that is not part of the portable ChatGPT bundle;
    - do not modify the canonical source tree;
-   - do not generate Codex `agents/openai.yaml` solely for ChatGPT.
+   - do not generate Codex `agents/openai.yaml` solely for ChatGPT;
+   - preserve manual-only invocation semantics rather than discarding them:
+     detect a manual-only skill from either canonical marker — Claude
+     `disable-model-invocation: true` in `SKILL.md` frontmatter, or Codex
+     `policy.allow_implicit_invocation: false` in `agents/openai.yaml` — and,
+     if ChatGPT documents an equivalent explicit-only control, emit it;
+     otherwise emit the non-blocking manual-only compatibility notice from
+     Required Change 7. Never silently turn a manual-only skill (for example
+     `lrh-land`, `lrh-execute`, `lrh-confirm-fixes`) into one ChatGPT may
+     select automatically (`PROP-LRH-SKILLS-TARGET-AWARE-INSTALL` Decision 2).
 
 4. Package each skill as exactly one top-level directory:
 
@@ -183,7 +195,9 @@ limitations rather than mechanically rewriting the workflow.
    - local `git`;
    - `gh`;
    - arbitrary shell commands;
-   - direct LRH CLI invocation.
+   - direct LRH CLI invocation;
+   - manual-only invocation policy that ChatGPT cannot enforce (the skill may
+     be selected automatically once uploaded).
 
    The exporter must not attempt heuristic rewriting of these procedures.
 
@@ -191,6 +205,9 @@ limitations rather than mechanically rewriting the workflow.
    - package-resource source;
    - explicit filesystem source;
    - one-skill and all-skill export;
+   - manual-only skills excluded from the default all-skill export, exported
+     only when explicitly selected, and reported with the manual-only
+     compatibility notice (or the equivalent ChatGPT control, if emitted);
    - portable metadata rendering;
    - preservation of nested reference/script/asset files;
    - deterministic byte output;
@@ -242,6 +259,11 @@ limitations rather than mechanically rewriting the workflow.
 - Unsafe symlinks and escaping archive paths are rejected rather than followed.
 - Capability-dependent skills produce an informative compatibility notice
   without having their workflow text silently rewritten.
+- Manual-only canonical skills are excluded from the default all-skills
+  export, exported only via explicit `--skill`, and never lose their
+  manual-only semantics silently — either an equivalent ChatGPT explicit-only
+  control is emitted or a manual-only compatibility notice is reported, with
+  tests covering both the default-exclusion and explicit-export paths.
 - Tests cover source resolution, rendering, packaging, determinism, invalid
   input, safety cases, and CLI behavior.
 - Documentation explains export, upload, `@` invocation, automatic
@@ -275,6 +297,18 @@ limitations rather than mechanically rewriting the workflow.
 - A successfully uploaded skill can still be unable to complete workflows
   requiring unavailable local tools. Treat this as a capability constraint,
   not an export failure.
+- LRH has not confirmed any ChatGPT equivalent of Codex's
+  `policy.allow_implicit_invocation: false`; absent one, an
+  uploaded manual-only skill (for example `lrh-land` or `lrh-execute`) could
+  be selected automatically, contrary to the manual-only semantics
+  `PROP-LRH-SKILLS-TARGET-AWARE-INSTALL` Decision 2 requires renderers to
+  preserve; the default-exclusion and compatibility-notice requirements above
+  exist to keep that from happening silently.
+- The ChatGPT-app bundle format is partly inferred from the OpenAI API Skills
+  guide, which documents skill directories and ZIP limits but not ChatGPT
+  consumer-app upload specifically; the manual ChatGPT dogfood run must
+  confirm the format actually accepted, and any divergence found must be
+  recorded in the implementation execution record.
 - Deterministic ZIP output requires normalizing archive metadata in addition to
   sorting file names.
 - Exported artifacts are generated outputs and must not become a fourth

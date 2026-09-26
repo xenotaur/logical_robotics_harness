@@ -4,7 +4,7 @@ type: design_proposal
 title: Target-Aware `lrh skills install` — Codex as a First-Class Local Target
 status: adopted
 created_on: 2026-07-31
-updated_on: 2026-08-12
+updated_on: 2026-09-24
 implementation_status: implemented
 implemented_by:
   - WI-SKILLS-TARGET-AWARE-INSTALL
@@ -196,7 +196,7 @@ Given the scope (Codex target support, repo config, render adapters, check/statu
 4. **Render adapters** — `ClaudeSkillRenderer`/`CodexSkillRenderer` split, with the Codex adapter targeting `agents/openai.yaml` per Decision 2, plus canonical/target validation layers (`lrh skills check`).
 5. **Status/check commands** — `lrh skills check`, `lrh skills status`.
 6. **Body-prose neutralization** (follow-on, separately scoped per Decision 4) — rewrite existing skill bodies to be agent-neutral.
-7. **ChatGPT export** — research prerequisite cleared on 2026-09-24; implement through `WI-SKILLS-CHATGPT-EXPORT` using the hosted-export boundary described in Decision 8's follow-up.
+7. **ChatGPT export** — research prerequisite cleared on 2026-09-24; implement through `WI-SKILLS-CHATGPT-EXPORT` using the hosted-export boundary described in Decision 8.
 
 ## Cross-References
 

@@ -1,11 +1,16 @@
 ---
-resolution: null
+resolution: 'Implemented via PR #736: added tests/testing_support.py output-capture/suppression
+  helper, documented STYLE.md''s Output Hygiene policy, migrated all ad-hoc redirect_stdout/redirect_stderr
+  test files, applied suppression to confirmed-noisy files, and extended test_guardrails.py
+  with an AST-based enforcement check. Also fixed two review-response rounds'' worth
+  of findings on STYLE.md/guardrail-message wording and release_smoke_test.py''s
+  suppression scope.'
 blocked_reason: null
 blocked: false
 id: WI-TEST-OUTPUT-SUPPRESSION-AUDIT
 title: Audit and suppress extraneous LRH unit-test print output
 type: operation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

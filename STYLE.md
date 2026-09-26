@@ -354,6 +354,34 @@ LRH prefers predictable, automatable tests that can be run from the command line
   - Avoid time-dependent behavior
   - Ensure stable ordering
 
+### Output Hygiene
+
+Printing is fine — especially deliberate debugging output a contributor
+left in on purpose. What is not fine is a test silently leaking someone
+*else's* output: a test that invokes CLI or library code in-process (per
+the "prefer real in-process objects" principle above) inherits whatever
+that code prints, and that output otherwise pollutes every `scripts/test`
+run.
+
+- When a test invokes CLI/library code in-process and its output isn't
+  otherwise needed, suppress or capture it locally with
+  `tests.testing_support.suppress_output()` (discard) or
+  `tests.testing_support.capture_output()` (capture, for asserting on the
+  output).
+- When a test spawns a real subprocess (`subprocess.run`/`.check_call`/
+  `.call`), a bare `suppress_output()`/`capture_output()` is not enough —
+  those only redirect Python's own `sys.stdout`/`sys.stderr` objects, and
+  a child process writes to the file descriptors it inherited from the
+  parent, bypassing those objects entirely. Use
+  `subprocess.run(..., capture_output=True)`, or wrap the call in
+  `tests.testing_support.suppress_output(suppress_file_descriptors=True)`.
+- Apply suppression at the call site, per test — never globally.
+  `scripts/test` itself must never gain a mechanism that suppresses output
+  for every test; that would hide the exact printf-debugging use case this
+  section preserves.
+- This does not apply to genuine failure output, tracebacks, or
+  `unittest`'s own dot/F/E reporting — never suppress those.
+
 ### Running Tests
 
 The canonical project test entry point should be:

@@ -1,5 +1,3 @@
-import contextlib
-import io
 import json
 import pathlib
 import tempfile
@@ -8,6 +6,7 @@ import unittest.mock
 from typing import Any
 
 from lrh import desktop_supervisor
+from tests import testing_support
 
 
 def _ready(project_root: pathlib.Path, **overrides: Any) -> dict[str, Any]:
@@ -188,7 +187,6 @@ class OwnedServerTest(unittest.TestCase):
         owned = unittest.mock.Mock()
         owned.start.return_value = handshake
         owned.stop.return_value = desktop_supervisor.StopResult(0, "none", "x")
-        stdout = io.StringIO()
 
         with (
             unittest.mock.patch.object(
@@ -197,13 +195,16 @@ class OwnedServerTest(unittest.TestCase):
             unittest.mock.patch.object(
                 desktop_supervisor, "fetch_health", side_effect=ConnectionRefusedError()
             ),
-            contextlib.redirect_stdout(stdout),
+            testing_support.capture_output(capture_stderr=False) as captured,
         ):
             exit_code = desktop_supervisor.main(
                 ["--lrh-executable", "/opt/lrh", "--project-root", "/work/repo"]
             )
 
-        events = [json.loads(line)["event"] for line in stdout.getvalue().splitlines()]
+        events = [
+            json.loads(line)["event"]
+            for line in captured.stdout.getvalue().splitlines()
+        ]
         self.assertEqual(exit_code, 1)
         self.assertEqual(events, ["ready", "failed", "stopped"])
         owned.stop.assert_called_once_with()
@@ -215,7 +216,6 @@ class OwnedServerTest(unittest.TestCase):
         owned = unittest.mock.Mock()
         owned.start.return_value = handshake
         owned.stop.return_value = desktop_supervisor.StopResult(0, "none", "x")
-        stdout = io.StringIO()
 
         with (
             unittest.mock.patch.object(
@@ -224,13 +224,13 @@ class OwnedServerTest(unittest.TestCase):
             unittest.mock.patch.object(
                 desktop_supervisor, "fetch_health", return_value=503
             ),
-            contextlib.redirect_stdout(stdout),
+            testing_support.capture_output(capture_stderr=False) as captured,
         ):
             exit_code = desktop_supervisor.main(
                 ["--lrh-executable", "/opt/lrh", "--project-root", "/work/repo"]
             )
 
-        events = [json.loads(line) for line in stdout.getvalue().splitlines()]
+        events = [json.loads(line) for line in captured.stdout.getvalue().splitlines()]
         self.assertEqual(exit_code, 1)
         self.assertEqual(
             [event["event"] for event in events],

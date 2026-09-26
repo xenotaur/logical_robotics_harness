@@ -8,6 +8,7 @@ import unittest.mock
 from lrh.cli import main as cli_main
 from lrh.secrets import review as secrets_review
 from lrh.secrets import scan as secrets_scan
+from tests import testing_support
 
 
 class TestLrhSecretsScanCli(unittest.TestCase):
@@ -68,8 +69,9 @@ class TestLrhSecretsScanCli(unittest.TestCase):
                     "json",
                 ],
             ):
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
         self.assertEqual(exc.exception.code, 0)
         mock_run_scan.assert_called_once()
         _, kwargs = mock_run_scan.call_args
@@ -293,8 +295,9 @@ class TestLrhSecretsReviewCli(unittest.TestCase):
                 "sys.argv",
                 ["lrh", "secrets", "review", "--out-dir", "/tmp/out"],
             ):
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
         self.assertEqual(exc.exception.code, 0)
         mock_build_report.assert_called_once()
         _, kwargs = mock_build_report.call_args
@@ -438,8 +441,9 @@ class TestLrhSecretsPurgeCli(unittest.TestCase):
                         "--dry-run",
                     ],
                 ):
-                    with self.assertRaises(SystemExit) as exc:
-                        cli_main.main()
+                    with testing_support.suppress_output():
+                        with self.assertRaises(SystemExit) as exc:
+                            cli_main.main()
             self.assertEqual(exc.exception.code, 0)
 
     def test_lrh_secrets_purge_delegates_to_secrets_purge_module(self) -> None:
@@ -460,8 +464,9 @@ class TestLrhSecretsPurgeCli(unittest.TestCase):
                     "--dry-run",
                 ],
             ):
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
         self.assertEqual(exc.exception.code, 0)
         mock_run_purge.assert_called_once()
         _, kwargs = mock_run_purge.call_args

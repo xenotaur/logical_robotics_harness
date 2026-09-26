@@ -6,6 +6,7 @@ import tempfile
 import unittest
 
 from lrh.prompt_workflow_sessions import project_slug_for_path
+from tests import testing_support
 
 
 class MemoryCliTest(unittest.TestCase):
@@ -847,16 +848,19 @@ class MemoryCliTest(unittest.TestCase):
             repo = base / "proj"
             repo.mkdir()
             git = ["git", "-c", "user.email=t@example.com", "-c", "user.name=T"]
-            subprocess.run([*git, "init", "-q", "-b", "main"], cwd=repo, check=True)
-            subprocess.run(
-                [*git, "commit", "-q", "--allow-empty", "-m", "i"], cwd=repo, check=True
-            )
             worktree = repo / ".claude" / "worktrees" / "wt"
-            subprocess.run(
-                [*git, "worktree", "add", "-q", "-b", "wtb", str(worktree)],
-                cwd=repo,
-                check=True,
-            )
+            with testing_support.suppress_output(suppress_file_descriptors=True):
+                subprocess.run([*git, "init", "-q", "-b", "main"], cwd=repo, check=True)
+                subprocess.run(
+                    [*git, "commit", "-q", "--allow-empty", "-m", "i"],
+                    cwd=repo,
+                    check=True,
+                )
+                subprocess.run(
+                    [*git, "worktree", "add", "-q", "-b", "wtb", str(worktree)],
+                    cwd=repo,
+                    check=True,
+                )
 
             completed = self._run(
                 "write",

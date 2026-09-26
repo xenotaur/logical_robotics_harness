@@ -10,10 +10,12 @@ from lrh.pii import config as pii_config
 from lrh.pii import layer1 as pii_layer1
 from lrh.pii import layer2 as pii_layer2
 from lrh.pii import output as pii_output
+from tests import testing_support
 
 
 def _run_git(project_root: pathlib.Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(project_root), *args], check=True)
+    with testing_support.suppress_output(suppress_file_descriptors=True):
+        subprocess.run(["git", "-C", str(project_root), *args], check=True)
 
 
 def _init_repo(project_root: pathlib.Path) -> None:

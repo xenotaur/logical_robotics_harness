@@ -73,6 +73,112 @@ class TestBare:
         self.assertEqual(len(violations), 1)
         self.assertIn("must inherit from unittest.TestCase", violations[0].message)
 
+    def test_detects_uncaptured_subprocess_call(self) -> None:
+        """Verify an unwrapped subprocess.run(...) call is flagged
+        (WI-TEST-OUTPUT-SUPPRESSION-AUDIT Output Hygiene check)."""
+        source = """
+import subprocess
+import unittest
+
+class SampleTest(unittest.TestCase):
+    def test_runs_git(self) -> None:
+        subprocess.run(["git", "init", "-q"], check=True)
+"""
+        tree = ast.parse(source, filename="test_sample.py")
+        violations = test_guardrails.check_test_ast(
+            tree, pathlib.Path("test_sample.py")
+        )
+        self.assertEqual(len(violations), 1)
+        self.assertIn("Uncaptured subprocess.run(...)", violations[0].message)
+
+    def test_subprocess_call_wrapped_in_fd_level_suppress_output_passes(
+        self,
+    ) -> None:
+        """Verify a subprocess.run(...) wrapped in
+        testing_support.suppress_output(suppress_file_descriptors=True) is
+        not flagged -- that is the only form that actually redirects a
+        real child process's inherited file descriptors."""
+        source = """
+import subprocess
+import unittest
+
+from tests import testing_support
+
+class SampleTest(unittest.TestCase):
+    def test_runs_git(self) -> None:
+        with testing_support.suppress_output(suppress_file_descriptors=True):
+            subprocess.run(["git", "init", "-q"], check=True)
+"""
+        tree = ast.parse(source, filename="test_sample.py")
+        violations = test_guardrails.check_test_ast(
+            tree, pathlib.Path("test_sample.py")
+        )
+        self.assertEqual(len(violations), 0)
+
+    def test_subprocess_call_wrapped_in_bare_suppress_output_still_flagged(
+        self,
+    ) -> None:
+        """Verify a subprocess.run(...) wrapped in a bare
+        testing_support.suppress_output() (no suppress_file_descriptors)
+        is still flagged -- that form only redirects sys.stdout/sys.stderr,
+        which a real child process's own fds bypass entirely."""
+        source = """
+import subprocess
+import unittest
+
+from tests import testing_support
+
+class SampleTest(unittest.TestCase):
+    def test_runs_git(self) -> None:
+        with testing_support.suppress_output():
+            subprocess.run(["git", "init", "-q"], check=True)
+"""
+        tree = ast.parse(source, filename="test_sample.py")
+        violations = test_guardrails.check_test_ast(
+            tree, pathlib.Path("test_sample.py")
+        )
+        self.assertEqual(len(violations), 1)
+        self.assertIn("Uncaptured subprocess.run(...)", violations[0].message)
+
+    def test_subprocess_call_wrapped_in_capture_output_still_flagged(self) -> None:
+        """Verify a subprocess.run(...) wrapped in
+        testing_support.capture_output() is still flagged -- that helper
+        has no file-descriptor-level option at all, so it never actually
+        silences a real subprocess."""
+        source = """
+import subprocess
+import unittest
+
+from tests import testing_support
+
+class SampleTest(unittest.TestCase):
+    def test_runs_git(self) -> None:
+        with testing_support.capture_output():
+            subprocess.run(["git", "init", "-q"], check=True)
+"""
+        tree = ast.parse(source, filename="test_sample.py")
+        violations = test_guardrails.check_test_ast(
+            tree, pathlib.Path("test_sample.py")
+        )
+        self.assertEqual(len(violations), 1)
+
+    def test_subprocess_call_with_capture_output_kwarg_passes(self) -> None:
+        """Verify a subprocess.run(..., capture_output=True) call is not
+        flagged even when unwrapped."""
+        source = """
+import subprocess
+import unittest
+
+class SampleTest(unittest.TestCase):
+    def test_runs_git(self) -> None:
+        subprocess.run(["git", "init", "-q"], check=True, capture_output=True)
+"""
+        tree = ast.parse(source, filename="test_sample.py")
+        violations = test_guardrails.check_test_ast(
+            tree, pathlib.Path("test_sample.py")
+        )
+        self.assertEqual(len(violations), 0)
+
     def test_compliant_unittest_passes(self) -> None:
         """Verify standard compliant unittest.TestCase passes with zero violations."""
         source = """

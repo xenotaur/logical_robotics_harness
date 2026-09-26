@@ -1,6 +1,4 @@
 import argparse
-import contextlib
-import io
 import pathlib
 import sys
 import types
@@ -9,6 +7,7 @@ import unittest.mock
 
 from lrh.cli import argcomplete_adapter
 from lrh.cli import main as cli_main
+from tests import testing_support
 
 
 class TestArgcompleteAdapter(unittest.TestCase):
@@ -38,10 +37,7 @@ class TestArgcompleteAdapter(unittest.TestCase):
         fake_argcomplete = types.SimpleNamespace(autocomplete=_capture)
         with unittest.mock.patch.dict(sys.modules, {"argcomplete": fake_argcomplete}):
             with unittest.mock.patch("sys.argv", ["lrh", "--help"]):
-                with (
-                    contextlib.redirect_stdout(io.StringIO()),
-                    contextlib.redirect_stderr(io.StringIO()),
-                ):
+                with testing_support.suppress_output():
                     with self.assertRaises(SystemExit):
                         cli_main.main()
 
@@ -65,10 +61,7 @@ class TestArgcompleteAdapter(unittest.TestCase):
     def test_main_cli_constructs_when_argcomplete_missing(self) -> None:
         with unittest.mock.patch.dict(sys.modules, {"argcomplete": None}):
             with unittest.mock.patch("sys.argv", ["lrh", "--help"]):
-                with (
-                    contextlib.redirect_stdout(io.StringIO()),
-                    contextlib.redirect_stderr(io.StringIO()),
-                ):
+                with testing_support.suppress_output():
                     with self.assertRaises(SystemExit) as err_ctx:
                         cli_main.main()
 

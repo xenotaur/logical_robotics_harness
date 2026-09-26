@@ -1,13 +1,12 @@
-import io
 import json
 import pathlib
 import stat
 import tempfile
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
 from lrh.secrets import scan
+from tests import testing_support
 
 
 def _write_report(report_path: pathlib.Path, findings: list[dict]) -> None:
@@ -43,14 +42,13 @@ class ScanTest(unittest.TestCase):
             self.assertEqual(scan.load_findings(empty), [])
 
     def test_check_gitleaks_available_missing_binary_fails_fast(self) -> None:
-        stdout, stderr = io.StringIO(), io.StringIO()
         with mock.patch("lrh.secrets.scan.shutil.which", return_value=None):
-            with redirect_stdout(stdout), redirect_stderr(stderr):
+            with testing_support.capture_output() as captured:
                 with self.assertRaises(SystemExit) as exc:
                     scan.check_gitleaks_available()
         self.assertEqual(exc.exception.code, 1)
-        self.assertEqual(stdout.getvalue(), "")
-        self.assertIn("gitleaks", stderr.getvalue())
+        self.assertEqual(captured.stdout.getvalue(), "")
+        self.assertIn("gitleaks", captured.stderr.getvalue())
 
     def test_run_scan_no_findings_does_not_write_replacements(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,11 +1,10 @@
-import contextlib
-import io
 import pathlib
 import tempfile
 import unittest
 import unittest.mock
 
 from lrh.cli import main as cli_main
+from tests import testing_support
 
 
 class WorkItemsCliTest(unittest.TestCase):
@@ -16,7 +15,6 @@ class WorkItemsCliTest(unittest.TestCase):
             file_path.parent.mkdir(parents=True)
             file_path.write_text("# WI-CLI-1", encoding="utf-8")
 
-            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 [
@@ -28,7 +26,7 @@ class WorkItemsCliTest(unittest.TestCase):
                     "--check",
                 ],
             ):
-                with contextlib.redirect_stdout(stdout):
+                with testing_support.suppress_output():
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 1)
@@ -36,8 +34,6 @@ class WorkItemsCliTest(unittest.TestCase):
     def test_dry_run_and_apply_conflict(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            stdout = io.StringIO()
-            stderr = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 [
@@ -50,14 +46,11 @@ class WorkItemsCliTest(unittest.TestCase):
                     "--apply",
                 ],
             ):
-                with (
-                    contextlib.redirect_stdout(stdout),
-                    contextlib.redirect_stderr(stderr),
-                ):
+                with testing_support.capture_output() as captured:
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 2)
-            self.assertIn("mutually exclusive", stderr.getvalue())
+            self.assertIn("mutually exclusive", captured.stderr.getvalue())
 
     def test_validate_exit_codes(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -68,12 +61,11 @@ class WorkItemsCliTest(unittest.TestCase):
                 "---\nid: WI-CLI-VALIDATE-1\nstatus: active\n---\n",
                 encoding="utf-8",
             )
-            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 ["lrh", "work-items", "validate", "--project-root", str(root)],
             ):
-                with contextlib.redirect_stdout(stdout):
+                with testing_support.suppress_output():
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 0)
@@ -82,12 +74,11 @@ class WorkItemsCliTest(unittest.TestCase):
                 "---\nid: WI-CLI-VALIDATE-1\nstatus: wrong\n---\n",
                 encoding="utf-8",
             )
-            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 ["lrh", "work-items", "validate", "--project-root", str(root)],
             ):
-                with contextlib.redirect_stdout(stdout):
+                with testing_support.suppress_output():
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 1)
@@ -102,18 +93,16 @@ class WorkItemsCliTest(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 ["lrh", "work-items", "audit", "--project-root", str(root)],
             ):
-                with contextlib.redirect_stdout(stdout):
+                with testing_support.capture_output(capture_stderr=False) as captured:
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 0)
-            self.assertIn("# Work Item Lifecycle Audit", stdout.getvalue())
+            self.assertIn("# Work Item Lifecycle Audit", captured.stdout.getvalue())
 
-            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 [
@@ -126,11 +115,11 @@ class WorkItemsCliTest(unittest.TestCase):
                     "json",
                 ],
             ):
-                with contextlib.redirect_stdout(stdout):
+                with testing_support.capture_output(capture_stderr=False) as captured:
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 0)
-            self.assertIn('"schema_version": "1.0"', stdout.getvalue())
+            self.assertIn('"schema_version": "1.0"', captured.stdout.getvalue())
 
     def test_readiness_markdown_and_json_exit_zero(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -151,19 +140,17 @@ class WorkItemsCliTest(unittest.TestCase):
                 encoding="utf-8",
             )
 
-            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 ["lrh", "work-items", "readiness", "--project-root", str(root)],
             ):
-                with contextlib.redirect_stdout(stdout):
+                with testing_support.capture_output(capture_stderr=False) as captured:
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 0)
-            self.assertIn("# Work Item Readiness", stdout.getvalue())
-            self.assertIn("recommended_next:", stdout.getvalue())
+            self.assertIn("# Work Item Readiness", captured.stdout.getvalue())
+            self.assertIn("recommended_next:", captured.stdout.getvalue())
 
-            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 [
@@ -176,16 +163,15 @@ class WorkItemsCliTest(unittest.TestCase):
                     "json",
                 ],
             ):
-                with contextlib.redirect_stdout(stdout):
+                with testing_support.capture_output(capture_stderr=False) as captured:
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 0)
-            self.assertIn('"schema_version": "1.0"', stdout.getvalue())
+            self.assertIn('"schema_version": "1.0"', captured.stdout.getvalue())
 
     def test_readiness_missing_work_item_id_returns_error(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
-            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 [
@@ -197,8 +183,8 @@ class WorkItemsCliTest(unittest.TestCase):
                     str(root),
                 ],
             ):
-                with contextlib.redirect_stdout(stdout):
+                with testing_support.capture_output(capture_stderr=False) as captured:
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
             self.assertEqual(err.exception.code, 1)
-            self.assertIn("work item not found", stdout.getvalue())
+            self.assertIn("work item not found", captured.stdout.getvalue())

@@ -1,11 +1,10 @@
-import contextlib
-import io
 import pathlib
 import tempfile
 import unittest
 import unittest.mock
 
 from lrh.cli import main as cli_main
+from tests import testing_support
 
 
 class DesignCliTest(unittest.TestCase):
@@ -14,17 +13,16 @@ class DesignCliTest(unittest.TestCase):
             root = pathlib.Path(tmp)
             _write_proposal(root, "DP-CLI.md", "adopted")
 
-            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 ["lrh", "design", "organize", "--project-root", str(root)],
             ):
-                with contextlib.redirect_stdout(stdout):
+                with testing_support.capture_output(capture_stderr=False) as captured:
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
 
             self.assertEqual(err.exception.code, 0)
-            self.assertIn("Would move:", stdout.getvalue())
+            self.assertIn("Would move:", captured.stdout.getvalue())
             self.assertTrue((root / "project/design/proposals/DP-CLI.md").exists())
 
     def test_design_organize_apply(self) -> None:
@@ -32,7 +30,6 @@ class DesignCliTest(unittest.TestCase):
             root = pathlib.Path(tmp)
             _write_proposal(root, "DP-CLI.md", "adopted")
 
-            stdout = io.StringIO()
             with unittest.mock.patch(
                 "sys.argv",
                 [
@@ -44,12 +41,12 @@ class DesignCliTest(unittest.TestCase):
                     "--apply",
                 ],
             ):
-                with contextlib.redirect_stdout(stdout):
+                with testing_support.capture_output(capture_stderr=False) as captured:
                     with self.assertRaises(SystemExit) as err:
                         cli_main.main()
 
             self.assertEqual(err.exception.code, 0)
-            self.assertIn("Moved:", stdout.getvalue())
+            self.assertIn("Moved:", captured.stdout.getvalue())
             self.assertTrue(
                 (root / "project/design/proposals/adopted/DP-CLI.md").exists()
             )

@@ -1,9 +1,9 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #727 (commit d9f0e49e): versioned lrh serve --desktop-protocol, reference supervisor, protocol reference, unit/smoke tests, and EV-LRH-CONSOLE-DESKTOP-PROTOCOL.'
 blocked_reason: null
 blocked: false
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 owner: "anthony"
 contributors:
 - "anthony"

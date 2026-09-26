@@ -2,14 +2,14 @@
 execution_id: 2026_09_25_21_28_56_WI_LRH_CONSOLE_DESKTOP_PROTOCOL
 prompt_id: PROMPT(WI-LRH-CONSOLE-DESKTOP-PROTOCOL:WI_LRH_CONSOLE_DESKTOP_PROTOCOL)[2026-09-25T19:56:52+00:00]
 work_item: WI-LRH-CONSOLE-DESKTOP-PROTOCOL
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/727
-commit: 
+commit: d9f0e49e722a2b940ac62fe8e943a2c814e9315a
 created_at: 2026-09-25T21:28:56+00:00
 agent: "claude_app"
 instruction_source: "project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-PROTOCOL.md"
-session_transcript: pending
+session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 ---
 
 # Summary

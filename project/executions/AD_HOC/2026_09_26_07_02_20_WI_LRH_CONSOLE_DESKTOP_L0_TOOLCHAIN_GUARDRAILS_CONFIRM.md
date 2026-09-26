@@ -2,13 +2,13 @@
 execution_id: 2026_09_26_07_02_20_WI_LRH_CONSOLE_DESKTOP_L0_TOOLCHAIN_GUARDRAILS_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_DESKTOP_L0_TOOLCHAIN_GUARDRAILS_CONFIRM)[2026-09-26T07:01:46+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_26_02_57_59_WI_LRH_CONSOLE_DESKTOP_L0_TOOLCHAIN_GUARDRAILS
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/732
-commit: 
+commit: 0b4d4a74d64fb4524e865ac9136c6349bf6608fd
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/732"
-session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"
+session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 created_at: 2026-09-26T07:02:20+00:00
 ---
 

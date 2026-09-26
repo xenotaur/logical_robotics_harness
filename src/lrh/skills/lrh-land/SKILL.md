@@ -164,6 +164,14 @@ execution record:
   <pr-url>`), then a session the user picks. A `pending` result from the
   skill stays `pending`.
 
+  If `/lrh-session-id-claude` is not installed, run the same resolver
+  inline under the same restricted rule, never a bare env-var read:
+  `lrh conversation current-claude-session-id --format json`, falling back
+  to `$CLAUDE_CODE_HOST_SESSION_ID` only when the subcommand is unavailable
+  (`lrh` not found, or it reports an invalid choice). Any other non-zero
+  exit, or a `null` `session_transcript`, means `pending`; do not derive a
+  pointer from the environment in that case.
+
   Do not substitute `lrh sessions discover`: it returns child ids from
   JSONL filenames, not host ids.
 - For `agent: codex_app`, use `codex-app:<task-or-thread-id>` when a durable

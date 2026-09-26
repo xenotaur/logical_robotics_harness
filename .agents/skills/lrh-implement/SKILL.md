@@ -346,10 +346,14 @@ independent of it. Commit this file alongside the execution record in the same
 commit. If the skill reports no host id (`session_transcript: pending`), skip
 this Claude-only alias capture entirely and use the selected backend's
 transcript convention instead. If `/lrh-session-id-claude` is not installed,
-use `lrh conversation current-claude-session-id --format json` (reading
-`$CLAUDE_CODE_HOST_SESSION_ID` directly only when that subcommand is
-unavailable: `lrh` not found, or it reports an invalid choice) and omit
-`--title`.
+use `lrh conversation current-claude-session-id --format json` under the
+same restricted rule and omit `--title`:
+- read `$CLAUDE_CODE_HOST_SESSION_ID`/`$CLAUDE_CODE_SESSION_ID` directly
+  only when that subcommand is unavailable (`lrh` not found, or it reports
+  an invalid choice);
+- any other non-zero exit, or a `null` `session_transcript`, means no host
+  id: skip the alias capture (the record stays `pending`) and never derive
+  a pointer from the environment in that case.
 
 ### Step 10 — Report and offer closeout
 

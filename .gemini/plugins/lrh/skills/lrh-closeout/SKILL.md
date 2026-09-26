@@ -54,10 +54,12 @@ Load this before running any step:
    condition → action), execution record update protocol (field values, valid
    transitions, `pending`/`none` conventions), WI resolution protocol
    (`mv` commands, frontmatter fields), WS closeout protocol, proposal
-   adoption protocol, and session-transcript resolution (host-id env var →
-   `list_sessions` by PR → pick from the session list,
-   `claude-app:<host-uuid-stem>` format,
-   `pending`/`none` sentinels). Read this before Step 2 and Step 5.
+   adoption protocol, and session-transcript resolution (via
+   `/lrh-session-id-claude`: the current window through the
+   `current-claude-session-id` resolver, then `list_sessions` by PR, branch,
+   or title, then a user pick; `pending` on any resolver failure or missing
+   host id; `claude-app:<host-uuid-stem>` format, `pending`/`none`
+   sentinels). Read this before Step 2 and Step 5.
 
 ---
 

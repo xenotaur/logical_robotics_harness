@@ -293,8 +293,24 @@ def resolve_workspace(requested_project_root: str) -> WorkspaceIdentity:
     is performed.
     """
 
-    requested = Path(requested_project_root)
     details = {"requested_project_root": _echo_path(requested_project_root)}
+    try:
+        return _resolve_workspace_checked(requested_project_root, details)
+    except (OSError, ValueError) as err:
+        # For example ENAMETOOLONG, EACCES, or an embedded NUL byte: the
+        # path is unusable, which is a workspace error, not an internal one.
+        reason = err.strerror if isinstance(err, OSError) and err.strerror else err
+        raise ProtocolError(
+            "invalid_workspace",
+            f"workspace.project_root is not usable: {reason}",
+            details,
+        ) from err
+
+
+def _resolve_workspace_checked(
+    requested_project_root: str, details: dict[str, str]
+) -> WorkspaceIdentity:
+    requested = Path(requested_project_root)
     if not requested.is_absolute():
         raise ProtocolError(
             "invalid_workspace",
@@ -673,6 +689,13 @@ def run_session(
         workspace = resolve_workspace(request.requested_project_root)
     except ProtocolError as err:
         return fail(correlated_launch_id, err, EXIT_STARTUP_FAILED)
+    except Exception as err:  # noqa: BLE001 - keep the failure correlated
+        _log(log_stream, f"internal error: {type(err).__name__}: {err}")
+        return fail(
+            correlated_launch_id,
+            ProtocolError("internal_error", "internal error"),
+            EXIT_INTERNAL_ERROR,
+        )
 
     launch_id = request.launch_id
     try:

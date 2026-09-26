@@ -269,6 +269,17 @@ class DesktopProtocolWorkspaceTest(unittest.TestCase):
             repo.as_posix(),
         )
 
+    def test_unusable_paths_are_workspace_errors_not_internal(self) -> None:
+        cases = {
+            "component_too_long": "/" + "a" * 300,
+            "embedded_nul": "/tmp/bad\x00path",
+        }
+        for name, path in cases.items():
+            with self.subTest(case=name):
+                with self.assertRaises(desktop_protocol.ProtocolError) as ctx:
+                    desktop_protocol.resolve_workspace(path)
+                self.assertEqual(ctx.exception.code, "invalid_workspace")
+
     def test_long_resolved_workspace_path_is_rejected(self) -> None:
         repo = _make_lrh_project(self.root / "a-much-longer-repository-name")
         link = self.root / "link"
@@ -572,6 +583,27 @@ class DesktopProtocolStartupFailureTest(unittest.TestCase):
         session.send(_start_request(str(self.root / "missing")))
 
         self._assert_failed(session, "invalid_workspace", launch_id="launch-1")
+
+    def test_unusable_workspace_path_fails_with_correlated_launch_id(self) -> None:
+        session = _Session(self)
+
+        session.send(_start_request("/" + "a" * 300))
+
+        self._assert_failed(session, "invalid_workspace", launch_id="launch-1")
+
+    def test_unexpected_pre_ready_error_keeps_launch_id(self) -> None:
+        session = _Session(self)
+
+        with unittest.mock.patch.object(
+            desktop_protocol, "resolve_workspace", side_effect=RuntimeError("boom")
+        ):
+            session.send(_start_request(str(self.repo)))
+            self._assert_failed(
+                session,
+                "internal_error",
+                exit_code=desktop_protocol.EXIT_INTERNAL_ERROR,
+                launch_id="launch-1",
+            )
 
     def test_non_project_workspace_fails(self) -> None:
         session = _Session(self)

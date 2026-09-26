@@ -648,7 +648,12 @@ def main(argv: list[str] | None = None, prog: str = "lrh.desktop_supervisor") ->
             backend=handshake.backend,
             workspace=handshake.workspace,
         )
-        _emit("health", status=fetch_health(handshake))
+        status = fetch_health(handshake)
+        _emit("health", status=status)
+        if status != 200:
+            raise SupervisorError(
+                "health_check_failed", f"/health returned HTTP {status}"
+            )
         _emit("ping", ok=owned.ping().get("type") == "pong")
         if args.hold > 0:
             _emit("holding", seconds=args.hold, url=handshake.url)

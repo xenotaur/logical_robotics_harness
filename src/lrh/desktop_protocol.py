@@ -310,6 +310,13 @@ def resolve_workspace(requested_project_root: str) -> WorkspaceIdentity:
             "invalid_workspace", "workspace.project_root is not a directory", details
         )
     resolved = requested.resolve()
+    if len(str(resolved).encode("utf-8")) > MAX_WORKSPACE_PATH_BYTES:
+        # Symlinks can resolve to a longer path than the one requested.
+        raise ProtocolError(
+            "invalid_workspace",
+            f"resolved workspace path exceeds {MAX_WORKSPACE_PATH_BYTES} bytes",
+            details,
+        )
     try:
         project_dir = control_loader.find_project_dir(resolved)
     except FileNotFoundError as err:

@@ -269,6 +269,22 @@ class DesktopProtocolWorkspaceTest(unittest.TestCase):
             repo.as_posix(),
         )
 
+    def test_long_resolved_workspace_path_is_rejected(self) -> None:
+        repo = _make_lrh_project(self.root / "a-much-longer-repository-name")
+        link = self.root / "link"
+        link.symlink_to(repo)
+
+        with unittest.mock.patch.object(
+            desktop_protocol, "MAX_WORKSPACE_PATH_BYTES", len(str(link)) + 1
+        ):
+            with self.assertRaises(desktop_protocol.ProtocolError) as ctx:
+                desktop_protocol.resolve_workspace(str(link))
+
+        # The requested path fits the cap; only its resolution exceeds it.
+        self.assertGreater(len(str(repo)), len(str(link)) + 1)
+        self.assertEqual(ctx.exception.code, "invalid_workspace")
+        self.assertIn("resolved", ctx.exception.message)
+
     def test_invalid_workspaces_are_rejected_without_fallback(self) -> None:
         repo = _make_lrh_project(self.root / "repo")
         (repo / "src").mkdir()

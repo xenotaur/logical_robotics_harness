@@ -170,7 +170,7 @@ After `failed` the child writes nothing more and exits: code 3, or 4 for
 | `unsupported_protocol` | `protocol` is not `lrh-desktop-server`. | Show incompatible. |
 | `unsupported_protocol_version` | Version not in `details.supported_versions`. | Show incompatible. |
 | `invalid_launch_id` | Launch ID missing or outside the allowed alphabet/length. | Bug in the supervisor. |
-| `invalid_workspace` | Path relative, missing, not a directory, or over 4,096 bytes. | Ask the user to fix Settings. |
+| `invalid_workspace` | Path relative, missing, not a directory, or over 4,096 bytes (as requested or once resolved). | Ask the user to fix Settings. |
 | `workspace_not_lrh_project` | Directory has no LRH control directory. | Ask the user to fix Settings. |
 | `bind_failed` | Loopback bind failed or bound a non-loopback address. | Show failed; offer retry. |
 | `startup_self_check_failed` | Server did not answer its own status route correctly. | Show failed; offer retry. |

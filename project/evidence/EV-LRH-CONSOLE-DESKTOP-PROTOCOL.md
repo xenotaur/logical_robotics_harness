@@ -20,9 +20,9 @@ artifacts:
   - tests/cli_tests/desktop_supervisor_test.py
   - tests/smoke/desktop_protocol_smoke.py
 metrics:
-  unit_tests_total: 1776
-  desktop_protocol_unit_tests: 44
-  desktop_supervisor_unit_tests: 14
+  unit_tests_total: 1778
+  desktop_protocol_unit_tests: 45
+  desktop_supervisor_unit_tests: 15
   desktop_protocol_smoke_tests: 21
   spawn_to_ready_median_seconds: 0.198
   shutdown_to_exit_median_seconds: 0.289
@@ -67,10 +67,10 @@ and put first on `PATH`.
 | `scripts/version tools` | Ruff 0.15.12, Black 26.3.1, Python 3.11.8; LRH CLI and metadata agree. |
 | `scripts/format --check --diff` | 261 files unchanged. |
 | `scripts/lint` | Ruff: all checks passed; Black clean; test guardrails passed (exit 0). |
-| `scripts/test --log` | `Ran 1776 tests in 121.393s`, `OK`. Re-run after the second review round. |
+| `scripts/test --log` | `Ran 1778 tests in 118.291s`, `OK`. Re-run after the third review round. |
 | `lrh validate` | `Validation completed: 0 error(s), 0 warning(s)`. |
-| `python -m unittest tests.smoke.desktop_protocol_smoke` | `Ran 21 tests in 12.337s`, `OK`. An earlier 17-test revision passed three consecutive reruns. The final desktop suites (79 tests) produced zero `ResourceWarning`s under `-W always::ResourceWarning`. |
-| `scripts/smoke` | Final code: 33 tests, 1 failure, in the pre-existing `prompt_cli_install_smoke` (see below). All 21 desktop protocol smoke tests passed within that run. |
+| `python -m unittest tests.smoke.desktop_protocol_smoke` | `Ran 21 tests in 12.229s`, `OK`. An earlier 17-test revision passed three consecutive reruns. The final desktop suites (81 tests) produced zero `ResourceWarning`s under `-W always::ResourceWarning`. |
+| `scripts/smoke` | Run on the round-2 code: 33 tests, 1 failure, in the pre-existing `prompt_cli_install_smoke` (see below). All 21 desktop protocol smoke tests passed within that run. |
 
 `scripts/smoke` failure, unrelated to this change: `prompt_cli_install_smoke`
 installs the built wheel with `--no-deps` into a fresh venv and runs
@@ -163,6 +163,15 @@ findings, which were then fixed:
 - The PR description had stale test counts.
 - The example supervisor printed a traceback when `/health` or `ping`
   failed. It now emits a JSON `failed` event after stopping the child.
+
+A final cold review of the PR head reported two more low-severity items. Both
+were fixed:
+
+- The example exited 0 even when `/health` returned a non-200 status. It now
+  reports `health_check_failed` and exits 1.
+- The 4,096-byte cap now also applies to the resolved workspace path. A
+  symlink test covers the case where a short requested path resolves to a
+  longer one.
 
 ## Supervisor example (observed)
 

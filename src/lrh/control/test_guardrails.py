@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ast
+import os
 import pathlib
 import sys
 from typing import Sequence
@@ -113,6 +114,19 @@ def check_test_file(path: pathlib.Path) -> list[TestGuardrailViolation]:
     return check_test_ast(tree, path)
 
 
+_IGNORED_DIRS = frozenset(
+    {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
+)
+
+
 def scan_test_files(
     target_dirs: Sequence[pathlib.Path],
 ) -> list[TestGuardrailViolation]:
@@ -123,7 +137,16 @@ def scan_test_files(
         if target.is_file() and target.name.endswith("_test.py"):
             all_violations.extend(check_test_file(target))
         elif target.is_dir():
-            for test_file in sorted(target.rglob("*_test.py")):
+            # ⚡ Bolt: Replace pathlib.Path.rglob() with os.walk() + in-place pruning
+            # for faster test file traversal. This avoids unconditionally traversing
+            # large ignored directories like node_modules or .venv.
+            test_files: list[pathlib.Path] = []
+            for dirpath, dirnames, filenames in os.walk(target, topdown=True):
+                dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+                for f in filenames:
+                    if f.endswith("_test.py"):
+                        test_files.append(pathlib.Path(dirpath) / f)
+            for test_file in sorted(test_files):
                 all_violations.extend(check_test_file(test_file))
 
     return all_violations

@@ -49,11 +49,22 @@ acceptance:
 - "Dashboard content has no native process/filesystem authority; unrelated servers remain untouched."
 - "Actual Mac UI and failure evidence is recorded, CLI use remains intact, and app/canonical validation passes on\
   \ claimed platforms."
+- "The Python wheel, sdist, canonical scripts, and Python CI require no Rust or Node; the sdist excludes apps/, the\
+  \ wheel holds only lrh/ and its dist-info, and desktop CI runs only for desktop changes (apps/desktop, scripts/desktop,\
+  \ desktop.yml) without becoming a required check."
 artifacts_expected:
 - "apps/desktop/ (Tauri shell, native supervisor, bundled settings/state pages)"
 - "docs/how-to/lrh-console-local-dogfood.md"
 - "apps/desktop/src-tauri/tests/supervisor_test.rs"
 - "apps/desktop/src-tauri/tests/capability_boundaries_test.rs"
+- "apps/desktop/rust-toolchain.toml and committed apps/desktop/src-tauri/Cargo.lock (pinned toolchain)"
+- "apps/README.md (optional, never imported by src/lrh)"
+- "MANIFEST.in (prune apps from the Python sdist)"
+- "src/lrh/dev/release_smoke.py sdist-exclusion and wheel-contents assertions, with tests/dev_tests/release_smoke_test.py\
+  \ coverage"
+- ".github/workflows/desktop.yml (path-filtered, non-required desktop CI)"
+- "scripts/desktop (thin wrapper for desktop build/check commands; --help, --check, --dry-run)"
+- "AGENTS.md architectural-boundary line for the optional apps/ layer"
 - "project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md"
 ---
 
@@ -84,6 +95,44 @@ preserve the read-only boundary. The new dependency-map UI follows in L1.
   select and pin exact versions during implementation. Avoid custom browser engines.
 - Recommendation: proceed with a thin shell, not a Python model or dashboard rewrite.
 
+### Toolchain placement
+
+Four placements were compared against three requirements, checked at
+`9919582b`: Python-only users need nothing new, LRH stays in one repository,
+and a real Dock app is possible.
+
+- **A self-contained `apps/desktop/` folder in this repository** (chosen). The
+  wheel is built only from `src/` (`pyproject.toml:52-57`), and Python
+  lint/format only look at `src/lrh` and `tests` (`scripts/lint:34`,
+  `scripts/format:5`). The protocol contract also stays co-located with its
+  backend.
+- **A separate repository.** Rejected for now: the contract could drift, and
+  planning and implementation records would be split. It stays a cheap later
+  split (`git subtree split`) if the app gains its own ownership.
+- **Shipping through pip** (an extra, maturin binaries, or pytauri wheels).
+  Ruled out for L0: it forces per-platform wheels or a second package into the
+  single pure-wheel release job (`release.yml:12-50`), and pip cannot install a
+  Dock `.app`.
+- **A Python-native webview instead of Tauri.** It would reverse the adopted
+  Tauri decision (`00_proposal.md:49`). Revisit only if the Rust toolchain
+  proves to be the measured obstacle.
+
+Two repository facts drive the guardrails below:
+
+- setuptools-scm adds every git-tracked file to the sdist. The sdist built at
+  `9919582b` was 8.0 MB and included `project/`, `experimental/`, and
+  `.claude/`, while the wheel was 736 KB and held only `lrh/`. So `apps/` must
+  be pruned explicitly.
+- `main` has no required status checks; its branch rules are
+  `copilot_code_review`, `deletion`, and `non_fast_forward`. That makes
+  path-filtered desktop CI safe today. GitHub leaves checks from a
+  path-skipped workflow "Pending", which would block merges if a desktop job
+  ever became required.
+
+Tauri needs Rust, but Node only "if you intend to use a JavaScript frontend
+framework". The CLI installs through Cargo, and a vanilla HTML template
+exists, so L0 needs no Node.
+
 ### Demand search
 
 - Work items: `WI-LRH-CONSOLE-DESKTOP-PROTOCOL` is the explicit prerequisite.
@@ -106,7 +155,9 @@ preserve the read-only boundary. The new dependency-map UI follows in L1.
 ## Required Changes
 
 1. Create a Tauri app, proposed at `apps/desktop/`, with pinned dependencies and
-   documented build/dev commands. Use stable separate top-level webview windows,
+   documented build/dev commands. Use the Cargo-installed Tauri CLI (exact
+   version pinned, `--locked`) and plain HTML/CSS/JS for the bundled pages, with
+   no `package.json` or Node toolchain. Use stable separate top-level webview windows,
    not iframes or unstable child-webview composition. Main content directly loads
    the current owned Serve origin; auxiliary content is bundled app UI.
 2. Implement a Rust supervisor using the landed protocol document. Serialize
@@ -147,7 +198,47 @@ preserve the read-only boundary. The new dependency-map UI follows in L1.
    checklist. Record five real use sessions, failures/friction, actual test
    commands/results, and a recommendation for L1/L3 in
    `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` using the evidence schema.
-   Keep normal Python installation/Serve independent of Node/Rust requirements.
+   Keep normal Python installation/Serve independent of Node/Rust requirements
+   (made concrete in item 9).
+9. Isolate the desktop toolchain from the Python package, using the placement
+   recorded above:
+   - Keep all Rust sources under `apps/desktop/`. Put `Cargo.toml` in
+     `apps/desktop/src-tauri/`, never at the repository root. Pin the toolchain
+     with `apps/desktop/rust-toolchain.toml` and commit `Cargo.lock`. Cargo's
+     `target/` directories are already ignored by the unanchored `target/` rule
+     at `.gitignore:76`; confirm it still matches rather than adding a
+     duplicate.
+   - Add a top-level `MANIFEST.in` with `prune apps`. Add two assertions to
+     `src/lrh/dev/release_smoke.py`, next to its existing artifact checks:
+     - the built sdist contains no `apps/` entries;
+     - the built wheel's top-level entries are only `lrh/` and
+       `lrh-<version>.dist-info/`. Today the module only locates the wheel and
+       checks its filename, twine metadata, and template sources, so this adds
+       the missing automated guard on wheel contents.
+
+     That module is what `scripts/release-smoke` runs, and the
+     `installed-wheel-smoke` workflow runs it on every PR, so the guards
+     always execute. They are not a required check, because `main` has none
+     (see "Toolchain placement"), so a failure must be treated as blocking at
+     review. Cover both assertions' pass/fail logic in
+     `tests/dev_tests/release_smoke_test.py` against in-memory archive
+     listings, with no real build in the unit suite. Leave the wheel contents
+     and `pyproject.toml` dependencies unchanged.
+   - Add `.github/workflows/desktop.yml`, triggered only by `apps/desktop/**`,
+     `scripts/desktop`, and its own workflow file. A change to the wrapper
+     alone must still run desktop CI. It runs format, lint, and the Rust tests, with
+     the capability tests on a macOS runner. Do not make it a required check
+     unless an always-running aggregate check is added, because path-skipped
+     workflows leave required checks pending. Existing Python workflows keep
+     running on every PR.
+   - Add `apps/README.md` stating the folder is optional, has its own
+     toolchain, and is never imported by `src/lrh`. Add one line to AGENTS.md's
+     architectural boundary naming `apps/` as a separate optional layer.
+   - Add a thin `scripts/desktop` wrapper for the app build/check/test
+     commands. Per STYLE.md's script requirements it must support `--help`,
+     `--check` (non-mutating validation), and `--dry-run` (preview the
+     commands without running them). Leave `scripts/test`, `scripts/lint`,
+     `scripts/format`, and `scripts/develop` Python-only.
 
 The listed test and evidence paths are planned outputs of this implementation
 item, not files delivered by the planning PR. If implementation refines their
@@ -181,6 +272,10 @@ locations, update `artifacts_expected` and this section together before closeout
   cases; automated Linux checks alone do not close the item. CLI use stays intact.
 - Canonical validation and the app-specific commands documented by this item pass
   on their claimed platforms, with any limitations recorded rather than hidden.
+- Python users are unaffected by the desktop toolchain. The wheel contents and
+  runtime dependencies are unchanged, the built sdist has no `apps/` entries,
+  and canonical Python scripts and workflows pass on a machine without Rust or
+  Node. Desktop CI runs only for desktop changes and is not a required check.
 
 ## Validation
 
@@ -191,6 +286,8 @@ locations, update `artifacts_expected` and this section together before closeout
 - `scripts/test`
 - Run the exact app build, supervisor, and capability-test commands added to `docs/how-to/lrh-console-local-dogfood.md` on the target Mac.
 - Complete that document's manual Dock/menu/keyboard/browser/failure checklist and record five real sessions with date, app/backend version, actions, result, and remaining friction.
+- `scripts/desktop --help` and `scripts/desktop --dry-run` (preview only), then `scripts/desktop --check` (Rust format, lint, and tests under the pinned toolchain).
+- `scripts/release-smoke --strict-isolation`: its assertions must report no `apps/` entries in the sdist and only `lrh/` plus `lrh-<version>.dist-info/` in the wheel. `scripts/test tests/dev_tests/release_smoke_test.py` covers the assertion logic.
 
 ## Dependencies / Order
 
@@ -210,6 +307,13 @@ this bounded shell deliverable.
   actionable browser fallback rather than assuming browser parity.
 - Process lifetime and app lifetime differ on macOS; test close versus Quit and
   parent crash explicitly. A smoke-test-only happy path is insufficient.
+- Toolchain leakage can quietly burden Python-only users. Risks include Rust or
+  Node sources in the sdist, a root-level `Cargo.toml`, or desktop jobs added to
+  Python workflows. The item-9 guardrails and the sdist-exclusion check are the
+  controls.
+- Path-filtered desktop CI must stay non-required. Making it required without an
+  always-running aggregate check would block Python-only PRs, because their
+  skipped desktop checks would stay pending.
 
 ## Related Workstream and Designs
 

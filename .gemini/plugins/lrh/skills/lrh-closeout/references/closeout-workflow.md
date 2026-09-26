@@ -135,12 +135,14 @@ find project/work_items/resolved/ -name "<WI-ID>.md"
 If any WI would remain unresolved after this closeout, skip WS closeout and
 note it in the closeout plan.
 
+<!-- GATE-DEFINITION -->
 **The structural check is necessary but not sufficient.** After confirming
 that all `work_items:` are resolved, also read the WS `exit_criteria:` list
 and include it in the Step 2 plan output. At Step 4, enumerate the criteria
 and require explicit human confirmation (`y`) before including WS closeout in
 the confirmed plan. The `exit_criteria:` list is the authoritative definition
 of done — WIs can be resolved while prose criteria remain unmet.
+<!-- /GATE-DEFINITION -->
 
 ### Required frontmatter changes
 
@@ -245,31 +247,37 @@ workspace layout to everyone who clones the repository.
 
 ### Resolution order
 
-Resolve in this order; stop at the first that yields a confident value:
+`/lrh-session-id-claude` owns the resolution order; run it rather than
+re-deriving it here. It stops at the first path that yields a confident
+value:
 
-1. **Same session — `$CLAUDE_CODE_HOST_SESSION_ID`.** Read the host id from
-   the env var, strip `local_`, propose `claude-app:<host-uuid-stem>`.
-   **Confirm before storing:** the env var reflects the *current* session
-   window, and the host id **rotates on resume/continue**, so on a long or
-   resumed session it can differ from the session that authored the work.
-   Show the session's title and branch from the session-management
-   `get_session` tool (`"self"`) alongside the id so the user can recognize
-   it; if they say it is not the authoring session, continue to path 2 or 3.
-2. **Cross-session — `list_sessions` by PR number.** When closing out on
-   `main` from a different session than did the work, the env var is the wrong
-   session. Match the target session by `prNumber` via the session-management
-   `list_sessions` tool (returns `sessionId`, `prNumber`, `branch`); take its
-   `sessionId`, strip `local_`. Confirm if more than one session references
-   the PR.
-3. **Manual — pick from the session list.** Call `list_sessions` (with
-   `include_archived: true` if needed), show candidates by title, branch, PR,
-   and last activity, and let the user pick one; strip `local_` from its
-   `sessionId`. The desktop app no longer exposes View > Copy URL. A
-   `local_<uuid>` the user already has from another source is accepted the
-   same way. Because `list_sessions` excludes the calling session (per
-   that tool's own contract), also offer the current session from
-   `get_session` (`"self"`) as a candidate. A session picked this way still
-   gets no child-id alias.
+1. **Same session — current window.** The skill runs
+   `lrh conversation current-claude-session-id` (reading
+   `$CLAUDE_CODE_HOST_SESSION_ID` directly only when the installed CLI lacks
+   that subcommand), strips `local_`, and reports
+   `claude-app:<host-uuid-stem>` with the session's title and branch from
+   `get_session` (`"self"`). **Confirm before storing:** the host id
+   reflects the *current* session window, so on a long, resumed, or forked
+   session it can differ from the session that authored the work. If the
+   user says it is not the authoring session, continue to path 2 or 3.
+2. **Cross-session — by PR number, then branch or title.**
+   `/lrh-session-id-claude <pr-url>` matches the target session by
+   `prNumber` via `list_sessions`, falls back to the PR's head branch and
+   then its title, and asks the user to pick when several sessions match.
+3. **Manual — pick from the session list.** The skill lists candidates by
+   title, branch, PR, and last activity (archived sessions too when needed,
+   plus the current session from `get_session`, because `list_sessions`
+   excludes the calling session per that tool's own contract) and the user
+   picks one. The desktop app no longer exposes View > Copy URL; a
+   `local_<uuid>` the user already has is accepted as the skill's argument.
+   A session picked this way gets no child-id alias.
+
+A resolver failure, or a host id that is unavailable in this window, yields
+`pending` — never a guessed pointer. If the skill is not installed, run
+`lrh conversation current-claude-session-id --format json` inline under
+the same rule: read `$CLAUDE_CODE_HOST_SESSION_ID` directly only when the
+subcommand is unavailable (`lrh` not found, or it reports the subcommand as
+an invalid choice).
 
 ### `none` vs `pending` sentinels
 
@@ -315,26 +323,35 @@ child-id alias, so call `record-session-alias` regardless of which path
 resolved the host id.
 
 **Only pair the child id on resolution-order path 1.** Only when
-`$CLAUDE_CODE_HOST_SESSION_ID` was read directly in Step 3 and confirmed by
-the user does `$CLAUDE_CODE_SESSION_ID` in this same window belong to that
-same session. On path 2 (`list_sessions` by PR number) or path 3 (picked
-from the session list), the resolved host id belongs to a *different* window than
-the one running closeout right now — recording the current window's child
+`/lrh-session-id-claude` resolved the current window in Step 3 (it reports
+the alias as *pairable*) and the user confirmed it does
+`$CLAUDE_CODE_SESSION_ID` in this same window belong to that same session.
+On path 2 (`list_sessions` by PR number) or path 3 (picked from the session
+list), the resolved host id belongs to a *different* window than the one
+running closeout right now — recording the current window's child
 id against that host id would create a false alias. **Omit `--child-id`
 entirely** (do not pass the flag, and do not pass an empty string) in those
-two cases; the command still records the host id and PR.
+two cases; the command still records the host id and PR. On every path,
+pass `--title` whenever `/lrh-session-id-claude` reported one, and pass
+`--branch` as the PR's head branch (`gh pr view <pr-url> --json
+headRefName`), not the app-recorded branch, which can be stale when a
+session switched branches inside its worktree.
 
 ```bash
 # Path 1 (same window): pair host + child.
 lrh prompt record-session-alias \
   --host-id <host-uuid-stem-from-step-3> \
-  --child-id "$CLAUDE_CODE_SESSION_ID" \
+  --child-id <child-id-reported-as-pairable-in-step-3> \
+  --title "<title-from-step-3>" \
+  --branch <pr-head-branch> \
   --pr <pr-url> \
   --project-root .
 
 # Path 2 or 3 (cross-session / manual): host + PR only, no child-id flag.
 lrh prompt record-session-alias \
   --host-id <host-uuid-stem-from-step-3> \
+  --title "<title-from-step-3>" \
+  --branch <pr-head-branch> \
   --pr <pr-url> \
   --project-root .
 ```
@@ -349,9 +366,11 @@ local transcripts into a durable archive and harvests desktop-app
 `session-export-*.zip` `metadata.json` for pointers that already dangle)
 and `lrh sessions link` (promotes a resolved child id to its host-keyed
 `session_transcript` pointer on one execution record).
-Neither runs as part of closeout itself
-— they are separate, later commands over the same `project/sessions/`
-index this section writes to. See
+Stage 4 wires closeout to run
+`lrh sessions closeout-sync --project-root .`, which refreshes the private
+archive as part of the closeout path; `lrh sessions link` remains a separate,
+explicit command for promoting a now-resolved child id onto one execution
+record. See
 `src/lrh/skills/lrh-implement/references/execution-session-reference.md`'s
 "`lrh sessions` — the Stage 2 archive reconciler" section for the full
 command reference.

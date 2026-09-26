@@ -180,7 +180,11 @@ Desktop-app Claude Code sessions have **two** identifiers:
 The canonical stored value is the **host** UUID stem with the `local_`
 prefix stripped: `claude-app:<host-uuid-stem>`. In-session, both ids are
 available as environment variables: `CLAUDE_CODE_HOST_SESSION_ID` (host,
-`local_`-prefixed) and `CLAUDE_CODE_SESSION_ID` (child).
+`local_`-prefixed) and `CLAUDE_CODE_SESSION_ID` (child). Resolve them with
+`/lrh-session-id-claude` rather than reading the variables by hand. It wraps
+`lrh conversation current-claude-session-id`, adds the session's title and
+branch from `get_session`, resolves other sessions via `list_sessions`, and
+reports `pending` instead of guessing when no host id is available.
 
 **Use `pending` when the session ID is not yet known.** Update the field
 before or when the PR lands. Never commit an absolute path (`~/.claude/...`
@@ -220,14 +224,14 @@ lrh prompt record-session-alias \
 
 - `--host-id`: required; the same stem used in `session_transcript`
   (`local_` already stripped).
-- `--child-id`: **omit** when the host id was resolved cross-session — via
-  `list_sessions` by PR number, or picked from the session list — rather than
-  directly from `$CLAUDE_CODE_HOST_SESSION_ID` in the current window.
-  Pairing a cross-session host id with the *current* window's
-  `$CLAUDE_CODE_SESSION_ID` would record a false alias: that child id
-  belongs to a different conversation than the one that authored the work.
-  Only pair the two when both were read from the live environment of the
-  session that actually did the work.
+- `--child-id`: **omit** unless `/lrh-session-id-claude` reported the
+  alias as *pairable*, meaning it resolved the current window and the user
+  confirmed that window is the session that did the work. A host id
+  resolved cross-session (via `list_sessions` by PR, branch, or title, or
+  picked from the session list) must not be paired with the *current*
+  window's `$CLAUDE_CODE_SESSION_ID`: that child id belongs to a different
+  conversation than the one that authored the work, so pairing them would
+  record a false alias.
 - `--pr`, `--branch`, `--title`: optional context; each observation is
   additive and idempotent — the same host id's row is updated in place
   (child ids and PRs accumulate; title and branch take the latest value),
@@ -242,13 +246,16 @@ hand-edited.
 
 ### When each caller writes an observation
 
-- **`/lrh-implement` Step 9** — always live, single-session: read both env
-  vars directly and pair them (see that skill's Step 9).
+- **`/lrh-implement` Step 9** — always live, single-session: resolve the
+  current window with `/lrh-session-id-claude` and pair host and child, with
+  `--title` and `--branch` (see that skill's Step 9).
 - **`/lrh-closeout` Step 5** — every record, on every resolution path; only
   the `--child-id` pairing is conditional — include it on Step 3 path 1
   (same window), omit the flag entirely on paths 2/3 (cross-session), since
   the host id and PR are still worth recording either way (see
   `references/closeout-workflow.md`'s "Session identity capture" section).
+  Pass the `--title` that `/lrh-session-id-claude` reported, and the PR's
+  head branch as `--branch`, on every path.
 
 ### `lrh sessions` — archive reconciler, report, and retention hooks
 

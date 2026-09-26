@@ -49,8 +49,9 @@ acceptance:
 - "Dashboard content has no native process/filesystem authority; unrelated servers remain untouched."
 - "Actual Mac UI and failure evidence is recorded, CLI use remains intact, and app/canonical validation passes on\
   \ claimed platforms."
-- "The Python wheel, sdist, canonical scripts, and Python CI require no Rust or Node; the sdist excludes apps/, and\
-  \ desktop CI runs only for apps/desktop changes without becoming a required check."
+- "The Python wheel, sdist, canonical scripts, and Python CI require no Rust or Node; the sdist excludes apps/, the\
+  \ wheel holds only lrh/ and its dist-info, and desktop CI runs only for desktop changes (apps/desktop, scripts/desktop,\
+  \ desktop.yml) without becoming a required check."
 artifacts_expected:
 - "apps/desktop/ (Tauri shell, native supervisor, bundled settings/state pages)"
 - "docs/how-to/lrh-console-local-dogfood.md"
@@ -59,7 +60,8 @@ artifacts_expected:
 - "apps/desktop/rust-toolchain.toml and committed apps/desktop/src-tauri/Cargo.lock (pinned toolchain)"
 - "apps/README.md (optional, never imported by src/lrh)"
 - "MANIFEST.in (prune apps from the Python sdist)"
-- "src/lrh/dev/release_smoke.py sdist-exclusion assertion, with tests/dev_tests/release_smoke_test.py coverage"
+- "src/lrh/dev/release_smoke.py sdist-exclusion and wheel-contents assertions, with tests/dev_tests/release_smoke_test.py\
+  \ coverage"
 - ".github/workflows/desktop.yml (path-filtered, non-required desktop CI)"
 - "scripts/desktop (thin wrapper for desktop build/check commands; --help, --check, --dry-run)"
 - "AGENTS.md architectural-boundary line for the optional apps/ layer"
@@ -202,17 +204,26 @@ exists, so L0 needs no Node.
    recorded above:
    - Keep all Rust sources under `apps/desktop/`. Put `Cargo.toml` in
      `apps/desktop/src-tauri/`, never at the repository root. Pin the toolchain
-     with `apps/desktop/rust-toolchain.toml`, commit `Cargo.lock`, and add
-     `target/` to `.gitignore`.
-   - Add a top-level `MANIFEST.in` with `prune apps`. Add an assertion that
-     the built sdist contains no `apps/` entries to `src/lrh/dev/release_smoke.py`,
-     next to its existing artifact checks. That module is what
-     `scripts/release-smoke` runs, and the `installed-wheel-smoke` workflow
-     runs it on every PR, so the guard cannot be skipped. Cover the
-     assertion's pass/fail logic in `tests/dev_tests/release_smoke_test.py`
-     against an in-memory archive listing, with no real build in the unit
-     suite. Leave the wheel contents and `pyproject.toml` dependencies
-     unchanged.
+     with `apps/desktop/rust-toolchain.toml` and commit `Cargo.lock`. Cargo's
+     `target/` directories are already ignored by the unanchored `target/` rule
+     at `.gitignore:76`; confirm it still matches rather than adding a
+     duplicate.
+   - Add a top-level `MANIFEST.in` with `prune apps`. Add two assertions to
+     `src/lrh/dev/release_smoke.py`, next to its existing artifact checks:
+     - the built sdist contains no `apps/` entries;
+     - the built wheel's top-level entries are only `lrh/` and
+       `lrh-<version>.dist-info/`. Today the module only locates the wheel and
+       checks its filename, twine metadata, and template sources, so this adds
+       the missing automated guard on wheel contents.
+
+     That module is what `scripts/release-smoke` runs, and the
+     `installed-wheel-smoke` workflow runs it on every PR, so the guards
+     always execute. They are not a required check, because `main` has none
+     (see "Toolchain placement"), so a failure must be treated as blocking at
+     review. Cover both assertions' pass/fail logic in
+     `tests/dev_tests/release_smoke_test.py` against in-memory archive
+     listings, with no real build in the unit suite. Leave the wheel contents
+     and `pyproject.toml` dependencies unchanged.
    - Add `.github/workflows/desktop.yml`, triggered only by `apps/desktop/**`,
      `scripts/desktop`, and its own workflow file. A change to the wrapper
      alone must still run desktop CI. It runs format, lint, and the Rust tests, with
@@ -276,7 +287,7 @@ locations, update `artifacts_expected` and this section together before closeout
 - Run the exact app build, supervisor, and capability-test commands added to `docs/how-to/lrh-console-local-dogfood.md` on the target Mac.
 - Complete that document's manual Dock/menu/keyboard/browser/failure checklist and record five real sessions with date, app/backend version, actions, result, and remaining friction.
 - `scripts/desktop --help` and `scripts/desktop --dry-run` (preview only), then `scripts/desktop --check` (Rust format, lint, and tests under the pinned toolchain).
-- `scripts/release-smoke --strict-isolation`: its sdist-exclusion assertion must report no `apps/` entries, and the wheel must still contain only `lrh/`. `scripts/test tests/dev_tests/release_smoke_test.py` covers the assertion logic.
+- `scripts/release-smoke --strict-isolation`: its assertions must report no `apps/` entries in the sdist and only `lrh/` plus `lrh-<version>.dist-info/` in the wheel. `scripts/test tests/dev_tests/release_smoke_test.py` covers the assertion logic.
 
 ## Dependencies / Order
 

@@ -36,11 +36,12 @@ acceptance:
   - 'Each exported ZIP contains exactly one top-level skill directory with a valid SKILL.md and preserves applicable references, scripts, and assets'
   - 'ChatGPT rendering removes unsupported agent-specific metadata without modifying canonical skill sources or local Claude, Codex, or Antigravity installs'
   - 'Repeated export from identical source content produces deterministic bundle bytes'
-  - 'Automated tests cover package and filesystem sources, skill selection, rendering, deterministic ZIP output, invalid source content, and symlink/path-safety behavior'
+  - 'Capability-dependent skills (local git, gh, arbitrary shell, direct LRH CLI) produce an informative compatibility notice without having their workflow text rewritten'
+  - 'Automated tests cover package and filesystem sources, skill selection, rendering, deterministic ZIP output, invalid source content, symlink/path-safety behavior, capability compatibility notices, and CLI argument/reporting behavior'
   - 'Manual-only canonical skills are never silently exported as automatically selectable: the default all-skills export excludes them, explicit --skill export emits a manual-only compatibility notice (or an equivalent ChatGPT explicit-only control if one is documented), and tests cover both paths'
   - 'ChatGPT usage documentation covers upload, @-invocation, automatic selection, updates, and capability limitations'
   - 'At least one instruction-centric LRH skill is manually dogfooded successfully in ChatGPT online, with the implementation execution record naming the exported skill, upload result, invocation mode, observed outcome, and any capability limitation encountered'
-  - 'scripts/test and lrh validate complete successfully'
+  - 'scripts/format --check --diff, scripts/lint, scripts/test, and lrh validate complete successfully'
 required_evidence:
   - manual_review
   - lrh_validate
@@ -151,7 +152,11 @@ limitations rather than mechanically rewriting the workflow.
    - remove Claude-, Codex-, or Antigravity-specific frontmatter or generated
      metadata that is not part of the portable ChatGPT bundle;
    - do not modify the canonical source tree;
-   - do not generate Codex `agents/openai.yaml` solely for ChatGPT;
+   - do not generate Codex `agents/openai.yaml` solely for ChatGPT, and do
+     not copy a canonical source `agents/openai.yaml` into the ChatGPT bundle
+     (it is Codex-specific metadata, not part of the portable bundle); the
+     exporter still reads it from the canonical source to detect manual-only
+     skills as described below;
    - preserve manual-only invocation semantics rather than discarding them:
      detect a manual-only skill from either canonical marker — Claude
      `disable-model-invocation: true` in `SKILL.md` frontmatter, or Codex
@@ -173,7 +178,8 @@ limitations rather than mechanically rewriting the workflow.
    ```
 
    Only directories/files actually present in the canonical source need be
-   included.
+   included. Agent-specific source directories such as `agents/` are not part
+   of the bundle (see Required Change 3).
 
 5. Make ZIP generation deterministic:
    - sort archive paths;
@@ -208,15 +214,22 @@ limitations rather than mechanically rewriting the workflow.
    - manual-only skills excluded from the default all-skill export, exported
      only when explicitly selected, and reported with the manual-only
      compatibility notice (or the equivalent ChatGPT control, if emitted);
-   - portable metadata rendering;
+   - portable metadata rendering, including exclusion of a canonical
+     `agents/openai.yaml` from the bundle;
    - preservation of nested reference/script/asset files;
    - deterministic byte output;
    - malformed `SKILL.md`;
    - symlink and path-traversal handling;
+   - capability-dependent skills produce the compatibility notice and their
+     workflow text is not rewritten;
    - CLI argument and reporting behavior.
 
 9. Update user-facing documentation:
-   - add ChatGPT Online to `docs/how-to/use-lrh-with-agent-assistants.md`;
+   - add ChatGPT Online to `docs/how-to/use-lrh-with-agent-assistants.md`,
+     and correct its "Extending for Other Assistants" section, which currently
+     says ChatGPT Skills would be added via `lrh skills install --target
+     <name>`, to describe ChatGPT as a hosted export target via
+     `lrh skills export --target chatgpt`;
    - document `lrh skills export --target chatgpt`;
    - document ChatGPT upload;
    - document explicit `@skill-name` invocation and automatic activation;
@@ -265,7 +278,7 @@ limitations rather than mechanically rewriting the workflow.
   control is emitted or a manual-only compatibility notice is reported, with
   tests covering both the default-exclusion and explicit-export paths.
 - Tests cover source resolution, rendering, packaging, determinism, invalid
-  input, safety cases, and CLI behavior.
+  input, safety cases, capability compatibility notices, and CLI behavior.
 - Documentation explains export, upload, `@` invocation, automatic
   activation, updating, and capability boundaries.
 - At least one exported instruction-centric LRH skill is successfully uploaded

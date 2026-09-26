@@ -38,7 +38,7 @@ required_evidence:
   - lrh_validate
   - test_output
 artifacts_expected:
-  - src/lrh/shared/test_capture.py
+  - tests/testing_support.py
   - STYLE.md
   - src/lrh/control/test_guardrails.py
   - tests/cli_tests/pii_test.py
@@ -137,10 +137,9 @@ an AST-based hook into every test file (see Required Changes).
 
 ## Required Changes
 
-1. Add a shared helper (suggested home: `src/lrh/shared/test_capture.py`,
-   or a `tests`-only support module if the implementer judges a
-   test-only location preferable to shipping it in the installed
-   package — decide and note the reasoning either way). Port LCATS's
+1. Add a shared helper at `tests/testing_support.py` — a tests-only
+   location, not under `src/lrh/`, so test infrastructure is never
+   shipped as part of the installed package. Port LCATS's
    two-context-manager shape (`lcats/src/lcats/utils/capture.py`):
    a `capture_output()` context manager returning captured
    stdout/stderr for assertions, and a `suppress_output()` context
@@ -157,18 +156,21 @@ an AST-based hook into every test file (see Required Changes).
    never gain a global suppression mechanism.
 3. Migrate the 12 files currently using the ad hoc
    `io.StringIO()`+`contextlib.redirect_stdout`/`redirect_stderr`
-   pattern (found via `grep -rln "redirect_stdout" tests --include="*_test.py"`
-   at audit time, e.g. `tests/cli_tests/main_test.py`) to the new
-   helper.
+   pattern (found via the tracked-only
+   `git grep -l 'redirect_stdout' -- 'tests/**/*_test.py'`, not a
+   recursive filesystem `grep`, which can pick up untracked files or
+   nested checkouts outside the reviewed tree — at audit time, e.g.
+   `tests/cli_tests/main_test.py`) to the new helper.
 4. Apply the helper to the confirmed noisy files: `tests/cli_tests/pii_test.py`,
    `tests/cli_tests/secrets_test.py`, `tests/dev_tests/release_smoke_test.py`.
-   Then re-run the audit grep (`grep -rl` for test files importing a
-   `print()`-containing `src/lrh` module — roughly 30 of 116 files at
-   audit time) against current `main` to enumerate the full remaining
-   set, since it will have shifted since this work item was filed, and
-   apply the helper to whichever of those genuinely leak output when
-   `scripts/test` is run (import alone does not guarantee a leak; verify
-   each file empirically before editing it).
+   Then re-run the audit search — the same tracked-only `git grep`
+   approach, for test files importing a `print()`-containing `src/lrh`
+   module (roughly 30 of 116 files at audit time) — against current
+   `main` to enumerate the full remaining set, since it will have
+   shifted since this work item was filed, and apply the helper to
+   whichever of those genuinely leak output when `scripts/test` is run
+   (import alone does not guarantee a leak; verify each file empirically
+   before editing it).
 5. Extend `src/lrh/control/test_guardrails.py`'s AST walk
    (`check_test_ast`, `src/lrh/control/test_guardrails.py:27-102`) with a
    new check: a test method containing a call to a known in-process
@@ -222,7 +224,7 @@ an AST-based hook into every test file (see Required Changes).
 - `scripts/format --check --diff`
 - `scripts/lint`
 - `scripts/test`
-- `python -m unittest tests.guardrails_tests.test_framework_guardrails_test -v`
+- `scripts/test tests.guardrails_tests.test_framework_guardrails_test -v`
 
 ## Risk Notes
 

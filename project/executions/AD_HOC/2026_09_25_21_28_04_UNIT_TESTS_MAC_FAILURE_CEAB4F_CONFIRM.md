@@ -2,10 +2,10 @@
 execution_id: 2026_09_25_21_28_04_UNIT_TESTS_MAC_FAILURE_CEAB4F_CONFIRM
 prompt_id: PROMPT(AD_HOC:UNIT_TESTS_MAC_FAILURE_CEAB4F_CONFIRM)[2026-09-25T21:27:42+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/725
-commit: 
+commit: 77b9fd49edfb36ce5d8cc33a367bc674d0803f41
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/725
 session_transcript: claude-app:42f65eea-a5d0-4b14-b12d-fdac79928916

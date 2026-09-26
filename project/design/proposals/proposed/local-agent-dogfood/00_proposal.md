@@ -380,18 +380,30 @@ owner's stop/revise/proceed choice. Each miss is classified as context-limited,
 model-limited, or task-limited. Context-limited misses are evidence for
 evaluating stage 1, consistent with `WI-LOCAL-AGENT-002`'s activation condition.
 
-**Local-only inference:** the model adapter requires a loopback endpoint and the
-pinned local model digest, rejects remote or cloud-tagged models, and records
-these checks per run. Disabling the inference service's cloud features is
-optional defense in depth.
+**Local-only inference:** a loopback endpoint alone does not prove local
+inference, because the service could forward a remote model's requests. The
+adapter therefore:
+
+- requires a loopback endpoint;
+- requests only the pinned model digest, whose weights are installed locally;
+- refuses any model that the service reports as remote or cloud-tagged, before
+  sending a prompt;
+- records all three checks in each run's manifest.
+
+A request for a verified local model is served by local weights, so these checks
+establish local inference for the selected model. They do not protect against a
+misbehaving or compromised inference service. That service remains a trusted
+component, as the threat model above already states. Disabling the service's
+cloud features is optional defense in depth, not the local-only control.
 
 ## Open Questions for Joint Review
 
-For stage 0, the lane, static-context briefing, and assistant-gate questions
-below are answered by the [Stage-0 Lane Approval](#stage-0-lane-approval). The
-hardware, model, corpus, storage, and target choices will be pre-registered in
-`experiments/01_local_agent_briefing/` before live runs. The questions stay
-open for later stages.
+For stage 0, the [Stage-0 Lane Approval](#stage-0-lane-approval) answers the
+lane, static-context-briefing, and assistant-gate questions. The hardware/model,
+corpus, storage/retention/export, and target questions stay open for stage 0.
+They close only when the owner's choices are pre-registered in
+`experiments/01_local_agent_briefing/`, which must happen before any live run.
+All of these questions remain open for later stages.
 
 - Which Mac/RAM configuration and locally installed model should define the first
   pilot? What are the predeclared latency and human-effort targets?

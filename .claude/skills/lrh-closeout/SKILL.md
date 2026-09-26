@@ -199,65 +199,46 @@ For a Claude.app session the canonical stored value is
 `local_` stripped), not the child SDK id that names the JSONL file. Do **not**
 use JSONL-filename auto-detection: on Claude.app sessions it returns the child
 id, which differs from the host id on resumed/continued sessions and produces
-a pointer that session-management tools cannot resolve. Resolve in this order,
-stopping at the first that yields a confident value:
+a pointer that session-management tools cannot resolve.
 
-1. **Same session — env var (preferred).** Read the host id directly:
+**Resolve it with `/lrh-session-id-claude`.** That skill owns the
+resolution order, so it is not restated here. In summary:
 
-   ```bash
-   echo "$CLAUDE_CODE_HOST_SESSION_ID"   # e.g. local_4c3d03d6-...
-   ```
+1. **Same session — current window.** With no argument, the skill runs
+   `lrh conversation current-claude-session-id` (reading
+   `CLAUDE_CODE_HOST_SESSION_ID` directly only when the installed CLI lacks
+   that subcommand) and reports the pointer with the session's title and
+   branch from `get_session` (`"self"`).
 
-   Strip the `local_` prefix and propose `claude-app:<host-uuid-stem>`.
+   **Confirm before storing — the host id tracks the *current* window.**
+   On a long, resumed, or forked session it can differ from the session that
+   actually authored the work. Show the reported pointer, title, and branch
+   and ask, e.g. "In-session host id is `claude-app:<stem>` (session
+   "<title>", branch `<branch>`). Is this the session for this work?" If the
+   user says no, continue to path 2 or 3. When they confirm, store it.
 
-   **Confirm before storing — the env var tracks the *current* window.**
-   `CLAUDE_CODE_HOST_SESSION_ID` reflects the session window you are in right
-   now, and the host id **rotates when a session is resumed or continued**.
-   On a long or resumed session it can therefore differ from the session that
-   actually authored the work. So: show the value and ask the user to confirm
-   it. Where the session-management `get_session` tool is available, call it
-   with `"self"` and show the session's title and branch alongside the id, so
-   the user can recognize the session. For example: "In-session host id is
-   `claude-app:<stem>` (session "<title>", branch `<branch>`). Is this the
-   session for this work?" If the user says no, continue to path 2 or 3. When
-   they confirm, store the env-var value.
-   (`lrh conversation current-claude-session-id --field session-transcript`
-   prints the same pointer from the same env var, where the installed CLI has
-   it.)
-
-   **This is the only path that may also capture a child-id alias.** Once
-   confirmed, `$CLAUDE_CODE_SESSION_ID` (still set in this same window) names
-   the same session as the confirmed host id — pair them in
-   `project/sessions/index.jsonl` at Step 5. Paths 2 and 3 below resolve a
-   host id belonging to a *different* window than the one running closeout
-   right now, so this pairing must not be made there — see
+   **This is the only path that may also capture a child-id alias.** The
+   skill reports the alias as *pairable* only here; pair it with the
+   confirmed host id in `project/sessions/index.jsonl` at Step 5. Paths 2 and
+   3 below resolve a host id belonging to a *different* window than the one
+   running closeout right now, so this pairing must not be made there — see
    `references/closeout-workflow.md`'s "Session identity capture" section.
 
-2. **Cross-session — `list_sessions` by PR number.** When closing out on
-   `main` after merge from a *different* session than the one that did the
-   work, the env var is not the right session. Use the session-management
-   `list_sessions` tool and match the target session by its `prNumber`
-   (it returns other sessions with `sessionId`, `prNumber`, `branch`); take
-   that session's `sessionId` (host id), strip `local_`, and store
-   `claude-app:<host-uuid-stem>`. Confirm the match with the user if more than
-   one session references the PR.
+2. **Cross-session — by PR number, then branch or title.** When closing
+   out on `main` after merge from a *different* session than the one that
+   did the work, run `/lrh-session-id-claude <pr-url>`. It matches the
+   session by `prNumber` via `list_sessions`, falls back to the PR's head
+   branch and then its title, and asks the user to pick when several
+   sessions match.
 
-3. **Manual — pick from the session list.** If neither of the paths above
-   yields a confident id, call `list_sessions` (with `include_archived: true`
-   if the authoring session may be archived). Show the likely candidates by
-   title, branch, PR, and last activity, and ask the user to pick one, or to
-   confirm `none`/`pending`. Store the chosen `sessionId` as
-   `claude-app:<uuid>` (strip any `local_` prefix; UUID stem only). The Claude
-   desktop app no longer exposes View > Copy URL, so there is no browser URL
-   to paste. If the user already has a `local_<uuid>` from another source,
-   such as an older note or a `claude://…/local_<uuid>` session link, accept
-   it the same way.
-   `list_sessions` excludes the session it is called from (per that
-   tool's own contract), so when
-   closeout may be running in the authoring session, also offer the current
-   session from `get_session` (`"self"`) as a candidate. If the user picks
-   it here, still withhold the child-id alias at Step 5: path 3 never pairs
-   one.
+3. **Manual — pick from the session list.** If neither path yields a
+   confident id, the skill lists candidates (title, branch, PR, last
+   activity; archived sessions too when needed, plus the current session
+   from `get_session`, since `list_sessions` excludes it) and the user picks
+   one, or confirms `none`/`pending`. The Claude desktop app no longer
+   exposes View > Copy URL, so there is no browser URL to paste; a
+   `local_<uuid>` the user already has is accepted as the skill's argument.
+   A session picked this way never gets a child-id alias.
 
 4. **Sentinels — `none` vs `pending` (distinct, not interchangeable).**
    - `none`: the backend produced **no retrievable transcript** (e.g. a
@@ -270,6 +251,17 @@ stopping at the first that yields a confident value:
    to resolve, so a finished record is never left looking like unfinished
    work. See the 2026-07-23 "Backend-Agnostic Session Pointer Grammar"
    decision-log entry and `project/executions/README.md`.
+
+If `/lrh-session-id-claude` reports `session_transcript: pending` (the
+resolver failed, or no host id was available), keep `pending` for that
+record rather than guessing.
+
+**If `/lrh-session-id-claude` is not installed**, run the same resolver
+inline under the same restricted rule, never a bare env-var read:
+`lrh conversation current-claude-session-id --format json`, falling back to
+`$CLAUDE_CODE_HOST_SESSION_ID` only when the subcommand is unavailable
+(`lrh` not found, or `lrh` reports it as an invalid choice). Any other
+failure, or a `null` `session_transcript`, means `pending`.
 
 ### Step 4 — Confirm gate (human gate)
 
@@ -358,10 +350,17 @@ host-to-PR association is worth recording for any of those three paths):
 ```bash
 lrh prompt record-session-alias \
   --host-id <host-uuid-stem-confirmed-in-step-3> \
-  --child-id "$CLAUDE_CODE_SESSION_ID" \
+  --child-id <child-id-reported-as-pairable-in-step-3> \
+  --title "<title-from-step-3>" \
+  --branch <branch-from-step-3> \
   --pr <pr-url> \
   --project-root .
 ```
+
+Take `--title` and `--branch` from what `/lrh-session-id-claude` reported
+at Step 3, and omit either flag when it was reported unavailable. (The
+index's `title` and `branch` are latest-value-wins; passing them here is
+what keeps sessions first indexed at closeout from having none.)
 
 **Skip this step entirely** for records resolved via Step 3's `codex_app`,
 `codex_cloud`, `manual`, or other-non-Claude-backend branches. The
@@ -516,8 +515,7 @@ Report to the user:
 - If any `session_transcript` is still `pending`: remind the user to update it
   with the durable pointer for that record's own backend before archiving the
   session. For Claude.app records, that pointer is `claude-app:<host-uuid-stem>`
-  (from `$CLAUDE_CODE_HOST_SESSION_ID` or the session-management
-  `list_sessions`/`get_session` tools, with `local_` stripped). For Codex
+  (from `/lrh-session-id-claude`, with `local_` stripped). For Codex
   app or Codex Cloud records, use the corresponding `codex-app:` or
   `codex-cloud:` pointer when available. Do **not** add this
   reminder for `none` — that value is terminal.

@@ -522,7 +522,11 @@ Reports the current Claude Code session's id, host pointer, and resolved
 transcript path without exporting, reading, or printing transcript content.
 This is the metadata-only resolver `export-claude-session --current` uses
 internally, and the one callers should use to learn the current session's
-transcript path instead of re-deriving the glob rule in prose.
+transcript path instead of re-deriving the glob rule in prose. The
+`/lrh-session-id-claude` skill wraps it for agent workflows: it adds the
+session's title and branch, resolves other sessions through the desktop
+app's `list_sessions`, and is what `/lrh-closeout`, `/lrh-land`, and
+`/lrh-implement` use to resolve Claude session pointers.
 
 It reads `CLAUDE_CODE_SESSION_ID` (required) and, if set,
 `CLAUDE_CODE_HOST_SESSION_ID` (its `local_` prefix stripped) to derive the

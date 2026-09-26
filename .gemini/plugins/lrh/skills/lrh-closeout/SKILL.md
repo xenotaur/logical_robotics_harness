@@ -196,65 +196,46 @@ For a Claude.app session the canonical stored value is
 `local_` stripped), not the child SDK id that names the JSONL file. Do **not**
 use JSONL-filename auto-detection: on Claude.app sessions it returns the child
 id, which differs from the host id on resumed/continued sessions and produces
-a pointer that session-management tools cannot resolve. Resolve in this order,
-stopping at the first that yields a confident value:
+a pointer that session-management tools cannot resolve.
 
-1. **Same session — env var (preferred).** Read the host id directly:
+**Resolve it with `/lrh-session-id-claude`.** That skill owns the
+resolution order, so it is not restated here. In summary:
 
-   ```bash
-   echo "$CLAUDE_CODE_HOST_SESSION_ID"   # e.g. local_4c3d03d6-...
-   ```
+1. **Same session — current window.** With no argument, the skill runs
+   `lrh conversation current-claude-session-id` (reading
+   `CLAUDE_CODE_HOST_SESSION_ID` directly only when the installed CLI lacks
+   that subcommand) and reports the pointer with the session's title and
+   branch from `get_session` (`"self"`).
 
-   Strip the `local_` prefix and propose `claude-app:<host-uuid-stem>`.
+   **Confirm before storing — the host id tracks the *current* window.**
+   On a long, resumed, or forked session it can differ from the session that
+   actually authored the work. Show the reported pointer, title, and branch
+   and ask, e.g. "In-session host id is `claude-app:<stem>` (session
+   "<title>", branch `<branch>`). Is this the session for this work?" If the
+   user says no, continue to path 2 or 3. When they confirm, store it.
 
-   **Confirm before storing — the env var tracks the *current* window.**
-   `CLAUDE_CODE_HOST_SESSION_ID` reflects the session window you are in right
-   now, and the host id **rotates when a session is resumed or continued**.
-   On a long or resumed session it can therefore differ from the session that
-   actually authored the work. So: show the value and ask the user to confirm
-   it. Where the session-management `get_session` tool is available, call it
-   with `"self"` and show the session's title and branch alongside the id, so
-   the user can recognize the session. For example: "In-session host id is
-   `claude-app:<stem>` (session "<title>", branch `<branch>`). Is this the
-   session for this work?" If the user says no, continue to path 2 or 3. When
-   they confirm, store the env-var value.
-   (`lrh conversation current-claude-session-id --field session-transcript`
-   prints the same pointer from the same env var, where the installed CLI has
-   it.)
-
-   **This is the only path that may also capture a child-id alias.** Once
-   confirmed, `$CLAUDE_CODE_SESSION_ID` (still set in this same window) names
-   the same session as the confirmed host id — pair them in
-   `project/sessions/index.jsonl` at Step 5. Paths 2 and 3 below resolve a
-   host id belonging to a *different* window than the one running closeout
-   right now, so this pairing must not be made there — see
+   **This is the only path that may also capture a child-id alias.** The
+   skill reports the alias as *pairable* only here; pair it with the
+   confirmed host id in `project/sessions/index.jsonl` at Step 5. Paths 2 and
+   3 below resolve a host id belonging to a *different* window than the one
+   running closeout right now, so this pairing must not be made there — see
    `references/closeout-workflow.md`'s "Session identity capture" section.
 
-2. **Cross-session — `list_sessions` by PR number.** When closing out on
-   `main` after merge from a *different* session than the one that did the
-   work, the env var is not the right session. Use the session-management
-   `list_sessions` tool and match the target session by its `prNumber`
-   (it returns other sessions with `sessionId`, `prNumber`, `branch`); take
-   that session's `sessionId` (host id), strip `local_`, and store
-   `claude-app:<host-uuid-stem>`. Confirm the match with the user if more than
-   one session references the PR.
+2. **Cross-session — by PR number, then branch or title.** When closing
+   out on `main` after merge from a *different* session than the one that
+   did the work, run `/lrh-session-id-claude <pr-url>`. It matches the
+   session by `prNumber` via `list_sessions`, falls back to the PR's head
+   branch and then its title, and asks the user to pick when several
+   sessions match.
 
-3. **Manual — pick from the session list.** If neither of the paths above
-   yields a confident id, call `list_sessions` (with `include_archived: true`
-   if the authoring session may be archived). Show the likely candidates by
-   title, branch, PR, and last activity, and ask the user to pick one, or to
-   confirm `none`/`pending`. Store the chosen `sessionId` as
-   `claude-app:<uuid>` (strip any `local_` prefix; UUID stem only). The Claude
-   desktop app no longer exposes View > Copy URL, so there is no browser URL
-   to paste. If the user already has a `local_<uuid>` from another source,
-   such as an older note or a `claude://…/local_<uuid>` session link, accept
-   it the same way.
-   `list_sessions` excludes the session it is called from (per that
-   tool's own contract), so when
-   closeout may be running in the authoring session, also offer the current
-   session from `get_session` (`"self"`) as a candidate. If the user picks
-   it here, still withhold the child-id alias at Step 5: path 3 never pairs
-   one.
+3. **Manual — pick from the session list.** If neither path yields a
+   confident id, the skill lists candidates (title, branch, PR, last
+   activity; archived sessions too when needed, plus the current session
+   from `get_session`, since `list_sessions` excludes it) and the user picks
+   one, or confirms `none`/`pending`. The Claude desktop app no longer
+   exposes View > Copy URL, so there is no browser URL to paste; a
+   `local_<uuid>` the user already has is accepted as the skill's argument.
+   A session picked this way never gets a child-id alias.
 
 4. **Sentinels — `none` vs `pending` (distinct, not interchangeable).**
    - `none`: the backend produced **no retrievable transcript** (e.g. a
@@ -268,8 +249,34 @@ stopping at the first that yields a confident value:
    work. See the 2026-07-23 "Backend-Agnostic Session Pointer Grammar"
    decision-log entry and `project/executions/README.md`.
 
+If `/lrh-session-id-claude` reports `session_transcript: pending` (the
+resolver failed, or no host id was available), keep `pending` for that
+record rather than guessing.
+
+**If `/lrh-session-id-claude` is not installed**, run the same resolver
+inline under the same restricted rule, never a bare env-var read:
+`lrh conversation current-claude-session-id --format json`, falling back to
+`$CLAUDE_CODE_HOST_SESSION_ID` only when the subcommand is unavailable
+(`lrh` not found, or `lrh` reports it as an invalid choice). Any other
+failure, or a `null` `session_transcript`, means `pending`.
+
 ### Step 4 — Confirm gate (human gate)
 
+**When inlined by `/lrh-land` Step 6/7 with a preview already presented:**
+do not ask this gate's question again merely because this step was reached.
+Compare the live assessment above against the preview `/lrh-land` Step 6
+already showed the human and got a reply to. If there is no material
+divergence (same resolution text, same WS exit-criteria answer, no newly
+appeared execution record, no WI/WS state change — a differing merge-commit
+SHA alone is never material, since the preview always expected it to be
+filled in after merge), that upstream approval satisfies this gate
+(`DEC-SINGLE-ASK-RUN-GATES`); continue to Step 5 without a second live
+reply. If any material field differs, ask this gate live with a structured
+diff, exactly as below. This special path applies only when `/lrh-land`
+provided a preview; direct `/lrh-closeout` invocation always uses the
+normal live gate below.
+
+<!-- GATE-DEFINITION -->
 Before touching any files, show the user:
 
 - PR URL, state (`MERGED`), and commit SHA
@@ -282,6 +289,11 @@ Before touching any files, show the user:
 - For any WI being resolved: the `resolution:` text to be written. If the
   user has not already stated it, ask: "What should the `resolution:` note
   say for `<WI-ID>`?" (one-line summary; e.g., `"Implemented and merged in PR #342 (commit abc1234)"`)
+- The closeout-triggered archive-sync command that will run after confirmed
+  control-plane edits and before validation:
+  `lrh sessions closeout-sync --project-root .`. Include any explicit
+  `--archive-root`, `--claude-projects-root`, or `--exports-dir` values if
+  the user provided them for this closeout.
 
 **WS exit criteria confirmation:** for any WS where closeout is being offered,
 display the full `exit_criteria:` list (already shown at Step 2, repeated here
@@ -298,6 +310,7 @@ the revised plan before asking for final confirmation.
 **Wait for explicit confirmation before touching any files.** If the user
 redirects, updates the resolution text, or asks to skip an action, adjust the
 plan and show it again.
+<!-- /GATE-DEFINITION -->
 
 ### Step 5 — Execute confirmed actions
 
@@ -334,10 +347,17 @@ host-to-PR association is worth recording for any of those three paths):
 ```bash
 lrh prompt record-session-alias \
   --host-id <host-uuid-stem-confirmed-in-step-3> \
-  --child-id "$CLAUDE_CODE_SESSION_ID" \
+  --child-id <child-id-reported-as-pairable-in-step-3> \
+  --title "<title-from-step-3>" \
+  --branch <branch-from-step-3> \
   --pr <pr-url> \
   --project-root .
 ```
+
+Take `--title` and `--branch` from what `/lrh-session-id-claude` reported
+at Step 3, and omit either flag when it was reported unavailable. (The
+index's `title` and `branch` are latest-value-wins; passing them here is
+what keeps sessions first indexed at closeout from having none.)
 
 **Skip this step entirely** for records resolved via Step 3's `codex_app`,
 `codex_cloud`, `manual`, or other-non-Claude-backend branches. The
@@ -364,6 +384,16 @@ withheld. See
 Edit the frontmatter in-place:
 - `status: proposed` → `status: resolved`
 - `resolution:` → set to the confirmed resolution text
+
+**Always quote free-text frontmatter scalar values when writing
+`resolution:`.** Never write bare prose directly after `key:` — an
+unquoted colon (e.g. `resolution: Fixed X: did Y`) or an unquoted ` #`
+(e.g. `resolution: Implemented in PR #614`) changes meaning or truncates
+silently under real YAML. Wrap the value in quotes instead, e.g.
+`resolution: 'Implemented and merged in PR #614'`. `lrh validate`'s
+`FRONTMATTER_LINT_UNSAFE_SCALAR` warning catches this after the fact
+(`WI-FRONTMATTER-MIGRATION-LINT-GUARD`), but writing it quoted the first
+time avoids the warning entirely.
 
 Then move the file:
 ```bash
@@ -396,6 +426,31 @@ Then move the entire proposal directory:
 ```bash
 mv project/design/proposals/proposed/<slug>/ project/design/proposals/adopted/<slug>/
 ```
+
+**Closeout-triggered session archive sync** (always run after confirmed
+control-plane actions and before validation):
+
+```bash
+lrh sessions closeout-sync --project-root .
+```
+
+If this closeout needs an explicit archive root, Claude projects root, or export
+zip directory, pass the corresponding flags:
+
+```bash
+lrh sessions closeout-sync \
+  --project-root . \
+  --archive-root <private-archive-root> \
+  --claude-projects-root <claude-projects-root> \
+  --exports-dir <export-zip-directory>
+```
+
+The command prints a human-visible outcome and may update the private local
+archive and `project/sessions/index.jsonl`; it must not print raw transcript
+bodies. If it exits non-zero, stop and report the error before committing. Do
+not silently skip it unless the user explicitly asked for a dry-run or disabled
+archive sync for this closeout. For a dry-run, use `--dry-run` and record that
+no archive writes were attempted.
 
 ### Step 6 — Validate
 
@@ -451,12 +506,13 @@ git commit -m "chore(closeout): <summary of actions> (PR #N)"
 Report to the user:
 
 - Each action taken (file edited, file moved, validation result)
+- The closeout-triggered archive sync result, including whether it was a real
+  run or `--dry-run`
 - Commit SHA on `main`
 - If any `session_transcript` is still `pending`: remind the user to update it
   with the durable pointer for that record's own backend before archiving the
   session. For Claude.app records, that pointer is `claude-app:<host-uuid-stem>`
-  (from `$CLAUDE_CODE_HOST_SESSION_ID` or the session-management
-  `list_sessions`/`get_session` tools, with `local_` stripped). For Codex
+  (from `/lrh-session-id-claude`, with `local_` stripped). For Codex
   app or Codex Cloud records, use the corresponding `codex-app:` or
   `codex-cloud:` pointer when available. Do **not** add this
   reminder for `none` — that value is terminal.
@@ -489,6 +545,9 @@ Before reporting completion, verify:
 - [ ] Session transcript value resolved (or `pending` confirmed)
 - [ ] User confirmed at Step 4 before any files were touched
 - [ ] Each file read before editing; no partial edits
+- [ ] `lrh sessions closeout-sync --project-root .` ran after confirmed
+      actions and before validation, or an explicit user-approved dry-run/skip
+      was recorded
 - [ ] `mv` used for WI/WS/proposal moves (not `cp`)
 - [ ] `lrh validate` reports 0 errors before commit
 - [ ] Committed to `main` (not a feature branch)

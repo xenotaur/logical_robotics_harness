@@ -40,7 +40,7 @@ numeric upload limits, Decision 2 citation wording) — see
 `2026_09_26_02_56_28_WI_SKILLS_CHATGPT_EXPORT_CONFIRM_ROUND3_SELFREVIEW`;
 stale proposal-set `README.md` status (pre-existing, out of scope).
 
-CHAIN-NOTE: cycles=3; stops=3; gates=[chain-auth(prior ChatGPT session), review-response-confirm×2, confirm-fixes-empty-thread×2, stop-work×2, merge+closeout]; friction=no exact-HEAD automatic review (Copilot review_on_push=false; Codex only on open); substitute self-review rounds surfaced progressively smaller P3 nits; local black 25.11.0 vs pinned 26.3.1; editable lrh install resolves to another checkout; note="ChatGPT-started land resumed in Claude; P2 manual-only-invocation gap caught by substitute review round 1 and fixed; round-2 P3s fixed; round-3 P3s deferred by explicit stop-work amendment; self_review_rounds=3"
+CHAIN-NOTE: cycles=3; stops=4; gates=[chain-auth(prior ChatGPT session), review-response-confirm×2, confirm-fixes-empty-thread×2, stop-work×3, merge+closeout]; friction=no exact-HEAD automatic review (Copilot review_on_push=false; Codex only on open); substitute self-review rounds surfaced progressively smaller P3 nits; local black 25.11.0 vs pinned 26.3.1; editable lrh install resolves to another checkout; note="ChatGPT-started land resumed in Claude; P2 manual-only-invocation gap caught by substitute review round 1 and fixed; round-2 P3s fixed; round-3 P3s deferred by explicit stop-work amendment; stops = 1 prior ChatGPT stop (no exact-HEAD review) + 3 stop-work fires after substitute rounds 1-3; self_review_rounds=3"
 
 # Validation
 

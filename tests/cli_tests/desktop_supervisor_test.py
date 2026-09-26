@@ -1,3 +1,6 @@
+import contextlib
+import io
+import json
 import pathlib
 import tempfile
 import unittest
@@ -177,6 +180,33 @@ class OwnedServerTest(unittest.TestCase):
 
         self.assertFalse(owned.is_running())
         self.assertEqual(owned.state, desktop_supervisor.STATE_FAILED)
+
+    def test_example_reports_failed_json_when_health_check_fails(self) -> None:
+        handshake = desktop_supervisor.verify_ready(
+            _ready(pathlib.Path("/work/repo")), "launch-1", pathlib.Path("/work/repo")
+        )
+        owned = unittest.mock.Mock()
+        owned.start.return_value = handshake
+        owned.stop.return_value = desktop_supervisor.StopResult(0, "none", "x")
+        stdout = io.StringIO()
+
+        with (
+            unittest.mock.patch.object(
+                desktop_supervisor, "OwnedServer", return_value=owned
+            ),
+            unittest.mock.patch.object(
+                desktop_supervisor, "fetch_health", side_effect=ConnectionRefusedError()
+            ),
+            contextlib.redirect_stdout(stdout),
+        ):
+            exit_code = desktop_supervisor.main(
+                ["--lrh-executable", "/opt/lrh", "--project-root", "/work/repo"]
+            )
+
+        events = [json.loads(line)["event"] for line in stdout.getvalue().splitlines()]
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(events, ["ready", "failed", "stopped"])
+        owned.stop.assert_called_once_with()
 
     def test_stop_before_start_is_a_no_op(self) -> None:
         owned = desktop_supervisor.OwnedServer(["lrh"], pathlib.Path("/work/repo"))

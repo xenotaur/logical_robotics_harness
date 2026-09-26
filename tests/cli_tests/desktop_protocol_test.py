@@ -213,6 +213,17 @@ class DesktopProtocolStartRequestTest(unittest.TestCase):
                     desktop_protocol.parse_start_request(message)
                 self.assertEqual(ctx.exception.code, code)
 
+    def test_overlong_workspace_path_is_rejected_before_ready(self) -> None:
+        # A path this long could still exist ("/./././..."), but its echo in
+        # ready would approach the message size limit.
+        path = "/" + "./" * desktop_protocol.MAX_WORKSPACE_PATH_BYTES
+
+        with self.assertRaises(desktop_protocol.ProtocolError) as ctx:
+            desktop_protocol.parse_start_request(_start_request(path))
+
+        self.assertEqual(ctx.exception.code, "invalid_workspace")
+        self.assertIn("(truncated)", ctx.exception.details["requested_project_root"])
+
     def test_boolean_protocol_version_is_not_accepted_as_one(self) -> None:
         with self.assertRaises(desktop_protocol.ProtocolError) as ctx:
             desktop_protocol.parse_start_request(

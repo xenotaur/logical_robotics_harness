@@ -80,6 +80,10 @@ _EXIT_CODE_BY_REASON = {
 
 _LAUNCH_ID_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _REQUEST_ID_MAX_LENGTH = 128
+# Longest accepted workspace.project_root, in UTF-8 bytes. The ready message
+# echoes the path in several fields, so this keeps it far below
+# MAX_MESSAGE_BYTES; real paths are bounded by PATH_MAX (1024-4096) anyway.
+MAX_WORKSPACE_PATH_BYTES = 4096
 # Values copied from untrusted input into replies are truncated to this many
 # characters so no reply can approach MAX_MESSAGE_BYTES.
 _ECHO_MAX_CHARS = 256
@@ -266,6 +270,12 @@ def parse_start_request(message: dict[str, Any]) -> StartRequest:
     if not isinstance(project_root, str) or not project_root:
         raise ProtocolError(
             "malformed_request", "workspace.project_root must be a non-empty string"
+        )
+    if len(project_root.encode("utf-8")) > MAX_WORKSPACE_PATH_BYTES:
+        raise ProtocolError(
+            "invalid_workspace",
+            f"workspace.project_root exceeds {MAX_WORKSPACE_PATH_BYTES} bytes",
+            {"requested_project_root": _echo_path(project_root)},
         )
     return StartRequest(
         launch_id=launch_id,

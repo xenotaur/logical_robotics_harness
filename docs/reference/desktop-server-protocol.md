@@ -101,7 +101,7 @@ is unavailable.
 | Field | Rule |
 | --- | --- |
 | `launch_id` | Required; 1–128 characters from `A-Z a-z 0-9 . _ : -`. Use a fresh random value (for example a UUID) per launch. |
-| `workspace.project_root` | Required absolute path to an LRH repository root (containing `project/focus` and `project/work_items`) or to the `project/` control directory itself. |
+| `workspace.project_root` | Required absolute path, at most 4,096 UTF-8 bytes, to an LRH repository root (containing `project/focus` and `project/work_items`) or to the `project/` control directory itself. |
 
 Workspace resolution is strict. The path must be absolute, exist, and be a
 directory that directly contains the LRH control directory. There is no
@@ -159,8 +159,9 @@ launch's child.
  "error":{"code":"workspace_not_lrh_project","message":"…","details":{"requested_project_root":"/tmp"}}}
 ```
 
-After `failed` the child writes nothing more and exits (code 3, or 4 for
-`parent_channel_closed`). It never sends both `ready` and `failed`.
+After `failed` the child writes nothing more and exits: code 3, or 4 for
+`parent_channel_closed`, or 1 for `internal_error`. It never sends both
+`ready` and `failed`.
 
 | `error.code` | Cause | Supervisor action |
 | --- | --- | --- |
@@ -169,7 +170,7 @@ After `failed` the child writes nothing more and exits (code 3, or 4 for
 | `unsupported_protocol` | `protocol` is not `lrh-desktop-server`. | Show incompatible. |
 | `unsupported_protocol_version` | Version not in `details.supported_versions`. | Show incompatible. |
 | `invalid_launch_id` | Launch ID missing or outside the allowed alphabet/length. | Bug in the supervisor. |
-| `invalid_workspace` | Path relative, missing, or not a directory. | Ask the user to fix Settings. |
+| `invalid_workspace` | Path relative, missing, not a directory, or over 4,096 bytes. | Ask the user to fix Settings. |
 | `workspace_not_lrh_project` | Directory has no LRH control directory. | Ask the user to fix Settings. |
 | `bind_failed` | Loopback bind failed or bound a non-loopback address. | Show failed; offer retry. |
 | `startup_self_check_failed` | Server did not answer its own status route correctly. | Show failed; offer retry. |

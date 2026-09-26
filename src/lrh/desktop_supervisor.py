@@ -638,6 +638,7 @@ def main(argv: list[str] | None = None, prog: str = "lrh.desktop_supervisor") ->
     except SupervisorError as err:
         _emit("failed", error=err.to_dict())
         return 1
+    failed = False
     try:
         _emit(
             "ready",
@@ -654,6 +655,15 @@ def main(argv: list[str] | None = None, prog: str = "lrh.desktop_supervisor") ->
             time.sleep(args.hold)
     except KeyboardInterrupt:
         pass
+    except SupervisorError as err:
+        _emit("failed", error=err.to_dict())
+        failed = True
+    except (OSError, http.client.HTTPException) as err:
+        _emit(
+            "failed",
+            error={"code": "health_check_failed", "message": str(err), "details": {}},
+        )
+        failed = True
     finally:
         result = owned.stop()
         _emit(
@@ -662,7 +672,7 @@ def main(argv: list[str] | None = None, prog: str = "lrh.desktop_supervisor") ->
             escalation=result.escalation,
             reason=result.reason,
         )
-    return 0 if result.exit_code == 0 else 1
+    return 0 if result.exit_code == 0 and not failed else 1
 
 
 if __name__ == "__main__":

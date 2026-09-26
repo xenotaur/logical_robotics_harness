@@ -5,6 +5,7 @@ import unittest
 from unittest import mock
 
 from lrh.dev import release_smoke
+from tests import testing_support
 
 
 class ReleaseSmokeHelpersTest(unittest.TestCase):
@@ -27,11 +28,12 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
 
     def test_run_raises_clear_error_for_missing_command(self) -> None:
         with mock.patch("subprocess.run", side_effect=FileNotFoundError):
-            with self.assertRaisesRegex(
-                release_smoke.ReleaseSmokeError,
-                "required command not found",
-            ):
-                release_smoke._run(["missing-command"])
+            with testing_support.suppress_output():
+                with self.assertRaisesRegex(
+                    release_smoke.ReleaseSmokeError,
+                    "required command not found",
+                ):
+                    release_smoke._run(["missing-command"])
 
     def test_run_uses_current_repo_root_when_cwd_not_provided(self) -> None:
         fake_root = pathlib.Path("/tmp/fake-root")
@@ -46,7 +48,8 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
             original_repo_root = release_smoke.REPO_ROOT
             release_smoke.REPO_ROOT = fake_root
             try:
-                release_smoke._run(["echo", "ok"])
+                with testing_support.suppress_output():
+                    release_smoke._run(["echo", "ok"])
             finally:
                 release_smoke.REPO_ROOT = original_repo_root
 
@@ -355,6 +358,18 @@ class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
 
 
 class ReleaseSmokeRunTest(unittest.TestCase):
+    def setUp(self) -> None:
+        # run_release_smoke and its helpers print extensively (progress,
+        # echoed subprocess output, diagnostics) -- every test in this
+        # class exercises that path, so suppress it here once rather than
+        # per test. Tests that need to assert on printed content still
+        # can: they mock builtins.print directly (see e.g.
+        # test_run_release_smoke_prints_diagnostics_before_install),
+        # which this suppression does not interfere with.
+        self._output_suppression = testing_support.suppress_output()
+        self._output_suppression.__enter__()
+        self.addCleanup(self._output_suppression.__exit__, None, None, None)
+
     def _build_fake_paths(
         self, root: pathlib.Path
     ) -> tuple[pathlib.Path, pathlib.Path, pathlib.Path]:

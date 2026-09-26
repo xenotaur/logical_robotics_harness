@@ -7,10 +7,12 @@ import unittest
 from lrh.pii import allowlist as pii_allowlist
 from lrh.pii import output as pii_output
 from lrh.pii import scan as pii_scan
+from tests import testing_support
 
 
 def _run_git(project_root: pathlib.Path, *args: str) -> None:
-    subprocess.run(["git", "-C", str(project_root), *args], check=True)
+    with testing_support.suppress_output(suppress_file_descriptors=True):
+        subprocess.run(["git", "-C", str(project_root), *args], check=True)
 
 
 def _init_repo(project_root: pathlib.Path) -> None:

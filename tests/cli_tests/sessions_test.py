@@ -1,6 +1,4 @@
 import argparse
-import contextlib
-import io
 import json
 import pathlib
 import plistlib
@@ -12,6 +10,7 @@ import unittest.mock
 import zipfile
 
 from lrh import sessions_workflow
+from tests import testing_support
 
 
 class SessionsCliTest(unittest.TestCase):
@@ -275,7 +274,7 @@ class SessionsCliTest(unittest.TestCase):
                 "lrh.prompt_workflow_sessions.reconcile_child_id_aliases",
                 return_value=None,
             ) as reconcile:
-                with contextlib.redirect_stdout(io.StringIO()):
+                with testing_support.suppress_output(suppress_stderr=False):
                     exit_code = sessions_workflow._run_sync(args)
 
             self.assertEqual(exit_code, 0)

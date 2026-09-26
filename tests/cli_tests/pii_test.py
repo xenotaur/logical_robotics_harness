@@ -9,6 +9,7 @@ from lrh.pii import config as pii_config
 from lrh.pii import layer2 as pii_layer2
 from lrh.pii import output as pii_output
 from lrh.pii import scan as pii_scan
+from tests import testing_support
 
 
 class TestLrhPiiScanCli(unittest.TestCase):
@@ -69,8 +70,9 @@ class TestLrhPiiScanCli(unittest.TestCase):
                     "json",
                 ],
             ):
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
         self.assertEqual(exc.exception.code, 0)
         mock_run_scan.assert_called_once()
         _, kwargs = mock_run_scan.call_args
@@ -100,8 +102,9 @@ class TestLrhPiiScanCli(unittest.TestCase):
                     "/tmp/custom.toml",
                 ],
             ):
-                with self.assertRaises(SystemExit):
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit):
+                        cli_main.main()
         _, kwargs = mock_run_scan.call_args
         self.assertEqual(
             kwargs["config_path"], pathlib.Path("/tmp/custom.toml").resolve()
@@ -116,8 +119,9 @@ class TestLrhPiiScanCli(unittest.TestCase):
                 "sys.argv",
                 ["lrh", "pii", "scan", "--out-dir", "/tmp/out"],
             ):
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
         self.assertEqual(exc.exception.code, 2)
 
     def test_lrh_pii_scan_reports_non_git_project_root_cleanly(self) -> None:
@@ -126,8 +130,9 @@ class TestLrhPiiScanCli(unittest.TestCase):
                 "sys.argv",
                 ["lrh", "pii", "scan", "--project-root", tmp, "--out-dir", "/tmp/out"],
             ):
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
         self.assertEqual(exc.exception.code, 2)
 
     def test_lrh_pii_scan_reports_layer2_content_read_error_cleanly(self) -> None:
@@ -139,8 +144,9 @@ class TestLrhPiiScanCli(unittest.TestCase):
                 "sys.argv",
                 ["lrh", "pii", "scan", "--out-dir", "/tmp/out"],
             ):
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
         self.assertEqual(exc.exception.code, 2)
 
     def test_lrh_pii_scan_reports_layer1_blob_read_error_cleanly(self) -> None:
@@ -152,8 +158,9 @@ class TestLrhPiiScanCli(unittest.TestCase):
                 "sys.argv",
                 ["lrh", "pii", "scan", "--out-dir", "/tmp/out"],
             ):
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
         self.assertEqual(exc.exception.code, 2)
 
     def test_lrh_pii_scan_reports_os_error_cleanly(self) -> None:
@@ -165,8 +172,9 @@ class TestLrhPiiScanCli(unittest.TestCase):
                 "sys.argv",
                 ["lrh", "pii", "scan", "--out-dir", "/tmp/out"],
             ):
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
         self.assertEqual(exc.exception.code, 2)
 
     def test_lrh_pii_scan_reports_missing_explicit_config_cleanly(self) -> None:
@@ -185,8 +193,9 @@ class TestLrhPiiScanCli(unittest.TestCase):
                     str(pathlib.Path(tmp) / "does-not-exist.toml"),
                 ],
             ):
-                with self.assertRaises(SystemExit) as exc:
-                    cli_main.main()
+                with testing_support.suppress_output():
+                    with self.assertRaises(SystemExit) as exc:
+                        cli_main.main()
         self.assertEqual(exc.exception.code, 2)
 
 

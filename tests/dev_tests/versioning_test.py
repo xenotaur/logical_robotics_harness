@@ -4,6 +4,7 @@ import unittest
 from unittest import mock
 
 from lrh.dev import versioning
+from tests import testing_support
 
 
 class VersioningTests(unittest.TestCase):
@@ -28,7 +29,8 @@ class VersioningTests(unittest.TestCase):
             with mock.patch(
                 "lrh.dev.versioning._run_command", side_effect=run_results
             ) as run_mock:
-                versioning.verify_release("v1.0.0")
+                with testing_support.suppress_output():
+                    versioning.verify_release("v1.0.0")
 
         called_commands = [call.args[0] for call in run_mock.call_args_list]
         self.assertEqual(
@@ -64,7 +66,8 @@ class VersioningTests(unittest.TestCase):
                 ):
                     with mock.patch("lrh.dev.versioning.verify_release") as verify_mock:
                         with mock.patch("lrh.dev.versioning._run_command") as run_mock:
-                            versioning.create_tag("v1.2.3")
+                            with testing_support.suppress_output():
+                                versioning.create_tag("v1.2.3")
 
         verify_mock.assert_not_called()
         run_mock.assert_not_called()
@@ -93,7 +96,8 @@ class VersioningTests(unittest.TestCase):
                     return_value="abc123",
                 ):
                     with mock.patch("lrh.dev.versioning._run_command") as run_mock:
-                        versioning.push_tag("v1.2.3")
+                        with testing_support.suppress_output():
+                            versioning.push_tag("v1.2.3")
 
         run_mock.assert_not_called()
 
@@ -387,8 +391,7 @@ class VersioningTests(unittest.TestCase):
                 raise versioning.VersioningError("required command not found: python")
             return mock.Mock(returncode=0)
 
-        stderr = io.StringIO()
-        with mock.patch("sys.stderr", new=stderr):
+        with testing_support.capture_output() as captured:
             with mock.patch("lrh.version.get_installed_version", return_value="9.9.9"):
                 with mock.patch(
                     "lrh.dev.versioning._run_command",
@@ -397,7 +400,7 @@ class VersioningTests(unittest.TestCase):
                     result = versioning.main(["tools"])
 
         self.assertEqual(result, 1)
-        self.assertIn("required command not found: python", stderr.getvalue())
+        self.assertIn("required command not found: python", captured.stderr.getvalue())
 
 
 if __name__ == "__main__":

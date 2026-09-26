@@ -1,6 +1,4 @@
-import contextlib
 import datetime
-import io
 import json
 import pathlib
 import tempfile
@@ -8,6 +6,7 @@ import unittest
 import unittest.mock
 
 from lrh import prompt_workflow
+from tests import testing_support
 
 
 class PromptWorkflowTest(unittest.TestCase):
@@ -156,11 +155,10 @@ class PromptWorkflowTest(unittest.TestCase):
                 return super().astimezone(tz)
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            buffer = io.StringIO()
             with unittest.mock.patch(
                 "lrh.prompt_workflow.datetime.datetime", _FrozenDatetime
             ):
-                with contextlib.redirect_stdout(buffer):
+                with testing_support.capture_output(capture_stderr=False) as captured:
                     prompt_workflow.run_prompt_cli(
                         [
                             "label",
@@ -170,7 +168,7 @@ class PromptWorkflowTest(unittest.TestCase):
                             temp_dir,
                         ]
                     )
-            output = buffer.getvalue()
+            output = captured.stdout.getvalue()
 
         self.assertIn(
             "AD_HOC/2026_03_04_05_06_07_UTC_TIMESTAMP_TEST.md",
@@ -193,8 +191,7 @@ class PromptWorkflowTest(unittest.TestCase):
 
     def test_record_session_alias_cli_writes_index_entry(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
-            buffer = io.StringIO()
-            with contextlib.redirect_stdout(buffer):
+            with testing_support.capture_output(capture_stderr=False) as captured:
                 exit_code = prompt_workflow.run_prompt_cli(
                     [
                         "record-session-alias",
@@ -208,7 +205,7 @@ class PromptWorkflowTest(unittest.TestCase):
                         temp_dir,
                     ]
                 )
-            output = buffer.getvalue()
+            output = captured.stdout.getvalue()
             self.assertEqual(exit_code, 0)
             index_path = pathlib.Path(temp_dir) / "project" / "sessions" / "index.jsonl"
             self.assertIn(index_path.as_posix(), output)
@@ -218,9 +215,8 @@ class PromptWorkflowTest(unittest.TestCase):
             self.assertEqual(data["prs"], ["https://github.com/x/y/pull/5"])
 
     def test_record_session_alias_cli_requires_host_id(self) -> None:
-        buffer = io.StringIO()
         with self.assertRaises(SystemExit):
-            with contextlib.redirect_stderr(buffer):
+            with testing_support.suppress_output():
                 prompt_workflow.run_prompt_cli(["record-session-alias"])
 
 

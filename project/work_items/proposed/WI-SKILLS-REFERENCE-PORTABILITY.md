@@ -12,8 +12,7 @@ contributors:
 assigned_agents: []
 related_focus: []
 related_roadmap: []
-related_workstreams:
-  - WS-SKILLS
+related_workstreams: []
 related_design:
   - project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md
   - project/design/proposals/adopted/lrh-skills-target-aware-install/00_proposal.md
@@ -55,7 +54,16 @@ artifacts_expected:
   - .agents/skills/lrh-codex-session/SKILL.md
   - .agents/skills/lrh-config-skills/SKILL.md
   - .agents/skills/lrh-doc-audit/SKILL.md
-  - tests/
+  - .gemini/plugins/lrh/skills/lrh-codex-export/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-codex-session/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-config-skills/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-doc-audit/SKILL.md
+  - src/lrh/skills/lrh-doc-audit/references/audit-requirements.md
+  - .claude/skills/lrh-doc-audit/references/audit-requirements.md
+  - .agents/skills/lrh-doc-audit/references/audit-requirements.md
+  - .gemini/plugins/lrh/skills/lrh-doc-audit/references/audit-requirements.md
+  - tests/packaging_tests/skills_reference_portability_test.py
+  - tests/fixtures/skills/third_party_no_docs/
 ---
 
 # WI-SKILLS-REFERENCE-PORTABILITY: Make LRH skill references portable across independent client repositories
@@ -70,7 +78,7 @@ The installed `lrh-codex-export` skill directed an agent in the Replication Vect
 
 ### Duplication search
 
-- In-repo: Related but non-duplicating guidance exists in `src/lrh/skills/lrh-execute/SKILL.md` and `src/lrh/skills/lrh-review-response/SKILL.md`, which resolve installed sibling skills rather than assuming the LRH source tree; affected direct documentation references are inventoried in `src/lrh/skills/lrh-codex-export/SKILL.md`, `src/lrh/skills/lrh-codex-session/SKILL.md`, `src/lrh/skills/lrh-config-skills/SKILL.md`, and `src/lrh/skills/lrh-doc-audit/SKILL.md`.
+- In-repo: Related but non-duplicating guidance exists in `src/lrh/skills/lrh-execute/SKILL.md` and `src/lrh/skills/lrh-review-response/SKILL.md`, which resolve installed sibling skills rather than assuming the LRH source tree; affected direct documentation references are inventoried in `src/lrh/skills/lrh-codex-export/SKILL.md`, `src/lrh/skills/lrh-codex-session/SKILL.md`, `src/lrh/skills/lrh-config-skills/SKILL.md`, `src/lrh/skills/lrh-doc-audit/SKILL.md`, and `src/lrh/skills/lrh-doc-audit/references/audit-requirements.md`.
 - Sibling repos: Replication Vector was the observed client fixture; no other sibling implementation of a portable LRH reference resolver was identified.
 - External libraries: None identified; this is a skill packaging and instruction-boundary problem, not a missing library capability.
 - Recommendation: Proceed with the bounded skill-guidance and fixture change.
@@ -80,23 +88,24 @@ The installed `lrh-codex-export` skill directed an agent in the Replication Vect
 - Work items: `WI-SKILLS-WORKTREE-SAFE-BRANCH-CREATION` is adjacent client-portability work but addresses branch creation rather than documentation references. `WI-CLI-REFERENCE-ANTIGRAVITY-EXPORT-DOC-GAP` addresses LRH-owned documentation completeness, not client portability.
 - Proposals: `project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md` and `project/design/proposals/adopted/lrh-skills-target-aware-install/00_proposal.md` establish related skill packaging conventions, but neither resolves this missing-client-documents failure mode.
 - Backlog: Existing conversation-export entries reference `docs/reference/cli/conversation.md` as LRH documentation; no matching entry proposes portable resolution from independent client repositories.
-- Recommendation: Offer to link the implementation back to the adjacent skill-packaging and conversation-export design history; do not close the documentation-parity work item because it has a different outcome.
+- Recommendation: Offer to link the implementation back to the adjacent skill-packaging and conversation-export design history; do not attach this item to resolved `WS-SKILLS`, and do not close the documentation-parity work item because it has a different outcome.
 
 ## Scope
 
-- Audit and update the affected LRH skill instructions and their maintained rendered targets so LRH-owned documentation is not treated as a required client-relative file.
+- Audit and update the affected LRH skill instructions and all maintained rendered targets (`.claude/`, `.agents/`, and `.gemini/plugins/lrh/`) so LRH-owned documentation is not treated as a required client-relative file.
 - Use installed/package-owned references where available, and use CLI self-description or explicit runtime capability checks for operational behavior that must work in a standalone client repository.
-- Add a minimal third-party repository fixture or hermetic test that has no general `docs/` directory and verifies that absent optional LRH documentation does not block the affected workflow.
+- Add `tests/packaging_tests/skills_reference_portability_test.py` and its minimal third-party fixture under `tests/fixtures/skills/third_party_no_docs/`; the fixture has no general `docs/` directory and verifies that absent optional LRH documentation does not block the affected workflow.
 - Preserve optional links to LRH-owned documentation for maintainers and contributors working in the LRH repository.
 
 ## Required Changes
 
 1. Update the canonical source skill guidance for `lrh-codex-export`, `lrh-codex-session`, `lrh-config-skills`, and `lrh-doc-audit` to distinguish package/LRH-maintainer references from client-local files and to define the behavior when optional references are absent.
-2. Render or synchronize the corresponding `.claude/skills/` and `.agents/skills/` copies using the existing LRH skill-install conventions; do not hand-edit generated targets unless the repository convention requires it.
-3. Add a focused hermetic fixture or test covering an independent repository with a `project/` control directory but no general `docs/` tree, including the observed Codex export reference case.
-4. Ensure the portable instructions use CLI `--help` or explicit runtime capability checks as the operational fallback and do not require a new documentation-distribution system.
-5. Document the ownership, optional-reference, and version-compatibility boundary in the affected skill guidance or its smallest appropriate shared reference.
-6. Validate source/rendered skill parity and run the canonical repository validation commands.
+2. Render or synchronize the corresponding `.claude/skills/`, `.agents/skills/`, and `.gemini/plugins/lrh/skills/` copies using the existing LRH skill-install conventions; do not hand-edit generated targets unless the repository convention requires it.
+3. Update `src/lrh/skills/lrh-doc-audit/references/audit-requirements.md` and all three rendered copies so its LRH-owned convention reference follows the same portable rule.
+4. Add the focused hermetic `tests/packaging_tests/skills_reference_portability_test.py` and `tests/fixtures/skills/third_party_no_docs/` coverage for an independent repository with a `project/` control directory but no general `docs/` tree, including the observed Codex export reference case.
+5. Ensure the portable instructions use CLI `--help` or explicit runtime capability checks as the operational fallback and do not require a new documentation-distribution system.
+6. Document the ownership, optional-reference, and version-compatibility boundary in the affected skill guidance or its smallest appropriate shared reference.
+7. Validate source/rendered skill parity for Claude, Codex, and Antigravity and run the canonical repository validation commands.
 
 ## Non-Goals
 
@@ -124,8 +133,10 @@ The installed `lrh-codex-export` skill directed an agent in the Replication Vect
 - `lrh validate`
 - `lrh skills check --target claude --local`
 - `lrh skills check --target codex --local`
+- `lrh skills check --target antigravity --local`
 - `lrh skills status --target codex --local`
-- The focused third-party fixture/test command documented by the implementation
+- `lrh skills status --target antigravity --local`
+- `python -m unittest tests.packaging_tests.skills_reference_portability_test`
 
 ## Risk Notes
 

@@ -1979,3 +1979,60 @@ two pre-existing gaps — that stays a separate, smaller cleanup.
 **Related:** `CLAUDE.md` `## Skills`; `src/lrh/skills/lrh-antigravity-export/SKILL.md`;
 `src/lrh/skills/lrh-codex-export/SKILL.md`;
 `project/work_items/proposed/WI-CLAUDE-CONVERSATION-EXPORT-SKILL.md`.
+
+---
+
+## No command can record a late session pointer on an already-landed execution record
+
+**Noted:** 2026-09-26, during PR #720's closeout follow-up. Three
+ChatGPT-authored PR #720 execution records landed with
+`session_transcript: pending`, because the ChatGPT conversation id was not
+known at closeout time. Once the user supplied it, `lrh prompt
+update-execution --session-transcript chatgpt:<id>` refused with "only
+in_progress → landed is supported" (`src/lrh/prompt_workflow.py`), so PR
+#738 had to edit the three `session_transcript:` lines by hand. `lrh
+sessions link` already rewrites `session_transcript` on records of any
+status, but only for Claude: it resolves a child id to a host id and
+hard-codes `claude-app:<host>` (`src/lrh/sessions_workflow.py`,
+`write_session_transcript_field`). There is no equivalent for `chatgpt:`,
+`codex-app:`, or `codex-cloud:` pointers.
+
+**Idea:** Add a narrow pointer-only update path. Either:
+
+- accept `--session-transcript` alone on a `landed` record in
+  `update-execution` (no `--status`/`--commit` required); or
+- add a separate command such as `lrh prompt set-session-transcript
+  --execution-id <id> --value <pointer>`.
+
+In either form:
+
+- validate the value against the pointer grammar in
+  `project/executions/README.md` (`claude-app:`, `codex-app:`,
+  `codex-cloud:`, `chatgpt:`, `pending`, `none`);
+- by default replace only `pending` (or a missing field), and require
+  `--force` to overwrite a real pointer or `none`;
+- leave `status`, `commit`, and `pr` untouched;
+- reuse `_replace_or_insert_frontmatter_field`;
+- add tests for landed-plus-`pending` succeeding, refusal to overwrite without
+  `--force`, malformed schemes, and not-found/ambiguous ids.
+
+Then update the CLI reference, the execution-records README, and
+`/lrh-closeout` Step 8's `pending` reminder, which currently says to "update
+it" without naming a command that can.
+
+**Design note:** `PROP-LRH-SESSION-ARCHIVE-SYNC`'s "records immutable at
+write time" principle is about fork continuity: a fork discovered later is
+stitched in `project/sessions/index.jsonl`, never by editing a landed
+record. It does not forbid resolving `pending`, which the executions
+README defines as "a to-do". `lrh sessions link` already does exactly that
+for Claude. A future WI should state this distinction explicitly.
+
+**Status:** Deferred. The situation is rare: mostly non-Claude backends
+whose pointer surfaces only after closeout. Hand edits are a workable
+stopgap. Not yet filed as a work item.
+
+**Related:** PR #720, #733 (closeout), #738 (manual pointer backfill);
+`src/lrh/prompt_workflow.py` (`update-execution`,
+`write_session_transcript_field`); `src/lrh/sessions_workflow.py`
+(`_run_link`); `project/executions/README.md` (`session_transcript`
+values); `project/design/proposals/adopted/lrh-session-archive-sync/00_proposal.md`.

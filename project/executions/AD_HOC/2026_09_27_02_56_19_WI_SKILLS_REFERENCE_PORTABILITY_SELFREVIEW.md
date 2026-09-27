@@ -5,7 +5,7 @@ work_item: AD_HOC
 status: landed
 rerun_of: 2026_09_27_00_04_48_WI_SKILLS_REFERENCE_PORTABILITY
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/741
-commit: 19daa6fd972411593d74bcd59cf35a7e7975d296
+commit: 2dce21dc4c5fe6bf51db16f51e40067c10bc6733
 created_at: 2026-09-27T02:56:19+00:00
 ---
 

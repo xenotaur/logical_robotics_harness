@@ -107,6 +107,25 @@ def make_repo(root: pathlib.Path, project_dir: str = ".") -> str:
     return run_git(root, "rev-parse", "HEAD")
 
 
+def full_scores(**overrides: object) -> dict[str, object]:
+    """A complete, valid rubric record with optional field overrides."""
+    scores: dict[str, object] = {
+        "usefulness": 2,
+        "correction_minutes": 0,
+        "review_minutes": 1,
+        "total_human_minutes": 1,
+        "cited_claims_checked": 0,
+        "cited_claims_supported": 0,
+        "unsupported_assertions": 0,
+        "critical_fabricated_status": 0,
+        "diagnostics_surfaced": True,
+        "miss_cause": None,
+        "notes": "",
+    }
+    scores.update(overrides)
+    return scores
+
+
 class SteppingClock:
     """Deterministic ISO timestamps that advance one second per call."""
 

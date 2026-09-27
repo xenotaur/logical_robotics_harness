@@ -147,12 +147,18 @@ def record_evaluation(
     unknown = sorted(set(scores) - set(EVALUATION_FIELDS))
     if unknown:
         raise ExportError(f"unknown evaluation fields: {unknown}")
+    # A complete record is required: a deleted field must not silently become 0.
+    missing = sorted(set(EVALUATION_FIELDS) - set(scores))
+    if missing:
+        raise ExportError(f"missing evaluation fields: {missing}")
+    if not isinstance(scores["notes"], str):
+        raise ExportError("notes must be a string")
     for field, allowed in EVALUATION_FIELDS.items():
         if allowed is not None and field in scores and scores[field] not in allowed:
             raise ExportError(f"{field} must be one of {allowed}")
     for field in _COUNT_FIELDS:
         # Unfilled template placeholders are null; never accept them as data.
-        value = scores.get(field, 0)
+        value = scores[field]
         if (
             isinstance(value, bool)
             or not isinstance(value, (int, float))

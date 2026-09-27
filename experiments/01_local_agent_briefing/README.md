@@ -283,10 +283,12 @@ the order.
 
 ### 4. Score each run
 
-Copy `scores_template.json` and replace **every** `null` with a value, using the
-rubric definitions above. `evaluate` rejects unfilled placeholders. For B0
-records, set `total_human_minutes` to the same value as `b0 --minutes`, and use
-0 for B1-only fields such as `correction_minutes`. Then record it:
+Copy `scores_template.json` and give every field a value, using the rubric
+definitions above. The one exception is `miss_cause`, which stays `null` when
+the run is not a miss. `evaluate` rejects a scores file with any field missing,
+any other `null`, or a negative or non-finite count. For B0 records, set
+`total_human_minutes` to the same value as `b0 --minutes`, and use 0 for
+B1-only fields such as `correction_minutes`. Then record it:
 
 ```bash
 experimental/local_agent/run evaluate <run-id> --scores <scores-T01-B1.json>
@@ -297,6 +299,10 @@ Score every B1 attempt, including failed ones. A failed run scores
 
 **Aggregation rule for the decision:**
 
+- **Unit of count:** the floor and targets are per task. Each of `T01`–`T12`
+  has exactly one counted B1 run, so "N of 12" always has 12 in the
+  denominator. Every other attempt is still recorded and reported separately:
+  tuning iterations, smoke runs, and retries.
 - **B1 floor and targets:** count only `condition: B1` runs whose `task_id` is
   one of the pre-registered `T01`–`T12`. `SMOKE-*` runs are excluded.
 - **Several B1 runs for one task:** use the run made with the frozen prompt
@@ -324,8 +330,15 @@ Record the frozen version here and commit it **before** any held-out run:
 
 **Frozen prompt:** _pending_
 
-Then run steps 1–4 once for T09–T12 with `--prompt-version <frozen>`. Do not
-change the prompt after seeing held-out output.
+Then, before any held-out run, give every tuning task (T01–T08) that does not
+yet have a frozen-version B1 run one such run, and score it. This ensures all 12
+tasks have a counted run.
+
+Then run steps 1–4 once for T09–T12 with `--prompt-version <frozen>`. Retry a
+held-out task only after a backend failure (`missing_prerequisite`,
+`backend_error`, or `timeout`). The first frozen-version run still counts, and
+the retry is reported alongside it. Do not change the prompt after seeing
+held-out output.
 
 ### 7. Export sanitized results
 

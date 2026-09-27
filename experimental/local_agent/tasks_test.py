@@ -42,6 +42,10 @@ class TasksTest(unittest.TestCase):
             "tasks not a list": "repos:\n  LRH:\n    project_dir: '.'\ntasks: 5\n",
             "repo not a mapping": "repos:\n  LRH: lrh\ntasks: []\n",
             "repos not a mapping": "repos: [LRH]\ntasks: []\n",
+            "unhashable repo": (
+                "repos:\n  LRH:\n    project_dir: '.'\ntasks:\n"
+                "  - id: T01\n    split: tuning\n    repo: [x]\n    work_item: W\n"
+            ),
         }
         with tempfile.TemporaryDirectory() as tmp:
             path = pathlib.Path(tmp) / "tasks.yaml"

@@ -300,7 +300,10 @@ Score every B1 attempt, including failed ones. A failed run scores
 - **B1 floor and targets:** count only `condition: B1` runs whose `task_id` is
   one of the pre-registered `T01`–`T12`. `SMOKE-*` runs are excluded.
 - **Several B1 runs for one task:** use the run made with the frozen prompt
-  version.
+  version. If several runs used the frozen version (for example a retry after a
+  failure or timeout), the **first** one counts. Later retries are reported
+  alongside it but never replace it, so a failed attempt stays in the
+  denominator.
 - **Effort comparisons:** use `condition: B0` records for the same `T##` ids.
   B0 records have outcome `manual` and are never model completions.
 

@@ -52,7 +52,7 @@ def load_tasks(path: pathlib.Path = DEFAULT_TASKS_FILE) -> dict[str, Task]:
         if missing:
             raise TaskError(f"task entry {entry} is missing {missing}")
         repo_label = entry.get("repo")
-        if repo_label not in repos:
+        if not isinstance(repo_label, str) or repo_label not in repos:
             raise TaskError(f"task {entry.get('id')} names unknown repo {repo_label}")
         commit = str(entry.get("commit", ""))
         if len(commit) != 40:

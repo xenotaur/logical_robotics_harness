@@ -6,6 +6,10 @@ import dataclasses
 import datetime
 
 
+def _utcnow() -> datetime.datetime:
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
 @dataclasses.dataclass(slots=True)
 class ActionProposal:
     """A proposed execution action derived from a work item."""
@@ -15,9 +19,7 @@ class ActionProposal:
     title: str
     description: str
     proposed_by: str
-    proposed_at: datetime.datetime = dataclasses.field(
-        default_factory=datetime.datetime.utcnow
-    )
+    proposed_at: datetime.datetime = dataclasses.field(default_factory=_utcnow)
     expected_effects: list[str] = dataclasses.field(default_factory=list)
 
 
@@ -41,9 +43,7 @@ class ActionDecision:
     decision: str
     rationale: str
     decided_by: str
-    decided_at: datetime.datetime = dataclasses.field(
-        default_factory=datetime.datetime.utcnow
-    )
+    decided_at: datetime.datetime = dataclasses.field(default_factory=_utcnow)
 
 
 @dataclasses.dataclass(slots=True)
@@ -54,7 +54,5 @@ class ApprovalRecord:
     approver: str
     decision: str
     scope: str
-    recorded_at: datetime.datetime = dataclasses.field(
-        default_factory=datetime.datetime.utcnow
-    )
+    recorded_at: datetime.datetime = dataclasses.field(default_factory=_utcnow)
     notes: str = ""

@@ -34,6 +34,23 @@ class TasksTest(unittest.TestCase):
             with self.assertRaisesRegex(tasks.TaskError, "missing"):
                 tasks.load_tasks(path)
 
+    def test_malformed_containers_are_task_errors(self) -> None:
+        documents = {
+            "non-mapping task": "repos:\n  LRH:\n    project_dir: '.'\ntasks: [7]\n",
+            "null task": "repos:\n  LRH:\n    project_dir: '.'\ntasks:\n  - null\n",
+            "string task": "repos:\n  LRH:\n    project_dir: '.'\ntasks:\n  - T01\n",
+            "tasks not a list": "repos:\n  LRH:\n    project_dir: '.'\ntasks: 5\n",
+            "repo not a mapping": "repos:\n  LRH: lrh\ntasks: []\n",
+            "repos not a mapping": "repos: [LRH]\ntasks: []\n",
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "tasks.yaml"
+            for label, text in documents.items():
+                path.write_text(text, encoding="utf-8")
+                with self.subTest(label):
+                    with self.assertRaises(tasks.TaskError):
+                        tasks.load_tasks(path)
+
     def test_short_commit_pin_rejected(self) -> None:
         text = (
             "repos:\n  LRH:\n    project_dir: '.'\n"

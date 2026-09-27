@@ -9,6 +9,7 @@ Every export lists what it excluded.
 from __future__ import annotations
 
 import json
+import math
 import pathlib
 
 from local_agent import briefing, context, recorder
@@ -152,8 +153,15 @@ def record_evaluation(
     for field in _COUNT_FIELDS:
         # Unfilled template placeholders are null; never accept them as data.
         value = scores.get(field, 0)
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
-            raise ExportError(f"{field} must be a non-negative number, got {value!r}")
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value < 0
+        ):
+            raise ExportError(
+                f"{field} must be a finite non-negative number, got {value!r}"
+            )
     store.load_run(run_id)
     store.write_json(run_id, "evaluation.json", scores)
     store.append_event(run_id, "evaluation_recorded", fields=sorted(scores))

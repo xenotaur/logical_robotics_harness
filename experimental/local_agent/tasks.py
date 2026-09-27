@@ -37,8 +37,17 @@ def load_tasks(path: pathlib.Path = DEFAULT_TASKS_FILE) -> dict[str, Task]:
     if not isinstance(document, dict):
         raise TaskError(f"{path} is not a mapping")
     repos = document.get("repos") or {}
+    entries = document.get("tasks") or []
+    if not isinstance(repos, dict) or not all(
+        isinstance(definition, dict) for definition in repos.values()
+    ):
+        raise TaskError(f"{path}: 'repos' must map each label to a mapping")
+    if not isinstance(entries, list):
+        raise TaskError(f"{path}: 'tasks' must be a list")
     loaded: dict[str, Task] = {}
-    for entry in document.get("tasks") or []:
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise TaskError(f"{path}: each task must be a mapping, got {entry!r}")
         missing = [key for key in ("id", "split", "work_item") if key not in entry]
         if missing:
             raise TaskError(f"task entry {entry} is missing {missing}")

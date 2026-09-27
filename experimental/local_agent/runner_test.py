@@ -93,6 +93,17 @@ class RunnerTest(unittest.TestCase):
         output = self.store.read_json(run_id, "output.json")
         self.assertEqual(output["manual_text"], "Owner briefing.")
 
+    def test_manual_b0_rejects_non_finite_minutes(self) -> None:
+        for bad in (float("nan"), float("inf"), -1.0):
+            with self.assertRaisesRegex(ValueError, "finite non-negative"):
+                runner.record_manual_briefing(
+                    store=self.store,
+                    packet_sha256=self.sha,
+                    briefing_text="Owner briefing.",
+                    author_minutes=bad,
+                )
+        self.assertEqual(self.store.list_runs(), [])
+
     def test_manual_b0_rejects_empty_text_and_tampered_packet(self) -> None:
         with self.assertRaises(ValueError):
             runner.record_manual_briefing(

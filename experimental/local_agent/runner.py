@@ -8,6 +8,8 @@ it does not mean the briefing is correct or accepted.
 
 from __future__ import annotations
 
+import math
+
 from local_agent import briefing, context, model, recorder, settings
 
 OUTCOME_COMPLETED = "completed"
@@ -199,8 +201,10 @@ def record_manual_briefing(
     """
     if not briefing_text.strip():
         raise ValueError("B0 briefing text is empty")
-    if author_minutes < 0:
-        raise ValueError("author minutes must be non-negative")
+    if not math.isfinite(author_minutes) or author_minutes < 0:
+        raise ValueError(
+            f"author minutes must be a finite non-negative number, got {author_minutes}"
+        )
     manifest, _ = _verified_packet(store, packet_sha256)
     run_id = store.start_run(
         {

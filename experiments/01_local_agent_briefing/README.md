@@ -245,7 +245,8 @@ For T01, T06, and T11, build the packet (step 1), then:
 experimental/local_agent/run run --packet <sha> --approve <sha> --task-id SMOKE-T01
 ```
 
-Smoke runs use `SMOKE-` task ids so they stay out of the analysis. If they
+Smoke runs use `SMOKE-` task ids, and the aggregation rule in step 4 excludes
+them from the decision. If they
 show a setup problem, fix it before tuning. Do not score or export smoke runs.
 
 ### 3. Run both conditions for a task
@@ -292,9 +293,16 @@ experimental/local_agent/run evaluate <run-id> --scores <scores-T01-B1.json>
 ```
 
 Score every B1 attempt, including failed ones. A failed run scores
-`usefulness: 0` with a note, so it stays in the denominator. When applying the
-decision rule, count outcomes over `condition: B1` runs only. B0 records have
-outcome `manual` and are never model completions.
+`usefulness: 0` with a note, so it stays in the denominator.
+
+**Aggregation rule for the decision:**
+
+- **B1 floor and targets:** count only `condition: B1` runs whose `task_id` is
+  one of the pre-registered `T01`–`T12`. `SMOKE-*` runs are excluded.
+- **Several B1 runs for one task:** use the run made with the frozen prompt
+  version.
+- **Effort comparisons:** use `condition: B0` records for the same `T##` ids.
+  B0 records have outcome `manual` and are never model completions.
 
 ### 5. Tuning loop (tuning tasks only)
 

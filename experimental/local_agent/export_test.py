@@ -159,6 +159,14 @@ class ExportTest(unittest.TestCase):
                 self.store, run_id, dict(filled, review_minutes=-1)
             )
 
+    def test_non_finite_counts_rejected(self) -> None:
+        run_id = self._run(BRIEFING)
+        for bad in (float("nan"), float("inf")):
+            with self.assertRaisesRegex(export.ExportError, "finite"):
+                export.record_evaluation(
+                    self.store, run_id, {"usefulness": 1, "review_minutes": bad}
+                )
+
     def test_home_paths_rewritten(self) -> None:
         run_id = self._run(BRIEFING)
         exported = self._export(run_id)

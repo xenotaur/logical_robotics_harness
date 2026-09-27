@@ -9,6 +9,7 @@ Every export lists what it excluded.
 from __future__ import annotations
 
 import json
+import math
 import pathlib
 
 from local_agent import briefing, context, recorder
@@ -42,6 +43,17 @@ EVALUATION_FIELDS = {
 }
 
 
+_COUNT_FIELDS = (
+    "correction_minutes",
+    "review_minutes",
+    "total_human_minutes",
+    "cited_claims_checked",
+    "cited_claims_supported",
+    "unsupported_assertions",
+    "critical_fabricated_status",
+)
+
+
 class ExportError(ValueError):
     """Raised for an invalid evaluation or unsafe export request."""
 
@@ -70,6 +82,34 @@ def _verified_packet_manifest(
     return manifest
 
 
+def _export_manual_text(
+    exported: dict[str, object],
+    excluded: list[str],
+    manual: str,
+    evaluation: object,
+    include_output: bool,
+) -> None:
+    """Apply the same scored-and-scanned rule to owner-written B0 text."""
+    if not include_output:
+        excluded.append("B0 briefing text (use --include-output after review)")
+        return
+    if not isinstance(evaluation, dict) or "usefulness" not in evaluation:
+        raise ExportError(
+            "B0 text is exported only for scored runs; record an evaluation first"
+        )
+    scan = sensitivity.scan_text_for_sensitive_findings(manual)
+    if scan.status != sensitivity.STATUS_NONE_DETECTED:
+        raise ExportError(
+            f"B0 text withheld: sensitivity scan reported {scan.finding_count} "
+            f"potential finding(s) in {scan.categories}"
+        )
+    exported["manual_briefing"] = manual
+    exported["manual_briefing_sensitivity_scan"] = scan.status
+    exported["briefing_label"] = (
+        "Owner-written B0 baseline briefing; not project state."
+    )
+
+
 def inspect_run(store: recorder.Store, run_id: str) -> str:
     """Render a readable summary of one run without printing raw content."""
     run = store.load_run(run_id)
@@ -77,7 +117,8 @@ def inspect_run(store: recorder.Store, run_id: str) -> str:
     packet_manifest, _ = store.load_packet(str(run["packet_sha256"]))
     lines = [
         f"run {run_id}",
-        f"  work item: {run.get('work_item_id')}  task: {run.get('task_id')}",
+        f"  work item: {run.get('work_item_id')}  task: {run.get('task_id')}  "
+        f"condition: {run.get('condition')}",
         f"  source commit: {run.get('source_commit')}",
         f"  outcome: {run.get('outcome')} ({run.get('outcome_detail')})",
         f"  model: {json.dumps(run.get('model'), sort_keys=True)}",
@@ -106,9 +147,32 @@ def record_evaluation(
     unknown = sorted(set(scores) - set(EVALUATION_FIELDS))
     if unknown:
         raise ExportError(f"unknown evaluation fields: {unknown}")
+    # A complete record is required: a deleted field must not silently become 0.
+    missing = sorted(set(EVALUATION_FIELDS) - set(scores))
+    if missing:
+        raise ExportError(f"missing evaluation fields: {missing}")
+    if not isinstance(scores["notes"], str):
+        raise ExportError("notes must be a string")
     for field, allowed in EVALUATION_FIELDS.items():
         if allowed is not None and field in scores and scores[field] not in allowed:
             raise ExportError(f"{field} must be one of {allowed}")
+    # bool is an int subclass (True == 1), so membership alone is not enough.
+    if type(scores["usefulness"]) is not int:
+        raise ExportError("usefulness must be the integer 0, 1, or 2")
+    if type(scores["diagnostics_surfaced"]) is not bool:
+        raise ExportError("diagnostics_surfaced must be true or false")
+    for field in _COUNT_FIELDS:
+        # Unfilled template placeholders are null; never accept them as data.
+        value = scores[field]
+        if (
+            isinstance(value, bool)
+            or not isinstance(value, (int, float))
+            or not math.isfinite(value)
+            or value < 0
+        ):
+            raise ExportError(
+                f"{field} must be a finite non-negative number, got {value!r}"
+            )
     store.load_run(run_id)
     store.write_json(run_id, "evaluation.json", scores)
     store.append_event(run_id, "evaluation_recorded", fields=sorted(scores))
@@ -152,7 +216,10 @@ def export_run(
 
     output = store.read_json(run_id, "output.json")
     parsed = output.get("briefing") if isinstance(output, dict) else None
-    if include_output and parsed is not None:
+    manual = output.get("manual_text") if isinstance(output, dict) else None
+    if manual is not None:
+        _export_manual_text(exported, excluded, manual, evaluation, include_output)
+    elif include_output and parsed is not None:
         if not isinstance(evaluation, dict) or "usefulness" not in evaluation:
             raise ExportError(
                 "briefing text is exported only for scored runs; record an "

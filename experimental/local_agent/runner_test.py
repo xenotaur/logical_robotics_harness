@@ -69,6 +69,61 @@ class RunnerTest(unittest.TestCase):
         self.assertEqual(events[-1]["type"], "outcome")
         self.assertEqual([e["seq"] for e in events], list(range(1, len(events) + 1)))
 
+    def test_b1_runs_record_condition_and_prompt_version(self) -> None:
+        run = self._run(
+            model.FakeModel([_response(json.dumps(VALID_BRIEFING))]),
+            prompt_version="briefing_v1",
+        )
+        self.assertEqual(run["condition"], runner.CONDITION_B1)
+        self.assertEqual(run["prompt_version"], "briefing_v1")
+
+    def test_manual_b0_briefing_recorded_as_manual(self) -> None:
+        run_id = runner.record_manual_briefing(
+            store=self.store,
+            packet_sha256=self.sha,
+            briefing_text="Owner briefing.",
+            author_minutes=7.5,
+            task_id="T01",
+        )
+        run = self.store.load_run(run_id)
+        self.assertEqual(run["condition"], runner.CONDITION_B0)
+        self.assertEqual(run["outcome"], runner.OUTCOME_MANUAL)
+        self.assertEqual(run["author_minutes"], 7.5)
+        self.assertIsNone(run["model"])
+        output = self.store.read_json(run_id, "output.json")
+        self.assertEqual(output["manual_text"], "Owner briefing.")
+
+    def test_manual_b0_rejects_non_finite_minutes(self) -> None:
+        for bad in (float("nan"), float("inf"), -1.0):
+            with self.assertRaisesRegex(ValueError, "finite non-negative"):
+                runner.record_manual_briefing(
+                    store=self.store,
+                    packet_sha256=self.sha,
+                    briefing_text="Owner briefing.",
+                    author_minutes=bad,
+                )
+        self.assertEqual(self.store.list_runs(), [])
+
+    def test_manual_b0_rejects_empty_text_and_tampered_packet(self) -> None:
+        with self.assertRaises(ValueError):
+            runner.record_manual_briefing(
+                store=self.store,
+                packet_sha256=self.sha,
+                briefing_text="  ",
+                author_minutes=1,
+            )
+        (self.store.packet_dir(self.sha) / "packet.md").write_text(
+            "changed\n", encoding="utf-8"
+        )
+        with self.assertRaises(runner.ApprovalError):
+            runner.record_manual_briefing(
+                store=self.store,
+                packet_sha256=self.sha,
+                briefing_text="Owner briefing.",
+                author_minutes=1,
+            )
+        self.assertEqual(self.store.list_runs(), [])
+
     def test_unapproved_packet_creates_no_run(self) -> None:
         with self.assertRaises(runner.ApprovalError):
             runner.run_briefing(

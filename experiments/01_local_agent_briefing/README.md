@@ -199,24 +199,186 @@ misses are the evidence that would justify *evaluating* stage 1
 revising the prompt or model instead. Proceeding to stage 1 always needs a
 separate human decision.
 
-## Commands
+## Runbook
 
-From the repository root, with a worktree-bound environment (see
-`experimental/local_agent/README.md`):
+The runbook turns the protocol above into commands. It changes no
+pre-registered setup, rubric, or decision rule. Run everything from the
+repository root on the pilot branch.
+
+### 0. Setup (once per session)
 
 ```bash
-experimental/local_agent/test
-experimental/local_agent/run packet --repo . --repo-label LRH \
-    --commit 9919582ba0dab29407198d54e381fe433b93ff46 \
-    --work-item WI-DOCS-CLI-OPTION-TABLES --show
-experimental/local_agent/run packet --repo <path-to-LCATS-checkout> --repo-label LCATS \
-    --project-dir lcats --commit 73ea40e7e9b9de750be3f270af5bb4999fd85df2 \
-    --work-item WI-EVENT-0079
-experimental/local_agent/run run --packet <sha256> --approve <sha256> --task-id T11
-experimental/local_agent/run evaluate <run-id> --scores <scores.json>
-experimental/local_agent/run export <run-id> --out experiments/01_local_agent_briefing/results \
-    --include-output
+conda activate <EnvName>        # env bound to this worktree (scripts/conda-worktree-env)
+scripts/version tools            # ruff 0.15.12, black 26.3.1, Python >= 3.11.4
+experimental/local_agent/test    # fake-backend suite must pass
+export LCATS=<path-to-LCATS-checkout>
 ```
+
+In a separate terminal, start the inference service and leave it running:
+
+```bash
+OLLAMA_NO_CLOUD=1 OLLAMA_HOST=127.0.0.1:11434 ollama serve
+```
+
+The adapter's preflight enforces the local-only checks on every run. Runs use
+the private store (`~/.local/share/lrh/local-agent/`) unless `--store` is
+passed.
+
+### 1. Build a task's packet
+
+```bash
+experimental/local_agent/run task T01 --lrh-repo . --lcats-repo "$LCATS" --show
+```
+
+This builds the packet from the task's pinned commit in `tasks.yaml`, prints
+the sources and diagnostics, and prints the packet sha256 (`<sha>` below).
+Skim the manifest for anything that should not be sent to the model. Build
+each task's packet **once** and reuse that sha for B0 and for every B1 run of
+that task, including later prompt versions. Rebuilding changes the sha, because
+the packet records the LRH commit it was built at.
+
+### 2. Smoke check (not counted)
+
+For T01, T06, and T11, build the packet (step 1), then:
+
+```bash
+experimental/local_agent/run run --packet <sha> --approve <sha> --task-id SMOKE-T01
+```
+
+Smoke runs use `SMOKE-` task ids, and the aggregation rule in step 4 excludes
+them from the decision. If they
+show a setup problem, fix it before tuning. Do not score or export smoke runs.
+
+### 3. Run both conditions for a task
+
+Use this order table, which applies the pre-registered B0-first / B1-first /
+B1-first / B0-first pattern in task-id order:
+
+| First | Tasks |
+|---|---|
+| B0 first | T01, T04, T05, T08, T09, T12 |
+| B1 first | T02, T03, T06, T07, T10, T11 |
+
+**B0 (owner-written).** Time only the active work: reading the packet
+(`task ... --show`) and writing the briefing to a file. Then record it:
+
+```bash
+experimental/local_agent/run b0 --packet <sha> --task-id T01 \
+    --briefing-file <b0-T01.md> --minutes <active-minutes>
+```
+
+**B1 (single local call).**
+
+```bash
+experimental/local_agent/run run --packet <sha> --approve <sha> --task-id T01 \
+    [--prompt-version briefing_vN]
+experimental/local_agent/run inspect <run-id>
+```
+
+Review and correct the briefing, timing that work.
+
+For B1-first tasks, B0 is written after seeing the model's briefing. This is a
+known limitation of the pre-registered counterbalancing; the table above records
+the order.
+
+### 4. Score each run
+
+Copy `scores_template.json` and give every field a value, using the rubric
+definitions above. The one exception is `miss_cause`, which stays `null` when
+the run is not a miss. `evaluate` rejects a scores file with any field missing,
+any other `null`, or a negative or non-finite count. For B0 records, set
+`total_human_minutes` to the same value as `b0 --minutes`, and use 0 for
+B1-only fields such as `correction_minutes`. Then record it:
+
+```bash
+experimental/local_agent/run evaluate <run-id> --scores <scores-T01-B1.json>
+```
+
+Score every B1 attempt for `T01`–`T12`, including failed ones; smoke runs are
+not scored (step 2). A failed run scores
+`usefulness: 0` with a note, so it stays in the denominator.
+
+**Aggregation rule for the decision:**
+
+- **Unit of count:** the floor and targets are per task. Each of `T01`–`T12`
+  has exactly one counted B1 run, so "N of 12" always has 12 in the
+  denominator. Every other attempt is still recorded and reported separately:
+  tuning iterations, smoke runs, and retries.
+- **B1 floor and targets:** count only `condition: B1` runs whose `task_id` is
+  one of the pre-registered `T01`–`T12`. `SMOKE-*` runs are excluded.
+- **Several B1 runs for one task:** use the run made with the frozen prompt
+  version. If several runs used the frozen version (for example a retry after a
+  failure or timeout), the **first** one counts. Later retries are reported
+  alongside it but never replace it, so a failed attempt stays in the
+  denominator.
+- **Effort comparisons:** use `condition: B0` records for the same `T##` ids.
+  B0 records have outcome `manual` and are never model completions.
+
+### 5. Tuning loop (tuning tasks only)
+
+- Run steps 1–4 for the 8 tuning tasks with `briefing_v1`.
+- To iterate, add `experimental/local_agent/prompts/briefing_v2.md` (then `v3`),
+  never editing an earlier version. Each run records `prompt_version` and
+  `prompt_template_sha256`, which identify the exact template. Commit each new
+  version on the pilot branch before running it, so that hash is traceable in
+  Git. Keep reusing the task's original packet sha (step 1).
+- Allow at most 3 versions (`v1`–`v3`). Re-run tuning tasks with
+  `--prompt-version briefing_vN` as needed. Every attempt stays recorded.
+
+### 6. Freeze, then held-out
+
+Record the frozen version here and commit it **before** any held-out run:
+
+**Frozen prompt:** _pending_
+
+Then, before any held-out run, give every tuning task (T01–T08) that does not
+yet have a frozen-version B1 run one such run, and score it. This ensures all 12
+tasks have a counted run.
+
+Then run steps 1–4 once for T09–T12 with `--prompt-version <frozen>`. Retry a
+held-out task only after a backend failure (`missing_prerequisite`,
+`backend_error`, or `timeout`). The first frozen-version run still counts, and
+the retry is reported alongside it. Do not change the prompt after seeing
+held-out output.
+
+### 7. Export sanitized results
+
+Export every scored run. Files are written as `results/<T##>/<run-id>.json`,
+with the condition recorded inside each file. `export` does not know a run's
+split or prompt status, so choose the command by kind of run:
+
+**Frozen-prompt B1 runs** (any task, run with the frozen version) **and all B0
+records.** Include the text, after a clean sensitivity scan; unscored runs are
+refused:
+
+```bash
+experimental/local_agent/run export <run-id> \
+    --out experiments/01_local_agent_briefing/results/<T##> --include-output
+```
+
+**Tuning-iteration B1 runs** (any non-frozen prompt version). Metrics only;
+the text stays private, per the storage rules:
+
+```bash
+experimental/local_agent/run export <run-id> \
+    --out experiments/01_local_agent_briefing/results/<T##>
+```
+
+### 8. Abort
+
+Stop on 3 consecutive backend errors or timeouts, memory pressure that makes the
+Mac unusable, or any sign of non-local routing. Leave the runs as recorded,
+export them without `--include-output`, and write the abort into Results.
+`recover <run-id>` marks an interrupted run as `incomplete`.
+
+### 9. Report
+
+Fill in **Results** with the per-task scores and the floor/target table, then
+record the **Decision**. Also list any critical fabricated status found in a
+*non-counted* run (tuning iteration, retry, or smoke run) alongside the table.
+The per-task counting rule keeps such runs out of the floor, so they must be
+visible to the owner's decision instead. Commit the results, exports, and any prompt versions
+together in the results PR.
 
 ## Results
 

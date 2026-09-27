@@ -10,6 +10,7 @@ from local_agent import (
     recorder,
     runner,
     settings,
+    tasks,
     testing_support,
 )
 
@@ -89,14 +90,18 @@ class ExportTest(unittest.TestCase):
         export.record_evaluation(
             self.store,
             run_id,
-            {"usefulness": 1, "notes": "token=ghp_abcdef0123456789abcdef0123"},
+            testing_support.full_scores(
+                usefulness=1, notes="token=ghp_abcdef0123456789abcdef0123"
+            ),
         )
         with self.assertRaisesRegex(export.ExportError, "evaluation withheld"):
             self._export(run_id)
 
     def test_include_output_when_scan_is_clean(self) -> None:
         run_id = self._run(BRIEFING)
-        export.record_evaluation(self.store, run_id, {"usefulness": 2})
+        export.record_evaluation(
+            self.store, run_id, testing_support.full_scores(usefulness=2)
+        )
         exported = self._export(run_id, include_output=True)
         self.assertEqual(exported["briefing"]["summary"], "A small feature.")
         self.assertIn("not project state", exported["briefing_label"])
@@ -104,7 +109,9 @@ class ExportTest(unittest.TestCase):
     def test_include_output_withheld_when_scan_flags_content(self) -> None:
         leaky = dict(BRIEFING, summary="api_key = sk-live-abcdef0123456789abcdef")
         run_id = self._run(leaky)
-        export.record_evaluation(self.store, run_id, {"usefulness": 0})
+        export.record_evaluation(
+            self.store, run_id, testing_support.full_scores(usefulness=0)
+        )
         with self.assertRaisesRegex(export.ExportError, "withheld"):
             self._export(run_id, include_output=True)
 
@@ -116,6 +123,60 @@ class ExportTest(unittest.TestCase):
         manifest_file.write_text(json.dumps(altered), encoding="utf-8")
         with self.assertRaisesRegex(export.ExportError, "no longer matches"):
             self._export(run_id)
+
+    def test_b0_text_follows_scored_and_scanned_rule(self) -> None:
+        run_id = runner.record_manual_briefing(
+            store=self.store,
+            packet_sha256=self.sha,
+            briefing_text="Owner wrote this baseline.",
+            author_minutes=4,
+            task_id="T01",
+        )
+        default = self._export(run_id)
+        self.assertNotIn("Owner wrote this baseline.", json.dumps(default))
+        self.assertIn("B0 briefing text", " ".join(default["excluded"]))
+        with self.assertRaisesRegex(export.ExportError, "scored runs"):
+            self._export(run_id, include_output=True)
+        with self.assertRaisesRegex(export.ExportError, "missing evaluation"):
+            export.record_evaluation(self.store, run_id, {"total_human_minutes": 4})
+        with self.assertRaisesRegex(export.ExportError, "scored runs"):
+            self._export(run_id, include_output=True)
+        export.record_evaluation(
+            self.store,
+            run_id,
+            testing_support.full_scores(usefulness=2, total_human_minutes=4),
+        )
+        exported = self._export(run_id, include_output=True)
+        self.assertEqual(exported["manual_briefing"], "Owner wrote this baseline.")
+        self.assertEqual(exported["run"]["condition"], "B0")
+
+    def test_unfilled_template_is_rejected(self) -> None:
+        run_id = self._run(BRIEFING)
+        template_path = tasks.DEFAULT_TASKS_FILE.parent / "scores_template.json"
+        template = json.loads(template_path.read_text(encoding="utf-8"))
+        self.assertEqual(set(template), set(export.EVALUATION_FIELDS))
+        with self.assertRaises(export.ExportError):
+            export.record_evaluation(self.store, run_id, template)
+        filled = dict(template, usefulness=1, diagnostics_surfaced=True)
+        with self.assertRaisesRegex(export.ExportError, "non-negative number"):
+            export.record_evaluation(self.store, run_id, filled)
+        for field in export._COUNT_FIELDS:
+            filled[field] = 0
+        export.record_evaluation(self.store, run_id, filled)
+        with self.assertRaisesRegex(export.ExportError, "non-negative"):
+            export.record_evaluation(
+                self.store, run_id, dict(filled, review_minutes=-1)
+            )
+
+    def test_non_finite_counts_rejected(self) -> None:
+        run_id = self._run(BRIEFING)
+        for bad in (float("nan"), float("inf")):
+            with self.assertRaisesRegex(export.ExportError, "finite"):
+                export.record_evaluation(
+                    self.store,
+                    run_id,
+                    testing_support.full_scores(review_minutes=bad),
+                )
 
     def test_home_paths_rewritten(self) -> None:
         run_id = self._run(BRIEFING)
@@ -137,14 +198,37 @@ class ExportTest(unittest.TestCase):
 
     def test_evaluation_validation(self) -> None:
         run_id = self._run(BRIEFING)
-        export.record_evaluation(
-            self.store, run_id, {"usefulness": 2, "miss_cause": None}
-        )
+        export.record_evaluation(self.store, run_id, testing_support.full_scores())
         self.assertEqual(self._export(run_id)["evaluation"]["usefulness"], 2)
         with self.assertRaises(export.ExportError):
-            export.record_evaluation(self.store, run_id, {"usefulness": 5})
+            export.record_evaluation(
+                self.store, run_id, testing_support.full_scores(usefulness=5)
+            )
         with self.assertRaises(export.ExportError):
-            export.record_evaluation(self.store, run_id, {"vibes": "good"})
+            export.record_evaluation(
+                self.store, run_id, testing_support.full_scores(vibes="good")
+            )
+        with self.assertRaises(export.ExportError):
+            export.record_evaluation(
+                self.store, run_id, testing_support.full_scores(notes=None)
+            )
+        for wrong_type in (
+            {"usefulness": True},
+            {"usefulness": 1.0},
+            {"diagnostics_surfaced": 1},
+            {"diagnostics_surfaced": 0},
+        ):
+            with self.subTest(wrong_type):
+                with self.assertRaises(export.ExportError):
+                    export.record_evaluation(
+                        self.store, run_id, testing_support.full_scores(**wrong_type)
+                    )
+        for field in export.EVALUATION_FIELDS:
+            incomplete = testing_support.full_scores()
+            del incomplete[field]
+            with self.subTest(field):
+                with self.assertRaisesRegex(export.ExportError, "missing"):
+                    export.record_evaluation(self.store, run_id, incomplete)
 
     def test_inspect_lists_sources_and_events(self) -> None:
         run_id = self._run(BRIEFING)

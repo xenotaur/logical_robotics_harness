@@ -47,6 +47,11 @@ class InvalidBriefingError(ValueError):
     """Raised when model output is not a schema-valid briefing."""
 
 
+def available_prompt_versions() -> list[str]:
+    """Prompt versions available under ``prompts/`` (e.g. ``briefing_v1``)."""
+    return sorted(path.stem for path in _PROMPT_DIR.glob("briefing_v*.md"))
+
+
 def load_prompt_template(version: str = settings.PROMPT_VERSION) -> str:
     return (_PROMPT_DIR / f"{version}.md").read_text(encoding="utf-8")
 

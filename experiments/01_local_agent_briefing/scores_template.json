@@ -1,0 +1,13 @@
+{
+  "usefulness": null,
+  "correction_minutes": null,
+  "review_minutes": null,
+  "total_human_minutes": null,
+  "cited_claims_checked": null,
+  "cited_claims_supported": null,
+  "unsupported_assertions": null,
+  "critical_fabricated_status": null,
+  "diagnostics_surfaced": null,
+  "miss_cause": null,
+  "notes": ""
+}

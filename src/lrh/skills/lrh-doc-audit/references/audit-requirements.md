@@ -99,9 +99,11 @@ Check for missing cross-references:
 
 ## Artifact Schema (v1)
 
-The audit artifact must conform to the v1 convention defined in
-`docs/reference/docs-audit-artifact-convention.md`. That file is the
-authoritative reference; this section summarizes the required elements.
+The audit artifact must conform to the v1 convention summarized in this
+bundled reference. When running inside the LRH checkout,
+`docs/reference/docs-audit-artifact-convention.md` is an optional maintainer
+reference with additional explanation; it is not required in an independent
+client repository. Use this bundled file when the optional document is absent.
 
 ### Required frontmatter
 

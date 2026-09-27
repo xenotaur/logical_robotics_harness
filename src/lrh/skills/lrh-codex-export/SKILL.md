@@ -49,13 +49,24 @@ Codex task/thread pointer, not an export attempt id, archive directory,
 
 ## Reference Knowledge
 
-Use the repository CLI documentation as the command contract:
+Use the installed LRH CLI as the operational command contract. In an
+independent client repository, verify the available command surface with:
 
-- `docs/reference/cli/conversation.md` for
-  `lrh conversation current-codex-thread-id`,
-  `lrh conversation archive-codex-thread`,
-  `lrh conversation export-codex-thread`, and
-  `lrh conversation inspect-export`.
+```bash
+lrh conversation --help
+lrh conversation current-codex-thread-id --help
+lrh conversation archive-codex-thread --help
+lrh conversation export-codex-thread --help
+lrh conversation inspect-export --help
+```
+
+The LRH checkout's `docs/reference/cli/conversation.md` is an optional
+maintainer reference, not a client-repository prerequisite. If that path is
+available, it can explain the intended contract; if it is absent, continue
+with the installed CLI help and explicit capability checks. Do not treat a
+missing LRH-owned documentation file as an export failure. If the installed
+CLI lacks a command required below, stop with a clear capability/version
+diagnostic before attempting an archive.
 
 The relevant CLI guarantees are:
 

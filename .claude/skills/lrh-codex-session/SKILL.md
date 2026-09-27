@@ -39,10 +39,18 @@ or timestamp.
 
 ## Reference Knowledge
 
-Use the repository CLI documentation as the command contract:
+Use the installed LRH CLI as the operational command contract:
 
-- `docs/reference/cli/conversation.md` for
-  `lrh conversation current-codex-thread-id`.
+```bash
+lrh conversation --help
+lrh conversation current-codex-thread-id --help
+```
+
+The LRH checkout's `docs/reference/cli/conversation.md` is an optional
+maintainer reference, not a client-repository prerequisite. If it is absent,
+continue with CLI help and the explicit capability check above. A missing
+documentation file is not evidence that thread-id resolution is unavailable;
+only a missing or incompatible CLI command is a runtime blocker.
 
 The relevant CLI guarantees are:
 

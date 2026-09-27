@@ -32,6 +32,14 @@ re-implementing their CLI-over-config-over-default precedence logic;
 this skill presents that state and elicits confirmed changes to the 3
 editable fields.
 
+The installed CLI and its structured `--format json` output are the
+operational authority in every repository. LRH's schema documentation under
+`docs/reference/` is an optional maintainer reference and may be absent from
+an independent client repository. Do not block a status read or configuration
+change because that client-relative path is missing; use
+`lrh agent-skills status --help` and the command's actual output to check the
+installed capability and version instead.
+
 This is architecture Option C from `WI-SKILLS-LRH-CONFIG-GATES`
 (`chain_defaults_status.py` / `lrh chain-defaults status` /
 `/lrh-config-gates`), applied here to a different, already-built config
@@ -95,8 +103,8 @@ Ask the user whether they want to change any of the 3 editable fields
 (`sources`, `targets`, `scope`). If not, stop -- there is nothing else
 this skill does.
 
-If yes, collect the desired new value(s). Valid values (per
-`docs/reference/schemas/agent-skills-config.md`):
+If yes, collect the desired new value(s). Valid values (also documented in
+the optional LRH schema reference) are:
 
 - `sources`: exactly one of `lrh-package`, `current-repo`, or a
   filesystem path
@@ -120,8 +128,10 @@ never a bare relative path** -- `<project-root>` may differ from the
 current directory. If the file does not yet exist, create it fresh with
 `schema_version: 1` plus only the confirmed fields -- do not invent
 values for fields the user didn't confirm; an omitted field falls back
-to its conventional default, which is the correct behavior per
-`docs/reference/schemas/agent-skills-config.md`'s own precedence rules.
+to its conventional default, which is the behavior reported by the
+installed CLI's resolved status output. Consult the optional LRH schema
+reference when working in the LRH checkout, but do not require it in a
+client repository.
 If it already exists, edit only the confirmed keys, leaving everything
 else (including any `install.overwrite` value already present)
 untouched. Then:

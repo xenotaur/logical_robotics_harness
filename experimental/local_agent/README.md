@@ -49,8 +49,16 @@ OLLAMA_NO_CLOUD=1 OLLAMA_HOST=127.0.0.1:11434 ollama serve
 experimental/local_agent/run packet --repo . --repo-label LRH \
     --commit <sha> --work-item <WI-ID> [--project-dir <subdir>] [--show]
 
+#    Or build a pre-registered pilot task's packet straight from tasks.yaml.
+experimental/local_agent/run task T01 --lrh-repo . --lcats-repo <path> [--show]
+
 # 2. Approve that exact packet by repeating its sha256, and brief it once.
-experimental/local_agent/run run --packet <sha256> --approve <sha256> [--task-id T01]
+experimental/local_agent/run run --packet <sha256> --approve <sha256> [--task-id T01] \
+    [--prompt-version briefing_v1]
+
+#    Record an owner-written B0 baseline for the same packet.
+experimental/local_agent/run b0 --packet <sha256> --task-id T01 \
+    --briefing-file b0.md --minutes 12
 
 # 3. Inspect, score, recover, and export.
 experimental/local_agent/run inspect <run-id>
@@ -78,6 +86,11 @@ Every attempt ends with exactly one outcome:
 - `backend_error`
 - `timeout`
 - `cancelled`
+
+B0 records use outcome `manual` and `condition: B0`, and model runs record
+`condition: B1`. `evaluate`, `inspect`, and `export` treat both the same. The
+step-by-step pilot procedure is the Runbook in
+`experiments/01_local_agent_briefing/README.md`.
 
 `recover` marks an interrupted run `incomplete` and keeps any truncated final
 event as evidence.
@@ -118,4 +131,5 @@ scripts/lint experimental/local_agent
 | `runner.py` | One-call runner with explicit outcomes |
 | `recorder.py` | Private single-writer store: manifests, JSONL events, recovery |
 | `export.py` | Inspection, human evaluation records, sanitized export |
+| `tasks.py` | Pre-registered task lookup from `tasks.yaml` |
 | `cli.py` | Command line (`python -m local_agent`) |

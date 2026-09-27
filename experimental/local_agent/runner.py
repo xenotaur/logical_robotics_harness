@@ -17,6 +17,11 @@ OUTCOME_INVALID_OUTPUT = "invalid_model_output"
 OUTCOME_BACKEND_ERROR = "backend_error"
 OUTCOME_TIMEOUT = "timeout"
 OUTCOME_CANCELLED = "cancelled"
+# B0 baseline records: human-written, never counted as model completions.
+OUTCOME_MANUAL = "manual"
+
+CONDITION_B0 = "B0"
+CONDITION_B1 = "B1"
 
 OUTCOMES = (
     OUTCOME_COMPLETED,
@@ -61,12 +66,7 @@ def run_briefing(
             "approval hash does not match the packet; inspect the packet and "
             "approve its exact sha256"
         )
-    manifest, packet_text = store.load_packet(packet_sha256)
-    if context.packet_sha256(manifest, packet_text) != packet_sha256:
-        raise ApprovalError(
-            "stored packet content no longer matches its sha256; rebuild and "
-            "re-approve it"
-        )
+    manifest, packet_text = _verified_packet(store, packet_sha256)
     prompt = briefing.render_prompt(packet_text, prompt_version)
     run_id = store.start_run(
         {
@@ -77,6 +77,7 @@ def run_briefing(
             "prompt_template_sha256": briefing.prompt_template_sha256(prompt_version),
             "packet_sha256": packet_sha256,
             "task_id": task_id,
+            "condition": CONDITION_B1,
             "work_item_id": manifest.get("work_item_id"),
             "source_commit": manifest.get("source_commit"),
             "lrh_commit": manifest.get("lrh_commit"),
@@ -169,3 +170,60 @@ def run_briefing(
         # Record unexpected failures instead of losing the attempt, then surface.
         finish(OUTCOME_BACKEND_ERROR, f"unexpected {type(error).__name__}: {error}")
         raise
+
+
+def _verified_packet(
+    store: recorder.Store, packet_sha256: str
+) -> tuple[dict[str, object], str]:
+    manifest, packet_text = store.load_packet(packet_sha256)
+    if context.packet_sha256(manifest, packet_text) != packet_sha256:
+        raise ApprovalError(
+            "stored packet content no longer matches its sha256; rebuild it"
+        )
+    return manifest, packet_text
+
+
+def record_manual_briefing(
+    *,
+    store: recorder.Store,
+    packet_sha256: str,
+    briefing_text: str,
+    author_minutes: float,
+    task_id: str | None = None,
+) -> str:
+    """Record an owner-written B0 baseline briefing for a stored packet.
+
+    The B0 author reads the same packet the model sees. The record reuses the
+    run store so ``evaluate``, ``inspect``, and ``export`` treat both conditions
+    alike. Its outcome is ``manual``, so it never counts as a model completion.
+    """
+    if not briefing_text.strip():
+        raise ValueError("B0 briefing text is empty")
+    if author_minutes < 0:
+        raise ValueError("author minutes must be non-negative")
+    manifest, _ = _verified_packet(store, packet_sha256)
+    run_id = store.start_run(
+        {
+            "record_schema_version": settings.RECORD_SCHEMA_VERSION,
+            "prototype_version": settings.PROTOTYPE_VERSION,
+            "policy_version": settings.POLICY_VERSION,
+            "packet_sha256": packet_sha256,
+            "task_id": task_id,
+            "condition": CONDITION_B0,
+            "work_item_id": manifest.get("work_item_id"),
+            "source_commit": manifest.get("source_commit"),
+            "lrh_commit": manifest.get("lrh_commit"),
+            "model": None,
+            "author_minutes": author_minutes,
+            "outcome": None,
+        }
+    )
+    store.write_json(run_id, "output.json", {"manual_text": briefing_text})
+    store.append_event(run_id, "manual_briefing_recorded")
+    store.append_event(
+        run_id, "outcome", outcome=OUTCOME_MANUAL, detail="owner-written B0 baseline"
+    )
+    store.update_run(
+        run_id, outcome=OUTCOME_MANUAL, outcome_detail="owner-written B0 baseline"
+    )
+    return run_id

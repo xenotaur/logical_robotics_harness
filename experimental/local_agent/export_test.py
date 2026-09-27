@@ -10,6 +10,7 @@ from local_agent import (
     recorder,
     runner,
     settings,
+    tasks,
     testing_support,
 )
 
@@ -116,6 +117,47 @@ class ExportTest(unittest.TestCase):
         manifest_file.write_text(json.dumps(altered), encoding="utf-8")
         with self.assertRaisesRegex(export.ExportError, "no longer matches"):
             self._export(run_id)
+
+    def test_b0_text_follows_scored_and_scanned_rule(self) -> None:
+        run_id = runner.record_manual_briefing(
+            store=self.store,
+            packet_sha256=self.sha,
+            briefing_text="Owner wrote this baseline.",
+            author_minutes=4,
+            task_id="T01",
+        )
+        default = self._export(run_id)
+        self.assertNotIn("Owner wrote this baseline.", json.dumps(default))
+        self.assertIn("B0 briefing text", " ".join(default["excluded"]))
+        with self.assertRaisesRegex(export.ExportError, "scored runs"):
+            self._export(run_id, include_output=True)
+        export.record_evaluation(self.store, run_id, {"total_human_minutes": 4})
+        with self.assertRaisesRegex(export.ExportError, "scored runs"):
+            self._export(run_id, include_output=True)
+        export.record_evaluation(
+            self.store, run_id, {"usefulness": 2, "total_human_minutes": 4}
+        )
+        exported = self._export(run_id, include_output=True)
+        self.assertEqual(exported["manual_briefing"], "Owner wrote this baseline.")
+        self.assertEqual(exported["run"]["condition"], "B0")
+
+    def test_unfilled_template_is_rejected(self) -> None:
+        run_id = self._run(BRIEFING)
+        template_path = tasks.DEFAULT_TASKS_FILE.parent / "scores_template.json"
+        template = json.loads(template_path.read_text(encoding="utf-8"))
+        self.assertEqual(set(template), set(export.EVALUATION_FIELDS))
+        with self.assertRaises(export.ExportError):
+            export.record_evaluation(self.store, run_id, template)
+        filled = dict(template, usefulness=1, diagnostics_surfaced=True)
+        with self.assertRaisesRegex(export.ExportError, "non-negative number"):
+            export.record_evaluation(self.store, run_id, filled)
+        for field in export._COUNT_FIELDS:
+            filled[field] = 0
+        export.record_evaluation(self.store, run_id, filled)
+        with self.assertRaisesRegex(export.ExportError, "non-negative"):
+            export.record_evaluation(
+                self.store, run_id, dict(filled, review_minutes=-1)
+            )
 
     def test_home_paths_rewritten(self) -> None:
         run_id = self._run(BRIEFING)

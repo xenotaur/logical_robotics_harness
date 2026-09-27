@@ -3,7 +3,9 @@
 Typical flow::
 
     packet   -> build and store a pinned context packet; prints its sha256
+    task     -> the same, for a pre-registered task id from tasks.yaml
     run      -> brief it once, only if --approve matches that sha256
+    b0       -> record an owner-written baseline briefing for a packet
     inspect  -> readable run summary (no raw content)
     evaluate -> record human rubric scores from a JSON file
     export   -> sanitized JSON export (briefing text only on request)
@@ -17,7 +19,17 @@ import pathlib
 import subprocess
 import sys
 
-from local_agent import context, export, model, recorder, runner, settings, sources
+from local_agent import (
+    briefing,
+    context,
+    export,
+    model,
+    recorder,
+    runner,
+    settings,
+    sources,
+    tasks,
+)
 from lrh.work_items import readiness
 
 
@@ -86,12 +98,43 @@ def build_parser() -> argparse.ArgumentParser:
         "--show", action="store_true", help="print the full packet text"
     )
 
+    task = sub.add_parser(
+        "task", help="build the packet for a pre-registered task (e.g. T01)"
+    )
+    task.add_argument("task_id")
+    task.add_argument(
+        "--lrh-repo", type=pathlib.Path, default=None, help="LRH checkout path"
+    )
+    task.add_argument(
+        "--lcats-repo", type=pathlib.Path, default=None, help="LCATS checkout path"
+    )
+    task.add_argument(
+        "--tasks-file", type=pathlib.Path, default=tasks.DEFAULT_TASKS_FILE
+    )
+    task.add_argument("--show", action="store_true", help="print the full packet")
+
+    b0 = sub.add_parser("b0", help="record an owner-written B0 baseline briefing")
+    b0.add_argument("--packet", required=True, help="packet sha256 the owner read")
+    b0.add_argument("--task-id", default=None)
+    b0.add_argument("--briefing-file", type=pathlib.Path, required=True)
+    b0.add_argument(
+        "--minutes",
+        type=float,
+        required=True,
+        help="active minutes spent reading the packet and writing the briefing",
+    )
+
     run = sub.add_parser("run", help="brief an approved packet with one model call")
     run.add_argument("--packet", required=True, help="packet sha256")
     run.add_argument(
         "--approve", required=True, help="repeat the packet sha256 to approve it"
     )
     run.add_argument("--task-id", default=None)
+    run.add_argument(
+        "--prompt-version",
+        default=settings.PROMPT_VERSION,
+        help="prompt template in prompts/ (e.g. briefing_v2)",
+    )
     run.add_argument("--backend", choices=("ollama", "fake"), default="ollama")
     run.add_argument("--base-url", default=settings.DEFAULT_OLLAMA_BASE_URL)
     run.add_argument("--model", default=settings.DEFAULT_MODEL)
@@ -154,6 +197,29 @@ def main(argv: list[str] | None = None) -> int:
 def _dispatch(args: argparse.Namespace) -> int:
     store = recorder.Store(args.store or recorder.default_store_root())
 
+    if args.command == "task":
+        try:
+            resolved = tasks.resolve_task(args.task_id, args.tasks_file)
+        except tasks.TaskError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+        repos = {"LRH": args.lrh_repo, "LCATS": args.lcats_repo}
+        repo = repos.get(resolved.repo_label)
+        if repo is None:
+            flag = f"--{resolved.repo_label.lower()}-repo"
+            print(f"error: task {resolved.task_id} needs {flag}", file=sys.stderr)
+            return 2
+        print(
+            f"task {resolved.task_id} ({resolved.split}, {resolved.task_type}): "
+            f"{resolved.work_item} @ {resolved.repo_label} {resolved.commit}"
+        )
+        args.repo = repo
+        args.repo_label = resolved.repo_label
+        args.commit = resolved.commit
+        args.project_dir = resolved.project_dir
+        args.work_item = resolved.work_item
+        args.command = "packet"
+
     if args.command == "packet":
         try:
             built = context.build_packet(
@@ -192,7 +258,29 @@ def _dispatch(args: argparse.Namespace) -> int:
         print(f"\nReview the packet, then approve with: --approve {sha}")
         return 0
 
+    if args.command == "b0":
+        try:
+            run_id = runner.record_manual_briefing(
+                store=store,
+                packet_sha256=args.packet,
+                briefing_text=args.briefing_file.read_text(encoding="utf-8"),
+                author_minutes=args.minutes,
+                task_id=args.task_id,
+            )
+        except (runner.ApprovalError, ValueError, OSError) as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
+        print(export.inspect_run(store, run_id), end="")
+        return 0
+
     if args.command == "run":
+        if args.prompt_version not in briefing.available_prompt_versions():
+            print(
+                f"error: unknown prompt version {args.prompt_version!r}; available: "
+                f"{', '.join(briefing.available_prompt_versions())}",
+                file=sys.stderr,
+            )
+            return 2
         try:
             adapter = _adapter(args)
             run_id = runner.run_briefing(
@@ -202,6 +290,7 @@ def _dispatch(args: argparse.Namespace) -> int:
                 adapter=adapter,
                 budgets=_budgets(args),
                 task_id=args.task_id,
+                prompt_version=args.prompt_version,
             )
         except (runner.ApprovalError, model.BackendError) as error:
             print(f"error: {error}", file=sys.stderr)

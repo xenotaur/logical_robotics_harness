@@ -20,6 +20,7 @@ related_design: []
 depends_on: []
 blocked_by: []
 expected_actions:
+  - create_file
   - edit_file
   - write_docs
 forbidden_actions:
@@ -31,7 +32,7 @@ acceptance:
   - A canonical shared procedure states that local-only commands run normally and GitHub, remote-Git, PR, review, and GitHub-backed LRH commands may require approved network execution.
   - The procedure requires one bounded retry through the approved path, then a clear blocker report when approval is unavailable or the retry fails.
   - The procedure requires the correct absolute project root and does not recommend credential refresh for DNS or connection failures.
-  - All in-scope GitHub-consuming canonical skills incorporate the procedure, and Claude/Codex rendered targets are regenerated and checked for drift.
+  - All in-scope GitHub-consuming canonical skills incorporate the procedure, and Claude/Codex rendered targets are regenerated and checked with target-aware drift checks.
   - "`lrh validate` reports 0 errors."
 required_evidence:
   - manual_review
@@ -45,6 +46,51 @@ artifacts_expected:
   - src/lrh/skills/lrh-review-response/SKILL.md
   - src/lrh/skills/lrh-confirm-fixes/SKILL.md
   - src/lrh/skills/lrh-pr-triage/SKILL.md
+  - src/lrh/skills/lrh-create-skill/SKILL.md
+  - src/lrh/skills/lrh-doc-organize/SKILL.md
+  - src/lrh/skills/lrh-doc-work/SKILL.md
+  - src/lrh/skills/lrh-execute/SKILL.md
+  - src/lrh/skills/lrh-proposal/SKILL.md
+  - src/lrh/skills/lrh-readiness/SKILL.md
+  - src/lrh/skills/lrh-self-review/SKILL.md
+  - src/lrh/skills/lrh-session-id-claude/SKILL.md
+  - src/lrh/skills/lrh-work-item/SKILL.md
+  - src/lrh/skills/lrh-work-remains/SKILL.md
+  - src/lrh/skills/lrh-workstream/SKILL.md
+  - .claude/skills/lrh-closeout/
+  - .claude/skills/lrh-confirm-fixes/
+  - .claude/skills/lrh-create-skill/
+  - .claude/skills/lrh-doc-organize/
+  - .claude/skills/lrh-doc-work/
+  - .claude/skills/lrh-execute/
+  - .claude/skills/lrh-implement/
+  - .claude/skills/lrh-land/
+  - .claude/skills/lrh-pr-triage/
+  - .claude/skills/lrh-proposal/
+  - .claude/skills/lrh-readiness/
+  - .claude/skills/lrh-review-response/
+  - .claude/skills/lrh-self-review/
+  - .claude/skills/lrh-session-id-claude/
+  - .claude/skills/lrh-work-item/
+  - .claude/skills/lrh-work-remains/
+  - .claude/skills/lrh-workstream/
+  - .agents/skills/lrh-closeout/
+  - .agents/skills/lrh-confirm-fixes/
+  - .agents/skills/lrh-create-skill/
+  - .agents/skills/lrh-doc-organize/
+  - .agents/skills/lrh-doc-work/
+  - .agents/skills/lrh-execute/
+  - .agents/skills/lrh-implement/
+  - .agents/skills/lrh-land/
+  - .agents/skills/lrh-pr-triage/
+  - .agents/skills/lrh-proposal/
+  - .agents/skills/lrh-readiness/
+  - .agents/skills/lrh-review-response/
+  - .agents/skills/lrh-self-review/
+  - .agents/skills/lrh-session-id-claude/
+  - .agents/skills/lrh-work-item/
+  - .agents/skills/lrh-work-remains/
+  - .agents/skills/lrh-workstream/
 ---
 
 # Add bounded network-escalation guidance to GitHub-backed LRH skills
@@ -92,9 +138,37 @@ Codex-friendly guidance at `project/design/backlog.md:1071-1075`.
 1. Create `src/lrh/skills/_shared/github-network-execution.md` with the
    normal/elevated execution distinction, one-retry rule, project-root check,
    credential-safety rule, and blocker-reporting rule.
-2. Add concise references to the procedure in the affected canonical skills.
+2. Add concise references to the procedure in every GitHub-consuming canonical
+   skill listed below.
 3. Regenerate `.claude/skills/` and `.agents/skills/` for every touched skill.
 4. Run `lrh validate` and the target drift checks.
+
+### In-scope GitHub-consuming skills
+
+The scope is defined by the tracked canonical `SKILL.md` files that issue
+GitHub CLI or remote-Git commands, rather than by an arbitrary hand-picked
+subset. The current inventory is:
+
+- `lrh-closeout`
+- `lrh-confirm-fixes`
+- `lrh-create-skill`
+- `lrh-doc-organize`
+- `lrh-doc-work`
+- `lrh-execute`
+- `lrh-implement`
+- `lrh-land`
+- `lrh-pr-triage`
+- `lrh-proposal`
+- `lrh-readiness`
+- `lrh-review-response`
+- `lrh-self-review`
+- `lrh-session-id-claude`
+- `lrh-work-item`
+- `lrh-work-remains`
+- `lrh-workstream`
+
+If the inventory changes before implementation, update this list and the
+expected artifacts from the same tracked-command survey.
 
 ## Non-Goals
 
@@ -118,8 +192,7 @@ Codex-friendly guidance at `project/design/backlog.md:1071-1075`.
 
 - `lrh validate`
 - `lrh skills check --target claude --local --source current-repo`
-- `lrh skills check --target codex --local --source current-repo`
-- `diff -r src/lrh/skills/ .claude/skills/`
+- `lrh skills status --target codex --local --source current-repo`
 
 ## Risk Notes
 

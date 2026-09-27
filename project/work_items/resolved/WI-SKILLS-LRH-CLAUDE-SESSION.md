@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #734 (commit 6d1fed11): added the metadata-only /lrh-session-id-claude skill and routed /lrh-closeout, /lrh-land, and /lrh-implement Claude session-pointer resolution through it, with --title/--branch at both record-session-alias call sites.'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-LRH-CLAUDE-SESSION
 title: "Add a metadata-only /lrh-session-id-claude skill and route Claude session-pointer resolution through it"
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

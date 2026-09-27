@@ -67,10 +67,10 @@ artifacts_expected:
   \ coverage"
 - ".github/workflows/desktop.yml (path-filtered plus weekly scheduled, non-required desktop CI)"
 - "apps/desktop/scripts/run (single desktop helper: setup, versions, fmt, lint, test; --help, --dry-run)"
-- "--desktop modes for scripts/develop, scripts/test, scripts/lint, scripts/format, and scripts/version (default\
-  \ behavior unchanged and Rust-free)"
-- "tests/scripts_tests/desktop_modes_test.py (default runs never invoke cargo; --desktop fails when the toolchain is\
-  \ missing)"
+- "--desktop modes for scripts/develop, scripts/test, scripts/lint, scripts/format, and scripts/version tools (default\
+  \ behavior and output unchanged and Rust-free)"
+- "tests/scripts_tests/desktop_modes_test.py (default runs never invoke cargo; every --desktop mode fails on a missing or\
+  \ mismatched toolchain or tauri-cli pin; dry-run and --install-rust paths covered)"
 - "docs/how-to/project-setup/desktop-toolchain.md (Rust/Tauri setup, test tiers, and CI)"
 - "AGENTS.md architectural-boundary line for the optional apps/ layer"
 - "project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md"
@@ -278,7 +278,8 @@ External facts behind the design, checked 2026-09-26:
      also runs on a weekly cron, like `smoke.yml:8-9`, to catch toolchain
      drift.
      - It calls the same commands developers run locally:
-       `scripts/develop --desktop`, then `scripts/lint --desktop` and
+       `scripts/develop --desktop`, then the strict
+       `scripts/version tools --desktop`, `scripts/lint --desktop`, and
        `scripts/test --desktop`.
      - It has an Ubuntu job, which installs Tauri's documented apt packages,
        and a macOS job, which relies on the preinstalled rustup with the
@@ -296,11 +297,23 @@ External facts behind the design, checked 2026-09-26:
      `versions`, `fmt`, `lint`, and `test`, plus `--help` and `--dry-run`. The
      top-level scripts only parse `--desktop` and call it, which keeps them
      thin (STYLE rule 8).
-     - `scripts/develop --desktop` first runs the normal Python setup, then
-       `run setup`:
+     - Each top-level script parses its own flags (`--desktop`,
+       `--dry-run`, `--install-rust`) before anything else runs, and before
+       any remaining arguments pass through. Today `scripts/test` hands its
+       first unrecognized argument to unittest as a test target
+       (`scripts/test:20-32`), so the new flags must be consumed first.
+     - `scripts/develop --desktop --dry-run` is preview-only. It is handled
+       before the Python setup: it prints the Python install command and the
+       desktop setup commands (via `run setup --dry-run`), then exits 0
+       without running `pip` or any Rust command.
+     - Otherwise, `scripts/develop --desktop` first runs the normal Python
+       setup, then `run setup`:
        - If `rustup` is missing, print the official rustup install command
-         and exit non-zero. Never run a remote installer unless the separate,
-         explicit `--install-rust` flag is given.
+         and exit non-zero. This is the default refusal.
+       - `scripts/develop --desktop --install-rust`, which passes through to
+         `run setup --install-rust`, is the only path that runs the official
+         rustup installer. It must be given explicitly each time, and has no
+         effect without `--desktop`.
        - Run `rustup show active-toolchain || rustup toolchain install` in
          `apps/desktop/`, following the rustup 1.28 change.
        - Install the pinned Tauri CLI with
@@ -313,19 +326,33 @@ External facts behind the design, checked 2026-09-26:
        explicit line, e.g.
        `desktop: SKIPPED (no Rust toolchain; run scripts/develop --desktop)`,
        so the skip is visible.
-     - `scripts/test --desktop` and `--all`, and `scripts/lint --desktop` or
-       `scripts/format --desktop`, also run the desktop tier. They **fail**,
-       never skip, when the toolchain or a pin is missing or mismatched.
+     - `scripts/test --desktop` runs the Python suite plus the desktop tier.
+       There is no separate `--all` mode. `scripts/lint --desktop` and
+       `scripts/format --desktop` likewise run the Python checks plus the
+       Rust ones. All `--desktop` modes **fail**, never skip, when the
+       toolchain, the pinned toolchain version, or the pinned `tauri-cli`
+       version is missing or mismatched.
      - `scripts/format --check --desktop` is non-mutating in the source sense:
        it never edits tracked files, although compiling may write gitignored
        build artifacts under `target/`.
-     - `scripts/version tools` also reports `rustup`, `rustc`, `cargo`, and
-       `tauri-cli` versions and flags mismatches against the pins. It reports
-       "not installed" without failing, as it already does for pyright.
+     - Plain `scripts/version tools` stays exactly as today, with no Rust
+       probes and unchanged output. `scripts/version tools --desktop` is the
+       strict form: it additionally reports `rustup`, `rustc`, `cargo`, and
+       `tauri-cli` versions against the pins, and exits non-zero if any is
+       missing or mismatched. Desktop CI uses the strict form.
      - Add `tests/scripts_tests/desktop_modes_test.py` using stubbed commands,
-       with no real Rust in the unit suite. It proves that default runs never
-       invoke cargo and print the SKIPPED line, and that `--desktop` exits
-       non-zero when `rustup`/`cargo` are absent.
+       with no real Rust in the unit suite. It must prove that:
+       - default `scripts/test`, `lint`, `format`, and `version tools` never
+         invoke cargo or rustup, and `scripts/test` prints the SKIPPED line;
+       - every `--desktop` mode (`develop`, `test`, `lint`, `format`,
+         `version tools`) exits non-zero on each failure case: `rustup`
+         absent, `cargo` absent, pinned toolchain not installed, toolchain
+         version mismatched, and `tauri-cli` missing or mismatched;
+       - `scripts/develop --desktop --dry-run` runs neither `pip` nor any
+         Rust command;
+       - without `--install-rust`, a missing rustup is refused with a
+         non-zero exit and the printed install command, and with it the
+         (stubbed) official installer is invoked.
    - Organize desktop tests in tiers, all reached through the scripts above:
      - Tier 0, Python only, in default `scripts/test`: the protocol contract
        through the reference supervisor, the sdist/wheel guards, and Python
@@ -397,7 +424,8 @@ locations, update `artifacts_expected` and this section together before closeout
 - Run the exact app build, supervisor, and capability-test commands added to `docs/how-to/lrh-console-local-dogfood.md` on the target Mac.
 - Complete that document's manual Dock/menu/keyboard/browser/failure checklist and record five real sessions with date, app/backend version, actions, result, and remaining friction.
 - `scripts/test` on a machine or PATH without Rust: passes and prints the desktop SKIPPED line. `scripts/test tests/scripts_tests/desktop_modes_test.py` covers default and failing `--desktop` behavior with stubs.
-- `apps/desktop/scripts/run --help` and `scripts/develop --desktop --dry-run` (preview only), then `scripts/develop --desktop`, `scripts/version tools`, `scripts/format --check --desktop`, `scripts/lint --desktop`, and `scripts/test --desktop` on the target Mac.
+- `scripts/test tests/scripts_tests/desktop_modes_test.py` covers every failure case listed in item 9 (absent rustup or cargo, missing or mismatched pinned toolchain, missing or mismatched `tauri-cli`) for each `--desktop` mode, plus the dry-run and `--install-rust` paths.
+- `apps/desktop/scripts/run --help` and `scripts/develop --desktop --dry-run` (preview only; confirm no `pip` or Rust command ran), then `scripts/develop --desktop`, `scripts/version tools --desktop`, `scripts/format --check --desktop`, `scripts/lint --desktop`, and `scripts/test --desktop` on the target Mac.
 - `scripts/release-smoke --strict-isolation`: its assertions must report no `apps/` entries in the sdist and only `lrh/` plus `lrh-<version>.dist-info/` in the wheel. `scripts/test tests/dev_tests/release_smoke_test.py` covers the assertion logic.
 
 ## Dependencies / Order

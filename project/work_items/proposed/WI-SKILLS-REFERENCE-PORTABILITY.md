@@ -145,9 +145,8 @@ The installed `lrh-codex-export` skill directed an agent in the Replication Vect
 - Updating canonical and rendered skill variants independently could recreate drift; the existing source-to-target installation/check mechanism should remain authoritative.
 - A fixture that only checks file existence would miss instruction-level failures, so the test should exercise the relevant path without requiring private transcript data or network access.
 
-## Related Workstream and Designs
+## Related Designs and Documentation
 
-- Workstream: `project/workstreams/resolved/WS-SKILLS.md`
 - Design: `project/design/proposals/adopted/lrh-project-local-skills/00_proposal.md`
 - Design: `project/design/proposals/adopted/lrh-skills-target-aware-install/00_proposal.md`
 - Related documentation: `docs/reference/cli/conversation.md`

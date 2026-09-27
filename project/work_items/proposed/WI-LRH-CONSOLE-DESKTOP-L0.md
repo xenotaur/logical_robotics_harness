@@ -49,9 +49,12 @@ acceptance:
 - "Dashboard content has no native process/filesystem authority; unrelated servers remain untouched."
 - "Actual Mac UI and failure evidence is recorded, CLI use remains intact, and app/canonical validation passes on\
   \ claimed platforms."
-- "The Python wheel, sdist, canonical scripts, and Python CI require no Rust or Node; the sdist excludes apps/, the\
-  \ wheel holds only lrh/ and its dist-info, and desktop CI runs only for desktop changes (apps/desktop, scripts/desktop,\
-  \ desktop.yml) without becoming a required check."
+- "The Python wheel, sdist, default canonical scripts, and Python CI require no Rust or Node; the sdist excludes apps/,\
+  \ the wheel holds only lrh/ and its dist-info, and desktop CI runs only for desktop changes without becoming a required\
+  \ check."
+- "Desktop setup and checks run through the existing scripts: scripts/develop --desktop installs or verifies the pinned\
+  \ toolchain, default scripts/test reports an explicit desktop SKIPPED line, and every --desktop mode fails (never\
+  \ skips) when the toolchain is missing."
 artifacts_expected:
 - "apps/desktop/ (Tauri shell, native supervisor, bundled settings/state pages)"
 - "docs/how-to/lrh-console-local-dogfood.md"
@@ -62,8 +65,13 @@ artifacts_expected:
 - "MANIFEST.in (prune apps from the Python sdist)"
 - "src/lrh/dev/release_smoke.py sdist-exclusion and wheel-contents assertions, with tests/dev_tests/release_smoke_test.py\
   \ coverage"
-- ".github/workflows/desktop.yml (path-filtered, non-required desktop CI)"
-- "scripts/desktop (thin wrapper for desktop build/check commands; --help, --check, --dry-run)"
+- ".github/workflows/desktop.yml (path-filtered plus weekly scheduled, non-required desktop CI)"
+- "apps/desktop/scripts/run (single desktop helper: setup, versions, fmt, lint, test; --help, --dry-run)"
+- "--desktop modes for scripts/develop, scripts/test, scripts/lint, scripts/format, and scripts/version (default\
+  \ behavior unchanged and Rust-free)"
+- "tests/scripts_tests/desktop_modes_test.py (default runs never invoke cargo; --desktop fails when the toolchain is\
+  \ missing)"
+- "docs/how-to/project-setup/desktop-toolchain.md (Rust/Tauri setup, test tiers, and CI)"
 - "AGENTS.md architectural-boundary line for the optional apps/ layer"
 - "project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md"
 ---
@@ -132,6 +140,45 @@ Two repository facts drive the guardrails below:
 Tauri needs Rust, but Node only "if you intend to use a JavaScript frontend
 framework". The CLI installs through Cargo, and a vanilla HTML template
 exists, so L0 needs no Node.
+
+### Developer workflow placement
+
+Setup, testing, and CI must go through the repository's scripts and READMEs.
+Canonical setup is `scripts/develop`, and validation is the fixed `scripts/...`
+sequence (`CONTRIBUTING.md:121-144`, at `959af0c5`). Today `scripts/develop`
+installs only Python (`scripts/develop:9`), and `scripts/test` runs only the
+Python unit suite. Four ways to add Rust were compared:
+
+- **Separate desktop commands** (`scripts/desktop` plus a README). This was
+  the earlier plan. Rejected long-term: it creates a second front door that
+  the canonical sequence never mentions, so desktop checks get forgotten and
+  drift.
+- **Desktop modes on the existing scripts** (chosen). The default runs stay
+  exactly as today and Rust-free. `--desktop` adds the Rust side through one
+  helper, and fails loudly if the toolchain is missing.
+- **A combined toolchain manager** (mise, Nix, a devcontainer, or Rust from
+  conda-forge). Rejected: none of these is installed or used here, and none
+  can install Xcode Command Line Tools or Linux webkit packages. Rust from
+  conda-forge would duplicate `rust-toolchain.toml`. A devcontainer cannot run
+  or test the macOS Dock app, which rules it out for L0.
+- **A task runner** (just, make, or cargo-make). Rejected: it duplicates the
+  `scripts/` convention.
+
+External facts behind the design, checked 2026-09-26:
+
+- rustup 1.28 no longer auto-installs the pinned toolchain. The documented
+  command is `rustup show active-toolchain || rustup toolchain install`, so
+  setup needs an explicit install step.
+- Tauri's `tauri::test` module (Cargo feature `test`) provides a `MockRuntime`
+  with `mock_builder`, `get_ipc_response`, and `assert_ipc_response`, so
+  commands and IPC can be tested headlessly on any OS.
+- Tauri documents that "macOS provides no desktop WebDriver client". Its
+  WebdriverIO route needs Node, which is excluded, so Mac window and menu
+  behavior stays a manual checklist in L0.
+- The macOS prerequisite for desktop-only development is the Command Line
+  Tools. Linux needs `libwebkit2gtk-4.1-dev`, `build-essential`, and related
+  packages.
+- GitHub's macOS runner image ships rustup and Rust with Clippy and Rustfmt.
 
 ### Demand search
 
@@ -224,21 +271,79 @@ exists, so L0 needs no Node.
      `tests/dev_tests/release_smoke_test.py` against in-memory archive
      listings, with no real build in the unit suite. Leave the wheel contents
      and `pyproject.toml` dependencies unchanged.
-   - Add `.github/workflows/desktop.yml`, triggered only by `apps/desktop/**`,
-     `scripts/desktop`, and its own workflow file. A change to the wrapper
-     alone must still run desktop CI. It runs format, lint, and the Rust tests, with
-     the capability tests on a macOS runner. Do not make it a required check
-     unless an always-running aggregate check is added, because path-skipped
-     workflows leave required checks pending. Existing Python workflows keep
-     running on every PR.
+   - Add `.github/workflows/desktop.yml`. It runs when any of these change:
+     `apps/desktop/**`, which includes the helper; the five scripts that route
+     `--desktop` (`scripts/develop`, `scripts/test`, `scripts/lint`,
+     `scripts/format`, `scripts/version`); or the workflow file itself. It
+     also runs on a weekly cron, like `smoke.yml:8-9`, to catch toolchain
+     drift.
+     - It calls the same commands developers run locally:
+       `scripts/develop --desktop`, then `scripts/lint --desktop` and
+       `scripts/test --desktop`.
+     - It has an Ubuntu job, which installs Tauri's documented apt packages,
+       and a macOS job, which relies on the preinstalled rustup with the
+       version pinned by `rust-toolchain.toml`.
+     - Do not make it a required check unless an always-running aggregate
+       check is added, because path-skipped workflows leave required checks
+       pending.
+     - Existing Python workflows stay unchanged and Rust-free.
    - Add `apps/README.md` stating the folder is optional, has its own
      toolchain, and is never imported by `src/lrh`. Add one line to AGENTS.md's
      architectural boundary naming `apps/` as a separate optional layer.
-   - Add a thin `scripts/desktop` wrapper for the app build/check/test
-     commands. Per STYLE.md's script requirements it must support `--help`,
-     `--check` (non-mutating validation), and `--dry-run` (preview the
-     commands without running them). Leave `scripts/test`, `scripts/lint`,
-     `scripts/format`, and `scripts/develop` Python-only.
+   - Route the desktop toolchain through the existing scripts, using the
+     "Developer workflow placement" section above. Put all Rust-aware logic in
+     one helper, `apps/desktop/scripts/run`, with the subcommands `setup`,
+     `versions`, `fmt`, `lint`, and `test`, plus `--help` and `--dry-run`. The
+     top-level scripts only parse `--desktop` and call it, which keeps them
+     thin (STYLE rule 8).
+     - `scripts/develop --desktop` first runs the normal Python setup, then
+       `run setup`:
+       - If `rustup` is missing, print the official rustup install command
+         and exit non-zero. Never run a remote installer unless the separate,
+         explicit `--install-rust` flag is given.
+       - Run `rustup show active-toolchain || rustup toolchain install` in
+         `apps/desktop/`, following the rustup 1.28 change.
+       - Install the pinned Tauri CLI with
+         `cargo install tauri-cli --version <exact> --locked`.
+       - Check the OS prerequisites (`xcode-select -p` on macOS, the
+         webkit/gtk packages on Linux) and report anything missing. Never run
+         `sudo`.
+     - Plain `scripts/test`, `scripts/lint`, and `scripts/format` behave
+       exactly as today and never invoke cargo. `scripts/test` prints one
+       explicit line, e.g.
+       `desktop: SKIPPED (no Rust toolchain; run scripts/develop --desktop)`,
+       so the skip is visible.
+     - `scripts/test --desktop` and `--all`, and `scripts/lint --desktop` or
+       `scripts/format --desktop`, also run the desktop tier. They **fail**,
+       never skip, when the toolchain or a pin is missing or mismatched.
+     - `scripts/format --check --desktop` is non-mutating in the source sense:
+       it never edits tracked files, although compiling may write gitignored
+       build artifacts under `target/`.
+     - `scripts/version tools` also reports `rustup`, `rustc`, `cargo`, and
+       `tauri-cli` versions and flags mismatches against the pins. It reports
+       "not installed" without failing, as it already does for pyright.
+     - Add `tests/scripts_tests/desktop_modes_test.py` using stubbed commands,
+       with no real Rust in the unit suite. It proves that default runs never
+       invoke cargo and print the SKIPPED line, and that `--desktop` exits
+       non-zero when `rustup`/`cargo` are absent.
+   - Organize desktop tests in tiers, all reached through the scripts above:
+     - Tier 0, Python only, in default `scripts/test`: the protocol contract
+       through the reference supervisor, the sdist/wheel guards, and Python
+       checks over `apps/desktop` configuration such as capability files
+       denying native commands to dashboard content.
+     - Tier 1, Rust headless, in `scripts/test --desktop` and CI: `cargo fmt`,
+       `clippy`, and `cargo test`, including `tauri::test` mock-runtime
+       command/IPC and capability tests, plus supervisor tests that drive a
+       real `lrh serve --desktop-protocol` child.
+     - Tier 2, real-window automation, is deferred: WebDriver covers only
+       Linux/Windows, and macOS would need Node.
+     - Tier 3 is the manual macOS checklist and the five dogfood sessions.
+   - Add `docs/how-to/project-setup/desktop-toolchain.md` covering setup via
+     `scripts/develop --desktop`, OS prerequisites, the tiers, exact commands,
+     the CI jobs, and troubleshooting. Link it from
+     `docs/how-to/project-setup/README.md`, `apps/README.md`, and the
+     CONTRIBUTING development-workflow section as the opt-in desktop sequence
+     next to the unchanged default sequence.
 
 The listed test and evidence paths are planned outputs of this implementation
 item, not files delivered by the planning PR. If implementation refines their
@@ -275,7 +380,12 @@ locations, update `artifacts_expected` and this section together before closeout
 - Python users are unaffected by the desktop toolchain. The wheel contents and
   runtime dependencies are unchanged, the built sdist has no `apps/` entries,
   and canonical Python scripts and workflows pass on a machine without Rust or
-  Node. Desktop CI runs only for desktop changes and is not a required check.
+  Node. Desktop CI runs only for desktop changes and on its weekly schedule,
+  and is not a required check.
+- Desktop development uses the same front door. `scripts/develop --desktop`
+  sets up or verifies the pinned toolchain. Default `scripts/test` prints an
+  explicit desktop SKIPPED line. `--desktop` modes run tier 1 and fail when
+  the toolchain is missing, and CI calls these same commands.
 
 ## Validation
 
@@ -286,7 +396,8 @@ locations, update `artifacts_expected` and this section together before closeout
 - `scripts/test`
 - Run the exact app build, supervisor, and capability-test commands added to `docs/how-to/lrh-console-local-dogfood.md` on the target Mac.
 - Complete that document's manual Dock/menu/keyboard/browser/failure checklist and record five real sessions with date, app/backend version, actions, result, and remaining friction.
-- `scripts/desktop --help` and `scripts/desktop --dry-run` (preview only), then `scripts/desktop --check` (Rust format, lint, and tests under the pinned toolchain).
+- `scripts/test` on a machine or PATH without Rust: passes and prints the desktop SKIPPED line. `scripts/test tests/scripts_tests/desktop_modes_test.py` covers default and failing `--desktop` behavior with stubs.
+- `apps/desktop/scripts/run --help` and `scripts/develop --desktop --dry-run` (preview only), then `scripts/develop --desktop`, `scripts/version tools`, `scripts/format --check --desktop`, `scripts/lint --desktop`, and `scripts/test --desktop` on the target Mac.
 - `scripts/release-smoke --strict-isolation`: its assertions must report no `apps/` entries in the sdist and only `lrh/` plus `lrh-<version>.dist-info/` in the wheel. `scripts/test tests/dev_tests/release_smoke_test.py` covers the assertion logic.
 
 ## Dependencies / Order
@@ -311,6 +422,13 @@ this bounded shell deliverable.
   Node sources in the sdist, a root-level `Cargo.toml`, or desktop jobs added to
   Python workflows. The item-9 guardrails and the sdist-exclusion check are the
   controls.
+- A desktop check that silently skips would look like a pass. Only the default
+  run may skip, and it must say so; every explicit `--desktop` mode fails when
+  the toolchain is missing, and `desktop_modes_test.py` guards both behaviors.
+- Setup scripts must not install software silently or escalate privileges.
+  `scripts/develop --desktop` reports missing rustup or OS packages. A remote
+  installer runs only with the explicit `--install-rust` flag, and `sudo` is
+  never run.
 - Path-filtered desktop CI must stay non-required. Making it required without an
   always-running aggregate check would block Python-only PRs, because their
   skipped desktop checks would stay pending.

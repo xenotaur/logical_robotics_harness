@@ -212,6 +212,17 @@ class ExportTest(unittest.TestCase):
             export.record_evaluation(
                 self.store, run_id, testing_support.full_scores(notes=None)
             )
+        for wrong_type in (
+            {"usefulness": True},
+            {"usefulness": 1.0},
+            {"diagnostics_surfaced": 1},
+            {"diagnostics_surfaced": 0},
+        ):
+            with self.subTest(wrong_type):
+                with self.assertRaises(export.ExportError):
+                    export.record_evaluation(
+                        self.store, run_id, testing_support.full_scores(**wrong_type)
+                    )
         for field in export.EVALUATION_FIELDS:
             incomplete = testing_support.full_scores()
             del incomplete[field]

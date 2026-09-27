@@ -294,7 +294,8 @@ B1-only fields such as `correction_minutes`. Then record it:
 experimental/local_agent/run evaluate <run-id> --scores <scores-T01-B1.json>
 ```
 
-Score every B1 attempt, including failed ones. A failed run scores
+Score every B1 attempt for `T01`–`T12`, including failed ones; smoke runs are
+not scored (step 2). A failed run scores
 `usefulness: 0` with a note, so it stays in the denominator.
 
 **Aggregation rule for the decision:**
@@ -373,7 +374,10 @@ export them without `--include-output`, and write the abort into Results.
 ### 9. Report
 
 Fill in **Results** with the per-task scores and the floor/target table, then
-record the **Decision**. Commit the results, exports, and any prompt versions
+record the **Decision**. Also list any critical fabricated status found in a
+*non-counted* run (tuning iteration, retry, or smoke run) alongside the table.
+The per-task counting rule keeps such runs out of the floor, so they must be
+visible to the owner's decision instead. Commit the results, exports, and any prompt versions
 together in the results PR.
 
 ## Results

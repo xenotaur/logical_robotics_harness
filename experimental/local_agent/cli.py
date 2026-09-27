@@ -309,7 +309,14 @@ def _dispatch(args: argparse.Namespace) -> int:
         return 0
 
     if args.command == "evaluate":
-        scores = json.loads(args.scores.read_text(encoding="utf-8"))
+        try:
+            scores = json.loads(args.scores.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            print(f"error: cannot read scores file: {error}", file=sys.stderr)
+            return 2
+        if not isinstance(scores, dict):
+            print("error: scores file must contain a JSON object", file=sys.stderr)
+            return 2
         export.record_evaluation(store, args.run_id, scores)
         print(f"recorded evaluation for {args.run_id}")
         return 0

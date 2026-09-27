@@ -156,6 +156,11 @@ def record_evaluation(
     for field, allowed in EVALUATION_FIELDS.items():
         if allowed is not None and field in scores and scores[field] not in allowed:
             raise ExportError(f"{field} must be one of {allowed}")
+    # bool is an int subclass (True == 1), so membership alone is not enough.
+    if type(scores["usefulness"]) is not int:
+        raise ExportError("usefulness must be the integer 0, 1, or 2")
+    if type(scores["diagnostics_surfaced"]) is not bool:
+        raise ExportError("diagnostics_surfaced must be true or false")
     for field in _COUNT_FIELDS:
         # Unfilled template placeholders are null; never accept them as data.
         value = scores[field]

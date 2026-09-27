@@ -79,6 +79,18 @@ class CliPilotCommandsTest(unittest.TestCase):
         self.assertEqual(code, 2)
         self.assertIn("error:", err)
 
+    def test_evaluate_rejects_malformed_scores_file(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            bad_json = pathlib.Path(tmp) / "bad.json"
+            bad_json.write_text("{not json", encoding="utf-8")
+            not_object = pathlib.Path(tmp) / "list.json"
+            not_object.write_text("[1, 2]", encoding="utf-8")
+            for path in (bad_json, not_object):
+                code, err = self._main("evaluate", "run-x", "--scores", str(path))
+                with self.subTest(path.name):
+                    self.assertEqual(code, 2)
+                    self.assertIn("error:", err)
+
     def test_unknown_task_rejected(self) -> None:
         code, err = self._main("task", "T99", "--lrh-repo", ".")
         self.assertEqual(code, 2)

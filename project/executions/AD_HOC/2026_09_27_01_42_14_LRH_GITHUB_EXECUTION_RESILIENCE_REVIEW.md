@@ -2,10 +2,10 @@
 execution_id: 2026_09_27_01_42_14_LRH_GITHUB_EXECUTION_RESILIENCE_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_GITHUB_EXECUTION_RESILIENCE_REVIEW)[2026-09-27T00:12:43+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_27_00_09_01_LRH_GITHUB_EXECUTION_RESILIENCE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/743
-commit: 143380e1
+commit: eb74033e10ccbc15adc4abfc91e6a051c6435d4e
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/743
 session_transcript: pending

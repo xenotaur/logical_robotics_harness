@@ -56,6 +56,18 @@ proceeding.
 ---
 
 ## Execution Steps
+## Restricted network recovery
+
+Before running a command that contacts GitHub or a remote Git server, use the
+bounded procedure in `src/lrh/skills/_shared/github-network-execution.md`:
+run local-only work normally; if the remote command fails, confirm the absolute
+project root, preserve the redacted error category, request approved network
+execution, and retry that exact command once. If approval is unavailable or the
+retry fails, report a blocker rather than looping, substituting `--no-remote`,
+or changing credentials. Diagnose authentication only after the path can reach
+GitHub.
+
+
 
 Work through these steps in order. Do not skip ahead — each step can end
 the investigation early with its own report.

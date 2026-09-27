@@ -78,6 +78,18 @@ Load before running any step:
 ---
 
 ## Execution Steps
+## Restricted network recovery
+
+Before running a command that contacts GitHub or a remote Git server, use the
+bounded procedure in `src/lrh/skills/_shared/github-network-execution.md`:
+run local-only work normally; if the remote command fails, confirm the absolute
+project root, preserve the redacted error category, request approved network
+execution, and retry that exact command once. If approval is unavailable or the
+retry fails, report a blocker rather than looping, substituting `--no-remote`,
+or changing credentials. Diagnose authentication only after the path can reach
+GitHub.
+
+
 
 Work through these steps in order.
 
@@ -247,6 +259,15 @@ Report to the caller/user:
 - PR-mode: the finding(s) to route through `/lrh-confirm-fixes` Step 3, or
   confirmation this round was clean
 - Execution record path and prompt ID
+
+---
+
+## Formatting & Log Hygiene
+
+When reviewing diffs or quoting subagent findings:
+1. **Pass `--log` when re-verifying**: Run `scripts/test --log` and `scripts/validate --log` during manual re-verification passes to capture raw subprocess output in `tmp/logs/` and prevent agent UI tag floods.
+2. **Inspect failure tracebacks losslessly**: If re-verification fails, use `view_file` on `tmp/logs/test_<timestamp>.log` or `tmp/logs/validate_<timestamp>.log` to read full failure tracebacks.
+3. **Fence tag literals and log excerpts**: Always wrap raw log excerpts and XML/HTML tag references (such as `<SYSTEM_MESSAGE>`) in fenced Markdown code blocks (` ``` `).
 
 ---
 

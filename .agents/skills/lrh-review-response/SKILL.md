@@ -60,6 +60,18 @@ Load these before running any step:
 ---
 
 ## Execution Steps
+## Restricted network recovery
+
+Before running a command that contacts GitHub or a remote Git server, use the
+bounded procedure in `src/lrh/skills/_shared/github-network-execution.md`:
+run local-only work normally; if the remote command fails, confirm the absolute
+project root, preserve the redacted error category, request approved network
+execution, and retry that exact command once. If approval is unavailable or the
+retry fails, report a blocker rather than looping, substituting `--no-remote`,
+or changing credentials. Diagnose authentication only after the path can reach
+GitHub.
+
+
 
 Work through these steps in order. Do not skip Step 4 (confirm gate).
 
@@ -247,6 +259,7 @@ per the carve-out's own status restriction).
 
 ### Step 4 — Confirm gate (human gate)
 
+<!-- GATE-DEFINITION -->
 Before touching any files, show the user:
 
 - PR URL and number of open comments
@@ -257,6 +270,7 @@ Before touching any files, show the user:
 **Wait for explicit confirmation.** If the user redirects ("skip comment X",
 "treat Y as intentional"), record the directive and factor it into Step 5.
 Do not proceed past this gate without approval.
+<!-- /GATE-DEFINITION -->
 
 ### Step 5 — Execute review response protocol
 

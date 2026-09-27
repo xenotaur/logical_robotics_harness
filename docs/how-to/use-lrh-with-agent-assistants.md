@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Use this guide to set up and operate Logical Robotics Harness (LRH) skills across different AI agent assistants, including **Claude Code**, the **Codex App**, and **Google Antigravity**.
+Use this guide to set up and operate Logical Robotics Harness (LRH) skills across different AI agent assistants, including **Claude Code**, the **Codex App**, **Google Antigravity**, and **ChatGPT Online**.
 
 LRH maintains a single canonical skill source (`src/lrh/skills/`) that can be rendered or discovered across multiple agent environments.
 
@@ -145,9 +145,76 @@ global plugin is installed.
 
 ---
 
-### 4. Extending for Other Assistants
+### 4. ChatGPT Online
 
-Because LRH decouples canonical skill sources (`src/lrh/skills/`) from target-rendered copies, new agent targets (such as ChatGPT Skills or emerging open standards) can be added cleanly via the `lrh skills install --target <name>` CLI interface.
+ChatGPT online is a **hosted** assistant: there is no local skills directory to
+install into, so `chatgpt` is not an `lrh skills install` target. Instead,
+export upload bundles and upload them to ChatGPT yourself.
+
+#### Export
+Export one deterministic ZIP per skill into a directory of your choice:
+
+```bash
+# Export the default set (all public skills except manual-only ones)
+lrh skills export --target chatgpt --out ./chatgpt-skills
+
+# Export specific skills; repeat --skill as needed
+lrh skills export --target chatgpt --out ./chatgpt-skills --skill lrh-design --skill lrh-work-item
+```
+
+Each `<skill-name>.zip` contains exactly one top-level `<skill-name>/` folder
+with `SKILL.md` plus any `references/`, `scripts/`, and `assets/` from the
+canonical source. `--source` works as it does for `install`. The export never
+modifies canonical sources or local Claude, Codex, or Antigravity installs, and
+the bundles are generated outputs, not a new source of truth.
+
+#### Upload and Invocation
+Upload each ZIP through ChatGPT's skills upload flow; see OpenAI's
+[Skills in ChatGPT](https://help.openai.com/en/articles/20001066-skills-in-chatgpt)
+help article for the current steps. Once uploaded, invoke a skill explicitly
+with `@skill-name` (for example `@lrh-design`), or let ChatGPT select it
+automatically when your request matches the skill's `description`.
+
+#### What changes in the bundle
+- Frontmatter is reduced to portable fields (`name`, `description`, `license`,
+  `compatibility`, `metadata`); agent-specific keys such as `argument-hint` and
+  `when_to_use` are dropped and reported.
+- Codex metadata (`agents/`) is not bundled.
+- Skill instructions are exported unchanged.
+
+#### Capability limits
+Skill instructions do not grant tools. Most LRH workflows run local `git`, the
+GitHub `gh` CLI, the `lrh` CLI, or other shell commands, which ChatGPT online
+cannot run. The export reports these as notices rather than rewriting the
+workflow; such skills remain useful for planning and drafting, but steps that
+need local tools must be carried out elsewhere. Instruction-centric skills such
+as `lrh-design`, `lrh-proposal`, and `lrh-work-item` are the best fit.
+
+Manual-only skills (`lrh-land`, `lrh-execute`, `lrh-confirm-fixes`,
+`lrh-self-review`, `lrh-codex-export`) are left out of the default export.
+ChatGPT has no known equivalent of their explicit-only invocation policy, so an
+uploaded copy could be selected automatically. Export one only by naming it
+with `--skill`, which also prints a manual-only notice.
+
+The export checks the upload limits documented by the OpenAI Skills API guide
+(50 MB per ZIP, 500 files, 25 MB per uncompressed file); ChatGPT's own limits
+may differ.
+
+#### Updating
+Bundles do not update themselves. When canonical skills change (for example
+after upgrading LRH), re-run `lrh skills export` and re-upload the changed
+bundles. On the same machine and toolchain, identical sources produce
+byte-identical ZIPs, so an unchanged file means an unchanged skill.
+
+---
+
+### 5. Extending for Other Assistants
+
+Because LRH decouples canonical skill sources (`src/lrh/skills/`) from
+target-rendered copies, new assistants can be added cleanly: local assistants
+that discover skills on disk get an `lrh skills install --target <name>`
+target, while hosted assistants that take uploads get an
+`lrh skills export --target <name>` target.
 
 ---
 

@@ -577,5 +577,167 @@ class SkillsInstallCliTest(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
 
 
+class SkillsExportCliTest(unittest.TestCase):
+    def _repo_root(self) -> pathlib.Path:
+        return pathlib.Path(__file__).resolve().parents[2]
+
+    def _run_in(
+        self, cwd: pathlib.Path, *args: str
+    ) -> subprocess.CompletedProcess[str]:
+        env = os.environ.copy()
+        src_path = str(self._repo_root() / "src")
+        existing = env.get("PYTHONPATH")
+        env["PYTHONPATH"] = (
+            src_path if not existing else os.pathsep.join([src_path, existing])
+        )
+        return subprocess.run(
+            [sys.executable, "-m", "lrh.cli.main", *args],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=cwd,
+        )
+
+    def _temp_dir(self) -> pathlib.Path:
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        return pathlib.Path(directory.name)
+
+    def test_skills_export_help_exits_zero(self) -> None:
+        result = self._run_in(self._temp_dir(), "skills", "export", "--help")
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("--skill", result.stdout)
+        self.assertNotIn("--local", result.stdout)
+        self.assertNotIn("--scope", result.stdout)
+
+    def test_skills_export_writes_selected_bundles(self) -> None:
+        work = self._temp_dir()
+        result = self._run_in(
+            work,
+            "skills",
+            "export",
+            "--target",
+            "chatgpt",
+            "--out",
+            "bundles",
+            "--skill",
+            "lrh-design",
+            "--skill",
+            "lrh-work-item",
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("exported: lrh-design", result.stdout)
+        self.assertIn("exported: lrh-work-item", result.stdout)
+        self.assertEqual(
+            sorted(path.name for path in (work / "bundles").iterdir()),
+            ["lrh-design.zip", "lrh-work-item.zip"],
+        )
+
+    def test_skills_export_default_skips_manual_only_skills(self) -> None:
+        work = self._temp_dir()
+        result = self._run_in(
+            work, "skills", "export", "--target", "chatgpt", "--out", "bundles"
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("skipped (manual-only): lrh-land", result.stdout)
+        self.assertFalse((work / "bundles" / "lrh-land.zip").exists())
+        self.assertTrue((work / "bundles" / "lrh-design.zip").exists())
+
+    def test_skills_export_explicit_manual_only_reports_notice(self) -> None:
+        work = self._temp_dir()
+        result = self._run_in(
+            work,
+            "skills",
+            "export",
+            "--target",
+            "chatgpt",
+            "--out",
+            "bundles",
+            "--skill",
+            "lrh-land",
+        )
+        self.assertEqual(result.returncode, 0, msg=result.stderr)
+        self.assertIn("notice: lrh-land: manual-only skill", result.stdout)
+        self.assertTrue((work / "bundles" / "lrh-land.zip").exists())
+
+    def test_skills_export_unknown_skill_rejected(self) -> None:
+        work = self._temp_dir()
+        result = self._run_in(
+            work,
+            "skills",
+            "export",
+            "--target",
+            "chatgpt",
+            "--out",
+            "bundles",
+            "--skill",
+            "no-such-skill",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("unknown skill(s)", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertFalse((work / "bundles").exists())
+
+    def test_skills_export_requires_target_and_out(self) -> None:
+        work = self._temp_dir()
+        missing_target = self._run_in(work, "skills", "export", "--out", "bundles")
+        self.assertEqual(missing_target.returncode, 2)
+        self.assertIn("--target", missing_target.stderr)
+        missing_out = self._run_in(work, "skills", "export", "--target", "chatgpt")
+        self.assertEqual(missing_out.returncode, 2)
+        self.assertIn("--out", missing_out.stderr)
+
+    def test_skills_export_rejects_install_only_flags(self) -> None:
+        result = self._run_in(
+            self._temp_dir(),
+            "skills",
+            "export",
+            "--target",
+            "chatgpt",
+            "--out",
+            "bundles",
+            "--local",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("unrecognized arguments", result.stderr)
+
+    def test_skills_export_rejects_install_targets(self) -> None:
+        result = self._run_in(
+            self._temp_dir(),
+            "skills",
+            "export",
+            "--target",
+            "codex",
+            "--out",
+            "bundles",
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("invalid choice", result.stderr)
+
+    def test_skills_export_validation_failure_exits_one_without_writing(
+        self,
+    ) -> None:
+        work = self._temp_dir()
+        bad_skill = work / "source" / "bad-skill"
+        bad_skill.mkdir(parents=True)
+        (bad_skill / "SKILL.md").write_text("no frontmatter\n")
+        result = self._run_in(
+            work,
+            "skills",
+            "export",
+            "--target",
+            "chatgpt",
+            "--source",
+            str(work / "source"),
+            "--out",
+            "bundles",
+        )
+        self.assertEqual(result.returncode, 1, msg=result.stderr)
+        self.assertIn("error: bad-skill:", result.stdout)
+        self.assertIn("no bundles written", result.stdout)
+        self.assertFalse((work / "bundles").exists())
+
+
 if __name__ == "__main__":
     unittest.main()

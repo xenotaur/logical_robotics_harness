@@ -33,7 +33,7 @@ Add content here when the reader already knows which command they need and wants
 - [`secrets`](secrets.md) — scan, review, and purge leaked secrets from a repository's git history.
 - [`pii`](pii.md) — scan a repository's full git history for misplaced documents and PII-shaped content.
 - [`meta`](meta.md) — manage LRH meta workspaces and project registry records.
-- [`skills`](skills.md) — install and inspect LRH agent skills for Claude, Codex, and Antigravity targets.
+- [`skills`](skills.md) — install and inspect LRH agent skills for Claude, Codex, and Antigravity targets, and export ChatGPT upload bundles.
 - [`memory`](memory.md) — write, list, validate, repair, recover orphaned worktree memories, sync, read, search, export, import, and transfer Claude Code's per-project memory corpus.
 - [`chain-defaults`](chain-defaults.md) — report chain-authorization gate policy, skip-consent validity, and gate-definition staleness.
 - [`agent-skills`](agent-skills.md) — report `project/agent_skills.yaml`'s resolved install-policy state.

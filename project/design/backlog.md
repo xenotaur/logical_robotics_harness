@@ -1982,7 +1982,7 @@ two pre-existing gaps — that stays a separate, smaller cleanup.
 
 ---
 
-## No command can record a late session pointer on an already-landed execution record
+## No backend-agnostic command records a late session pointer on an already-landed execution record
 
 **Noted:** 2026-09-26, during PR #720's closeout follow-up. Three
 ChatGPT-authored PR #720 execution records landed with
@@ -1994,10 +1994,11 @@ in_progress → landed is supported" (`src/lrh/prompt_workflow.py`), so PR
 sessions link` already rewrites `session_transcript` on records of any
 status, but only for Claude: it resolves a child id to a host id and
 hard-codes `claude-app:<host>` (`src/lrh/sessions_workflow.py`,
-`write_session_transcript_field`). There is no equivalent for `chatgpt:`,
-`codex-app:`, or `codex-cloud:` pointers.
+`write_session_transcript_field`). So the gap is specifically
+backend-agnostic: there is no command for a non-Claude pointer such as
+`chatgpt:`, `codex-app:`, or `codex-cloud:`.
 
-**Idea:** Add a narrow pointer-only update path. Either:
+**Idea:** Add a narrow, backend-agnostic pointer-only update path. Either:
 
 - accept `--session-transcript` alone on a `landed` record in
   `update-execution` (no `--status`/`--commit` required); or
@@ -2006,9 +2007,13 @@ hard-codes `claude-app:<host>` (`src/lrh/sessions_workflow.py`,
 
 In either form:
 
-- validate the value against the pointer grammar in
-  `project/executions/README.md` (`claude-app:`, `codex-app:`,
-  `codex-cloud:`, `chatgpt:`, `pending`, `none`);
+- validate the value against the open pointer grammar: any scheme-prefixed
+  `<backend>:<id>` (the 2026-07-23 "Backend-Agnostic Session Pointer
+  Grammar" entry in `project/memory/decision_log.md`, as enforced by
+  `src/lrh/control/validator.py::_is_scheme_prefixed`) plus the `pending`
+  and `none` sentinels. Named schemes such as `claude-app:`, `codex-app:`,
+  `codex-cloud:`, and `chatgpt:` are examples, not an allowlist; a new or
+  third-party backend's pointer must still be accepted;
 - by default replace only `pending` (or a missing field), and require
   `--force` to overwrite a real pointer or `none`;
 - leave `status`, `commit`, and `pr` untouched;
@@ -2035,4 +2040,6 @@ stopgap. Not yet filed as a work item.
 `src/lrh/prompt_workflow.py` (`update-execution`,
 `write_session_transcript_field`); `src/lrh/sessions_workflow.py`
 (`_run_link`); `project/executions/README.md` (`session_transcript`
-values); `project/design/proposals/adopted/lrh-session-archive-sync/00_proposal.md`.
+values); `project/memory/decision_log.md` (pointer grammar);
+`src/lrh/control/validator.py` (`_is_scheme_prefixed`);
+`project/design/proposals/adopted/lrh-session-archive-sync/00_proposal.md`.

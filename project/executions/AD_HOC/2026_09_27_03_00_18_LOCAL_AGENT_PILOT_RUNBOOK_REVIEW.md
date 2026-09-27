@@ -2,14 +2,14 @@
 execution_id: 2026_09_27_03_00_18_LOCAL_AGENT_PILOT_RUNBOOK_REVIEW
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_PILOT_RUNBOOK_REVIEW)[2026-09-27T00:32:58+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_27_00_22_33_LOCAL_AGENT_PILOT_RUNBOOK
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/745
-commit: 
+commit: 744c0e5ae0c77332bad3dfc84aaecf6538058822
 created_at: 2026-09-27T03:00:18+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/745
-session_transcript: pending
+session_transcript: claude-app:ae03b82e-f234-4666-ab7a-2c5a12a5f340
 ---
 
 # Summary

@@ -2,14 +2,14 @@
 execution_id: 2026_09_27_00_22_33_LOCAL_AGENT_PILOT_RUNBOOK
 prompt_id: PROMPT(WI-LOCAL-AGENT-001:LOCAL_AGENT_PILOT_RUNBOOK)[2026-09-26T22:07:47+00:00]
 work_item: WI-LOCAL-AGENT-001
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/745
-commit: 
+commit: 744c0e5ae0c77332bad3dfc84aaecf6538058822
 created_at: 2026-09-27T00:22:33+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — owner-requested runbook PR for WI-LOCAL-AGENT-001's pre-registered pilot
-session_transcript: pending
+session_transcript: claude-app:ae03b82e-f234-4666-ab7a-2c5a12a5f340
 ---
 
 # Summary

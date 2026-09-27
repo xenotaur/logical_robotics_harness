@@ -1,0 +1,266 @@
+#!/usr/bin/env bash
+# The single Rust-aware helper for the LRH Console desktop app.
+#
+# The repository's top-level scripts (scripts/develop, test, lint, format, and
+# version tools) call this helper only when given --desktop. Their default
+# runs never invoke or probe cargo or rustup. See
+# docs/how-to/project-setup/desktop-toolchain.md.
+set -euo pipefail
+
+DESKTOP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+MANIFEST="src-tauri/Cargo.toml"
+RUSTUP_INSTALL_COMMAND="curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain none"
+
+usage() {
+  cat <<'USAGE'
+Usage: apps/desktop/scripts/run [--dry-run] <command> [options]
+
+Commands:
+  setup [--install-rust]  Install or verify the pinned Rust toolchain and
+                          tauri-cli, and check OS prerequisites. Never runs
+                          sudo. Without --install-rust, a missing rustup is
+                          reported (with the official install command) and
+                          the command exits non-zero.
+  check                   Verify the pins quietly (a fast preflight used by
+                          the top-level --desktop modes before other work).
+  versions                Report rustup, rustc, cargo, and tauri-cli
+                          versions; exit non-zero if any is missing or does
+                          not match the pins.
+  fmt [--check]           Run cargo fmt (--check never edits tracked files).
+  lint                    Run cargo clippy with warnings denied.
+  test                    Run cargo test (tier 1: headless, mock runtime).
+
+Options:
+  --dry-run               Print the commands that would run; run nothing.
+  -h, --help              Show this help and exit.
+
+--dry-run may appear before or after the command.
+
+check, versions, fmt, lint, and test verify the pins in
+apps/desktop/rust-toolchain.toml and apps/desktop/toolchain.env before doing
+anything else; setup installs what is missing, then verifies them. All fail
+(never skip) when a tool is missing or mismatched.
+USAGE
+}
+
+die() {
+  echo "desktop: ERROR: $*" >&2
+  exit 1
+}
+
+usage_error() {
+  echo "desktop: $*" >&2
+  echo "Run apps/desktop/scripts/run --help for usage." >&2
+  exit 2
+}
+
+read_pins() {
+  RUST_TOOLCHAIN="$(sed -n 's/^channel = "\(.*\)"$/\1/p' "${DESKTOP_DIR}/rust-toolchain.toml")"
+  [[ -n "${RUST_TOOLCHAIN}" ]] || die "no channel pin in apps/desktop/rust-toolchain.toml"
+  TAURI_CLI_VERSION="$(sed -n 's/^TAURI_CLI_VERSION=//p' "${DESKTOP_DIR}/toolchain.env")"
+  [[ -n "${TAURI_CLI_VERSION}" ]] || die "no TAURI_CLI_VERSION pin in apps/desktop/toolchain.env"
+}
+
+# Print a command, then run it from apps/desktop/ (so rust-toolchain.toml
+# applies) unless --dry-run was given.
+run_step() {
+  echo "+ $*"
+  if [[ "${DRY_RUN}" -eq 1 ]]; then
+    return 0
+  fi
+  (cd "${DESKTOP_DIR}" && "$@")
+}
+
+# Verify every pin; fail loudly on the first problem.
+check_pins() {
+  local fix_hint="run scripts/develop --desktop"
+  command -v rustup >/dev/null 2>&1 || die "rustup not found; ${fix_hint}"
+  command -v cargo >/dev/null 2>&1 || die "cargo not found; ${fix_hint}"
+  # Match without a pipe: under pipefail, `grep -q` exiting early could
+  # SIGPIPE the producer and report a false failure.
+  local toolchains
+  toolchains="$(rustup toolchain list 2>/dev/null)" \
+    || die "rustup toolchain list failed; ${fix_hint}"
+  if [[ $'\n'"${toolchains}" != *$'\n'"${RUST_TOOLCHAIN}-"* ]]; then
+    die "pinned Rust toolchain ${RUST_TOOLCHAIN} is not installed; ${fix_hint}"
+  fi
+  local rustc_version
+  rustc_version="$(cd "${DESKTOP_DIR}" && rustc --version 2>/dev/null)" \
+    || die "rustc failed to run for toolchain ${RUST_TOOLCHAIN}; ${fix_hint}"
+  if [[ "${rustc_version}" != "rustc ${RUST_TOOLCHAIN} "* ]]; then
+    die "rustc is '${rustc_version}', expected ${RUST_TOOLCHAIN}; ${fix_hint}"
+  fi
+  local tauri_version
+  tauri_version="$(cd "${DESKTOP_DIR}" && cargo tauri --version 2>/dev/null)" \
+    || die "tauri-cli not installed (expected ${TAURI_CLI_VERSION}); ${fix_hint}"
+  if [[ "${tauri_version}" != "tauri-cli ${TAURI_CLI_VERSION}" ]]; then
+    die "tauri-cli is '${tauri_version}', expected ${TAURI_CLI_VERSION}; ${fix_hint}"
+  fi
+}
+
+check_os_prerequisites() {
+  case "$(uname -s)" in
+    Darwin)
+      if ! xcode-select -p >/dev/null 2>&1; then
+        die "Xcode Command Line Tools not found; install them with: xcode-select --install"
+      fi
+      ;;
+    Linux)
+      local missing=()
+      local module
+      for module in webkit2gtk-4.1 javascriptcoregtk-4.1 libsoup-3.0; do
+        if ! pkg-config --exists "${module}" 2>/dev/null; then
+          missing+=("${module}")
+        fi
+      done
+      if [[ "${#missing[@]}" -gt 0 ]]; then
+        die "missing Linux packages for: ${missing[*]}. Install Tauri's prerequisites (see docs/how-to/project-setup/desktop-toolchain.md); this script never runs sudo"
+      fi
+      ;;
+    *)
+      die "unsupported OS for the desktop app: $(uname -s)"
+      ;;
+  esac
+}
+
+cmd_setup() {
+  local install_rust=0
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --install-rust) install_rust=1; shift ;;
+      *) usage_error "unknown setup option: $1" ;;
+    esac
+  done
+
+  if ! command -v rustup >/dev/null 2>&1; then
+    if [[ "${install_rust}" -ne 1 && "${DRY_RUN}" -eq 1 ]]; then
+      echo "+ (rustup not found: a real run stops here and prints the install"
+      echo "+  command; pass --install-rust to run: ${RUSTUP_INSTALL_COMMAND})"
+      return 0
+    fi
+    if [[ "${install_rust}" -ne 1 ]]; then
+      echo "desktop: rustup is not installed." >&2
+      echo "Install it with the official installer:" >&2
+      echo "  ${RUSTUP_INSTALL_COMMAND}" >&2
+      echo "or rerun with --install-rust to have this script run it." >&2
+      exit 1
+    fi
+    run_step sh -c "${RUSTUP_INSTALL_COMMAND}"
+    if [[ "${DRY_RUN}" -ne 1 ]]; then
+      # shellcheck source=/dev/null
+      [[ -f "${HOME}/.cargo/env" ]] && . "${HOME}/.cargo/env"
+      command -v rustup >/dev/null 2>&1 || die "rustup still not found after installation"
+    fi
+  fi
+
+  # rustup 1.28+ no longer auto-installs the toolchain named in
+  # rust-toolchain.toml, so install it explicitly.
+  run_step sh -c "rustup show active-toolchain || rustup toolchain install"
+  if [[ "${DRY_RUN}" -ne 1 ]] && ! command -v cargo >/dev/null 2>&1; then
+    die "cargo not found after installing the Rust toolchain; check that ~/.cargo/bin is on PATH"
+  fi
+
+  local current=""
+  if [[ "${DRY_RUN}" -ne 1 ]]; then
+    current="$(cd "${DESKTOP_DIR}" && cargo tauri --version 2>/dev/null || true)"
+  fi
+  if [[ "${current}" != "tauri-cli ${TAURI_CLI_VERSION}" ]]; then
+    run_step cargo install tauri-cli --version "=${TAURI_CLI_VERSION}" --locked
+  fi
+
+  if [[ "${DRY_RUN}" -eq 1 ]]; then
+    echo "+ check OS prerequisites for $(uname -s)"
+    return 0
+  fi
+  check_os_prerequisites
+  check_pins
+  echo "desktop: toolchain ready (Rust ${RUST_TOOLCHAIN}, tauri-cli ${TAURI_CLI_VERSION})"
+}
+
+cmd_check() {
+  [[ $# -eq 0 ]] || usage_error "check takes no options"
+  if [[ "${DRY_RUN}" -eq 1 ]]; then
+    echo "+ verify the desktop toolchain pins"
+    return 0
+  fi
+  check_pins
+  echo "desktop: toolchain OK (Rust ${RUST_TOOLCHAIN}, tauri-cli ${TAURI_CLI_VERSION})"
+}
+
+cmd_versions() {
+  [[ $# -eq 0 ]] || usage_error "versions takes no options"
+  if [[ "${DRY_RUN}" -eq 1 ]]; then
+    echo "+ report rustup, rustc, cargo, and tauri-cli versions against the pins"
+    return 0
+  fi
+  check_pins
+  echo "Desktop pins"
+  echo "Rust toolchain ${RUST_TOOLCHAIN}, tauri-cli ${TAURI_CLI_VERSION}"
+  echo
+  echo "rustup"
+  rustup --version 2>/dev/null | sed -n 1p
+  echo
+  echo "rustc"
+  (cd "${DESKTOP_DIR}" && rustc --version)
+  echo
+  echo "cargo"
+  (cd "${DESKTOP_DIR}" && cargo --version)
+  echo
+  echo "tauri-cli"
+  (cd "${DESKTOP_DIR}" && cargo tauri --version)
+  echo
+}
+
+cmd_fmt() {
+  local check_args=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --check) check_args=(-- --check); shift ;;
+      *) usage_error "unknown fmt option: $1" ;;
+    esac
+  done
+  [[ "${DRY_RUN}" -eq 1 ]] || check_pins
+  run_step cargo fmt --manifest-path "${MANIFEST}" --all "${check_args[@]+"${check_args[@]}"}"
+}
+
+cmd_lint() {
+  [[ $# -eq 0 ]] || usage_error "lint takes no options"
+  [[ "${DRY_RUN}" -eq 1 ]] || check_pins
+  run_step cargo clippy --manifest-path "${MANIFEST}" --locked --all-targets -- -D warnings
+}
+
+cmd_test() {
+  [[ $# -eq 0 ]] || usage_error "test takes no options"
+  [[ "${DRY_RUN}" -eq 1 ]] || check_pins
+  run_step cargo test --manifest-path "${MANIFEST}" --locked
+}
+
+# --dry-run is accepted anywhere; strip it before command dispatch.
+DRY_RUN=0
+remaining=()
+for arg in "$@"; do
+  case "${arg}" in
+    -h|--help) usage; exit 0 ;;
+    --dry-run) DRY_RUN=1 ;;
+    *) remaining+=("${arg}") ;;
+  esac
+done
+set -- "${remaining[@]+"${remaining[@]}"}"
+if [[ $# -gt 0 && "$1" == -* ]]; then
+  usage_error "unknown option: $1"
+fi
+
+[[ $# -gt 0 ]] || usage_error "missing command"
+command_name="$1"
+shift
+
+read_pins
+case "${command_name}" in
+  setup) cmd_setup "$@" ;;
+  check) cmd_check "$@" ;;
+  versions) cmd_versions "$@" ;;
+  fmt) cmd_fmt "$@" ;;
+  lint) cmd_lint "$@" ;;
+  test) cmd_test "$@" ;;
+  *) usage_error "unknown command: ${command_name}" ;;
+esac

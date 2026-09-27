@@ -1,6 +1,64 @@
 #!/bin/bash
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/develop [--desktop [--install-rust]] [--dry-run] [-h|--help]
+
+Installs lrh in develop mode (editable, with the constrained [dev] extra).
+
+Options:
+  --desktop       Also set up the optional desktop app toolchain (pinned Rust
+                  toolchain and tauri-cli) via apps/desktop/scripts/run setup.
+                  See docs/how-to/project-setup/desktop-toolchain.md.
+  --install-rust  With --desktop only: if rustup is missing, run the official
+                  rustup installer. Without it, a missing rustup is reported
+                  and setup exits non-zero. Never runs sudo.
+  --dry-run       Print the commands that would run; run nothing (no pip, no
+                  Rust commands).
+  -h, --help      Show this help and exit.
+USAGE
+}
+
+desktop=0
+install_rust=0
+dry_run=0
+
+# Consume all flags before any setup runs.
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --desktop) desktop=1; shift ;;
+    --install-rust) install_rust=1; shift ;;
+    --dry-run) dry_run=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *)
+      echo "scripts/develop: unknown option: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ "$install_rust" -eq 1 && "$desktop" -ne 1 ]]; then
+  echo "scripts/develop: --install-rust requires --desktop" >&2
+  exit 2
+fi
+
+desktop_setup_args=(setup)
+if [[ "$install_rust" -eq 1 ]]; then
+  desktop_setup_args+=(--install-rust)
+fi
+
+if [[ "$dry_run" -eq 1 ]]; then
+  echo "+ python -m pip install -e .[dev] -c constraints-dev.txt"
+  if [[ "$desktop" -eq 1 ]]; then
+    "${REPO_ROOT}/apps/desktop/scripts/run" --dry-run "${desktop_setup_args[@]}"
+  fi
+  exit 0
+fi
+
 echo "Installing lrh in develop mode..."
 set -x
 
@@ -37,4 +95,9 @@ ModuleNotFoundError: lrh), treat that as a setup/bootstrap mismatch rather
 than a code regression.
 DIAGNOSTIC
   exit "${install_exit_code}"
+fi
+
+if [[ "$desktop" -eq 1 ]]; then
+  echo "Setting up the desktop app toolchain..."
+  "${REPO_ROOT}/apps/desktop/scripts/run" "${desktop_setup_args[@]}"
 fi

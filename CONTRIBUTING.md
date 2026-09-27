@@ -144,6 +144,18 @@ scripts/lint
 scripts/test
 ```
 
+The optional desktop app (`apps/desktop/`) uses the same scripts with `--desktop`.
+This is opt-in, and the default sequence above never needs Rust. See
+[Setting up the desktop app toolchain](docs/how-to/project-setup/desktop-toolchain.md):
+
+```bash
+scripts/develop --desktop
+scripts/version tools --desktop
+scripts/format --check --desktop
+scripts/lint --desktop
+scripts/test --desktop
+```
+
 Notes:
 
 - For documentation-only changes, run only relevant lightweight checks.

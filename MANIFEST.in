@@ -1,0 +1,4 @@
+# setuptools-scm adds every git-tracked file to the sdist. Keep the optional
+# desktop app (Rust/Tauri, see apps/README.md) out of the Python distribution;
+# src/lrh/dev/release_smoke.py asserts the built sdist has no apps/ entries.
+prune apps

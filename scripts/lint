@@ -9,6 +9,7 @@ export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
 fix=0
 extra=0
+desktop=0
 
 # Parse flags
 while [[ $# -gt 0 ]]; do
@@ -21,11 +22,21 @@ while [[ $# -gt 0 ]]; do
             extra=1
             shift
             ;;
+        --desktop)
+            desktop=1
+            shift
+            ;;
         *)
             break
             ;;
     esac
 done
+
+# With --desktop, verify the desktop toolchain first: a missing or mismatched
+# toolchain is a setup error, so fail before running the Python checks.
+if [[ "$desktop" -eq 1 ]]; then
+    "${REPO_ROOT}/apps/desktop/scripts/run" check
+fi
 
 # Targets
 if [[ "$#" -gt 0 ]]; then
@@ -51,6 +62,11 @@ if [[ "$fix" -eq 1 ]]; then
 
     echo "Formatting with black..."
     black "${targets[@]}"
+
+    if [[ "$desktop" -eq 1 ]]; then
+        echo "Formatting desktop app with cargo fmt..."
+        "${REPO_ROOT}/apps/desktop/scripts/run" fmt
+    fi
 
     if [[ "$extra" -eq 1 ]]; then
         echo
@@ -96,6 +112,23 @@ if ! python -m lrh.control.test_guardrails tests; then
 fi
 
 # ------------------------
+# DESKTOP CHECKS (--desktop only; default runs never touch Rust)
+# ------------------------
+desktop_failed=0
+if [[ "$desktop" -eq 1 ]]; then
+    echo "Checking desktop app formatting (cargo fmt --check)..."
+    if ! "${REPO_ROOT}/apps/desktop/scripts/run" fmt --check; then
+        desktop_failed=1
+    fi
+    if [[ "$desktop_failed" -eq 0 ]]; then
+        echo "Checking desktop app lint (cargo clippy)..."
+        if ! "${REPO_ROOT}/apps/desktop/scripts/run" lint; then
+            desktop_failed=1
+        fi
+    fi
+fi
+
+# ------------------------
 # EXTRA CHECKS
 # ------------------------
 if [[ "$extra" -eq 1 ]]; then
@@ -116,6 +149,6 @@ fi
 # ------------------------
 # FINAL STATUS
 # ------------------------
-if [[ "$ruff_failed" -ne 0 || "$black_failed" -ne 0 || "$guardrails_failed" -ne 0 || "$pylint_failed" -ne 0 || "$pyright_failed" -ne 0 ]]; then
+if [[ "$ruff_failed" -ne 0 || "$black_failed" -ne 0 || "$guardrails_failed" -ne 0 || "$desktop_failed" -ne 0 || "$pylint_failed" -ne 0 || "$pyright_failed" -ne 0 ]]; then
     exit 1
 fi

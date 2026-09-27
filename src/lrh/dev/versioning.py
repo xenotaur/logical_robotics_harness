@@ -13,6 +13,7 @@ import sys
 from lrh import version as lrh_version
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[3]
+DESKTOP_HELPER = REPO_ROOT / "apps" / "desktop" / "scripts" / "run"
 
 
 class VersioningError(RuntimeError):
@@ -141,8 +142,16 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command")
 
-    subparsers.add_parser(
+    tools_parser = subparsers.add_parser(
         "tools", help="Print tool versions used by the release workflow"
+    )
+    tools_parser.add_argument(
+        "--desktop",
+        action="store_true",
+        help=(
+            "also report the desktop app toolchain (rustup, rustc, cargo, "
+            "tauri-cli) and fail if any is missing or does not match its pin"
+        ),
     )
 
     verify_parser = subparsers.add_parser(
@@ -307,6 +316,39 @@ def print_tool_versions() -> None:
         _print_tool_version(label, command, optional=optional)
 
 
+def check_desktop_tool_versions() -> None:
+    """Report desktop toolchain versions strictly via the desktop helper.
+
+    Plain ``tools`` never probes Rust. This strict form delegates to
+    ``apps/desktop/scripts/run versions``, which exits non-zero when rustup,
+    cargo, the pinned toolchain, or the pinned tauri-cli is missing or
+    mismatched.
+    """
+    _run_desktop_helper("versions")
+
+
+def preflight_desktop_toolchain() -> None:
+    """Fail fast, before any other reporting, if the desktop pins are unmet."""
+    _run_desktop_helper("check")
+
+
+def _run_desktop_helper(command: str) -> None:
+    if not DESKTOP_HELPER.is_file():
+        raise VersioningError(
+            f"desktop helper not found: {DESKTOP_HELPER} "
+            "(desktop checks run only from a source checkout)"
+        )
+    # Flush buffered prints first so piped output (CI logs) stays in order.
+    sys.stdout.flush()
+    completed = subprocess.run(
+        [str(DESKTOP_HELPER), command], check=False, cwd=REPO_ROOT
+    )
+    if completed.returncode != 0:
+        raise VersioningError(
+            "desktop toolchain check failed; run scripts/develop --desktop"
+        )
+
+
 def verify_release(tag: str = "") -> None:
     """Verify release preconditions, optionally including tag validation."""
     if tag:
@@ -373,7 +415,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.command is None:
             print_lrh_version()
         elif args.command == "tools":
+            if args.desktop:
+                preflight_desktop_toolchain()
             print_tool_versions()
+            if args.desktop:
+                check_desktop_tool_versions()
         elif args.command == "verify":
             verify_release(args.tag)
         elif args.command == "tag":

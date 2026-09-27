@@ -1,0 +1,7 @@
+# Pinned Rust toolchain for the LRH Console desktop app.
+# rustup reads this file from apps/desktop/ (the helper always runs cargo from
+# here). Since rustup 1.28 it is not auto-installed: run scripts/develop --desktop.
+[toolchain]
+channel = "1.95.0"
+components = ["rustfmt", "clippy"]
+profile = "minimal"

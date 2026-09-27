@@ -66,7 +66,7 @@ artifacts_expected:
 - "src/lrh/dev/release_smoke.py sdist-exclusion and wheel-contents assertions, with tests/dev_tests/release_smoke_test.py\
   \ coverage"
 - ".github/workflows/desktop.yml (path-filtered plus weekly scheduled, non-required desktop CI)"
-- "apps/desktop/scripts/run (single desktop helper: setup, versions, fmt, lint, test; --help, --dry-run)"
+- "apps/desktop/scripts/run (single desktop helper: setup, check, versions, fmt, lint, test; --help, --dry-run)"
 - "--desktop modes for scripts/develop, scripts/test, scripts/lint, scripts/format, and scripts/version tools (default\
   \ behavior and output unchanged and Rust-free)"
 - "tests/scripts_tests/desktop_modes_test.py (default runs never invoke cargo; every --desktop mode fails on a missing or\
@@ -274,7 +274,8 @@ External facts behind the design, checked 2026-09-26:
    - Add `.github/workflows/desktop.yml`. It runs when any of these change:
      `apps/desktop/**`, which includes the helper; the five scripts that route
      `--desktop` (`scripts/develop`, `scripts/test`, `scripts/lint`,
-     `scripts/format`, `scripts/version`); the Python backend that the tier-1
+     `scripts/format`, `scripts/version`, plus `src/lrh/dev/versioning.py`,
+     which implements the strict version check); the Python backend that the tier-1
      supervisor tests drive (`src/lrh/desktop_protocol.py`,
      `src/lrh/desktop_supervisor.py`, `src/lrh/serve.py`); or the workflow file
      itself. A backend protocol change must run the Rust integration tests in
@@ -297,9 +298,11 @@ External facts behind the design, checked 2026-09-26:
    - Route the desktop toolchain through the existing scripts, using the
      "Developer workflow placement" section above. Put all Rust-aware logic in
      one helper, `apps/desktop/scripts/run`, with the subcommands `setup`,
-     `versions`, `fmt`, `lint`, and `test`, plus `--help` and `--dry-run`. The
-     top-level scripts only parse `--desktop` and call it, which keeps them
-     thin (STYLE rule 8).
+     `check`, `versions`, `fmt`, `lint`, and `test`, plus `--help` and
+     `--dry-run`. `check` is a quiet pin preflight: `scripts/lint --desktop`
+     and `scripts/version tools --desktop` run it first, so a broken toolchain
+     fails before any Python check. The top-level scripts only parse
+     `--desktop` and call the helper, which keeps them thin (STYLE rule 8).
      - Each top-level script parses its own flags (`--desktop`,
        `--dry-run`, `--install-rust`) before anything else runs, and before
        any remaining arguments pass through. Today `scripts/test` hands its
@@ -365,10 +368,11 @@ External facts behind the design, checked 2026-09-26:
        through the reference supervisor, the sdist/wheel guards, and Python
        checks over `apps/desktop` configuration such as capability files
        denying native commands to dashboard content.
-     - Tier 1, Rust headless, in `scripts/test --desktop` and CI: `cargo fmt`,
-       `clippy`, and `cargo test`, including `tauri::test` mock-runtime
-       command/IPC and capability tests, plus supervisor tests that drive a
-       real `lrh serve --desktop-protocol` child.
+     - Tier 1, Rust headless: `cargo test` in `scripts/test --desktop`, and
+       `cargo fmt --check` plus `clippy` in `scripts/lint --desktop`. CI runs
+       both. Tests include `tauri::test` mock-runtime command/IPC and
+       capability tests, plus supervisor tests that drive a real
+       `lrh serve --desktop-protocol` child.
      - Tier 2, real-window automation, is deferred: WebDriver covers only
        Linux/Windows, and macOS would need Node.
      - Tier 3 is the manual macOS checklist and the five dogfood sessions.
@@ -378,6 +382,24 @@ External facts behind the design, checked 2026-09-26:
      `docs/how-to/project-setup/README.md`, `apps/README.md`, and the
      CONTRIBUTING development-workflow section as the opt-in desktop sequence
      next to the unchanged default sequence.
+
+### Delivery staging
+
+This item lands in two implementation PRs, and it resolves only after the
+five recorded Mac dogfood sessions:
+
+1. **Toolchain and scripts** (prompt slug `wi-lrh-console-desktop-l0-toolchain`).
+   It delivers all of item 9 plus a minimal Tauri app under `apps/desktop/`:
+   one bundled placeholder window, one read-only command, and a local-only
+   capability. It passes tier 0 and tier 1. Its mock-runtime tests already
+   prove that an unlisted window and a loopback origin in the main window are
+   denied app commands.
+2. **App features** (later run). It delivers items 1-8: the Rust supervisor,
+   native menus, Settings/Details, bundled recovery pages, full capability and
+   supervisor tests (`supervisor_test.rs`, `capability_boundaries_test.rs`),
+   `docs/how-to/lrh-console-local-dogfood.md`, and the dogfood evidence.
+
+The item stays `proposed` after PR 1 merges.
 
 The listed test and evidence paths are planned outputs of this implementation
 item, not files delivered by the planning PR. If implementation refines their

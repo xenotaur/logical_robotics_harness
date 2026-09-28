@@ -97,13 +97,19 @@ Manual run by the maintainer on 2026-09-27, reported in this session:
   The `lrh-design` workflow was followed as intended.
 - **Capability limitations encountered:** none observed. The run did not
   reach a step needing local `git`, `gh`, or `lrh`, and it was not a coding
-  session, so local-tool limits were not exercised. The environment behind
-  ChatGPT's "Ran 2 commands" (hosted sandbox vs. a connected repository) was
-  not identified.
+  session, so local-tool limits were not exercised.
+- **Environment:** an ordinary, already-open ChatGPT conversation with no
+  connected repository, connector, or project attachment. ChatGPT's visible
+  activity ("Checking local design skills", "Read skill", "Inspecting
+  branding and design references", "Read files", "Ran 2 commands") therefore
+  ran in ChatGPT's own hosted environment against the uploaded skill bundle,
+  not against a local repository. ChatGPT described the uploaded bundle as
+  "the repository's lrh-design skill". The UI summary did not show which
+  commands ran.
 
 Changes made in response:
 
-- ChatGPT evidently can run commands in its own hosted environment, so the
+- ChatGPT runs commands in its own hosted environment (confirmed above), so the
   capability notice and docs were reworded from "which ChatGPT online cannot
   run" to "…cannot run against your local repository or machine".
 - The skill description still says "Invoke with /lrh-design" (Claude slash

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented `lrh skills export --target chatgpt` (deterministic ChatGPT-uploadable skill bundles) and dogfooded an exported lrh-design bundle in ChatGPT online; merged in PR #747 (commit 97b111bbc521029455af02963f25edcb64f6a79f)'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-CHATGPT-EXPORT
 title: 'Export canonical LRH skills as ChatGPT-uploadable bundles'
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

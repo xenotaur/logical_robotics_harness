@@ -39,6 +39,8 @@ STUBS = {
           --version) echo "rustup 1.29.0 (stub)" ;;
           toolchain)
             if [ "$2" = "list" ]; then printf '%s\\n' $FAKE_TOOLCHAINS; fi ;;
+          component)
+            if [ "$2" = "list" ]; then printf '%s\\n' $FAKE_COMPONENTS; fi ;;
         esac
         exit 0
         """,
@@ -94,6 +96,7 @@ FAILURE_CASES = {
     "cargo_absent": ({"cargo"}, {}),
     "toolchain_not_installed": (set(), {"FAKE_TOOLCHAINS": "stable-fake-host"}),
     "toolchain_mismatched": (set(), {"FAKE_RUSTC_VERSION": "1.0.0"}),
+    "component_missing": (set(), {"FAKE_COMPONENTS": "rustfmt-fake-host"}),
     "tauri_cli_missing": (set(), {"FAKE_TAURI_CLI": ""}),
     "tauri_cli_mismatched": (set(), {"FAKE_TAURI_CLI": "0.0.1"}),
 }
@@ -172,6 +175,7 @@ class DesktopModesTestBase(unittest.TestCase):
             "FAKE_LOG": str(self.log),
             "FAKE_TOOLCHAINS": f"{RUST_PIN}-fake-host",
             "FAKE_RUSTC_VERSION": RUST_PIN,
+            "FAKE_COMPONENTS": "rustfmt-fake-host clippy-fake-host",
             "FAKE_TAURI_CLI": TAURI_CLI_PIN,
             "PYTHON": str(fake_python_path),
         }

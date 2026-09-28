@@ -153,12 +153,19 @@ can vary between zlib builds).
 - `name` must match the directory name, use lowercase letters, digits, and
   single hyphens, and be at most 64 characters;
 - `description` must be a non-empty string of at most 1024 characters;
+- optional `license` must be a string, `compatibility` a string of at most 500
+  characters, and `metadata` a mapping of string keys to string values;
+- manual-only markers (`disable-model-invocation`,
+  `policy.allow_implicit_invocation`) must be booleans, so a quoted `"true"`
+  fails rather than silently exporting a manual-only skill;
 - source symlinks are rejected, never followed;
 - archive paths must be safe and relative, with no case-insensitive duplicates;
 - bundles must stay within the upload limits documented by the OpenAI Skills
   API guide (50 MB per ZIP, 500 files, 25 MB per uncompressed file).
 
 If any selected skill fails, no bundles are written and the command exits 1.
+Usage errors and unusable output locations (for example `--out` inside the
+source, or a directory at a destination path) exit 2 with an error message.
 
 `--out` must not be a symlink, and must not be the skill source directory or
 lie inside it (checked by file identity, so symlinks and letter case cannot get

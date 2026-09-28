@@ -43,6 +43,7 @@ PORTABLE_FRONTMATTER_KEYS = (
 _SKILL_NAME_PATTERN = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 MAX_SKILL_NAME_LENGTH = 64
 MAX_DESCRIPTION_LENGTH = 1024
+MAX_COMPATIBILITY_LENGTH = 500
 # Upload limits documented by the OpenAI Skills API guide. They are assumed to
 # apply to ChatGPT uploads until manual dogfooding confirms otherwise.
 MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
@@ -411,13 +412,43 @@ def _validate_skill_md(
             f"frontmatter description is {len(description)} characters;"
             f" limit is {MAX_DESCRIPTION_LENGTH}"
         )
+    _validate_optional_portable_fields(metadata, errors)
     return metadata
+
+
+def _validate_optional_portable_fields(
+    metadata: dict[str, Any], errors: list[str]
+) -> None:
+    """Check the optional portable fields that are copied into the bundle."""
+    if "license" in metadata and not isinstance(metadata["license"], str):
+        errors.append("frontmatter license must be a string")
+    if "compatibility" in metadata:
+        compatibility = metadata["compatibility"]
+        if not isinstance(compatibility, str):
+            errors.append("frontmatter compatibility must be a string")
+        elif len(compatibility) > MAX_COMPATIBILITY_LENGTH:
+            errors.append(
+                f"frontmatter compatibility is {len(compatibility)} characters;"
+                f" limit is {MAX_COMPATIBILITY_LENGTH}"
+            )
+    if "metadata" in metadata:
+        extra = metadata["metadata"]
+        if not isinstance(extra, dict) or not all(
+            isinstance(key, str) and isinstance(value, str)
+            for key, value in extra.items()
+        ):
+            errors.append("frontmatter metadata must map string keys to string values")
 
 
 def _is_manual_only(
     metadata: dict[str, Any], source_files: dict[str, bytes], errors: list[str]
 ) -> bool:
-    if metadata.get("disable-model-invocation") is True:
+    disable_flag = metadata.get("disable-model-invocation")
+    if disable_flag is not None and not isinstance(disable_flag, bool):
+        # A quoted "true" would otherwise read as not manual-only; fail safe.
+        errors.append("frontmatter disable-model-invocation must be a boolean")
+        return False
+    if disable_flag is True:
         return True
     openai_yaml = source_files.get(_OPENAI_YAML)
     if openai_yaml is None:
@@ -440,7 +471,15 @@ def _is_manual_only(
     if policy is not None and not isinstance(policy, dict):
         errors.append(f"cannot read invocation policy from {_OPENAI_YAML}")
         return False
-    return isinstance(policy, dict) and policy.get("allow_implicit_invocation") is False
+    if not isinstance(policy, dict):
+        return False
+    allow_implicit = policy.get("allow_implicit_invocation")
+    if allow_implicit is not None and not isinstance(allow_implicit, bool):
+        errors.append(
+            f"policy.allow_implicit_invocation in {_OPENAI_YAML} must be a boolean"
+        )
+        return False
+    return allow_implicit is False
 
 
 def _render_skill_md(content: bytes) -> bytes:

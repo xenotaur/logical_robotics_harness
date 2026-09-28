@@ -365,6 +365,29 @@ class TestManualOnlySkills(_SkillTreeMixin, unittest.TestCase):
         self.assertEqual(report.results[0].status, exporter.ExportStatus.FAILED)
         self.assertIn("invocation policy", report.results[0].errors[0])
 
+    def test_quoted_manual_only_markers_fail_safe(self) -> None:
+        source = self._make_source()
+        self._write_skill(
+            source,
+            "quoted-claude",
+            skill_md=(
+                "---\nname: quoted-claude\ndescription: Q.\n"
+                "disable-model-invocation: 'true'\n---\nB\n"
+            ),
+        )
+        self._write_skill(
+            source,
+            "quoted-codex",
+            extra_files={
+                "agents/openai.yaml": 'policy:\n  allow_implicit_invocation: "false"\n'
+            },
+        )
+        report = exporter.export_skills(out_dir=self._make_out(), source=source)
+        for name in ("quoted-claude", "quoted-codex"):
+            result = self._result(report, name)
+            self.assertEqual(result.status, exporter.ExportStatus.FAILED)
+            self.assertIn("must be a boolean", " ".join(result.errors))
+
     def test_empty_openai_yaml_is_not_manual_only(self) -> None:
         source = self._make_source()
         self._write_skill(
@@ -511,6 +534,41 @@ class TestExportValidation(_SkillTreeMixin, unittest.TestCase):
             skill_md=f"---\nname: long-desc\ndescription: {long_description}\n---\n",
         )
         self._assert_fails_without_writing(source, "limit is 1024")
+
+    def test_malformed_optional_portable_fields_fail(self) -> None:
+        cases = {
+            "bad-license": "license: 5\n",
+            "bad-compat": "compatibility: " + "c" * 501 + "\n",
+            "bad-metadata": "metadata: [1, 2]\n",
+            "bad-metadata-value": "metadata:\n  key: 3\n",
+        }
+        for name, extra in cases.items():
+            with self.subTest(name=name):
+                source = self._make_source()
+                self._write_skill(
+                    source,
+                    name,
+                    skill_md=f"---\nname: {name}\ndescription: X.\n{extra}---\nB\n",
+                )
+                self._assert_fails_without_writing(source, "frontmatter")
+
+    def test_valid_optional_portable_fields_are_kept(self) -> None:
+        source = self._make_source()
+        self._write_skill(
+            source,
+            "full-fields",
+            skill_md=(
+                "---\nname: full-fields\ndescription: X.\nlicense: MIT\n"
+                "compatibility: Needs nothing.\nmetadata:\n  owner: lrh\n---\nB\n"
+            ),
+        )
+        out = self._make_out()
+        report = exporter.export_skills(out_dir=out, source=source)
+        self.assertFalse(report.has_failures)
+        skill_md = self._archive_read(out / "full-fields.zip", "full-fields/SKILL.md")
+        frontmatter = yaml.safe_load(skill_md.split("---")[1])
+        self.assertEqual(frontmatter["metadata"], {"owner": "lrh"})
+        self.assertEqual(frontmatter["compatibility"], "Needs nothing.")
 
     def test_one_failure_blocks_all_writes(self) -> None:
         source = self._make_source()

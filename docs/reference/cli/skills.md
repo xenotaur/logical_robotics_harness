@@ -164,7 +164,7 @@ If any selected skill fails, no bundles are written and the command exits 1.
 skipped entries, manual-only status, an earlier bundle for a skipped manual-only
 skill still present in `--out`, and workflows that use local `git`, the
 GitHub `gh` CLI, the `lrh` CLI, or shell commands, which ChatGPT online cannot
-run.
+run against your local repository or machine.
 
 Exported output uses:
 

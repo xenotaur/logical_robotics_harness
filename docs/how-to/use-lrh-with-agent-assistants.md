@@ -184,8 +184,10 @@ automatically when your request matches the skill's `description`.
 
 #### Capability limits
 Skill instructions do not grant tools. Most LRH workflows run local `git`, the
-GitHub `gh` CLI, the `lrh` CLI, or other shell commands, which ChatGPT online
-cannot run. The export reports these as notices rather than rewriting the
+GitHub `gh` CLI, the `lrh` CLI, or other shell commands against your
+repository. ChatGPT online may run commands in its own hosted environment, but
+it cannot run them against your local repository or machine. The export reports
+these as notices rather than rewriting the
 workflow; such skills remain useful for planning and drafting, but steps that
 need local tools must be carried out elsewhere. Instruction-centric skills such
 as `lrh-design`, `lrh-proposal`, and `lrh-work-item` are the best fit.

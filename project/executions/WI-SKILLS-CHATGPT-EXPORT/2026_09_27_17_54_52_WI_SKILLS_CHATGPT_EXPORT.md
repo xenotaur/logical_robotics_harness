@@ -77,14 +77,38 @@ the documented `--source` precedence.
 
 ## ChatGPT dogfood evidence (Required Change 10)
 
-Pending — requires the maintainer to upload an exported instruction-centric
-skill to ChatGPT online. To be recorded here before closeout:
+Manual run by the maintainer on 2026-09-27, reported in this session:
 
-- exported skill name:
-- upload accepted by ChatGPT (yes/no, and any error):
-- invocation mode (explicit `@skill-name` or automatic):
-- observed workflow outcome:
-- capability limitations encountered:
+- **Exported skill:** `lrh-design`, produced by `lrh skills export --target
+  chatgpt --source current-repo --skill lrh-design` from this PR's branch
+  (5.6 KB ZIP).
+- **Upload:** accepted. The flow matched OpenAI's "Skills in ChatGPT" help
+  article: sidebar **Plugins** → **Skills** tab → **Create** → **Upload
+  from your computer**. The skill passed ChatGPT's upload scan. Its details
+  page showed the expected name, description, `SKILL.md` body, and file
+  tree.
+- **Invocation mode:** explicit `@` mention. The prompt rendered the skill as
+  a mention chip (`@lrh design`), confirming the documented `@skill-name`
+  invocation. Automatic selection was not separately tested.
+- **Observed outcome:** ChatGPT stated it would check the skill, reported
+  "Ran 2 commands and read skill instructions", recognized the skill's
+  prior-art check and in-conversation design review before creating
+  artifacts, and produced a design recommendation (a logo-guidance request).
+  The `lrh-design` workflow was followed as intended.
+- **Capability limitations encountered:** none observed. The run did not
+  reach a step needing local `git`, `gh`, or `lrh`, and it was not a coding
+  session, so local-tool limits were not exercised. The environment behind
+  ChatGPT's "Ran 2 commands" (hosted sandbox vs. a connected repository) was
+  not identified.
+
+Changes made in response:
+
+- ChatGPT evidently can run commands in its own hosted environment, so the
+  capability notice and docs were reworded from "which ChatGPT online cannot
+  run" to "…cannot run against your local repository or machine".
+- The skill description still says "Invoke with /lrh-design" (Claude slash
+  syntax). It caused no problem, and rewriting skill text is out of scope for
+  this WI; it belongs with agent-neutral skill-body work.
 
 # Validation
 
@@ -100,7 +124,8 @@ skill to ChatGPT online. To be recorded here before closeout:
 
 # Follow-up
 
-- Record the ChatGPT dogfood evidence above (acceptance criterion).
+- Optional: a second dogfood run in a coding session that reaches a
+  local-tool step, to record the actual limit behavior.
 - Possible follow-up, not in scope: fold `when_to_use` guidance into
   `description` for hosted targets if dogfooding shows automatic selection
   needs it.

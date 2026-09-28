@@ -65,6 +65,11 @@ _GH_PATTERN = re.compile(
     r"(?:^|[\s`$(])gh\s+(?:api|auth|issue|pr|release|repo|run|workflow)\b", re.M
 )
 _LRH_CLI_PATTERN = re.compile(r"(?:^|[\s`$(])lrh\s+[a-z][a-z-]*\b", re.M)
+# ChatGPT online can run commands in its own hosted environment, but not
+# against the user's local repository or machine, which LRH workflows assume.
+_LOCAL_TOOLS_LIMIT = (
+    "which ChatGPT online cannot run against your local repository or machine"
+)
 _CAPABILITY_LABELS = {
     "requires_git": "local `git`",
     "requires_gh": "the GitHub `gh` CLI",
@@ -242,8 +247,7 @@ def _grouped_notice_messages(notices: Sequence[ExportNotice]) -> list[str]:
         messages.append(
             "workflow uses "
             + ", ".join(capabilities)
-            + ", which ChatGPT online cannot run; instructions are exported"
-            " unchanged"
+            + f", {_LOCAL_TOOLS_LIMIT}; instructions are exported unchanged"
         )
     return messages
 
@@ -532,10 +536,7 @@ def _capability_notices(bundle: dict[str, bytes]) -> list[ExportNotice]:
     return [
         ExportNotice(
             code=code,
-            message=(
-                f"workflow uses {_CAPABILITY_LABELS[code]},"
-                " which ChatGPT online cannot run"
-            ),
+            message=(f"workflow uses {_CAPABILITY_LABELS[code]}, {_LOCAL_TOOLS_LIMIT}"),
         )
         for pattern, code in checks
         if pattern.search(text)

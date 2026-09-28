@@ -406,6 +406,7 @@ class TestCapabilityNotices(_SkillTreeMixin, unittest.TestCase):
         self.assertEqual(len(capability_lines), 1)
         self.assertIn("local `git`", capability_lines[0])
         self.assertIn("the GitHub `gh` CLI", capability_lines[0])
+        self.assertIn("against your local repository or machine", capability_lines[0])
 
 
 class TestExportValidation(_SkillTreeMixin, unittest.TestCase):

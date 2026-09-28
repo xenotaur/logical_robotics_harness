@@ -161,9 +161,10 @@ can vary between zlib builds).
 If any selected skill fails, no bundles are written and the command exits 1.
 
 `--out` must not be a symlink, and must not be the skill source directory or
-lie inside it. Bundles are staged to temporary files and published only after
-every one was written, so a filesystem error does not leave a partial batch.
-An existing directory at a destination `<skill-name>.zip` path stops the export
+lie inside it (checked by file identity, so symlinks and letter case cannot get
+around it). Bundles are staged to temporary files and published only after
+every one was written, so a failure while writing leaves nothing published. An
+existing directory at a destination `<skill-name>.zip` path stops the export
 before anything is written.
 
 **Notices** are non-blocking and printed per skill: dropped frontmatter keys,

@@ -562,22 +562,35 @@ def _check_output_dir(out_dir: Path, source: installer.SkillSource) -> None:
         raise SkillExportError(f"export output is not a directory: {out_dir}")
     # Generated bundles must never land inside the canonical source tree.
     # Package sources that are not on the filesystem cannot overlap.
-    if isinstance(source.root, Path):
-        source_root = source.root.resolve()
-        resolved_out = out_dir.resolve()
-        if resolved_out.is_relative_to(source_root):
-            raise SkillExportError(
-                f"export output {out_dir} is inside the skill source {source.root}"
-            )
+    if isinstance(source.root, Path) and _is_within(out_dir, source.root):
+        raise SkillExportError(
+            f"export output {out_dir} is inside the skill source {source.root}"
+        )
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    """Return True when `path` is `root` or lies inside it.
+
+    Compares file identity (`os.path.samefile`) against every existing
+    ancestor rather than comparing path strings, so neither symlinks nor a
+    differently-cased path on a case-insensitive filesystem can bypass it.
+    """
+    resolved = path.resolve()
+    for ancestor in (resolved, *resolved.parents):
+        if ancestor.exists() and os.path.samefile(ancestor, root):
+            return True
+    return False
 
 
 def _publish_archives(archives: list[tuple[Path, bytes]]) -> None:
-    """Write every archive, or none, as far as the filesystem allows.
+    """Stage every archive before publishing any of them.
 
     Destinations are checked first, then every archive is staged to a
     temporary file; only when all staging succeeds are the temporaries
     promoted with `os.replace`. A staging failure removes every temporary
-    written so far, so no partial batch is published.
+    written so far, so nothing is published. A failure during promotion
+    itself (rare: same-directory renames) cannot un-publish archives already
+    promoted, but it removes the remaining temporaries and reports the error.
     """
     for path, _archive in archives:
         if path.is_dir() and not path.is_symlink():
@@ -590,8 +603,15 @@ def _publish_archives(archives: list[tuple[Path, bytes]]) -> None:
         for temporary, _path in staged:
             temporary.unlink(missing_ok=True)
         raise SkillExportError(f"could not write export bundles: {err}") from err
-    for temporary, path in staged:
-        os.replace(temporary, path)
+    for index, (temporary, path) in enumerate(staged):
+        try:
+            os.replace(temporary, path)
+        except OSError as err:
+            for remaining, _path in staged[index:]:
+                remaining.unlink(missing_ok=True)
+            raise SkillExportError(
+                f"could not publish export bundle {path.name}: {err}"
+            ) from err
 
 
 def _stage_archive(path: Path, archive: bytes) -> Path:

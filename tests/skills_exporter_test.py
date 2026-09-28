@@ -9,6 +9,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 import yaml
 
@@ -539,6 +540,47 @@ class TestExportValidation(_SkillTreeMixin, unittest.TestCase):
                 ):
                     exporter.export_skills(out_dir=out, source=source)
                 self.assertFalse((out / "demo-skill.zip").exists())
+
+    def test_output_inside_source_via_symlink_or_case_is_rejected(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "demo-skill")
+        alias = source.parent / "alias"
+        alias.symlink_to(source)
+        variants = [alias / "exports"]
+        upper = source.parent / source.name.upper()
+        if upper.exists() and os.path.samefile(upper, source):
+            # Case-insensitive filesystem: a differently-cased path is the
+            # same directory and must be caught too.
+            variants.append(upper / "exports")
+        for out in variants:
+            with self.subTest(out=out):
+                with self.assertRaisesRegex(
+                    exporter.SkillExportError, "inside the skill source"
+                ):
+                    exporter.export_skills(out_dir=out, source=source)
+        self.assertFalse((source / "exports").exists())
+
+    def test_promotion_failure_removes_remaining_temporaries(self) -> None:
+        out = self._make_out()
+        out.mkdir(parents=True)
+        blocked = out / "beta-skill.zip"
+        original_replace = os.replace
+
+        def failing_replace(src: object, dst: object) -> None:
+            if Path(dst) == blocked:
+                raise PermissionError("simulated")
+            original_replace(src, dst)
+
+        with mock.patch.object(exporter.os, "replace", failing_replace):
+            with self.assertRaisesRegex(exporter.SkillExportError, "could not publish"):
+                exporter._publish_archives(
+                    [
+                        (out / "alpha-skill.zip", b"a"),
+                        (blocked, b"b"),
+                        (out / "gamma-skill.zip", b"c"),
+                    ]
+                )
+        self.assertEqual(sorted(p.name for p in out.iterdir()), ["alpha-skill.zip"])
 
     def test_symlinked_output_directory_is_rejected(self) -> None:
         source = self._make_source()

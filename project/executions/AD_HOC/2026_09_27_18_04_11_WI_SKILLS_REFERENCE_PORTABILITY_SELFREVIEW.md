@@ -3,9 +3,9 @@ execution_id: 2026_09_27_18_04_11_WI_SKILLS_REFERENCE_PORTABILITY_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_SKILLS_REFERENCE_PORTABILITY_SELFREVIEW)[2026-09-27T18:04:07+00:00]
 work_item: AD_HOC
 status: in_progress
-rerun_of: 
-pr: 
-commit: 
+rerun_of:
+pr:
+commit:
 created_at: 2026-09-27T18:04:11+00:00
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SKILLS-REFERENCE-PORTABILITY.md

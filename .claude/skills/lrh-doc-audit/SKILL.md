@@ -55,6 +55,14 @@ Load these before running any step:
    guardrails (no reorganization in this operation). Read at Step 2 and
    apply at Steps 3, 5, and 6.
 
+The bundled `references/` files are the skill's portable operational
+references and must be resolved relative to this installed skill directory,
+not relative to the client's working directory. The LRH checkout's
+`docs/reference/docs-audit-artifact-convention.md` is an optional maintainer
+reference. If it is absent from an independent client repository, use the
+bundled `audit-requirements.md` schema and continue; do not treat the missing
+LRH-owned file as a runtime failure.
+
 <!-- Template counterpart: src/lrh/assist/templates/request/audit_docs.md -->
 
 ---
@@ -135,9 +143,10 @@ are underserved or entirely absent. Note specific missing content.
 ### Step 6 — Draft audit artifact
 
 Using the schema from `references/audit-requirements.md`, draft the full
-audit artifact in memory (do not write yet). The schema is the v1 convention
-from `docs/reference/docs-audit-artifact-convention.md` — see that file and
-`audit-requirements.md` for the full required frontmatter and heading list.
+audit artifact in memory (do not write yet). In the LRH checkout,
+`docs/reference/docs-audit-artifact-convention.md` is an optional explanatory
+reference for the same v1 convention; the bundled `audit-requirements.md` is
+the portable source to use when that maintainer document is unavailable.
 
 ### Step 7 — Confirm gate (human gate)
 

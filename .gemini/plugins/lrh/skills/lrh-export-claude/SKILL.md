@@ -95,12 +95,22 @@ resolves it, so a bare invocation no longer needs to ask.
 
 ## Reference Knowledge
 
-Use the repository CLI documentation as the command contract:
+Use the installed LRH CLI as the operational command contract. In an
+independent client repository, verify the available command surface with:
 
-- `docs/reference/cli/conversation.md` for
-  `lrh conversation current-claude-session-id`,
-  `lrh conversation export-claude-session`, and
-  `lrh conversation inspect-export`.
+```bash
+lrh conversation --help
+lrh conversation current-claude-session-id --help
+lrh conversation export-claude-session --help
+lrh conversation inspect-export --help
+```
+
+The LRH checkout's `docs/reference/cli/conversation.md` is an optional
+maintainer reference, not a client-repository prerequisite. If it is absent,
+continue with CLI help and the explicit capability checks above. A missing
+LRH-owned documentation file is not evidence that Claude session resolution
+or export is unavailable; only a missing or incompatible CLI command is a
+runtime blocker.
 
 The relevant CLI guarantees are:
 

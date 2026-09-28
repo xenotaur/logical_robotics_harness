@@ -284,6 +284,43 @@ def main() -> None:
         help="Check installed LRH skill drift and compatibility without writing files.",
     )
     add_skills_resolution_args(skills_check_parser)
+    skills_export_parser = skills_subparsers.add_parser(
+        "export",
+        help=(
+            "Export LRH skills as upload bundles for hosted assistants"
+            " (one deterministic ZIP per skill)."
+        ),
+    )
+    skills_export_parser.add_argument(
+        "--target",
+        choices=("chatgpt",),
+        required=True,
+        help="hosted assistant to export for",
+    )
+    skills_export_parser.add_argument(
+        "--out",
+        required=True,
+        help="directory to write <skill-name>.zip bundles into",
+    )
+    skills_export_parser.add_argument(
+        "--source",
+        default=None,
+        help=(
+            "canonical skill source: lrh-package, current-repo, or a filesystem"
+            " path (default: repo config or lrh-package)"
+        ),
+    )
+    skills_export_parser.add_argument(
+        "--skill",
+        action="append",
+        dest="skills",
+        metavar="NAME",
+        default=None,
+        help=(
+            "export only this skill (repeatable); manual-only skills are exported"
+            " only when named here"
+        ),
+    )
 
     project_parser = subparsers.add_parser(
         "project",
@@ -2077,6 +2114,31 @@ def main() -> None:
             ):
                 raise SystemExit(1)
             raise SystemExit(0)
+        if args.skills_command == "export":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            from lrh.skills import exporter, installer
+
+            try:
+                skills_plan = installer.resolve_agent_skills_install_plan(
+                    project_root=Path.cwd(),
+                    source=args.source,
+                )
+                export_report = exporter.export_skills(
+                    out_dir=Path(args.out),
+                    source=skills_plan.source,
+                    skill_names=args.skills,
+                    target=args.target,
+                    project_root=Path.cwd(),
+                )
+            except (
+                installer.SkillSourceError,
+                exporter.SkillExportError,
+                OSError,
+            ) as err:
+                parser.error(str(err))
+            print(exporter.format_export_report(export_report))
+            raise SystemExit(1 if export_report.has_failures else 0)
         parser.error("skills requires a subcommand (try: lrh skills install)")
 
     if passthrough_args:

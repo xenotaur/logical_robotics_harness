@@ -212,6 +212,20 @@ class ReleaseSmokeDistributionContentsTest(unittest.TestCase):
                 ["lrh/__init__.py", "apps/desktop/Cargo.toml"]
             )
 
+    def test_wheel_without_dist_info_fails(self) -> None:
+        with self.assertRaisesRegex(release_smoke.ReleaseSmokeError, "found 0"):
+            release_smoke.check_wheel_members(["lrh/__init__.py"])
+
+    def test_wheel_with_two_dist_infos_fails(self) -> None:
+        with self.assertRaisesRegex(release_smoke.ReleaseSmokeError, "found 2"):
+            release_smoke.check_wheel_members(
+                [
+                    "lrh/__init__.py",
+                    "lrh-1.0.dist-info/METADATA",
+                    "lrh-2.0.dist-info/METADATA",
+                ]
+            )
+
     def test_check_distribution_contents_reads_built_archives(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             dist_dir = pathlib.Path(temp_dir)

@@ -539,20 +539,21 @@ def check_sdist_members(names: collections.abc.Iterable[str]) -> None:
 
 
 def check_wheel_members(names: collections.abc.Iterable[str]) -> None:
-    """Raise if the wheel holds anything besides ``lrh/`` and its dist-info."""
-    unexpected = sorted(
-        {
-            top
-            for name in names
-            if (top := name.split("/", 1)[0])
-            and top != "lrh"
-            and not (top.startswith("lrh-") and top.endswith(".dist-info"))
-        }
+    """Raise unless the wheel holds only ``lrh/`` and exactly one lrh dist-info."""
+    tops = {top for name in names if (top := name.split("/", 1)[0])}
+    dist_infos = sorted(
+        top for top in tops if top.startswith("lrh-") and top.endswith(".dist-info")
     )
+    unexpected = sorted(tops - {"lrh"} - set(dist_infos))
     if unexpected:
         raise ReleaseSmokeError(
             "wheel contains unexpected top-level entries (expected only lrh/ "
             f"and lrh-<version>.dist-info/): {', '.join(unexpected)}"
+        )
+    if len(dist_infos) != 1:
+        raise ReleaseSmokeError(
+            "wheel must contain exactly one lrh-<version>.dist-info/, found "
+            f"{len(dist_infos)}: {', '.join(dist_infos) or 'none'}"
         )
 
 

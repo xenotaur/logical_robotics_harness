@@ -2,10 +2,10 @@
 execution_id: 2026_09_27_18_05_51_WI_SKILLS_REFERENCE_PORTABILITY
 prompt_id: PROMPT(WI-SKILLS-REFERENCE-PORTABILITY:WI_SKILLS_REFERENCE_PORTABILITY)[2026-09-27T16:55:48+00:00]
 work_item: WI-SKILLS-REFERENCE-PORTABILITY
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/749
-commit: 8d6e706b
+commit: bf32c1bc6d3b793dd0861ef096464ca90613b552
 created_at: 2026-09-27T18:05:51+00:00
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-SKILLS-REFERENCE-PORTABILITY.md

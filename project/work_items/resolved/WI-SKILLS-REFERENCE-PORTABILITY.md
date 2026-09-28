@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #749 (commit bf32c1bc6d3b793dd0861ef096464ca90613b552).'
 blocked_reason: null
 blocked: false
 id: WI-SKILLS-REFERENCE-PORTABILITY
 title: Make LRH skill references portable across independent client repositories
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

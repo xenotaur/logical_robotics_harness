@@ -15,11 +15,15 @@ When a remote command fails:
    `git rev-parse --show-toplevel` and `pwd`. Do not reinterpret an invalid
    project root as a credential or executable problem.
 2. Preserve the original command and its short, redacted error category.
-3. Request approved network execution for one bounded retry of that exact
-   command. Do not loop, broaden the command, or make every command elevated.
-4. If the approved retry succeeds, continue and record that approved path was
-   required. If approval is unavailable or the retry fails, report a blocker
-   with the command category, exit status, and next safe diagnostic.
+3. For a read-only or otherwise idempotent remote command, request approved
+   network execution for one bounded retry of that exact command. Do not loop,
+   broaden the command, or make every command elevated.
+4. For a mutating remote command, do not blindly retry after an uncertain
+   transport failure. Reconcile remote state first; retry only if evidence
+   shows the request was not accepted. Otherwise report the resulting state.
+5. If approval is unavailable, reconciliation is inconclusive, or the bounded
+   retry fails, report a blocker with the command category, exit status, and
+   next safe diagnostic.
 
 Do not refresh, replace, expose, or reauthorize credentials to address DNS,
 connection, or sandbox-policy failures. Diagnose authentication separately

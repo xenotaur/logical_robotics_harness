@@ -80,6 +80,29 @@ class ScriptsLogRedirectionTest(unittest.TestCase):
         else:
             self.assertIn("[FAIL] lrh validate failed", proc.stdout)
 
+    def test_scripts_validate_log_mode_under_system_bash(self) -> None:
+        """scripts/validate --log works under /bin/bash (3.2 on macOS).
+
+        With no extra arguments, an unguarded empty "${args[@]}" is an
+        "unbound variable" error under `set -u` in bash 3.2, so the script
+        died before printing its summary line.
+        """
+        system_bash = pathlib.Path("/bin/bash")
+        if not system_bash.exists():
+            self.skipTest("no /bin/bash on this platform")
+        proc = subprocess.run(
+            [str(system_bash), str(self.scripts_dir / "validate"), "--log"],
+            cwd=self.repo_root,
+            env=self.env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertNotIn("unbound variable", proc.stderr)
+        self.assertRegex(
+            proc.stdout, r"\[(PASS|FAIL)\] lrh validate (completed|failed)"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -2043,3 +2043,47 @@ stopgap. Not yet filed as a work item.
 values); `project/memory/decision_log.md` (pointer grammar);
 `src/lrh/control/validator.py` (`_is_scheme_prefixed`);
 `project/design/proposals/adopted/lrh-session-archive-sync/00_proposal.md`.
+
+---
+
+## Safe tooling for the SHA-locked `gh pr merge` action that keeps tripping the auto-mode classifier
+
+**Noted:** 2026-09-28, during `/lrh-land` closing PR #742. The exact merge
+one-liner `/lrh-confirm-fixes` Step 8 and `/lrh-land` Step 6 compute
+(`gh pr merge <pr-url> <mode-flag> --match-head-commit <sha>`) is fully
+deterministic and already gated before it is ever presented: the SHA is
+locked to a commit that has already passed CI-green, thread-resolution-
+green, and REVIEW-LANDED-green checks, and the human has already given
+live in-session authorization to run exactly this command. Despite that,
+this session's auto-mode permission classifier denied the call outright
+with no reason given ("the server-side auto mode classifier judged this
+action dangerous (it gave no explanation)"), even though this project has
+had many other merges go through the identical code path without issue.
+Retrying it in any form is against the denial's own instructions, so the
+only recourse was asking the user to run the identical command from their
+own terminal — where it succeeded immediately.
+
+**Idea:** This is a stereotyped, fully-computed, already-gated LRH action —
+by the time the command is presented, the safety argument for running it
+has already been assembled by the preceding workflow steps (exact SHA
+lock, prior CI/review checks, live human authorization), not something
+the classifier needs to re-derive from the raw shell command's shape. That
+makes it a plausible candidate for a small, purpose-built, safely-scoped
+invocation path instead of a raw `gh pr merge ...` shell call — e.g. a
+dedicated `lrh land merge --pr <url> --match-head-commit <sha>` CLI
+subcommand narrow enough that a classifier (or an explicit permission
+rule keyed on it) can reliably recognize it as safe, distinct from an
+unscoped `gh pr merge`. Would need to weigh a dedicated CLI subcommand's
+added surface area against simpler alternatives: a documented Bash
+permission-rule addition the user adds once in their own settings, or
+accepting that this is a harness/classifier-level concern outside LRH's
+control (and therefore not worth building LRH-side tooling around at all).
+
+**Status:** Not yet scoped. Noted from a single occurrence; revisit if
+this recurs on a future `/lrh-land` run, or file a work item if the user
+wants to pursue the tooling angle now.
+
+**Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8 (Green
+verdict's merge one-liner); `src/lrh/skills/lrh-land/SKILL.md` Step 6
+(merge gate); PR #742 (the occurrence and its closeout); agent memory
+`gh_pr_merge_classifier_denial_handoff.md`.

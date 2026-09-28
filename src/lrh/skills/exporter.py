@@ -188,17 +188,20 @@ def export_skills(
     else:
         selected = available
 
-    if out_dir.exists() and not out_dir.is_dir():
-        raise SkillExportError(f"export output is not a directory: {out_dir}")
+    _check_output_dir(out_dir, skill_source)
 
     prepared = [
         _prepare_skill(name, skill_source, out_dir, explicit=explicit)
         for name in selected
     ]
     if not any(item.result.status is ExportStatus.FAILED for item in prepared):
-        for item in prepared:
-            if item.archive is not None and item.result.archive_path is not None:
-                _write_archive(item.result.archive_path, item.archive)
+        _publish_archives(
+            [
+                (item.result.archive_path, item.archive)
+                for item in prepared
+                if item.archive is not None and item.result.archive_path is not None
+            ]
+        )
 
     return ExportReport(
         target=export_target,
@@ -311,7 +314,11 @@ def _prepare_skill(
         )
 
     notices.extend(_skipped_entry_notices(source_files))
-    stripped = sorted(key for key in metadata if key not in PORTABLE_FRONTMATTER_KEYS)
+    # YAML allows non-string keys (e.g. `1: value`); sort by string form so
+    # mixed key types report cleanly instead of raising TypeError.
+    stripped = sorted(
+        (str(key) for key in metadata if key not in PORTABLE_FRONTMATTER_KEYS),
+    )
     if stripped:
         notices.append(
             ExportNotice(
@@ -416,16 +423,21 @@ def _is_manual_only(
     if openai_yaml is None:
         return False
     try:
-        loaded = yaml.safe_load(openai_yaml.decode("utf-8")) or {}
+        loaded = yaml.safe_load(openai_yaml.decode("utf-8"))
     except (UnicodeDecodeError, yaml.YAMLError) as err:
         # Manual-only status cannot be determined, so refuse rather than risk
         # exporting a manual-only skill as automatically selectable.
         errors.append(f"invalid Codex metadata in {_OPENAI_YAML}: {err}")
         return False
-    policy = loaded.get("policy") if isinstance(loaded, dict) else None
-    if (loaded and not isinstance(loaded, dict)) or (
-        policy is not None and not isinstance(policy, dict)
-    ):
+    if loaded is None:
+        # An empty file declares no policy; any other non-mapping root is
+        # malformed and must fail safe rather than read as "no policy".
+        return False
+    if not isinstance(loaded, dict):
+        errors.append(f"cannot read invocation policy from {_OPENAI_YAML}")
+        return False
+    policy = loaded.get("policy")
+    if policy is not None and not isinstance(policy, dict):
         errors.append(f"cannot read invocation policy from {_OPENAI_YAML}")
         return False
     return isinstance(policy, dict) and policy.get("allow_implicit_invocation") is False
@@ -543,7 +555,46 @@ def _capability_notices(bundle: dict[str, bytes]) -> list[ExportNotice]:
     ]
 
 
-def _write_archive(path: Path, archive: bytes) -> None:
+def _check_output_dir(out_dir: Path, source: installer.SkillSource) -> None:
+    if out_dir.is_symlink():
+        raise SkillExportError(f"export output must not be a symlink: {out_dir}")
+    if out_dir.exists() and not out_dir.is_dir():
+        raise SkillExportError(f"export output is not a directory: {out_dir}")
+    # Generated bundles must never land inside the canonical source tree.
+    # Package sources that are not on the filesystem cannot overlap.
+    if isinstance(source.root, Path):
+        source_root = source.root.resolve()
+        resolved_out = out_dir.resolve()
+        if resolved_out.is_relative_to(source_root):
+            raise SkillExportError(
+                f"export output {out_dir} is inside the skill source {source.root}"
+            )
+
+
+def _publish_archives(archives: list[tuple[Path, bytes]]) -> None:
+    """Write every archive, or none, as far as the filesystem allows.
+
+    Destinations are checked first, then every archive is staged to a
+    temporary file; only when all staging succeeds are the temporaries
+    promoted with `os.replace`. A staging failure removes every temporary
+    written so far, so no partial batch is published.
+    """
+    for path, _archive in archives:
+        if path.is_dir() and not path.is_symlink():
+            raise SkillExportError(f"export destination is a directory: {path}")
+    staged: list[tuple[Path, Path]] = []
+    try:
+        for path, archive in archives:
+            staged.append((_stage_archive(path, archive), path))
+    except OSError as err:
+        for temporary, _path in staged:
+            temporary.unlink(missing_ok=True)
+        raise SkillExportError(f"could not write export bundles: {err}") from err
+    for temporary, path in staged:
+        os.replace(temporary, path)
+
+
+def _stage_archive(path: Path, archive: bytes) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.tmp")
     # Remove any leftover temp entry (including a planted symlink) and create
@@ -554,4 +605,4 @@ def _write_archive(path: Path, archive: bytes) -> None:
     descriptor = os.open(temporary, flags, 0o644)
     with os.fdopen(descriptor, "wb") as handle:
         handle.write(archive)
-    os.replace(temporary, path)
+    return temporary

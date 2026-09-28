@@ -2131,7 +2131,11 @@ def main() -> None:
                     target=args.target,
                     project_root=Path.cwd(),
                 )
-            except (installer.SkillSourceError, exporter.SkillExportError) as err:
+            except (
+                installer.SkillSourceError,
+                exporter.SkillExportError,
+                OSError,
+            ) as err:
                 parser.error(str(err))
             print(exporter.format_export_report(export_report))
             raise SystemExit(1 if export_report.has_failures else 0)

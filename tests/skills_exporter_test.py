@@ -164,6 +164,19 @@ class TestExportSkills(_SkillTreeMixin, unittest.TestCase):
         for key in ("allowed-tools", "argument-hint", "context", "when_to_use"):
             self.assertIn(key, notice.message)
 
+    def test_non_string_frontmatter_key_is_stripped_without_error(self) -> None:
+        source = self._make_source()
+        self._write_skill(
+            source,
+            "odd-keys",
+            skill_md="---\nname: odd-keys\ndescription: X.\n1: one\n---\nBody\n",
+        )
+        out = self._make_out()
+        report = exporter.export_skills(out_dir=out, source=source)
+        result = self._result(report, "odd-keys")
+        self.assertEqual(result.status, exporter.ExportStatus.EXPORTED)
+        self.assertIn("`1`", self._notice(result, "stripped_metadata").message)
+
     def test_canonical_source_is_not_modified(self) -> None:
         source = self._make_source()
         skill_dir = self._write_skill(source, "demo-skill")
@@ -342,6 +355,23 @@ class TestManualOnlySkills(_SkillTreeMixin, unittest.TestCase):
             exporter.format_export_report(report),
         )
 
+    def test_non_mapping_openai_yaml_root_fails_safe(self) -> None:
+        source = self._make_source()
+        self._write_skill(
+            source, "list-root", extra_files={"agents/openai.yaml": "[]\n"}
+        )
+        report = exporter.export_skills(out_dir=self._make_out(), source=source)
+        self.assertEqual(report.results[0].status, exporter.ExportStatus.FAILED)
+        self.assertIn("invocation policy", report.results[0].errors[0])
+
+    def test_empty_openai_yaml_is_not_manual_only(self) -> None:
+        source = self._make_source()
+        self._write_skill(
+            source, "empty-policy", extra_files={"agents/openai.yaml": ""}
+        )
+        report = exporter.export_skills(out_dir=self._make_out(), source=source)
+        self.assertEqual(report.results[0].status, exporter.ExportStatus.EXPORTED)
+
     def test_unreadable_invocation_policy_fails_safe(self) -> None:
         source = self._make_source()
         self._write_skill(
@@ -498,6 +528,54 @@ class TestExportValidation(_SkillTreeMixin, unittest.TestCase):
         }
         self._write_skill(source, "big-skill", extra_files=files)
         self._assert_fails_without_writing(source, "limit is 500")
+
+    def test_output_inside_source_is_rejected(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "demo-skill")
+        for out in (source, source / "exports", source / "demo-skill" / "out"):
+            with self.subTest(out=out):
+                with self.assertRaisesRegex(
+                    exporter.SkillExportError, "inside the skill source"
+                ):
+                    exporter.export_skills(out_dir=out, source=source)
+                self.assertFalse((out / "demo-skill.zip").exists())
+
+    def test_symlinked_output_directory_is_rejected(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "demo-skill")
+        real_out = self._make_out()
+        real_out.mkdir(parents=True)
+        link = real_out.parent / "linked-out"
+        link.symlink_to(real_out)
+        with self.assertRaisesRegex(exporter.SkillExportError, "symlink"):
+            exporter.export_skills(out_dir=link, source=source)
+        self.assertEqual(list(real_out.iterdir()), [])
+
+    def test_directory_at_destination_blocks_whole_batch(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha-skill")
+        self._write_skill(source, "beta-skill")
+        out = self._make_out()
+        (out / "beta-skill.zip").mkdir(parents=True)
+        with self.assertRaisesRegex(exporter.SkillExportError, "is a directory"):
+            exporter.export_skills(out_dir=out, source=source)
+        self.assertEqual(
+            sorted(path.name for path in out.iterdir()), ["beta-skill.zip"]
+        )
+
+    def test_staging_failure_leaves_no_partial_batch(self) -> None:
+        source = self._make_source()
+        self._write_skill(source, "alpha-skill")
+        self._write_skill(source, "beta-skill")
+        out = self._make_out()
+        # A directory at beta's temp path makes staging beta fail after alpha
+        # has already been staged.
+        (out / ".beta-skill.zip.tmp").mkdir(parents=True)
+        with self.assertRaisesRegex(exporter.SkillExportError, "could not write"):
+            exporter.export_skills(out_dir=out, source=source)
+        self.assertEqual(
+            sorted(path.name for path in out.iterdir()), [".beta-skill.zip.tmp"]
+        )
 
     def test_output_path_that_is_a_file_is_rejected(self) -> None:
         source = self._make_source()

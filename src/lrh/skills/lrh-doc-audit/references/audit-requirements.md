@@ -135,11 +135,13 @@ top-level headings must match exactly so downstream prompts and future
 validators can reliably consume the artifact.
 
 ```
+# Documentation audit
+
 ## Summary
 ## Scope and roots inspected
 ## Current documentation inventory
 ## Current project and package layout
-## Diataxis classification
+## Diátaxis classification
 ## Navigation findings
 ## Accuracy findings
 ## Stale or ambiguous links

@@ -24,6 +24,8 @@ AFFECTED_SKILLS = (
     "lrh-codex-session",
     "lrh-config-skills",
     "lrh-doc-audit",
+    "lrh-export-claude",
+    "lrh-session-id-claude",
 )
 
 
@@ -55,12 +57,26 @@ class SkillsReferencePortabilityTest(unittest.TestCase):
             "missing LRH-owned documentation file as an export failure", content
         )
 
+    def test_claude_skills_use_cli_help_without_client_docs(self) -> None:
+        for skill_name, command in (
+            ("lrh-export-claude", "current-claude-session-id --help"),
+            ("lrh-session-id-claude", "current-claude-session-id --help"),
+        ):
+            with self.subTest(skill=skill_name):
+                content = (SOURCE_ROOT / skill_name / "SKILL.md").read_text()
+                self.assertIn("lrh conversation --help", content)
+                self.assertIn(command, content)
+                self.assertIn("optional", content)
+                self.assertIn("maintainer reference", content)
+
     def test_bundled_audit_reference_is_authoritative_without_docs_tree(self) -> None:
         content = (
             SOURCE_ROOT / "lrh-doc-audit" / "references" / "audit-requirements.md"
         ).read_text()
         self.assertIn("bundled reference", content)
         self.assertIn("not required in an independent", content)
+        self.assertIn("# Documentation audit", content)
+        self.assertIn("## Diátaxis classification", content)
 
     def test_installed_skill_and_cli_help_work_without_client_docs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

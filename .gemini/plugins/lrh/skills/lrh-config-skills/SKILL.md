@@ -83,10 +83,12 @@ Before asking anything, show one table covering the entire status read:
   didn't set this key).
 - **Read-only field** (`install_overwrite`): its raw configured value, or
   `null`/`None` meaning "not set." Label this explicitly as read-only and
-  explain why: `docs/reference/schemas/agent-skills-config.md` documents
-  no conventional default for this field (unlike the other three), and
-  `installer.py`'s data model doesn't expose a resolved value for it --
-  only its raw configured value is ever shown, never an effective value.
+  explain why the installed CLI exposes no conventional default for this
+  field (unlike the other three), and `installer.py`'s data model doesn't
+  expose a resolved value for it -- only its raw configured value is ever
+  shown, never an effective value. If an LRH maintainer schema reference is
+  available, it may provide additional explanation, but its absence in an
+  independent client repository must not block the status read.
   Never present this as something the user can change here.
 
 This presentation itself is not a question -- it is shown in full before

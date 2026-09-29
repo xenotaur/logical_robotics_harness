@@ -13,6 +13,8 @@ part of the `lrh` Python package:
 ## Applications
 
 - [`desktop/`](desktop/) is the LRH Console desktop shell (Tauri 2, Rust, plain
-  HTML with no Node). It is being built under `WI-LRH-CONSOLE-DESKTOP-L0`.
+  HTML with no Node). Its toolchain landed under `WI-LRH-CONSOLE-DESKTOP-L0`;
+  the app itself is being built under `WI-LRH-CONSOLE-DESKTOP-SUPERVISOR` and
+  `WI-LRH-CONSOLE-DESKTOP-SHELL`.
   Set it up and test it through the repository scripts with `--desktop`; see
   [Setting up the desktop app toolchain](../docs/how-to/project-setup/desktop-toolchain.md).

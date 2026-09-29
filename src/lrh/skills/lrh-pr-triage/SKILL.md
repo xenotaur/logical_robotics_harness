@@ -56,6 +56,31 @@ proceeding.
 ---
 
 ## Execution Steps
+### Restricted network recovery
+
+For local-only work—file reads and edits, local Git inspection, parsing,
+formatting, linting, tests, and `lrh validate`—use normal execution. For
+commands contacting GitHub or a remote Git server, use this bounded procedure:
+
+1. Confirm the absolute project root with `git rev-parse --show-toplevel` and
+   `pwd`, and preserve the short, redacted error category.
+2. For a read-only or otherwise idempotent remote command that failed because
+   of DNS, HTTPS, or sandbox networking, request approved network execution
+   and retry that exact command once.
+3. For a mutating remote command, do not blindly retry: first reconcile remote
+   state to determine whether the request was accepted (for example, check
+   whether the PR or ref already exists). Retry only when the evidence shows
+   that no mutation was accepted; otherwise report the resulting state.
+4. If approval is unavailable, reconciliation is inconclusive, or the bounded
+   retry fails, report a blocker rather than looping, broadening the command,
+   or silently substituting `--no-remote`.
+
+Do not refresh, replace, expose, or reauthorize credentials for DNS,
+connection, or sandbox-policy failures. Diagnose authentication separately
+only after the execution path can reach GitHub. The canonical maintainer
+procedure is `src/lrh/skills/_shared/github-network-execution.md`; this
+section is self-contained for installed client skills.
+
 
 Work through these steps in order. Do not skip ahead — each step can end
 the investigation early with its own report.

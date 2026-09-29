@@ -1,23 +1,16 @@
 ---
 name: lrh-confirm-fixes
-description: >
-  Pre-merge verification and thread-resolution pass for an LRH pull request.
-  Independently verifies pushed review fixes against the current HEAD diff
-  (never against the execution record's claims), resolves the review threads
-  the diff plainly satisfies, surfaces the exceptions (unaddressed, partial,
-  ambiguous, or problematic threads), and ends at a merge-readiness verdict.
-  Ends at a verdict and merge one-liner rather than executing it as part of
-  this skill's own workflow. Provide the PR URL as the argument, optionally
-  followed by --subagent (dispatch verification to a cold-context subagent)
-  and/or --surface-human (leave human-reviewer threads surfaced-only, never
-  pre-selected for resolution). Omit the PR URL to auto-detect from the
-  current branch.
-when_to_use: >
-  Invoke only as the pre-merge verification link after review-response work has
-  been applied, or from /lrh-land while landing a specific open PR. Do not use
-  as a general review trigger, and never use it to manually retrigger hosted
-  GitHub review agents.
-argument-hint: "[pr-url] [--subagent] [--surface-human]"
+description: 'Pre-merge verification and thread-resolution pass for an LRH pull request.
+  Independently verifies pushed review fixes against the current HEAD diff (never
+  against the execution record''s claims), resolves the review threads the diff plainly
+  satisfies, surfaces the exceptions (unaddressed, partial, ambiguous, or problematic
+  threads), and ends at a merge-readiness verdict. Ends at a verdict and merge one-liner
+  rather than executing it as part of this skill''s own workflow. Provide the PR URL
+  as the argument, optionally followed by --subagent (dispatch verification to a cold-context
+  subagent) and/or --surface-human (leave human-reviewer threads surfaced-only, never
+  pre-selected for resolution). Omit the PR URL to auto-detect from the current branch.
+
+  '
 ---
 
 # lrh-confirm-fixes Skill
@@ -96,6 +89,31 @@ Load this before running any step:
 ---
 
 ## Execution Steps
+### Restricted network recovery
+
+For local-only work—file reads and edits, local Git inspection, parsing,
+formatting, linting, tests, and `lrh validate`—use normal execution. For
+commands contacting GitHub or a remote Git server, use this bounded procedure:
+
+1. Confirm the absolute project root with `git rev-parse --show-toplevel` and
+   `pwd`, and preserve the short, redacted error category.
+2. For a read-only or otherwise idempotent remote command that failed because
+   of DNS, HTTPS, or sandbox networking, request approved network execution
+   and retry that exact command once.
+3. For a mutating remote command, do not blindly retry: first reconcile remote
+   state to determine whether the request was accepted (for example, check
+   whether the PR or ref already exists). Retry only when the evidence shows
+   that no mutation was accepted; otherwise report the resulting state.
+4. If approval is unavailable, reconciliation is inconclusive, or the bounded
+   retry fails, report a blocker rather than looping, broadening the command,
+   or silently substituting `--no-remote`.
+
+Do not refresh, replace, expose, or reauthorize credentials for DNS,
+connection, or sandbox-policy failures. Diagnose authentication separately
+only after the execution path can reach GitHub. The canonical maintainer
+procedure is `src/lrh/skills/_shared/github-network-execution.md`; this
+section is self-contained for installed client skills.
+
 
 Work through these steps in order. Do not skip Step 4 (confirm gate).
 

@@ -4,8 +4,8 @@ type: design_proposal
 title: Target-Aware `lrh skills install` — Codex as a First-Class Local Target
 status: adopted
 created_on: 2026-07-31
-updated_on: 2026-09-24
-implementation_status: partial
+updated_on: 2026-09-28
+implementation_status: implemented
 implemented_by:
   - WI-SKILLS-TARGET-AWARE-INSTALL
   - WI-SKILLS-SOURCE-ABSTRACTION
@@ -14,6 +14,7 @@ implemented_by:
   - WI-SKILLS-STATUS-CHECK
   - WI-SKILLS-ANTIGRAVITY-TARGET
   - WI-SKILLS-BODY-PROSE-NEUTRALIZATION
+  - WI-SKILLS-CHATGPT-EXPORT
 supersedes: []
 superseded_by: null
 related_design:
@@ -176,7 +177,7 @@ longer blocks scheduling the export work item.
 - Does not require every LRH-managed repository to adopt skills or multi-target installation.
 - Does not make `.claude/skills/` or `.agents/skills/` authoritative — canonical sources remain the source of truth.
 - Does not build a marketplace, registry, or plugin-distribution system.
-- Does not implement ChatGPT Skills export in the first implementation slice — see Decision 8.
+- Does not implement ChatGPT Skills export in the first implementation slice — see Decision 8. (It was later delivered as Stage 7 by `WI-SKILLS-CHATGPT-EXPORT`, merged in PR #747.)
 - Does not rewrite all 14 existing skill bodies to be agent-neutral as part of this proposal — see Decision 4; that is scoped as explicit follow-on work.
 - Does not automatically rewrite `AGENTS.md` to reference installed skills — a future `lrh skills suggest-agents-rules` could propose such changes without writing them automatically.
 
@@ -196,7 +197,7 @@ Given the scope (Codex target support, repo config, render adapters, check/statu
 4. **Render adapters** — `ClaudeSkillRenderer`/`CodexSkillRenderer` split, with the Codex adapter targeting `agents/openai.yaml` per Decision 2, plus canonical/target validation layers (`lrh skills check`).
 5. **Status/check commands** — `lrh skills check`, `lrh skills status`.
 6. **Body-prose neutralization** (follow-on, separately scoped per Decision 4) — rewrite existing skill bodies to be agent-neutral.
-7. **ChatGPT export** — research prerequisite cleared on 2026-09-24; implement through `WI-SKILLS-CHATGPT-EXPORT` using the hosted-export boundary described in Decision 8.
+7. **ChatGPT export** — research prerequisite cleared on 2026-09-24; implemented by `WI-SKILLS-CHATGPT-EXPORT` (`lrh skills export --target chatgpt`, merged in PR #747) using the hosted-export boundary described in Decision 8.
 
 ## Cross-References
 

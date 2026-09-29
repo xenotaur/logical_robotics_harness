@@ -2,14 +2,14 @@
 execution_id: 2026_09_27_17_54_52_WI_SKILLS_CHATGPT_EXPORT
 prompt_id: PROMPT(WI-SKILLS-CHATGPT-EXPORT:WI_SKILLS_CHATGPT_EXPORT)[2026-09-27T14:59:05+00:00]
 work_item: WI-SKILLS-CHATGPT-EXPORT
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/747
-commit:
+commit: 97b111bbc521029455af02963f25edcb64f6a79f
 created_at: 2026-09-27T17:54:52+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-SKILLS-CHATGPT-EXPORT.md
-session_transcript: pending
+session_transcript: claude-app:9a96d262-76e5-4e8e-92e0-0e30d7776fbf
 ---
 
 # Summary

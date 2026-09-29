@@ -47,7 +47,7 @@ select LRH or LCATS, and answer a real dependency question without starting a
 terminal server.
 
 This is a proposed planning node. `stage: planned` records that the approved
-direction has a roadmap and two initial leaves; it does not activate execution or
+direction has a roadmap and its initial L0 leaves; it does not activate execution or
 reprioritize current focus. Later leaves are added when preceding dogfood gates
 have produced evidence. It is a top-level console workstream related to the
 existing execution framework, without changing that workstream's ownership.

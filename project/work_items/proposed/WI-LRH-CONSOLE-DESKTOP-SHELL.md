@@ -54,6 +54,8 @@ artifacts_expected:
 - "apps/desktop/src-tauri/capabilities (narrow capabilities for the auxiliary window)"
 - "apps/desktop/src-tauri/tests/capability_boundaries_test.rs"
 - "docs/how-to/lrh-console-local-dogfood.md (with the manual macOS checklist)"
+- "tests/scripts_tests/desktop_modes_test.py (deferred PR #750 assertions: Linux-branch probe, exact rustup_absent message)"
+- "apps/desktop/scripts/run and/or docs/how-to/project-setup/desktop-toolchain.md (test-only xdo header override renamed or documented)"
 ---
 
 # LRH Console desktop shell

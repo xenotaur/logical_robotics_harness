@@ -41,7 +41,7 @@ acceptance:
 - "A Rust supervisor module in apps/desktop/src-tauri implements desktop-server-protocol v1: it serializes stopped/starting/running/stopping/failed transitions, makes Start idempotent, and makes Restart wait for the previous owned child to exit."
 - "Readiness and stop are bounded by the protocol's timeout defaults. Stale callbacks, wrong protocol versions, and wrong workspaces are rejected with typed errors."
 - "The supervisor only ever controls the child handle it spawned. It never adopts, signals, or kills a process found by name or port, and it adds no HTTP shutdown route."
-- "supervisor_test.rs drives a real lrh serve --desktop-protocol child through start, idempotent start, restart, stop, readiness timeout, crash, and incompatible-version cases. It runs in scripts/test --desktop and passes in desktop CI on Linux and macOS."
+- "supervisor_test.rs drives a real lrh serve --desktop-protocol child through start, idempotent start, restart, stop, readiness timeout, crash, and incompatible-version cases, and proves that a separately started lrh serve stays untouched by Start, Stop, Restart, and failure. It runs in scripts/test --desktop and passes in desktop CI on Linux and macOS."
 - "Parent loss is proven on macOS: when the supervising process dies, the owned child exits within the protocol bound and no orphan remains."
 required_evidence:
 - "manual_review"
@@ -123,7 +123,9 @@ gets reviewed on its own, before any UI depends on it.
    - a readiness timeout;
    - a child crash;
    - an incompatible version;
-   - parent loss.
+   - parent loss;
+   - a separately started `lrh serve` that stays untouched by Start, Stop,
+     Restart, and failure.
 
    The tests find the `lrh` executable explicitly, through an environment
    variable or the repository's `PYTHONPATH=src` invocation, not through an
@@ -151,7 +153,8 @@ gets reviewed on its own, before any UI depends on it.
 - Only the owned child handle is ever controlled. There is no kill by name or
   port and no HTTP shutdown route.
 - `supervisor_test.rs` covers the listed lifecycle and failure cases against a
-  real child, and passes in desktop CI on Linux and macOS.
+  real child, including an unrelated server that stays untouched, and passes
+  in desktop CI on Linux and macOS.
 - Parent loss is proven on macOS, with no orphan left behind.
 
 ## Validation

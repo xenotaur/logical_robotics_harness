@@ -44,6 +44,7 @@ acceptance:
 required_evidence:
 - "manual_review"
 - "lrh_validate"
+- "test_output"
 - "validation_output"
 artifacts_expected:
 - "project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md"

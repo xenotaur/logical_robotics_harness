@@ -34,7 +34,7 @@ select LRH or LCATS, and answer a real planning question from the dependency map
 
 This captures the approved design direction for review. It does not adopt the
 proposal, activate implementation, or claim that the analyzer already exists in
-this repository. The companion workstream contains only the first two bounded L0
+this repository. The companion workstream contains only the bounded L0
 implementation items; later increments remain roadmap candidates.
 
 ## Background / Motivation
@@ -306,9 +306,19 @@ Initial work items:
 
 1. `WI-LRH-CONSOLE-DESKTOP-PROTOCOL`: machine startup and lifecycle contract,
    backend integration, compatibility documentation, and failure-path tests.
-2. `WI-LRH-CONSOLE-DESKTOP-L0`: Tauri shell consuming that contract, native menus,
-   bundled recovery/settings pages, embedded existing Serve view, and Mac dogfood.
-   It depends on the protocol item; no new dependency-map UI is required to close L0.
+2. `WI-LRH-CONSOLE-DESKTOP-L0`: the isolated Rust/Tauri toolchain, `--desktop`
+   script modes, desktop CI, and a minimal Tauri app. It depends on the protocol
+   item.
+3. `WI-LRH-CONSOLE-DESKTOP-SUPERVISOR`: the Rust supervisor that consumes the
+   protocol contract and owns one backend, with real-child integration tests.
+4. `WI-LRH-CONSOLE-DESKTOP-SHELL`: the Tauri shell, with native menus, bundled
+   recovery and settings pages, and the embedded existing Serve view.
+5. `WI-LRH-CONSOLE-DESKTOP-DOGFOOD`: the five recorded Mac dogfood sessions and
+   the L0 evidence.
+
+Items 2–5 began as one L0 work item and were split on 2026-09-29 so that each
+work item maps to one PR. Items 3–5 together meet the L0b gate above, and no
+new dependency-map UI is required to close L0.
 
 Create L1 and subsequent work items after the preceding gate supplies real usage
 feedback. The graph remains the product objective, so L0 completion alone is not

@@ -7,15 +7,33 @@ export PYTHONPATH="${REPO_ROOT}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
 PYTHON="${PYTHON:-python3}"
 log_redirect="${LRH_LOG_REDIRECT:-0}"
+desktop=0
 args=()
 
+# Consume this script's own flags before anything is passed to unittest.
 for arg in "$@"; do
     if [ "$arg" = "--log" ]; then
         log_redirect=1
+    elif [ "$arg" = "--desktop" ]; then
+        desktop=1
     else
         args+=("$arg")
     fi
 done
+
+# Default runs never invoke or probe the Rust toolchain; they only say so.
+report_desktop_skip() {
+    if [ "$desktop" -eq 0 ]; then
+        echo "desktop: SKIPPED (not requested; run scripts/test --desktop)"
+    fi
+}
+
+# With --desktop, run the desktop tier after the Python suite. It fails,
+# never skips, when the desktop toolchain is missing or mismatched.
+run_desktop_tier() {
+    echo "Testing desktop app (apps/desktop) ..."
+    "${REPO_ROOT}/apps/desktop/scripts/run" test
+}
 
 run_unittest() {
     if [ "${#args[@]}" -eq 0 ]; then
@@ -38,9 +56,14 @@ if [ "$log_redirect" -eq 1 ]; then
     logfile="tmp/logs/test_${timestamp}.log"
     echo "Testing lrh (logging to ${logfile}) ..."
 
+    report_desktop_skip
     set +e
     run_unittest > "$logfile" 2>&1
     exit_code=$?
+    if [ "$desktop" -eq 1 ] && [ "$exit_code" -eq 0 ]; then
+        run_desktop_tier >> "$logfile" 2>&1
+        exit_code=$?
+    fi
     set -e
 
     abs_log="$(pwd)/${logfile}"
@@ -52,6 +75,7 @@ if [ "$log_redirect" -eq 1 ]; then
     exit "$exit_code"
 else
     echo "Testing lrh ..."
+    report_desktop_skip
     if [ "${#args[@]}" -eq 0 ]; then
         set -x
         "$PYTHON" -m unittest discover -s tests -p "*_test.py"
@@ -70,4 +94,8 @@ else
     fi
     { set +x; } 2>/dev/null
     echo
+    if [ "$desktop" -eq 1 ]; then
+        run_desktop_tier
+        echo
+    fi
 fi

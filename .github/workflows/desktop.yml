@@ -1,0 +1,92 @@
+name: Desktop app (optional)
+
+# Tier-1 checks for the optional LRH Console desktop app (apps/desktop). This
+# workflow is deliberately not a required check: it is path-filtered, and a
+# required check skipped by a path filter stays "Pending" and blocks merges.
+# The Python workflows stay Rust-free. See
+# docs/how-to/project-setup/desktop-toolchain.md.
+
+on:
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - "scripts/develop"
+      - "scripts/test"
+      - "scripts/lint"
+      - "scripts/format"
+      - "scripts/version"
+      - "src/lrh/dev/versioning.py"
+      - "src/lrh/desktop_protocol.py"
+      - "src/lrh/desktop_supervisor.py"
+      - "src/lrh/serve.py"
+      - ".github/workflows/desktop.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/desktop/**"
+      - "scripts/develop"
+      - "scripts/test"
+      - "scripts/lint"
+      - "scripts/format"
+      - "scripts/version"
+      - "src/lrh/dev/versioning.py"
+      - "src/lrh/desktop_protocol.py"
+      - "src/lrh/desktop_supervisor.py"
+      - "src/lrh/serve.py"
+      - ".github/workflows/desktop.yml"
+  schedule:
+    # Weekly toolchain-drift check, like smoke.yml.
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: desktop (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Tauri Linux prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential curl wget file \
+            libxdo-dev libssl-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - name: Cache Rust toolchain installs and build output
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/cargo-tauri
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/desktop/src-tauri/target
+          key: desktop-${{ runner.os }}-${{ hashFiles('apps/desktop/rust-toolchain.toml', 'apps/desktop/toolchain.env', 'apps/desktop/src-tauri/Cargo.lock') }}
+
+      - name: "Setup: Python develop install plus pinned desktop toolchain"
+        run: |
+          python -m pip install --upgrade pip
+          scripts/develop --desktop
+
+      - name: "Diagnostics: strict toolchain versions"
+        run: scripts/version tools --desktop
+
+      - name: "Lint: Python checks plus cargo fmt --check and clippy"
+        run: scripts/lint --desktop
+
+      - name: "Tests: Python suite plus desktop tier 1"
+        run: scripts/test --desktop

@@ -1,13 +1,31 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 black_args=()
 targets=(src/lrh tests)
+check=0
+desktop=0
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --check|--diff|--quiet|--verbose)
+        --check)
+            check=1
             black_args+=("$1")
+            shift
+            ;;
+        --diff)
+            check=1
+            black_args+=("$1")
+            shift
+            ;;
+        --quiet|--verbose)
+            black_args+=("$1")
+            shift
+            ;;
+        --desktop)
+            desktop=1
             shift
             ;;
         --)
@@ -22,4 +40,15 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-black "${black_args[@]}" "${targets[@]}"
+black "${black_args[@]+"${black_args[@]}"}" "${targets[@]}"
+
+# With --desktop, also format (or with --check/--diff, only verify) the desktop
+# app's Rust sources. Preview flags never edit tracked files. Default runs
+# never touch Rust.
+if [[ "$desktop" -eq 1 ]]; then
+    if [[ "$check" -eq 1 ]]; then
+        "${REPO_ROOT}/apps/desktop/scripts/run" fmt --check
+    else
+        "${REPO_ROOT}/apps/desktop/scripts/run" fmt
+    fi
+fi

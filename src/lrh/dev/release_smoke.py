@@ -11,7 +11,9 @@ import re
 import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
+import zipfile
 
 import lrh.version
 
@@ -517,6 +519,58 @@ def _resolve_wheel_path(expected_version: str) -> pathlib.Path:
     return wheel_paths[0]
 
 
+def check_sdist_members(names: collections.abc.Iterable[str]) -> None:
+    """Raise if the sdist ships the optional desktop app (``apps/``).
+
+    sdist members are rooted at ``<name>-<version>/``; the desktop app must be
+    pruned by MANIFEST.in so Python users never receive Rust/Tauri sources.
+    """
+    offending = sorted(
+        name
+        for name in names
+        if len(parts := name.split("/")) > 1 and parts[1] == "apps"
+    )
+    if offending:
+        listing = "\n".join(f"- {name}" for name in offending[:20])
+        raise ReleaseSmokeError(
+            "sdist contains desktop app files under apps/; MANIFEST.in must "
+            f"prune apps:\n{listing}"
+        )
+
+
+def check_wheel_members(names: collections.abc.Iterable[str]) -> None:
+    """Raise unless the wheel holds only ``lrh/`` and exactly one lrh dist-info."""
+    tops = {top for name in names if (top := name.split("/", 1)[0])}
+    dist_infos = sorted(
+        top for top in tops if top.startswith("lrh-") and top.endswith(".dist-info")
+    )
+    unexpected = sorted(tops - {"lrh"} - set(dist_infos))
+    if unexpected:
+        raise ReleaseSmokeError(
+            "wheel contains unexpected top-level entries (expected only lrh/ "
+            f"and lrh-<version>.dist-info/): {', '.join(unexpected)}"
+        )
+    if len(dist_infos) != 1:
+        raise ReleaseSmokeError(
+            "wheel must contain exactly one lrh-<version>.dist-info/, found "
+            f"{len(dist_infos)}: {', '.join(dist_infos) or 'none'}"
+        )
+
+
+def _check_distribution_contents(
+    dist_dir: pathlib.Path, wheel_path: pathlib.Path
+) -> None:
+    sdist_paths = sorted(dist_dir.glob("*.tar.gz"))
+    if not sdist_paths:
+        raise ReleaseSmokeError(f"no sdist found in {dist_dir} after build")
+    for sdist_path in sdist_paths:
+        with tarfile.open(sdist_path, "r:gz") as sdist:
+            check_sdist_members(sdist.getnames())
+    with zipfile.ZipFile(wheel_path) as wheel:
+        check_wheel_members(wheel.namelist())
+    print("Checked distribution contents: sdist has no apps/, wheel holds only lrh/")
+
+
 def _check_template_sources_are_package(list_output: str) -> None:
     """Raise if any resolved request template did not come from package resources.
 
@@ -562,6 +616,7 @@ def run_release_smoke(
     _run_twine_check()
     wheel_path = _resolve_wheel_path(normalized_version)
     print(f"Using wheel: {wheel_path.relative_to(REPO_ROOT)}")
+    _check_distribution_contents(REPO_ROOT / "dist", wheel_path)
 
     venv_root = pathlib.Path(tempfile.mkdtemp(prefix="lrh-release-smoke-"))
     venv_path = venv_root / "venv"

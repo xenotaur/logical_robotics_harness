@@ -1,7 +1,9 @@
 import pathlib
 import subprocess
+import tarfile
 import tempfile
 import unittest
+import zipfile
 from unittest import mock
 
 from lrh.dev import release_smoke
@@ -182,6 +184,65 @@ class ReleaseSmokeHelpersTest(unittest.TestCase):
         )
 
         self.assertIn("LRH_TEMPLATE_DIR", base_environ)
+
+
+class ReleaseSmokeDistributionContentsTest(unittest.TestCase):
+    def test_sdist_without_apps_passes(self) -> None:
+        release_smoke.check_sdist_members(
+            ["lrh-1.0", "lrh-1.0/src/lrh/__init__.py", "lrh-1.0/MANIFEST.in"]
+        )
+
+    def test_sdist_with_desktop_app_fails(self) -> None:
+        with self.assertRaisesRegex(release_smoke.ReleaseSmokeError, "prune apps"):
+            release_smoke.check_sdist_members(
+                ["lrh-1.0/src/lrh/__init__.py", "lrh-1.0/apps/desktop/Cargo.toml"]
+            )
+
+    def test_sdist_check_only_matches_top_level_apps(self) -> None:
+        release_smoke.check_sdist_members(["lrh-1.0/src/lrh/apps/notes.md"])
+
+    def test_wheel_with_only_package_and_dist_info_passes(self) -> None:
+        release_smoke.check_wheel_members(
+            ["lrh/__init__.py", "lrh/cli/main.py", "lrh-1.0.dist-info/METADATA"]
+        )
+
+    def test_wheel_with_extra_top_level_entry_fails(self) -> None:
+        with self.assertRaisesRegex(release_smoke.ReleaseSmokeError, "apps"):
+            release_smoke.check_wheel_members(
+                ["lrh/__init__.py", "apps/desktop/Cargo.toml"]
+            )
+
+    def test_wheel_without_dist_info_fails(self) -> None:
+        with self.assertRaisesRegex(release_smoke.ReleaseSmokeError, "found 0"):
+            release_smoke.check_wheel_members(["lrh/__init__.py"])
+
+    def test_wheel_with_two_dist_infos_fails(self) -> None:
+        with self.assertRaisesRegex(release_smoke.ReleaseSmokeError, "found 2"):
+            release_smoke.check_wheel_members(
+                [
+                    "lrh/__init__.py",
+                    "lrh-1.0.dist-info/METADATA",
+                    "lrh-2.0.dist-info/METADATA",
+                ]
+            )
+
+    def test_check_distribution_contents_reads_built_archives(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            dist_dir = pathlib.Path(temp_dir)
+            payload = dist_dir / "payload.txt"
+            payload.write_text("x", encoding="utf-8")
+            with tarfile.open(dist_dir / "lrh-1.0.tar.gz", "w:gz") as sdist:
+                sdist.add(payload, arcname="lrh-1.0/src/lrh/__init__.py")
+                sdist.add(payload, arcname="lrh-1.0/apps/desktop/Cargo.toml")
+            wheel_path = dist_dir / "lrh-1.0-py3-none-any.whl"
+            with zipfile.ZipFile(wheel_path, "w") as wheel:
+                wheel.writestr("lrh/__init__.py", "")
+
+            with testing_support.suppress_output():
+                with self.assertRaisesRegex(
+                    release_smoke.ReleaseSmokeError, "apps/desktop/Cargo.toml"
+                ):
+                    release_smoke._check_distribution_contents(dist_dir, wheel_path)
 
 
 class ReleaseSmokeDiagnosticsTest(unittest.TestCase):
@@ -445,6 +506,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     "_run_twine_check",
                     side_effect=_fake_twine_check,
                 ) as twine_check,
+                mock.patch.object(release_smoke, "_check_distribution_contents"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -616,6 +678,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
                 mock.patch.object(release_smoke, "_run_twine_check"),
+                mock.patch.object(release_smoke, "_check_distribution_contents"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -692,6 +755,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
                 mock.patch.object(release_smoke, "_run_twine_check"),
+                mock.patch.object(release_smoke, "_check_distribution_contents"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -747,6 +811,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
                 mock.patch.object(release_smoke, "_run_twine_check"),
+                mock.patch.object(release_smoke, "_check_distribution_contents"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -810,6 +875,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
                 mock.patch.object(release_smoke, "_run_twine_check"),
+                mock.patch.object(release_smoke, "_check_distribution_contents"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -861,6 +927,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
                 mock.patch.object(release_smoke, "_run_twine_check"),
+                mock.patch.object(release_smoke, "_check_distribution_contents"),
                 mock.patch.object(release_smoke, "_run", return_value=""),
                 mock.patch.object(
                     release_smoke,
@@ -928,6 +995,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
                 mock.patch.object(release_smoke, "_run_twine_check"),
+                mock.patch.object(release_smoke, "_check_distribution_contents"),
                 mock.patch.object(release_smoke, "_run", side_effect=_fake_run),
                 mock.patch.object(
                     release_smoke,
@@ -959,6 +1027,7 @@ class ReleaseSmokeRunTest(unittest.TestCase):
                     release_smoke, "_resolve_wheel_path", return_value=fake_wheel
                 ),
                 mock.patch.object(release_smoke, "_run_twine_check"),
+                mock.patch.object(release_smoke, "_check_distribution_contents"),
                 mock.patch.object(release_smoke, "_run", return_value=""),
                 mock.patch.object(
                     release_smoke,

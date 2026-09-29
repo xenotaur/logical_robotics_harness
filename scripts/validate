@@ -35,7 +35,9 @@ if [ "$log_redirect" -eq 1 ]; then
     echo "Validating LRH project metadata (logging to ${logfile}) ..."
 
     set +e
-    lrh validate "${args[@]}" > "$logfile" 2>&1
+    # ${args[@]+...} keeps macOS /bin/bash 3.2 from treating an empty array as
+    # unbound under `set -u`.
+    lrh validate ${args[@]+"${args[@]}"} > "$logfile" 2>&1
     exit_code=$?
     set -e
 
@@ -49,7 +51,7 @@ if [ "$log_redirect" -eq 1 ]; then
 else
     echo "Validating LRH project metadata ..."
     set -x
-    lrh validate "${args[@]}"
+    lrh validate ${args[@]+"${args[@]}"}
     { set +x; } 2>/dev/null
     echo
 fi

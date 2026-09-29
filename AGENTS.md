@@ -23,6 +23,7 @@ Keep clear separation between:
 3. **maintainer-only AI programming helpers** in `scripts/aiprog/`
 4. **the harness's own project control plane** in `project/`
 5. **future client project repositories**, which will also have their own `project/` directories
+6. **optional applications** in `apps/` (for example the Tauri desktop app in `apps/desktop/`), with their own pinned toolchains; never imported by `src/lrh/` and pruned from the Python sdist (see `apps/README.md`)
 
 Do not hard-code LRH to this repository only. The repository should be self-hosting at the control-plane level, but the code should remain reusable for other projects.
 

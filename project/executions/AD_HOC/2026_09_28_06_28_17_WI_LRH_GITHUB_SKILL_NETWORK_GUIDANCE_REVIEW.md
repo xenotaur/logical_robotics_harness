@@ -2,13 +2,13 @@
 execution_id: 2026_09_28_06_28_17_WI_LRH_GITHUB_SKILL_NETWORK_GUIDANCE_REVIEW
 prompt_id: PROMPT(AD_HOC:WI_LRH_GITHUB_SKILL_NETWORK_GUIDANCE_REVIEW)[2026-09-28T04:36:32+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_27_17_58_09_WI_LRH_GITHUB_SKILL_NETWORK_GUIDANCE
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/748
-commit: 9b7e846820936439086ec6dbd8a19c352816c1c2
+commit: 010f8fea8f34828d83cbf20b0094bcd74865fa50
 agent: codex_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/748
-session_transcript: pending
+session_transcript: codex-app:01a0e002-47b5-7351-b25c-e952fb3fe109
 created_at: 2026-09-28T06:28:17+00:00
 ---
 

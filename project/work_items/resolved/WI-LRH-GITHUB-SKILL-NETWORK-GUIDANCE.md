@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Added bounded, least-privilege network recovery guidance across GitHub-consuming LRH skills, with self-contained rendered targets and validation evidence.'
 blocked_reason: null
 blocked: false
 id: WI-LRH-GITHUB-SKILL-NETWORK-GUIDANCE
 title: Add bounded network-escalation guidance to GitHub-backed LRH skills
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

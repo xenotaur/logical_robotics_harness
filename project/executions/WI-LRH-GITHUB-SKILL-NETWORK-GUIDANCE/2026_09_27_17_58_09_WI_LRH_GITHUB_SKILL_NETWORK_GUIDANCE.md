@@ -2,13 +2,13 @@
 execution_id: 2026_09_27_17_58_09_WI_LRH_GITHUB_SKILL_NETWORK_GUIDANCE
 prompt_id: PROMPT(WI-LRH-GITHUB-SKILL-NETWORK-GUIDANCE:WI_LRH_GITHUB_SKILL_NETWORK_GUIDANCE)[2026-09-27T15:03:29+00:00]
 work_item: WI-LRH-GITHUB-SKILL-NETWORK-GUIDANCE
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/748
-commit: a147c879abd7c0a5793d464b513e2e54807e6115
+commit: 010f8fea8f34828d83cbf20b0094bcd74865fa50
 agent: codex_app
 instruction_source: project/work_items/proposed/WI-LRH-GITHUB-SKILL-NETWORK-GUIDANCE.md
-session_transcript: pending
+session_transcript: codex-app:01a0e002-47b5-7351-b25c-e952fb3fe109
 created_at: 2026-09-27T17:58:09+00:00
 ---
 

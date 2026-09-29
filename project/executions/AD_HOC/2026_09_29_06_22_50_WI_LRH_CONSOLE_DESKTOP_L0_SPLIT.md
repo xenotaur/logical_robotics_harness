@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_DESKTOP_L0_SPLIT)[2026-09-29T06:15:01+00
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/757
 commit: 
 agent: "claude_app"
 instruction_source: "project/work_items/resolved/WI-LRH-CONSOLE-DESKTOP-L0.md"

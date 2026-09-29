@@ -2,13 +2,13 @@
 execution_id: 2026_09_27_18_17_35_WI_LRH_CONSOLE_DESKTOP_L0_TOOLCHAIN
 prompt_id: PROMPT(WI-LRH-CONSOLE-DESKTOP-L0:WI_LRH_CONSOLE_DESKTOP_L0_TOOLCHAIN)[2026-09-27T17:33:36+00:00]
 work_item: WI-LRH-CONSOLE-DESKTOP-L0
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/750
-commit: 
+commit: 9eeea4422cfe3a12021b1a33b43c300a879bc896
 agent: "claude_app"
 instruction_source: "project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-L0.md"
-session_transcript: pending
+session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 created_at: 2026-09-27T18:17:35+00:00
 ---
 

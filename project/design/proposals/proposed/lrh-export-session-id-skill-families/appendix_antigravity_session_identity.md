@@ -46,7 +46,7 @@ No transcript text was printed or committed.
 | **`ANTIGRAVITY_APP_DATA_DIR`** | Environment variable | Contains the absolute path to the Antigravity application data root (`/Users/<user>/.gemini/antigravity`). Reliable path locator for discovering the `brain/` storage tree. | **Reliable Supporting Path** |
 | **Other Antigravity Env Vars** | Environment variables | `ANTIGRAVITY_PROJECT_ID` (identifies workspace/project), `ANTIGRAVITY_AGENT` (agent type), `ANTIGRAVITY_AGENTAPI_EXE` (path to runtime binary), `ANTIGRAVITY_LS_ADDRESS`, `ANTIGRAVITY_LS_VERSION`. Do not expose conversation identity. | **Informational only** |
 | **Agent Prompt Context** | System prompt & metadata | Injected at session initialization: `<user_information>` contains `Conversation ID: <uuid>`; `<artifacts>` contains `Artifact Directory Path: <appDataDir>/brain/<conversation-id>`; `<conversation_transcript>` cites `<appDataDir>/brain/<conversation-id>/.system_generated/logs/transcript.jsonl`. Exactly matches `ANTIGRAVITY_CONVERSATION_ID`. | **Reliable (In-Agent Context Only)**; unavailable to standalone external CLI calls without env inheritance |
-| **Filesystem Recency (`brain/` mtime)** | Filesystem inspection (`--latest`) | `~/.gemini/antigravity/brain/<uuid>/` holds conversation state (`scratch/`, `.user_uploaded/`, `.system_generated/logs/transcript.jsonl`). The active session's directory updates its mtime during activity. However, if multiple conversations are open concurrently or receiving background tasks, recency sorting can misidentify the current session. | **Heuristic Fallback Only**; acceptable with explicit `--latest` flag and warning, but unsafe as default |
+| **Filesystem Recency (`brain/` mtime)** | Filesystem inspection (`--latest`) | `~/.gemini/antigravity/brain/<uuid>/` holds conversation state (`scratch/`, `.user_uploaded/`, `.system_generated/logs/transcript.jsonl` or `transcript_full.jsonl`). On POSIX/macOS, appending to child transcript files updates the transcript file's mtime, not the directory's mtime. Furthermore, when multiple conversations are open concurrently or receiving background tasks, recency sorting can misidentify the current session. | **Heuristic Fallback Only**; acceptable with explicit `--latest` flag and warning, but unsafe as default; candidate selection must sort transcript files by mtime rather than directory mtime |
 | **Antigravity Python SDK (`google-antigravity`)** | Python SDK | Provides `Agent`, `Conversation`, and `Connection` classes for spawning and managing agent workflows in Python. It is an agent-creation framework rather than an OS-level session discovery daemon. | **Not Applicable** (Environment variables provide the direct inter-process contract) |
 
 ## Session Transcript Pointer Format
@@ -82,12 +82,15 @@ should implement the following resolution hierarchy:
 
 1. **Explicit Identifier:**
    If an explicit `--conversation-id <id>` argument is supplied, validate that it
-   matches UUID formatting and return `antigravity-app:<id>`.
+   matches UUID formatting and return `antigravity-app:<id>`. If malformed, raise
+   an error immediately (exit code 2).
 2. **Environment Variable Discovery (Default):**
-   Read `ANTIGRAVITY_CONVERSATION_ID`. If present and non-empty:
+   Read `ANTIGRAVITY_CONVERSATION_ID`. If present:
    - Validate that it conforms to UUID syntax (36 characters, hexadecimal with
      standard hyphens).
-   - Return `antigravity-app:<value>`.
+   - If valid, return `antigravity-app:<value>`.
+   - If present but malformed, treat as a **hard error** (exit code 2) and fail
+     immediately; do **not** silently fall through to `--latest` or any other heuristic.
 3. **Explicit `--latest` Heuristic Fallback:**
    If `ANTIGRAVITY_CONVERSATION_ID` is absent (for instance, when run from an
    independent terminal emulator not launched by Antigravity) and the caller
@@ -95,18 +98,26 @@ should implement the following resolution hierarchy:
    - Inspect `~/.gemini/antigravity/brain/` (resolved via
      `ANTIGRAVITY_APP_DATA_DIR` if set, otherwise defaulting to
      `~/.gemini/antigravity/brain/`).
-   - Identify the most recently modified subdirectory containing
-     `.system_generated/logs/transcript.jsonl`.
+   - Match the discovery contract of `src/lrh/conversations/antigravity_export.py:494-502`:
+     glob both `*/.system_generated/logs/transcript.jsonl` and
+     `*/.system_generated/logs/transcript_full.jsonl`, sort candidate transcript
+     files by file `st_mtime` (never by directory mtime, which does not update
+     when child logs are appended), and extract the conversation UUID from the
+     matched transcript's parent directory structure.
    - Emit a prominent warning to stderr that the session ID was resolved via
      filesystem recency heuristic rather than active environment context.
    - Return `antigravity-app:<discovered-id>`.
 4. **Unresolved State:**
    If `ANTIGRAVITY_CONVERSATION_ID` is absent and `--latest` is not passed:
    - Do **not** silently guess using recency.
-   - Fail with exit code 1 (or report `session_transcript: pending` in closeout
-     contexts) with an explanatory message indicating that no active Antigravity
-     conversation environment was detected and directing the user to supply
-     `--conversation-id` or `--latest`.
+   - The CLI subcommand must exit with code 2 (matching the failure contract of
+     `src/lrh/conversations/codex_session.py:85-89` and
+     `src/lrh/conversations/claude_session.py:167-173`) with an explanatory
+     message indicating that no active Antigravity conversation environment was
+     detected and directing the user to supply `--conversation-id` or `--latest`.
+   - Higher-level caller workflows (such as `/lrh-closeout` or `/lrh-session-id`)
+     catch this exit code 2 and record `session_transcript: pending` in closeout
+     metadata rather than failing the landing chain.
 
 ## Recommendation for `WI-ANTIGRAVITY-SESSION-ID-RESOLVER`
 

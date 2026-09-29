@@ -56,11 +56,26 @@ finding 5 with a rationale.
 Copilot's findings have no inline threads, so they were acknowledged in a PR
 comment that cites the fix commits.
 
+6. **CI regression from item 3 (`b4cf9608`).** On `45421d81` the required
+   `tests` and `coverage` checks failed:
+   - The new `xdo.h` check read the real `/usr/include`, and the stock
+     ubuntu runner lacks libxdo-dev.
+   - The stop-work condition fired again, and the user chose to fix it in
+     this PR.
+   - The fix:
+     - The header path can now be overridden (`LRH_DESKTOP_XDO_HEADER`).
+     - The test stubs cc, wget and file.
+     - A new `LinuxPrerequisitesTest` stubs `uname`, so the Linux branch
+       runs on any host.
+   - The two low-severity items from the cold review are also fixed:
+     - The failure matrix now asserts each case's exact error.
+     - A test checks that `setup` runs `rustup component add`.
+
 # Validation
 
 - `scripts/format --desktop` and `scripts/lint --desktop` pass (black,
   pylint, pyright, cargo fmt --check, clippy -D warnings).
-- `scripts/test --desktop`: 1835 Python tests OK and 4 Rust tests pass.
+- `scripts/test --desktop` (after `b4cf9608`): 1838 Python tests OK and 4 Rust tests pass.
 - `scripts/validate --log` passes under both the default bash and
   `/bin/bash` 3.2.
 - `scripts/check-workflows`: OK.

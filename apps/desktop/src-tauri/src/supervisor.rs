@@ -44,6 +44,7 @@ pub const DEFAULT_TERMINATE_TIMEOUT: Duration = Duration::from_secs(5);
 pub const STDERR_TAIL_BYTES: usize = 64 * 1024;
 
 const EXIT_POLL_INTERVAL: Duration = Duration::from_millis(20);
+const HANDSHAKE_POLL_INTERVAL: Duration = Duration::from_millis(100);
 const LOOPBACK_HOSTS: [&str; 2] = ["127.0.0.1", "::1"];
 
 /// Lifecycle state of the one supervised server.
@@ -483,7 +484,7 @@ impl OwnedServer {
             }
             Err(mut error) => {
                 self.close_stdin();
-                if self.wait_exit(Duration::ZERO).is_none() {
+                if !self.wait_for_exit(Duration::ZERO) {
                     self.escalate();
                 }
                 self.release();
@@ -500,7 +501,7 @@ impl OwnedServer {
         if self.state != State::Running {
             return false;
         }
-        if self.wait_exit(Duration::ZERO).is_some() {
+        if self.wait_for_exit(Duration::ZERO) {
             self.state = State::Failed;
             return false;
         }
@@ -593,26 +594,50 @@ impl OwnedServer {
 
     fn await_handshake(&mut self) -> Result<Handshake, SupervisorError> {
         let deadline = Instant::now() + self.config.startup_timeout;
-        match self.next_item(deadline) {
-            None => Err(SupervisorError::new(
-                ErrorKind::StartupTimeout,
-                format!(
-                    "no handshake within {:.1} seconds",
-                    self.config.startup_timeout.as_secs_f64()
-                ),
-            )),
-            Some(Item::Eof) => {
-                let mut error = SupervisorError::new(
-                    ErrorKind::ExitedBeforeReady,
-                    "backend closed its channel without a handshake",
-                );
-                error.exit_code = self.wait_exit(self.config.terminate_timeout);
-                Err(error)
+        loop {
+            // Wait in short slices so an exit is noticed even if a leaked
+            // descriptor keeps the child's stdout open after it dies.
+            let slice = (Instant::now() + HANDSHAKE_POLL_INTERVAL).min(deadline);
+            if let Some(item) = self.next_item(slice) {
+                return self.handshake_item(item);
             }
-            Some(Item::Malformed(detail)) => {
+            if self.wait_for_exit(Duration::ZERO) {
+                // Take a message the child wrote just before exiting.
+                let grace = Instant::now() + EXIT_POLL_INTERVAL;
+                return match self.next_item(grace) {
+                    Some(item) => self.handshake_item(item),
+                    None => Err(self.exited_before_ready()),
+                };
+            }
+            if Instant::now() >= deadline {
+                return Err(SupervisorError::new(
+                    ErrorKind::StartupTimeout,
+                    format!(
+                        "no handshake within {:.1} seconds",
+                        self.config.startup_timeout.as_secs_f64()
+                    ),
+                ));
+            }
+        }
+    }
+
+    fn exited_before_ready(&mut self) -> SupervisorError {
+        let mut error = SupervisorError::new(
+            ErrorKind::ExitedBeforeReady,
+            "backend exited or closed its channel without a handshake",
+        );
+        self.wait_for_exit(self.config.terminate_timeout);
+        error.exit_code = self.exit_code;
+        error
+    }
+
+    fn handshake_item(&mut self, item: Item) -> Result<Handshake, SupervisorError> {
+        match item {
+            Item::Eof => Err(self.exited_before_ready()),
+            Item::Malformed(detail) => {
                 Err(SupervisorError::new(ErrorKind::MalformedHandshake, detail))
             }
-            Some(Item::Message(message)) => self.handshake_from(message),
+            Item::Message(message) => self.handshake_from(message),
         }
     }
 
@@ -645,7 +670,8 @@ impl OwnedServer {
                     format!("backend reported a startup failure: {code}"),
                 );
                 error.backend_error = backend_error;
-                error.exit_code = self.wait_exit(self.config.terminate_timeout);
+                self.wait_for_exit(self.config.terminate_timeout);
+                error.exit_code = self.exit_code;
                 Err(error)
             }
             Some("ready") => verify_ready(
@@ -676,7 +702,7 @@ impl OwnedServer {
         }
         self.close_stdin();
         let mut escalation = Escalation::None;
-        if self.wait_exit(self.config.shutdown_timeout).is_none() && !self.exited {
+        if !self.wait_for_exit(self.config.shutdown_timeout) {
             escalation = self.escalate();
         }
         self.release();
@@ -697,37 +723,50 @@ impl OwnedServer {
     }
 
     /// Terminates, then kills, the owned child handle. Never by name or port.
+    ///
+    /// Signals are sent only while the child is unreaped, so its PID cannot
+    /// belong to another process. After a kill it waits for the exit, so a
+    /// restart never spawns before the previous child is gone.
     fn escalate(&mut self) -> Escalation {
+        if self.exited {
+            return Escalation::None;
+        }
         if let Some(child) = self.child.as_mut() {
             terminate(child);
         }
-        if self.wait_exit(self.config.terminate_timeout).is_some() || self.exited {
+        if self.wait_for_exit(self.config.terminate_timeout) {
             return Escalation::Terminate;
         }
         if let Some(child) = self.child.as_mut() {
             let _ = child.kill();
+            // SIGKILL cannot be ignored, so this wait terminates.
+            if let Ok(status) = child.wait() {
+                self.exited = true;
+                self.exit_code = status.code();
+            }
         }
-        self.wait_exit(self.config.terminate_timeout);
         Escalation::Kill
     }
 
-    /// Polls the owned child for exit until `timeout`; returns the exit code
-    /// once it has exited (`None` while it runs, or if it died by signal).
-    fn wait_exit(&mut self, timeout: Duration) -> Option<i32> {
+    /// Polls the owned child until it exits or `timeout` passes. Returns true
+    /// once it has exited (and been reaped), including death by signal.
+    fn wait_for_exit(&mut self, timeout: Duration) -> bool {
         if self.exited {
-            return self.exit_code;
+            return true;
         }
-        let child = self.child.as_mut()?;
+        let Some(child) = self.child.as_mut() else {
+            return false;
+        };
         let deadline = Instant::now() + timeout;
         loop {
             match child.try_wait() {
                 Ok(Some(status)) => {
                     self.exited = true;
                     self.exit_code = status.code();
-                    return self.exit_code;
+                    return true;
                 }
                 Ok(None) if Instant::now() < deadline => thread::sleep(EXIT_POLL_INTERVAL),
-                _ => return None,
+                _ => return false,
             }
         }
     }
@@ -813,7 +852,7 @@ impl Drop for OwnedServer {
     fn drop(&mut self) {
         if self.child.is_some() && !self.exited {
             self.close_stdin();
-            if self.wait_exit(self.config.terminate_timeout).is_none() && !self.exited {
+            if !self.wait_for_exit(self.config.terminate_timeout) {
                 self.escalate();
             }
         }
@@ -942,6 +981,11 @@ impl Supervisor {
     }
 
     /// The current state, refreshed if a running child has exited.
+    ///
+    /// While another operation holds the supervisor (a start, stop, restart,
+    /// or ping), this returns the last recorded status without waiting, so a
+    /// child that died during that operation shows as `Running` until the
+    /// operation ends. Treat `Running` as "was running at the last check".
     pub fn status(&self) -> Status {
         if let Ok(mut current) = self.current.try_lock() {
             self.refresh(&mut current);

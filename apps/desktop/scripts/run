@@ -267,6 +267,8 @@ resolve_test_python() {
   local resolved
   resolved="$(command -v "${candidate}" 2>/dev/null)" \
     || die "no Python interpreter for the supervisor tests ('${candidate}' not found); set LRH_DESKTOP_TEST_PYTHON"
+  # cargo runs the tests from src-tauri/, so a relative path must be absolute.
+  [[ "${resolved}" == /* ]] || resolved="${PWD}/${resolved}"
   LRH_DESKTOP_TEST_PYTHON="${resolved}"
   export LRH_DESKTOP_TEST_PYTHON
 }

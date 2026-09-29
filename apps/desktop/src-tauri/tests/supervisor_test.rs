@@ -242,6 +242,33 @@ fn a_readiness_timeout_stops_the_silent_child() {
     assert!(wait_until_dead(pid, Duration::from_secs(2)), "no orphan");
 }
 
+#[cfg(unix)]
+#[test]
+fn a_child_killed_by_a_signal_before_ready_is_reaped_not_signalled() {
+    // Death by signal leaves no exit code; the failed start must still see
+    // the child as exited and never signal its (reaped) PID again.
+    let body = "os.kill(os.getpid(), signal.SIGKILL)";
+    let error = expect_error(Supervisor::new(fake_config(body)).start());
+    assert_eq!(error.kind, ErrorKind::ExitedBeforeReady);
+    assert_eq!(error.exit_code, None);
+}
+
+#[test]
+fn an_exit_is_noticed_even_if_a_leaked_descriptor_keeps_stdout_open() {
+    // A grandchild inherits stdout, so no EOF arrives when the child exits.
+    let body = r#"import subprocess
+subprocess.Popen([sys.executable, "-c", "import time; time.sleep(4)"])
+sys.exit(9)"#;
+    let started = Instant::now();
+    let error = expect_error(Supervisor::new(fake_config(body)).start());
+    assert_eq!(error.kind, ErrorKind::ExitedBeforeReady);
+    assert_eq!(error.exit_code, Some(9));
+    assert!(
+        started.elapsed() < Duration::from_secs(8),
+        "the exit must be noticed well before the 10 s startup timeout"
+    );
+}
+
 #[test]
 fn an_incompatible_protocol_version_is_rejected() {
     let error = expect_error(Supervisor::new(fake_config("ready(protocol_version=2)")).start());
@@ -303,7 +330,7 @@ fn a_child_that_ignores_shutdown_and_sigterm_is_killed() {
 
     let result = supervisor.stop().expect("stopped");
     assert_eq!(result.escalation, Escalation::Kill);
-    assert!(!pid_alive(pid));
+    assert!(wait_until_dead(pid, Duration::from_secs(5)));
 }
 
 /// Re-entered as a child process by
@@ -371,6 +398,7 @@ fn read_helper_pid(helper: &mut Child, bound: Duration) -> u32 {
         Ok(pid) => pid,
         Err(_) => {
             let _ = helper.kill();
+            let _ = helper.wait();
             panic!("helper never reported its backend PID");
         }
     }

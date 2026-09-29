@@ -28,7 +28,9 @@ Commands:
                           not match the pins.
   fmt [--check]           Run cargo fmt (--check never edits tracked files).
   lint                    Run cargo clippy with warnings denied.
-  test                    Run cargo test (tier 1: headless, mock runtime).
+  test                    Run cargo test (tier 1: headless mock-runtime tests, plus
+                          supervisor tests against a real lrh serve from src/;
+                          uses LRH_DESKTOP_TEST_PYTHON, else $PYTHON, else python3).
 
 Options:
   --dry-run               Print the commands that would run; run nothing.
@@ -258,9 +260,23 @@ cmd_lint() {
   run_step cargo clippy --manifest-path "${MANIFEST}" --locked --all-targets -- -D warnings
 }
 
+# The supervisor tests drive a real `lrh serve` from this checkout's src/.
+# Hand them an explicit interpreter path; they never search PATH themselves.
+resolve_test_python() {
+  local candidate="${LRH_DESKTOP_TEST_PYTHON:-${PYTHON:-python3}}"
+  local resolved
+  resolved="$(command -v "${candidate}" 2>/dev/null)" \
+    || die "no Python interpreter for the supervisor tests ('${candidate}' not found); set LRH_DESKTOP_TEST_PYTHON"
+  LRH_DESKTOP_TEST_PYTHON="${resolved}"
+  export LRH_DESKTOP_TEST_PYTHON
+}
+
 cmd_test() {
   [[ $# -eq 0 ]] || usage_error "test takes no options"
-  [[ "${DRY_RUN}" -eq 1 ]] || check_pins
+  if [[ "${DRY_RUN}" -ne 1 ]]; then
+    check_pins
+    resolve_test_python
+  fi
   run_step cargo test --manifest-path "${MANIFEST}" --locked
 }
 

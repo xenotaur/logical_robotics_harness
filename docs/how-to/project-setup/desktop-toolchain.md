@@ -71,9 +71,22 @@ fails if any desktop pin is missing or mismatched.
 | Tier | Needs | Command | What it covers |
 | --- | --- | --- | --- |
 | 0 | Python only | `scripts/test` | Desktop config checks (pins, capabilities, CSP), `--desktop` script behavior with stubbed tools, and sdist/wheel content guards |
-| 1 | Rust, headless | `scripts/test --desktop` | `cargo test`, including Tauri mock-runtime command and capability tests; no window opens |
+| 1 | Rust, headless | `scripts/test --desktop` | `cargo test`, including Tauri mock-runtime command and capability tests, and `supervisor_test.rs` against a real `lrh serve --desktop-protocol`; no window opens |
 | 2 | Real window | deferred | macOS has no desktop WebDriver client, and the WebdriverIO route needs Node |
 | 3 | A Mac and a person | manual checklist | Dock, menu, window, and lifecycle behavior (added with the app features) |
+
+The supervisor tests start real `lrh serve` processes from this checkout's
+`src/`. They cover start, repeated start, restart ordering, stop escalation,
+readiness timeout, crash, incompatible and mismatched backends, parent loss,
+and a separately started server that must stay untouched. They need a Python
+interpreter that can import this checkout's dependencies. `apps/desktop/scripts/run test`
+passes one to them explicitly as `LRH_DESKTOP_TEST_PYTHON`, taking it from
+that variable, then `$PYTHON`, then `python3`. To run them with plain `cargo`,
+set the variable yourself:
+
+```bash
+LRH_DESKTOP_TEST_PYTHON="$(command -v python3)" cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
+```
 
 Formatting and lint follow the same pattern:
 

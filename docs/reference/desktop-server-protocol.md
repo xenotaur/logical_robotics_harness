@@ -1,7 +1,7 @@
 # LRH desktop server protocol (version 1)
 
 This page is the normative contract between a desktop supervisor (the planned
-LRH Console Tauri shell, `WI-LRH-CONSOLE-DESKTOP-L0`) and the Python
+LRH Console Tauri shell, `WI-LRH-CONSOLE-DESKTOP-SUPERVISOR`) and the Python
 `lrh serve` backend it owns. It covers launch, the ready/failed handshake,
 control messages, graceful shutdown, parent-loss cleanup, deadlines, and the
 supervisor's restart and ownership rules.
@@ -419,4 +419,5 @@ claims.
 
 - [`lrh serve` CLI reference](cli/serve.md)
 - Design: `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md`
-- Consumer: `project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-L0.md`
+- Consumers: `project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-SUPERVISOR.md`
+  (the Rust supervisor) and `project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-SHELL.md`

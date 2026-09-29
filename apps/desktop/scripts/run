@@ -133,7 +133,9 @@ check_os_prerequisites() {
           missing+=("${module}")
         fi
       done
-      [[ -f /usr/include/xdo.h ]] || missing+=("libxdo (xdo.h)")
+      # libxdo ships no pkg-config file, so look for its header. The override
+      # exists so tests can run on hosts without libxdo-dev.
+      [[ -f "${LRH_DESKTOP_XDO_HEADER:-/usr/include/xdo.h}" ]] || missing+=("libxdo (xdo.h)")
       for tool in cc curl wget file; do
         command -v "${tool}" >/dev/null 2>&1 || missing+=("${tool}")
       done

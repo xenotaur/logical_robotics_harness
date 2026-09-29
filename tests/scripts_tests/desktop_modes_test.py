@@ -69,6 +69,11 @@ STUBS = {
         echo "pkg-config $*" >> "$FAKE_LOG"
         exit 0
         """,
+    # Linux build tools the preflight requires; stubbed so the test does not
+    # depend on what the host has installed.
+    "cc": "exit 0\n",
+    "wget": "exit 0\n",
+    "file": "exit 0\n",
     "curl": """\
         echo "curl $*" >> "$FAKE_LOG"
         echo 'echo "rustup-init $*" >> "$FAKE_LOG"'
@@ -90,15 +95,32 @@ FAKE_PYTHON = """\
     exit 0
     """
 
-# Each failure case: stubs to omit, and environment overrides.
+# Each failure case: stubs to omit, environment overrides, and text the
+# desktop error on stderr must contain.
 FAILURE_CASES = {
-    "rustup_absent": ({"rustup"}, {}),
-    "cargo_absent": ({"cargo"}, {}),
-    "toolchain_not_installed": (set(), {"FAKE_TOOLCHAINS": "stable-fake-host"}),
-    "toolchain_mismatched": (set(), {"FAKE_RUSTC_VERSION": "1.0.0"}),
-    "component_missing": (set(), {"FAKE_COMPONENTS": "rustfmt-fake-host"}),
-    "tauri_cli_missing": (set(), {"FAKE_TAURI_CLI": ""}),
-    "tauri_cli_mismatched": (set(), {"FAKE_TAURI_CLI": "0.0.1"}),
+    "rustup_absent": ({"rustup"}, {}, "rustup"),
+    "cargo_absent": ({"cargo"}, {}, "cargo not found"),
+    "toolchain_not_installed": (
+        set(),
+        {"FAKE_TOOLCHAINS": "stable-fake-host"},
+        f"pinned Rust toolchain {RUST_PIN} is not installed",
+    ),
+    "toolchain_mismatched": (
+        set(),
+        {"FAKE_RUSTC_VERSION": "1.0.0"},
+        f"expected {RUST_PIN}",
+    ),
+    "component_missing": (
+        set(),
+        {"FAKE_COMPONENTS": "rustfmt-fake-host"},
+        "pinned component clippy is not installed",
+    ),
+    "tauri_cli_missing": (set(), {"FAKE_TAURI_CLI": ""}, "tauri-cli not installed"),
+    "tauri_cli_mismatched": (
+        set(),
+        {"FAKE_TAURI_CLI": "0.0.1"},
+        f"expected {TAURI_CLI_PIN}",
+    ),
 }
 
 # Each --desktop mode: (argv, needs a fake `python` on PATH).
@@ -142,6 +164,8 @@ class DesktopModesTestBase(unittest.TestCase):
         self.log.write_text("", encoding="utf-8")
         self.home = self.root / "home"
         self.home.mkdir()
+        self.xdo_header = self.root / "xdo.h"
+        self.xdo_header.write_text("", encoding="utf-8")
 
     def _run(
         self,
@@ -173,6 +197,7 @@ class DesktopModesTestBase(unittest.TestCase):
             "PATH": os.pathsep.join(path_entries),
             "HOME": str(self.home),
             "FAKE_LOG": str(self.log),
+            "LRH_DESKTOP_XDO_HEADER": str(self.xdo_header),
             "FAKE_TOOLCHAINS": f"{RUST_PIN}-fake-host",
             "FAKE_RUSTC_VERSION": RUST_PIN,
             "FAKE_COMPONENTS": "rustfmt-fake-host clippy-fake-host",
@@ -233,7 +258,7 @@ class DesktopModesFailLoudlyTest(DesktopModesTestBase):
         self,
     ) -> None:
         for mode, (argv, fake_python) in DESKTOP_MODES.items():
-            for case, (omit, overrides) in FAILURE_CASES.items():
+            for case, (omit, overrides, expected_error) in FAILURE_CASES.items():
                 with self.subTest(mode=mode, case=case):
                     result = self._run(
                         argv,
@@ -247,6 +272,7 @@ class DesktopModesFailLoudlyTest(DesktopModesTestBase):
                     # The failure must come from the desktop pin check, not
                     # from some unrelated step.
                     self.assertIn("desktop:", result.stderr)
+                    self.assertIn(expected_error, result.stderr)
                     self.assertNotIn("desktop: SKIPPED", result.stdout)
 
     def test_desktop_modes_pass_and_run_rust_steps_when_pins_match(self) -> None:
@@ -269,6 +295,40 @@ class DesktopModesFailLoudlyTest(DesktopModesTestBase):
                     ),
                     self._rust_calls(),
                 )
+
+
+class DevelopDesktopSetupTest(DesktopModesTestBase):
+    def test_setup_reconciles_pinned_components(self) -> None:
+        result = self._run(["scripts/develop", "--desktop"], fake_python=True)
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn(
+            f"rustup component add --toolchain {RUST_PIN} rustfmt clippy",
+            self.log.read_text(encoding="utf-8").splitlines(),
+        )
+
+
+class LinuxPrerequisitesTest(DesktopModesTestBase):
+    """Exercise the Linux preflight on any host by stubbing `uname`."""
+
+    def _run_as_linux(self, **kwargs) -> subprocess.CompletedProcess[str]:
+        stub_dir = self.root / "bin"
+        stub_dir.mkdir(exist_ok=True)
+        _write_executable(stub_dir / "uname", "echo Linux\n")
+        return self._run(["apps/desktop/scripts/run", "setup"], **kwargs)
+
+    def test_linux_preflight_passes_with_stubbed_prerequisites(self) -> None:
+        result = self._run_as_linux()
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
+    def test_linux_preflight_names_missing_libxdo_header(self) -> None:
+        result = self._run_as_linux(
+            env_overrides={"LRH_DESKTOP_XDO_HEADER": str(self.root / "absent.h")}
+        )
+
+        self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("libxdo (xdo.h)", result.stderr)
 
 
 class FormatDesktopPreviewTest(DesktopModesTestBase):

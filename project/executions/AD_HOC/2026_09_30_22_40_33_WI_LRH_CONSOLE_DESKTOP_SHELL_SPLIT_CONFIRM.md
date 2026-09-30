@@ -2,10 +2,10 @@
 execution_id: 2026_09_30_22_40_33_WI_LRH_CONSOLE_DESKTOP_SHELL_SPLIT_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_DESKTOP_SHELL_SPLIT_CONFIRM)[2026-09-30T22:40:33+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_30_22_00_03_WI_LRH_CONSOLE_DESKTOP_SHELL_SPLIT
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/760
-commit: 
+commit: b9c1091250ed3fe5ad648b045b5fca89149f10d1
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/760"
 session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a

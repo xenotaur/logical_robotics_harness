@@ -4,7 +4,7 @@ type: design_proposal
 title: "Local Agent Dogfood and a Durable Session Boundary"
 status: proposed
 created_on: "2026-09-24"
-updated_on: "2026-09-29"
+updated_on: "2026-09-30"
 implementation_status: not_started
 implemented_by: []
 supersedes: []
@@ -181,9 +181,20 @@ Excluded always:
 - **credential-like paths:** `.env*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`,
   `id_rsa*`, `id_ed25519*`, and names containing `credential` or `secret`,
   plus `.netrc`, `.npmrc`, and `.pypirc`;
-- **any source whose text LRH's sensitivity scanner flags**
-  (`lrh.conversations.sensitivity`). Every source is scanned before sending,
-  and a flagged source is dropped and listed as excluded in the source summary.
+- **any source with a high-severity finding from LRH's sensitivity scanner**
+  (`lrh.conversations.sensitivity`): secrets, tokens, private keys, credentials
+  in URLs, and payment-card or government-ID numbers. Every source is scanned
+  before sending, and such a source is dropped and listed as excluded in the
+  source summary.
+
+Medium-severity findings (email addresses, IP addresses, phone numbers) do not
+exclude a source; the source summary lists them as warnings, by category and
+never by value, so the owner sees them before the model is called. Excluding on
+them dropped common documentation such as the repository README, which
+mentions `127.0.0.1`. Such text does reach the model, which is acceptable only
+because the adapter's local-only checks keep it on this machine. Anything
+leaving the private store stays stricter: exports and the `report` summary
+withhold text on any finding.
 
 This is a best-effort guard, not a guarantee; the source summary is shown on
 every run, and budgets cap what is sent. The same exclusions apply to T2 tool

@@ -18,6 +18,7 @@ work_items:
 - "WI-LRH-CONSOLE-DESKTOP-L0"
 - "WI-LRH-CONSOLE-DESKTOP-SUPERVISOR"
 - "WI-LRH-CONSOLE-DESKTOP-SHELL"
+- "WI-LRH-CONSOLE-DESKTOP-SETTINGS"
 - "WI-LRH-CONSOLE-DESKTOP-DOGFOOD"
 execution_records:
 - "2026_09_24_21_02_46_LRH_CONSOLE_LOCAL_DOGFOOD"
@@ -100,15 +101,19 @@ existing execution framework, without changing that workstream's ownership.
 3. **WI-LRH-CONSOLE-DESKTOP-SUPERVISOR**: the Rust supervisor that owns one
    `lrh serve --desktop-protocol` backend under that contract, with
    integration tests against a real child.
-4. **WI-LRH-CONSOLE-DESKTOP-SHELL**: the Tauri shell, with native menus, a
-   default content window, one on-demand Settings/Details window, private
-   configuration, recovery pages, and browser handoff.
-5. **WI-LRH-CONSOLE-DESKTOP-DOGFOOD**: five recorded macOS dogfood sessions
+4. **WI-LRH-CONSOLE-DESKTOP-SHELL**: the Tauri shell, with a default content
+   window, native lifecycle menus wired to the supervisor, and navigation and
+   capability boundaries.
+5. **WI-LRH-CONSOLE-DESKTOP-SETTINGS**: private configuration, one on-demand
+   Settings/Details window, recovery pages, browser handoff, and the dogfood
+   how-to.
+6. **WI-LRH-CONSOLE-DESKTOP-DOGFOOD**: five recorded macOS dogfood sessions
    and the L0 evidence record.
 
-Items 2–5 were one L0 work item until 2026-09-29. It was split so that each
-work item maps to one PR; the L0 decision gate below is unchanged, and items
-3–5 together satisfy it.
+Items 2–6 were one L0 work item until 2026-09-29. It was split so that each
+work item maps to one PR, and SHELL was split again at the
+configuration/recovery boundary on 2026-09-30. The L0 decision gate below is
+unchanged, and items 3–6 together satisfy it.
 
 Only these leaves are created initially. L1's snapshot/view schema and
 renderer, then L2–L4, will receive bounded items after the preceding evidence gates.

@@ -1,6 +1,6 @@
 ---
 id: "WI-LRH-CONSOLE-DESKTOP-SHELL"
-title: "Build the LRH Console desktop shell: windows, menus, settings, and recovery"
+title: "Build the LRH Console desktop shell: windows, lifecycle menus, and boundaries"
 type: "deliverable"
 status: "proposed"
 blocked: false
@@ -36,24 +36,24 @@ forbidden_actions:
 - "deploy_remote_service"
 - "implement_project_mutation"
 - "run_lrh_agentic"
+- "implement_lrh_console_desktop_settings"
 acceptance:
-- "The locally built Mac app opens from the Dock into one default content window that loads the owned Serve origin directly, with no iframe and no child-webview composition."
-- "Native Server, View, Window, and Settings menus drive the supervisor, with actions enabled by state. Settings reopens or focuses a single window. Window close keeps the app and server alive, Dock reopen restores the main window, and Quit stops the owned server."
-- "Settings and the bundled setup, starting, stopped, failed, and incompatible pages work without a running backend. Invalid configuration keeps the last working values and explains recovery."
-- "Dashboard content and bundled recovery pages cannot invoke native commands. Navigation is limited to approved app pages and the current exact loopback origin, popups are handled, and approved external links open in a browser."
-- "The embedded view and Chrome show the same selected project. Workspace mismatch and Chrome absence are explicit, with a safe default-browser fallback."
-- "capability_boundaries_test.rs passes in desktop CI, and docs/how-to/lrh-console-local-dogfood.md documents setup, build/run, lifecycle, recovery, limitations, exact validation commands, and the manual macOS checklist."
+- "The locally built Mac app opens from the Dock into one default content window. While the owned backend runs, the window loads its Serve origin directly, with no iframe and no child-webview composition. Otherwise it shows one minimal bundled status page."
+- "Native Server > Start / Stop / Restart, View > Dashboard / Reload, and Window focus actions drive the supervisor, and each is enabled by state. Repeated Start never creates a duplicate backend. Window close keeps the app and server alive, Dock reopen restores the main window, and Quit stops the owned server within the supervisor's bounds."
+- "Dashboard content and the bundled status page cannot invoke native commands. Navigation is limited to bundled app pages and the current exact loopback origin. A stale origin is dropped on restart, and popups and external links are refused rather than opened in the app."
+- "capability_boundaries_test.rs passes in desktop CI, covering command denial, the allowed navigation set, stale-origin removal, and popup refusal."
+- "A developer can launch the app against an explicit lrh executable and workspace through documented developer-only settings, never through shell PATH lookup."
 required_evidence:
 - "manual_review"
 - "lrh_validate"
 - "test_output"
 - "validation_output"
 artifacts_expected:
-- "apps/desktop/src-tauri (windows, native menus, settings storage, supervisor wiring, navigation policy)"
-- "apps/desktop/ui (bundled Settings/Details and setup, starting, stopped, failed, incompatible pages)"
-- "apps/desktop/src-tauri/capabilities (narrow capabilities for the auxiliary window)"
+- "apps/desktop/src-tauri (main window, native lifecycle menus, supervisor wiring, navigation policy, developer launch settings)"
+- "apps/desktop/ui (one minimal bundled status page)"
+- "apps/desktop/src-tauri/capabilities (dashboard and bundled page get no app commands)"
 - "apps/desktop/src-tauri/tests/capability_boundaries_test.rs"
-- "docs/how-to/lrh-console-local-dogfood.md (with the manual macOS checklist)"
+- "docs/how-to/project-setup/desktop-toolchain.md (developer launch of the shell)"
 - "tests/scripts_tests/desktop_modes_test.py (deferred PR #750 assertions: Linux-branch probe, exact rustup_absent message)"
 - "apps/desktop/scripts/run and/or docs/how-to/project-setup/desktop-toolchain.md (test-only xdo header override renamed or documented)"
 ---
@@ -62,37 +62,45 @@ artifacts_expected:
 
 ## Summary
 
-Turn the minimal Tauri app from `WI-LRH-CONSOLE-DESKTOP-L0` into the daily Mac
-shell:
+Turn the minimal Tauri app from `WI-LRH-CONSOLE-DESKTOP-L0` into a Dock app
+that owns its backend. It has three parts:
 
-- a Dock-launched default window showing the existing read-only Serve
-  dashboard;
-- native menus that drive the supervisor from
+- a default window showing the existing read-only Serve dashboard;
+- native lifecycle menus driving the supervisor from
   `WI-LRH-CONSOLE-DESKTOP-SUPERVISOR`;
-- one on-demand Settings / Server Details window;
-- bundled recovery pages;
-- strict navigation and capability boundaries;
-- browser handoff.
+- strict navigation and capability boundaries.
+
+Private configuration, Settings/Details, the full recovery pages, browser
+handoff, and the dogfood how-to follow in
+`WI-LRH-CONSOLE-DESKTOP-SETTINGS`.
 
 ## Problem / Context
 
-This item was split out of `WI-LRH-CONSOLE-DESKTOP-L0` (its Required Changes
-items 1 and 3–7, plus the documentation and capability-test half of item 8),
-so that each work item maps to one PR.
+This item was split out of `WI-LRH-CONSOLE-DESKTOP-L0`, then split again on
+2026-09-30 at the configuration/recovery boundary so that each work item maps
+to one PR. It keeps the lifecycle and security core, which the Settings work
+builds on:
 
-Serve and Meta are useful, but starting them from the command line discourages
-ordinary use. The chosen interaction keeps the dashboard as the default
-window, with server operations in menus. Serve rejects frames and mutations
-(`src/lrh/serve.py:2911-2924,2983-2990` at
+- original L0 items 1 (windows), 2 (menus), and 5 (capabilities and
+  navigation);
+- the capability-test half of item 7.
+
+Serve and Meta are useful, but starting them from the command line
+discourages ordinary use. The chosen interaction keeps the dashboard as the
+default window, with server operations in menus. Serve rejects frames and
+mutations (`src/lrh/serve.py:2911-2924,2983-2990` at
 `8603b6514329ea242294da420aa448d2fc959fd1`), so the app uses a direct
 top-level webview and keeps the read-only boundary. The new dependency-map UI
 follows in L1.
 
 ### Duplication search
 
-- In-repo: reuse the Serve and Meta HTML routes, the landed protocol, the
-  supervisor from `WI-LRH-CONSOLE-DESKTOP-SUPERVISOR`, and the capability
-  pattern and mock-runtime tests from PR #750 (`apps/desktop/src-tauri/src/lib.rs`).
+- In-repo: reuse these rather than rebuilding them:
+  - the Serve and Meta HTML routes;
+  - the landed protocol;
+  - `apps/desktop/src-tauri/src/supervisor.rs`, from PR #758;
+  - the capability pattern and mock-runtime tests in
+    `apps/desktop/src-tauri/src/lib.rs`, from PR #750.
 - External libraries: use Tauri's stable top-level window and menu facilities
   at the pinned version. Avoid custom browser engines.
 - Recommendation: proceed with a thin shell, not a Python model or dashboard
@@ -100,18 +108,16 @@ follows in L1.
 
 ### Demand search
 
-- Work items: this is a direct successor to `WI-LRH-CONSOLE-DESKTOP-L0`, and
-  `WI-LRH-CONSOLE-DESKTOP-DOGFOOD` depends on it.
+- Work items: this is a direct successor to `WI-LRH-CONSOLE-DESKTOP-L0`.
+  `WI-LRH-CONSOLE-DESKTOP-SETTINGS` depends on it.
 - Proposals: console visual language, Serve triage, and Meta triage inform
-  refinement. The original private analyzer is an interaction reference only.
-- Backlog: graph blocked-field propagation remains an L1 concern.
+  refinement.
 - Recommendation: proceed. This shell does not satisfy the graph or unrelated
   agent runtime demands.
 
-### Deferred from PR #750
+### Deferred from earlier PRs
 
-The final cold review of PR #750 left three small test items. They are folded
-in here because this item touches the same helper and tests:
+These three small test items are left over from PR #750's final cold review:
 
 - `LinuxPrerequisitesTest` should also assert that the
   `pkg-config --exists webkit2gtk-4.1` probe ran.
@@ -119,112 +125,96 @@ in here because this item touches the same helper and tests:
   `desktop-toolchain.md`.
 - Pin the exact message for the `rustup_absent` failure case.
 
+These two items are left over from PR #758's final cold review, and affect
+how the menus drive the supervisor:
+
+- A Start queued behind a failing launch returns that launch's error, even if
+  a Stop ran in between.
+- A narrow Restart-then-crash race makes a queued Start return
+  `ExitedUnexpectedly`.
+
+Either serialize menu actions so that neither case is reachable from the UI,
+or document the accepted behavior.
+
 ## Scope
 
-- One default content window plus one auxiliary Settings/Details window opened
-  on demand, with native Server, View, and Window menus and the
-  platform-appropriate Settings menu.
-- Private explicit configuration, bundled recovery pages, and safe
-  external-browser handoff, all wired to the landed supervisor.
-- The Mac install and development how-to and its manual checklist. Keep the
-  cross-platform boundaries without claiming that Linux or Windows packaging
-  is complete.
+- One default content window, with native Server, View, and Window menus.
+- Supervisor wiring for the app lifecycle, including close, reopen, and Quit.
+- Navigation and capability boundaries, with tests.
+- Developer-only launch settings, which `WI-LRH-CONSOLE-DESKTOP-SETTINGS`
+  replaces with private configuration.
 
 ## Required Changes
 
-1. **Windows.** Use stable, separate top-level webview windows, not iframes or
-   unstable child-webview composition. The main window loads the current
-   owned Serve origin directly; the auxiliary window is bundled app UI. Keep
-   plain HTML/CSS/JS with no `package.json` or Node toolchain.
-2. **Native menus.**
-   - Add Server > Start / Stop / Restart / Details, Settings, View >
-     Dashboard / Reload / Open in Chrome, and window-focus actions.
+1. **Main window.**
+   - Use a stable top-level webview window, not iframes or unstable
+     child-webview composition.
+   - While the owned backend runs, the window loads its verified endpoint URL
+     directly.
+   - Otherwise it shows one minimal bundled status page: stopped, starting,
+     or failed, with the error code. Keep plain HTML/CSS/JS with no
+     `package.json` or Node toolchain.
+2. **Native lifecycle menus.**
+   - Add Server > Start / Stop / Restart, View > Dashboard / Reload, and
+     window-focus actions.
    - Enable each action by supervisor state.
-   - Reopen or focus the existing Settings window rather than creating a
-     duplicate.
+   - Run menu actions off the UI thread, and serialize them so that the two
+     PR #758 edge cases above cannot arise from the UI (or document the
+     accepted behavior).
    - On macOS, closing the window keeps the app and server alive, Dock reopen
-     restores the main window, and Quit stops the owned server. Closing
-     Settings does not stop the server.
-3. **Configuration.**
-   - Store the executable, workspace, browser preference, and start-on-app-open
-     setting in private local app configuration.
-   - Validate paths, versions, and the workspace, and keep the last working
-     values on failure. A workspace switch takes effect only after a restart.
-   - First run guides explicit setup and does not rely on shell PATH or Conda
-     activation.
-   - The browser setting is a supported application choice, not an arbitrary
-     shell command.
-4. **Recovery pages and details.**
-   - Bundle setup, starting, stopped, failed, and incompatible pages that work
-     without the Python server.
-   - Show actionable failures and a bounded diagnostic history, using the
-     supervisor's captured output, without leaking environment secrets.
-   - Server Details shows the actual ownership, endpoint, configured workspace,
-     and protocol and backend versions.
-5. **Capabilities and navigation.**
-   - Give loaded dashboard content no native process or filesystem commands.
-     Restrict the auxiliary window's native commands to narrow, validated
-     capabilities.
+     restores the main window, and Quit stops the owned server within the
+     supervisor's bounds.
+3. **Developer launch settings.**
+   - Read the `lrh` executable (or interpreter plus module) and the
+     workspace from explicit developer-only settings, such as documented
+     environment variables. Never resolve them through shell PATH lookup.
+   - Document this in `docs/how-to/project-setup/desktop-toolchain.md` as a
+     developer path that the private configuration in
+     `WI-LRH-CONSOLE-DESKTOP-SETTINGS` replaces.
+4. **Capabilities and navigation.**
+   - Give loaded dashboard content and the bundled status page no native
+     process or filesystem commands.
    - Configure custom app-command permissions explicitly
      (`AppManifest::commands`, as PR #750 does), not just plugin permissions.
-   - Allow navigation only to approved app pages and the current exact
-     loopback origin. Remove stale origins on restart, handle popups, and
-     route approved external links to a browser.
+   - Allow navigation only to bundled app pages and the current exact
+     loopback origin, and remove a stale origin on restart.
+   - Refuse popups and external links in the app. The browser handoff that
+     opens them outside belongs to `WI-LRH-CONSOLE-DESKTOP-SETTINGS`.
    - Preserve the existing Serve CSP and header protections.
-6. **Browser handoff.**
-   - Reuse the existing read-only Serve and Meta content rather than
-     introducing L1's graph.
-   - Record which preview and download interactions work in the embedded view,
-     and offer Chrome for the ones that don't.
-   - If Chrome is unavailable, offer a safe default-browser fallback with an
-     explanation. Keep a safe route open on handoff.
-7. **Tests.** Add `apps/desktop/src-tauri/tests/capability_boundaries_test.rs`.
-   It proves that main content and bundled recovery pages cannot invoke app
-   commands, that only the auxiliary window can reach its narrow commands, and
-   that navigation and popups outside the allowed set are refused. Extend the
-   mock-runtime tests from PR #750 rather than duplicating them. Also apply
-   the three deferred PR #750 test items above.
-8. **Documentation.** Add `docs/how-to/lrh-console-local-dogfood.md`, covering:
-   - explicit setup;
-   - build and run;
-   - lifecycle expectations;
-   - recovery;
-   - limitations;
-   - the exact validation commands;
-   - the manual macOS Dock, menu, keyboard, browser, and failure checklist that
-     `WI-LRH-CONSOLE-DESKTOP-DOGFOOD` will run.
+5. **Tests.** Add `apps/desktop/src-tauri/tests/capability_boundaries_test.rs`.
+   It proves that main content and the bundled status page cannot invoke app
+   commands. It also proves that navigation outside the allowed set, stale
+   origins after a restart, and popups are refused. Extend the mock-runtime
+   tests from PR #750 rather than duplicating them. Also apply the three
+   deferred PR #750 test items above.
 
 ## Non-Goals
 
+- No private configuration storage, first-run setup, or Settings/Details
+  window.
+- No full recovery pages, browser handoff, or dogfood how-to. These belong to
+  `WI-LRH-CONSOLE-DESKTOP-SETTINGS`.
 - Do not add graph, phase, or duration semantics, project mutation, task
-  execution, or remote deployment. The existing dashboard is the embedded
-  content.
+  execution, or remote deployment.
 - Do not bundle Python, add login autostart, or support public distribution or
   update infrastructure. Do not claim full Linux or Windows support.
 - Do not adopt or stop unrelated servers, kill by port or name, or make web
   content a privileged native control surface.
-- Do not require a permanently open management window or a tray-only
-  workflow.
-- Do not record the five dogfood sessions. That belongs to
-  `WI-LRH-CONSOLE-DESKTOP-DOGFOOD`.
 
 ## Acceptance Criteria
 
-- The Mac app opens from the Dock into one default content window that loads
-  the owned Serve origin directly.
-- Native menus start, stop, restart, show details, and reopen or focus
-  windows. Repeated Start never creates a duplicate backend, and close,
-  reopen, and Quit follow the documented Mac behavior.
-- Settings and the recovery pages work without a running backend. Invalid
-  configuration keeps the previous working values and explains recovery.
-- Dashboard content and recovery pages cannot invoke native commands, and
-  navigation is limited to approved pages and the current exact loopback
-  origin.
-- The embedded view and Chrome show the same selected project. Workspace
-  mismatch and browser absence are explicit, not a silent fallback to another
-  project.
-- `capability_boundaries_test.rs` passes in desktop CI, and the dogfood how-to,
-  including its checklist, is complete.
+- The Mac app opens from the Dock into one default content window. That
+  window loads the owned Serve origin directly while the backend runs, and
+  shows a minimal bundled status page otherwise.
+- Native lifecycle menus start, stop, and restart the owned backend, and
+  their state is reflected in the window.
+- Repeated Start never creates a duplicate backend.
+- Close, reopen, and Quit follow the documented Mac behavior.
+- Dashboard content and the status page cannot invoke native commands.
+- Navigation is limited to bundled pages and the current exact loopback
+  origin. Popups and external links are refused.
+- `capability_boundaries_test.rs` passes in desktop CI.
+- Developer launch uses explicit settings, with no PATH lookup.
 
 ## Validation
 
@@ -234,26 +224,22 @@ in here because this item touches the same helper and tests:
 - `scripts/test --desktop`
 - `scripts/test` (default run, still Rust-free, prints the desktop SKIPPED line)
 - `scripts/check-workflows`
-- Run the exact app build and capability-test commands from `docs/how-to/lrh-console-local-dogfood.md` on the target Mac, and one smoke pass of its manual checklist.
+- Build the app on the target Mac, then launch it with the developer settings. Do one smoke pass of Start, Stop, Restart, window close and Dock reopen, and Quit, and record the result in the execution record.
 
 ## Dependencies / Order
 
-- Depends on `WI-LRH-CONSOLE-DESKTOP-SUPERVISOR`.
-- `WI-LRH-CONSOLE-DESKTOP-DOGFOOD` depends on this item.
+- Depends on `WI-LRH-CONSOLE-DESKTOP-SUPERVISOR` (resolved).
+- `WI-LRH-CONSOLE-DESKTOP-SETTINGS` depends on this item.
 
 ## Risk Notes
 
 - A privileged webview configuration could expose native operations to
   repository content. Test capability isolation, navigation, redirects, and
   popup behavior.
-- The GUI launch environment differs from a coding terminal. Explicit
-  configuration and first-run recovery are part of the product, not
-  undocumented developer setup.
-- Mac webview and Chrome behavior can differ. Record a compatibility matrix
-  and an actionable browser fallback rather than assuming parity.
-- This is the largest remaining slice. If it proves too big to review as one
-  PR, split it again at the configuration/recovery boundary before starting,
-  rather than landing several PRs under this one item.
+- A supervisor call made on the UI thread would freeze the app for up to the
+  startup budget, so menu actions must run off that thread.
+- The developer launch settings must not become the product configuration
+  path. `WI-LRH-CONSOLE-DESKTOP-SETTINGS` replaces them.
 
 ## Related Workstream and Designs
 
@@ -264,6 +250,5 @@ in here because this item touches the same helper and tests:
 
 ## Open Questions
 
-Confirm the first Mac/CPU target, which executable versions to support, and
-the exact pinned Tauri components during implementation. Signing for broader
-distribution and Python bundling are L3 decisions.
+Confirm the first Mac/CPU target and the exact pinned Tauri components
+(menus, window events) during implementation.

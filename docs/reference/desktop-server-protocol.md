@@ -420,5 +420,5 @@ claims.
 
 - [`lrh serve` CLI reference](cli/serve.md)
 - Design: `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md`
-- Consumers: `project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-SUPERVISOR.md`
+- Consumers: `project/work_items/resolved/WI-LRH-CONSOLE-DESKTOP-SUPERVISOR.md`
   (the Rust supervisor) and `project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-SHELL.md`

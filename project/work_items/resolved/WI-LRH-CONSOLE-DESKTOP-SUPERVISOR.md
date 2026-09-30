@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-SUPERVISOR"
 title: "Implement the LRH Console Rust supervisor for the owned Serve backend"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #758 (commit 6977ce46): Rust supervisor for desktop-server-protocol v1 (apps/desktop/src-tauri/src/supervisor.rs) with 17 real-child integration tests, including parent loss and unrelated-server isolation on macOS and Linux CI; also removed the reverse-DNS lookup in serve.ThreadingHTTPServer.server_bind that stalled startup on macOS runners.'
 owner: "anthony"
 contributors:
 - "anthony"

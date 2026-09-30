@@ -1,8 +1,9 @@
-"""Versioned defaults for the stage-0 briefing prototype.
+"""Versioned defaults for the local-agent prototype.
 
-The values here mirror the pre-registration in
-``experiments/01_local_agent_briefing/README.md``. Change them only with a
-matching pre-registration update made before live runs.
+These values were first recorded in the pre-registered stage-0 pilot
+(``experiments/01_local_agent_briefing/``), which ``PROP-LOCAL-AGENT-DOGFOOD``
+has since superseded with the toy ladder. They are ordinary defaults now and
+can change with the prototype.
 """
 
 from __future__ import annotations

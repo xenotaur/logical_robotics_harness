@@ -1,6 +1,6 @@
 ---
 id: WI-LOCAL-AGENT-001
-title: "Build and evaluate a local work-item briefing prototype"
+title: "T0 ask and T1 brief: usable local-model toys with automatic logging"
 type: deliverable
 status: active
 owner: anthony
@@ -26,7 +26,6 @@ expected_actions:
   - edit_file
   - run_tests
   - write_docs
-  - create_report
 forbidden_actions:
   - implement_next_stage
   - modify_ci_pipeline
@@ -36,11 +35,12 @@ forbidden_actions:
   - force_push
   - delete_branch
 acceptance:
-  - "An opt-in local CLI briefs one selected work item from an approved immutable context packet with no agent tools."
-  - "Private versioned logs and sanitized exports preserve provenance, diagnostics, and failure outcomes."
-  - "Deterministic fake-model tests cover data boundaries, recording, and interruption without model or network access."
-  - "A reproducible pilot compares deterministic/manual and single-call local baselines with predeclared criteria."
-  - "A human records a stop, revise, or proceed decision; production behavior is unchanged."
+  - "`ask` answers a free-form question about the current checkout from tracked files, streaming readable Markdown with source references, with no agent tools."
+  - "`brief` produces a work-item briefing that carries LRH readiness diagnostics and flags claims that contradict them."
+  - "Every run is logged automatically and privately, including failures, with a one-key rating and a `log` summary; no manual bookkeeping is required."
+  - "Sources matching the listed credential-like patterns, or flagged by the sensitivity scanner, are never sent to the model or logged, shown by boundary tests (a best-effort guard, per proposal Decision 3); logs can be deleted and pruned."
+  - "Fake-model tests cover the commands, logging, and local-only checks without model or network access."
+  - "The owner has used both toys on real work and recorded a stop, revise, or proceed decision; production behavior is unchanged."
 required_evidence:
   - manual_review
   - lrh_validate
@@ -48,151 +48,151 @@ required_evidence:
   - validation_output
 artifacts_expected:
   - experimental/local_agent/
-  - experiments/README.md
-  - experiments/01_local_agent_briefing/
-  - "Numbered local-agent briefing experiment with sanitized findings and provenance."
 ---
 
-# Build and Evaluate a Local Work-Item Briefing Prototype
+# T0 Ask and T1 Brief: Usable Local-Model Toys with Automatic Logging
 
 ## Summary
 
-Deliver stage 0 of `PROP-LOCAL-AGENT-DOGFOOD`: a small opt-in Python CLI that
-explains one chosen LRH work item using a local model and a static context packet.
-Use it on real work, export its record, and measure whether it reduces effort.
-There is no agent tool loop in this leaf.
+Deliver the first two rungs of `PROP-LOCAL-AGENT-DOGFOOD`'s toy ladder as
+commands the owner can use on real work right away:
+
+- **T0 ask:** ask a free-form question about the current checkout and get a
+  streamed Markdown answer with source references.
+- **T1 brief:** get a structured briefing of one work item, carrying LRH's
+  readiness diagnostics.
+
+Every run is logged automatically. There is no agent tool loop in this leaf.
 
 ## Problem / Context
 
-A full agent runtime is unjustified until a local model demonstrably helps with
-a narrow daily task. Briefing should summarize intent, constraints, dependencies,
-evidence gaps, relevant sources, and questions for the human. It must distinguish
-source facts from suggestions and avoid presenting unready work as ready.
+The starting point is the CODE Magazine agent: about 50 lines making one local
+Gemma call over a workspace. An earlier version of this item required a
+pre-registered, twelve-task pilot with manual timed baselines before any
+decision. The first smoke run showed the prototype did not yet produce usable
+output (all 2,048 output tokens went somewhere other than the answer, most likely
+hidden model reasoning), and the owner judged that evaluation machinery
+disproportionate for read-only toys. This item now aims at something usable
+first, with evidence collected automatically.
 
-**Duplication / demand check:** the parent proposal records source-grounded prior
-art at commit `8603b6514329ea242294da420aa448d2fc959fd1`. Reuse
-`src/lrh/assist/snapshot_cli.py:53-68` and the diagnostics from
-`src/lrh/assist/run_packet.py:25-68`; do not implement another control-plane
-loader or assessment skill. The new demand is a measured local-language briefing
-plus portable run evidence, not another readiness authority. Refresh this check
-and the applicable runtime/assistant gates before activation.
+Much of the plumbing already exists in `experimental/local_agent/` from PRs #735
+and #745: pinned tracked-file sources, LRH readiness and context reuse, the
+local-only Ollama adapter, the private recorder with recovery, and export. Reuse
+it rather than rebuilding.
 
-**Activation refresh (2026-09-25, main `43e4375d`):** the cited snapshot and
-run-packet contracts are unchanged since `8603b65`. The reusable seams are
-`evaluate_readiness` (`src/lrh/work_items/readiness.py:47`), execution-readiness
-diagnostics from `render_run_packet_from_work_item`
-(`src/lrh/assist/run_packet.py:25-68`), and related-context resolution from
-`render_ready_work_item_request` (`src/lrh/assist/ready_work_item.py:73-90,137`).
-No canonical sequencing decision forbids this lane; the focus, execution
-framework, and experimental-directory reconciliations landed with activation.
-Assistant-stage gates are unaffected because this leaf performs no assistant
-role work.
+**Duplication / demand check:** reuse existing LRH readiness and context seams:
+
+- `evaluate_readiness` (`src/lrh/work_items/readiness.py:47`);
+- `render_run_packet_from_work_item` (`src/lrh/assist/run_packet.py:25-68`);
+- `render_ready_work_item_request` (`src/lrh/assist/ready_work_item.py:73-90,137`).
+
+Do not implement another control-plane loader or assessment skill.
 
 ## Scope
 
-One evolving prototype under `experimental/local_agent/`, with a documented
-Python entry point, a deterministic fake model, and one optional local-model
-adapter. Mac is the initial live-test platform. Interfaces and paths should be
-portable Python; do not claim Linux/Windows support without testing.
-
-The implementation agent may edit the scoped prototype/evidence files. The
-prototype model itself receives no execution, filesystem, or network tools and
-cannot modify repository files or project state. These are different authorities.
+One evolving CLI under `experimental/local_agent/`, outside the package and
+default test discovery, with a fake backend for tests and the local Ollama
+adapter for real use. Mac is the initial platform. The implementation agent may
+edit the prototype files; the model itself receives no execution, filesystem, or
+network tools and cannot modify repository files or project state.
 
 ## Required Changes
 
-1. Before coding, record approval of the experimental lane, the target Mac/RAM,
-   locally installed model/quantization, safe task corpus, private storage path,
-   retention policy, and numerical usefulness/latency criteria. Do not download a
-   model or use a cloud-backed service implicitly.
-2. Implement explicit project/work-item selection, context generation using
-   existing LRH semantics, preserved readiness diagnostics, and source references
-   with commit, content hashes, and line ranges. Materialize an approved immutable
-   text packet; reject untracked/private/binary sources and over-budget input.
-   Readiness errors must remain visible even when a briefing can still be made.
-3. Implement small typed model/context/recorder seams and a one-call runner.
-   Pin/record prompt, model, backend, and policy versions. Enforce input/output,
-   token, and wall-time bounds; distinguish missing prerequisites, cancellation,
-   timeout, malformed output, and completion. Do not hide stopped attempts.
-4. Add a private single-writer JSONL/artifact store with versioned manifests,
-   source provenance, actual outputs, checkpoints, and outcome. Handle a truncated
-   final event without treating the attempt as successful. Provide readable
-   inspection and explicit sanitized export; raw content stays out of Git.
-   Logs are experimental evidence, not canonical run or work-item state.
-5. Document a durable `experiments/` convention and use the next available numbered
-   directory. Record task definitions or reproducible references, source/code
-   commits, setup, exact invocation commands, scoring rubric, sanitized per-task
-   results, scored model outputs, failures, limitations, and human decision.
-   Keep private artifacts in the durable user-data store, not disposable
-   temporary directories.
-6. Add opt-in `unittest.TestCase` tests under the prototype tree, with a documented
-   test runner. Use a fake backend for context bounds, preserved diagnostics,
-   provenance/export, timeout/error handling, and interrupted recording. Do not
-   add live model/network calls to normal CI or normal package test discovery.
-7. Run a small pilot (approximately 12 tasks across LRH/LCATS, some held out) against
-   deterministic/manual and one-call local baselines. Report citation support,
-   unsupported claims, correction/review time, human effort, latency/resources,
-   and all failures. Record a human stop/revise/proceed decision using the
-   predeclared rubric. A negative result is a valid deliverable.
+1. **Make it produce output.** Turn model thinking off in requests (or record
+   thinking separately), stream the answer to the terminal as it arrives, and
+   set output budgets so a normal answer fits.
+2. **T0 `ask "<question>"`.** Context comes from tracked files at `HEAD`, read
+   from Git objects:
+   - with `--wi <WI-ID>`, the work item and its related sources;
+   - with `--files <paths>`, those tracked files;
+   - otherwise, the repository README plus a tracked-file listing.
+
+   Print a short source summary before calling the model. Answers are Markdown
+   and cite sources as `S<n>` or `S<n>:L<a>-L<b>`. Exclude:
+   - private paths, untracked files, and binary files;
+   - credential-like paths, per the proposal's Decision 3 list;
+   - any source the sensitivity scanner flags (`lrh.conversations.sensitivity`),
+     which is dropped and listed as excluded in the source summary.
+
+   Enforce input, output, and wall-time budgets.
+3. **T1 `brief <WI-ID>`.** A briefing preset built on T0 that includes LRH
+   readiness diagnostics. Automatically flag a briefing whose readiness claims
+   contradict the diagnostics.
+4. **Automatic logging and rating.**
+   - Record every run privately (`~/.local/share/lrh/local-agent/`): question
+     or work item, sources, model and prompt versions, timings, tokens,
+     outcome, citation checks, and flags. Failed and cancelled runs are
+     recorded too.
+   - After each answer, prompt for a one-key rating (good / ok / bad, or skip)
+     and an optional note, and store them with the run.
+5. **Retention and deletion.** Document the store path
+   (`~/.local/share/lrh/local-agent/`, or `LRH_LOCAL_AGENT_STORE`) and the
+   retention (until the workstream closes, plus 90 days). Provide
+   `delete <run-id>` and `prune --before <date>`.
+6. **`log` summary.** Show recent runs and computed statistics: counts, outcome
+   mix, latency and token distributions, ratings, citation-resolution rate, and
+   flagged runs. An optional `report` writes a sanitized summary suitable for
+   committing to `experiments/`.
+7. **Tests and docs.** Opt-in fake-backend `unittest.TestCase` tests for the new
+   commands, logging, rating capture, flags, and deletion. Boundary tests must
+   show that credential-like paths and scanner-flagged sources are never sent
+   or logged. Update
+   `experimental/local_agent/README.md` to describe the toys; the pilot runbook
+   material is retired. Do not add live model or network calls to normal CI.
+8. **Use it and decide.** The owner uses `ask` and `brief` on real LRH or LCATS
+   work, reviews the `log` summary, and records stop, revise, or proceed in this
+   item's resolution. No numeric thresholds, manual timing, or hand-written
+   baselines are required.
 
 ## Non-Goals
 
-No read/search loop, patch drafting/application, shell tools, cloud fallback,
-project-status writes, production imports/dependencies, MCP server, desktop UI,
-assistant-stage activation, public service, fine-tuning, or model benchmarking
-unrelated to the selected workflow. Do not modify the default serve surface.
+No read/search tool loop, patch drafting or application, shell tools, cloud
+fallback, project-status writes, production imports or dependencies, MCP server,
+desktop UI, assistant-stage activation, public service, fine-tuning, or formal
+comparative study. Do not modify the default serve surface.
 
 ## Acceptance Criteria
 
-- An opt-in local CLI briefs one selected work item from an approved immutable
-  context packet; it has no agent tools and reports unresolved facts honestly.
-- Private versioned logs and sanitized export retain source references, readiness
-  diagnostics, model/prompt configuration, outcomes, and interruptions.
-- Fake-model tests demonstrate the recording and data boundaries without a live
-  inference service or network access.
-- A reproducible live pilot compares the required baselines using criteria chosen
-  beforehand. The report includes poor results and does not equate generated
-  completion with task acceptance.
-- A human records stop/revise/proceed. No runtime authority, project state, default
-  package test discovery, or production API changes as part of this leaf.
+- `ask` answers free-form questions from tracked files with streamed Markdown and
+  source references; it has no agent tools.
+- `brief` carries LRH readiness diagnostics and flags contradicting claims.
+- Every run is logged automatically and privately, including failures, with a
+  one-key rating and a `log` summary; no manual bookkeeping is required.
+- Sources matching the listed credential-like patterns, or flagged by the
+  sensitivity scanner, are never sent to the model or logged, shown by boundary
+  tests. This is a best-effort guard (proposal Decision 3), not a guarantee
+  against every secret. Logs can be deleted and pruned.
+- Fake-model tests cover the commands, logging, and local-only checks without a
+  live inference service or network access.
+- The owner has used both toys on real work and recorded stop, revise, or
+  proceed. No runtime authority, project state, default package test discovery,
+  or production API changes as part of this leaf.
 
 ## Validation
 
 - `scripts/version tools`
 - `lrh validate`
-- `scripts/format --check --diff`
-- `scripts/lint`
-- `scripts/test` if shared package behavior is changed; such changes require scope review first.
-- Run the prototype's documented opt-in fake-model test command and record it in the experiment report.
-- Run the documented live-model pilot commands on the selected Mac only after the corpus and budgets are approved.
-
-The implementation must document how its opt-in checks use repository-pinned
-tool versions without adding `experimental/` to default test discovery. No model
-performance requirement is asserted to have passed by merely adding tests.
+- `scripts/format --check --diff` and `scripts/lint`, with defaults and on
+  `experimental/local_agent`
+- `experimental/local_agent/test`
+- `scripts/test` if shared package behavior is changed; such changes require
+  scope review first.
 
 ## Risk Notes
 
 A model can invent a readiness fact or cite a real file that does not support its
-claim. Score support, not just citation existence. Selected tracked text can
-contain secrets; inspect the manifest and exports. Local daemon configuration can
-enable cloud routing; verify local-only inference. Tiny tasks and practice effects
-can exaggerate time savings; preserve held-out tasks and compare total effort.
+claim; the automatic flags and citation checks catch some of this, and the rating
+note records the rest. Tracked text can contain secrets; the source summary is
+shown on every run. Local daemon configuration can enable cloud routing; the
+adapter's local-only checks run before every prompt.
 
 ## Dependencies / Order
 
-Active. The owner approved the stage-0 experimental lane and activated this
-leaf on 2026-09-25; the approval scope and evaluation rules are recorded in the
-parent proposal's "Stage-0 Lane Approval" section. Pre-run choices (hardware,
-model digest, budgets, storage, corpus, and criteria) must be pre-registered in
-`experiments/01_local_agent_briefing/` before any live run. No hard dependency
-on an unfinished production runtime is implied because this leaf adds no
-execution authority. The canonical focus and execution-framework documents
-record this lane as adjacent evidence work that does not change production
-sequencing.
+Active since 2026-09-25; re-scoped on 2026-09-29 by the owner's toy-ladder
+approval (the parent proposal's "Toy Ladder Approval" section). PRs #735 and #745
+delivered reusable plumbing and are partial progress. Code PRs for this item use
+the proposal's Experimental PR Process. This item resolves when the owner
+records a decision after using the toys.
 
-The implementation lands in more than one PR. Only the PR carrying the pilot
-results and the human decision resolves this item; earlier closeouts record
-partial progress.
-
-`WI-LOCAL-AGENT-002` depends on this leaf and a separate human advancement decision;
+`WI-LOCAL-AGENT-002` (T2) depends on this leaf and a separate owner decision;
 resolving this leaf does not start it automatically.

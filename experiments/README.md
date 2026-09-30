@@ -1,8 +1,7 @@
 # LRH Experiments
 
-This directory holds durable, numbered records of experiments: their
-pre-registration, task definitions, commands, sanitized results, and the human
-decision each one produced. It is evidence for later decisions, not package
+This directory holds durable, numbered records of experiments: their purpose,
+setup, commands, sanitized results, and the human decision each one produced. It is evidence for later decisions, not package
 code, canonical project state, or a place for raw private logs.
 
 ## Convention
@@ -19,10 +18,11 @@ experiments/
   paths stay stable references for work items, proposals, and reports.
 - Each experiment has a `README.md` covering its purpose, the work item that
   owns it, setup, pinned inputs (commits, model identifiers), exact commands,
-  its scoring rubric and decision criteria, results, limitations, and the
-  human decision.
-- Write decision criteria **before** live runs, and commit them first so Git
-  history shows they came before any results. Do not tune them afterwards.
+  results, limitations, and the human decision.
+- Keep the method proportionate. Dogfooding write-ups can simply summarize
+  automatic run logs. When an experiment makes a comparative claim, write its
+  decision criteria before the runs and commit them first, so Git history shows
+  they came before any results.
 - Keep sanitized results under `NN_name/results/`. Include failed and stopped
   attempts; they stay in the denominator.
 - A negative result is a valid, complete outcome.
@@ -37,7 +37,7 @@ code into `src/lrh/` needs separate reviewed work.
 
 | Asset | Location |
 |---|---|
-| Pre-registration, task definitions, sanitized results, decision | `experiments/NN_name/` |
+| Experiment write-ups, sanitized results, decision | `experiments/NN_name/` |
 | Temporary prototype code and opt-in tests | `experimental/<name>/` |
 | Raw prompts, packets, model outputs, and transcripts | A private store outside Git (for example `~/.local/share/lrh/`), never committed |
 | Canonical work-item, workstream, and run state | `project/` |
@@ -46,4 +46,4 @@ code into `src/lrh/` needs separate reviewed work.
 
 | # | Name | Work item | Description |
 |---|---|---|---|
-| 01 | `01_local_agent_briefing` | `WI-LOCAL-AGENT-001` | Stage-0 local-model work-item briefing compared against deterministic/manual briefing |
+| 01 | `01_local_agent_briefing` | `WI-LOCAL-AGENT-001` | Superseded before any live run: a pre-registered stage-0 briefing pilot, replaced by the toy ladder |

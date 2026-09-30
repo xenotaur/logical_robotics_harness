@@ -87,8 +87,9 @@ a universal template effort.
 
 The local-agent dogfood workstream
 (`project/workstreams/active/WS-LOCAL-AGENT-DOGFOOD.md`) is an approved, isolated
-stage-0 experiment: a tool-less, single-call local-model briefing prototype under
-`experimental/local_agent/`, evaluated with a pre-registered pilot. It does not
+experiment: a ladder of small, read-only local-model toys under
+`experimental/local_agent/`, judged by the owner from automatic run logs. T0 ask
+and T1 brief are approved; T2 look-around is proposed. It does not
 change this focus's priority on Layer 2 durable run state. The Non-Goals below
 govern the production and default layers. This lane adds no execution backend,
 package code, project-state writes, or runtime authority.

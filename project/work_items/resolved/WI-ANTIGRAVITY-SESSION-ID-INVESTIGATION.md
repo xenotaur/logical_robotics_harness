@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: "Completed live investigation of Antigravity session identity on macOS. Documented findings in project/design/proposals/proposed/lrh-export-session-id-skill-families/appendix_antigravity_session_identity.md, confirmed ANTIGRAVITY_CONVERSATION_ID as the reliable primary identifier, defined antigravity-app:<conversation-id> pointer format, and recommended proceeding with WI-ANTIGRAVITY-SESSION-ID-RESOLVER as scoped (merged in PR #756, commit 2450216cb65b38242bf83cfb7172fbd6c244b332)."
 blocked_reason: null
 blocked: false
 id: WI-ANTIGRAVITY-SESSION-ID-INVESTIGATION
 title: "Investigate how to identify the current Antigravity conversation, and define its session_transcript pointer format"
 type: investigation
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

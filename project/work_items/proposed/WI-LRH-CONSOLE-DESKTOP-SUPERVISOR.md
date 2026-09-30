@@ -141,6 +141,12 @@ gets reviewed on its own, before any UI depends on it.
 - No change to the Python protocol or to `lrh serve` behavior. If a protocol
   gap is found, record it and propose a protocol revision rather than working
   around it.
+  - Scope revision (2026-09-30, approved by the owner during PR #758): a
+    backend defect that the supervisor tests expose may be fixed here when
+    the fix leaves the protocol and observable Serve behavior unchanged. The
+    first such fix removes the reverse-DNS lookup (`socket.getfqdn`) that
+    `http.server.HTTPServer.server_bind` performs. That lookup stalled startup
+    about 25 s on GitHub's macOS runners, past the 20 s startup budget.
 - No dogfood evidence. That belongs to `WI-LRH-CONSOLE-DESKTOP-DOGFOOD`.
 
 ## Acceptance Criteria

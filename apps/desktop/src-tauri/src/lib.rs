@@ -1,8 +1,11 @@
 //! LRH Console desktop shell.
 //!
-//! This is the L0 toolchain skeleton: one bundled window and one read-only
-//! command. The owned-server supervisor, native menus, Settings/Details, and
-//! recovery pages arrive in a later change (see WI-LRH-CONSOLE-DESKTOP-L0).
+//! One bundled window and one read-only command, plus the owned-server
+//! [`supervisor`] (WI-LRH-CONSOLE-DESKTOP-SUPERVISOR). Native menus,
+//! Settings/Details, and recovery pages that drive the supervisor arrive with
+//! WI-LRH-CONSOLE-DESKTOP-SHELL.
+
+pub mod supervisor;
 
 use serde::Serialize;
 

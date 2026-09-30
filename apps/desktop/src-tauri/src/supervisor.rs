@@ -21,8 +21,7 @@ use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -42,6 +41,11 @@ pub const DEFAULT_SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(10);
 pub const DEFAULT_TERMINATE_TIMEOUT: Duration = Duration::from_secs(5);
 /// Bytes of child stderr kept for diagnostics.
 pub const STDERR_TAIL_BYTES: usize = 64 * 1024;
+/// Unread stdout items kept per launch; the oldest are dropped beyond this,
+/// so a chatty backend cannot grow the app without bound while it is idle.
+pub const INBOX_CAPACITY: usize = 256;
+/// Recorded events (and stale events) kept per launch.
+pub const EVENT_HISTORY: usize = 256;
 
 const EXIT_POLL_INTERVAL: Duration = Duration::from_millis(20);
 const HANDSHAKE_POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -374,6 +378,56 @@ enum Item {
     Eof,
 }
 
+/// Bounded queue between one stdout reader and its launch.
+///
+/// The reader never blocks on it (a blocked reader would stop draining the
+/// child's stdout and could stall the child); when full, the oldest item is
+/// dropped instead.
+#[derive(Default)]
+struct Inbox {
+    items: Mutex<VecDeque<Item>>,
+    arrived: Condvar,
+}
+
+impl Inbox {
+    fn push(&self, item: Item) {
+        let mut items = lock(&self.items);
+        if items.len() >= INBOX_CAPACITY {
+            items.pop_front();
+        }
+        items.push_back(item);
+        self.arrived.notify_all();
+    }
+
+    /// Pops the next item, waiting until `deadline`.
+    fn pop_until(&self, deadline: Instant) -> Option<Item> {
+        let mut items = lock(&self.items);
+        loop {
+            if let Some(item) = items.pop_front() {
+                return Some(item);
+            }
+            let remaining = deadline.checked_duration_since(Instant::now())?;
+            items = self
+                .arrived
+                .wait_timeout(items, remaining)
+                .map(|(guard, _)| guard)
+                .unwrap_or_else(|poisoned| poisoned.into_inner().0);
+        }
+    }
+
+    fn try_pop(&self) -> Option<Item> {
+        lock(&self.items).pop_front()
+    }
+}
+
+/// Appends to a history, keeping only the newest [`EVENT_HISTORY`] entries.
+fn push_bounded(history: &mut VecDeque<Value>, value: Value) {
+    if history.len() >= EVENT_HISTORY {
+        history.pop_front();
+    }
+    history.push_back(value);
+}
+
 /// One owned child launch. Create a new instance for each launch.
 pub struct OwnedServer {
     config: LaunchConfig,
@@ -386,9 +440,9 @@ pub struct OwnedServer {
     stdin: Option<ChildStdin>,
     /// This handle's own stdout reader; messages from any other child can
     /// never arrive here.
-    messages: Option<Receiver<Item>>,
-    events: Vec<Value>,
-    stale_events: Vec<Value>,
+    messages: Option<Arc<Inbox>>,
+    events: VecDeque<Value>,
+    stale_events: VecDeque<Value>,
     stderr_tail: Arc<Mutex<VecDeque<u8>>>,
     readers: Vec<JoinHandle<()>>,
     exit_code: Option<i32>,
@@ -412,8 +466,8 @@ impl OwnedServer {
             child: None,
             stdin: None,
             messages: None,
-            events: Vec::new(),
-            stale_events: Vec::new(),
+            events: VecDeque::new(),
+            stale_events: VecDeque::new(),
             stderr_tail: Arc::new(Mutex::new(VecDeque::new())),
             readers: Vec::new(),
             exit_code: None,
@@ -438,13 +492,13 @@ impl OwnedServer {
         self.child.as_ref().map(Child::id)
     }
 
-    /// Current-launch messages received so far (for example `stopped`).
-    pub fn events(&self) -> &[Value] {
+    /// The newest current-launch messages received (for example `stopped`).
+    pub fn events(&self) -> &VecDeque<Value> {
         &self.events
     }
 
-    /// Messages that carried another launch's ID and were discarded.
-    pub fn stale_events(&self) -> &[Value] {
+    /// The newest messages that carried another launch's ID and were discarded.
+    pub fn stale_events(&self) -> &VecDeque<Value> {
         &self.stale_events
     }
 
@@ -574,12 +628,13 @@ impl OwnedServer {
         let stderr = child.stderr.take();
         self.child = Some(child);
 
-        let (sender, receiver) = mpsc::channel();
-        self.messages = Some(receiver);
+        let inbox = Arc::new(Inbox::default());
+        self.messages = Some(Arc::clone(&inbox));
         if let Some(stdout) = stdout {
             self.readers
                 .push(spawn_reader("lrh-supervisor-stdout", move || {
-                    read_stdout(stdout, &sender)
+                    read_stdout(stdout, |item| inbox.push(item));
+                    inbox.push(Item::Eof);
                 }));
         }
         if let Some(stderr) = stderr {
@@ -799,7 +854,7 @@ impl OwnedServer {
             }
         }
         if let Some(messages) = self.messages.take() {
-            while let Ok(item) = messages.try_recv() {
+            while let Some(item) = messages.try_pop() {
                 if let Item::Message(message) = item {
                     self.record(message);
                 }
@@ -811,20 +866,15 @@ impl OwnedServer {
     /// discarding (after `starting`) messages from another launch.
     fn next_item(&mut self, deadline: Instant) -> Option<Item> {
         loop {
-            let remaining = deadline.checked_duration_since(Instant::now())?;
-            let item = match self.messages.as_ref()?.recv_timeout(remaining) {
-                Ok(item) => item,
-                Err(RecvTimeoutError::Timeout) => return None,
-                Err(RecvTimeoutError::Disconnected) => return Some(Item::Eof),
-            };
+            let item = self.messages.as_ref()?.pop_until(deadline)?;
             if let Item::Message(message) = &item {
                 if self.is_stale(message) {
                     if self.state != State::Starting {
-                        self.stale_events.push(message.clone());
+                        push_bounded(&mut self.stale_events, message.clone());
                         continue;
                     }
                 } else {
-                    self.events.push(message.clone());
+                    push_bounded(&mut self.events, message.clone());
                 }
             }
             return Some(item);
@@ -833,9 +883,9 @@ impl OwnedServer {
 
     fn record(&mut self, message: Value) {
         if self.is_stale(&message) {
-            self.stale_events.push(message);
+            push_bounded(&mut self.stale_events, message);
         } else {
-            self.events.push(message);
+            push_bounded(&mut self.events, message);
         }
     }
 
@@ -884,7 +934,9 @@ fn spawn_reader(name: &str, body: impl FnOnce() + Send + 'static) -> JoinHandle<
         .expect("failed to spawn supervisor reader thread")
 }
 
-fn read_stdout(stdout: impl Read, sender: &Sender<Item>) {
+/// Frames stdout into items until EOF or an oversized line. The caller
+/// signals the end of the stream.
+fn read_stdout(stdout: impl Read, mut push: impl FnMut(Item)) {
     let mut reader = BufReader::new(stdout);
     let mut line = Vec::new();
     loop {
@@ -896,11 +948,10 @@ fn read_stdout(stdout: impl Read, sender: &Sender<Item>) {
             .read_until(b'\n', &mut line)
             .unwrap_or(0);
         if read == 0 {
-            let _ = sender.send(Item::Eof);
             return;
         }
         if line.len() > MAX_MESSAGE_BYTES {
-            let _ = sender.send(Item::Malformed("oversized message".into()));
+            push(Item::Malformed("oversized message".into()));
             return;
         }
         let frame = trim_line(&line);
@@ -911,9 +962,7 @@ fn read_stdout(stdout: impl Read, sender: &Sender<Item>) {
             Ok(value) if value.is_object() => Item::Message(value),
             _ => Item::Malformed("backend wrote a non-protocol line".into()),
         };
-        if sender.send(item).is_err() {
-            return;
-        }
+        push(item);
     }
 }
 
@@ -1008,9 +1057,25 @@ impl Supervisor {
     }
 
     /// Idempotent: returns the running handshake instead of relaunching.
+    ///
+    /// A Start that waited behind another launch (a concurrent Start or a
+    /// Restart) returns that launch's outcome, success or failure, rather than
+    /// launching again.
     pub fn start(&self) -> Result<Handshake, SupervisorError> {
+        // Note whether a launch is already in flight before queueing behind it.
+        let seen_generation = self.generation.load(Ordering::SeqCst);
+        let arrived_during_launch = lock(&self.status).state == State::Starting;
         let mut current = lock(&self.current);
         self.refresh(&mut current);
+        if arrived_during_launch || self.generation.load(Ordering::SeqCst) != seen_generation {
+            let status = lock(&self.status).clone();
+            if let (State::Running, Some(handshake)) = (status.state, status.handshake) {
+                return Ok(handshake);
+            }
+            if let Some(error) = status.last_error {
+                return Err(error);
+            }
+        }
         if let Some(server) = current.as_mut() {
             if server.is_running() {
                 if let Some(handshake) = server.handshake() {
@@ -1042,6 +1107,17 @@ impl Supervisor {
     /// Round-trips a `ping` to the running child.
     pub fn ping(&self, timeout: Duration) -> Result<Value, SupervisorError> {
         let mut current = lock(&self.current);
+        let result = self.ping_locked(&mut current, timeout);
+        // A ping may be what discovers that the child has exited.
+        self.refresh(&mut current);
+        result
+    }
+
+    fn ping_locked(
+        &self,
+        current: &mut Option<OwnedServer>,
+        timeout: Duration,
+    ) -> Result<Value, SupervisorError> {
         match current.as_mut() {
             Some(server) => {
                 if server.is_running() {
@@ -1108,12 +1184,16 @@ impl Supervisor {
         Some(server.stop())
     }
 
-    /// Marks an unexpected exit of a running child as failed.
+    /// Marks an unexpected exit of a running child as failed, whether this
+    /// check finds it or an earlier operation already noticed it.
     fn refresh(&self, current: &mut Option<OwnedServer>) {
         let Some(server) = current.as_mut() else {
             return;
         };
-        if server.state() == State::Running && !server.is_running() {
+        let exited_while_running = server.state() == State::Running && !server.is_running();
+        let noticed_earlier =
+            server.state() == State::Failed && lock(&self.status).state == State::Running;
+        if exited_while_running || noticed_earlier {
             let mut error = SupervisorError::new(
                 ErrorKind::ExitedUnexpectedly,
                 "backend exited unexpectedly while running",
@@ -1249,21 +1329,41 @@ mod tests {
     #[test]
     fn read_stdout_frames_messages_and_flags_bad_lines() {
         let input = b"{\"type\":\"ready\"}\r\n\n  \nnot json\n".to_vec();
-        let (sender, receiver) = mpsc::channel();
-        read_stdout(&input[..], &sender);
-        let items: Vec<Item> = receiver.try_iter().collect();
+        let mut items = Vec::new();
+        read_stdout(&input[..], |item| items.push(item));
+        assert_eq!(items.len(), 2);
         assert!(matches!(&items[0], Item::Message(value) if value["type"] == "ready"));
         assert!(matches!(&items[1], Item::Malformed(_)));
-        assert!(matches!(&items[2], Item::Eof));
     }
 
     #[test]
     fn read_stdout_rejects_oversized_messages() {
         let mut input = vec![b'x'; MAX_MESSAGE_BYTES + 10];
         input.push(b'\n');
-        let (sender, receiver) = mpsc::channel();
-        read_stdout(&input[..], &sender);
-        assert!(matches!(receiver.try_recv(), Ok(Item::Malformed(_))));
+        let mut items = Vec::new();
+        read_stdout(&input[..], |item| items.push(item));
+        assert!(matches!(items.as_slice(), [Item::Malformed(_)]));
+    }
+
+    #[test]
+    fn inbox_drops_the_oldest_items_when_full() {
+        let inbox = Inbox::default();
+        for index in 0..INBOX_CAPACITY + 10 {
+            inbox.push(Item::Message(json!({ "index": index })));
+        }
+        let first = inbox.try_pop();
+        assert!(matches!(first, Some(Item::Message(value)) if value["index"] == 10));
+        assert!(inbox.pop_until(Instant::now()).is_some());
+    }
+
+    #[test]
+    fn event_history_is_bounded() {
+        let mut history = VecDeque::new();
+        for index in 0..EVENT_HISTORY + 5 {
+            push_bounded(&mut history, json!(index));
+        }
+        assert_eq!(history.len(), EVENT_HISTORY);
+        assert_eq!(history.front(), Some(&json!(5)));
     }
 
     #[test]

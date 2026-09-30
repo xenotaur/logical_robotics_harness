@@ -16,7 +16,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use lrh_console_lib::supervisor::{
-    ErrorKind, Escalation, LaunchConfig, State, Supervisor, SupervisorError,
+    ErrorKind, Escalation, Handshake, LaunchConfig, State, Supervisor, SupervisorError,
 };
 
 const HELPER_ENV: &str = "LRH_SUPERVISOR_TEST_PARENT_LOSS_HELPER";
@@ -42,12 +42,36 @@ fn pythonpath() -> (std::ffi::OsString, std::ffi::OsString) {
     )
 }
 
+/// Runs `lrh.cli.main` with a delayed stack dump, so a backend that stalls
+/// before `ready` leaves a traceback of every thread in its stderr tail (which
+/// failed-launch errors carry). Test-only: the product launches `lrh` itself.
+const LRH_WITH_STALL_DUMP: &str = "import faulthandler, sys; \
+faulthandler.dump_traceback_later(12, exit=False); \
+sys.argv[0] = 'lrh'; \
+from lrh.cli.main import main; main()";
+
 /// Supervises the real backend from this checkout.
 fn lrh_config() -> LaunchConfig {
     let mut config = LaunchConfig::new(python(), repo_root());
-    config.program_args = vec!["-m".into(), "lrh.cli.main".into()];
+    config.program_args = vec!["-c".into(), LRH_WITH_STALL_DUMP.into()];
     config.env = vec![pythonpath()];
     config
+}
+
+/// Starts a real backend, reporting how long the handshake took and, on
+/// failure, the backend's stderr tail.
+fn start_real(supervisor: &Supervisor) -> Handshake {
+    let started = Instant::now();
+    let result = supervisor.start();
+    eprintln!("real backend start took {:?}", started.elapsed());
+    match result {
+        Ok(handshake) => handshake,
+        Err(error) => panic!(
+            "backend failed to start after {:?}: {error}\n--- backend stderr tail ---\n{}",
+            started.elapsed(),
+            error.stderr_tail
+        ),
+    }
 }
 
 /// Supervises a Python fake. The fake reads `start`, then runs `body`.
@@ -134,7 +158,7 @@ fn expect_error(result: Result<impl std::fmt::Debug, SupervisorError>) -> Superv
 #[test]
 fn start_serves_the_workspace_and_stop_is_graceful() {
     let supervisor = Supervisor::new(lrh_config());
-    let handshake = supervisor.start().expect("backend starts");
+    let handshake = start_real(&supervisor);
 
     assert_eq!(supervisor.state(), State::Running);
     assert_eq!(handshake.host, "127.0.0.1");
@@ -159,7 +183,7 @@ fn start_serves_the_workspace_and_stop_is_graceful() {
 #[test]
 fn repeated_and_concurrent_start_never_creates_a_second_backend() {
     let supervisor = Arc::new(Supervisor::new(lrh_config()));
-    let first = supervisor.start().expect("backend starts");
+    let first = start_real(&supervisor);
 
     let again = supervisor.start().expect("start is idempotent");
     assert_eq!(again.launch_id, first.launch_id);
@@ -180,7 +204,7 @@ fn repeated_and_concurrent_start_never_creates_a_second_backend() {
 #[test]
 fn restart_waits_for_the_previous_child_and_uses_a_new_launch() {
     let supervisor = Supervisor::new(lrh_config());
-    let first = supervisor.start().expect("backend starts");
+    let first = start_real(&supervisor);
     let first_pid = supervisor.child_pid().expect("owned child");
 
     let second = supervisor.restart().expect("backend restarts");
@@ -317,6 +341,49 @@ fn a_crash_while_running_is_reported_and_start_relaunches() {
     supervisor.stop();
 }
 
+#[test]
+fn an_exit_found_by_ping_is_reflected_in_status() {
+    let supervisor = Supervisor::new(fake_config("ready(); time.sleep(0.3); sys.exit(4)"));
+    let handshake = supervisor.start().expect("fake reports ready");
+    thread::sleep(Duration::from_secs(1));
+
+    assert!(supervisor.ping(Duration::from_secs(1)).is_err());
+    let status = supervisor.status();
+    assert_eq!(status.state, State::Failed);
+    assert_eq!(status.last_exit_code, Some(4));
+    assert!(!supervisor.is_current(handshake.generation));
+}
+
+#[test]
+fn a_start_during_a_failing_launch_does_not_launch_again() {
+    let count_file = std::env::temp_dir().join(format!("lrh-sup-count-{}", std::process::id()));
+    let _ = std::fs::remove_file(&count_file);
+    let body = r#"open(os.environ["FAKE_COUNT_FILE"], "a").write("launch\n")
+time.sleep(1)
+send({"type": "failed", "error": {"code": "bind_failed", "message": "no"}})
+sys.exit(3)"#;
+    let mut config = fake_config(body);
+    config.env = vec![(
+        "FAKE_COUNT_FILE".into(),
+        count_file.clone().into_os_string(),
+    )];
+    let supervisor = Arc::new(Supervisor::new(config));
+
+    let first = {
+        let supervisor = Arc::clone(&supervisor);
+        thread::spawn(move || supervisor.start())
+    };
+    thread::sleep(Duration::from_millis(300));
+    let second = supervisor.start();
+    let first = first.join().unwrap();
+
+    assert_eq!(first.unwrap_err().kind, ErrorKind::BackendFailed);
+    assert_eq!(second.unwrap_err().kind, ErrorKind::BackendFailed);
+    let launches = std::fs::read_to_string(&count_file).unwrap();
+    let _ = std::fs::remove_file(&count_file);
+    assert_eq!(launches.lines().count(), 1, "the waiting Start relaunched");
+}
+
 #[cfg(unix)]
 #[test]
 fn a_child_that_ignores_shutdown_and_sigterm_is_killed() {
@@ -343,16 +410,28 @@ fn zz_parent_loss_helper_process() {
         return;
     }
     let supervisor = Supervisor::new(lrh_config());
-    supervisor.start().expect("helper backend starts");
+    start_real(&supervisor);
     println!("{HELPER_PID_PREFIX}{}", supervisor.child_pid().unwrap());
     std::io::stdout().flush().unwrap();
     thread::sleep(Duration::from_secs(60));
 }
 
+/// Kills and reaps the helper supervisor on every exit path of the test.
+#[cfg(unix)]
+struct HelperGuard(Child);
+
+#[cfg(unix)]
+impl Drop for HelperGuard {
+    fn drop(&mut self) {
+        let _ = self.0.kill();
+        let _ = self.0.wait();
+    }
+}
+
 #[cfg(unix)]
 #[test]
 fn parent_loss_stops_the_owned_backend() {
-    let mut helper = Command::new(std::env::current_exe().unwrap())
+    let helper = Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
             "zz_parent_loss_helper_process",
@@ -366,13 +445,14 @@ fn parent_loss_stops_the_owned_backend() {
         .stderr(Stdio::null())
         .spawn()
         .expect("spawn helper supervisor");
+    let mut helper = HelperGuard(helper);
 
-    let child_pid = read_helper_pid(&mut helper, Duration::from_secs(30));
+    let child_pid = read_helper_pid(&mut helper.0, Duration::from_secs(30));
     assert!(pid_alive(child_pid));
 
     // SIGKILL the supervising process: no cleanup code of ours runs.
-    helper.kill().unwrap();
-    helper.wait().unwrap();
+    helper.0.kill().unwrap();
+    helper.0.wait().unwrap();
 
     // The child notices stdin EOF within 0.25 s and stops within 5 s.
     assert!(
@@ -394,14 +474,9 @@ fn read_helper_pid(helper: &mut Child, bound: Duration) -> u32 {
             }
         }
     });
-    match receiver.recv_timeout(bound) {
-        Ok(pid) => pid,
-        Err(_) => {
-            let _ = helper.kill();
-            let _ = helper.wait();
-            panic!("helper never reported its backend PID");
-        }
-    }
+    receiver
+        .recv_timeout(bound)
+        .expect("helper never reported its backend PID")
 }
 
 /// A separately started, foreground `lrh serve` the supervisor never owns.
@@ -463,7 +538,7 @@ fn a_separately_started_server_is_never_touched() {
     let mut unrelated = UnrelatedServer::start();
 
     let supervisor = Supervisor::new(lrh_config());
-    let handshake = supervisor.start().expect("owned backend starts");
+    let handshake = start_real(&supervisor);
     assert_ne!(handshake.port, unrelated.port);
     unrelated.assert_untouched("Start");
 

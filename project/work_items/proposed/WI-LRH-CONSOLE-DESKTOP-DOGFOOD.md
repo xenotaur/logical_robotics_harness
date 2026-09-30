@@ -18,7 +18,7 @@ related_workstreams:
 related_design:
 - "project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md"
 depends_on:
-- "WI-LRH-CONSOLE-DESKTOP-SHELL"
+- "WI-LRH-CONSOLE-DESKTOP-SETTINGS"
 blocked_by: []
 expected_actions:
 - "create_file"
@@ -142,7 +142,8 @@ macOS has no desktop WebDriver client, and its WebdriverIO route needs Node.
 
 ## Dependencies / Order
 
-- Depends on `WI-LRH-CONSOLE-DESKTOP-SHELL`.
+- Depends on `WI-LRH-CONSOLE-DESKTOP-SETTINGS`, which completes the app and
+  writes the how-to and checklist these sessions follow.
 - Its evidence gates the L1 work items in `WS-LRH-CONSOLE-LOCAL-DOGFOOD`.
 
 ## Risk Notes

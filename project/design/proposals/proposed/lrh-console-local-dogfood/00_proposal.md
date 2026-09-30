@@ -311,14 +311,18 @@ Initial work items:
    item.
 3. `WI-LRH-CONSOLE-DESKTOP-SUPERVISOR`: the Rust supervisor that consumes the
    protocol contract and owns one backend, with real-child integration tests.
-4. `WI-LRH-CONSOLE-DESKTOP-SHELL`: the Tauri shell, with native menus, bundled
-   recovery and settings pages, and the embedded existing Serve view.
-5. `WI-LRH-CONSOLE-DESKTOP-DOGFOOD`: the five recorded Mac dogfood sessions and
+4. `WI-LRH-CONSOLE-DESKTOP-SHELL`: the Tauri shell, with the embedded existing
+   Serve view, native lifecycle menus, and navigation and capability
+   boundaries.
+5. `WI-LRH-CONSOLE-DESKTOP-SETTINGS`: private configuration, bundled recovery
+   and settings pages, browser handoff, and the dogfood how-to.
+6. `WI-LRH-CONSOLE-DESKTOP-DOGFOOD`: the five recorded Mac dogfood sessions and
    the L0 evidence.
 
-Items 2–5 began as one L0 work item and were split on 2026-09-29 so that each
-work item maps to one PR. Items 3–5 together meet the L0b gate above, and no
-new dependency-map UI is required to close L0.
+Items 2–6 began as one L0 work item and were split on 2026-09-29 so that each
+work item maps to one PR. SHELL was split again at the configuration/recovery
+boundary on 2026-09-30. Items 3–6 together meet the L0b gate above, and no new
+dependency-map UI is required to close L0.
 
 Create L1 and subsequent work items after the preceding gate supplies real usage
 feedback. The graph remains the product objective, so L0 completion alone is not

@@ -2,10 +2,10 @@
 execution_id: 2026_09_28_16_29_37_WI_VCS_SAFE_OPERATIONS_BACKEND
 prompt_id: PROMPT(AD_HOC:WI_VCS_SAFE_OPERATIONS_BACKEND)[2026-09-28T16:27:15+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/755
-commit: 
+commit: 0c8db4c22476cb83e642f1c106095b4061521106
 created_at: 2026-09-28T16:29:37+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — user asked to file a work item for the gh-pr-merge-classifier-denial backlog idea, with a git/similar-operations audit and a backend-abstracted design

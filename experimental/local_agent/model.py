@@ -9,6 +9,7 @@ prompt is sent.
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import json
 import socket
@@ -16,7 +17,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any, Protocol
 
 from local_agent import settings
@@ -39,9 +40,15 @@ class BackendError(Exception):
 
 @dataclasses.dataclass(frozen=True)
 class ModelRequest:
+    """One model call. ``output_schema=None`` requests plain text.
+
+    ``on_text`` receives answer text incrementally when the backend streams.
+    """
+
     prompt: str
-    output_schema: dict[str, object]
+    output_schema: dict[str, object] | None
     budgets: settings.Budgets
+    on_text: Callable[[str], None] | None = None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -51,6 +58,7 @@ class ModelResponse:
     prompt_tokens: int | None
     output_tokens: int | None
     backend_timings: dict[str, object]
+    thinking_chars: int = 0
 
 
 class ModelAdapter(Protocol):
@@ -93,10 +101,16 @@ class FakeModel:
         step = self._script.pop(0)
         if isinstance(step, BaseException):
             raise step
+        if request.on_text is not None and step.text:
+            # Emit in two chunks to exercise incremental rendering.
+            middle = len(step.text) // 2
+            request.on_text(step.text[:middle])
+            request.on_text(step.text[middle:])
         return step
 
 
 Transport = Callable[[str, str, dict[str, object] | None, float], dict[str, Any]]
+StreamTransport = Callable[[str, dict[str, object], float], Iterator[dict[str, Any]]]
 
 
 class _NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -120,6 +134,24 @@ def urllib_transport(
     )
     with opener.open(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
+
+
+def urllib_stream_transport(
+    url: str, body: dict[str, object], timeout: float
+) -> Iterator[dict[str, Any]]:
+    """POST JSON and yield one parsed object per NDJSON response line."""
+    opener = build_opener()
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    with opener.open(request, timeout=timeout) as response:
+        for raw in response:
+            line = raw.decode("utf-8").strip()
+            if line:
+                yield json.loads(line)
 
 
 def check_loopback_url(base_url: str) -> None:
@@ -146,6 +178,7 @@ class OllamaModel:
         model: str = settings.DEFAULT_MODEL,
         manifest_digest: str = settings.DEFAULT_MODEL_MANIFEST_DIGEST,
         transport: Transport = urllib_transport,
+        stream_transport: StreamTransport = urllib_stream_transport,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
         check_loopback_url(base_url)
@@ -164,6 +197,7 @@ class OllamaModel:
         ):
             self._layer_digest = settings.DEFAULT_MODEL_LAYER_DIGEST
         self._transport = transport
+        self._stream_transport = stream_transport
         self._clock = clock
         self._server_version: str | None = None
 
@@ -178,11 +212,13 @@ class OllamaModel:
             "local_only": True,
         }
 
-    def _call(
-        self, method: str, path: str, body: dict[str, object] | None, timeout: float
-    ) -> dict[str, Any]:
+    @contextlib.contextmanager
+    def _classified(self, path: str) -> Iterator[None]:
+        """Map transport exceptions to classified ``BackendError`` kinds."""
         try:
-            return self._transport(method, f"{self._base_url}{path}", body, timeout)
+            yield
+        except BackendError:
+            raise
         except (TimeoutError, socket.timeout) as error:
             raise BackendError(KIND_TIMEOUT, f"{path} timed out") from error
         except urllib.error.HTTPError as error:
@@ -205,6 +241,12 @@ class OllamaModel:
             raise BackendError(
                 KIND_BACKEND_ERROR, f"{path} returned invalid JSON"
             ) from error
+
+    def _call(
+        self, method: str, path: str, body: dict[str, object] | None, timeout: float
+    ) -> dict[str, Any]:
+        with self._classified(path):
+            return self._transport(method, f"{self._base_url}{path}", body, timeout)
 
     def preflight(self) -> dict[str, object]:
         """Verify local-only serving of the pinned model before any prompt."""
@@ -260,8 +302,10 @@ class OllamaModel:
         body: dict[str, object] = {
             "model": self._model,
             "messages": [{"role": "user", "content": request.prompt}],
-            "stream": False,
-            "format": request.output_schema,
+            "stream": request.on_text is not None,
+            # Thinking-capable models otherwise spend the output budget on
+            # hidden reasoning before answering (seen in the first smoke run).
+            "think": False,
             "options": {
                 "num_ctx": budgets.num_ctx,
                 "num_predict": budgets.max_output_tokens,
@@ -269,8 +313,18 @@ class OllamaModel:
                 "seed": budgets.seed,
             },
         }
+        if request.output_schema is not None:
+            body["format"] = request.output_schema
         started = self._clock()
-        result = self._call("POST", "/api/chat", body, budgets.wall_time_seconds)
+        if request.on_text is None:
+            result = self._call("POST", "/api/chat", body, budgets.wall_time_seconds)
+            message = result.get("message") or {}
+            text = str(message.get("content", ""))
+            thinking_chars = len(str(message.get("thinking") or ""))
+        else:
+            text, thinking_chars, result = self._stream(
+                body, budgets.wall_time_seconds, started, request.on_text
+            )
         elapsed = self._clock() - started
         # The socket timeout is not a total wall-clock bound; enforce it here.
         if elapsed > budgets.wall_time_seconds:
@@ -279,9 +333,8 @@ class OllamaModel:
                 f"/api/chat took {elapsed:.1f}s, over the "
                 f"{budgets.wall_time_seconds:.0f}s wall-time budget",
             )
-        message = result.get("message") or {}
         return ModelResponse(
-            text=str(message.get("content", "")),
+            text=text,
             done_reason=result.get("done_reason"),
             prompt_tokens=result.get("prompt_eval_count"),
             output_tokens=result.get("eval_count"),
@@ -292,4 +345,49 @@ class OllamaModel:
                 "prompt_eval_duration_ns": result.get("prompt_eval_duration"),
                 "eval_duration_ns": result.get("eval_duration"),
             },
+            thinking_chars=thinking_chars,
         )
+
+    def _stream(
+        self,
+        body: dict[str, object],
+        wall_time: float,
+        started: float,
+        on_text: Callable[[str], None],
+    ) -> tuple[str, int, dict[str, Any]]:
+        """Consume a streamed chat, stopping early if the wall time runs out."""
+        parts: list[str] = []
+        thinking_chars = 0
+        final: dict[str, Any] = {}
+        with self._classified("/api/chat"):
+            stream = iter(
+                self._stream_transport(f"{self._base_url}/api/chat", body, wall_time)
+            )
+        while True:
+            # Only transport reads are classified; an ``on_text`` failure (for
+            # example a closed stdout) propagates as itself.
+            with self._classified("/api/chat"):
+                chunk = next(stream, None)
+            if chunk is None:
+                break
+            if chunk.get("error"):
+                raise BackendError(
+                    KIND_BACKEND_ERROR, f"/api/chat stream error: {chunk['error']}"
+                )
+            message = chunk.get("message") or {}
+            content = str(message.get("content") or "")
+            thinking_chars += len(str(message.get("thinking") or ""))
+            if content:
+                parts.append(content)
+                on_text(content)
+            if chunk.get("done"):
+                final = chunk
+                break
+            if self._clock() - started > wall_time:
+                raise BackendError(
+                    KIND_TIMEOUT,
+                    f"/api/chat exceeded the {wall_time:.0f}s wall-time budget",
+                )
+        if not final:
+            raise BackendError(KIND_BACKEND_ERROR, "stream ended without done")
+        return "".join(parts), thinking_chars, final

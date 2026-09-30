@@ -142,6 +142,30 @@ def check_citations(
     }
 
 
+_TEXT_REF_PATTERN = re.compile(r"\bS\d+(?::L\d+(?:-L?\d+)?)?\b")
+
+
+def check_text_citations(
+    text: str, source_refs: list[dict[str, object]]
+) -> dict[str, object]:
+    """Resolve ``S<n>`` / ``S<n>:L<a>-L<b>`` citations found in free text.
+
+    Counts only; unresolved citations are listed by their pattern-valid form,
+    never as surrounding model text.
+    """
+    ranges = {
+        str(ref["source_id"]): (int(ref["line_start"]), int(ref["line_end"]))
+        for ref in source_refs
+    }
+    found = _TEXT_REF_PATTERN.findall(text)
+    unresolved = sorted({ref for ref in found if not _ref_resolves(ref, ranges)})
+    return {
+        "citations_total": len(found),
+        "citations_resolved": sum(1 for ref in found if _ref_resolves(ref, ranges)),
+        "unresolved_citations": unresolved,
+    }
+
+
 def _ref_resolves(ref: str, ranges: dict[str, tuple[int, int]]) -> bool:
     match = _REF_PATTERN.match(ref.strip())
     if match is None:

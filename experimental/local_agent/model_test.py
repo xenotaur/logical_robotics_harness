@@ -86,6 +86,108 @@ class OpenerTest(unittest.TestCase):
         )
 
 
+class FakeStream:
+    def __init__(self, chunks: list[dict]) -> None:
+        self.chunks = chunks
+        self.calls: list[tuple] = []
+
+    def __call__(self, url, body, timeout):
+        self.calls.append((url, body, timeout))
+        for chunk in self.chunks:
+            if isinstance(chunk, BaseException):
+                raise chunk
+            yield chunk
+
+
+class OllamaStreamingTest(unittest.TestCase):
+    def _adapter(self, stream: FakeStream, clock=None) -> model.OllamaModel:
+        kwargs = {"clock": clock} if clock else {}
+        return model.OllamaModel(
+            base_url="http://127.0.0.1:11434",
+            model="gemma4:12b",
+            manifest_digest=DIGEST,
+            transport=FakeTransport(_healthy()),
+            stream_transport=stream,
+            **kwargs,
+        )
+
+    def test_streams_text_with_thinking_off_and_no_format(self) -> None:
+        stream = FakeStream(
+            [
+                {"message": {"content": "Hel", "thinking": "hmm"}},
+                {"message": {"content": "lo"}},
+                {
+                    "message": {"content": ""},
+                    "done": True,
+                    "done_reason": "stop",
+                    "eval_count": 2,
+                    "prompt_eval_count": 9,
+                },
+            ]
+        )
+        seen: list[str] = []
+        request = model.ModelRequest("p", None, settings.Budgets(), on_text=seen.append)
+        response = self._adapter(stream).generate(request)
+        url, body, _ = stream.calls[0]
+        self.assertTrue(url.endswith("/api/chat"))
+        self.assertIs(body["think"], False)
+        self.assertTrue(body["stream"])
+        self.assertNotIn("format", body)
+        self.assertNotIn("tools", body)
+        self.assertEqual(seen, ["Hel", "lo"])
+        self.assertEqual(response.text, "Hello")
+        self.assertEqual(response.thinking_chars, 3)
+        self.assertEqual(response.output_tokens, 2)
+
+    def test_stream_without_done_is_backend_error(self) -> None:
+        stream = FakeStream([{"message": {"content": "cut"}}])
+        request = model.ModelRequest(
+            "p", None, settings.Budgets(), on_text=lambda _: None
+        )
+        with self.assertRaises(model.BackendError) as caught:
+            self._adapter(stream).generate(request)
+        self.assertEqual(caught.exception.kind, model.KIND_BACKEND_ERROR)
+
+    def test_stream_stops_when_wall_time_runs_out(self) -> None:
+        ticks = iter([0.0, 400.0, 400.0])
+        stream = FakeStream(
+            [{"message": {"content": "a"}}, {"message": {"content": "b"}}]
+        )
+        request = model.ModelRequest(
+            "p", None, settings.Budgets(), on_text=lambda _: None
+        )
+        with self.assertRaises(model.BackendError) as caught:
+            self._adapter(stream, clock=lambda: next(ticks)).generate(request)
+        self.assertEqual(caught.exception.kind, model.KIND_TIMEOUT)
+
+    def test_stream_error_chunk_keeps_its_message(self) -> None:
+        stream = FakeStream([{"error": "model ran out of memory"}])
+        request = model.ModelRequest(
+            "p", None, settings.Budgets(), on_text=lambda _: None
+        )
+        with self.assertRaisesRegex(model.BackendError, "out of memory"):
+            self._adapter(stream).generate(request)
+
+    def test_output_failure_is_not_reported_as_backend_failure(self) -> None:
+        stream = FakeStream([{"message": {"content": "a"}}])
+
+        def broken(_: str) -> None:
+            raise BrokenPipeError("stdout closed")
+
+        request = model.ModelRequest("p", None, settings.Budgets(), on_text=broken)
+        with self.assertRaises(BrokenPipeError):
+            self._adapter(stream).generate(request)
+
+    def test_stream_socket_timeout_is_classified(self) -> None:
+        stream = FakeStream([socket.timeout("slow")])
+        request = model.ModelRequest(
+            "p", None, settings.Budgets(), on_text=lambda _: None
+        )
+        with self.assertRaises(model.BackendError) as caught:
+            self._adapter(stream).generate(request)
+        self.assertEqual(caught.exception.kind, model.KIND_TIMEOUT)
+
+
 class OllamaLocalOnlyTest(unittest.TestCase):
     def test_non_loopback_endpoint_refused(self) -> None:
         for url in (

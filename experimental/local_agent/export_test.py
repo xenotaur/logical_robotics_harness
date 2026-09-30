@@ -4,6 +4,7 @@ import tempfile
 import unittest
 
 from local_agent import (
+    ask,
     context,
     export,
     model,
@@ -236,6 +237,79 @@ class ExportTest(unittest.TestCase):
         self.assertIn("S1 project/work_items/proposed/WI-T-1.md", text)
         self.assertIn("outcome: completed", text)
         self.assertNotIn("SECRET PACKET BODY", text)
+
+
+class AskExportTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.base = pathlib.Path(self._tmp.name)
+        repo = self.base / "repo"
+        repo.mkdir()
+        testing_support.make_repo(repo)
+        self.store = recorder.Store(
+            self.base / "store", clock=testing_support.SteppingClock()
+        )
+        self.ctx = ask.build_context(repo=repo, files=["project/design/demo.md"])
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+    def _ask(self, answer: str, question: str | None = None) -> str:
+        return ask.run_ask(
+            store=self.store,
+            question=question or "PRIVATE QUESTION?",
+            ctx=self.ctx,
+            adapter=model.FakeModel([model.ModelResponse(answer, "stop", 1, 1, {})]),
+            budgets=settings.Budgets(),
+        )
+
+    def _export(self, run_id: str, **kwargs: object) -> dict:
+        path = export.export_run(
+            self.store, run_id, self.base / "out", home=str(self.base), **kwargs
+        )
+        return json.loads(path.read_text(encoding="utf-8"))
+
+    def test_default_export_omits_question_answer_and_note(self) -> None:
+        run_id = self._ask("PRIVATE ANSWER")
+        ask.record_rating(self.store, run_id, "o", "PRIVATE NOTE")
+        text = json.dumps(self._export(run_id))
+        for secret in ("PRIVATE QUESTION", "PRIVATE ANSWER", "PRIVATE NOTE"):
+            self.assertNotIn(secret, text)
+        self.assertIn('"value": "ok"', text)
+
+    def test_include_output_requires_rating_and_clean_scan(self) -> None:
+        run_id = self._ask("Fine answer (S1:L1).")
+        with self.assertRaisesRegex(export.ExportError, "rated runs"):
+            self._export(run_id, include_output=True)
+        ask.record_rating(self.store, run_id, "g", "nice")
+        exported = self._export(run_id, include_output=True)
+        self.assertEqual(exported["answer"], "Fine answer (S1:L1).")
+        self.assertEqual(exported["run"]["rating"]["note"], "nice")
+
+        leaky = self._ask("api_key = sk-live-abcdef0123456789abcdef")
+        ask.record_rating(self.store, leaky, "b")
+        with self.assertRaisesRegex(export.ExportError, "withheld"):
+            self._export(leaky, include_output=True)
+
+    def test_include_output_withholds_medium_only_findings(self) -> None:
+        cases = (
+            ("Ask ops@example.org.", "ok", "answer"),
+            ("Fine answer.", "ok", "question"),
+            ("Fine answer.", "call 555-867-5309 about it", "rating note"),
+        )
+        for answer, note, label in cases:
+            with self.subTest(label):
+                question = "Is 10.1.2.3 up?" if label == "question" else None
+                run_id = self._ask(answer, question=question)
+                ask.record_rating(self.store, run_id, "g", note)
+                with self.assertRaisesRegex(export.ExportError, "withheld"):
+                    self._export(run_id, include_output=True)
+
+    def test_inspect_shows_kind_and_sources(self) -> None:
+        run_id = self._ask("x")
+        summary = export.inspect_run(self.store, run_id)
+        self.assertIn("ask", summary)
+        self.assertIn("project/design/demo.md", summary)
 
 
 if __name__ == "__main__":

@@ -71,7 +71,15 @@ def _home_relative(value: object, home: str) -> object:
 def _verified_packet_manifest(
     store: recorder.Store, run: dict[str, object]
 ) -> dict[str, object]:
-    """Load the run's packet manifest, refusing it if it changed after the run."""
+    """Load the run's packet manifest, refusing it if it changed after the run.
+
+    ``ask`` runs have no stored packet; their sources are recorded on the run.
+    """
+    if not run.get("packet_sha256"):
+        return {
+            "sources": run.get("sources") or [],
+            "omitted_sources": run.get("excluded_sources") or [],
+        }
     expected = str(run["packet_sha256"])
     manifest, text = store.load_packet(expected)
     if context.packet_sha256(manifest, text) != expected:
@@ -110,13 +118,54 @@ def _export_manual_text(
     )
 
 
+def _export_ask(
+    exported: dict[str, object],
+    excluded: list[str],
+    run: dict[str, object],
+    answer: object,
+    include_output: bool,
+) -> None:
+    """Ask runs: question and answer text only on request, rated, scan-clean."""
+    exported_run = dict(run)
+    exported_run.pop("question", None)
+    rating = run.get("rating")
+    note = rating.get("note") if isinstance(rating, dict) else None
+    if isinstance(rating, dict):
+        exported_run["rating"] = {"value": rating.get("value")}
+    exported["run"] = exported_run
+    if not include_output:
+        excluded.append(
+            "question, answer, and rating note text "
+            "(use --include-output after review)"
+        )
+        return
+    if not isinstance(run.get("rating"), dict):
+        raise ExportError(
+            "question and answer text are exported only for rated runs; rate it first"
+        )
+    text = f"{run.get('question', '')}\n{answer or ''}\n{note or ''}"
+    scan = sensitivity.scan_text_for_sensitive_findings(text)
+    if scan.status != sensitivity.STATUS_NONE_DETECTED:
+        raise ExportError(
+            f"answer withheld: sensitivity scan reported {scan.finding_count} "
+            f"potential finding(s) in {scan.categories}"
+        )
+    exported["question"] = run.get("question")
+    exported["answer"] = answer
+    exported["run"]["rating"] = rating
+    exported["answer_sensitivity_scan"] = scan.status
+    exported["briefing_label"] = (
+        "Model output record, rated by the owner; not project state."
+    )
+
+
 def inspect_run(store: recorder.Store, run_id: str) -> str:
     """Render a readable summary of one run without printing raw content."""
     run = store.load_run(run_id)
     events, truncated = store.events(run_id)
-    packet_manifest, _ = store.load_packet(str(run["packet_sha256"]))
+    packet_manifest = _verified_packet_manifest(store, run)
     lines = [
-        f"run {run_id}",
+        f"run {run_id} ({run.get('kind', 'brief')})",
         f"  work item: {run.get('work_item_id')}  task: {run.get('task_id')}  "
         f"condition: {run.get('condition')}",
         f"  source commit: {run.get('source_commit')}",
@@ -134,6 +183,8 @@ def inspect_run(store: recorder.Store, run_id: str) -> str:
         )
     for omitted in packet_manifest.get("omitted_sources", []):  # type: ignore[union-attr]
         lines.append(f"    omitted {omitted['path']}: {omitted['reason']}")
+    if run.get("rating"):
+        lines.append(f"  rating: {json.dumps(run.get('rating'), sort_keys=True)}")
     lines.append(f"  events: {len(events)}{' (truncated tail)' if truncated else ''}")
     for event in events:
         lines.append(f"    #{event['seq']} {event['type']}")
@@ -217,7 +268,10 @@ def export_run(
     output = store.read_json(run_id, "output.json")
     parsed = output.get("briefing") if isinstance(output, dict) else None
     manual = output.get("manual_text") if isinstance(output, dict) else None
-    if manual is not None:
+    answer = output.get("answer") if isinstance(output, dict) else None
+    if run.get("kind") == "ask":
+        _export_ask(exported, excluded, run, answer, include_output)
+    elif manual is not None:
         _export_manual_text(exported, excluded, manual, evaluation, include_output)
     elif include_output and parsed is not None:
         if not isinstance(evaluation, dict) or "usefulness" not in evaluation:

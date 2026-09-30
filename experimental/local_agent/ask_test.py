@@ -1,0 +1,299 @@
+import json
+import pathlib
+import tempfile
+import unittest
+
+from local_agent import ask, model, recorder, settings, testing_support
+
+ANSWER = "The demo design is described in S1:L1-L3. See also S9."
+
+
+def _response(text: str, **kwargs: object) -> model.ModelResponse:
+    fields = {"done_reason": "stop", "prompt_tokens": 50, "output_tokens": 20}
+    fields.update(kwargs)
+    return model.ModelResponse(
+        text,
+        fields["done_reason"],
+        fields["prompt_tokens"],
+        fields["output_tokens"],
+        {"client_elapsed_seconds": 1.5},
+        thinking_chars=int(fields.get("thinking_chars", 0)),
+    )
+
+
+class AskTestBase(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        base = pathlib.Path(self._tmp.name)
+        self.repo = base / "repo"
+        self.repo.mkdir()
+        (self.repo / "README.md").write_text("# Fixture\n\nHello.\n", encoding="utf-8")
+        (self.repo / ".env").write_text("TOKEN=abc\n", encoding="utf-8")
+        (self.repo / "leaky.md").write_text(
+            "config: api_key = sk-live-abcdef0123456789abcdef\n", encoding="utf-8"
+        )
+        (self.repo / "contact.md").write_text(
+            "Ask ops@example.org; the server listens on 127.0.0.1.\n",
+            encoding="utf-8",
+        )
+        testing_support.make_repo(self.repo)
+        self.store = recorder.Store(
+            base / "store", clock=testing_support.SteppingClock()
+        )
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+
+
+class BuildContextTest(AskTestBase):
+    def test_files_mode_sends_tracked_files_with_line_numbers(self) -> None:
+        ctx = ask.build_context(repo=self.repo, files=["project/design/demo.md"])
+        self.assertEqual(ctx.mode, ask.MODE_FILES)
+        self.assertEqual(
+            [r["path"] for r in ctx.source_refs], ["project/design/demo.md"]
+        )
+        self.assertIn("[S1] project/design/demo.md", ctx.text)
+        self.assertIn("L1: # Demo design", ctx.text)
+
+    def test_credential_paths_and_flagged_text_are_excluded(self) -> None:
+        ctx = ask.build_context(
+            repo=self.repo, files=[".env", "leaky.md", "project/design/demo.md"]
+        )
+        excluded = {entry["path"]: entry["reason"] for entry in ctx.excluded}
+        self.assertIn("credential-like", excluded[".env"])
+        self.assertIn("sensitivity scan", excluded["leaky.md"])
+        self.assertNotIn("TOKEN=abc", ctx.text)
+        self.assertNotIn("sk-live", ctx.text)
+        self.assertNotIn("sk-live", json.dumps(ctx.excluded))
+
+    def test_medium_only_source_is_sent_with_category_warnings(self) -> None:
+        ctx = ask.build_context(repo=self.repo, files=["contact.md"])
+        self.assertEqual(ctx.excluded, [])
+        self.assertIn("ops@example.org", ctx.text)
+        ref = ctx.source_refs[0]
+        self.assertEqual(list(ref["sensitivity_warnings"]), ["email", "ip_address"])
+        summary = ask.source_summary(ctx)
+        self.assertIn("WARN: email, ip_address", summary)
+        self.assertNotIn("ops@example.org", summary)
+        self.assertNotIn("127.0.0.1", summary)
+
+    def test_run_record_names_categories_not_values(self) -> None:
+        ctx = ask.build_context(repo=self.repo, files=["contact.md"])
+        run_id = ask.run_ask(
+            store=self.store,
+            question="Who runs ops?",
+            ctx=ctx,
+            adapter=model.FakeModel([_response("See S1:L1.")]),
+            budgets=settings.Budgets(),
+        )
+        run_json = json.dumps(self.store.load_run(run_id))
+        self.assertIn("ip_address", run_json)
+        self.assertNotIn("ops@example.org", run_json)
+        self.assertNotIn("127.0.0.1", run_json)
+
+    def test_private_and_untracked_paths_are_excluded(self) -> None:
+        (self.repo / "untracked.md").write_text("new\n", encoding="utf-8")
+        ctx = ask.build_context(
+            repo=self.repo,
+            files=["project/executions/AD_HOC/private.md", "untracked.md"],
+        )
+        self.assertEqual(ctx.source_refs, [])
+        self.assertEqual(len(ctx.excluded), 2)
+
+    def test_overview_mode_sends_readme_and_filtered_listing(self) -> None:
+        ctx = ask.build_context(repo=self.repo)
+        self.assertEqual(ctx.mode, ask.MODE_OVERVIEW)
+        self.assertEqual(ctx.source_refs[0]["path"], "README.md")
+        self.assertIn("project/design/demo.md", ctx.text)
+        self.assertNotIn(".env\n", ctx.text)
+        self.assertNotIn("project/executions/", ctx.text)
+
+    def test_work_item_mode_carries_diagnostics(self) -> None:
+        ctx = ask.build_context(repo=self.repo, work_item="WI-T-1")
+        self.assertEqual(ctx.mode, ask.MODE_WORK_ITEM)
+        self.assertIsNotNone(ctx.diagnostics)
+        self.assertIn("EXECUTION_READINESS_NOT_READY", ctx.text)
+
+    def test_uncommitted_edits_are_not_sent(self) -> None:
+        (self.repo / "project/design/demo.md").write_text("DIRTY\n", encoding="utf-8")
+        ctx = ask.build_context(repo=self.repo, files=["project/design/demo.md"])
+        self.assertNotIn("DIRTY", ctx.text)
+
+    def test_source_summary_lists_sources_and_exclusions(self) -> None:
+        ctx = ask.build_context(
+            repo=self.repo, files=["project/design/demo.md", ".env"]
+        )
+        summary = ask.source_summary(ctx)
+        self.assertIn("S1 project/design/demo.md", summary)
+        self.assertIn("excluded .env", summary)
+
+
+class _StreamThenFail:
+    """Streams one chunk, then fails like a mid-answer timeout."""
+
+    def __init__(self, error: BaseException) -> None:
+        self.error = error
+
+    def describe(self) -> dict[str, object]:
+        return {"backend": "fake"}
+
+    def preflight(self) -> dict[str, object]:
+        return {}
+
+    def generate(self, request: model.ModelRequest) -> model.ModelResponse:
+        assert request.on_text is not None
+        request.on_text("half an ans")
+        raise self.error
+
+
+class RunAskTest(AskTestBase):
+    def _ask(self, adapter: model.ModelAdapter, **kwargs: object) -> dict:
+        ctx = ask.build_context(repo=self.repo, files=["project/design/demo.md"])
+        chunks: list[str] = []
+        run_id = ask.run_ask(
+            store=self.store,
+            question="What does the demo design say?",
+            ctx=ctx,
+            adapter=adapter,
+            budgets=kwargs.pop("budgets", settings.Budgets()),
+            on_text=chunks.append,
+        )
+        self.chunks = chunks
+        return self.store.load_run(run_id)
+
+    def test_completed_run_streams_and_is_logged(self) -> None:
+        adapter = model.FakeModel([_response(ANSWER)])
+        run = self._ask(adapter)
+        self.assertEqual(run["outcome"], "completed")
+        self.assertEqual("".join(self.chunks), ANSWER)
+        self.assertEqual(run["kind"], "ask")
+        self.assertEqual(run["citations"]["citations_total"], 2)
+        self.assertEqual(run["citations"]["unresolved_citations"], ["S9"])
+        output = self.store.read_json(run["run_id"], "output.json")
+        self.assertEqual(output["answer"], ANSWER)
+        request = adapter.requests[0]
+        self.assertIsNone(request.output_schema)
+        self.assertIn("What does the demo design say?", request.prompt)
+
+    def test_empty_answer_reports_hidden_reasoning(self) -> None:
+        run = self._ask(model.FakeModel([_response("", thinking_chars=5000)]))
+        self.assertEqual(run["outcome"], "invalid_model_output")
+        self.assertIn("hidden reasoning", run["outcome_detail"])
+
+    def test_output_limit_keeps_partial_answer(self) -> None:
+        run = self._ask(model.FakeModel([_response("partial", done_reason="length")]))
+        self.assertEqual(run["outcome"], "budget_exhausted")
+        output = self.store.read_json(run["run_id"], "output.json")
+        self.assertEqual(output["answer"], "partial")
+
+    def test_backend_failures_are_recorded(self) -> None:
+        cases = (
+            (model.KIND_TIMEOUT, "timeout"),
+            (model.KIND_MISSING_PREREQUISITE, "missing_prerequisite"),
+            (model.KIND_BACKEND_ERROR, "backend_error"),
+        )
+        for kind, outcome in cases:
+            with self.subTest(kind):
+                run = self._ask(model.FakeModel([model.BackendError(kind, "x")]))
+                self.assertEqual(run["outcome"], outcome)
+
+    def test_input_budget_blocks_the_call(self) -> None:
+        adapter = model.FakeModel([_response(ANSWER)])
+        run = self._ask(
+            adapter, budgets=settings.Budgets(max_estimated_input_tokens=10)
+        )
+        self.assertEqual(run["outcome"], "budget_exhausted")
+        self.assertEqual(adapter.requests, [])
+
+    def test_excluded_content_is_never_sent_or_logged(self) -> None:
+        adapter = model.FakeModel([_response(ANSWER)])
+        ctx = ask.build_context(
+            repo=self.repo, files=[".env", "leaky.md", "project/design/demo.md"]
+        )
+        run_id = ask.run_ask(
+            store=self.store,
+            question="q",
+            ctx=ctx,
+            adapter=adapter,
+            budgets=settings.Budgets(),
+        )
+        run_dir = self.store.run_dir(run_id)
+        logged = "".join(path.read_text("utf-8") for path in run_dir.iterdir())
+        for secret in ("TOKEN=abc", "sk-live"):
+            self.assertNotIn(secret, adapter.requests[0].prompt)
+            self.assertNotIn(secret, logged)
+
+    def test_preflight_failure_makes_no_call(self) -> None:
+        adapter = model.FakeModel(
+            [_response(ANSWER)],
+            preflight_error=model.BackendError(
+                model.KIND_MISSING_PREREQUISITE, "model not pulled"
+            ),
+        )
+        run = self._ask(adapter)
+        self.assertEqual(run["outcome"], "missing_prerequisite")
+        self.assertEqual(adapter.requests, [])
+
+    def test_partial_streamed_answer_is_kept_on_failure(self) -> None:
+        timeout = model.BackendError(model.KIND_TIMEOUT, "slow")
+        run = self._ask(_StreamThenFail(timeout))
+        self.assertEqual(run["outcome"], "timeout")
+        output = self.store.read_json(run["run_id"], "output.json")
+        self.assertEqual(output, {"answer": "half an ans", "partial": True})
+
+    def test_placeholders_in_the_question_are_not_expanded(self) -> None:
+        ctx = ask.build_context(repo=self.repo, files=["project/design/demo.md"])
+        prompt = ask.render_prompt("What is {{CONTEXT}}?", ctx)
+        self.assertIn("What is {{CONTEXT}}?", prompt)
+        self.assertEqual(prompt.count("L1: # Demo design"), 1)
+
+    def test_record_failure_logs_a_run_without_a_call(self) -> None:
+        run_id = ask.record_failure(self.store, "q", "cancelled", "declined")
+        run = self.store.load_run(run_id)
+        self.assertEqual(run["outcome"], "cancelled")
+        self.assertIn("cancelled 1", ask.summarize(self.store))
+
+    def test_cancellation_is_recorded_then_reraised(self) -> None:
+        with self.assertRaises(KeyboardInterrupt):
+            self._ask(model.FakeModel([KeyboardInterrupt()]))
+        run = self.store.load_run(self.store.list_runs()[0])
+        self.assertEqual(run["outcome"], "cancelled")
+
+
+class RatingAndLogTest(AskTestBase):
+    def _completed(self, answer: str = ANSWER) -> str:
+        ctx = ask.build_context(repo=self.repo, files=["project/design/demo.md"])
+        return ask.run_ask(
+            store=self.store,
+            question="q",
+            ctx=ctx,
+            adapter=model.FakeModel([_response(answer)]),
+            budgets=settings.Budgets(),
+        )
+
+    def test_rating_is_stored(self) -> None:
+        run_id = self._completed()
+        ask.record_rating(self.store, run_id, "g", "useful ")
+        run = self.store.load_run(run_id)
+        self.assertEqual(run["rating"], {"value": "good", "note": "useful"})
+        with self.assertRaises(ValueError):
+            ask.record_rating(self.store, run_id, "x")
+
+    def test_summary_counts_outcomes_ratings_and_flags(self) -> None:
+        good = self._completed("Clean answer citing S1:L1-L2.")
+        self._completed()
+        ask.record_rating(self.store, good, "g")
+        summary = ask.summarize(self.store)
+        self.assertIn("runs: 2", summary)
+        self.assertIn("completed 2", summary)
+        self.assertIn("good 1", summary)
+        self.assertIn("unrated 1", summary)
+        self.assertIn("flagged runs: 1", summary)
+        self.assertIn("latency: median 1.5s", summary)
+
+    def test_summary_without_runs(self) -> None:
+        self.assertIn("no runs", ask.summarize(self.store))
+
+
+if __name__ == "__main__":
+    unittest.main()

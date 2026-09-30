@@ -20,6 +20,7 @@ import json
 import os
 import pathlib
 import secrets
+import shutil
 from collections.abc import Callable
 
 from local_agent import settings
@@ -243,3 +244,30 @@ class Store:
             )
             self.append_event(run_id, "recovered", truncated_tail=truncated)
         return manifest
+
+    def delete_run(self, run_id: str) -> None:
+        """Permanently remove one run's private records."""
+        directory = self.run_dir(run_id)
+        if not directory.is_dir():
+            raise StoreError(f"no stored run {run_id}")
+        shutil.rmtree(directory)
+
+    def prune(self, before: str, *, dry_run: bool = False) -> list[str]:
+        """Delete runs created before ``before`` (an ISO date); return their ids.
+
+        Runs without a readable creation time are kept and not reported.
+        """
+        cutoff = datetime.date.fromisoformat(before)
+        doomed: list[str] = []
+        for run_id in self.list_runs():
+            try:
+                created = str(self.load_run(run_id).get("created_at", ""))
+                day = datetime.date.fromisoformat(created[:10])
+            except (StoreError, ValueError):
+                continue
+            if day < cutoff:
+                doomed.append(run_id)
+        if not dry_run:
+            for run_id in doomed:
+                self.delete_run(run_id)
+        return doomed

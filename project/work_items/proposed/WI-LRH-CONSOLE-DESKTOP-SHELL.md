@@ -81,9 +81,9 @@ This item was split out of `WI-LRH-CONSOLE-DESKTOP-L0`, then split again on
 to one PR. It keeps the lifecycle and security core, which the Settings work
 builds on:
 
-- original L0 items 1 (windows), 2 (menus), and 5 (capabilities and
-  navigation);
-- the capability-test half of item 7.
+- Required Changes items 1 (windows), 2 (menus), and 5 (capabilities and
+  navigation), as numbered in the pre-split SHELL item;
+- the capability-test half of that item's item 7.
 
 Serve and Meta are useful, but starting them from the command line
 discourages ordinary use. The chosen interaction keeps the dashboard as the

@@ -201,5 +201,5 @@ gets reviewed on its own, before any UI depends on it.
 
 Confirm whether the protocol's parent-loss mechanism (stdin close) needs any
 extra macOS handling in Rust, and whether the timeout defaults need to be
-configurable at this layer or only in `WI-LRH-CONSOLE-DESKTOP-SHELL`'s
+configurable at this layer or only in `WI-LRH-CONSOLE-DESKTOP-SETTINGS`'s
 settings.

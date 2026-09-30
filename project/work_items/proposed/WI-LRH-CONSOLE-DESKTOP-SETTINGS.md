@@ -40,7 +40,7 @@ acceptance:
 - "The lrh executable, workspace, browser preference, and start-on-app-open setting are stored in private local app configuration and validated. Invalid changes keep the last working values and explain recovery. A workspace switch is restart-scoped, and first run guides explicit setup without relying on shell PATH or Conda activation."
 - "One on-demand Settings / Server Details window opens from Server > Details and the platform Settings menu, and reopens or focuses rather than duplicating. Closing it never stops the server. Details shows the actual ownership, endpoint, configured workspace, and protocol and backend versions."
 - "Bundled setup, starting, stopped, failed, and incompatible pages work without the Python server. They show actionable failures and a bounded diagnostic history without leaking environment secrets."
-- "View > Open in Chrome and approved external links hand off to a browser. The embedded view and Chrome show the same selected project, with a recorded interaction matrix and an explained, safe default-browser fallback when Chrome is absent."
+- "View > Open in Chrome and approved external links hand off to a browser. The embedded view and Chrome show the same selected project. Workspace mismatch is explicit, never a silent fallback to another project. The interaction matrix is recorded, and an explained, safe default-browser fallback applies when Chrome is absent."
 - "Only the Settings window can reach its narrow, validated native commands. capability_boundaries_test.rs is extended to prove that the dashboard and the recovery pages still cannot."
 - "docs/how-to/lrh-console-local-dogfood.md documents setup, build/run, lifecycle, recovery, limitations, exact validation commands, and the manual macOS checklist that WI-LRH-CONSOLE-DESKTOP-DOGFOOD runs."
 required_evidence:
@@ -74,14 +74,15 @@ item adds:
 
 This item was split out of `WI-LRH-CONSOLE-DESKTOP-SHELL` on 2026-09-30, at the
 configuration/recovery boundary that the shell's own risk notes named, so that
-each work item maps to one PR. It carries these parts of the original L0 work
-item:
+each work item maps to one PR. It carries these Required Changes, as numbered
+in the pre-split SHELL item:
 
 - item 3 (configuration);
 - item 4 (recovery pages and details);
 - item 6 (browser handoff);
 - the external-link routing half of item 5;
-- the documentation half of item 8.
+- the Settings-window extension of the item 7 tests;
+- item 8 (documentation).
 
 The GUI launch environment differs from a coding terminal. That is why
 explicit configuration and first-run recovery are part of the product, rather
@@ -141,6 +142,8 @@ than being left as undocumented developer setup.
      view, and offer Chrome for the ones that don't.
    - If Chrome is unavailable, offer a safe default-browser fallback with an
      explanation. Keep a safe route open on handoff.
+   - Make a workspace mismatch between the embedded view and the browser
+     explicit, never a silent fallback to another project.
 5. **Capabilities.**
    - Restrict the Settings window's native commands to narrow, validated
      capabilities.
@@ -184,9 +187,10 @@ than being left as undocumented developer setup.
   without the Python server. They show actionable failures and a bounded
   diagnostic history without leaking environment secrets.
 - View > Open in Chrome and approved external links hand off to a browser. The
-  embedded view and Chrome show the same selected project, with a recorded
-  interaction matrix and an explained, safe default-browser fallback when
-  Chrome is absent.
+  embedded view and Chrome show the same selected project. Workspace mismatch
+  is explicit, never a silent fallback to another project. The interaction
+  matrix is recorded, and an explained, safe default-browser fallback applies
+  when Chrome is absent.
 - Only the Settings window can reach its narrow, validated native commands.
   capability_boundaries_test.rs is extended to prove that the dashboard and
   the recovery pages still cannot.

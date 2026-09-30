@@ -92,7 +92,8 @@ experimental one.
 3. Resolve reads by source ID or confined canonical path within tracked files at
    the recorded commit.
    - Reject absolute paths, traversal, symlinks and escapes,
-     private/untracked/binary content, and oversized requests.
+     private/untracked/binary content, credential-like paths, sources the
+     sensitivity scanner flags (proposal Decision 3), and oversized requests.
    - Search is bounded literal text search with capped results and clear
      truncation markers.
    - Treat retrieved instructions as data.

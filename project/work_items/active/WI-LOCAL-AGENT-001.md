@@ -38,6 +38,7 @@ acceptance:
   - "`ask` answers a free-form question about the current checkout from tracked files, streaming readable Markdown with source references, with no agent tools."
   - "`brief` produces a work-item briefing that carries LRH readiness diagnostics and flags claims that contradict them."
   - "Every run is logged automatically and privately, including failures, with a one-key rating and a `log` summary; no manual bookkeeping is required."
+  - "Credential-like paths and sensitivity-flagged sources are never sent to the model or logged, shown by boundary tests; logs can be deleted and pruned."
   - "Fake-model tests cover the commands, logging, and local-only checks without model or network access."
   - "The owner has used both toys on real work and recorded a stop, revise, or proceed decision; production behavior is unchanged."
 required_evidence:
@@ -107,9 +108,13 @@ network tools and cannot modify repository files or project state.
    - otherwise, the repository README plus a tracked-file listing.
 
    Print a short source summary before calling the model. Answers are Markdown
-   and cite sources as `S<n>` or `S<n>:L<a>-L<b>`. Exclude private paths,
-   untracked files, and binary files, and enforce input, output, and wall-time
-   budgets.
+   and cite sources as `S<n>` or `S<n>:L<a>-L<b>`. Exclude:
+   - private paths, untracked files, and binary files;
+   - credential-like paths, per the proposal's Decision 3 list;
+   - any source the sensitivity scanner flags (`lrh.conversations.sensitivity`),
+     which is dropped and listed as excluded in the source summary.
+
+   Enforce input, output, and wall-time budgets.
 3. **T1 `brief <WI-ID>`.** A briefing preset built on T0 that includes LRH
    readiness diagnostics. Automatically flag a briefing whose readiness claims
    contradict the diagnostics.
@@ -120,15 +125,21 @@ network tools and cannot modify repository files or project state.
      recorded too.
    - After each answer, prompt for a one-key rating (good / ok / bad, or skip)
      and an optional note, and store them with the run.
-5. **`log` summary.** Show recent runs and computed statistics: counts, outcome
+5. **Retention and deletion.** Document the store path
+   (`~/.local/share/lrh/local-agent/`, or `LRH_LOCAL_AGENT_STORE`) and the
+   retention (until the workstream closes, plus 90 days). Provide
+   `delete <run-id>` and `prune --before <date>`.
+6. **`log` summary.** Show recent runs and computed statistics: counts, outcome
    mix, latency and token distributions, ratings, citation-resolution rate, and
    flagged runs. An optional `report` writes a sanitized summary suitable for
    committing to `experiments/`.
-6. **Tests and docs.** Opt-in fake-backend `unittest.TestCase` tests for the new
-   commands, logging, rating capture, and flags. Update
+7. **Tests and docs.** Opt-in fake-backend `unittest.TestCase` tests for the new
+   commands, logging, rating capture, flags, and deletion. Boundary tests must
+   show that credential-like paths and scanner-flagged sources are never sent
+   or logged. Update
    `experimental/local_agent/README.md` to describe the toys; the pilot runbook
    material is retired. Do not add live model or network calls to normal CI.
-7. **Use it and decide.** The owner uses `ask` and `brief` on real LRH or LCATS
+8. **Use it and decide.** The owner uses `ask` and `brief` on real LRH or LCATS
    work, reviews the `log` summary, and records stop, revise, or proceed in this
    item's resolution. No numeric thresholds, manual timing, or hand-written
    baselines are required.
@@ -147,6 +158,8 @@ comparative study. Do not modify the default serve surface.
 - `brief` carries LRH readiness diagnostics and flags contradicting claims.
 - Every run is logged automatically and privately, including failures, with a
   one-key rating and a `log` summary; no manual bookkeeping is required.
+- Credential-like paths and sensitivity-flagged sources are never sent to the
+  model or logged, shown by boundary tests; logs can be deleted and pruned.
 - Fake-model tests cover the commands, logging, and local-only checks without a
   live inference service or network access.
 - The owner has used both toys on real work and recorded stop, revise, or

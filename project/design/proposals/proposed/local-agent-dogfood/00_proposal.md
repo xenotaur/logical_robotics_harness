@@ -172,10 +172,22 @@ Read-only toys (T0–T3) read only files tracked at the current checkout's `HEAD
 from Git objects rather than the working tree, so uncommitted edits never mix in.
 A `--commit` option pins another revision. Before calling the model, the tool
 prints a short summary of the sources it will send (paths, line ranges, sizes);
-no hash approval step is required. Excluded always: credentials, private
-transcripts and session/execution/memory records, untracked content, and binary
-files. Tracked content can still contain secrets, so the source summary is shown
-on every run and budgets cap what is sent.
+no hash approval step is required.
+
+Excluded always:
+
+- private transcripts and session, execution, and memory records;
+- untracked content and binary files;
+- **credential-like paths:** `.env*`, `*.pem`, `*.key`, `*.p12`, `*.pfx`,
+  `id_rsa*`, `id_ed25519*`, and names containing `credential` or `secret`,
+  plus `.netrc`, `.npmrc`, and `.pypirc`;
+- **any source whose text LRH's sensitivity scanner flags**
+  (`lrh.conversations.sensitivity`). Every source is scanned before sending,
+  and a flagged source is dropped and listed as excluded in the source summary.
+
+This is a best-effort guard, not a guarantee; the source summary is shown on
+every run, and budgets cap what is sent. The same exclusions apply to T2 tool
+reads and searches.
 
 From T2, tools may read or search only those tracked files, through typed
 `get_context`, `read_source`, and `search_sources` requests with validated
@@ -218,7 +230,11 @@ silently executes a partial tool request. A transactional action ledger is
 required from T4, before any side-effect dispatch.
 
 Store records in a private user-data directory with restrictive permissions
-(`~/.local/share/lrh/local-agent/` by default), outside any Git worktree.
+(`~/.local/share/lrh/local-agent/` by default, overridable with
+`LRH_LOCAL_AGENT_STORE`), outside any Git worktree. Keep records until
+`WS-LOCAL-AGENT-DOGFOOD` closes, plus 90 days. The tool provides `delete
+<run-id>` and `prune --before <date>` commands, and deleting the store
+directory removes everything.
 Raw prompts, context, and model outputs are not committed to Git; a sanitized
 summary may be committed to `experiments/` when the owner wants a durable
 record. These are **experimental attempt logs**, not canonical `project/runs` or
@@ -367,6 +383,10 @@ Recorded 2026-09-29 by the owner. It replaces the earlier stage-0 lane approval
   with no project-state writes.
 - `WI-LOCAL-AGENT-001` (active) re-scoped to T0 ask and T1 brief.
 - Evaluation by automatic logging and owner judgment (Decision 7).
+- The [Experimental PR Process](#experimental-pr-process), in effect for this
+  workstream's PRs. Like the rest of this approval, it is an owner decision
+  scoped to `WS-LOCAL-AGENT-DOGFOOD` while the proposal as a whole remains
+  `proposed`; it does not apply elsewhere unless adopted.
 
 **Not approved:** T2 (`WI-LOCAL-AGENT-002` stays proposed), later toys, the
 native Session API and MCP binding (Decision 5), the constitutional execution

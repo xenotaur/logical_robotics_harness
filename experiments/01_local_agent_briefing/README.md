@@ -1,10 +1,19 @@
 # 01 — Local Agent Briefing (stage 0)
 
+> **Superseded (2026-09-29).** This pre-registered pilot was never run. Only one
+> smoke run was made (SMOKE-T01), and it returned empty output: the model spent
+> its whole 2,048-token output budget without producing an answer, most likely
+> on hidden reasoning. The owner then replaced the formal pilot with the toy
+> ladder: small, usable toys judged from automatic run logs. See
+> `PROP-LOCAL-AGENT-DOGFOOD` (Decisions 1 and 7, and "Toy Ladder Approval") and
+> `WI-LOCAL-AGENT-001`. The text below is kept as a historical record only; do
+> not follow its protocol or runbook. `tasks.yaml` remains usable as a list of
+> suggested work items to try with `brief`.
+
 - **Work item:** `WI-LOCAL-AGENT-001`
 - **Workstream:** `WS-LOCAL-AGENT-DOGFOOD`
-- **Design:** `PROP-LOCAL-AGENT-DOGFOOD` (Stage-0 Lane Approval section)
-- **Status:** pre-registered. The pilot has not run. Results and the human
-  decision are pending and will be added in a later PR.
+- **Design:** `PROP-LOCAL-AGENT-DOGFOOD` (superseded stage-0 approval)
+- **Status:** superseded before any live run; see the note above.
 
 ## Question
 

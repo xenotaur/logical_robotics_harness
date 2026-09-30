@@ -4,7 +4,7 @@ type: design_proposal
 title: "Local Agent Dogfood and a Durable Session Boundary"
 status: proposed
 created_on: "2026-09-24"
-updated_on: "2026-09-25"
+updated_on: "2026-09-29"
 implementation_status: not_started
 implemented_by: []
 supersedes: []
@@ -21,10 +21,15 @@ related_design:
 
 ## Summary
 
-Build a local-first agent through a sequence of useful, measured prototypes.
-Start with a work-item briefing assistant; then let it investigate a bounded
-source corpus. Keep transcripts, provenance, budgets, and human evaluation from
-the first prototype. Expand authority only when the preceding stage justifies it.
+Build a local-first agent as a **ladder of small, usable toys**. Each toy is
+something the owner can run on real LRH or LCATS work within days, not a
+formal study. The starting point is the CODE Magazine agent: about 50 lines of
+Python making one Gemma 4 12B call over a workspace. The first toy, **T0 ask**,
+is that idea grounded in LRH: answer a question about the current checkout,
+with source references. Each later toy adds one capability. Evidence scales with
+authority: read-only toys are judged by the owner from automatic run logs, and
+heavy evaluation and safety gates begin at the first toy that can change files
+or run commands.
 
 The long-term abstraction is an LRH-owned, durable session with a model-independent
 semantic API. The native local runner and third-party agents use that same
@@ -33,13 +38,11 @@ formats remain adapters. A separate reviewer contributes semantic judgment, whil
 deterministic policy and a constrained executor enforce permissions.
 
 This is a **draft planning package for joint iteration**, not an adopted API or
-authorization to run an agent. Only two initial implementation leaves are filed:
-`WI-LOCAL-AGENT-001` and `WI-LOCAL-AGENT-002`, coordinated by
-`WS-LOCAL-AGENT-DOGFOOD` under `WS-EXECUTION-FRAMEWORK`. The stage-0 lane was
-later approved and `WI-LOCAL-AGENT-001` activated; see
-[Stage-0 Lane Approval](#stage-0-lane-approval). `WI-LOCAL-AGENT-002` is not
-active. No runtime code, dependencies, assistant scheduling, or serving
-mutations are introduced by this package.
+authorization to run an agent. Two implementation leaves are filed, coordinated
+by `WS-LOCAL-AGENT-DOGFOOD` under `WS-EXECUTION-FRAMEWORK`: `WI-LOCAL-AGENT-001`
+(T0 ask and T1 brief, active) and `WI-LOCAL-AGENT-002` (T2 look-around,
+proposed). See [Toy Ladder Approval](#toy-ladder-approval). No production runtime
+code, dependencies, assistant scheduling, or serving mutations are introduced.
 
 ## Background / Motivation
 
@@ -48,15 +51,22 @@ Cost and capacity limits also force work across several vendor sessions. LRH
 should retain project context, policy, evidence, and continuity while allowing
 the user to choose a local model or a third-party coding agent.
 
-The Gemma coding-agent article is a starting experiment, not evidence that a
-particular model or framework satisfies LRH's needs. A compact model may be useful
-for briefing before it is reliable enough for tool use. The first question is
-whether a local assistant saves human effort on actual LRH/LCATS work compared
-with existing deterministic context tools and one model call.
+The Gemma coding-agent article is a starting point, not evidence that a
+particular model or framework satisfies LRH's needs. The first question is
+simple: is a local assistant useful enough on real LRH and LCATS work that the
+owner keeps reaching for it? Usable toys answer that faster than a formal study,
+and their automatic logs show where they fail.
 
-The staged approach also limits speculative infrastructure: exportable logs do
-not require a public protocol, and a useful briefing does not require autonomous
+The ladder also limits speculative infrastructure: exportable logs do not
+require a public protocol, and a useful answer does not require autonomous
 execution, a desktop application, or fine-tuning.
+
+**Revision note (2026-09-29).** An earlier draft of this proposal made stage 0 a
+pre-registered, counterbalanced pilot with manual timed baselines. The first
+smoke run showed the prototype did not yet produce usable output, and the owner
+judged the evaluation machinery disproportionate for read-only prototypes. This
+revision replaces it with the toy ladder. The earlier text remains in Git
+history, and `experiments/01_local_agent_briefing/` is marked superseded.
 
 ## Prior Art Check
 
@@ -85,38 +95,38 @@ separate dependency before mutation-capable work.
 LCATS provides a useful organizational precedent:
 [durable experiments](https://github.com/xenotaur/LCATS/tree/main/experiments)
 and [temporary package experiments](https://github.com/xenotaur/LCATS/tree/main/lcats/experimental).
-LRH currently has the temporary `experimental/` convention, but no tracked
-`experiments/` tree at the inspected commit. The first implementation leaf must
-document that new evidence convention explicitly. It must not import LCATS's
-package placement into LRH's production package.
+LRH now has both conventions: temporary code in `experimental/` and durable,
+numbered reports in `experiments/` (`experiments/README.md`). It does not import
+LCATS's package placement into LRH's production package.
 
 **Duplication decision:** keep this as a child of the existing execution
-workstream. Its distinct deliverable is measured local-model usefulness and a
-small experimental runner, not another production orchestrator, assistant role
+workstream. Its distinct deliverable is a ladder of small, usable local-model
+toys with automatic logging, not another production orchestrator, assistant role
 model, session archive, or guardrail design.
 
 ## Design Decisions
 
-### 1. Start with evidence, then increase authority
+### 1. A ladder of toys; evidence scales with authority
 
-| Stage | Useful result | Added authority | Gate to the next stage |
+| Toy | What the owner can do | Added authority | Gate to the next toy |
 | --- | --- | --- | --- |
-| 0 — Brief | Explain one selected work item, constraints, evidence, and unresolved questions with source references. | One local inference over an explicitly approved static context packet; no agent tools. | Human assessment of usefulness, groundedness, latency, and export completeness. |
-| 1 — Investigate | Answer questions requiring a few additional repository reads. | Bounded read/search of a preselected immutable corpus. | Demonstrable benefit over stage 0, with boundary and failure tests passing. |
-| 2 — Draft | Produce a proposed patch and validation plan as artifacts. | Write only to the private artifact store; no repository apply or command execution. | Human patch review and evidence that proposals reduce work. |
-| 3 — Execute under guardrails | Apply a reviewed patch and run bounded validation in an isolated workspace. | Explicit capabilities, independent action review, human escalation, sandboxed execution. | Durable action ledger, crash/retry reconciliation, containment and revocation demonstrated. |
-| 4 — Resume and hand off | Resume work or attach a different agent through the same LRH session. | Authenticated session access and serialized action ownership; MCP adapter. | Two independent clients pass semantic conformance and interruption tests. |
-| 5 — Local workbench | Inspect sessions, evidence, permissions, approvals, and model choices in a local UI. | Explicit user actions through the same API. | Preserve the read-only default and test the complete user workflow. |
+| T0 — Ask | Ask a free-form question about the current checkout (optionally scoped to a work item or files) and get a streamed Markdown answer with source references. | One local inference over tracked text; no agent tools. | Owner has used it on real questions; the automatic log shows it completing reliably. |
+| T1 — Brief | Get a structured briefing of one work item, including LRH readiness diagnostics. | Same as T0. | As T0, plus the automatic check that its readiness claims match the LRH diagnostics. |
+| T2 — Look around | Ask questions that need a few additional reads; the model can request bounded read/search of tracked files. | Read-only tools over tracked files. | **Automated** dispatch-boundary and adversarial tests pass, plus the owner's judgment from the log. |
+| T3 — Suggest a patch | Receive a proposed diff and validation plan; the owner applies and tests it by hand, outside the tool, if wanted. | Writes only to the private artifact store; no repository apply or command execution. | The log records automatically whether each patch would apply cleanly (a non-mutating check by trusted tool code, not a model action), plus the owner's rating and notes on how it went when applied by hand. |
+| T4 — Execute under guardrails | Apply a reviewed patch and run bounded validation in an isolated workspace. | Explicit capabilities, independent action review, human escalation, sandboxed execution. | Durable action ledger, crash/retry reconciliation, containment and revocation demonstrated. |
+| T5 — Resume and hand off | Resume work or attach a different agent through the same LRH session. | Authenticated session access and serialized action ownership; MCP adapter. | Two independent clients pass semantic conformance and interruption tests. |
+| T6 — Local workbench | Inspect sessions, evidence, permissions, approvals, and model choices in a local UI. | Explicit user actions through the same API. | Preserve the read-only default and test the complete user workflow. |
 
-Durability starts at stage 0. Stage 3 needs a transactional action ledger before
-any side-effect dispatch; stage 4 adds production run integration and reliable
-multi-client access. These are not permissions to postpone safety until stage 4.
-Stages are capability gates, not calendar promises. A negative evaluation can
-complete a leaf successfully while stopping expansion.
+T0–T3 are read-only with respect to the repository and project state, so their
+gates rest on automatic logs and owner judgment. From T4, a toy can change files
+or run commands, and the heavy design applies unchanged: Decision 6's action
+contract, a transactional action ledger, and demonstrated containment. These are
+capability gates, not calendar promises. Stopping is a valid outcome at any rung.
 
-Only stages 0 and 1 are currently decomposed into work items. Later stages require
-fresh design review and executable leaves. A local web workbench can precede a
-Mac app wrapper; private remote access follows local validation. Public service,
+Only T0–T2 are currently decomposed into work items. Later toys require fresh
+design review and executable leaves. A local web workbench can precede a Mac app
+wrapper; private remote access follows local validation. Public service,
 multi-user tenancy, quotas, abuse handling, and operational support require a
 separate design. Linux/Windows portability is an interface requirement, not a
 claim that Mac testing validates those platforms.
@@ -125,7 +135,7 @@ claim that Mac testing validates those platforms.
 
 Use `experimental/local_agent/` for one evolving Python prototype, with an
 explicit CLI and opt-in tests outside normal package discovery. Do not maintain
-six copied prototypes. Keep stage behavior selectable for fair comparisons.
+separate copied prototypes; earlier toys stay available as subcommands.
 
 Initial boundaries are small internal Protocols/dataclasses:
 
@@ -135,19 +145,20 @@ Initial boundaries are small internal Protocols/dataclasses:
 - **Model adapter:** local inference with a pinned model/quantization and
   recorded runtime version. Ollama is the initial candidate, not a required
   production dependency. Gemma is a candidate to measure, not the API's identity.
-- **Runner:** one call at stage 0; a bounded explicit loop at stage 1. It never
+- **Runner:** one call for T0 and T1; a bounded explicit loop from T2. It never
   owns credentials or gets direct filesystem, shell, or network execution tools.
 - **Dispatcher/policy:** validates typed requests and immutable budgets before
   any tool handler. Model output cannot rewrite policy or widen the source set.
 - **Recorder:** trusted persistence of inputs, outputs, outcomes, and provenance
   to a private directory, separate from model-accessible repository sources.
-- **Evaluator:** records human corrections and comparative usefulness; generation
-  completion never constitutes human acceptance or project status evidence.
+- **Evaluator:** records a one-key owner rating and an optional note per run;
+  generation completion never constitutes human acceptance or project status
+  evidence.
 
 | Option | Advantage | Limitation / decision |
 | --- | --- | --- |
-| Small explicit loop | Easy to audit the complete first-stage dispatch surface; few dependencies. | LRH owns retry and event plumbing. Recommended for these two small stages. |
-| Framework such as smolagents behind Runner | Existing agent-loop facilities may reduce later maintenance. | Adopt only if all tool paths are interceptable and logs/budgets remain LRH-controlled. An unrestricted code-executing agent is unsuitable for stage 1. |
+| Small explicit loop | Easy to audit the complete first-stage dispatch surface; few dependencies. | LRH owns retry and event plumbing. Recommended for the read-only toys. |
+| Framework such as smolagents behind Runner | Existing agent-loop facilities may reduce later maintenance. | Adopt only if all tool paths are interceptable and logs/budgets remain LRH-controlled. An unrestricted code-executing agent is unsuitable for T2. |
 | Vendor agent SDK adapter | Strong coding behavior with less runner implementation. | Retains vendor cost and lifecycle dependencies. Useful as another client/backend, not the only session authority. |
 | Full session server first | Early external-agent interoperability. | Expensive before workflow value is established. Defer stable API commitments while preserving typed seams. |
 
@@ -155,63 +166,64 @@ No option has a universal performance advantage without measurement. A runner
 that can bypass the dispatcher is disqualified from a claimed managed mode;
 it can still be an explicitly advisory external client.
 
-### 3. Make the first data boundary concrete
+### 3. Keep the data boundary simple for read-only toys
 
-At stage 0 the user approves a small source manifest, snapshotted from a pinned
-repository commit. Stage 1 may read/search only that immutable corpus. Start with
-tracked, explicitly selected text; exclude credentials, private transcripts,
-untracked content, and binary files. Tracked content can still contain secrets:
-the manifest needs human inspection and size limits. Dirty-worktree support is
-a later explicit option with hashes, not an invisible mixture of revisions.
+Read-only toys (T0–T3) read only files tracked at the current checkout's `HEAD`,
+from Git objects rather than the working tree, so uncommitted edits never mix in.
+A `--commit` option pins another revision. Before calling the model, the tool
+prints a short summary of the sources it will send (paths, line ranges, sizes);
+no hash approval step is required. Excluded always: credentials, private
+transcripts and session/execution/memory records, untracked content, and binary
+files. Tracked content can still contain secrets, so the source summary is shown
+on every run and budgets cap what is sent.
 
-Stage 1 exposes only `get_context`, `read_source`, and `search_sources` with
-validated schemas. Paths resolve inside the materialized corpus; reject absolute
-paths, traversal, symlink escapes, and unknown source IDs. Search is bounded
-literal text search, not shell interpolation or an unrestricted regular
-expression engine. Cap calls, steps, input/output bytes, model tokens, and wall
-time. Report truncation and missing files explicitly. Source content is data,
-even when it contains instructions to an agent.
+From T2, tools may read or search only those tracked files, through typed
+`get_context`, `read_source`, and `search_sources` requests with validated
+schemas. Paths resolve inside the tracked set; absolute paths, traversal,
+symlink escapes, and unknown source IDs are rejected. Search is bounded literal
+text search, not shell interpolation or an unrestricted regular expression
+engine. Calls, steps, input/output bytes, model tokens, and wall time are
+capped. Truncation and missing files are reported explicitly. Source content is
+data, even when it contains instructions to an agent.
 
-Use an explicitly configured local inference service and a local-only model.
-Loopback alone is insufficient if the service forwards to a cloud model. No
-cloud fallback, automatic model download, automatic installation, or external
-network tool is allowed. A trusted local model service remains part of the
-threat model; this is not OS isolation against a compromised inference daemon.
+**Local-only inference.** Use an explicitly configured local inference service
+and a locally installed model. A loopback endpoint alone does not prove local
+inference, because the service could forward a remote model's requests. The
+adapter therefore requires a loopback endpoint with proxies and redirects
+disabled, requests only a pinned locally installed model digest, refuses any
+model the service reports as remote or cloud-tagged before sending a prompt, and
+records these checks on every run. No cloud fallback, automatic model download,
+automatic installation, or external network tool is allowed. The inference
+service remains a trusted component; this is not OS isolation against a
+compromised daemon. Disabling the service's cloud features is optional defense
+in depth.
 
-### 4. Persist observations without inventing a second control plane
+### 4. Log every run automatically; keep it private and non-canonical
 
-From stage 0, store versioned JSON-serializable records for a session manifest,
-attempt, source references, model requests/results, tool events, checkpoint, and
-human evaluation. Record project/work-item ID, source commit and content hashes,
-model/quantization/backend versions, prompt/policy versions, configured and
-observed budgets, timestamps, outcome, and artifact hashes. A tool event records
-request, decision, result or error, sequence number, and elapsed time.
+Every run of every toy writes a private record: question or work item, sources
+sent (paths, commit, hashes, line ranges), model and backend versions, prompt
+version, budgets, timings, token counts, outcome, automatic checks (such as
+citation resolution), and the owner's rating and note if given. Failed,
+cancelled, and timed-out runs are recorded like any other, so they cannot
+silently disappear from what the owner reviews. Outcomes distinguish
+`completed`, `missing_prerequisite`, `budget_exhausted`, `invalid_model_output`,
+`backend_error`, `timeout`, and `cancelled`. `completed` means inference ended,
+not that the answer is correct.
 
-For the single-process prototypes, JSONL plus artifact files is sufficient:
-single writer, atomic manifest/checkpoint replacement, and explicit recovery of
-an interrupted/truncated tail. Do not promise replayed inference will reproduce
-an answer. Resume creates a new attempt linked to the previous one and checks
-snapshot/policy versions; it never silently executes a partial tool request.
-Move to transactional storage before concurrent writers or effectful actions.
+For T0–T3, a single-process JSONL and artifact store is sufficient, as already
+built in `experimental/local_agent/` (single writer, atomic manifests, recovery
+of an interrupted tail). Do not promise that replaying inference reproduces an
+answer. A resumed run is a new attempt linked to the previous one, and it never
+silently executes a partial tool request. A transactional action ledger is
+required from T4, before any side-effect dispatch.
 
-Use a private durable user-data directory with restrictive permissions and a
-documented retention/export/delete path. `/private/tmp` is appropriate only for
-disposable captures, not the durable session store. Raw transcripts, prompts,
-and model outputs are not committed to Git. Commit sanitized experiment reports
-and provenance manifests; export must make exclusions visible.
-
-These are **experimental attempt logs**, not canonical `project/runs` or work-item
-state. Their IDs can later link to existing session/archive identities. An
-explicit reviewed mapping is required before promoting evidence or updating
-project status. The recorder's trusted writes do not give the model repository
-write permission.
-
-Terminal outcomes distinguish `completed`, `needs_input`, `budget_exhausted`,
-`invalid_model_output`, `backend_error`, and `cancelled`. `completed` means the
-inference task ended, not that its answer is correct. A malformed tool request
-gets at most one bounded repair attempt; timeouts, missing prerequisites, and
-interruption are retained as failures/incomplete work. A stopped run cannot
-disappear from the evaluation denominator.
+Store records in a private user-data directory with restrictive permissions
+(`~/.local/share/lrh/local-agent/` by default), outside any Git worktree.
+Raw prompts, context, and model outputs are not committed to Git; a sanitized
+summary may be committed to `experiments/` when the owner wants a durable
+record. These are **experimental attempt logs**, not canonical `project/runs` or
+work-item state; promoting them requires an explicit reviewed mapping. The
+recorder's trusted writes do not give the model repository write permission.
 
 ### 5. Grow a native semantic Session API; bind it to MCP first
 
@@ -246,9 +258,9 @@ capabilities for actions inside an LRH-managed runtime.
 
 ### 6. Put constitutional judgment inside an enforceable safety design
 
-The early prototypes approve a restricted read corpus and enforce each read
+The read-only toys (T0–T3) confine reads to tracked files and enforce each read
 deterministically. They do not claim to implement the full second-agent review
-design. Before stage 3, reconcile and adopt the existing constitutional sandbox
+design. Before T4, reconcile and adopt the existing constitutional sandbox
 envelope with an explicit action contract:
 
 1. An agent proposes a normalized action with resources and expected effects.
@@ -275,33 +287,35 @@ necessary; a second model does not guarantee alignment.
 Before effects, specify stale-grant rejection, revocation, cancellation races,
 crash recovery, and reconciliation of unknown outcomes. Idempotency is not an
 exactly-once guarantee for arbitrary external effects. Physical robotics needs
-additional hardware/interlock and domain-specific safety work; this coding pilot
+additional hardware/interlock and domain-specific safety work; this coding prototype
 does not authorize robot control.
 
-### 7. Evaluate on work the user actually wants done
+### 7. Evaluate by using it; automate the evidence
 
-Prepare approximately 12 small tasks across LRH and LCATS, including readiness
-explanations, evidence gaps, finding relevant code, and explaining a narrow
-implementation change. Pin inputs; separate tuning tasks from held-out tasks.
-Compare deterministic LRH output/manual completion, a single local model call,
-and (stage 1) bounded tool use with the same task and source access. Counterbalance
-task order to reduce human learning effects and record unequal context budgets.
+Evaluation for T0–T3 is built into the tool, not run as a separate study:
 
-Before live runs, record hardware/RAM, model and quantization, context limits,
-latency/resource ceilings, and a scoring rubric. Measure useful answers without
-material correction, unsupported assertions, whether citations actually support
-claims, correction/review time, end-to-end human effort, latency, retries,
-resource use, and failures. Report raw per-task scores and all stopped attempts.
+- **Automatic logging** of every run (Decision 4).
+- **A one-key rating** after each answer (good / ok / bad) with an optional note.
+  Skipping the rating is allowed and recorded.
+- **`log` summaries** computed from the records: run counts, outcome mix,
+  latency and token distributions, rating distribution, citation-resolution
+  rate, and flagged runs. An optional `report` command writes a sanitized
+  summary for committing to `experiments/`.
+- **Automatic flags** where cheap: for example, a T1 briefing whose readiness
+  statement contradicts the LRH diagnostics, or a citation to a source that was
+  not sent.
 
-Proposed advancement rule: useful results on a clear majority of pilot tasks,
-acceptable held-out quality, lower median human effort than the chosen baseline,
-acceptable latency on the target Mac, no accepted critical fabricated project
-status, and no boundary escapes in the adversarial suite. The owner must set the
-numeric usefulness and latency thresholds before running the evaluation; do not
-tune them after seeing results. A small pilot is evidence for a next experiment,
-not statistical assurance of safety. Stage 1 must justify its extra complexity
-over the single-call baseline. Failure is a valid result and may lead to a better
-model, narrower task, or stopping this workstream.
+At each toy boundary the owner decides stop, revise, or proceed, informed by the
+log summary and experience. No numeric thresholds are required in advance, and
+no manual timing or hand-written baselines are collected. Stop signals: the
+toy fabricates readiness or status, any sign of off-machine routing, or the
+owner stops finding it worth using. A disappointing toy may still be worth a
+revision; an impressive one may still be unacceptable. The decision is the
+owner's.
+
+Structured, comparative evaluation (fixed task sets, baselines, adversarial
+suites) is used where it protects something: automated boundary tests from T2,
+and the full safety evidence from T4.
 
 ## Non-Goals
 
@@ -309,7 +323,7 @@ model, narrower task, or stopping this workstream.
 - Automatic work-item transitions, evidence acceptance, merge, release, or publish.
 - Changing the default `lrh serve` permission surface or enabling assistant stages.
 - Shell execution, patch application, arbitrary tools, or network access in the
-  first two prototypes.
+  read-only toys (T0–T3).
 - Autonomous multi-agent scheduling or physical robot control.
 - A model leaderboard, commercial service, or guaranteed local-model equivalence
   to Claude, Codex, or Antigravity.
@@ -317,25 +331,20 @@ model, narrower task, or stopping this workstream.
 
 ## Implementation Plan
 
-1. Iterate on this draft, resolve the initial scope/privacy/hardware questions,
-   and explicitly approve the experimental lane. Adoption must reconcile its
-   relationship to the canonical execution design; this PR does not rewrite it.
-2. Select and activate `WI-LOCAL-AGENT-001`: static-context briefing CLI,
-   durable export, deterministic fake-backend checks, and a reproducible pilot.
-3. Review the findings. Activate `WI-LOCAL-AGENT-002` only after an explicit
-   decision that read/search access is worth testing; completion of 001 alone
-   is not automatic authorization.
-4. Decide stop/revise/promote. Promotion into `src/lrh/`, a new production extra,
-   and future stages require separately scoped work and reviewed contracts.
+1. **T0 ask and T1 brief** (`WI-LOCAL-AGENT-001`): `ask` and `brief` commands
+   with streamed Markdown output, model thinking off, the automatic log, a
+   one-key rating, and `log` summaries. Reuse the existing modules under
+   `experimental/local_agent/` (sources, context, model adapter, recorder).
+2. The owner uses T0 and T1 on real work and decides stop, revise, or proceed.
+3. **T2 look-around** (`WI-LOCAL-AGENT-002`), only after an explicit decision
+   that read/search access is worth trying.
+4. T3 and later toys require separately scoped work items; T4 and later also
+   require the safety design in Decision 6.
 
-Temporary code lives in `experimental/local_agent/`. Stage 0 introduces a
-documented `experiments/` convention and the next available numbered experiment
-directory (for example `experiments/01_local_agent_briefing/` if still available).
-Each durable experiment includes purpose, task corpus or reproducible references,
-code commit, setup, manifest, commands, sanitized results, limitations, and a
-human decision. Stage 1 adds its own comparable results without overwriting stage
-0. Full raw logs stay in the private store. Avoid adding `prototypes/` or
-`examples/` as competing homes for the same code.
+Temporary code lives in `experimental/local_agent/` as one evolving CLI. Durable
+write-ups, when wanted, go in numbered `experiments/` directories. Full raw logs
+stay in the private store. Avoid adding `prototypes/` or `examples/` as
+competing homes for the same code.
 
 Later: native Session API and MCP conformance; local web UI and optional desktop
 packaging; private remote access; separately designed multi-user service. Build
@@ -346,74 +355,57 @@ Pin and version model artifacts and retain rollback. MIT licensing for harness
 code does not relicense model weights, datasets, or third-party dependencies;
 check their terms before distribution.
 
-## Stage-0 Lane Approval
+## Toy Ladder Approval
 
-Recorded 2026-09-25 by the owner after a read-only readiness review. This
-section approves a narrow slice of the proposal; the proposal as a whole remains
-`proposed`.
+Recorded 2026-09-29 by the owner. It replaces the earlier stage-0 lane approval
+(2026-09-25). The proposal as a whole remains `proposed`.
 
 **Approved:**
 
-- The isolated experimental lane for stage 0 only: tool-less, single-call local
-  briefing under `experimental/local_agent/`, outside the package and default
-  test discovery, with no project-state writes.
-- Activation of `WI-LOCAL-AGENT-001` and `WS-LOCAL-AGENT-DOGFOOD`.
-- Pre-registration of hardware, model digest, budgets, storage, task corpus, and
-  criteria in `experiments/01_local_agent_briefing/` before any live run.
+- The isolated experimental lane for read-only toys T0 and T1 under
+  `experimental/local_agent/`, outside the package and default test discovery,
+  with no project-state writes.
+- `WI-LOCAL-AGENT-001` (active) re-scoped to T0 ask and T1 brief.
+- Evaluation by automatic logging and owner judgment (Decision 7).
 
-**Not approved:** stage 1 (`WI-LOCAL-AGENT-002`), later stages, the native
-Session API and MCP binding (Decision 5), the constitutional execution contract
-(Decision 6), and any production runtime or backend adoption. Each needs its own
-decision.
+**Not approved:** T2 (`WI-LOCAL-AGENT-002` stays proposed), later toys, the
+native Session API and MCP binding (Decision 5), the constitutional execution
+contract (Decision 6), and any production runtime or backend adoption. Each
+needs its own decision.
 
-**Evidence rule (refines Decision 4):** raw transcripts, context packets, exact
-prompts, and raw model responses stay in the private store. Parsed briefing
-records that a human has scored may be committed as experiment evidence. Each
-one carries its scores and claim annotations, passes a sensitivity scan and PR
-review, and is labelled as a model output record rather than project state.
-Committed records live under `experiments/`, outside `project/`.
+## Experimental PR Process
 
-**Decision rule (refines Decision 7):** the owner pre-declares both a binding
-floor and advisory targets before live runs. Failing the floor means stop or
-revise. Targets are reported as met or unmet and inform, but do not decide, the
-owner's stop/revise/proceed choice. Each miss is classified as context-limited,
-model-limited, or task-limited. Context-limited misses are evidence for
-evaluating stage 1, consistent with `WI-LOCAL-AGENT-002`'s activation condition.
+PRs whose changes are confined to `experimental/` (transient code) and
+`project/executions/` (bookkeeping) use a lighter review process. Everything
+else, including `experiments/` (archival), planning artifacts, `src/lrh/`, CI,
+and skills, uses the normal process.
 
-**Local-only inference:** a loopback endpoint alone does not prove local
-inference, because the service could forward a remote model's requests. The
-adapter therefore:
+- **Kept:** automated validation before push; one diff-mode self-review; the
+  hosted bots' first-push review and one round of fixes; one confirm-fixes
+  pass and one substitute review of the final head; the owner's single
+  merge-and-closeout decision; execution records.
+- **Severity-gated halts:** only correctness, safety, data-integrity, or
+  medium-and-higher findings stop the chain and start another fix round.
+- **Deferred findings:** lower findings are not fixed in a new round. Each is
+  recorded in the PR's closeout note, named explicitly at the merge gate (a
+  deferred review thread gets a reply and uses `/lrh-land`'s named "defer"
+  path), and offered at the next toy's plan gate. Open follow-ups are reviewed
+  when the workstream closes.
+- **Exception:** from T2, tool-dispatch and boundary code uses the full process.
+- Promoting code from `experimental/` into `src/lrh/` requires separate reviewed
+  work under the normal process.
 
-- requires a loopback endpoint;
-- requests only the pinned model digest, whose weights are installed locally;
-- refuses any model that the service reports as remote or cloud-tagged, before
-  sending a prompt;
-- records all three checks in each run's manifest.
-
-A request for a verified local model is served by local weights, so these checks
-establish local inference for the selected model. They do not protect against a
-misbehaving or compromised inference service. That service remains a trusted
-component, as the threat model above already states. Disabling the service's
-cloud features is optional defense in depth, not the local-only control.
+The process is applied per run through each chain's stated stop-work condition;
+the repository's stored default is unchanged unless the owner changes it with
+`/lrh-config-gates`.
 
 ## Open Questions for Joint Review
 
-For stage 0, the [Stage-0 Lane Approval](#stage-0-lane-approval) answers the
-lane, static-context-briefing, and assistant-gate questions. The hardware/model,
-corpus, storage/retention/export, and target questions stay open for stage 0.
-They close only when the owner's choices are pre-registered in
-`experiments/01_local_agent_briefing/`, which must happen before any live run.
-All of these questions remain open for later stages.
-
-- Which Mac/RAM configuration and locally installed model should define the first
-  pilot? What are the predeclared latency and human-effort targets?
-- Which LRH/LCATS work items are useful, safe to include, and suitable for held-out
-  comparison? Is commit-only context adequate for the initial briefing?
-- Approve static-context briefing first, or require a different narrow daily task?
-- Where should private logs live, how long should they be retained, and which
-  fields are excluded from shareable exports?
-- Does adoption explicitly allow this isolated research lane ahead of production
-  runtime readiness, while preserving the existing assistant-stage gates?
+- Which question types does T0 serve best (explaining code, finding where
+  something lives, summarizing a design), and should T1 briefings stay a separate
+  command or become a preset of `ask`?
+- What context should T0 send by default when no work item or files are given:
+  a directory listing plus README, or a user-chosen file set?
 - Which existing run/session types should be reused when promoting the prototype,
   and which policy changes must accompany the non-Claude runtime extension?
 

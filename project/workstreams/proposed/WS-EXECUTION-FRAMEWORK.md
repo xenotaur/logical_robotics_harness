@@ -98,10 +98,10 @@ until contracts, policy gates, evidence expectations, and optional packaging are
 
 ## Relevant context
 
-Proposed child experiment: `WS-LOCAL-AGENT-DOGFOOD` captures an isolated,
-read-only local-model briefing/investigation lane for design review. Its leaves
-remain proposed; this relationship does not activate runtime work or change the
-production execution sequence below.
+Child experiment: `WS-LOCAL-AGENT-DOGFOOD` runs an isolated ladder of read-only
+local-model toys (T0 ask and T1 brief active in `WI-LOCAL-AGENT-001`; T2
+look-around proposed in `WI-LOCAL-AGENT-002`). This relationship does not
+activate runtime work or change the production execution sequence below.
 
 Canonical living design/context package:
 

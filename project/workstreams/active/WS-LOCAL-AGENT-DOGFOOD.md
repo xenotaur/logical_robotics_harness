@@ -5,7 +5,7 @@ title: "Local Agent Dogfood"
 status: active
 stage: executing
 origin: design_review
-summary: "Measure useful local-agent workflows through isolated briefing and repository-investigation prototypes before expanding runtime authority."
+summary: "Build a ladder of small, usable local-model toys (ask, brief, look around), judged by the owner from automatic run logs before expanding authority."
 parent_id: WS-EXECUTION-FRAMEWORK
 related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
@@ -19,35 +19,39 @@ work_items:
   - WI-LOCAL-AGENT-001
   - WI-LOCAL-AGENT-002
 exit_criteria:
-  - "Stage 0 has a reproducible implementation, evaluation report, and human decision."
-  - "Stage 1 is evaluated if authorized, or explicitly deferred or abandoned with rationale."
-  - "A stop, revise, or promote decision cites measured usefulness and boundary checks."
+  - "T0 ask and T1 brief are usable, have been used on real work, and have an owner stop, revise, or proceed decision informed by their log summary."
+  - "T2 look-around is built and decided on if authorized, or explicitly deferred or abandoned with rationale."
+  - "Any toy with tools has passing automated dispatch-boundary tests."
   - "Private logs stay out of Git and production behavior remains unchanged."
-  - "Any proposed next stage has separate scope and authority gates."
+  - "Any proposed next toy has separate scope and authority gates; toys from T4 use the proposal's safety design."
+  - "Deferred follow-ups from experimental PRs are reviewed and resolved or carried forward."
 ---
 
 # Local Agent Dogfood
 
 ## Purpose
 
-Find out whether a modest local model can reduce human effort on routine LRH and
-LCATS work. Coordinate useful experiments while preserving the parent execution
-framework's safe-default behavior. On 2026-09-25 the owner approved the stage-0
-lane only and activated `WI-LOCAL-AGENT-001`; `stage: executing` reflects that
-leaf. The long-term design remains a proposal under joint review, and stage 1 is
-not selected.
+Find out whether a modest local model is useful enough on routine LRH and LCATS
+work that the owner keeps reaching for it, by building small, usable toys and
+using them. Coordinate the toys while preserving the parent execution
+framework's safe-default behavior. On 2026-09-29 the owner approved the toy
+ladder for T0 and T1 (the proposal's "Toy Ladder Approval" section), replacing
+the earlier stage-0 pilot; `stage: executing` reflects `WI-LOCAL-AGENT-001`. The
+long-term design remains a proposal under joint review, and T2 is not selected.
 
 ## Scope
 
-Own the first two steps of the proposal: a static-context briefing assistant and
-a bounded source investigator. Deliver one evolving temporary Python CLI,
-exportable private attempt logs, durable sanitized experiment reports, and human
-advancement decisions. The workstream closes on an evidence-backed decision,
-including a negative result; it does not promise a complete agent product.
+Own the read-only rungs of the proposal's toy ladder: T0 ask, T1 brief, and T2
+look-around. Deliver one evolving temporary Python CLI with automatic private run
+logs, one-key ratings, log summaries, and the owner's decision at each rung. The
+workstream closes on those decisions, including a decision to stop; it does not
+promise a complete agent product.
 
 Prototype code belongs under `experimental/local_agent/`, outside the package
-and default test discovery. The first leaf documents a durable `experiments/`
-convention before adding numbered reports. Do not promote code during this lane.
+and default test discovery. Optional durable write-ups go in numbered
+`experiments/` directories. Do not promote code during this lane. PRs confined to
+`experimental/` and execution records use the proposal's lighter Experimental PR
+Process; everything else uses the normal process.
 
 ## Prior Art Check
 
@@ -60,45 +64,49 @@ constitutional sandbox envelope owns the future layered action-review design.
 
 **Decision:** this is a child experiment, not a replacement parent workstream or
 assistant-stage implementation. The existing Claude-only runtime proposal must
-be reconciled before production local-runner adoption. Existing deterministic
-tools remain evaluation baselines, consistent with the decision not to add a
-standalone `/lrh-assess` skill.
+be reconciled before production local-runner adoption, consistent with the
+decision not to add a standalone `/lrh-assess` skill.
 
 ## Work Items
 
 | Item | Deliverable | Start condition |
 | --- | --- | --- |
-| `WI-LOCAL-AGENT-001` | Static-context briefing CLI, logs/export, and a measured pilot. | Design lane approved; owner selects model, hardware, safe corpus, and scoring thresholds. |
-| `WI-LOCAL-AGENT-002` | Bounded read/search loop and comparison against stage 0. | 001 complete, findings reviewed, and human explicitly authorizes investigation. |
+| `WI-LOCAL-AGENT-001` | T0 ask and T1 brief: usable commands with automatic logging, ratings, and log summaries. | Active; toy ladder approved 2026-09-29. |
+| `WI-LOCAL-AGENT-002` | T2 look-around: a capped, read-only tool loop over tracked files, with automated boundary tests. | T0/T1 used and the owner explicitly authorizes read/search tools. |
 
-Stages 2–5 (patch drafting, guarded execution, session handoff, and local UI) are
-roadmap hypotheses in the proposal, not executable leaves in this workstream.
-Private/public hosting, model training, and distribution are later work.
+T3 and later toys (suggest a patch, execute under guardrails, session handoff,
+local workbench) are roadmap hypotheses in the proposal, not executable leaves in
+this workstream. Private/public hosting, model training, and distribution are
+later work.
 
 ## Exit Criteria
 
-- Stage 0 has reproducible code, method, sanitized results, and a human decision.
-- Stage 1 has equivalent evidence if selected; otherwise record why it is deferred
-  or abandoned and reconcile its proposed leaf when closing this workstream.
-- The owner chooses stop, revise, or promote based on actual human effort,
-  groundedness, latency, and boundary behavior.
+- T0 and T1 are usable, used on real work, and decided on by the owner from their
+  log summary and experience.
+- T2 is built and decided on if selected; otherwise record why it is deferred or
+  abandoned and reconcile its proposed leaf when closing this workstream.
+- Any toy with tools has passing automated dispatch-boundary tests.
 - Private logs remain private; package APIs, default serve behavior, and project
   status authority have not changed.
-- Any next stage has a separate reviewed scope, safety contract, and work item.
+- Any next toy has a separate reviewed scope and work item; from T4, the
+  proposal's safety design applies.
+- Deferred follow-ups from experimental PRs are reviewed, then resolved or
+  carried forward.
 
 ## Non-Goals
 
 No production runner, stable public API, MCP server, autonomous work selection,
 command execution, patch application, assistant scheduling, public service,
-fine-tuning, or production packaging. No automatic advancement on a green test
-suite or a model-generated success claim.
+fine-tuning, or production packaging. No formal pre-registered study, manual
+timing, or hand-written baselines for the read-only toys. No automatic
+advancement on a green test suite or a model-generated success claim.
 
 ## Dependencies and Review Gates
 
-Merging this planning package did not activate either leaf. The stage-0 lane
-approval is recorded in the proposal's "Stage-0 Lane Approval" section, and the
-canonical focus and execution-framework documents now describe this lane as
-adjacent evidence work that preserves production sequencing. `WI-LOCAL-AGENT-002`
-remains proposed and needs its own human decision after stage-0 findings.
-References to existing focus/roadmap provide traceability, not a change to
-current focus. No existing assistant blocker is cleared by this workstream.
+The toy-ladder approval is recorded in the proposal's "Toy Ladder Approval"
+section, and the canonical focus and execution-framework documents describe this
+lane as adjacent experimental work that preserves production sequencing.
+`WI-LOCAL-AGENT-002` remains proposed and needs its own owner decision after T0
+and T1 have been used. References to existing focus/roadmap provide
+traceability, not a change to current focus. No existing assistant blocker is
+cleared by this workstream.

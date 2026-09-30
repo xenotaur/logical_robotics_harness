@@ -1,5 +1,12 @@
 # Local agent briefing prototype (stage 0)
 
+> **Being reworked (2026-09-29).** `PROP-LOCAL-AGENT-DOGFOOD` replaced the formal
+> stage-0 pilot with a toy ladder (T0 ask, T1 brief) judged from automatic run
+> logs; see `WI-LOCAL-AGENT-001`. The pilot material below (pre-registration,
+> the `task` and `b0` commands, the scores template, and the Runbook) is
+> superseded, and will be removed or reworked when T0 is implemented. Do not
+> follow the pilot procedure.
+
 Temporary research code for `WI-LOCAL-AGENT-001`. It briefs one selected LRH
 work item using a single local-model call over an explicitly approved,
 immutable context packet. The pre-registered evaluation lives in

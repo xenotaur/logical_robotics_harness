@@ -16,7 +16,7 @@ Guidelines:
   evidence, write it to a private user-data directory outside any Git worktree
   (for example under `~/.local/share/lrh/`) with restrictive permissions, and
   document its retention and deletion path.
-- Durable, numbered experiment reports and pre-registrations belong in the
-  top-level `experiments/` tree once it exists. Temporary code stays here.
+- Durable, numbered experiment reports belong in the top-level `experiments/`
+  tree. Temporary code stays here.
 - Promote useful code into `src/lrh/` only through a separate reviewed work item
   or proposal.

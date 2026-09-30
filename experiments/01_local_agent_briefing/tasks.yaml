@@ -1,3 +1,6 @@
+# Superseded 2026-09-29: the formal pilot was replaced by the toy ladder
+# (PROP-LOCAL-AGENT-DOGFOOD). Kept as a list of suggested work items to try.
+#
 # Pre-registered task corpus for experiment 01 (WI-LOCAL-AGENT-001).
 # Each task briefs one work item from tracked content at a pinned commit.
 # Resolved items are pinned to the commit before their implementing PR merged,

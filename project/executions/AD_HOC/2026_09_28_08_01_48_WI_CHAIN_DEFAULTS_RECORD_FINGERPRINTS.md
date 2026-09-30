@@ -28,7 +28,8 @@ separately confirmed `lrh chain-defaults record-fingerprints` action offered by
   (`status: proposed`, `WS-INVOCATION-AND-GATE-RESET`).
 - Opened PR #753.
 - The assessment confirmed that `gate_staleness.record_fingerprints()` has no
-  non-test caller (`grep -rn "record_fingerprints(" src`). Its only use is the
+  non-test caller: `git grep -n "record_fingerprints(" -- src` matches only
+  its definition at `src/lrh/gate_staleness.py:469`. Wiring it in is the
   deferred follow-up named in
   `WI-GATE-STALENESS-INSTALLED-TARGET-FINGERPRINT`'s resolution.
 - The assessment also found a latent bug: unresolved targets make
@@ -43,11 +44,19 @@ separately confirmed `lrh chain-defaults record-fingerprints` action offered by
   different checkout.
 - `lrh prompt check-execution --slug wi-chain-defaults-record-fingerprints --work-item AD_HOC`:
   no prior record.
-- `tests/gate_staleness_test.py -k "fingerprint or unresolvable"`: 5 passed.
-  This was run during the assessment, to confirm the existing fail-closed
-  reproduction.
+- `scripts/test tests/gate_staleness_test.py`: 31 tests, OK. This includes
+  `test_untracked_target_missing_fingerprint_fails_closed` and
+  `test_unresolvable_target_fails_closed`, which reproduce the existing
+  fail-closed behaviour. The first assessment ran a pytest `-k` selection;
+  it was rerun with the canonical runner during PR #753 review.
 
 # Follow-up
+
+- The design was revised during PR #753 review (see the `_REVIEW` record).
+  Codex P1 was accepted: fingerprint recording now happens only as part of
+  a `confirmed_commit` re-stamp, through `lrh chain-defaults restamp`, and
+  `/lrh-config-gates` becomes a second sanctioned re-stamp point. It is no
+  longer a standalone record action.
 
 - Implement the work item via `/lrh-execute WI-CHAIN-DEFAULTS-RECORD-FINGERPRINTS`
   or `/lrh-implement`.

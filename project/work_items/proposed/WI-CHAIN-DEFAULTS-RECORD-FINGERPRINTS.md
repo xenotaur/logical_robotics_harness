@@ -3,7 +3,7 @@ resolution: null
 blocked_reason: null
 blocked: false
 id: WI-CHAIN-DEFAULTS-RECORD-FINGERPRINTS
-title: "Record installed-target gate fingerprints via a separate /lrh-config-gates action"
+title: "Record installed-target gate fingerprints with every confirmed_commit re-stamp, including a new /lrh-config-gates re-confirm step"
 type: deliverable
 status: proposed
 owner: anthony
@@ -18,7 +18,9 @@ related_workstreams:
   - WS-INVOCATION-AND-GATE-RESET
 related_design:
   - project/work_items/resolved/WI-GATE-STALENESS-INSTALLED-TARGET-FINGERPRINT.md
+  - project/work_items/resolved/WI-CHAIN-DEFAULTS-STALENESS-RESTAMP.md
   - project/memory/decisions/DEC-CHAIN-INIT-SKIP-CONSENT.md
+  - project/memory/decisions/DEC-GATE-POLICY-CASCADE.md
   - project/design/proposals/adopted/lrh-gate-policy/00_proposal.md
   - src/lrh/skills/_shared/chain-defaults.md
 depends_on: []
@@ -34,81 +36,135 @@ forbidden_actions:
   - delete_branch
   - merge_pr
   - weaken_fail_closed_staleness
-  - bundle_fingerprint_recording_with_consent_grant
-  - record_fingerprints_without_explicit_confirm
+  - bundle_restamp_with_consent_grant
+  - restamp_without_explicit_confirm
+  - record_fingerprints_without_restamp
+  - change_consent_hash_binding
   - modify_closeout_with_merge
   - commit_fingerprint_file
 acceptance:
-  - "`lrh chain-defaults record-fingerprints --project-root <root>` records a SHA-256 fingerprint for every fingerprint-kind watch target, written atomically to `$(git rev-parse --git-common-dir)/lrh/chain-defaults-fingerprints.json`, and `--dry-run` previews new/unchanged/changed/removed entries without writing"
-  - "Recording refuses (exit 2, stored file untouched) when any watch target is unresolved or any installed target file is missing; a missing, unreadable, or malformed store still fails every untracked target closed"
-  - "After a successful record, `lrh chain-defaults status` reports those targets as matching the persisted fingerprint, and `consent.valid` and `confirmed_commit` are unchanged by the record action"
-  - "`/lrh-config-gates` offers fingerprint recording as its own separately confirmed step (distinct from field-value changes and the skip-consent grant), previews via `--dry-run`, and re-reads status afterward"
+  - "`lrh chain-defaults restamp --project-root <root>` records a SHA-256 fingerprint for every fingerprint-kind watch target (written atomically to `$(git rev-parse --git-common-dir)/lrh/chain-defaults-fingerprints.json`) and re-stamps `confirmed_commit`/`confirmed_at` in `project/config/chain-defaults.yaml` as one command; `--dry-run` previews the current stale-files list, the fingerprint plan (new/unchanged/changed/removed), and the new `confirmed_commit` without writing anything"
+  - "`restamp` refuses (exit 2, neither the fingerprint store nor the profile touched) when any watch target is unresolved or any installed target file is missing; a missing, unreadable, or malformed store still fails every untracked target closed"
+  - "After a successful `restamp`, `lrh chain-defaults status` reports `stale: false` for every watch target (git and fingerprint kinds share the same confirmation baseline), and `consent.valid` is `false` per the existing whole-file blob-hash binding (`DEC-GATE-POLICY-CASCADE` Decision 4)"
+  - "Every existing `confirmed_commit` re-stamp site in `_shared/chain-defaults.md` and its inlined copy in `lrh-land/references/land-workflow.md` uses `lrh chain-defaults restamp` instead of hand-writing the two fields, so no re-stamp path can update one baseline without the other"
+  - "`/lrh-config-gates` offers a re-confirm step, asked as its own question, that shows the stale-files list verbatim plus the `--dry-run` plan, runs `restamp` only on explicit confirm, re-reads status, and then offers the existing skip-consent grant as a further separate question; `_shared/chain-defaults.md` names this step as a sanctioned re-stamp point"
   - "Two worktrees of one clone share the fingerprint store; two independent clones do not"
-  - "`lrh validate` reports 0 errors and `scripts/test` passes"
+  - "`lrh validate` reports 0 errors, `scripts/test` passes, and `lrh skills check` reports the Claude, Codex, and Antigravity rendered targets up to date"
 required_evidence:
   - manual_review
   - lrh_validate
   - test_output
 artifacts_expected:
   - src/lrh/gate_staleness.py
+  - src/lrh/chain_defaults_status.py
   - src/lrh/cli/main.py
   - src/lrh/skills/lrh-config-gates/SKILL.md
   - .claude/skills/lrh-config-gates/SKILL.md
+  - .agents/skills/lrh-config-gates/SKILL.md
+  - .gemini/plugins/lrh/skills/lrh-config-gates/SKILL.md
   - src/lrh/skills/_shared/chain-defaults.md
+  - src/lrh/skills/lrh-land/references/land-workflow.md
+  - .claude/skills/lrh-land/references/land-workflow.md
+  - .agents/skills/lrh-land/references/land-workflow.md
+  - .gemini/plugins/lrh/skills/lrh-land/references/land-workflow.md
   - docs/reference/cli/chain-defaults.md
   - tests/gate_staleness_test.py
+  - tests/chain_defaults_status_test.py
+  - tests/cli_tests/chain_defaults_test.py
 ---
 
 # WI-CHAIN-DEFAULTS-RECORD-FINGERPRINTS
 
 ## Summary
 
-Add an explicit, separately confirmed action — `lrh chain-defaults
-record-fingerprints`, offered by `/lrh-config-gates` — that records content
-fingerprints for user-scope (untracked) installed gate-bearing skill files,
-so `skip_if_opted_in` can take effect in client repos without weakening
-fail-closed staleness or bundling fingerprint recording into the consent
-grant.
+Make every `confirmed_commit` re-stamp also record content fingerprints for
+user-scope (untracked) installed gate-bearing skill files, via one new
+command, `lrh chain-defaults restamp`. The command is used at the chain
+gate's existing re-stamp points and at a new, separately confirmed
+re-confirm step in `/lrh-config-gates`. The goal is that `skip_if_opted_in`
+can take effect in client repos, without weakening fail-closed staleness and
+without giving git-tracked and fingerprinted targets different confirmation
+baselines.
 
 ## Problem / Context
 
 `WI-GATE-STALENESS-INSTALLED-TARGET-FINGERPRINT` (PR #649) taught
 `check_gate_staleness` to compare untracked installed targets (e.g. the
 default `~/.claude/skills/...` install) against persisted content
-fingerprints, and added `gate_staleness.record_fingerprints()` — but its
-resolution explicitly deferred "wire record_fingerprints into a real
-consent-grant call site once one exists." Nothing outside tests ever calls
-it, so in every client repo with a user-scope install, every watch target
-reports "no persisted content fingerprint on record ... failing closed",
-`staleness.stale` is permanently `true`, and `skip_if_opted_in` can never
-take effect. This was observed live in the LCATS project: consent hash
-valid, `chain_init_confirmation: skip_if_opted_in`, all installed Claude
-targets stale, no fingerprint file present.
+fingerprints, and added `gate_staleness.record_fingerprints()`. Its
+resolution deferred the remaining step: "wire record_fingerprints into a real
+consent-grant call site once one exists." Nothing outside tests ever calls it
+(`git grep -n "record_fingerprints(" -- src` matches only its definition at
+`src/lrh/gate_staleness.py:469`).
 
-Design decisions (from the `/lrh-design` session that produced this item):
+As a result, in every client repo with a user-scope install:
 
-- **Separate action, not folded into the consent grant or the chain gate's
-  `confirmed_commit` re-stamp.** A re-stamp rewrites
-  `project/config/chain-defaults.yaml`, which invalidates the consent hash
-  and would force a regrant loop; the consent grant is a distinct decision
-  per `DEC-CHAIN-INIT-SKIP-CONSENT`. Recording a baseline is its own
-  trust-on-first-use act, so it gets its own confirm.
-- **Clone-local storage in the git common dir**, not
-  `project/config/`. Fingerprints describe one machine's installed files;
-  committing them would propagate environment-specific state, LRH cannot
-  control client-repo `.gitignore`, and a worktree-relative untracked file
-  would be missing in every new worktree. `$(git rev-parse
-  --git-common-dir)/lrh/` matches the consent hash's per-clone,
-  worktree-shared scope.
+- every watch target reports "no persisted content fingerprint on record ...
+  failing closed";
+- `staleness.stale` is permanently `true`;
+- `skip_if_opted_in` can never take effect.
+
+This was observed live in the LCATS project: the consent hash was valid,
+`chain_init_confirmation` was `skip_if_opted_in`, every installed Claude
+target was stale, and no fingerprint file existed.
+
+Design decisions (from the `/lrh-design` session that produced this item,
+revised during PR #753 review):
+
+- **Recording is part of the re-stamp, never a separate act.** Git-tracked
+  targets are compared against `confirmed_commit`
+  (`src/lrh/gate_staleness.py:528`). Fingerprinted targets are compared
+  against whenever the fingerprints were recorded. `record_fingerprints`
+  was always meant to run "alongside stamping `confirmed_commit`"
+  (`src/lrh/gate_staleness.py:475-476`). If recording could happen on its
+  own, "stale" would mean "changed since you last confirmed" for one kind of
+  target and "changed since someone last recorded" for the other. It would
+  also create a way to clear staleness without the canonical stale path
+  (`src/lrh/skills/_shared/chain-defaults.md:254-300`), which shows the
+  stale-files list and requires a live confirmation before re-stamping. A
+  single `restamp` command makes the coupling mechanical.
+- **`/lrh-config-gates` becomes a second sanctioned re-stamp point.** Today
+  only the chain gate re-stamps (`src/lrh/skills/lrh-config-gates/SKILL.md:152-156`,
+  `:265-267`). This item adds a config-gates re-confirm step that shows the
+  same stale-files payload the chain gate would, and amends
+  `_shared/chain-defaults.md` to name it. A user can then clear staleness
+  and renew consent in one sitting, as two separately confirmed actions.
+- **Consent-hash binding is unchanged.** `DEC-GATE-POLICY-CASCADE.md:56-57`
+  and `_shared/chain-defaults.md:59-62` bind skip consent to the whole
+  `chain-defaults.yaml` blob hash. A re-stamp therefore invalidates consent,
+  and a regrant (config-gates Step 4) is needed afterwards. That costs one
+  regrant per gate change, the same as for git-tracked targets today; it is
+  not a loop. The original `DEC-CHAIN-INIT-SKIP-CONSENT.md:88-96` bound
+  consent only to the condition values, and nothing has argued for the
+  re-stamp-invalidates-consent coupling since (`WI-CHAIN-DEFAULTS-STALENESS-RESTAMP`
+  never mentions consent). Removing that coupling would need a
+  `DEC-GATE-POLICY-CASCADE` Decision 4 amendment, so it is out of scope
+  here.
+- **Clone-local storage in the git common dir**, not `project/config/`:
+  - fingerprints describe one machine's installed files, so committing them
+    would spread environment-specific state;
+  - LRH cannot control client-repo `.gitignore` files;
+  - an untracked file under the worktree would be missing in every new
+    worktree.
+
+  `$(git rev-parse --git-common-dir)/lrh/` matches the consent hash's scope:
+  per clone, shared across worktrees.
 - **Latent bug to fix:** `record_fingerprints` currently skips `unresolved`
-  targets and writes `{}` successfully, contradicting its own docstring
+  targets and writes `{}` successfully. That contradicts its own docstring
   ("must not silently record an empty/partial fingerprint set").
-- The suggestion that seeded this item cited
+- **Hashes only, in either location.** Neither the chain gate nor
+  config-gates can show *what* changed in a user-scope target: only hashes
+  are stored, and the reasons come from `src/lrh/gate_staleness.py:541-567`.
+  Content snapshots are deferred.
+- **Correction to the seeding suggestion.** It cited
   `src/lrh/skills/_shared/chain-defaults.md:113-128` as documenting
-  fingerprint recording at consent time; that file never mentions
-  fingerprints. The "consent-grant time" wording lives only in the
-  `record_fingerprints` docstring, `FINGERPRINT_PATH`'s comment, and
-  `docs/reference/cli/chain-defaults.md:96`, all of which this item corrects.
+  fingerprint recording at consent time, but that file never mentions
+  fingerprints. The "consent-grant time" wording appears only in:
+  - the `record_fingerprints` docstring;
+  - the `FINGERPRINT_PATH` comment;
+  - `docs/reference/cli/chain-defaults.md:96`.
+
+  This item corrects all three.
 
 ### Duplication search
 - In-repo: Related: `src/lrh/gate_staleness.py` (`record_fingerprints`, `load_fingerprints`, `FINGERPRINT_PATH`) — plumbing exists but has no production caller, no CLI subcommand, and no skill step; this item extends it rather than duplicating it. Other "fingerprint" hits (`src/lrh/pii/allowlist.py`, WS-PII-SCAN) are unrelated.
@@ -125,102 +181,157 @@ Design decisions (from the `/lrh-design` session that produced this item):
 ## Scope
 
 - Make fingerprint persistence clone-local, strict, and previewable in `src/lrh/gate_staleness.py`.
-- Expose it as a product-facing CLI subcommand, `lrh chain-defaults record-fingerprints`.
-- Offer it from `/lrh-config-gates` as its own separately confirmed step.
+- Add one product-facing command, `lrh chain-defaults restamp`, that re-stamps `confirmed_commit`/`confirmed_at` and records fingerprints as one act.
+- Route every existing chain-gate re-stamp through that command.
+- Add a separately confirmed re-confirm step to `/lrh-config-gates`, and name it in the shared policy.
 - Correct the docs and docstrings that describe fingerprints as recorded "at consent-grant time".
 
 ## Required Changes
 
 1. `src/lrh/gate_staleness.py`:
-   - Replace the worktree-relative `FINGERPRINT_PATH` with a helper resolving
-     `$(git rev-parse --git-common-dir)/lrh/chain-defaults-fingerprints.json`
+   - Replace the worktree-relative `FINGERPRINT_PATH` with a helper that
+     resolves `$(git rev-parse --git-common-dir)/lrh/chain-defaults-fingerprints.json`
      for `project_root`. `load_fingerprints` returns `None` (fail closed) if
      git resolution fails; the write path raises `GateStalenessError`.
-   - No migration from the old `project/config/` path (nothing ever wrote it
-     outside tests).
-   - `record_fingerprints` raises (writing nothing) if any target is
-     `unresolved` or any fingerprint-kind target file is missing; keeps the
-     existing temp-file + `os.replace` atomic write; replaces the whole map
-     (drops entries for targets no longer configured).
-   - Add a pure `plan_fingerprints(project_root, targets, stored)` returning
-     per-target name, absolute path, new hash, and comparison
-     (`new`/`unchanged`/`changed`/`removed`), used by both `--dry-run` and
-     the real write so preview and write cannot diverge.
-   - When no fingerprint-kind targets exist (harness repo, or all targets
-     git-tracked), report "nothing to fingerprint" and write nothing.
-   - Update module comments/docstrings to describe the separate
-     record action instead of "consent-grant time".
-2. `src/lrh/cli/main.py`: add `lrh chain-defaults record-fingerprints
-   [--project-root] [--dry-run] [--format text|json]`. Exit 0 on recorded
-   or nothing-to-do; exit 2 on refusal/error, error text on stderr (matching
-   `check-staleness`/`status` conventions). Update the "requires a
-   subcommand" hint.
-3. `src/lrh/skills/lrh-config-gates/SKILL.md` (and byte-identical
-   `.claude/skills/lrh-config-gates/SKILL.md`):
+   - Do not migrate from the old `project/config/` path. Nothing ever wrote
+     it outside tests.
+   - Add a pure `plan_fingerprints(project_root, targets, stored)`. It
+     returns, per target: name, absolute path, new hash, and a comparison
+     (`new`/`unchanged`/`changed`/`removed`). `--dry-run` and the real write
+     both use it, so the preview and the write cannot diverge.
+   - `record_fingerprints` must check every target before writing anything:
+     - it raises, writing nothing, if **any** target is `unresolved` or any
+       fingerprint-kind target file is missing;
+     - it keeps the existing temp-file + `os.replace` atomic write;
+     - it replaces the whole map.
+   - "Nothing to do" happens only when all of these hold: every target
+     resolved successfully, there are zero fingerprint-kind targets, and the
+     stored map is absent or empty (e.g. the harness repo). If stored entries
+     exist but no fingerprint-kind targets remain, write an empty map so the
+     previewed `removed` entries actually go away.
+   - Update module comments and docstrings to describe recording as part of
+     the re-stamp, not "consent-grant time".
+2. `src/lrh/chain_defaults_status.py` (or a sibling module): add the
+   re-stamp operation. It:
+   - validates the fingerprint plan first;
+   - writes the fingerprint store;
+   - rewrites only the `confirmed_commit:` and `confirmed_at:` lines of
+     `project/config/chain-defaults.yaml` in place, keeping comments and
+     every other field byte-identical, with `confirmed_commit` = `git
+     rev-parse HEAD`;
+   - requires the profile file to exist. The first-encounter "file absent"
+     path keeps writing the file first and then calls `restamp`.
+3. `src/lrh/cli/main.py`: add `lrh chain-defaults restamp [--project-root]
+   [--dry-run] [--format text|json]`.
+   - `--dry-run` prints the current stale-files list (the same payload as
+     `check-staleness`), the fingerprint plan, and the proposed
+     `confirmed_commit`/`confirmed_at`.
+   - Exit codes: 0 on success; 2 on refusal or error, with the error text on
+     stderr (matching the `check-staleness` and `status` conventions).
+   - Update the "requires a subcommand" hint.
+4. `src/lrh/skills/_shared/chain-defaults.md` and its inlined copy in
+   `src/lrh/skills/lrh-land/references/land-workflow.md` (keep them in
+   sync):
+   - replace each hand-written `confirmed_commit: $(git rev-parse HEAD)` /
+     `confirmed_at: ...` re-stamp instruction (currently
+     `_shared/chain-defaults.md:84`, `:287`, and the Decision 4
+     profile-update re-stamp at `:111`) with `lrh chain-defaults restamp`;
+   - name `/lrh-config-gates`'s re-confirm step as a sanctioned re-stamp
+     point with the same re-stamp condition: the stale-files payload was
+     shown, and the live reply agrees with the persisted text;
+   - point a "no persisted content fingerprint" stale result at either
+     remedy (the next chain run's live gate, or `/lrh-config-gates`).
+
+   These edits are inside `GATE-DEFINITION` regions on purpose. They change
+   how a gate is cleared, so this repo's own chain-defaults will show as
+   stale once. That is the correct outcome.
+5. `src/lrh/skills/lrh-config-gates/SKILL.md`:
    - Step 2 table: summarize fingerprint state from the status payload.
-   - New Step 4b, wrapped in `GATE-DEFINITION` markers, asked as its own
-     question (never combined with Step 3 or Step 4): run
-     `lrh chain-defaults record-fingerprints --project-root <project-root>
-     --dry-run`, present the table plus the plain-language statement that
-     this accepts the *current* installed files as trusted gate text and that
-     LRH cannot show what changed for `changed` entries (hashes only); wait
-     for explicit confirm; run without `--dry-run`; re-read
-     `lrh chain-defaults status --format json` and report the staleness
-     result honestly.
-   - Recommend Step 4b when status shows any "no persisted content
-     fingerprint" or "differs from persisted fingerprint" reason; otherwise
-     offer it as optional.
-   - Step 5: note that fingerprint recording, like the consent grant, has
-     nothing to commit. Update "What This Skill Does Not Do".
-4. `src/lrh/skills/_shared/chain-defaults.md`: one sentence, **outside**
-   any `GATE-DEFINITION` region, pointing a "no persisted content
-   fingerprint" stale result at `/lrh-config-gates` as the remedy.
-5. `docs/reference/cli/chain-defaults.md`: document `record-fingerprints`;
-   correct the storage location and the "recorded at consent-grant time"
-   wording.
-6. Tests (`tests/gate_staleness_test.py` and the CLI/status test modules):
-   - successful record writes the common-dir store atomically;
-   - missing installed target file refuses and leaves any existing store
-     untouched;
-   - unresolved target refuses (regression for the `{}` bug);
-   - missing and malformed store both fail closed (existing test repointed
-     to the new path);
-   - after recording, `status` shows those targets fresh, and
-     `consent.valid`/`confirmed_commit` are unchanged;
-   - installed content changed after recording → stale;
-   - `--dry-run` writes nothing and reports new/unchanged/changed/removed;
+   - Add a re-confirm step, wrapped in `GATE-DEFINITION` markers, asked as
+     its own question and never combined with Step 3 or Step 4:
+     - run `lrh chain-defaults restamp --project-root <project-root> --dry-run`;
+     - present the stale-files list verbatim and the fingerprint plan;
+     - state plainly that this accepts the *current* gate text of the
+       watched files as confirmed, and that for `changed` user-scope entries
+       LRH can show only that the content differs, not what changed;
+     - wait for explicit confirmation, then run `restamp`;
+     - re-read `lrh chain-defaults status --format json` and report
+       staleness honestly;
+     - say that the re-stamp invalidated skip consent, then offer Step 4's
+       consent grant as a separate question.
+   - Recommend the step when status shows `stale: true`; otherwise offer it
+     as optional.
+   - Step 5: the re-stamp changes `chain-defaults.yaml`, so commit it through
+     the existing Step 5 flow.
+   - Replace the "does not re-stamp" statements (`SKILL.md:152-156`,
+     `:265-267`) to match.
+6. Rendered skill targets: regenerate the `.claude`, `.agents` (Codex), and
+   `.gemini` (Antigravity) copies of `lrh-config-gates` and `lrh-land` with
+   the project's skills installer, and confirm every target is up to date.
+7. `docs/reference/cli/chain-defaults.md`:
+   - document `restamp`;
+   - correct the storage location;
+   - correct the "recorded at consent-grant time" wording.
+8. Tests (`tests/gate_staleness_test.py`, `tests/chain_defaults_status_test.py`,
+   `tests/cli_tests/chain_defaults_test.py`). Cover each case below:
+   - successful `restamp` writes the common-dir store atomically and
+     updates only the two profile lines;
+   - a missing installed target file refuses and leaves the store and the
+     profile untouched;
+   - an unresolved target refuses (regression for the `{}` bug), including
+     when every target is unresolved;
+   - a missing store fails closed, and so does a malformed one (the existing
+     test repointed to the new path);
+   - after `restamp`, `status` reports `stale: false` and `consent.valid:
+     false`;
+   - installed content changed after `restamp` → stale;
+   - `--dry-run` writes nothing and reports the stale-files list, the
+     `new`/`unchanged`/`changed`/`removed` plan, and the proposed stamp;
+   - stored entries with no remaining fingerprint targets → the empty map is
+     written;
    - two worktrees of one clone share the store; two independent clones do
      not;
-   - harness-repo (no fingerprint-kind targets) → nothing to do, exit 0.
+   - harness repo with no stored map → nothing-to-do for fingerprints, and
+     the stamp is still written.
 
 ## Non-Goals
 
-- Do not record fingerprints automatically, or as a side effect of a
-  field-value change, a consent grant, or a `confirmed_commit` re-stamp.
-- Do not change consent-hash semantics, `confirmed_commit` re-stamp rules,
-  or the `closeout_with_merge` read-only policy.
-- Do not weaken fail-closed behavior for missing/unresolved/mismatched
+- Do not record fingerprints outside a `restamp`, and do not re-stamp as a
+  side effect of a field-value change or a consent grant.
+- Do not change consent-hash binding. Removing the
+  re-stamp-invalidates-consent coupling needs a `DEC-GATE-POLICY-CASCADE`
+  Decision 4 amendment, which belongs in its own proposal.
+- Do not change the `closeout_with_merge` read-only policy.
+- Do not weaken fail-closed behaviour for missing, unresolved, or mismatched
   targets, and do not change existing stale-file reporting semantics.
-- Do not store gate-text snapshots to enable "show what changed" diffs for
-  untracked targets — defer to a follow-up if wanted.
-- Do not introduce marker-scoped fingerprinting — defer (noted in the
-  origin WI's resolution).
-- Do not edit any `GATE-DEFINITION` region of a watched skill file.
+- Do not store gate-text snapshots to show what changed in untracked targets.
+  Defer that to a follow-up if wanted.
+- Do not introduce marker-scoped fingerprinting. That is deferred, as noted
+  in the origin WI's resolution.
 
 ## Acceptance Criteria
 
-- `lrh chain-defaults record-fingerprints` records atomically to the git
-  common dir; `--dry-run` previews without writing.
-- Recording refuses with exit 2 and an untouched store on any unresolved
-  target or missing installed file; missing/malformed stores still fail
-  closed.
-- After recording, `lrh chain-defaults status` reports the targets as
-  matching the persisted fingerprint; `consent.valid` and
-  `confirmed_commit` are unchanged.
-- `/lrh-config-gates` offers recording as its own confirmed step with a
-  dry-run preview and a post-record status re-check.
+- `lrh chain-defaults restamp` re-stamps `confirmed_commit`/`confirmed_at`
+  and atomically records fingerprints to the git common dir as one command.
+  `--dry-run` previews the stale list, the fingerprint plan, and the stamp
+  without writing.
+- `restamp` refuses with exit 2 on any unresolved target or missing installed
+  file, and leaves both the store and the profile untouched. A missing or
+  malformed store still fails closed.
+- After `restamp`, `lrh chain-defaults status` reports `stale: false`, and
+  `consent.valid: false` per the existing blob-hash binding.
+- Every re-stamp site in `_shared/chain-defaults.md` and
+  `lrh-land/references/land-workflow.md` uses `restamp`.
+- `/lrh-config-gates` offers a separately confirmed re-confirm step:
+  - it shows the stale-files list and the dry-run plan;
+  - it re-reads status afterwards;
+  - it then offers the consent grant as its own question.
+
+  `_shared/chain-defaults.md` names this step as a sanctioned re-stamp
+  point.
 - Worktrees of one clone share the store; independent clones do not.
-- `lrh validate` reports 0 errors; `scripts/test` passes.
+- `lrh validate` reports 0 errors, `scripts/test` passes, and every rendered
+  skill target is up to date.
 
 ## Validation
 
@@ -229,20 +340,33 @@ Design decisions (from the `/lrh-design` session that produced this item):
 - `scripts/format --check --diff`
 - `scripts/lint`
 - `scripts/test`
-- `lrh chain-defaults record-fingerprints --project-root . --dry-run`
+- `lrh chain-defaults restamp --project-root . --dry-run`
 - `lrh chain-defaults status --project-root . --format json`
 - `lrh skills check --target claude --local`
+- `lrh skills check --target codex --local`
+- `lrh skills check --target antigravity --local`
 
 ## Risk Notes
 
-- Trust-on-first-use: recording accepts whatever is installed now. Mitigated
-  by the separate confirm, the dry-run preview, and explicit wording that
-  hashes cannot show what changed.
-- `git rev-parse --git-common-dir` returns a relative path in some
-  invocations; resolve it against `project_root`, and watch for the
-  pathlib absolute-right-operand pitfall when joining.
-- `_shared/chain-defaults.md` is a watched gate file in this repo; an edit
-  inside a `GATE-DEFINITION` region would make this repo's own chain-defaults
-  stale. Keep the added sentence outside markers.
-- Re-cloning (or `git clone` of a client repo on a new machine) loses the
-  store; this is intended and fails closed until the human re-records.
+- **Trust-on-first-use.** A re-stamp accepts whatever is installed now as
+  confirmed. Mitigations:
+  - the separate confirm;
+  - the stale-files list and dry-run preview;
+  - explicit wording that hashes cannot show what changed.
+- **Partial failure.** `restamp` writes the fingerprint store before the
+  profile. If the profile write fails, the fingerprints are new but
+  `confirmed_commit` is old, so git-tracked targets stay stale and the next
+  run takes the live path. That fails closed. Report the error and do not
+  retry silently.
+- **Re-stamp from a PR branch.** Per existing practice, a chain run on a PR
+  branch defers the re-stamp to closeout. `restamp` defers with it, since the
+  two must stay one act.
+- **Relative git common dir.** `git rev-parse --git-common-dir` returns a
+  relative path in some invocations. Resolve it against `project_root`, and
+  watch for the pathlib pitfall where joining onto an absolute right-hand
+  path discards the left.
+- **Editing `GATE-DEFINITION` regions** of `_shared/chain-defaults.md` and
+  `land-workflow.md` makes this repo's own chain-defaults stale once. The
+  implementing run's own chain gate must show it and re-confirm normally.
+- **Re-cloning loses the store** (including `git clone` of a client repo on a
+  new machine). This is intended: it fails closed until the next re-stamp.

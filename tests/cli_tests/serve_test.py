@@ -111,6 +111,21 @@ class TestLrhServeCli(unittest.TestCase):
 
         self.assertEqual(httpd.address_family, socket.AF_INET6)
 
+    def test_server_bind_never_does_a_reverse_dns_lookup(self) -> None:
+        # HTTPServer.server_bind calls socket.getfqdn(), which can block for
+        # tens of seconds on a slow resolver before the port is bound.
+        with unittest.mock.patch.object(
+            socket, "getfqdn", side_effect=AssertionError("reverse DNS lookup")
+        ):
+            httpd = serve.create_http_server(
+                serve.ServeConfig(host="127.0.0.1", port=0)
+            )
+        self.addCleanup(httpd.server_close)
+
+        self.assertEqual(httpd.server_name, "127.0.0.1")
+        self.assertEqual(httpd.server_port, httpd.server_address[1])
+        self.assertGreater(httpd.server_port, 0)
+
     def test_project_root_status_uses_name_not_file_contents(self) -> None:
         config = serve.ServeConfig(project_root=pathlib.Path("/tmp/example-project"))
         payload = serve.status_payload(config)

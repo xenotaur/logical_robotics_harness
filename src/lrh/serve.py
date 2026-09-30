@@ -2646,6 +2646,22 @@ class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
 
     daemon_threads = True
 
+    def server_bind(self) -> None:
+        """Bind without the reverse-DNS lookup ``HTTPServer`` performs.
+
+        ``http.server.HTTPServer.server_bind`` sets ``server_name`` from
+        ``socket.getfqdn(host)``. For a loopback address that is a reverse-DNS
+        query, which can block for tens of seconds on a slow or misconfigured
+        resolver (observed at about 25 s on GitHub's macOS runners) and stall
+        startup before the port is even bound. Serve never uses
+        ``server_name``, so record the literal bound host instead.
+        """
+
+        socketserver.TCPServer.server_bind(self)
+        host, port = self.server_address[:2]
+        self.server_name = str(host)
+        self.server_port = int(port)
+
 
 class ThreadingIPv6HTTPServer(ThreadingHTTPServer):
     """Threaded HTTP server configured for IPv6 loopback binds."""

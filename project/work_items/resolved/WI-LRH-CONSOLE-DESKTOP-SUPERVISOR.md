@@ -60,8 +60,9 @@ artifacts_expected:
 
 Implement the native Rust supervisor that the LRH Console app uses to own one
 `lrh serve --desktop-protocol` backend. It is a headless library module with
-integration tests. The menus, windows, and settings that call it belong to
-`WI-LRH-CONSOLE-DESKTOP-SHELL`.
+integration tests. The menus and windows that call it belong to
+`WI-LRH-CONSOLE-DESKTOP-SHELL`, and the settings, recovery pages, and browser
+handoff to `WI-LRH-CONSOLE-DESKTOP-SETTINGS` (split from SHELL on 2026-09-30).
 
 ## Problem / Context
 
@@ -137,7 +138,9 @@ gets reviewed on its own, before any UI depends on it.
 ## Non-Goals
 
 - No native menus, windows, settings storage, recovery pages, or
-  browser handoff. Those belong to `WI-LRH-CONSOLE-DESKTOP-SHELL`.
+  browser handoff. Menus and windows belong to `WI-LRH-CONSOLE-DESKTOP-SHELL`;
+  settings storage, recovery pages, and browser handoff belong to
+  `WI-LRH-CONSOLE-DESKTOP-SETTINGS` (split from SHELL on 2026-09-30).
 - No change to the Python protocol or to `lrh serve` behavior. If a protocol
   gap is found, record it and propose a protocol revision rather than working
   around it.

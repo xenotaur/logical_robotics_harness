@@ -94,6 +94,13 @@ from its first delivery stage. The rest of the original scope moved to:
 The L0 evidence gate in `WS-LRH-CONSOLE-LOCAL-DOGFOOD` is unchanged. It is
 now satisfied by those three items together, not by this one.
 
+Superseded on 2026-09-30: SHELL was split again at the configuration/recovery
+boundary. `WI-LRH-CONSOLE-DESKTOP-SHELL` now owns only windows, lifecycle
+menus, navigation and capability limits, and `capability_boundaries_test.rs`.
+`WI-LRH-CONSOLE-DESKTOP-SETTINGS` owns Settings/Details, configuration,
+recovery pages, browser handoff, and `docs/how-to/lrh-console-local-dogfood.md`.
+DOGFOOD now depends on SETTINGS.
+
 ## Problem / Context
 
 The LRH Console desktop app needs Rust and Tauri, but most LRH users only want

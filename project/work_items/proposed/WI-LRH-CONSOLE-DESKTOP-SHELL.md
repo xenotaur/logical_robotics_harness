@@ -39,7 +39,7 @@ forbidden_actions:
 - "implement_lrh_console_desktop_settings"
 acceptance:
 - "The locally built Mac app opens from the Dock into one default content window. While the owned backend runs, the window loads its Serve origin directly, with no iframe and no child-webview composition. Otherwise it shows one minimal bundled status page."
-- "Native Server > Start / Stop / Restart, View > Dashboard / Reload, and Window focus actions drive the supervisor, and each is enabled by state. Repeated Start never creates a duplicate backend. Window close keeps the app and server alive, Dock reopen restores the main window, and Quit stops the owned server within the supervisor's bounds."
+- "Native Server > Start / Stop / Restart, View > Dashboard / Reload, and Window focus actions drive the supervisor, and each is enabled by state. Repeated Start never creates a duplicate backend. Menu actions run off the UI thread and are serialized, so a Start never returns a stale error or a crash from an earlier launch. Window close keeps the app and server alive, Dock reopen restores the main window, and Quit stops the owned server within the supervisor's bounds."
 - "Dashboard content and the bundled status page cannot invoke native commands. Navigation is limited to bundled app pages and the current exact loopback origin. A stale origin is dropped on restart, and popups and external links are refused rather than opened in the app."
 - "capability_boundaries_test.rs passes in desktop CI, covering command denial, the allowed navigation set, stale-origin removal, and popup refusal."
 - "A developer can launch the app against an explicit lrh executable and workspace through documented developer-only settings, never through shell PATH lookup."
@@ -133,8 +133,8 @@ how the menus drive the supervisor:
 - A narrow Restart-then-crash race makes a queued Start return
   `ExitedUnexpectedly`.
 
-Either serialize menu actions so that neither case is reachable from the UI,
-or document the accepted behavior.
+Serialize menu actions so that neither case is reachable from the UI. This is
+required, not optional.
 
 ## Scope
 
@@ -159,8 +159,8 @@ or document the accepted behavior.
      window-focus actions.
    - Enable each action by supervisor state.
    - Run menu actions off the UI thread, and serialize them so that the two
-     PR #758 edge cases above cannot arise from the UI (or document the
-     accepted behavior).
+     PR #758 edge cases above cannot arise from the UI. Serialization is
+     required; documenting the behavior instead is not acceptable.
    - On macOS, closing the window keeps the app and server alive, Dock reopen
      restores the main window, and Quit stops the owned server within the
      supervisor's bounds.
@@ -203,18 +203,26 @@ or document the accepted behavior.
 
 ## Acceptance Criteria
 
-- The Mac app opens from the Dock into one default content window. That
-  window loads the owned Serve origin directly while the backend runs, and
-  shows a minimal bundled status page otherwise.
-- Native lifecycle menus start, stop, and restart the owned backend, and
-  their state is reflected in the window.
-- Repeated Start never creates a duplicate backend.
-- Close, reopen, and Quit follow the documented Mac behavior.
-- Dashboard content and the status page cannot invoke native commands.
-- Navigation is limited to bundled pages and the current exact loopback
-  origin. Popups and external links are refused.
-- `capability_boundaries_test.rs` passes in desktop CI.
-- Developer launch uses explicit settings, with no PATH lookup.
+- The locally built Mac app opens from the Dock into one default content
+  window. While the owned backend runs, the window loads its Serve origin
+  directly, with no iframe and no child-webview composition. Otherwise it
+  shows one minimal bundled status page.
+- Native Server > Start / Stop / Restart, View > Dashboard / Reload, and
+  Window focus actions drive the supervisor, and each is enabled by state.
+  Repeated Start never creates a duplicate backend. Menu actions run off the
+  UI thread and are serialized, so a Start never returns a stale error or a
+  crash from an earlier launch. Window close keeps the app and server alive,
+  Dock reopen restores the main window, and Quit stops the owned server within
+  the supervisor's bounds.
+- Dashboard content and the bundled status page cannot invoke native commands.
+  Navigation is limited to bundled app pages and the current exact loopback
+  origin. A stale origin is dropped on restart, and popups and external links
+  are refused rather than opened in the app.
+- capability_boundaries_test.rs passes in desktop CI, covering command denial,
+  the allowed navigation set, stale-origin removal, and popup refusal.
+- A developer can launch the app against an explicit lrh executable and
+  workspace through documented developer-only settings, never through shell
+  PATH lookup.
 
 ## Validation
 

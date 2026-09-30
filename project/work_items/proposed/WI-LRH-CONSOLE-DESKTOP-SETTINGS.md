@@ -170,17 +170,29 @@ than being left as undocumented developer setup.
 
 ## Acceptance Criteria
 
-- Configuration is private, explicit, and validated. Invalid changes keep the
-  previous working values and explain recovery.
-- The Settings / Server Details window opens on demand without duplicating,
-  and its details are accurate.
-- The recovery pages work without a running backend and show actionable,
-  secret-free diagnostics.
-- The embedded view and Chrome show the same selected project. Workspace
-  mismatch and browser absence are explicit, not a silent fallback.
-- Only the Settings window reaches its narrow commands, and the extended
-  capability tests prove it.
-- The dogfood how-to, including its checklist, is complete.
+- The lrh executable, workspace, browser preference, and start-on-app-open
+  setting are stored in private local app configuration and validated. Invalid
+  changes keep the last working values and explain recovery. A workspace
+  switch is restart-scoped, and first run guides explicit setup without
+  relying on shell PATH or Conda activation.
+- One on-demand Settings / Server Details window opens from Server > Details
+  and the platform Settings menu, and reopens or focuses rather than
+  duplicating. Closing it never stops the server. Details shows the actual
+  ownership, endpoint, configured workspace, and protocol and backend
+  versions.
+- Bundled setup, starting, stopped, failed, and incompatible pages work
+  without the Python server. They show actionable failures and a bounded
+  diagnostic history without leaking environment secrets.
+- View > Open in Chrome and approved external links hand off to a browser. The
+  embedded view and Chrome show the same selected project, with a recorded
+  interaction matrix and an explained, safe default-browser fallback when
+  Chrome is absent.
+- Only the Settings window can reach its narrow, validated native commands.
+  capability_boundaries_test.rs is extended to prove that the dashboard and
+  the recovery pages still cannot.
+- docs/how-to/lrh-console-local-dogfood.md documents setup, build/run,
+  lifecycle, recovery, limitations, exact validation commands, and the manual
+  macOS checklist that WI-LRH-CONSOLE-DESKTOP-DOGFOOD runs.
 
 ## Validation
 

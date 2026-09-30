@@ -20,7 +20,8 @@ expected_actions:
   - create_file
   - edit_file
   - create_report
-  - add_cli_command
+  - run_tests
+  - write_docs
 forbidden_actions:
   - force_push
   - delete_branch
@@ -28,8 +29,9 @@ forbidden_actions:
 acceptance:
   - "An audit artifact enumerates git/gh mutation operations (branch/PR create, push, merge, modify) used across LRH skills, each flagged for known or plausible auto-mode-classifier denial risk, evidence-linked to PR #742's gh pr merge --match-head-commit denial"
   - A backend-abstraction design documents an interface separating a stereotyped VCS action (create branch, push, open PR, SHA-locked merge) from the concrete backend executing it, with git/GitHub as the first implementation
-  - At least the SHA-locked merge action from /lrh-confirm-fixes and /lrh-land's merge gate is exposed through the new interface for the git/GitHub backend
-  - The tool surfaces a classifier/permission denial clearly rather than retrying or silently bypassing it
+  - "The SHA-locked merge action is wired into /lrh-confirm-fixes Step 8 and /lrh-land Step 6 (and their rendered .claude/.agents mirrors) so both skills invoke the new backend for that action instead of presenting a raw gh pr merge string -- not merely available as an unused method"
+  - The backend surfaces a subprocess/permission error it can actually observe (a non-zero gh/git exit, a raised exception) clearly, rather than retrying or silently swallowing it
+  - "The work item's own documentation states plainly that a pre-launch harness/classifier denial (before the backend's process starts) is out of the backend's observable scope and remains the calling skill's/session's responsibility to report -- not something this backend can or should try to detect"
   - lrh validate and scripts/test pass
 required_evidence:
   - manual_review
@@ -38,6 +40,8 @@ required_evidence:
 artifacts_expected:
   - project/audits/2026-09-28-vcs-mutation-operations-audit.md
   - src/lrh/vcs/backend.py (or equivalent module path, name TBD by implementor)
+  - tests/vcs_backend_test.py (or equivalent, TBD by implementor)
+  - docs/reference/vcs-backend.md (or equivalent, TBD by implementor)
 ---
 
 ## Summary
@@ -90,8 +94,9 @@ shape.
 1. Grep across `src/lrh/skills/` (and the `.claude/`/`.agents/` rendered mirrors as needed) for every `gh`/`git` command that creates, pushes, modifies, or merges a branch or PR — e.g. `gh pr merge`, `gh pr create`, `git push`, `git checkout -b`, `resolveReviewThread` via `gh api graphql` — and record which are known (from session/memory evidence) or plausible denial candidates.
 2. Write the audit findings to `project/audits/2026-09-28-vcs-mutation-operations-audit.md`, one row per operation, citing evidence.
 3. Design a backend interface (e.g. `src/lrh/vcs/backend.py`, exact module path at implementor's discretion) with a protocol/ABC covering the stereotyped actions named above, and a `GitHubBackend` (or similarly named) implementation using `gh`/`git` under the hood.
-4. Implement at least the SHA-locked merge action through this interface, and make it available to `/lrh-confirm-fixes`'s and `/lrh-land`'s existing merge one-liner (wiring those skills to use it is in scope only if it doesn't require redesigning their gate logic — see Non-Goals).
-5. Document the new interface and its extension points (how a future backend would implement it) in the relevant `docs/reference/` location.
+4. **Mandatory wiring, not optional:** replace the raw `gh pr merge ... --match-head-commit <sha>` string that `/lrh-confirm-fixes/SKILL.md` (Step 8's Green-verdict one-liner, currently at `:606-612` and `:729-734`) and `/lrh-land/SKILL.md` (Step 6's Half A merge command, currently at `:392-395`) each present, so both skills invoke the new backend's merge action instead. Update the rendered `.claude/`/`.agents/` mirrors to match. This wiring is the concrete fix for the motivating denial (PR #742) — an implementation that adds the backend without touching these two skills does not satisfy this work item. This does not require redesigning either skill's human-authorization gate logic (`DEC-AGENT-EXECUTED-MERGE-GATE`) — only what emits the merge command changes, not who authorizes it or when (see Non-Goals).
+5. Add a test (`tests/vcs_backend_test.py` or equivalent) verifying the backend's merge action, and, where practically testable, that the two skills' rendered instructions/logic actually route through it rather than a bare `gh pr merge` string.
+6. Document the new interface, its extension points (how a future backend would implement it), and — explicitly — the scope boundary between what the backend can observe (a `gh`/`git` subprocess's non-zero exit or an exception in the backend's own code) and what it cannot (a pre-launch harness/classifier denial, which happens before the backend's process ever starts and is therefore the calling skill's/session's responsibility to report, not the backend's) in `docs/reference/vcs-backend.md` or an equivalent `docs/reference/` location.
 
 ## Non-Goals
 
@@ -99,13 +104,15 @@ shape.
 - Does not attempt to influence, detect, or reverse-engineer the auto-mode classifier's internal decision logic — that is outside LRH's control. The goal is a narrower, more legible invocation surface, not a guaranteed bypass.
 - Does not change the existing human-authorization merge gate design (`DEC-AGENT-EXECUTED-MERGE-GATE`, `/lrh-land` Step 6, `/lrh-confirm-fixes` Step 8) — this item is about the underlying invocation mechanism those gates call once authorized, not the authorization policy itself.
 - Does not attempt to cover every possible classifier-denied operation (e.g. `git reset --hard`, `git clean`) beyond the create/push/modify/merge-PR operations named in scope — other denied operations already have documented safer alternatives and are out of scope unless the audit finds they share the same stereotyped-command shape.
+- Does not attempt to detect, intercept, or report a pre-launch harness/classifier denial from inside the backend — that denial occurs before the backend's process starts, so no code in this work item's scope ever runs to observe it. The backend's own error-surfacing is limited to errors it can actually receive (a `gh`/`git` subprocess's non-zero exit, an exception in its own code); the pre-launch case remains the calling skill's/session's existing responsibility (report plainly, hand the command to the human), unchanged by this work item.
 
 ## Acceptance Criteria
 
 - An audit artifact enumerates git/gh mutation operations used across LRH skills, each flagged for known or plausible auto-mode-classifier denial risk, evidence-linked to PR #742's denial.
 - A backend-abstraction design documents an interface separating a stereotyped VCS action from the concrete backend executing it, with git/GitHub as the first implementation.
-- At least the SHA-locked merge action is exposed through the new interface for the git/GitHub backend.
-- The tool surfaces a classifier/permission denial clearly rather than retrying or silently bypassing it.
+- The SHA-locked merge action is wired into `/lrh-confirm-fixes` Step 8 and `/lrh-land` Step 6 (and their rendered mirrors) so both skills invoke the new backend for that action instead of presenting a raw `gh pr merge` string — not merely available as an unused method.
+- The backend surfaces a subprocess/permission error it can actually observe (a non-zero `gh`/`git` exit, a raised exception) clearly, rather than retrying or silently swallowing it.
+- The documentation states plainly that a pre-launch harness/classifier denial (before the backend's process starts) is out of the backend's observable scope and remains the calling skill's/session's responsibility to report — not something this backend can or should try to detect.
 - `lrh validate` and `scripts/test` pass.
 
 ## Validation

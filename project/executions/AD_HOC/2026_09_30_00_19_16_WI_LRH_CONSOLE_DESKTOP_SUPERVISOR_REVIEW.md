@@ -58,7 +58,28 @@ The same commit adds test-only CI diagnostics:
 - `start_real` reports the start duration and that stderr tail when a start
   fails.
 
-The macOS root cause is still open and waits on the next CI run.
+**Root cause of the macOS failure.** It is fixed in `1c331d7e`.
+
+- **Evidence.** The diagnostic CI run on `fcd4ea16` failed again, and the
+  stack dumps showed every stalled backend's main thread in
+  `socket.getfqdn`. The call chain is `http.server.HTTPServer.server_bind` →
+  `serve.create_http_server` → `desktop_protocol.run_session`. Each start
+  took about 25 s.
+- **Cause.** `HTTPServer.server_bind` sets `server_name` through a
+  reverse-DNS lookup of the loopback address. That lookup blocks on the
+  runner's resolver before the port is even bound.
+- **Fix.** `serve.ThreadingHTTPServer.server_bind` now records the literal
+  bound host instead. Serve never uses `server_name`, and the change covers
+  both foreground and desktop mode.
+- **Test.** `test_server_bind_never_does_a_reverse_dns_lookup` makes
+  `getfqdn` raise, and checks that the server still binds and keeps the
+  literal host.
+- **Scope.** The work item's Non-Goals excluded `lrh serve` changes. The
+  owner approved this fix and asked to revisit that decision, so the
+  approved scope revision is recorded in
+  `WI-LRH-CONSOLE-DESKTOP-SUPERVISOR.md`.
+- **Diagnostics.** The test-only stall diagnostics stay in place for future
+  failures.
 
 # Validation
 
@@ -68,7 +89,11 @@ The macOS root cause is still open and waits on the next CI run.
   `scripts/test --desktop`, `lrh validate`, and `scripts/check-workflows` all
   pass.
 
+- After the serve fix, the full validation passed again:
+  `scripts/test --desktop`, including 68 serve tests, plus format, lint,
+  `lrh validate`, and `scripts/check-workflows`.
+
 # Follow-up
 
-- Read the macOS CI diagnostics, fix the stall's root cause, and then run
-  confirm-fixes.
+- Confirm-fixes: resolve the 4 threads, run a substitute cold review of the
+  new HEAD, and check CI, including macOS.

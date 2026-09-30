@@ -154,7 +154,7 @@ revised during PR #753 review):
   ("must not silently record an empty/partial fingerprint set").
 - **Hashes only, in either location.** Neither the chain gate nor
   config-gates can show *what* changed in a user-scope target: only hashes
-  are stored, and the reasons come from `src/lrh/gate_staleness.py:541-567`.
+  are stored, and the reasons come from `src/lrh/gate_staleness.py:545-567`.
   Content snapshots are deferred.
 - **Correction to the seeding suggestion.** It cited
   `src/lrh/skills/_shared/chain-defaults.md:113-128` as documenting
@@ -261,8 +261,25 @@ revised during PR #753 review):
        consent grant as a separate question.
    - Recommend the step when status shows `stale: true`; otherwise offer it
      as optional.
-   - Step 5: the re-stamp changes `chain-defaults.yaml`, so commit it through
-     the existing Step 5 flow.
+   - Step 5: widen its trigger. Today it runs only "if Step 3 made changes"
+     (`SKILL.md:210-213`), so a re-stamp on its own would never be committed.
+     It must also run when the re-confirm step re-stamped. The consent grant
+     alone still has nothing to commit.
+   - Re-confirm on a PR branch: if `<project-root>` is on a feature branch
+     tied to an open PR, do not commit the re-stamp onto that branch. The
+     stamp would name a commit that is not on `main`, and it would mix
+     policy state into an unrelated PR. The step always runs on Step 5's
+     `main` path:
+     - create the tmp branch from `origin/main`;
+     - run `restamp` there, so `confirmed_commit` = `origin/main`'s HEAD;
+     - commit;
+     - get the explicit push-to-`main` confirmation Step 5 already requires;
+     - push;
+     - return to the original branch.
+
+     If the user declines the `main` push, report that the profile is
+     unchanged on `main`. The fingerprint store has already been written to
+     the common dir, so the re-stamp must be re-run from `main` later.
    - Replace the "does not re-stamp" statements (`SKILL.md:152-156`,
      `:265-267`) to match.
 6. Rendered skill targets: regenerate the `.claude`, `.agents` (Codex), and
@@ -358,9 +375,21 @@ revised during PR #753 review):
   `confirmed_commit` is old, so git-tracked targets stay stale and the next
   run takes the live path. That fails closed. Report the error and do not
   retry silently.
-- **Re-stamp from a PR branch.** Per existing practice, a chain run on a PR
-  branch defers the re-stamp to closeout. `restamp` defers with it, since the
-  two must stay one act.
+- **Re-stamp from a PR branch.** Two cases:
+  - **Chain run.** Per existing practice, a chain run on a PR branch defers
+    the re-stamp to closeout, and `restamp` defers with it, since the two
+    must stay one act.
+  - **`/lrh-config-gates`.** The re-confirm step never re-stamps onto a PR
+    branch; it always goes through Step 5's `main` path (see Required
+    Changes 5).
+
+  In both cases `confirmed_commit` names a commit on `main`.
+- **Declined `main` push after the store was written.** If the `main` push
+  is declined, the store holds new fingerprints but `main`'s
+  `confirmed_commit` is unchanged. Git-tracked targets then stay stale, so
+  the next run takes the live path. This is the same fail-closed outcome as
+  the partial-failure case above, so the store-then-profile order in
+  Required Changes 2 stays as it is. Report the declined push plainly.
 - **Relative git common dir.** `git rev-parse --git-common-dir` returns a
   relative path in some invocations. Resolve it against `project_root`, and
   watch for the pathlib pitfall where joining onto an absolute right-hand

@@ -1096,11 +1096,13 @@ impl Supervisor {
 
     /// Stops the owned child and refuses every later launch (app Quit).
     ///
-    /// The latch is set under the operation lock, so a Start or Restart that
-    /// was queued before Quit cannot spawn a new child afterwards.
+    /// The latch is published before waiting for the operation lock, so a
+    /// Start or Restart queued behind an in-flight operation is refused even
+    /// if it acquires the lock first. A launch already under way finishes and
+    /// is then stopped here.
     pub fn shutdown(&self) -> Option<StopResult> {
-        let mut current = lock(&self.current);
         self.shut_down.store(true, Ordering::SeqCst);
+        let mut current = lock(&self.current);
         let result = self.stop_locked(&mut current);
         self.set_status(State::Stopped, None, None, result.as_ref());
         result

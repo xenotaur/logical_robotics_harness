@@ -87,6 +87,13 @@ pub fn dev_launch_config(env: impl Fn(&str) -> Option<OsString>) -> Result<Launc
             let mut config = LaunchConfig::new(python, workspace);
             config.program_args = vec!["-m".into(), "lrh.cli.main".into()];
             if let Some(pythonpath) = env(ENV_PYTHONPATH).filter(|value| !value.is_empty()) {
+                // A relative entry would resolve against the app's launch
+                // directory and could import the wrong checkout.
+                if !std::env::split_paths(&pythonpath).all(|entry| entry.is_absolute()) {
+                    return Err(format!(
+                        "every {ENV_PYTHONPATH} entry must be an absolute path"
+                    ));
+                }
                 config.env.push(("PYTHONPATH".into(), pythonpath));
             }
             config
@@ -561,6 +568,15 @@ mod tests {
             (ENV_WORKSPACE, "/w"),
         ]))
         .is_err());
+        assert!(
+            dev_launch_config(env_of(&[
+                (ENV_PYTHON, "/x/python"),
+                (ENV_PYTHONPATH, "/repo/src:src"),
+                (ENV_WORKSPACE, "/w"),
+            ]))
+            .is_err(),
+            "a relative PYTHONPATH entry must be refused"
+        );
     }
 
     #[test]

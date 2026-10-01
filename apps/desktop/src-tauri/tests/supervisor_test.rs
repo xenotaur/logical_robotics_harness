@@ -260,6 +260,54 @@ fn shutdown_stops_the_backend_and_refuses_later_launches() {
 }
 
 #[test]
+fn a_restart_queued_behind_a_launch_is_refused_once_shutdown_starts() {
+    // Regression: shutdown must publish its latch before waiting for the
+    // operation lock, or a queued Restart can win the lock and launch after
+    // Quit was requested.
+    let count_file = std::env::temp_dir().join(format!("lrh-sup-shutdown-{}", std::process::id()));
+    let _ = std::fs::remove_file(&count_file);
+    let body = r#"open(os.environ["FAKE_COUNT_FILE"], "a").write("launch\n")
+time.sleep(1)
+ready()
+time.sleep(60)"#;
+    let mut config = fake_config(body);
+    config.env = vec![(
+        "FAKE_COUNT_FILE".into(),
+        count_file.clone().into_os_string(),
+    )];
+    let supervisor = Arc::new(Supervisor::new(config));
+
+    let first = {
+        let supervisor = Arc::clone(&supervisor);
+        thread::spawn(move || supervisor.start())
+    };
+    thread::sleep(Duration::from_millis(300));
+    let queued = {
+        let supervisor = Arc::clone(&supervisor);
+        thread::spawn(move || supervisor.restart())
+    };
+    thread::sleep(Duration::from_millis(200));
+    supervisor.shutdown();
+
+    assert!(
+        first.join().unwrap().is_ok(),
+        "the in-flight launch completes"
+    );
+    assert_eq!(
+        queued.join().unwrap().unwrap_err().kind,
+        ErrorKind::ShutDown
+    );
+    let launches = std::fs::read_to_string(&count_file).unwrap();
+    let _ = std::fs::remove_file(&count_file);
+    assert_eq!(
+        launches.lines().count(),
+        1,
+        "nothing launched after shutdown"
+    );
+    assert!(supervisor.child_pid().is_none());
+}
+
+#[test]
 fn a_missing_program_is_a_spawn_failure() {
     let mut config = lrh_config();
     config.program = repo_root().join("no-such-lrh-executable");

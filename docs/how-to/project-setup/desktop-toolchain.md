@@ -120,7 +120,7 @@ absolute; nothing is looked up on `PATH`.
 | --- | --- |
 | `LRH_CONSOLE_LRH_EXECUTABLE` | The `lrh` executable to supervise. |
 | `LRH_CONSOLE_PYTHON` | Instead of the above, a Python interpreter that runs `-m lrh.cli.main` (for a source checkout). |
-| `LRH_CONSOLE_PYTHONPATH` | Optional `PYTHONPATH` for the `LRH_CONSOLE_PYTHON` form, such as `<repo>/src`. |
+| `LRH_CONSOLE_PYTHONPATH` | Optional `PYTHONPATH` for the `LRH_CONSOLE_PYTHON` form, such as `<repo>/src`. Every entry must be absolute. |
 | `LRH_CONSOLE_WORKSPACE` | The LRH workspace to serve. |
 
 Set exactly one of the first two. The variables only reach the app when you

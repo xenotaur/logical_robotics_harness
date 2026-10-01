@@ -41,8 +41,8 @@ the Settings window opens. Fill in:
   Every path must be absolute. The app never searches your shell `PATH` and
   never activates Conda, because apps opened from the Dock don't see your
   shell's environment.
-- **Workspace:** the absolute path of an LRH repository root, the directory
-  that contains `project/`.
+- **Workspace:** the absolute path of an LRH repository root. Its
+  `project/` directory must contain `focus/` and `work_items/`.
 - **Browser:** Google Chrome or the default browser. External links and
   **View > Open in …** use this choice.
 - **Start the server when LRH Console opens:** on by default.

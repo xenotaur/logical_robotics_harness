@@ -363,6 +363,7 @@ class AppBundleAndLaunchTest(DesktopModesTestBase):
         self.assertIn(f"LRH_CONSOLE_WORKSPACE={workspace}", result.stdout)
         self.assertIn(f"LRH_CONSOLE_PYTHONPATH={repo_root}/src", result.stdout)
         self.assertRegex(result.stdout, r"LRH_CONSOLE_PYTHON=/\S+")
+        self.assertIn("-u LRH_CONSOLE_LRH_EXECUTABLE", result.stdout)
         self.assertEqual(self._rust_calls(), [])
 
     def test_launch_refuses_a_missing_workspace_and_unknown_options(self) -> None:

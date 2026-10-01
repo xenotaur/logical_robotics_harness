@@ -609,6 +609,16 @@ impl OwnedServer {
         self.finish(true)
     }
 
+    /// Sends `shutdown` and closes stdin without waiting for the exit. For an
+    /// exiting parent only: the child stops itself and is never reaped here.
+    pub fn request_stop(&mut self) {
+        if self.child.is_some() && !self.exited {
+            let message = control_message("shutdown", &self.launch_id, None);
+            self.send(&message);
+            self.close_stdin();
+        }
+    }
+
     /// Closes stdin without a message, as a crashed parent would.
     pub fn close_channel(&mut self) -> StopResult {
         self.finish(false)
@@ -1132,8 +1142,12 @@ impl Supervisor {
         let Ok(mut current) = self.current.try_lock() else {
             return false;
         };
-        let result = self.stop_locked(&mut current);
-        self.set_status(State::Stopped, None, None, result.as_ref());
+        // Ask the idle child to stop and close its channel, but do not wait:
+        // this runs on the exiting app's event loop. The child stops itself
+        // on `shutdown` or stdin EOF, and the OS reaps it after we exit.
+        if let Some(server) = current.as_mut() {
+            server.request_stop();
+        }
         true
     }
 

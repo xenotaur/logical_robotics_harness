@@ -667,10 +667,12 @@ fn startup_config(store: Option<&ConfigStore>) -> StartupConfig {
                 source: ConfigSource::Environment,
                 problem: None,
             },
+            // An invalid override still owns this session: Settings saves
+            // only write the file, and the error stays visible.
             Err(problem) => StartupConfig {
                 launch: None,
                 config: None,
-                source: ConfigSource::None,
+                source: ConfigSource::Environment,
                 problem: Some(format!("developer settings: {problem}")),
             },
         };

@@ -108,10 +108,10 @@ pub fn validate(config: &Config) -> Result<(), Vec<FieldError>> {
             "workspace",
             format!("{} is not a directory", workspace.display()),
         ));
-    } else if !(workspace.join("project").is_dir() || is_control_dir(workspace)) {
+    } else if !is_lrh_workspace(workspace) {
         errors.push(field_error(
             "workspace",
-            "not an LRH workspace: expected a project/ directory inside it",
+            "not an LRH workspace: expected project/focus and project/work_items inside it",
         ));
     }
     if errors.is_empty() {
@@ -148,9 +148,12 @@ fn is_executable(path: &Path) -> bool {
     path.is_file()
 }
 
-/// True for an LRH `project/` control directory itself.
-fn is_control_dir(path: &Path) -> bool {
-    path.file_name().is_some_and(|name| name == "project") && path.join("work_items").is_dir()
+/// True for what the backend accepts as a workspace (mirrors
+/// `lrh.control.loader.find_project_dir`): a control directory with `focus/`
+/// and `work_items/`, or a repository root whose `project/` has both.
+fn is_lrh_workspace(path: &Path) -> bool {
+    let is_control = |dir: &Path| dir.join("focus").exists() && dir.join("work_items").exists();
+    is_control(path) || is_control(&path.join("project"))
 }
 
 /// The supervisor launch config for a validated configuration.
@@ -289,7 +292,8 @@ mod tests {
     /// A fake workspace and executable inside `dir`.
     fn fixture(dir: &Path) -> Config {
         let workspace = dir.join("ws");
-        std::fs::create_dir_all(workspace.join("project")).unwrap();
+        std::fs::create_dir_all(workspace.join("project/focus")).unwrap();
+        std::fs::create_dir_all(workspace.join("project/work_items")).unwrap();
         let program = dir.join("lrh");
         std::fs::write(&program, "#!/bin/sh\n").unwrap();
         #[cfg(unix)]
@@ -351,6 +355,16 @@ mod tests {
         let errors = validate(&config).unwrap_err();
         assert_eq!(errors[0].field, "workspace");
         assert!(errors[0].message.contains("not an LRH workspace"));
+    }
+
+    #[test]
+    fn an_empty_project_directory_is_not_a_workspace() {
+        let dir = TempDir::new("emptyproject");
+        let mut config = fixture(&dir.0);
+        let bare = dir.0.join("bare");
+        std::fs::create_dir_all(bare.join("project")).unwrap();
+        config.workspace = bare;
+        assert_eq!(validate(&config).unwrap_err()[0].field, "workspace");
     }
 
     #[test]

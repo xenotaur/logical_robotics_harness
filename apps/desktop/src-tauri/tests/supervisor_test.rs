@@ -341,8 +341,44 @@ fn try_shutdown_never_waits_for_an_in_flight_launch() {
     );
 
     let _ = launch.join().unwrap();
-    assert!(supervisor.try_shutdown(), "idle: it stops the child");
-    assert!(supervisor.child_pid().is_none());
+    let pid = supervisor
+        .child_pid()
+        .expect("the launch finished with a child");
+    let started = Instant::now();
+    assert!(supervisor.try_shutdown(), "idle: it asks the child to stop");
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "never waits for the exit"
+    );
+    // This fake ignores `shutdown` and stdin, so only check that the request
+    // did not block; dropping the supervisor reaps it. A real backend exits
+    // on its own (see the next test).
+    let _ = pid;
+}
+
+#[cfg(unix)]
+#[test]
+fn try_shutdown_of_an_idle_real_backend_lets_it_exit_on_its_own() {
+    let supervisor = Supervisor::new(lrh_config());
+    start_real(&supervisor);
+    let pid = supervisor.child_pid().expect("owned child");
+
+    let started = Instant::now();
+    assert!(supervisor.try_shutdown());
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "never waits"
+    );
+    // The backend handles `shutdown` (or stdin EOF) by itself. The supervisor
+    // still holds the handle, so poll its exit through the status refresh.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline && supervisor.state() != State::Failed {
+        thread::sleep(Duration::from_millis(50));
+    }
+    assert!(
+        wait_until_dead(pid, Duration::from_secs(2)),
+        "the backend exited"
+    );
 }
 
 #[test]

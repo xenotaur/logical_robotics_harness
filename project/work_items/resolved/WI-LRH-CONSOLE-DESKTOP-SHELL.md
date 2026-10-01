@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-SHELL"
 title: "Build the LRH Console desktop shell: windows, lifecycle menus, and boundaries"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #762 (commit 3fed7dac): Dock app main window with bundled status page or the owned Serve origin, serialized native lifecycle menus, macOS close/reopen/Quit, navigation and capability boundaries with capability_boundaries_test.rs, developer launch settings, the LRH app icon with macOS bundling, and a Quit shutdown latch in the supervisor. Owner Mac smoke pass: all 8 steps passed.'
 owner: "anthony"
 contributors:
 - "anthony"

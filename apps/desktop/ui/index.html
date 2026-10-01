@@ -4,12 +4,14 @@
     <meta charset="utf-8">
     <title>LRH Console</title>
     <link rel="stylesheet" href="style.css">
+    <script src="status.js" defer></script>
   </head>
   <body>
     <main>
       <h1>LRH Console</h1>
-      <p>This is the L0 toolchain skeleton. The owned LRH Serve view, Server menu,
-        and Settings window arrive in the next change.</p>
+      <p id="state" class="state" role="status" aria-live="polite">Loading…</p>
+      <p id="detail"></p>
+      <p id="code" class="code" hidden></p>
     </main>
   </body>
 </html>

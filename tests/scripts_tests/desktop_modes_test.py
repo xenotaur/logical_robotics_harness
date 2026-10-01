@@ -98,7 +98,7 @@ FAKE_PYTHON = """\
 # Each failure case: stubs to omit, environment overrides, and text the
 # desktop error on stderr must contain.
 FAILURE_CASES = {
-    "rustup_absent": ({"rustup"}, {}, "rustup"),
+    "rustup_absent": ({"rustup"}, {}, "rustup not found"),
     "cargo_absent": ({"cargo"}, {}, "cargo not found"),
     "toolchain_not_installed": (
         set(),
@@ -197,7 +197,7 @@ class DesktopModesTestBase(unittest.TestCase):
             "PATH": os.pathsep.join(path_entries),
             "HOME": str(self.home),
             "FAKE_LOG": str(self.log),
-            "LRH_DESKTOP_XDO_HEADER": str(self.xdo_header),
+            "LRH_DESKTOP_TEST_XDO_HEADER": str(self.xdo_header),
             "FAKE_TOOLCHAINS": f"{RUST_PIN}-fake-host",
             "FAKE_RUSTC_VERSION": RUST_PIN,
             "FAKE_COMPONENTS": "rustfmt-fake-host clippy-fake-host",
@@ -321,10 +321,15 @@ class LinuxPrerequisitesTest(DesktopModesTestBase):
         result = self._run_as_linux()
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        # Prove the Linux branch ran, not the Darwin one.
+        self.assertIn(
+            "pkg-config --exists webkit2gtk-4.1",
+            self.log.read_text(encoding="utf-8").splitlines(),
+        )
 
     def test_linux_preflight_names_missing_libxdo_header(self) -> None:
         result = self._run_as_linux(
-            env_overrides={"LRH_DESKTOP_XDO_HEADER": str(self.root / "absent.h")}
+            env_overrides={"LRH_DESKTOP_TEST_XDO_HEADER": str(self.root / "absent.h")}
         )
 
         self.assertNotEqual(result.returncode, 0, result.stdout + result.stderr)

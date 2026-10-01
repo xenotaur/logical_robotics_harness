@@ -1,15 +1,18 @@
 //! LRH Console desktop shell.
 //!
-//! One bundled window and one read-only command, plus the owned-server
-//! [`supervisor`] (WI-LRH-CONSOLE-DESKTOP-SUPERVISOR). Native menus,
-//! Settings/Details, and recovery pages that drive the supervisor arrive with
-//! WI-LRH-CONSOLE-DESKTOP-SHELL.
+//! The [`shell`] owns the main window, the lifecycle menus, and the
+//! navigation policy, and drives the owned-server [`supervisor`]
+//! (WI-LRH-CONSOLE-DESKTOP-SHELL, WI-LRH-CONSOLE-DESKTOP-SUPERVISOR). Private
+//! configuration, Settings/Details, recovery pages, and browser handoff arrive
+//! with WI-LRH-CONSOLE-DESKTOP-SETTINGS.
 
+pub mod shell;
 pub mod supervisor;
 
 use serde::Serialize;
+use tauri::{Manager, RunEvent, WindowEvent};
 
-/// Static identity of this desktop build, safe to show in bundled pages.
+/// Static identity of this desktop build.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct AppInfo {
     pub name: &'static str,
@@ -22,10 +25,13 @@ pub fn app_info() -> AppInfo {
     AppInfo {
         name: "LRH Console",
         version: env!("CARGO_PKG_VERSION"),
-        stage: "L0 toolchain skeleton",
+        stage: "L0 shell",
     }
 }
 
+/// Registered so its permission is generated, but granted to no window: the
+/// main window's content gets no app commands. The Settings window
+/// (WI-LRH-CONSOLE-DESKTOP-SETTINGS) is its intended caller.
 #[tauri::command]
 fn get_app_info() -> AppInfo {
     app_info()
@@ -40,99 +46,53 @@ pub fn with_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Bu
 ///
 /// `generate_context!` embeds platform metadata and may be expanded only once
 /// per crate, so the app and the tests share this single expansion.
-fn context<R: tauri::Runtime>() -> tauri::Context<R> {
+#[doc(hidden)]
+pub fn context<R: tauri::Runtime>() -> tauri::Context<R> {
     tauri::generate_context!()
 }
 
 /// Runs the desktop app.
 pub fn run() {
-    with_commands(tauri::Builder::default())
-        .run(context())
-        .expect("error while running LRH Console");
+    let app = with_commands(tauri::Builder::default())
+        .setup(|app| {
+            shell::setup(app.handle())?;
+            Ok(())
+        })
+        .on_menu_event(|app, event| shell::handle_menu(app, event.id().as_ref()))
+        .on_window_event(|window, event| {
+            // On macOS, closing the main window keeps the app and its server
+            // running; the Dock icon brings the window back.
+            if cfg!(target_os = "macos") && window.label() == shell::MAIN_WINDOW {
+                if let WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = window.hide();
+                }
+            }
+        })
+        .build(context())
+        .expect("error while building LRH Console");
+    app.run(|app, event| match event {
+        #[cfg(target_os = "macos")]
+        RunEvent::Reopen { .. } => shell::show_main(app),
+        // Quit stops the owned server, within the supervisor's bounds. The
+        // state is absent only if setup failed, and then nothing was started.
+        RunEvent::Exit => {
+            if let Some(state) = app.try_state::<shell::ShellState>() {
+                state.shutdown();
+            }
+        }
+        _ => {}
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn build_app() -> tauri::App<tauri::test::MockRuntime> {
-        with_commands(tauri::test::mock_builder())
-            .build(context())
-            .expect("failed to build mock app")
-    }
-
-    /// The origin Tauri serves bundled pages from on this platform.
-    #[cfg(not(windows))]
-    const LOCAL_ORIGIN: &str = "tauri://localhost";
-    #[cfg(windows)]
-    const LOCAL_ORIGIN: &str = "http://tauri.localhost";
-
-    fn invoke_request(cmd: &str, origin: &str) -> tauri::webview::InvokeRequest {
-        tauri::webview::InvokeRequest {
-            cmd: cmd.into(),
-            callback: tauri::ipc::CallbackFn(0),
-            error: tauri::ipc::CallbackFn(1),
-            url: origin.parse().unwrap(),
-            body: tauri::ipc::InvokeBody::default(),
-            headers: Default::default(),
-            invoke_key: tauri::test::INVOKE_KEY.to_string(),
-        }
-    }
-
     #[test]
     fn app_info_reports_package_version() {
         let info = app_info();
         assert_eq!(info.name, "LRH Console");
         assert_eq!(info.version, env!("CARGO_PKG_VERSION"));
-    }
-
-    #[test]
-    fn main_window_may_read_app_info() {
-        let app = build_app();
-        let window = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
-            .build()
-            .expect("failed to build main window");
-
-        let response =
-            tauri::test::get_ipc_response(&window, invoke_request("get_app_info", LOCAL_ORIGIN))
-                .expect("bundled pages in the main window may call get_app_info");
-        let value: serde_json::Value = response.deserialize().expect("json response");
-        assert_eq!(value["name"], "LRH Console");
-    }
-
-    #[test]
-    fn unlisted_window_is_denied_app_commands() {
-        let app = build_app();
-        let window = tauri::WebviewWindowBuilder::new(&app, "untrusted", Default::default())
-            .build()
-            .expect("failed to build untrusted window");
-
-        let error =
-            tauri::test::get_ipc_response(&window, invoke_request("get_app_info", LOCAL_ORIGIN))
-                .expect_err("a window without a capability must not reach app commands");
-        assert!(
-            format!("{error:?}").contains("not allowed"),
-            "expected an ACL denial, got {error:?}"
-        );
-    }
-
-    #[test]
-    fn remote_origin_in_main_window_is_denied_app_commands() {
-        // The dashboard will be the owned loopback Serve origin; content from
-        // that (or any non-bundled) origin must get no native commands.
-        let app = build_app();
-        let window = tauri::WebviewWindowBuilder::new(&app, "main", Default::default())
-            .build()
-            .expect("failed to build main window");
-
-        let error = tauri::test::get_ipc_response(
-            &window,
-            invoke_request("get_app_info", "http://127.0.0.1:8765/"),
-        )
-        .expect_err("loopback server content must not reach app commands");
-        assert!(
-            format!("{error:?}").contains("not allowed"),
-            "expected an ACL denial, got {error:?}"
-        );
     }
 }

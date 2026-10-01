@@ -241,6 +241,67 @@ fn an_invalid_workspace_is_reported_by_the_backend_and_leaves_nothing_running() 
 }
 
 #[test]
+fn shutdown_stops_the_backend_and_refuses_later_launches() {
+    let supervisor = Supervisor::new(lrh_config());
+    start_real(&supervisor);
+    let pid = supervisor.child_pid().expect("owned child");
+
+    let result = supervisor.shutdown().expect("an owned child was stopped");
+    assert_eq!(result.exit_code, Some(0));
+    #[cfg(unix)]
+    assert!(!pid_alive(pid), "the backend must be gone after shutdown");
+    #[cfg(not(unix))]
+    let _ = pid;
+
+    // A Start or Restart queued before Quit must not spawn anything.
+    assert_eq!(expect_error(supervisor.start()).kind, ErrorKind::ShutDown);
+    assert_eq!(expect_error(supervisor.restart()).kind, ErrorKind::ShutDown);
+    assert!(supervisor.child_pid().is_none());
+}
+
+#[test]
+fn shutdown_publishes_its_latch_before_waiting_for_an_in_flight_launch() {
+    // Regression: the latch must be visible while another operation still
+    // holds the supervisor, so a Start or Restart queued behind that
+    // operation is refused however the lock is handed over. Checking the
+    // latch while the launch is provably in flight makes this deterministic.
+    let body = "time.sleep(2)\nready()\ntime.sleep(60)";
+    let supervisor = Arc::new(Supervisor::new(fake_config(body)));
+
+    let launch = {
+        let supervisor = Arc::clone(&supervisor);
+        thread::spawn(move || supervisor.start())
+    };
+    assert!(wait_for_state(
+        &supervisor,
+        State::Starting,
+        Duration::from_secs(5)
+    ));
+    let shutdown = {
+        let supervisor = Arc::clone(&supervisor);
+        thread::spawn(move || supervisor.shutdown())
+    };
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while !supervisor.is_shut_down() && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(10));
+    }
+    assert!(
+        supervisor.is_shut_down(),
+        "the latch must be published before the in-flight launch finishes"
+    );
+    assert!(!launch.is_finished(), "the launch was still in flight");
+
+    // Once published, nothing launches again, whoever gets the lock next.
+    assert_eq!(expect_error(supervisor.restart()).kind, ErrorKind::ShutDown);
+    let _ = launch.join().unwrap();
+    shutdown.join().unwrap();
+    assert!(
+        supervisor.child_pid().is_none(),
+        "the in-flight launch was stopped"
+    );
+}
+
+#[test]
 fn a_missing_program_is_a_spawn_failure() {
     let mut config = lrh_config();
     config.program = repo_root().join("no-such-lrh-executable");

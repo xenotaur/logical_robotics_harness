@@ -1,7 +1,0 @@
-{
-  "identifier": "default",
-  "description": "Bundled app pages in the main window may read the app's identity. No shell, filesystem, process, or remote-origin access.",
-  "local": true,
-  "windows": ["main"],
-  "permissions": ["allow-get-app-info"]
-}

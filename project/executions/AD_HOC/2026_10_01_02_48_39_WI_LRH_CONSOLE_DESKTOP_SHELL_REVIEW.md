@@ -30,9 +30,12 @@ satisfied.
    - Fixed in `b774c3e4`: `Supervisor::shutdown` now publishes the latch
      before it contends for the lock.
    - Regression test:
-     `a_restart_queued_behind_a_launch_is_refused_once_shutdown_starts`. It
-     counts launches through a file, so it proves that only the in-flight
-     launch ran.
+     `shutdown_publishes_its_latch_before_waiting_for_an_in_flight_launch`.
+     While a launch provably holds the operation lock, the test checks that
+     the latch is already visible and that a Restart is refused. It replaced
+     a first version that counted launches. The cold review noted that that
+     version could pass by luck, because `std::sync::Mutex` handoff is not
+     FIFO.
 2. **Copilot: `LRH_CONSOLE_PYTHONPATH` skipped the absolute-path check.**
    - Fixed in `b774c3e4`: every `split_paths` entry must now be absolute.
    - Unit test added, and the docs table updated.

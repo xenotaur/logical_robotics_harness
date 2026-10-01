@@ -260,51 +260,45 @@ fn shutdown_stops_the_backend_and_refuses_later_launches() {
 }
 
 #[test]
-fn a_restart_queued_behind_a_launch_is_refused_once_shutdown_starts() {
-    // Regression: shutdown must publish its latch before waiting for the
-    // operation lock, or a queued Restart can win the lock and launch after
-    // Quit was requested.
-    let count_file = std::env::temp_dir().join(format!("lrh-sup-shutdown-{}", std::process::id()));
-    let _ = std::fs::remove_file(&count_file);
-    let body = r#"open(os.environ["FAKE_COUNT_FILE"], "a").write("launch\n")
-time.sleep(1)
-ready()
-time.sleep(60)"#;
-    let mut config = fake_config(body);
-    config.env = vec![(
-        "FAKE_COUNT_FILE".into(),
-        count_file.clone().into_os_string(),
-    )];
-    let supervisor = Arc::new(Supervisor::new(config));
+fn shutdown_publishes_its_latch_before_waiting_for_an_in_flight_launch() {
+    // Regression: the latch must be visible while another operation still
+    // holds the supervisor, so a Start or Restart queued behind that
+    // operation is refused however the lock is handed over. Checking the
+    // latch while the launch is provably in flight makes this deterministic.
+    let body = "time.sleep(2)\nready()\ntime.sleep(60)";
+    let supervisor = Arc::new(Supervisor::new(fake_config(body)));
 
-    let first = {
+    let launch = {
         let supervisor = Arc::clone(&supervisor);
         thread::spawn(move || supervisor.start())
     };
-    thread::sleep(Duration::from_millis(300));
-    let queued = {
+    assert!(wait_for_state(
+        &supervisor,
+        State::Starting,
+        Duration::from_secs(5)
+    ));
+    let shutdown = {
         let supervisor = Arc::clone(&supervisor);
-        thread::spawn(move || supervisor.restart())
+        thread::spawn(move || supervisor.shutdown())
     };
-    thread::sleep(Duration::from_millis(200));
-    supervisor.shutdown();
-
+    let deadline = Instant::now() + Duration::from_secs(1);
+    while !supervisor.is_shut_down() && Instant::now() < deadline {
+        thread::sleep(Duration::from_millis(10));
+    }
     assert!(
-        first.join().unwrap().is_ok(),
-        "the in-flight launch completes"
+        supervisor.is_shut_down(),
+        "the latch must be published before the in-flight launch finishes"
     );
-    assert_eq!(
-        queued.join().unwrap().unwrap_err().kind,
-        ErrorKind::ShutDown
+    assert!(!launch.is_finished(), "the launch was still in flight");
+
+    // Once published, nothing launches again, whoever gets the lock next.
+    assert_eq!(expect_error(supervisor.restart()).kind, ErrorKind::ShutDown);
+    let _ = launch.join().unwrap();
+    shutdown.join().unwrap();
+    assert!(
+        supervisor.child_pid().is_none(),
+        "the in-flight launch was stopped"
     );
-    let launches = std::fs::read_to_string(&count_file).unwrap();
-    let _ = std::fs::remove_file(&count_file);
-    assert_eq!(
-        launches.lines().count(),
-        1,
-        "nothing launched after shutdown"
-    );
-    assert!(supervisor.child_pid().is_none());
 }
 
 #[test]

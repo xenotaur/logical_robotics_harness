@@ -32,6 +32,9 @@ reading `shell.rs` and `lib.rs`.
   spawn a new backend just before the process exited.
 - The fix, in `af61f743`: `Supervisor::shutdown` sets a latch while holding
   the operation lock. Every later launch fails with `ErrorKind::ShutDown`.
+- Superseded by review-response round 1 (`b774c3e4`): the latch is now
+  published *before* `shutdown` waits for the lock, so a queued action that
+  wins the lock is still refused.
 - New test: `shutdown_stops_the_backend_and_refuses_later_launches`.
 
 **Should-fix 2, panic on Exit after a failed setup.** The Exit handler

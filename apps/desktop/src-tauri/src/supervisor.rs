@@ -1108,6 +1108,11 @@ impl Supervisor {
         result
     }
 
+    /// True once [`Supervisor::shutdown`] has been called.
+    pub fn is_shut_down(&self) -> bool {
+        self.shut_down.load(Ordering::SeqCst)
+    }
+
     /// Stops the owned child, if any. Returns how it ended.
     pub fn stop(&self) -> Option<StopResult> {
         let mut current = lock(&self.current);

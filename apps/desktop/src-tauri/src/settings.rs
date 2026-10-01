@@ -242,9 +242,17 @@ impl ConfigStore {
             use std::os::unix::fs::OpenOptionsExt;
             options.mode(0o600);
         }
+        // A leftover temp file would keep its old permissions; start fresh.
+        let _ = std::fs::remove_file(&temp);
         let mut file = options
             .open(&temp)
             .map_err(|error| format!("could not write {}: {error}", temp.display()))?;
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&temp, std::fs::Permissions::from_mode(0o600))
+                .map_err(|error| format!("could not secure {}: {error}", temp.display()))?;
+        }
         file.write_all(text.as_bytes())
             .and_then(|()| file.write_all(b"\n"))
             .and_then(|()| file.sync_all())

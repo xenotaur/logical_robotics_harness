@@ -302,6 +302,50 @@ fn shutdown_publishes_its_latch_before_waiting_for_an_in_flight_launch() {
 }
 
 #[test]
+fn an_unconfigured_supervisor_refuses_to_launch_until_configured() {
+    let supervisor = Supervisor::unconfigured();
+    assert!(!supervisor.is_configured());
+    assert_eq!(
+        expect_error(supervisor.start()).kind,
+        ErrorKind::NotConfigured
+    );
+    assert_eq!(supervisor.state(), State::Stopped);
+
+    supervisor.set_config(lrh_config());
+    assert!(supervisor.is_configured());
+    start_real(&supervisor);
+    supervisor.stop();
+}
+
+#[test]
+fn try_shutdown_never_waits_for_an_in_flight_launch() {
+    let body = "time.sleep(2)\nready()\ntime.sleep(60)";
+    let supervisor = Arc::new(Supervisor::new(fake_config(body)));
+    let launch = {
+        let supervisor = Arc::clone(&supervisor);
+        thread::spawn(move || supervisor.start())
+    };
+    assert!(wait_for_state(
+        &supervisor,
+        State::Starting,
+        Duration::from_secs(5)
+    ));
+
+    let started = Instant::now();
+    assert!(!supervisor.try_shutdown(), "busy: it must not wait");
+    assert!(started.elapsed() < Duration::from_millis(500));
+    assert!(supervisor.is_shut_down());
+    assert!(
+        supervisor.try_diagnostics().is_none(),
+        "diagnostics never block either"
+    );
+
+    let _ = launch.join().unwrap();
+    assert!(supervisor.try_shutdown(), "idle: it stops the child");
+    assert!(supervisor.child_pid().is_none());
+}
+
+#[test]
 fn a_missing_program_is_a_spawn_failure() {
     let mut config = lrh_config();
     config.program = repo_root().join("no-such-lrh-executable");

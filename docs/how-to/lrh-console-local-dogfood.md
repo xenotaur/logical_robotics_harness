@@ -49,7 +49,8 @@ the Settings window opens. Fill in:
 
 Choose **Save**. The app checks every value before saving. If a value is
 wrong, it is rejected with a message next to the field, and the previous
-settings stay in effect. The configuration is stored in
+settings stay in effect. The first save starts the server, unless you turned
+that off. Later changes to the program or workspace wait for a restart. The configuration is stored in
 `~/Library/Application Support/io.github.xenotaur.lrh-console/config.json`,
 and only you can read the file.
 
@@ -67,7 +68,7 @@ effect when the server restarts.
 | Reload | **View > Reload** (⌘R). |
 | Open the current page in a browser | **View > Open in Chrome**, or **View > Open in Default Browser**. |
 | Hide the window | Close it (⌘W). The app and server keep running, and clicking the Dock icon brings the window back. |
-| Quit | ⌘Q. The window shows "Stopping LRH Serve…" while the server stops, then the app exits. |
+| Quit | ⌘Q, or **LRH Console > Quit LRH Console**. The window shows "Stopping LRH Serve…" while the server stops, then the app exits. Quitting from the Dock menu exits at once, and the server then stops itself within a few seconds because its parent is gone. |
 
 How the app behaves:
 
@@ -123,7 +124,7 @@ See [the toolchain how-to](project-setup/desktop-toolchain.md#build-and-run-the-
 | --- | --- | --- |
 | Dashboard, Meta, project, work-item, and design pages | Works | Works (same origin, same project) |
 | Workbench prompt, run-packet, and run-report previews | Works | Works |
-| `?download=1` Markdown downloads | Confirm during dogfood sessions | Works |
+| `?download=1` Markdown downloads | Handed to the chosen browser, which saves the file (the app never writes files) | Works |
 | JSON routes (`/api/...`) | Shown as text | Shown as text |
 | Links to other sites | Opened in the chosen browser | Normal |
 
@@ -140,8 +141,15 @@ opens the app's own backend address.
 - The app is not signed or notarized, and has no installer, updates, or login
   autostart.
 - One workspace at a time. Use Meta for cross-project views.
-- Quit waits for a backend that is starting to finish starting or time out,
-  then stops it. The window shows "Stopping…" meanwhile.
+- ⌘Q waits for a backend that is still starting to finish starting or time
+  out, then stops it. The window shows "Stopping…" meanwhile, and the app
+  stays responsive.
+- Links are handed to the browser whenever page content navigates away from
+  the app's pages, including scripted navigation, not only clicks. Serve's
+  own pages do not do this. The handoff is limited to one per second.
+- The program's protocol version is checked when the server starts, not
+  when you save Settings. An incompatible `lrh` shows the **Incompatible
+  backend** page.
 
 ## Validation
 

@@ -11,8 +11,8 @@ const SOURCES = {
   file: "Using the saved configuration.",
   environment:
     "Using the developer LRH_CONSOLE_* environment settings for this session. " +
-    "Saving here writes the configuration file, which applies once those " +
-    "variables are unset.",
+    "Saving here only writes the configuration file; it takes effect in a " +
+    "later session started without those variables.",
   none: "No configuration yet. Choose a program and workspace, then Save.",
 };
 
@@ -116,11 +116,13 @@ form.addEventListener("submit", async (event) => {
   try {
     const outcome = await invoke("save_settings", { config: collect() });
     $("restart").hidden = !outcome.restart_required;
-    $("saved").textContent = outcome.restart_required
-      ? "Saved. Restart the server to use the new program or workspace."
-      : outcome.started
-        ? "Saved. Starting the server…"
-        : "Saved.";
+    $("saved").textContent = outcome.env_override_active
+      ? "Saved to the configuration file. This session keeps using the LRH_CONSOLE_* settings."
+      : outcome.restart_required
+        ? "Saved. Restart the server to use the new program or workspace."
+        : outcome.started
+          ? "Saved. Starting the server…"
+          : "Saved.";
     await loadSettings();
   } catch (errors) {
     const list = Array.isArray(errors) ? errors : [{ field: "file", message: String(errors) }];
@@ -134,9 +136,13 @@ form.addEventListener("submit", async (event) => {
 });
 
 $("restart").addEventListener("click", async () => {
-  await invoke("restart_server");
-  $("restart").hidden = true;
-  $("saved").textContent = "Restarting the server…";
+  try {
+    await invoke("restart_server");
+    $("restart").hidden = true;
+    $("saved").textContent = "Restarting the server…";
+  } catch (error) {
+    $("saved").textContent = `Could not restart: ${error}`;
+  }
 });
 
 $("refresh").addEventListener("click", loadDetails);

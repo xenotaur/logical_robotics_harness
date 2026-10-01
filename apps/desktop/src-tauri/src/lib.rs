@@ -96,11 +96,13 @@ pub fn run() {
                 }
             }
         }
-        // Covers exits that skip ExitRequested; the latch makes it a no-op
-        // after the stop above.
+        // Covers exits that skip ExitRequested (Dock "Quit", AppleScript
+        // quit, logout). It never blocks the main thread: if an operation is
+        // in flight, the exiting process closes the child's stdin and the
+        // child stops itself under the protocol's parent-loss rule.
         RunEvent::Exit => {
             if let Some(state) = app.try_state::<shell::ShellState>() {
-                state.shutdown();
+                state.supervisor.try_shutdown();
             }
         }
         _ => {}

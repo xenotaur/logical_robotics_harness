@@ -49,6 +49,7 @@ pub const ENV_WORKSPACE: &str = "LRH_CONSOLE_WORKSPACE";
 /// Menu item IDs.
 pub mod menu_id {
     pub const SETTINGS: &str = "app-settings";
+    pub const QUIT: &str = "app-quit";
     pub const START: &str = "server-start";
     pub const STOP: &str = "server-stop";
     pub const RESTART: &str = "server-restart";
@@ -205,11 +206,30 @@ impl NavigationPolicy {
 /// valid `http(s)` URL on a non-loopback host. Loopback links are never
 /// handed off, so a stale backend port is not opened in a browser either.
 pub fn is_external_link(url: &Url) -> bool {
-    browser::validate_url(url).is_ok()
-        && !matches!(
-            url.host_str(),
-            Some("127.0.0.1" | "localhost" | "[::1]" | "::1")
-        )
+    browser::validate_url(url).is_ok() && !is_local_host(url)
+}
+
+/// True for loopback, unspecified, and `localhost` hosts (any spelling).
+fn is_local_host(url: &Url) -> bool {
+    let Some(host) = url.host_str() else {
+        return true;
+    };
+    let host = host
+        .trim_start_matches('[')
+        .trim_end_matches(']')
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+    match host.parse::<std::net::IpAddr>() {
+        Ok(std::net::IpAddr::V4(ip)) => ip.is_loopback() || ip.is_unspecified(),
+        Ok(std::net::IpAddr::V6(ip)) => {
+            ip.is_loopback()
+                || ip.is_unspecified()
+                || ip
+                    .to_ipv4_mapped()
+                    .is_some_and(|v4| v4.is_loopback() || v4.is_unspecified())
+        }
+        Err(_) => host == "localhost" || host.ends_with(".localhost"),
+    }
 }
 
 /// Popups and `target=_blank` links never open inside the app.
@@ -220,7 +240,11 @@ pub fn new_window_response<R: Runtime>(_url: &Url) -> NewWindowResponse<R> {
 /// Hands external links to the browser, at most one per second.
 #[derive(Default)]
 pub struct LinkHandoff {
+    /// Limits handoffs that page content triggers.
     limiter: RateLimiter,
+    /// Limits menu-triggered handoffs separately, so a recent link handoff
+    /// never swallows an explicit menu choice.
+    menu_limiter: RateLimiter,
     browser: Mutex<BrowserChoice>,
     last: Mutex<Option<Result<Handoff, String>>>,
 }
@@ -238,13 +262,22 @@ impl LinkHandoff {
     /// Opens `url` without the external-link filter (menu actions on the
     /// backend's own pages). Still validated and rate-limited.
     fn open_requested(self: &Arc<Self>, url: Url, choice: BrowserChoice) {
-        if !self.limiter.try_acquire() {
+        if !self.menu_limiter.try_acquire() {
             return;
         }
         let this = Arc::clone(self);
         thread::spawn(move || {
             *lock(&this.last) = Some(browser::open(&url, choice));
         });
+    }
+
+    /// Hands a download to the browser (validated and rate-limited); the app
+    /// itself never downloads.
+    pub fn offer_download(self: &Arc<Self>, url: &Url) {
+        if browser::validate_url(url).is_err() || !self.limiter.try_acquire() {
+            return;
+        }
+        self.open_now(url.clone());
     }
 
     fn open_now(self: &Arc<Self>, url: Url) {
@@ -430,6 +463,7 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         .unwrap_or("index.html")
         .to_string();
     let popup_links = Arc::clone(&links);
+    let download_links = Arc::clone(&links);
     WebviewWindowBuilder::new(manager, MAIN_WINDOW, WebviewUrl::App(PathBuf::from(path)))
         .title("LRH Console")
         .inner_size(1100.0, 760.0)
@@ -443,6 +477,14 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         .on_new_window(move |url, _features| {
             popup_links.offer(&url);
             new_window_response(&url)
+        })
+        // Downloads (Serve's `?download=1` prompt Markdown) open in the
+        // browser, which saves them; the app never writes files itself.
+        .on_download(move |_webview, event| {
+            if let tauri::webview::DownloadEvent::Requested { url, .. } = event {
+                download_links.offer_download(&url);
+            }
+            false
         })
         .build()
 }
@@ -461,6 +503,7 @@ pub fn build_settings_window<R: Runtime, M: Manager<R>>(
     .inner_size(720.0, 760.0)
     .on_navigation(is_bundled)
     .on_new_window(|url, _features| new_window_response(&url))
+    .on_download(|_webview, _event| false)
     .build()
 }
 
@@ -539,7 +582,15 @@ fn build_menu<R: Runtime>(
         &PredefinedMenuItem::show_all(app, None)?,
         &PredefinedMenuItem::separator(app)?,
     ])?;
-    app_menu.append(&PredefinedMenuItem::quit(app, None)?)?;
+    // A custom Quit: the predefined one sends `terminate:`, which skips
+    // ExitRequested, so the "Stopping…" page and the off-main-thread stop
+    // would never run.
+    app_menu.append(&item(
+        menu_id::QUIT,
+        "Quit LRH Console",
+        true,
+        Some("CmdOrCtrl+Q"),
+    )?)?;
     let edit = Submenu::with_items(
         app,
         "Edit",
@@ -730,6 +781,10 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
                     if supervisor.is_shut_down() {
                         continue;
                     }
+                    if action == Action::Start && supervisor.state() == State::Running {
+                        // Already running: nothing to do, keep the current page.
+                        continue;
+                    }
                     items.apply(MenuEnablement::BUSY);
                     let transient = match action {
                         Action::Stop => State::Stopping,
@@ -844,6 +899,7 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
     let state = app.state::<ShellState>();
     match id {
         menu_id::SETTINGS | menu_id::DETAILS => show_settings(app),
+        menu_id::QUIT => app.exit(0),
         menu_id::START => state.request(Action::Start),
         menu_id::STOP => state.request(Action::Stop),
         menu_id::RESTART => state.request(Action::Restart),
@@ -901,8 +957,11 @@ pub struct SettingsView {
 pub struct SaveOutcome {
     /// The backend must restart for the change to take effect.
     pub restart_required: bool,
-    /// A backend was started because none was running.
+    /// A backend was started because this was the first configuration.
     pub started: bool,
+    /// The developer environment override is active, so the saved file
+    /// takes effect only in a later session without those variables.
+    pub env_override_active: bool,
 }
 
 /// What Server Details shows.
@@ -952,36 +1011,50 @@ pub fn save_settings(
     })?;
     store.save(&config)?;
     let previous = lock(&state.config).replace(config.clone());
+    state.links.set_browser(config.browser);
+    if *lock(&state.source) == ConfigSource::Environment {
+        // The developer override stays in charge for this session.
+        return Ok(SaveOutcome {
+            restart_required: false,
+            started: false,
+            env_override_active: true,
+        });
+    }
     *lock(&state.source) = ConfigSource::File;
     *lock(&state.problem) = None;
-    state.links.set_browser(config.browser);
     let was_configured = state.supervisor.is_configured();
+    let launch = settings::launch_config(&config);
     let launch_changed = settings::needs_restart(previous.as_ref(), &config)
-        || !was_configured
-        || state.supervisor.config() != Some(settings::launch_config(&config));
-    state
-        .supervisor
-        .set_config(settings::launch_config(&config));
-    let status = state.supervisor.status();
-    let running = matches!(status.state, State::Running | State::Starting);
-    let started = !running && launch_changed;
+        || state.supervisor.config().as_ref() != Some(&launch);
+    state.supervisor.set_config(launch);
+    let running = matches!(state.supervisor.state(), State::Running | State::Starting);
+    // Only the first configuration starts the backend; a later change while
+    // stopped waits for an explicit Start.
+    let started = !was_configured && config.start_on_open;
     if started {
         state.request(Action::Start);
     }
     Ok(SaveOutcome {
         restart_required: running && launch_changed,
         started,
+        env_override_active: false,
     })
 }
 
-/// Reports the owned backend's identity, endpoint, and diagnostics.
+/// Reports the owned backend's identity, endpoint, and diagnostics. It never
+/// waits for an operation in flight, so the UI stays responsive during a
+/// start or stop.
 #[tauri::command]
 pub fn get_server_details(state: tauri::State<'_, ShellState>) -> ServerDetails {
     let status = state.supervisor.status();
     let handshake = status.handshake.as_ref();
+    let (owned_pid, stderr_tail) = state.supervisor.try_diagnostics().unwrap_or((
+        None,
+        "(an operation is in progress; refresh shortly)".into(),
+    ));
     ServerDetails {
         state: state_name(status.state),
-        owned_pid: state.supervisor.child_pid(),
+        owned_pid,
         endpoint: handshake.map(|h| h.url.clone()),
         served_workspace: handshake.map(|h| h.workspace.clone()),
         configured_workspace: state
@@ -996,7 +1069,7 @@ pub fn get_server_details(state: tauri::State<'_, ShellState>) -> ServerDetails 
             .as_ref()
             .map(|error| error.message.clone()),
         last_exit_code: status.last_exit_code,
-        stderr_tail: state.supervisor.stderr_tail(),
+        stderr_tail,
         chrome_available: state.chrome_available,
         last_handoff: state.links.last().map(|result| match result {
             Ok(handoff) => serde_json::json!({"ok": true, "handoff": handoff}),
@@ -1170,6 +1243,15 @@ mod tests {
         assert!(!is_external_link(&url("http://127.0.0.1:50543/meta")));
         assert!(!is_external_link(&url("http://localhost:50543/")));
         assert!(!is_external_link(&url("http://[::1]:50543/")));
+        for local in [
+            "http://localhost.:50543/",
+            "http://127.0.0.2:50543/",
+            "http://0.0.0.0:50543/",
+            "http://[::ffff:127.0.0.1]:50543/",
+            "http://app.localhost/",
+        ] {
+            assert!(!is_external_link(&url(local)), "{local} is local");
+        }
         assert!(!is_external_link(&url("file:///etc/passwd")));
         assert!(!is_external_link(&status_url("stopped", None)));
     }

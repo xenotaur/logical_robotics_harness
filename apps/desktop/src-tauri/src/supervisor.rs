@@ -1123,6 +1123,20 @@ impl Supervisor {
         result
     }
 
+    /// Like [`Supervisor::shutdown`], but never waits: if an operation is in
+    /// flight it returns `false` after publishing the latch. For a process
+    /// that is exiting anyway, the in-flight child then sees its stdin close
+    /// and stops itself (the protocol's parent-loss rule).
+    pub fn try_shutdown(&self) -> bool {
+        self.shut_down.store(true, Ordering::SeqCst);
+        let Ok(mut current) = self.current.try_lock() else {
+            return false;
+        };
+        let result = self.stop_locked(&mut current);
+        self.set_status(State::Stopped, None, None, result.as_ref());
+        true
+    }
+
     /// Replaces the launch configuration used by the next Start or Restart.
     pub fn set_config(&self, config: LaunchConfig) {
         *lock(&self.config) = Some(config);
@@ -1197,6 +1211,17 @@ impl Supervisor {
             .as_ref()
             .map(OwnedServer::stderr_tail)
             .unwrap_or_default()
+    }
+
+    /// The owned child's PID and stderr tail without waiting for an
+    /// operation in flight; `None` while one holds the supervisor. Safe to
+    /// call from a UI thread.
+    pub fn try_diagnostics(&self) -> Option<(Option<u32>, String)> {
+        let current = self.current.try_lock().ok()?;
+        Some(match current.as_ref() {
+            Some(server) => (server.child_pid(), server.stderr_tail()),
+            None => (None, String::new()),
+        })
     }
 
     /// The OS process ID of the owned child, while it has one.

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>LRH Console Settings</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="settings.js" defer></script>
+  </head>
+  <body>
+    <main class="settings">
+      <h1>Settings</h1>
+      <p id="source" class="note"></p>
+      <p id="problem" class="error" hidden></p>
+
+      <form id="settings-form" novalidate>
+        <fieldset>
+          <legend>Backend program</legend>
+          <label><input type="radio" name="kind" value="executable" checked>
+            An installed <code>lrh</code> executable</label>
+          <label><input type="radio" name="kind" value="python">
+            A Python interpreter running <code>-m lrh.cli.main</code> (source checkout)</label>
+
+          <div data-kind="executable">
+            <label for="path">lrh executable (absolute path)</label>
+            <input id="path" name="path" type="text" spellcheck="false"
+                   placeholder="/Users/me/miniconda3/envs/lrh/bin/lrh">
+            <p class="field-error" data-field="launch.path"></p>
+          </div>
+          <div data-kind="python" hidden>
+            <label for="interpreter">Python interpreter (absolute path)</label>
+            <input id="interpreter" name="interpreter" type="text" spellcheck="false"
+                   placeholder="/Users/me/miniconda3/envs/lrh/bin/python">
+            <p class="field-error" data-field="launch.interpreter"></p>
+            <label for="pythonpath">PYTHONPATH (optional, absolute entries)</label>
+            <input id="pythonpath" name="pythonpath" type="text" spellcheck="false"
+                   placeholder="/Users/me/src/logical_robotics_harness/src">
+            <p class="field-error" data-field="launch.pythonpath"></p>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Workspace</legend>
+          <label for="workspace">LRH workspace to serve (absolute path)</label>
+          <input id="workspace" name="workspace" type="text" spellcheck="false"
+                 placeholder="/Users/me/src/logical_robotics_harness">
+          <p class="field-error" data-field="workspace"></p>
+          <p class="note">Changing the program or workspace takes effect when the server restarts.</p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Browser and startup</legend>
+          <label for="browser">Open external links and “Open in Browser” with</label>
+          <select id="browser" name="browser">
+            <option value="chrome">Google Chrome (falls back to the default browser)</option>
+            <option value="default_browser">The default browser</option>
+          </select>
+          <label><input id="start_on_open" name="start_on_open" type="checkbox" checked>
+            Start the server when LRH Console opens</label>
+        </fieldset>
+
+        <p class="field-error" data-field="file"></p>
+        <div class="actions">
+          <button type="submit">Save</button>
+          <button id="restart" type="button" hidden>Restart server now</button>
+        </div>
+        <p id="saved" class="note" role="status" aria-live="polite"></p>
+      </form>
+
+      <h2>Server details</h2>
+      <div class="actions"><button id="refresh" type="button">Refresh</button></div>
+      <dl id="details"></dl>
+      <h3>Recent server output</h3>
+      <pre id="stderr" class="diagnostics"></pre>
+    </main>
+  </body>
+</html>

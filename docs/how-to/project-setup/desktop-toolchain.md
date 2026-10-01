@@ -103,18 +103,32 @@ before any Python check runs.
 
 ## Build and run the app
 
-Build the macOS app bundle:
+Build the app with the pinned toolchain:
 
 ```bash
-cd apps/desktop
-cargo tauri build --bundles app
+apps/desktop/scripts/run bundle
 ```
 
-This writes `apps/desktop/src-tauri/target/release/bundle/macos/LRH Console.app`.
+On macOS this writes `apps/desktop/src-tauri/target/release/bundle/macos/LRH Console.app`.
+Open it from Finder, or drag it to `/Applications`. On first run it opens
+Settings so you can choose the `lrh` program and the workspace to serve. Using
+it day to day is covered in
+[Use the LRH Console desktop app](../lrh-console-local-dogfood.md).
 
-Until private configuration lands (`WI-LRH-CONSOLE-DESKTOP-SETTINGS`), the app
-reads developer-only launch settings from its environment. Every path must be
-absolute; nothing is looked up on `PATH`.
+To run the built app against this checkout's own source while developing:
+
+```bash
+apps/desktop/scripts/run launch
+```
+
+Pass `--workspace PATH` to serve another LRH workspace. The command uses
+`LRH_CONSOLE_PYTHON`, then `$PYTHON`, then `python3` as the interpreter, and
+puts this checkout's `src/` on `PYTHONPATH`. Both `bundle` and `launch` accept
+`--dry-run`.
+
+`launch` works through a developer override. When any of these variables is
+set at startup, it wins over the saved Settings for that session. Every path
+must be absolute; nothing is looked up on `PATH`.
 
 | Variable | Meaning |
 | --- | --- |
@@ -123,26 +137,7 @@ absolute; nothing is looked up on `PATH`.
 | `LRH_CONSOLE_PYTHONPATH` | Optional `PYTHONPATH` for the `LRH_CONSOLE_PYTHON` form, such as `<repo>/src`. Every entry must be absolute. |
 | `LRH_CONSOLE_WORKSPACE` | The LRH workspace to serve. |
 
-Set exactly one of the first two. The variables only reach the app when you
-start its binary directly, so launch it from a terminal:
-
-```bash
-LRH_CONSOLE_PYTHON="$(command -v python3)" \
-LRH_CONSOLE_PYTHONPATH="$PWD/../../src" \
-LRH_CONSOLE_WORKSPACE="$(cd ../.. && pwd)" \
-  "src-tauri/target/release/bundle/macos/LRH Console.app/Contents/MacOS/lrh-console"
-```
-
-The app starts its own `lrh serve --desktop-protocol` backend, and shows the
-dashboard once the backend is ready. Without the settings it shows a "Backend
-not configured" page.
-
-- The Server menu starts, stops, and restarts the owned backend.
-- On macOS, closing the window keeps the app and its backend running, and the
-  Dock icon brings the window back. On Linux and Windows, closing the window
-  quits the app.
-- Quit stops the backend. A Start or Restart still pending at Quit does not
-  run.
+Set exactly one of the first two.
 
 ### Regenerate the app icon
 

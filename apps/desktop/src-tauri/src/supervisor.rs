@@ -90,6 +90,8 @@ pub enum ErrorKind {
     ChannelFailed,
     /// The supervisor was shut down (app Quit) and launches no more children.
     ShutDown,
+    /// No launch configuration has been set yet (first run).
+    NotConfigured,
 }
 
 impl ErrorKind {
@@ -109,6 +111,7 @@ impl ErrorKind {
             ErrorKind::AlreadyLaunched => "already_launched",
             ErrorKind::ChannelFailed => "channel_failed",
             ErrorKind::ShutDown => "shut_down",
+            ErrorKind::NotConfigured => "not_configured",
         }
     }
 }
@@ -184,7 +187,7 @@ pub struct StopResult {
 
 /// What to launch and how long to wait. Every path is explicit; nothing is
 /// looked up through a shell.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LaunchConfig {
     /// Absolute path to the `lrh` executable, or to a Python interpreter.
     pub program: PathBuf,
@@ -1009,7 +1012,9 @@ pub struct Status {
 
 /// Serializes Start, Stop, and Restart for at most one owned child.
 pub struct Supervisor {
-    config: LaunchConfig,
+    /// What the next launch runs. Replacing it never affects a running
+    /// child; it takes effect at the next Start or Restart.
+    config: Mutex<Option<LaunchConfig>>,
     /// Held for the whole of each operation, so operations never interleave.
     current: Mutex<Option<OwnedServer>>,
     /// Updated at each transition; readable without waiting for an operation.
@@ -1021,8 +1026,18 @@ pub struct Supervisor {
 
 impl Supervisor {
     pub fn new(config: LaunchConfig) -> Self {
+        Self::with_config(Some(config))
+    }
+
+    /// A supervisor with no launch configuration yet; launches fail with
+    /// [`ErrorKind::NotConfigured`] until [`Supervisor::set_config`].
+    pub fn unconfigured() -> Self {
+        Self::with_config(None)
+    }
+
+    fn with_config(config: Option<LaunchConfig>) -> Self {
         Supervisor {
-            config,
+            config: Mutex::new(config),
             current: Mutex::new(None),
             status: Mutex::new(Status {
                 state: State::Stopped,
@@ -1108,6 +1123,21 @@ impl Supervisor {
         result
     }
 
+    /// Replaces the launch configuration used by the next Start or Restart.
+    pub fn set_config(&self, config: LaunchConfig) {
+        *lock(&self.config) = Some(config);
+    }
+
+    /// The configuration the next launch will use, if any.
+    pub fn config(&self) -> Option<LaunchConfig> {
+        lock(&self.config).clone()
+    }
+
+    /// True once a launch configuration is set.
+    pub fn is_configured(&self) -> bool {
+        lock(&self.config).is_some()
+    }
+
     /// True once [`Supervisor::shutdown`] has been called.
     pub fn is_shut_down(&self) -> bool {
         self.shut_down.load(Ordering::SeqCst)
@@ -1186,9 +1216,16 @@ impl Supervisor {
                 "the supervisor has shut down",
             ));
         }
+        let Some(config) = self.config() else {
+            let error = SupervisorError::new(ErrorKind::NotConfigured, "no launch configuration");
+            let mut status = lock(&self.status);
+            status.state = State::Stopped;
+            status.last_error = Some(error.clone());
+            return Err(error);
+        };
         let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
         self.set_status(State::Starting, None, None, None);
-        let mut server = OwnedServer::new(self.config.clone(), generation);
+        let mut server = OwnedServer::new(config, generation);
         let result = server.start();
         match &result {
             Ok(handshake) => self.set_status(State::Running, Some(handshake.clone()), None, None),

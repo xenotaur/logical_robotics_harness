@@ -336,6 +336,52 @@ class LinuxPrerequisitesTest(DesktopModesTestBase):
         self.assertIn("libxdo (xdo.h)", result.stderr)
 
 
+class AppBundleAndLaunchTest(DesktopModesTestBase):
+    def test_bundle_dry_run_prints_the_build_and_runs_nothing(self) -> None:
+        result = self._run(["apps/desktop/scripts/run", "--dry-run", "bundle"])
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("+ cargo tauri build", result.stdout)
+        self.assertEqual(self._rust_calls(), [])
+
+    def test_launch_dry_run_passes_explicit_absolute_settings(self) -> None:
+        workspace = self.root / "workspace"
+        workspace.mkdir()
+        result = self._run(
+            [
+                "apps/desktop/scripts/run",
+                "launch",
+                "--dry-run",
+                "--workspace",
+                str(workspace),
+            ],
+            fake_python=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        repo_root = pathlib.Path(__file__).resolve().parents[2]
+        self.assertIn(f"LRH_CONSOLE_WORKSPACE={workspace}", result.stdout)
+        self.assertIn(f"LRH_CONSOLE_PYTHONPATH={repo_root}/src", result.stdout)
+        self.assertRegex(result.stdout, r"LRH_CONSOLE_PYTHON=/\S+")
+        self.assertEqual(self._rust_calls(), [])
+
+    def test_launch_refuses_a_missing_workspace_and_unknown_options(self) -> None:
+        missing = self._run(
+            [
+                "apps/desktop/scripts/run",
+                "launch",
+                "--workspace",
+                str(self.root / "nope"),
+            ],
+            fake_python=True,
+        )
+        self.assertNotEqual(missing.returncode, 0)
+        self.assertIn("is not a directory", missing.stderr)
+
+        unknown = self._run(["apps/desktop/scripts/run", "launch", "--bogus"])
+        self.assertEqual(unknown.returncode, 2)
+
+
 class FormatDesktopPreviewTest(DesktopModesTestBase):
     def test_diff_preview_never_runs_mutating_cargo_fmt(self) -> None:
         for flags in (["--diff"], ["--check"], ["--check", "--diff"]):

@@ -23,6 +23,7 @@ Add content here when the title can naturally start with “How to ...” and th
 ## Guides
 
 - [Validate a project control directory](validate-a-project.md) — run current `lrh validate` checks against an LRH `project/` directory.
+- [Use the LRH Console desktop app](lrh-console-local-dogfood.md) — build, set up, use, and recover the optional Mac app that runs its own LRH Serve.
 - [Generate a context snapshot](generate-a-snapshot.md) — render current `lrh snapshot` context packets.
 - [Survey a source tree](survey-a-source-tree.md) — inventory a Python source tree with `lrh survey`.
 - [Use request templates](use-request-templates.md) — discover and render current `lrh request` prompts and template diagnostics.

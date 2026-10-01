@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_DESKTOP_SETTINGS_SELFREVIEW)[2026-10-01T
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/763
 commit: 
 agent: "claude_app"
 instruction_source: "project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-SETTINGS.md"

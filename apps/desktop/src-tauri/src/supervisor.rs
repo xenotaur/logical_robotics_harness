@@ -20,7 +20,7 @@ use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, Command, Stdio};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
@@ -88,6 +88,8 @@ pub enum ErrorKind {
     AlreadyLaunched,
     /// The private channel failed after `ready`.
     ChannelFailed,
+    /// The supervisor was shut down (app Quit) and launches no more children.
+    ShutDown,
 }
 
 impl ErrorKind {
@@ -106,6 +108,7 @@ impl ErrorKind {
             ErrorKind::MalformedHandshake => "malformed_handshake",
             ErrorKind::AlreadyLaunched => "already_launched",
             ErrorKind::ChannelFailed => "channel_failed",
+            ErrorKind::ShutDown => "shut_down",
         }
     }
 }
@@ -1012,6 +1015,8 @@ pub struct Supervisor {
     /// Updated at each transition; readable without waiting for an operation.
     status: Mutex<Status>,
     generation: AtomicU64,
+    /// Set by [`Supervisor::shutdown`]; once set, nothing launches again.
+    shut_down: AtomicBool,
 }
 
 impl Supervisor {
@@ -1026,6 +1031,7 @@ impl Supervisor {
                 last_exit_code: None,
             }),
             generation: AtomicU64::new(0),
+            shut_down: AtomicBool::new(false),
         }
     }
 
@@ -1086,6 +1092,18 @@ impl Supervisor {
         // Reap a child that exited on its own before relaunching.
         self.stop_locked(&mut current);
         self.launch_locked(&mut current)
+    }
+
+    /// Stops the owned child and refuses every later launch (app Quit).
+    ///
+    /// The latch is set under the operation lock, so a Start or Restart that
+    /// was queued before Quit cannot spawn a new child afterwards.
+    pub fn shutdown(&self) -> Option<StopResult> {
+        let mut current = lock(&self.current);
+        self.shut_down.store(true, Ordering::SeqCst);
+        let result = self.stop_locked(&mut current);
+        self.set_status(State::Stopped, None, None, result.as_ref());
+        result
     }
 
     /// Stops the owned child, if any. Returns how it ended.
@@ -1155,6 +1173,12 @@ impl Supervisor {
         &self,
         current: &mut Option<OwnedServer>,
     ) -> Result<Handshake, SupervisorError> {
+        if self.shut_down.load(Ordering::SeqCst) {
+            return Err(SupervisorError::new(
+                ErrorKind::ShutDown,
+                "the supervisor has shut down",
+            ));
+        }
         let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
         self.set_status(State::Starting, None, None, None);
         let mut server = OwnedServer::new(self.config.clone(), generation);

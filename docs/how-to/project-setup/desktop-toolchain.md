@@ -138,9 +138,11 @@ dashboard once the backend is ready. Without the settings it shows a "Backend
 not configured" page.
 
 - The Server menu starts, stops, and restarts the owned backend.
-- Closing the window keeps the app and its backend running.
-- The Dock icon brings the window back.
-- Quit stops the backend.
+- On macOS, closing the window keeps the app and its backend running, and the
+  Dock icon brings the window back. On Linux and Windows, closing the window
+  quits the app.
+- Quit stops the backend. A Start or Restart still pending at Quit does not
+  run.
 
 ### Regenerate the app icon
 

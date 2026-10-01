@@ -241,6 +241,25 @@ fn an_invalid_workspace_is_reported_by_the_backend_and_leaves_nothing_running() 
 }
 
 #[test]
+fn shutdown_stops_the_backend_and_refuses_later_launches() {
+    let supervisor = Supervisor::new(lrh_config());
+    start_real(&supervisor);
+    let pid = supervisor.child_pid().expect("owned child");
+
+    let result = supervisor.shutdown().expect("an owned child was stopped");
+    assert_eq!(result.exit_code, Some(0));
+    #[cfg(unix)]
+    assert!(!pid_alive(pid), "the backend must be gone after shutdown");
+    #[cfg(not(unix))]
+    let _ = pid;
+
+    // A Start or Restart queued before Quit must not spawn anything.
+    assert_eq!(expect_error(supervisor.start()).kind, ErrorKind::ShutDown);
+    assert_eq!(expect_error(supervisor.restart()).kind, ErrorKind::ShutDown);
+    assert!(supervisor.child_pid().is_none());
+}
+
+#[test]
 fn a_missing_program_is_a_spawn_failure() {
     let mut config = lrh_config();
     config.program = repo_root().join("no-such-lrh-executable");

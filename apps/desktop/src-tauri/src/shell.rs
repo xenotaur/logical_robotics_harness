@@ -45,8 +45,10 @@ pub mod menu_id {
     pub const SHOW_MAIN: &str = "window-show-main";
 }
 
-/// How often the worker checks for a backend that exited on its own.
-const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(500);
+/// How often the worker checks for a backend that exited on its own. A
+/// crashed backend's origin stays allowed until the next check (or until the
+/// current action finishes), so keep this short.
+const STATUS_POLL_INTERVAL: Duration = Duration::from_millis(250);
 
 /// Builds a launch config from the developer settings in `env`.
 ///
@@ -262,10 +264,12 @@ impl ShellState {
         let _ = lock(&self.actions).send(action);
     }
 
-    /// Stops the owned backend, if any. Used on Quit.
+    /// Stops the owned backend and refuses any later launch. Used on Quit:
+    /// a Start or Restart still queued for the worker then fails instead of
+    /// spawning a new backend.
     pub fn shutdown(&self) {
         if let Some(supervisor) = &self.supervisor {
-            supervisor.stop();
+            supervisor.shutdown();
         }
     }
 }
@@ -318,13 +322,17 @@ fn build_menu<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<(Menu<R>, Lifecyc
         &[
             &PredefinedMenuItem::about(app, None, None)?,
             &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::hide(app, None)?,
-            &PredefinedMenuItem::hide_others(app, None)?,
-            &PredefinedMenuItem::show_all(app, None)?,
-            &PredefinedMenuItem::separator(app)?,
-            &PredefinedMenuItem::quit(app, None)?,
         ],
     )?;
+    // Hide, Hide Others, and Show All exist only on macOS.
+    #[cfg(target_os = "macos")]
+    app_menu.append_items(&[
+        &PredefinedMenuItem::hide(app, None)?,
+        &PredefinedMenuItem::hide_others(app, None)?,
+        &PredefinedMenuItem::show_all(app, None)?,
+        &PredefinedMenuItem::separator(app)?,
+    ])?;
+    app_menu.append(&PredefinedMenuItem::quit(app, None)?)?;
     let edit = Submenu::with_items(
         app,
         "Edit",

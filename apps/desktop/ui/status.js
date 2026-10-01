@@ -27,7 +27,8 @@ const STATES = {
 };
 
 const params = new URLSearchParams(window.location.search);
-const view = STATES[params.get("state")] || STATES.stopped;
+const requested = params.get("state");
+const view = Object.hasOwn(STATES, requested) ? STATES[requested] : STATES.stopped;
 document.getElementById("state").textContent = view.title;
 document.getElementById("detail").textContent = view.detail;
 const code = params.get("code");

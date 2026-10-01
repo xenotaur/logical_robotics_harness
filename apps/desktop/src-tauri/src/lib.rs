@@ -74,8 +74,13 @@ pub fn run() {
     app.run(|app, event| match event {
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } => shell::show_main(app),
-        // Quit stops the owned server, within the supervisor's bounds.
-        RunEvent::Exit => app.state::<shell::ShellState>().shutdown(),
+        // Quit stops the owned server, within the supervisor's bounds. The
+        // state is absent only if setup failed, and then nothing was started.
+        RunEvent::Exit => {
+            if let Some(state) = app.try_state::<shell::ShellState>() {
+                state.shutdown();
+            }
+        }
         _ => {}
     });
 }

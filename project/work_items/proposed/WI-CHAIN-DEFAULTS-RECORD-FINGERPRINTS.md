@@ -45,10 +45,11 @@ forbidden_actions:
 acceptance:
   - "`lrh chain-defaults restamp --project-root <root>` records a SHA-256 fingerprint for every fingerprint-kind watch target (written atomically to `$(git rev-parse --git-common-dir)/lrh/chain-defaults-fingerprints.json`) and re-stamps `confirmed_commit`/`confirmed_at` in `project/config/chain-defaults.yaml` as one command; `--dry-run` previews the current stale-files list, the fingerprint plan (new/unchanged/changed/removed), and the new `confirmed_commit` without writing anything"
   - "`restamp` refuses (exit 2, neither the fingerprint store nor the profile touched) when any watch target is unresolved or any installed target file is missing; a missing, unreadable, or malformed store still fails every untracked target closed"
+  - "The fingerprint store records the `confirmed_commit` it was written for, and `check_gate_staleness` accepts it only when that value equals the `confirmed_commit` it is checking against (the checkout's own `chain-defaults.yaml`); on a mismatch every fingerprint-kind target fails closed, so a store written without a matching committed profile (failed profile write, declined `main` push, or a branch still carrying the old profile) can never make a fingerprint-only repo read fresh"
   - "After a successful `restamp`, `lrh chain-defaults status` reports `stale: false` for every watch target (git and fingerprint kinds share the same confirmation baseline), and `consent.valid` is `false` per the existing whole-file blob-hash binding (`DEC-GATE-POLICY-CASCADE` Decision 4)"
   - "Every existing `confirmed_commit` re-stamp site in `_shared/chain-defaults.md` and its inlined copy in `lrh-land/references/land-workflow.md` uses `lrh chain-defaults restamp` instead of hand-writing the two fields, so no re-stamp path can update one baseline without the other"
   - "`/lrh-config-gates` offers a re-confirm step, asked as its own question, that shows the stale-files list verbatim plus the `--dry-run` plan, runs `restamp` only on explicit confirm, re-reads status, and then offers the existing skip-consent grant as a further separate question; `_shared/chain-defaults.md` names this step as a sanctioned re-stamp point"
-  - "Two worktrees of one clone share the fingerprint store; two independent clones do not"
+  - "Two worktrees of one clone share the fingerprint store (each accepts it only when its own profile carries the matching stamp); two independent clones do not share it"
   - "`lrh validate` reports 0 errors, `scripts/test` passes, and `lrh skills check` reports the Claude, Codex, and Antigravity rendered targets up to date"
 required_evidence:
   - manual_review
@@ -122,7 +123,11 @@ revised during PR #753 review):
   also create a way to clear staleness without the canonical stale path
   (`src/lrh/skills/_shared/chain-defaults.md:254-300`), which shows the
   stale-files list and requires a live confirmation before re-stamping. A
-  single `restamp` command makes the coupling mechanical.
+  single `restamp` command does both writes. The store also records the
+  stamp it was written for and is accepted only against a profile carrying
+  that same stamp. Without that binding, a store written but never followed
+  by a committed profile would make a fingerprint-only client repo read
+  fresh while its old consent stayed valid (found in PR #753 review).
 - **`/lrh-config-gates` becomes a second sanctioned re-stamp point.** Today
   only the chain gate re-stamps (`src/lrh/skills/lrh-config-gates/SKILL.md:152-156`,
   `:265-267`). This item adds a config-gates re-confirm step that shows the
@@ -195,6 +200,23 @@ revised during PR #753 review):
      git resolution fails; the write path raises `GateStalenessError`.
    - Do not migrate from the old `project/config/` path. Nothing ever wrote
      it outside tests.
+   - Bind the store to the stamp. The store's JSON becomes
+     `{"confirmed_commit": "<sha>", "fingerprints": {<name>: <sha256>}}`.
+     - `check_gate_staleness` already receives `confirmed_commit`. It
+       accepts the store only when the store's `confirmed_commit` equals
+       that value.
+     - On a mismatch, every fingerprint-kind target fails closed with a
+       distinct reason ("fingerprint store was recorded for a different
+       `confirmed_commit` -- failing closed").
+     - A store without the `confirmed_commit` key (including the old bare
+       map) is malformed and fails closed.
+
+     This makes the shared baseline mechanical, not a matter of write order.
+     It matters most in a client repo where every target is
+     fingerprint-kind (`src/lrh/gate_staleness.py:429`, `:623`). There, a
+     store without the binding would make `stale` false whenever it was
+     written, even if no profile carrying the matching stamp was ever
+     committed.
    - Add a pure `plan_fingerprints(project_root, targets, stored)`. It
      returns, per target: name, absolute path, new hash, and a comparison
      (`new`/`unchanged`/`changed`/`removed`). `--dry-run` and the real write
@@ -214,11 +236,14 @@ revised during PR #753 review):
 2. `src/lrh/chain_defaults_status.py` (or a sibling module): add the
    re-stamp operation. It:
    - validates the fingerprint plan first;
-   - writes the fingerprint store;
+   - computes the new stamp, `confirmed_commit` = `git rev-parse HEAD`;
+   - writes the fingerprint store, bound to that same stamp;
    - rewrites only the `confirmed_commit:` and `confirmed_at:` lines of
-     `project/config/chain-defaults.yaml` in place, keeping comments and
-     every other field byte-identical, with `confirmed_commit` = `git
-     rev-parse HEAD`;
+     `project/config/chain-defaults.yaml` in place, to that same stamp,
+     keeping comments and every other field byte-identical.
+
+     Because of the binding, the store-then-profile order is safe. A store
+     whose stamp no checkout's profile carries yet is simply not accepted.
    - requires the profile file to exist. The first-encounter "file absent"
      path keeps writing the file first and then calls `restamp`.
 3. `src/lrh/cli/main.py`: add `lrh chain-defaults restamp [--project-root]
@@ -298,7 +323,15 @@ revised during PR #753 review):
    - an unresolved target refuses (regression for the `{}` bug), including
      when every target is unresolved;
    - a missing store fails closed, and so does a malformed one (the existing
-     test repointed to the new path);
+     test repointed to the new path), including an old-format bare map with
+     no `confirmed_commit`;
+   - stamp binding, in a fixture where every target is fingerprint-kind:
+     - a store whose `confirmed_commit` differs from the profile's fails
+       every target closed with the distinct reason;
+     - after `restamp` writes the store but the profile write fails, status
+       is stale and consent is unchanged;
+     - after `restamp` succeeds on one worktree, a second worktree whose
+       profile still has the old stamp reads stale;
    - after `restamp`, `status` reports `stale: false` and `consent.valid:
      false`;
    - installed content changed after `restamp` → stale;
@@ -335,6 +368,11 @@ revised during PR #753 review):
 - `restamp` refuses with exit 2 on any unresolved target or missing installed
   file, and leaves both the store and the profile untouched. A missing or
   malformed store still fails closed.
+- The store is bound to the stamp it was written for. A store whose
+  `confirmed_commit` doesn't match the checkout's profile fails every
+  fingerprint-kind target closed. This holds even in a fingerprint-only
+  client repo, and covers a failed profile write, a declined `main` push,
+  and a branch still carrying the old profile.
 - After `restamp`, `lrh chain-defaults status` reports `stale: false`, and
   `consent.valid: false` per the existing blob-hash binding.
 - Every re-stamp site in `_shared/chain-defaults.md` and
@@ -346,7 +384,7 @@ revised during PR #753 review):
 
   `_shared/chain-defaults.md` names this step as a sanctioned re-stamp
   point.
-- Worktrees of one clone share the store; independent clones do not.
+- Worktrees of one clone share the store, and each accepts it only when its own profile carries the matching stamp. Independent clones do not share it.
 - `lrh validate` reports 0 errors, `scripts/test` passes, and every rendered
   skill target is up to date.
 
@@ -371,10 +409,12 @@ revised during PR #753 review):
   - the stale-files list and dry-run preview;
   - explicit wording that hashes cannot show what changed.
 - **Partial failure.** `restamp` writes the fingerprint store before the
-  profile. If the profile write fails, the fingerprints are new but
-  `confirmed_commit` is old, so git-tracked targets stay stale and the next
-  run takes the live path. That fails closed. Report the error and do not
-  retry silently.
+  profile. If the profile write fails, the store's stamp matches no
+  profile, so every fingerprint-kind target fails closed (Required
+  Changes 1). Git-tracked targets also stay stale against the old
+  `confirmed_commit`. The next run takes the live path even in a
+  fingerprint-only client repo. Report the error and do not retry
+  silently.
 - **Re-stamp from a PR branch.** Two cases:
   - **Chain run.** Per existing practice, a chain run on a PR branch defers
     the re-stamp to closeout, and `restamp` defers with it, since the two
@@ -384,12 +424,17 @@ revised during PR #753 review):
     Changes 5).
 
   In both cases `confirmed_commit` names a commit on `main`.
-- **Declined `main` push after the store was written.** If the `main` push
-  is declined, the store holds new fingerprints but `main`'s
-  `confirmed_commit` is unchanged. Git-tracked targets then stay stale, so
-  the next run takes the live path. This is the same fail-closed outcome as
-  the partial-failure case above, so the store-then-profile order in
-  Required Changes 2 stays as it is. Report the declined push plainly.
+- **Declined `main` push after the store was written.** The store's stamp
+  then exists only on the discarded tmp branch, so no checkout's profile
+  matches it, and every fingerprint-kind target fails closed. This covers
+  fingerprint-only repos too. Report the declined push plainly; the user
+  re-runs the re-confirm step later.
+- **Shared store, branch-local profile.** The store lives in the clone's
+  common git dir, but each branch carries its own `chain-defaults.yaml`.
+  After a successful re-stamp lands on `main`, any branch whose profile
+  still has the old stamp reads stale until it picks up `main`. That is the
+  intended fail-closed result: such a branch cannot use the new baseline
+  together with its old, still-valid consent.
 - **Relative git common dir.** `git rev-parse --git-common-dir` returns a
   relative path in some invocations. Resolve it against `project_root`, and
   watch for the pathlib pitfall where joining onto an absolute right-hand

@@ -53,6 +53,7 @@ artifacts_expected:
 - "apps/desktop/ui (one minimal bundled status page)"
 - "apps/desktop/src-tauri/capabilities (dashboard and bundled page get no app commands)"
 - "apps/desktop/src-tauri/tests/capability_boundaries_test.rs"
+- "apps/desktop/src-tauri/icons (app icon set generated from icons/source/lrh-icon-1024.png; macOS app bundling enabled), added at the SHELL run gate"
 - "docs/how-to/project-setup/desktop-toolchain.md (developer launch of the shell)"
 - "tests/scripts_tests/desktop_modes_test.py (deferred PR #750 assertions: Linux-branch probe, exact rustup_absent message)"
 - "apps/desktop/scripts/run and/or docs/how-to/project-setup/desktop-toolchain.md (test-only xdo header override renamed or documented)"

@@ -137,7 +137,7 @@ check_os_prerequisites() {
       done
       # libxdo ships no pkg-config file, so look for its header. The override
       # exists so tests can run on hosts without libxdo-dev.
-      [[ -f "${LRH_DESKTOP_XDO_HEADER:-/usr/include/xdo.h}" ]] || missing+=("libxdo (xdo.h)")
+      [[ -f "${LRH_DESKTOP_TEST_XDO_HEADER:-/usr/include/xdo.h}" ]] || missing+=("libxdo (xdo.h)")
       for tool in cc curl wget file; do
         command -v "${tool}" >/dev/null 2>&1 || missing+=("${tool}")
       done
@@ -167,7 +167,7 @@ cmd_setup() {
       return 0
     fi
     if [[ "${install_rust}" -ne 1 ]]; then
-      echo "desktop: rustup is not installed." >&2
+      echo "desktop: rustup not found." >&2
       echo "Install it with the official installer:" >&2
       echo "  ${RUSTUP_INSTALL_COMMAND}" >&2
       echo "or rerun with --install-rust to have this script run it." >&2

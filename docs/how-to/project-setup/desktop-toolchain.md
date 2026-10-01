@@ -101,6 +101,62 @@ still write gitignored build output under `apps/desktop/src-tauri/target/`.
 warnings denied. It verifies the toolchain first, so a broken setup fails
 before any Python check runs.
 
+## Build and run the app
+
+Build the macOS app bundle:
+
+```bash
+cd apps/desktop
+cargo tauri build --bundles app
+```
+
+This writes `apps/desktop/src-tauri/target/release/bundle/macos/LRH Console.app`.
+
+Until private configuration lands (`WI-LRH-CONSOLE-DESKTOP-SETTINGS`), the app
+reads developer-only launch settings from its environment. Every path must be
+absolute; nothing is looked up on `PATH`.
+
+| Variable | Meaning |
+| --- | --- |
+| `LRH_CONSOLE_LRH_EXECUTABLE` | The `lrh` executable to supervise. |
+| `LRH_CONSOLE_PYTHON` | Instead of the above, a Python interpreter that runs `-m lrh.cli.main` (for a source checkout). |
+| `LRH_CONSOLE_PYTHONPATH` | Optional `PYTHONPATH` for the `LRH_CONSOLE_PYTHON` form, such as `<repo>/src`. |
+| `LRH_CONSOLE_WORKSPACE` | The LRH workspace to serve. |
+
+Set exactly one of the first two. The variables only reach the app when you
+start its binary directly, so launch it from a terminal:
+
+```bash
+LRH_CONSOLE_PYTHON="$(command -v python3)" \
+LRH_CONSOLE_PYTHONPATH="$PWD/../../src" \
+LRH_CONSOLE_WORKSPACE="$(cd ../.. && pwd)" \
+  "src-tauri/target/release/bundle/macos/LRH Console.app/Contents/MacOS/lrh-console"
+```
+
+The app starts its own `lrh serve --desktop-protocol` backend, and shows the
+dashboard once the backend is ready. Without the settings it shows a "Backend
+not configured" page.
+
+- The Server menu starts, stops, and restarts the owned backend.
+- Closing the window keeps the app and its backend running.
+- The Dock icon brings the window back.
+- Quit stops the backend.
+
+### Regenerate the app icon
+
+The master icon is `apps/desktop/src-tauri/icons/source/lrh-icon-1024.png`: a
+1024×1024 PNG with a transparent background, rendered from the Illustrator
+artwork. After changing it, regenerate the desktop icon set:
+
+```bash
+cd apps/desktop
+cargo tauri icon src-tauri/icons/source/lrh-icon-1024.png -o /tmp/lrh-icons
+cp /tmp/lrh-icons/{32x32.png,128x128.png,128x128@2x.png,icon.icns,icon.ico,icon.png} src-tauri/icons/
+```
+
+Only the desktop files are kept. The generator's Android, iOS, and Windows
+Store images are not used.
+
 ## CI
 
 `.github/workflows/desktop.yml` runs the same commands on Ubuntu and macOS:

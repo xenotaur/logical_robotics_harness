@@ -18,3 +18,14 @@ main {
     background: #0d1117;
   }
 }
+
+.state {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}

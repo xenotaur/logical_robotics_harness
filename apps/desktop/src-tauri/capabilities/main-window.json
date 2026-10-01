@@ -1,0 +1,7 @@
+{
+  "identifier": "main-window",
+  "description": "The main window shows bundled status pages or the owned LRH Serve origin. Neither gets any app command: no shell, filesystem, process, or remote-origin access.",
+  "local": true,
+  "windows": ["main"],
+  "permissions": []
+}

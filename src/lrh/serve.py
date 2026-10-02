@@ -7,6 +7,7 @@ import hashlib
 import html
 import http.server
 import json
+import os
 import shlex
 import socket
 import socketserver
@@ -28,6 +29,31 @@ DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
 LOCAL_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
 UNSAFE_HOSTS = frozenset({"0.0.0.0", "::", ""})
+
+
+_IGNORED_DIRS = frozenset(
+    {
+        ".venv",
+        "venv",
+        "__pycache__",
+        ".git",
+        ".mypy_cache",
+        ".pytest_cache",
+        "node_modules",
+    }
+)
+
+
+def _find_md_files(root: Path) -> list[Path]:
+    paths: list[Path] = []
+    for dirpath, dirnames, filenames in os.walk(root, topdown=True):
+        dirnames[:] = [d for d in dirnames if d not in _IGNORED_DIRS]
+        for f in filenames:
+            if f.lower().endswith(".md"):
+                paths.append(Path(dirpath) / f)
+    return paths
+
+
 _WORKBENCH_ARTIFACT_ROUTES = frozenset(
     {"/workbench/prompt", "/workbench/run-packet", "/workbench/run-report"}
 )
@@ -1839,7 +1865,7 @@ def codex_archive_payload(config: ServeConfig) -> dict[str, object]:
         elif not root.is_dir():
             diagnostics.append("archive root is not a directory")
         else:
-            for export_path in sorted(root.rglob("*.md")):
+            for export_path in sorted(_find_md_files(root)):
                 if not export_path.is_file():
                     continue
                 if not _is_path_within(export_path.resolve(), root):
@@ -2041,7 +2067,7 @@ def _codex_export_summary_for_id(
     for root_index, root in enumerate(_configured_codex_archive_roots(config)):
         if not root.exists() or not root.is_dir():
             continue
-        for export_path in sorted(root.rglob("*.md")):
+        for export_path in sorted(_find_md_files(root)):
             if not export_path.is_file():
                 continue
             resolved = export_path.resolve()

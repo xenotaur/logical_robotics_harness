@@ -2,13 +2,13 @@
 execution_id: 2026_10_01_22_19_40_WI_LRH_CONSOLE_DESKTOP_SETTINGS
 prompt_id: PROMPT(WI-LRH-CONSOLE-DESKTOP-SETTINGS:WI_LRH_CONSOLE_DESKTOP_SETTINGS)[2026-10-01T18:22:28+00:00]
 work_item: WI-LRH-CONSOLE-DESKTOP-SETTINGS
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/763
-commit: 
+commit: abe0acf6bf9d67949927f6f1147526737daa5561
 agent: "claude_app"
 instruction_source: "project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-SETTINGS.md"
-session_transcript: pending
+session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 created_at: 2026-10-01T22:19:40+00:00
 ---
 

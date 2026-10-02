@@ -423,4 +423,4 @@ claims.
 - Consumers: `project/work_items/resolved/WI-LRH-CONSOLE-DESKTOP-SUPERVISOR.md`
   (the Rust supervisor), `project/work_items/resolved/WI-LRH-CONSOLE-DESKTOP-SHELL.md`
   (lifecycle menus and navigation), and
-  `project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-SETTINGS.md` (settings and recovery)
+  `project/work_items/resolved/WI-LRH-CONSOLE-DESKTOP-SETTINGS.md` (settings and recovery)

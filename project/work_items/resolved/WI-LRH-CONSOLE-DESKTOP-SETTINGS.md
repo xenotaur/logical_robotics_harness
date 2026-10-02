@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-SETTINGS"
 title: "Add LRH Console settings, recovery pages, browser handoff, and dogfood how-to"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #763 (commit abe0acf6): private validated configuration (0600), first-run setup, one Settings / Server Details window holding the only app commands, recovery pages, narrow rate-limited browser handoff with Chrome fallback (links, popups, downloads), View > Meta, non-blocking Quit, scripts/run bundle and launch, and docs/how-to/lrh-console-local-dogfood.md with the manual checklist. Owner first-run Mac smoke passed.'
 owner: "anthony"
 contributors:
 - "anthony"

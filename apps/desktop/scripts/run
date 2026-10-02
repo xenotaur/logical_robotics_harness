@@ -31,6 +31,15 @@ Commands:
   test                    Run cargo test (tier 1: headless mock-runtime tests, plus
                           supervisor tests against a real lrh serve from src/;
                           uses LRH_DESKTOP_TEST_PYTHON, else $PYTHON, else python3).
+  bundle                  Build the app (macOS: LRH Console.app) with the
+                          pinned toolchain.
+  launch [--workspace PATH]
+                          Start the built app against this checkout's own
+                          source (python -m lrh.cli.main with src/ on
+                          PYTHONPATH), serving PATH (default: this repository).
+                          A developer convenience; normal use opens the app
+                          from the Dock with its saved Settings. Uses
+                          LRH_CONSOLE_PYTHON, else $PYTHON, else python3.
 
 Options:
   --dry-run               Print the commands that would run; run nothing.
@@ -282,6 +291,61 @@ cmd_test() {
   run_step cargo test --manifest-path "${MANIFEST}" --locked
 }
 
+REPO_ROOT="$(cd "${DESKTOP_DIR}/../.." && pwd)"
+
+# The built app's executable for this platform.
+app_binary() {
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo "${DESKTOP_DIR}/src-tauri/target/release/bundle/macos/LRH Console.app/Contents/MacOS/lrh-console"
+  else
+    echo "${DESKTOP_DIR}/src-tauri/target/release/lrh-console"
+  fi
+}
+
+cmd_bundle() {
+  [[ $# -eq 0 ]] || usage_error "bundle takes no options"
+  [[ "${DRY_RUN}" -eq 1 ]] || check_pins
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    run_step cargo tauri build --bundles app
+  else
+    run_step cargo tauri build --no-bundle
+  fi
+  [[ "${DRY_RUN}" -eq 1 ]] || echo "desktop: built $(app_binary)"
+}
+
+cmd_launch() {
+  local workspace="${REPO_ROOT}"
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --workspace)
+        [[ $# -ge 2 ]] || usage_error "--workspace needs a path"
+        workspace="$2"
+        shift 2
+        ;;
+      *) usage_error "unknown launch option: $1" ;;
+    esac
+  done
+  [[ -d "${workspace}" ]] || die "workspace ${workspace} is not a directory"
+  workspace="$(cd "${workspace}" && pwd)"
+  local candidate="${LRH_CONSOLE_PYTHON:-${PYTHON:-python3}}"
+  local python
+  python="$(command -v "${candidate}" 2>/dev/null)" \
+    || die "no Python interpreter ('${candidate}' not found); set LRH_CONSOLE_PYTHON"
+  [[ "${python}" == /* ]] || python="${PWD}/${python}"
+  local binary
+  binary="$(app_binary)"
+  if [[ "${DRY_RUN}" -ne 1 && ! -x "${binary}" ]]; then
+    die "the app is not built yet; run apps/desktop/scripts/run bundle first"
+  fi
+  # Clear the other launch form so an exported executable override cannot
+  # conflict with the Python form set here.
+  run_step /usr/bin/env -u LRH_CONSOLE_LRH_EXECUTABLE \
+    "LRH_CONSOLE_PYTHON=${python}" \
+    "LRH_CONSOLE_PYTHONPATH=${REPO_ROOT}/src" \
+    "LRH_CONSOLE_WORKSPACE=${workspace}" \
+    "${binary}"
+}
+
 # --dry-run is accepted anywhere; strip it before command dispatch.
 DRY_RUN=0
 remaining=()
@@ -309,5 +373,7 @@ case "${command_name}" in
   fmt) cmd_fmt "$@" ;;
   lint) cmd_lint "$@" ;;
   test) cmd_test "$@" ;;
+  bundle) cmd_bundle "$@" ;;
+  launch) cmd_launch "$@" ;;
   *) usage_error "unknown command: ${command_name}" ;;
 esac

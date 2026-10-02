@@ -302,6 +302,86 @@ fn shutdown_publishes_its_latch_before_waiting_for_an_in_flight_launch() {
 }
 
 #[test]
+fn an_unconfigured_supervisor_refuses_to_launch_until_configured() {
+    let supervisor = Supervisor::unconfigured();
+    assert!(!supervisor.is_configured());
+    assert_eq!(
+        expect_error(supervisor.start()).kind,
+        ErrorKind::NotConfigured
+    );
+    assert_eq!(supervisor.state(), State::Stopped);
+
+    supervisor.set_config(lrh_config());
+    assert!(supervisor.is_configured());
+    start_real(&supervisor);
+    supervisor.stop();
+}
+
+#[test]
+fn try_shutdown_never_waits_for_an_in_flight_launch() {
+    let body = "time.sleep(2)\nready()\ntime.sleep(60)";
+    let supervisor = Arc::new(Supervisor::new(fake_config(body)));
+    let launch = {
+        let supervisor = Arc::clone(&supervisor);
+        thread::spawn(move || supervisor.start())
+    };
+    assert!(wait_for_state(
+        &supervisor,
+        State::Starting,
+        Duration::from_secs(5)
+    ));
+
+    let started = Instant::now();
+    assert!(!supervisor.try_shutdown(), "busy: it must not wait");
+    assert!(started.elapsed() < Duration::from_millis(500));
+    assert!(supervisor.is_shut_down());
+    assert!(
+        supervisor.try_diagnostics().is_none(),
+        "diagnostics never block either"
+    );
+
+    let _ = launch.join().unwrap();
+    let pid = supervisor
+        .child_pid()
+        .expect("the launch finished with a child");
+    let started = Instant::now();
+    assert!(supervisor.try_shutdown(), "idle: it asks the child to stop");
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "never waits for the exit"
+    );
+    // This fake ignores `shutdown` and stdin, so only check that the request
+    // did not block; dropping the supervisor reaps it. A real backend exits
+    // on its own (see the next test).
+    let _ = pid;
+}
+
+#[cfg(unix)]
+#[test]
+fn try_shutdown_of_an_idle_real_backend_lets_it_exit_on_its_own() {
+    let supervisor = Supervisor::new(lrh_config());
+    start_real(&supervisor);
+    let pid = supervisor.child_pid().expect("owned child");
+
+    let started = Instant::now();
+    assert!(supervisor.try_shutdown());
+    assert!(
+        started.elapsed() < Duration::from_millis(500),
+        "never waits"
+    );
+    // The backend handles `shutdown` (or stdin EOF) by itself. The supervisor
+    // still holds the handle, so poll its exit through the status refresh.
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while Instant::now() < deadline && supervisor.state() != State::Failed {
+        thread::sleep(Duration::from_millis(50));
+    }
+    assert!(
+        wait_until_dead(pid, Duration::from_secs(2)),
+        "the backend exited"
+    );
+}
+
+#[test]
 fn a_missing_program_is_a_spawn_failure() {
     let mut config = lrh_config();
     config.program = repo_root().join("no-such-lrh-executable");

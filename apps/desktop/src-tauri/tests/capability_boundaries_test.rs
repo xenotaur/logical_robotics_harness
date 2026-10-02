@@ -1,11 +1,14 @@
-//! Capability and navigation boundaries of the main window.
+//! Capability and navigation boundaries of the app's windows.
 //!
 //! The main window shows bundled status pages or the owned Serve origin.
 //! Neither may invoke app commands, and the window may only navigate to
-//! bundled pages and the current backend's exact origin. These tests use the
-//! Tauri mock runtime, so no real window opens.
+//! bundled pages and the current backend's exact origin. The Settings window
+//! is the only one granted the app's (narrow, validated) commands. These tests
+//! use the Tauri mock runtime, so no real window opens.
 
-use lrh_console_lib::shell::{self, NavigationPolicy};
+use std::sync::Arc;
+
+use lrh_console_lib::shell::{self, LinkHandoff, NavigationPolicy};
 use tauri::webview::NewWindowResponse;
 use tauri::Url;
 
@@ -27,13 +30,24 @@ fn invoke_request(cmd: &str, origin: &Url) -> tauri::webview::InvokeRequest {
     }
 }
 
+/// Every app command, as registered.
+const APP_COMMANDS: [&str; 5] = [
+    "get_app_info",
+    "get_settings",
+    "save_settings",
+    "get_server_details",
+    "restart_server",
+];
+
 fn assert_denied(window: &tauri::WebviewWindow<tauri::test::MockRuntime>, origin: &Url) {
-    let error = tauri::test::get_ipc_response(window, invoke_request("get_app_info", origin))
-        .expect_err("main-window content must not reach app commands");
-    assert!(
-        format!("{error:?}").contains("not allowed"),
-        "expected an ACL denial for {origin}, got {error:?}"
-    );
+    for command in APP_COMMANDS {
+        let error = tauri::test::get_ipc_response(window, invoke_request(command, origin))
+            .expect_err("this content must not reach app commands");
+        assert!(
+            format!("{error:?}").contains("not allowed"),
+            "expected an ACL denial for {command} from {origin}, got {error:?}"
+        );
+    }
 }
 
 fn url(text: &str) -> Url {
@@ -44,8 +58,13 @@ fn url(text: &str) -> Url {
 fn bundled_status_page_in_the_main_window_gets_no_app_commands() {
     let app = build_app();
     let initial = shell::status_url("stopped", None);
-    let window =
-        shell::build_main_window(&app, NavigationPolicy::default(), &initial).expect("main window");
+    let window = shell::build_main_window(
+        &app,
+        NavigationPolicy::default(),
+        Arc::new(LinkHandoff::default()),
+        &initial,
+    )
+    .expect("main window");
 
     assert_denied(&window, &shell::bundled_base());
 }
@@ -56,6 +75,7 @@ fn owned_serve_origin_in_the_main_window_gets_no_app_commands() {
     let window = shell::build_main_window(
         &app,
         NavigationPolicy::default(),
+        Arc::new(LinkHandoff::default()),
         &shell::status_url("stopped", None),
     )
     .expect("main window");
@@ -71,6 +91,42 @@ fn an_unlisted_window_gets_no_app_commands() {
         .expect("untrusted window");
 
     assert_denied(&window, &shell::bundled_base());
+}
+
+#[test]
+fn the_settings_window_may_call_its_commands_from_bundled_pages() {
+    let app = build_app();
+    let window = shell::build_settings_window(&app).expect("settings window");
+
+    let response = tauri::test::get_ipc_response(
+        &window,
+        invoke_request("get_app_info", &shell::bundled_base()),
+    )
+    .expect("the Settings window may call get_app_info");
+    let value: serde_json::Value = response.deserialize().expect("json response");
+    assert_eq!(value["name"], "LRH Console");
+
+    // The other commands pass the ACL; they fail later only because this mock
+    // app has no managed shell state.
+    for command in &APP_COMMANDS[1..] {
+        let result =
+            tauri::test::get_ipc_response(&window, invoke_request(command, &shell::bundled_base()));
+        if let Err(error) = result {
+            assert!(
+                !format!("{error:?}").contains("not allowed"),
+                "{command} must be allowed in the Settings window, got {error:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn remote_content_in_the_settings_window_gets_no_app_commands() {
+    let app = build_app();
+    let window = shell::build_settings_window(&app).expect("settings window");
+
+    assert_denied(&window, &url("http://127.0.0.1:50543/"));
+    assert_denied(&window, &url("https://example.com/"));
 }
 
 #[test]

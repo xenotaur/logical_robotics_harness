@@ -54,6 +54,8 @@ artifacts_expected:
 - "apps/desktop/src-tauri/capabilities (narrow capability for the Settings window)"
 - "apps/desktop/src-tauri/tests/capability_boundaries_test.rs (extended)"
 - "docs/how-to/lrh-console-local-dogfood.md (with the manual macOS checklist)"
+- "apps/desktop/scripts/run bundle and launch subcommands, with tests/scripts_tests/desktop_modes_test.py coverage (added at the SETTINGS run gate)"
+- "View > Meta menu item and the Quit stall fix (stop off the main thread with a Stopping page), added at the SETTINGS run gate"
 ---
 
 # LRH Console settings, recovery, and browser handoff

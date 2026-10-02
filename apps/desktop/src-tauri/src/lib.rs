@@ -1,11 +1,12 @@
 //! LRH Console desktop shell.
 //!
-//! The [`shell`] owns the main window, the lifecycle menus, and the
-//! navigation policy, and drives the owned-server [`supervisor`]
-//! (WI-LRH-CONSOLE-DESKTOP-SHELL, WI-LRH-CONSOLE-DESKTOP-SUPERVISOR). Private
-//! configuration, Settings/Details, recovery pages, and browser handoff arrive
-//! with WI-LRH-CONSOLE-DESKTOP-SETTINGS.
+//! The [`shell`] owns the windows, menus, navigation policy, and Settings
+//! commands, and drives the owned-server [`supervisor`]. [`settings`] holds
+//! the private configuration and [`browser`] the narrow link handoff
+//! (WI-LRH-CONSOLE-DESKTOP-SUPERVISOR, -SHELL, and -SETTINGS).
 
+pub mod browser;
+pub mod settings;
 pub mod shell;
 pub mod supervisor;
 
@@ -29,9 +30,8 @@ pub fn app_info() -> AppInfo {
     }
 }
 
-/// Registered so its permission is generated, but granted to no window: the
-/// main window's content gets no app commands. The Settings window
-/// (WI-LRH-CONSOLE-DESKTOP-SETTINGS) is its intended caller.
+/// Granted only to the Settings window, like every app command; the main
+/// window's content gets none.
 #[tauri::command]
 fn get_app_info() -> AppInfo {
     app_info()
@@ -39,7 +39,13 @@ fn get_app_info() -> AppInfo {
 
 /// Registers this app's commands on a builder for any runtime.
 pub fn with_commands<R: tauri::Runtime>(builder: tauri::Builder<R>) -> tauri::Builder<R> {
-    builder.invoke_handler(tauri::generate_handler![get_app_info])
+    builder.invoke_handler(tauri::generate_handler![
+        get_app_info,
+        shell::get_settings,
+        shell::save_settings,
+        shell::get_server_details,
+        shell::restart_server,
+    ])
 }
 
 /// The compiled app context (config, capabilities, and bundled pages).
@@ -74,11 +80,29 @@ pub fn run() {
     app.run(|app, event| match event {
         #[cfg(target_os = "macos")]
         RunEvent::Reopen { .. } => shell::show_main(app),
-        // Quit stops the owned server, within the supervisor's bounds. The
+        // Quit shows "Stopping…" and stops the owned server off the main
+        // thread, then exits, so the UI never freezes during the stop. The
         // state is absent only if setup failed, and then nothing was started.
+        RunEvent::ExitRequested { api, .. } => {
+            if let Some(state) = app.try_state::<shell::ShellState>() {
+                if state.begin_exit() {
+                    api.prevent_exit();
+                    shell::show_stopping(app);
+                    let app = app.clone();
+                    std::thread::spawn(move || {
+                        app.state::<shell::ShellState>().shutdown();
+                        app.exit(0);
+                    });
+                }
+            }
+        }
+        // Covers exits that skip ExitRequested (Dock "Quit", AppleScript
+        // quit, logout). It never blocks the main thread: if an operation is
+        // in flight, the exiting process closes the child's stdin and the
+        // child stops itself under the protocol's parent-loss rule.
         RunEvent::Exit => {
             if let Some(state) = app.try_state::<shell::ShellState>() {
-                state.shutdown();
+                state.supervisor.try_shutdown();
             }
         }
         _ => {}

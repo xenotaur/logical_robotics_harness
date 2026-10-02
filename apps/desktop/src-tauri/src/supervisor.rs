@@ -90,6 +90,8 @@ pub enum ErrorKind {
     ChannelFailed,
     /// The supervisor was shut down (app Quit) and launches no more children.
     ShutDown,
+    /// No launch configuration has been set yet (first run).
+    NotConfigured,
 }
 
 impl ErrorKind {
@@ -109,6 +111,7 @@ impl ErrorKind {
             ErrorKind::AlreadyLaunched => "already_launched",
             ErrorKind::ChannelFailed => "channel_failed",
             ErrorKind::ShutDown => "shut_down",
+            ErrorKind::NotConfigured => "not_configured",
         }
     }
 }
@@ -184,7 +187,7 @@ pub struct StopResult {
 
 /// What to launch and how long to wait. Every path is explicit; nothing is
 /// looked up through a shell.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LaunchConfig {
     /// Absolute path to the `lrh` executable, or to a Python interpreter.
     pub program: PathBuf,
@@ -606,6 +609,16 @@ impl OwnedServer {
         self.finish(true)
     }
 
+    /// Sends `shutdown` and closes stdin without waiting for the exit. For an
+    /// exiting parent only: the child stops itself and is never reaped here.
+    pub fn request_stop(&mut self) {
+        if self.child.is_some() && !self.exited {
+            let message = control_message("shutdown", &self.launch_id, None);
+            self.send(&message);
+            self.close_stdin();
+        }
+    }
+
     /// Closes stdin without a message, as a crashed parent would.
     pub fn close_channel(&mut self) -> StopResult {
         self.finish(false)
@@ -1009,7 +1022,9 @@ pub struct Status {
 
 /// Serializes Start, Stop, and Restart for at most one owned child.
 pub struct Supervisor {
-    config: LaunchConfig,
+    /// What the next launch runs. Replacing it never affects a running
+    /// child; it takes effect at the next Start or Restart.
+    config: Mutex<Option<LaunchConfig>>,
     /// Held for the whole of each operation, so operations never interleave.
     current: Mutex<Option<OwnedServer>>,
     /// Updated at each transition; readable without waiting for an operation.
@@ -1021,8 +1036,18 @@ pub struct Supervisor {
 
 impl Supervisor {
     pub fn new(config: LaunchConfig) -> Self {
+        Self::with_config(Some(config))
+    }
+
+    /// A supervisor with no launch configuration yet; launches fail with
+    /// [`ErrorKind::NotConfigured`] until [`Supervisor::set_config`].
+    pub fn unconfigured() -> Self {
+        Self::with_config(None)
+    }
+
+    fn with_config(config: Option<LaunchConfig>) -> Self {
         Supervisor {
-            config,
+            config: Mutex::new(config),
             current: Mutex::new(None),
             status: Mutex::new(Status {
                 state: State::Stopped,
@@ -1108,6 +1133,39 @@ impl Supervisor {
         result
     }
 
+    /// Like [`Supervisor::shutdown`], but never waits: if an operation is in
+    /// flight it returns `false` after publishing the latch. For a process
+    /// that is exiting anyway, the in-flight child then sees its stdin close
+    /// and stops itself (the protocol's parent-loss rule).
+    pub fn try_shutdown(&self) -> bool {
+        self.shut_down.store(true, Ordering::SeqCst);
+        let Ok(mut current) = self.current.try_lock() else {
+            return false;
+        };
+        // Ask the idle child to stop and close its channel, but do not wait:
+        // this runs on the exiting app's event loop. The child stops itself
+        // on `shutdown` or stdin EOF, and the OS reaps it after we exit.
+        if let Some(server) = current.as_mut() {
+            server.request_stop();
+        }
+        true
+    }
+
+    /// Replaces the launch configuration used by the next Start or Restart.
+    pub fn set_config(&self, config: LaunchConfig) {
+        *lock(&self.config) = Some(config);
+    }
+
+    /// The configuration the next launch will use, if any.
+    pub fn config(&self) -> Option<LaunchConfig> {
+        lock(&self.config).clone()
+    }
+
+    /// True once a launch configuration is set.
+    pub fn is_configured(&self) -> bool {
+        lock(&self.config).is_some()
+    }
+
     /// True once [`Supervisor::shutdown`] has been called.
     pub fn is_shut_down(&self) -> bool {
         self.shut_down.load(Ordering::SeqCst)
@@ -1169,6 +1227,17 @@ impl Supervisor {
             .unwrap_or_default()
     }
 
+    /// The owned child's PID and stderr tail without waiting for an
+    /// operation in flight; `None` while one holds the supervisor. Safe to
+    /// call from a UI thread.
+    pub fn try_diagnostics(&self) -> Option<(Option<u32>, String)> {
+        let current = self.current.try_lock().ok()?;
+        Some(match current.as_ref() {
+            Some(server) => (server.child_pid(), server.stderr_tail()),
+            None => (None, String::new()),
+        })
+    }
+
     /// The OS process ID of the owned child, while it has one.
     pub fn child_pid(&self) -> Option<u32> {
         lock(&self.current)
@@ -1186,9 +1255,16 @@ impl Supervisor {
                 "the supervisor has shut down",
             ));
         }
+        let Some(config) = self.config() else {
+            let error = SupervisorError::new(ErrorKind::NotConfigured, "no launch configuration");
+            let mut status = lock(&self.status);
+            status.state = State::Stopped;
+            status.last_error = Some(error.clone());
+            return Err(error);
+        };
         let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
         self.set_status(State::Starting, None, None, None);
-        let mut server = OwnedServer::new(self.config.clone(), generation);
+        let mut server = OwnedServer::new(config, generation);
         let result = server.start();
         match &result {
             Ok(handshake) => self.set_status(State::Running, Some(handshake.clone()), None, None),

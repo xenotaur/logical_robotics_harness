@@ -25,6 +25,7 @@ Add content here when the reader already knows which command they need and wants
 - [`doctor`](doctor.md) — diagnose LRH project bootstrap readiness, or run the one-time `--fix-frontmatter` content migration.
 - [`snapshot`](snapshot.md) — generate Markdown context packets from project control files.
 - [`survey`](survey.md) — survey Python source trees for assist planning workflows.
+- [`branches`](branches.md) — report-only local branch hygiene survey; classifies local branches and can write reviewable delete commands, but never deletes anything itself.
 - [`request`](request.md) — render request prompts and inspect request-template resolution, including `audit_docs` and `organize_docs`.
 - [`conversation`](conversation.md) — convert local conversation artifacts such as ChatGPT PDF exports.
 - [`sessions`](sessions.md) — reconcile execution-record session pointers with the private session archive.

@@ -142,8 +142,14 @@ Set exactly one of the first two.
 ### Regenerate the app icon
 
 The master icon is `apps/desktop/src-tauri/icons/source/lrh-icon-1024.png`: a
-1024×1024 PNG with a transparent background, rendered from the Illustrator
-artwork. After changing it, regenerate the desktop icon set:
+1024×1024 PNG with a transparent background. It is currently LRH Icon v8.
+
+To make a new master, export the artboard from Illustrator as an RGB PNG with
+a transparent background, at 1024×1024 or larger, and downscale it to
+1024×1024. Use an Illustrator export rather than a render of a PDF. macOS
+`sips` renders older or untagged PDF exports with washed-out colors.
+
+After changing the master, regenerate the desktop icon set:
 
 ```bash
 cd apps/desktop

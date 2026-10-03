@@ -2,10 +2,10 @@
 execution_id: 2026_10_03_22_21_57_LRH_CONSOLE_ICON_V8_CONFIRM
 prompt_id: PROMPT(AD_HOC:LRH_CONSOLE_ICON_V8_CONFIRM)[2026-10-03T22:21:57+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_03_22_16_28_LRH_CONSOLE_ICON_V8
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/764
-commit: 
+commit: 9c436561c3d4a2bd068fa269d8a69f9eb64a6f30
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/764"
 session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"

@@ -193,7 +193,7 @@ gets reviewed on its own, before any UI depends on it.
 
 ## Related Workstream and Designs
 
-- `project/workstreams/proposed/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`
+- `project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`
 - `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md`
 - `docs/reference/desktop-server-protocol.md`
 

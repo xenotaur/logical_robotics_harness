@@ -18,7 +18,7 @@ related_design:
 - "project/design/proposals/proposed/meta-operational-triage-semantics/00_proposal.md"
 - "project/design/proposals/proposed/activity-lanes-and-observational-dashboard.md"
 - "project/work_items/proposed/WI-WORK-ITEM-BLOCKED-STATE-EXPRESSIVENESS.md"
-- "project/workstreams/proposed/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md"
+- "project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md"
 ---
 
 # LRH Console: local dogfood and dependency maps
@@ -406,7 +406,7 @@ local-first sequence.
 
 ## Cross-References
 
-- Workstream: `project/workstreams/proposed/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`.
+- Workstream: `project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`.
 - Existing execution boundary: `project/design/execution_framework_mvp.md`.
 - Existing workspace boundary: `docs/explanations/workspace-and-meta-model.md`.
 - Prior design: `project/design/proposals/proposed/lrh-console-visual-language/00_proposal.md`.

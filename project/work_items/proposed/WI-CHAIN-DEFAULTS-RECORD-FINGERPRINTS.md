@@ -48,7 +48,7 @@ acceptance:
   - "The fingerprint store records the stamp it was written for -- the full resolved `confirmed_commit` SHA plus `confirmed_at` -- and `check_gate_staleness` accepts it only when both equal the stamp it is checking against (the checkout's own `chain-defaults.yaml`, `confirmed_commit` resolved to a full SHA before comparing); on a mismatch, or when no `confirmed_at` is supplied, every fingerprint-kind target fails closed, so a store written without a matching committed profile (failed profile write, declined `main` push, or a branch still carrying the old profile) can never make a fingerprint-only repo read fresh"
   - "After a successful `restamp`, `lrh chain-defaults status` run in the checkout whose profile `restamp` wrote reports `stale: false` for every watch target (git and fingerprint kinds share the same confirmation baseline), and `consent.valid` is `false` per the existing whole-file blob-hash binding (`DEC-GATE-POLICY-CASCADE` Decision 4)"
   - "Every existing `confirmed_commit` re-stamp site in `_shared/chain-defaults.md` and its inlined copy in `lrh-land/references/land-workflow.md` uses `lrh chain-defaults restamp` instead of hand-writing the two fields, so no re-stamp path can update one baseline without the other"
-  - "`/lrh-config-gates` offers a re-confirm step, asked as its own question, that shows the stale-files list verbatim plus the `--dry-run` plan, runs `restamp` only on explicit confirm, re-reads status, and then offers the existing skip-consent grant as a further separate question; `_shared/chain-defaults.md` names this step as a sanctioned re-stamp point"
+  - "`/lrh-config-gates` offers a re-confirm step, asked as its own question, that shows the stale-files list verbatim plus the `--dry-run` plan, runs `restamp` only on explicit confirm, re-reads status, and then -- only on a checkout whose profile carries the new stamp -- offers the existing skip-consent grant as a further separate question (on the PR-branch path it instead tells the user to grant consent from a checkout with the new profile); `_shared/chain-defaults.md` names this step as a sanctioned re-stamp point"
   - "Two worktrees of one clone share the fingerprint store (each accepts it only when its own profile carries the matching stamp); two independent clones do not share it"
   - "`lrh validate` reports 0 errors, `scripts/test` passes, and `lrh skills check` reports the Claude, Codex, and Antigravity rendered targets up to date"
 required_evidence:
@@ -216,6 +216,20 @@ revised during PR #753 review):
        result; capture it instead. Never compare it as
        raw profile text, so a short SHA in a hand-written profile neither
        fails nor matches by accident.
+     - Compare `confirmed_at` in one canonical form on both sides: ISO-8601
+       UTC, second precision, trailing `Z` (e.g. `2026-09-22T03:50:48Z`).
+       The value arrives in different forms depending on the path:
+       - `yaml.safe_load` (`src/lrh/chain_defaults_status.py:125`) turns an
+         unquoted timestamp like the live `project/config/chain-defaults.yaml:14`
+         into a `datetime`, whose `str()` is `2026-09-22 03:50:48+00:00`;
+       - the bash snippet passes the raw text instead.
+
+       Add one helper that takes either a `datetime` or a string, parses it
+       to an aware UTC `datetime`, and formats it as the canonical string.
+       Apply it to the store value, the profile value, and the
+       `--confirmed-at` argument before comparing. `restamp` writes the
+       canonical form to both the store and the profile. An unparseable
+       value fails closed.
      - If `confirmed_at` is not supplied, the store can't be validated, so
        every fingerprint-kind target fails closed.
      - On a mismatch, every fingerprint-kind target fails closed with a
@@ -372,6 +386,13 @@ revised during PR #753 review):
      - a profile with a short-SHA `confirmed_commit` is compared as its
        resolved full SHA;
      - with no `confirmed_at` supplied, the store fails closed;
+     - canonical `confirmed_at` comparison: after a successful `restamp`,
+       the same profile reads `stale: false` through **both** the `status`
+       path (YAML-loaded `datetime`) and the
+       `check-staleness --confirmed-commit ... --confirmed-at ...` path (raw
+       text from the bash snippet). Unquoted, quoted, and `+00:00`-offset
+       spellings of the same instant all match; an unparseable value fails
+       closed;
    - after `restamp`, `status` reports `stale: false` and `consent.valid:
      false`;
    - installed content changed after `restamp` → stale;

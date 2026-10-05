@@ -208,9 +208,16 @@ impl NavigationPolicy {
 ///
 /// The webview's own history also holds bundled status pages ("Starting…",
 /// "Stopping…") and pages of earlier backends, which Back must never reach.
-/// This one records only pages on the current backend's origin and is cleared
-/// whenever that origin changes, so a restarted backend's old port is never
-/// revisited. Every move is still checked by [`NavigationPolicy`].
+/// This one records only pages on the current backend's origin. Any other
+/// navigation, such as the status page every start, restart, stop, or Quit
+/// shows, ends it, so a restarted backend never revisits old pages even on
+/// the same port. Every move is still checked by [`NavigationPolicy`].
+///
+/// Navigations are observed through the main window's navigation handler,
+/// which also sees the webview's own Back (the Delete key or a gesture) and
+/// sees rapid moves late. A navigation to the page just behind or ahead is
+/// therefore taken as that move, not as a new page. The handler cannot tell
+/// subframes apart; Serve's pages have none.
 #[derive(Debug, Default)]
 pub struct PageHistory {
     /// The backend endpoint whose origin the recorded pages belong to.
@@ -218,8 +225,6 @@ pub struct PageHistory {
     back: Vec<Url>,
     current: Option<Url>,
     forward: Vec<Url>,
-    /// The target of a Back or Forward move whose navigation is not seen yet.
-    pending: Option<Url>,
 }
 
 impl PageHistory {
@@ -227,9 +232,10 @@ impl PageHistory {
     const LIMIT: usize = 100;
 
     /// Records an allowed main-window navigation to `url` while `backend`
-    /// runs. Bundled pages and other origins are not recorded.
+    /// runs. A navigation anywhere but the backend's origin ends the history.
     pub fn visited(&mut self, url: &Url, backend: Option<&Url>) {
         let Some(backend) = backend.filter(|backend| backend.origin() == url.origin()) else {
+            *self = PageHistory::default();
             return;
         };
         if !self.belongs_to(Some(backend)) {
@@ -238,8 +244,16 @@ impl PageHistory {
                 ..PageHistory::default()
             };
         }
-        if self.pending.take().as_ref() == Some(url) || self.current.as_ref() == Some(url) {
-            // The page a Back/Forward move went to, or a reload.
+        if self.current.as_ref() == Some(url) {
+            // A reload, or the page a Back/Forward move already went to.
+            return;
+        }
+        if self.back.last() == Some(url) {
+            self.shift(true);
+            return;
+        }
+        if self.forward.last() == Some(url) {
+            self.shift(false);
             return;
         }
         if let Some(previous) = self.current.replace(url.clone()) {
@@ -274,6 +288,11 @@ impl PageHistory {
             *self = PageHistory::default();
             return None;
         }
+        self.shift(back)
+    }
+
+    /// Makes the page behind (or ahead) current and returns it.
+    fn shift(&mut self, back: bool) -> Option<Url> {
         let (from, to) = if back {
             (&mut self.back, &mut self.forward)
         } else {
@@ -283,7 +302,6 @@ impl PageHistory {
         if let Some(current) = self.current.replace(target.clone()) {
             push_bounded(to, current);
         }
-        self.pending = Some(target.clone());
         Some(target)
     }
 
@@ -306,19 +324,10 @@ fn push_bounded(pages: &mut Vec<Url>, page: Url) {
 type HistoryItems<R> = [MenuItem<R>; 2];
 
 /// The main window's history together with the Back and Forward menu items
-/// it enables. Cloning shares the same history.
+/// it enables.
 pub struct MainWindowHistory<R: Runtime> {
     pages: Arc<Mutex<PageHistory>>,
     items: Option<HistoryItems<R>>,
-}
-
-impl<R: Runtime> Clone for MainWindowHistory<R> {
-    fn clone(&self) -> Self {
-        MainWindowHistory {
-            pages: Arc::clone(&self.pages),
-            items: self.items.clone(),
-        }
-    }
 }
 
 impl<R: Runtime> Default for MainWindowHistory<R> {
@@ -1423,6 +1432,43 @@ mod tests {
         history.visited(&new, Some(&new));
         history.visited(&new.join("meta").unwrap(), Some(&new));
         assert_eq!(history.go_back(Some(&new)), Some(new.clone()));
+    }
+
+    #[test]
+    fn the_webviews_own_back_and_rapid_moves_stay_consistent() {
+        let backend = page("/");
+        let mut history = PageHistory::default();
+        for path in ["/", "/health", "/meta"] {
+            history.visited(&page(path), Some(&backend));
+        }
+        // The Delete key: the webview goes back without the menu.
+        history.visited(&page("/health"), Some(&backend));
+        assert!(history.can_go_forward(Some(&backend)));
+        assert_eq!(history.go_back(Some(&backend)), Some(page("/")));
+
+        // Back twice before either navigation is seen, then both arrive.
+        history.visited(&page("/"), Some(&backend));
+        assert_eq!(history.go_forward(Some(&backend)), Some(page("/health")));
+        assert_eq!(history.go_forward(Some(&backend)), Some(page("/meta")));
+        assert_eq!(history.go_back(Some(&backend)), Some(page("/health")));
+        assert_eq!(history.go_back(Some(&backend)), Some(page("/")));
+        history.visited(&page("/health"), Some(&backend));
+        history.visited(&page("/"), Some(&backend));
+        assert!(!history.can_go_back(Some(&backend)));
+        assert_eq!(history.go_forward(Some(&backend)), Some(page("/health")));
+        assert_eq!(history.go_forward(Some(&backend)), Some(page("/meta")));
+    }
+
+    #[test]
+    fn a_status_page_ends_the_history_even_on_the_same_port() {
+        let backend = page("/");
+        let mut history = PageHistory::default();
+        history.visited(&page("/"), Some(&backend));
+        history.visited(&page("/health"), Some(&backend));
+        // A restart that reuses the port still shows "Starting…" first.
+        history.visited(&status_url("starting", None), None);
+        history.visited(&page("/"), Some(&backend));
+        assert!(!history.can_go_back(Some(&backend)));
     }
 
     #[test]

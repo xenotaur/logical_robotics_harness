@@ -32,7 +32,7 @@ choose **Open**.
 With no saved configuration, the main window shows **Set up LRH Console** and
 the Settings window opens. Fill in:
 
-- **Backend program.** Choose one of:
+- **Server program.** Choose one of:
   - an installed `lrh` executable, such as `…/envs/lrh/bin/lrh`;
   - a Python interpreter plus an optional `PYTHONPATH`, for a source
     checkout. For example, interpreter `…/envs/lrh/bin/python` and
@@ -73,11 +73,11 @@ effect when the server restarts.
 
 How the app behaves:
 
-- The app owns exactly one backend. It never adopts, stops, or signals an
+- The app owns exactly one server. It never adopts, stops, or signals an
   `lrh serve` that you started yourself.
-- If the app crashes, its backend notices that the parent is gone and exits
+- If the app crashes, its server notices that the parent is gone and exits
   within a few seconds.
-- The main window shows only the app's own pages and the current backend's
+- The main window shows only the app's own pages and the current server's
   exact local address.
 - Links to other sites open in your browser, at most one per second. Popups
   never open inside the app.
@@ -93,14 +93,14 @@ How the app behaves:
 | **Server failed**, code `spawn_failed` | The program path cannot be run. Fix it in Settings. |
 | **Server failed**, code `exited_before_ready` | Python could not start LRH, usually because of the interpreter or `PYTHONPATH`. Check **Server Details** for the output. |
 | **Server failed**, code `startup_timeout` or `exited_unexpectedly` | Check **Server Details**, then choose **Server > Start Server** again. |
-| **Incompatible backend** | The configured `lrh` speaks a different desktop protocol version, or served a different workspace. Update `lrh`, or choose another program. |
+| **Incompatible server** | The configured `lrh` speaks a different desktop protocol version, or served a different workspace. Update `lrh`, or choose another program. |
 
 **Server Details** shows:
 
 - the state and the owned process ID;
 - the endpoint;
 - the configured and served workspaces;
-- the protocol and backend versions;
+- the protocol and server versions;
 - the last error and exit code;
 - the result of the last browser handoff;
 - the last 64 KiB of the server's output.
@@ -132,7 +132,7 @@ See [the toolchain how-to](project-setup/desktop-toolchain.md#build-and-run-the-
 When Chrome is not installed, **View > Open in Chrome** reads "not found: uses
 default browser", and handoffs use the default browser. Server Details records
 which browser was used. Both views show the same project, because the browser
-opens the app's own backend address.
+opens the app's own server address.
 
 ## Limitations
 
@@ -142,7 +142,7 @@ opens the app's own backend address.
 - The app is not signed or notarized, and has no installer, updates, or login
   autostart.
 - One workspace at a time. Use Meta for cross-project views.
-- ⌘Q waits for a backend that is still starting to finish starting or time
+- ⌘Q waits for a server that is still starting to finish starting or time
   out, then stops it. The window shows "Stopping…" meanwhile, and the app
   stays responsive.
 - Links are handed to the browser whenever page content navigates away from
@@ -150,7 +150,7 @@ opens the app's own backend address.
   own pages do not do this. The handoff is limited to one per second.
 - The program's protocol version is checked when the server starts, not
   when you save Settings. An incompatible `lrh` shows the **Incompatible
-  backend** page.
+  server** page.
 
 ## Validation
 
@@ -210,7 +210,7 @@ Run these checks for each dogfood session. Record the results in
 14. Choose **Server > Restart**, then press ⌘Q at once. The app shows
     "Stopping…", then exits. No `lrh serve --desktop-protocol` process
     remains (`pgrep -fl -- 'serve --desktop-protocol'` prints nothing).
-15. Crash the backend while the app is running. Use the PID that Server
+15. Crash the server while the app is running. Use the PID that Server
     Details shows under **Owned process**, so nothing else is signaled:
 
     ```bash
@@ -233,7 +233,7 @@ Run these checks for each dogfood session. Record the results in
     kill -9 <app-pid>
     ```
 
-    Within a few seconds the backend exits on its own, so
+    Within a few seconds the server exits on its own, so
     `pgrep -fl -- 'serve --desktop-protocol'` prints nothing. Reopen LRH
     Console from the Dock, and the dashboard returns.
 17. Note anything slow, confusing, or missing.

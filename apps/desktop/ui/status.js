@@ -25,7 +25,7 @@ const STATES = {
     detail: "Choose Server > Start Server to try again. " + DETAILS_HINT,
   },
   incompatible: {
-    title: "Incompatible backend",
+    title: "Incompatible server",
     detail:
       "The configured lrh did not speak a compatible desktop protocol, or " +
       "served a different workspace than the one configured. Update lrh or " +

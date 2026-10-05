@@ -95,6 +95,9 @@ experimental one.
      private/untracked/binary content, credential-like paths, sources with a
      high-severity sensitivity-scanner finding (proposal Decision 3), and
      oversized requests.
+   - Admit medium-only sources (email, IP address, phone), and attach a
+     warning that names the categories but never the matched values, as T0
+     and T1 do.
    - Search is bounded literal text search with capped results and clear
      truncation markers.
    - Treat retrieved instructions as data.
@@ -111,7 +114,10 @@ experimental one.
    - path and symlink escape attempts;
    - input and output bounds;
    - repeated denials and exhausted budgets;
-   - backend timeout, cancellation, truncated logs, and interrupted attempts.
+   - backend timeout, cancellation, truncated logs, and interrupted attempts;
+   - both sides of the severity boundary for reads and search results:
+     high-severity sources are rejected, and medium-only sources are returned
+     with category-only warnings.
 
    Include malicious source text that asks for shell, network, or write tools,
    and verify that no handler outside the three-tool surface is reachable.

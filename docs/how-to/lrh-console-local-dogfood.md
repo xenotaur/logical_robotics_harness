@@ -193,11 +193,35 @@ Run these checks for each dogfood session. Record the results in
     new project is served. Then switch back.
 11. Close the window; the app stays in the Dock. Click the Dock icon; the
     window returns.
-12. Force a failure, for example by setting a wrong interpreter. A recovery
-    page appears, and Server Details explains it. Restore the setting.
+12. Force a startup failure. Settings rejects paths that are relative,
+    missing, or not executable, so use a real interpreter that cannot import
+    LRH: set the interpreter to `/usr/bin/python3`, clear `PYTHONPATH`, save,
+    and choose **Restart server now**. The page shows **Server failed** with
+    `exited_before_ready`, and Server Details explains it. Restore your
+    interpreter and `PYTHONPATH`, then start the server again.
 13. Start an unrelated `lrh serve` in a terminal. Stop, Restart, and Quit in
     the app leave it running.
 14. Choose **Server > Restart**, then press ⌘Q at once. The app shows
     "Stopping…", then exits. No `lrh serve --desktop-protocol` process
     remains (`pgrep -fl desktop-protocol`).
-15. Note anything slow, confusing, or missing.
+15. Crash the backend while the app is running:
+
+    ```bash
+    pkill -f desktop-protocol
+    ```
+
+    The page shows **Server failed** with `exited_unexpectedly`. Choose
+    **Server > Start Server**, and the dashboard returns.
+16. Crash the app:
+
+    ```bash
+    pkill -9 -x lrh-console
+    ```
+
+    Within a few seconds the backend exits on its own, so
+    `pgrep -fl desktop-protocol` prints nothing. Reopen LRH Console from the
+    Dock, and the dashboard returns.
+17. Note anything slow, confusing, or missing.
+
+Steps 12, 15, and 16 force failures deliberately. Run them at least once
+across the dogfood sessions. You don't need to wait for a real failure.

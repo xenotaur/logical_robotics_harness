@@ -42,7 +42,7 @@ proposed fix for the third.
    either), so no link is needed.
 3. **`pkill -9 -x lrh-console` can kill any LRH Console** (Copilot). This
    finding is valid. Fixed in `70b2b85a`: step 16 now finds the installed
-   app's PID with `pgrep -fl 'LRH Console.app/Contents/MacOS/lrh-console'`
+   app's PID with `pgrep -fl '^/Applications/LRH Console.app/Contents/MacOS/lrh-console'`
    and kills only that PID. The evidence notes that session 5 used the
    earlier form.
 

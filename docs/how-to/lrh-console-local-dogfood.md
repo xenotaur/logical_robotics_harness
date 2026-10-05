@@ -216,11 +216,12 @@ Run these checks for each dogfood session. Record the results in
 
     The page shows **Server failed** with `exited_unexpectedly`. Choose
     **Server > Start Server**, and the dashboard returns.
-16. Crash the app. Find the PID of the installed app, which leaves other
-    builds such as a worktree dev build alone:
+16. Crash the app. Find the PID of the app installed in `/Applications`.
+    The anchored pattern leaves other builds alone, including a dev or bundle
+    build running from a worktree:
 
     ```bash
-    pgrep -fl 'LRH Console.app/Contents/MacOS/lrh-console'
+    pgrep -fl '^/Applications/LRH Console.app/Contents/MacOS/lrh-console'
     ```
 
     Then kill that PID:

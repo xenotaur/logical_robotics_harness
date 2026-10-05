@@ -145,9 +145,11 @@ network tools and cannot modify repository files or project state.
    - medium-only sources are still sent, and their warnings name categories but
      never the matched values;
    - `export` and `report` withhold text with any finding, including a
-     medium-only finding in a question, rating note, or answer. Update `experimental/local_agent/README.md` to describe the
-   toys; the pilot runbook material is retired. Do not add live model or
-   network calls to normal CI.
+     medium-only finding in a question, rating note, or answer.
+
+   Update `experimental/local_agent/README.md` to describe the toys; the pilot
+   runbook material is retired. Do not add live model or network calls to
+   normal CI.
 8. **Use it and decide.** The owner uses `ask` and `brief` on real LRH or LCATS
    work, reviews the `log` summary, and records stop, revise, or proceed in this
    item's resolution. No numeric thresholds, manual timing, or hand-written

@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-DOGFOOD"
 title: "Dogfood the LRH Console Mac app for five recorded sessions"
 type: "operation"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Completed in PR #766 (commit db8c784c). project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md records nine real owner Mac sessions and the full manual checklist, including forced startup failure, backend crash, and app crash recovery, plus a recommendation: close L0; L1 proceeds with adjustments; L3 stays gated. The L0 gate closed with two recorded owner waivers. Waiver 1 covers the Chrome-absent fallback, forced workspace mismatch, and external-link handoff. Waiver 2 accepts day-level dates and a recalled Dock launch for session 2. The waived checks are tracked in the design backlog. Code defects were filed as WI-SERVE-QUIET-CLIENT-DISCONNECT, WI-LRH-CONSOLE-DESKTOP-SHELL-POLISH, and WI-LRH-CONSOLE-DESKTOP-SETTINGS-POLISH.'
 owner: "anthony"
 contributors:
 - "anthony"

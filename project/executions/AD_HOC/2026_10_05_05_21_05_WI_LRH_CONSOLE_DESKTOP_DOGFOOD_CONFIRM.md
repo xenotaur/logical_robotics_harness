@@ -2,10 +2,10 @@
 execution_id: 2026_10_05_05_21_05_WI_LRH_CONSOLE_DESKTOP_DOGFOOD_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_DESKTOP_DOGFOOD_CONFIRM)[2026-10-05T05:21:05+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_05_04_34_52_WI_LRH_CONSOLE_DESKTOP_DOGFOOD
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/766
-commit: 
+commit: db8c784c2ba04d7f5f5e1a91e158023ae24e57f4
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/766"
 session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"

@@ -2641,6 +2641,13 @@ def _format_url_host(host: object) -> str:
     return text
 
 
+_CLIENT_DISCONNECT_ERRORS = (
+    BrokenPipeError,
+    ConnectionResetError,
+    ConnectionAbortedError,
+)
+
+
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     """Threaded HTTP server with daemon request threads for clean shutdown."""
 
@@ -2661,6 +2668,30 @@ class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         host, port = self.server_address[:2]
         self.server_name = str(host)
         self.server_port = int(port)
+
+    def handle_error(self, request: Any, client_address: Any) -> None:
+        """Drop client disconnects quietly; report every other error.
+
+        ``socketserver.BaseServer.handle_error`` prints a full traceback to
+        stderr for any exception a request raises. A browser or the desktop
+        webview that navigates away before a response is fully written raises
+        ``BrokenPipeError``, ``ConnectionResetError``, or (on Windows, or
+        occasionally as ``ECONNABORTED``) ``ConnectionAbortedError`` from the
+        write. That is normal client behavior, not a server fault, and its
+        traceback shows up as an apparent error in the desktop app's Server
+        Details.
+
+        Filtering here, rather than guarding each response writer, covers every
+        write path in one place: the JSON, text, and download writers, plus
+        ``BaseHTTPRequestHandler``'s own error responses. Both
+        ``ThreadingMixIn.process_request_thread`` and
+        ``BaseServer._handle_request_noblock`` call this from inside their
+        ``except`` blocks, so ``sys.exc_info()`` is the request's exception.
+        """
+
+        if isinstance(sys.exc_info()[1], _CLIENT_DISCONNECT_ERRORS):
+            return
+        super().handle_error(request, client_address)
 
 
 class ThreadingIPv6HTTPServer(ThreadingHTTPServer):

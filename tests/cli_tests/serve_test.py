@@ -1,6 +1,9 @@
+import io
 import json
 import pathlib
 import socket
+import struct
+import sys
 import tempfile
 import threading
 import unittest
@@ -1525,6 +1528,135 @@ Body.
                 self.assertEqual(err_ctx.exception.code, 405)
                 body = err_ctx.exception.read().decode("utf-8")
                 self.assertEqual(json.loads(body), {"error": "method_not_allowed"})
+
+
+class TestServeClientDisconnect(unittest.TestCase):
+    """A client leaving mid-response is quiet; other request errors are not."""
+
+    # Far larger than any loopback socket buffer, so the write cannot finish
+    # into the kernel before the closed peer's reset is seen.
+    _LARGE_FIELD = "x" * (8 * 1024 * 1024)
+
+    def _start(
+        self, factory_name: str, root: pathlib.Path
+    ) -> tuple[serve.ThreadingHTTPServer, tuple[str, int]]:
+        if factory_name == "foreground":
+            httpd = serve.create_http_server(
+                serve.ServeConfig(port=0, project_root=root)
+            )
+        else:
+            httpd = serve._desktop_server_factory(root)
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        self.addCleanup(httpd.server_close)
+        self.addCleanup(httpd.shutdown)
+        host, port = httpd.server_address[:2]
+        return httpd, (str(host), int(port))
+
+    def _record_handle_error(
+        self, httpd: serve.ThreadingHTTPServer
+    ) -> tuple[list[type[BaseException] | None], threading.Event]:
+        """Record each request exception type that reaches ``handle_error``."""
+
+        seen: list[type[BaseException] | None] = []
+        done = threading.Event()
+        original = httpd.handle_error
+
+        def recording(request: object, client_address: object) -> None:
+            seen.append(sys.exc_info()[0])
+            try:
+                original(request, client_address)
+            finally:
+                done.set()
+
+        httpd.handle_error = recording  # type: ignore[method-assign]
+        return seen, done
+
+    def _gated_payload(
+        self, entered: threading.Event, release: threading.Event
+    ) -> unittest.mock.Mock:
+        def payload(_config: object) -> dict[str, object]:
+            entered.set()
+            release.wait(5)
+            return {"blob": self._LARGE_FIELD}
+
+        return unittest.mock.Mock(side_effect=payload)
+
+    def test_mid_response_disconnect_is_quiet_and_server_keeps_serving(
+        self,
+    ) -> None:
+        for factory_name in ("foreground", "desktop"):
+            with (
+                self.subTest(mode=factory_name),
+                tempfile.TemporaryDirectory() as tmp_dir,
+            ):
+                root = pathlib.Path(tmp_dir)
+                _write_minimal_project(root)
+                httpd, address = self._start(factory_name, root)
+                seen, done = self._record_handle_error(httpd)
+                entered, release = threading.Event(), threading.Event()
+                stderr = io.StringIO()
+
+                with (
+                    unittest.mock.patch.object(
+                        serve,
+                        "project_viewer_payload",
+                        self._gated_payload(entered, release),
+                    ),
+                    unittest.mock.patch("sys.stderr", stderr),
+                ):
+                    client = socket.create_connection(address, timeout=5)
+                    client.sendall(
+                        b"GET /api/project HTTP/1.1\r\nHost: localhost\r\n\r\n"
+                    )
+                    self.assertTrue(entered.wait(5), "handler never started")
+                    # Close with an immediate reset, as a navigating webview can.
+                    client.setsockopt(
+                        socket.SOL_SOCKET, socket.SO_LINGER, struct.pack("ii", 1, 0)
+                    )
+                    client.close()
+                    release.set()
+                    self.assertTrue(done.wait(10), "write never failed")
+
+                self.assertEqual(len(seen), 1)
+                self.assertTrue(
+                    issubclass(seen[0], serve._CLIENT_DISCONNECT_ERRORS),
+                    seen,
+                )
+                self.assertNotIn("Traceback", stderr.getvalue())
+                self.assertNotIn("Exception occurred", stderr.getvalue())
+
+                host, port = address
+                with urllib.request.urlopen(
+                    f"http://{host}:{port}/health", timeout=5
+                ) as response:
+                    self.assertEqual(response.status, 200)
+
+    def test_other_request_errors_are_still_reported(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            root = pathlib.Path(tmp_dir)
+            _write_minimal_project(root)
+            httpd, address = self._start("foreground", root)
+            seen, done = self._record_handle_error(httpd)
+            stderr = io.StringIO()
+
+            with (
+                unittest.mock.patch.object(
+                    serve,
+                    "project_viewer_payload",
+                    unittest.mock.Mock(side_effect=RuntimeError("boom")),
+                ),
+                unittest.mock.patch("sys.stderr", stderr),
+            ):
+                with socket.create_connection(address, timeout=5) as client:
+                    client.sendall(
+                        b"GET /api/project HTTP/1.1\r\nHost: localhost\r\n\r\n"
+                    )
+                    self.assertTrue(done.wait(10), "error was never handled")
+
+        self.assertEqual(seen, [RuntimeError])
+        self.assertIn("Exception occurred during processing", stderr.getvalue())
+        self.assertIn("RuntimeError: boom", stderr.getvalue())
 
 
 def _write_local_meta_workspace(root: pathlib.Path) -> None:

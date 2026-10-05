@@ -4,7 +4,7 @@ prompt_id: PROMPT(AD_HOC:WI_VCS_SAFE_OPERATIONS_BACKEND_IMPL_SELFREVIEW)[2026-10
 work_item: AD_HOC
 status: in_progress
 rerun_of: 
-pr: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/769
 commit: 
 created_at: 2026-10-05T18:29:53+00:00
 agent: claude_app

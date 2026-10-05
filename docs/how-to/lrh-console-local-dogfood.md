@@ -216,15 +216,22 @@ Run these checks for each dogfood session. Record the results in
 
     The page shows **Server failed** with `exited_unexpectedly`. Choose
     **Server > Start Server**, and the dashboard returns.
-16. Crash the app:
+16. Crash the app. Find the PID of the installed app, which leaves other
+    builds such as a worktree dev build alone:
 
     ```bash
-    pkill -9 -x lrh-console
+    pgrep -fl 'LRH Console.app/Contents/MacOS/lrh-console'
+    ```
+
+    Then kill that PID:
+
+    ```bash
+    kill -9 <app-pid>
     ```
 
     Within a few seconds the backend exits on its own, so
-    `pgrep -fl -- 'serve --desktop-protocol'` prints nothing. Reopen LRH Console from the
-    Dock, and the dashboard returns.
+    `pgrep -fl -- 'serve --desktop-protocol'` prints nothing. Reopen LRH
+    Console from the Dock, and the dashboard returns.
 17. Note anything slow, confusing, or missing.
 
 Steps 12, 15, and 16 force failures deliberately. Run them at least once

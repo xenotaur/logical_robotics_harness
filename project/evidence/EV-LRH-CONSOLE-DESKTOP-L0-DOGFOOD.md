@@ -42,10 +42,11 @@ blocked_actions:
   - "The session notes show that a separately started lrh serve kept working (step 13), but not which app actions ran while it was up. The owner later thinks Stop, Restart, Quit, and the forced failure were all tried with it running. That is a recollection, not a session-time record, so an explicit re-check is tracked in the backlog."
   - "Only macOS was observed. This record makes no Linux or Windows claim."
 modified_actions:
-  - "Checklist step 12 could not be run as written, because Settings rejects bad paths. The how-to now gives a recipe (a real interpreter that cannot import LRH), and adds steps 15 and 16 for backend and app crash recovery. Steps 1 to 14 keep their numbers. The process checks now use kill <owned-process-pid> and pgrep -fl -- 'serve --desktop-protocol', so they cannot match unrelated processes. The owner's session 5 used the earlier pgrep -fl desktop-protocol form."
+  - "Checklist step 12 could not be run as written, because Settings rejects bad paths. The how-to now gives a recipe (a real interpreter that cannot import LRH), and adds steps 15 and 16 for backend and app crash recovery. Steps 1 to 14 keep their numbers. The process checks now use kill <owned-process-pid> and pgrep -fl -- 'serve --desktop-protocol', so they cannot match unrelated processes. The app-crash step now kills only the installed app's PID, found with pgrep -fl 'LRH Console.app/Contents/MacOS/lrh-console'. The owner's session 5 used the earlier pkill -9 -x lrh-console and pgrep -fl desktop-protocol forms."
   - "Code defects were filed as three grouped work items rather than one per defect, at the owner's direction."
 approval_records:
   - "2026-10-05: the owner, in chat, waived the Chrome-absent fallback, forced workspace mismatch, and external-link handoff checks for L0 closure, deferring them to later dogfooding."
+  - "2026-10-05: after PR #766 review, the owner, in chat, accepted two further acceptance gaps for L0 closure: per-session dates known only at day level from the owner's recollection, and a Dock launch known only from recollection for session 2, the fifth of the five sessions counted toward the gate."
 ---
 
 # LRH Console L0 Mac dogfood sessions
@@ -256,5 +257,14 @@ notes, and are recorded with the owner's own hedging.
 | Which app actions ran while the separately started `lrh serve` was up (step 13)? | "I think I tried all of those recommended actions while my server was running." | Step 13 is taken as covering Stop, Restart, Quit, and the forced failure, on the owner's recollection ("I think"). No session-time note records it, so an explicit re-check is tracked in the backlog. |
 | Waive the checks that were not run? | "Waive these checks for now but leave them in the backlog or work items to dogfood later." | The question named three checks, and these are waived for L0 closure: the Chrome-absent fallback, a forced workspace mismatch, and external-link handoff. They are tracked in `project/design/backlog.md` under "Deferred LRH Console L0 dogfood checks". |
 
-With the waiver recorded, the recommendation above applies: close the L0
+PR #766's hosted review then pointed out two acceptance gaps that the first
+waiver did not cover. The work item asks each of five sessions to record its
+Dock launch, date, and versions.
+
+| Gap | What the record has | Owner's decision |
+| --- | --- | --- |
+| Per-session dates | No session-time dates. The owner recalls sessions 0 to 0.3 mostly on 2026-10-02, and sessions 1 to 5 mostly on 2026-10-04 to just after midnight on 2026-10-05. | Accepted at day level from recollection ("Go with A") |
+| Five Dock-launched sessions with versions | Sessions 0.1, 0.2, 0.3, and 4 record a Dock launch and backend version. Session 2 records its backend version, and its Dock launch is recalled. Session 5 recorded no backend version and is not counted. | Accepted: session 2's Dock launch by recollection ("Go with A") |
+
+With both waivers recorded, the recommendation above applies: close the L0
 gate.

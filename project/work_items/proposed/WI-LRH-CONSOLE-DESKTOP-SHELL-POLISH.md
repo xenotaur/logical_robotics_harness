@@ -43,6 +43,8 @@ required_evidence:
 artifacts_expected:
 - "apps/desktop/src-tauri/src/shell.rs"
 - "apps/desktop/ui/status.js"
+- "apps/desktop/ui/settings.html"
+- "apps/desktop/ui/settings.js"
 - "docs/how-to/lrh-console-local-dogfood.md"
 ---
 

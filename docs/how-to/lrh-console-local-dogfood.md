@@ -195,19 +195,23 @@ Run these checks for each dogfood session. Record the results in
     window returns.
 12. Force a startup failure. Settings rejects paths that are relative,
     missing, or not executable, so use a real interpreter that cannot import
-    LRH: set the interpreter to `/usr/bin/python3`, clear `PYTHONPATH`, save,
-    and choose **Restart server now**. The page shows **Server failed** with
+    LRH: set the interpreter to `/usr/bin/python3` (or any Python without LRH
+    installed), clear `PYTHONPATH`, save, and choose **Restart server now**.
+    Run this with the app opened from the Dock, so no `PYTHONPATH` is
+    inherited from a shell. On a Mac without the Command Line Tools,
+    `/usr/bin/python3` offers to install them instead; pick another Python. The page shows **Server failed** with
     `exited_before_ready`, and Server Details explains it. Restore your
     interpreter and `PYTHONPATH`, then start the server again.
 13. Start an unrelated `lrh serve` in a terminal. Stop, Restart, and Quit in
     the app leave it running.
 14. Choose **Server > Restart**, then press ⌘Q at once. The app shows
     "Stopping…", then exits. No `lrh serve --desktop-protocol` process
-    remains (`pgrep -fl desktop-protocol`).
-15. Crash the backend while the app is running:
+    remains (`pgrep -fl -- 'serve --desktop-protocol'` prints nothing).
+15. Crash the backend while the app is running. Use the PID that Server
+    Details shows under **Owned process**, so nothing else is signaled:
 
     ```bash
-    pkill -f desktop-protocol
+    kill <owned-process-pid>
     ```
 
     The page shows **Server failed** with `exited_unexpectedly`. Choose
@@ -219,7 +223,7 @@ Run these checks for each dogfood session. Record the results in
     ```
 
     Within a few seconds the backend exits on its own, so
-    `pgrep -fl desktop-protocol` prints nothing. Reopen LRH Console from the
+    `pgrep -fl -- 'serve --desktop-protocol'` prints nothing. Reopen LRH Console from the
     Dock, and the dashboard returns.
 17. Note anything slow, confusing, or missing.
 

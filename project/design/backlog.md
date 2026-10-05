@@ -2087,3 +2087,40 @@ wants to pursue the tooling angle now.
 verdict's merge one-liner); `src/lrh/skills/lrh-land/SKILL.md` Step 6
 (merge gate); PR #742 (the occurrence and its closeout); agent memory
 `gh_pr_merge_classifier_denial_handoff.md`.
+
+---
+
+## Deferred LRH Console L0 dogfood checks
+
+**Noted:** 2026-10-05, while recording
+`project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` for
+`WI-LRH-CONSOLE-DESKTOP-DOGFOOD`. The owner waived four required or
+expected checks for L0 closure and asked that they stay tracked for later
+dogfooding.
+
+**Idea:** Run these checks in a later dogfood session (L1 or L2), and record
+the results as evidence:
+
+1. **Chrome-absent fallback.** With Chrome unavailable (for example,
+   temporarily renamed out of `/Applications`), **View > Open in Chrome**
+   should read "not found: uses default browser", handoffs should use the
+   default browser, and Server Details should record it. No automated test
+   covers this path today. `apps/desktop/src-tauri/src/browser.rs` tests only
+   link filtering and rate limiting, so a unit test with an injectable
+   `chrome_available` would be a cheap complement.
+2. **Forced workspace mismatch.** Show the **Incompatible backend** page when
+   the backend serves a different workspace than requested. This is hard to
+   set up by hand. A fake backend fixture in the supervisor tests may be the
+   practical route.
+3. **External-link handoff by hand** (checklist step 6). This needs a Serve
+   page with a real external link. Revisit once L1 pages link out.
+4. **A separately started `lrh serve` surviving an app-side failure.** Repeat
+   checklist step 13 while forcing steps 12, 15, and 16.
+
+**Status:** Waived for L0 closure. Not yet a work item. File one when L1
+dogfood sessions are planned, or fold the Chrome fallback unit test into
+`WI-LRH-CONSOLE-DESKTOP-SETTINGS-POLISH`.
+
+**Related:** `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` (Owner
+decisions); `docs/how-to/lrh-console-local-dogfood.md` (Manual macOS
+checklist); `WI-LRH-CONSOLE-DESKTOP-DOGFOOD`.

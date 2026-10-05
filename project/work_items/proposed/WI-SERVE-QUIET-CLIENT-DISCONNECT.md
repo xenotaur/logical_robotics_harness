@@ -58,7 +58,8 @@ client disconnects as normal.
 
 This was found in dogfood session 0.2 of `WI-LRH-CONSOLE-DESKTOP-DOGFOOD`. It
 is defect D5 in `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md`. The
-owner used Back while the dashboard was loading. Server Details then showed:
+owner thought it was "perhaps" caused by using Back. The request was
+`/api/project`. Server Details' Recent Server Output then showed:
 
 ```text
 Exception occurred during processing of request from ('127.0.0.1', 54062)
@@ -75,9 +76,9 @@ The traceback comes from the standard library, not from LRH code. Python's
 `socketserver.BaseServer.handle_error` docs describe the default action as
 printing "the traceback to standard error" and then carrying on with further
 requests. `ThreadingHTTPServer` (`src/lrh/serve.py:2644`) does not override
-it. The response helpers `_write_json`, `_write_text`, and the HTML writer
-(`src/lrh/serve.py:3021`, `3066`, `3081`) write without guarding against a
-closed peer.
+it. The response helpers `_write_download` (`src/lrh/serve.py:3021`),
+`_write_json` (`3066`), and `_write_text` (`3081`, which also serves HTML)
+write without guarding against a closed peer.
 
 ### Duplication search
 

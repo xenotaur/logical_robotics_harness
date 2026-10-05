@@ -101,8 +101,9 @@ These were found during `WI-LRH-CONSOLE-DESKTOP-DOGFOOD` and are recorded in
    forward and scrolls to and highlights the details section, for example
    through an event or URL fragment the bundled page handles. Settings shows
    the top. Do not add any capability to the main window.
-2. Have the backend's details report whether the configured and served
-   workspaces canonicalize to the same path. Show "same directory (via
+2. Have the Rust `get_server_details` command report whether the configured
+   and served workspaces canonicalize to the same path. Python Serve does not
+   know the configured path, so the comparison belongs in the shell. Show "same directory (via
    symlink)" when they do.
 3. Fix the override wording for the browser-choice case and the
    invalid-override case.

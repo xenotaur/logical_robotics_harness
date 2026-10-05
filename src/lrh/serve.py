@@ -2662,6 +2662,27 @@ class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
         self.server_name = str(host)
         self.server_port = int(port)
 
+    def handle_error(self, request: Any, client_address: Any) -> None:
+        """Drop client disconnects quietly; report every other error.
+
+        ``socketserver.BaseServer.handle_error`` prints a full traceback to
+        stderr for any exception a request raises. A browser or the desktop
+        webview that navigates away before a response is fully written raises
+        ``BrokenPipeError`` or ``ConnectionResetError`` from the write. That
+        is normal client behavior, not a server fault, and its traceback shows
+        up as an apparent error in the desktop app's Server Details.
+
+        Filtering here, rather than guarding each response writer, covers every
+        write path in one place: the JSON, text, and download writers, plus
+        ``BaseHTTPRequestHandler``'s own error responses.
+        ``process_request_thread`` calls this from inside its ``except``
+        block, so ``sys.exc_info()`` is the request's exception.
+        """
+
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+            return
+        super().handle_error(request, client_address)
+
 
 class ThreadingIPv6HTTPServer(ThreadingHTTPServer):
     """Threaded HTTP server configured for IPv6 loopback binds."""

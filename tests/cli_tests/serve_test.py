@@ -1620,7 +1620,7 @@ class TestServeClientDisconnect(unittest.TestCase):
 
                 self.assertEqual(len(seen), 1)
                 self.assertTrue(
-                    issubclass(seen[0], (BrokenPipeError, ConnectionResetError)),
+                    issubclass(seen[0], serve._CLIENT_DISCONNECT_ERRORS),
                     seen,
                 )
                 self.assertNotIn("Traceback", stderr.getvalue())

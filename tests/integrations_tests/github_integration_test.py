@@ -307,6 +307,25 @@ class GithubIntegrationTest(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "gh CLI not found"):
                 gh_client.run_gh_json(["api"])
 
+    def test_run_gh_returns_stdout_and_binds_cwd(self) -> None:
+        completed = mock.Mock(returncode=0, stdout="done\n", stderr="")
+        with mock.patch("subprocess.run", return_value=completed) as run:
+            output = gh_client.run_gh(["pr", "merge"], cwd="/repo")
+        self.assertEqual("done\n", output)
+        self.assertEqual(["gh", "pr", "merge"], run.call_args.args[0])
+        self.assertEqual("/repo", run.call_args.kwargs["cwd"])
+
+    def test_run_gh_turns_other_launch_failures_into_clean_errors(self) -> None:
+        with mock.patch("subprocess.run", side_effect=PermissionError("denied")):
+            with self.assertRaisesRegex(RuntimeError, "gh CLI could not be run"):
+                gh_client.run_gh(["pr", "merge"])
+
+    def test_run_gh_raises_stderr_on_nonzero_exit(self) -> None:
+        completed = mock.Mock(returncode=1, stdout="", stderr="head was modified\n")
+        with mock.patch("subprocess.run", return_value=completed):
+            with self.assertRaisesRegex(RuntimeError, "^head was modified$"):
+                gh_client.run_gh(["pr", "merge"])
+
 
 if __name__ == "__main__":
     unittest.main()

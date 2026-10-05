@@ -39,13 +39,13 @@ blocked_actions:
   - "A forced workspace mismatch (Incompatible backend because a different workspace was served) was not exercised. The symlinked-workspace case was observed in every session instead."
   - "All sessions used the LRH workspace. LCATS was not used, so the work item's open question is answered as LRH only for L0."
   - "Per-session dates were not recorded. The owner reports that sessions 0 to 0.3 ran mostly on 2026-10-02, and sessions 1 to 5 mostly on 2026-10-04, ending just after midnight on 2026-10-05 local time."
-  - "The notes show that a separately started lrh serve kept working (step 13), but not which app actions ran while it was up. Its survival of an app-side failure was not shown."
+  - "The session notes show that a separately started lrh serve kept working (step 13), but not which app actions ran while it was up. The owner later thinks Stop, Restart, Quit, and the forced failure were all tried with it running. That is a recollection, not a session-time record, so an explicit re-check is tracked in the backlog."
   - "Only macOS was observed. This record makes no Linux or Windows claim."
 modified_actions:
   - "Checklist step 12 could not be run as written, because Settings rejects bad paths. The how-to now gives a recipe (a real interpreter that cannot import LRH), and adds steps 15 and 16 for backend and app crash recovery. Steps 1 to 14 keep their numbers. The process checks now use kill <owned-process-pid> and pgrep -fl -- 'serve --desktop-protocol', so they cannot match unrelated processes. The owner's session 5 used the earlier pgrep -fl desktop-protocol form."
   - "Code defects were filed as three grouped work items rather than one per defect, at the owner's direction."
 approval_records:
-  - "2026-10-05: the owner, in chat, waived the Chrome-absent fallback, forced workspace mismatch, external-link handoff, and app-failure survival checks for L0 closure, deferring them to later dogfooding."
+  - "2026-10-05: the owner, in chat, waived the Chrome-absent fallback, forced workspace mismatch, and external-link handoff checks for L0 closure, deferring them to later dogfooding."
 ---
 
 # LRH Console L0 Mac dogfood sessions
@@ -118,7 +118,7 @@ by this work item and ran in session 5.
 | 10 | Change the workspace and restart | **Partial.** A change was accepted only for a valid path. The notes don't say whether a second project was actually served. |
 | 11 | Close the window, then click the Dock icon | Pass (sessions 2 and 4). The app stayed in the Dock, and the window returned. |
 | 12 | Forced startup failure | Pass in session 5. In session 4 Settings rejected every bad value, so no failure could be forced. In session 5 the owner set a bad interpreter and `PYTHONPATH`. The page showed **Server failed**, "lrh exited before it was ready, often because Python could not import LRH…", error code `exited_before_ready`. After the owner restored the values, Start worked. |
-| 13 | A separately started `lrh serve` | **Pass, with a limit.** The owner recorded "Independent `lrh serve` still works". The session notes don't say which app actions ran while it was up. Asked afterwards, the owner recalled trying Stop, Restart, and Quit (see [Owner decisions](#owner-decisions)). |
+| 13 | A separately started `lrh serve` | **Pass, with a limit.** The owner recorded "Independent `lrh serve` still works". The session notes don't say which app actions ran while it was up. Asked afterwards, the owner thinks they tried Stop, Restart, Quit, and the forced failure with it running (see [Owner decisions](#owner-decisions)). |
 | 14 | Restart, then ⌘Q at once | Pass. The app quit, and the owner confirmed `pgrep -fl desktop-protocol` printed nothing afterwards. |
 | 15 | Backend crash | Pass (session 5). The owner killed the backend process. The page showed **Server failed**, "LRH Serve stopped unexpectedly…", error code `exited_unexpectedly`. Start Server recovered. |
 | 16 | App crash | Pass (session 5). `pkill -9 -x lrh-console` was entered at the 00:08:29 prompt (local time). `pgrep -fl desktop-protocol` was entered at the 00:08:39 prompt and printed nothing, so the orphaned backend had exited by then, at least 10 s later. Reopening from the Dock worked. |
@@ -135,7 +135,7 @@ by this work item and ran in session 5.
 | App crash and backend crash recovery | Steps 15 and 16 |
 | Browser handoff | Step 7. The external-link handoff and the Chrome-absent fallback were not exercised (see the limitations). |
 | Workspace mismatch | No forced mismatch. The symlink case ran in every session: Configured and Served differed as strings and resolved to the same directory. The app served it correctly and did not wrongly report **Incompatible backend**, but Details does not say the paths match (D1). |
-| Separately started server untouched; CLI intact | Step 13: an independent `lrh serve` "still works". Which app actions ran alongside it, and whether it survived an app-side failure, were not recorded (see the limitations). |
+| Separately started server untouched; CLI intact | Step 13: an independent `lrh serve` "still works". The session notes don't record which app actions ran alongside it. The owner thinks all of them did, including the forced failure (see [Owner decisions](#owner-decisions)). |
 
 ## Embedded versus browser interaction matrix (observed)
 
@@ -200,11 +200,12 @@ env's pinned tools, with `PYTHONPATH` set to this worktree's `src`.
 - a separately started `lrh serve` kept working.
 
 The work item requires a Chrome-absent fallback check and a deliberately
-forced workspace mismatch. Neither was run. The external-link handoff and
-the separately started server's survival of an app-side failure were not
-shown either. The owner waived these for L0 closure, and they are tracked
-for later dogfooding. None of them is a
-lifecycle risk that should block L1.
+forced workspace mismatch. Neither was run, and the external-link handoff
+was not shown either. The owner waived these three for L0 closure, and they
+are tracked for later dogfooding. The separately started server's survival
+of an app-side failure rests on the owner's recollection, and an explicit
+re-check is tracked too. None of them is a lifecycle risk that should block
+L1.
 
 **L1 (dependency maps): proceed, with three adjustments.**
 
@@ -251,9 +252,9 @@ notes, and are recorded with the owner's own hedging.
 
 | Question | Owner's answer | Effect on this record |
 | --- | --- | --- |
-| How was the app opened at the start of sessions 1, 2, 3, and 5? | "Almost certainly the Dock. That's almost always where I open it." | With 0.1, 0.2, 0.3, and 4 (Dock launches in the notes), sessions 1, 2, and 5 bring Dock launches to seven by recollection. Session 3 continued session 2's app run. The five-session gate is met: four sessions recorded explicitly, the rest from the owner's recollection. |
-| Which app actions ran while the separately started `lrh serve` was up (step 13)? | "I think I tried all of those recommended actions while my server was running." | Step 13 is taken as covering Stop, Restart, and Quit, by the owner's recollection. Survival of an app-side failure is still not shown, and stays in the waiver below. |
-| Waive the checks that were not run? | "Waive these checks for now but leave them in the backlog or work items to dogfood later." | Waived for L0 closure: the Chrome-absent fallback, a forced workspace mismatch, external-link handoff, and the separately started server's survival of an app-side failure. They are tracked in `project/design/backlog.md` under "Deferred LRH Console L0 dogfood checks". |
+| How was the app opened at the start of sessions 1, 2, 3, and 5? | "Almost certainly the Dock. That's almost always where I open it." | With 0.1, 0.2, 0.3, and 4 (Dock launches in the notes), sessions 1, 2, and 5 bring Dock launches to seven by recollection. Session 3 continued session 2's app run. The five-session gate is met on the owner's recollection: four Dock launches recorded explicitly, three recalled. |
+| Which app actions ran while the separately started `lrh serve` was up (step 13)? | "I think I tried all of those recommended actions while my server was running." | Step 13 is taken as covering Stop, Restart, Quit, and the forced failure, on the owner's recollection ("I think"). No session-time note records it, so an explicit re-check is tracked in the backlog. |
+| Waive the checks that were not run? | "Waive these checks for now but leave them in the backlog or work items to dogfood later." | The question named three checks, and these are waived for L0 closure: the Chrome-absent fallback, a forced workspace mismatch, and external-link handoff. They are tracked in `project/design/backlog.md` under "Deferred LRH Console L0 dogfood checks". |
 
 With the waiver recorded, the recommendation above applies: close the L0
 gate.

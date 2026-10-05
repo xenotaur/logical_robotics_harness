@@ -2094,9 +2094,10 @@ verdict's merge one-liner); `src/lrh/skills/lrh-land/SKILL.md` Step 6
 
 **Noted:** 2026-10-05, while recording
 `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` for
-`WI-LRH-CONSOLE-DESKTOP-DOGFOOD`. The owner waived four required or
-expected checks for L0 closure and asked that they stay tracked for later
-dogfooding.
+`WI-LRH-CONSOLE-DESKTOP-DOGFOOD`. The owner waived three required or
+expected checks (items 1 to 3) for L0 closure and asked that they stay
+tracked for later dogfooding. Item 4 passed on the owner's recollection only,
+so it is listed for an explicit re-check.
 
 **Idea:** Run these checks in a later dogfood session (L1 or L2), and record
 the results as evidence:
@@ -2117,7 +2118,7 @@ the results as evidence:
 4. **A separately started `lrh serve` surviving an app-side failure.** Repeat
    checklist step 13 while forcing steps 12, 15, and 16.
 
-**Status:** Waived for L0 closure. Not yet a work item. File one when L1
+**Status:** Items 1 to 3 waived for L0 closure; item 4 recalled, not recorded. Not yet a work item. File one when L1
 dogfood sessions are planned, or fold the Chrome fallback unit test into
 `WI-LRH-CONSOLE-DESKTOP-SETTINGS-POLISH`.
 

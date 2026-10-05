@@ -2,10 +2,10 @@
 execution_id: 2026_10_05_03_44_50_ACTIVATE_WS_LRH_CONSOLE_LOCAL_DOGFOOD_CONFIRM
 prompt_id: PROMPT(AD_HOC:ACTIVATE_WS_LRH_CONSOLE_LOCAL_DOGFOOD_CONFIRM)[2026-10-05T03:44:50+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_04_15_06_24_ACTIVATE_WS_LRH_CONSOLE_LOCAL_DOGFOOD
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/765
-commit: 
+commit: 3915a3dc1f4362fd20a7337d6a80521578fd46e6
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/765"
 session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"

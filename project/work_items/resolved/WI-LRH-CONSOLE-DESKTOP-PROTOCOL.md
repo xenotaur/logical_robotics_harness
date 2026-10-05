@@ -193,7 +193,7 @@ is not activation or authorization to implement.
 
 ## Related Workstream and Designs
 
-- `project/workstreams/proposed/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`
+- `project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`
 - `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md`
 - `project/design/execution_framework_mvp.md`
 

@@ -418,5 +418,5 @@ resolved. `WI-LRH-CONSOLE-DESKTOP-SUPERVISOR` depends on this item.
 
 ## Related Workstream and Designs
 
-- `project/workstreams/proposed/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`
+- `project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`
 - `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md`

@@ -2,8 +2,8 @@
 id: "WS-LRH-CONSOLE-LOCAL-DOGFOOD"
 kind: "planning_node"
 title: "LRH Console Local Dogfood"
-status: "proposed"
-stage: "planned"
+status: "active"
+stage: "executing"
 origin: "design_review"
 parent_id: null
 children: []
@@ -25,6 +25,7 @@ execution_records:
 - "2026_09_24_21_02_46_WS_LRH_CONSOLE_LOCAL_DOGFOOD"
 - "2026_09_24_21_02_47_WI_LRH_CONSOLE_DESKTOP_PROTOCOL"
 - "2026_09_24_21_02_47_WI_LRH_CONSOLE_DESKTOP_L0"
+- "2026_10_04_15_06_24_ACTIVATE_WS_LRH_CONSOLE_LOCAL_DOGFOOD"
 evidence: []
 exit_criteria:
 - "Local L0-L4 slices have reviewed implementation/evidence, or an explicit reviewed scope revision records deferral."
@@ -47,9 +48,12 @@ prototypes. The first meaningful product outcome is L0 + L1: open from the Dock,
 select LRH or LCATS, and answer a real dependency question without starting a
 terminal server.
 
-This is a proposed planning node. `stage: planned` records that the approved
-direction has a roadmap and its initial L0 leaves; it does not activate execution or
-reprioritize current focus. Later leaves are added when preceding dogfood gates
+This is an active planning node. `stage: executing` records that L0 execution
+is under way: the protocol, toolchain, supervisor, shell, and settings leaves
+have resolved, and `WI-LRH-CONSOLE-DESKTOP-DOGFOOD` remains. Activation does not
+reprioritize current focus. (It was activated on 2026-10-04. Until then it had
+stayed `proposed`/`planned`, although its leaves had been executing since
+PR #750.) Later leaves are added when preceding dogfood gates
 have produced evidence. It is a top-level console workstream related to the
 existing execution framework, without changing that workstream's ownership.
 

@@ -156,7 +156,7 @@ macOS has no desktop WebDriver client, and its WebdriverIO route needs Node.
 
 ## Related Workstream and Designs
 
-- `project/workstreams/proposed/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`
+- `project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`
 - `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md`
 
 ## Open Questions

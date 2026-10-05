@@ -493,6 +493,70 @@ class SessionReportTest(unittest.TestCase):
             self.assertEqual(report.archived, 0)
             self.assertEqual(len(report.unarchived), 1)
 
+    def test_report_counts_archived_antigravity_session(self) -> None:
+        cid = "11111111-2222-3333-4444-555555555555"
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript=f"antigravity-app:{cid}",
+            )
+            export_file = (
+                archive_root / "antigravity" / "exports" / "2026" / "10" / f"{cid}.md"
+            )
+            export_file.parent.mkdir(parents=True)
+            export_file.write_text("# Export\n", encoding="utf-8")
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 1)
+            self.assertEqual(report.findings, ())
+
+    def test_report_flags_unarchived_antigravity_conversation(self) -> None:
+        cid = "11111111-2222-3333-4444-555555555555"
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript=f"antigravity-app:{cid}",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 0)
+            self.assertEqual(len(report.unarchived), 1)
+            self.assertEqual(report.unarchived[0].category, "unarchived")
+            self.assertIn("antigravity-app", report.unarchived[0].reason)
+
+    def test_report_flags_placeholder_antigravity_pointers(self) -> None:
+        for placeholder in ("current-conversation", "current-session"):
+            with self.subTest(placeholder=placeholder):
+                with tempfile.TemporaryDirectory() as tmp:
+                    project_root = pathlib.Path(tmp) / "project"
+                    archive_root = pathlib.Path(tmp) / "archive"
+                    self._write_record(
+                        project_root,
+                        execution_id="R1",
+                        session_transcript=f"antigravity-app:{placeholder}",
+                    )
+
+                    report = prompt_workflow_sessions.build_session_report(
+                        project_root, archive_root=archive_root
+                    )
+
+                    self.assertEqual(report.archived, 0)
+                    self.assertEqual(len(report.dangling), 1)
+                    self.assertEqual(report.dangling[0].category, "dangling")
+                    self.assertIn("placeholder", report.dangling[0].reason)
+
     def test_report_tracks_pending_and_missing_separately(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             project_root = pathlib.Path(tmp) / "project"

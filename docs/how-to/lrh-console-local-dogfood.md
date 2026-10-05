@@ -193,11 +193,47 @@ Run these checks for each dogfood session. Record the results in
     new project is served. Then switch back.
 11. Close the window; the app stays in the Dock. Click the Dock icon; the
     window returns.
-12. Force a failure, for example by setting a wrong interpreter. A recovery
-    page appears, and Server Details explains it. Restore the setting.
+12. Force a startup failure. Settings rejects paths that are relative,
+    missing, or not executable, so use a real interpreter that cannot import
+    LRH: set the interpreter to `/usr/bin/python3` (or any Python without LRH
+    installed), clear `PYTHONPATH`, save, and choose **Restart server now**.
+    Run this with the app opened from the Dock, so no `PYTHONPATH` is
+    inherited from a shell. On a Mac without the Command Line Tools,
+    `/usr/bin/python3` offers to install them instead; pick another Python. The page shows **Server failed** with
+    `exited_before_ready`, and Server Details explains it. Restore your
+    interpreter and `PYTHONPATH`, then start the server again.
 13. Start an unrelated `lrh serve` in a terminal. Stop, Restart, and Quit in
     the app leave it running.
 14. Choose **Server > Restart**, then press ⌘Q at once. The app shows
     "Stopping…", then exits. No `lrh serve --desktop-protocol` process
-    remains (`pgrep -fl desktop-protocol`).
-15. Note anything slow, confusing, or missing.
+    remains (`pgrep -fl -- 'serve --desktop-protocol'` prints nothing).
+15. Crash the backend while the app is running. Use the PID that Server
+    Details shows under **Owned process**, so nothing else is signaled:
+
+    ```bash
+    kill <owned-process-pid>
+    ```
+
+    The page shows **Server failed** with `exited_unexpectedly`. Choose
+    **Server > Start Server**, and the dashboard returns.
+16. Crash the app. Find the PID of the app installed in `/Applications`.
+    The anchored pattern leaves other builds alone, including a dev or bundle
+    build running from a worktree:
+
+    ```bash
+    pgrep -fl '^/Applications/LRH Console.app/Contents/MacOS/lrh-console'
+    ```
+
+    Then kill that PID:
+
+    ```bash
+    kill -9 <app-pid>
+    ```
+
+    Within a few seconds the backend exits on its own, so
+    `pgrep -fl -- 'serve --desktop-protocol'` prints nothing. Reopen LRH
+    Console from the Dock, and the dashboard returns.
+17. Note anything slow, confusing, or missing.
+
+Steps 12, 15, and 16 force failures deliberately. Run them at least once
+across the dogfood sessions. You don't need to wait for a real failure.

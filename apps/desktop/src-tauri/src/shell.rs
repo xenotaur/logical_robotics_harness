@@ -216,8 +216,10 @@ impl NavigationPolicy {
 /// Navigations are observed through the main window's navigation handler,
 /// which also sees the webview's own Back (the Delete key or a gesture) and
 /// sees rapid moves late. A navigation to the page just behind or ahead is
-/// therefore taken as that move, not as a new page. The handler cannot tell
-/// subframes apart; Serve's pages have none.
+/// therefore taken as that move, not as a new page; a link to the previous
+/// page (Serve's "Back to project viewer") acts as Back too. Pages are
+/// recorded without their fragment, so in-page anchor links are not pages.
+/// The handler cannot tell subframes apart; Serve's pages have none.
 #[derive(Debug, Default)]
 pub struct PageHistory {
     /// The backend endpoint whose origin the recorded pages belong to.
@@ -234,6 +236,9 @@ impl PageHistory {
     /// Records an allowed main-window navigation to `url` while `backend`
     /// runs. A navigation anywhere but the backend's origin ends the history.
     pub fn visited(&mut self, url: &Url, backend: Option<&Url>) {
+        let mut url = url.clone();
+        url.set_fragment(None);
+        let url = &url;
         let Some(backend) = backend.filter(|backend| backend.origin() == url.origin()) else {
             *self = PageHistory::default();
             return;
@@ -1468,6 +1473,20 @@ mod tests {
         // A restart that reuses the port still shows "Starting…" first.
         history.visited(&status_url("starting", None), None);
         history.visited(&page("/"), Some(&backend));
+        assert!(!history.can_go_back(Some(&backend)));
+    }
+
+    #[test]
+    fn in_page_anchor_links_are_not_pages() {
+        let backend = page("/");
+        let mut history = PageHistory::default();
+        history.visited(&page("/"), Some(&backend));
+        history.visited(&page("/health"), Some(&backend));
+        for anchor in ["/health#a", "/health#b", "/health#a"] {
+            history.visited(&page(anchor), Some(&backend));
+        }
+        assert!(!history.can_go_forward(Some(&backend)));
+        assert_eq!(history.go_back(Some(&backend)), Some(page("/")));
         assert!(!history.can_go_back(Some(&backend)));
     }
 

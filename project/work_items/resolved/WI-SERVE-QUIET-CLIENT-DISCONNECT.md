@@ -2,10 +2,10 @@
 id: "WI-SERVE-QUIET-CLIENT-DISCONNECT"
 title: "Stop Serve printing tracebacks when a client disconnects mid-response"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #767 (commit 23e9a233). ThreadingHTTPServer.handle_error now drops client disconnects (BrokenPipeError, ConnectionResetError, ConnectionAbortedError) with no traceback, and reports every other request exception as before. This covers foreground, IPv6, and desktop-protocol servers. Real-socket regression tests reproduce the owner traceback without the fix and pass with it.'
 owner: "anthony"
 contributors:
 - "anthony"

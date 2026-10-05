@@ -2,10 +2,10 @@
 execution_id: 2026_10_05_17_51_06_WI_SERVE_QUIET_CLIENT_DISCONNECT_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_SERVE_QUIET_CLIENT_DISCONNECT_SELFREVIEW)[2026-10-05T17:51:06+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/767
-commit: 
+commit: 23e9a2338aa2326a52b7a8b98e438a58533e5895
 agent: "claude_app"
 instruction_source: "project/work_items/proposed/WI-SERVE-QUIET-CLIENT-DISCONNECT.md"
 session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"

@@ -25,6 +25,7 @@ execution_records:
 - "2026_09_24_21_02_46_WS_LRH_CONSOLE_LOCAL_DOGFOOD"
 - "2026_09_24_21_02_47_WI_LRH_CONSOLE_DESKTOP_PROTOCOL"
 - "2026_09_24_21_02_47_WI_LRH_CONSOLE_DESKTOP_L0"
+- "2026_10_04_15_06_24_ACTIVATE_WS_LRH_CONSOLE_LOCAL_DOGFOOD"
 evidence: []
 exit_criteria:
 - "Local L0-L4 slices have reviewed implementation/evidence, or an explicit reviewed scope revision records deferral."

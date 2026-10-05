@@ -66,9 +66,10 @@ effect when the server restarts.
 | Start, stop, restart the server | **Server > Start / Stop / Restart Server**. Each item is enabled only when it applies. |
 | Go to the dashboard or Meta | **View > Dashboard** (⌘0) or **View > Meta** (⇧⌘M). |
 | Reload | **View > Reload** (⌘R). |
+| Go back or forward | **View > Back** (⌘[) or **View > Forward** (⌘]). They move between pages of the running server only, never to a status page or a previous server's address, and are enabled only when there is a page to go to. A restart starts a fresh history. |
 | Open the current page in a browser | **View > Open in Chrome**, or **View > Open in Default Browser**. |
 | Hide the window | Close it (⌘W). The app and server keep running, and clicking the Dock icon brings the window back. |
-| Quit | ⌘Q, or **LRH Console > Quit LRH Console**. The window shows "Stopping LRH Serve…" while the server stops, then the app exits. Quitting from the Dock menu exits at once, and the server then stops itself within a few seconds because its parent is gone. |
+| Quit | ⌘Q, or **LRH Console > Quit LRH Console**. The window shows "Stopping LRH server…" while the server stops, then the app exits. Quitting from the Dock menu exits at once, and the server then stops itself within a few seconds because its parent is gone. |
 
 How the app behaves:
 
@@ -180,7 +181,9 @@ Run these checks for each dogfood session. Record the results in
    **Start** is enabled.
 3. Choose **Server > Start**. The dashboard returns.
 4. Choose **Server > Restart**. The dashboard returns on a new port.
-5. Use **View > Meta**, **View > Dashboard**, and **View > Reload**.
+5. Use **View > Meta**, **View > Dashboard**, and **View > Reload**. Open
+   `/health`, then use **View > Back** (⌘[) to return, and **View > Forward**
+   (⌘]) to go there again.
 6. Click an internal link; it opens in the app. Click an external link; it
    opens in the browser.
 7. Use **View > Open in Chrome** and **Open in Default Browser**. Both show

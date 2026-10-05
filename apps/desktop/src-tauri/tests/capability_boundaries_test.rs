@@ -62,6 +62,7 @@ fn bundled_status_page_in_the_main_window_gets_no_app_commands() {
         &app,
         NavigationPolicy::default(),
         Arc::new(LinkHandoff::default()),
+        shell::MainWindowHistory::default(),
         &initial,
     )
     .expect("main window");
@@ -76,6 +77,7 @@ fn owned_serve_origin_in_the_main_window_gets_no_app_commands() {
         &app,
         NavigationPolicy::default(),
         Arc::new(LinkHandoff::default()),
+        shell::MainWindowHistory::default(),
         &shell::status_url("stopped", None),
     )
     .expect("main window");

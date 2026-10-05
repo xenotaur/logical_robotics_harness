@@ -14,8 +14,8 @@ const STATES = {
       "Choose the lrh program and the LRH workspace to serve in Settings " +
       "(LRH Console > Settings…, ⌘,). The Settings window opens on first run.",
   },
-  starting: { title: "Starting LRH Serve…", detail: "" },
-  stopping: { title: "Stopping LRH Serve…", detail: "" },
+  starting: { title: "Starting LRH server…", detail: "" },
+  stopping: { title: "Stopping LRH server…", detail: "" },
   stopped: {
     title: "Server stopped",
     detail: "Choose Server > Start Server to start it.",
@@ -43,7 +43,7 @@ const CODES = {
     "lrh exited before it was ready, often because Python could not import " +
     "LRH. Check the interpreter and PYTHONPATH in Settings. " + DETAILS_HINT,
   startup_timeout: "lrh did not become ready in time. " + DETAILS_HINT,
-  exited_unexpectedly: "LRH Serve stopped unexpectedly. " + DETAILS_HINT,
+  exited_unexpectedly: "The LRH server stopped unexpectedly. " + DETAILS_HINT,
   not_configured: STATES.setup.detail,
 };
 

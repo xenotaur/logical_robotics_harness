@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-SETTINGS-POLISH"
 title: "Fix LRH Console Settings / Server Details defects and size the window to fit"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #776 (commit b1f97272). Server Details scrolls to and highlights its section, through a bundled-page function, with no new capability. A symlinked workspace is shown as the same directory. The override wording is accurate, and an invalid override says to unset the LRH_CONSOLE_* variables. A full-height two-column Settings / Server Details window (1120x760) fits every field, both buttons, and the details, with the server output scrolling on its own and long paths wrapping. Save and Restart are larger, and the dead test line is gone. The owner Mac check passed, including a re-check of the output fit.'
 owner: "anthony"
 contributors:
 - "anthony"

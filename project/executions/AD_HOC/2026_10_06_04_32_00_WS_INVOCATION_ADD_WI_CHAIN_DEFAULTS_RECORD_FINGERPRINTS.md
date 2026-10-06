@@ -2,14 +2,14 @@
 execution_id: 2026_10_06_04_32_00_WS_INVOCATION_ADD_WI_CHAIN_DEFAULTS_RECORD_FINGERPRINTS
 prompt_id: PROMPT(AD_HOC:WS_INVOCATION_ADD_WI_CHAIN_DEFAULTS_RECORD_FINGERPRINTS)[2026-10-06T04:31:30+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/778
-commit: 
+commit: b072c430d4599276a7dcceaf3826da1796e23877
 created_at: 2026-10-06T04:32:00+00:00
 agent: claude_app
 instruction_source: project/workstreams/active/WS-INVOCATION-AND-GATE-RESET.md
-session_transcript: pending
+session_transcript: claude-app:708f8a5c-20da-4910-bafb-fdecde18e51e
 ---
 
 # Summary

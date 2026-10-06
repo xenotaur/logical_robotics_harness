@@ -2,14 +2,14 @@
 execution_id: 2026_09_28_08_01_48_WI_CHAIN_DEFAULTS_RECORD_FINGERPRINTS
 prompt_id: PROMPT(AD_HOC:WI_CHAIN_DEFAULTS_RECORD_FINGERPRINTS)[2026-09-28T06:37:08+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/753
-commit: 
+commit: 6aec589a9b9a942cc1f8812ca9e28282e12d848b
 created_at: 2026-09-28T08:01:48+00:00
 agent: claude_app
 instruction_source: project/work_items/proposed/WI-CHAIN-DEFAULTS-RECORD-FINGERPRINTS.md
-session_transcript: pending
+session_transcript: claude-app:708f8a5c-20da-4910-bafb-fdecde18e51e
 ---
 
 # Summary

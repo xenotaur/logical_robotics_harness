@@ -62,7 +62,7 @@ effect when the server restarts.
 
 | Action | How |
 | --- | --- |
-| Open Settings or Server Details | **LRH Console > Settings…** (⌘,) or **Server > Server Details…** (⌘I). There is only one window, and choosing either again brings it to the front. |
+| Open Settings or Server Details | **LRH Console > Settings…** (⌘,) or **Server > Server Details…** (⌘I). There is only one window, with Settings on the left and Server Details on the right. Choosing either again brings it to the front; **Server Details…** also scrolls to and briefly highlights the details. |
 | Start, stop, restart the server | **Server > Start / Stop / Restart Server**. Each item is enabled only when it applies. |
 | Go to the dashboard or Meta | **View > Dashboard** (⌘0) or **View > Meta** (⇧⌘M). |
 | Reload | **View > Reload** (⌘R). |
@@ -99,7 +99,8 @@ How the app behaves:
 
 - the state and the owned process ID;
 - the endpoint;
-- the configured and served workspaces;
+- the configured and served workspaces. When the configured path is a
+  symlink to the served one, the served row says they are the same directory;
 - the protocol and server versions;
 - the last error and exit code;
 - the result of the last browser handoff;

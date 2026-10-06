@@ -18,7 +18,7 @@
           <label><input type="radio" name="kind" value="executable" checked>
             An installed <code>lrh</code> executable</label>
           <label><input type="radio" name="kind" value="python">
-            A Python interpreter running <code>-m lrh.cli.main</code> (source checkout)</label>
+            Python running <code>-m lrh.cli.main</code> (a source checkout)</label>
 
           <div data-kind="executable">
             <label for="path">lrh executable (absolute path)</label>
@@ -44,7 +44,7 @@
           <input id="workspace" name="workspace" type="text" spellcheck="false"
                  placeholder="/Users/me/src/logical_robotics_harness">
           <p class="field-error" data-field="workspace"></p>
-          <p class="note">Changing the program or workspace takes effect when the server restarts.</p>
+          <p class="note">Program and workspace changes apply when the server restarts.</p>
         </fieldset>
 
         <fieldset>
@@ -60,17 +60,21 @@
 
         <p class="field-error" data-field="file"></p>
         <div class="actions">
-          <button type="submit">Save</button>
-          <button id="restart" type="button" hidden>Restart server now</button>
+          <button type="submit" class="primary">Save</button>
+          <button id="restart" type="button" class="primary" hidden>Restart server now</button>
         </div>
         <p id="saved" class="note" role="status" aria-live="polite"></p>
       </form>
 
-      <h2>Server details</h2>
-      <div class="actions"><button id="refresh" type="button">Refresh</button></div>
-      <dl id="details"></dl>
-      <h3>Recent server output</h3>
-      <pre id="stderr" class="diagnostics"></pre>
+      <section id="server-details" aria-labelledby="server-details-heading">
+        <div class="section-heading">
+          <h2 id="server-details-heading">Server details</h2>
+          <button id="refresh" type="button">Refresh</button>
+        </div>
+        <dl id="details"></dl>
+        <h3>Recent server output</h3>
+        <pre id="stderr" class="diagnostics"></pre>
+      </section>
     </main>
   </body>
 </html>

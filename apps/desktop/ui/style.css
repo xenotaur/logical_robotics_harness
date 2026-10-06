@@ -30,9 +30,122 @@ main {
   opacity: 0.8;
 }
 
+/* Settings on the left, Server Details on the right, filling the window.
+   Every field and both buttons fit; the server output takes the rest of the
+   right column and scrolls on its own, so the page itself never scrolls. */
 .settings {
-  max-width: 44rem;
-  margin: 2rem auto;
+  display: grid;
+  grid-template-columns: minmax(22rem, 0.85fr) minmax(20rem, 1.15fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  column-gap: 2rem;
+  max-width: none;
+  height: 100vh;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 1rem 1.5rem;
+  line-height: 1.35;
+}
+
+.settings > h1,
+.settings > .note,
+.settings > .error {
+  grid-column: 1 / -1;
+  margin: 0.25rem 0;
+  overflow-wrap: anywhere;
+}
+
+.settings > h1 {
+  grid-row: 1;
+  font-size: 1.5rem;
+}
+
+.settings > #source {
+  grid-row: 2;
+}
+
+.settings > #problem {
+  grid-row: 3;
+}
+
+.settings > #settings-form,
+.settings > #server-details {
+  grid-row: 4;
+  min-height: 0;
+  overflow: auto;
+}
+
+.settings > #server-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.settings > #server-details dl {
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.settings > #server-details h3 {
+  margin: 0.25rem 0;
+}
+
+.settings > #server-details .diagnostics {
+  flex: 1 1 auto;
+  min-height: 3rem;
+  max-height: none;
+}
+
+.settings fieldset {
+  margin-bottom: 0.6rem;
+  padding: 0.4rem 0.9rem 0.6rem;
+}
+
+.settings label {
+  margin: 0.3rem 0 0.15rem;
+}
+
+.settings .field-error:empty {
+  display: none;
+}
+
+.settings h2 {
+  margin-top: 0;
+}
+
+@media (max-width: 52rem) {
+  /* One column in normal page flow; the page scrolls instead. */
+  .settings {
+    display: block;
+    height: auto;
+  }
+  .settings > #server-details .diagnostics {
+    max-height: 12rem;
+  }
+}
+
+button.primary {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.45rem 1.25rem;
+}
+
+/* Briefly marks the section that Server > Server Details… brought into view. */
+.flash {
+  animation: flash 1.2s ease-out;
+}
+
+@keyframes flash {
+  from {
+    background: rgba(9, 105, 218, 0.18);
+  }
+  to {
+    background: transparent;
+  }
 }
 
 fieldset {
@@ -89,13 +202,15 @@ dd {
 }
 
 .diagnostics {
-  max-height: 16rem;
+  max-height: 12rem;
   overflow: auto;
   padding: 0.5rem;
   border: 1px solid #d0d7de;
   border-radius: 6px;
   font-size: 0.8rem;
   white-space: pre-wrap;
+  /* Long paths have no spaces to wrap at. */
+  overflow-wrap: anywhere;
 }
 
 @media (prefers-color-scheme: dark) {

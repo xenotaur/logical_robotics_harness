@@ -341,9 +341,10 @@ fn try_shutdown_never_waits_for_an_in_flight_launch() {
     );
 
     let _ = launch.join().unwrap();
-    let pid = supervisor
-        .child_pid()
-        .expect("the launch finished with a child");
+    assert!(
+        supervisor.child_pid().is_some(),
+        "the launch finished with a child"
+    );
     let started = Instant::now();
     assert!(supervisor.try_shutdown(), "idle: it asks the child to stop");
     assert!(
@@ -353,7 +354,6 @@ fn try_shutdown_never_waits_for_an_in_flight_launch() {
     // This fake ignores `shutdown` and stdin, so only check that the request
     // did not block; dropping the supervisor reaps it. A real backend exits
     // on its own (see the next test).
-    let _ = pid;
 }
 
 #[cfg(unix)]

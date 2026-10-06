@@ -98,7 +98,8 @@ fn an_unlisted_window_gets_no_app_commands() {
 #[test]
 fn the_settings_window_may_call_its_commands_from_bundled_pages() {
     let app = build_app();
-    let window = shell::build_settings_window(&app).expect("settings window");
+    let window = shell::build_settings_window(&app, shell::SettingsSection::Settings)
+        .expect("settings window");
 
     let response = tauri::test::get_ipc_response(
         &window,
@@ -125,7 +126,8 @@ fn the_settings_window_may_call_its_commands_from_bundled_pages() {
 #[test]
 fn remote_content_in_the_settings_window_gets_no_app_commands() {
     let app = build_app();
-    let window = shell::build_settings_window(&app).expect("settings window");
+    let window = shell::build_settings_window(&app, shell::SettingsSection::Settings)
+        .expect("settings window");
 
     assert_denied(&window, &url("http://127.0.0.1:50543/"));
     assert_denied(&window, &url("https://example.com/"));

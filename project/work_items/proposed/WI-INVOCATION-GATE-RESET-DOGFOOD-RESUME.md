@@ -21,6 +21,7 @@ related_design:
   - project/work_items/proposed/WI-TAURCODE-PROMPT-AND-SKILL-SYNC.md
 depends_on:
   - WI-CHAIN-DEFAULTS-ACTIVATION-STAGE3-5
+  - WI-CHAIN-DEFAULTS-RECORD-FINGERPRINTS
 blocked_by: []
 expected_actions:
   - edit_file

@@ -2138,3 +2138,67 @@ dogfood sessions are planned, or fold the Chrome fallback unit test into
 **Related:** `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` (Owner
 decisions); `docs/how-to/lrh-console-local-dogfood.md` (Manual macOS
 checklist); `WI-LRH-CONSOLE-DESKTOP-DOGFOOD`.
+
+---
+
+## Programmatic planning-state transitions (workstreams, work items, proposals)
+
+**Noted:** 2026-10-04, while dogfooding the LRH Console. The owner noticed
+that `WS-LRH-CONSOLE-LOCAL-DOGFOOD` was missing from Serve's "Active
+workstreams" list. Serve was right: it lists only `status == "active"`
+workstreams (`src/lrh/serve.py`). The workstream had stayed
+`proposed`/`planned` while five of its six work items executed and resolved
+(PRs #750 to #763). It was fixed by hand in PR #765.
+
+The root cause is that no step in the chain moves a workstream from
+`proposed` to `active`:
+
+- `/lrh-execute` and `/lrh-implement` only read the workstream.
+- `/lrh-closeout` accepts a workstream in either bucket when it closes one.
+- Earlier activations were manual planning commits.
+
+Closeouts in the same session also moved work items between status
+buckets by hand, with `git mv` and hand-written path-reference rewrites.
+Execution records are never moved between buckets; closeout updates only
+their `status` and `commit` fields. In that session those fields were also
+edited by hand with `sed`, even though `lrh prompt update-execution` already
+does it. Each hand edit is a chance for a stale path or status. See
+`project/design/workstream_schema_mvp.md` § Status semantics.
+
+**Idea:** a programmatic LRH state-transition command that agents and skills
+call, so a correct state update takes one call instead of a series of file
+edits.
+
+- **Command:** for example, `lrh workstreams transition <WS-ID> --to active`.
+  It would:
+  - move the file between status buckets;
+  - set `status` and `stage`;
+  - rewrite path references in other planning artifacts, leaving historical
+    execution records alone;
+  - validate the result;
+  - report a diff, with a dry-run mode.
+- **Execution records:** reuse `lrh prompt update-execution` for their
+  `status` and `commit` updates rather than duplicate it.
+- **Callers:** `/lrh-execute` when the first leaf starts under a `proposed`
+  workstream, and `/lrh-closeout` when it resolves a work item or closes a
+  workstream.
+- **Later:** the same pattern for work items (`proposed` to `resolved`) and
+  proposals (`proposed` to `adopted`).
+- **Cheaper complement:** an `lrh validate` warning for a `proposed`
+  workstream with resolved or in-progress leaves. This is the reverse of the
+  existing `PLANNING_ACTIVE_WORKSTREAM_NO_ACTIONABLE_LEAF` warning.
+
+**Status:** Not yet a work item. It was deferred so it would not interrupt
+the L0 dogfood sessions. File it as a work item, or as a small workstream
+starting with the validate warning, when planning tooling is next in focus.
+
+**Related:** PR #765 and
+`project/executions/AD_HOC/2026_10_04_15_06_24_ACTIVATE_WS_LRH_CONSOLE_LOCAL_DOGFOOD.md`;
+this entry's own record,
+`project/executions/AD_HOC/2026_10_06_04_37_49_BACKLOG_PLANNING_STATE_TRANSITIONS.md`;
+`lrh prompt update-execution` and
+`src/lrh/skills/lrh-closeout/references/closeout-workflow.md` (execution-record
+updates);
+`project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`;
+`src/lrh/control/planning_tree.py` (existing planning warnings);
+`src/lrh/skills/lrh-closeout/SKILL.md` (decision matrix).

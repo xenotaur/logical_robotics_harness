@@ -155,22 +155,28 @@ def urllib_stream_transport(
 
 
 def check_loopback_url(base_url: str) -> None:
+    """Accept only plain-http loopback endpoints.
+
+    Errors never echo the URL, which could carry credentials or a token.
+    """
     parsed = urllib.parse.urlparse(base_url)
-    try:
-        parsed.port
-    except ValueError as error:
-        raise BackendError(
-            KIND_MISSING_PREREQUISITE, f"endpoint has an invalid port: {base_url!r}"
-        ) from error
+    # Credentials first: a later error must not be the one that fires.
     if parsed.username is not None or parsed.password is not None:
         raise BackendError(
             KIND_MISSING_PREREQUISITE,
             "endpoint must not embed credentials (user info) in the URL",
         )
+    try:
+        parsed.port
+    except ValueError as error:
+        raise BackendError(
+            KIND_MISSING_PREREQUISITE, "endpoint has an invalid port"
+        ) from error
     if parsed.scheme != "http" or parsed.hostname not in _LOOPBACK_HOSTS:
         raise BackendError(
             KIND_MISSING_PREREQUISITE,
-            f"endpoint must be plain http on a loopback host, got {base_url!r}",
+            "endpoint must be plain http on a loopback host "
+            f"(got scheme {parsed.scheme!r}, host {parsed.hostname!r})",
         )
 
 

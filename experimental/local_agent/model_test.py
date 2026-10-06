@@ -189,6 +189,22 @@ class OllamaStreamingTest(unittest.TestCase):
 
 
 class OllamaLocalOnlyTest(unittest.TestCase):
+    def test_credentials_are_reported_first_and_never_echoed(self) -> None:
+        for url in (
+            "http://bob:hunter2@127.0.0.1:99999",
+            "http://bob:hunter2@127.0.0.1:11434",
+        ):
+            with self.subTest(url):
+                with self.assertRaises(model.BackendError) as caught:
+                    model.check_loopback_url(url)
+                self.assertIn("credentials", str(caught.exception))
+                self.assertNotIn("hunter2", str(caught.exception))
+
+    def test_non_loopback_error_does_not_echo_the_url(self) -> None:
+        with self.assertRaises(model.BackendError) as caught:
+            model.check_loopback_url("http://10.0.0.5:11434/?token=abc123secret")
+        self.assertNotIn("abc123secret", str(caught.exception))
+
     def test_invalid_port_rejected(self) -> None:
         for url in ("http://127.0.0.1:99999", "http://localhost:abc"):
             with self.subTest(url):

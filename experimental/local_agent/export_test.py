@@ -357,12 +357,37 @@ class AskExportTest(unittest.TestCase):
         with self.assertRaisesRegex(export.ExportError, "export withheld"):
             self._export(run_id)
 
-    def test_quoted_digest_in_a_note_does_not_withhold_output(self) -> None:
+    def test_free_text_is_scanned_unmasked(self) -> None:
+        hex_email = "ab" * 16 + "@example.com"
         luhn_digest = "5d8f6cce532a7aeb57196be62344095936793400b3aeb3580d248b17d5518a86"
-        run_id = self._ask("Fine answer.")
-        ask.record_rating(self.store, run_id, "g", f"matches {luhn_digest}")
-        exported = self._export(run_id, include_output=True)
-        self.assertIn(luhn_digest, exported["run"]["rating"]["note"])
+        cases = (
+            (f"Reply to {hex_email}.", "", "hex-local-part email in the answer"),
+            ("Fine answer.", f"matches {luhn_digest}", "quoted digest in the note"),
+        )
+        for answer, note, label in cases:
+            with self.subTest(label):
+                run_id = self._ask(answer)
+                ask.record_rating(self.store, run_id, "g", note)
+                with self.assertRaisesRegex(export.ExportError, "withheld"):
+                    self._export(run_id, include_output=True)
+
+    def test_only_whole_digest_values_are_neutralized(self) -> None:
+        hex_email = "ab" * 16 + "@example.com"
+        run_id = self._ask("ok")
+        self.store.update_run(run_id, model={"model": hex_email})
+        with self.assertRaisesRegex(export.ExportError, "email"):
+            self._export(run_id)
+
+    def test_port_zero_and_booleans_survive_export(self) -> None:
+        run_id = self._ask("ok")
+        self.store.update_run(
+            run_id,
+            model={"backend": "ollama", "base_url": "http://127.0.0.1:0"},
+            flag=True,
+        )
+        exported = self._export(run_id)
+        self.assertEqual(exported["run"]["model"]["base_url"], "loopback:0")
+        self.assertIs(exported["run"]["flag"], True)
 
     def test_failure_details_with_findings_are_withheld(self) -> None:
         run_id = ask.record_failure(

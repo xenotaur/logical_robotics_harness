@@ -719,10 +719,47 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         .build()
 }
 
-/// Builds the Settings / Server Details window. It may show only bundled
-/// pages and never opens popups.
+/// The part of the Settings / Server Details window a menu item shows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SettingsSection {
+    /// The settings form, at the top.
+    Settings,
+    /// Server Details.
+    Details,
+}
+
+impl SettingsSection {
+    /// The section a menu item shows, if it is Settings… or Server Details….
+    pub fn for_menu(id: &str) -> Option<Self> {
+        match id {
+            menu_id::SETTINGS => Some(SettingsSection::Settings),
+            menu_id::DETAILS => Some(SettingsSection::Details),
+            _ => None,
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            SettingsSection::Settings => "settings",
+            SettingsSection::Details => "details",
+        }
+    }
+
+    /// Script that brings the section into view in an open window. It calls
+    /// a function of the bundled page only; no app command is involved.
+    fn show_script(self) -> String {
+        format!(
+            "window.lrhShowSection && window.lrhShowSection({:?});",
+            self.name()
+        )
+    }
+}
+
+/// Builds the Settings / Server Details window, showing `section` first. It
+/// may show only bundled pages and never opens popups.
 pub fn build_settings_window<R: Runtime, M: Manager<R>>(
     manager: &M,
+    section: SettingsSection,
 ) -> tauri::Result<WebviewWindow<R>> {
     WebviewWindowBuilder::new(
         manager,
@@ -730,22 +767,27 @@ pub fn build_settings_window<R: Runtime, M: Manager<R>>(
         WebviewUrl::App(PathBuf::from("settings.html")),
     )
     .title("LRH Console Settings")
-    .inner_size(720.0, 760.0)
+    // Two columns: every field, both buttons, and the details fit without
+    // scrolling on a 1440×900 display.
+    .inner_size(1120.0, 760.0)
+    .initialization_script(format!("window.lrhInitialSection = {:?};", section.name()))
     .on_navigation(is_bundled)
     .on_new_window(|url, _features| new_window_response(&url))
     .on_download(|_webview, _event| false)
     .build()
 }
 
-/// Shows the Settings window, creating it once and focusing it afterwards.
-pub fn show_settings<R: Runtime>(app: &AppHandle<R>) {
+/// Shows the Settings window at `section`, creating it once and focusing it
+/// afterwards.
+pub fn show_settings<R: Runtime>(app: &AppHandle<R>, section: SettingsSection) {
     if let Some(window) = app.get_webview_window(SETTINGS_WINDOW) {
         let _ = window.show();
         let _ = window.unminimize();
         let _ = window.set_focus();
+        let _ = window.eval(section.show_script());
         return;
     }
-    if let Err(error) = build_settings_window(app) {
+    if let Err(error) = build_settings_window(app, section) {
         eprintln!("LRH Console: could not open Settings: {error}");
     }
 }
@@ -1070,7 +1112,7 @@ pub fn setup<R: Runtime>(app: &AppHandle<R>) -> tauri::Result<()> {
     }
     if !configured {
         // First run, or the saved configuration needs fixing.
-        show_settings(app);
+        show_settings(app, SettingsSection::Settings);
     }
     Ok(())
 }
@@ -1142,7 +1184,11 @@ fn current_backend_page<R: Runtime>(app: &AppHandle<R>, state: &ShellState) -> O
 pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
     let state = app.state::<ShellState>();
     match id {
-        menu_id::SETTINGS | menu_id::DETAILS => show_settings(app),
+        menu_id::SETTINGS | menu_id::DETAILS => {
+            if let Some(section) = SettingsSection::for_menu(id) {
+                show_settings(app, section);
+            }
+        }
         menu_id::QUIT => app.exit(0),
         menu_id::START => state.request(Action::Start),
         menu_id::STOP => state.request(Action::Stop),
@@ -1225,6 +1271,9 @@ pub struct ServerDetails {
     pub endpoint: Option<String>,
     pub served_workspace: Option<serde_json::Value>,
     pub configured_workspace: Option<String>,
+    /// Whether the configured and served workspaces are the same directory
+    /// once symlinks are resolved; `None` if either cannot be resolved.
+    pub same_workspace: Option<bool>,
     pub protocol_version: Option<u64>,
     pub backend: Option<serde_json::Value>,
     pub last_error_code: Option<String>,
@@ -1305,15 +1354,19 @@ pub fn get_server_details(state: tauri::State<'_, ShellState>) -> ServerDetails 
         None,
         "(an operation is in progress; refresh shortly)".into(),
     ));
+    let configured = state.supervisor.config().map(|config| config.project_root);
+    let served =
+        handshake.and_then(|h| h.workspace.get("project_root")?.as_str().map(PathBuf::from));
     ServerDetails {
         state: state_name(status.state),
         owned_pid,
         endpoint: handshake.map(|h| h.url.clone()),
         served_workspace: handshake.map(|h| h.workspace.clone()),
-        configured_workspace: state
-            .supervisor
-            .config()
-            .map(|config| config.project_root.display().to_string()),
+        same_workspace: match (&configured, &served) {
+            (Some(configured), Some(served)) => same_directory(configured, served),
+            _ => None,
+        },
+        configured_workspace: configured.map(|path| path.display().to_string()),
         protocol_version: handshake.map(|h| h.protocol_version),
         backend: handshake.map(|h| h.backend.clone()),
         last_error_code: status.last_error.as_ref().map(failure_code),
@@ -1329,6 +1382,12 @@ pub fn get_server_details(state: tauri::State<'_, ShellState>) -> ServerDetails 
             Err(error) => serde_json::json!({"ok": false, "error": error}),
         }),
     }
+}
+
+/// True if `a` and `b` are the same directory once symlinks are resolved, or
+/// `None` if either cannot be resolved.
+pub fn same_directory(a: &std::path::Path, b: &std::path::Path) -> Option<bool> {
+    Some(std::fs::canonicalize(a).ok()? == std::fs::canonicalize(b).ok()?)
 }
 
 /// Restarts the owned backend (for example after a workspace change).
@@ -1658,6 +1717,45 @@ mod tests {
             steps += 1;
         }
         assert_eq!(steps, PageHistory::LIMIT);
+    }
+
+    #[test]
+    fn settings_and_server_details_show_their_own_section() {
+        assert_eq!(
+            SettingsSection::for_menu(menu_id::SETTINGS),
+            Some(SettingsSection::Settings)
+        );
+        assert_eq!(
+            SettingsSection::for_menu(menu_id::DETAILS),
+            Some(SettingsSection::Details)
+        );
+        assert_eq!(SettingsSection::for_menu(menu_id::RELOAD), None);
+        assert_eq!(
+            SettingsSection::Details.show_script(),
+            r#"window.lrhShowSection && window.lrhShowSection("details");"#
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_symlinked_workspace_is_the_same_directory() {
+        let root = std::env::temp_dir().join(format!(
+            "lrh-console-same-dir-{}-{:?}",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let real = root.join("real");
+        let link = root.join("link");
+        let other = root.join("other");
+        std::fs::create_dir_all(&real).unwrap();
+        std::fs::create_dir_all(&other).unwrap();
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+
+        assert_eq!(same_directory(&link, &real), Some(true));
+        assert_eq!(same_directory(&real, &real), Some(true));
+        assert_eq!(same_directory(&link, &other), Some(false));
+        assert_eq!(same_directory(&root.join("missing"), &real), None);
+        std::fs::remove_dir_all(&root).unwrap();
     }
 
     #[test]

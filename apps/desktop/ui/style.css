@@ -30,15 +30,19 @@ main {
   opacity: 0.8;
 }
 
-/* Settings on the left, Server Details on the right, so every field, both
-   buttons, and the details fit in the default window without scrolling. */
+/* Settings on the left, Server Details on the right, filling the window.
+   Every field and both buttons fit; the server output takes the rest of the
+   right column and scrolls on its own, so the page itself never scrolls. */
 .settings {
   display: grid;
-  grid-template-columns: minmax(22rem, 1fr) minmax(20rem, 1fr);
+  grid-template-columns: minmax(22rem, 0.85fr) minmax(20rem, 1.15fr);
+  grid-template-rows: auto auto auto minmax(0, 1fr);
   column-gap: 2rem;
-  align-items: start;
   max-width: none;
-  margin: 1rem 1.5rem;
+  height: 100vh;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 1rem 1.5rem;
   line-height: 1.35;
 }
 
@@ -47,6 +51,51 @@ main {
 .settings > .error {
   grid-column: 1 / -1;
   margin: 0.25rem 0;
+}
+
+.settings > h1 {
+  grid-row: 1;
+}
+
+.settings > #source {
+  grid-row: 2;
+}
+
+.settings > #problem {
+  grid-row: 3;
+}
+
+.settings > #settings-form,
+.settings > #server-details {
+  grid-row: 4;
+  min-height: 0;
+  overflow: auto;
+}
+
+.settings > #server-details {
+  display: flex;
+  flex-direction: column;
+}
+
+.section-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.settings > #server-details dl {
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.settings > #server-details h3 {
+  margin: 0.25rem 0;
+}
+
+.settings > #server-details .diagnostics {
+  flex: 1 1 auto;
+  min-height: 3rem;
+  max-height: none;
 }
 
 .settings > h1 {
@@ -71,8 +120,13 @@ main {
 }
 
 @media (max-width: 52rem) {
+  /* One column in normal page flow; the page scrolls instead. */
   .settings {
-    grid-template-columns: 1fr;
+    display: block;
+    height: auto;
+  }
+  .settings > #server-details .diagnostics {
+    max-height: 12rem;
   }
 }
 
@@ -157,6 +211,8 @@ dd {
   border-radius: 6px;
   font-size: 0.8rem;
   white-space: pre-wrap;
+  /* Long paths have no spaces to wrap at. */
+  overflow-wrap: anywhere;
 }
 
 @media (prefers-color-scheme: dark) {

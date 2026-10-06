@@ -162,7 +162,9 @@ $("refresh").addEventListener("click", loadDetails);
 
 // Brings a section into view. The app calls this when Settings… or
 // Server > Server Details… is chosen while the window is already open, and
-// sets `lrhInitialSection` before the page loads when it opens the window.
+// sets `lrhInitialSection` before the page loads when it opens the window;
+// that first section is shown once the settings and details have loaded, so
+// the scroll and highlight land on the populated page.
 window.lrhShowSection = (name) => {
   const target = name === "details" ? $("server-details") : document.body;
   target.scrollIntoView({ block: "start", behavior: "smooth" });
@@ -172,7 +174,9 @@ window.lrhShowSection = (name) => {
     target.classList.add("flash");
   }
 };
-if (window.lrhInitialSection === "details") window.lrhShowSection("details");
-
-loadSettings().then(loadDetails);
+loadSettings()
+  .then(loadDetails)
+  .finally(() => {
+    if (window.lrhInitialSection === "details") window.lrhShowSection("details");
+  });
 setInterval(loadDetails, 3000);

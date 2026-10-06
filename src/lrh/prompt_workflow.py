@@ -74,6 +74,10 @@ def suggested_execution_path(
     )
 
 
+def _frontmatter_line(name: str, value: str) -> str:
+    return f"{name}: {value}\n" if value else f"{name}:\n"
+
+
 def render_execution_content(
     execution_id: str,
     prompt_id: str,
@@ -90,10 +94,10 @@ def render_execution_content(
         f"prompt_id: {prompt_id}\n"
         f"work_item: {work_item}\n"
         f"status: {status}\n"
-        f"rerun_of: {rerun_of}\n"
-        f"pr: {pr}\n"
-        f"commit: {commit}\n"
-        f"created_at: {created_at}\n"
+        + _frontmatter_line("rerun_of", rerun_of)
+        + _frontmatter_line("pr", pr)
+        + _frontmatter_line("commit", commit)
+        + f"created_at: {created_at}\n"
         "---\n\n"
         "# Summary\n\n"
         "TODO: Briefly summarize the intended prompt-driven work.\n\n"

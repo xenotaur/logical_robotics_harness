@@ -21,15 +21,23 @@ narrower invocation surface?
 
 ## 1. Method
 
-Mutating operations were enumerated with line-based greps over the canonical
-skill sources (`src/lrh/skills/`; `.claude/skills/` is a byte-identical copy
-and `.agents/skills/` a rendered copy, so they add no new operations) and over
+Mutating operations were enumerated with tracked-only `git grep` at the
+recorded revision, per `AGENTS.md` (filesystem `grep -r` would also walk
+untracked files and sibling `.claude/worktrees/` checkouts). The sources are
+the canonical skills (`src/lrh/skills/`; `.claude/skills/` is a byte-identical
+copy and `.agents/skills/` a rendered copy, so they add no new operations) and
 Python code that shells out to `git` or `gh`:
 
 ```bash
-grep -rEn -- '<pattern>' src/lrh/skills
-grep -rEn '"(git|gh)"' src/lrh --include=*.py
+REV=3082dc3b
+git grep -nE -e '<pattern>' $REV -- src/lrh/skills            # lines
+git grep -lE -e '<pattern>' $REV -- src/lrh/skills            # files
+git grep -nE '"(git|gh)"' $REV -- 'src/lrh/*.py' ':!src/lrh/skills'
 ```
+
+An earlier draft of this audit used filesystem `grep -r`. Re-running every
+count tracked-only changed none of them, and every cited line was re-checked
+with `git show $REV:<path>`.
 
 Patterns: `gh pr create|merge|comment|edit|close|ready|review`, mutating
 `gh api`/`resolveReviewThread`, `git push` (and force variants),

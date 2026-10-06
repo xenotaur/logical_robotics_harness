@@ -52,6 +52,16 @@ class SourcesTest(unittest.TestCase):
         with self.assertRaisesRegex(sources.SourceError, "excluded"):
             self._make("project/executions/AD_HOC/private.md")
 
+    def test_private_paths_rejected_at_any_depth_and_case(self) -> None:
+        for path in (
+            "sub/project/executions/AD_HOC/x.md",
+            "Project/Executions/x.md",
+            "lcats/PROJECT/memory/m.md",
+        ):
+            with self.subTest(path):
+                with self.assertRaisesRegex(sources.SourceError, "private path"):
+                    sources.check_path_allowed(path)
+
     def test_credential_like_paths_rejected(self) -> None:
         for path in (
             ".env",

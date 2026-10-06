@@ -142,6 +142,18 @@ class BuildContextTest(AskTestBase):
         overview = ask.build_context(repo=self.repo)
         self.assertNotIn("sub/project/executions", overview.text)
 
+    def test_medium_findings_in_the_listing_are_warned(self) -> None:
+        named = self.repo / "notes/ops@example.org.md"
+        named.parent.mkdir(parents=True)
+        named.write_text("plain\n", encoding="utf-8")
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "named")
+        ctx = ask.build_context(repo=self.repo)
+        self.assertIn("email", ctx.context_warnings)
+        summary = ask.source_summary(ctx)
+        self.assertIn("context WARN: email", summary)
+        self.assertNotIn("ops@example.org", summary)
+
     def test_uncommitted_edits_are_not_sent(self) -> None:
         (self.repo / "project/design/demo.md").write_text("DIRTY\n", encoding="utf-8")
         ctx = ask.build_context(repo=self.repo, files=["project/design/demo.md"])

@@ -99,7 +99,7 @@ def check_path_allowed(project_relative_path: str) -> None:
     if normalized.startswith("/") or ".." in normalized.split("/"):
         raise SourceError(f"path must be relative and confined: {normalized}")
     # Match private subtrees at any depth (``sub/project/executions/...``).
-    bounded = f"/{normalized}"
+    bounded = f"/{normalized}".lower()
     for prefix in settings.EXCLUDED_PROJECT_PREFIXES:
         if f"/{prefix}" in bounded:
             raise SourceError(f"excluded private path: {normalized}")

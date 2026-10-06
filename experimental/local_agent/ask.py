@@ -39,6 +39,9 @@ class AskContext:
     source_refs: list[dict[str, object]]
     excluded: list[dict[str, str]]
     diagnostics: dict[str, object] | None = None
+    # Medium-severity categories found anywhere in the rendered context,
+    # including diagnostics and the listing (names only, never values).
+    context_warnings: tuple[str, ...] = ()
 
 
 def _repo_relative(repo: pathlib.Path, path: str) -> str:
@@ -51,16 +54,34 @@ def _repo_relative(repo: pathlib.Path, path: str) -> str:
         return path
 
 
-def build_context(**kwargs: object) -> AskContext:
+def build_context(
+    *,
+    repo: pathlib.Path,
+    revision: str = "HEAD",
+    work_item: str | None = None,
+    files: list[str] | None = None,
+    project_dir: str = ".",
+    repo_label: str = "repo",
+    budgets: settings.Budgets | None = None,
+) -> AskContext:
     """Assemble tracked-file context for a question (see ``_assemble``).
 
     The fully rendered context, including work-item diagnostics and the file
     listing, is scanned once more: a high-severity finding anywhere refuses
-    the whole request (proposal Decision 3), naming categories only.
+    the whole request (proposal Decision 3), naming categories only; medium
+    categories are kept as context-wide warnings.
     """
-    ctx = _assemble(**kwargs)  # type: ignore[arg-type]
-    sources.check_text_allowed("assembled context", ctx.text)
-    return ctx
+    ctx = _assemble(
+        repo=repo,
+        revision=revision,
+        work_item=work_item,
+        files=files,
+        project_dir=project_dir,
+        repo_label=repo_label,
+        budgets=budgets,
+    )
+    warnings = sources.check_text_allowed("assembled context", ctx.text)
+    return dataclasses.replace(ctx, context_warnings=warnings)
 
 
 def _assemble(
@@ -193,6 +214,11 @@ def source_summary(ctx: AskContext) -> str:
         lines.append("  + tracked-file listing")
     for entry in ctx.excluded:
         lines.append(f"  excluded {entry['path']}: {entry['reason']}")
+    if ctx.context_warnings:
+        lines.append(
+            f"  context WARN: {', '.join(ctx.context_warnings)} "
+            "(medium findings anywhere in what will be sent)"
+        )
     return "\n".join(lines)
 
 
@@ -239,6 +265,7 @@ def run_ask(
             "source_commit": ctx.source_commit,
             "sources": ctx.source_refs,
             "excluded_sources": ctx.excluded,
+            "context_warnings": list(ctx.context_warnings),
             "diagnostics": ctx.diagnostics,
             "prompt_version": PROMPT_VERSION,
             "prompt_template_sha256": template_hash,

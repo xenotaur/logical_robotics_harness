@@ -11,6 +11,8 @@ from __future__ import annotations
 import json
 import math
 import pathlib
+import re
+import urllib.parse
 
 from local_agent import briefing, context, recorder
 from lrh.conversations import sensitivity
@@ -230,6 +232,27 @@ def record_evaluation(
     return scores
 
 
+_HEX_DIGEST = re.compile(r"\b[0-9a-f]{32,}\b")
+
+
+def _describe_endpoint(exported: dict[str, object]) -> None:
+    """Export the model endpoint as ``loopback:<port>``.
+
+    The adapter only ever accepts a loopback endpoint, so the host carries
+    no information, and a literal ``127.0.0.1`` would trip the IP-address
+    rule of the final scan.
+    """
+    run = exported.get("run")
+    described = run.get("model") if isinstance(run, dict) else None
+    if not isinstance(described, dict):
+        return
+    base_url = described.get("base_url")
+    if isinstance(base_url, str):
+        port = urllib.parse.urlsplit(base_url).port
+        described = {**described, "base_url": f"loopback:{port or 'default'}"}
+        run["model"] = described  # type: ignore[index]
+
+
 def _withhold_sensitive_details(exported: dict[str, object]) -> None:
     """Replace failure text that the scanner flags, at any severity.
 
@@ -323,10 +346,13 @@ def export_run(
             }
 
     _withhold_sensitive_details(exported)
+    _describe_endpoint(exported)
     # Last line of defense: nothing that leaves the private store may carry a
-    # sensitivity finding of any severity (proposal Decision 3).
+    # sensitivity finding of any severity (proposal Decision 3). Hex digests
+    # (commits, blobs, hashes) are masked for the scan only: their digit runs
+    # can pass the payment-card Luhn check by chance.
     final_scan = sensitivity.scan_text_for_sensitive_findings(
-        json.dumps(exported, sort_keys=True)
+        _HEX_DIGEST.sub("<hex>", json.dumps(exported, sort_keys=True))
     )
     if final_scan.status != sensitivity.STATUS_NONE_DETECTED:
         raise ExportError(

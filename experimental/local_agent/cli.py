@@ -278,7 +278,7 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
             return 1
     try:
         adapter = _adapter(args)
-    except OSError as error:
+    except (OSError, UnicodeDecodeError) as error:
         run_id = ask.record_failure(
             store, args.question, "missing_prerequisite", f"adapter: {error}"
         )

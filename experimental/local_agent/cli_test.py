@@ -162,9 +162,15 @@ class CliAskTest(unittest.TestCase):
                 "missing_prerequisite",
             ),
         )
+        binary = self.answer.with_name("binary.bin")
+        binary.write_bytes(b"\xff\xfe\x00bad")
         cases += (
             (
                 ["--backend", "fake", "--fake-response", "/nonexistent/answer.md"],
+                "missing_prerequisite",
+            ),
+            (
+                ["--backend", "fake", "--fake-response", str(binary)],
                 "missing_prerequisite",
             ),
         )

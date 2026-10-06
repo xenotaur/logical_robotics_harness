@@ -305,6 +305,34 @@ class AskExportTest(unittest.TestCase):
                 with self.assertRaisesRegex(export.ExportError, "withheld"):
                     self._export(run_id, include_output=True)
 
+    def test_real_model_runs_export_with_loopback_endpoint(self) -> None:
+        class OllamaShaped(model.FakeModel):
+            def describe(self) -> dict[str, object]:
+                return {
+                    "backend": "ollama",
+                    "base_url": "http://127.0.0.1:11434",
+                    "model": "gemma4:12b",
+                    "local_only": True,
+                }
+
+        run_id = ask.run_ask(
+            store=self.store,
+            question="q",
+            ctx=self.ctx,
+            adapter=OllamaShaped([model.ModelResponse("ok", "stop", 1, 1, {})]),
+            budgets=settings.Budgets(),
+        )
+        exported = self._export(run_id)
+        self.assertEqual(exported["run"]["model"]["base_url"], "loopback:11434")
+        self.assertNotIn("127.0.0.1", json.dumps(exported))
+
+    def test_hex_digests_do_not_trip_the_final_scan(self) -> None:
+        luhn_digest = "5d8f6cce532a7aeb57196be62344095936793400b3aeb3580d248b17d5518a86"
+        run_id = self._ask("ok")
+        self.store.update_run(run_id, prompt_template_sha256=luhn_digest)
+        exported = self._export(run_id)
+        self.assertEqual(exported["run"]["prompt_template_sha256"], luhn_digest)
+
     def test_failure_details_with_findings_are_withheld(self) -> None:
         run_id = ask.record_failure(
             self.store,

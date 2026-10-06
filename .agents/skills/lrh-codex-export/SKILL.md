@@ -165,6 +165,22 @@ this gate exists to catch.
 
 ### Step 4 -- Run the export
 
+**If `lrh` is not on PATH.** From an LRH checkout, run the same
+subcommand with the same flags as
+`PYTHONPATH=src python3 -m lrh.cli.main conversation ...`. An editable
+`lrh` install can also point at a different checkout than the one you are
+working in (`pip show lrh` reports its "Editable project location"), and
+`lrh version` reports install-time metadata rather than the code that
+actually runs. When in doubt inside an LRH checkout, prefer the
+`PYTHONPATH=src` form.
+
+There is no destination-exists or `--force` case here.
+`archive-codex-thread` has no `--force` option, and it never overwrites
+an earlier export. A durable archive always reserves a fresh, uniquely
+suffixed export directory, and `--scratch` always uses a fresh temporary
+directory. A repeated export of the same thread is therefore a new
+directory, not a conflict.
+
 Run the durable archive wrapper with a restrictive umask so generated files are
 created user-only:
 
@@ -209,7 +225,10 @@ lrh conversation inspect-export \
 ```
 
 Treat a nonzero inspector exit as a failed export verification. Report the
-failure and keep the files private for debugging.
+failure and keep the files private for debugging. Unlike the Claude and
+Antigravity exporters, this verifies against the frozen raw capture that
+`archive-codex-thread` wrote. That capture does not keep growing, so there
+is no live-growth (`match_source_grew`) case to expect here.
 
 ### Step 6 -- Report metadata only
 
@@ -222,6 +241,11 @@ Summarize the export using only command output and inspector metadata:
 - source-hash status.
 - turn count, message count, and artifact statistics when present.
 - any trust or app-server diagnostics recorded as warnings.
+
+A `potential` sensitivity status means the heuristic scanner flagged
+strings that need a human review before the export is shared anywhere. It
+does not mean the export failed. `unscanned` means no scan was run.
+`none_detected` is not a guarantee that the content is safe to share.
 
 Do not paste transcript body text into chat. Do not run line-based previews to
 "spot check" the Markdown; the frontmatter can be followed immediately by

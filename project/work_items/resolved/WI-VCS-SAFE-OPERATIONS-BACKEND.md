@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #769: lrh vcs merge (src/lrh/vcs), the SHA-locked merge wired into /lrh-land and /lrh-confirm-fixes, plus the mutation-operations audit and reference docs.'
 blocked_reason: null
 blocked: false
 id: WI-VCS-SAFE-OPERATIONS-BACKEND
 title: Audit and design a backend-abstracted safe-invocation path for git/GitHub mutation operations
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

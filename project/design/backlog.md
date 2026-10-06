@@ -2079,13 +2079,26 @@ permission-rule addition the user adds once in their own settings, or
 accepting that this is a harness/classifier-level concern outside LRH's
 control (and therefore not worth building LRH-side tooling around at all).
 
-**Status:** Not yet scoped. Noted from a single occurrence; revisit if
-this recurs on a future `/lrh-land` run, or file a work item if the user
-wants to pursue the tooling angle now.
+**Status:** Closed 2026-10-06. Filed as `WI-VCS-SAFE-OPERATIONS-BACKEND`
+(PR #755) and implemented in PR #769: `lrh vcs merge`, a backend-neutral
+SHA-locked merge (`src/lrh/vcs/`), now presented by `/lrh-land` Step 6 and
+`/lrh-confirm-fixes` Step 8, with an audit
+(`project/audits/2026-09-28-vcs-mutation-operations-audit.md`) and reference
+docs (`docs/reference/vcs-backend.md`, `docs/reference/cli/vcs.md`). This
+makes the command a single validated surface; it does not show the
+classifier denial is avoided. The same command shape was denied once
+(PR #742) and allowed later (PR #755), and the first real use of
+`lrh vcs merge` (merging PR #769 itself) was allowed, which is one data
+point, not evidence of a fix. What remains open and is not tracked elsewhere:
+the other stereotyped actions (`create_branch`, `push_branch`,
+`open_pull_request`, `resolve_review_thread`) exist only as documented
+vocabulary, and the tracked `.gemini` Antigravity skills mirror is stale and
+still presents the raw command.
 
 **Related:** `src/lrh/skills/lrh-confirm-fixes/SKILL.md` Step 8 (Green
 verdict's merge one-liner); `src/lrh/skills/lrh-land/SKILL.md` Step 6
-(merge gate); PR #742 (the occurrence and its closeout); agent memory
+(merge gate); PR #742 (the occurrence and its closeout); PR #755 and PR #769
+(the work item and its implementation); agent memory
 `gh_pr_merge_classifier_denial_handoff.md`.
 
 ---

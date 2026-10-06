@@ -39,6 +39,7 @@ main {
   align-items: start;
   max-width: none;
   margin: 1rem 1.5rem;
+  line-height: 1.35;
 }
 
 .settings > h1,
@@ -50,10 +51,6 @@ main {
 
 .settings > h1 {
   font-size: 1.5rem;
-}
-
-.settings {
-  line-height: 1.35;
 }
 
 .settings fieldset {

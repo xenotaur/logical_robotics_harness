@@ -1736,6 +1736,18 @@ mod tests {
         );
     }
 
+    #[test]
+    fn the_settings_page_provides_what_show_script_calls() {
+        // The eval is guarded, so a renamed function or element would fail
+        // silently; pin the contract with the bundled page.
+        let script = include_str!("../../ui/settings.js");
+        let page = include_str!("../../ui/settings.html");
+        assert!(script.contains("window.lrhShowSection = "));
+        assert!(script.contains("window.lrhInitialSection === \"details\""));
+        assert!(script.contains("$(\"server-details\")"));
+        assert!(page.contains("id=\"server-details\""));
+    }
+
     #[cfg(unix)]
     #[test]
     fn a_symlinked_workspace_is_the_same_directory() {
@@ -1744,6 +1756,8 @@ mod tests {
             std::process::id(),
             std::thread::current().id()
         ));
+        // A run that panicked may have left this behind.
+        let _ = std::fs::remove_dir_all(&root);
         let real = root.join("real");
         let link = root.join("link");
         let other = root.join("other");

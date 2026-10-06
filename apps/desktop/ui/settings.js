@@ -98,7 +98,7 @@ async function loadDetails() {
     list,
     "Served workspace",
     served && details.same_workspace && served !== details.configured_workspace
-      ? `${served} (same directory as the configured workspace, via a symlink)`
+      ? `${served} (the same directory as the configured workspace)`
       : served,
   );
   addDetail(list, "Protocol version", details.protocol_version);

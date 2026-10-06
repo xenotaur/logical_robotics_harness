@@ -30,8 +30,8 @@ forbidden_actions:
   - implement_openai_plugin_distribution
 acceptance:
   - 'A blank (YAML null) disable-model-invocation or policy.allow_implicit_invocation value fails the skill instead of being treated as absent'
-  - 'An empty compatibility value fails validation (non-empty string of at most 500 characters when present)'
-  - 'Hidden (dot-prefixed) top-level entries in a skill source are skipped by SkillSource.skill_names(), so lrh skills install, status, check, and export never treat them as skills'
+  - 'An empty or whitespace-only compatibility value fails validation (a non-blank string of at most 500 characters when present)'
+  - 'Hidden (dot-prefixed) top-level directories in a skill source are skipped by SkillSource.skill_names(), so lrh skills install, status, check, and export never treat them as skills, while a hidden symlink still raises as all symlinks do'
   - 'Hosted export folds when_to_use guidance into the bundled description when the combined text fits the 1024-character limit, and otherwise keeps it dropped with a notice'
   - 'Exporter tests assert the specific error for each malformed optional field and that license survives into the bundle'
   - 'scripts/format --check --diff, scripts/lint, scripts/test, and lrh validate complete successfully'
@@ -45,6 +45,7 @@ artifacts_expected:
   - tests/skills_exporter_test.py
   - tests/skills_installer_test.py
   - docs/reference/cli/skills.md
+  - docs/how-to/use-lrh-with-agent-assistants.md
 ---
 
 ## Summary
@@ -166,10 +167,15 @@ of scope.
    - `tests/skills_installer_test.py`:
      - hidden directories are neither installed nor reported by status;
      - a hidden symlink still raises.
-6. `docs/reference/cli/skills.md`:
-   - describe the null-marker rule and the `compatibility` bounds;
-   - describe hidden-entry skipping (all subcommands);
-   - describe `when_to_use` folding for export.
+6. Documentation:
+   - `docs/reference/cli/skills.md`:
+     - describe the null-marker rule and the `compatibility` bounds;
+     - describe hidden-entry skipping (all subcommands);
+     - describe `when_to_use` folding for export.
+   - `docs/how-to/use-lrh-with-agent-assistants.md`: update the ChatGPT
+     Online section's "What changes in the bundle" bullets, which currently
+     say `when_to_use` is dropped and reported, to describe the folding
+     behavior and its length fallback.
 
 ## Non-Goals
 
@@ -184,8 +190,8 @@ of scope.
 
 - A blank `disable-model-invocation:` or `allow_implicit_invocation:` fails
   the skill, while an absent key does not.
-- `compatibility: ''` fails validation, and non-empty values up to 500
-  characters pass.
+- `compatibility: ''` or a whitespace-only value fails validation, and
+  non-blank values up to 500 characters pass.
 - A dot-prefixed directory beside real skills is skipped by
   `lrh skills install`, `status`, `check`, and `export`, and a hidden
   symlink still raises.

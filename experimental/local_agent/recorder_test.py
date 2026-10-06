@@ -98,6 +98,14 @@ class StoreTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.prune("not-a-date")
 
+    def test_empty_or_escaping_run_ids_are_rejected(self) -> None:
+        keep = self.store.start_run({"outcome": None})
+        for bad in ("", ".", "..", "a/b", "a\\b"):
+            with self.subTest(bad):
+                with self.assertRaises(recorder.StoreError):
+                    self.store.delete_run(bad)
+        self.assertEqual(self.store.list_runs(), [keep])
+
     def test_invalid_packet_sha_rejected(self) -> None:
         for bad in ("../../etc", "F" * 64, "abc"):
             with self.assertRaises(recorder.StoreError):

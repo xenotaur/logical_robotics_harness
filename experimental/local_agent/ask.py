@@ -10,6 +10,7 @@ from __future__ import annotations
 import collections
 import dataclasses
 import hashlib
+import math
 import pathlib
 import re
 import statistics
@@ -50,7 +51,19 @@ def _repo_relative(repo: pathlib.Path, path: str) -> str:
         return path
 
 
-def build_context(
+def build_context(**kwargs: object) -> AskContext:
+    """Assemble tracked-file context for a question (see ``_assemble``).
+
+    The fully rendered context, including work-item diagnostics and the file
+    listing, is scanned once more: a high-severity finding anywhere refuses
+    the whole request (proposal Decision 3), naming categories only.
+    """
+    ctx = _assemble(**kwargs)  # type: ignore[arg-type]
+    sources.check_text_allowed("assembled context", ctx.text)
+    return ctx
+
+
+def _assemble(
     *,
     repo: pathlib.Path,
     revision: str = "HEAD",
@@ -439,7 +452,8 @@ def summarize(store: recorder.Store, limit: int = 10) -> str:
     ]
     if latencies:
         ordered = sorted(latencies)
-        p90 = ordered[min(len(ordered) - 1, int(0.9 * len(ordered)))]
+        # Nearest-rank p90: the ceil(0.9 * n)-th observation, one-based.
+        p90 = ordered[max(0, math.ceil(0.9 * len(ordered)) - 1)]
         lines.append(
             f"latency: median {statistics.median(ordered):.1f}s, p90 {p90:.1f}s"
         )

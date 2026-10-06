@@ -305,6 +305,19 @@ class AskExportTest(unittest.TestCase):
                 with self.assertRaisesRegex(export.ExportError, "withheld"):
                     self._export(run_id, include_output=True)
 
+    def test_failure_details_with_findings_are_withheld(self) -> None:
+        run_id = ask.record_failure(
+            self.store,
+            "q",
+            "missing_prerequisite",
+            "adapter: endpoint must be loopback, got "
+            "'http://10.9.8.7:11434/?token=ghp_abcdef0123456789abcdef0123'",
+        )
+        text = json.dumps(self._export(run_id))
+        self.assertNotIn("ghp_", text)
+        self.assertNotIn("10.9.8.7", text)
+        self.assertIn("[withheld:", text)
+
     def test_inspect_shows_kind_and_sources(self) -> None:
         run_id = self._ask("x")
         summary = export.inspect_run(self.store, run_id)

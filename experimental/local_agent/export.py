@@ -230,6 +230,29 @@ def record_evaluation(
     return scores
 
 
+def _withhold_sensitive_details(exported: dict[str, object]) -> None:
+    """Replace failure text that the scanner flags, at any severity.
+
+    Outcome details can echo inputs (for example a refused endpoint URL), so
+    they leave the private store only when the scan finds nothing.
+    """
+    holders: list[dict[str, object]] = []
+    run = exported.get("run")
+    if isinstance(run, dict):
+        holders.append(run)
+    events = exported.get("events")
+    if isinstance(events, list):
+        holders.extend(event for event in events if isinstance(event, dict))
+    for holder in holders:
+        for key in ("outcome_detail", "detail"):
+            value = holder.get(key)
+            if not isinstance(value, str):
+                continue
+            scan = sensitivity.scan_text_for_sensitive_findings(value)
+            if scan.status != sensitivity.STATUS_NONE_DETECTED:
+                holder[key] = f"[withheld: {', '.join(scan.categories)}]"
+
+
 def export_run(
     store: recorder.Store,
     run_id: str,
@@ -298,6 +321,18 @@ def export_run(
             exported["briefing_claim_counts"] = {
                 name: len(parsed.get(name, [])) for name in briefing.CLAIM_LISTS
             }
+
+    _withhold_sensitive_details(exported)
+    # Last line of defense: nothing that leaves the private store may carry a
+    # sensitivity finding of any severity (proposal Decision 3).
+    final_scan = sensitivity.scan_text_for_sensitive_findings(
+        json.dumps(exported, sort_keys=True)
+    )
+    if final_scan.status != sensitivity.STATUS_NONE_DETECTED:
+        raise ExportError(
+            "export withheld: sensitivity scan flagged run metadata "
+            f"({', '.join(final_scan.categories)}); inspect the run locally"
+        )
 
     out_dir.mkdir(parents=True, exist_ok=True)
     path = out_dir / f"{run_id}.json"

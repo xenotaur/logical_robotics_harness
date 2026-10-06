@@ -3,6 +3,7 @@ import io
 import pathlib
 import tempfile
 import unittest
+from unittest import mock
 
 from local_agent import cli, recorder, testing_support
 
@@ -161,6 +162,12 @@ class CliAskTest(unittest.TestCase):
                 "missing_prerequisite",
             ),
         )
+        cases += (
+            (
+                ["--backend", "fake", "--fake-response", "/nonexistent/answer.md"],
+                "missing_prerequisite",
+            ),
+        )
         seen: set[str] = set()
         for extra, outcome in cases:
             with self.subTest(extra[0]):
@@ -173,6 +180,31 @@ class CliAskTest(unittest.TestCase):
                 self.assertEqual(len(new), 1)
                 seen |= new
                 self.assertEqual(store.load_run(new.pop())["outcome"], outcome)
+
+    def test_only_enter_or_yes_sends(self) -> None:
+        for reply, sent in (("", True), ("yes", True), ("no", False), ("nah", False)):
+            with self.subTest(reply=reply):
+                before = set(recorder.Store(self.store).list_runs())
+                with (
+                    mock.patch.object(cli.sys.stdin, "isatty", return_value=True),
+                    mock.patch("builtins.input", side_effect=[reply, ""]),
+                ):
+                    self._main(
+                        "ask",
+                        "q",
+                        "--repo",
+                        str(self.repo),
+                        "--files",
+                        "project/design/demo.md",
+                        "--backend",
+                        "fake",
+                        "--fake-response",
+                        str(self.answer),
+                    )
+                store = recorder.Store(self.store)
+                (new,) = set(store.list_runs()) - before
+                outcome = store.load_run(new)["outcome"]
+                self.assertEqual(outcome == "completed", sent, outcome)
 
     def test_rate_and_prune_report_bad_input(self) -> None:
         self.assertEqual(self._main("rate", "nope", "g")[0], 2)

@@ -266,7 +266,8 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
     interactive = sys.stdin.isatty()
     if interactive and not args.yes:
         try:
-            declined = input("send to the local model? [Y/n] ").strip().lower() == "n"
+            answer = input("send to the local model? [Y/n] ").strip().lower()
+            declined = answer not in ("", "y", "yes")
         except (EOFError, KeyboardInterrupt):
             declined = True
         if declined:
@@ -277,6 +278,12 @@ def _run_ask(args: argparse.Namespace, store: recorder.Store) -> int:
             return 1
     try:
         adapter = _adapter(args)
+    except OSError as error:
+        run_id = ask.record_failure(
+            store, args.question, "missing_prerequisite", f"adapter: {error}"
+        )
+        print(f"error: {error} (run {run_id})", file=sys.stderr)
+        return 2
     except model.BackendError as error:
         outcome = (
             "missing_prerequisite"

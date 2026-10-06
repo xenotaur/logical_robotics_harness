@@ -150,7 +150,7 @@ class Store:
         return f"{stamp[:15]}-{self._token()}"
 
     def run_dir(self, run_id: str) -> pathlib.Path:
-        if "/" in run_id or run_id.startswith("."):
+        if not run_id or "/" in run_id or "\\" in run_id or run_id.startswith("."):
             raise StoreError(f"invalid run id {run_id!r}")
         return self.root / "runs" / run_id
 

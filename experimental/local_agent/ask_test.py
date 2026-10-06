@@ -3,7 +3,7 @@ import pathlib
 import tempfile
 import unittest
 
-from local_agent import ask, model, recorder, settings, testing_support
+from local_agent import ask, model, recorder, settings, sources, testing_support
 
 ANSWER = "The demo design is described in S1:L1-L3. See also S9."
 
@@ -36,6 +36,13 @@ class AskTestBase(unittest.TestCase):
             "Ask ops@example.org; the server listens on 127.0.0.1.\n",
             encoding="utf-8",
         )
+        leaky_item = testing_support.READY_ITEM.replace("WI-T-1", "WI-T-9").replace(
+            "  - project/design/demo.md",
+            "  - https://admin:hunter2secret@example.com/design.md",
+        )
+        item_path = self.repo / "project/work_items/proposed/WI-T-9.md"
+        item_path.parent.mkdir(parents=True)
+        item_path.write_text(leaky_item, encoding="utf-8")
         testing_support.make_repo(self.repo)
         self.store = recorder.Store(
             base / "store", clock=testing_support.SteppingClock()
@@ -113,6 +120,27 @@ class BuildContextTest(AskTestBase):
         self.assertEqual(ctx.mode, ask.MODE_WORK_ITEM)
         self.assertIsNotNone(ctx.diagnostics)
         self.assertIn("EXECUTION_READINESS_NOT_READY", ctx.text)
+
+    def test_high_severity_diagnostics_refuse_the_request(self) -> None:
+        with self.assertRaises(sources.SourceError) as caught:
+            ask.build_context(repo=self.repo, work_item="WI-T-9")
+        message = str(caught.exception)
+        self.assertIn("url_credentials", message)
+        self.assertNotIn("hunter2secret", message)
+
+    def test_nested_private_paths_are_excluded_and_unlisted(self) -> None:
+        nested = self.repo / "sub/project/executions/AD_HOC/private.md"
+        nested.parent.mkdir(parents=True)
+        nested.write_text("nested private notes\n", encoding="utf-8")
+        testing_support.run_git(self.repo, "add", "-A")
+        testing_support.run_git(self.repo, "commit", "-q", "-m", "nested")
+        ctx = ask.build_context(
+            repo=self.repo, files=["sub/project/executions/AD_HOC/private.md"]
+        )
+        self.assertEqual(ctx.source_refs, [])
+        self.assertIn("private path", ctx.excluded[0]["reason"])
+        overview = ask.build_context(repo=self.repo)
+        self.assertNotIn("sub/project/executions", overview.text)
 
     def test_uncommitted_edits_are_not_sent(self) -> None:
         (self.repo / "project/design/demo.md").write_text("DIRTY\n", encoding="utf-8")
@@ -290,6 +318,14 @@ class RatingAndLogTest(AskTestBase):
         self.assertIn("unrated 1", summary)
         self.assertIn("flagged runs: 1", summary)
         self.assertIn("latency: median 1.5s", summary)
+
+    def test_p90_uses_nearest_rank(self) -> None:
+        for seconds in range(1, 11):
+            run_id = self._completed()
+            usage = self.store.load_run(run_id)["usage"]
+            usage["backend_timings"] = {"client_elapsed_seconds": float(seconds)}
+            self.store.update_run(run_id, usage=usage)
+        self.assertIn("p90 9.0s", ask.summarize(self.store))
 
     def test_summary_without_runs(self) -> None:
         self.assertIn("no runs", ask.summarize(self.store))

@@ -1581,6 +1581,29 @@ mod tests {
     }
 
     #[test]
+    fn a_download_after_a_reload_or_a_move_restores_only_what_it_should() {
+        let backend = page("/");
+        let mut history = PageHistory::default();
+        history.visited(&page("/"), Some(&backend));
+        let download = page("/p?download=1");
+        history.visited(&download, Some(&backend));
+        history.visited(&download, Some(&backend)); // a reload keeps the snapshot
+        history.download_started(&download);
+        assert!(
+            !history.can_go_back(Some(&backend)),
+            "back to just the first page"
+        );
+
+        history.visited(&page("/health"), Some(&backend));
+        history.go_back(Some(&backend));
+        history.download_started(&page("/"));
+        assert!(
+            history.can_go_forward(Some(&backend)),
+            "a move is never undone"
+        );
+    }
+
+    #[test]
     fn menu_items_map_to_history_directions() {
         assert_eq!(history_direction(menu_id::BACK), Some(true));
         assert_eq!(history_direction(menu_id::FORWARD), Some(false));
@@ -1602,7 +1625,10 @@ mod tests {
             Some(page("/health"))
         );
 
-        // A restarted backend on another port: the old pages are refused.
+        // A restarted backend on another port: the history no longer belongs
+        // to the running backend, so it is dropped. (The policy re-check in
+        // `history_target` is defense in depth; a page on the history's own
+        // origin always passes it.)
         let new = Url::parse("http://127.0.0.1:60000/").unwrap();
         policy.set_backend(Some(&new));
         assert_eq!(history_target(&mut history, &policy, true), None);

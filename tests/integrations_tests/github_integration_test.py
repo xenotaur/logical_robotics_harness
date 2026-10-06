@@ -326,6 +326,7 @@ class GithubIntegrationTest(unittest.TestCase):
             ("GraphQL: API error", "api"),
             ("HTTP 500: Internal Server Error", "api"),
             ("API rate limit exceeded", "api"),
+            ("warning " * 100 + "HTTP 500: Internal Server Error", "api"),
             ("unexpected option", "command"),
         ):
             with self.subTest(stderr=stderr):

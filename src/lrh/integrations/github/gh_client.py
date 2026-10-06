@@ -33,8 +33,8 @@ def run_gh_json(argv: list[str], *, cwd: str | pathlib.Path | None = None) -> ob
             raise RuntimeError(f"invalid project root: {cwd}") from exc
         raise RuntimeError("gh CLI not found") from exc
     if result.returncode != 0:
+        category = _classify_failure(result.stderr)
         stderr = _sanitize_stderr(result.stderr)
-        category = _classify_failure(stderr)
         detail = stderr or "no diagnostic output"
         raise RuntimeError(f"gh command failed ({category}): {detail}")
     try:

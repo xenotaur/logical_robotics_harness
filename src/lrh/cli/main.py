@@ -26,6 +26,7 @@ from lrh import version as lrh_version
 from lrh.assist import request_cli, snapshot_cli, sourcetree_surveyor
 from lrh.cli import argcomplete_adapter
 from lrh.cli import github as github_cli
+from lrh.cli import vcs as vcs_cli
 from lrh.control import format_report, frontmatter_migration, validate_project
 from lrh.conversations import (
     antigravity_export,
@@ -181,6 +182,12 @@ def main() -> None:
         "github",
         add_help=False,
         help="Query GitHub pull request comments/threads.",
+    )
+
+    subparsers.add_parser(
+        "vcs",
+        add_help=False,
+        help="Backend-neutral VCS actions (SHA-locked pull request merge).",
     )
 
     subparsers.add_parser(
@@ -1127,6 +1134,14 @@ def main() -> None:
             github_cli.run_github_cli(
                 argv=passthrough_args,
                 prog="lrh github",
+            )
+        )
+
+    if args.command == "vcs":
+        raise SystemExit(
+            vcs_cli.run_vcs_cli(
+                argv=passthrough_args,
+                prog="lrh vcs",
             )
         )
 

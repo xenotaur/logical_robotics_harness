@@ -20,7 +20,7 @@ pre-merge pass that independently verifies pushed review fixes actually
 resolved reviewers' comments, resolves the review threads the current `HEAD`
 diff plainly satisfies, and surfaces everything else — unaddressed, partial,
 ambiguous, or problematic threads — as the report's headline. It ends at a
-merge-readiness verdict and a `gh pr merge` one-liner. This skill's own
+merge-readiness verdict and an `lrh vcs merge` one-liner. This skill's own
 workflow ends there — it does not itself run the merge or trigger closeout —
 but if the human then gives unambiguous in-session authorization to the
 presented one-liner, the agent may execute it; the classification test for
@@ -623,11 +623,14 @@ this REVIEW-LANDED state on the `_CONFIRM` commit:
 
 - **Green** — "All threads resolved, CI green, review landed clean on
   `<sha>` → ready to merge." Include the one-liner, locked to the exact
-  commit just checked: `gh pr merge <pr-url> --match-head-commit <sha>`
+  commit just checked: `lrh vcs merge <pr-url> --match-head-commit <sha>`
   plus whichever merge-mode flag (`--merge`, `--squash`, `--rebase`) this
-  project treats as standard. `--match-head-commit` makes the merge fail
-  rather than silently merge a newer, unchecked commit if one lands between
-  this report and whoever ends up running it.
+  project treats as standard. `lrh vcs merge` refuses unless the PR is open
+  and its head is exactly `<sha>`, issues the merge once without retrying,
+  and reads the PR back (exit `0` merged, `1` accepted but not yet merged,
+  `2` refused or failed). Locking to the SHA makes the merge fail rather
+  than silently merge a newer, unchecked commit if one lands between this
+  report and whoever ends up running it.
 
   **Before applying the classification below, check whether an assistant
   role governs this invocation and defers to a stricter ceiling.** If this
@@ -681,7 +684,7 @@ Report to the user:
 - The final verdict and the `HEAD` SHA it was checked against
 - What was resolved (author, one-line description) and what was surfaced
   (bucket, rationale)
-- The `gh pr merge` one-liner, only if the verdict is green
+- The `lrh vcs merge` one-liner, only if the verdict is green
 - Next step after merging, only if the verdict is green: run
   `/lrh-closeout <pr-url>` to land the execution record, resolve the work
   item, and update the control plane
@@ -737,7 +740,7 @@ Before reporting completion, verify:
       invocation and imposes a stricter `repo:merge` prohibition or
       `merge:human` obligation that overrides this skill's general default
 - [ ] The reported merge one-liner includes `--match-head-commit <sha>`
-- [ ] No `gh pr merge` was executed by this skill's own workflow — reported
+- [ ] No merge command (`lrh vcs merge`) was executed by this skill's own workflow — reported
       as a one-liner; any subsequent execution followed unambiguous
       in-session authorization per `DEC-AGENT-EXECUTED-MERGE-GATE`, not a
       guess
@@ -747,7 +750,7 @@ Before reporting completion, verify:
 ## What This Skill Does Not Do
 
 - Does not merge the PR as part of this skill's own workflow — the readiness
-  verdict and `gh pr merge` one-liner are its output. Whether the merge that
+  verdict and `lrh vcs merge` one-liner are its output. Whether the merge that
   follows is executed by the human or by the agent is governed by
   `DEC-AGENT-EXECUTED-MERGE-GATE`, not by this skill.
 - Does not *invoke* `/lrh-closeout` — closeout runs post-merge, this skill

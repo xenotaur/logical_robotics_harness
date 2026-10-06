@@ -37,3 +37,4 @@ Add content here when the reader already knows which command they need and wants
 - [`memory`](memory.md) — write, list, validate, repair, recover orphaned worktree memories, sync, read, search, export, import, and transfer Claude Code's per-project memory corpus.
 - [`chain-defaults`](chain-defaults.md) — report chain-authorization gate policy, skip-consent validity, and gate-definition staleness.
 - [`agent-skills`](agent-skills.md) — report `project/agent_skills.yaml`'s resolved install-policy state.
+- [`vcs`](vcs.md) — run backend-neutral VCS actions; currently the SHA-locked pull-request merge that `/lrh-land` and `/lrh-confirm-fixes` present.

@@ -410,8 +410,15 @@ presented summary that the command was self-derived:
 
 ```bash
 git rev-parse HEAD
-gh pr merge <pr-url> <project-standard-merge-mode-flag> --match-head-commit <sha>
+lrh vcs merge <pr-url> <project-standard-merge-mode-flag> --match-head-commit <sha>
 ```
+
+`lrh vcs merge` refuses unless the PR is open and its head is exactly
+`<sha>`, issues the merge once without retrying, and reads the PR back (exit
+`0` merged, `1` accepted but not yet merged, `2` refused or failed). If the
+harness denies the command before it launches — a host-level denial `lrh`
+cannot see — report that plainly, hand the exact command to the human, and do
+not retry it in another form.
 
 **Half B — closeout plan preview.** Inline `/lrh-closeout` Steps 1–3's
 *assessment* logic (read `/lrh-closeout/SKILL.md` Steps 1–3) to build the
@@ -499,8 +506,9 @@ and in-session, given after this summary was presented.
 
 **Verify actual merge state before executing the previewed closeout — do
 not treat command success as merge confirmation.** On a repository using a
-merge queue, `gh pr merge` succeeding only means the PR was accepted into
-the queue, not that it merged — the CLI itself documents this. This applies
+merge queue, the merge command succeeding only means the PR was accepted into
+the queue, not that it merged — `gh pr merge` documents this, and
+`lrh vcs merge` reports it as exit `1`. This applies
 whether the agent ran the command or the human reports having run it: query
 the PR until its state is actually `MERGED` and capture the merge commit
 before any closeout action touches `main`.

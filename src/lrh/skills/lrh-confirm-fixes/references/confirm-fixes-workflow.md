@@ -28,7 +28,7 @@ PR review (Codex, Copilot, human)   ← reviewers post comments
     │  Fresh-eyes verification against the current HEAD diff
     │  Resolves threads the diff plainly satisfies (single batch gate)
     │  Surfaces exceptions: unaddressed / partial / ambiguous / problematic
-    │  Ends at a merge-readiness verdict + gh pr merge one-liner
+    │  Ends at a merge-readiness verdict + lrh vcs merge one-liner
     │  Creates AD_HOC _CONFIRM execution record with rerun_of link
     │
     ▼

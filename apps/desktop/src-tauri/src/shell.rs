@@ -227,6 +227,9 @@ pub struct PageHistory {
     back: Vec<Url>,
     current: Option<Url>,
     forward: Vec<Url>,
+    /// The stacks as they were before the last new page was recorded, so a
+    /// navigation that turns out to be a download can be undone.
+    before_last: Option<(Vec<Url>, Option<Url>, Vec<Url>)>,
 }
 
 impl PageHistory {
@@ -253,6 +256,7 @@ impl PageHistory {
             // A reload, or the page a Back/Forward move already went to.
             return;
         }
+        self.before_last = None;
         if self.back.last() == Some(url) {
             self.shift(true);
             return;
@@ -261,10 +265,32 @@ impl PageHistory {
             self.shift(false);
             return;
         }
+        self.before_last = Some((
+            self.back.clone(),
+            self.current.clone(),
+            self.forward.clone(),
+        ));
         if let Some(previous) = self.current.replace(url.clone()) {
             push_bounded(&mut self.back, previous);
         }
         self.forward.clear();
+    }
+
+    /// Undoes the record of `url` when its navigation became a download.
+    ///
+    /// The navigation handler sees a `?download=1` link before the response
+    /// shows it is a download, which the app hands to the browser instead of
+    /// displaying, so the page on screen never changed.
+    pub fn download_started(&mut self, url: &Url) {
+        let mut url = url.clone();
+        url.set_fragment(None);
+        if self.current.as_ref() == Some(&url) {
+            if let Some((back, current, forward)) = self.before_last.take() {
+                self.back = back;
+                self.current = current;
+                self.forward = forward;
+            }
+        }
     }
 
     /// True if Back has a page to go to on the current backend.
@@ -288,6 +314,7 @@ impl PageHistory {
     }
 
     fn step(&mut self, backend: Option<&Url>, back: bool) -> Option<Url> {
+        self.before_last = None;
         if !self.belongs_to(backend) {
             // The backend stopped or changed: these pages are gone.
             *self = PageHistory::default();
@@ -329,10 +356,19 @@ fn push_bounded(pages: &mut Vec<Url>, page: Url) {
 type HistoryItems<R> = [MenuItem<R>; 2];
 
 /// The main window's history together with the Back and Forward menu items
-/// it enables.
+/// it enables. Cloning shares the same history.
 pub struct MainWindowHistory<R: Runtime> {
     pages: Arc<Mutex<PageHistory>>,
     items: Option<HistoryItems<R>>,
+}
+
+impl<R: Runtime> Clone for MainWindowHistory<R> {
+    fn clone(&self) -> Self {
+        MainWindowHistory {
+            pages: Arc::clone(&self.pages),
+            items: self.items.clone(),
+        }
+    }
 }
 
 impl<R: Runtime> Default for MainWindowHistory<R> {
@@ -350,11 +386,44 @@ impl<R: Runtime> MainWindowHistory<R> {
     fn record(&self, url: &Url, backend: Option<&Url>) {
         let mut pages = lock(&self.pages);
         pages.visited(url, backend);
+        self.refresh(&pages, backend);
+    }
+
+    /// Undoes the record of a navigation that became a download.
+    fn download_started(&self, url: &Url, backend: Option<&Url>) {
+        let mut pages = lock(&self.pages);
+        pages.download_started(url);
+        self.refresh(&pages, backend);
+    }
+
+    fn refresh(&self, pages: &PageHistory, backend: Option<&Url>) {
         if let Some([back, forward]) = &self.items {
             let _ = back.set_enabled(pages.can_go_back(backend));
             let _ = forward.set_enabled(pages.can_go_forward(backend));
         }
     }
+}
+
+/// Which way a menu item moves through the history: `Some(true)` for Back,
+/// `Some(false)` for Forward, `None` for any other item.
+fn history_direction(id: &str) -> Option<bool> {
+    match id {
+        menu_id::BACK => Some(true),
+        menu_id::FORWARD => Some(false),
+        _ => None,
+    }
+}
+
+/// Moves through `pages` and returns the page to show, only if the current
+/// policy allows it.
+fn history_target(pages: &mut PageHistory, policy: &NavigationPolicy, back: bool) -> Option<Url> {
+    let backend = policy.backend();
+    let target = if back {
+        pages.go_back(backend.as_ref())
+    } else {
+        pages.go_forward(backend.as_ref())
+    };
+    target.filter(|url| policy.allows(url))
 }
 
 /// True for a link that should open in a browser rather than in the app: a
@@ -621,6 +690,8 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         .to_string();
     let popup_links = Arc::clone(&links);
     let download_links = Arc::clone(&links);
+    let download_history = history.clone();
+    let download_policy = policy.clone();
     WebviewWindowBuilder::new(manager, MAIN_WINDOW, WebviewUrl::App(PathBuf::from(path)))
         .title("LRH Console")
         .inner_size(1100.0, 760.0)
@@ -640,6 +711,7 @@ pub fn build_main_window<R: Runtime, M: Manager<R>>(
         // browser, which saves them; the app never writes files itself.
         .on_download(move |_webview, event| {
             if let tauri::webview::DownloadEvent::Requested { url, .. } = event {
+                download_history.download_started(&url, download_policy.backend().as_ref());
                 download_links.offer_download(&url);
             }
             false
@@ -1086,16 +1158,11 @@ pub fn handle_menu<R: Runtime>(app: &AppHandle<R>, id: &str) {
             }
         }
         menu_id::BACK | menu_id::FORWARD => {
-            let backend = state.policy.backend();
-            let target = {
-                let mut pages = lock(&state.history);
-                if id == menu_id::BACK {
-                    pages.go_back(backend.as_ref())
-                } else {
-                    pages.go_forward(backend.as_ref())
-                }
-            };
-            if let Some(url) = target.filter(|url| state.policy.allows(url)) {
+            let back = history_direction(id) == Some(true);
+            // The lock is released before navigating, which re-enters the
+            // history through the navigation handler.
+            let target = history_target(&mut lock(&state.history), &state.policy, back);
+            if let Some(url) = target {
                 navigate_main(app, &url);
             }
         }
@@ -1488,6 +1555,69 @@ mod tests {
         assert!(!history.can_go_forward(Some(&backend)));
         assert_eq!(history.go_back(Some(&backend)), Some(page("/")));
         assert!(!history.can_go_back(Some(&backend)));
+    }
+
+    #[test]
+    fn a_navigation_that_becomes_a_download_is_undone() {
+        let backend = page("/");
+        let mut history = PageHistory::default();
+        for path in ["/", "/health", "/meta"] {
+            history.visited(&page(path), Some(&backend));
+        }
+        history.go_back(Some(&backend));
+        history.visited(&page("/health"), Some(&backend));
+        let download = page("/workbench/prompt?work_item=WI-1&download=1");
+        history.visited(&download, Some(&backend));
+        history.download_started(&download);
+        assert!(
+            history.can_go_forward(Some(&backend)),
+            "Forward is restored"
+        );
+        assert_eq!(history.go_back(Some(&backend)), Some(page("/")));
+
+        // A download of a page that was never recorded changes nothing.
+        history.download_started(&download);
+        assert_eq!(history.go_forward(Some(&backend)), Some(page("/health")));
+    }
+
+    #[test]
+    fn menu_items_map_to_history_directions() {
+        assert_eq!(history_direction(menu_id::BACK), Some(true));
+        assert_eq!(history_direction(menu_id::FORWARD), Some(false));
+        assert_eq!(history_direction(menu_id::RELOAD), None);
+    }
+
+    #[test]
+    fn history_moves_only_to_pages_the_current_policy_allows() {
+        let backend = page("/");
+        let policy = NavigationPolicy::default();
+        policy.set_backend(Some(&backend));
+        let mut history = PageHistory::default();
+        history.visited(&page("/"), Some(&backend));
+        history.visited(&page("/health"), Some(&backend));
+
+        assert_eq!(history_target(&mut history, &policy, true), Some(page("/")));
+        assert_eq!(
+            history_target(&mut history, &policy, false),
+            Some(page("/health"))
+        );
+
+        // A restarted backend on another port: the old pages are refused.
+        let new = Url::parse("http://127.0.0.1:60000/").unwrap();
+        policy.set_backend(Some(&new));
+        assert_eq!(history_target(&mut history, &policy, true), None);
+        policy.set_backend(Some(&backend));
+        assert_eq!(
+            history_target(&mut history, &policy, true),
+            None,
+            "they are gone"
+        );
+
+        // Stopped: nothing is allowed.
+        history.visited(&page("/"), Some(&backend));
+        history.visited(&page("/health"), Some(&backend));
+        policy.set_backend(None);
+        assert_eq!(history_target(&mut history, &policy, true), None);
     }
 
     #[test]

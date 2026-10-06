@@ -333,6 +333,37 @@ class AskExportTest(unittest.TestCase):
         exported = self._export(run_id)
         self.assertEqual(exported["run"]["prompt_template_sha256"], luhn_digest)
 
+    def test_invalid_endpoint_port_exports_as_invalid(self) -> None:
+        run_id = self._ask("ok")
+        self.store.update_run(
+            run_id, model={"backend": "ollama", "base_url": "http://127.0.0.1:99999"}
+        )
+        exported = self._export(run_id)
+        self.assertEqual(exported["run"]["model"]["base_url"], "loopback:invalid")
+
+    def test_long_run_timings_do_not_trip_the_final_scan(self) -> None:
+        run_id = self._ask("ok")
+        luhn_ns = 1234567890128
+        self.store.update_run(
+            run_id, usage={"backend_timings": {"total_duration_ns": luhn_ns}}
+        )
+        exported = self._export(run_id)
+        timings = exported["run"]["usage"]["backend_timings"]
+        self.assertEqual(timings["total_duration_ns"], luhn_ns)
+
+    def test_prefixed_hex_tokens_are_not_masked(self) -> None:
+        run_id = self._ask("ok")
+        self.store.update_run(run_id, model={"model": "sk-" + "ab12" * 10})
+        with self.assertRaisesRegex(export.ExportError, "export withheld"):
+            self._export(run_id)
+
+    def test_quoted_digest_in_a_note_does_not_withhold_output(self) -> None:
+        luhn_digest = "5d8f6cce532a7aeb57196be62344095936793400b3aeb3580d248b17d5518a86"
+        run_id = self._ask("Fine answer.")
+        ask.record_rating(self.store, run_id, "g", f"matches {luhn_digest}")
+        exported = self._export(run_id, include_output=True)
+        self.assertIn(luhn_digest, exported["run"]["rating"]["note"])
+
     def test_failure_details_with_findings_are_withheld(self) -> None:
         run_id = ask.record_failure(
             self.store,

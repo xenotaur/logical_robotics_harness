@@ -107,7 +107,7 @@ def _export_manual_text(
         raise ExportError(
             "B0 text is exported only for scored runs; record an evaluation first"
         )
-    scan = sensitivity.scan_text_for_sensitive_findings(manual)
+    scan = _scan(manual)
     if scan.status != sensitivity.STATUS_NONE_DETECTED:
         raise ExportError(
             f"B0 text withheld: sensitivity scan reported {scan.finding_count} "
@@ -146,7 +146,7 @@ def _export_ask(
             "question and answer text are exported only for rated runs; rate it first"
         )
     text = f"{run.get('question', '')}\n{answer or ''}\n{note or ''}"
-    scan = sensitivity.scan_text_for_sensitive_findings(text)
+    scan = _scan(text)
     if scan.status != sensitivity.STATUS_NONE_DETECTED:
         raise ExportError(
             f"answer withheld: sensitivity scan reported {scan.finding_count} "
@@ -232,7 +232,28 @@ def record_evaluation(
     return scores
 
 
-_HEX_DIGEST = re.compile(r"\b[0-9a-f]{32,}\b")
+# Hex digests (commits, blobs, hashes) can pass the payment-card Luhn check
+# by chance. A run preceded by ``-`` or a word character (``sk-<hex>``,
+# ``ghp_<hex>``) is not a bare digest and stays visible to the scanner.
+_HEX_DIGEST = re.compile(r"(?<![-\w])[0-9a-f]{32,}(?![-\w])")
+
+
+def _scan(text: str) -> sensitivity.SensitiveScanResult:
+    """Sensitivity scan with bare hex digests masked."""
+    return sensitivity.scan_text_for_sensitive_findings(_HEX_DIGEST.sub("<hex>", text))
+
+
+def _zero_integers(value: object) -> object:
+    """Replace JSON integers (timings, counts) for the final scan only."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, int):
+        return 0
+    if isinstance(value, dict):
+        return {key: _zero_integers(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_zero_integers(item) for item in value]
+    return value
 
 
 def _describe_endpoint(exported: dict[str, object]) -> None:
@@ -248,8 +269,11 @@ def _describe_endpoint(exported: dict[str, object]) -> None:
         return
     base_url = described.get("base_url")
     if isinstance(base_url, str):
-        port = urllib.parse.urlsplit(base_url).port
-        described = {**described, "base_url": f"loopback:{port or 'default'}"}
+        try:
+            port: object = urllib.parse.urlsplit(base_url).port or "default"
+        except ValueError:
+            port = "invalid"
+        described = {**described, "base_url": f"loopback:{port}"}
         run["model"] = described  # type: ignore[index]
 
 
@@ -271,7 +295,7 @@ def _withhold_sensitive_details(exported: dict[str, object]) -> None:
             value = holder.get(key)
             if not isinstance(value, str):
                 continue
-            scan = sensitivity.scan_text_for_sensitive_findings(value)
+            scan = _scan(value)
             if scan.status != sensitivity.STATUS_NONE_DETECTED:
                 holder[key] = f"[withheld: {', '.join(scan.categories)}]"
 
@@ -291,9 +315,7 @@ def export_run(
     packet_manifest = _verified_packet_manifest(store, run)
     evaluation = store.read_json(run_id, "evaluation.json")
     if evaluation is not None:
-        evaluation_scan = sensitivity.scan_text_for_sensitive_findings(
-            json.dumps(evaluation, sort_keys=True)
-        )
+        evaluation_scan = _scan(json.dumps(evaluation, sort_keys=True))
         if evaluation_scan.status != sensitivity.STATUS_NONE_DETECTED:
             raise ExportError(
                 "evaluation withheld: sensitivity scan flagged its free text; "
@@ -325,9 +347,7 @@ def export_run(
                 "briefing text is exported only for scored runs; record an "
                 "evaluation with at least `usefulness` first"
             )
-        scan = sensitivity.scan_text_for_sensitive_findings(
-            json.dumps(parsed, indent=2, sort_keys=True)
-        )
+        scan = _scan(json.dumps(parsed, indent=2, sort_keys=True))
         if scan.status != sensitivity.STATUS_NONE_DETECTED:
             raise ExportError(
                 f"briefing text withheld: sensitivity scan reported "
@@ -348,12 +368,10 @@ def export_run(
     _withhold_sensitive_details(exported)
     _describe_endpoint(exported)
     # Last line of defense: nothing that leaves the private store may carry a
-    # sensitivity finding of any severity (proposal Decision 3). Hex digests
-    # (commits, blobs, hashes) are masked for the scan only: their digit runs
-    # can pass the payment-card Luhn check by chance.
-    final_scan = sensitivity.scan_text_for_sensitive_findings(
-        _HEX_DIGEST.sub("<hex>", json.dumps(exported, sort_keys=True))
-    )
+    # sensitivity finding of any severity (proposal Decision 3). Digests and
+    # integers (timings, counts) are masked for this scan only; the exported
+    # values are unchanged.
+    final_scan = _scan(json.dumps(_zero_integers(exported), sort_keys=True))
     if final_scan.status != sensitivity.STATUS_NONE_DETECTED:
         raise ExportError(
             "export withheld: sensitivity scan flagged run metadata "

@@ -156,6 +156,12 @@ def urllib_stream_transport(
 
 def check_loopback_url(base_url: str) -> None:
     parsed = urllib.parse.urlparse(base_url)
+    try:
+        parsed.port
+    except ValueError as error:
+        raise BackendError(
+            KIND_MISSING_PREREQUISITE, f"endpoint has an invalid port: {base_url!r}"
+        ) from error
     if parsed.username is not None or parsed.password is not None:
         raise BackendError(
             KIND_MISSING_PREREQUISITE,

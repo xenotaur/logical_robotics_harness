@@ -189,6 +189,13 @@ class OllamaStreamingTest(unittest.TestCase):
 
 
 class OllamaLocalOnlyTest(unittest.TestCase):
+    def test_invalid_port_rejected(self) -> None:
+        for url in ("http://127.0.0.1:99999", "http://localhost:abc"):
+            with self.subTest(url):
+                with self.assertRaises(model.BackendError) as caught:
+                    model.check_loopback_url(url)
+                self.assertEqual(caught.exception.kind, model.KIND_MISSING_PREREQUISITE)
+
     def test_non_loopback_endpoint_refused(self) -> None:
         for url in (
             "http://10.0.0.5:11434",

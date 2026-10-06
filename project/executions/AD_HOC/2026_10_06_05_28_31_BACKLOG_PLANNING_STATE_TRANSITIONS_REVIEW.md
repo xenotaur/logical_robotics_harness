@@ -2,10 +2,10 @@
 execution_id: 2026_10_06_05_28_31_BACKLOG_PLANNING_STATE_TRANSITIONS_REVIEW
 prompt_id: PROMPT(AD_HOC:BACKLOG_PLANNING_STATE_TRANSITIONS_REVIEW)[2026-10-06T05:28:31+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/779
-commit: 
+commit: dce61e8fc0a1e5f2cfb12958fd83039bbc43f23e
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/779"
 session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"

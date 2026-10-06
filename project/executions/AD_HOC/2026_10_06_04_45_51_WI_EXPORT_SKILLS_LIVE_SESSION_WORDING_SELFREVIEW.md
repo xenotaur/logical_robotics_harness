@@ -8,7 +8,7 @@ pr: https://github.com/xenotaur/logical_robotics_harness/pull/780
 commit: 
 created_at: 2026-10-06T04:45:51+00:00
 agent: claude_app
-instruction_source: PR #780 pre-push diff (git diff origin/main)
+instruction_source: "PR #780 pre-push diff (git diff origin/main)"
 session_transcript: pending
 ---
 

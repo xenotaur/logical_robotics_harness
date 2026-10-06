@@ -2144,9 +2144,12 @@ The root cause is that no step in the chain moves a workstream from
 - `/lrh-closeout` accepts a workstream in either bucket when it closes one.
 - Earlier activations were manual planning commits.
 
-Closeouts in the same session also moved records and work items between
-buckets with hand-written `sed`, `git mv`, and path-reference rewrites. Each
-one is a chance for a stale path or status. See
+Closeouts in the same session also moved work items between status
+buckets by hand, with `git mv` and hand-written path-reference rewrites.
+Execution records are never moved between buckets; closeout updates only
+their `status` and `commit` fields. In that session those fields were also
+edited by hand with `sed`, even though `lrh prompt update-execution` already
+does it. Each hand edit is a chance for a stale path or status. See
 `project/design/workstream_schema_mvp.md` § Status semantics.
 
 **Idea:** a programmatic LRH state-transition command that agents and skills
@@ -2161,6 +2164,8 @@ edits.
     execution records alone;
   - validate the result;
   - report a diff, with a dry-run mode.
+- **Execution records:** reuse `lrh prompt update-execution` for their
+  `status` and `commit` updates rather than duplicate it.
 - **Callers:** `/lrh-execute` when the first leaf starts under a `proposed`
   workstream, and `/lrh-closeout` when it resolves a work item or closes a
   workstream.
@@ -2176,6 +2181,11 @@ starting with the validate warning, when planning tooling is next in focus.
 
 **Related:** PR #765 and
 `project/executions/AD_HOC/2026_10_04_15_06_24_ACTIVATE_WS_LRH_CONSOLE_LOCAL_DOGFOOD.md`;
+this entry's own record,
+`project/executions/AD_HOC/2026_10_06_04_37_49_BACKLOG_PLANNING_STATE_TRANSITIONS.md`;
+`lrh prompt update-execution` and
+`src/lrh/skills/lrh-closeout/references/closeout-workflow.md` (execution-record
+updates);
 `project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`;
 `src/lrh/control/planning_tree.py` (existing planning warnings);
 `src/lrh/skills/lrh-closeout/SKILL.md` (decision matrix).

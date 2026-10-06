@@ -90,7 +90,7 @@ async function loadDetails() {
   addDetail(list, "Configured workspace", details.configured_workspace);
   addDetail(list, "Served workspace", details.served_workspace && details.served_workspace.project_root);
   addDetail(list, "Protocol version", details.protocol_version);
-  addDetail(list, "Backend", details.backend && `${details.backend.name || "lrh"} ${details.backend.version || ""} (Python ${details.backend.python || "?"})`);
+  addDetail(list, "Server", details.backend && `${details.backend.name || "lrh"} ${details.backend.version || ""} (Python ${details.backend.python || "?"})`);
   addDetail(list, "Last error", details.last_error_code && `${details.last_error_code}: ${details.last_error_message || ""}`);
   addDetail(list, "Last exit code", details.last_exit_code);
   addDetail(list, "Chrome", details.chrome_available ? "installed" : "not found: links open in the default browser");

@@ -167,6 +167,9 @@ $("refresh").addEventListener("click", loadDetails);
 // the scroll and highlight land on the populated page.
 window.lrhShowSection = (name) => {
   const target = name === "details" ? $("server-details") : document.body;
+  // In the two-column layout each column scrolls on its own; in the narrow
+  // one-column layout the page scrolls.
+  (name === "details" ? $("server-details") : $("settings-form")).scrollTop = 0;
   target.scrollIntoView({ block: "start", behavior: "smooth" });
   if (name === "details") {
     target.classList.remove("flash");

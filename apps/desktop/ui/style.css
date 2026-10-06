@@ -51,10 +51,12 @@ main {
 .settings > .error {
   grid-column: 1 / -1;
   margin: 0.25rem 0;
+  overflow-wrap: anywhere;
 }
 
 .settings > h1 {
   grid-row: 1;
+  font-size: 1.5rem;
 }
 
 .settings > #source {
@@ -96,10 +98,6 @@ main {
   flex: 1 1 auto;
   min-height: 3rem;
   max-height: none;
-}
-
-.settings > h1 {
-  font-size: 1.5rem;
 }
 
 .settings fieldset {

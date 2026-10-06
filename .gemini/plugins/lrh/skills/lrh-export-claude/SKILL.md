@@ -93,6 +93,22 @@ resolves it, so a bare invocation no longer needs to ask.
 
 ---
 
+## Running `lrh`
+
+**If `lrh` is not on PATH**, every `lrh` command in this workflow can run
+from an LRH checkout as `PYTHONPATH=src python3 -m lrh.cli.main ...` with
+the same subcommand and flags. That covers the capability checks
+(`--help`), session or thread resolution, the export itself, and
+`inspect-export`. Use the same prefix for all of them in a given run.
+
+An editable `lrh` install can also point at a different checkout than the
+one you are working in (`pip show lrh` reports its "Editable project
+location"), and `lrh version` reports install-time metadata rather than the
+code that actually runs. When in doubt inside an LRH checkout, prefer the
+`PYTHONPATH=src` form.
+
+---
+
 ## Reference Knowledge
 
 Use the installed LRH CLI as the operational command contract. In an
@@ -315,15 +331,6 @@ and wait for explicit confirmation. Alternatively, choose a different
   would skip the one check meant to catch an unintended write.
 
 ### Step 4 — Run the export
-
-**If `lrh` is not on PATH.** From an LRH checkout, run the same
-subcommand with the same flags as
-`PYTHONPATH=src python3 -m lrh.cli.main conversation ...`. An editable
-`lrh` install can also point at a different checkout than the one you are
-working in (`pip show lrh` reports its "Editable project location"), and
-`lrh version` reports install-time metadata rather than the code that
-actually runs. When in doubt inside an LRH checkout, prefer the
-`PYTHONPATH=src` form.
 
 Run the exporter with a restrictive umask so generated files are created
 user-only. Pass exactly the discovery flag Step 1 determined:

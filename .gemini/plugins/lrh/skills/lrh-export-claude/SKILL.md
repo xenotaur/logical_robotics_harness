@@ -93,6 +93,22 @@ resolves it, so a bare invocation no longer needs to ask.
 
 ---
 
+## Running `lrh`
+
+**If `lrh` is not on PATH**, every `lrh` command in this workflow can run
+from an LRH checkout as `PYTHONPATH=src python3 -m lrh.cli.main ...` with
+the same subcommand and flags. That covers the capability checks
+(`--help`), session or thread resolution, the export itself, and
+`inspect-export`. Use the same prefix for all of them in a given run.
+
+An editable `lrh` install can also point at a different checkout than the
+one you are working in (`pip show lrh` reports its "Editable project
+location"), and `lrh version` reports install-time metadata rather than the
+code that actually runs. When in doubt inside an LRH checkout, prefer the
+`PYTHONPATH=src` form.
+
+---
+
 ## Reference Knowledge
 
 Use the installed LRH CLI as the operational command contract. In an
@@ -281,6 +297,13 @@ would actually be overwritten, is the safe direction to be imprecise in.
 This list is intentionally short and explicit; a future dangerous flag
 gets added here by name, not inferred.
 
+**If the destination already exists** (typically a same-session re-export
+without `--force`), the exporter refuses to overwrite it and Step 4 fails.
+To replace it, re-run with `--force`. That takes the dangerous-flag path
+above: state that the existing file at the destination will be overwritten,
+and wait for explicit confirmation. Alternatively, choose a different
+`--out`. This note adds no new gate and does not change the branches below.
+
 **Otherwise, how this invocation arrived decides which branch applies:**
 
 - **User-typed invocation.** The current turn is the literal slash
@@ -375,7 +398,14 @@ for a live session); the text output includes a "source grew by N bytes"
 line, which the report in Step 6 should mention. Any nonzero exit code —
 which includes `Source hash: mismatch`, since the inspector never reports
 `mismatch` with exit 0 — is a failed export verification: report the
-failure and keep the files private for debugging.
+failure and keep the files private for debugging. A true `mismatch` means
+the source no longer matches what was exported: an earlier byte changed,
+the source shrank, or (for an export with no recorded byte count) the
+whole file differs. Among hash comparisons, that is the only failing
+result; a live session that merely kept growing is `match_source_grew`,
+not a failure. Every other nonzero exit (for example `source_missing`,
+`source_not_file`, `source_unreadable`, or a `transcript_statistics`
+mismatch) is also a failed verification.
 
 ### Step 6 — Report metadata only
 
@@ -394,6 +424,12 @@ Summarize the export using only command output and inspector metadata:
 For a "current" or "latest" export, restate the snapshot note from Step 1:
 this export is current up to the moment it ran, and does not include
 anything written to the transcript afterward.
+
+A `potential` sensitivity status means the heuristic scanner flagged
+strings that need a human review before the export is shared anywhere. It
+does not mean the export failed. `unscanned` means no scan was run (for
+example, `--no-scan-sensitive`). `none_detected` is not a guarantee that the
+content is safe to share.
 
 Do not paste transcript body text into chat. Do not run line-based
 previews to "spot check" the Markdown; the frontmatter can be followed

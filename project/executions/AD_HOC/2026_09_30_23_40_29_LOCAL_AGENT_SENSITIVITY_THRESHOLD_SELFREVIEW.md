@@ -2,10 +2,10 @@
 execution_id: 2026_09_30_23_40_29_LOCAL_AGENT_SENSITIVITY_THRESHOLD_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_SENSITIVITY_THRESHOLD_SELFREVIEW)[2026-09-30T23:40:25+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
-pr: 
-commit: 
+pr: https://github.com/xenotaur/logical_robotics_harness/pull/761
+commit: a857103256cfc39126b44038809c825f26e543c1
 created_at: 2026-09-30T23:40:29+00:00
 agent: claude_app
 instruction_source: lrh-implement Step 7.5 diff-mode self-review for PROMPT(AD_HOC:LOCAL_AGENT_SENSITIVITY_THRESHOLD)[2026-09-30T23:40:25+00:00]

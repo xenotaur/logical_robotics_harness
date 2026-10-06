@@ -2,10 +2,10 @@
 execution_id: 2026_10_05_19_38_26_LOCAL_AGENT_SENSITIVITY_THRESHOLD_REVIEW
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_SENSITIVITY_THRESHOLD_REVIEW)[2026-10-05T19:38:10+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_09_30_23_41_39_LOCAL_AGENT_SENSITIVITY_THRESHOLD
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/761
-commit: 
+commit: a857103256cfc39126b44038809c825f26e543c1
 created_at: 2026-10-05T19:38:26+00:00
 agent: claude_app
 instruction_source: lrh-land Step 4 review-response for PR 761; owner confirmed all three dispositions

@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-DESKTOP-SHELL-POLISH"
 title: "Add Back/Forward navigation and consistent server wording to the LRH Console shell"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #771 (commit 356615f8). View > Back (Cmd+[) and View > Forward (Cmd+]) use an app-side PageHistory. It records only pages on the running server, without fragments; any other navigation ends it, and a download undoes its record. Items are enabled only when there is a page to go to, and every move is re-checked against the navigation policy, with no new capability. User-facing text says server throughout, in the status pages, Settings, Server Details errors, and the how-to. The owner manual Mac check passed.'
 owner: "anthony"
 contributors:
 - "anthony"

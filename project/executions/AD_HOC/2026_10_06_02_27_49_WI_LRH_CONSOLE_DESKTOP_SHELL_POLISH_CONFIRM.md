@@ -2,10 +2,10 @@
 execution_id: 2026_10_06_02_27_49_WI_LRH_CONSOLE_DESKTOP_SHELL_POLISH_CONFIRM
 prompt_id: PROMPT(AD_HOC:WI_LRH_CONSOLE_DESKTOP_SHELL_POLISH_CONFIRM)[2026-10-06T02:27:48+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_05_20_20_18_WI_LRH_CONSOLE_DESKTOP_SHELL_POLISH
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/771
-commit: 
+commit: 356615f8b5bafecfc4f014289e0e59ec0ce08446
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/771"
 session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"

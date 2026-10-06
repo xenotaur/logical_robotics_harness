@@ -2,10 +2,10 @@
 execution_id: 2026_10_05_20_20_18_WI_LRH_CONSOLE_DESKTOP_SHELL_POLISH
 prompt_id: PROMPT(WI-LRH-CONSOLE-DESKTOP-SHELL-POLISH:WI_LRH_CONSOLE_DESKTOP_SHELL_POLISH)[2026-10-05T20:01:31+00:00]
 work_item: WI-LRH-CONSOLE-DESKTOP-SHELL-POLISH
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/771
-commit: 
+commit: 356615f8b5bafecfc4f014289e0e59ec0ce08446
 agent: "claude_app"
 instruction_source: "project/work_items/proposed/WI-LRH-CONSOLE-DESKTOP-SHELL-POLISH.md"
 session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"

@@ -26,14 +26,16 @@ forbidden_actions:
   - modify_lrh_implement
   - redesign_shared_next_step_contract
 acceptance:
-  - "Given a WI-ID whose file exists on origin/main with a status other than proposed, and an open PR modifying that file, /lrh-execute Step 1 stops before readiness, prior-art, prompt minting, or Step 2, and reports 'Immediate next action: /lrh-land <PR>'"
-  - "The existing creation-PR case (file absent from origin/main) uses the same structured stop report"
+  - "Given a WI-ID that is absent from origin/main, or present with a status other than proposed, and exactly one open PR targeting main whose head version sets the WI to status: proposed (including a bucket move), /lrh-execute Step 1 stops before readiness, prior-art, prompt minting, or Step 2, and reports 'Immediate next action: /lrh-land <PR>'"
+  - "A PR is named as the blocker only after its head version of the WI is verified to be status: proposed; an open PR that touches the WI file without doing so is not named"
+  - "When the lookup yields zero or multiple qualifying PRs, the stop report uses a distinct no-PR form ('Immediate next action: identify and land the prerequisite PR for <WI-ID>') and names no PR; the zero-match and multi-match cases are covered by tests"
+  - "The open-PR enumeration is exhaustive (explicit high --limit or gh api --paginate), never the gh pr list default of 30, and the regression test asserts this"
   - "The stop report uses Immediate next action / Why / After that; the later /lrh-execute command appears only inline as a non-actionable after-merge step, never in a standalone code block or labelled 'next step'"
   - "For a WS-ID, an open-prerequisite candidate is skipped as ineligible and evaluation continues; if no candidate is ready, the stop report names the blocking PR(s) of skipped candidates"
-  - "No prompt ID is minted on a Step 1 stop; the stop is recorded as 'stopped' in the Step 5 run journal"
+  - "No prompt ID is minted on a Step 1 stop; the stop is recorded as 'stopped' in the Step 5 run journal, using an explicit Step 1 journal variant that does not require a resolved wi (a WS-ID stop has none)"
   - "A regression test covers the open-prerequisite case for WI-ID and WS-ID and asserts the src, .claude and .agents skill copies are consistent"
   - "Existing valid /lrh-execute flows are unchanged; all chain-authorization and merge gates are untouched"
-  - "scripts/format, scripts/lint, scripts/test and lrh validate pass"
+  - "scripts/format --check --diff, scripts/lint, scripts/test and lrh validate pass"
 required_evidence:
   - manual_review
   - lrh_validate
@@ -59,10 +61,10 @@ current action.
 
 ## Problem / Context
 
-In an LCATS session, PR #463 reopened `WI-LINGUISTICS-0014` for
+In an LCATS session, xenotaur/LCATS#463 (https://github.com/xenotaur/LCATS/pull/463) reopened `WI-LINGUISTICS-0014` for
 implementation. While that PR was still open, the assistant presented
 `/lrh-execute WI-LINGUISTICS-0014` as "the next step" even though the real
-immediate action was `/lrh-land <PR #463 URL>`. The later command appeared
+immediate action was `/lrh-land https://github.com/xenotaur/LCATS/pull/463`. The later command appeared
 as the primary actionable item.
 
 Current behavior (`src/lrh/skills/lrh-execute/SKILL.md` Step 1,
@@ -96,16 +98,23 @@ file: no matches.
 
 - Extend the Step 1 gate (SKILL.md and `creation-pr-check.md`) to detect a
   target WI that is absent from `origin/main`, or present with a status
-  other than `proposed`, together with an open PR that modifies the WI's
-  exact file path (exact-path lookup via `gh pr list`, not a fuzzy search).
+  other than `proposed`, together with an open PR targeting `main` whose
+  head version of the WI sets `status: proposed` (including a bucket move).
+  Enumerate open PRs exhaustively (explicit high `--limit` or `gh api
+  --paginate`, never the default of 30), match on the WI's exact file path,
+  then verify the PR's head version of the WI before naming it.
 - Add a stop-report template: `Immediate next action: /lrh-land <PR>`,
-  `Why`, `After that`. The later `/lrh-execute <WI-ID>` is shown only as
+  `Why`, `After that`. When zero or multiple qualifying PRs are found, use
+  the no-PR form `Immediate next action: identify and land the prerequisite
+  PR for <WI-ID>` and name no PR. The later `/lrh-execute <WI-ID>` is shown only as
   inline prose marked non-actionable.
 - Apply the same check per candidate for `WS-ID` targets: skip the
   ineligible candidate, continue in list order, and name the blocking PRs
   if no candidate is ready.
 - Ensure no prompt ID is minted on a Step 1 stop and that the stop is
-  recorded as `stopped` in the Step 5 run journal.
+  recorded as `stopped` in the Step 5 run journal, via an explicit Step 1
+  journal variant that does not require a resolved `wi` (a WS-ID stop has
+  none), with the matching Step 5 update.
 - Add a regression test and mirror the skill changes to `.claude/skills/`
   and `.agents/skills/` (and reinstall `.gemini` via the installer).
 
@@ -115,12 +124,17 @@ file: no matches.
    Checklist to cover the status-mismatch case and the structured stop
    report.
 2. Edit `src/lrh/skills/lrh-execute/references/creation-pr-check.md` with
-   the exact-path open-PR lookup, the zero-or-multiple-match generic
-   fallback (no guessed PR), and the `WS-ID` skip behavior.
-3. Add a regression test under `tests/` covering the open-prerequisite case
-   for `WI-ID` and `WS-ID`, and mirror consistency across `src/`,
+   the exhaustive (paginated or explicit high `--limit`) open-PR
+   enumeration, exact-path matching, head-version verification that the PR
+   sets the WI to `status: proposed`, the no-PR fallback for zero or
+   multiple qualifying PRs (no guessed PR), and the `WS-ID` skip behavior.
+3. Edit Step 5 of `SKILL.md` to add a Step 1 journal variant for stopped
+   runs with no resolved `wi`.
+4. Add a regression test under `tests/` covering the open-prerequisite case
+   for `WI-ID` and `WS-ID`, the zero-match and multi-match cases, the
+   non-paginating-default guard, and mirror consistency across `src/`,
    `.claude/` and `.agents/`.
-4. Mirror the skill files and reinstall `.gemini` through the installer.
+5. Mirror the skill files and reinstall `.gemini` through the installer.
 
 ## Non-Goals
 
@@ -132,19 +146,22 @@ file: no matches.
 
 ## Acceptance Criteria
 
-- A WI-ID with an open prerequisite PR stops at Step 1 with
-  `Immediate next action: /lrh-land <PR>`, before any prompt minting.
+- A WI-ID with exactly one verified open prerequisite PR stops at Step 1
+  with `Immediate next action: /lrh-land <PR>`, before any prompt minting.
+- Zero or multiple qualifying PRs produce the no-PR stop form, naming no PR.
+- Open PRs are enumerated exhaustively, never with the default limit of 30.
 - The later execution command is never in a standalone code block or
   labelled "next step".
 - WS-ID resolution skips blocked candidates and reports blocking PRs if
-  none is ready.
-- A regression test covers both targets and mirror consistency.
+  none is ready; its stop is journaled without a resolved `wi`.
+- A regression test covers both targets, the zero and multiple match cases,
+  and mirror consistency.
 - Existing valid flows and all human gates are unchanged.
 - Canonical format, lint, tests and `lrh validate` pass.
 
 ## Validation
 
-- scripts/format
+- scripts/format --check --diff
 - scripts/lint
 - scripts/test
 - lrh validate
@@ -153,6 +170,10 @@ file: no matches.
 
 - The skill is prose, so the regression test pins required text and
   structure; it cannot exercise runtime agent behavior.
-- A file-path PR lookup can match unrelated PRs touching the same file. With
-  zero or more than one open match the report stays generic and names no
-  PR, as the existing creation-PR check already does.
+- A file-path PR lookup can match unrelated PRs touching the same file, so a
+  match is only named after its head version is verified to set the WI to
+  `status: proposed`. With zero or more than one qualifying PR the report
+  uses the no-PR form and names no PR, as the existing creation-PR check
+  already does.
+- `gh pr list` defaults to 30 results; the enumeration must be explicitly
+  exhaustive so a busy repository cannot hide the blocking PR.

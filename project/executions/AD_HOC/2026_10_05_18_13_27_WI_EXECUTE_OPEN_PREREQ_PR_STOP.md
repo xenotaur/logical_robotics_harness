@@ -17,7 +17,7 @@ session_transcript: pending
 Created work item WI-EXECUTE-OPEN-PREREQ-PR-STOP, which scopes a focused
 /lrh-execute Step 1 change so an open prerequisite lifecycle PR (WI creation
 or status reopen) stops the run with a structured Immediate next action /
-Why / After that report. Motivated by LCATS PR #463.
+Why / After that report. Motivated by xenotaur/LCATS#463 (https://github.com/xenotaur/LCATS/pull/463).
 
 # Result
 

@@ -38,7 +38,7 @@ acceptance:
   - "`ask` answers a free-form question about the current checkout from tracked files, streaming readable Markdown with source references, with no agent tools."
   - "`brief` produces a work-item briefing that carries LRH readiness diagnostics and flags claims that contradict them."
   - "Every run is logged automatically and privately, including failures, with a one-key rating and a `log` summary; no manual bookkeeping is required."
-  - "Sources matching the listed credential-like patterns, or flagged by the sensitivity scanner, are never sent to the model or logged, shown by boundary tests (a best-effort guard, per proposal Decision 3); logs can be deleted and pruned."
+  - "Sources matching the listed credential-like patterns, or with a high-severity sensitivity-scanner finding, are never sent to the model or logged, while medium-only sources are still sent with category-only warnings, shown by boundary tests on both sides (a best-effort guard, per proposal Decision 3); `export` and `report` withhold text on any finding; logs can be deleted and pruned."
   - "Fake-model tests cover the commands, logging, and local-only checks without model or network access."
   - "The owner has used both toys on real work and recorded a stop, revise, or proceed decision; production behavior is unchanged."
 required_evidence:
@@ -111,8 +111,10 @@ network tools and cannot modify repository files or project state.
    and cite sources as `S<n>` or `S<n>:L<a>-L<b>`. Exclude:
    - private paths, untracked files, and binary files;
    - credential-like paths, per the proposal's Decision 3 list;
-   - any source the sensitivity scanner flags (`lrh.conversations.sensitivity`),
-     which is dropped and listed as excluded in the source summary.
+   - any source with a high-severity finding from the sensitivity scanner
+     (`lrh.conversations.sensitivity`), which is dropped and listed as
+     excluded in the source summary. Medium-severity findings (email, IP
+     address, phone) are listed as warnings instead, per Decision 3.
 
    Enforce input, output, and wall-time budgets.
 3. **T1 `brief <WI-ID>`.** A briefing preset built on T0 that includes LRH
@@ -132,13 +134,22 @@ network tools and cannot modify repository files or project state.
 6. **`log` summary.** Show recent runs and computed statistics: counts, outcome
    mix, latency and token distributions, ratings, citation-resolution rate, and
    flagged runs. An optional `report` writes a sanitized summary suitable for
-   committing to `experiments/`.
+   committing to `experiments/`. Like `export`, it withholds any question,
+   rating note, or generated text in which the sensitivity scanner reports any
+   finding, medium-severity (email, IP address, phone) included.
 7. **Tests and docs.** Opt-in fake-backend `unittest.TestCase` tests for the new
    commands, logging, rating capture, flags, and deletion. Boundary tests must
-   show that credential-like paths and scanner-flagged sources are never sent
-   or logged. Update
-   `experimental/local_agent/README.md` to describe the toys; the pilot runbook
-   material is retired. Do not add live model or network calls to normal CI.
+   cover both sides of the severity boundary:
+   - credential-like paths and sources with high-severity scanner findings are
+     never sent or logged;
+   - medium-only sources are still sent, and their warnings name categories but
+     never the matched values;
+   - `export` and `report` withhold text with any finding, including a
+     medium-only finding in a question, rating note, or answer.
+
+   Update `experimental/local_agent/README.md` to describe the toys; the pilot
+   runbook material is retired. Do not add live model or network calls to
+   normal CI.
 8. **Use it and decide.** The owner uses `ask` and `brief` on real LRH or LCATS
    work, reviews the `log` summary, and records stop, revise, or proceed in this
    item's resolution. No numeric thresholds, manual timing, or hand-written
@@ -158,10 +169,12 @@ comparative study. Do not modify the default serve surface.
 - `brief` carries LRH readiness diagnostics and flags contradicting claims.
 - Every run is logged automatically and privately, including failures, with a
   one-key rating and a `log` summary; no manual bookkeeping is required.
-- Sources matching the listed credential-like patterns, or flagged by the
-  sensitivity scanner, are never sent to the model or logged, shown by boundary
-  tests. This is a best-effort guard (proposal Decision 3), not a guarantee
-  against every secret. Logs can be deleted and pruned.
+- Sources matching the listed credential-like patterns, or with a high-severity
+  sensitivity-scanner finding, are never sent to the model or logged.
+  Medium-only sources are still sent, with warnings that name categories but
+  never values. `export` and `report` withhold text with any finding. Boundary
+  tests show both sides. This is a best-effort guard (proposal Decision 3), not
+  a guarantee against every secret. Logs can be deleted and pruned.
 - Fake-model tests cover the commands, logging, and local-only checks without a
   live inference service or network access.
 - The owner has used both toys on real work and recorded stop, revise, or

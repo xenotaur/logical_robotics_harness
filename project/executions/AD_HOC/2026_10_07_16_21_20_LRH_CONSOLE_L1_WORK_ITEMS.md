@@ -2,13 +2,13 @@
 execution_id: 2026_10_07_16_21_20_LRH_CONSOLE_L1_WORK_ITEMS
 prompt_id: PROMPT(AD_HOC:LRH_CONSOLE_L1_WORK_ITEMS)[2026-10-07T16:20:47+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/782
-commit:
+commit: 6c34bc11956088c5e5d5308630bd042922fa741d
 agent: "claude_app"
 instruction_source: "user request in session: \"Approve the list; write them in one planning PR\""
-session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"
+session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 created_at: 2026-10-07T16:21:20+00:00
 ---
 

@@ -2,13 +2,13 @@
 execution_id: 2026_10_07_23_03_02_LRH_CONSOLE_L1_WORK_ITEMS_REVIEW
 prompt_id: PROMPT(AD_HOC:LRH_CONSOLE_L1_WORK_ITEMS_REVIEW)[2026-10-07T23:02:45+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/782
-commit:
+commit: 6c34bc11956088c5e5d5308630bd042922fa741d
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/782"
-session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"
+session_transcript: claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a
 created_at: 2026-10-07T23:03:02+00:00
 ---
 

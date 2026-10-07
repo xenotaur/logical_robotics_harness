@@ -2,10 +2,10 @@
 execution_id: 2026_10_07_16_02_58_VISUAL_LANGUAGE_REV2_CONFIRM
 prompt_id: PROMPT(AD_HOC:VISUAL_LANGUAGE_REV2_CONFIRM)[2026-10-07T16:02:58+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_07_06_21_12_VISUAL_LANGUAGE_REV2
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/781
-commit: 
+commit: 2952acba5bc59b124eb655ba6cb1b927600b96ab
 agent: "claude_app"
 instruction_source: "https://github.com/xenotaur/logical_robotics_harness/pull/781"
 session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"

@@ -2233,3 +2233,83 @@ questions show whether estimates would change decisions.
 **Related:** `project/design/proposals/proposed/lrh-console-visual-language/00_proposal.md`
 (Revision 2, Q4); `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md`
 (§5, the Duration row); `WS-LRH-CONSOLE-LOCAL-DOGFOOD`.
+
+---
+
+## Document the "Deny & chat" pattern for tool-confirmation dialogs in user-facing docs
+
+**Noted:** 2026-10-05, during an interactive session where an agent prompted
+a tool permission dialog (for installing lint tools). Rather than clicking an
+option or denying the tool call to chat normally, the user typed a clarifying
+question ("are those lint tools in a conda environment?") directly into the
+dialog's feedback / alternative instruction text field. Because agent harness
+run loops (such as Antigravity and Claude Code) route dialog feedback into the
+model context as a tool-execution error or exception response within an active
+execution step, the agent did not answer the conversational question in chat
+and instead continued executing or attempting workarounds. Stopping the agent
+and asking the question in the normal conversation channel immediately restored
+conversational communication.
+
+**Idea:** Explore adding a user-facing agent usage guide / documentation topic
+(e.g., under `docs/explanation/` or `docs/how-to/`) explaining the anatomy of
+tool permission dialogs and best practices for human-agent interaction:
+
+1. Explain how permission dialog inputs work under the hood: text entered in
+   a permission rejection or feedback field is delivered to the agent model as
+   a tool execution result / exception payload within an ongoing task step,
+   rather than as a conversational prompt turn in the main chat.
+2. Document the "Deny & chat" pattern: when a user has a question, wants
+   clarification, or wants to redirect strategy, the recommended idiom is to
+   deny or stop the tool execution and type the question into the primary
+   chat conversation, rather than typing conversational inquiries into tool
+   permission feedback inputs.
+3. Provide examples of when inline tool feedback *is* appropriate (e.g.,
+   specific command flag substitutions or parameter corrections that the
+   executing subagent or loop is expected to consume immediately) versus when
+   to drop back to normal conversation.
+
+**Status:** Tracked as a design suggestion; not yet scoped into a doc work
+item.
+
+**Related:** `docs/`; `project/memory/decisions/DEC-AGENT-EXECUTED-MERGE-GATE.md`;
+`project/assistants/`; Antigravity / Claude Code agent permission dialog
+semantics.
+
+---
+
+## Mandatory yield instruction for agent rules when tool denial contains user questions or redirect instructions
+
+**Noted:** 2026-10-05, following the tool-confirmation confusion where an
+agent received a user question via a tool rejection / alternative instruction
+payload and attempted to continue the task workflow rather than pausing to
+answer the user. In autonomous agent loops, prompt templates and tool
+execution protocols typically treat tool failures as errors to be diagnosed
+and recovered from autonomously unless an explicit rule mandates an
+immediate stop or yield.
+
+**Idea:** Explore adding a mandatory yield instruction to agent policy rules
+(e.g., in `AGENTS.md`, `CLAUDE.md`, or role-specific assistant policies in
+`project/assistants/`):
+
+When a tool execution rejection or error payload contains a direct user
+question, instruction to halt, or strategic conversational redirect (as
+distinguished from actionable command-flag substitutions or parameter
+corrections intended for the executing step to consume directly):
+
+1. The agent must immediately cease automated execution steps, background
+   tasks, or subagent dispatch.
+2. The agent must not attempt alternative tool calls or error-recovery
+   routines.
+3. The agent must immediately yield back to the user, answering the question
+   or acknowledging the redirection in the primary conversational turn.
+
+Investigate how this instruction interacts with subagents (e.g., subagent task
+runners receiving tool denials) and whether agent harness platform hooks or
+prompts can detect user-question payloads reliably.
+
+**Status:** Tracked as a design suggestion; not yet designed or implemented.
+
+**Related:** `AGENTS.md`; `CLAUDE.md`; `project/assistants/`;
+`project/design/proposals/adopted/lrh-gate-policy/00_proposal.md`;
+`project/memory/decisions/DEC-GATE-POLICY-CASCADE.md`.
+

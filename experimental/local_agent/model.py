@@ -191,8 +191,7 @@ def check_loopback_url(base_url: str) -> str:
     if parsed.scheme != "http" or parsed.hostname not in _LOOPBACK_HOSTS:
         raise BackendError(
             KIND_MISSING_PREREQUISITE,
-            "endpoint must be plain http on a loopback host "
-            f"(got scheme {parsed.scheme!r} and a host that is not loopback)",
+            "endpoint must be plain http on a loopback host",
         )
     if parsed.path not in ("", "/") or parsed.params or parsed.query or parsed.fragment:
         raise BackendError(
@@ -200,6 +199,8 @@ def check_loopback_url(base_url: str) -> str:
             "endpoint must be http://<loopback-host>:<port> with no path, query, "
             "or fragment",
         )
+    if port == 0 or parsed.netloc.endswith(":"):
+        raise BackendError(KIND_MISSING_PREREQUISITE, "endpoint has an invalid port")
     host = parsed.hostname or ""
     netloc = f"[{host}]" if ":" in host else host
     return f"http://{netloc}" if port is None else f"http://{netloc}:{port}"

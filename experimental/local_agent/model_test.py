@@ -264,8 +264,37 @@ class OllamaLocalOnlyTest(unittest.TestCase):
             with self.subTest(url):
                 self.assertEqual(model.check_loopback_url(url), expected)
 
+    def test_scheme_is_never_echoed(self) -> None:
+        for url in ("sk-secrettoken:11434", "SECRETTOKEN://127.0.0.1"):
+            with self.subTest(url):
+                with self.assertRaises(model.BackendError) as caught:
+                    model.check_loopback_url(url)
+                self.assertNotIn("secrettoken", str(caught.exception).lower())
+
+    def test_adapter_stores_and_uses_the_rebuilt_url(self) -> None:
+        transport = FakeTransport(_healthy())
+        adapter = model.OllamaModel(
+            base_url="http://127.0.0.1:11434?",
+            manifest_digest=DIGEST,
+            transport=transport,
+        )
+        self.assertEqual(adapter.describe()["base_url"], "http://127.0.0.1:11434")
+        adapter.preflight()
+        self.assertTrue(
+            all(
+                call[1].startswith("http://127.0.0.1:11434/api/")
+                for call in transport.calls
+            ),
+            transport.calls,
+        )
+
     def test_invalid_port_rejected(self) -> None:
-        for url in ("http://127.0.0.1:99999", "http://localhost:abc"):
+        for url in (
+            "http://127.0.0.1:99999",
+            "http://localhost:abc",
+            "http://127.0.0.1:0",
+            "http://127.0.0.1:",
+        ):
             with self.subTest(url):
                 with self.assertRaises(model.BackendError) as caught:
                     model.check_loopback_url(url)

@@ -2,14 +2,14 @@
 execution_id: 2026_10_06_04_45_51_WI_EXPORT_SKILLS_LIVE_SESSION_WORDING_SELFREVIEW
 prompt_id: PROMPT(AD_HOC:WI_EXPORT_SKILLS_LIVE_SESSION_WORDING_SELFREVIEW)[2026-10-06T04:45:51+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/780
-commit: 
+commit: c8c8e1fb503c00c4d4ff6e20d0610a8691405df4
 created_at: 2026-10-06T04:45:51+00:00
 agent: claude_app
 instruction_source: "PR #780 pre-push diff (git diff origin/main)"
-session_transcript: pending
+session_transcript: claude-app:76d4f44b-1d4f-43ee-96c3-4d6ef17392d1
 ---
 
 # Summary

@@ -1,11 +1,11 @@
 ---
-resolution: null
+resolution: 'Implemented and merged in PR #780 (commit c8c8e1fb): clarified live-session verification (match_source_grew), the lrh-not-on-PATH fallback, destination-exists/--force overwrite, and sensitivity-status wording across the three transcript-export skills; reported the missing .gemini lrh-antigravity-export mirror for WI-EXPORT-SKILL-FAMILY-RENAME.'
 blocked_reason: null
 blocked: false
 id: WI-EXPORT-SKILLS-LIVE-SESSION-WORDING
 title: Clarify live-session, PATH, overwrite and sensitivity wording in the transcript-export skills
 type: deliverable
-status: proposed
+status: resolved
 owner: anthony
 contributors:
   - anthony

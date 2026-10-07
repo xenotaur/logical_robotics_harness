@@ -202,8 +202,30 @@ class OllamaLocalOnlyTest(unittest.TestCase):
 
     def test_non_loopback_error_does_not_echo_the_url(self) -> None:
         with self.assertRaises(model.BackendError) as caught:
-            model.check_loopback_url("http://10.0.0.5:11434/?token=abc123secret")
-        self.assertNotIn("abc123secret", str(caught.exception))
+            model.check_loopback_url("http://gpu-box.corp.internal:11434/?t=abc123")
+        message = str(caught.exception)
+        self.assertNotIn("abc123", message)
+        self.assertNotIn("gpu-box", message)
+
+    def test_extra_url_parts_are_rejected_without_echo(self) -> None:
+        for url in (
+            "http://127.0.0.1:11434/x",
+            "http://127.0.0.1:11434/?session=opaque123",
+            "http://127.0.0.1:11434/;p=opaque123",
+            "http://localhost:11434#opaque123",
+        ):
+            with self.subTest(url):
+                with self.assertRaises(model.BackendError) as caught:
+                    model.check_loopback_url(url)
+                self.assertEqual(caught.exception.kind, model.KIND_MISSING_PREREQUISITE)
+                self.assertNotIn("opaque123", str(caught.exception))
+        for url in (
+            "http://127.0.0.1:11434",
+            "http://127.0.0.1:11434/",
+            "http://[::1]",
+        ):
+            with self.subTest(url):
+                model.check_loopback_url(url)
 
     def test_invalid_port_rejected(self) -> None:
         for url in ("http://127.0.0.1:99999", "http://localhost:abc"):

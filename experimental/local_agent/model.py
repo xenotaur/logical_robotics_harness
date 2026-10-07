@@ -155,9 +155,11 @@ def urllib_stream_transport(
 
 
 def check_loopback_url(base_url: str) -> None:
-    """Accept only plain-http loopback endpoints.
+    """Accept only ``http://<loopback-host>[:<port>]`` endpoints.
 
-    Errors never echo the URL, which could carry credentials or a token.
+    Nothing else may ride along: credentials, a path, parameters, a query,
+    or a fragment are refused, so an accepted URL is safe to echo later.
+    Errors never echo the URL or its host.
     """
     parsed = urllib.parse.urlparse(base_url)
     # Credentials first: a later error must not be the one that fires.
@@ -176,7 +178,13 @@ def check_loopback_url(base_url: str) -> None:
         raise BackendError(
             KIND_MISSING_PREREQUISITE,
             "endpoint must be plain http on a loopback host "
-            f"(got scheme {parsed.scheme!r}, host {parsed.hostname!r})",
+            f"(got scheme {parsed.scheme!r} and a host that is not loopback)",
+        )
+    if parsed.path not in ("", "/") or parsed.params or parsed.query or parsed.fragment:
+        raise BackendError(
+            KIND_MISSING_PREREQUISITE,
+            "endpoint must be http://<loopback-host>:<port> with no path, query, "
+            "or fragment",
         )
 
 

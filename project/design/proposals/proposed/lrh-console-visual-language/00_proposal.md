@@ -521,13 +521,17 @@ never merge.
 
 1. **Lifecycle:** read from the source record, for example a work item's `proposed`, `active`,
    `resolved`, or `abandoned` status.
-2. **Structural dependency state:** computed from `depends_on` and `blocked_by` in the snapshot,
-   and shown as computed. Its values are:
+2. **Structural dependency state:** computed from the snapshot, using `depends_on`,
+   `blocked_by`, and the work item's own `blocked` and `blocked_reason` fields
+   (`src/lrh/control/models.py:46-47`). It is shown as computed. Its values, in precedence
+   order:
    - **Done:** the item is resolved.
-   - **In progress:** the item is active.
-   - **Unblocked:** every prerequisite is done.
+   - **Blocked:** the item is flagged `blocked: true`, or an explicit `blocked_by` blocker is not
+     done. The flag is valid only on active items (`src/lrh/control/work_item_policy.py:138-155`),
+     so Blocked takes precedence over In progress, and the view shows the `blocked_reason`.
+   - **In progress:** the item is active and not blocked.
    - **Waiting:** a `depends_on` prerequisite is not done.
-   - **Blocked:** an explicit `blocked_by` blocker is not done.
+   - **Unblocked:** every prerequisite is done.
 3. **Statusboard bands:** operational state for each project, using this proposal's operational
    vocabulary (Needs attention, Blocked, Active work, Awaiting review, Stable, and Unknown).
 
@@ -598,10 +602,11 @@ styles can be swapped in.
 *(Recommended)* A Python layout module turns the typed `DependencyMapSnapshot` into positioned
 cards and routed lines, behind a named, swappable interface. In the default layered layout, the
 lane and phase grid fixes each card's cell, so the default varies only how cards are ordered
-within a cell and how lines are routed. Other layouts may place cards differently. The static SVG and the interactive mode both draw
-from that same output, so the static version never depends on scripts. The default is layered
-ordering (Sugiyama-style) with right-angled routing, which is standard for directed acyclic
-graphs and keeps crossings readable. A curved, analyzer-style router is the expected second
+within a cell and how lines are routed. Other layouts may place cards differently.
+
+The static SVG and the interactive mode both draw from that same output, so the static version
+never depends on scripts. The default is layered ordering (Sugiyama-style) with right-angled
+routing, which is standard for directed acyclic graphs and keeps crossings readable. A curved, analyzer-style router is the expected second
 implementation.
 
 *(Recommended)* Line style shows the relationship type, not color alone:

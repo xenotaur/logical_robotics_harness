@@ -24,16 +24,16 @@
   --color-accent-bg: #e6ecfc;
   --color-on-accent: #ffffff;
   --color-focus: #2f55d4;
-  --color-edge: #9aa6b8;
+  --color-edge: #7f8ba6;
   --color-edge-strong: #2f3d55;
 
-  --color-status-done-fg: #00664a;      --color-status-done-bg: #e1f2ec;      --color-status-done-line: #009e73;
+  --color-status-done-fg: #00664a;      --color-status-done-bg: #e1f2ec;      --color-status-done-line: #00996f;
   --color-status-progress-fg: #00507e;  --color-status-progress-bg: #e1edf7;  --color-status-progress-line: #0072b2;
-  --color-status-unblocked-fg: #165f86; --color-status-unblocked-bg: #e3f3fb; --color-status-unblocked-line: #56b4e9;
-  --color-status-waiting-fg: #744900;   --color-status-waiting-bg: #fbefd6;   --color-status-waiting-line: #e69f00;
+  --color-status-unblocked-fg: #165f86; --color-status-unblocked-bg: #e3f3fb; --color-status-unblocked-line: #1f90ce;
+  --color-status-waiting-fg: #744900;   --color-status-waiting-bg: #fbefd6;   --color-status-waiting-line: #b47b00;
   --color-status-blocked-fg: #9a3b00;   --color-status-blocked-bg: #fbe6d9;   --color-status-blocked-line: #d55e00;
-  --color-status-review-fg: #80356a;    --color-status-review-bg: #f6e5ef;    --color-status-review-line: #cc79a7;
-  --color-status-unknown-fg: #4c576a;   --color-status-unknown-bg: #edf0f5;   --color-status-unknown-line: #8a94a6;
+  --color-status-review-fg: #80356a;    --color-status-review-bg: #f6e5ef;    --color-status-review-line: #c6619b;
+  --color-status-unknown-fg: #4c576a;   --color-status-unknown-bg: #edf0f5;   --color-status-unknown-line: #7e889e;
 
   --font-display: "Montserrat", "Avenir Next", "Segoe UI", system-ui, sans-serif;
   --font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -57,7 +57,7 @@
     --color-accent-bg: #172a4f;
     --color-on-accent: #08111f;
     --color-focus: #7ea0ff;
-    --color-edge: #4a5d7d;
+    --color-edge: #5c6f98;
     --color-edge-strong: #c9d5ea;
     --color-status-done-fg: #6fd2af;      --color-status-done-bg: #0e3329;      --color-status-done-line: #2bb088;
     --color-status-progress-fg: #7db9ee;  --color-status-progress-bg: #0e2840;  --color-status-progress-line: #3b92d6;
@@ -82,7 +82,7 @@
   --color-accent-bg: #172a4f;
   --color-on-accent: #08111f;
   --color-focus: #7ea0ff;
-  --color-edge: #4a5d7d;
+  --color-edge: #5c6f98;
   --color-edge-strong: #c9d5ea;
   --color-status-done-fg: #6fd2af;      --color-status-done-bg: #0e3329;      --color-status-done-line: #2bb088;
   --color-status-progress-fg: #7db9ee;  --color-status-progress-bg: #0e2840;  --color-status-progress-line: #3b92d6;
@@ -101,6 +101,7 @@ body {
   font: 14px/1.45 var(--font-body);
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 button, input { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
 svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -124,7 +125,9 @@ svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
 .spacer { flex: 1; }
 .sample { font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: var(--color-status-waiting-bg); color: var(--color-status-waiting-fg); white-space: nowrap; }
 .search { display: flex; align-items: center; gap: var(--space-2); border: 1px solid var(--color-border-subtle); background: var(--color-surface-sunken); border-radius: var(--radius-sm); padding: 4px 8px; min-width: 0; }
-.search input { border: 0; background: none; outline: none; width: 11rem; min-width: 0; }
+.search:focus-within { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.search input { border: 0; background: none; width: 11rem; min-width: 0; }
+.search input:focus-visible { outline: none; }
 .fresh { display: flex; align-items: center; gap: var(--space-2); font-size: 0.8rem; color: var(--color-text-muted); white-space: nowrap; }
 .iconbtn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid var(--color-border-subtle); background: var(--color-surface-panel); border-radius: var(--radius-sm); padding: 5px 7px; cursor: pointer; }
 .iconbtn:hover { border-color: var(--color-border-strong); }
@@ -213,10 +216,10 @@ svg.i { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor;
 .flag { font-size: 0.7rem; color: var(--color-text-muted); border: 1px dashed var(--color-border-strong); border-radius: 999px; padding: 0 7px; }
 .tcard.dim { opacity: 0.32; }
 .map.focus .tcard.sel { box-shadow: 0 0 0 2px var(--color-accent); }
-path.edge { fill: none; stroke: var(--color-edge); stroke-width: 1.4; opacity: 0.55; }
-path.edge.block { stroke: var(--color-status-blocked-line); stroke-dasharray: 5 4; opacity: 0.75; }
-.map.focus path.edge { opacity: 0.12; }
-.map.focus path.edge.hot { opacity: 1; stroke: var(--color-edge-strong); stroke-width: 2; }
+path.edge { fill: none; stroke: var(--color-edge); stroke-width: 1.4; }
+path.edge.block { stroke: var(--color-status-blocked-line); stroke-dasharray: 5 4; }
+.map.focus path.edge { stroke-width: 1; }
+.map.focus path.edge.hot { stroke: var(--color-edge-strong); stroke-width: 2.6; }
 .map.focus path.edge.block.hot { stroke: var(--color-status-blocked-line); }
 .legend { display: flex; flex-wrap: wrap; gap: var(--space-3) var(--space-4); align-items: center; margin: var(--space-3) 0; font-size: 0.78rem; color: var(--color-text-muted); }
 .legend .ln { display: inline-flex; align-items: center; gap: 6px; }
@@ -227,7 +230,8 @@ path.edge.block { stroke: var(--color-status-blocked-line); stroke-dasharray: 5 
 table { border-collapse: collapse; width: 100%; font-size: 0.85rem; }
 th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--color-border-subtle); vertical-align: top; }
 th { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--color-text-muted); background: var(--color-surface-sunken); position: sticky; top: 0; }
-tr.rowlink { cursor: pointer; }
+tr.rowlink td { transition: background var(--motion-fast); }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--color-accent); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 tr.rowlink:hover td { background: var(--color-surface-sunken); }
 
 /* Blockers */
@@ -370,7 +374,7 @@ tr.rowlink:hover td { background: var(--color-surface-sunken); }
     { id: "CP-112", title: "Reconcile source state", lane: "cp", phase: 1, life: "active", deps: ["CP-101"], blk: [], ready: true },
     { id: "BUCKET-020", title: "Atomic sidecar writer", lane: "bucket", phase: 1, life: "active", deps: ["BUCKET-010", "CP-101"], blk: [], ready: true },
     { id: "BUCKET-026", title: "Artifact freshness check", lane: "bucket", phase: 1, life: "proposed", deps: ["BUCKET-010"], blk: [], ready: true },
-    { id: "LING-070", title: "Linguistics backend", lane: "ling", phase: 1, life: "active", deps: ["GENRE-004"], blk: [], ready: true },
+    { id: "LING-070", title: "Linguistics backend", lane: "ling", phase: 1, life: "active", deps: ["GENRE-004"], blk: [], ready: true, blocked: true, reason: "Parser benchmark needs a GPU allocation" },
     { id: "SEG-071", title: "Paragraph alignment validator", lane: "ling", phase: 1, life: "proposed", deps: ["GENRE-004"], blk: [], ready: false },
     { id: "SF-020", title: "Joint evidence extraction", lane: "sf", phase: 1, life: "proposed", deps: ["SF-010"], blk: ["BUCKET-020"], ready: true },
     { id: "CP-130", title: "Dependency analysis layer", lane: "cp", phase: 2, life: "proposed", deps: ["CP-101"], blk: [], ready: true },
@@ -416,14 +420,17 @@ tr.rowlink:hover td { background: var(--color-surface-sunken); }
   function isDone(id) { return byId[id] && byId[id].life === "resolved"; }
   function state(it) {
     if (it.life === "resolved") return "done";
+    if (it.blocked || it.blk.some(function (b) { return !isDone(b); })) return "blocked";
     if (it.life === "active") return "progress";
-    if (it.blk.some(function (b) { return !isDone(b); })) return "blocked";
     if (it.deps.some(function (d) { return !isDone(d); })) return "waiting";
     return "unblocked";
   }
   function why(it) {
     var s = state(it);
-    if (s === "blocked") return "Blocked by " + it.blk.filter(function (b) { return !isDone(b); }).join(", ");
+    if (s === "blocked") {
+      var open = it.blk.filter(function (b) { return !isDone(b); });
+      return [it.blocked ? "Marked blocked: " + it.reason : "", open.length ? "Blocked by " + open.join(", ") : ""].filter(Boolean).join(". ");
+    }
     if (s === "waiting") return "Waiting on " + it.deps.filter(function (d) { return !isDone(d); }).join(", ");
     return "";
   }
@@ -445,12 +452,15 @@ tr.rowlink:hover td { background: var(--color-surface-sunken); }
   }
   function readHash() {
     var h = location.hash.slice(1);
-    var m = /^(lcats|lrh)-(overview|map|table|blockers|evidence)$/.exec(h);
-    if (m) { route = { scope: m[1].toUpperCase(), view: m[2] }; } else { route = { scope: "all", view: "statusboard" }; }
+    var m = /^([a-z0-9]+)-(overview|map|table|blockers|evidence)$/.exec(h);
+    var proj = m && PROJECTS.filter(function (p) { return p.name.toLowerCase() === m[1]; })[0];
+    var next = proj ? { scope: proj.name, view: m[2] } : { scope: "all", view: "statusboard" };
+    if (next.scope !== route.scope) selected = null;
+    route = next;
   }
 
   function renderNav() {
-    var scopes = [{ id: "all", name: "All projects", icon: "i-board" }].concat(PROJECTS.filter(function (p) { return p.name === "LCATS" || p.name === "LRH"; }).map(function (p) { return { id: p.name, name: p.name, icon: "i-overview" }; }));
+    var scopes = [{ id: "all", name: "All projects", icon: "i-board" }].concat(PROJECTS.filter(function (p) { return p.name === "LCATS" || p.name === "LRH" || p.name === route.scope; }).map(function (p) { return { id: p.name, name: p.name, icon: "i-overview" }; }));
     document.getElementById("scopes").innerHTML = scopes.map(function (s) {
       var on = route.scope === s.id;
       return '<button class="navbtn" data-scope="' + s.id + '" aria-pressed="' + on + '" title="' + esc(s.name) + '" aria-label="' + esc(s.name) + '">' + (s.id === "all" ? icon("i-board") : '<span class="mono" style="width:18px;text-align:center" aria-hidden="true">' + s.name.charAt(0) + "</span>") + '<span class="lbl">' + esc(s.name) + "</span></button>";
@@ -576,10 +586,10 @@ tr.rowlink:hover td { background: var(--color-surface-sunken); }
     var q = query.toLowerCase();
     var rows = ITEMS.filter(function (it) { return !q || (it.id + " " + it.title).toLowerCase().indexOf(q) >= 0; });
     var html = '<div class="hero"><div><h1>Table</h1><p>The same snapshot as the map, as a sortable list. Every map state has a row here.</p></div><button class="btn" data-view="map">' + icon("i-map") + "Back to map</button></div>";
-    html += '<div class="tablewrap"><table><caption class="muted" style="text-align:left;padding:8px 12px">LCATS work items in the sample snapshot</caption><thead><tr><th scope="col">ID</th><th scope="col">Title</th><th scope="col">Lane</th><th scope="col">Phase</th><th scope="col">Lifecycle</th><th scope="col">Structural state</th><th scope="col">Prompt-ready</th><th scope="col">Needs</th></tr></thead><tbody>';
+    html += '<div class="tablewrap"><table><caption class="muted" style="text-align:left;padding:8px 12px">LCATS work items in the sample snapshot. Select an ID for details.</caption><thead><tr><th scope="col">ID</th><th scope="col">Title</th><th scope="col">Lane</th><th scope="col">Phase</th><th scope="col">Lifecycle</th><th scope="col">Structural state</th><th scope="col">Prompt-ready</th><th scope="col">Needs</th></tr></thead><tbody>';
     rows.forEach(function (it) {
       var lane = LANES.filter(function (l) { return l.id === it.lane; })[0];
-      html += '<tr class="rowlink" data-item="' + it.id + '" tabindex="0"><td class="mono">' + it.id + "</td><td>" + esc(it.title) + "</td><td>" + esc(lane.name) + "</td><td>" + it.phase + " · " + esc(PHASES[it.phase].name) + "</td><td>" + it.life + "</td><td>" + pill(state(it)) + "</td><td>" + (it.life === "resolved" ? "—" : it.ready ? "yes" : "no") + '</td><td class="mono">' + (it.deps.concat(it.blk).join(", ") || "—") + "</td></tr>";
+      html += '<tr class="rowlink"><td><button class="linkbtn mono" data-item="' + it.id + '" aria-label="Show details for ' + it.id + '">' + it.id + "</button></td><td>" + esc(it.title) + "</td><td>" + esc(lane.name) + "</td><td>" + it.phase + " · " + esc(PHASES[it.phase].name) + "</td><td>" + it.life + "</td><td>" + pill(state(it)) + "</td><td>" + (it.life === "resolved" ? "—" : it.ready ? "yes" : "no") + '</td><td class="mono">' + (it.deps.concat(it.blk).join(", ") || "—") + "</td></tr>";
     });
     return html + "</tbody></table></div>" + footer();
   }
@@ -606,7 +616,7 @@ tr.rowlink:hover td { background: var(--color-surface-sunken); }
 
   function renderDrawer() {
     var d = document.getElementById("drawer");
-    if (!selected || route.scope === "all") { d.hidden = true; d.innerHTML = ""; return; }
+    if (!selected || route.scope !== "LCATS" || !byId[selected]) { d.hidden = true; d.innerHTML = ""; return; }
     var it = byId[selected];
     var s = state(it);
     var lane = LANES.filter(function (l) { return l.id === it.lane; })[0];
@@ -621,7 +631,7 @@ tr.rowlink:hover td { background: var(--color-surface-sunken); }
       (why(it) ? '<section><h3>Why ' + (s === "blocked" ? "blocked" : "waiting") + "?</h3><p style=\"margin:0\">" + esc(why(it)) + ".</p></section>" : "") +
       '<section><h3>Needs (' + pre.length + ')</h3>' + (pre.length ? '<ul class="plist">' + pre.map(function (p) { return '<li><button data-item="' + p[0] + '"><span><span class="mono">' + p[0] + '</span> <span class="muted">' + p[1] + "</span></span>" + pill(state(byId[p[0]])) + "</button></li>"; }).join("") + "</ul>" : '<p class="muted" style="margin:0">Nothing upstream.</p>') + "</section>" +
       '<section><h3>Needed by (' + deps.length + ')</h3>' + (deps.length ? '<ul class="plist">' + deps.map(function (x) { return '<li><button data-item="' + x.id + '"><span class="mono">' + x.id + "</span>" + pill(state(x)) + "</button></li>"; }).join("") + "</ul>" : '<p class="muted" style="margin:0">Nothing downstream.</p>') + "</section>" +
-      '<section><h3>Source</h3><div class="src"><span class="mono">project/work_items/' + (it.life === "resolved" ? "resolved" : "proposed") + "/" + it.id + '.md</span><button class="iconbtn" id="dcopy" aria-label="Copy source path">' + icon("i-copy") + "</button></div><p class=\"muted\" style=\"font-size:0.78rem;margin:6px 0 0\">Snapshot 6 Oct 2026, 21:40 · sample</p></section>" +
+      '<section><h3>Source</h3><div class="src"><span class="mono">project/work_items/' + it.life + "/" + it.id + '.md</span><button class="iconbtn" id="dcopy" aria-label="Copy source path">' + icon("i-copy") + "</button></div><p class=\"muted\" style=\"font-size:0.78rem;margin:6px 0 0\">Snapshot 6 Oct 2026, 21:40 · sample</p></section>" +
       '<section><h3>Effort</h3><p class="muted" style="margin:0">Not modeled yet.</p></section>' +
       '<div class="actions"><button class="btn primary" data-view="table">' + icon("i-table") + 'Show in table</button><button class="btn" id="dfocus">' + icon("i-focus") + "Focus on map</button></div>";
   }
@@ -638,7 +648,7 @@ tr.rowlink:hover td { background: var(--color-surface-sunken); }
     setHash();
   }
 
-  function go(scope, view) { route = { scope: scope, view: view }; if (scope === "all") selected = null; render(); document.getElementById("main").scrollTop = 0; }
+  function go(scope, view) { if (scope !== route.scope) selected = null; route = { scope: scope, view: view }; render(); document.getElementById("main").scrollTop = 0; }
 
   document.getElementById("home").addEventListener("click", function () { selected = null; go("all", "statusboard"); document.getElementById("main").focus(); });
   document.addEventListener("click", function (e) {
@@ -658,7 +668,6 @@ tr.rowlink:hover td { background: var(--color-surface-sunken); }
   });
   document.addEventListener("keydown", function (e) {
     if (e.key === "Escape") { if (!document.getElementById("pop").hidden) { closePop(); return; } if (selected) { selected = null; render(); } }
-    if (e.key === "Enter" && e.target.matches("tr.rowlink")) { selected = e.target.dataset.item; render(); }
   });
   function closePop() { var pop = document.getElementById("pop"); if (!pop.hidden) { pop.hidden = true; document.getElementById("gear").setAttribute("aria-expanded", "false"); } }
   document.getElementById("q").addEventListener("input", function (e) { query = e.target.value.trim(); var pos = e.target.selectionStart; render(); var q = document.getElementById("q"); q.focus(); try { q.setSelectionRange(pos, pos); } catch (err) {} });

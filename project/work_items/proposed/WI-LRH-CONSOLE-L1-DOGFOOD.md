@@ -76,7 +76,7 @@ In-repo: `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` is the model fo
 
 ## Required Changes
 
-1. Check first whether the console can serve LCATS's workspace through the Meta registry (`src/lrh/meta/workspace.py`) and render its dependency map. If it cannot, file a work item for the gap, link it in `blocked_by`, and mark this item blocked until the gap is resolved. LRH sessions may continue meanwhile, but the gate cannot pass on LRH alone.
+1. Check first whether the console can serve LCATS's workspace through the Meta registry (`src/lrh/meta/workspace.py`) and render its dependency map. If it cannot, file a work item in this repository for the gap (an LCATS-side change gets a tracking work item here), add its ID to `blocked_by`, and, with this item active, set `blocked: true` with a `blocked_reason` until the gap is resolved. LRH sessions may continue meanwhile, but the gate cannot pass on LRH alone.
 2. Declare the LRH dependency-map view in this repository's `project/views/dependency_maps/`. The LCATS view lands as a separate LCATS PR, only with the owner's authorization; link it from the evidence.
 3. With the owner, record three genuine planning questions, for example what can move now, why an item is waiting, or what unblocks the most work. Answer each from the map, with links to source records.
 4. Exercise and record the adverse cases: cycles, missing IDs, hidden dependencies, ambiguous lanes, absent phases, stale snapshots, and the largest real view, with render times.

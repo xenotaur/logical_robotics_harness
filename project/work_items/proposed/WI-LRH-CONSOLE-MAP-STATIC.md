@@ -35,10 +35,10 @@ forbidden_actions:
 - "deploy_remote_service"
 acceptance:
 - "A declared view renders as a server-side map in the frame, with the default layered, right-angled layout, readable in both themes and with no scripts."
-- "The PR records the evaluation of established layout libraries, and the default layout uses the chosen one; no layout engine is written from scratch."
+- "The PR records the evaluation of established layout libraries, and the default layout uses the chosen library. If none fits the lane and phase grid, the PR records why, and the owner approves a minimal ordering and routing implementation instead of a general layout engine."
 - "The layout is reached through a named interface that a second implementation could replace without changing the renderer."
 - "`?item=<id>` highlights upstream and downstream and renders the drawer with the three state layers and the not-modeled effort slot."
-- "The Table and Blockers views show the same snapshot, and every map state has a table row."
+- "The Table and Blockers views show the same snapshot, every map state has a table row, and table IDs are links to `?item=<id>`."
 - "Lines and status cues meet the token contrast targets, and state is never conveyed by color alone."
 required_evidence:
 - "test_output"
@@ -74,7 +74,7 @@ In-repo: no map rendering exists. Recommendation: proceed.
 
 ## Required Changes
 
-1. First evaluate established graph layout and rendering libraries for accessibility, packaging, maintenance, and size, and record the choice in the PR (`project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md:71-73`, `:407-408`). Do not build a graph layout engine from scratch.
+1. First evaluate established graph layout and rendering libraries for accessibility, packaging, maintenance, and size, and record the choice in the PR (`project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md:71-73`, `:407-408`). Candidates must run server-side in Python, packaged with Serve, with no Node or JavaScript build step (Revision 2 Q7; `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md:138-139`). Do not build a graph layout engine from scratch.
 2. Add a named, swappable layout interface: snapshot in, positioned cards and routed lines out. The default layered, right-angled layout wraps the chosen library behind it, with tests on fixed fixtures.
 3. Render the map as server-side HTML and SVG in the frame. Lane headers and phase rows come from the view. Cards show the mono ID, the title, a status pill (icon, text, color), a "not prompt-ready" flag when relevant, and the why-waiting or why-blocked line. Include a legend.
 4. Support static selection: with `?item=<id>`, highlight that card's upstream and downstream cards and lines (selected lines get emphasis by width), and render the drawer. The drawer shows the three state layers, placement, why, needs and needed-by, the repo-relative source path, and an "Effort: not modeled yet" slot.
@@ -90,10 +90,10 @@ In-repo: no map rendering exists. Recommendation: proceed.
 ## Acceptance Criteria
 
 - A declared view renders as a server-side map in the frame, with the default layered, right-angled layout, readable in both themes and with no scripts.
-- The PR records the evaluation of established layout libraries, and the default layout uses the chosen one; no layout engine is written from scratch.
+- The PR records the evaluation of established layout libraries, and the default layout uses the chosen library. If none fits the lane and phase grid, the PR records why, and the owner approves a minimal ordering and routing implementation instead of a general layout engine.
 - The layout is reached through a named interface that a second implementation could replace without changing the renderer.
 - `?item=<id>` highlights upstream and downstream and renders the drawer with the three state layers and the not-modeled effort slot.
-- The Table and Blockers views show the same snapshot, and every map state has a table row.
+- The Table and Blockers views show the same snapshot, every map state has a table row, and table IDs are links to `?item=<id>`.
 - Lines and status cues meet the token contrast targets, and state is never conveyed by color alone.
 
 ## Validation

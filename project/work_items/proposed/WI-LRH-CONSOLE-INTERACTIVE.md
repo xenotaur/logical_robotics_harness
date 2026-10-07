@@ -37,7 +37,7 @@ acceptance:
 - "Without the flag, Serve's CSP and pages are unchanged and fully usable."
 - "With `--interactive`, the CSP adds only `script-src 'self'`, and tests assert the exact headers in both modes."
 - "Tracing, filters, and the theme switch work with the flag and degrade to the static behavior without it."
-- "Under an explicit `--theme light` or `--theme dark` the in-page switch is hidden and the forced theme always applies, whatever the browser stored."
+- "Under an explicit `--theme light` or `--theme dark` the in-page switch is hidden and the forced theme always applies, whatever the browser stored; under `system` the switch is shown."
 - "No inline script or `eval` appears in any served page, and a test enforces it."
 required_evidence:
 - "test_output"
@@ -93,7 +93,7 @@ In-repo: no scripts are served today; the CSP is `default-src 'none'` (`src/lrh/
 - Without the flag, Serve's CSP and pages are unchanged and fully usable.
 - With `--interactive`, the CSP adds only `script-src 'self'`, and tests assert the exact headers in both modes.
 - Tracing, filters, and the theme switch work with the flag and degrade to the static behavior without it.
-- Under an explicit `--theme light` or `--theme dark` the in-page switch is hidden and the forced theme always applies, whatever the browser stored.
+- Under an explicit `--theme light` or `--theme dark` the in-page switch is hidden and the forced theme always applies, whatever the browser stored; under `system` the switch is shown.
 - No inline script or `eval` appears in any served page, and a test enforces it.
 
 ## Validation

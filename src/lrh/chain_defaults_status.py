@@ -16,8 +16,11 @@ merge+closeout behavior, not a toggle any gate branches on.
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import json
+import os
 import pathlib
+import re
 import subprocess
 
 import yaml
@@ -175,6 +178,7 @@ def compute_status(
                 project_root=project_root,
                 confirmed_commit=confirmed_commit,
                 head=head,
+                confirmed_at=profile.get("confirmed_at"),
             )
         except gate_staleness.GateStalenessError as err:
             staleness_error = str(err)
@@ -249,4 +253,230 @@ def format_text(status: ChainDefaultsStatus) -> str:
     else:
         lines.append(f"  unavailable: {status.staleness_error}")
 
+    return "\n".join(lines)
+
+
+@dataclasses.dataclass(frozen=True)
+class RestampPlan:
+    """Everything `lrh chain-defaults restamp` would write, computed up front.
+
+    `--dry-run` prints this; the real run writes exactly this, so the
+    preview and the write cannot diverge.
+    """
+
+    #: The profile's `confirmed_commit` before the re-stamp, or None.
+    previous_confirmed_commit: str | None
+    #: The staleness result being cleared (the stale-files payload the
+    #: human must have been shown), or None with `staleness_error` set.
+    staleness: gate_staleness.StalenessResult | None
+    staleness_error: str | None
+    fingerprint_plan: gate_staleness.FingerprintPlan
+    #: Full SHA of HEAD, written to both the profile and the store.
+    new_confirmed_commit: str
+    #: Canonical `confirmed_at`, written to both the profile and the store.
+    new_confirmed_at: str
+
+
+def plan_restamp(
+    project_root: pathlib.Path,
+    head: str = "HEAD",
+    now: datetime.datetime | None = None,
+) -> RestampPlan:
+    """Compute a re-stamp of `confirmed_commit`/`confirmed_at` plus the
+    fingerprint store bound to that same stamp, without writing anything.
+
+    Requires the profile file to exist -- the first-encounter "file absent"
+    path writes the file first, then re-stamps. Raises
+    `ChainDefaultsStatusError` when any watch target is unresolved or any
+    installed target file is missing, so a refused re-stamp writes nothing.
+    """
+    profile = load_profile(project_root)
+    if profile is None:
+        raise ChainDefaultsStatusError(
+            f"{CHAIN_DEFAULTS_PATH} does not exist -- write the profile first, "
+            "then re-stamp"
+        )
+    previous = profile.get("confirmed_commit")
+    previous_commit = str(previous) if previous else None
+
+    staleness: gate_staleness.StalenessResult | None = None
+    staleness_error: str | None = None
+    if previous_commit and previous_commit != "null":
+        try:
+            staleness = gate_staleness.check_gate_staleness(
+                project_root=project_root,
+                confirmed_commit=previous_commit,
+                head=head,
+                confirmed_at=profile.get("confirmed_at"),
+            )
+        except gate_staleness.GateStalenessError as err:
+            staleness_error = str(err)
+    else:
+        staleness_error = (
+            "confirmed_commit is null/absent -- no prior confirmation on record"
+        )
+
+    try:
+        targets = gate_staleness.resolve_watch_targets(project_root)
+        existing = gate_staleness.load_fingerprint_store(project_root)
+        fingerprint_plan = gate_staleness.plan_fingerprints(
+            targets, existing.fingerprints if existing else None
+        )
+    except gate_staleness.GateStalenessError as err:
+        raise ChainDefaultsStatusError(f"refusing to re-stamp: {err}") from err
+
+    result = _run_git(["rev-parse", "--verify", f"{head}^{{commit}}"], project_root)
+    if result.returncode != 0:
+        raise ChainDefaultsStatusError(
+            f"could not resolve {head}: {result.stderr.strip()}"
+        )
+    moment = now or datetime.datetime.now(datetime.timezone.utc)
+    try:
+        new_at = gate_staleness.canonical_confirmed_at(moment.replace(microsecond=0))
+    except gate_staleness.GateStalenessError as err:
+        raise ChainDefaultsStatusError(str(err)) from err
+
+    return RestampPlan(
+        previous_confirmed_commit=previous_commit,
+        staleness=staleness,
+        staleness_error=staleness_error,
+        fingerprint_plan=fingerprint_plan,
+        new_confirmed_commit=result.stdout.strip(),
+        new_confirmed_at=new_at,
+    )
+
+
+_CONFIRMED_COMMIT_LINE = re.compile(r"^confirmed_commit:.*$", re.MULTILINE)
+_CONFIRMED_AT_LINE = re.compile(r"^confirmed_at:.*$", re.MULTILINE)
+
+
+def _restamped_profile_text(text: str, commit: str, confirmed_at: str) -> str:
+    """Rewrite only the two stamp lines, leaving every other byte unchanged."""
+    for pattern, key in (
+        (_CONFIRMED_COMMIT_LINE, "confirmed_commit"),
+        (_CONFIRMED_AT_LINE, "confirmed_at"),
+    ):
+        count = len(pattern.findall(text))
+        if count != 1:
+            raise ChainDefaultsStatusError(
+                f"{CHAIN_DEFAULTS_PATH} must have exactly one top-level "
+                f"`{key}:` line to re-stamp (found {count})"
+            )
+    text = _CONFIRMED_COMMIT_LINE.sub(f"confirmed_commit: {commit}", text)
+    return _CONFIRMED_AT_LINE.sub(f"confirmed_at: {confirmed_at}", text)
+
+
+def apply_restamp(project_root: pathlib.Path, plan: RestampPlan) -> None:
+    """Write the fingerprint store, then the profile's two stamp lines.
+
+    Store first, profile second, both bound to the same stamp. If the
+    profile write fails (or the re-stamp is never committed), the store's
+    stamp matches no profile and `check_gate_staleness` fails every
+    fingerprint-kind target closed.
+    """
+    path = project_root / CHAIN_DEFAULTS_PATH
+    try:
+        original = path.read_text()
+    except OSError as err:
+        raise ChainDefaultsStatusError(
+            f"cannot read {CHAIN_DEFAULTS_PATH}: {err}"
+        ) from err
+    updated = _restamped_profile_text(
+        original, plan.new_confirmed_commit, plan.new_confirmed_at
+    )
+    if not plan.fingerprint_plan.nothing_to_do:
+        try:
+            gate_staleness.write_fingerprint_store(
+                project_root,
+                gate_staleness.FingerprintStore(
+                    confirmed_commit=plan.new_confirmed_commit,
+                    confirmed_at=plan.new_confirmed_at,
+                    fingerprints=plan.fingerprint_plan.fingerprints,
+                ),
+            )
+        except (gate_staleness.GateStalenessError, OSError) as err:
+            raise ChainDefaultsStatusError(
+                f"failed to write the fingerprint store: {err}"
+            ) from err
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    try:
+        tmp_path.write_text(updated)
+        os.replace(tmp_path, path)
+    except OSError as err:
+        raise ChainDefaultsStatusError(
+            f"failed to write {CHAIN_DEFAULTS_PATH} after writing the "
+            f"fingerprint store ({err}); the store's stamp matches no profile, "
+            "so user-scope targets stay fail-closed until a re-stamp succeeds"
+        ) from err
+
+
+def _restamp_payload(plan: RestampPlan, dry_run: bool) -> dict:
+    return {
+        "dry_run": dry_run,
+        "previous_confirmed_commit": plan.previous_confirmed_commit,
+        "new_confirmed_commit": plan.new_confirmed_commit,
+        "new_confirmed_at": plan.new_confirmed_at,
+        "staleness": (
+            {
+                "stale": plan.staleness.stale,
+                "stale_files": [
+                    {"path": f.path, "reason": f.reason}
+                    for f in plan.staleness.stale_files
+                ],
+            }
+            if plan.staleness is not None
+            else None
+        ),
+        "staleness_error": plan.staleness_error,
+        "fingerprints": {
+            "nothing_to_do": plan.fingerprint_plan.nothing_to_do,
+            "entries": [
+                {
+                    "name": e.name,
+                    "path": str(e.absolute_path) if e.absolute_path else None,
+                    "fingerprint": e.fingerprint,
+                    "comparison": e.comparison,
+                }
+                for e in plan.fingerprint_plan.entries
+            ],
+        },
+    }
+
+
+def format_restamp_json(plan: RestampPlan, dry_run: bool) -> str:
+    return json.dumps(_restamp_payload(plan, dry_run), indent=2)
+
+
+def format_restamp_text(plan: RestampPlan, dry_run: bool) -> str:
+    lines = ["Re-stamp (dry run, nothing written):" if dry_run else "Re-stamped:"]
+    lines.append(
+        f"  confirmed_commit: {plan.previous_confirmed_commit} -> "
+        f"{plan.new_confirmed_commit}"
+    )
+    lines.append(f"  confirmed_at: {plan.new_confirmed_at}")
+    lines.append("Stale files being re-confirmed:")
+    if plan.staleness is not None:
+        if plan.staleness.stale:
+            for stale_file in plan.staleness.stale_files:
+                lines.append(f"  - {stale_file.path}: {stale_file.reason}")
+        else:
+            lines.append("  (none -- not stale)")
+    else:
+        lines.append(f"  unavailable: {plan.staleness_error}")
+    lines.append("Fingerprints (user-scope installed targets):")
+    if plan.fingerprint_plan.nothing_to_do:
+        lines.append("  nothing to fingerprint")
+    else:
+        for entry in plan.fingerprint_plan.entries:
+            where = f" ({entry.absolute_path})" if entry.absolute_path else ""
+            lines.append(f"  - {entry.comparison}: {entry.name}{where}")
+        lines.append(
+            "  note: only hashes are stored, so a `changed` entry shows that "
+            "the content differs, not what changed"
+        )
+    if not dry_run:
+        lines.append(
+            "Skip consent is bound to this file's blob hash, so it is now "
+            "invalid; re-grant it with /lrh-config-gates if needed."
+        )
     return "\n".join(lines)

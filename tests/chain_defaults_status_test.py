@@ -1,8 +1,10 @@
+import datetime
 import json
 import pathlib
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from lrh import chain_defaults_status, gate_staleness
 
@@ -234,6 +236,262 @@ class FormatTest(unittest.TestCase):
         by_path = {f["path"]: f for f in parsed["staleness"]["files"]}
         self.assertTrue(by_path["src/lrh/skills/lrh-land/SKILL.md"]["stale"])
         self.assertFalse(by_path["src/lrh/skills/lrh-execute/SKILL.md"]["stale"])
+
+
+_FIXED_NOW = datetime.datetime(2026, 3, 4, 5, 6, 7, tzinfo=datetime.timezone.utc)
+
+
+def _install_user_scope(home: pathlib.Path, body: str = "Wait.") -> None:
+    for name in gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES:
+        path = home / ".claude" / "skills" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "<!-- GATE-DEFINITION -->\n" + body + "\n<!-- /GATE-DEFINITION -->\n"
+        )
+
+
+def _grant_consent(root: pathlib.Path) -> None:
+    current_hash = chain_defaults_status.hash_object(
+        root, chain_defaults_status.CHAIN_DEFAULTS_PATH
+    )
+    _run(
+        [
+            "git",
+            "config",
+            "--local",
+            chain_defaults_status.CONSENT_HASH_CONFIG_KEY,
+            current_hash,
+        ],
+        root,
+    )
+
+
+class RestampTest(unittest.TestCase):
+    """`lrh chain-defaults restamp` in a client repo where every watch
+    target is a user-scope (fingerprint-kind) install under a fake HOME."""
+
+    def _client_repo(self, root: pathlib.Path) -> str:
+        _init_repo(root)
+        (root / "README.md").write_text("v1\n")
+        first = _commit(root, "initial")
+        _write_profile(root, confirmed_commit=first)
+        _commit(root, "add profile")
+        return first
+
+    def test_dry_run_writes_nothing_and_previews_stale_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            profile_before = (
+                root / chain_defaults_status.CHAIN_DEFAULTS_PATH
+            ).read_text()
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+            self.assertTrue(plan.staleness.stale)
+            self.assertEqual(
+                {e.comparison for e in plan.fingerprint_plan.entries}, {"new"}
+            )
+            self.assertEqual(plan.new_confirmed_at, "2026-03-04T05:06:07Z")
+            self.assertEqual(len(plan.new_confirmed_commit), 40)
+            self.assertFalse(gate_staleness.fingerprint_store_path(root).exists())
+            self.assertEqual(
+                (root / chain_defaults_status.CHAIN_DEFAULTS_PATH).read_text(),
+                profile_before,
+            )
+            payload = json.loads(chain_defaults_status.format_restamp_json(plan, True))
+            self.assertTrue(payload["dry_run"])
+            self.assertTrue(payload["staleness"]["stale_files"])
+
+    def test_restamp_reads_fresh_and_invalidates_consent(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            _grant_consent(root)
+            profile_path = root / chain_defaults_status.CHAIN_DEFAULTS_PATH
+            before_lines = profile_path.read_text().splitlines()
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                self.assertTrue(
+                    chain_defaults_status.compute_status(root).staleness.stale
+                )
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                chain_defaults_status.apply_restamp(root, plan)
+                status = chain_defaults_status.compute_status(root)
+            self.assertFalse(status.staleness.stale)
+            self.assertFalse(status.consent.valid)
+            after_lines = profile_path.read_text().splitlines()
+            changed = [(a, b) for a, b in zip(before_lines, after_lines) if a != b]
+            self.assertEqual(len(before_lines), len(after_lines))
+            self.assertEqual(
+                [b for _, b in changed],
+                [
+                    f"confirmed_commit: {plan.new_confirmed_commit}",
+                    "confirmed_at: 2026-03-04T05:06:07Z",
+                ],
+            )
+
+    def test_missing_installed_target_refuses_and_writes_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            one = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
+            (home / ".claude" / "skills" / one).unlink()
+            profile_before = (
+                root / chain_defaults_status.CHAIN_DEFAULTS_PATH
+            ).read_text()
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                with self.assertRaises(chain_defaults_status.ChainDefaultsStatusError):
+                    chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+            self.assertFalse(gate_staleness.fingerprint_store_path(root).exists())
+            self.assertEqual(
+                (root / chain_defaults_status.CHAIN_DEFAULTS_PATH).read_text(),
+                profile_before,
+            )
+
+    def test_store_without_committed_profile_fails_closed(self) -> None:
+        """A failed profile write or a declined push leaves the new store
+        beside the old profile. In a fingerprint-only repo that must read
+        stale, with the old consent untouched -- not fresh."""
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            _grant_consent(root)
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                chain_defaults_status.apply_restamp(root, plan)
+                _run(
+                    [
+                        "git",
+                        "checkout",
+                        "--",
+                        chain_defaults_status.CHAIN_DEFAULTS_PATH,
+                    ],
+                    root,
+                )
+                status = chain_defaults_status.compute_status(root)
+            self.assertTrue(status.staleness.stale)
+            self.assertTrue(status.consent.valid)
+            for stale_file in status.staleness.stale_files:
+                self.assertIn("different confirmation stamp", stale_file.reason)
+
+    def test_status_and_raw_text_paths_agree_on_confirmed_at(self) -> None:
+        """`status` reads confirmed_at through yaml.safe_load (a datetime);
+        the shell snippet passes the raw text. Both must accept the store."""
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                chain_defaults_status.apply_restamp(root, plan)
+                profile = chain_defaults_status.load_profile(root)
+                self.assertIsInstance(profile["confirmed_at"], datetime.datetime)
+                self.assertFalse(
+                    chain_defaults_status.compute_status(root).staleness.stale
+                )
+                for raw in ("2026-03-04T05:06:07Z", "2026-03-04T05:06:07+00:00"):
+                    with self.subTest(raw=raw):
+                        result = gate_staleness.check_gate_staleness(
+                            project_root=root,
+                            confirmed_commit=plan.new_confirmed_commit,
+                            confirmed_at=raw,
+                        )
+                        self.assertFalse(result.stale)
+
+                # A hand-quoted profile value loads as a str, not a datetime.
+                profile_path = root / chain_defaults_status.CHAIN_DEFAULTS_PATH
+                profile_path.write_text(
+                    profile_path.read_text().replace(
+                        "confirmed_at: 2026-03-04T05:06:07Z",
+                        'confirmed_at: "2026-03-04T05:06:07Z"',
+                    )
+                )
+                self.assertIsInstance(
+                    chain_defaults_status.load_profile(root)["confirmed_at"], str
+                )
+                self.assertFalse(
+                    chain_defaults_status.compute_status(root).staleness.stale
+                )
+
+    def test_second_worktree_with_old_profile_reads_stale(self) -> None:
+        with (
+            tempfile.TemporaryDirectory() as tmp,
+            tempfile.TemporaryDirectory() as other,
+            tempfile.TemporaryDirectory() as h,
+        ):
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            worktree = pathlib.Path(other) / "wt"
+            _run(["git", "worktree", "add", "-q", "--detach", str(worktree)], root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                chain_defaults_status.apply_restamp(root, plan)
+                self.assertFalse(
+                    chain_defaults_status.compute_status(root).staleness.stale
+                )
+                self.assertTrue(
+                    chain_defaults_status.compute_status(worktree).staleness.stale
+                )
+
+    def test_profile_without_stamp_lines_refuses_before_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            profile_path = root / chain_defaults_status.CHAIN_DEFAULTS_PATH
+            profile_path.write_text(
+                "\n".join(
+                    line
+                    for line in profile_path.read_text().splitlines()
+                    if not line.startswith("confirmed_at:")
+                )
+                + "\n"
+            )
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                with self.assertRaises(chain_defaults_status.ChainDefaultsStatusError):
+                    chain_defaults_status.apply_restamp(root, plan)
+            self.assertFalse(gate_staleness.fingerprint_store_path(root).exists())
+
+    def test_harness_repo_restamps_profile_without_writing_store(self) -> None:
+        """With every watch target git-tracked (a repo carrying its own
+        src/lrh/skills tree) and nothing stored, the stamp is still written
+        but no fingerprint store is created."""
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            for path in gate_staleness.DEFAULT_WATCHED_FILES:
+                (root / path).parent.mkdir(parents=True, exist_ok=True)
+                (root / path).write_text("# skill\n")
+            first = _commit(root, "initial")
+            _write_profile(root, confirmed_commit=first)
+            _commit(root, "add profile")
+            plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+            self.assertTrue(plan.fingerprint_plan.nothing_to_do)
+            chain_defaults_status.apply_restamp(root, plan)
+            profile = chain_defaults_status.load_profile(root)
+            self.assertEqual(profile["confirmed_commit"], plan.new_confirmed_commit)
+            self.assertFalse(gate_staleness.fingerprint_store_path(root).exists())
+
+    def test_missing_profile_refuses(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            _init_repo(root)
+            (root / "README.md").write_text("v1\n")
+            _commit(root, "initial")
+            with self.assertRaises(chain_defaults_status.ChainDefaultsStatusError):
+                chain_defaults_status.plan_restamp(root)
 
 
 if __name__ == "__main__":

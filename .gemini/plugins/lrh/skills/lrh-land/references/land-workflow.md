@@ -514,9 +514,10 @@ inventing new wording. Wait for explicit confirmation, same as today — never
 skip the live reply here, regardless of `chain_init_confirmation`'s stored
 value, since `skip_if_opted_in` requires the two-step consent in the next
 section, and that consent cannot yet exist for values nobody has ever
-live-confirmed. On confirmation, write the file with
-`confirmed_commit: $(git rev-parse HEAD)` and
-`confirmed_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)`. Do not run the staleness
+live-confirmed. On confirmation, write the file (with `confirmed_commit: null`
+and `confirmed_at: null` lines), then stamp it with
+`lrh chain-defaults restamp --project-root .` — never hand-write the two
+stamp fields (see "Re-stamping" below). Do not run the staleness
 check (below) in this case — there is nothing to compare `confirmed_commit`
 against yet.
 
@@ -542,7 +543,7 @@ If the user's live reply diverges from the stored values (wording changed,
 not just re-confirmed), apply the **Decision 4 profile-update offer**: at
 the end of the run, ask "Update the stored default to match?" — never
 silently persist a one-off override. Only rewrite the file on explicit yes,
-and re-stamp `confirmed_commit`/`confirmed_at`.
+and re-stamp it with `lrh chain-defaults restamp --project-root .`.
 
 ### `skip_if_opted_in` — the five requirements (`DEC-CHAIN-INIT-SKIP-CONSENT`) plus the Stage 3.5 compensating control (`DEC-GATE-POLICY-CASCADE`)
 
@@ -642,12 +643,22 @@ entirely:
 
 ```bash
 CONFIRMED_COMMIT="$(grep '^confirmed_commit:' project/config/chain-defaults.yaml | sed 's/^confirmed_commit: *//; s/^"//; s/"$//')"
+CONFIRMED_AT="$(grep '^confirmed_at:' project/config/chain-defaults.yaml | sed 's/^confirmed_at: *//; s/^"//; s/"$//')"
 if [ "$CONFIRMED_COMMIT" = "null" ] || [ -z "$CONFIRMED_COMMIT" ]; then
   echo "No prior confirmation on record — staleness check does not apply; use the first-encounter path above." >&2
 else
-  lrh chain-defaults check-staleness --confirmed-commit "$CONFIRMED_COMMIT" --project-root .
+  lrh chain-defaults check-staleness --confirmed-commit "$CONFIRMED_COMMIT" --confirmed-at "$CONFIRMED_AT" --project-root .
 fi
 ```
+
+`--confirmed-at` matters only for user-scope installed targets (outside the
+working tree, e.g. `~/.claude/skills/...`): their fingerprint store is bound
+to the `(confirmed_commit, confirmed_at)` stamp it was recorded with and is
+accepted only when that stamp matches this profile's. Without it — or when
+the stamps differ, e.g. the store was written by a re-stamp that never
+landed on this branch — those targets fail closed. Both values are compared
+in canonical form (full SHA; ISO-8601 UTC with `Z`), so quoting or offset
+spelling in the profile doesn't matter.
 
 The watched files (`lrh.gate_staleness.DEFAULT_WATCHED_FILES`) are the four
 originally watched files, the three previously under-watched skills
@@ -717,9 +728,8 @@ are actually stored* (see the field description above), having been shown
 what changed (the requirement just above) — not merely "a live reply
 happened":
 
-- **Reply matches the stored text (no divergence):** write
-  `confirmed_commit: $(git rev-parse HEAD)` and
-  `confirmed_at: $(date -u +%Y-%m-%dT%H:%M:%SZ)`. This is not a no-op:
+- **Reply matches the stored text (no divergence):** run
+  `lrh chain-defaults restamp --project-root .`. This is not a no-op:
   the human explicitly re-affirmed the current gate text, and that
   affirmation is exactly what `confirmed_commit` exists to record —
   previously nothing re-stamped here, which is the bug this section fixes.
@@ -734,6 +744,29 @@ happened":
   un-ratified value as freshly confirmed, exactly the failure mode Risk
   Notes warns against, just reached via a declined profile-update instead
   of a silent skip.
+
+**Re-stamping.** `lrh chain-defaults restamp --project-root .` is the only
+way to write `confirmed_commit`/`confirmed_at`. It stamps HEAD's full SHA
+and the current UTC time and, in the same act, records content fingerprints
+for every user-scope installed watch target into the clone's git common dir
+(never committed), bound to that same stamp — so git-tracked and
+fingerprinted targets always share one confirmation baseline. Preview first
+with `--dry-run`, which prints the stale-files list, the fingerprint plan
+(`new`/`unchanged`/`changed`/`removed`), and the new stamp. It refuses
+(exit 2, nothing written) if any installed target is unresolved or missing.
+Only hashes are stored, so for a `changed` user-scope entry it can say the
+content differs, not what changed. Because skip consent is bound to this
+file's blob hash, every re-stamp invalidates it; re-grant via
+`/lrh-config-gates`.
+
+**Sanctioned re-stamp points** — both require the same re-stamp condition
+above (the `stale files` payload was shown and the live reply agrees with
+the persisted text): (1) this chain-authorization gate, and (2)
+`/lrh-config-gates`'s separately confirmed re-confirm step, which shows the
+same stale-files payload outside a chain run. Nothing else re-stamps, and
+fingerprints are never recorded except by `restamp`. A stale result whose
+reasons cite a missing or mismatched fingerprint store (user-scope installed
+targets in a client repo) is cleared the same way, at either point.
 
 Do not silently rewrite the stored value based on the fallback's `exit 1`
 signal *alone* — the "do not silently rewrite" caution applies to both the

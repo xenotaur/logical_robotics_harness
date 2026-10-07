@@ -5,10 +5,12 @@ description: 'Inspect and change the chain-defaults gate policy in project/confi
   completion_condition, stop_work_condition), closeout_with_merge shown read-only,
   the local git-config skip-consent hash''s validity, and the gate-definition staleness
   status -- all in one read, via `lrh chain-defaults status` -- before asking anything.
-  Field-value changes and the separate skip-consent grant each require their own explicit
-  confirm; a consent grant is never bundled into or implied by a field-value confirm.
-  Use instead of manually running `git config --get`, `git hash-object`, `lrh chain-defaults
-  check-staleness`, and reading the raw YAML across several turns.
+  Field-value changes, the re-confirm of stale gates (which re-stamps confirmed_commit
+  and records user-scope installed-target fingerprints via `lrh chain-defaults restamp`),
+  and the separate skip-consent grant each require their own explicit confirm; a consent
+  grant is never bundled into or implied by another confirm. Use instead of manually
+  running `git config --get`, `git hash-object`, `lrh chain-defaults check-staleness`,
+  and reading the raw YAML across several turns.
 
   '
 ---
@@ -17,8 +19,10 @@ description: 'Inspect and change the chain-defaults gate policy in project/confi
 
 A thin, CLI-backed skill: `lrh chain-defaults status` computes the full
 read (see `src/lrh/chain_defaults_status.py`); this skill presents it,
-elicits confirmed changes to the 4 human-decidable fields, and separately
-handles the skip-consent grant -- never in the same confirm.
+elicits confirmed changes to the 4 human-decidable fields, offers a
+separately confirmed re-confirm of stale gates (`lrh chain-defaults
+restamp`), and separately handles the skip-consent grant -- never two of
+these in the same confirm.
 
 This is architecture Option C from the session that filed
 `WI-SKILLS-LRH-CONFIG-GATES`: compute in a tested Python module behind a CLI
@@ -87,6 +91,12 @@ Before asking anything, show one table covering the entire status read:
   not a generic note" requirement `chain-defaults.md` states for the
   chain-authorization gate itself. If `staleness` is `null`, show
   `staleness_error` as-is (e.g. "no prior confirmation on record").
+- **Installed-target fingerprints** (from the same `files` list): say how
+  many watched files are user-scope installed targets (paths qualified like
+  `claude:lrh-land/SKILL.md`) and, if any are stale because the fingerprint
+  store is missing ("no persisted content fingerprint") or bound to a
+  different stamp ("different confirmation stamp"), say so plainly -- that
+  is the client-repo case Step 3b clears.
 
 This presentation itself is not a question -- it is shown in full before
 Step 3 asks anything, matching the same "propose, then confirm" shape every
@@ -96,7 +106,7 @@ other gate in this codebase follows.
 ### Step 3 — Offer field-value changes (its own confirm)
 
 Ask the user whether they want to change any of the 4 human-decidable
-fields. If not, skip to Step 5.
+fields. If not, skip to Step 3b.
 
 If yes, collect the desired new value(s) for one or more of the 4 fields.
 Valid values:
@@ -139,15 +149,91 @@ lrh validate --project-dir <project-root>/project
 
 Fix any error before proceeding to Step 5's commit.
 
-**Note on `confirmed_commit`/`confirmed_at`:** this skill does not
-re-stamp them. That is the chain-authorization gate's own job
-(`chain-defaults.md`'s propose-and-confirm flow, exercised at
-`/lrh-land`/`/lrh-execute` Step 2), triggered by a live chain-authorization
-reply -- not by a config-editing session. A field-value change made here
-will show as stale (or, if `chain_init_confirmation` was just set to
-`skip_if_opted_in` for the first time, as no-prior-confirmation) the next
-time a chain gate runs, which is correct: the human edited the policy here,
-but hasn't yet live-confirmed a chain run under it.
+**Note on `confirmed_commit`/`confirmed_at`:** Step 3 never re-stamps
+them. A field-value change made here will show as stale (or, if
+`chain_init_confirmation` was just set to `skip_if_opted_in` for the first
+time, as no-prior-confirmation) until a human re-confirms -- either live at
+the next `/lrh-land`/`/lrh-execute` chain gate, or in Step 3b below once
+the change has landed on `main`.
+
+### Step 3b — Offer to re-confirm stale gates (its own, separate confirm)
+
+Recommend this step when Step 2 showed `stale: true`; otherwise offer it as
+optional, or skip it if the user has no interest. Ask it as its own
+question -- never combined with Step 3's or Step 4's ask.
+
+If Step 3 made field changes in this run that are not yet on `main`, do not
+offer this step now: the stamp must cover the values on `main`. Say so, and
+tell the user to re-confirm after those changes land.
+
+The re-stamp always lands on `main` through Step 5's `main` path, never on a
+feature branch: a stamp committed onto a PR branch would name a commit that
+is not on `main` and mix policy state into an unrelated PR. So, scoped to
+`<project-root>`, create the tmp branch from `origin/main` first (Step 5's
+`main`-path commands, up to the edit), and run everything below there.
+
+```bash
+lrh chain-defaults restamp --project-root <project-root> --dry-run
+```
+
+The real run below recomputes the same plan from the same function, so the
+stale-files list and fingerprint plan match the preview unless an installed
+file changes in between; the `confirmed_at` time shown is indicative (the
+real run stamps the moment it runs).
+
+<!-- GATE-DEFINITION -->
+**Confirm gate.** Before re-stamping, show:
+
+- The `Stale files being re-confirmed` list from the dry run, verbatim
+  (path and reason per file) -- the same payload the chain-authorization
+  gate would show (`chain-defaults.md`'s re-stamp condition).
+- The fingerprint plan: each user-scope installed target with its
+  comparison (`new` / `unchanged` / `changed` / `removed`) and path.
+- The new stamp (`confirmed_commit` and `confirmed_at`).
+- Plainly: this accepts the **current** gate text of every watched file as
+  confirmed. For a `changed` user-scope entry, LRH stores only hashes, so it
+  can say the installed content differs but not what changed -- inspect the
+  file yourself if that matters.
+- Plainly: re-stamping changes `chain-defaults.yaml`, so any skip consent
+  becomes invalid until re-granted (Step 4).
+
+Wait for explicit confirmation before running the re-stamp. A confirm here
+covers only the re-stamp -- never the consent grant.
+<!-- /GATE-DEFINITION -->
+
+Run, on the tmp branch:
+
+```bash
+lrh chain-defaults restamp --project-root <project-root>
+```
+
+If it exits 2 (an unresolved or missing installed target), report the
+error verbatim and stop this step -- nothing was written. Otherwise commit
+the profile change and continue through Step 5's `main` path (including its
+explicit push confirmation). If the user declines the push, say plainly
+that `main`'s profile is unchanged; the fingerprint store was already
+written to the clone's git common dir, but it is bound to a stamp no
+committed profile carries, so it is ignored (user-scope targets keep
+failing closed) until a re-stamp lands. Return to the original branch and
+leave the tmp branch for the user to delete; skip the rest of this step.
+
+After the push, return to the original branch. If that branch is `main`,
+fast-forward it so its profile carries the new stamp:
+
+```bash
+git -C <project-root> merge --ff-only origin/main
+```
+
+(after a `git -C <project-root> fetch origin main --quiet`). If the
+fast-forward fails, report it and do not offer Step 4. Then re-read status. Report
+the staleness result honestly. Offer Step 4's consent grant only if
+`<project-root>`'s checked-out `chain-defaults.yaml` now carries the new
+stamp (e.g. a `main` checkout fast-forwarded to `origin/main`). If it
+doesn't -- notably on a PR branch -- do not offer the grant: Step 4 hashes
+the checked-out file, so a grant there would be bound to the old profile
+and could never match. Tell the user to run `/lrh-config-gates` from a
+checkout with the new profile (e.g. `main`, or the PR branch after it
+merges `main`) to grant consent.
 
 ### Step 4 — Offer the skip-consent grant (its own, separate confirm)
 
@@ -182,8 +268,8 @@ If yes:
 - This binds consent to the **current on-disk file's content** at the
   moment the command runs. If Step 3 just edited the file in this same
   session, that edit is already reflected -- but if the file changes again
-  after this grant (including a later `confirmed_commit` re-stamp), this
-  grant is invalidated and must be re-run; this skill does not
+  after this grant (including a later `confirmed_commit` re-stamp, e.g. from
+  Step 3b or a chain gate), this grant is invalidated and must be re-run; this skill does not
   automatically detect and silently re-grant that later.
 
 Wait for explicit confirmation before running the command.
@@ -197,10 +283,12 @@ the mismatch plainly rather than claiming success -- this is the same
 class of self-caught error this session hit and corrected live while
 granting consent for `WI-SKILLS-LRH-CONFIG-GATES` itself.
 
-### Step 5 — Commit and push (if Step 3 made changes)
+### Step 5 — Commit and push (if Step 3 or Step 3b made changes)
 
-Skip this step if Step 3 made no changes (a consent grant alone, from Step
-4, is a local-only git-config write with nothing to commit).
+Skip this step if neither Step 3 nor Step 3b changed anything (a consent
+grant alone, from Step 4, is a local-only git-config write with nothing to
+commit). A Step 3b re-stamp always takes the `main` path below, even when
+the current branch is tied to an open PR.
 
 Determine the current branch, scoped to `<project-root>` like every other
 git operation in this skill:
@@ -209,8 +297,8 @@ git operation in this skill:
 git -C <project-root> branch --show-current
 ```
 
-**If on a feature branch already tied to an open PR:** commit and push as
-an additional commit to that branch, same as any other config change
+**If on a feature branch already tied to an open PR (Step 3 field changes
+only):** commit and push as an additional commit to that branch, same as any other config change
 mid-PR -- `git -C <project-root> add ...`, `git -C <project-root> commit
 ...`, `git -C <project-root> push`.
 
@@ -238,6 +326,8 @@ Report to the user:
 
 - The full status table as it now stands (re-read after any change).
 - Which fields changed, if any (Step 3).
+- Whether gates were re-confirmed (Step 3b): the new stamp, the
+  fingerprint plan that was recorded, and the resulting staleness.
 - Whether consent was granted/regranted, and its resulting validity (Step
   4).
 - The commit(s) pushed, if any (Step 5).
@@ -252,9 +342,12 @@ Report to the user:
   `/lrh-land`/`/lrh-execute`, not this skill.
 - Does not expose `closeout_with_merge` as a configurable field -- it is
   documented read-only (`chain-defaults.md:40-46`).
-- Does not re-stamp `confirmed_commit`/`confirmed_at` -- that only happens
-  through a live chain-authorization reply at `/lrh-land`/`/lrh-execute`
-  Step 2, per the re-stamp condition in `chain-defaults.md`.
+- Does not re-stamp `confirmed_commit`/`confirmed_at`, or record
+  installed-target fingerprints, outside Step 3b's own confirm -- and only
+  ever via `lrh chain-defaults restamp`, which does both as one act. The
+  only other sanctioned re-stamp point is a live chain-authorization reply
+  at `/lrh-land`/`/lrh-execute` Step 2 (`chain-defaults.md`).
+- Does not commit a re-stamp onto a feature or PR branch.
 - Does not bundle the skip-consent grant into the field-value confirm, or
   infer consent-granting intent from an ambiguous reply.
 - Does not claim git-config consent transfers across independent clones.

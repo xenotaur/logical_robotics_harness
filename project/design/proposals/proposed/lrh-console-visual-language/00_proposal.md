@@ -482,7 +482,7 @@ that the owner accepted afterwards: the theme plan ("theme plan is fine") and th
 | Q5 | Theme? | Themes are sets of token values. The first supported themes are light and dark, with three choices: Light, Dark, and System, defaulting to System. |
 | Q6 | Look and feel? | Start with a restrained version of the swimlane console in both themes. Make it more striking later if needed. It should be eye-catching but usable. |
 | Q7 | Dependency lines? | Layered layout is the default, and layouts are pluggable so other styles can be swapped in. Right-angled routing and the line-style set are *(recommended)*. |
-| Q8 | JavaScript in Serve? | A static, script-free version always works, and v1 is static. A separate opt-in flag, `lrh serve --interactive`, allows JavaScript later. The desktop app passes it too. |
+| Q8 | JavaScript in Serve? | A static, script-free version always works, and v1 is static. A separate opt-in flag, `lrh serve --interactive`, allows JavaScript later. That the desktop app passes it too is *(recommended)*. |
 | Q9 | App frame? | A top bar, a scoped sidebar that collapses to an icon rail, and a detail drawer (below). |
 | Q10 | Where do tokens live? | One CSS custom-properties file, shared by Serve and the desktop app. |
 | Q11 | Type and icons? | Start with the agent's recommendation: Montserrat (offered by the owner as the Logical Robotics superfamily) for display, the system font for body text, and monospace for IDs. Icons come from Lucide or Phosphor as a local SVG subset. |
@@ -532,6 +532,9 @@ never merge.
    - **In progress:** the item is active and not blocked.
    - **Waiting:** a `depends_on` prerequisite is not done.
    - **Unblocked:** every prerequisite is done.
+
+   An abandoned item is never Done and never Unblocked: it is shown by its lifecycle, as
+   abandoned, and an item that depends on it shows that dependency as unresolved.
 3. **Statusboard bands:** operational state for each project, using this proposal's operational
    vocabulary (Needs attention, Blocked, Active work, Awaiting review, Stable, and Unknown).
 
@@ -606,8 +609,8 @@ within a cell and how lines are routed. Other layouts may place cards differentl
 
 The static SVG and the interactive mode both draw from that same output, so the static version
 never depends on scripts. The default is layered ordering (Sugiyama-style) with right-angled
-routing, which is standard for directed acyclic graphs and keeps crossings readable. A curved, analyzer-style router is the expected second
-implementation.
+routing, which is standard for directed acyclic graphs and keeps crossings readable. A curved,
+analyzer-style router is the expected second implementation.
 
 *(Recommended)* Line style shows the relationship type, not color alone:
 
@@ -626,11 +629,11 @@ interactive mode comes after it.
 
 - **The static version always works.** Every view, including the map, the drawer through a
   selected-item URL, and the table, renders on the server without scripts.
-- **A separate opt-in flag, `lrh serve --interactive`, allows JavaScript for interaction.** The
-  desktop app passes it too.
-  - The owner first described this as a `--desktop` mode. On 2026-10-07 the owner chose a
-    separate flag over tying scripts to `--desktop-protocol`, so browser users of `lrh serve`
-    can opt in as well.
+- **A separate opt-in flag, `lrh serve --interactive`, allows JavaScript for interaction.**
+  - The owner first described this as a `--desktop` mode. On 2026-10-07 the owner decided: "use a
+    separate --interactive flag". The agent's rationale was that a separate flag lets browser
+    users of `lrh serve` opt in too, rather than tying scripts to `--desktop-protocol`.
+  - *(Recommended)* The desktop app passes the flag as well.
   - *(Recommended)* The mode allows only packaged same-origin scripts (`script-src 'self'`). It
     allows no inline script and no `eval`.
   - Scripts only add tracing, filtering, and the in-page theme switch on top of the static

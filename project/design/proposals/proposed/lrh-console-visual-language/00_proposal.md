@@ -4,7 +4,7 @@ type: design_proposal
 title: LRH Console Visual Language
 status: proposed
 created_on: 2026-05-16
-updated_on: 2026-05-16
+updated_on: 2026-10-07
 implementation_status: not_started
 related_focus:
   - FOCUS-EXECUTION-FRAMEWORK-PLANNING
@@ -12,10 +12,13 @@ related_roadmap:
   - ROADMAP-PHASE-03
 related_workstreams:
   - WS-EXECUTION-FRAMEWORK
+  - WS-LRH-CONSOLE-LOCAL-DOGFOOD
 related_work_items:
   - WI-LRH-SERVE-SAFE-DEFAULT-MVP
 related_design:
   - project/design/meta_control_plane_mvp_spec.md
+  - project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md
+  - project/design/proposals/proposed/meta-operational-triage-semantics/00_proposal.md
   - project/design/proposals/README.md
 supersedes: []
 superseded_by: null
@@ -33,6 +36,19 @@ state can be understood at a glance without losing LRH's evidence-backed discipl
 This is a design proposal, not an implementation PR. It records the intended visual language,
 information architecture, reusable dashboard patterns, theme direction, and guardrails for later UI
 work after the safe-default `lrh serve` MVP stabilizes.
+
+**Revision 2 (2026-10-07)** extends the proposal from the meta dashboard to the whole LRH Console:
+
+- the multi-project statusboard;
+- the L1 dependency map from
+  [`PROP-LRH-CONSOLE-LOCAL-DOGFOOD`](../lrh-console-local-dogfood/00_proposal.md);
+- the app frame shared by the desktop app and the browser.
+
+It records the owner's decisions on the design-language questions in
+[Revision 2 decisions](#revision-2-decisions-2026-10-07). Where those decisions refine earlier
+sections, the decisions section governs. Earlier sections keep their original wording, with short
+"Revision 2" pointers where a term changed, so the first revision stays readable. The Open
+questions, Mockup assets, and implementation-guidance sections were updated in place.
 
 ## Scope and non-goals
 
@@ -134,6 +150,9 @@ state, or an explicit unknown/unavailable state.
 
 ### Meta dashboard
 
+*Revision 2: this view is now the **statusboard**, and its status rows are **bands**. See
+[Vocabulary](#vocabulary-q2).*
+
 The meta dashboard should show all registered projects in operational swimlanes. It is the place to
 answer: Which projects need attention? Which are actively moving? Which are awaiting review? Which
 are stable? Which are blocked or unknown?
@@ -182,8 +201,10 @@ Future LRH Console work should prefer reusable patterns over one-off templates:
   and source views.
 - **System overview ribbon** — small top-level summary of project count, validation state, active
   work, and unknown/unavailable data.
-- **Operational swimlanes** — full-width lane groups for operational status.
-- **Lane header** — lane label, icon, count, explanation, and evidence freshness.
+- **Operational swimlanes** — full-width lane groups for operational status. *(Revision 2: these
+  are statusboard **bands**.)*
+- **Lane header** — lane label, icon, count, explanation, and evidence freshness. *(Revision 2: band
+  header.)*
 - **Project card** — concise project state, current focus, validation summary, work counts, evidence
   hints, and source links.
 - **Project inspector** — detail panel or page that keeps source artifacts and current operational
@@ -199,12 +220,15 @@ Future LRH Console work should prefer reusable patterns over one-off templates:
   expected report, and result evidence.
 - **Source artifact link** — direct path or route back to the Markdown, report, log, or artifact that
   grounds the displayed claim.
-- **Theme toggle** — light/dark control that preserves semantic meaning across themes.
+- **Theme toggle** — light/dark control that preserves semantic meaning across themes. *(Revision 2:
+  Light, Dark, and System, set outside the page until the interactive mode exists; see
+  [Themes](#themes-q5).)*
 
 ## Semantic status vocabulary
 
 The meta dashboard should distinguish operational state from lifecycle state where necessary. For
-example, a proposed work item can still be in an operational **Needs Attention** lane if it is
+example, a proposed work item can still be in an operational **Needs Attention** lane (Revision 2:
+band) if it is
 blocked, stale, or missing evidence.
 
 Recommended operational status vocabulary:
@@ -281,7 +305,19 @@ A practical first implementation slice would probably include:
 1. a CSS token file;
 2. light and dark theme token values;
 3. a style specimen route or page; and
-4. one read-only meta dashboard view using operational swimlanes.
+4. one read-only meta dashboard view using operational swimlanes (Revision 2: the banded statusboard).
+
+Revision 2 refines this into the L1 work of `WS-LRH-CONSOLE-LOCAL-DOGFOOD`, one work item per PR:
+
+1. the shared token file and style specimen;
+2. theme plumbing (System default, `--theme`, desktop Settings);
+3. the app frame in Serve's pages;
+4. the dependency-map snapshot and view declaration;
+5. the static map renderer with a pluggable layout;
+6. the interactive mode, after the static version;
+7. the banded statusboard.
+
+These work items are created in a later planning change.
 
 Early work may begin with package-owned static/templates and CSS tokens. As implementation matures,
 use view models rather than direct ad hoc template dictionaries so that dashboard rendering remains
@@ -403,28 +439,318 @@ Use these categories to keep review feedback lightweight and tranche-aware:
 - **Blocks merge:** the implementation creates unsafe affordances, misleading status, inaccessible
   state communication, or hard-to-reverse architecture.
 
+## Revision 2 decisions (2026-10-07)
+
+### How these were reached
+
+The owner and an agent reviewed four design sources, in the owner's order of preference:
+
+1. **The ChatGPT "Workstream Analyzer".** An interactive dependency viewer the owner asked ChatGPT
+   to generate after using it to review the open work in LCATS. The owner shared it at
+   <https://lrh-workstream-analyzer.xenotaur.chatgpt.site/>. It started this workstream.
+2. **This proposal's Alternative D swimlane console mockups** (`assets/`), in dark and light.
+3. **The dependency-analyzer mockups** in
+   [`lrh-console-local-dogfood/mockups/`](../lrh-console-local-dogfood/mockups/README.md).
+4. **The current app and `lrh serve` pages.**
+
+The review compared them against the repository, the dogfood evidence
+(`project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md`), and published guidance: WCAG 2.2,
+CSS Media Queries Level 5, and layered graph-drawing practice. The owner then decided each
+question below.
+
+An interactive mock of the resulting frame and views is in
+[`assets/lrh-console-frame-mock.html`](assets/lrh-console-frame-mock.html). It is an
+illustrative reference with sample data, like the PNG mockups. The owner's review of it found
+the frame, bands, and drawer right as a starting point, with no status colors that blur.
+
+### Decision provenance
+
+Each headline decision below is the owner's. Some supporting details are agent recommendations
+that the owner accepted afterwards: the theme plan ("theme plan is fine") and the mock review
+(the frame, bands, drawer, and colors). Details the owner has not explicitly reviewed are marked
+*(recommended)*. Unresolved points are listed under [Open questions](#open-questions).
+
+### Decision summary
+
+| # | Question | Decision |
+| --- | --- | --- |
+| Q0 | Revise this proposal or start a new one? | Revise this proposal; this is that revision. |
+| Q1 | Which source leads? | One shared foundation (tokens, components, status vocabulary) for every view, with a lead reference per view. The analyzer leads the dependency map. The dependency mockups contribute the detail drawer, the table toggle, source links, and explicit unknowns. Alternative D leads the statusboard. |
+| Q2 | What does "lane" mean? | A **lane** (or "swimlane") is a column of the dependency map, one per workstream. A **phase** is a row of the map. The multi-project view is the **statusboard**, and each of its status rows is a **band**. The owner chose "band" after comparing it with "status row", "tier", and "group". |
+| Q3 | Which statuses exist? | Three layers (below), with "Ready" split into unblocked, prompt-ready, and authorized. |
+| Q4 | Effort and critical path? | Not in L1. The views keep a visible "not modeled yet" slot for them, and effort estimates are a separate backlog item. |
+| Q5 | Theme? | Themes are sets of token values. The first supported themes are light and dark, with three choices: Light, Dark, and System, defaulting to System. |
+| Q6 | Look and feel? | Start with a restrained version of the swimlane console in both themes. Make it more striking later if needed. It should be eye-catching but usable. |
+| Q7 | Dependency lines? | Layered layout is the default, and layouts are pluggable so other styles can be swapped in. Right-angled routing and the line-style set are *(recommended)*. |
+| Q8 | JavaScript in Serve? | A static, script-free version always works, and v1 is static. An explicit mode on `lrh serve` (the owner named it a `--desktop` mode) can allow JavaScript later. How that mode is switched on is open (below). |
+| Q9 | App frame? | A top bar, a scoped sidebar that collapses to an icon rail, and a detail drawer (below). |
+| Q10 | Where do tokens live? | One CSS custom-properties file, shared by Serve and the desktop app. |
+| Q11 | Type and icons? | Start with the agent's recommendation: Montserrat (offered by the owner as the Logical Robotics superfamily) for display, the system font for body text, and monospace for IDs. Icons come from Lucide or Phosphor as a local SVG subset. |
+| Q12 | Color vision? | Colorblind-friendly by construction, while staying accessible, eye-catching, and informative. The owner is partially red-green colorblind. |
+
+### Vocabulary (Q2)
+
+| Term | Where | Meaning |
+| --- | --- | --- |
+| Lane | Dependency map | A column, one per workstream. This matches process-diagram usage, where a swimlane is the part of a diagram owned by one area. |
+| Phase | Dependency map | An ordered organizational row. It is not a gate and not a time estimate (`lrh-console-local-dogfood/00_proposal.md:246`). |
+| Statusboard | Multi-project view | The view this proposal first called the "meta dashboard" or "swimlane console". Alternative D remains its historical name and visual reference. |
+| Band | Statusboard | One status row, such as the "Needs attention band". |
+
+"Band" replaces the user-facing label "Triage lane" recommended by
+[`PROP-META-OPERATIONAL-TRIAGE-SEMANTICS`](../meta-operational-triage-semantics/00_proposal.md).
+The internal field name `triage_lane`, already used in `src/lrh/serve.py` and
+`src/lrh/ux/dashboard.py`, is unchanged for now. Renaming it to match is optional later work.
+It is a data-model change, not a design-language one.
+
+That proposal also differs on the bands themselves, and the two need reconciling:
+
+- **Its target set** (`meta-operational-triage-semantics/00_proposal.md:170-183`) is Blocked,
+  Needs Attention, Active Work, Ready for Work, No Action Needed, Archived, and Unknown. It
+  defers Awaiting Review until review-ready state can be detected reliably.
+- **Its precedence** puts Blocked first.
+- **Its UI labels** are Title Case (`:120`), while this proposal uses sentence case.
+
+For now the statusboard follows this proposal's operational vocabulary. Reconciling the two band
+sets is listed under Open questions.
+
+### Status model (Q3)
+
+Within a layer, each state has exactly one icon, one text label, and one color. The three layers
+never merge.
+
+1. **Lifecycle:** read from the source record, for example a work item's `proposed`, `active`,
+   `resolved`, or `abandoned` status.
+2. **Structural dependency state:** computed from `depends_on` and `blocked_by` in the snapshot,
+   and shown as computed. Its values are:
+   - **Done:** the item is resolved.
+   - **In progress:** the item is active.
+   - **Unblocked:** every prerequisite is done.
+   - **Waiting:** a `depends_on` prerequisite is not done.
+   - **Blocked:** an explicit `blocked_by` blocker is not done.
+3. **Statusboard bands:** operational state for each project, using this proposal's operational
+   vocabulary (Needs attention, Blocked, Active work, Awaiting review, Stable, and Unknown).
+
+"Ready" is never shown unqualified. It is split three ways:
+
+- **Unblocked:** structural, from the item's dependencies.
+- **Prompt-ready:** the existing `prompt_ready` result of `lrh work-items readiness`.
+- **Authorized:** a human decision. LRH grants no per-item execution authority, so views show
+  "needs your approval" rather than deriving a status.
+
+A card can show, for example, "Unblocked · not prompt-ready". This follows
+`lrh-console-local-dogfood/mockups/README.md:38-40` and
+`lrh-console-local-dogfood/00_proposal.md:258-275`.
+
+### Effort and critical path (Q4)
+
+L1 shows no effort, duration, or critical-path figures. The data has no such fields, and
+`lrh-console-local-dogfood/00_proposal.md:250` rules out invented ones.
+
+Views keep a visible slot that says "Effort and critical path: not modeled yet". That way the
+layout does not change when estimates arrive. A "longest dependency chain" figure needs no
+effort data and may be shown, provided it is labelled exactly that. Effort estimates are tracked
+in `project/design/backlog.md`.
+
+### Themes (Q5)
+
+- **Themes are token sets.** Components read only semantic tokens, so a theme is a set of
+  values and never a separate component. Light and dark are the first supported themes. Others,
+  such as high contrast through `prefers-contrast`, are new value sets.
+- **Choices:** Light, Dark, and System, defaulting to System. System follows
+  `prefers-color-scheme`, from CSS Media Queries Level 5, using CSS only, so it works in the
+  static version.
+- **Where the explicit choice is set:** the static version has no script to remember a choice,
+  so:
+  - the desktop app sets it in Settings and passes it to Serve;
+  - browser users set it with `lrh serve --theme light|dark|system`;
+  - an in-page switch arrives with the interactive mode (Q8).
+- **Current state:** today Serve hard-codes `data-theme="light"` on every page (`src/lrh/serve.py`),
+  so its dark tokens are never used. The desktop app's bundled pages already follow the system
+  setting. The theme work item fixes this mismatch.
+
+### Look and feel (Q6)
+
+The owner's decision: start with a restrained version of the swimlane console in dark and light,
+and make it more striking later if needed. It should be eye-catching but usable. The owner found
+the analyzer, the dark swimlane console, and its light version all appealing; the swimlane ones
+were the original preference.
+
+*(Recommended, and confirmed by the mock review)* What restrained means:
+
+- **Keep this proposal's redundant grouping cues:** a band tint, borders, a left accent rail,
+  visible labels, and icons paired with text.
+- **Drop decoration:** the glows, gradients, neon, and multicolored icons in the Alternative D
+  images.
+- **Spend color on meaning:** status hues are reserved for status. There is one accent color,
+  taken from the LRH v8 icon.
+- **Get the eye-catching part from:** that accent, a display-type hero on each page, and the
+  dependency map itself.
+
+Because everything rests on shared tokens and components, making it more striking later is a
+token or component change rather than a redesign.
+
+### Dependency lines and layout (Q7)
+
+The owner decided that layered layout is the default and that layouts are pluggable, so different
+styles can be swapped in.
+
+*(Recommended)* A Python layout module turns the typed `DependencyMapSnapshot` into positioned
+cards and routed lines, behind a named, swappable interface. In the default layered layout, the
+lane and phase grid fixes each card's cell, so the default varies only how cards are ordered
+within a cell and how lines are routed. Other layouts may place cards differently. The static SVG and the interactive mode both draw
+from that same output, so the static version never depends on scripts. The default is layered
+ordering (Sugiyama-style) with right-angled routing, which is standard for directed acyclic
+graphs and keeps crossings readable. A curved, analyzer-style router is the expected second
+implementation.
+
+*(Recommended)* Line style shows the relationship type, not color alone:
+
+- solid for "depends on";
+- dashed for "blocked by";
+- dotted for review gates.
+
+All lines are dimmed by default. Selecting a card highlights its upstream and downstream lines
+and cards. The table view is always available (`lrh-console-local-dogfood/00_proposal.md:279-284`).
+
+### Static first, interactive by opt-in (Q8)
+
+Serve's current content security policy (`default-src 'none'`, with inline styles only) was
+chosen to keep the first version safe, not as a permanent rule. Version 1 is static; the
+interactive mode comes after it.
+
+- **The static version always works.** Every view, including the map, the drawer through a
+  selected-item URL, and the table, renders on the server without scripts.
+- **An explicit Serve mode allows JavaScript for interaction.** The owner described it as a
+  `--desktop` mode on `lrh serve`.
+  - *(Recommended)* The mode allows only packaged same-origin scripts (`script-src 'self'`). It
+    allows no inline script and no `eval`.
+  - Scripts only add tracing, filtering, and the in-page theme switch on top of the static
+    markup.
+- **Open: how the mode is switched on.** The owner's "`--desktop` mode" could mean a new flag or
+  the existing `--desktop-protocol` flag (`src/lrh/serve.py`). The agent recommended a separate
+  opt-in flag, such as `lrh serve --interactive`, that the desktop app also passes, because tying
+  scripts to `--desktop-protocol` would keep the interactive map from browser users of
+  `lrh serve`. The owner has not yet confirmed this.
+
+This keeps `lrh-console-local-dogfood/00_proposal.md:138-139`, which packages prebuilt web assets
+with Python so that Serve users need no Node or Rust.
+
+### App frame (Q9)
+
+The frame lives in Serve's pages, so it is shared with any browser
+(`lrh-console-local-dogfood/00_proposal.md:129-130`). Native desktop menus stay minimal.
+
+- **Top bar, left:**
+  - the LRH v8 icon, which always returns to the default home view (the statusboard);
+  - the page name;
+  - the current scope.
+- **Top bar, right:**
+  - search;
+  - snapshot freshness and refresh;
+  - a settings gear. In the desktop app it opens Settings. *(Recommended)* In a browser it opens a
+    display and about page.
+- **Left sidebar:** scope first ("All projects" or one project), then that scope's views:
+  - for all projects, the statusboard;
+  - for a project, Overview, Dependency map, Table, Blockers, and Evidence.
+
+  The sidebar collapses to an icon rail, and every icon has an accessible name that also appears
+  on hover and focus (see [Accessibility requirements](#accessibility-requirements)).
+- **Details:** a drawer on the right, so the map keeps its width. Every item also has a
+  full-page link that works in the static version. On narrow screens, the drawer becomes the
+  full page.
+- **Page summaries:** each page's summary (hero, counts, current focus) is page content, not part
+  of the frame.
+- *(Recommended)* **Desktop title bar:** the desktop app keeps the standard macOS title bar. A merged, overlay
+  title bar would need a window-drag permission in the main window, which deliberately has none
+  (`apps/desktop/src-tauri/capabilities/main-window.json`).
+
+The always-visible inspector from Alternative D is the fallback if the drawer does not work out.
+
+### Tokens (Q10)
+
+- **One file:** a single CSS custom-properties file holds every color, type, space, radius, and
+  motion value. It extends the names Serve already uses (`--lrh-color-*` in `src/lrh/serve.py`).
+- *(Recommended)* **Two copies, kept in sync:** Serve serves the file, and the desktop app
+  bundles a copy, because its own pages must render while Serve is not running. A test keeps the
+  copies identical.
+- **Accent:** taken from the LRH v8 icon (`#3057d5`, `#4abcf2`, `#0a274d`).
+- **Draft values:** the mock's `:root` block is the draft starting point. The mock uses short
+  `--color-*` names; the real file uses the `--lrh-` prefix, for example
+  `--lrh-color-status-blocked-fg`.
+
+### Type and icons (Q11)
+
+- **Fonts:**
+  - Montserrat (the Logical Robotics typeface, under the SIL Open Font License) for page titles,
+    the hero, and large numbers;
+  - the system UI font for body text and cards;
+  - a monospace font for IDs.
+- **Bundle Montserrat locally.** The packaged app must work offline, and Serve's policy allows no
+  external font host. Montserrat is not used for small text, where its width and ambiguous
+  letterforms (l, I, 1) hurt density and legibility.
+- **Icons:** a local SVG subset of Lucide (ISC license) or Phosphor (MIT). SF Symbols is not used:
+  its license limits it to Apple-platform interfaces, and Serve runs in any browser.
+
+### Color vision (Q12)
+
+The palette is designed for color-vision deficiency first. The owner is partially red-green
+colorblind.
+
+- **Status hues** derive from the Okabe–Ito palette. The mock's values follow this mapping:
+
+  | State or band | Hue |
+  | --- | --- |
+  | Done, Stable | bluish green |
+  | In progress, Active work | blue |
+  | Unblocked | sky blue |
+  | Waiting, Needs attention | orange |
+  | Blocked | vermillion |
+  | Awaiting review | reddish purple |
+  | Unknown | neutral gray |
+
+- **Never red against green alone.** Where hues fall on the red-green axis, such as Done (bluish
+  green) and Blocked (vermillion), they also differ in lightness and redundant cues.
+- **Redundant cues.** Every state also carries an icon, a text label, and a line or border style
+  (WCAG 2.2 SC 1.4.1). Blocked cards add a dashed edge.
+- **Contrast in both themes:** text meets SC 1.4.3 (4.5:1). Lines, icons, and focus rings meet
+  SC 1.4.11 (3:1).
+- **Checking:** views are checked with color-vision emulation, and the owner's review is the
+  real-world test.
+- **Motion:** honors `prefers-reduced-motion` (SC 2.3.3, a AAA criterion adopted here).
+
 ## Open questions
 
-- Exact token names and final color values.
-- Icon source.
-- Typography/font stack.
-- Asset storage convention.
-- Whether theme preference persists locally.
-- Large project registry scaling: filtering, search, collapsed lanes, and table fallback.
-- Inspector behavior: side panel, drawer, or full detail page at smaller breakpoints.
+Revision 2 settled several of the original questions:
+
+- **Icon source:** Lucide or Phosphor (Q11).
+- **Typography:** decided (Q11).
+- **Asset storage convention:** this proposal's `assets/` directory.
+- **Theme persistence:** Settings and `--theme`, then an in-page switch in interactive mode (Q5).
+- **Inspector behavior:** a drawer, with a full-page fallback (Q9).
+
+Still open:
+
+- Final token names and color values. The mock's `:root` block is the draft.
+- Large project registry scaling: filtering, search, collapsed bands, and the table fallback.
+- Whether to rename the internal `triage_lane` field to match the "band" vocabulary.
+- How the interactive Serve mode is switched on: tied to the desktop mode, or a separate flag such
+  as `--interactive` (Q8).
+- Reconciling the statusboard bands with the lane set, precedence, and label case in
+  `PROP-META-OPERATIONAL-TRIAGE-SEMANTICS` (see [Vocabulary](#vocabulary-q2)).
 
 ## Mockup assets
 
-The selected light and dark Alternative D mockups are expected to be added manually after this design
-proposal lands. Suggested filenames are:
+The `assets/` directory holds:
 
-- `assets/alternative_d_enhanced_swimlane_console_light.png`
-- `assets/alternative_d_enhanced_swimlane_console_dark.png`
+- `assets/alternative_d_enhanced_swimlane_console_light.png` and
+  `assets/alternative_d_enhanced_swimlane_console_dark.png`: the Alternative D images, the
+  statusboard reference;
+- `assets/lrh-console-frame-mock.html`: the Revision 2 interactive mock of the frame, the banded
+  statusboard, and the dependency map, with Light, Dark, and System themes.
 
-If those files are present, they should be treated as illustrative references for direction,
-semantics, and mood. They are not pixel-perfect implementation requirements.
-
-See [`assets/README.md`](assets/README.md) for the placeholder asset convention.
+All of them are illustrative references for direction, semantics, and mood, and use sample data.
+They are not pixel-perfect implementation requirements. See [`assets/README.md`](assets/README.md).
 
 ## References / links
 

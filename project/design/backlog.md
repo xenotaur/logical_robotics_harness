@@ -2202,3 +2202,34 @@ updates);
 `project/workstreams/active/WS-LRH-CONSOLE-LOCAL-DOGFOOD.md`;
 `src/lrh/control/planning_tree.py` (existing planning warnings);
 `src/lrh/skills/lrh-closeout/SKILL.md` (decision matrix).
+
+---
+
+## Effort estimates for work items (dependency-map duration and critical path)
+
+**Noted:** 2026-10-07, while revising `PROP-LRH-CONSOLE-VISUAL-LANGUAGE` (Revision 2, Q4). The
+ChatGPT Workstream Analyzer that inspired the LRH Console L1 dependency map shows an effort size
+(S, M, or L) on each card and a "critical path" count.
+
+LRH work items have no effort or duration field (`src/lrh/control/validator.py`). The L1 rules in
+`project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md:250` rule out invented
+duration or critical-path claims. The owner decided to drop both from L1, keep a visible "not
+modeled yet" slot in the views, and track estimates here.
+
+**Idea:** an optional, explicitly sourced estimate on work items, with a computed critical path
+labelled with its method. Design questions:
+
+- **What is estimated:** effort, elapsed time, or both, kept separate as the dogfood proposal
+  asks.
+- **How:** a size scale or hours, plus uncertainty and capacity assumptions.
+- **Who sets it, and how it is validated:** estimates need provenance, and should flag when
+  stale.
+- **How critical path is computed and labelled:** without estimates, only a "longest dependency
+  chain" can be shown honestly.
+
+**Status:** Not yet a work item. Revisit after the L1 dependency map ships and real planning
+questions show whether estimates would change decisions.
+
+**Related:** `project/design/proposals/proposed/lrh-console-visual-language/00_proposal.md`
+(Revision 2, Q4); `project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md`
+(§5, the Duration row); `WS-LRH-CONSOLE-LOCAL-DOGFOOD`.

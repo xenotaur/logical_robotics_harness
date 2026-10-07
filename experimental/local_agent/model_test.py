@@ -227,6 +227,43 @@ class OllamaLocalOnlyTest(unittest.TestCase):
             with self.subTest(url):
                 model.check_loopback_url(url)
 
+    def test_unparsable_url_is_refused_without_echo(self) -> None:
+        for url in (
+            "http://[SECRETTOKEN]:11434",
+            "http://[::1]SECRETTOKEN:11434",
+            "http://SECRETTOKEN@[::1",
+        ):
+            with self.subTest(url):
+                with self.assertRaises(model.BackendError) as caught:
+                    model.check_loopback_url(url)
+                self.assertEqual(caught.exception.kind, model.KIND_MISSING_PREREQUISITE)
+                self.assertNotIn("SECRETTOKEN", str(caught.exception))
+
+    def test_whitespace_and_control_characters_are_refused(self) -> None:
+        for url in (
+            " http://127.0.0.1:11434",
+            "http://127.0.0.1:11434 ",
+            "http://loc\nalhost:11434",
+            "http://127.0.0.1:11434\t",
+        ):
+            with self.subTest(repr(url)):
+                with self.assertRaisesRegex(model.BackendError, "whitespace"):
+                    model.check_loopback_url(url)
+
+    def test_accepted_url_is_rebuilt_from_host_and_port(self) -> None:
+        cases = {
+            "http://127.0.0.1:11434": "http://127.0.0.1:11434",
+            "http://127.0.0.1:11434/": "http://127.0.0.1:11434",
+            "http://127.0.0.1:11434?": "http://127.0.0.1:11434",
+            "http://localhost:11434#": "http://localhost:11434",
+            "HTTP://LOCALHOST:11434/;": "http://localhost:11434",
+            "http://[::1]": "http://[::1]",
+            "http://[::1]:11434/": "http://[::1]:11434",
+        }
+        for url, expected in cases.items():
+            with self.subTest(url):
+                self.assertEqual(model.check_loopback_url(url), expected)
+
     def test_invalid_port_rejected(self) -> None:
         for url in ("http://127.0.0.1:99999", "http://localhost:abc"):
             with self.subTest(url):

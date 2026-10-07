@@ -154,26 +154,40 @@ def urllib_stream_transport(
                 yield json.loads(line)
 
 
-def check_loopback_url(base_url: str) -> None:
-    """Accept only ``http://<loopback-host>[:<port>]`` endpoints.
+def check_loopback_url(base_url: str) -> str:
+    """Accept only ``http://<loopback-host>[:<port>]``; return its clean form.
 
     Nothing else may ride along: credentials, a path, parameters, a query,
-    or a fragment are refused, so an accepted URL is safe to echo later.
-    Errors never echo the URL or its host.
+    a fragment, whitespace, or control characters are refused. The returned
+    URL is rebuilt from the parsed host and port, so it is safe to echo and
+    to build request URLs from. Errors never echo the URL or its host.
     """
-    parsed = urllib.parse.urlparse(base_url)
+    if any(
+        char.isspace() or ord(char) < 0x20 or ord(char) == 0x7F for char in base_url
+    ):
+        raise BackendError(
+            KIND_MISSING_PREREQUISITE,
+            "endpoint must not contain whitespace or control characters",
+        )
+    try:
+        parsed = urllib.parse.urlparse(base_url)
+        has_user_info = parsed.username is not None or parsed.password is not None
+    except ValueError:
+        raise BackendError(
+            KIND_MISSING_PREREQUISITE, "endpoint is not a valid URL"
+        ) from None
     # Credentials first: a later error must not be the one that fires.
-    if parsed.username is not None or parsed.password is not None:
+    if has_user_info:
         raise BackendError(
             KIND_MISSING_PREREQUISITE,
             "endpoint must not embed credentials (user info) in the URL",
         )
     try:
-        parsed.port
-    except ValueError as error:
+        port = parsed.port
+    except ValueError:
         raise BackendError(
             KIND_MISSING_PREREQUISITE, "endpoint has an invalid port"
-        ) from error
+        ) from None
     if parsed.scheme != "http" or parsed.hostname not in _LOOPBACK_HOSTS:
         raise BackendError(
             KIND_MISSING_PREREQUISITE,
@@ -186,6 +200,9 @@ def check_loopback_url(base_url: str) -> None:
             "endpoint must be http://<loopback-host>:<port> with no path, query, "
             "or fragment",
         )
+    host = parsed.hostname or ""
+    netloc = f"[{host}]" if ":" in host else host
+    return f"http://{netloc}" if port is None else f"http://{netloc}:{port}"
 
 
 class OllamaModel:
@@ -201,12 +218,12 @@ class OllamaModel:
         stream_transport: StreamTransport = urllib_stream_transport,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
-        check_loopback_url(base_url)
+        clean_url = check_loopback_url(base_url)
         if "cloud" in model.lower():
             raise BackendError(
                 KIND_MISSING_PREREQUISITE, f"cloud-tagged model refused: {model}"
             )
-        self._base_url = base_url.rstrip("/")
+        self._base_url = clean_url
         self._model = model
         self._digest = manifest_digest.removeprefix("sha256:")
         # The weight-layer pin is only known for the pre-registered model; a

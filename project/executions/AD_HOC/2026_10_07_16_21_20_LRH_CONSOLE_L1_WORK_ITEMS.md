@@ -12,7 +12,6 @@ session_transcript: "claude-app:3a9df9bd-cfda-4996-b6c4-5cff467b530a"
 created_at: 2026-10-07T16:21:20+00:00
 ---
 
-
 # Summary
 
 This record covers the planning PR for the eight LRH Console L1 work items. The owner approved

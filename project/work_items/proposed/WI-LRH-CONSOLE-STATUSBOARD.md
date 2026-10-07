@@ -36,6 +36,7 @@ acceptance:
 - "The owner's band-set decision is recorded in the visual-language proposal, and the statusboard matches it."
 - "The statusboard renders every band, with icon, label, count, and description, in both themes, as the home view."
 - "Every project appears in exactly one band, with its evidence chip and freshness; empty and Unknown states are explicit."
+- "Bands collapse and expand without scripts."
 - "Bands meet the token contrast targets, and no state is conveyed by color alone."
 required_evidence:
 - "test_output"
@@ -85,6 +86,7 @@ In-repo: the Meta page (`/meta` in `src/lrh/serve.py`) renders operational cards
 - The owner's band-set decision is recorded in the visual-language proposal, and the statusboard matches it.
 - The statusboard renders every band, with icon, label, count, and description, in both themes, as the home view.
 - Every project appears in exactly one band, with its evidence chip and freshness; empty and Unknown states are explicit.
+- Bands collapse and expand without scripts.
 - Bands meet the token contrast targets, and no state is conveyed by color alone.
 
 ## Validation

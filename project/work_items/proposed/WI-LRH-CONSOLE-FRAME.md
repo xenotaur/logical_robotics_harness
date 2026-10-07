@@ -38,7 +38,7 @@ acceptance:
 - "The sidebar shows the scope switcher and that scope's views, collapses to a labelled icon rail without scripts, and the frame works at phone width without horizontal page scrolling."
 - "The CSP allows only same-origin images and fonts beyond the existing inline styles, and still allows no scripts. A test asserts the header."
 - "In the desktop app the gear opens Settings with no new main-window permission (covered by the capability-boundary tests); in a browser it opens the display and about page."
-- "Montserrat and the icons load locally, and the Montserrat OFL license ships with them."
+- "Montserrat and the icons load locally, and both the Montserrat OFL license and the chosen icon library's license (Lucide ISC or Phosphor MIT) ship with them."
 required_evidence:
 - "test_output"
 - "manual_review"
@@ -48,6 +48,8 @@ artifacts_expected:
 - "src/lrh/ux/ (frame template and static assets)"
 - "apps/desktop/src-tauri/src/shell.rs"
 - "apps/desktop/src-tauri/tests/capability_boundaries_test.rs"
+- "tests/cli_tests/serve_test.py"
+- "LICENSE files for Montserrat and the chosen icon library"
 - "docs/how-to/lrh-console-local-dogfood.md"
 ---
 
@@ -102,7 +104,7 @@ In-repo: Serve pages use a horizontal control spine (`.lrh-control-spine` in `sr
 - The sidebar shows the scope switcher and that scope's views, collapses to a labelled icon rail without scripts, and the frame works at phone width without horizontal page scrolling.
 - The CSP allows only same-origin images and fonts beyond the existing inline styles, and still allows no scripts. A test asserts the header.
 - In the desktop app the gear opens Settings with no new main-window permission (covered by the capability-boundary tests); in a browser it opens the display and about page.
-- Montserrat and the icons load locally, and the Montserrat OFL license ships with them.
+- Montserrat and the icons load locally, and both the Montserrat OFL license and the chosen icon library's license (Lucide ISC or Phosphor MIT) ship with them.
 
 ## Validation
 

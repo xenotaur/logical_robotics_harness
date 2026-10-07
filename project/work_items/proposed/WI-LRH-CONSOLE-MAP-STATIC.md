@@ -35,6 +35,7 @@ forbidden_actions:
 - "deploy_remote_service"
 acceptance:
 - "A declared view renders as a server-side map in the frame, with the default layered, right-angled layout, readable in both themes and with no scripts."
+- "The PR records the evaluation of established layout libraries, and the default layout uses the chosen one; no layout engine is written from scratch."
 - "The layout is reached through a named interface that a second implementation could replace without changing the renderer."
 - "`?item=<id>` highlights upstream and downstream and renders the drawer with the three state layers and the not-modeled effort slot."
 - "The Table and Blockers views show the same snapshot, and every map state has a table row."
@@ -73,11 +74,12 @@ In-repo: no map rendering exists. Recommendation: proceed.
 
 ## Required Changes
 
-1. Add a named, swappable layout interface: snapshot in, positioned cards and routed lines out. Implement the default layered ordering with right-angled routing, with tests on fixed fixtures.
-2. Render the map as server-side HTML and SVG in the frame. Lane headers and phase rows come from the view. Cards show the mono ID, the title, a status pill (icon, text, color), a "not prompt-ready" flag when relevant, and the why-waiting or why-blocked line. Include a legend.
-3. Support static selection: with `?item=<id>`, highlight that card's upstream and downstream cards and lines (selected lines get emphasis by width), and render the drawer. The drawer shows the three state layers, placement, why, needs and needed-by, the repo-relative source path, and an "Effort: not modeled yet" slot.
-4. Add the Table view, a real table with native buttons for IDs, and the Blockers view, which lists every waiting or blocked item with the records it needs.
-5. Show explicit states for no declared view, Unplaced items, diagnostics such as cycles and missing IDs, and stale snapshots. Provide a focused list mode on narrow screens.
+1. First evaluate established graph layout and rendering libraries for accessibility, packaging, maintenance, and size, and record the choice in the PR (`project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md:71-73`, `:407-408`). Do not build a graph layout engine from scratch.
+2. Add a named, swappable layout interface: snapshot in, positioned cards and routed lines out. The default layered, right-angled layout wraps the chosen library behind it, with tests on fixed fixtures.
+3. Render the map as server-side HTML and SVG in the frame. Lane headers and phase rows come from the view. Cards show the mono ID, the title, a status pill (icon, text, color), a "not prompt-ready" flag when relevant, and the why-waiting or why-blocked line. Include a legend.
+4. Support static selection: with `?item=<id>`, highlight that card's upstream and downstream cards and lines (selected lines get emphasis by width), and render the drawer. The drawer shows the three state layers, placement, why, needs and needed-by, the repo-relative source path, and an "Effort: not modeled yet" slot.
+5. Add the Table view, a real table whose IDs are ordinary links to `?item=<id>`, styled as buttons (script-free selection cannot use native buttons, and the CSP blocks forms), and the Blockers view, which lists every waiting or blocked item with the records it needs.
+6. Show explicit states for no declared view, Unplaced items, diagnostics such as cycles and missing IDs, and stale snapshots. Provide a focused list mode on narrow screens.
 
 ## Non-Goals
 
@@ -88,6 +90,7 @@ In-repo: no map rendering exists. Recommendation: proceed.
 ## Acceptance Criteria
 
 - A declared view renders as a server-side map in the frame, with the default layered, right-angled layout, readable in both themes and with no scripts.
+- The PR records the evaluation of established layout libraries, and the default layout uses the chosen one; no layout engine is written from scratch.
 - The layout is reached through a named interface that a second implementation could replace without changing the renderer.
 - `?item=<id>` highlights upstream and downstream and renders the drawer with the three state layers and the not-modeled effort slot.
 - The Table and Blockers views show the same snapshot, and every map state has a table row.

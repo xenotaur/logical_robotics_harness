@@ -37,6 +37,7 @@ acceptance:
 - "Without the flag, Serve's CSP and pages are unchanged and fully usable."
 - "With `--interactive`, the CSP adds only `script-src 'self'`, and tests assert the exact headers in both modes."
 - "Tracing, filters, and the theme switch work with the flag and degrade to the static behavior without it."
+- "Under an explicit `--theme light` or `--theme dark` the in-page switch is hidden and the forced theme always applies, whatever the browser stored."
 - "No inline script or `eval` appears in any served page, and a test enforces it."
 required_evidence:
 - "test_output"
@@ -46,6 +47,9 @@ artifacts_expected:
 - "src/lrh/serve.py"
 - "src/lrh/ux/static/ (scripts)"
 - "apps/desktop/src-tauri/src/supervisor.rs"
+- "apps/desktop/src-tauri/tests/supervisor_test.rs"
+- "tests/cli_tests/serve_test.py"
+- "docs/reference/cli/serve.md"
 - "docs/how-to/lrh-console-local-dogfood.md"
 ---
 
@@ -74,7 +78,7 @@ In-repo: no scripts are served today; the CSP is `default-src 'none'` (`src/lrh/
 
 1. Add `lrh serve --interactive`. Only with it, extend the CSP with `script-src 'self'`; never allow `unsafe-inline` or `unsafe-eval`.
 2. Serve packaged JavaScript as same-origin static assets with the correct content type. Use no inline script and no build step.
-3. Use the scripts to add selection and tracing without page reloads, filters that never hide blockers, and the in-page Light, Dark, and System switch (stored per browser). Every behavior degrades to the static version when scripts are off.
+3. Use the scripts to add selection and tracing without page reloads, filters that never hide blockers, and the in-page Light, Dark, and System switch (stored per browser). An explicit server theme wins *(recommended)*: under `--theme light` or `--theme dark` the switch is hidden, and it appears only under `system`, which is also what the desktop app passes when Appearance is System. Every behavior degrades to the static version when scripts are off.
 4. Have the desktop app pass `--interactive` when it launches the server, as recommended in the proposal, unless the owner decides otherwise in the PR.
 5. Document the flag in the `lrh serve` reference and the desktop how-to.
 
@@ -89,6 +93,7 @@ In-repo: no scripts are served today; the CSP is `default-src 'none'` (`src/lrh/
 - Without the flag, Serve's CSP and pages are unchanged and fully usable.
 - With `--interactive`, the CSP adds only `script-src 'self'`, and tests assert the exact headers in both modes.
 - Tracing, filters, and the theme switch work with the flag and degrade to the static behavior without it.
+- Under an explicit `--theme light` or `--theme dark` the in-page switch is hidden and the forced theme always applies, whatever the browser stored.
 - No inline script or `eval` appears in any served page, and a test enforces it.
 
 ## Validation

@@ -37,8 +37,8 @@ forbidden_actions:
 - "implement_project_mutation"
 - "run_lrh_agentic"
 acceptance:
-- "Whether LCATS can be served through the Meta registry is established, and a gap, if any, is filed as a linked work item."
-- "Three genuine LRH or LCATS planning questions are answered on the map, with answers traceable to source records."
+- "LCATS is served through the Meta registry; any gap found on the way is filed as a linked work item and resolved before this item resolves."
+- "Three genuine planning questions spanning both LRH and LCATS, with at least one answered on the LCATS map, are answered with answers traceable to source records."
 - "The adverse cases are exercised and recorded with real results, including render time on the largest real view."
 - "`project/evidence/EV-LRH-CONSOLE-L1-DOGFOOD.md` follows the evidence schema, records its limitations, and recommends next steps for L2."
 required_evidence:
@@ -76,7 +76,7 @@ In-repo: `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` is the model fo
 
 ## Required Changes
 
-1. Check first whether the console can serve LCATS's workspace through the Meta registry (`src/lrh/meta/workspace.py`) and render its dependency map. If it cannot, file a work item for the gap, link it, and continue with LRH.
+1. Check first whether the console can serve LCATS's workspace through the Meta registry (`src/lrh/meta/workspace.py`) and render its dependency map. If it cannot, file a work item for the gap, link it in `blocked_by`, and mark this item blocked until the gap is resolved. LRH sessions may continue meanwhile, but the gate cannot pass on LRH alone.
 2. Declare the LRH dependency-map view in this repository's `project/views/dependency_maps/`. The LCATS view lands as a separate LCATS PR, only with the owner's authorization; link it from the evidence.
 3. With the owner, record three genuine planning questions, for example what can move now, why an item is waiting, or what unblocks the most work. Answer each from the map, with links to source records.
 4. Exercise and record the adverse cases: cycles, missing IDs, hidden dependencies, ambiguous lanes, absent phases, stale snapshots, and the largest real view, with render times.
@@ -89,8 +89,8 @@ In-repo: `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` is the model fo
 
 ## Acceptance Criteria
 
-- Whether LCATS can be served through the Meta registry is established, and a gap, if any, is filed as a linked work item.
-- Three genuine LRH or LCATS planning questions are answered on the map, with answers traceable to source records.
+- LCATS is served through the Meta registry; any gap found on the way is filed as a linked work item and resolved before this item resolves.
+- Three genuine planning questions spanning both LRH and LCATS, with at least one answered on the LCATS map, are answered with answers traceable to source records.
 - The adverse cases are exercised and recorded with real results, including render time on the largest real view.
 - `project/evidence/EV-LRH-CONSOLE-L1-DOGFOOD.md` follows the evidence schema, records its limitations, and recommends next steps for L2.
 
@@ -107,7 +107,7 @@ In-repo: `project/evidence/EV-LRH-CONSOLE-DESKTOP-L0-DOGFOOD.md` is the model fo
 ## Risk Notes
 
 - Sessions must be the owner's real use. An agent may draft the evidence from the owner's notes, but must not invent sessions or answers.
-- Without an LCATS view the gate is only half met. Record that explicitly rather than treating LRH alone as sufficient.
+- Without an LCATS view the gate is only half met. The item stays incomplete until the LCATS map answers at least one question; LRH alone never passes it.
 
 ## Related Workstream and Designs
 

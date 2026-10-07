@@ -46,6 +46,9 @@ artifacts_expected:
 - "apps/desktop/src-tauri/src/supervisor.rs"
 - "apps/desktop/ui/settings.html"
 - "apps/desktop/ui/settings.js"
+- "apps/desktop/src-tauri/tests/supervisor_test.rs"
+- "tests/cli_tests/serve_test.py"
+- "docs/reference/cli/serve.md"
 - "docs/how-to/lrh-console-local-dogfood.md"
 ---
 

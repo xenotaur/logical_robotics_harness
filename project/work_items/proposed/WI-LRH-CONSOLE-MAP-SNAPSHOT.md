@@ -35,7 +35,8 @@ acceptance:
 - "A declared view produces a versioned snapshot with nodes, typed edges, lane and phase placement (including Unplaced), diagnostics, and provenance, with no absolute paths."
 - "Structural states follow the Revision 2 precedence, including `blocked: true` with its reason and abandoned items. Lifecycle, prompt-ready, and authorization stay separate."
 - "Missing IDs, cycles, ambiguous placement, and stale sources produce explicit diagnostics. `lrh validate` reports invalid view declarations."
-- "Tests cover each state, each diagnostic, and the serialization round trip."
+- "`GET /api/project/<project_id>/dependency-maps/<view>` and `lrh dependency-map snapshot <view>` return the same versioned JSON, and an unknown view gives a 404 or a non-zero exit."
+- "Tests cover each state, each diagnostic, the serialization round trip, the route, and the CLI."
 required_evidence:
 - "test_output"
 - "lrh_validate"
@@ -44,7 +45,9 @@ artifacts_expected:
 - "src/lrh/serve.py"
 - "src/lrh/control/validator.py"
 - "project/views/dependency_maps/ (an example or this repository's own view)"
-- "tests/ (snapshot tests)"
+- "src/lrh/cli/main.py"
+- "tests/cli_tests/serve_test.py"
+- "tests/ (snapshot and CLI tests)"
 ---
 
 # Dependency-map snapshot
@@ -67,7 +70,7 @@ In-repo: `src/lrh/control/planning_tree.py` builds the workstream planning tree 
 - A view declaration file format and its validation.
 - Structural-state derivation and readiness layering.
 - Diagnostics.
-- A read-only JSON route and a CLI that prints a snapshot.
+- A read-only JSON route, `GET /api/project/<project_id>/dependency-maps/<view>`, and a CLI command, `lrh dependency-map snapshot <view> [--project-root PATH]`.
 
 ## Required Changes
 
@@ -75,7 +78,7 @@ In-repo: `src/lrh/control/planning_tree.py` builds the workstream planning tree 
 2. Define the view declaration at `project/views/dependency_maps/<name>.md`. It holds the view identity, ordered lanes and phases, and mappings by canonical ID; it does not duplicate tasks or edges. Validate it in `lrh validate`. Lanes default to canonical workstream grouping (`project/design/proposals/proposed/lrh-console-local-dogfood/00_proposal.md:245`).
 3. Derive the structural state using the Revision 2 precedence, including the explicit blocked flag and abandoned items. Carry lifecycle and the existing `prompt_ready` readiness separately. Authorization is never derived.
 4. Detect and report missing references, cycles (by edge type), partial source state, ambiguous or unplaced items, and stale snapshots. Filters must never hide a blocker.
-5. Expose the snapshot read-only, as JSON from Serve (for example `/api/dependency-map?view=<name>`) and from a CLI command that prints it.
+5. Expose the snapshot read-only. Serve answers `GET /api/project/<project_id>/dependency-maps/<view>` with the versioned JSON, matching the existing `/project/<project_id>/` routes, and returns 404 for an unknown view. `lrh dependency-map snapshot <view> [--project-root PATH]` prints the same JSON to stdout, exits 0 on success, and exits non-zero with an error on stderr for an unknown or invalid view.
 
 ## Non-Goals
 
@@ -88,7 +91,8 @@ In-repo: `src/lrh/control/planning_tree.py` builds the workstream planning tree 
 - A declared view produces a versioned snapshot with nodes, typed edges, lane and phase placement (including Unplaced), diagnostics, and provenance, with no absolute paths.
 - Structural states follow the Revision 2 precedence, including `blocked: true` with its reason and abandoned items. Lifecycle, prompt-ready, and authorization stay separate.
 - Missing IDs, cycles, ambiguous placement, and stale sources produce explicit diagnostics. `lrh validate` reports invalid view declarations.
-- Tests cover each state, each diagnostic, and the serialization round trip.
+- `GET /api/project/<project_id>/dependency-maps/<view>` and `lrh dependency-map snapshot <view>` return the same versioned JSON, and an unknown view gives a 404 or a non-zero exit.
+- Tests cover each state, each diagnostic, the serialization round trip, the route, and the CLI.
 
 ## Validation
 

@@ -29,10 +29,11 @@ forbidden_actions:
   - implement_openai_api_skill_sync
   - implement_openai_plugin_distribution
 acceptance:
-  - 'A blank (YAML null) disable-model-invocation or policy.allow_implicit_invocation value fails the skill instead of being treated as absent'
+  - 'A blank (YAML null) disable-model-invocation or policy.allow_implicit_invocation value fails the skill instead of being treated as absent, while an absent key does not fail'
   - 'An empty or whitespace-only compatibility value fails validation (a non-blank string of at most 500 characters when present)'
   - 'Hidden (dot-prefixed) top-level directories in a skill source are skipped by SkillSource.skill_names(), so lrh skills install, status, check, and export never treat them as skills, while a hidden symlink still raises as all symlinks do'
-  - 'Hosted export folds when_to_use guidance into the bundled description when the combined text fits the 1024-character limit, and otherwise keeps it dropped with a notice'
+  - 'Hosted export never silently loses when_to_use: it is folded into the bundled description (single-space separator) when the combined text is at most 1024 characters, and otherwise added as a generated "## When to use" section at the top of the bundled SKILL.md body with a notice; a folded or sectioned when_to_use is not reported as stripped'
+  - 'The canonical export still exports the same 20 skills and skips the same 5 manual-only skills'
   - 'Exporter tests assert the specific error for each malformed optional field and that license survives into the bundle'
   - 'scripts/format --check --diff, scripts/lint, scripts/test, and lrh validate complete successfully'
 required_evidence:
@@ -96,7 +97,16 @@ deferred:
    the Codex renderer does. ChatGPT selects uploaded skills automatically
    and has no known explicit-only control, so guards such as
    `lrh-export-claude`'s "Do not invoke proactively" are lost exactly where
-   automatic selection happens.
+   automatic selection happens. Folding it into `description` alone is not
+   enough: `description` is capped at 1024 characters, and three canonical
+   skills exceed that once `when_to_use` is added (description + 1-character
+   separator + `when_to_use`):
+   - `lrh-export-claude`: 1480 (its "Do not invoke proactively" guard lives
+     only in `when_to_use`);
+   - `lrh-work-remains`: 1155;
+   - `lrh-config-gates`: 1143.
+
+   The design therefore needs a lossless path for over-limit skills.
 5. **Weak test assertions.**
    - `test_malformed_optional_portable_fields_fail` checks only a generic
      `"frontmatter"` fragment.
@@ -149,19 +159,32 @@ of scope.
    top-level entries whose names start with `.`, just as it skips `_`.
    Keep the existing symlink refusal ahead of that filter, so a hidden
    symlink still raises.
-4. In the ChatGPT renderer, when a skill has `when_to_use`, append it to the
-   bundled `description` when the combined text is at most 1024 characters.
-   Otherwise keep dropping it and report a notice saying the guidance was
-   dropped for length.
-   - Leave the SKILL.md body unchanged.
-   - Leave the Codex and Antigravity renderers unchanged.
+4. In the ChatGPT renderer, never silently lose `when_to_use`:
+   - **Fold:** when `description` + one space + `when_to_use` is at most
+     1024 characters, the bundled `description` becomes exactly that string.
+   - **Section:** otherwise keep `description` unchanged and add the
+     `when_to_use` text as a generated `## When to use` section at the top of
+     the bundled `SKILL.md` body, immediately after the frontmatter. Report a
+     notice that the guidance was moved into the body because of the
+     description limit.
+   - A folded or sectioned `when_to_use` must no longer be listed by the
+     existing `stripped_metadata` notice as "not included in the bundle".
+   - Both paths must be deterministic.
+   - Today the section path applies to `lrh-export-claude`,
+     `lrh-work-remains`, and `lrh-config-gates`; every other canonical skill
+     with `when_to_use` folds.
+   - Leave canonical sources unchanged, and leave the Codex and Antigravity
+     renderers unchanged.
 5. Tests:
    - `tests/skills_exporter_test.py`:
      - null markers fail;
      - empty `compatibility` fails;
      - hidden directories are ignored by export;
-     - `when_to_use` is folded when short and dropped with a notice when
-       too long;
+     - `when_to_use` is folded with a single-space separator when the
+       combined text fits;
+     - an over-limit skill gets the generated `## When to use` section at the
+       top of the bundled body, an unchanged `description`, and the notice;
+     - a folded or sectioned `when_to_use` is not reported as stripped;
      - each malformed-field case asserts its specific error;
      - `license` survives into the bundle.
    - `tests/skills_installer_test.py`:
@@ -171,20 +194,23 @@ of scope.
    - `docs/reference/cli/skills.md`:
      - describe the null-marker rule and the `compatibility` bounds;
      - describe hidden-entry skipping (all subcommands);
-     - describe `when_to_use` folding for export.
+     - describe `when_to_use` folding and the generated-section fallback
+       for export.
    - `docs/how-to/use-lrh-with-agent-assistants.md`: update the ChatGPT
      Online section's "What changes in the bundle" bullets, which currently
      say `when_to_use` is dropped and reported, to describe the folding
-     behavior and its length fallback.
+     behavior and the generated-section fallback.
 
 ## Non-Goals
 
 - Do not change the Codex or Antigravity renderers' metadata handling.
-- Do not rewrite skill body text or canonical `SKILL.md` files.
+- Do not rewrite canonical skill text or canonical `SKILL.md` files. The only
+  change allowed to a bundled body is the generated `## When to use` section
+  from Required Change 4; existing body text is never modified.
 - Do not add OpenAI API publishing or plugin distribution.
 - Do not change the export's all-or-nothing write semantics.
-- Do not re-dogfood in ChatGPT unless `when_to_use` folding produces a
-  description ChatGPT rejects.
+- Do not re-dogfood in ChatGPT unless a folded description or the generated
+  section is rejected by ChatGPT.
 
 ## Acceptance Criteria
 
@@ -195,8 +221,11 @@ of scope.
 - A dot-prefixed directory beside real skills is skipped by
   `lrh skills install`, `status`, `check`, and `export`, and a hidden
   symlink still raises.
-- `when_to_use` is folded into the bundled description when the combined
-  text is at most 1024 characters, and otherwise dropped with a notice.
+- `when_to_use` is folded into the bundled description (single-space
+  separator) when the combined text is at most 1024 characters. Otherwise it
+  becomes a generated `## When to use` section at the top of the bundled
+  body, with an unchanged description and a notice. It is never silently
+  dropped or reported as stripped.
 - Exporter tests assert specific errors for each malformed optional field,
   and assert that `license` survives.
 - The canonical export still exports the same 20 skills and skips the same
@@ -221,6 +250,12 @@ of scope.
   and the Agent Skills name pattern forbids leading dots.
 - Folding `when_to_use` lengthens descriptions that drive ChatGPT's
   automatic selection. Keep the fold deterministic and bounded.
+- For over-limit skills, guidance in the body section is read when ChatGPT
+  loads the skill, not when it selects one. A guard such as
+  `lrh-export-claude`'s "Do not invoke proactively" therefore takes effect
+  as an in-skill instruction to stop rather than as a selection filter.
+  Shortening those skills' canonical `when_to_use` so they fold is a possible
+  follow-up, out of scope here.
 - Making null markers fail could fail a third-party skill that writes a
   blank key. That's intended, as it's the fail-safe direction, but the error
   message should say how to fix it.

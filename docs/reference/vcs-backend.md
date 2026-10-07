@@ -57,6 +57,11 @@ these for every backend:
 - If the read-back fails after the merge was issued, or shows a state other
   than `MERGED` or `OPEN`, `MergeVerificationError` says so explicitly, so a
   caller does not assume nothing happened.
+- Any exception a backend raises, of any type, is reported as a backend error
+  that names the exception type. Before the merge it says no merge was issued;
+  after, it says the merge was issued or reports the pull request's state. An
+  unexpected exception must not escape as a traceback, because its exit code
+  `1` would read as `queued`.
 
 ## Error scope
 

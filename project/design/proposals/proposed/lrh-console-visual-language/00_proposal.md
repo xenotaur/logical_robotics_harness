@@ -482,7 +482,7 @@ that the owner accepted afterwards: the theme plan ("theme plan is fine") and th
 | Q5 | Theme? | Themes are sets of token values. The first supported themes are light and dark, with three choices: Light, Dark, and System, defaulting to System. |
 | Q6 | Look and feel? | Start with a restrained version of the swimlane console in both themes. Make it more striking later if needed. It should be eye-catching but usable. |
 | Q7 | Dependency lines? | Layered layout is the default, and layouts are pluggable so other styles can be swapped in. Right-angled routing and the line-style set are *(recommended)*. |
-| Q8 | JavaScript in Serve? | A static, script-free version always works, and v1 is static. An explicit mode on `lrh serve` (the owner named it a `--desktop` mode) can allow JavaScript later. How that mode is switched on is open (below). |
+| Q8 | JavaScript in Serve? | A static, script-free version always works, and v1 is static. A separate opt-in flag, `lrh serve --interactive`, allows JavaScript later. The desktop app passes it too. |
 | Q9 | App frame? | A top bar, a scoped sidebar that collapses to an icon rail, and a detail drawer (below). |
 | Q10 | Where do tokens live? | One CSS custom-properties file, shared by Serve and the desktop app. |
 | Q11 | Type and icons? | Start with the agent's recommendation: Montserrat (offered by the owner as the Logical Robotics superfamily) for display, the system font for body text, and monospace for IDs. Icons come from Lucide or Phosphor as a local SVG subset. |
@@ -621,17 +621,15 @@ interactive mode comes after it.
 
 - **The static version always works.** Every view, including the map, the drawer through a
   selected-item URL, and the table, renders on the server without scripts.
-- **An explicit Serve mode allows JavaScript for interaction.** The owner described it as a
-  `--desktop` mode on `lrh serve`.
+- **A separate opt-in flag, `lrh serve --interactive`, allows JavaScript for interaction.** The
+  desktop app passes it too.
+  - The owner first described this as a `--desktop` mode. On 2026-10-07 the owner chose a
+    separate flag over tying scripts to `--desktop-protocol`, so browser users of `lrh serve`
+    can opt in as well.
   - *(Recommended)* The mode allows only packaged same-origin scripts (`script-src 'self'`). It
     allows no inline script and no `eval`.
   - Scripts only add tracing, filtering, and the in-page theme switch on top of the static
     markup.
-- **Open: how the mode is switched on.** The owner's "`--desktop` mode" could mean a new flag or
-  the existing `--desktop-protocol` flag (`src/lrh/serve.py`). The agent recommended a separate
-  opt-in flag, such as `lrh serve --interactive`, that the desktop app also passes, because tying
-  scripts to `--desktop-protocol` would keep the interactive map from browser users of
-  `lrh serve`. The owner has not yet confirmed this.
 
 This keeps `lrh-console-local-dogfood/00_proposal.md:138-139`, which packages prebuilt web assets
 with Python so that Serve users need no Node or Rust.
@@ -727,6 +725,7 @@ Revision 2 settled several of the original questions:
 - **Typography:** decided (Q11).
 - **Asset storage convention:** this proposal's `assets/` directory.
 - **Theme persistence:** Settings and `--theme`, then an in-page switch in interactive mode (Q5).
+- **How the interactive mode is switched on:** a separate `--interactive` flag (Q8).
 - **Inspector behavior:** a drawer, with a full-page fallback (Q9).
 
 Still open:
@@ -734,8 +733,6 @@ Still open:
 - Final token names and color values. The mock's `:root` block is the draft.
 - Large project registry scaling: filtering, search, collapsed bands, and the table fallback.
 - Whether to rename the internal `triage_lane` field to match the "band" vocabulary.
-- How the interactive Serve mode is switched on: tied to the desktop mode, or a separate flag such
-  as `--interactive` (Q8).
 - Reconciling the statusboard bands with the lane set, precedence, and label case in
   `PROP-META-OPERATIONAL-TRIAGE-SEMANTICS` (see [Vocabulary](#vocabulary-q2)).
 

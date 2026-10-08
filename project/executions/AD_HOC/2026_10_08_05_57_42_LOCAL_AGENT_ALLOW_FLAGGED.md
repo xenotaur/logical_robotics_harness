@@ -2,10 +2,10 @@
 execution_id: 2026_10_08_05_57_42_LOCAL_AGENT_ALLOW_FLAGGED
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_ALLOW_FLAGGED)[2026-10-08T05:51:31+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of:
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/791
-commit:
+commit: 92562b5253ed989eb764ddf022be905921402fbd
 created_at: 2026-10-08T05:57:42+00:00
 agent: claude_app
 instruction_source: ad_hoc conversation — owner chose A+B now (PR 788), c1 next, and c3 filed as a work item, after a T0 ask false positive on recorder.py

@@ -2,10 +2,10 @@
 id: "WI-LRH-CONSOLE-THEME"
 title: "Make LRH Console follow the system theme by default, with --theme and an Appearance setting"
 type: "deliverable"
-status: "proposed"
+status: "resolved"
 blocked: false
 blocked_reason: null
-resolution: null
+resolution: 'Implemented and merged in PR #786 (commit 06fbcc7a). Every Serve page follows the system appearance by default; lrh serve --theme light|dark|system pins every HTML response centrally (apply_theme), works with --desktop-protocol, and is reported by --show-config. LRH Console adds an Appearance setting (System by default; older config files load as System) passed as --theme through LaunchConfig.serve_args, applied to the app windows through AppHandle::set_theme with no new capability, and offering Restart server now so other browsers and a pinned server match. The owner Mac check passed: the Settings and main windows change at once. CI first failed on theme route tests that served the live checkout; they now use an isolated fixture.'
 owner: "anthony"
 contributors:
 - "anthony"

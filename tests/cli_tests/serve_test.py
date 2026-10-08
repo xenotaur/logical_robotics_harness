@@ -249,11 +249,13 @@ class TestLrhServeRoutes(unittest.TestCase):
         project_root: pathlib.Path | None = None,
         *,
         codex_archive_roots: tuple[pathlib.Path, ...] = (),
+        theme: str = serve.DEFAULT_THEME,
     ) -> tuple[serve.ThreadingHTTPServer, str]:
         config = serve.ServeConfig(
             port=0,
             project_root=project_root or pathlib.Path("."),
             codex_archive_roots=codex_archive_roots,
+            theme=theme,
         )
         httpd = serve.create_http_server(config)
         host, port = httpd.server_address[:2]
@@ -297,27 +299,36 @@ class TestLrhServeRoutes(unittest.TestCase):
                 self.assertIn(f"var(--lrh-color-band-{key}-{part})", body)
 
     def test_pages_follow_the_system_theme_by_default(self) -> None:
-        _httpd, base_url = self._start_server()
+        # A minimal project and an empty Meta registry keep page builds fast
+        # and independent of this machine; the live checkout can exceed the
+        # read timeout on slow CI runners.
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            unittest.mock.patch.dict("os.environ", {"XDG_CONFIG_HOME": tmp_dir}),
+        ):
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            _httpd, base_url = self._start_server(root)
 
-        for route in _HTML_ROUTES:
-            with self.subTest(route=route):
-                _status, _type, body = self._read(base_url + route)
-                self.assertIn('<html lang="en">', body)
-                self.assertNotIn("data-theme=", body.split("<head>", 1)[0])
+            for route in _HTML_ROUTES:
+                with self.subTest(route=route):
+                    _status, _type, body = self._read(base_url + route)
+                    self.assertIn('<html lang="en">', body)
+                    self.assertNotIn("data-theme=", body.split("<head>", 1)[0])
 
     def test_explicit_theme_pins_every_page(self) -> None:
-        for theme in ("light", "dark"):
-            config = serve.ServeConfig(port=0, theme=theme)
-            httpd = serve.create_http_server(config)
-            host, port = httpd.server_address[:2]
-            thread = threading.Thread(target=httpd.serve_forever, daemon=True)
-            thread.start()
-            self.addCleanup(httpd.shutdown)
-            self.addCleanup(httpd.server_close)
-            for route in _HTML_ROUTES:
-                with self.subTest(theme=theme, route=route):
-                    _status, _type, body = self._read(f"http://{host}:{port}{route}")
-                    self.assertIn(f'<html lang="en" data-theme="{theme}">', body)
+        with (
+            tempfile.TemporaryDirectory() as tmp_dir,
+            unittest.mock.patch.dict("os.environ", {"XDG_CONFIG_HOME": tmp_dir}),
+        ):
+            root = pathlib.Path(tmp_dir)
+            _write_viewer_project(root)
+            for theme in ("light", "dark"):
+                _httpd, base_url = self._start_server(root, theme=theme)
+                for route in _HTML_ROUTES:
+                    with self.subTest(theme=theme, route=route):
+                        _status, _type, body = self._read(base_url + route)
+                        self.assertIn(f'<html lang="en" data-theme="{theme}">', body)
 
     def test_desktop_server_factory_passes_the_theme(self) -> None:
         httpd = serve._desktop_server_factory(pathlib.Path("."), theme="light")

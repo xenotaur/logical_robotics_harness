@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import dataclasses
 import hashlib
+import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -15,6 +16,7 @@ from lrh.conversations import export_manifest, sensitivity
 SOURCE_ADAPTER = "codex_file_export"
 ADAPTER_VERSION = 1
 SENSITIVE_CONTENT_WARNING = "potential_sensitive_content_detected"
+_COLLISION_MESSAGE = "Codex source and output path must refer to different files"
 
 
 class CodexFileExportError(ValueError):
@@ -74,7 +76,7 @@ def convert_codex_file(
     markdown = render_codex_markdown(transcript_text, manifest)
     try:
         destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_bytes(markdown.encode("utf-8"))
+        _write_private_bytes(destination, markdown.encode("utf-8"), source=source)
     except OSError as err:
         raise CodexFileExportError(f"Could not write output: {destination}") from err
     return CodexFileExport(
@@ -207,13 +209,37 @@ def _normalized_source_id(source_id: str | None) -> str | None:
     return normalized
 
 
+def _write_private_bytes(path: Path, content: bytes, *, source: Path) -> None:
+    """Write ``content`` to ``path`` (0600 on creation), never truncating ``source``.
+
+    The path-based collision check is not atomic with the write, so identity is
+    re-checked on the opened descriptor before truncating: opening without
+    ``O_TRUNC`` leaves ``source`` intact if a link to it was created after the
+    path check.
+    """
+    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT, 0o600)
+    try:
+        if _is_same_file(os.fstat(fd), source):
+            raise CodexFileExportError(_COLLISION_MESSAGE)
+        os.ftruncate(fd, 0)
+        with os.fdopen(fd, "wb", closefd=False) as handle:
+            handle.write(content)
+    finally:
+        os.close(fd)
+
+
+def _is_same_file(fd_stat: os.stat_result, source: Path) -> bool:
+    try:
+        return os.path.samestat(fd_stat, source.stat())
+    except OSError:
+        return False
+
+
 def _reject_source_output_collision(source: Path, destination: Path) -> None:
     if destination.exists():
         try:
             if source.samefile(destination):
-                raise CodexFileExportError(
-                    "Codex source and output path must refer to different files"
-                )
+                raise CodexFileExportError(_COLLISION_MESSAGE)
         except OSError:
             pass
     try:
@@ -221,6 +247,4 @@ def _reject_source_output_collision(source: Path, destination: Path) -> None:
     except OSError:
         same_path = source.absolute() == destination.absolute()
     if same_path:
-        raise CodexFileExportError(
-            "Codex source and output path must refer to different files"
-        )
+        raise CodexFileExportError(_COLLISION_MESSAGE)

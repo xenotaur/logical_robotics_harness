@@ -20,6 +20,7 @@ DEFAULT_ADAPTER_NAME = "claude_transcript_jsonl"
 ADAPTER_VERSION = 1
 CLAUDE_ARCHIVE_SUBDIR = "claude"
 EXPORTS_SUBDIR = "exports"
+_COLLISION_MESSAGE = "transcript source and output path must refer to different files"
 
 
 class ClaudeExportError(ValueError):
@@ -137,7 +138,7 @@ def convert_claude_session(
             raise FileExistsError(f"output path already exists: {out}")
         out.parent.mkdir(parents=True, exist_ok=True)
         try:
-            _write_private_text(out, full_markdown)
+            _write_private_text(out, full_markdown, source=path)
         except OSError as err:
             raise ClaudeExportError(
                 f"could not write output export file: {out}"
@@ -150,7 +151,7 @@ def convert_claude_session(
     )
 
 
-def _write_private_text(path: Path, content: str) -> None:
+def _write_private_text(path: Path, content: str, *, source: Path) -> None:
     """Write text to path with user-only (0600) permissions from creation.
 
     Writing via ``Path.write_text`` and chmod-ing afterward leaves a window,
@@ -161,25 +162,41 @@ def _write_private_text(path: Path, content: str) -> None:
     applies ``mode & ~umask``, and no typical umask can widen 0o600's
     already-owner-only bits, so the file is never observably more open than
     0o600 at any point after creation.
+
+    The path-based collision check is not atomic with this write, so identity
+    is re-checked on the opened descriptor before anything is truncated or
+    chmod-ed: opening without ``O_TRUNC`` leaves ``source`` intact if a link to
+    it was created after the path check.
     """
-    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as handle:
+    fd = os.open(str(path), os.O_WRONLY | os.O_CREAT, 0o600)
+    try:
+        if _is_same_file(os.fstat(fd), source):
+            raise ClaudeExportError(_COLLISION_MESSAGE)
+        os.ftruncate(fd, 0)
         fchmod = getattr(os, "fchmod", None)
         if fchmod is not None:
             try:
-                fchmod(handle.fileno(), 0o600)
+                fchmod(fd, 0o600)
             except OSError:
                 pass
-        handle.write(content)
+        with os.fdopen(fd, "w", encoding="utf-8", closefd=False) as handle:
+            handle.write(content)
+    finally:
+        os.close(fd)
+
+
+def _is_same_file(fd_stat: os.stat_result, source: Path) -> bool:
+    try:
+        return os.path.samestat(fd_stat, source.stat())
+    except OSError:
+        return False
 
 
 def _reject_source_output_collision(source: Path, destination: Path) -> None:
     if destination.exists():
         try:
             if source.samefile(destination):
-                raise ClaudeExportError(
-                    "transcript source and output path must refer to different files"
-                )
+                raise ClaudeExportError(_COLLISION_MESSAGE)
         except OSError:
             pass
     try:
@@ -187,9 +204,7 @@ def _reject_source_output_collision(source: Path, destination: Path) -> None:
     except OSError:
         same_path = source.absolute() == destination.absolute()
     if same_path:
-        raise ClaudeExportError(
-            "transcript source and output path must refer to different files"
-        )
+        raise ClaudeExportError(_COLLISION_MESSAGE)
 
 
 def _expand_user_path(path: Path, *, description: str) -> Path:

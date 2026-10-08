@@ -100,7 +100,11 @@ path, and LRH does not inspect undocumented Codex app storage internals.
 The command is local and private-by-default:
 
 - it writes one Markdown file at `--out`;
-- it rejects source/output path collisions even when `--force` is supplied;
+- it rejects source/output path collisions even when `--force` is supplied,
+  including a link to the source created between the path check and the write
+  (identity is re-checked on the opened file before it is truncated);
+- a newly created output file has user-only (`0600`) permissions; an existing
+  output file being overwritten keeps its current permissions;
 - it does not import the transcript into a ledger, database, project control
   directory, or private state store;
 - generated frontmatter defaults to `privacy: private` and
@@ -602,7 +606,9 @@ The command is local and private-by-default:
   frontmatter;
 - the output file is created with user-only (`0600`) permissions from the
   first write, not chmod-ed afterward;
-- passing the transcript itself as `--out` is rejected, even with `--force`;
+- passing the transcript itself as `--out` is rejected, even with `--force`,
+  including a link to the transcript created between the path check and the
+  write (identity is re-checked on the opened file before it is truncated);
 - sensitivity scanning is heuristic and does not certify that output is safe
   to publish.
 

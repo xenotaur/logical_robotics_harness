@@ -12,8 +12,8 @@ const SOURCES = {
   environment:
     "Using the developer LRH_CONSOLE_* environment settings for this session. " +
     "Saving here writes the configuration file and applies the browser choice " +
-    "and appearance now; the saved program, workspace, and served-page " +
-    "appearance take effect in a later session " +
+    "and appearance now; the saved program and workspace take effect in a " +
+    "later session " +
     "started without those variables.",
   none: "No configuration yet. Choose a program and workspace, then Save.",
 };

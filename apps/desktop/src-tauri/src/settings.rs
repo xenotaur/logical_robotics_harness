@@ -2,10 +2,11 @@
 //!
 //! The configuration names the `lrh` program to supervise, the workspace to
 //! serve, the browser to hand links to, whether to start the backend when the
-//! app opens, and the appearance (light, dark, or the system's). It lives in one JSON file in the app's private config
-//! directory (mode `0600` on Unix). Nothing is resolved through shell `PATH`
-//! or Conda activation: every path is absolute and checked before it is
-//! saved. An invalid change is rejected and the last working file is kept.
+//! app opens, and the appearance (light, dark, or the system's). It lives in
+//! one JSON file in the app's private config directory (mode `0600` on Unix).
+//! Nothing is resolved through shell `PATH` or Conda activation: every path is
+//! absolute and checked before it is saved. An invalid change is rejected and
+//! the last working file is kept.
 
 use std::ffi::OsString;
 use std::io::Write;

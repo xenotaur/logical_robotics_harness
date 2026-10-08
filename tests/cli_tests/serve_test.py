@@ -232,6 +232,17 @@ class TestBlockedWorkItemCount(unittest.TestCase):
         self.assertEqual(serve._blocked_work_item_count(work_items), 0)
 
 
+# HTML routes that render with no project fixtures.
+_HTML_ROUTES = (
+    "/",
+    "/meta",
+    "/meta/project",
+    "/style",
+    "/workbench",
+    "/conversations/codex",
+)
+
+
 class TestLrhServeRoutes(unittest.TestCase):
     def _start_server(
         self,
@@ -288,7 +299,7 @@ class TestLrhServeRoutes(unittest.TestCase):
     def test_pages_follow_the_system_theme_by_default(self) -> None:
         _httpd, base_url = self._start_server()
 
-        for route in ("/", "/meta", "/style", "/meta/project"):
+        for route in _HTML_ROUTES:
             with self.subTest(route=route):
                 _status, _type, body = self._read(base_url + route)
                 self.assertIn('<html lang="en">', body)
@@ -303,7 +314,7 @@ class TestLrhServeRoutes(unittest.TestCase):
             thread.start()
             self.addCleanup(httpd.shutdown)
             self.addCleanup(httpd.server_close)
-            for route in ("/", "/meta", "/style", "/meta/project"):
+            for route in _HTML_ROUTES:
                 with self.subTest(theme=theme, route=route):
                     _status, _type, body = self._read(f"http://{host}:{port}{route}")
                     self.assertIn(f'<html lang="en" data-theme="{theme}">', body)

@@ -14,6 +14,7 @@ See ``WI-LRH-CHAIN-DEFAULTS-INCREMENT-3`` and
 from __future__ import annotations
 
 import dataclasses
+import datetime
 import hashlib
 import json
 import os
@@ -72,11 +73,16 @@ INSTALLED_CANONICAL_SKILL_NAMES: tuple[str, ...] = tuple(
 )
 
 #: Where persisted content fingerprints for untracked (e.g. user-scope)
-#: installed targets are stored, relative to `project_root`. Written by
-#: `record_fingerprints` at consent-grant time; read by `check_gate_staleness`
+#: installed targets are stored, relative to the clone's *common* git
+#: directory (`git rev-parse --git-common-dir`) -- see
+#: `fingerprint_store_path`. Clone-local and shared across every worktree of
+#: the same clone (the same scope as the `skip_if_opted_in` consent hash),
+#: never committed: the fingerprints describe one machine's installed files.
+#: Written only by `record_fingerprints` as part of a `confirmed_commit`
+#: re-stamp (`lrh chain-defaults restamp`); read by `check_gate_staleness`
 #: for any watch target that resolves outside `project_root`'s working tree,
 #: where no git history exists to diff against `confirmed_commit`.
-FINGERPRINT_PATH = "project/config/chain-defaults-fingerprints.json"
+FINGERPRINT_STORE_RELATIVE_PATH = "lrh/chain-defaults-fingerprints.json"
 
 
 class GateStalenessError(RuntimeError):
@@ -365,7 +371,7 @@ def resolve_watch_targets(
     install under `Path.home()`, which has no git history to diff against
     at all). `canonical_name` is qualified with the target's own name (e.g.
     `"claude:lrh-land/SKILL.md"`) so two targets' fingerprints for the same
-    skill name never collide in `FINGERPRINT_PATH` or in a report.
+    skill name never collide in the fingerprint store or in a report.
 
     If the installed target(s) can't be resolved, every canonical skill
     (unqualified -- no specific target was ever determined) is returned as
@@ -446,15 +452,103 @@ def compute_fingerprint(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
 
-def load_fingerprints(project_root: pathlib.Path) -> dict[str, str] | None:
-    """Load persisted content fingerprints, or None if unavailable.
+def canonical_confirmed_at(value: object) -> str:
+    """Normalize a `confirmed_at` value to its one canonical comparison form.
 
-    Returns None (never raises) on a missing, unreadable, or malformed
-    file -- `check_gate_staleness` treats a None return as "no fingerprint
-    on record for any untracked target" and fails every such target closed,
-    rather than surfacing this as a hard error.
+    The canonical form is ISO-8601 UTC at second precision with a trailing
+    ``Z`` (e.g. ``2026-09-22T03:50:48Z``). The same instant reaches this
+    module in different shapes: `yaml.safe_load` turns an unquoted timestamp
+    into a timezone-aware `datetime` (whose `str()` is
+    ``2026-09-22 03:50:48+00:00``), while the shell snippet in
+    `_shared/chain-defaults.md` passes the raw profile text. Every comparison
+    goes through this function so both paths agree.
+
+    Raises `GateStalenessError` -- callers treat that as fail-closed -- for
+    anything that is not an unambiguous instant at second precision: an
+    unparseable string, a timezone-less value (its instant is undefined),
+    or a value carrying fractional seconds (truncating it could make two
+    distinct stamps compare equal).
     """
-    path = project_root / FINGERPRINT_PATH
+    if isinstance(value, datetime.datetime):
+        parsed = value
+    elif isinstance(value, str):
+        text = value.strip()
+        if text.endswith("Z") or text.endswith("z"):
+            text = text[:-1] + "+00:00"
+        try:
+            parsed = datetime.datetime.fromisoformat(text)
+        except ValueError as err:
+            raise GateStalenessError(
+                f"confirmed_at {value!r} is not an ISO-8601 timestamp"
+            ) from err
+    else:
+        raise GateStalenessError(
+            f"confirmed_at {value!r} is not a timestamp (got "
+            f"{type(value).__name__})"
+        )
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise GateStalenessError(
+            f"confirmed_at {value!r} has no timezone -- its instant is undefined"
+        )
+    if parsed.microsecond:
+        raise GateStalenessError(
+            f"confirmed_at {value!r} has fractional seconds -- the canonical "
+            "form is second precision"
+        )
+    utc = parsed.astimezone(datetime.timezone.utc)
+    return utc.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def fingerprint_store_path(project_root: pathlib.Path) -> pathlib.Path:
+    """Return the fingerprint store's path in the clone's common git dir.
+
+    `git rev-parse --git-common-dir` may print a path relative to
+    `project_root` (e.g. ``.git``); resolve it explicitly rather than
+    joining blindly, since `pathlib`'s ``/`` discards its left operand when
+    the right one is already absolute. Raises `GateStalenessError` when the
+    git directory cannot be resolved.
+    """
+    common_dir = _run_git(["rev-parse", "--git-common-dir"], project_root).strip()
+    if not common_dir:
+        raise GateStalenessError(
+            f"could not resolve the git common dir for {project_root}"
+        )
+    common_path = pathlib.Path(common_dir)
+    if not common_path.is_absolute():
+        common_path = project_root / common_path
+    return common_path.resolve() / FINGERPRINT_STORE_RELATIVE_PATH
+
+
+@dataclasses.dataclass(frozen=True)
+class FingerprintStore:
+    """The persisted fingerprint store, bound to the stamp it was written for.
+
+    `confirmed_commit` is the full resolved SHA and `confirmed_at` is in
+    `canonical_confirmed_at` form. `check_gate_staleness` accepts the store
+    only when both equal the stamp of the profile it is checking, so a store
+    written without a matching committed profile (a failed profile write, a
+    declined `main` push, or a branch still carrying an older profile) can
+    never make an untracked target read fresh.
+    """
+
+    confirmed_commit: str
+    confirmed_at: str
+    fingerprints: dict[str, str]
+
+
+def load_fingerprint_store(project_root: pathlib.Path) -> FingerprintStore | None:
+    """Load the persisted fingerprint store, or None if unavailable.
+
+    Returns None (never raises) on a missing, unreadable, or malformed store
+    -- including one missing either stamp key, such as the old bare
+    name-to-hash map -- and when the git common dir cannot be resolved.
+    `check_gate_staleness` treats None as "no fingerprint on record" and
+    fails every untracked target closed.
+    """
+    try:
+        path = fingerprint_store_path(project_root)
+    except GateStalenessError:
+        return None
     if not path.exists():
         return None
     try:
@@ -463,45 +557,199 @@ def load_fingerprints(project_root: pathlib.Path) -> dict[str, str] | None:
         return None
     if not isinstance(data, dict):
         return None
-    return {str(key): str(value) for key, value in data.items()}
+    commit = data.get("confirmed_commit")
+    confirmed_at = data.get("confirmed_at")
+    fingerprints = data.get("fingerprints")
+    if not isinstance(commit, str) or not commit:
+        return None
+    if not isinstance(confirmed_at, str) or not confirmed_at:
+        return None
+    if not isinstance(fingerprints, dict):
+        return None
+    return FingerprintStore(
+        confirmed_commit=commit,
+        confirmed_at=confirmed_at,
+        fingerprints={str(key): str(value) for key, value in fingerprints.items()},
+    )
+
+
+@dataclasses.dataclass(frozen=True)
+class FingerprintPlanEntry:
+    name: str
+    #: The installed file, or None for a `removed` entry.
+    absolute_path: pathlib.Path | None
+    #: The new hash, or None for a `removed` entry.
+    fingerprint: str | None
+    #: One of ``"new"``, ``"unchanged"``, ``"changed"``, ``"removed"``.
+    comparison: str
+
+
+@dataclasses.dataclass(frozen=True)
+class FingerprintPlan:
+    entries: tuple[FingerprintPlanEntry, ...]
+    #: The complete map a write would persist (whole-map replacement).
+    fingerprints: dict[str, str]
+    #: True when nothing needs writing: no fingerprint-kind targets and no
+    #: stored entries to remove.
+    nothing_to_do: bool
+
+
+def plan_fingerprints(
+    targets: tuple[WatchTarget, ...],
+    stored: dict[str, str] | None,
+) -> FingerprintPlan:
+    """Compute what recording fingerprints would write, without writing.
+
+    Both `--dry-run` and the real write use this, so the preview and the
+    write cannot diverge. Every target is checked before anything is
+    computed into the plan: raises `GateStalenessError` if **any** target is
+    `"unresolved"` or any fingerprint-kind target file is missing -- a
+    re-stamp must never record an empty or partial fingerprint set.
+    """
+    for target in targets:
+        if target.kind == "unresolved":
+            raise GateStalenessError(
+                "cannot record fingerprints: installed target "
+                f"{target.canonical_name} could not be resolved"
+            )
+        if target.kind == "fingerprint" and (
+            target.absolute_path is None or not target.absolute_path.is_file()
+        ):
+            raise GateStalenessError(
+                f"cannot fingerprint missing installed target: "
+                f"{target.canonical_name} ({target.absolute_path})"
+            )
+    stored = stored or {}
+    entries: list[FingerprintPlanEntry] = []
+    fingerprints: dict[str, str] = {}
+    for target in targets:
+        if target.kind != "fingerprint":
+            continue
+        assert target.absolute_path is not None  # checked above
+        try:
+            content = target.absolute_path.read_bytes()
+        except OSError as err:
+            raise GateStalenessError(
+                f"cannot read installed target {target.canonical_name} "
+                f"({target.absolute_path}): {err}"
+            ) from err
+        value = compute_fingerprint(content)
+        fingerprints[target.canonical_name] = value
+        previous = stored.get(target.canonical_name)
+        if previous is None:
+            comparison = "new"
+        elif previous == value:
+            comparison = "unchanged"
+        else:
+            comparison = "changed"
+        entries.append(
+            FingerprintPlanEntry(
+                name=target.canonical_name,
+                absolute_path=target.absolute_path,
+                fingerprint=value,
+                comparison=comparison,
+            )
+        )
+    for name in sorted(set(stored) - set(fingerprints)):
+        entries.append(
+            FingerprintPlanEntry(
+                name=name, absolute_path=None, fingerprint=None, comparison="removed"
+            )
+        )
+    return FingerprintPlan(
+        entries=tuple(entries),
+        fingerprints=fingerprints,
+        nothing_to_do=not fingerprints and not stored,
+    )
+
+
+def write_fingerprint_store(
+    project_root: pathlib.Path, store: FingerprintStore
+) -> None:
+    """Atomically persist `store` to the clone's common git dir."""
+    path = fingerprint_store_path(project_root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = (
+        json.dumps(
+            {
+                "confirmed_commit": store.confirmed_commit,
+                "confirmed_at": store.confirmed_at,
+                "fingerprints": store.fingerprints,
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n"
+    )
+    # Atomic write: a temp file in the same directory (so the rename is on
+    # the same filesystem), then os.replace -- a process interrupted
+    # mid-write must never leave a partial/corrupt store behind, since
+    # `load_fingerprint_store` treats any unreadable store as "no
+    # fingerprint on record" and fails every untracked target closed.
+    tmp_path = path.with_suffix(path.suffix + ".tmp")
+    tmp_path.write_text(payload, encoding="utf-8")
+    os.replace(tmp_path, path)
 
 
 def record_fingerprints(
     project_root: pathlib.Path,
     targets: tuple[WatchTarget, ...],
-) -> dict[str, str]:
+    confirmed_commit: str,
+    confirmed_at: str,
+) -> FingerprintPlan:
     """Compute and persist current-content fingerprints for untracked targets.
 
-    Intended to run at `skip_if_opted_in` consent-grant time, alongside
-    stamping `confirmed_commit`, for every target `resolve_watch_targets`
-    classified `"fingerprint"` (outside `project_root`'s working tree).
-    Raises if a target file is missing -- a consent grant must not silently
-    record an empty/partial fingerprint set.
+    Runs only as part of a `confirmed_commit` re-stamp (`lrh chain-defaults
+    restamp`), never on its own: the store is bound to the same
+    `(confirmed_commit, confirmed_at)` stamp the profile is being re-stamped
+    to, so git-tracked and fingerprinted targets share one confirmation
+    baseline. `confirmed_commit` must be a full SHA and `confirmed_at` is
+    normalized via `canonical_confirmed_at`.
+
+    Raises (writing nothing) on any unresolved target or missing installed
+    file -- see `plan_fingerprints`. Replaces the whole map: entries for
+    targets no longer configured are dropped. When there is nothing to do
+    (no fingerprint-kind targets and no stored entries) nothing is written;
+    when stored entries exist but no fingerprint-kind targets remain, an
+    empty map is written so the `removed` entries actually go away.
     """
-    fingerprints: dict[str, str] = {}
-    for target in targets:
-        if target.kind != "fingerprint":
-            continue
-        if target.absolute_path is None or not target.absolute_path.is_file():
-            raise GateStalenessError(
-                f"cannot fingerprint missing installed target: "
-                f"{target.canonical_name} ({target.absolute_path})"
-            )
-        fingerprints[target.canonical_name] = compute_fingerprint(
-            target.absolute_path.read_bytes()
+    existing = load_fingerprint_store(project_root)
+    plan = plan_fingerprints(targets, existing.fingerprints if existing else None)
+    if plan.nothing_to_do:
+        return plan
+    write_fingerprint_store(
+        project_root,
+        FingerprintStore(
+            confirmed_commit=confirmed_commit,
+            confirmed_at=canonical_confirmed_at(confirmed_at),
+            fingerprints=plan.fingerprints,
+        ),
+    )
+    return plan
+
+
+def _store_mismatch_reason(
+    store: FingerprintStore,
+    resolved_commit: str,
+    confirmed_at: object | None,
+) -> str | None:
+    """Return why `store` can't be trusted for this stamp, or None if it can."""
+    if confirmed_at is None:
+        return (
+            "no confirmed_at supplied, so the fingerprint store's stamp cannot "
+            "be validated -- failing closed"
         )
-    path = project_root / FINGERPRINT_PATH
-    path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(fingerprints, indent=2, sort_keys=True) + "\n"
-    # Atomic write: a temp file in the same directory (so the rename is on
-    # the same filesystem), then os.replace -- a process interrupted
-    # mid-write must never leave a partial/corrupt fingerprint file behind,
-    # since `load_fingerprints` treats any unreadable file as "no
-    # fingerprint on record" and fails every untracked target closed.
-    tmp_path = path.with_suffix(path.suffix + ".tmp")
-    tmp_path.write_text(payload, encoding="utf-8")
-    os.replace(tmp_path, path)
-    return fingerprints
+    try:
+        wanted_at = canonical_confirmed_at(confirmed_at)
+        stored_at = canonical_confirmed_at(store.confirmed_at)
+    except GateStalenessError as err:
+        return f"{err} -- failing closed"
+    if store.confirmed_commit != resolved_commit or stored_at != wanted_at:
+        return (
+            "fingerprint store was recorded for a different confirmation "
+            "stamp -- failing closed"
+        )
+    return None
 
 
 def check_target_staleness(
@@ -510,9 +758,15 @@ def check_target_staleness(
     head: str,
     target: WatchTarget,
     fingerprints: dict[str, str] | None,
+    store_unavailable_reason: str | None = None,
 ) -> FileStaleness:
     """Check one resolved `WatchTarget` for staleness, by whichever means
-    its `kind` supports."""
+    its `kind` supports.
+
+    `store_unavailable_reason`, when set, fails every fingerprint-kind
+    target closed with that reason (e.g. the store's stamp does not match
+    the profile being checked).
+    """
     if target.kind == "unresolved":
         return FileStaleness(
             target.canonical_name,
@@ -538,6 +792,10 @@ def check_target_staleness(
             f"WatchTarget {target.canonical_name!r} has kind='fingerprint' "
             "but no absolute_path -- malformed WatchTarget"
         )
+    if store_unavailable_reason is not None:
+        return FileStaleness(
+            target.canonical_name, stale=True, reason=store_unavailable_reason
+        )
     if fingerprints is None or target.canonical_name not in fingerprints:
         return FileStaleness(
             target.canonical_name,
@@ -553,7 +811,15 @@ def check_target_staleness(
             stale=True,
             reason="installed target file missing -- failing closed",
         )
-    current = compute_fingerprint(target.absolute_path.read_bytes())
+    try:
+        content = target.absolute_path.read_bytes()
+    except OSError:
+        return FileStaleness(
+            target.canonical_name,
+            stale=True,
+            reason="installed target file unreadable -- failing closed",
+        )
+    current = compute_fingerprint(content)
     stored = fingerprints[target.canonical_name]
     if current != stored:
         return FileStaleness(
@@ -573,6 +839,7 @@ def check_gate_staleness(
     confirmed_commit: str,
     head: str = "HEAD",
     watched_files: tuple[str, ...] | None = None,
+    confirmed_at: object | None = None,
 ) -> StalenessResult:
     """Check every watched gate-bearing file for semantic staleness.
 
@@ -587,6 +854,12 @@ def check_gate_staleness(
     target's paths otherwise -- via git history when that target lives
     inside `project_root`'s working tree, or via a persisted content
     fingerprint when it doesn't.
+
+    `confirmed_at` is the profile's own `confirmed_at` (a `datetime` from a
+    YAML load, or the raw text from the shell snippet). The fingerprint
+    store is accepted only when its stamp equals `(confirmed_commit resolved
+    to a full SHA, canonical confirmed_at)`; without `confirmed_at`, every
+    fingerprint-kind target fails closed. Git-tracked targets don't use it.
     """
     if not confirmed_commit or confirmed_commit == "null":
         raise GateStalenessError(
@@ -599,7 +872,9 @@ def check_gate_staleness(
     # silently misread as "every watched file was added since confirmation"
     # (which is what a bare _show_file_at failure on a bad commit would
     # otherwise look like).
-    _run_git(["rev-parse", "--verify", f"{confirmed_commit}^{{commit}}"], project_root)
+    resolved_commit = _run_git(
+        ["rev-parse", "--verify", f"{confirmed_commit}^{{commit}}"], project_root
+    ).strip()
     resolved_head = _run_git(["rev-parse", head], project_root).strip()
 
     if watched_files is not None:
@@ -609,10 +884,23 @@ def check_gate_staleness(
         )
     else:
         targets = resolve_watch_targets(project_root)
-        fingerprints = load_fingerprints(project_root)
+        fingerprints: dict[str, str] | None = None
+        store_reason: str | None = None
+        if any(target.kind == "fingerprint" for target in targets):
+            store = load_fingerprint_store(project_root)
+            if store is not None:
+                store_reason = _store_mismatch_reason(
+                    store, resolved_commit, confirmed_at
+                )
+                fingerprints = store.fingerprints
         files = tuple(
             check_target_staleness(
-                project_root, confirmed_commit, resolved_head, target, fingerprints
+                project_root,
+                confirmed_commit,
+                resolved_head,
+                target,
+                fingerprints,
+                store_reason,
             )
             for target in targets
         )

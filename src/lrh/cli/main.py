@@ -535,6 +535,15 @@ def main() -> None:
         help="the commit stored consent was last confirmed against",
     )
     chain_defaults_staleness_parser.add_argument(
+        "--confirmed-at",
+        default=None,
+        help=(
+            "the profile's confirmed_at; the fingerprint store for user-scope "
+            "installed targets is accepted only when its stamp matches "
+            "(omitted: those targets fail closed)"
+        ),
+    )
+    chain_defaults_staleness_parser.add_argument(
         "--head",
         default="HEAD",
         help="commit-ish to check against (default: HEAD)",
@@ -569,6 +578,41 @@ def main() -> None:
         help="target repository root (default: current directory)",
     )
     chain_defaults_status_parser.add_argument(
+        "--format",
+        choices=("text", "json"),
+        default="text",
+        help="output format (default: text)",
+    )
+    chain_defaults_restamp_parser = chain_defaults_subparsers.add_parser(
+        "restamp",
+        help=(
+            "Re-stamp confirmed_commit/confirmed_at and record user-scope "
+            "installed-target fingerprints bound to that same stamp, as one "
+            "act. Run only after a human re-confirmed the stale-files payload."
+        ),
+    )
+    chain_defaults_restamp_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help=(
+            "preview the stale-files list, the fingerprint plan, and the new "
+            "stamp without writing anything"
+        ),
+    )
+    chain_defaults_restamp_parser.add_argument(
+        "--expect-digest",
+        default=None,
+        help=(
+            "the plan_digest from the approved --dry-run preview; refuse "
+            "(exit 2, nothing written) if the plan has changed since"
+        ),
+    )
+    chain_defaults_restamp_parser.add_argument(
+        "--project-root",
+        default=".",
+        help="target repository root (default: current directory)",
+    )
+    chain_defaults_restamp_parser.add_argument(
         "--format",
         choices=("text", "json"),
         default="text",
@@ -1473,6 +1517,7 @@ def main() -> None:
                     project_root=project_root,
                     confirmed_commit=args.confirmed_commit,
                     head=args.head,
+                    confirmed_at=args.confirmed_at,
                 )
             except gate_staleness.GateStalenessError as err:
                 # stderr, not stdout: --format json callers expect stdout to
@@ -1500,9 +1545,27 @@ def main() -> None:
             else:
                 print(chain_defaults_status.format_text(status))
             raise SystemExit(0)
+        if args.chain_defaults_command == "restamp":
+            if passthrough_args:
+                parser.error(f"unrecognized arguments: {' '.join(passthrough_args)}")
+            project_root = Path(args.project_root).expanduser().resolve()
+            try:
+                plan = chain_defaults_status.plan_restamp(project_root=project_root)
+                if not args.dry_run:
+                    chain_defaults_status.apply_restamp(
+                        project_root, plan, expect_digest=args.expect_digest
+                    )
+            except chain_defaults_status.ChainDefaultsStatusError as err:
+                print(f"error: {err}", file=sys.stderr)
+                raise SystemExit(2) from err
+            if args.format == "json":
+                print(chain_defaults_status.format_restamp_json(plan, args.dry_run))
+            else:
+                print(chain_defaults_status.format_restamp_text(plan, args.dry_run))
+            raise SystemExit(0)
         parser.error(
             "chain-defaults requires a subcommand "
-            "(try: lrh chain-defaults status or check-staleness)"
+            "(try: lrh chain-defaults status, check-staleness, or restamp)"
         )
 
     if args.command == "confirm-fixes":

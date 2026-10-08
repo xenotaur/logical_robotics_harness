@@ -484,6 +484,132 @@ class RestampTest(unittest.TestCase):
             self.assertEqual(profile["confirmed_commit"], plan.new_confirmed_commit)
             self.assertFalse(gate_staleness.fingerprint_store_path(root).exists())
 
+    def test_expect_digest_mismatch_refuses_and_match_applies(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            profile_path = root / chain_defaults_status.CHAIN_DEFAULTS_PATH
+            before = profile_path.read_text()
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                preview = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                one = gate_staleness.INSTALLED_CANONICAL_SKILL_NAMES[0]
+                (home / ".claude" / "skills" / one).write_text("changed after preview")
+                current = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                self.assertNotEqual(preview.digest, current.digest)
+                with self.assertRaises(chain_defaults_status.ChainDefaultsStatusError):
+                    chain_defaults_status.apply_restamp(
+                        root, current, expect_digest=preview.digest
+                    )
+                self.assertEqual(profile_path.read_text(), before)
+                self.assertFalse(gate_staleness.fingerprint_store_path(root).exists())
+
+                later = datetime.datetime(
+                    2026, 3, 4, 5, 6, 8, tzinfo=datetime.timezone.utc
+                )
+                again = chain_defaults_status.plan_restamp(root, now=later)
+                self.assertEqual(again.digest, current.digest)  # time excluded
+                chain_defaults_status.apply_restamp(
+                    root, again, expect_digest=current.digest
+                )
+                self.assertFalse(
+                    chain_defaults_status.compute_status(root).staleness.stale
+                )
+
+    def test_failed_staleness_check_refuses(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            profile_path = root / chain_defaults_status.CHAIN_DEFAULTS_PATH
+            profile = chain_defaults_status.load_profile(root)
+            profile_path.write_text(
+                profile_path.read_text().replace(
+                    profile["confirmed_commit"], "deadbeef" * 5
+                )
+            )
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                with self.assertRaises(
+                    chain_defaults_status.ChainDefaultsStatusError
+                ) as ctx:
+                    chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+            self.assertIn("staleness check failed", str(ctx.exception))
+
+    def test_unreadable_installed_target_refuses(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            real_read = pathlib.Path.read_bytes
+
+            def flaky_read(path: pathlib.Path) -> bytes:
+                if path.is_relative_to(home):
+                    raise PermissionError("unreadable")
+                return real_read(path)
+
+            with (
+                mock.patch.object(pathlib.Path, "home", return_value=home),
+                mock.patch.object(pathlib.Path, "read_bytes", flaky_read),
+            ):
+                with self.assertRaises(
+                    chain_defaults_status.ChainDefaultsStatusError
+                ) as ctx:
+                    chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+            self.assertIn("cannot read installed target", str(ctx.exception))
+
+    def test_identical_stamp_refuses(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                chain_defaults_status.apply_restamp(root, plan)
+                with self.assertRaises(chain_defaults_status.ChainDefaultsStatusError):
+                    chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+
+    def test_profile_replace_failure_after_store_write_fails_closed(self) -> None:
+        """The store is written, then replacing the profile fails: the
+        error is raised cleanly, the old profile and consent stay intact,
+        and user-scope targets stay fail-closed (store stamp matches no
+        profile)."""
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root = pathlib.Path(tmp)
+            self._client_repo(root)
+            home = pathlib.Path(h)
+            _install_user_scope(home)
+            _grant_consent(root)
+            profile_path = root / chain_defaults_status.CHAIN_DEFAULTS_PATH
+            before = profile_path.read_text()
+            real_replace = chain_defaults_status.os.replace
+
+            def failing_replace(src, dst, *args, **kwargs):
+                if pathlib.Path(dst).name == profile_path.name:
+                    raise OSError("disk full")
+                return real_replace(src, dst, *args, **kwargs)
+
+            with mock.patch.object(pathlib.Path, "home", return_value=home):
+                plan = chain_defaults_status.plan_restamp(root, now=_FIXED_NOW)
+                with mock.patch.object(
+                    chain_defaults_status.os, "replace", failing_replace
+                ):
+                    with self.assertRaises(
+                        chain_defaults_status.ChainDefaultsStatusError
+                    ) as ctx:
+                        chain_defaults_status.apply_restamp(root, plan)
+                self.assertIn("fail-closed", str(ctx.exception))
+                self.assertTrue(gate_staleness.fingerprint_store_path(root).exists())
+                self.assertEqual(profile_path.read_text(), before)
+                status = chain_defaults_status.compute_status(root)
+            self.assertTrue(status.consent.valid)
+            self.assertTrue(status.staleness.stale)
+            for stale_file in status.staleness.stale_files:
+                self.assertIn("different confirmation stamp", stale_file.reason)
+
     def test_missing_profile_refuses(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)

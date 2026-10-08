@@ -600,6 +600,14 @@ def main() -> None:
         ),
     )
     chain_defaults_restamp_parser.add_argument(
+        "--expect-digest",
+        default=None,
+        help=(
+            "the plan_digest from the approved --dry-run preview; refuse "
+            "(exit 2, nothing written) if the plan has changed since"
+        ),
+    )
+    chain_defaults_restamp_parser.add_argument(
         "--project-root",
         default=".",
         help="target repository root (default: current directory)",
@@ -1544,7 +1552,9 @@ def main() -> None:
             try:
                 plan = chain_defaults_status.plan_restamp(project_root=project_root)
                 if not args.dry_run:
-                    chain_defaults_status.apply_restamp(project_root, plan)
+                    chain_defaults_status.apply_restamp(
+                        project_root, plan, expect_digest=args.expect_digest
+                    )
             except chain_defaults_status.ChainDefaultsStatusError as err:
                 print(f"error: {err}", file=sys.stderr)
                 raise SystemExit(2) from err

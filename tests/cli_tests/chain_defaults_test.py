@@ -100,8 +100,29 @@ class ChainDefaultsCliTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
             root, home = pathlib.Path(tmp), pathlib.Path(h)
             self._client_repo(root, home)
+            preview = self._lrh(
+                [
+                    "chain-defaults",
+                    "restamp",
+                    "--project-root",
+                    str(root),
+                    "--dry-run",
+                    "--format",
+                    "json",
+                ],
+                home,
+            )
+            digest = json.loads(preview.stdout)["plan_digest"]
             completed = self._lrh(
-                ["chain-defaults", "restamp", "--project-root", str(root)], home
+                [
+                    "chain-defaults",
+                    "restamp",
+                    "--project-root",
+                    str(root),
+                    "--expect-digest",
+                    digest,
+                ],
+                home,
             )
             self.assertEqual(completed.returncode, 0, msg=completed.stderr)
             self.assertIn("Re-stamped:", completed.stdout)
@@ -161,6 +182,29 @@ class ChainDefaultsCliTest(unittest.TestCase):
             self.assertEqual(completed.returncode, 2)
             self.assertEqual(completed.stdout, "")
             self.assertIn("refusing to re-stamp", completed.stderr)
+            self.assertEqual(
+                (root / chain_defaults_status.CHAIN_DEFAULTS_PATH).read_text(), before
+            )
+            self.assertFalse(gate_staleness.fingerprint_store_path(root).exists())
+
+    def test_restamp_expect_digest_mismatch_exits_2(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as h:
+            root, home = pathlib.Path(tmp), pathlib.Path(h)
+            self._client_repo(root, home)
+            before = (root / chain_defaults_status.CHAIN_DEFAULTS_PATH).read_text()
+            completed = self._lrh(
+                [
+                    "chain-defaults",
+                    "restamp",
+                    "--project-root",
+                    str(root),
+                    "--expect-digest",
+                    "0" * 64,
+                ],
+                home,
+            )
+            self.assertEqual(completed.returncode, 2)
+            self.assertIn("plan changed since the approved preview", completed.stderr)
             self.assertEqual(
                 (root / chain_defaults_status.CHAIN_DEFAULTS_PATH).read_text(), before
             )

@@ -81,9 +81,9 @@ skip the live reply here, regardless of `chain_init_confirmation`'s stored
 value, since `skip_if_opted_in` requires the two-step consent in the next
 section, and that consent cannot yet exist for values nobody has ever
 live-confirmed. On confirmation, write the file (with `confirmed_commit: null`
-and `confirmed_at: null` lines), then stamp it with
-`lrh chain-defaults restamp --project-root .` — never hand-write the two
-stamp fields (see "Re-stamping" below). Do not run the staleness
+and `confirmed_at: null` lines), then stamp it with `lrh chain-defaults
+restamp` as described in "Re-stamping" below — never hand-write the two
+stamp fields. Do not run the staleness
 check (below) in this case — there is nothing to compare `confirmed_commit`
 against yet.
 
@@ -109,7 +109,7 @@ If the user's live reply diverges from the stored values (wording changed,
 not just re-confirmed), apply the **Decision 4 profile-update offer**: at
 the end of the run, ask "Update the stored default to match?" — never
 silently persist a one-off override. Only rewrite the file on explicit yes,
-and re-stamp it with `lrh chain-defaults restamp --project-root .`.
+and re-stamp it with `lrh chain-defaults restamp` (see "Re-stamping" below).
 
 ## `skip_if_opted_in` — the five requirements (`DEC-CHAIN-INIT-SKIP-CONSENT`) plus the Stage 3.5 compensating control (`DEC-GATE-POLICY-CASCADE`)
 
@@ -294,8 +294,8 @@ are actually stored* (see the field description above), having been shown
 what changed (the requirement just above) — not merely "a live reply
 happened":
 
-- **Reply matches the stored text (no divergence):** run
-  `lrh chain-defaults restamp --project-root .`. This is not a no-op:
+- **Reply matches the stored text (no divergence):** re-stamp per
+  "Re-stamping" below. This is not a no-op:
   the human explicitly re-affirmed the current gate text, and that
   affirmation is exactly what `confirmed_commit` exists to record —
   previously nothing re-stamped here, which is the bug this section fixes.
@@ -311,15 +311,28 @@ happened":
   Notes warns against, just reached via a declined profile-update instead
   of a silent skip.
 
-**Re-stamping.** `lrh chain-defaults restamp --project-root .` is the only
-way to write `confirmed_commit`/`confirmed_at`. It stamps HEAD's full SHA
-and the current UTC time and, in the same act, records content fingerprints
-for every user-scope installed watch target into the clone's git common dir
-(never committed), bound to that same stamp — so git-tracked and
-fingerprinted targets always share one confirmation baseline. Preview first
-with `--dry-run`, which prints the stale-files list, the fingerprint plan
-(`new`/`unchanged`/`changed`/`removed`), and the new stamp. It refuses
-(exit 2, nothing written) if any installed target is unresolved or missing.
+**Re-stamping.** `lrh chain-defaults restamp` is the only way to write
+`confirmed_commit`/`confirmed_at`. It stamps HEAD's full SHA and the current
+UTC time and, in the same act, records content fingerprints for every
+user-scope installed watch target into the clone's git common dir (never
+committed), bound to that same stamp — so git-tracked and fingerprinted
+targets always share one confirmation baseline. Always two calls, with the
+preview inside the gate:
+
+```bash
+lrh chain-defaults restamp --project-root . --dry-run
+# show its output in the gate; after the confirming reply:
+lrh chain-defaults restamp --project-root . --expect-digest <plan_digest>
+```
+
+The dry run prints the stale-files list, the fingerprint plan
+(`new`/`unchanged`/`changed`/`removed`), the new stamp, and a `plan_digest`
+over everything except the timestamp. The real run refuses (exit 2, nothing
+written) if its plan no longer matches that digest — so it can never record
+content the human wasn't shown. It also refuses if the staleness check
+itself fails (outside the first-encounter case), if any installed target is
+unresolved, missing, or unreadable, or if the new stamp would equal the
+current one.
 Only hashes are stored, so for a `changed` user-scope entry it can say the
 content differs, not what changed. Because skip consent is bound to this
 file's blob hash, every re-stamp invalidates it; re-grant via

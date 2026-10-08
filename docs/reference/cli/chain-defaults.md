@@ -111,12 +111,13 @@ itself failed (e.g. an unresolvable `--confirmed-commit`).
 ## `restamp`
 
 ```bash
-lrh chain-defaults restamp [--dry-run] [--project-root PROJECT_ROOT] [--format {text,json}]
+lrh chain-defaults restamp [--dry-run] [--expect-digest DIGEST] [--project-root PROJECT_ROOT] [--format {text,json}]
 ```
 
 | Option | Behavior |
 |---|---|
-| `--dry-run` | Preview the stale-files list being re-confirmed, the fingerprint plan, and the new stamp, without writing anything. |
+| `--dry-run` | Preview the stale-files list being re-confirmed, the fingerprint plan, the new stamp, and a `plan_digest`, without writing anything. |
+| `--expect-digest` | The `plan_digest` from the approved dry run. Refuses (exit `2`, nothing written) if the plan has changed since. The digest covers the stale files, every fingerprint entry, and the commits, but not the timestamp. |
 | `--project-root` | Target repository root (default: current directory). |
 | `--format` | `text` (default) or `json`. |
 
@@ -124,9 +125,13 @@ Run only after a human has re-confirmed the stale-files payload: at a
 `/lrh-land`/`/lrh-execute` chain-authorization gate, or in
 `/lrh-config-gates`'s re-confirm step. It:
 
-1. Refuses (exit `2`, nothing written) if `chain-defaults.yaml` is absent,
-   if any watch target can't be resolved, or if any user-scope installed
-   target file is missing.
+1. Refuses (exit `2`, nothing written) if `chain-defaults.yaml` is absent;
+   if the staleness check against the current `confirmed_commit` fails
+   (there would be no stale-files payload to confirm; only a null or absent
+   `confirmed_commit`, the first-encounter case, proceeds without one); if
+   any watch target can't be resolved, or any user-scope installed target
+   file is missing or unreadable; if the new stamp would equal the current
+   one; or if `--expect-digest` no longer matches the plan.
 2. Computes one stamp: `HEAD`'s full SHA and the current UTC time as
    ISO-8601 with a trailing `Z`.
 3. Writes the fingerprint store, bound to that stamp, to

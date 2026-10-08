@@ -184,10 +184,11 @@ is not on `main` and mix policy state into an unrelated PR. So, scoped to
 lrh chain-defaults restamp --project-root <project-root> --dry-run
 ```
 
-The real run below recomputes the same plan from the same function, so the
-stale-files list and fingerprint plan match the preview unless an installed
-file changes in between; the `confirmed_at` time shown is indicative (the
-real run stamps the moment it runs).
+Keep the `plan_digest` it prints. The real run below passes it back with
+`--expect-digest` and refuses if the plan changed in between (e.g. an
+installed file changed), so it can only record what was shown here. The
+`confirmed_at` time shown is indicative: the real run stamps the moment it
+runs, and the digest deliberately excludes it.
 
 <!-- GATE-DEFINITION -->
 **Confirm gate.** Before re-stamping, show:
@@ -197,7 +198,8 @@ real run stamps the moment it runs).
   gate would show (`chain-defaults.md`'s re-stamp condition).
 - The fingerprint plan: each user-scope installed target with its
   comparison (`new` / `unchanged` / `changed` / `removed`) and path.
-- The new stamp (`confirmed_commit` and `confirmed_at`).
+- The new stamp (`confirmed_commit` and `confirmed_at`) and the
+  `plan_digest`.
 - Plainly: this accepts the **current** gate text of every watched file as
   confirmed. For a `changed` user-scope entry, LRH stores only hashes, so it
   can say the installed content differs but not what changed -- inspect the
@@ -212,11 +214,14 @@ covers only the re-stamp -- never the consent grant.
 Run, on the tmp branch:
 
 ```bash
-lrh chain-defaults restamp --project-root <project-root>
+lrh chain-defaults restamp --project-root <project-root> --expect-digest <plan_digest>
 ```
 
-If it exits 2 (an unresolved or missing installed target), report the
-error verbatim and stop this step -- nothing was written. Otherwise commit
+If it exits 2, report the error verbatim and stop this step -- nothing was
+written. That covers an unresolved, missing, or unreadable installed
+target, a failed staleness check, an identical stamp, and a plan that no
+longer matches the approved digest; in the last case, offer to start this
+step again from the dry run. Otherwise commit
 the profile change and continue through Step 5's `main` path (including its
 explicit push confirmation). If the user declines the push, say plainly
 that `main`'s profile is unchanged; the fingerprint store was already

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import dataclasses
 import datetime
+import hashlib
 import json
 import os
 import pathlib
@@ -276,6 +277,34 @@ class RestampPlan:
     #: Canonical `confirmed_at`, written to both the profile and the store.
     new_confirmed_at: str
 
+    @property
+    def digest(self) -> str:
+        """A hash of everything the human is asked to approve.
+
+        Covers the stale-files payload, every fingerprint entry (name,
+        comparison, hash), and the previous and new `confirmed_commit`. It
+        deliberately excludes `confirmed_at` -- the time of the real run
+        always differs from the preview's. `restamp --expect-digest`
+        refuses when the plan it is about to write no longer matches the
+        previewed one.
+        """
+        payload = {
+            "previous_confirmed_commit": self.previous_confirmed_commit,
+            "new_confirmed_commit": self.new_confirmed_commit,
+            "stale_files": (
+                [[f.path, f.reason] for f in self.staleness.stale_files]
+                if self.staleness is not None
+                else None
+            ),
+            "staleness_error": self.staleness_error,
+            "fingerprints": [
+                [e.name, e.comparison, e.fingerprint]
+                for e in self.fingerprint_plan.entries
+            ],
+        }
+        encoded = json.dumps(payload, sort_keys=True).encode("utf-8")
+        return hashlib.sha256(encoded).hexdigest()
+
 
 def plan_restamp(
     project_root: pathlib.Path,
@@ -302,6 +331,10 @@ def plan_restamp(
     staleness: gate_staleness.StalenessResult | None = None
     staleness_error: str | None = None
     if previous_commit and previous_commit != "null":
+        # A re-stamp clears staleness, so the human must have been shown the
+        # stale-files payload. If the check itself can't run there is no
+        # payload to show: refuse rather than stamp over an unknown state.
+        # Only the explicit first-encounter case below proceeds without one.
         try:
             staleness = gate_staleness.check_gate_staleness(
                 project_root=project_root,
@@ -310,7 +343,10 @@ def plan_restamp(
                 confirmed_at=profile.get("confirmed_at"),
             )
         except gate_staleness.GateStalenessError as err:
-            staleness_error = str(err)
+            raise ChainDefaultsStatusError(
+                f"refusing to re-stamp: the staleness check failed, so there "
+                f"is no stale-files payload to confirm ({err})"
+            ) from err
     else:
         staleness_error = (
             "confirmed_commit is null/absent -- no prior confirmation on record"
@@ -336,14 +372,30 @@ def plan_restamp(
     except gate_staleness.GateStalenessError as err:
         raise ChainDefaultsStatusError(str(err)) from err
 
+    new_commit = result.stdout.strip()
+    if new_commit == previous_commit and new_at == _profile_confirmed_at(profile):
+        raise ChainDefaultsStatusError(
+            "refusing to re-stamp: the new stamp is identical to the current "
+            "one (same commit, same second), so it would neither record a new "
+            "confirmation nor invalidate consent -- retry in a moment"
+        )
+
     return RestampPlan(
         previous_confirmed_commit=previous_commit,
         staleness=staleness,
         staleness_error=staleness_error,
         fingerprint_plan=fingerprint_plan,
-        new_confirmed_commit=result.stdout.strip(),
+        new_confirmed_commit=new_commit,
         new_confirmed_at=new_at,
     )
+
+
+def _profile_confirmed_at(profile: dict) -> str | None:
+    """The profile's `confirmed_at` in canonical form, or None if unusable."""
+    try:
+        return gate_staleness.canonical_confirmed_at(profile.get("confirmed_at"))
+    except gate_staleness.GateStalenessError:
+        return None
 
 
 _CONFIRMED_COMMIT_LINE = re.compile(r"^confirmed_commit:.*$", re.MULTILINE)
@@ -366,14 +418,29 @@ def _restamped_profile_text(text: str, commit: str, confirmed_at: str) -> str:
     return _CONFIRMED_AT_LINE.sub(f"confirmed_at: {confirmed_at}", text)
 
 
-def apply_restamp(project_root: pathlib.Path, plan: RestampPlan) -> None:
+def apply_restamp(
+    project_root: pathlib.Path,
+    plan: RestampPlan,
+    expect_digest: str | None = None,
+) -> None:
     """Write the fingerprint store, then the profile's two stamp lines.
+
+    `expect_digest`, when given, must equal `plan.digest` -- the digest the
+    human approved from a `--dry-run` preview. A mismatch (an installed
+    skill changed, or staleness moved, between preview and apply) refuses
+    with nothing written.
 
     Store first, profile second, both bound to the same stamp. If the
     profile write fails (or the re-stamp is never committed), the store's
     stamp matches no profile and `check_gate_staleness` fails every
     fingerprint-kind target closed.
     """
+    if expect_digest is not None and expect_digest != plan.digest:
+        raise ChainDefaultsStatusError(
+            "refusing to re-stamp: the plan changed since the approved preview "
+            f"(expected digest {expect_digest}, now {plan.digest}); re-run "
+            "--dry-run and confirm again"
+        )
     path = project_root / CHAIN_DEFAULTS_PATH
     try:
         original = path.read_text()
@@ -413,6 +480,7 @@ def apply_restamp(project_root: pathlib.Path, plan: RestampPlan) -> None:
 def _restamp_payload(plan: RestampPlan, dry_run: bool) -> dict:
     return {
         "dry_run": dry_run,
+        "plan_digest": plan.digest,
         "previous_confirmed_commit": plan.previous_confirmed_commit,
         "new_confirmed_commit": plan.new_confirmed_commit,
         "new_confirmed_at": plan.new_confirmed_at,
@@ -454,6 +522,7 @@ def format_restamp_text(plan: RestampPlan, dry_run: bool) -> str:
         f"{plan.new_confirmed_commit}"
     )
     lines.append(f"  confirmed_at: {plan.new_confirmed_at}")
+    lines.append(f"  plan_digest: {plan.digest}")
     lines.append("Stale files being re-confirmed:")
     if plan.staleness is not None:
         if plan.staleness.stale:

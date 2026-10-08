@@ -626,7 +626,14 @@ def plan_fingerprints(
         if target.kind != "fingerprint":
             continue
         assert target.absolute_path is not None  # checked above
-        value = compute_fingerprint(target.absolute_path.read_bytes())
+        try:
+            content = target.absolute_path.read_bytes()
+        except OSError as err:
+            raise GateStalenessError(
+                f"cannot read installed target {target.canonical_name} "
+                f"({target.absolute_path}): {err}"
+            ) from err
+        value = compute_fingerprint(content)
         fingerprints[target.canonical_name] = value
         previous = stored.get(target.canonical_name)
         if previous is None:

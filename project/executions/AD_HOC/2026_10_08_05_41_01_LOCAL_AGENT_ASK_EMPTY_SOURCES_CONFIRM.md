@@ -2,10 +2,10 @@
 execution_id: 2026_10_08_05_41_01_LOCAL_AGENT_ASK_EMPTY_SOURCES_CONFIRM
 prompt_id: PROMPT(AD_HOC:LOCAL_AGENT_ASK_EMPTY_SOURCES_CONFIRM)[2026-10-08T05:41:01+00:00]
 work_item: AD_HOC
-status: in_progress
+status: landed
 rerun_of: 2026_10_08_04_57_07_LOCAL_AGENT_ASK_EMPTY_SOURCES
 pr: https://github.com/xenotaur/logical_robotics_harness/pull/788
-commit:
+commit: f95464c38e0a9a6961e7567d6afd4c7034fa63f9
 created_at: 2026-10-08T05:41:01+00:00
 agent: claude_app
 instruction_source: https://github.com/xenotaur/logical_robotics_harness/pull/788 (lrh-land Step 5 inline confirm-fixes)

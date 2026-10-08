@@ -170,7 +170,8 @@ window.lrhShowSection = (name) => {
   // In the two-column layout each column scrolls on its own; in the narrow
   // one-column layout the page scrolls.
   (name === "details" ? $("server-details") : $("settings-form")).scrollTop = 0;
-  target.scrollIntoView({ block: "start", behavior: "smooth" });
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  target.scrollIntoView({ block: "start", behavior: reduceMotion ? "auto" : "smooth" });
   if (name === "details") {
     target.classList.remove("flash");
     void target.offsetWidth; // restart the animation

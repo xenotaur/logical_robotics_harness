@@ -22,7 +22,7 @@ from lrh.assist import run_packet, run_report, work_item_prompt_core
 from lrh.control import loader as control_loader
 from lrh.conversations import export_inspector
 from lrh.meta import workspace as meta_workspace
-from lrh.ux import dashboard
+from lrh.ux import dashboard, tokens
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
@@ -44,6 +44,7 @@ _STATUS_ROUTES = (
     "/conversations/codex/<export_id>",
     "/meta",
     "/meta/project",
+    "/style",
     "/project/<project_id>",
     "/project/<project_id>/designs/<design_id>",
     "/project/<project_id>/workstreams/<workstream_id>",
@@ -514,6 +515,158 @@ def render_meta_project_placeholder(project_selector: str) -> str:
 """.format(styles=_base_styles(), selector=selector)
 
 
+_SPECIMEN_STATES = (
+    ("done", "Done", "\u2713"),
+    ("progress", "In progress", "\u25b6"),
+    ("unblocked", "Unblocked", "\u25cb"),
+    ("waiting", "Waiting", "\u29d7"),
+    ("blocked", "Blocked", "\u2715"),
+    ("review", "Awaiting review", "\u25ce"),
+    ("unknown", "Unknown", "?"),
+)
+_SPECIMEN_BANDS = (
+    ("needs-attention", "Needs attention"),
+    ("blocked", "Blocked"),
+    ("active-work", "Active work"),
+    ("awaiting-review", "Awaiting review"),
+    ("stable", "Stable"),
+    ("unknown", "Unknown"),
+)
+_SPECIMEN_STYLES = """<style>
+  .lrh-specimen-row { display: flex; flex-wrap: wrap; gap: var(--lrh-space-3); }
+  .lrh-swatch {
+    border: 1px solid var(--lrh-color-border-strong);
+    border-radius: var(--lrh-radius-sm);
+    min-width: 9rem;
+    padding: var(--lrh-space-3);
+  }
+  .lrh-swatch code, .lrh-specimen-id { font-family: var(--lrh-font-mono); }
+  .lrh-specimen-display { font-family: var(--lrh-font-display); font-weight: 700; }
+  .lrh-pill {
+    border: 1px solid currentColor;
+    border-radius: var(--lrh-radius-pill);
+    display: inline-block;
+    font-weight: 700;
+    padding: 0.15rem 0.6rem;
+  }
+  .lrh-card {
+    background: var(--lrh-color-surface-panel);
+    border: 1px solid var(--lrh-color-border-subtle);
+    border-inline-start: 4px solid var(--card-line);
+    border-radius: var(--lrh-radius-md);
+    min-width: 12rem;
+    padding: var(--lrh-space-3);
+  }
+  .lrh-card--blocked { border-style: dashed; border-inline-start-style: solid; }
+  .lrh-band {
+    border-inline-start: 6px solid var(--band-line);
+    border-radius: var(--lrh-radius-sm);
+    margin-block: var(--lrh-space-2);
+  }
+  .lrh-band h3 {
+    background: var(--band-bg);
+    color: var(--band-fg);
+    margin: 0;
+    padding: var(--lrh-space-2) var(--lrh-space-3);
+  }
+  .lrh-focus-sample:focus-visible, .lrh-focus-sample--shown {
+    box-shadow: var(--lrh-focus-ring);
+    outline: none;
+  }
+  .lrh-sunken {
+    background: var(--lrh-color-surface-sunken);
+    border-radius: var(--lrh-radius-md);
+    padding: var(--lrh-space-3);
+  }
+</style>"""
+
+
+def render_style_specimen() -> str:
+    """Render a read-only specimen of the shared tokens in the current theme.
+
+    The page sets no ``data-theme``, so it follows the system appearance.
+    """
+
+    surfaces = "".join(
+        f'<div class="lrh-swatch" style="background: var(--lrh-color-surface-{name})">'
+        f'<span class="lrh-specimen-display">Aa</span> <span class="lrh-muted">'
+        f"muted</span><br><code>surface-{name}</code></div>"
+        for name in ("page", "panel", "sunken", "overlay")
+    )
+    pills = "".join(
+        f'<span class="lrh-pill" style="background: var(--lrh-color-status-{key}-bg);'
+        f' color: var(--lrh-color-status-{key}-fg)">'
+        f'<span aria-hidden="true">{icon}</span> {label}</span>'
+        for key, label, icon in _SPECIMEN_STATES
+    )
+    cards = "".join(
+        f'<div class="lrh-card{" lrh-card--blocked" if key == "blocked" else ""}"'
+        f' style="--card-line: var(--lrh-color-status-{key}-line)">'
+        f'<span class="lrh-specimen-id">WI-EXAMPLE-{index}</span><br>'
+        f"Example work item<br>"
+        f'<span class="lrh-pill" style="background: var(--lrh-color-status-{key}-bg);'
+        f' color: var(--lrh-color-status-{key}-fg)">'
+        f'<span aria-hidden="true">{icon}</span> {label}</span></div>'
+        for index, (key, label, icon) in enumerate(_SPECIMEN_STATES, start=1)
+    )
+    bands = "".join(
+        f'<section class="lrh-band" style="--band-bg: var(--lrh-color-band-{key}-bg);'
+        f" --band-fg: var(--lrh-color-band-{key}-fg);"
+        f' --band-line: var(--lrh-color-band-{key}-line)">'
+        f'<h3>{label} <span class="lrh-muted">(0)</span></h3></section>'
+        for key, label in _SPECIMEN_BANDS
+    )
+    line_rows = [
+        ("edge", "solid", "Depends on"),
+        ("edge", "dashed", "Blocked by"),
+        ("edge-strong", "solid", "Selected"),
+    ] + [(f"status-{key}-line", "solid", label) for key, label, _ in _SPECIMEN_STATES]
+    lines = "".join(
+        f'<svg width="260" height="24" role="img" aria-label="{label} line">'
+        f'<line x1="4" y1="12" x2="140" y2="12"'
+        f' style="stroke: var(--lrh-color-{token}); stroke-width: 2;'
+        f' stroke-dasharray: {"6 4" if dash == "dashed" else "none"}"/>'
+        f'<text x="150" y="16" style="fill: var(--lrh-color-text-muted);'
+        f' font-size: 12px">{label}</text></svg>'
+        for token, dash, label in line_rows
+    )
+    return f"""<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>LRH Style Specimen</title>{_base_styles()}
+{_SPECIMEN_STYLES}</head>
+<body>
+  <div class="lrh-app-shell">
+    <header class="lrh-page-header">
+      <p class="lrh-eyebrow">LRH Console preview</p>
+      <h1 class="lrh-specimen-display">Style specimen</h1>
+      <p class="lrh-muted">Every shared token in the current theme. This page follows
+      the system appearance.</p>
+    </header>
+    <main class="lrh-main-content">
+      <section class="lrh-console-region"><h2>Surfaces and text</h2>
+        <div class="lrh-specimen-row">{surfaces}</div></section>
+      <section class="lrh-console-region"><h2>Status</h2>
+        <div class="lrh-specimen-row">{pills}</div>
+        <div class="lrh-sunken lrh-specimen-row">{pills}</div></section>
+      <section class="lrh-console-region"><h2>Cards</h2>
+        <div class="lrh-specimen-row">{cards}</div></section>
+      <section class="lrh-console-region"><h2>Bands</h2>{bands}</section>
+      <section class="lrh-console-region"><h2>Lines</h2>
+        <div class="lrh-specimen-row">{lines}</div>
+        <div class="lrh-sunken lrh-specimen-row">{lines}</div></section>
+      <section class="lrh-console-region"><h2>Focus and action</h2>
+        <p><a class="lrh-focus-sample" href="/style">A focusable link</a>
+        <span class="lrh-pill lrh-focus-sample--shown">Focus ring</span>
+        <span class="lrh-pill" style="background: var(--lrh-color-action-accent);
+        color: var(--lrh-color-action-on-accent)">Primary action</span></p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
+"""
+
+
 def render_project_operational_dashboard(
     config: ServeConfig, project_selector: str
 ) -> tuple[int, str]:
@@ -745,7 +898,8 @@ def render_design_detail_page(
     )
     return (
         200,
-        """<!doctype html><html lang="en"><head><meta charset="utf-8">
+        """<!doctype html><html lang="en" data-theme="light">
+<head><meta charset="utf-8">
 <title>Design detail</title>{styles}</head><body><div class="lrh-app-shell">
 <header class="lrh-page-header"><h1>Design: {design_id}</h1>
 <p><a href="/project/{project}">Back to project dashboard</a></p></header>
@@ -809,7 +963,8 @@ def render_workstream_detail_page(
     work_item_html = _html_list(list(workstream.work_items))
     return (
         200,
-        """<!doctype html><html lang="en"><head><meta charset="utf-8">
+        """<!doctype html><html lang="en" data-theme="light">
+<head><meta charset="utf-8">
 <title>Workstream detail</title>{styles}</head><body><div class="lrh-app-shell">
 <header class="lrh-page-header"><h1>Workstream: {workstream_id}</h1>
 <p><a href="/project/{project}">Back to project dashboard</a></p></header>
@@ -1592,7 +1747,7 @@ def render_project_work_item_page(
         "lrh request codex-prompt-from-work-item " f"--work-item {html.escape(item.id)}"
     )
     page = f"""<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head><meta charset="utf-8"><title>{html.escape(item.id)}</title>{_base_styles()}</head>
 <body><div class="lrh-app-shell">
 <h1>{html.escape(item.id)} — {html.escape(item.title)}</h1>
@@ -1898,7 +2053,7 @@ def render_codex_archive_index(config: ServeConfig) -> str:
     safety = _html_list(payload["safety"])
     styles = _base_styles()
     return f"""<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head><meta charset="utf-8"><title>Codex conversation archives</title>{styles}</head>
 <body><div class="lrh-app-shell">
   <header class="lrh-page-header">
@@ -1956,7 +2111,7 @@ def render_codex_archive_detail(config: ServeConfig, export_id: str) -> tuple[in
     status_badge = f'<span class="lrh-status-badge {badge_class}">{validity}</span>'
     styles = _base_styles()
     body = f"""<!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head><meta charset="utf-8"><title>{heading}</title>{styles}</head>
 <body><div class="lrh-app-shell">
   <header class="lrh-page-header">
@@ -2160,50 +2315,16 @@ def _is_path_within(path: Path, root: Path) -> bool:
 
 
 def _base_styles() -> str:
-    """Return small semantic token scaffolding for package-owned serve pages."""
+    """Return the shared tokens plus page styles for package-owned serve pages."""
 
-    return """<style>
-  :root {
-    --lrh-color-surface-page: #f7f5ef;
-    --lrh-color-surface-panel: #fffdf8;
-    --lrh-color-text-primary: #18212f;
-    --lrh-color-text-muted: #5f6b7a;
-    --lrh-color-border-subtle: #d9d2c4;
-    --lrh-color-status-needs-attention-bg: #ffe8e8;
-    --lrh-color-status-needs-attention-text: #7f1d1d;
-    --lrh-color-status-active-work-bg: #e8f1ff;
-    --lrh-color-status-active-work-text: #16396b;
-    --lrh-color-status-awaiting-review-bg: #fff4d6;
-    --lrh-color-status-awaiting-review-text: #614600;
-    --lrh-color-status-stable-bg: #e4f7ec;
-    --lrh-color-status-stable-text: #14532d;
-    --lrh-color-status-unknown-bg: #eceff3;
-    --lrh-color-status-unknown-text: #3f4856;
-    --lrh-focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.45);
-  }
+    return "<style>\n" + tokens.token_css() + _PAGE_STYLES
 
-  [data-theme="dark"] {
-    --lrh-color-surface-page: #101722;
-    --lrh-color-surface-panel: #172131;
-    --lrh-color-text-primary: #f7f5ef;
-    --lrh-color-text-muted: #b8c1cc;
-    --lrh-color-border-subtle: #334155;
-    --lrh-color-status-needs-attention-bg: #4a1f24;
-    --lrh-color-status-needs-attention-text: #ffd7d7;
-    --lrh-color-status-active-work-bg: #1e3a5f;
-    --lrh-color-status-active-work-text: #d8e9ff;
-    --lrh-color-status-awaiting-review-bg: #453514;
-    --lrh-color-status-awaiting-review-text: #ffe9a8;
-    --lrh-color-status-stable-bg: #173b29;
-    --lrh-color-status-stable-text: #c9f7d9;
-    --lrh-color-status-unknown-bg: #2b3544;
-    --lrh-color-status-unknown-text: #e2e8f0;
-  }
 
+_PAGE_STYLES = """
   body {
     background: var(--lrh-color-surface-page);
     color: var(--lrh-color-text-primary);
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--lrh-font-body);
     line-height: 1.5;
     margin: 0;
   }
@@ -2220,7 +2341,7 @@ def _base_styles() -> str:
   .lrh-validation-summary, .lrh-workbench-artifact {
     background: var(--lrh-color-surface-panel);
     border: 1px solid var(--lrh-color-border-subtle);
-    border-radius: 1rem;
+    border-radius: var(--lrh-radius-lg);
     margin-block: 1rem;
     padding: 1rem;
   }
@@ -2242,7 +2363,7 @@ def _base_styles() -> str:
   .lrh-summary-grid dt { color: var(--lrh-color-text-muted); font-weight: 700; }
   .lrh-status-badge {
     border: 1px solid currentColor;
-    border-radius: 999px;
+    border-radius: var(--lrh-radius-pill);
     display: inline-block;
     font-weight: 700;
     padding: 0.15rem 0.55rem;
@@ -2747,6 +2868,11 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     render_meta_dashboard(config),
                 )
                 return
+            if route == "/style":
+                self._write_text(
+                    200, "text/html; charset=utf-8", render_style_specimen()
+                )
+                return
             if route == "/meta/project":
                 self._write_text(
                     200,
@@ -2935,6 +3061,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 "/conversations/codex",
                 "/meta",
                 "/meta/project",
+                "/style",
                 "/health",
                 "/api/status",
                 "/api/project",
@@ -2949,6 +3076,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     "/conversations/codex",
                     "/meta",
                     "/meta/project",
+                    "/style",
                 }:
                     content_type = "text/html; charset=utf-8"
                 self._write_head(200, content_type)

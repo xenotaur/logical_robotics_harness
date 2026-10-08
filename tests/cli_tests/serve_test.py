@@ -14,6 +14,7 @@ import urllib.request
 from lrh import serve
 from lrh.cli import main as cli_main
 from lrh.conversations import codex_file_export
+from lrh.ux import tokens
 from tests import testing_support
 
 
@@ -218,6 +219,34 @@ class TestLrhServeRoutes(unittest.TestCase):
             content_type = response.headers.get("Content-Type", "")
             return response.status, content_type
 
+    def test_style_specimen_renders_shared_tokens_in_the_system_theme(self) -> None:
+        _httpd, base_url = self._start_server()
+
+        status, content_type, body = self._read(base_url + "/style")
+        head_status, head_type = self._head(base_url + "/style")
+
+        self.assertEqual(status, 200)
+        self.assertIn("text/html", content_type)
+        self.assertIn("Style specimen", body)
+        self.assertEqual(head_status, 200)
+        self.assertIn("text/html", head_type)
+        self.assertNotIn("data-theme=", body.split("<head>", 1)[0])
+        for key, label, _icon in serve._SPECIMEN_STATES:
+            self.assertIn(f"</span> {label}</span>", body)
+            for part in ("fg", "bg", "line"):
+                self.assertIn(f"var(--lrh-color-status-{key}-{part})", body)
+        for key, label in serve._SPECIMEN_BANDS:
+            self.assertIn(f"<h3>{label} ", body)
+            for part in ("fg", "bg", "line"):
+                self.assertIn(f"var(--lrh-color-band-{key}-{part})", body)
+
+    def test_serve_pages_inline_the_shared_token_file(self) -> None:
+        _httpd, base_url = self._start_server()
+
+        _status, _content_type, body = self._read(base_url + "/meta/project")
+
+        self.assertIn(tokens.token_css(), body)
+
     def test_index_health_and_status_routes_are_read_only_viewer(self) -> None:
         with tempfile.TemporaryDirectory() as tmp_dir:
             root = pathlib.Path(tmp_dir)
@@ -257,6 +286,7 @@ class TestLrhServeRoutes(unittest.TestCase):
                 "/conversations/codex/<export_id>",
                 "/meta",
                 "/meta/project",
+                "/style",
                 "/project/<project_id>",
                 "/project/<project_id>/designs/<design_id>",
                 "/project/<project_id>/workstreams/<workstream_id>",

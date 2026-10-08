@@ -87,7 +87,19 @@ def render_execution_content(
     pr: str,
     commit: str,
     created_at: str,
+    agent: str = "",
+    instruction_source: str = "",
+    session_transcript: str = "",
 ) -> str:
+    optional_fields = "".join(
+        f"{field}: {value}\n"
+        for field, value in (
+            ("agent", agent),
+            ("instruction_source", instruction_source),
+            ("session_transcript", session_transcript),
+        )
+        if value
+    )
     return (
         "---\n"
         f"execution_id: {execution_id}\n"
@@ -98,7 +110,8 @@ def render_execution_content(
         + _frontmatter_line("pr", pr)
         + _frontmatter_line("commit", commit)
         + f"created_at: {created_at}\n"
-        "---\n\n"
+        + optional_fields
+        + "---\n\n"
         "# Summary\n\n"
         "TODO: Briefly summarize the intended prompt-driven work.\n\n"
         "# Result\n\n"
@@ -149,13 +162,43 @@ def _replace_or_insert_frontmatter_field(
 
     pattern = re.compile(rf"^{re.escape(field)}:.*$", re.MULTILINE)
     if pattern.search(fm_text):
-        new_fm = pattern.sub(f"{field}: {value}", fm_text)
+        new_fm = pattern.sub(lambda _match: f"{field}: {value}", fm_text)
         return text[:fm_start] + new_fm + text[fm_end:]
     if insert_after is not None:
         anchor = re.compile(rf"^({re.escape(insert_after)}:.*$)", re.MULTILINE)
-        new_fm = anchor.sub(rf"\1\n{field}: {value}", fm_text, count=1)
+        new_fm = anchor.sub(
+            lambda match: f"{match.group(1)}\n{field}: {value}", fm_text, count=1
+        )
         return text[:fm_start] + new_fm + text[fm_end:]
     return text
+
+
+def _set_frontmatter_field(
+    text: str, field: str, value: str, *, anchors: tuple[str, ...]
+) -> str:
+    """Replace ``field``, or insert it after the first anchor that works.
+
+    Raises ``ValueError`` instead of silently no-opping when neither the field
+    nor any anchor exists, so a caller never reports success on an unchanged
+    file.
+    """
+    written = re.compile(rf"^{re.escape(field)}: {re.escape(value)}$", re.MULTILINE)
+    for anchor in anchors:
+        new_text = _replace_or_insert_frontmatter_field(
+            text, field, value, insert_after=anchor
+        )
+        fm_match = re.match(r"^---\n(.*?)\n---\n", new_text, re.DOTALL)
+        if fm_match is not None and written.search(fm_match.group(1)):
+            return new_text
+    raise ValueError(
+        f"could not write {field}: no existing {field}: field and none of "
+        f"{', '.join(anchors)} to insert after"
+    )
+
+
+def _require_single_line(parser: argparse.ArgumentParser, flag: str, value: str):
+    if not value.strip() or "\n" in value or "\r" in value:
+        parser.error(f"{flag} must be a non-empty single-line value")
 
 
 def find_execution_record_by_id(
@@ -231,6 +274,24 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     record_parser.add_argument("--rerun-of", default="")
     record_parser.add_argument("--pr", default="")
     record_parser.add_argument("--commit", default="")
+    record_parser.add_argument(
+        "--agent",
+        default=None,
+        help="Execution backend (e.g. claude_app, codex_app, codex_cloud, "
+        "manual). Omitted from the record when not given; no default is assumed.",
+    )
+    record_parser.add_argument(
+        "--instruction-source",
+        default=None,
+        help="Instruction-phase artifact: a repo-relative path, URL, or short "
+        "description. Omitted from the record when not given.",
+    )
+    record_parser.add_argument(
+        "--session-transcript",
+        default=None,
+        help="Session pointer such as claude-app:<host-uuid-stem>, or the "
+        "sentinel 'pending' or 'none'. Omitted from the record when not given.",
+    )
     record_parser.add_argument("--project-root", default=".")
     record_parser.add_argument("--output-root", default="project/executions")
     record_parser.add_argument("--dry-run", action="store_true")
@@ -283,6 +344,16 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     update_parser.add_argument("--pr", default=None)
     update_parser.add_argument("--commit", default=None)
     update_parser.add_argument("--session-transcript", default=None)
+    update_parser.add_argument(
+        "--agent",
+        default=None,
+        help="Set or replace the record's agent: field.",
+    )
+    update_parser.add_argument(
+        "--instruction-source",
+        default=None,
+        help="Set or replace the record's instruction_source: field.",
+    )
     update_parser.add_argument("--project-root", default=".")
     update_parser.add_argument("--output-root", default="project/executions")
 
@@ -375,6 +446,13 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
     if args.prompt_command == "update-execution":
         if args.commit is None:
             parser.error("--commit is required when --status landed")
+        for flag, value in (
+            ("--agent", args.agent),
+            ("--instruction-source", args.instruction_source),
+            ("--session-transcript", args.session_transcript),
+        ):
+            if value is not None:
+                _require_single_line(parser, flag, value)
         matches = find_execution_record_by_id(
             args.project_root,
             args.execution_id,
@@ -415,6 +493,21 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
                 args.session_transcript,
                 insert_after="commit",
             )
+        try:
+            for field, value in (
+                ("instruction_source", args.instruction_source),
+                ("agent", args.agent),
+            ):
+                if value is not None:
+                    text = _set_frontmatter_field(
+                        text,
+                        field,
+                        value.strip(),
+                        anchors=("created_at", "commit", "status"),
+                    )
+        except ValueError as error:
+            print(f"error: {record.path.as_posix()}: {error}", file=sys.stderr)
+            return 1
         record.path.write_text(text, encoding="utf-8")
         print(f"updated: {record.path.as_posix()}")
         return 0
@@ -470,6 +563,14 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
         )
     output_file = execution_dir / f"{execution_id}.md"
 
+    for flag, value in (
+        ("--agent", args.agent),
+        ("--instruction-source", args.instruction_source),
+        ("--session-transcript", args.session_transcript),
+    ):
+        if value is not None:
+            _require_single_line(parser, flag, value)
+
     content = render_execution_content(
         execution_id=execution_id,
         prompt_id=args.prompt_id,
@@ -479,6 +580,9 @@ def run_prompt_cli(argv: list[str], *, prog: str = "lrh prompt") -> int:
         pr=args.pr,
         commit=args.commit,
         created_at=now.isoformat(timespec="seconds"),
+        agent=(args.agent or "").strip(),
+        instruction_source=(args.instruction_source or "").strip(),
+        session_transcript=(args.session_transcript or "").strip(),
     )
 
     if args.dry_run:

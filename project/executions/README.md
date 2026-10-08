@@ -95,6 +95,31 @@ session_transcript: claude-app:4c3d03d6-6ebd-418a-86b2-6f4041feb9db
 ---
 ```
 
+### Setting the optional fields from the CLI
+
+`lrh prompt record-execution` writes the three optional fields only when
+asked, immediately after `created_at` and in this order. The flags are
+independent and each is omitted from the record when not passed. The CLI
+assumes no default, because a wrong `agent` is worse than an absent one, and
+every caller knows its own backend:
+
+```bash
+lrh prompt record-execution \
+  --prompt-id "$PROMPT_ID" --slug my-slug --status in_progress \
+  --agent claude_app \
+  --instruction-source project/work_items/proposed/WI-EXAMPLE.md \
+  --session-transcript pending \
+  --project-root .
+```
+
+A record created without them can gain `agent:` and `instruction_source:`
+later through `lrh prompt update-execution --agent <value>
+--instruction-source <value>`, alongside the existing `--session-transcript`.
+`update-execution` still only moves an `in_progress` record to `landed`, so a
+record that is already `landed` or in any other status cannot be amended this
+way. Values must be non-empty and single-line; the commands reject anything
+else.
+
 ## Status values
 
 Allowed status values:

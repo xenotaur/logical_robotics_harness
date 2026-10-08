@@ -7,6 +7,7 @@ import unittest.mock
 import zipfile
 
 from lrh import prompt_workflow_sessions
+from lrh.conversations import export_manifest
 
 
 class SessionIndexTest(unittest.TestCase):
@@ -493,6 +494,30 @@ class SessionReportTest(unittest.TestCase):
             self.assertEqual(report.archived, 0)
             self.assertEqual(len(report.unarchived), 1)
 
+    def _create_antigravity_export_text(
+        self,
+        cid: str,
+        *,
+        source_tool: str = export_manifest.SOURCE_TOOL_ANTIGRAVITY,
+    ) -> str:
+        manifest = export_manifest.ConversationExportManifest(
+            kind=export_manifest.KIND_ANTIGRAVITY,
+            schema_version=export_manifest.SCHEMA_VERSION,
+            source_tool=source_tool,
+            source_adapter="antigravity_transcript_jsonl",
+            source_id=cid,
+            source_sha256="0" * 64,
+            exported_at="2026-10-08T12:00:00+00:00",
+            privacy=export_manifest.DEFAULT_PRIVACY,
+            authority=export_manifest.DEFAULT_AUTHORITY,
+            sensitivity=export_manifest.SENSITIVITY_UNSCANNED,
+            sensitivity_scan={"status": export_manifest.SCAN_STATUS_NOT_SCANNED},
+            transcript_statistics=export_manifest.TranscriptStatistics(
+                byte_count=10, character_count=10, line_count=1
+            ),
+        )
+        return f"{manifest.to_frontmatter()}# Export\n"
+
     def test_report_counts_archived_antigravity_session(self) -> None:
         cid = "11111111-2222-3333-4444-555555555555"
         with tempfile.TemporaryDirectory() as tmp:
@@ -507,7 +532,9 @@ class SessionReportTest(unittest.TestCase):
                 archive_root / "antigravity" / "exports" / "2026" / "10" / f"{cid}.md"
             )
             export_file.parent.mkdir(parents=True)
-            export_file.write_text("# Export\n", encoding="utf-8")
+            export_file.write_text(
+                self._create_antigravity_export_text(cid), encoding="utf-8"
+            )
 
             report = prompt_workflow_sessions.build_session_report(
                 project_root, archive_root=archive_root
@@ -515,6 +542,67 @@ class SessionReportTest(unittest.TestCase):
 
             self.assertEqual(report.archived, 1)
             self.assertEqual(report.findings, ())
+
+    def test_report_counts_archived_antigravity_session_with_renamed_file(
+        self,
+    ) -> None:
+        cid = "11111111-2222-3333-4444-555555555555"
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript=f"antigravity-app:{cid}",
+            )
+            export_file = (
+                archive_root / "antigravity" / "exports" / "custom_named_export.md"
+            )
+            export_file.parent.mkdir(parents=True)
+            export_file.write_text(
+                self._create_antigravity_export_text(cid), encoding="utf-8"
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 1)
+            self.assertEqual(report.findings, ())
+
+    def test_report_ignores_non_manifest_or_malformed_md_in_antigravity_archive(
+        self,
+    ) -> None:
+        cid = "11111111-2222-3333-4444-555555555555"
+        with tempfile.TemporaryDirectory() as tmp:
+            project_root = pathlib.Path(tmp) / "project"
+            archive_root = pathlib.Path(tmp) / "archive"
+            self._write_record(
+                project_root,
+                execution_id="R1",
+                session_transcript=f"antigravity-app:{cid}",
+            )
+            antigravity_dir = archive_root / "antigravity" / "exports"
+            antigravity_dir.mkdir(parents=True)
+            (antigravity_dir / f"{cid}.md").write_text(
+                "# Not a manifest\n", encoding="utf-8"
+            )
+            (antigravity_dir / "bad_yaml.md").write_text(
+                "---\n: invalid [yaml\n---\n", encoding="utf-8"
+            )
+            (antigravity_dir / "wrong_tool.md").write_text(
+                self._create_antigravity_export_text(
+                    cid, source_tool=export_manifest.SOURCE_TOOL_CODEX
+                ),
+                encoding="utf-8",
+            )
+
+            report = prompt_workflow_sessions.build_session_report(
+                project_root, archive_root=archive_root
+            )
+
+            self.assertEqual(report.archived, 0)
+            self.assertEqual(len(report.unarchived), 1)
 
     def test_report_flags_unarchived_antigravity_conversation(self) -> None:
         cid = "11111111-2222-3333-4444-555555555555"

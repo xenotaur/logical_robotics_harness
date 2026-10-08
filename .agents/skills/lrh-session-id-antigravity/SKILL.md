@@ -87,13 +87,16 @@ Work through these steps in order.
 
 ### Step 1 -- Resolve the conversation ID
 
+Capture the resolved conversation ID from the command:
+
 If the user supplied an argument, pass it as `--conversation-id`:
 
 ```bash
+CONVERSATION_ID="$1"
 lrh conversation current-antigravity-conversation-id --conversation-id "$CONVERSATION_ID"
 ```
 
-If no argument was supplied, use the shared resolver default:
+If no argument was supplied, use the default resolution:
 
 ```bash
 lrh conversation current-antigravity-conversation-id
@@ -103,24 +106,22 @@ If the command exits with code 2 (unresolved environment and no argument), repor
 `session_transcript: pending` and ask the user if they would like to provide an
 explicit conversation ID or discover via `--latest`.
 
+If the command succeeds, capture the resolved conversation ID from the output.
+
 ### Step 2 -- Report the pointer
 
-For human-readable output, run:
-
-```bash
-lrh conversation current-antigravity-conversation-id
-```
-
-For execution-record copy/paste output, run:
-
-```bash
-lrh conversation current-antigravity-conversation-id --field session-transcript
-```
-
-Report both:
+Using the resolved conversation ID from Step 1, report both:
 
 - `Conversation ID: <id>` (or `pending`)
 - `session_transcript: antigravity-app:<id>` (or `session_transcript: pending`)
+
+For programmatic/copy-paste output using the CLI, pass the resolved conversation ID:
+
+```bash
+lrh conversation current-antigravity-conversation-id \
+  --conversation-id "$CONVERSATION_ID" \
+  --field session-transcript
+```
 
 ### Step 3 -- Close out
 

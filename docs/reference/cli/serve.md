@@ -46,6 +46,22 @@ lrh serve --desktop-protocol
 - Non-local host binding requires explicit opt-in with `--allow-nonlocal-host`.
 - `--show-config` is a non-serving diagnostics mode. Its JSON includes the
   `theme`.
+- Every HTML page is shown inside the LRH Console frame:
+  - a top bar with the LRH icon (always a link home to `/meta`), the page
+    name and scope, the render time, refresh, and a gear that links to
+    `/settings`;
+  - a sidebar with a scope switcher (All projects, or a project from the Meta
+    registry) and that scope's views. It collapses to an icon rail without
+    scripts, and is a rail by default on narrow screens;
+  - a detail drawer, opened by adding `?item=<id>` to a page's URL.
+- `/settings` is a read-only display and about page: the theme, how to
+  change it, the `lrh` version, and the font and icon licenses. LRH Console
+  opens its own Settings window instead.
+- `/static/<asset>` serves only the frame's packaged files: the LRH icon, the
+  Montserrat subset and its SIL OFL license, and the Lucide icons' ISC license.
+  Any other path is 404.
+- The Content-Security-Policy allows inline styles and same-origin images and
+  fonts only, and no scripts.
 - Pages take their colors from the shared LRH Console token file. The
   read-only `/style` page shows every token in the current theme.
 - Without `--desktop-protocol`, the command runs in the foreground, prints one

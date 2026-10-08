@@ -18,11 +18,12 @@ from pathlib import Path
 from typing import Any
 
 from lrh import core_state, desktop_protocol
+from lrh import version as lrh_version
 from lrh.assist import run_packet, run_report, work_item_prompt_core
 from lrh.control import loader as control_loader
 from lrh.conversations import export_inspector
 from lrh.meta import workspace as meta_workspace
-from lrh.ux import dashboard, tokens
+from lrh.ux import dashboard, frame, tokens
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 8765
@@ -48,6 +49,8 @@ _STATUS_ROUTES = (
     "/meta",
     "/meta/project",
     "/style",
+    "/settings",
+    "/static/<asset>",
     "/project/<project_id>",
     "/project/<project_id>/designs/<design_id>",
     "/project/<project_id>/workstreams/<workstream_id>",
@@ -88,6 +91,88 @@ class ServeConfig:
         if project_dir.name == "project":
             return project_dir.parent
         return project_dir
+
+
+_CONTENT_SECURITY_POLICY = (
+    "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; "
+    "font-src 'self'; base-uri 'none'; frame-ancestors 'none'; "
+    "form-action 'none'"
+)
+
+
+def _frame_projects(config: ServeConfig) -> tuple[frame.Project, ...]:
+    """Return the registered projects for the scope switcher, or none."""
+
+    try:
+        workspace = meta_workspace.resolve_meta_workspace(
+            cwd=config.resolved_project_root(),
+            options=meta_workspace.MetaWorkspaceResolveOptions(),
+        )
+        results = meta_workspace.list_registered_project_loads_in_workspace(workspace)
+    except (
+        meta_workspace.MetaWorkspaceResolutionError,
+        meta_workspace.MetaRegistryError,
+    ):
+        return ()
+    return tuple(
+        frame.Project(
+            selector=result.record.registry_name,
+            label=result.record.display_name or result.record.registry_name,
+        )
+        for result in results
+        if result.record is not None
+    )
+
+
+def render_settings_page(config: ServeConfig) -> str:
+    """Render the read-only display and about page the gear opens in a browser.
+
+    LRH Console intercepts this path and opens its native Settings window.
+    """
+
+    theme = html.escape(config.theme)
+    version = html.escape(str(lrh_version.get_installed_version() or "unknown"))
+    return f"""<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Display and about</title>{_base_styles()}</head>
+<body>
+  <div class="lrh-app-shell">
+    <header class="lrh-page-header">
+      <p class="lrh-eyebrow">LRH Console</p>
+      <h1>Display and about</h1>
+      <p class="lrh-muted">Read-only. In the LRH Console app, the gear opens
+      Settings instead.</p>
+    </header>
+    <main class="lrh-main-content">
+      <section class="lrh-console-region">
+        <h2>Theme</h2>
+        <p>This server uses the <strong>{theme}</strong> theme.
+        <code>system</code> follows your operating system's light or dark
+        appearance.</p>
+        <p>To choose, restart the server with
+        <code>lrh serve --theme light</code>, <code>--theme dark</code>, or
+        <code>--theme system</code>. In LRH Console, use
+        <strong>Settings &gt; Appearance</strong>.</p>
+      </section>
+      <section class="lrh-console-region">
+        <h2>About</h2>
+        <dl class="lrh-summary-grid">
+          <div><dt>lrh</dt><dd class="lrh-mono">{version}</dd></div>
+          <div><dt>Mode</dt><dd>Read-only local viewer</dd></div>
+        </dl>
+        <h3>Licenses</h3>
+        <ul>
+          <li>Montserrat, SIL Open Font License 1.1:
+            <a href="/static/fonts/OFL-montserrat.txt">license text</a></li>
+          <li>Lucide icons, ISC License:
+            <a href="/static/icons/LICENSE-lucide.txt">license text</a></li>
+        </ul>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
+"""
 
 
 def apply_theme(page: str, theme: str) -> str:
@@ -2334,9 +2419,12 @@ def _is_path_within(path: Path, root: Path) -> bool:
 
 
 def _base_styles() -> str:
-    """Return the shared tokens plus page styles for package-owned serve pages."""
+    """Return the viewport tag, shared tokens, and page styles for every page."""
 
-    return "<style>\n" + tokens.token_css() + _PAGE_STYLES
+    return (
+        '<meta name="viewport" content="width=device-width, initial-scale=1">\n'
+        "<style>\n" + tokens.token_css() + frame.FRAME_STYLES + _PAGE_STYLES
+    )
 
 
 _PAGE_STYLES = """
@@ -2887,6 +2975,14 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     render_meta_dashboard(config),
                 )
                 return
+            if route == frame.SETTINGS_PATH:
+                self._write_text(
+                    200, "text/html; charset=utf-8", render_settings_page(config)
+                )
+                return
+            if route.startswith(frame.STATIC_PREFIX):
+                self._write_static(route.removeprefix(frame.STATIC_PREFIX))
+                return
             if route == "/style":
                 self._write_text(
                     200, "text/html; charset=utf-8", render_style_specimen()
@@ -3038,6 +3134,13 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 else:
                     self._write_head(status_code, "application/json; charset=utf-8")
                 return
+            if route.startswith(frame.STATIC_PREFIX):
+                name = route.removeprefix(frame.STATIC_PREFIX)
+                if frame.read_static(name) is None:
+                    self._write_head(404, "application/json; charset=utf-8")
+                else:
+                    self._write_static(name, head=True)
+                return
             if route in _WORKBENCH_ARTIFACT_ROUTES:
                 self._write_workbench_artifact_head(route)
                 return
@@ -3081,6 +3184,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 "/meta",
                 "/meta/project",
                 "/style",
+                "/settings",
                 "/health",
                 "/api/status",
                 "/api/project",
@@ -3096,6 +3200,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     "/meta",
                     "/meta/project",
                     "/style",
+                    "/settings",
                 }:
                     content_type = "text/html; charset=utf-8"
                 self._write_head(200, content_type)
@@ -3179,8 +3284,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             self.send_header("X-Frame-Options", "DENY")
             self.send_header(
                 "Content-Security-Policy",
-                "default-src 'none'; style-src 'unsafe-inline'; "
-                "base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+                _CONTENT_SECURITY_POLICY,
             )
 
         def _write_download(self, artifact: WorkbenchArtifact) -> None:
@@ -3233,6 +3337,20 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 return address
             return None
 
+        def _write_static(self, name: str, *, head: bool = False) -> None:
+            body = frame.read_static(name)
+            if body is None:
+                self._write_json(404, {"error": "not_found"})
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", frame.STATIC_FILES[name])
+            self.send_header("Cache-Control", "no-cache")
+            self._add_security_headers()
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            if not head:
+                self.wfile.write(body)
+
         def _write_json(self, status_code: int, payload: dict[str, object]) -> None:
             body = json.dumps(payload, sort_keys=True).encode("utf-8")
             self.send_response(status_code)
@@ -3250,6 +3368,14 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
             text: str,
         ) -> None:
             if content_type.startswith("text/html"):
+                text = frame.apply_frame(
+                    text,
+                    frame.FrameContext(
+                        path=self._route_path(),
+                        query=self._query_values(),
+                        projects=_frame_projects(config),
+                    ),
+                )
                 text = apply_theme(text, config.theme)
             body = text.encode("utf-8")
             self.send_response(status_code)

@@ -126,6 +126,20 @@ class VcsMergeCliTest(unittest.TestCase):
         self.assertEqual("", captured.stdout.getvalue())
         self.assertEqual(1, len(fake.merge_calls))
 
+    def test_unexpected_exception_after_the_merge_exits_two_not_one(self) -> None:
+        # An unhandled exception would exit 1, the code documented as "queued".
+        fake = FakeBackend(
+            ["OPEN", UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")]
+        )
+        code, captured = _run(
+            ["merge", PR, "--merge", "--match-head-commit", SHA], fake
+        )
+        self.assertEqual(2, code)
+        self.assertIn("merge command was issued", captured.stderr.getvalue())
+        self.assertIn("UnicodeDecodeError", captured.stderr.getvalue())
+        self.assertEqual("", captured.stdout.getvalue())
+        self.assertEqual(1, len(fake.merge_calls))
+
     def test_backend_flag_selects_the_backend_by_name(self) -> None:
         fake = FakeBackend(["OPEN", "MERGED"])
         with (

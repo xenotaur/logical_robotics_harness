@@ -47,7 +47,7 @@ on a commit other than the one that gate verified.
 |---|---|---|
 | `0` | The pull request is confirmed `MERGED`. | stdout: `merged: <merge commit>` |
 | `1` | The merge was accepted but the pull request is not `MERGED` yet, for example it is queued. Re-check its state before proceeding. | stdout: `queued: ...` |
-| `2` | Refused or failed. A refusal (`refused: ...`) means no merge command was issued. A failure (`error: ...`) carries the backend's own message. If the merge command itself failed, the message ends with the pull request's state read back afterwards (for example `the pull request is now OPEN`), because a command can fail after the forge accepted it; if that read also failed, the message says to check the pull request. The same applies when the merge was issued but its final state could not be read, or was neither `MERGED` nor `OPEN`. | stderr |
+| `2` | Refused or failed. A refusal (`refused: ...`) means no merge command was issued. A failure (`error: ...`) carries the backend's own message. If the merge command itself failed, the message ends with the pull request's state read back afterwards (for example `the pull request is now OPEN`), because a command can fail after the forge accepted it; if that read also failed, the message says to check the pull request. The same applies when the merge was issued but its final state could not be read, or was neither `MERGED` nor `OPEN`. An unexpected exception of any type from the backend is reported the same way, with its type name, and never as a traceback (whose exit code `1` would read as "queued"). | stderr |
 
 ### JSON output
 

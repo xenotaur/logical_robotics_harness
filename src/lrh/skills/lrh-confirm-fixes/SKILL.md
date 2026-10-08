@@ -635,7 +635,8 @@ this REVIEW-LANDED state on the `_CONFIRM` commit:
   project treats as standard. `lrh vcs merge` refuses unless the PR is open
   and its head is exactly `<sha>`, issues the merge once without retrying,
   and reads the PR back (exit `0` merged, `1` accepted but not yet merged,
-  `2` refused or failed). Locking to the SHA makes the merge fail rather
+  `2` refused or failed — read the message, since exit `2` does not always
+  mean nothing merged). Locking to the SHA makes the merge fail rather
   than silently merge a newer, unchecked commit if one lands between this
   report and whoever ends up running it.
 

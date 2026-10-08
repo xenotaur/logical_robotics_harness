@@ -181,6 +181,65 @@ class MergePullRequestLockedTest(unittest.TestCase):
         self.assertEqual(1, len(fake.merge_calls))
 
 
+def _decode_error() -> UnicodeDecodeError:
+    return UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid start byte")
+
+
+class UnexpectedBackendErrorTest(unittest.TestCase):
+    """A pluggable backend may raise any exception type; none may escape."""
+
+    def test_unexpected_error_from_the_merge_call_reports_type_and_state(self) -> None:
+        fake = FakeBackend([_info(), _info("OPEN")], merge_error=_decode_error())
+        with self.assertRaises(backend.VcsError) as ctx:
+            backend.merge_pull_request_locked(
+                fake, PR, mode="merge", match_head_commit=SHA
+            )
+        self.assertIn("UnicodeDecodeError", str(ctx.exception))
+        self.assertIn("now OPEN", str(ctx.exception))
+        self.assertEqual(1, len(fake.merge_calls))
+
+    def test_unexpected_error_on_read_back_is_a_verification_error(self) -> None:
+        fake = FakeBackend([_info(), _decode_error()])
+        with self.assertRaises(backend.MergeVerificationError) as ctx:
+            backend.merge_pull_request_locked(
+                fake, PR, mode="merge", match_head_commit=SHA
+            )
+        self.assertIn("merge command was issued", str(ctx.exception))
+        self.assertIn("UnicodeDecodeError", str(ctx.exception))
+        self.assertEqual(1, len(fake.merge_calls))
+
+    def test_unexpected_error_before_the_merge_says_no_merge_was_issued(self) -> None:
+        fake = FakeBackend([RuntimeError("boom")])
+        with self.assertRaises(backend.VcsError) as ctx:
+            backend.merge_pull_request_locked(
+                fake, PR, mode="merge", match_head_commit=SHA
+            )
+        self.assertNotIsInstance(ctx.exception, backend.MergeRefusedError)
+        self.assertIn("no merge was issued", str(ctx.exception))
+        self.assertIn("RuntimeError: boom", str(ctx.exception))
+        self.assertEqual([], fake.merge_calls)
+
+    def test_unexpected_error_reading_state_after_a_failed_merge_call(self) -> None:
+        fake = FakeBackend(
+            [_info(), ValueError("odd")], merge_error=backend.VcsError("boom")
+        )
+        with self.assertRaises(backend.VcsError) as ctx:
+            backend.merge_pull_request_locked(
+                fake, PR, mode="merge", match_head_commit=SHA
+            )
+        self.assertIn("boom", str(ctx.exception))
+        self.assertIn("could not be read afterwards", str(ctx.exception))
+        self.assertIn("ValueError: odd", str(ctx.exception))
+
+    def test_backend_errors_before_the_merge_keep_their_own_type(self) -> None:
+        fake = FakeBackend([backend.MergeRefusedError("not a URL")])
+        with self.assertRaises(backend.MergeRefusedError):
+            backend.merge_pull_request_locked(
+                fake, PR, mode="merge", match_head_commit=SHA
+            )
+        self.assertEqual([], fake.merge_calls)
+
+
 class GitHubBackendTest(unittest.TestCase):
     def test_get_pull_request_parses_gh_payload(self) -> None:
         payload = {

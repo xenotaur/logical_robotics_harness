@@ -530,6 +530,13 @@ def _validate_dependency_map_views(
     for path in sorted(directory.glob("*.md")):
         try:
             view = dependency_map_view.parse_view(path, project_root.parent)
+        except OSError as err:
+            issues.append(
+                _issue(
+                    project_root, path, "error", "DEPENDENCY_MAP_VIEW_INVALID", str(err)
+                )
+            )
+            continue
         except dependency_map_view.ViewDeclarationError as err:
             for problem in err.problems:
                 issues.append(

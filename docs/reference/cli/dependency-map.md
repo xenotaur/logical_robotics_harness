@@ -58,6 +58,8 @@ lane_overrides:                 # optional; chooses a lane, with a reason
 ## Snapshot contents
 
 - `schema_version` (currently `1`), `view_id`, `view_title`, `view_source`.
+  `DependencyMapSnapshot.from_dict` checks every field's type and allowed
+  values, and raises `ValueError` for anything that does not fit.
 - `project`: the repository directory name, an opaque `checkout_id`, and the
   Git `head` if available. No absolute path is exported.
 - `source_fingerprint`: a hash of the control files' paths and contents, so
@@ -72,7 +74,9 @@ lane_overrides:                 # optional; chooses a lane, with a reason
     target that is not done); then `in_progress`; then `waiting` (a
     `depends_on` prerequisite is not done); then `unblocked` (with reason
     `no_prerequisites` when there are none). An abandoned
-    item has state `abandoned`. An abandoned or missing prerequisite never
+    item has state `abandoned`. An item whose `status` is not `proposed`,
+    `active`, `resolved`, or `abandoned` has state `unknown` and an
+    `invalid_lifecycle` diagnostic; it is never shown as eligible. An abandoned or missing prerequisite never
     counts as done.
   - `prompt_ready`: from `lrh work-items readiness`.
   - `authorization`: always `not_derived`, because LRH grants no per-item
@@ -88,7 +92,7 @@ lane_overrides:                 # optional; chooses a lane, with a reason
   `missing_reference`; `cycle`, reported separately per edge type for any
   cycle that touches a shown item; `ambiguous_lane`; `unplaced_lane`;
   `ambiguous_phase`; `unplaced_phase`; `unknown_view_reference`;
-  `unused_lane_override`; and `partial_source`. A consumer can call
+  `unused_lane_override`; `invalid_lifecycle`; and `partial_source`. A consumer can call
   `lrh.dependency_maps.snapshot.freshness_diagnostics` to get
   `stale_snapshot` when the sources changed after generation.
 

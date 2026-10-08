@@ -105,11 +105,18 @@ def parse_view(path: pathlib.Path, repo_root: pathlib.Path) -> ViewDeclaration:
     """Parse and check a declaration's shape (not its references)."""
 
     source = path.relative_to(repo_root).as_posix()
+    # A read error is an I/O failure, not a malformed declaration: let it
+    # propagate so callers can tell the two apart.
     try:
         data = parse_markdown_file(path).frontmatter
-    except (OSError, ValueError) as err:
+    except ValueError as err:
         raise ViewDeclarationError(source, [str(err)]) from err
     problems: list[str] = []
+    if not _VIEW_ID.fullmatch(path.stem):
+        problems.append(
+            "the file name must use lowercase letters, digits, and - only, "
+            "or the view cannot be loaded"
+        )
 
     view_id = data.get("id")
     if not isinstance(view_id, str) or view_id != path.stem:

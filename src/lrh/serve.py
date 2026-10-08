@@ -178,6 +178,8 @@ def dependency_map_head_status(config: ServeConfig, remainder: str) -> int:
         return 404
     except dependency_map_view.ViewDeclarationError:
         return 422
+    except OSError:
+        return 500
     return 200
 
 

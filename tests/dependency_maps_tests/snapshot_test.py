@@ -414,6 +414,34 @@ phases:
 
         self.assertIn("unused_lane_override", self.codes(self.build()))
 
+    def test_unknown_lifecycles_are_never_eligible(self) -> None:
+        _work_item(self.root, "WI-A")
+        path = self.root / "project/work_items/proposed/WI-A.md"
+        path.write_text(
+            path.read_text(encoding="utf-8").replace(
+                "status: proposed", "status: typo"
+            ),
+            encoding="utf-8",
+        )
+        _workstream(self.root, "WS-A", ["WI-A"])
+        _view(self.root, _simple_view(["WI-A"]))
+
+        built = self.build()
+
+        self.assertEqual(built.nodes[0].state, "unknown")
+        self.assertIn("invalid_lifecycle", self.codes(built))
+
+    def test_freshness_accepts_the_project_directory(self) -> None:
+        _work_item(self.root, "WI-A")
+        _workstream(self.root, "WS-A", ["WI-A"])
+        _view(self.root, _simple_view(["WI-A"]))
+
+        built = snapshot.build_snapshot(self.root / "project", "main", now=_AT)
+
+        self.assertEqual(
+            snapshot.freshness_diagnostics(built, self.root / "project"), ()
+        )
+
     def test_changed_sources_make_a_snapshot_stale(self) -> None:
         _work_item(self.root, "WI-A")
         _workstream(self.root, "WS-A", ["WI-A"])
@@ -460,6 +488,59 @@ class ViewDeclarationTest(_RepoMixin, unittest.TestCase):
     def test_from_dict_rejects_malformed_data_with_value_error(self) -> None:
         with self.assertRaises(ValueError):
             snapshot.DependencyMapSnapshot.from_dict({"schema_version": 1})
+
+    def test_from_dict_checks_field_types_and_allowed_values(self) -> None:
+        _work_item(self.root, "WI-A", depends_on=["WI-B"])
+        _work_item(self.root, "WI-B")
+        _workstream(self.root, "WS-A", ["WI-A", "WI-B"])
+        _view(self.root, _simple_view(["WI-A", "WI-B"]))
+        good = json.loads(self.build().to_json())
+
+        def broken(change) -> dict:
+            data = json.loads(json.dumps(good))
+            change(data)
+            return data
+
+        for label, change in (
+            ("view_id type", lambda d: d.update(view_id=1)),
+            ("edge resolved type", lambda d: d["edges"][0].update(resolved="false")),
+            ("state value", lambda d: d["nodes"][0].update(state="bogus")),
+            ("edge kind", lambda d: d["edges"][0].update(kind="relates_to")),
+            ("extra field", lambda d: d["project"].update(path="/x")),
+            ("nested shape", lambda d: d.update(lanes=["WS-A"])),
+            ("schema version type", lambda d: d.update(schema_version=True)),
+        ):
+            with self.subTest(label):
+                with self.assertRaises(ValueError):
+                    snapshot.DependencyMapSnapshot.from_dict(broken(change))
+
+    def test_view_read_errors_are_snapshot_errors(self) -> None:
+        _work_item(self.root, "WI-A")
+        _workstream(self.root, "WS-A", ["WI-A"])
+        _view(self.root, _simple_view(["WI-A"]))
+
+        with unittest.mock.patch.object(
+            view_module, "parse_markdown_file", side_effect=PermissionError("denied")
+        ):
+            with self.assertRaises(snapshot.SnapshotError):
+                self.build()
+
+    def test_file_names_outside_the_id_grammar_are_rejected(self) -> None:
+        _work_item(self.root, "WI-A")
+        _workstream(self.root, "WS-A", ["WI-A"])
+        _view(self.root, _simple_view(["WI-A"]).replace('"main"', '"Bad"'), name="Bad")
+
+        with self.assertRaises(view_module.ViewDeclarationError) as err_ctx:
+            view_module.parse_view(
+                self.root / "project/views/dependency_maps/Bad.md", self.root
+            )
+        self.assertIn("file name", " ".join(err_ctx.exception.problems))
+        codes = {
+            issue.code
+            for issue in validate_project(self.root / "project").issues
+            if issue.file.startswith("views/")
+        }
+        self.assertEqual(codes, {"DEPENDENCY_MAP_VIEW_INVALID"})
 
     def test_malformed_declarations_list_every_problem(self) -> None:
         _view(

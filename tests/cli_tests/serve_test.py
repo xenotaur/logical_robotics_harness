@@ -569,6 +569,23 @@ class TestLrhServeRoutes(unittest.TestCase):
         self.assertEqual(payload, expected)
         self.assertEqual({node["id"] for node in payload["nodes"]}, {"WI-A", "WI-B"})
 
+    def test_dependency_map_route_reports_read_errors_as_500(self) -> None:
+        _root, base_url = self._dependency_map_server()
+        url = base_url + "/api/project/main/dependency-maps/main"
+
+        with unittest.mock.patch.object(
+            serve.dependency_map_view,
+            "parse_markdown_file",
+            side_effect=PermissionError("denied"),
+        ):
+            with self.assertRaises(urllib.error.HTTPError) as get_ctx:
+                self._read(url)
+            with self.assertRaises(urllib.error.HTTPError) as head_ctx:
+                self._head(url)
+
+        self.assertEqual(get_ctx.exception.code, 500)
+        self.assertEqual(head_ctx.exception.code, 500)
+
     def test_dependency_map_route_errors(self) -> None:
         _root, base_url = self._dependency_map_server()
 

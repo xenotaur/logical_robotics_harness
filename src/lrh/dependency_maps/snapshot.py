@@ -20,6 +20,8 @@ import hashlib
 import json
 import pathlib
 import subprocess
+import types
+import typing
 from typing import Any
 
 from lrh.control import loader
@@ -30,7 +32,24 @@ from lrh.work_items import readiness
 SCHEMA_VERSION = 1
 UNPLACED = "unplaced"
 EDGE_KINDS = ("depends_on", "blocked_by")
-STATES = ("done", "blocked", "in_progress", "waiting", "unblocked", "abandoned")
+STATES = (
+    "done",
+    "blocked",
+    "in_progress",
+    "waiting",
+    "unblocked",
+    "abandoned",
+    "unknown",
+)
+LIFECYCLES = ("proposed", "active", "resolved", "abandoned")
+REASON_KINDS = (
+    "lifecycle",
+    "blocked_flag",
+    "blocked_by",
+    "depends_on",
+    "no_prerequisites",
+)
+SEVERITIES = ("error", "warning", "info")
 _FINGERPRINT_GLOBS = (
     "project/work_items/**/*.md",
     "project/workstreams/**/*.md",
@@ -129,47 +148,77 @@ class DependencyMapSnapshot:
         return json.dumps(self.to_dict(), indent=2, sort_keys=True)
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> DependencyMapSnapshot:
-        """Rebuild a snapshot from its JSON form; ValueError if it does not fit."""
+    def from_dict(cls, data: Any) -> DependencyMapSnapshot:
+        """Rebuild a snapshot from its JSON form, checking every field's type
+        and allowed values; ValueError if anything does not fit."""
 
-        if data.get("schema_version") != SCHEMA_VERSION:
-            raise ValueError(
-                f"unsupported schema_version {data.get('schema_version')!r}"
-            )
-        try:
-            return cls._from_dict(data)
-        except (KeyError, TypeError) as err:
-            raise ValueError(f"not a dependency-map snapshot: {err}") from err
+        if not isinstance(data, dict) or data.get("schema_version") != SCHEMA_VERSION:
+            version = data.get("schema_version") if isinstance(data, dict) else None
+            raise ValueError(f"unsupported schema_version {version!r}")
+        snapshot = _typed(cls, data, "snapshot")
+        for node in snapshot.nodes:
+            _allowed(node.state, STATES, f"node {node.id} state")
+            for reason in node.state_reasons:
+                _allowed(reason.kind, REASON_KINDS, f"node {node.id} reason kind")
+        for edge in snapshot.edges:
+            _allowed(edge.kind, EDGE_KINDS, "edge kind")
+        for diagnostic in snapshot.diagnostics:
+            _allowed(diagnostic.severity, SEVERITIES, "diagnostic severity")
+        return snapshot
 
-    @classmethod
-    def _from_dict(cls, data: dict[str, Any]) -> DependencyMapSnapshot:
-        return cls(
-            schema_version=data["schema_version"],
-            view_id=data["view_id"],
-            view_title=data["view_title"],
-            view_source=data["view_source"],
-            project=ProjectIdentity(**data["project"]),
-            source_fingerprint=data["source_fingerprint"],
-            generated_at=data["generated_at"],
-            lanes=tuple(Row(**row) for row in data["lanes"]),
-            phases=tuple(Row(**row) for row in data["phases"]),
-            nodes=tuple(
-                Node(
-                    **{
-                        **node,
-                        "state_reasons": tuple(
-                            StateReason(**reason) for reason in node["state_reasons"]
-                        ),
-                    }
-                )
-                for node in data["nodes"]
-            ),
-            edges=tuple(Edge(**edge) for edge in data["edges"]),
-            diagnostics=tuple(
-                Diagnostic(**{**item, "subjects": tuple(item["subjects"])})
-                for item in data["diagnostics"]
-            ),
+
+def _allowed(value: str, allowed: tuple[str, ...], where: str) -> None:
+    if value not in allowed:
+        raise ValueError(f"{where} {value!r} is not one of {', '.join(allowed)}")
+
+
+def _typed(cls: Any, data: Any, where: str) -> Any:
+    """Build dataclass ``cls`` from ``data``, checking each field's type."""
+
+    if not isinstance(data, dict):
+        raise ValueError(f"{where} must be an object")
+    hints = typing.get_type_hints(cls)
+    names = {field.name for field in dataclasses.fields(cls)}
+    if set(data) != names:
+        missing = sorted(names - set(data))
+        extra = sorted(set(data) - names)
+        raise ValueError(
+            f"{where} fields differ: missing {missing}, unexpected {extra}"
         )
+    return cls(
+        **{
+            name: _value(hints[name], data[name], f"{where}.{name}")
+            for name in sorted(names)
+        }
+    )
+
+
+def _value(hint: Any, value: Any, where: str) -> Any:
+    origin = typing.get_origin(hint)
+    if origin in (typing.Union, types.UnionType):
+        options = typing.get_args(hint)
+        if value is None and type(None) in options:
+            return None
+        (inner,) = [option for option in options if option is not type(None)]
+        return _value(inner, value, where)
+    if origin is tuple:
+        if not isinstance(value, list | tuple):
+            raise ValueError(f"{where} must be a list")
+        inner, _ellipsis = typing.get_args(hint)
+        return tuple(
+            _value(inner, item, f"{where}[{index}]") for index, item in enumerate(value)
+        )
+    if dataclasses.is_dataclass(hint):
+        return _typed(hint, value, where)
+    if hint is bool:
+        ok = isinstance(value, bool)
+    elif hint is int:
+        ok = isinstance(value, int) and not isinstance(value, bool)
+    else:
+        ok = isinstance(value, hint)
+    if not ok:
+        raise ValueError(f"{where} must be {hint.__name__}, not {type(value).__name__}")
+    return value
 
 
 def source_fingerprint(repo_root: pathlib.Path) -> str:
@@ -195,7 +244,7 @@ def freshness_diagnostics(
 ) -> tuple[Diagnostic, ...]:
     """Return a ``stale_snapshot`` diagnostic if the sources changed since."""
 
-    current = source_fingerprint(repo_root)
+    current = source_fingerprint(repository_root(repo_root))
     if current == snapshot.source_fingerprint:
         return ()
     return (
@@ -222,17 +271,28 @@ def build_snapshot(
     malformed one, and SnapshotError if the control files cannot be loaded.
     """
 
-    repo_root = repo_root.resolve()
+    repo_root = repository_root(repo_root)
     try:
-        # Accept the project directory itself, as the loader does.
-        repo_root = loader.find_project_dir(repo_root).parent
+        declaration = view_module.load_view(repo_root, view_id)
     except FileNotFoundError:
-        pass
-    declaration = view_module.load_view(repo_root, view_id)
+        raise
+    except OSError as err:
+        raise SnapshotError(f"could not read the view declaration: {err}") from err
     try:
         return _build(repo_root, declaration, now)
     except (OSError, ValueError) as err:
         raise SnapshotError(f"could not load project control files: {err}") from err
+
+
+def repository_root(path: pathlib.Path) -> pathlib.Path:
+    """Return the repository root for ``path``, which may also be its
+    ``project/`` directory, as the loader accepts."""
+
+    path = path.resolve()
+    try:
+        return loader.find_project_dir(path).parent
+    except FileNotFoundError:
+        return path
 
 
 def _build(
@@ -369,6 +429,19 @@ def _build(
         )
 
     diagnostics.extend(_cycle_diagnostics(items, set(in_view) | offscreen))
+    diagnostics.extend(
+        Diagnostic(
+            code="invalid_lifecycle",
+            severity="error",
+            message=(
+                f"{node.id} has status {node.lifecycle!r}, which is not one of "
+                f"{', '.join(LIFECYCLES)}; its state is unknown"
+            ),
+            subjects=(node.id,),
+        )
+        for node in nodes
+        if node.lifecycle not in LIFECYCLES
+    )
 
     lanes = [
         Row(
@@ -413,6 +486,9 @@ def structural_state(
         return "done", (StateReason(kind="lifecycle", detail="resolved"),)
     if item.status == "abandoned":
         return "abandoned", (StateReason(kind="lifecycle", detail="abandoned"),)
+    if item.status not in LIFECYCLES:
+        # Never present an unrecognized lifecycle as eligible work.
+        return "unknown", (StateReason(kind="lifecycle", detail=item.status),)
     blockers: list[StateReason] = []
     if item.blocked:
         blockers.append(StateReason(kind="blocked_flag", detail=item.blocked_reason))

@@ -44,6 +44,7 @@ _TEXT_PAIRS = (
         for state in _STATES
     ]
     + [("action-on-accent", "action-accent"), ("text-primary", "action-accent-bg")]
+    + [(f"band-{band}-fg", f"band-{band}-bg") for band in _BANDS]
 )
 
 # Lines, icons, and focus against the surfaces they sit on: SC 1.4.11.
@@ -58,6 +59,12 @@ _LINE_PAIRS = (
     ]
     + [(f"status-{state}-line", f"status-{state}-bg") for state in _STATES]
     + [("focus", "action-accent-bg")]
+    + [
+        (f"band-{band}-line", background)
+        for band in _BANDS
+        for background in (f"band-{band}-bg",)
+        + tuple(f"surface-{s}" for s in _SURFACES)
+    ]
 )
 
 

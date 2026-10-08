@@ -3061,6 +3061,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                 "/conversations/codex",
                 "/meta",
                 "/meta/project",
+                "/style",
                 "/health",
                 "/api/status",
                 "/api/project",
@@ -3075,6 +3076,7 @@ def make_handler(config: ServeConfig) -> type[http.server.BaseHTTPRequestHandler
                     "/conversations/codex",
                     "/meta",
                     "/meta/project",
+                    "/style",
                 }:
                     content_type = "text/html; charset=utf-8"
                 self._write_head(200, content_type)

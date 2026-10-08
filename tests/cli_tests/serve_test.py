@@ -223,10 +223,13 @@ class TestLrhServeRoutes(unittest.TestCase):
         _httpd, base_url = self._start_server()
 
         status, content_type, body = self._read(base_url + "/style")
+        head_status, head_type = self._head(base_url + "/style")
 
         self.assertEqual(status, 200)
         self.assertIn("text/html", content_type)
         self.assertIn("Style specimen", body)
+        self.assertEqual(head_status, 200)
+        self.assertIn("text/html", head_type)
         self.assertNotIn("data-theme=", body.split("<head>", 1)[0])
         for key, label, _icon in serve._SPECIMEN_STATES:
             self.assertIn(f"</span> {label}</span>", body)
